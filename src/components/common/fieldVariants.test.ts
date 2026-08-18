@@ -87,3 +87,20 @@ describe("the field components share one box", () => {
     select.unmount();
   });
 });
+
+describe("filled tone (#648)", () => {
+  it("is a full-strength muted surface, distinct from the tinted-panel tone", () => {
+    const filled = fieldVariants({ tone: "filled" });
+    const muted = fieldVariants({ tone: "muted" });
+
+    expect(filled).toContain("bg-muted");
+    expect(filled).not.toContain("bg-muted/40");
+    expect(muted).toContain("bg-muted/40");
+  });
+
+  it("keeps the same border and focus ring as the other boxed tones", () => {
+    const filled = fieldVariants({ tone: "filled" });
+    expect(filled).toContain("border border-border");
+    expect(filled).toContain("focus:ring-1");
+  });
+});

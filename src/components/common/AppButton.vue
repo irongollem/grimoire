@@ -12,7 +12,7 @@
     :type="isNativeButton ? type : undefined"
     :disabled="isNativeButton ? isInert : undefined"
     :aria-disabled="!isNativeButton && isInert ? true : undefined"
-    :class="cn(buttonVariants({ variant, size, active, block, tone, emphasis }), className)"
+    :class="cn(buttonVariants({ variant, size, active, block, tone, emphasis, fill }), className)"
     :title="isTouch ? undefined : (tooltip ?? label)"
     :aria-label="ariaLabel ?? label ?? tooltip"
     @click="onClick"
@@ -82,6 +82,7 @@ const {
   block = false,
   tone = "primary",
   emphasis = "soft",
+  fill = "none",
   type = "button",
   label,
   icon,
@@ -129,6 +130,11 @@ const {
   tone?: ButtonVariants["tone"];
   /** `tinted` only — how loud: resting `soft`, selected `strong`, or `outline`. */
   emphasis?: ButtonVariants["emphasis"];
+  /**
+   * Whether the button paints a background on hover: `none` (default, text-only),
+   * `muted` (neutral wash), or `tone` (tinted by `tone`). See appButtonVariants.
+   */
+  fill?: ButtonVariants["fill"];
   /** Short label shown below sm instead of the full one. */
   mobileLabel?: string;
   /** Hides the label below the `collapseBelow` breakpoint entirely, leaving the icon. */

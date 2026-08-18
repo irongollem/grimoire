@@ -294,3 +294,110 @@ describe("menu and ghost/danger (#648)", () => {
     expect(cls).not.toMatch(/(?<!hover:)\bbg-/);
   });
 });
+
+describe("fill (#648)", () => {
+  it("defaults to none, so every pre-existing call site is unchanged", () => {
+    const withDefault = mount(AppButton, { props: { variant: "ghost", label: "x" }, global })
+      .get("button").classes().join(" ");
+    expect(withDefault).not.toMatch(/hover:bg-/);
+  });
+
+  it("fill=muted gives ghost a neutral hover wash", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "ghost", fill: "muted", label: "Bold" },
+      global,
+    }).get("button").classes();
+    expect(cls).toContain("hover:bg-muted");
+    // still no resting background — that is what keeps it a ghost.
+    expect(cls.join(" ")).not.toMatch(/(?<!hover:)\bbg-/);
+  });
+
+  it("fill=tone resolves through the tone custom properties, not a pinned hue", () => {
+    for (const tone of BUTTON_TONES) {
+      const cls = buttonVariants({ variant: "ghost", fill: "tone", tone });
+      expect(cls, tone).toContain(`hover:bg-tone-${tone}/10`);
+      expect(cls, tone).not.toMatch(
+        /hover:bg-(?:red|green|blue|sky|violet|amber|emerald|rose|gold)-\d{3}/,
+      );
+    }
+  });
+
+  // The danger case has to combine both halves: ghost+danger supplies the text
+  // colour, fill supplies the background. Neither alone is the recipe the call
+  // sites were writing by hand.
+  it("ghost + danger + fill=tone gives both the text colour and the background", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "ghost", tone: "danger", fill: "tone", label: "Remove" },
+      global,
+    }).get("button").classes();
+    expect(cls).toContain("hover:text-destructive");
+    expect(cls).toContain("hover:bg-tone-danger/10");
+  });
+
+  it("menu already fills, so it needs no fill prop", () => {
+    const cls = mount(AppButton, { props: { variant: "menu", label: "x" }, global })
+      .get("button").classes();
+    expect(cls).toContain("hover:bg-muted");
+  });
+});
+
+describe("active × tone (#648)", () => {
+  it("stays gold when no tone is given, so existing toggles are unchanged", () => {
+    const cls = mount(AppButton, { props: { variant: "ghost", active: true, label: "x" }, global })
+      .get("button").classes();
+    expect(cls).toContain("bg-primary/10");
+    expect(cls).toContain("text-primary");
+  });
+
+  // The whole point: a selected state that is deliberately not gold. Each of these
+  // stayed hand-rolled through three waves because `active` ignored `tone`.
+  it("takes the tone's colour when one is given", () => {
+    for (const tone of BUTTON_TONES.filter((t) => t !== "primary")) {
+      const cls = buttonVariants({ variant: "ghost", active: true, tone });
+      expect(cls, tone).toContain(`bg-tone-${tone}/15`);
+      expect(cls, tone).toContain(`text-tone-${tone}`);
+    }
+  });
+
+  // primary is the default tone, so a compound for it would repaint every plain
+  // :active button in the app. Its absence is load-bearing, not an omission.
+  it("has no primary compound, so the default cannot be repainted by accident", () => {
+    const explicit = buttonVariants({ variant: "ghost", active: true, tone: "primary" });
+    const implicit = buttonVariants({ variant: "ghost", active: true });
+    expect(explicit).toBe(implicit);
+    expect(explicit).not.toContain("bg-tone-primary");
+  });
+});
+
+describe("menu + danger (#648)", () => {
+  // A destructive row reads red AT REST, unlike ghost which only reddens on hover:
+  // it is one entry among neutral options and has to be distinguishable before you
+  // point at it.
+  it("is red at rest, not only on hover", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "menu", tone: "danger", block: true, label: "Sign Out" },
+      global,
+    }).get("button").classes();
+    expect(cls).toContain("text-destructive");
+  });
+
+  // menu's base sets hover:bg-muted and the two are the same tailwind-merge group,
+  // so without restating the fill the row would redden its text and still wash
+  // neutral on hover. This is the exact combination that silently did nothing
+  // before, and that two agents refused to ship.
+  it("overrides menu's neutral hover fill with the destructive one", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "menu", tone: "danger", label: "Delete" },
+      global,
+    }).get("button").classes();
+    expect(cls).toContain("hover:bg-destructive/10");
+    expect(cls).not.toContain("hover:bg-muted");
+  });
+
+  it("leaves an untoned menu row neutral", () => {
+    const cls = mount(AppButton, { props: { variant: "menu", label: "Settings" }, global })
+      .get("button").classes();
+    expect(cls).toContain("hover:bg-muted");
+    expect(cls).not.toContain("text-destructive");
+  });
+});

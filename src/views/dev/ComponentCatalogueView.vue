@@ -78,6 +78,37 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppButton — fill"
+      note="Whether a button paints a background on hover rather than only recolouring text. The largest recipe the sweep could not express — 104 hover:bg-muted and 116 hover:bg-<tone>/N occurrences across the app. It is an axis rather than a variant so it composes: ghost+fill is a toolbar toggle, ghost+fill+danger is a destructive icon button."
+    >
+      <div class="flex flex-col gap-3">
+        <div v-for="f in BUTTON_FILLS" :key="f" class="flex flex-wrap items-center gap-2">
+          <span class="text-label text-muted-foreground w-16 shrink-0">{{ f }}</span>
+          <AppButton variant="ghost" :fill="f" label="Ghost" :icon="IconWand" />
+          <AppButton variant="ghost" :fill="f" tone="danger" label="Danger" :icon="IconDelete" />
+          <AppButton variant="ghost" :fill="f" size="icon-sm" aria-label="Icon" :icon="IconWand" />
+        </div>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
+      title="AppButton — active × tone"
+      note="A selected state that is not gold. `primary` is deliberately absent from the compound table: it is the default tone, so a rule for it would repaint every plain :active button in the app."
+    >
+      <div class="flex flex-wrap items-center gap-2">
+        <AppButton variant="ghost" active label="default (gold)" />
+        <AppButton
+          v-for="tone in BUTTON_TONES.filter((t) => t !== 'primary')"
+          :key="tone"
+          variant="ghost"
+          active
+          :tone="tone"
+          :label="tone"
+        />
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton — menu rows"
       note="A row in a dropdown, popover or picker list. The only variant that overrides the base `justify-center`, because a menu row is left-aligned and full-bleed — pair it with `block`. It fills on hover rather than just recolouring text: the whole band is the hit target, so the highlight has to cover the band."
     >
@@ -278,6 +309,7 @@ import {
   BUTTON_SIZES,
   BUTTON_TONES,
   BUTTON_EMPHASES,
+  BUTTON_FILLS,
   type ButtonSize,
 } from "@/components/common/appButtonVariants";
 import { FIELD_SIZES, FIELD_TONES } from "@/components/common/fieldVariants";

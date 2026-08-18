@@ -20,6 +20,18 @@ export const fieldVariants = cva(
         card: "bg-card border border-border focus:ring-1 focus:ring-ring",
         /** Inside an already-tinted panel. */
         muted: "bg-muted/40 border border-border focus:ring-1 focus:ring-ring",
+        /**
+         * A field that provides its own contrast at full strength, sitting directly
+         * on a page or card rather than inside a tinted panel.
+         *
+         * Measured at 99 sites across 49 files during the #648 sweep — four times
+         * more common than `muted`'s `bg-muted/40` (24 sites / 12 files), which is
+         * why leaving it out kept sending agents back with the same report. The
+         * tempting fix at a call site is `tone="muted" class="bg-muted"`, i.e.
+         * cancelling what the primitive forces; that is the anti-pattern, so the
+         * surface gets a name instead.
+         */
+        filled: "bg-muted border border-border focus:ring-1 focus:ring-ring",
         /** Inline edit — no box until focus. */
         bare: "bg-transparent border-0 focus:ring-0",
       },
@@ -121,7 +133,7 @@ export interface AppSelectHandle {
 
 type Assert<T extends true> = T;
 
-export const FIELD_TONES = ["default", "card", "muted", "bare"] as const satisfies readonly FieldTone[];
+export const FIELD_TONES = ["default", "card", "muted", "filled", "bare"] as const satisfies readonly FieldTone[];
 export const FIELD_SIZES = ["xs", "sm", "md", "lg", "body", "body-xs", "heading"] as const satisfies readonly FieldSize[];
 
 export type AssertFieldTonesListed = Assert<

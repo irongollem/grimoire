@@ -71,6 +71,17 @@ export const buttonVariants = cva(
         /** min-h-11 is a ≥44px tap target on touch; ≥md reverts to py-2 so desktop is unchanged. */
         md: "gap-1.5 rounded-md px-3 py-2 min-h-11 md:min-h-0 text-label-lg",
         lg: "gap-1.5 rounded-md px-4 py-2 font-cinzel text-sm tracking-wider",
+        /**
+         * The one size that is NOT Cinzel. Every other size names a #552 label role,
+         * which carries the display face and its letter-spacing — right for a button,
+         * wrong for a row whose content is *reading* text: an @mention autocomplete
+         * listing entity names, a mobile overflow sheet's nav rows, an item picker.
+         *
+         * Two agents reported this independently as the thing blocking `menu` from
+         * covering their rows, having correctly refused to override the forced font
+         * with a call-site class. 12 sites across 9 files.
+         */
+        body: "gap-2 rounded-md px-3 py-1.5 text-body",
         "icon-xs": "h-6 w-6 rounded text-label-lg",
         "icon-sm": "h-8 w-8 rounded-md text-label-lg",
       },
@@ -83,17 +94,47 @@ export const buttonVariants = cva(
        * The bordered variants pick the colour up through the compound rules below.
        */
       active: {
+        /**
+         * Gold is the default because that is what every selected toggle in the app
+         * looked like — but it is only the default now, not the only option. See the
+         * active × tone compounds below: 28 toggles across 24 files have a selected
+         * state that is deliberately NOT gold (Spotify green on the soundboard's
+         * repeat/shuffle, emerald on the vendor offer, destructive red on the
+         * crafting proficiency locks), and each of them stayed hand-rolled through
+         * three waves of this sweep because `active` ignored `tone`.
+         */
         true: "bg-primary/10 text-primary hover:text-primary",
         false: "",
       },
       block: { true: "w-full", false: "" },
       /**
+       * Whether the button paints a *background* on hover, as opposed to only
+       * recolouring its text.
+       *
+       * This is the single largest recipe the #648 sweep could not express: 104
+       * `hover:bg-muted` and 116 `hover:bg-<tone>/N` occurrences across 69 and 84
+       * files. `ghost` deliberately has no background at any time, and every one of
+       * those sites wanted one on hover — so they each wrote it inline, and
+       * RichTextEditor's toolbar (29 buttons behind one `tbCls()` helper) could not
+       * convert a single control without it.
+       *
+       * Separate from `variant` rather than a `ghost-fill` variant, because it
+       * composes: a toolbar toggle is `ghost` + fill, a menu row is `menu` (which
+       * carries its own fill, since a row's whole band is the hit target), and a
+       * destructive icon button is `ghost` + fill + `tone="danger"`.
+       *
+       *   none   — text-only hover. The default; every existing call site keeps it.
+       *   muted  — neutral wash. Toolbar buttons, list rows, icon actions.
+       *   tone   — tinted by `tone`, via the compounds below.
+       */
+      fill: { none: "", muted: "hover:bg-muted", tone: "" },
+      /**
        * What a `tinted` button means. Semantic rather than hue-named so the palette
        * stays changeable: each maps to a `--color-tone-*` custom property a theme
        * can reassign, whereas `tone="red"` would pin the colour here.
        *
-       * Read by `tinted` and by `ghost` (see the ghost/danger compound below).
-       * Ignored by every other variant.
+       * Read by `tinted`, by `ghost` (see the ghost/danger compound below), and by
+       * `fill="tone"` on any variant. Ignored otherwise.
        */
       tone: {
         /** The theme's accent — soundboard source tabs, "Drop chest in chat". */
@@ -146,6 +187,16 @@ export const buttonVariants = cva(
       { variant: "tinted", tone: "caution", emphasis: "strong", class: "bg-tone-caution/25 border-tone-caution/60 text-tone-caution" },
       { variant: "tinted", tone: "caution", emphasis: "outline", class: "border-tone-caution/40 text-tone-caution hover:bg-tone-caution/10" },
 
+      // ── fill="tone" × tone ────────────────────────────────────────────────
+      // Spelled out for the same reason as the tinted table: Tailwind extracts
+      // classes statically, so `hover:bg-tone-<x>/10` cannot be composed at runtime.
+      { fill: "tone", tone: "primary", class: "hover:bg-tone-primary/10" },
+      { fill: "tone", tone: "danger", class: "hover:bg-tone-danger/10" },
+      { fill: "tone", tone: "success", class: "hover:bg-tone-success/10" },
+      { fill: "tone", tone: "info", class: "hover:bg-tone-info/10" },
+      { fill: "tone", tone: "arcane", class: "hover:bg-tone-arcane/10" },
+      { fill: "tone", tone: "caution", class: "hover:bg-tone-caution/10" },
+
       /**
        * The chromeless "remove this row" ✕ — 58 sites across 51 files, every one of
        * them a bare button whose only affordance was `hover:text-destructive`.
@@ -160,6 +211,32 @@ export const buttonVariants = cva(
        */
       { variant: "ghost", tone: "danger", class: "hover:text-destructive" },
 
+      /**
+       * The destructive menu row — "Sign Out", "Delete monster". Unlike `ghost`,
+       * which only reddens on hover, a destructive *row* reads red at rest: it is
+       * one entry in a list of otherwise-neutral options and has to be
+       * distinguishable before you point at it.
+       *
+       * Its hover fill has to be restated because `menu`'s base sets
+       * `hover:bg-muted`, and the two are the same tailwind-merge group — without
+       * this the row would redden its text but still wash neutral on hover.
+       *
+       * This compound is here because two agents in wave 3 tried to convert those
+       * two sites, found the combination silently produced no red, and correctly
+       * left them native rather than ship a dead affordance.
+       */
+      { variant: "menu", tone: "danger", class: "text-destructive hover:bg-destructive/10" },
+
+      // ── active × tone ─────────────────────────────────────────────────────
+      // `primary` is intentionally absent: it is the default `tone`, so a compound
+      // for it would fire on every plain `:active` button in the app and repaint the
+      // existing look. The gold above stays the untoned default; these five are opt-in.
+      { active: true, tone: "danger", class: "bg-tone-danger/15 text-tone-danger hover:text-tone-danger" },
+      { active: true, tone: "success", class: "bg-tone-success/15 text-tone-success hover:text-tone-success" },
+      { active: true, tone: "info", class: "bg-tone-info/15 text-tone-info hover:text-tone-info" },
+      { active: true, tone: "arcane", class: "bg-tone-arcane/15 text-tone-arcane hover:text-tone-arcane" },
+      { active: true, tone: "caution", class: "bg-tone-caution/15 text-tone-caution hover:text-tone-caution" },
+
       // Only the variants that already draw a border get the selected border colour.
       { variant: "outline", active: true, class: "border-primary" },
       { variant: "subtle", active: true, class: "border-primary" },
@@ -168,7 +245,7 @@ export const buttonVariants = cva(
     ],
     defaultVariants: {
       variant: "subtle", size: "sm", active: false, block: false,
-      tone: "primary", emphasis: "soft",
+      tone: "primary", emphasis: "soft", fill: "none",
     },
   },
 );
@@ -178,6 +255,7 @@ export type ButtonVariant = NonNullable<ButtonVariants["variant"]>;
 export type ButtonSize = NonNullable<ButtonVariants["size"]>;
 export type ButtonTone = NonNullable<ButtonVariants["tone"]>;
 export type ButtonEmphasis = NonNullable<ButtonVariants["emphasis"]>;
+export type ButtonFill = NonNullable<ButtonVariants["fill"]>;
 
 /* ── Enumerations for the component catalogue (#622) ──────────────────────────
    `cva` does not expose its own config, so the catalogue at /dev/components
@@ -193,7 +271,7 @@ export const BUTTON_VARIANTS = [
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "xs", "sm", "md", "lg", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "xs", "sm", "md", "lg", "body", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional
@@ -211,6 +289,12 @@ export const BUTTON_TONES = [
 ] as const satisfies readonly ButtonTone[];
 
 export const BUTTON_EMPHASES = ["soft", "strong", "outline"] as const satisfies readonly ButtonEmphasis[];
+
+export const BUTTON_FILLS = ["none", "muted", "tone"] as const satisfies readonly ButtonFill[];
+
+export type AssertFillsListed = Assert<
+  [Exclude<ButtonFill, (typeof BUTTON_FILLS)[number]>] extends [never] ? true : false
+>;
 
 export type AssertTonesListed = Assert<
   [Exclude<ButtonTone, (typeof BUTTON_TONES)[number]>] extends [never] ? true : false
