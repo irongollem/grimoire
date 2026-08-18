@@ -180,10 +180,11 @@ async function main() {
   }
 
   const cloned = cloneRichestCampaign(stack.DB_URL, fixtureId);
+  const party = ensureFixtureParty(stack.DB_URL, fixtureId);
 
   console.log(`Local sign-in ready — password for both: ${DEV_PASSWORD}\n`);
   console.log(`  admin   ${adminEmail}`);
-  console.log(`  fixture ${FIXTURE_EMAIL}  (${cloned} locations, ordinary privileges)\n`);
+  console.log(`  fixture ${FIXTURE_EMAIL}  (${cloned} locations, ${party} party members, ordinary privileges)\n`);
   if (changed.length) {
     console.log(`Password changed for ${changed.join(", ")} — those sessions are signed out.`);
   }
@@ -206,8 +207,10 @@ function quote(value: string): string {
  *
  * Dropped rather than copied: per-campaign API keys (they are secrets, and a
  * fixture has no business holding them), `npc_owner_id` and `source_map_id`
- * (their targets are not cloned), and `player_visible_to` (no party members to
- * share with, and an inherited share list is a misleading default).
+ * (their targets are not cloned), and `player_visible_to` (an inherited share
+ * list names party members from another campaign, so it is worse than empty).
+ *
+ * A party is added separately by `ensureFixtureParty`.
  */
 function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
   const already = Number(
@@ -296,9 +299,16 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
     -- Cloned via a select-star temp table rather than an explicit column list:
     -- npcs has 31 columns and gains more, and a hand-written list would quietly
     -- stop copying whatever was added last.
+    -- Capped at 8 against a free-tier limit of 10 (see the quota config in
+    -- 20260630000001). The source campaign has ~200, and cloning them all left
+    -- the fixture 190-odd over quota, so every NPC card rendered as a blurred
+    -- "Locked / Upgrade to access" tile — which is not what a real DM sees, and
+    -- makes the fixture useless for looking at any NPC UI. Two spare slots so
+    -- the fixture can still create one.
     create temporary table _npc_clone on commit drop as
     select * from public.npcs
-     where campaign_id = ${quote(sourceId)} and location_id is not null;
+     where campaign_id = ${quote(sourceId)} and location_id is not null
+     limit 8;
 
     update _npc_clone c set
       id = gen_random_uuid(),
@@ -318,6 +328,53 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
 
   return Number(
     sql(dbUrl, `select count(*) from public.locations where user_id = ${quote(ownerId)}`),
+  );
+}
+
+
+/**
+ * Gives the fixture's campaign a party, if it has none.
+ *
+ * Separate from the clone rather than part of it, and the difference is not
+ * cosmetic: the clone is guarded on "this owner already has locations", so on
+ * every run after the first it returns immediately. A party added inside it
+ * would therefore only ever reach a fixture created after this was written —
+ * which is precisely the fixture nobody has.
+ *
+ * It matters because every reveal control in the app is a list of party
+ * members. With nobody to share with, all of them render their "no party
+ * members yet" empty state, and the half of the feature that actually decides
+ * who sees what cannot be clicked at all.
+ *
+ * Synthetic rather than cloned from the source campaign: `party_members`
+ * carries FKs to species, backgrounds, deities and a linked player account, and
+ * a clone that does not remap them inserts a dangling reference. Only the
+ * columns without a usable default are named; the rest is what a freshly
+ * created character gets from the app.
+ */
+function ensureFixtureParty(dbUrl: string, ownerId: string): number {
+  const campaignId = sql(
+    dbUrl,
+    `select id from public.campaigns where user_id = ${quote(ownerId)} order by created_at limit 1`,
+  );
+  if (!campaignId) return 0;
+
+  const already = Number(
+    sql(dbUrl, `select count(*) from public.party_members where campaign_id = ${quote(campaignId)}`),
+  );
+  if (already > 0) return already;
+
+  sql(
+    dbUrl,
+    `insert into public.party_members (user_id, campaign_id, name, player_name, class, level, sort_order)
+     values
+       (${quote(ownerId)}, ${quote(campaignId)}, 'Brakka Ironvow', 'Sam',  'Fighter', 4, 0),
+       (${quote(ownerId)}, ${quote(campaignId)}, 'Nessa Quill',    'Alex', 'Rogue',   4, 1),
+       (${quote(ownerId)}, ${quote(campaignId)}, 'Orin Vale',      'Jo',   'Cleric',  4, 2);`,
+  );
+
+  return Number(
+    sql(dbUrl, `select count(*) from public.party_members where campaign_id = ${quote(campaignId)}`),
   );
 }
 
