@@ -13,6 +13,8 @@ describe("QuestFlowNode", () => {
     expect(card.attributes("role")).toBeUndefined();
     expect(node.attributes("aria-label")).toContain("current beat");
     expect(card.classes()).toContain("is-current");
+    expect(node.attributes("aria-label")).toContain("party is here");
+    expect(node.text()).toContain("Party is here");
     await node.trigger("keydown", { key: "Enter" });
     await node.trigger("keydown", { key: "Delete" });
     expect(wrapper.emitted("open")).toHaveLength(1);
@@ -37,6 +39,7 @@ describe("QuestFlowNode", () => {
           isCurrent: false,
           isVisited: true,
           isDisconnected: true,
+          reach: "visited",
         },
       },
       global: { stubs: { Handle: true } },
@@ -48,6 +51,49 @@ describe("QuestFlowNode", () => {
     expect(wrapper.text()).toContain("1 handout");
     expect(wrapper.text()).toContain("2 loot held");
     expect(wrapper.text()).toContain("Visited");
+  });
+
+  it("recedes a beat the run has walked past, and says why", () => {
+    const wrapper = mount(QuestFlowNode, {
+      props: {
+        title: "The bribe nobody took",
+        kind: "social",
+        visibility: "hidden",
+        presentation: {
+          prepGapCount: 0, prepGaps: [], handoutCount: 0,
+          loot: { total: 0, undispatched: 0, unclaimed: 0 },
+          isReady: true, isCurrent: false, isVisited: false, isDisconnected: false,
+          reach: "stranded",
+        },
+      },
+      global: { stubs: { Handle: true } },
+    });
+
+    expect(wrapper.get("article").classes()).toContain("is-stranded");
+    expect(wrapper.text()).toContain("Cut off");
+    expect(wrapper.get("button.quest-flow-node__main").attributes("aria-label"))
+      .toContain("no longer reachable from the current beat");
+  });
+
+  it("leaves an ordinary unplayed beat unlabelled", () => {
+    const wrapper = mount(QuestFlowNode, {
+      props: {
+        title: "Still to come",
+        kind: "explore",
+        visibility: "hidden",
+        presentation: {
+          prepGapCount: 0, prepGaps: [], handoutCount: 0,
+          loot: { total: 0, undispatched: 0, unclaimed: 0 },
+          isReady: true, isCurrent: false, isVisited: false, isDisconnected: false,
+          reach: "ahead",
+        },
+      },
+      global: { stubs: { Handle: true } },
+    });
+
+    expect(wrapper.text()).not.toContain("Cut off");
+    expect(wrapper.text()).not.toContain("Visited");
+    expect(wrapper.get("article").classes()).not.toContain("is-stranded");
   });
 
   it("offers an atomic add-next action from the card", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveQuestBeatPrepGaps, deriveQuestBeatPresentations, visitedRouteEdgeIds } from "./presentation";
+import { deriveQuestBeatPrepGaps, deriveQuestBeatPresentations, forwardReachableBeatIds, tallyQuestReach, visitedRouteEdgeIds } from "./presentation";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatTransition } from "@/types/quest.types";
 
 const beat = (id: string, visibility: QuestBeat["visibility"] = "hidden") => ({
@@ -62,6 +62,60 @@ describe("quest beat presentation", () => {
     expect(result.overview.prepGaps).toEqual([]);
     expect(result.lonely.isDisconnected).toBe(false);
     expect(result.a.isDisconnected).toBe(false);
+  });
+
+  it("separates what is still ahead from what the run has walked past", () => {
+    // a -> b -> {c, d}; the party took b -> c, so d is prepared, wired, and
+    // unreachable — the case a graph cannot show on its own.
+    const result = deriveQuestBeatPresentations({
+      beats: [beat("a"), beat("b"), beat("c"), beat("d"), beat("e")],
+      edges: [edge("ab", "a", "b"), edge("bc", "b", "c"), edge("bd", "b", "d"), edge("ce", "c", "e")],
+      attachments: [],
+      runtime: { current_beat_id: "c", current_quest_id: "q" } as never,
+      transitions: [transition(null, "a"), transition("a", "b"), transition("b", "c")],
+    });
+
+    expect(result.a.reach).toBe("visited");
+    expect(result.b.reach).toBe("visited");
+    expect(result.c.reach).toBe("current");
+    expect(result.d.reach).toBe("stranded");
+    expect(result.e.reach).toBe("ahead");
+    expect(tallyQuestReach(result)).toEqual({ visited: 3, ahead: 1, stranded: 1 });
+  });
+
+  it("re-opens a branch the party can loop back to, and stays quiet outside the run", () => {
+    const looping = deriveQuestBeatPresentations({
+      beats: [beat("a"), beat("b"), beat("side")],
+      edges: [edge("ab", "a", "b"), edge("ba", "b", "a"), edge("aside", "a", "side")],
+      attachments: [],
+      runtime: { current_beat_id: "b", current_quest_id: "q" } as never,
+      transitions: [transition(null, "a"), transition("a", "b")],
+    });
+    // b -> a -> side is still walkable, so the untaken branch is not cut off.
+    expect(looping.side.reach).toBe("ahead");
+
+    const overview = { ...beat("overview"), is_overview: true } as QuestBeat;
+    const elsewhere = deriveQuestBeatPresentations({
+      beats: [overview, beat("a"), beat("b"), { ...beat("other"), quest_id: "other-quest" } as QuestBeat],
+      edges: [edge("ab", "a", "b")],
+      attachments: [],
+      runtime: { current_beat_id: "a", current_quest_id: "q" } as never,
+      transitions: [transition(null, "a")],
+    });
+    // The quest-level overview and another quest's beats are not "cut off".
+    expect(elsewhere.overview.reach).toBe("unplayed");
+    expect(elsewhere.other.reach).toBe("unplayed");
+
+    // No run in progress at all: nothing is ahead of or behind anybody.
+    const idle = deriveQuestBeatPresentations({ beats: [beat("a"), beat("b")], edges: [edge("ab", "a", "b")], attachments: [] });
+    expect(idle.a.reach).toBe("unplayed");
+    expect(tallyQuestReach(idle)).toEqual({ visited: 0, ahead: 0, stranded: 0 });
+  });
+
+  it("walks edges forward without stalling on a cycle", () => {
+    const edges = [edge("ab", "a", "b"), edge("bc", "b", "c"), edge("ca", "c", "a")];
+    expect([...forwardReachableBeatIds("a", edges)].sort()).toEqual(["a", "b", "c"]);
+    expect([...forwardReachableBeatIds("lonely", edges)]).toEqual([]);
   });
 
   it("marks route history without looping on cycles or convergence", () => {

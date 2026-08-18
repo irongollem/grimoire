@@ -19,6 +19,18 @@ export interface QuestBeatPrepGap {
   label: string;
 }
 
+/**
+ * Where a beat stands relative to the party, which is a different question from
+ * whether it is *prepared* (`isReady`) or *wired up* (`isDisconnected`).
+ *
+ * `stranded` is the one that needs saying out loud: the beat is properly
+ * connected and properly prepared, and the run has simply walked past the last
+ * junction that could still have led to it. That is invisible on a graph — the
+ * edge into it looks exactly as it did before — so without this the DM keeps
+ * preparing material the party can no longer arrive at.
+ */
+export type QuestBeatReach = "current" | "visited" | "ahead" | "stranded" | "unplayed";
+
 export interface QuestBeatPresentation {
   prepGapCount: number;
   prepGaps: QuestBeatPrepGap[];
@@ -28,6 +40,50 @@ export interface QuestBeatPresentation {
   isCurrent: boolean;
   isVisited: boolean;
   isDisconnected: boolean;
+  reach: QuestBeatReach;
+}
+
+export interface QuestReachTally {
+  visited: number;
+  ahead: number;
+  stranded: number;
+}
+
+/**
+ * Every beat still arrivable from `startId` by following edges forward.
+ *
+ * `startId` itself lands in the set only when a cycle leads back to it, which is
+ * the honest answer to "can the party get here again" — and it is why this is a
+ * graph walk rather than a `visited` lookup: a loop back through an earlier beat
+ * genuinely re-opens the branches hanging off it.
+ */
+export function forwardReachableBeatIds(startId: string, edges: QuestBeatEdge[]): Set<string> {
+  const adjacency = new Map<string, string[]>();
+  for (const edge of edges) {
+    const targets = adjacency.get(edge.source_beat_id) ?? [];
+    targets.push(edge.target_beat_id);
+    adjacency.set(edge.source_beat_id, targets);
+  }
+  const reachable = new Set<string>();
+  const queue = [startId];
+  while (queue.length) {
+    for (const next of adjacency.get(queue.shift()!) ?? []) {
+      if (reachable.has(next)) continue;
+      reachable.add(next);
+      queue.push(next);
+    }
+  }
+  return reachable;
+}
+
+export function tallyQuestReach(presentations: Record<string, QuestBeatPresentation>): QuestReachTally {
+  const tally: QuestReachTally = { visited: 0, ahead: 0, stranded: 0 };
+  for (const presentation of Object.values(presentations)) {
+    if (presentation.reach === "visited" || presentation.reach === "current") tally.visited += 1;
+    else if (presentation.reach === "ahead") tally.ahead += 1;
+    else if (presentation.reach === "stranded") tally.stranded += 1;
+  }
+  return tally;
 }
 
 export function deriveQuestBeatPrepGaps(
@@ -78,6 +134,12 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
     if (beat.is_overview) continue;
     flowBeatsPerQuest.set(beat.quest_id, (flowBeatsPerQuest.get(beat.quest_id) ?? 0) + 1);
   }
+  // Reach is only a question once a run is under way, and only for the quest the
+  // party is actually in — the board hands this campaign-wide beats, so without
+  // the quest check every other quest's beats would read as cut off.
+  const currentBeatId = input.runtime?.current_beat_id ?? null;
+  const runningQuestId = currentBeatId ? input.runtime?.current_quest_id ?? null : null;
+  const reachableAhead = currentBeatId ? forwardReachableBeatIds(currentBeatId, input.edges) : new Set<string>();
   const result: Record<string, QuestBeatPresentation> = {};
 
   for (const beat of input.beats) {
@@ -87,15 +149,30 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       && !connected.has(beat.id);
     const prepGaps = deriveQuestBeatPrepGaps(beat, placed, { isDisconnected });
     const loot = input.lootByBeat?.[beat.id] ?? { total: 0, undispatched: 0, unclaimed: 0 };
+    const isCurrent = currentBeatId === beat.id;
+    const isVisited = visited.has(beat.id);
+    // A staging beat is unwired rather than cut off, and the overview beat is
+    // quest-level and deliberately outside the graph: calling either "stranded"
+    // would report the same fact twice under a scarier name.
+    const outsideTheRun = runningQuestId === null
+      || beat.quest_id !== runningQuestId
+      || beat.is_overview
+      || isDisconnected;
+    const reach: QuestBeatReach = isCurrent ? "current"
+      : isVisited ? "visited"
+      : outsideTheRun ? "unplayed"
+      : reachableAhead.has(beat.id) ? "ahead"
+      : "stranded";
     result[beat.id] = {
       prepGapCount: prepGaps.length,
       prepGaps,
       handoutCount: placed.filter((attachment) => attachment.attachment_type === "handout").length,
       loot,
       isReady: prepGaps.length === 0,
-      isCurrent: input.runtime?.current_beat_id === beat.id,
-      isVisited: visited.has(beat.id),
+      isCurrent,
+      isVisited,
       isDisconnected,
+      reach,
     };
   }
   return result;

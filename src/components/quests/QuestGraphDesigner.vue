@@ -4,6 +4,7 @@
       <div>
         <h2 class="font-cinzel text-base font-bold text-foreground">Story flow</h2>
         <p class="text-caption text-muted-foreground">Create, connect, label, and arrange narrative beats.</p>
+        <QuestRunTally :tally="reachTally" class="mt-1" />
       </div>
       <div class="ml-auto flex gap-2">
         <AppButton :to="{ path: `/quests/${questId}`, query: { overview: 'true' } }" label="Overview" size="sm" variant="subtle" />
@@ -129,7 +130,7 @@ import {
   useUpdateQuestBeatEdge,
   useUpdateQuestBeat,
 } from "@/composables/useQuestFlow";
-import { deriveQuestBeatPresentations, visitedRouteEdgeIds } from "@/lib/quests/presentation";
+import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds } from "@/lib/quests/presentation";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
 import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
@@ -143,6 +144,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestFlowCanvas from "./QuestFlowCanvas.vue";
+import QuestRunTally from "./QuestRunTally.vue";
 import QuestBeatComposer from "./QuestBeatComposer.vue";
 import QuestBeatInspector from "./QuestBeatInspector.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
@@ -189,6 +191,7 @@ const selectedBeat = computed(() => beats.value.find((beat) => beat.id === selec
 const selectedAttachments = computed(() => attachments.value.filter((attachment) => attachment.beat_id === selectedBeatId.value));
 const selectedLoot = computed(() => (lootQuery.data.value ?? []).filter((entry) => entry.beat_id === selectedBeatId.value));
 const currentBeatId = computed(() => runtimeQuery.data.value?.current_quest_id === questId ? runtimeQuery.data.value.current_beat_id : null);
+const reachTally = computed(() => tallyQuestReach(presentations.value));
 const presentations = computed(() => deriveQuestBeatPresentations({ beats: beats.value, edges: edges.value, attachments: attachments.value, runtime: runtimeQuery.data.value, transitions: transitions.value, lootByBeat: lootByBeat.value }));
 const visitedEdgeIds = computed(() => visitedRouteEdgeIds(edges.value, transitions.value));
 const isLoading = computed(() => beatsQuery.isLoading.value || edgesQuery.isLoading.value || attachmentsQuery.isLoading.value || lootQuery.isLoading.value);

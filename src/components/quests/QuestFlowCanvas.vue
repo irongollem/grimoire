@@ -40,7 +40,7 @@
         </template>
       </VueFlow>
     </div>
-    <div class="quest-flow-outline"><QuestGraphOutline :beats="beats" :selected-beat-id="selectedBeatId" :editable="editable" @command="emit('command', $event)" /></div>
+    <div class="quest-flow-outline"><QuestGraphOutline :beats="beats" :presentations="presentations" :selected-beat-id="selectedBeatId" :editable="editable" @command="emit('command', $event)" /></div>
   </div>
 </template>
 
