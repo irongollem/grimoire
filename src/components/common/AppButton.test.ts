@@ -231,3 +231,66 @@ describe("tinted tones (#623)", () => {
     expect(a).toBe(b);
   });
 });
+
+describe("menu and ghost/danger (#648)", () => {
+  // The `menu` variant's whole premise is that `justify-start` overrides the base
+  // `justify-center`. cva only concatenates, so that override happens in cn() /
+  // tailwind-merge — which means it is a property of the rendered class list, not
+  // of buttonVariants() output, and it silently stops working if the base string or
+  // the merge config changes. Asserted on a real mount for that reason.
+  it("menu resolves to justify-start, not the base justify-center", () => {
+    const wrapper = mount(AppButton, { props: { variant: "menu", label: "Send to…" }, global });
+    const cls = wrapper.get("button").classes();
+    expect(cls).toContain("justify-start");
+    expect(cls).not.toContain("justify-center");
+  });
+
+  it("menu fills on hover, which is what separates it from ghost", () => {
+    const menu = mount(AppButton, { props: { variant: "menu", label: "x" }, global })
+      .get("button").classes();
+    const ghost = mount(AppButton, { props: { variant: "ghost", label: "x" }, global })
+      .get("button").classes();
+
+    expect(menu).toContain("hover:bg-muted");
+    expect(ghost).not.toContain("hover:bg-muted");
+  });
+
+  it("block gives menu its full-width form", () => {
+    const cls = mount(AppButton, { props: { variant: "menu", block: true, label: "x" }, global })
+      .get("button").classes();
+    expect(cls).toContain("w-full");
+  });
+
+  // ghost + danger is the chromeless remove-row ✕. The hover colour has to *replace*
+  // ghost's own hover, not sit alongside it — two hover:text-* classes would leave
+  // the winner up to stylesheet order.
+  it("ghost + danger replaces ghost's hover colour rather than adding to it", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "ghost", tone: "danger", label: "Remove" },
+      global,
+    }).get("button").classes();
+
+    expect(cls).toContain("hover:text-destructive");
+    expect(cls).not.toContain("hover:text-foreground");
+  });
+
+  // ...and it must not leak onto ghost's default tone, or every ghost button in the
+  // app turns red on hover.
+  it("leaves ghost's default tone alone", () => {
+    const cls = mount(AppButton, { props: { variant: "ghost", label: "Edit" }, global })
+      .get("button").classes();
+    expect(cls).toContain("hover:text-foreground");
+    expect(cls).not.toContain("hover:text-destructive");
+  });
+
+  // ghost draws no box at rest; that is the whole reason these sites could not use
+  // `destructive`, which does.
+  it("ghost + danger still draws no resting box", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "ghost", tone: "danger", label: "Remove" },
+      global,
+    }).get("button").classes().join(" ");
+    expect(cls).not.toMatch(/(?<!hover:)\bborder\b/);
+    expect(cls).not.toMatch(/(?<!hover:)\bbg-/);
+  });
+});

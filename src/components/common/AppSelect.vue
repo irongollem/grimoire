@@ -4,7 +4,7 @@
     :value="model"
     :disabled="disabled"
     :aria-label="ariaLabel"
-    :class="cn(fieldVariants({ tone, size, control: 'select', weight: 'semibold' }), block ? 'w-full' : 'shrink-0', className)"
+    :class="cn(fieldVariants({ tone, size, control: 'select', weight }), block ? 'w-full' : 'shrink-0', className)"
     @change="onChange"
   >
     <slot />
@@ -31,7 +31,7 @@
  */
 import { useTemplateRef, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
-import { fieldVariants, type FieldSize, type FieldTone } from "./fieldVariants";
+import { fieldVariants, type FieldSize, type FieldTone, type FieldWeight } from "./fieldVariants";
 
 /** Vue stashes a bound `<option :value="x">` on the element as `_value`. */
 type OptionWithValue = HTMLOptionElement & { _value?: unknown };
@@ -47,6 +47,7 @@ const [model, modifiers] = defineModel<T, "number">({ required: true });
 const {
   size = "sm",
   tone = "card",
+  weight = "semibold",
   block = false,
   disabled = false,
   ariaLabel,
@@ -61,6 +62,14 @@ const {
    * AppInput's prop of the same name; the asymmetry was the bug.
    */
   tone?: FieldTone;
+  /**
+   * Defaults to `semibold`, which this component used to hard-code — so a select
+   * that rendered at normal weight before could only get back there with a
+   * `class="font-normal"` override at the call site (three of those already
+   * exist). `fieldVariants` has carried a `weight` axis all along; not reading it
+   * was the bug, exactly as with `tone`.
+   */
+  weight?: FieldWeight;
   /** Stretches to the full width of the parent instead of hugging its content. */
   block?: boolean;
   disabled?: boolean;

@@ -35,6 +35,22 @@ export const buttonVariants = cva(
         /** Filled pill — tags, counts, secondary navigation chips. */
         chip: "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground",
         /**
+         * A row in a dropdown, popover or picker list — 38 sites across 22 files
+         * (ItemSendMenu, CampaignSwitcher, BlockPickerPanel, the spell/item search
+         * results, PlayerLayout's account menu…).
+         *
+         * These were the one cluster wave 1 could not convert at all, and the reason
+         * is in the base string above: `justify-center` is right for a button and
+         * wrong for a menu row, which is left-aligned and full-bleed. `justify-start`
+         * here beats it because cva emits variant classes after the base and both are
+         * the same tailwind-merge group. Pair with `block` for the full-width form.
+         *
+         * It fills on hover rather than only changing text colour, which is what
+         * separates it from `ghost`: a menu row's whole band is the hit target, so the
+         * highlight has to cover the band.
+         */
+        menu: "justify-start text-left font-normal text-foreground hover:bg-muted",
+        /**
          * A pill whose colour carries meaning. Pair with `tone` and `emphasis`;
          * the table below is the only place a tint is spelled out, so a new one
          * does not get to invent its own opacity ladder.
@@ -173,7 +189,7 @@ export type ButtonEmphasis = NonNullable<ButtonVariants["emphasis"]>;
 type Assert<T extends true> = T;
 
 export const BUTTON_VARIANTS = [
-  "primary", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted",
+  "primary", "outline", "subtle", "ghost", "link", "destructive", "chip", "tinted", "menu",
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [

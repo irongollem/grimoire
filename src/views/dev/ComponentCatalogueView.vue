@@ -78,6 +78,18 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppButton — menu rows"
+      note="A row in a dropdown, popover or picker list. The only variant that overrides the base `justify-center`, because a menu row is left-aligned and full-bleed — pair it with `block`. It fills on hover rather than just recolouring text: the whole band is the hit target, so the highlight has to cover the band."
+    >
+      <div class="max-w-xs rounded-md border border-border bg-card py-1">
+        <AppButton variant="menu" size="sm" block label="Send to party chat" :icon="IconWand" />
+        <AppButton variant="menu" size="sm" block label="Selected row" :icon="IconWand" active />
+        <AppButton variant="menu" size="sm" block label="Remove" :icon="IconDelete" tone="danger" />
+        <AppButton variant="menu" size="sm" block label="Disabled" :icon="IconWand" disabled />
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton — ghost + danger"
       note="The chromeless remove-row ✕. `ghost` is the only non-tinted variant that reads `tone`, and only for `danger`: these sites have no box, so `destructive` — which draws a border and a resting outline — would put a visible frame around every ✕ in every editor list. Hover the middle one to see the affordance the 58 hand-rolled copies each carried inline."
     >

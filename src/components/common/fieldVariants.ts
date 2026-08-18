@@ -91,6 +91,7 @@ export const fieldVariants = cva(
 export type FieldVariants = VariantProps<typeof fieldVariants>;
 export type FieldTone = NonNullable<FieldVariants["tone"]>;
 export type FieldSize = NonNullable<FieldVariants["size"]>;
+export type FieldWeight = NonNullable<FieldVariants["weight"]>;
 
 /**
  * What AppInput and AppSelect hand back through `defineExpose`, for typing a
