@@ -12,37 +12,36 @@
       </label>
 
       <!-- Category -->
-      <select
-        v-model="category"
-        class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      <AppSelect v-model="category" size="md">
         <option v-for="c in CATEGORIES" :key="c.value" :value="c.value">
           {{ c.label }}
         </option>
-      </select>
+      </AppSelect>
 
       <!-- Session # — only relevant for session notes -->
       <label v-if="category === 'session'" class="flex items-center gap-1.5">
         <span class="text-label-lg font-semibold text-muted-foreground">#</span>
-        <input
+        <AppInput
           v-model.number="sessionNum"
           type="number"
           min="1"
           placeholder="Session"
-          class="w-20 bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="card"
+          size="md"
+          class="w-20"
         />
       </label>
 
-      <!-- IconPin toggle -->
-      <button
-        type="button"
-        :title="isPinned ? 'Unpin note' : 'IconPin note'"
-        class="p-2 rounded-md border border-border transition-colors"
-        :class="isPinned ? 'bg-primary/10 text-primary border-primary/30' : 'bg-card text-muted-foreground hover:text-foreground'"
+      <!-- Pin toggle -->
+      <AppButton
+        variant="subtle"
+        size="icon-sm"
+        :active="isPinned"
+        :icon="IconPin"
+        :class="isPinned ? '' : 'bg-card'"
+        :tooltip="isPinned ? 'Unpin note' : 'Pin note'"
         @click="isPinned = !isPinned"
-      >
-        <IconPin class="h-3.5 w-3.5" />
-      </button>
+      />
 
       <!-- Reveal to players -->
       <AudienceRevealControl
@@ -51,26 +50,24 @@
         @change="playerVisibleTo = $event"
       />
 
-      <button
-        type="button"
+      <AppButton
         :disabled="saving || !title.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+        variant="primary"
+        size="md"
+        :icon="IconSave"
+        :label="saving ? 'Saving…' : props.note ? 'Save' : 'Create'"
         @click="save"
-      >
-        <IconSave class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : props.note ? "Save" : "Create" }}
-      </button>
+      />
 
-      <button
+      <AppButton
         v-if="props.note"
-        type="button"
         :disabled="deleting"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+        variant="destructive"
+        size="md"
+        :icon="IconDelete"
+        label="Delete"
         @click="remove"
-      >
-        <IconDelete class="h-3.5 w-3.5" />
-        Delete
-      </button>
+      />
     </div>
 
     <!-- Tags -->
@@ -92,13 +89,10 @@
               placeholder="Year"
               class="w-24 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <select
-              v-model.number="sessionStartMonth"
-              class="bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model.number="sessionStartMonth" size="body">
               <option :value="null">— Month —</option>
               <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
-            </select>
+            </AppSelect>
             <input
               v-model.number="sessionStartDay"
               type="number"
@@ -121,13 +115,10 @@
               placeholder="Year"
               class="w-24 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
-            <select
-              v-model.number="sessionEndMonth"
-              class="bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model.number="sessionEndMonth" size="body">
               <option :value="null">— Month —</option>
               <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
-            </select>
+            </AppSelect>
             <input
               v-model.number="sessionEndDay"
               type="number"
@@ -180,32 +171,32 @@
     >
       <template v-if="hasImageProvider || hasTextProvider" #toolbar-end>
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button
+        <AppButton
           v-if="hasTextProvider"
-          type="button"
-          title="Write Chronicle"
-          class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconNote"
+          class="hover:bg-accent"
+          tooltip="Write Chronicle"
           @click="openChroniclerWrite"
-        >
-          <IconNote class="h-3.5 w-3.5" />
-        </button>
+        />
         <template v-if="hasImageProvider">
-          <button
-            type="button"
-            title="Generate scene illustration"
-            class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            :icon="IconGenerate"
+            class="hover:bg-accent"
+            tooltip="Generate scene illustration"
             @click="openChroniclerGenerate"
-          >
-            <IconGenerate class="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            title="Scene library"
-            class="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          />
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            :icon="IconImages"
+            class="hover:bg-accent"
+            tooltip="Scene library"
             @click="showChroniclerLibrary = true"
-          >
-            <IconImages class="h-3.5 w-3.5" />
-          </button>
+          />
         </template>
       </template>
     </RichTextEditor>
@@ -255,6 +246,9 @@ import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
 import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
 import ChroniclerWriteDialog from "./ChroniclerWriteDialog.vue";
 import { IconCalendarDays, IconDelete, IconGenerate, IconImages, IconNote, IconPin, IconSave } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import {

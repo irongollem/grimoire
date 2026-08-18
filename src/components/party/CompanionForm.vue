@@ -7,25 +7,11 @@
         <h2 class="font-cinzel text-base font-bold text-foreground tracking-wide">
           {{ isEdit ? "Edit Companion" : "Add Companion" }}
         </h2>
-        <button type="button" class="text-muted-foreground hover:text-foreground transition-colors" @click="$emit('cancel')">
-          <IconClose class="h-4 w-4" />
-        </button>
+        <AppButton variant="ghost" size="icon-sm" :icon="IconClose" tooltip="Close" aria-label="Close" @click="$emit('cancel')" />
       </div>
 
       <!-- Source type tabs -->
-      <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
-        <button
-          v-for="src in SOURCE_TABS"
-          :key="src.value"
-          class="flex-1 px-2.5 py-1.5 transition-colors"
-          :class="sourceType === src.value
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-card text-muted-foreground hover:text-foreground'"
-          @click="sourceType = src.value"
-        >
-          {{ src.label }}
-        </button>
-      </div>
+      <SegmentedControl v-model="sourceType" :options="SOURCE_TABS" size="sm" block />
 
       <!-- Monster source picker -->
       <div v-if="sourceType === 'monster'" class="flex flex-col gap-1.5">
@@ -92,35 +78,33 @@
       <div class="grid grid-cols-2 gap-3">
         <div class="col-span-2 flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Name</label>
-          <input
+          <AppInput
             v-model="name"
+            tone="card"
+            size="body"
             placeholder="Companion name…"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Type</label>
-          <select
-            v-model="companionType"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
+          <AppSelect v-model="companionType" size="body">
             <option v-for="t in COMPANION_TYPES" :key="t" :value="t">{{ COMPANION_TYPE_LABELS[t] }}</option>
-          </select>
+          </AppSelect>
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">
             Owner{{ isOwnerLocked ? '' : ' (optional)' }}
           </label>
-          <select
+          <AppSelect
             v-if="!isOwnerLocked"
             v-model="ownerMemberId"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            size="body"
           >
             <option value="">— Party —</option>
             <option v-for="m in partyMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
-          </select>
+          </AppSelect>
           <p
             v-else
             class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground"
@@ -129,40 +113,27 @@
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Max HP</label>
-          <input v-model.number="maxHp" type="number" min="1" class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="maxHp" type="number" min="1" tone="card" size="body" />
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Current HP</label>
-          <input v-model.number="currentHp" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="currentHp" type="number" min="0" tone="card" size="body" />
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">AC</label>
-          <input v-model.number="ac" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="ac" type="number" min="0" tone="card" size="body" />
         </div>
 
         <div class="flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Speed (ft)</label>
-          <input v-model.number="speed" type="number" min="0" class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="speed" type="number" min="0" tone="card" size="body" />
         </div>
 
         <div class="col-span-2 flex flex-col gap-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">Status</label>
-          <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold w-fit">
-            <button
-              type="button"
-              class="px-3 py-1.5 transition-colors"
-              :class="combatReady ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-              @click="combatReady = true"
-            >With the party</button>
-            <button
-              type="button"
-              class="px-3 py-1.5 transition-colors"
-              :class="!combatReady ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-              @click="combatReady = false"
-            >Elsewhere</button>
-          </div>
+          <SegmentedControl v-model="statusValue" :options="STATUS_OPTIONS" size="sm" />
         </div>
       </div>
 
@@ -253,21 +224,15 @@
 
       <!-- Actions -->
       <div class="flex items-center justify-end gap-2 pt-1">
-        <button
-          type="button"
-          class="px-4 py-2 rounded-md border border-border font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-          @click="$emit('cancel')"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
+        <AppButton variant="subtle" size="lg" label="Cancel" @click="$emit('cancel')" />
+        <AppButton
+          variant="primary"
+          size="md"
           :disabled="!name.trim() || saving"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="save"
         >
           {{ saving ? "Saving…" : isEdit ? "Save" : "Add Companion" }}
-        </button>
+        </AppButton>
       </div>
     </div>
   </div>
@@ -298,6 +263,10 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { STAT_BLOCK_ABILITIES, abilityModifier, skillsToString, skillsToRecord } from "@/lib/utils";
 
 function extractDice(val: string): string {
@@ -313,6 +282,11 @@ const SOURCE_TABS: Array<{ value: CompanionSourceType; label: string }> = [
   { value: "npc",     label: "From NPC" },
   { value: "custom",  label: "Custom" },
 ];
+
+const STATUS_OPTIONS = [
+  { value: "party",     label: "With the party" },
+  { value: "elsewhere", label: "Elsewhere" },
+] as const;
 
 const props = defineProps<{
   companion?: Companion;
@@ -388,6 +362,12 @@ const name              = ref(props.companion?.name ?? "");
 const companionType     = ref<CompanionType>(props.companion?.companion_type ?? "ally");
 const ownerMemberId     = ref(props.lockedOwnerId ?? props.companion?.owner_party_member_id ?? "");
 const combatReady       = ref(props.companion?.combat_ready ?? true);
+// SegmentedControl needs a string|number model; combatReady is the boolean
+// the payload actually stores, so this is the two-way bridge between them.
+const statusValue = computed<"party" | "elsewhere">({
+  get: () => combatReady.value ? "party" : "elsewhere",
+  set: (v) => { combatReady.value = v === "party"; },
+});
 const maxHp             = ref(props.companion?.max_hp ?? 1);
 const currentHp         = ref(props.companion?.current_hp ?? 1);
 const ac                = ref(props.companion?.ac ?? 10);

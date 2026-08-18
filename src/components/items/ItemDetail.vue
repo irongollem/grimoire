@@ -59,10 +59,11 @@
           <template v-if="!isArtObject">
             <label class="flex flex-col gap-1">
               <span class="text-label-lg text-muted-foreground uppercase">Subtype</span>
-              <input
+              <AppInput
                 v-model="subtype"
                 placeholder="e.g. longsword, chain mail…"
-                class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="card"
+                size="body"
               />
             </label>
             <label class="flex flex-col gap-1">
@@ -86,10 +87,11 @@
           </label>
           <label class="flex flex-col gap-1">
             <span class="text-label-lg text-muted-foreground uppercase">Cost</span>
-            <input
+            <AppInput
               v-model="cost"
               placeholder="e.g. 50 gp"
-              class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="card"
+              size="body"
             />
             <span v-if="rarityPriceHint" class="text-caption text-muted-foreground/60 italic">{{ rarityPriceHint }}</span>
           </label>
@@ -129,11 +131,12 @@
             <input type="checkbox" v-model="requiresAttunement" class="rounded" />
             <span class="text-label-lg font-semibold text-muted-foreground">REQUIRES ATTUNEMENT</span>
           </label>
-          <input
+          <AppInput
             v-if="requiresAttunement"
             v-model="attunementRequirements"
             placeholder="by whom? (optional, e.g. by a spellcaster)"
-            class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="muted"
+            size="body"
           />
         </div>
 
@@ -146,12 +149,13 @@
           <div class="grid grid-cols-2 gap-3">
             <label class="flex flex-col gap-1">
               <span class="text-eyebrow text-muted-foreground">{{ itemType === "ammunition" ? "Count" : "Max Charges" }}</span>
-              <input
+              <AppInput
                 v-model.number="charges"
                 type="number"
                 min="0"
                 placeholder="e.g. 20"
-                class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="muted"
+                size="body"
               />
             </label>
             <div v-if="isMagic && itemType !== 'ammunition'" class="flex flex-col gap-1">
@@ -161,10 +165,11 @@
                 placeholder="1d6+4"
                 @update:model-value="rechargeRoll = $event"
               />
-              <input
+              <AppInput
                 v-model="rechargeWhen"
                 placeholder="dawn / short rest / long rest"
-                class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="muted"
+                size="body"
               />
             </div>
           </div>
@@ -207,10 +212,12 @@
             </div>
           </div>
           <div class="flex gap-2">
-            <input
+            <AppInput
               v-model="bundleItemInput"
               placeholder="Item name…"
-              class="flex-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="muted"
+              size="body"
+              class="flex-1"
               @keydown.enter.prevent="addBundleItem"
             />
             <AppButton variant="subtle" size="sm" label="Add" @click="addBundleItem" />
@@ -330,11 +337,12 @@
             <span v-else>{{ itemSourceLabel(source, props.item.source_title) }}</span>
           </div>
           <!-- Custom items: editable -->
-          <input
+          <AppInput
             v-else
             v-model="source"
             placeholder="e.g. Homebrew, DMG, XGtE…"
-            class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="card"
+            size="body"
           />
         </div>
       </div>
@@ -353,6 +361,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
+import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import ItemWeaponBlock from "@/components/items/ItemWeaponBlock.vue";
 import ItemArmorBlock from "@/components/items/ItemArmorBlock.vue";

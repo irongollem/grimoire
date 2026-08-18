@@ -23,12 +23,12 @@
       <!-- Title -->
       <div class="space-y-1.5">
         <label class="text-label-lg font-semibold text-muted-foreground">TITLE</label>
-        <input
+        <AppInput
           v-model="form.title"
-          type="text"
+          tone="card"
+          size="body"
           placeholder="e.g. Corruption Track, Icy Weather Rules…"
           required
-          class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -36,13 +36,10 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="space-y-1.5">
           <label class="text-label-lg font-semibold text-muted-foreground">CATEGORY</label>
-          <select
-            v-model="form.category"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
+          <AppSelect v-model="form.category" size="body" block>
             <option value="">None</option>
             <option v-for="cat in RULE_CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
-          </select>
+          </AppSelect>
         </div>
 
         <div class="space-y-1.5">
@@ -83,14 +80,14 @@
             class="border-dashed"
             @click="addTracker"
           />
-          <button
+          <AppButton
             v-else
-            type="button"
-            class="text-caption text-muted-foreground hover:text-destructive transition-colors"
+            variant="ghost"
+            size="inline-xs"
+            label="Remove"
+            class="text-caption hover:text-destructive"
             @click="removeTracker"
-          >
-            Remove
-          </button>
+          />
         </div>
 
         <!-- Tracker form (when active) -->
@@ -100,23 +97,25 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <label class="text-eyebrow font-semibold text-muted-foreground">TRACK LABEL</label>
-              <input
+              <AppInput
                 v-model="tracker.label"
-                type="text"
+                tone="default"
+                size="body"
                 placeholder="Corruption, Hunger, Sanity…"
-                class="w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div class="space-y-1.5">
               <label class="text-label font-semibold text-muted-foreground">TYPE</label>
-              <select
+              <AppSelect
                 v-model="tracker.type"
-                class="w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                size="body"
+                block
+                class="bg-background"
                 @change="onTypeChange"
               >
                 <option value="level">Level — named states (Chilled → Frozen → Hypothermic)</option>
                 <option value="points">Points — numeric pool (0–20 Sanity)</option>
-              </select>
+              </AppSelect>
             </div>
           </div>
 
@@ -124,19 +123,11 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <label class="text-eyebrow font-semibold text-muted-foreground">MIN VALUE</label>
-              <input
-                v-model.number="tracker.min"
-                type="number"
-                class="w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              <AppInput v-model.number="tracker.min" type="number" tone="default" size="body" />
             </div>
             <div class="space-y-1.5">
               <label class="text-label font-semibold text-muted-foreground">MAX VALUE</label>
-              <input
-                v-model.number="tracker.max"
-                type="number"
-                class="w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              <AppInput v-model.number="tracker.max" type="number" tone="default" size="body" />
             </div>
           </div>
 
@@ -178,26 +169,30 @@
                     @change="lvl.value = parseLevelValue(($event.target as HTMLInputElement).value)"
                   />
                 </div>
-                <input
+                <AppInput
                   v-model="lvl.label"
-                  type="text"
+                  tone="muted"
+                  size="body"
+                  :block="false"
+                  class="flex-1"
                   placeholder="Level name"
-                  class="flex-1 bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
-                <select
-                  v-model="lvl.color"
-                  class="w-24 bg-muted border border-border rounded px-2 py-1.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                <AppSelect
+                  :model-value="lvl.color ?? null"
+                  size="sm"
+                  class="bg-muted w-24"
+                  @update:model-value="(v) => (lvl.color = v ?? undefined)"
                 >
-                  <option value="">no color</option>
+                  <option :value="null">no color</option>
                   <option v-for="c in LEVEL_COLORS" :key="c.value" :value="c.value">{{ c.label }}</option>
-                </select>
-                <button
-                  type="button"
-                  class="shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1"
+                </AppSelect>
+                <AppButton
+                  variant="ghost"
+                  size="icon-xs"
+                  class="shrink-0 hover:text-destructive"
+                  :icon="IconClose"
                   @click="removeLevel(li)"
-                >
-                  <IconClose class="size-3.5" />
-                </button>
+                />
               </div>
 
               <!-- Effects on this level -->
@@ -207,85 +202,105 @@
                   :key="fi"
                   class="flex items-center gap-1.5"
                 >
-                  <select
-                    v-model="fx.type"
-                    class="bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  >
+                  <AppSelect v-model="fx.type" size="xs" class="bg-muted">
                     <option value="note">Note</option>
                     <option value="speed">Speed penalty</option>
                     <option value="disadvantage_checks">Disadv. ability checks</option>
                     <option value="disadvantage_saves">Disadv. saving throws</option>
                     <option value="exhaustion">Exhaustion level</option>
                     <option value="save">Saving throw</option>
-                  </select>
-                  <input
+                  </AppSelect>
+                  <AppInput
                     v-if="fx.type === 'speed'"
-                    v-model.number="fx.value"
+                    :model-value="fx.value ?? null"
                     type="number"
+                    size="xs"
+                    tone="muted"
+                    :block="false"
+                    class="w-16 text-right"
                     placeholder="−10"
-                    class="w-16 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    @update:model-value="(v) => (fx.value = numOrUndef(v))"
                   />
-                  <input
+                  <AppInput
                     v-if="fx.type === 'exhaustion'"
-                    v-model.number="fx.value"
+                    :model-value="fx.value ?? null"
                     type="number"
+                    size="xs"
+                    tone="muted"
+                    align="center"
+                    :block="false"
+                    class="w-14"
                     min="1"
                     max="6"
                     placeholder="1"
-                    class="w-14 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    @update:model-value="(v) => (fx.value = numOrUndef(v))"
                   />
-                  <input
+                  <AppInput
                     v-if="fx.type === 'disadvantage_checks' || fx.type === 'disadvantage_saves'"
-                    v-model="fx.scope"
+                    :model-value="fx.scope ?? null"
                     type="text"
+                    size="xs"
+                    tone="muted"
+                    :block="false"
+                    class="w-36"
                     placeholder="STR,DEX (blank = all)"
-                    class="w-36 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    @update:model-value="(v) => (fx.scope = strOrUndef(v))"
                   />
                   <!-- Save type: ability + DC formula -->
                   <template v-if="fx.type === 'save'">
-                    <select
-                      v-model="fx.ability"
-                      class="w-16 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    <AppSelect
+                      :model-value="fx.ability ?? null"
+                      size="xs"
+                      class="bg-muted w-16"
+                      @update:model-value="(v) => (fx.ability = v ?? undefined)"
                     >
-                      <option value="">Ability</option>
+                      <option :value="null">Ability</option>
                       <option v-for="ab in SAVE_ABILITIES" :key="ab.value" :value="ab.value">{{ ab.label }}</option>
-                    </select>
+                    </AppSelect>
                     <span class="font-cinzel text-2xs text-muted-foreground shrink-0">DC</span>
-                    <input
-                      v-model.number="fx.dcBase"
+                    <AppInput
+                      :model-value="fx.dcBase ?? null"
                       type="number"
+                      size="xs"
+                      tone="muted"
+                      align="center"
+                      :block="false"
+                      class="w-14"
                       min="1"
                       placeholder="10"
                       title="Base DC value"
-                      class="w-14 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                      @update:model-value="(v) => (fx.dcBase = numOrUndef(v))"
                     />
                     <label class="flex items-center gap-1 shrink-0 cursor-pointer" title="Add current tracker value to DC">
                       <input type="checkbox" v-model="fx.dcAddTracker" class="rounded" />
                       <span class="font-cinzel text-2xs text-muted-foreground">+VAL</span>
                     </label>
                   </template>
-                  <input
+                  <AppInput
                     v-if="fx.type !== 'save'"
                     v-model="fx.label"
                     type="text"
+                    size="xs"
+                    tone="muted"
+                    :block="false"
+                    class="flex-1"
                     placeholder="Shown on player sheet"
-                    class="flex-1 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   />
-                  <button
-                    type="button"
-                    class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                  <AppButton
+                    variant="ghost"
+                    size="icon-xs"
+                    class="shrink-0 hover:text-destructive"
+                    :icon="IconClose"
                     @click="removeEffect(lvl, fi)"
-                  >
-                    <IconClose class="size-3" />
-                  </button>
+                  />
                 </div>
-                <button
-                  type="button"
-                  class="text-caption-sm text-muted-foreground hover:text-foreground italic transition-colors"
+                <AppButton
+                  variant="ghost"
+                  size="inline-xs"
+                  label="+ add effect"
+                  class="text-caption-sm italic"
                   @click="addEffect(lvl)"
-                >
-                  + add effect
-                </button>
+                />
               </div>
             </div>
           </div>
@@ -318,11 +333,14 @@
               :key="bi"
               class="flex items-center gap-2"
             >
-              <input
+              <AppInput
                 v-model="btn.label"
                 type="text"
+                tone="default"
+                size="body"
+                :block="false"
+                class="flex-1 min-w-0"
                 placeholder="Add Corruption"
-                class="flex-1 min-w-0 bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <!-- Mode toggle: Δ change by / = set to -->
               <SegmentedControl
@@ -336,19 +354,26 @@
                 @update:model-value="btn.mode = $event"
               />
               <!-- Value input -->
-              <input
+              <AppInput
                 v-if="!btn.mode || btn.mode === 'delta'"
                 v-model.number="btn.delta"
                 type="number"
+                tone="default"
+                size="body"
+                :block="false"
+                class="w-16 shrink-0 text-right"
                 placeholder="+1"
-                class="w-16 shrink-0 bg-background border border-border rounded px-2 py-1.5 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              <input
+              <AppInput
                 v-else
-                v-model.number="btn.setValue"
+                :model-value="btn.setValue ?? null"
                 type="number"
+                tone="default"
+                size="body"
+                :block="false"
+                class="w-16 shrink-0 text-right"
                 placeholder="0"
-                class="w-16 shrink-0 bg-background border border-border rounded px-2 py-1.5 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                @update:model-value="(v) => (btn.setValue = numOrUndef(v))"
               />
               <!-- Player visibility toggle -->
               <label
@@ -358,13 +383,13 @@
                 <input type="checkbox" v-model="btn.playerVisible" class="rounded" />
                 <span class="font-cinzel text-2xs text-muted-foreground">Players</span>
               </label>
-              <button
-                type="button"
-                class="shrink-0 text-muted-foreground hover:text-destructive transition-colors p-1"
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                class="shrink-0 hover:text-destructive"
+                :icon="IconClose"
                 @click="removeButton(bi)"
-              >
-                <IconClose class="size-3.5" />
-              </button>
+              />
             </div>
           </div>
 
@@ -373,27 +398,27 @@
 
       <!-- Actions -->
       <div class="flex items-center gap-3 pt-2">
-        <button
+        <AppButton
           type="submit"
+          variant="primary"
+          size="md"
           :disabled="saving"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          {{ saving ? "Saving…" : "Save Rule" }}
-        </button>
+          :label="saving ? 'Saving…' : 'Save Rule'"
+        />
         <RouterLink
           to="/rules"
           class="text-body text-muted-foreground hover:text-foreground transition-colors"
         >
           Cancel
         </RouterLink>
-        <button
+        <AppButton
           v-if="!isNew"
-          type="button"
-          class="ml-auto text-body text-destructive hover:opacity-80 transition-opacity"
+          variant="ghost"
+          size="inline"
+          label="Delete"
+          class="ml-auto text-body text-destructive hover:text-destructive/70"
           @click="handleDelete"
-        >
-          Delete
-        </button>
+        />
       </div>
     </form>
   </PageHeader>
@@ -413,6 +438,8 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 
 const SAVE_ABILITIES = [
@@ -498,6 +525,20 @@ function onTypeChange() {
   } else {
     tracker.value.levels = tracker.value.levels ?? [];
   }
+}
+
+// AppInput's model is fixed to `string | number | null` (no `undefined`), while
+// several tracker-effect fields are optional. These bridge AppInput's "no value"
+// sentinel (`null`, or `""` when the .number modifier isn't in play) back to the
+// `undefined` the domain types actually use.
+function numOrUndef(v: string | number | null): number | undefined {
+  if (v === null || v === "") return undefined;
+  return Number(v);
+}
+
+function strOrUndef(v: string | number | null): string | undefined {
+  if (v === null || v === "") return undefined;
+  return String(v);
 }
 
 const ABILITY_CODES = new Set(["STR", "DEX", "CON", "INT", "WIS", "CHA"]);

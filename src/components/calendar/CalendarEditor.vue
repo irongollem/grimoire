@@ -3,21 +3,11 @@
     <!-- Seed from preset -->
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-label-lg font-semibold text-muted-foreground">SEED FROM</span>
-      <select
-        :value="''"
-        class="bg-muted border border-border rounded-md px-2 py-1.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="onSeed(($event.target as HTMLSelectElement).value)"
-      >
+      <AppSelect v-model="seedValue" size="sm" aria-label="Seed from preset">
         <option value="">(choose a preset to copy)</option>
         <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
-      </select>
-      <button
-        type="button"
-        class="px-2.5 py-1 text-label font-semibold border border-border rounded-md hover:bg-muted/60 transition-colors"
-        @click="resetToDefault"
-      >
-        Reset
-      </button>
+      </AppSelect>
+      <AppButton variant="outline" size="xs" label="Reset" @click="resetToDefault" />
     </div>
 
     <div class="gold-divider" />
@@ -26,22 +16,11 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div class="sm:col-span-2">
         <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CALENDAR NAME</label>
-        <input
-          v-model="def.name"
-          type="text"
-          placeholder="My World Calendar"
-          class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
+        <AppInput v-model="def.name" tone="muted" size="body" placeholder="My World Calendar" />
       </div>
       <div>
         <label class="block text-label-lg font-semibold text-muted-foreground mb-1">EPOCH</label>
-        <input
-          v-model="def.epochName"
-          type="text"
-          maxlength="6"
-          placeholder="AY"
-          class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
+        <AppInput v-model="def.epochName" tone="muted" size="body" maxlength="6" placeholder="AY" />
       </div>
     </div>
 
@@ -49,12 +28,7 @@
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="block text-label-lg font-semibold text-muted-foreground mb-1">DEFAULT YEAR</label>
-        <input
-          v-model.number="def.defaultYear"
-          type="number"
-          min="1"
-          class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
+        <AppInput v-model.number="def.defaultYear" tone="muted" size="body" type="number" min="1" />
       </div>
       <div>
         <label class="block text-label-lg font-semibold text-muted-foreground mb-1">DAYS PER WEEK</label>
@@ -115,13 +89,7 @@
         <label class="text-label-lg font-semibold text-muted-foreground">
           MONTHS ({{ def.months.length }} · {{ totalDays }} days/year)
         </label>
-        <button
-          type="button"
-          class="px-2.5 py-1 text-label font-semibold border border-border rounded-md hover:bg-muted/60 transition-colors"
-          @click="addMonth"
-        >
-          + Add month
-        </button>
+        <AppButton variant="outline" size="xs" label="+ Add month" @click="addMonth" />
       </div>
       <div class="space-y-2">
         <div
@@ -130,24 +98,23 @@
           class="grid grid-cols-12 gap-2 items-center rounded-md border border-border bg-muted/40 px-2 py-1.5"
         >
           <span class="col-span-1 text-center font-cinzel text-xs text-muted-foreground">{{ i + 1 }}</span>
-          <input
-            v-model="m.name"
-            type="text"
-            placeholder="Month name"
-            class="col-span-5 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          <input
-            v-model="m.alias"
-            type="text"
+          <AppInput v-model="m.name" tone="card" size="body" placeholder="Month name" class="col-span-5" />
+          <AppInput
+            v-model="monthAliasModel(m).value"
+            tone="card"
+            size="body"
             placeholder="Alias (optional)"
-            class="col-span-3 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="col-span-3"
           />
-          <input
+          <AppInput
             v-model.number="m.days"
+            tone="card"
+            size="body"
             type="number"
             min="1"
             max="60"
-            class="col-span-2 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+            align="center"
+            class="col-span-2"
           />
           <button
             type="button"
@@ -170,14 +137,13 @@
         <label class="text-label-lg font-semibold text-muted-foreground">
           FESTIVAL DAYS ({{ def.intercalaryDays.length }})
         </label>
-        <button
-          type="button"
-          class="px-2.5 py-1 text-label font-semibold border border-border rounded-md hover:bg-muted/60 transition-colors"
+        <AppButton
+          variant="outline"
+          size="xs"
+          label="+ Add festival day"
           :disabled="def.months.length === 0"
           @click="addIntercalary"
-        >
-          + Add festival day
-        </button>
+        />
       </div>
       <p class="text-caption text-muted-foreground italic mb-2">
         Days inserted between months (e.g. Midwinter after month 1). Mark a day "leap only" to make it appear every fourth year.
@@ -189,20 +155,12 @@
           class="rounded-md border border-border bg-muted/40 px-2 py-2 space-y-2"
         >
           <div class="grid grid-cols-12 gap-2 items-center">
-            <input
-              v-model="d.name"
-              type="text"
-              placeholder="Festival name"
-              class="col-span-5 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+            <AppInput v-model="d.name" tone="card" size="body" placeholder="Festival name" class="col-span-5" />
             <div class="col-span-4 flex items-center gap-1.5">
               <span class="text-label text-muted-foreground">AFTER</span>
-              <select
-                v-model.number="d.afterMonth"
-                class="flex-1 min-w-0 bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model.number="d.afterMonth" size="body" block class="min-w-0" aria-label="After month">
                 <option v-for="(m, mi) in def.months" :key="mi" :value="mi + 1">{{ mi + 1 }}. {{ m.name }}</option>
-              </select>
+              </AppSelect>
             </div>
             <label class="col-span-2 flex items-center gap-1.5 cursor-pointer">
               <input
@@ -221,12 +179,7 @@
               <IconDelete class="h-3.5 w-3.5" />
             </button>
           </div>
-          <input
-            v-model="d.description"
-            type="text"
-            placeholder="Short description"
-            class="w-full bg-muted border border-border rounded-md px-2 py-1.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+          <AppInput v-model="d.description" tone="card" size="body" placeholder="Short description" />
         </div>
         <p v-if="def.intercalaryDays.length === 0" class="text-caption text-muted-foreground italic">
           No festival days defined.
@@ -242,12 +195,15 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconDelete } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import {
   listCalendarAdapters,
   getCalendarAdapter,
   createDefaultCustomCalendarDef,
 } from "@/calendars/index";
-import type { SettingCalendarDef } from "@/settings/types";
+import type { SettingCalendarDef, SettingMonthDef } from "@/settings/types";
 
 const def = defineModel<SettingCalendarDef>({ required: true });
 
@@ -285,6 +241,25 @@ function setDayLabel(i: number, v: string) {
   next[i] = v;
   def.value.dayLabels = next;
 }
+
+// `SettingMonthDef.alias` is `string | undefined`; AppInput's model is
+// `string | number | null` and does not accept `undefined`. A per-row writable
+// computed bridges the two without widening the shared type (which is also the
+// shape stored as JSON in Supabase blob storage for custom settings).
+function monthAliasModel(m: SettingMonthDef) {
+  return computed<string>({
+    get: () => m.alias ?? "",
+    set: (v) => { m.alias = v === "" ? undefined : v; },
+  });
+}
+
+// The picker is an action, not a stored choice — selecting a preset copies it
+// into `def` immediately and the control snaps back to the placeholder. The
+// getter always returning "" reproduces the original `:value="''"` wiring.
+const seedValue = computed<string>({
+  get: () => "",
+  set: (presetId) => onSeed(presetId),
+});
 
 function onSeed(presetId: string) {
   if (!presetId) return;

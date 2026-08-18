@@ -14,15 +14,18 @@
         <!-- Main row -->
         <div class="flex items-center gap-2 px-3 py-2">
           <!-- Visibility toggle -->
-          <button
-            type="button"
-            :title="si.visible ? 'Visible (click to hide)' : 'Under the counter (click to show)'"
-            class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            class="shrink-0"
+            :tooltip="si.visible ? 'Visible (click to hide)' : 'Under the counter (click to show)'"
             @click="toggleVisible(si)"
           >
-            <IconReveal v-if="si.visible" class="h-3.5 w-3.5" />
-            <IconHide v-else class="h-3.5 w-3.5 opacity-40" />
-          </button>
+            <template #icon>
+              <IconReveal v-if="si.visible" class="h-3.5 w-3.5" />
+              <IconHide v-else class="h-3.5 w-3.5 opacity-40" />
+            </template>
+          </AppButton>
 
           <!-- Item name + type (tap to preview) -->
           <button
@@ -51,44 +54,47 @@
           </div>
 
           <!-- Post to chat -->
-          <button
-            type="button"
-            :title="offeringId === si.id ? 'Cancel offer' : 'Post vendor offer to chat'"
-            class="shrink-0 transition-colors"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            class="shrink-0"
             :class="offeringId === si.id ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400'"
+            :tooltip="offeringId === si.id ? 'Cancel offer' : 'Post vendor offer to chat'"
+            :icon="IconShop"
             @click="toggleOffer(si)"
-          >
-            <IconShop class="h-3.5 w-3.5" />
-          </button>
+          />
 
           <!-- Remove -->
-          <button
-            type="button"
-            class="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
-            title="Remove from store"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            class="shrink-0 hover:text-destructive"
+            tooltip="Remove from store"
+            :icon="IconClose"
             @click="remove(si.id)"
-          >
-            <IconClose class="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
 
         <!-- Inline offer form -->
         <div v-if="offeringId === si.id" class="border-t border-border/60 bg-muted/20 px-3 py-2 space-y-2">
           <p class="font-cinzel text-2xs text-emerald-400/80 tracking-widest uppercase">Vendor Offer</p>
-          <input
+          <AppInput
             v-model="offerDesc"
             type="text"
+            tone="muted"
+            size="body"
             placeholder="Description shown in chat…"
-            class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <!-- Coin price inputs -->
           <div class="grid grid-cols-5 gap-1">
             <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
               <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>
-              <input
+              <AppInput
                 v-model.number="offerPrice[coin.key]"
                 type="number" min="0"
-                class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="muted"
+                size="xs"
+                align="center"
               />
             </div>
           </div>
@@ -99,11 +105,12 @@
               class="flex-1 py-1 bg-emerald-600 text-white rounded text-label hover:opacity-90 transition-opacity disabled:opacity-40"
               @click="postOffer(si)"
             >Post to Chat</button>
-            <button
-              type="button"
-              class="px-2 py-1 border border-border rounded font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
+            <AppButton
+              variant="subtle"
+              size="xs"
+              label="Cancel"
               @click="offeringId = null"
-            >Cancel</button>
+            />
           </div>
         </div>
       </div>
@@ -115,11 +122,14 @@
     <div class="relative">
       <div class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
         <IconAdd class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <input
+        <AppInput
           v-model="search"
           type="text"
+          tone="bare"
+          size="xs"
+          :block="false"
           placeholder="Add item to inventory…"
-          class="flex-1 bg-transparent text-caption text-foreground placeholder:text-muted-foreground focus:outline-none"
+          class="flex-1 px-0 text-caption"
           @focus="dropdownOpen = true"
           @input="dropdownOpen = true"
           @blur="onSearchBlur"
@@ -146,36 +156,33 @@
 
     <!-- Quick fill -->
     <div class="flex items-center gap-1.5 flex-wrap">
-      <input
+      <AppInput
         v-model.number="fillCount"
         type="number"
         min="1"
         max="20"
-        class="w-10 bg-muted border border-border rounded px-1.5 py-1 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+        tone="muted"
+        size="xs"
+        align="center"
+        :block="false"
+        class="w-10"
       />
       <span class="text-caption text-muted-foreground">×</span>
-      <select
-        v-model="fillRarity"
-        class="bg-muted border border-border rounded px-2 py-1 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      <AppSelect v-model="fillRarity" size="sm" class="bg-muted">
         <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
-      </select>
-      <select
-        v-model="fillType"
-        class="bg-muted border border-border rounded px-2 py-1 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      </AppSelect>
+      <AppSelect v-model="fillType" size="sm" class="bg-muted">
         <option value="">any type</option>
         <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
-      </select>
-      <button
-        type="button"
+      </AppSelect>
+      <AppButton
+        variant="primary"
+        size="sm"
         :disabled="fillPoolSize === 0 || isFilling"
-        class="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
+        :icon="IconShuffle"
+        :label="isFilling ? 'Filling…' : 'Fill'"
         @click="quickFill"
-      >
-        <IconShuffle class="size-3" />
-        {{ isFilling ? "Filling…" : "Fill" }}
-      </button>
+      />
       <span class="text-caption-sm text-muted-foreground italic">
         {{ fillPoolSize }} available
       </span>
@@ -198,13 +205,14 @@
           <span class="text-caption text-muted-foreground shrink-0">
             {{ selected.price_override ?? selected.item.cost ?? '—' }}
           </span>
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            class="ml-1 shrink-0"
             @click="selected = null"
           >
-            <IconClose class="h-4 w-4" />
-          </button>
+            <template #icon><IconClose class="h-4 w-4" /></template>
+          </AppButton>
         </div>
         <div class="flex-1 overflow-y-auto px-4 py-4">
           <ItemSheet :item="selected.item" :price-override="selected.price_override" />
@@ -217,6 +225,9 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
 import { IconAdd, IconClose, IconHide, IconReveal, IconShop, IconShuffle } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import {

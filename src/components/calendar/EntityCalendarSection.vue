@@ -35,40 +35,33 @@
     </div>
     <!-- Expandable form -->
     <div v-if="showForm && entityId" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-3">
-      <div class="flex rounded-md border border-border overflow-hidden">
-        <button type="button" class="flex-1 py-1 text-label-lg font-semibold transition-colors"
-          :class="dateType === 'regular' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
-          @click="dateType = 'regular'">Regular Day</button>
-        <button type="button" class="flex-1 py-1 text-label-lg font-semibold transition-colors"
-          :class="dateType === 'festival' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
-          @click="dateType = 'festival'">Festival Day</button>
-      </div>
+      <SegmentedControl v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
       <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
         <div>
           <label class="block text-caption text-muted-foreground mb-1">Year</label>
-          <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="form.year" type="number" min="1" tone="card" size="body" />
         </div>
         <div>
           <label class="block text-caption text-muted-foreground mb-1">Month</label>
-          <select v-model.number="form.month" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+          <AppSelect v-model.number="form.month" size="body" block aria-label="Month">
             <option v-for="m in adapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
-          </select>
+          </AppSelect>
         </div>
         <div>
           <label class="block text-caption text-muted-foreground mb-1">Day</label>
-          <input v-model.number="form.day" type="number" min="1" max="30" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="form.day" type="number" min="1" max="30" tone="card" size="body" />
         </div>
       </div>
       <div v-else class="grid grid-cols-2 gap-2">
         <div>
           <label class="block text-caption text-muted-foreground mb-1">Year</label>
-          <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="form.year" type="number" min="1" tone="card" size="body" />
         </div>
         <div>
           <label class="block text-caption text-muted-foreground mb-1">Festival</label>
-          <select v-model="form.festival" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+          <AppSelect v-model="form.festival" size="body" block aria-label="Festival">
             <option v-for="f in adapter.intercalaryDays" :key="f.name" :value="f.name">{{ f.name }}</option>
-          </select>
+          </AppSelect>
         </div>
       </div>
       <div class="flex items-center gap-2 justify-end">
@@ -108,40 +101,33 @@
     <template v-else>
       <!-- Inline add form -->
       <div v-if="showForm" class="rounded-md border border-border bg-muted p-3 flex flex-col gap-3">
-        <div class="flex rounded-md border border-border overflow-hidden">
-          <button type="button" class="flex-1 py-1 text-label-lg font-semibold transition-colors"
-            :class="dateType === 'regular' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
-            @click="dateType = 'regular'">Regular Day</button>
-          <button type="button" class="flex-1 py-1 text-label-lg font-semibold transition-colors"
-            :class="dateType === 'festival' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'"
-            @click="dateType = 'festival'">Festival Day</button>
-        </div>
+        <SegmentedControl v-model="dateType" :options="DATE_TYPE_OPTIONS" size="sm" block />
         <div v-if="dateType === 'regular'" class="grid grid-cols-3 gap-2">
           <div>
             <label class="block text-caption text-muted-foreground mb-1">Year</label>
-            <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.year" type="number" min="1" tone="card" size="body" />
           </div>
           <div>
             <label class="block text-caption text-muted-foreground mb-1">Month</label>
-            <select v-model.number="form.month" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+            <AppSelect v-model.number="form.month" size="body" block aria-label="Month">
               <option v-for="m in adapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
-            </select>
+            </AppSelect>
           </div>
           <div>
             <label class="block text-caption text-muted-foreground mb-1">Day</label>
-            <input v-model.number="form.day" type="number" min="1" max="30" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.day" type="number" min="1" max="30" tone="card" size="body" />
           </div>
         </div>
         <div v-else class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-caption text-muted-foreground mb-1">Year</label>
-            <input v-model.number="form.year" type="number" min="1" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.year" type="number" min="1" tone="card" size="body" />
           </div>
           <div>
             <label class="block text-caption text-muted-foreground mb-1">Festival</label>
-            <select v-model="form.festival" class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+            <AppSelect v-model="form.festival" size="body" block aria-label="Festival">
               <option v-for="f in adapter.intercalaryDays" :key="f.name" :value="f.name">{{ f.name }}</option>
-            </select>
+            </AppSelect>
           </div>
         </div>
         <div class="flex items-center gap-2 justify-end">
@@ -178,6 +164,9 @@
 import { ref, computed } from "vue";
 import { IconAdd, IconCalendarDays, IconClose } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useEntityCalendarEvents,
@@ -213,6 +202,10 @@ const creating = computed(() => createEvent.isPending.value);
 const showForm = ref(false);
 type DateType = "regular" | "festival";
 const dateType = ref<DateType>("regular");
+const DATE_TYPE_OPTIONS = [
+  { value: "regular", label: "Regular Day" },
+  { value: "festival", label: "Festival Day" },
+] as const satisfies ReadonlyArray<{ value: DateType; label: string }>;
 
 const form = ref({
   year: calendar.currentYear,

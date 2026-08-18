@@ -8,13 +8,13 @@
         >
           Upcoming Sessions
         </h3>
-        <button
-          class="inline-flex items-center gap-1 font-cinzel text-2xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1 transition-colors"
+        <AppButton
+          variant="subtle"
+          size="xs"
+          :icon="IconDownload"
+          label="Export iCal"
           @click="exportIcal"
-        >
-          <IconDownload class="h-3 w-3" />
-          Export iCal
-        </button>
+        />
       </div>
       <div class="space-y-2">
         <div
@@ -26,12 +26,12 @@
           <div v-if="editingId === p.id" class="px-4 py-3 space-y-2">
             <VueDatePicker v-model="editDatetime" :dark="true" :enable-time-picker="true" :teleport="true" placeholder="Pick a date & time…" class="grimoire-datepicker" />
             <div class="grid grid-cols-2 gap-2">
-              <input v-model="editTitle" type="text" placeholder="Title" class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-              <input v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <AppInput v-model="editTitle" placeholder="Title" />
+              <AppInput v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" />
             </div>
             <div class="flex justify-end gap-2">
-              <button class="px-3 py-1.5 text-label text-muted-foreground border border-border rounded hover:text-foreground transition-colors" @click="editingId = null">Cancel</button>
-              <button class="px-3 py-1.5 text-label bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity" :disabled="isUpdating" @click="saveEdit(p.id)">Save</button>
+              <AppButton variant="subtle" size="sm" label="Cancel" @click="editingId = null" />
+              <AppButton variant="primary" size="sm" label="Save" :disabled="isUpdating" @click="saveEdit(p.id)" />
             </div>
           </div>
           <!-- Normal display -->
@@ -41,15 +41,9 @@
               <p class="font-cinzel text-sm font-semibold text-foreground">{{ p.title }}</p>
               <p class="text-caption text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
             </div>
-            <span class="text-label px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green">
-              {{ availabilityCount(p.id) }}/{{ playerCount }} available
-            </span>
-            <button class="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Edit session" @click="startEdit(p)">
-              <IconEdit class="h-3.5 w-3.5" />
-            </button>
-            <button class="text-muted-foreground hover:text-destructive transition-colors shrink-0" title="Cancel session" @click="cancelSession(p)">
-              <IconClose class="h-4 w-4" />
-            </button>
+            <AppButton as="span" variant="tinted" tone="success" size="xs" :label="`${availabilityCount(p.id)}/${playerCount} available`" />
+            <AppButton variant="ghost" size="icon-xs" class="shrink-0" :icon="IconEdit" tooltip="Edit session" @click="startEdit(p)" />
+            <AppButton variant="ghost" size="icon-xs" class="shrink-0 hover:text-destructive" :icon="IconClose" tooltip="Cancel session" @click="cancelSession(p)" />
           </div>
         </div>
       </div>
@@ -80,12 +74,12 @@
           <div v-if="editingId === p.id" class="px-4 py-3 space-y-2">
             <VueDatePicker v-model="editDatetime" :dark="true" :enable-time-picker="true" :teleport="true" placeholder="Pick a date & time…" class="grimoire-datepicker" />
             <div class="grid grid-cols-2 gap-2">
-              <input v-model="editTitle" type="text" placeholder="Title" class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
-              <input v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <AppInput v-model="editTitle" placeholder="Title" />
+              <AppInput v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" />
             </div>
             <div class="flex justify-end gap-2">
-              <button class="px-3 py-1.5 text-label text-muted-foreground border border-border rounded hover:text-foreground transition-colors" @click="editingId = null">Cancel</button>
-              <button class="px-3 py-1.5 text-label bg-primary text-primary-foreground rounded hover:opacity-90 transition-opacity" :disabled="isUpdating" @click="saveEdit(p.id)">Save</button>
+              <AppButton variant="subtle" size="sm" label="Cancel" @click="editingId = null" />
+              <AppButton variant="primary" size="sm" label="Save" :disabled="isUpdating" @click="saveEdit(p.id)" />
             </div>
           </div>
           <!-- Normal display -->
@@ -97,28 +91,27 @@
                 <p class="text-caption text-muted-foreground">{{ formatDate(p.proposed_date, p.proposed_time) }}</p>
               </div>
               <!-- Availability summary -->
-              <span
-                class="text-label px-1.5 py-0.5 rounded"
-                :class="availabilityCount(p.id) >= p.min_attendance ? 'bg-elven-green/15 text-elven-green' : 'bg-muted text-muted-foreground'"
-              >
-                {{ availabilityCount(p.id) }}/{{ playerCount }}
-              </span>
+              <AppButton
+                as="span"
+                size="xs"
+                :variant="availabilityCount(p.id) >= p.min_attendance ? 'tinted' : 'chip'"
+                tone="success"
+                :label="`${availabilityCount(p.id)}/${playerCount}`"
+              />
               <!-- Actions -->
               <div class="flex items-center gap-1 shrink-0">
-                <button
-                  class="inline-flex items-center gap-1 text-label px-2 py-1 rounded bg-elven-green/15 text-elven-green hover:bg-elven-green/25 transition-colors"
+                <AppButton
+                  variant="tinted"
+                  tone="success"
+                  emphasis="soft"
+                  size="xs"
+                  :icon="IconCheck"
+                  label="Confirm"
                   :disabled="isUpdating"
                   @click="confirmSession(p)"
-                >
-                  <IconCheck class="h-3 w-3" />
-                  Confirm
-                </button>
-                <button class="p-1 text-muted-foreground hover:text-foreground transition-colors rounded" title="Edit" @click="startEdit(p)">
-                  <IconEdit class="h-3.5 w-3.5" />
-                </button>
-                <button class="p-1 text-muted-foreground hover:text-destructive transition-colors rounded" title="Remove" @click="removeProposal(p.id)">
-                  <IconDelete class="h-3.5 w-3.5" />
-                </button>
+                />
+                <AppButton variant="ghost" size="icon-xs" :icon="IconEdit" tooltip="Edit" @click="startEdit(p)" />
+                <AppButton variant="ghost" size="icon-xs" class="hover:text-destructive" :icon="IconDelete" tooltip="Remove" @click="removeProposal(p.id)" />
               </div>
             </div>
             <!-- Per-member availability breakdown -->
@@ -166,55 +159,33 @@
           class="block text-eyebrow text-muted-foreground mb-1"
           >TITLE</label
         >
-        <input
-          v-model="form.title"
-          type="text"
-          placeholder="Session 12…"
-          class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        />
+        <AppInput v-model="form.title" placeholder="Session 12…" />
       </div>
 
       <div class="grid grid-cols-3 gap-3">
         <div>
           <label class="block text-label text-muted-foreground mb-1">NOTES (optional)</label>
-          <input
-            v-model="form.notes"
-            type="text"
-            placeholder="Bring snacks…"
-            class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+          <AppInput v-model="form.notes" placeholder="Bring snacks…" />
         </div>
         <div>
           <label class="block text-label text-muted-foreground mb-1">DURATION (hours)</label>
-          <input
-            v-model.number="form.duration_hours"
-            type="number"
-            min="0.5"
-            step="0.5"
-            class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+          <AppInput v-model.number="form.duration_hours" type="number" min="0.5" step="0.5" />
         </div>
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1">MIN ATTENDANCE</label>
-          <input
-            v-model.number="form.min_attendance"
-            type="number"
-            min="1"
-            :max="playerCount || 10"
-            class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+          <AppInput v-model.number="form.min_attendance" type="number" min="1" :max="playerCount || 10" />
         </div>
       </div>
 
       <div class="flex justify-end">
-        <button
+        <AppButton
+          variant="primary"
+          size="md"
           :disabled="!form.proposed_datetime || isCreating"
-          class="inline-flex items-center gap-1.5 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-40 transition-opacity"
+          :icon="IconAdd"
+          :label="isCreating ? 'Adding…' : 'Add Date'"
           @click="addProposal"
-        >
-          <IconAdd class="h-3.5 w-3.5" />
-          {{ isCreating ? "Adding…" : "Add Date" }}
-        </button>
+        />
       </div>
     </div>
 
@@ -240,18 +211,19 @@
               {{ formatDate(p.proposed_date, p.proposed_time) }}
             </p>
           </div>
-          <button
-            class="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-            title="Delete"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            class="shrink-0 hover:text-destructive"
+            :icon="IconDelete"
+            tooltip="Delete"
             @click="removeProposal(p.id)"
-          >
-            <IconDelete class="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
       </div>
     </div>
 
-    <!-- ── IconCalendar subscription ──────────────────────────────────────── -->
+    <!-- ── Calendar subscription ──────────────────────────────────────── -->
     <div
       v-if="icalFeedUrl"
       class="rounded-lg border border-border bg-muted/30 p-4 space-y-3"
@@ -274,37 +246,44 @@
           class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 font-mono text-xs text-muted-foreground select-all focus:outline-none focus:ring-1 focus:ring-ring truncate"
           @click="($event.target as HTMLInputElement).select()"
         />
-        <button
-          class="shrink-0 inline-flex items-center gap-1 text-label px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
-          :title="copied ? 'Copied!' : 'Copy URL'"
+        <AppButton
+          variant="outline"
+          size="sm"
+          class="shrink-0"
+          :tooltip="copied ? 'Copied!' : 'Copy URL'"
           @click="copyUrl"
         >
-          <IconCheck v-if="copied" class="h-3 w-3 text-elven-green" />
-          <IconCopy v-else class="h-3 w-3" />
+          <template #icon>
+            <IconCheck v-if="copied" class="h-3 w-3 text-elven-green" />
+            <IconCopy v-else class="h-3 w-3" />
+          </template>
           {{ copied ? "Copied" : "Copy" }}
-        </button>
+        </AppButton>
       </div>
 
       <!-- Action buttons -->
       <div class="flex items-center gap-2 flex-wrap">
-        <a
+        <AppButton
+          variant="tinted"
+          tone="primary"
+          emphasis="soft"
+          size="sm"
           :href="webcalUrl"
-          class="inline-flex items-center gap-1.5 text-label px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-        >
-          <IconAddEvent class="h-3 w-3" />
-          Subscribe in IconCalendar App
-        </a>
+          :icon="IconAddEvent"
+          label="Subscribe in Calendar App"
+        />
 
-        <button
+        <AppButton
           v-if="isDM"
-          class="inline-flex items-center gap-1.5 text-label px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive transition-colors"
+          variant="subtle"
+          size="sm"
+          class="hover:text-destructive hover:border-destructive"
           :disabled="isRegenerating"
-          title="Generate a new URL — existing subscriptions will stop updating"
+          :icon="IconRefresh"
+          tooltip="Generate a new URL — existing subscriptions will stop updating"
+          :label="isRegenerating ? 'Regenerating…' : 'Regenerate URL'"
           @click="regenerateToken"
-        >
-          <IconRefresh class="h-3 w-3" />
-          {{ isRegenerating ? "Regenerating…" : "Regenerate URL" }}
-        </button>
+        />
       </div>
     </div>
   </div>
@@ -316,6 +295,8 @@ import { VueDatePicker } from "@vuepic/vue-datepicker";
 import "@/assets/vendor/datepicker.css";
 import { useTheme } from "@/composables/useTheme";
 import { IconAdd, IconAddEvent, IconCalendar, IconCalendarCheck, IconCheck, IconClose, IconCopy, IconDelete, IconDownload, IconEdit, IconRefresh, IconRemoveEvent } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import {
   useSessionProposals,
   useAllSessionAvailability,
@@ -502,7 +483,7 @@ async function removeProposal(id: string) {
   await deleteProposal(id);
 }
 
-// ── IconCalendar subscription ─────────────────────────────────────────────────────
+// ── Calendar subscription ─────────────────────────────────────────────────────
 
 const copied = ref(false);
 

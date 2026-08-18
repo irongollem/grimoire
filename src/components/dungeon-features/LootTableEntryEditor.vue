@@ -3,27 +3,30 @@
     <div class="flex items-center justify-between gap-2">
       <h2 class="font-cinzel text-sm font-bold text-foreground">Entries ({{ entries.length }})</h2>
       <div class="flex items-center gap-1.5">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+        <AppButton
+          variant="subtle"
+          size="sm"
+          class="bg-card px-2"
+          :icon="IconAdd"
+          label="Item"
           @click="emit('add', 'item')"
-        >
-          <IconAdd class="size-3" />Item
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+        />
+        <AppButton
+          variant="subtle"
+          size="sm"
+          class="bg-card px-2"
+          :icon="IconAdd"
+          label="Currency"
           @click="emit('add', 'currency')"
-        >
-          <IconAdd class="size-3" />Currency
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+        />
+        <AppButton
+          variant="subtle"
+          size="sm"
+          class="bg-card px-2"
+          :icon="IconAdd"
+          label="Random"
           @click="emit('add', 'random')"
-        >
-          <IconAdd class="size-3" />Random
-        </button>
+        />
       </div>
     </div>
 
@@ -51,10 +54,12 @@
               @update:model-value="onPickItem(entry, $event)"
             />
             <div class="flex items-center gap-1">
-              <input
+              <AppInput
                 v-model.number="entry.drop_chance"
                 type="number" min="1" max="100"
-                class="w-14 bg-muted border border-border rounded px-1.5 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="muted"
+                size="xs"
+                class="w-14 text-body text-right"
               />
               <span class="text-caption text-muted-foreground">%</span>
             </div>
@@ -64,31 +69,31 @@
               class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
             />
-            <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="emit('remove', idx)">
-              <IconDelete class="size-3.5" />
-            </button>
+            <AppButton variant="ghost" size="icon-xs" class="hover:text-destructive" :icon="IconDelete" @click="emit('remove', idx)" />
           </div>
         </template>
 
         <!-- ── Currency entry ───────────────────────────────────── -->
         <template v-else-if="entry.type === 'currency'">
           <div class="grid grid-cols-[1fr_5.625rem_auto] gap-2 items-center">
-            <input
-              v-model="entry.currency_label"
+            <AppInput
+              :model-value="entry.currency_label ?? ''"
+              tone="muted"
+              size="body"
               placeholder="Label (e.g. Belt pouch)"
-              class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              @update:model-value="(v) => { entry.currency_label = typeof v === 'number' ? String(v) : v; }"
             />
             <div class="flex items-center gap-1">
-              <input
+              <AppInput
                 v-model.number="entry.drop_chance"
                 type="number" min="1" max="100"
-                class="w-14 bg-muted border border-border rounded px-1.5 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="muted"
+                size="xs"
+                class="w-14 text-body text-right"
               />
               <span class="text-caption text-muted-foreground">%</span>
             </div>
-            <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="emit('remove', idx)">
-              <IconDelete class="size-3.5" />
-            </button>
+            <AppButton variant="ghost" size="icon-xs" class="hover:text-destructive" :icon="IconDelete" @click="emit('remove', idx)" />
           </div>
           <!-- Coin amounts -->
           <div class="grid grid-cols-5 gap-1.5">
@@ -110,27 +115,33 @@
           <div class="grid grid-cols-[1fr_5.625rem_7.5rem_auto] gap-2 items-center">
             <!-- Rarity + type filter -->
             <div class="flex gap-1.5">
-              <select
-                v-model="entry.rarity"
-                class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              <AppSelect
+                :model-value="entry.rarity ?? ''"
+                size="sm"
+                class="flex-1 min-w-0 bg-muted"
+                @update:model-value="(v) => { entry.rarity = v; }"
               >
                 <option value="">— rarity —</option>
                 <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
-              </select>
-              <select
-                v-model="entry.item_type_filter"
-                class="flex-1 min-w-0 bg-muted border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              </AppSelect>
+              <AppSelect
+                :model-value="entry.item_type_filter ?? null"
+                size="sm"
+                class="flex-1 min-w-0 bg-muted"
+                @update:model-value="(v) => { entry.item_type_filter = v; }"
               >
                 <option :value="null">any type</option>
                 <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
-              </select>
+              </AppSelect>
             </div>
             <!-- Drop chance -->
             <div class="flex items-center gap-1">
-              <input
+              <AppInput
                 v-model.number="entry.drop_chance"
                 type="number" min="1" max="100"
-                class="w-14 bg-muted border border-border rounded px-1.5 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="muted"
+                size="xs"
+                class="w-14 text-body text-right"
               />
               <span class="text-caption text-muted-foreground">%</span>
             </div>
@@ -141,9 +152,7 @@
               class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
             />
-            <button type="button" class="text-muted-foreground hover:text-destructive transition-colors p-1" @click="emit('remove', idx)">
-              <IconDelete class="size-3.5" />
-            </button>
+            <AppButton variant="ghost" size="icon-xs" class="hover:text-destructive" :icon="IconDelete" @click="emit('remove', idx)" />
           </div>
           <!-- Pool size hint — amber when empty, since the entry can only ever under-deliver -->
           <p
@@ -185,6 +194,9 @@ import {
   ITEM_RARITY_LABELS,
 } from '@/types/item.types';
 import type { LootEntry, LootEntryType } from '@/types/lootTable.types';
+import AppButton from '@/components/common/AppButton.vue';
+import AppInput from '@/components/common/AppInput.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
 import { useEnsureOwnedItem } from '@/composables/useItems';
 import type { Item } from '@/types/item.types';

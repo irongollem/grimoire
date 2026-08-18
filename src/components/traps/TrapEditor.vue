@@ -17,15 +17,14 @@
         label="Cancel"
         @click="onCancel"
       />
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="md"
+        :icon="IconSave"
         :disabled="saving || !form.name.trim()"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+        :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
         @click="save"
-      >
-        <IconSave class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-      </button>
+      />
     </div>
 
     <div class="flex flex-col gap-4 max-w-2xl">
@@ -53,33 +52,27 @@
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>
-              <select
-                v-model="form.trap_type"
-                class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="form.trap_type" size="body" block>
                 <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
-              </select>
+              </AppSelect>
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CR</label>
               <div class="flex items-center gap-2">
-                <select
-                  v-model="form.cr"
-                  class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
+                <AppSelect v-model="form.cr" size="body" class="flex-1 min-w-0">
                   <option :value="null">—</option>
                   <option v-for="cr in CR_LIST" :key="cr" :value="cr">{{ cr }}</option>
-                </select>
+                </AppSelect>
                 <span v-if="crXp" class="text-label text-muted-foreground whitespace-nowrap">{{ crXp }} XP</span>
-                <button
-                  type="button"
-                  class="shrink-0 inline-flex items-center gap-1 text-label font-semibold text-primary hover:opacity-80 transition-opacity whitespace-nowrap"
-                  title="Open CR advisor"
+                <AppButton
+                  variant="link"
+                  size="inline-xs"
+                  :icon="IconGenerate"
+                  label="Suggest"
+                  tooltip="Open CR advisor"
+                  class="shrink-0 whitespace-nowrap"
                   @click="showAdvisor = true"
-                >
-                  <IconGenerate class="h-3 w-3" />
-                  Suggest
-                </button>
+                />
               </div>
             </div>
             <div class="col-span-2">
@@ -101,38 +94,32 @@
         <div class="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trigger</label>
-            <select
-              v-model="form.trigger_type"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model="form.trigger_type" size="body" block>
               <option :value="null">—</option>
               <option v-for="t in TRAP_TRIGGERS" :key="t" :value="t">{{ t }}</option>
-            </select>
+            </AppSelect>
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Detection DC</label>
-            <input v-model.number="form.detection_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.detection_dc" type="number" size="body" min="1" max="30" placeholder="15" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Disarm DC</label>
-            <input v-model.number="form.disarm_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.disarm_dc" type="number" size="body" min="1" max="30" placeholder="15" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Reset</label>
-            <select
-              v-model="form.reset_type"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model="form.reset_type" size="body" block>
               <option v-for="r in TRAP_RESET_TYPES" :key="r" :value="r">{{ r }}</option>
-            </select>
+            </AppSelect>
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trap HP</label>
-            <input v-model.number="form.trap_hp" type="number" min="1" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.trap_hp" type="number" size="body" min="1" placeholder="—" />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Trap AC</label>
-            <input v-model.number="form.trap_ac" type="number" min="1" max="30" placeholder="—" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+            <AppInput v-model.number="form.trap_ac" type="number" size="body" min="1" max="30" placeholder="—" />
           </div>
           <div class="col-span-2 sm:col-span-3">
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Damage Immunities</label>
@@ -149,44 +136,48 @@
         <div class="p-4 space-y-3">
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Effect Description</label>
-            <input
+            <AppInput
               v-model="form.effect_description"
+              size="body"
               placeholder="The trap fires a poisoned dart at the nearest creature…"
-              class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Attack Bonus</label>
-              <input v-model.number="form.attack_bonus" type="number" placeholder="+5" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <AppInput v-model.number="form.attack_bonus" type="number" size="body" placeholder="+5" />
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Save Type</label>
-              <select v-model="form.save_type" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+              <AppSelect v-model="form.save_type" size="body" block>
                 <option :value="null">—</option>
                 <option v-for="s in TRAP_SAVE_TYPES" :key="s" :value="s">{{ s }}</option>
-              </select>
+              </AppSelect>
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Save DC</label>
-              <input v-model.number="form.save_dc" type="number" min="1" max="30" placeholder="15" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <AppInput v-model.number="form.save_dc" type="number" size="body" min="1" max="30" placeholder="15" />
             </div>
           </div>
           <div>
             <div class="flex items-center justify-between mb-1">
               <label class="text-label-lg font-semibold text-muted-foreground">Damage</label>
-              <button type="button" class="text-label font-semibold text-primary hover:opacity-80 transition-opacity" @click="addDamageEntry">+ Add</button>
+              <AppButton variant="link" size="inline-xs" label="+ Add" @click="addDamageEntry" />
             </div>
             <div class="flex flex-col gap-2">
               <div v-for="(entry, i) in form.damage_entries" :key="i" class="flex items-center gap-2">
                 <DiceExprInput v-model="entry.dice" placeholder="1d6" compact class="w-28 shrink-0" />
-                <select v-model="entry.type" class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize">
+                <AppSelect v-model="entry.type" size="body" class="flex-1 min-w-0 capitalize">
                   <option value="">—</option>
                   <option v-for="d in DAMAGE_TYPES" :key="d" :value="d" class="capitalize">{{ d }}</option>
-                </select>
-                <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive transition-colors" @click="form.damage_entries.splice(i, 1)">
-                  <IconClose class="h-3.5 w-3.5" />
-                </button>
+                </AppSelect>
+                <AppButton
+                  variant="ghost"
+                  size="icon-xs"
+                  class="shrink-0 hover:text-destructive"
+                  :icon="IconClose"
+                  @click="form.damage_entries.splice(i, 1)"
+                />
               </div>
               <p v-if="!form.damage_entries.length" class="text-caption text-muted-foreground italic">No damage — add a component above.</p>
             </div>
@@ -226,22 +217,21 @@
         <div class="w-full max-w-lg bg-card border border-border rounded-xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
           <div class="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider">CR Advisor</h2>
-            <button type="button" @click="showAdvisor = false" class="text-muted-foreground hover:text-foreground transition-colors">
-              <IconClose class="h-4 w-4" />
-            </button>
+            <AppButton variant="ghost" size="icon-sm" :icon="IconClose" tooltip="Close" aria-label="Close" @click="showAdvisor = false" />
           </div>
           <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-2">Primary Effect</label>
               <div class="grid grid-cols-5 gap-1.5">
-                <button
+                <AppButton
                   v-for="cat in EFFECT_CATEGORIES"
                   :key="cat.value"
-                  type="button"
-                  class="rounded-md border px-2 py-1.5 text-label font-semibold transition-colors text-center"
-                  :class="advisorInputs.effectCategory === cat.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/50'"
+                  variant="subtle"
+                  size="xs"
+                  :label="cat.label"
+                  :active="advisorInputs.effectCategory === cat.value"
                   @click="advisorInputs.effectCategory = cat.value"
-                >{{ cat.label }}</button>
+                />
               </div>
             </div>
             <div v-if="advisorInputs.effectCategory === 'damage'">
@@ -251,48 +241,51 @@
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-2">Area of Effect</label>
               <div class="grid grid-cols-3 gap-1.5">
-                <button
+                <AppButton
                   v-for="opt in TARGETING_OPTIONS"
                   :key="opt.value"
-                  type="button"
-                  class="rounded-md border px-2 py-1.5 text-label font-semibold transition-colors text-center"
-                  :class="advisorInputs.targeting === opt.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/50'"
+                  variant="subtle"
+                  size="xs"
+                  :label="opt.label"
+                  :active="advisorInputs.targeting === opt.value"
                   @click="advisorInputs.targeting = opt.value"
-                >{{ opt.label }}</button>
+                />
               </div>
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-2">DC Difficulty (highest of detection / save)</label>
               <div class="grid grid-cols-4 gap-1.5">
-                <button
+                <AppButton
                   v-for="opt in DC_TIER_OPTIONS"
                   :key="opt.value"
-                  type="button"
-                  class="rounded-md border px-2 py-1.5 text-label font-semibold transition-colors text-center"
-                  :class="advisorInputs.dcTier === opt.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/50'"
+                  variant="subtle"
+                  size="xs"
+                  :label="opt.label"
+                  :active="advisorInputs.dcTier === opt.value"
                   @click="advisorInputs.dcTier = opt.value"
-                >{{ opt.label }}</button>
+                />
               </div>
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-2">Secondary Effect</label>
               <div class="grid grid-cols-5 gap-1.5">
-                <button
+                <AppButton
                   v-for="opt in SECONDARY_OPTIONS"
                   :key="opt.value"
-                  type="button"
-                  class="rounded-md border px-2 py-1.5 text-label font-semibold transition-colors text-center"
-                  :class="advisorInputs.secondaryEffect === opt.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/50'"
+                  variant="subtle"
+                  size="xs"
+                  :label="opt.label"
+                  :active="advisorInputs.secondaryEffect === opt.value"
                   @click="advisorInputs.secondaryEffect = opt.value"
-                >{{ opt.label }}</button>
+                />
               </div>
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Reset</label>
-                <select v-model="advisorInputs.resetType" class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+                <AppSelect v-model="advisorInputs.resetType" size="body" block>
                   <option v-for="r in TRAP_RESET_TYPES" :key="r" :value="r">{{ r }}</option>
-                </select>
+                </AppSelect>
               </div>
               <div class="flex items-end pb-1">
                 <label class="flex items-center gap-2 cursor-pointer">
@@ -333,16 +326,15 @@
             </div>
           </div>
           <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-            <button type="button" class="font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors px-3 py-2" @click="showAdvisor = false">Cancel</button>
-            <button
+            <AppButton variant="ghost" size="md" label="Cancel" @click="showAdvisor = false" />
+            <AppButton
               v-if="advisorResult"
-              type="button"
-              class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+              variant="primary"
+              size="md"
+              :icon="IconCheck"
+              :label="`Use CR ${advisorResult.suggestedCr}`"
               @click="applyCr"
-            >
-              <IconCheck class="h-3.5 w-3.5" />
-              Use CR {{ advisorResult.suggestedCr }}
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -382,6 +374,9 @@ import TagInput from "@/components/common/TagInput.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 const props = defineProps<{ trap: Trap | null; isNew: boolean }>();
 

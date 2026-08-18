@@ -3,10 +3,12 @@
     <!-- Name input -->
     <label>
       <span class="sr-only">Species name</span>
-      <input
+      <AppInput
         v-model="form.name"
+        tone="card"
+        size="lg"
         placeholder="Species name…"
-        class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="font-bold"
       />
     </label>
 
@@ -60,20 +62,18 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">SIZE</label>
-            <select
-              v-model="form.size"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model="form.size" size="body">
               <option value="">— none —</option>
               <option v-for="sz in SIZES" :key="sz" :value="sz" class="capitalize">{{ sz }}</option>
-            </select>
+            </AppSelect>
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">SOURCE</label>
-            <input
+            <AppInput
               v-model="form.source"
+              tone="card"
+              size="body"
               placeholder="PHB 2024, Homebrew…"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
@@ -82,18 +82,20 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">AVG. HEIGHT</label>
-            <input
+            <AppInput
               v-model="form.avg_height"
+              tone="card"
+              size="body"
               placeholder="e.g. 5 ft 9 in (175 cm)…"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">AVG. WEIGHT</label>
-            <input
+            <AppInput
               v-model="form.avg_weight"
+              tone="card"
+              size="body"
               placeholder="e.g. 165 lbs (75 kg)…"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
         </div>
@@ -102,13 +104,15 @@
         <div>
           <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">NATURAL ARMOR AC</label>
           <div class="flex items-center gap-2">
-            <input
+            <AppInput
               v-model.number="form.natural_armor_ac"
               type="number"
               min="1"
               max="30"
+              tone="card"
+              size="body"
               placeholder="—"
-              class="w-24 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="w-24"
             />
             <span class="text-caption text-muted-foreground italic">Leave blank if the species has no natural armor trait</span>
           </div>
@@ -120,14 +124,14 @@
           <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
             <div v-for="type in SPEED_TYPES" :key="type">
               <label class="block text-caption text-muted-foreground mb-0.5 capitalize">{{ type }}</label>
-              <input
-                :value="form.speed[type] ?? ''"
+              <AppInput
+                v-model.number="speedFields[type]"
                 type="number"
                 min="0"
                 step="5"
+                tone="card"
+                size="body"
                 :placeholder="type === 'walk' ? '30' : '—'"
-                class="w-full bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                @input="setSpeed(type, ($event.target as HTMLInputElement).value)"
               />
             </div>
           </div>
@@ -136,10 +140,11 @@
         <!-- Ability Score Increases -->
         <div>
           <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">ABILITY SCORE INCREASES</label>
-          <input
+          <AppInput
             v-model="form.asiDescription"
+            tone="card"
+            size="body"
             placeholder="e.g. +2 STR, +1 to any ability score of your choice…"
-            class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -167,37 +172,29 @@
             class="rounded-md border border-border p-4 mb-3 space-y-3"
           >
             <div class="flex items-center gap-2">
-              <input
+              <AppInput
                 v-model="sub.name"
+                tone="muted"
+                size="lg"
                 placeholder="Subrace name…"
-                class="flex-1 bg-muted border border-border rounded-md px-3 py-1.5 font-cinzel text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="flex-1 font-semibold"
               />
-              <button
-                type="button"
-                class="text-muted-foreground hover:text-destructive transition-colors shrink-0 text-lg leading-none"
-                @click="removeSubrace(i)"
-              >
-                ✕
-              </button>
+              <AppButton variant="ghost" size="inline-xs" label="✕" class="shrink-0" @click="removeSubrace(i)" />
             </div>
             <label class="block">
               <span class="text-label font-semibold text-muted-foreground">ABILITY BONUS</span>
-              <input
+              <AppInput
                 v-model="sub.asiText"
+                tone="muted"
+                size="body"
                 placeholder="e.g. CHA +1 or +1 Charisma"
-                class="mt-1 w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                class="mt-1"
               />
             </label>
             <RichTextEditor v-model="sub.description" placeholder="Subrace description…" />
             <TraitSection v-model="sub.traits" label="Subrace Trait" />
           </div>
-          <button
-            type="button"
-            class="font-cinzel text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
-            @click="addSubrace"
-          >
-            + Add Subrace
-          </button>
+          <AppButton variant="link" size="inline-xs" label="+ Add Subrace" @click="addSubrace" />
         </div>
 
         <!-- Spell Grants -->
@@ -230,6 +227,9 @@ import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import SpeciesSpellGrants from "@/components/species/SpeciesSpellGrants.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import type { Species, SpeciesSize } from "@/types/species.types";
 
 const props = defineProps<{ species?: Species | null }>();
@@ -343,6 +343,23 @@ function setSpeed(type: typeof SPEED_TYPES[number], raw: string) {
     form.speed[type] = val;
   }
 }
+
+// AppInput requires a v-model, but an empty speed means "delete the key" rather
+// than "set it to null" (an explicit null would survive into the payload — see
+// the save() guard below). `reactive()` unwraps the computed refs on property
+// access, so `speedFields[type]` reads and writes through to setSpeed() exactly
+// as the old :value/@input pair did.
+const speedFields = reactive(
+  Object.fromEntries(
+    SPEED_TYPES.map((type) => [
+      type,
+      computed<number | null>({
+        get: () => form.speed[type] ?? null,
+        set: (v) => setSpeed(type, v === null ? "" : String(v)),
+      }),
+    ]),
+  ),
+) as unknown as Record<typeof SPEED_TYPES[number], number | null>;
 
 function addSubrace() {
   form.subraces.push({ name: "", description: "", traits: [], ability_score_increases: null, asiText: "" });
