@@ -20,11 +20,12 @@
         />
       </template>
 
-      <!-- View-mode: instant visibility toggle -->
-      <PlayerVisibilityToggle
+      <!-- View-mode: instant reveal -->
+      <AudienceRevealControl
         v-if="!isEditing && deity?.id"
-        :visible-to="deity.player_visible_to ?? []"
-        @update:visible-to="revealDeity($event)"
+        :name="deity.name"
+        :visible-to="deity.player_visible_to"
+        @change="revealDeity($event)"
       />
 
       <!-- Edit-mode actions -->
@@ -78,7 +79,7 @@ import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DeityEditor from "@/components/deities/DeityEditor.vue";
 import DeitySheet from "@/components/deities/DeitySheet.vue";
-import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 
 const route     = useRoute();
 const router    = useRouter();

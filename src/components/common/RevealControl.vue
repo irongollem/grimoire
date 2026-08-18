@@ -13,13 +13,22 @@
     a bottom sheet where a popover would be cramped. The body is identical, so
     the thing a DM learns once holds everywhere.
   -->
-  <div ref="containerRef" class="relative">
+  <!--
+    `flex`, not just `relative`: AppButton renders `inline-flex`, and an
+    inline-level child sits on a text baseline, so a plain block wrapper is a
+    few px taller than the button and leaves a descender gap underneath. That
+    is invisible on its own and obvious the moment this sits in a row next to a
+    button someone else placed — the Edit chip on a card is a direct flex child
+    with no such gap, so the pair looked misaligned by a hair.
+    The popover is teleported out of here, so it is unaffected either way.
+  -->
+  <div ref="containerRef" class="relative flex w-fit">
     <AppButton
-      :variant="state === 'private' ? 'subtle' : 'tinted'"
-      :tone="state === 'private' ? undefined : 'primary'"
+      :variant="overlay ? 'ghost' : state === 'private' ? 'subtle' : 'tinted'"
+      :tone="overlay || state === 'private' ? undefined : 'primary'"
       :emphasis="state === 'everyone' ? 'strong' : 'soft'"
-      :size="overlay ? 'icon-sm' : 'sm'"
-      :class="overlay ? 'bg-background/85 shadow-sm backdrop-blur-sm' : undefined"
+      :size="overlay ? 'icon-xs' : 'sm'"
+      :class="overlay ? overlayClass : undefined"
       :icon="state === 'private' ? IconHide : IconReveal"
       :label="overlay ? undefined : label"
       :title="title"
@@ -29,23 +38,37 @@
       @click="toggleOpen"
     />
 
-    <!-- Pointer presentation -->
-    <div
-      v-if="open && !useSheet"
-      class="absolute z-50 w-64 overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
-      :class="[openUpward ? 'bottom-full mb-1' : 'top-full mt-1', openLeftward ? 'left-0' : 'right-0']"
-      role="dialog"
-      :aria-label="title"
-    >
-      <RevealBody
-        :party="party"
-        :adapter="adapter"
-        :state="state"
-        @close="open = false"
+    <!--
+      Pointer presentation, teleported to `body` and positioned against the
+      trigger's viewport rect.
+
+      It cannot be an absolutely-positioned child: this control's whole point is
+      that it appears on list cards, and a card clips its children — the grid
+      card carries `overflow-hidden` for its rounded corners and the hover zoom
+      on the artwork. A popover inside it gets sliced off at the card edge. Every
+      hand-rolled version this replaced had already discovered that and teleported
+      for the same reason; doing it here means the 25 call sites do not each have
+      to know whether their container happens to clip.
+    -->
+    <Teleport to="body">
+      <div
+        v-if="open && !useSheet"
+        ref="popoverRef"
+        class="fixed z-50 w-64 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
+        :style="popoverStyle"
+        role="dialog"
+        :aria-label="title"
       >
-        <slot name="what" />
-      </RevealBody>
-    </div>
+        <RevealBody
+          :party="party"
+          :adapter="adapter"
+          :state="state"
+          @close="open = false"
+        >
+          <slot name="what" />
+        </RevealBody>
+      </div>
+    </Teleport>
 
     <!-- Small-screen presentation: same body, room to breathe -->
     <MobileSheet v-if="useSheet" v-model:open="open" :title="title">
@@ -62,8 +85,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import RevealBody from "@/components/common/RevealBody.vue";
 import { useParty } from "@/composables/useParty";
@@ -88,6 +112,12 @@ const { adapter, entityName, form = "button" } = defineProps<{
    *   overlay — icon only, on a translucent backdrop so it stays legible on
    *             top of artwork. For list cards and gallery tiles, where it
    *             sits over an image and a word would cover the art.
+   *
+   * `overlay` is sized to the card action pills it stands next to (the Edit
+   * chip on an NPC or monster card), not to a comfortable standalone icon
+   * button — two controls in the same corner at two different heights read as
+   * a mistake. Touch gets the 44px target back via the `max-md` override,
+   * which is the same trade the `md` button size makes.
    */
   form?: "button" | "overlay";
 }>();
@@ -101,6 +131,28 @@ const partyIds = computed(() => party.value.map((m) => m.id));
 const state = computed(() => revealState(partyIds.value, adapter.isMemberVisible));
 const sharedCount = computed(() => partyIds.value.filter(adapter.isMemberVisible).length);
 const label = computed(() => revealLabel(state.value, sharedCount.value));
+
+/**
+ * The card-overlay treatment: a small, always-visible, icon-only chip on a dark
+ * translucent scrim.
+ *
+ * Dark rather than theme-tinted because this form sits on top of artwork — a
+ * portrait, a monster illustration, a mobile hero image — where a background
+ * that follows the theme disappears against half the pictures in the app. It is
+ * also what every other action chip in that same corner already does (the Edit
+ * chip on an NPC or monster card, the mobile app-bar buttons), and two controls
+ * side by side in two different treatments read as an accident.
+ *
+ * State survives the fixed background in the icon's colour, which is how the
+ * hand-rolled card popovers did it before: gold once somebody can see it, white
+ * while it is hidden. The hover colours are pinned too — `ghost` would
+ * otherwise pull the text back to `foreground` and lose the distinction on the
+ * one interaction where the DM is looking straight at it.
+ */
+const overlayClass = computed(() => [
+  CARD_OVERLAY_ACTION,
+  state.value === "private" ? "text-white hover:text-white" : "text-primary hover:text-primary",
+]);
 
 const title = computed(() =>
   entityName ? `Reveal ${entityName} to players` : "Reveal to players",
@@ -120,18 +172,53 @@ function syncPresentation() {
   useSheet.value = media?.matches ?? false;
 }
 
+/** `w-64`. Known rather than measured, so the first paint is already in place. */
 const POPOVER_W = 256;
+/** Enough of the body to be worth opening downward for. */
 const POPOVER_H_EST = 320;
-const openUpward = ref(false);
-const openLeftward = ref(false);
+const GAP = 4;
+/** Never let an edge touch the viewport. */
+const MARGIN = 8;
 
+const popoverRef = ref<HTMLElement | null>(null);
+const popoverStyle = ref<Record<string, string>>({});
+
+/**
+ * Places the popover against the trigger, biased away from whichever edges are
+ * close.
+ *
+ * Teleporting to `body` escapes the card's clipping but forfeits the anchoring
+ * that `absolute` gave for free, so both axes are worked out here:
+ *
+ *   vertical   — below the trigger, unless the room below is less than the body
+ *                needs *and* there is more room above. Either way `maxHeight` is
+ *                capped to the space actually available and the body scrolls, so
+ *                a long party list cannot run off the top or the bottom.
+ *   horizontal — right edge aligned to the trigger's, then clamped into the
+ *                viewport. Clamping rather than flipping, because a control near
+ *                the left edge (a card's top-left chip) and one near the right
+ *                (a page header) both just need to stay on screen; a flag for
+ *                each case was two ways to be slightly wrong.
+ */
 function computePosition() {
   const el = containerRef.value;
   if (!el) return;
   const rect = el.getBoundingClientRect();
-  openUpward.value =
-    window.innerHeight - rect.bottom < POPOVER_H_EST && rect.top > window.innerHeight - rect.bottom;
-  openLeftward.value = rect.right < POPOVER_W && window.innerWidth - rect.left >= POPOVER_W;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const spaceBelow = vh - rect.bottom - GAP - MARGIN;
+  const spaceAbove = rect.top - GAP - MARGIN;
+  const openUpward = spaceBelow < Math.min(POPOVER_H_EST, spaceAbove);
+
+  const left = Math.max(
+    MARGIN,
+    Math.min(rect.right - POPOVER_W, vw - POPOVER_W - MARGIN),
+  );
+
+  popoverStyle.value = openUpward
+    ? { left: `${left}px`, bottom: `${vh - rect.top + GAP}px`, maxHeight: `${spaceAbove}px` }
+    : { left: `${left}px`, top: `${rect.bottom + GAP}px`, maxHeight: `${spaceBelow}px` };
 }
 
 function toggleOpen() {
@@ -142,10 +229,30 @@ function toggleOpen() {
   open.value = !open.value;
 }
 
+/**
+ * A teleported popover is not a descendant of `containerRef`, so a click inside
+ * it reads as "outside" and would close the control on its own checkboxes.
+ */
 function onOutsideClick(event: MouseEvent) {
   if (useSheet.value) return; // the sheet owns its own dismissal
-  if (containerRef.value && !containerRef.value.contains(event.target as Node)) open.value = false;
+  const target = event.target as Node;
+  if (containerRef.value?.contains(target)) return;
+  if (popoverRef.value?.contains(target)) return;
+  open.value = false;
 }
+
+// Anchored to a rect rather than to an ancestor, so it has to be recomputed
+// while open. `capture` because the page scrolls in an inner container, not on
+// `window` — a bubbling listener never hears it.
+watch(open, (isOpen) => {
+  if (isOpen) {
+    window.addEventListener("scroll", computePosition, true);
+    window.addEventListener("resize", computePosition);
+  } else {
+    window.removeEventListener("scroll", computePosition, true);
+    window.removeEventListener("resize", computePosition);
+  }
+});
 
 onMounted(() => {
   syncPresentation();
@@ -155,5 +262,7 @@ onMounted(() => {
 onUnmounted(() => {
   media?.removeEventListener("change", syncPresentation);
   document.removeEventListener("mousedown", onOutsideClick);
+  window.removeEventListener("scroll", computePosition, true);
+  window.removeEventListener("resize", computePosition);
 });
 </script>

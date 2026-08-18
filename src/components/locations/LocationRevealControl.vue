@@ -18,23 +18,13 @@
         THEY ALSO SEE
       </p>
       <div class="flex flex-col gap-1">
-        <AppButton
+        <RevealOption
           v-for="option in shareOptions"
           :key="option.key"
-          variant="ghost"
-          size="sm"
-          block
-          class="justify-start gap-2 rounded px-2 hover:bg-muted"
-          @click="toggleShare(option.key)"
-        >
-          <span
-            class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors"
-            :class="draft[option.key] ? 'border-primary bg-primary' : 'border-border'"
-          >
-            <IconCheck v-if="draft[option.key]" class="h-2.5 w-2.5 text-primary-foreground" />
-          </span>
-          <span class="truncate text-left">{{ option.label }}</span>
-        </AppButton>
+          :label="option.label"
+          :checked="draft[option.key]"
+          @toggle="toggleShare(option.key)"
+        />
       </div>
     </template>
   </RevealControl>
@@ -42,11 +32,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import AppButton from "@/components/common/AppButton.vue";
 import RevealControl from "@/components/common/RevealControl.vue";
+import RevealOption from "@/components/common/RevealOption.vue";
 import { useParty } from "@/composables/useParty";
 import { useUpdateLocation } from "@/composables/useLocations";
-import { IconCheck } from "@/lib/icons";
 import { arrayRevealAdapter } from "@/lib/reveal";
 import { STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
@@ -58,16 +47,6 @@ const { location, form = "button" } = defineProps<{
 
 type ShareKey = "is_description_shared" | "is_npcs_shared" | "is_inventory_shared" | "is_map_shared";
 
-/**
- * A NULL `player_visible_to` is not missing data to paper over — it is a
- * location nobody has ever been given, which is exactly an empty audience. The
- * column is nullable with no default (its siblings are `NOT NULL DEFAULT '{}'`),
- * so a third of rows arrive this way.
- */
-function revealedIds(loc: Location): string[] {
-  return loc.player_visible_to ? [...loc.player_visible_to] : [];
-}
-
 const { mutate: updateLocation } = useUpdateLocation();
 const { data: partyData } = useParty();
 
@@ -76,7 +55,7 @@ const { data: partyData } = useParty();
  * the control does not wait for a refetch to redraw. Same pattern as
  * ItemDetailPanel.
  */
-const visibleTo = ref<string[]>(revealedIds(location));
+const visibleTo = ref<string[]>([...location.player_visible_to]);
 const draft = ref<Record<ShareKey, boolean>>({
   is_description_shared: location.is_description_shared,
   is_npcs_shared: location.is_npcs_shared,
@@ -87,7 +66,7 @@ const draft = ref<Record<ShareKey, boolean>>({
 watch(
   () => location,
   (next) => {
-    visibleTo.value = revealedIds(next);
+    visibleTo.value = [...next.player_visible_to];
     draft.value = {
       is_description_shared: next.is_description_shared,
       is_npcs_shared: next.is_npcs_shared,

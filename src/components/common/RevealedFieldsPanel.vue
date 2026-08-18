@@ -1,29 +1,29 @@
 <template>
-  <div
-    v-if="visibleTo.length > 0"
-    class="mb-4 border border-primary/20 rounded-lg px-4 py-3 bg-primary/5 space-y-3"
-  >
-    <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">REVEALED FIELDS</p>
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1">
-      <label
-        v-for="f in fields"
-        :key="f.key"
-        class="flex items-center gap-2 cursor-pointer"
-      >
-        <input
-          type="checkbox"
-          class="rounded border-border accent-primary"
-          :checked="modelValue.includes(f.key)"
-          @change="toggleField(f.key)"
-        />
-        <span class="text-caption text-foreground">{{ f.label }}</span>
-      </label>
-    </div>
-    <slot />
+  <!--
+    The "what" half of a reveal, for entities that answer it with a list of
+    fields. Generic over `fields`, so an entity that grows a field list does not
+    grow a bespoke panel with it.
+
+    This used to be a bordered card sitting at the top of the NPC edit form,
+    with its own `v-if="visibleTo.length"` gate and native checkboxes. It now
+    renders inside `RevealBody`'s `#what` slot, which already supplies the
+    frame, the heading position and the dimming while nothing is shared — so the
+    card chrome and the gate came off rather than being drawn twice.
+  -->
+  <div class="flex flex-col gap-1">
+    <RevealOption
+      v-for="field in fields"
+      :key="field.key"
+      :label="field.label"
+      :checked="modelValue.includes(field.key)"
+      @toggle="toggleField(field.key)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import RevealOption from "@/components/common/RevealOption.vue";
+
 export interface RevealableField {
   key: string;
   label: string;
@@ -32,7 +32,6 @@ export interface RevealableField {
 const { modelValue } = defineProps<{
   modelValue: string[];
   fields: ReadonlyArray<RevealableField>;
-  visibleTo: string[];
 }>();
 
 const emit = defineEmits<{
@@ -41,7 +40,8 @@ const emit = defineEmits<{
 
 function toggleField(key: string) {
   const set = new Set(modelValue);
-  if (set.has(key)) set.delete(key); else set.add(key);
+  if (set.has(key)) set.delete(key);
+  else set.add(key);
   emit("update:modelValue", Array.from(set));
 }
 </script>

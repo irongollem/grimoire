@@ -17,11 +17,12 @@
         />
       </template>
 
-      <!-- View-mode: instant visibility toggle -->
-      <PlayerVisibilityToggle
+      <!-- View-mode: instant reveal -->
+      <AudienceRevealControl
         v-if="!isEditing && pantheon?.id"
-        :visible-to="pantheon.player_visible_to ?? []"
-        @update:visible-to="revealPantheon($event)"
+        :name="pantheon.name"
+        :visible-to="pantheon.player_visible_to"
+        @change="revealPantheon($event)"
       />
 
       <!-- Edit-mode actions -->
@@ -75,7 +76,7 @@ import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PantheonEditor from "@/components/pantheons/PantheonEditor.vue";
 import PantheonSheet from "@/components/pantheons/PantheonSheet.vue";
-import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 
 const route     = useRoute();
 const router    = useRouter();

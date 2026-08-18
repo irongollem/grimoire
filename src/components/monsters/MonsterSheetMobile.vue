@@ -58,18 +58,12 @@
       </h1>
 
       <div class="flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          class="flex size-10 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-colors active:bg-black/60"
-          :class="[
-            scrolled && 'bg-transparent active:bg-muted',
-            isDiscovered ? 'text-primary' : scrolled ? 'text-foreground' : 'text-white',
-          ]"
-          :aria-label="isDiscovered ? 'Manage sharing' : 'Reveal to players'"
-          @click="showReveal = true"
-        >
-          <component :is="isDiscovered ? IconReveal : IconHide" class="size-5" />
-        </button>
+        <!--
+          The app bar's reveal. Below `md` the control opens as a bottom sheet
+          on its own, replacing `MonsterRevealSheet` — one of the two mobile
+          sheets that had been written twice, independently.
+        -->
+        <MonsterRevealControl :monster="monster" form="overlay" />
         <button
           type="button"
           class="flex size-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors active:bg-black/60"
@@ -203,18 +197,8 @@
     <div
       class="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-md"
     >
-      <button
-        type="button"
-        class="flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-3 font-cinzel text-sm font-bold tracking-wider transition-colors"
-        :class="isDiscovered
-          ? 'border-primary/50 bg-primary/10 text-primary'
-          : 'border-border text-foreground active:bg-muted'"
-        @click="showReveal = true"
-      >
-        <component :is="isDiscovered ? IconReveal : IconHide" class="size-4" />
-        <span v-if="sharedCount">Shared · {{ sharedCount }}</span>
-        <span v-else>Reveal</span>
-      </button>
+      <!-- `button` form: there is room here to name the audience outright. -->
+      <MonsterRevealControl :monster="monster" />
 
       <!-- SRD monsters clone to an editable copy (Customize); custom monsters edit -->
       <button
@@ -237,9 +221,6 @@
       </RouterLink>
     </div>
   </div>
-
-  <!-- ── 7. Reveal bottom sheet ───────────────────────────────────────────── -->
-  <MonsterRevealSheet v-model:open="showReveal" :monster="monster" />
 
   <!-- Overflow ⋮ sheet — Send to Scriptorium / Delete live in the edit form
        (they require the form to be mounted), so these route into it. Duplicate
@@ -285,8 +266,8 @@ import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
-import MonsterRevealSheet from "@/components/monsters/MonsterRevealSheet.vue";
-import { IconCopy, IconDelete, IconEdit, IconHide, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
+import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
+import { IconCopy, IconDelete, IconEdit, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
 import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/useMonsters";
 import { useLocationTree } from "@/composables/useLocations";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
@@ -315,13 +296,8 @@ const lairLocation = computed(() =>
 );
 
 // ── Visibility / discovery (discovery model, not NPC field-list) ────────────────
-const { isDiscovered, currentDiscovery } = useMonsterVisibility(toRef(() => monster));
-const sharedCount = computed(() => {
-  const d = currentDiscovery.value;
-  if (!d) return 0;
-  // null visible_to = whole party (legacy); show 0-suppressed "Shared" label
-  return d.visible_to?.length ?? 0;
-});
+// Only the hero badge still asks; the reveal itself is MonsterRevealControl's.
+const { isDiscovered } = useMonsterVisibility(toRef(() => monster));
 
 // ── Accordion state (Lore open by default) ──────────────────────────────────────
 const openSections = reactive({
@@ -330,7 +306,6 @@ const openSections = reactive({
 });
 
 // ── Sheets ───────────────────────────────────────────────────────────────────
-const showReveal = ref(false);
 const showMenu = ref(false);
 
 // ── Customize (SRD → editable clone) — mirrors MonsterDetail/MonsterSheet ───────

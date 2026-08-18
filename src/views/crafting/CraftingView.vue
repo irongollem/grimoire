@@ -117,9 +117,10 @@
 
           <!-- Actions -->
           <div class="flex items-center gap-1 shrink-0" @click.stop>
-            <PlayerVisibilityToggle
+            <AudienceRevealControl
+              :name="recipe.name"
               :visible-to="recipe.player_visible_to"
-              @update:visible-to="onVisibilityChange(recipe, $event)"
+              @change="onVisibilityChange(recipe, $event)"
             />
             <button
               class="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -150,7 +151,7 @@ import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe, useRevealAllRecipes } from "@/composables/useCrafting";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";

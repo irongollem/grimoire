@@ -283,7 +283,7 @@ The Workshop is where the DM creates crafting recipes and controls which players
 - A workspace bonus (standard modifier for having a proper workspace)
 - A workspace label shown in the attempt dialog
 
-**Player visibility toggle** — `PlayerVisibilityToggle` on each recipe card controls which player characters can see the recipe in their portal. This can be changed directly from the list without entering the editor.
+**Reveal control** — `AudienceRevealControl` on each recipe card controls which player characters can see the recipe in their portal. This can be changed directly from the list without entering the editor, and `RecipeSheet` and `RecipeEditor` carry the same control (#741).
 
 **Starter recipe import** — "Import Starter Recipes" button imports a built-in set of starter recipes (idempotent).
 

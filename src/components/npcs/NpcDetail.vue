@@ -27,23 +27,29 @@
 
   <form v-else id="npc-detail-form" class="max-w-full min-w-0" @submit.prevent="save">
 
-    <RevealedFieldsPanel
-      v-if="npc?.id"
-      :model-value="form.player_visible_fields"
-      :fields="NPC_PLAYER_FIELDS"
-      :visible-to="form.player_visible_to"
-      @update:model-value="form.player_visible_fields = $event"
+    <!--
+      Notes the party can read, shown once this NPC is revealed to someone.
+
+      These used to be a slot inside `RevealedFieldsPanel`, which also drew the
+      "which fields do players see" checkboxes. Those checkboxes are now the
+      "what" half of the reveal control in the header, next to the audience they
+      apply to. The notes stayed behind: they are prose the DM writes, and a
+      rich-text editor does not belong inside a popover.
+    -->
+    <div
+      v-if="npc?.id && form.player_visible_to.length"
+      class="mb-4 space-y-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3"
     >
-      <div class="pt-1">
+      <div>
         <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground mb-2">PARTY NOTES</p>
         <PlayerNotesWidget entity-type="npc" :entity-id="npc.id" placeholder="Notes visible to the whole party…" />
       </div>
-      <div class="pt-1">
+      <div>
         <p class="font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground mb-2">PC CONNECTION NOTES</p>
         <p class="text-caption text-muted-foreground/60 italic mb-2">Per-player notes visible only to the relevant PC.</p>
         <NpcPcNotesSection :npc-id="npc.id" />
       </div>
-    </RevealedFieldsPanel>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-[13.75rem_1fr] gap-6 lg:items-start min-w-0 max-w-full">
       <!-- ── Left: portrait + meta ────────────────────────────────── -->
@@ -229,8 +235,6 @@ import EntityCombobox from '@/components/common/EntityCombobox.vue'
 import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
 import PaywallModal from '@/components/common/PaywallModal.vue'
 import { isQuotaExceeded } from '@/lib/quotaError'
-import RevealedFieldsPanel from '@/components/common/RevealedFieldsPanel.vue'
-import { NPC_PLAYER_FIELDS } from '@/lib/npcDisplay'
 import TabBar from '@/components/common/TabBar.vue'
 import StatBlockEditor from '@/components/common/StatBlockEditor.vue'
 

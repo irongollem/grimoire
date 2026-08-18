@@ -52,11 +52,29 @@
           :icon="IconScrollText"
           @click="npcDetail.sendToScriptorium()"
         />
-        <PlayerVisibilityToggle
+        <!--
+          Draft-bound: this editor owns its Save, so the reveal edits the form
+          rather than writing through. Both halves are here — the field list
+          used to be a separate panel bolted to the top of the form, which is
+          how an NPC ended up with four reveal UIs.
+        -->
+        <AudienceRevealControl
           v-if="npc?.id"
+          :name="npcDetail.form.name"
           :visible-to="npcDetail.form.player_visible_to"
-          @update:visible-to="npcDetail.form.player_visible_to = $event"
-        />
+          @change="npcDetail.form.player_visible_to = $event"
+        >
+          <template #what>
+            <p class="mb-2 font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">
+              THEY ALSO SEE
+            </p>
+            <RevealedFieldsPanel
+              :model-value="npcDetail.form.player_visible_fields"
+              :fields="NPC_PLAYER_FIELDS"
+              @update:model-value="npcDetail.form.player_visible_fields = $event"
+            />
+          </template>
+        </AudienceRevealControl>
         <PageHeaderAction
           v-if="npc?.id && (npcDetail.form.disguise_name || npcDetail.form.disguise_portrait_url)"
           :label="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
@@ -111,7 +129,9 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NpcDetail from "@/components/npcs/NpcDetail.vue";
 import NpcSheet from "@/components/npcs/NpcSheet.vue";
 import NpcDetailMobile from "@/components/npcs/NpcDetailMobile.vue";
-import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import RevealedFieldsPanel from "@/components/common/RevealedFieldsPanel.vue";
+import { NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
 
 const route = useRoute();
 const router = useRouter();

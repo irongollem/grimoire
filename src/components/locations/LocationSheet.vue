@@ -22,6 +22,11 @@
         v-if="location.location_type"
         class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5 capitalize"
       >{{ LOCATION_TYPE_LABELS[location.location_type] }}</span>
+      <!--
+        This screen had no reveal at all: looking at a place and deciding to
+        show it to the party meant opening the edit form to find the switches.
+      -->
+      <LocationRevealControl :location="location" />
       <button
         type="button"
         :disabled="isDeleting"
@@ -130,6 +135,7 @@ import type { Location } from "@/types/location.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
+import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
 
 const props = defineProps<{ location: Location }>();
 const route   = useRoute();

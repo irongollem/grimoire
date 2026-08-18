@@ -91,9 +91,10 @@
       <!-- Visibility -->
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Visible to Players</label>
-        <PlayerVisibilityToggle
+        <AudienceRevealControl
+          :name="form.name"
           :visible-to="form.player_visible_to"
-          @update:visible-to="form.player_visible_to = $event"
+          @change="form.player_visible_to = $event"
         />
       </div>
 
@@ -202,7 +203,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
-import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 
 const { deity, isNew } = defineProps<{ deity: Deity | null; isNew: boolean }>();
 

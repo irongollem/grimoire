@@ -16,11 +16,12 @@
       <!-- Caller-defined controls between title and save (e.g. status select) -->
       <slot name="controls" />
 
-      <!-- Player visibility (if provided) -->
-      <PlayerVisibilityToggle
+      <!-- Reveal to players (if the entity has an audience) -->
+      <AudienceRevealControl
         v-if="visibleTo !== undefined"
+        :name="title"
         :visible-to="visibleTo"
-        @update:visible-to="emit('update:visibleTo', $event)"
+        @change="emit('update:visibleTo', $event)"
       />
 
       <!-- Caller-defined extra buttons before Save (e.g. Generate, Send to Scriptorium) -->
@@ -63,7 +64,7 @@
 
 <script setup lang="ts">
 import { IconSave, IconDelete } from "@/lib/icons";
-import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 
 defineProps<{
   title: string;

@@ -44,10 +44,11 @@
         <IconPin class="h-3.5 w-3.5" />
       </button>
 
-      <!-- Player visibility toggle -->
-      <PlayerVisibilityToggle
+      <!-- Reveal to players -->
+      <AudienceRevealControl
+        :name="title"
         :visible-to="playerVisibleTo"
-        @update:visible-to="playerVisibleTo = $event"
+        @change="playerVisibleTo = $event"
       />
 
       <button
@@ -255,7 +256,7 @@ import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
 import ChroniclerWriteDialog from "./ChroniclerWriteDialog.vue";
 import { IconCalendarDays, IconDelete, IconGenerate, IconImages, IconNote, IconPin, IconSave } from '@/lib/icons';
 import TagInput from "@/components/common/TagInput.vue";
-import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import {
   useCreateNote,
   useUpdateNote,

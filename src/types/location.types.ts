@@ -157,16 +157,15 @@ export interface Location {
   map_pins: MapPin[];
   is_map_shared: boolean;
   /**
-   * Party member ids this location is revealed to. **Nullable in the database**
-   * — unlike its siblings `tags` and `related_location_ids`, this column has no
-   * `NOT NULL DEFAULT '{}'`, and a third of rows are NULL.
+   * Party member ids this location is revealed to; `[]` is nobody.
    *
-   * Typed honestly rather than as `string[]`, which is what it claimed until a
-   * reveal control indexed straight into it and took the whole Atlas down on
-   * any location nobody had ever shared. `20260818...` backfills and constrains
-   * the column; once that has shipped everywhere this can tighten again.
+   * This column allowed NULL until `20260817224804_constrain_player_visible_to`,
+   * and a reveal control that indexed straight into it took the whole Atlas down
+   * on the first location nobody had ever shared. That migration backfills and
+   * constrains all six affected tables, so the type is `string[]` here and on
+   * every sibling entity — one shape, no per-entity variance to rediscover.
    */
-  player_visible_to: string[] | null;
+  player_visible_to: string[];
   player_summary: string | null;
   is_description_shared: boolean;
   is_npcs_shared: boolean;

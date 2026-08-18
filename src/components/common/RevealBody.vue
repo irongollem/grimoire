@@ -31,26 +31,13 @@
 
     <div v-if="party.length" class="flex flex-col gap-0.5 px-3 pt-2 pb-2">
       <p class="mb-1 font-cinzel text-2xs tracking-widest text-muted-foreground">OR SPECIFIC</p>
-      <AppButton
+      <RevealOption
         v-for="member in party"
         :key="member.id"
-        variant="ghost"
-        size="sm"
-        block
-        class="justify-start gap-2 rounded px-2 hover:bg-muted"
-        @click="adapter.toggleMember(member.id)"
-      >
-        <span
-          class="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors"
-          :class="adapter.isMemberVisible(member.id) ? 'border-primary bg-primary' : 'border-border'"
-        >
-          <IconCheck
-            v-if="adapter.isMemberVisible(member.id)"
-            class="h-2.5 w-2.5 text-primary-foreground"
-          />
-        </span>
-        <span class="truncate text-left">{{ member.name }}</span>
-      </AppButton>
+        :label="member.name"
+        :checked="adapter.isMemberVisible(member.id)"
+        @toggle="adapter.toggleMember(member.id)"
+      />
     </div>
 
     <p v-else class="px-3 pb-3 text-caption text-muted-foreground italic">
@@ -85,7 +72,8 @@
 
 <script setup lang="ts">
 import AppButton from "@/components/common/AppButton.vue";
-import { IconCheck, IconParty } from "@/lib/icons";
+import RevealOption from "@/components/common/RevealOption.vue";
+import { IconParty } from "@/lib/icons";
 import type { RevealAdapter, RevealState } from "@/lib/reveal";
 import type { PartyMember } from "@/types/party.types";
 

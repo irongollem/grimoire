@@ -429,7 +429,13 @@ const aiContext = computed(() =>
 );
 
 // ── Player sharing ─────────────────────────────────────────────────────────────
-const playerVisibleTo = ref<string[]>(props.location?.player_visible_to ?? []);
+//
+// The action bar's reveal covers "who". A location's "what" — description,
+// people, wares, map — is already on this page as form fields, in the sharing
+// panel and the map editor, so the control does not repeat it here. Everywhere
+// else the four switches live in the control's `#what`, which is the whole
+// point of LocationRevealControl: seeing a place should not mean opening a form.
+const playerVisibleTo = ref<string[]>([...(props.location?.player_visible_to ?? [])]);
 const playerSummary = ref<string>(props.location?.player_summary ?? "");
 const isDescriptionShared = ref<boolean>(
   props.location?.is_description_shared ?? false,

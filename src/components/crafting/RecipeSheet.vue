@@ -2,6 +2,15 @@
   <div class="flex flex-col gap-5 max-w-2xl">
     <!-- Action bar -->
     <div class="flex items-center justify-end gap-2">
+      <!--
+        Was a read-only "Shared with players" pill further down — it stated the
+        answer without letting the DM change it.
+      -->
+      <AudienceRevealControl
+        :name="recipe.name"
+        :visible-to="recipe.player_visible_to"
+        @change="reveal"
+      />
       <button
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
@@ -50,13 +59,6 @@
           <span v-if="!recipe.requires_proficiency && !recipe.requires_tools" class="text-caption text-muted-foreground italic">None</span>
         </div>
       </div>
-    </div>
-
-    <!-- Player visibility -->
-    <div v-if="recipe.player_visible_to?.length" class="flex items-center gap-1.5">
-      <span class="text-label-lg font-semibold px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
-        Shared with players
-      </span>
     </div>
 
     <!-- Description -->
@@ -126,7 +128,8 @@ import { computed } from "vue";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteRecipe, useRecipeIngredients, useRecipeOutputs, useRecipeModifiers } from "@/composables/useCrafting";
+import { useDeleteRecipe, useRecipeIngredients, useRecipeOutputs, useRecipeModifiers, useUpdateRecipe } from "@/composables/useCrafting";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import { useItems } from "@/composables/useItems";
 import { getDiscipline } from "@/lib/crafting-disciplines";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -138,6 +141,11 @@ const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 const deleteMut = useDeleteRecipe();
+const { mutate: updateRecipe } = useUpdateRecipe();
+
+function reveal(playerVisibleTo: string[]) {
+  updateRecipe({ id: props.recipe.id, update: { player_visible_to: playerVisibleTo } });
+}
 
 const discipline = computed(() => getDiscipline(props.recipe.discipline));
 

@@ -39,12 +39,17 @@
 
     <template v-else>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <RouterLink
+        <!--
+          A div with an absolutely-positioned link overlay rather than a
+          RouterLink wrapper: the reveal control is a button, and a button
+          inside an anchor is invalid markup that swallows its own clicks.
+        -->
+        <div
           v-for="pantheon in filtered"
           :key="pantheon.id"
-          :to="`/pantheons/${pantheon.id}`"
-          class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-4"
+          class="group relative flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-4"
         >
+          <RouterLink :to="`/pantheons/${pantheon.id}`" class="absolute inset-0 z-2" />
           <div class="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center">
             <FocalImage v-if="pantheon.emblem_url" :src="pantheon.emblem_url" alt="" format="square" />
             <IconFire v-else class="h-5 w-5 text-muted-foreground/40" />
@@ -53,7 +58,14 @@
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ pantheon.name }}</p>
-              <IconReveal v-if="pantheon.player_visible_to?.length" class="h-3 w-3 shrink-0 text-elven-green" />
+              <div class="relative z-10 shrink-0" @click.prevent.stop>
+                <AudienceRevealControl
+                  :name="pantheon.name"
+                  :visible-to="pantheon.player_visible_to"
+                  form="overlay"
+                  @change="(next) => revealPantheon(pantheon.id, next)"
+                />
+              </div>
             </div>
             <p class="text-label text-muted-foreground mt-0.5">
               {{ deityCount(pantheon.id) }} {{ deityCount(pantheon.id) === 1 ? 'deity' : 'deities' }}
@@ -68,7 +80,7 @@
           </div>
 
           <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
-        </RouterLink>
+        </div>
       </div>
     </template>
   </ListPageLayout>
@@ -78,8 +90,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconAdd, IconChevronRight, IconFire, IconNavPantheon, IconReveal, IconSun } from '@/lib/icons';
-import { useAllPantheons, useAllDeities } from "@/composables/useDeities";
+import { IconAdd, IconChevronRight, IconFire, IconNavPantheon, IconSun } from '@/lib/icons';
+import { useAllPantheons, useAllDeities, useUpdatePantheon } from "@/composables/useDeities";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -87,6 +99,7 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useCreateGate } from "@/composables/useCreateGate";
 import { useUiStore } from "@/stores/ui";
@@ -94,6 +107,11 @@ import { useUiStore } from "@/stores/ui";
 const ui = useUiStore();
 const { data: pantheons, isLoading } = useAllPantheons();
 const { data: deities } = useAllDeities();
+const { mutate: updatePantheon } = useUpdatePantheon();
+
+function revealPantheon(id: string, playerVisibleTo: string[]) {
+  updatePantheon({ id, update: { player_visible_to: playerVisibleTo } });
+}
 
 const { showPaywall, handleNew } = useCreateGate("pantheons", "/pantheons/new");
 

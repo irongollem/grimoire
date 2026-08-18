@@ -77,7 +77,7 @@ The detail page follows the sheet + editor convention: existing locations show a
   - **Share full description** — toggle (boolean)
   - **Share linked NPCs** — toggle; when on, NPCs whose `location_id` equals this location appear in the player portal under "People in the Area"
   - **Share inventory with players** — toggle; only shown for store/tavern/inn types
-  - **Player visibility** — `PlayerVisibilityToggle` picks which party member UUIDs are in `player_visible_to[]`
+  - **Player visibility** — the editor action bar's `AudienceRevealControl` picks which party member UUIDs are in `player_visible_to[]`. The editor is the one surface where the control covers "who" only: a location's "what" is already on this page as the toggles above. Everywhere else — the Atlas pane, `LocationSheet` — `LocationRevealControl` carries all four switches in its `#what`, so seeing a place and sharing it no longer means opening a form (#741)
 - **Proprietor** (store/tavern/inn only) — NPC combobox; used as the sender name in vendor chat messages
 - **Store Inventory** — `StoreInventory` component, only for store/tavern/inn types; also shown in view mode so the DM can restock without entering edit mode
 - **Map** — upload landscape image; once uploaded an interactive `LocationMap` component appears with:
@@ -290,10 +290,10 @@ Route: `/factions` (list), `/factions/new`, `/factions/:id`, `/factions/:id?edit
 
 - Filter bar: text search (name, tags) + type dropdown; state in `useUiStore` with Clear button
 - "Populate Setting" button — bulk-inserts seed factions for the active campaign's setting (only shown when the campaign has a recognised `calendar_id` with faction seed data); idempotent, deduplicates by name
-- Responsive card grid (1–3 columns): emblem thumbnail (or shield placeholder), name, type, tags (up to 3), Eye icon when `player_visible_to` is non-empty
+- Responsive card grid (1–3 columns): emblem thumbnail (or shield placeholder), name, type, tags (up to 3), and an `overlay`-form `AudienceRevealControl` — previously a bare Eye icon that reported sharing without letting the DM change it (#741)
 
 **Faction editor** (`FactionEditor.vue`) — two-column layout:
-*Left column:* emblem image (square, click to upload, `asset-images` bucket), type selector (`EntityCombobox`), alignment selector (9 standard alignments), player visibility toggle (`PlayerVisibilityToggle`), tags (`TagInput`)
+*Left column:* emblem image (square, click to upload, `asset-images` bucket), type selector (`EntityCombobox`), alignment selector (9 standard alignments), reveal control (`AudienceRevealControl`), tags (`TagInput`)
 *Right column:* name, description/notes (`RichTextEditor`, placeholder: "History, motives, known activities…"), Save/Cancel/Delete buttons
 
 **Faction detail page** (`FactionDetailView.vue`)

@@ -53,12 +53,19 @@
 
     <template v-else>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <RouterLink
+        <!--
+          A div with an absolutely-positioned link overlay rather than a
+          RouterLink wrapper: the reveal control is a button, and a button
+          inside an anchor is invalid markup that swallows its own clicks.
+          Same shape as NpcList and NoteCard.
+        -->
+        <div
           v-for="faction in filtered"
           :key="faction.id"
-          :to="`/factions/${faction.id}`"
-          class="group flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-4"
+          class="group relative flex items-center gap-3 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors p-4"
         >
+          <RouterLink :to="`/factions/${faction.id}`" class="absolute inset-0 z-2" />
+
           <div class="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center">
             <FocalImage v-if="faction.emblem_url" :src="faction.emblem_url" format="square" :render-width="200" />
             <IconShield v-else class="h-5 w-5 text-muted-foreground/40" />
@@ -67,7 +74,14 @@
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ faction.name }}</p>
-              <IconReveal v-if="faction.player_visible_to?.length" class="h-3 w-3 shrink-0 text-elven-green" />
+              <div class="relative z-10 shrink-0" @click.prevent.stop>
+                <AudienceRevealControl
+                  :name="faction.name"
+                  :visible-to="faction.player_visible_to"
+                  form="overlay"
+                  @change="(next) => revealFaction(faction.id, next)"
+                />
+              </div>
             </div>
             <p v-if="faction.faction_type" class="text-label text-muted-foreground mt-0.5">
               {{ faction.faction_type }}
@@ -82,7 +96,7 @@
           </div>
 
           <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
-        </RouterLink>
+        </div>
       </div>
     </template>
   </ListPageLayout>
@@ -92,8 +106,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconChevronRight, IconGenerate, IconLoading, IconNavFactions, IconPopulate, IconReveal, IconShield } from '@/lib/icons';
-import { useAllFactions, usePopulateFactions } from "@/composables/useFactions";
+import { IconAdd, IconChevronRight, IconGenerate, IconLoading, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
+import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -104,6 +118,7 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -113,6 +128,11 @@ import { useCreateGate } from "@/composables/useCreateGate";
 const ui = useUiStore();
 const campaign = useCampaignStore();
 const { data: factions, isLoading } = useAllFactions();
+const { mutate: updateFaction } = useUpdateFaction();
+
+function revealFaction(id: string, playerVisibleTo: string[]) {
+  updateFaction({ id, update: { player_visible_to: playerVisibleTo } });
+}
 
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("factions", "/factions/new");
 

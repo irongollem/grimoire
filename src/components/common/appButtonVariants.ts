@@ -186,3 +186,21 @@ export type AssertTonesListed = Assert<
 export type AssertEmphasesListed = Assert<
   [Exclude<ButtonEmphasis, (typeof BUTTON_EMPHASES)[number]>] extends [never] ? true : false
 >;
+
+/**
+ * The chip that floats over card artwork — Edit and Reveal in an entity card's
+ * corner, and the buttons in a mobile detail screen's app bar.
+ *
+ * Not a `variant`, because it is not a new meaning: it is `ghost` plus a scrim,
+ * and the scrim is the whole point. It is fixed dark rather than theme-tinted
+ * because it sits on top of a portrait or an illustration, where a background
+ * that follows the theme vanishes against half the pictures in the app.
+ *
+ * It lives here, exported, because the alternative is what actually happened:
+ * the same recipe hand-written into NpcList, MonsterList and RevealControl,
+ * and then drifting. Pair it with `size="icon-xs"` and a text colour — the
+ * reveal control uses that to keep saying whether anyone can see the entity.
+ */
+export const CARD_OVERLAY_ACTION =
+  // max-md restores a 44px thumb target; 1.5rem is a fine pointer target and a poor one.
+  "bg-black/50 backdrop-blur-sm hover:bg-black/70 max-md:h-11 max-md:w-11";

@@ -47,9 +47,10 @@
       <!-- Visibility -->
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Visible to Players</label>
-        <PlayerVisibilityToggle
+        <AudienceRevealControl
+          :name="form.name"
           :visible-to="form.player_visible_to"
-          @update:visible-to="form.player_visible_to = $event"
+          @change="form.player_visible_to = $event"
         />
       </div>
 
@@ -98,7 +99,7 @@ import type { Pantheon } from "@/types/deity.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 
 const { pantheon, isNew } = defineProps<{ pantheon: Pantheon | null; isNew: boolean }>();

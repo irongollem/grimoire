@@ -26,6 +26,19 @@
       </RouterLink>
     </div>
 
+    <!--
+      Reveal, over the category bar. Was a bare `IconReveal` beside the title
+      that said whether the note was shared but could not change it.
+    -->
+    <div class="absolute top-1.5 left-1.5 z-10" @click.prevent.stop>
+      <AudienceRevealControl
+        :name="note.title"
+        :visible-to="note.player_visible_to"
+        form="overlay"
+        @change="reveal"
+      />
+    </div>
+
     <!-- Category colour bar -->
     <div class="h-1.5 w-full shrink-0" :style="{ backgroundColor: categoryColor(note.category) }" />
 
@@ -33,7 +46,6 @@
       <!-- Title row -->
       <div class="flex items-start gap-1.5">
         <IconPin v-if="note.is_pinned" class="h-3 w-3 shrink-0 mt-0.5 text-primary" />
-        <IconReveal v-if="note.player_visible_to?.length" class="h-3 w-3 shrink-0 mt-0.5 text-elven-green" />
         <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-2 flex-1">
           {{ note.title || "Untitled Note" }}
         </h3>
@@ -79,7 +91,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconDrag, IconLock, IconPin, IconReveal } from "@/lib/icons";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import { useUpdateNote } from "@/composables/useNotes";
+import { IconDrag, IconLock, IconPin } from "@/lib/icons";
 import { timeAgo, extractTiptapText } from "@/lib/utils";
 import type { Note, NoteCategory } from "@/types/notes.types";
 
@@ -88,6 +102,12 @@ const { note, locked = false, showHandle = false } = defineProps<{
   locked?: boolean;
   showHandle?: boolean;
 }>();
+
+const { mutate: updateNote } = useUpdateNote();
+
+function reveal(playerVisibleTo: string[]) {
+  updateNote({ id: note.id, update: { player_visible_to: playerVisibleTo } });
+}
 
 const CATEGORY_COLORS: Record<NoteCategory, string> = {
   general:  "#6b7280",

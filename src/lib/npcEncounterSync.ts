@@ -1,9 +1,5 @@
+import { NPC_DEFAULT_REVEAL_FIELDS } from "@/lib/npcDisplay";
 import type { Npc, NpcUpdate } from "@/types/npc.types";
-
-/** Fields a freshly-discovered NPC reveals by default — enough to show up as a
- *  recognisable entry in the players' portal (mirrors NpcRevealSheet's
- *  first-reveal defaults). */
-const DEFAULT_REVEAL_FIELDS = ["name", "portrait"] as const;
 
 /** Only the NPC-record fields the sync reads/widens. `Npc` satisfies this
  *  structurally, so call sites pass the real record unchanged. */
@@ -53,7 +49,7 @@ export function buildNpcSyncUpdate(
 
     const fields = new Set(npc.player_visible_fields ?? []);
     const fieldsBefore = fields.size;
-    for (const f of DEFAULT_REVEAL_FIELDS) fields.add(f);
+    for (const f of NPC_DEFAULT_REVEAL_FIELDS) fields.add(f);
     // A dead NPC's death only shows if `status` is among the shared fields.
     if (isDead) fields.add("status");
 

@@ -63,14 +63,14 @@ Each monster stores a full `stat_block` JSONB object with:
 
 **Read-only sheet view** (`MonsterSheet.vue`) is shown by default when navigating to an existing monster; the Edit button switches to the editable form (`MonsterDetail.vue`). The URL query `?edit=true` also activates the editor directly.
 
-**Visibility / discovery system** — the DM can share individual monsters with specific players or the whole party. The visibility popover on the monster detail page offers:
+**Visibility / discovery system** — the DM can share individual monsters with specific players or the whole party, through `MonsterRevealControl` (#741). It is the app's one reveal control, mounted on the bestiary list card (`overlay` form), the detail header, and the mobile app bar and action bar — before this, the only monster reveal that offered a stat-block gate was on a phone.
 
-- Per-player toggles (Eye/EyeOff per party member)
-- "Whole party" shortcut
-- "Stats visible" toggle — controls whether the player sees the stat block or only name/image
-- "Hide from all players" to revoke
+- **Who** — per-party-member toggles plus a "Whole party" shortcut, and "Hide from all players" to revoke
+- **What** — "Full stat block": off, the player sees name, art and CR only
 
-This powers the player bestiary (see Player View below). `useMonsterVisibility` manages the `discovered_monsters` table.
+Monsters are the **second storage model**: there is no `player_visible_to` column but a `discovered_monsters` row, whose absence means "not discovered" and whose `visible_to === null` means "everyone". `useMonsterVisibility` already exposed exactly the four `RevealAdapter` operations, so it satisfies the interface as-is and the control never learns which model it is talking to (see `src/lib/reveal.ts`).
+
+This powers the player bestiary (see Player View below).
 
 ### Player View
 
@@ -441,7 +441,7 @@ Bidirectional HP sync: while live, player HP changes in the runner are debounced
 
 Roster NPCs run as combatants of `type: "monster"` carrying an `npc_id` (never `monster_id`), and their records are written back **the moment it happens, not at conclusion** — mirroring how monster discovery fires on reveal. Driven by a `watch` over the NPC combatants in `EncounterRunner.vue` (`src/lib/npcEncounterSync.ts`, `buildNpcSyncUpdate` + test), reacting to two events:
 
-- **Revealed** — the DM cycles a token to `reveal_state === "revealed"`. The reveal toggle renders for any `type === "monster"` combatant, so roster NPCs are cyclable hidden → unseen → revealed exactly like monsters — that is how an NPC becomes "seen". On reveal the NPC joins the party's seen list: a _widening_ union on `npcs.player_visible_to` (never narrows an existing partial share) with `player_visible_fields` gaining `name`/`portrait` (mirrors `NpcRevealSheet`'s first-reveal defaults). An NPC left `hidden`/`unseen` is never added.
+- **Revealed** — the DM cycles a token to `reveal_state === "revealed"`. The reveal toggle renders for any `type === "monster"` combatant, so roster NPCs are cyclable hidden → unseen → revealed exactly like monsters — that is how an NPC becomes "seen". On reveal the NPC joins the party's seen list: a _widening_ union on `npcs.player_visible_to` (never narrows an existing partial share) with `player_visible_fields` gaining `name`/`portrait` (`NPC_DEFAULT_REVEAL_FIELDS` in `lib/npcDisplay.ts`, shared with `NpcRevealControl` — note the sync *unions* the defaults in, where a first reveal only seeds them when the DM has chosen nothing). An NPC left `hidden`/`unseen` is never added.
 - **Died** — a token drops to 0 HP. **Death is a world fact**, written `status: "dead"` whether or not the party saw it — but **reveal always requires being seen**: a hidden NPC that dies is recorded dead and _not_ disclosed to players. A seen NPC that dies is both marked dead and revealed (same union, plus the `status` field so its death shows). If a hidden death is later seen (the DM cycles it to "revealed"), the reveal fires then, carrying the `status` field.
 
 The builder (`buildNpcSyncUpdate`) takes the NPC's current `{ seen, died }` state and returns `null` when nothing would change (already dead + already revealed, or a DM pre-reveal), so writes happen only on real transitions; the watcher patches the local `store.availableNpcs` snapshot after each write so re-fires stay no-ops (healing-then-re-killing or a reveal→hide→reveal cycle won't spam writes). Reveal needs a party to reveal to; with none, death is still marked. Monster combatants have no persistent per-instance record and are untouched — this is separate from the monster **bestiary** discovery (`discovered_monsters`, `monster_id` only, fired on reveal-cycle + Go Live).

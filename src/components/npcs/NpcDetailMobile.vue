@@ -11,7 +11,10 @@
       4. wrapping tags row
       5. accordion sections (Lore open by default)
       6. fixed bottom action bar (Reveal + Edit)
-      7. Reveal bottom sheet + overflow ⋮ sheet
+      7. overflow ⋮ sheet
+
+    The reveal is `RevealControl`, which opens as a bottom sheet on its own
+    below `md` — this screen no longer owns one.
   -->
   <div ref="scrollRoot" class="relative h-full overflow-y-auto md:hidden">
     <!-- ── 1. App bar (glass, over hero) ──────────────────────────────────── -->
@@ -49,18 +52,12 @@
       </h1>
 
       <div class="flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          class="flex size-10 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm transition-colors active:bg-black/60"
-          :class="[
-            scrolled && 'bg-transparent active:bg-muted',
-            shared ? 'text-primary' : scrolled ? 'text-foreground' : 'text-white',
-          ]"
-          :aria-label="shared ? 'Manage sharing' : 'Reveal to players'"
-          @click="showReveal = true"
-        >
-          <component :is="shared ? IconReveal : IconHide" class="size-5" />
-        </button>
+        <!--
+          The app bar's reveal. Below `md` the control opens as a bottom sheet
+          on its own, which is what the hand-written `NpcRevealSheet` used to do
+          — minus that sheet's separate idea of which fields exist.
+        -->
+        <NpcRevealControl :npc="npc" form="overlay" />
         <button
           type="button"
           class="flex size-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors active:bg-black/60"
@@ -212,18 +209,8 @@
     <div
       class="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t border-border bg-background/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-md"
     >
-      <button
-        type="button"
-        class="flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-3 font-cinzel text-sm font-bold tracking-wider transition-colors"
-        :class="shared
-          ? 'border-primary/50 bg-primary/10 text-primary'
-          : 'border-border text-foreground active:bg-muted'"
-        @click="showReveal = true"
-      >
-        <component :is="shared ? IconReveal : IconHide" class="size-4" />
-        <span v-if="shared">Shared · {{ npc.player_visible_to.length }}</span>
-        <span v-else>Reveal</span>
-      </button>
+      <!-- `button` form: there is room here to name the audience outright. -->
+      <NpcRevealControl :npc="npc" />
 
       <RouterLink
         :to="`/npcs/${npc.id}?edit=true`"
@@ -234,9 +221,6 @@
       </RouterLink>
     </div>
   </div>
-
-  <!-- ── 7. Reveal bottom sheet ───────────────────────────────────────────── -->
-  <NpcRevealSheet v-model:open="showReveal" :npc="npc" />
 
   <!-- Overflow ⋮ sheet — Generate / Scriptorium / Edit tags live in the edit
        form (they require the form to be mounted), so these route into it. -->
@@ -288,9 +272,9 @@ import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
 import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
-import NpcRevealSheet from "@/components/npcs/NpcRevealSheet.vue";
+import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
-import { IconDelete, IconEdit, IconGenerate, IconHide, IconReveal, IconScrollText, IconTag } from "@/lib/icons";
+import { IconDelete, IconEdit, IconGenerate, IconReveal, IconScrollText, IconTag } from "@/lib/icons";
 import { useDeleteNpc } from "@/composables/useNpcs";
 import { useNpcFactions } from "@/composables/useFactions";
 import { useAllLocations } from "@/composables/useLocations";
@@ -335,7 +319,7 @@ const STATUS_COLORS: Record<NpcStatus, string> = {
 };
 const statusColor = computed(() => STATUS_COLORS[npc.status] ?? "#6b7280");
 
-const shared = computed(() => (npc.player_visible_to?.length ?? 0) > 0);
+const shared = computed(() => npc.player_visible_to.length > 0);
 
 // ── Quick facts ────────────────────────────────────────────────────────────────
 const { data: allLocations } = useAllLocations();
@@ -365,7 +349,6 @@ const openSections = reactive({
 });
 
 // ── Sheets ───────────────────────────────────────────────────────────────────
-const showReveal = ref(false);
 const showMenu = ref(false);
 
 // ── Delete ───────────────────────────────────────────────────────────────────

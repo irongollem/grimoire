@@ -85,7 +85,7 @@ Toggling between modes does not lose unsaved work because edit mode is URL-drive
 | Edit / View              | Existing NPC       | Toggles `?edit=true` in URL                                               |
 | Delete                   | Existing NPC       | Confirms, deletes NPC + storage images, navigates to `/npcs`              |
 | Scriptorium              | Existing NPC       | Formats NPC as a Scriptorium document and pushes to `/scriptorium/:docId` |
-| Player Visibility Toggle | Existing NPC       | Per-player visibility multi-select                                        |
+| Reveal                   | Existing NPC       | `AudienceRevealControl` — who sees it, plus the field list in `#what`      |
 | Revealed / Concealed     | NPC has disguise   | Toggles `is_revealed` in-place                                            |
 | Generate (AI)            | API key configured | Opens `NpcGenerateDialog`                                                 |
 | Save / Create NPC        | Always             | Submits the `#npc-detail-form`                                            |
@@ -183,13 +183,22 @@ At the table, a player asks the NPC something the DM didn't prep for. The Voice 
 
 **Client-side (BYOK/local) mirror.** `src/lib/npcs/buildNpcVoiceProfile.ts` is a hand-kept client copy of the edge function's `buildNpcProfile()`, used when the DM is in local-vault BYOK mode (`grimoire_key_local_mode === "local"` in `localStorage`) so the NPC profile can be built in-browser without a server round trip that would leak the local key. Same precedent as `_shared/ai-prompt.ts` mirroring `src/ai/utils.ts` — there is no shared source of truth between edge and client for this logic, so the two must be changed together by hand.
 
-### Revealed Fields Panel (shared NPCs)
+### Reveal (#741)
 
-When a NPC is shared with at least one player, a panel appears at the top of the edit form. It contains:
+NPCs were the worst case the unified reveal control was built to fix: **four** separate UIs for one action — a header popover, a list-card popover, a mobile bottom sheet, and a fields panel bolted to the top of the edit form. Three knew about the first-reveal defaults, two announced the encounter in play mode, only one did both. Which one a DM got depended on where they were standing.
 
-**Checkboxes for per-field visibility** (which fields players can see):
+`NpcRevealControl` (`src/components/npcs/NpcRevealControl.vue`) now owns all three behaviours and is mounted on every NPC surface — list card (`overlay` form), mobile app bar and action bar, detail header. It carries:
 
-- Portrait, Name, Alive/Dead status, Species, Occupation, Relationship (ally/enemy…), Location
+- **Who** — party members, written to `player_visible_to`
+- **What** — `RevealedFieldsPanel` over `NPC_PLAYER_FIELDS`: Portrait, Name, Species, Occupation, Location
+- **First-reveal defaults** — `fieldsForFirstReveal` (`lib/npcDisplay.ts`) seeds name + portrait when the DM has never picked any, so a reveal is not a blank card. Only when empty: re-revealing must not re-add a field they removed.
+- **Play-mode narration** — `sendNarrativeEvent` on a first reveal
+
+The **editor** is the exception, and deliberately: `NpcDetailView` binds `AudienceRevealControl` to the draft rather than the row, because the editor owns its Save and writing through on every checkbox would commit changes the DM has not agreed to and fight the form's dirty tracking.
+
+### Shared-NPC notes panel
+
+When an NPC is shared with at least one player, a panel appears at the top of the edit form. The per-field checkboxes used to live here; they are now the reveal control's "what", next to the audience they apply to. What remains is prose, which does not belong in a popover:
 
 **Party Notes** (`PlayerNotesWidget`) — rich-text notes visible to the whole party.
 

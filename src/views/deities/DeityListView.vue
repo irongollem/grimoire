@@ -61,12 +61,17 @@
 
     <template v-else>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        <RouterLink
+        <!--
+          A div with an absolutely-positioned link overlay rather than a
+          RouterLink wrapper: the reveal control is a button, and a button
+          inside an anchor is invalid markup that swallows its own clicks.
+        -->
+        <div
           v-for="deity in filtered"
           :key="deity.id"
-          :to="`/deities/${deity.id}`"
-          class="group flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+          class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
         >
+          <RouterLink :to="`/deities/${deity.id}`" class="absolute inset-0 z-2" />
           <!-- Portrait thumbnail -->
           <div class="relative h-32 bg-muted overflow-hidden">
             <FocalImage
@@ -82,11 +87,15 @@
               v-if="deity.alignment"
               class="absolute top-1.5 right-1.5 text-label bg-black/60 text-white px-1.5 py-0.5 rounded"
             >{{ deity.alignment }}</span>
-            <!-- Player visible indicator -->
-            <IconReveal
-              v-if="deity.player_visible_to?.length"
-              class="absolute top-1.5 left-1.5 h-3 w-3 text-elven-green"
-            />
+            <!-- Reveal, over the portrait -->
+            <div class="absolute top-1.5 left-1.5 z-10" @click.prevent.stop>
+              <AudienceRevealControl
+                :name="deity.name"
+                :visible-to="deity.player_visible_to"
+                form="overlay"
+                @change="(next) => revealDeity(deity.id, next)"
+              />
+            </div>
           </div>
 
           <div class="p-3 flex flex-col gap-1.5 flex-1">
@@ -111,7 +120,7 @@
               >+{{ deity.domains.length - 3 }}</span>
             </div>
           </div>
-        </RouterLink>
+        </div>
       </div>
     </template>
   </ListPageLayout>
@@ -122,7 +131,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconAdd, IconFire, IconLoading, IconNavPantheon, IconPopulate, IconReveal } from '@/lib/icons';
-import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities } from "@/composables/useDeities";
+import { useAllDeities, useAllPantheons, usePopulateDeities, useRevealAllDeities, useUpdateDeity } from "@/composables/useDeities";
 import { CLERIC_DOMAINS } from "@/types/deity.types";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -134,6 +143,7 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/useCreateGate";
@@ -142,6 +152,11 @@ const ui = useUiStore();
 const campaign = useCampaignStore();
 const { data: deities, isLoading } = useAllDeities();
 const { data: pantheons } = useAllPantheons();
+const { mutate: updateDeity } = useUpdateDeity();
+
+function revealDeity(id: string, playerVisibleTo: string[]) {
+  updateDeity({ id, update: { player_visible_to: playerVisibleTo } });
+}
 
 const { showPaywall, handleNew, gateQuotaError } = useCreateGate("deities", "/deities/new");
 

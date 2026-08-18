@@ -33,8 +33,11 @@
       <div class="flex flex-col gap-1">
         <span class="text-label font-semibold text-muted-foreground">Player sharing</span>
         <div class="flex min-h-9 items-center gap-2">
-          <PlayerVisibilityToggle v-model:visible-to="playerVisibleTo" @update:visible-to="saveMetadata" />
-          <span class="text-caption text-muted-foreground">{{ playerVisibleTo.length ? `Shared with ${playerVisibleTo.length}` : "DM only" }}</span>
+          <AudienceRevealControl
+            :name="quest.title"
+            :visible-to="playerVisibleTo"
+            @change="onRevealChange"
+          />
         </div>
       </div>
 
@@ -66,7 +69,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import PlayerVisibilityToggle from "@/components/common/PlayerVisibilityToggle.vue";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { useAllLocations } from "@/composables/useLocations";
@@ -109,6 +112,11 @@ function syncFromQuest() {
 }
 
 watch(() => props.quest.id, syncFromQuest, { immediate: true });
+
+function onRevealChange(next: string[]) {
+  playerVisibleTo.value = next;
+  void saveMetadata();
+}
 
 async function saveMetadata() {
   if (saving.value) {

@@ -2,6 +2,16 @@
   <div class="flex flex-col gap-5 max-w-3xl">
     <!-- Action bar -->
     <div class="flex items-center justify-end gap-2">
+      <!--
+        Was a read-only "Shared with players" pill in the metadata row below —
+        it stated the answer without letting the DM change it, so revealing a
+        note meant opening the editor.
+      -->
+      <AudienceRevealControl
+        :name="note.title"
+        :visible-to="note.player_visible_to"
+        @change="reveal"
+      />
       <button
         type="button"
         class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
@@ -29,9 +39,6 @@
       <span v-if="note.is_pinned" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
         <IconPin class="inline h-3 w-3 mr-0.5" />Pinned
       </span>
-      <span v-if="note.player_visible_to?.length" class="text-label-lg font-semibold px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
-        Shared with players
-      </span>
     </div>
 
     <!-- Tags -->
@@ -57,8 +64,9 @@
 import { IconDelete, IconEdit, IconPin } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteNote } from "@/composables/useNotes";
+import { useDeleteNote, useUpdateNote } from "@/composables/useNotes";
 import { removeRichTextImages } from "@/composables/useImageUpload";
+import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { Note } from "@/types/notes.types";
 
@@ -68,6 +76,11 @@ const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 const deleteMut = useDeleteNote();
+const { mutate: updateNote } = useUpdateNote();
+
+function reveal(playerVisibleTo: string[]) {
+  updateNote({ id: props.note.id, update: { player_visible_to: playerVisibleTo } });
+}
 
 function hasContent(content: string | null | undefined): boolean {
   if (!content) return false;
