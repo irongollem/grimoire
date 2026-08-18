@@ -24,7 +24,7 @@ describe("QuestFlowStarter", () => {
     mocks.ui.dmMode = "play";
   });
 
-  it("creates a flow-enabled quest shell and opens its graph", async () => {
+  it("creates the quest shell and opens its overview", async () => {
     mocks.create.mockResolvedValue({ id: "quest-new" });
     const wrapper = mount(QuestFlowStarter, {
       props: { parentId: "parent-1" },
@@ -33,7 +33,7 @@ describe("QuestFlowStarter", () => {
 
     await wrapper.findAll("input")[0]!.setValue("  The Sunken Road  ");
     await wrapper.findAll("input")[1]!.setValue("Follow the bells below the lake.");
-    await wrapper.get('button[aria-label="Create and build flow"]').trigger("click");
+    await wrapper.get('button[aria-label="Create quest"]').trigger("click");
     await flushPromises();
 
     expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -43,6 +43,7 @@ describe("QuestFlowStarter", () => {
       status: "undiscovered",
     }));
     expect(mocks.ui.dmMode).toBe("prep");
+    // Prep's default surface is the overview, so the bare path lands there.
     expect(mocks.push).toHaveBeenCalledWith("/quests/quest-new");
   });
 
@@ -50,7 +51,7 @@ describe("QuestFlowStarter", () => {
     mocks.create.mockRejectedValue(new Error("Quest insert failed"));
     const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
     await wrapper.findAll("input")[0]!.setValue("Broken road");
-    await wrapper.get('button[aria-label="Create and build flow"]').trigger("click");
+    await wrapper.get('button[aria-label="Create quest"]').trigger("click");
     await flushPromises();
 
     expect(wrapper.get('[role="alert"]').text()).toContain("Quest insert failed");

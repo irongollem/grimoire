@@ -1,9 +1,9 @@
 <template>
   <section class="mx-auto w-full max-w-2xl space-y-5 rounded-xl border border-border bg-card p-5" aria-labelledby="new-flow-heading">
     <div>
-      <p class="text-label font-bold uppercase tracking-wider text-primary">New story flow</p>
-      <h2 id="new-flow-heading" class="font-cinzel text-lg font-bold text-foreground">Name the quest, then build its beats</h2>
-      <p class="mt-1 text-body text-muted-foreground">Create the quest shell now. The visual designer opens next so story moments, branches, encounters, and supporting material can be prepared in context.</p>
+      <p class="text-label font-bold uppercase tracking-wider text-primary">New quest</p>
+      <h2 id="new-flow-heading" class="font-cinzel text-lg font-bold text-foreground">Name the quest and what it is about</h2>
+      <p class="mt-1 text-body text-muted-foreground">The overview opens next — the quest's premise, stakes, rewards, and the material that spans the whole story. Build the beats from there once you know what the quest is.</p>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
@@ -27,7 +27,7 @@
     <p v-if="error" role="alert" class="rounded-md border border-destructive/40 p-2 text-caption text-destructive">{{ error }}</p>
     <div class="flex flex-wrap justify-end gap-2">
       <AppButton to="/quests" label="Cancel" variant="subtle" :disabled="saving" />
-      <AppButton label="Create and build flow" variant="primary" :loading="saving" :disabled="!title.trim()" @click="createFlow" />
+      <AppButton label="Create quest" variant="primary" :loading="saving" :disabled="!title.trim()" @click="createFlow" />
     </div>
   </section>
 </template>
@@ -80,6 +80,7 @@ async function createFlow() {
       resolved_at: null,
     });
     ui.dmMode = "prep";
+    // Prep's default surface is the overview, so a bare detail path lands there.
     await router.push(`/quests/${created.id}`);
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "The quest flow could not be created";

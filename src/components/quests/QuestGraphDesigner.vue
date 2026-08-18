@@ -7,7 +7,6 @@
         <QuestRunTally :tally="reachTally" class="mt-1" />
       </div>
       <div class="ml-auto flex gap-2">
-        <AppButton :to="{ path: `/quests/${questId}`, query: { overview: 'true' } }" label="Overview" size="sm" variant="subtle" />
         <AppButton label="Add beat" size="sm" variant="primary" @click="openComposer()" />
         <AppButton :icon="IconMaximize" label="Fit" size="sm" variant="subtle" @click="canvas?.fitGraph()" />
         <AppButton v-if="currentBeatId" :icon="IconCenter" label="Current beat" size="sm" variant="subtle" @click="canvas?.focusCurrent()" />

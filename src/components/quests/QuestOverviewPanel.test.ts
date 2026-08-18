@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
-import QuestOverviewDrawer from "./QuestOverviewDrawer.vue";
+import QuestOverviewPanel from "./QuestOverviewPanel.vue";
 import type { Quest } from "@/types/quest.types";
 
 vi.mock("@/composables/useQuestFlow", () => ({
@@ -15,12 +15,11 @@ const quest = {
   status: "active",
 } as Quest;
 
-function mountDrawer() {
-  return mount(QuestOverviewDrawer, {
+function mountPanel() {
+  return mount(QuestOverviewPanel, {
     props: { quest },
     global: {
       stubs: {
-        Teleport: true,
         QuestOverviewMetadata: true,
         QuestOverviewLifecycle: true,
       },
@@ -28,23 +27,16 @@ function mountDrawer() {
   });
 }
 
-describe("QuestOverviewDrawer", () => {
-  it("presents the quest dossier as an accessible overlay", () => {
-    const wrapper = mountDrawer();
-    expect(wrapper.get('[role="dialog"]').attributes("aria-modal")).toBe("true");
-    expect(wrapper.text()).toContain("The Unseen — Overview");
+describe("QuestOverviewPanel", () => {
+  it("presents the quest dossier in place rather than as an overlay", () => {
+    const wrapper = mountPanel();
+    expect(wrapper.get("section").attributes("aria-label")).toBe("Quest overview");
+    // No dialog, no backdrop: it is a surface of the quest screen, not a layer
+    // over one, so nothing here traps focus or needs dismissing.
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    expect(wrapper.find('[aria-label="Close quest overview"]').exists()).toBe(false);
     expect(wrapper.findComponent({ name: "QuestOverviewMetadata" }).exists()).toBe(true);
     expect(wrapper.findComponent({ name: "QuestOverviewLifecycle" }).exists()).toBe(true);
-    wrapper.unmount();
-  });
-
-  it("dismisses from the backdrop and Escape key", async () => {
-    const wrapper = mountDrawer();
-    await wrapper.get('[aria-label="Close quest overview"]').trigger("click");
-    expect(wrapper.emitted("close")).toHaveLength(1);
-
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-    expect(wrapper.emitted("close")).toHaveLength(2);
     wrapper.unmount();
   });
 });
