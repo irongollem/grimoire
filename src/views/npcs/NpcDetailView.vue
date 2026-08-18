@@ -1,42 +1,45 @@
 <template>
-  <!-- Mobile read view (<md): standalone scrollable layer with its own app bar.
-       Desktop and all edit modes fall through to the PageHeader block below,
-       which is unchanged. -->
-  <NpcDetailMobile v-if="showMobileRead && npc" :npc="npc" />
+  <!--
+    One NPC, in whichever form the situation calls for. Four of them, and the
+    branch order is the reading order: the common case first.
 
-  <!-- Mobile edit view (<md): NpcDetail renders its own NpcEditMobile layer
-       (app bar + stacked cards + save bar). It does not need the PageHeader
-       chrome, so we render NpcDetail directly. -->
+    Reading on tablet and up is a modal over the grid — this route is nested
+    under `/npcs`, so the grid is mounted right behind it and keeps its scroll
+    position and revealed page while a DM checks who someone was. Editing is not
+    a glance but a commitment, so it keeps the full page at every width: a form
+    with unsaved work has no business inside something that dismisses on a
+    backdrop click. Phones keep their full-screen takeover for both.
+  -->
+  <NpcDetailModal v-if="asModal" :id="id" @close="close" />
+
+  <NpcDetailMobile v-else-if="showMobileRead && npc" :npc="npc" />
+
+  <!-- Mobile edit (<md): NpcDetail renders its own NpcEditMobile layer (app bar
+       + stacked cards + save bar), so it needs no PageHeader chrome. -->
   <NpcDetail
     v-else-if="showMobileEdit"
     :key="id"
     :npc="isNewNpc ? null : (npc ?? null)"
   />
 
+  <!-- Desktop edit, and the new-NPC form at every width. -->
   <PageHeader
-    v-else
+    v-else-if="showDesktopEdit"
     :title="displayName"
     :description="npc ? subtitle : 'Fill in the details below to add a new NPC to your realm'"
   >
     <template #actions>
-      <!-- View / Edit toggle (existing NPCs only) -->
-      <template v-if="!isNewNpc">
-        <PageHeaderAction
-          v-if="!isEditing"
-          label="Edit"
-          :icon="IconEdit"
-          @click="startEditing"
-        />
-        <PageHeaderAction
-          v-else
-          label="View"
-          :icon="IconDocument"
-          @click="stopEditing"
-        />
-      </template>
+      <!-- Back to reading — which on desktop means back to the modal over the
+           grid, and on a phone the full-screen sheet. -->
+      <PageHeaderAction
+        v-if="!isNewNpc"
+        label="View"
+        :icon="IconDocument"
+        @click="stopEditing"
+      />
 
-      <!-- Edit-mode actions (only when editing and NpcDetail is mounted) -->
-      <template v-if="isEditing && npcDetail">
+      <!-- Edit-mode actions (only once NpcDetail is mounted) -->
+      <template v-if="npcDetail">
         <PageHeaderAction
           v-if="npc?.id"
           label="Delete"
@@ -104,57 +107,65 @@
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
-    <template v-else>
-      <NpcSheet v-if="!isEditing && npc" :npc="npc" />
-      <NpcDetail
-        v-else
-        :key="id"
-        ref="npcDetail"
-        :npc="isNewNpc ? null : (npc ?? null)"
-      />
-    </template>
+    <NpcDetail
+      v-else
+      :key="id"
+      ref="npcDetail"
+      :npc="isNewNpc ? null : (npc ?? null)"
+    />
   </PageHeader>
+
+  <!-- Reading on a phone, before the row has arrived. Every other branch owns
+       its own loading state; this one has no chrome to hang it on. -->
+  <div v-else class="flex justify-center py-16">
+    <LoadingSpinner />
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
-import { IconDelete, IconDocument, IconEdit, IconGenerate, IconHide, IconReveal, IconScrollText } from '@/lib/icons';
+import { IconDelete, IconDocument, IconGenerate, IconHide, IconReveal, IconScrollText } from '@/lib/icons';
 import { useNpc } from "@/composables/useNpcs";
+import { useDetailModal } from "@/composables/useDetailModal";
 import { useRecentNpcs } from "@/composables/useRecentNpcs";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NpcDetail from "@/components/npcs/NpcDetail.vue";
-import NpcSheet from "@/components/npcs/NpcSheet.vue";
+import NpcDetailModal from "@/components/npcs/NpcDetailModal.vue";
 import NpcDetailMobile from "@/components/npcs/NpcDetailMobile.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import RevealedFieldsPanel from "@/components/common/RevealedFieldsPanel.vue";
-import { NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
+import { getNpcDisplayName, NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
 
 const route = useRoute();
 const router = useRouter();
 
 const isNewNpc = computed(() => route.name === "npc-new");
 const id = computed(() => (isNewNpc.value ? "" : (route.params.id as string)));
+
+// `asModal` and `close` are the same reasoning NpcsView uses to decide whether
+// to keep drawing the grid, so the two can never disagree about which of them
+// the user is looking at.
+const { asModal, close } = useDetailModal("/npcs");
+
+// Broader than the composable's `?edit=true` test, because /npcs/new is an
+// edit screen without ever saying so in the query. That route is not nested
+// under the list, so `asModal` is false there regardless.
 const isEditing = computed(() => isNewNpc.value || route.query.edit === "true");
 
-// Mobile-only layers (<md). Desktop keeps the existing PageHeader +
-// NpcSheet/NpcDetail chrome, byte-identical to before.
 const isMobile = useMediaQuery("(max-width: 767px)");
 const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isNewNpc.value);
-// Mobile edit: new NPC, or existing NPC opened with ?edit=true. NpcDetail owns
-// its own mobile chrome (NpcEditMobile), so no PageHeader here.
+// NpcDetail owns its own mobile chrome (NpcEditMobile), so no PageHeader here.
 const showMobileEdit = computed(() => isMobile.value && isEditing.value && !isLoading.value);
+const showDesktopEdit = computed(() => !isMobile.value && isEditing.value);
 
-function startEditing() {
-  router.replace({ query: { ...route.query, edit: "true" } });
-}
 function stopEditing() {
   const q = { ...route.query };
   delete q.edit;
-  router.replace({ query: q });
+  void router.replace({ query: q });
 }
 
 const { data: npc, isLoading: npcLoading } = useNpc(id);
@@ -170,9 +181,9 @@ const subtitle = computed(() => {
   return [npc.value.race, npc.value.occupation].filter(Boolean).join(" · ");
 });
 
-const displayName = computed(() => {
-  if (!npc.value) return "New NPC";
-  const concealed = !!(npc.value.disguise_name || npc.value.disguise_portrait_url) && !npc.value.is_revealed;
-  return concealed && npc.value.disguise_name ? npc.value.disguise_name : npc.value.name;
-});
+// `getNpcDisplayName` is honestly nullable — the player projection returns null
+// for a name that is not revealed — so the absence is marked rather than coerced.
+const displayName = computed(() =>
+  npc.value ? getNpcDisplayName(npc.value) ?? "???" : "New NPC",
+);
 </script>

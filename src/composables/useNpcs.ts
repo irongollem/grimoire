@@ -125,10 +125,32 @@ export function useNpcsByLocations(locationIds: Ref<string[]>) {
 
 export function useNpc(id: string | Ref<string>) {
   const idRef = isRef(id) ? id : ref(id);
+  const queryClient = useQueryClient();
+  const campaign = useCampaignStore();
+
+  /** This NPC's row inside the already-fetched campaign list, if it is there. */
+  const fromList = () =>
+    queryClient
+      .getQueryData<Npc[]>([QUERY_KEY, campaign.activeCampaignId])
+      ?.find((npc) => npc.id === idRef.value);
+
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, idRef.value]),
     queryFn: () => fetchNpc(idRef.value),
     enabled: () => !!idRef.value,
+    // Every caller reaches an NPC *from* somewhere that already holds the whole
+    // row — the grid, the relationship web, a location's residents — so a detail
+    // view that starts empty spends its first moment showing a spinner over data
+    // that is on screen behind it. That is barely noticeable on a page that has
+    // navigated away, and glaring in a modal that opens on top of the very card
+    // it is duplicating.
+    initialData: fromList,
+    // Without this the seeded row counts as fetched *now* and the query sits on
+    // whatever the list last saw. Inheriting the list's timestamp means the
+    // modal opens instantly and still refreshes underneath when that data is
+    // stale — which is the whole trade: show it now, correct it if needed.
+    initialDataUpdatedAt: () =>
+      queryClient.getQueryState([QUERY_KEY, campaign.activeCampaignId])?.dataUpdatedAt,
   });
 }
 

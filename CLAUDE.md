@@ -149,6 +149,10 @@ Deliberate departures from the rules above and in the feature docs. They look li
 
   The test is what the box filters: **the list already on screen → store; a popup of candidates → local `ref`.** A variable named `search` proves nothing either way — #723 listed `StoreInventory` as a violation on the strength of the name, and it was the one entry on that list that turned out not to be a list filter at all.
 
+- **Saving an NPC on desktop returns to `/npcs/:id`, and that is not a Post-Mutation Navigation violation.** The rule says never navigate to the resource's own detail page, because that page is not the list and so is not confirmation. `/npcs/:id` stopped being that page: it is a **child route of `/npcs`**, so on tablet and up it mounts the grid with the sheet as a modal over it. Landing there *is* landing on the list — with the saved record on show, which is strictly better feedback than the bare grid. Below `md` there is no modal and the same path is a full-screen takeover, so `NpcDetail.save()` sends phones to plain `/npcs`; that branch is the rule applying normally, not an inconsistency to tidy away.
+
+  The test is the nesting, not the URL shape: a detail route may target its own id after a mutation **only** when it is nested under its list and the list stays mounted underneath. A standalone detail route must still go to the list. Delete still goes to `/npcs` at every width — there is no record left to confirm. See `context/features/npcs.md` and `useDetailModal`.
+
 - **Supabase "unused index" advisor hits are a known false positive here.** The stats window spans ~7.5 months and 16.1M scans, and the largest table holding a zero-scan index is small enough that Postgres prefers a sequential scan regardless. Do not drop indexes on the advisor's say-so — check the table size and query shape first.
 
 ## Shared-Content Naming — say `library`, never `srd`

@@ -184,6 +184,41 @@
         </div>
       </div>
     </CatalogueSection>
+
+    <CatalogueSection
+      title="AppModal — sizes"
+      note="Open one and check the backdrop tint against this theme, that Escape and a backdrop click both close it, and that Tab cycles inside the panel rather than escaping into the page behind."
+    >
+      <div class="flex flex-wrap items-center gap-2">
+        <AppButton
+          v-for="size in MODAL_SIZES"
+          :key="size"
+          variant="outline"
+          size="sm"
+          :label="size"
+          @click="openModal = size"
+        />
+      </div>
+
+      <AppModal
+        :open="openModal !== null"
+        :size="openModal ?? 'md'"
+        label="Catalogue modal"
+        @close="openModal = null"
+      >
+        <div class="flex flex-col gap-3 p-5">
+          <h2 class="font-cinzel text-lg font-bold text-foreground">Size “{{ openModal }}”</h2>
+          <p class="text-body text-muted-foreground">
+            The shell owns the backdrop, the blur, the panel box, dismissal, focus containment
+            and the open animation. Everything in here is the caller's.
+          </p>
+          <div class="flex gap-2">
+            <AppButton variant="subtle" size="sm" label="A control" />
+            <AppButton variant="primary" size="sm" label="Close" @click="openModal = null" />
+          </div>
+        </div>
+      </AppModal>
+    </CatalogueSection>
   </div>
 </template>
 
@@ -206,6 +241,7 @@ import { IconWand, IconChevronRight } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -239,6 +275,10 @@ const MANY_OPTIONS = Array.from({ length: 9 }, (_, i) => ({
 
 const isIconSize = (size: ButtonSize) => size.startsWith("icon-");
 
+
+/** Every width the shell offers. A size missing here is a size nobody ever looks at. */
+const MODAL_SIZES = ["sm", "md", "lg", "xl", "full"] as const;
+const openModal = ref<(typeof MODAL_SIZES)[number] | null>(null);
 
 const segment = ref<string>("url");
 const emptyable = ref<string>("campaign");

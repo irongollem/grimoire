@@ -13,11 +13,12 @@
     come in through `#body`. The parent wires data; this owns the box.
   -->
   <div
+    ref="cardRef"
     class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-primary/50"
   >
     <!-- Whole-card link, behind the actions. Absent while locked, so an
          over-quota entity cannot be opened by clicking past its overlay. -->
-    <RouterLink v-if="!locked" :to="to" class="absolute inset-0 z-2" />
+    <RouterLink v-if="!locked" :to="to" class="absolute inset-0 z-2" @click="rememberOrigin" />
 
     <div
       v-if="locked"
@@ -84,10 +85,12 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { IconLock } from "@/lib/icons";
+import { rememberModalOrigin } from "@/lib/modalOrigin";
 
-const { imageUrl = null, focalPoint = null } = defineProps<{
+const { to, imageUrl = null, focalPoint = null } = defineProps<{
   to: string;
   title: string;
   placeholder: string;
@@ -107,4 +110,21 @@ const { imageUrl = null, focalPoint = null } = defineProps<{
   accentClass?: string;
 }>();
 
+const cardRef = ref<HTMLElement | null>(null);
+
+/**
+ * Hands the card's rect to whatever `to` opens, so a detail modal can grow out
+ * of this card rather than appearing over it.
+ *
+ * Recorded on every card click, not only the ones that end in a modal: this
+ * component has no idea which of its consumers' routes present that way, and an
+ * origin nobody collects expires on its own. Destinations that render a page
+ * simply never ask.
+ */
+function rememberOrigin() {
+  const el = cardRef.value;
+  if (!el) return;
+  const { top, left, width, height } = el.getBoundingClientRect();
+  rememberModalOrigin(to, { top, left, width, height });
+}
 </script>

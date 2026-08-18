@@ -7,7 +7,7 @@ The NPC Tracker is the DM's central registry for every person the party might en
 The feature comprises four main surfaces:
 
 - **NPC List** (`/npcs`) — filterable card grid
-- **NPC Detail Sheet** (`/npcs/:id`) — read-only view and edit form in the same route
+- **NPC Detail Sheet** (`/npcs/:id`) — the sheet as a modal over the grid on tablet and up, a full-screen takeover on phones; `?edit=true` is the full editor at every width
 - **Relationship Web** (`/npcs/web`) — interactive force-directed graph of all NPC connections
 - **NPC Generator** — slide-in panel (accessible from the list header) for quick-create and AI generation
 
@@ -29,7 +29,7 @@ NPCs render as a responsive card grid: 1 column on mobile, 2 on sm, 3 on lg, 4 o
 - A relationship badge overlaid top-right on the portrait (colour-coded: ally=blue, neutral=grey, enemy=red, unknown=purple).
 - NPC name (truncated), species + occupation line, location (with pin emoji if present), and up to 3 tag chips ("+N more" if overflow).
 - A status dot (top-right of name row): green=alive, red=dead, amber=missing, grey=unknown.
-- On hover: an "Edit" quick-link (top-left overlay) and a share/visibility toggle button.
+- Two always-visible icon chips over the portrait's top-left corner, on the same scrim and at the same size: **Edit** (straight to `?edit=true`) and the **reveal** control. Clicking anywhere else on the card opens the sheet.
 
 Infinite scroll is used: items are revealed progressively as the user scrolls (`useInfiniteScroll`). A count line at the bottom shows "N of M NPCs" when filters are active.
 
@@ -71,10 +71,15 @@ When an NPC becomes visible to a player for the first time while the DM is in **
 
 Route: `/npcs/:id` (also `/npcs/new`)
 
-The view has two modes controlled by `?edit=true` in the URL:
+`?edit=true` in the URL is the mode switch, and the two modes are not two versions of one screen — they are deliberately different surfaces.
 
-- **View mode** — renders `NpcSheet` (read-only)
-- **Edit mode** — renders `NpcDetail` (the full form)
+**Reading** (`/npcs/:id`) is a modal over the grid on tablet and up. The route is a **child** of `/npcs`, so `NpcsView` stays mounted behind it and keeps its scroll position and the revealed page of its infinite scroll — that is the whole reason for the nesting. Deep links from elsewhere in the app (global search, party tracker, faction members, chat, quest attachments) point at the same unchanged URL and land on grid-plus-modal; the grid costs nothing extra to draw, because `useNpcs` is one campaign-scoped query that 58 files already share. Closing is `router.replace("/npcs")`, so Back still returns to wherever the reader came from. On phones the same route is the full-screen `NpcDetailMobile` takeover, and the grid is not rendered at all.
+
+**Editing** (`?edit=true`) keeps the full page at every width. Reading is a glance, editing is a commitment, and a modal's best property — that it is cheap to dismiss — is the wrong property for a form with unsaved work: backdrop and Escape would become a data-loss surface, `NpcDetail` already opens three overlays of its own (`NpcGenerateDialog`, `PaywallModal`, delete confirm), and its seven header actions need a page header rather than a dialog's title bar. Saving an existing NPC returns to `/npcs/:id` on desktop — the grid with the sheet open on the saved record — and to `/npcs` on a phone, where that path is a takeover rather than a list.
+
+`useDetailModal` (`src/composables/useDetailModal.ts`) owns the decision, and both halves ask it the same question: `NpcsView` asks `showList`, `NpcDetailView` asks `asModal`, so the two can never disagree about which one the user is looking at.
+
+The shell is generic — `AppModal` (backdrop, blur, focus trap, Escape via the `overlay` hotkey layer, the open animation) and `EntityDetailModal` (name, identity line, actions row, scrolling body). `EntityGridCard` records the clicked card's rect via `lib/modalOrigin`, so the panel grows out of that card; a deep link finds no origin and fades in instead. Adopting all of this for monsters is a route change and a different body slot.
 
 Toggling between modes does not lose unsaved work because edit mode is URL-driven (the form re-mounts on the keyed `:id`).
 
@@ -82,7 +87,7 @@ Toggling between modes does not lose unsaved work because edit mode is URL-drive
 
 | Button                   | Condition          | Behaviour                                                                 |
 | ------------------------ | ------------------ | ------------------------------------------------------------------------- |
-| Edit / View              | Existing NPC       | Toggles `?edit=true` in URL                                               |
+| View                     | Existing NPC       | Drops `?edit=true`, returning to the modal over the grid (or the phone sheet) |
 | Delete                   | Existing NPC       | Confirms, deletes NPC + storage images, navigates to `/npcs`              |
 | Scriptorium              | Existing NPC       | Formats NPC as a Scriptorium document and pushes to `/scriptorium/:docId` |
 | Reveal                   | Existing NPC       | `AudienceRevealControl` — who sees it, plus the field list in `#what`      |

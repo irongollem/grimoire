@@ -49,12 +49,17 @@
       hand-rolled version this replaced had already discovered that and teleported
       for the same reason; doing it here means the 25 call sites do not each have
       to know whether their container happens to clip.
+
+      `z-300` clears the `z-200` modal layer. Teleporting to `body` escapes the
+      card's clipping but also leaves the stacking context the trigger was in, so
+      a reveal opened from inside a dialog — an entity's detail modal has one in
+      its header — would otherwise render behind the backdrop that dimmed it.
     -->
     <Teleport to="body">
       <div
         v-if="open && !useSheet"
         ref="popoverRef"
-        class="fixed z-50 w-64 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
+        class="fixed z-300 w-64 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
         :style="popoverStyle"
         role="dialog"
         :aria-label="title"
@@ -90,6 +95,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import RevealBody from "@/components/common/RevealBody.vue";
+import { useHotkeys } from "@/composables/useHotkeys";
 import { useParty } from "@/composables/useParty";
 import { IconHide, IconReveal } from "@/lib/icons";
 import { revealLabel, revealState } from "@/lib/reveal";
@@ -159,6 +165,33 @@ const title = computed(() =>
 );
 
 const open = ref(false);
+
+/**
+ * Escape closes the popover — and only the popover.
+ *
+ * It had no key handling at all, which was survivable while it only ever
+ * appeared over a page: nothing else was listening, so Escape did nothing and
+ * the DM clicked away. It stopped being survivable once an entity's detail
+ * modal put one in its header, because the modal *is* listening — so opening
+ * the reveal and pressing Escape threw away the whole sheet you were reading.
+ *
+ * The overlay layer's rule is that the most recently registered Escape wins and
+ * hands it back on unmount, so registering here makes the popover the one that
+ * answers while it is open, and the modal underneath answers again once it is
+ * not. Enabled only while open, so the ~25 cards each holding one of these
+ * never suppress the page's own shortcuts.
+ */
+useHotkeys(
+  () => [
+    {
+      combo: "escape",
+      description: "Close reveal",
+      hidden: true,
+      handler: () => { open.value = false; },
+    },
+  ],
+  { layer: "overlay", enabled: () => open.value },
+);
 const containerRef = ref<HTMLElement | null>(null);
 
 /**

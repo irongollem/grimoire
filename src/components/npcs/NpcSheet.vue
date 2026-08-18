@@ -1,5 +1,12 @@
 <template>
-  <div class="flex flex-col gap-6 lg:flex-row lg:gap-6 lg:h-[calc(100dvh-7.5rem)] lg:overflow-hidden">
+  <!--
+    `lg:h-full`, not a viewport calculation. This used to subtract the detail
+    page's chrome from `100dvh`, which was a measurement of a host that no longer
+    exists: reading an NPC on desktop is a modal over the grid, and the panel is
+    the thing with a height. Filling the parent works in either, and stops the
+    layout depending on a number nobody would think to update.
+  -->
+  <div class="flex flex-col gap-6 lg:h-full lg:flex-row lg:gap-6 lg:overflow-hidden">
     <!-- Col 1 / top: portrait + badges, never scrolls on desktop -->
     <div class="flex flex-col gap-3 lg:w-52 lg:shrink-0 lg:pb-6">
       <FocalImage

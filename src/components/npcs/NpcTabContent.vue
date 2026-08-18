@@ -1,16 +1,10 @@
 <template>
+  <!--
+    No identity line here. The only host is the detail modal, whose header
+    carries it — and carries it better, since the header does not scroll away
+    from you halfway down a backstory.
+  -->
   <div class="flex flex-col gap-4">
-    <!-- Identity -->
-    <div class="border-b border-primary/30 pb-2">
-      <p class="text-body italic text-muted-foreground">
-        <span v-if="npc.race">{{ npc.race }}</span>
-        <span v-if="npc.race && npc.occupation"> · </span>
-        <span v-if="npc.occupation">{{ npc.occupation }}</span>
-        <span v-if="npc.alignment"> · {{ npc.alignment }}</span>
-        <span v-if="npc.age"> · Age {{ npc.age }}</span>
-      </p>
-    </div>
-
     <!-- Tabs -->
     <div class="flex gap-0 border-b border-border">
       <button

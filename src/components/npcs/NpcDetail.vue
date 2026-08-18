@@ -620,7 +620,12 @@ async function save() {
       void sendNarrativeEvent(`You encounter ${form.name.trim()}.`, savedNpcId ?? undefined)
     }
 
-    if (props.npc?.id) router.push('/npcs')
+    // Back to the list, which is the confirmation that the save landed. On
+    // tablet and up the NPC's own path *is* the list — the grid with this
+    // sheet open over it — so it doubles as a look at what was just saved.
+    // A phone has no such layer: `/npcs/:id` there is a full-screen takeover,
+    // which would be staying on the detail page, so it gets the plain list.
+    if (props.npc?.id) router.push(isMobile.value ? '/npcs' : `/npcs/${props.npc.id}`)
   } catch (e: unknown) {
     if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     notify('Failed to save NPC. Please try again.')

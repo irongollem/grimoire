@@ -301,11 +301,33 @@ export const routes: RouteRecordRaw[] = [
     name: "npcs",
     component: () => import("@/views/npcs/NpcsView.vue"),
     meta: { requiresAuth: true, title: "NPC Tracker" },
+    // `:id` is a *child* so the grid stays mounted while a single NPC is being
+    // read: on tablet and up the sheet is a modal over the list, and remounting
+    // the list underneath it would throw away scroll position and the revealed
+    // page of the infinite scroll — the two things the modal exists to keep.
+    // `NpcDetailView` still takes the whole screen when it should (any phone
+    // width, and `?edit=true` everywhere), and `NpcsView` renders nothing then.
+    // See `useDetailModal`.
+    children: [
+      {
+        path: ":id",
+        name: "npc-detail",
+        component: () => import("@/views/npcs/NpcDetailView.vue"),
+        // fullscreenMobile: the mobile screen is a full-screen takeover with its
+        // own top + bottom bars, so the global AppTopBar / DmBottomNav are
+        // suppressed on phones to avoid two stacked, overlapping bars. Meta is
+        // merged across matched records, so nesting does not hide it.
+        meta: { requiresAuth: true, title: "NPC Sheet", fullscreenMobile: true },
+      },
+    ],
   },
   {
     path: "/npcs/new",
     name: "npc-new",
     component: () => import("@/views/npcs/NpcDetailView.vue"),
+    // Deliberately NOT nested under /npcs: creating an NPC is the full editor at
+    // every width, so there is no list to sit over. Static segments outrank the
+    // `:id` param, so this still wins the match.
     // fullscreenMobile: the mobile edit screen is a full-screen takeover with
     // its own top + bottom bars, so the global AppTopBar / DmBottomNav are
     // suppressed on phones to avoid two stacked, overlapping bars. Desktop is
@@ -323,13 +345,6 @@ export const routes: RouteRecordRaw[] = [
     name: "npc-sets",
     component: () => import("@/views/npcs/NpcSetsView.vue"),
     meta: { requiresAuth: true, title: "NPC Sets" },
-  },
-  {
-    path: "/npcs/:id",
-    name: "npc-detail",
-    component: () => import("@/views/npcs/NpcDetailView.vue"),
-    // See /npcs/new above — full-screen mobile takeover (read + edit).
-    meta: { requiresAuth: true, title: "NPC Sheet", fullscreenMobile: true },
   },
 
   // Gallery — account-wide library of every generated image
