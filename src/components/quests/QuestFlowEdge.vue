@@ -20,7 +20,16 @@
 import { computed } from "vue";
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Position } from "@vue-flow/core";
 
-const props = withDefaults(defineProps<{
+const {
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  interactionWidth = 20,
+  label,
+} = defineProps<{
   id: string;
   sourceX: number;
   sourceY: number;
@@ -32,23 +41,18 @@ const props = withDefaults(defineProps<{
   markerEnd?: string;
   interactionWidth?: number;
   label?: unknown;
-}>(), {
-  markerStart: undefined,
-  markerEnd: undefined,
-  interactionWidth: 20,
-  label: undefined,
-});
+}>();
 
 const route = computed(() => getSmoothStepPath({
-  sourceX: props.sourceX,
-  sourceY: props.sourceY,
-  sourcePosition: props.sourcePosition,
-  targetX: props.targetX,
-  targetY: props.targetY,
-  targetPosition: props.targetPosition,
+  sourceX,
+  sourceY,
+  sourcePosition,
+  targetX,
+  targetY,
+  targetPosition,
   borderRadius: 10,
 }));
-const labelText = computed(() => typeof props.label === "string" ? props.label : "");
+const labelText = computed(() => typeof label === "string" ? label : "");
 const path = computed(() => route.value[0]);
 const labelX = computed(() => route.value[1]);
 const labelY = computed(() => route.value[2]);

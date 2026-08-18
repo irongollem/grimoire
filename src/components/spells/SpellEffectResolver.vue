@@ -69,14 +69,14 @@ import { useToast } from "@/composables/useToast";
 import { metamagicReminders, metamagicTargetBonus } from "@/rules/metamagicPolicy";
 import { useRuleset } from "@/composables/useRuleset";
 
-const props = withDefaults(defineProps<{
+const { spell, castLevel, characterLevel, spellcastingModifier = 0, damageTypeOverride = null, metamagicNames = [] } = defineProps<{
   spell: Spell | null;
   castLevel: number;
   characterLevel: number;
   spellcastingModifier?: number;
   damageTypeOverride?: string | null;
   metamagicNames?: string[];
-}>(), { spellcastingModifier: 0, damageTypeOverride: null, metamagicNames: () => [] });
+}>();
 const emit = defineEmits<{ close: [] }>();
 const { sendRoll, sendFlavorMessage } = useCampaignMessages();
 const toast = useToast();
@@ -88,29 +88,29 @@ const resolving = ref(false);
 const dialogRef = ref<HTMLElement | null>(null);
 
 const castEffects = computed(() => effectsForCast(
-  props.spell?.effects ?? [],
-  props.spell?.level ?? 0,
-  props.castLevel,
-  props.characterLevel,
+  spell?.effects ?? [],
+  spell?.level ?? 0,
+  castLevel,
+  characterLevel,
 ));
 const phases = computed(() => [...new Set(castEffects.value.map((effect) => effect.phase))]);
-const reminders = computed(() => metamagicReminders(props.metamagicNames, ruleset.value));
+const reminders = computed(() => metamagicReminders(metamagicNames, ruleset.value));
 const outcomeOptions = computed<Array<{ value: SpellOutcome; label: string }>>(() => {
-  if (props.spell?.attack_type === "ranged_spell" || props.spell?.attack_type === "melee_spell") return [
+  if (spell?.attack_type === "ranged_spell" || spell?.attack_type === "melee_spell") return [
     { value: "hit", label: "Hit" }, { value: "critical_hit", label: "Critical hit" }, { value: "miss", label: "Miss" },
   ];
-  if (props.spell?.attack_type === "save") return [
+  if (spell?.attack_type === "save") return [
     { value: "failed_save", label: "Failed save" }, { value: "successful_save", label: "Successful save" },
-    ...(props.metamagicNames.includes("Careful Spell")
+    ...(metamagicNames.includes("Careful Spell")
       ? [{ value: "careful_save" as const, label: ruleset.value === "2024" ? "Careful: save, no damage" : "Careful: successful save" }]
       : []),
   ];
   return [{ value: "automatic", label: "Automatic" }];
 });
 
-watch(() => props.spell, (spell) => {
-  if (!spell) return;
-  targetCount.value = Math.min(20, Math.max(1, ...castEffects.value.map((effect) => effect.target.count ?? 1)) + metamagicTargetBonus(props.metamagicNames));
+watch(() => spell, (nextSpell) => {
+  if (!nextSpell) return;
+  targetCount.value = Math.min(20, Math.max(1, ...castEffects.value.map((effect) => effect.target.count ?? 1)) + metamagicTargetBonus(metamagicNames));
   selectedPhase.value = phases.value.includes("impact") ? "impact" : (phases.value[0] ?? "impact");
   void nextTick(() => dialogRef.value?.focus());
 }, { immediate: true });
@@ -124,7 +124,7 @@ watch([targetCount, outcomeOptions], () => {
 const phaseSummary = computed(() => {
   const effects = castEffects.value.filter((effect) => effect.phase === selectedPhase.value);
   if (!effects.length) return "No structured effects occur in this phase.";
-  return effects.map((effect) => [effect.dice, props.damageTypeOverride ?? effect.damageType, effect.kind, effect.description].filter(Boolean).join(" ")).join("; ");
+  return effects.map((effect) => [effect.dice, damageTypeOverride ?? effect.damageType, effect.kind, effect.description].filter(Boolean).join(" ")).join("; ");
 });
 
 function phaseLabel(phase: StructuredSpellEffect["phase"]): string {
@@ -132,11 +132,11 @@ function phaseLabel(phase: StructuredSpellEffect["phase"]): string {
 }
 
 async function resolveSelectedPhase() {
-  if (!props.spell || resolving.value) return;
+  if (!spell || resolving.value) return;
   resolving.value = true;
   try {
     const carefulTargets = targets.value.filter((target) => target.outcome === "careful_save").length;
-    const carefulLimit = Math.max(1, props.spellcastingModifier);
+    const carefulLimit = Math.max(1, spellcastingModifier);
     if (carefulTargets > carefulLimit) {
       toast.error(`Careful Spell can protect at most ${carefulLimit} target${carefulLimit === 1 ? "" : "s"}.`);
       return;
@@ -155,14 +155,14 @@ async function resolveSelectedPhase() {
       if (effect.dice) {
         const parsed = parseExpression(effect.dice);
         if (!parsed) throw new Error(`Unsupported dice expression: ${effect.dice}`);
-        const abilityModifier = effect.modifier === "spellcasting_ability" ? props.spellcastingModifier : (effect.modifier ?? 0);
+        const abilityModifier = effect.modifier === "spellcasting_ability" ? spellcastingModifier : (effect.modifier ?? 0);
         const rolled = rollParsed({ ...parsed, modifier: parsed.modifier + abilityModifier });
         const total = Math.floor(rolled.total * effect.multiplier);
-        const damageType = props.damageTypeOverride ?? effect.damageType;
-        const label = `${props.spell.name} — ${target}: ${effect.kind}${damageType ? ` (${damageType})` : ""}${effect.multiplier === 0.5 ? " · successful save, half" : ""}`;
+        const damageType = damageTypeOverride ?? effect.damageType;
+        const label = `${spell.name} — ${target}: ${effect.kind}${damageType ? ` (${damageType})` : ""}${effect.multiplier === 0.5 ? " · successful save, half" : ""}`;
         await sendRoll({ total, label, modifier: parsed.modifier + abilityModifier, breakdown: rolled.breakdown, isCrit: outcomes[targetId] === "critical_hit", isFumble: false, isDamage: effect.kind === "damage" });
       } else if (effect.condition || effect.description) {
-        await sendFlavorMessage(`${target}: ${effect.condition ?? effect.description}`, props.spell.name);
+        await sendFlavorMessage(`${target}: ${effect.condition ?? effect.description}`, spell.name);
       }
     }
   } catch (error) {

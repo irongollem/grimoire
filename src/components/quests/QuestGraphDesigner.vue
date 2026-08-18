@@ -147,7 +147,7 @@ import QuestBeatComposer from "./QuestBeatComposer.vue";
 import QuestBeatInspector from "./QuestBeatInspector.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 
-const props = withDefaults(defineProps<{ questId: string; visibleTo?: string[]; focusCurrentOnOpen?: boolean }>(), { visibleTo: () => [], focusCurrentOnOpen: false });
+const { questId, visibleTo = [], focusCurrentOnOpen = false } = defineProps<{ questId: string; visibleTo?: string[]; focusCurrentOnOpen?: boolean }>();
 const canvas = ref<InstanceType<typeof QuestFlowCanvas> | null>(null);
 const route = useRoute();
 const router = useRouter();
@@ -157,15 +157,15 @@ const selectedEdgeId = ref<string | null>(null);
 const saveError = ref("");
 const previewOpen = ref(false);
 const previewContext = ref<{ draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean } | null>(null);
-const initialViewport = readQuestViewport(props.questId);
-const questId = computed(() => props.questId);
+const initialViewport = readQuestViewport(questId);
+const questIdRef = computed(() => questId);
 
-const beatsQuery = useQuestBeats(questId);
-const edgesQuery = useQuestBeatEdges(questId);
-const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
-const lootQuery = useQuestBeatLoot(questId);
+const beatsQuery = useQuestBeats(questIdRef);
+const edgesQuery = useQuestBeatEdges(questIdRef);
+const attachmentsQuery = useQuestBeatAttachmentSummaries(questIdRef);
+const lootQuery = useQuestBeatLoot(questIdRef);
 const runtimeQuery = useQuestRuntimeState();
-const transitionsQuery = useQuestBeatTransitionsForQuest(questId);
+const transitionsQuery = useQuestBeatTransitionsForQuest(questIdRef);
 const updateBeat = useUpdateQuestBeat();
 const createBeatWithRoute = useCreateQuestBeatWithRoute();
 const archiveBeat = useArchiveQuestBeat();
@@ -188,7 +188,7 @@ const lootByBeat = computed(() => summarizeQuestBeatLoot(lootQuery.data.value ??
 const selectedBeat = computed(() => beats.value.find((beat) => beat.id === selectedBeatId.value) ?? null);
 const selectedAttachments = computed(() => attachments.value.filter((attachment) => attachment.beat_id === selectedBeatId.value));
 const selectedLoot = computed(() => (lootQuery.data.value ?? []).filter((entry) => entry.beat_id === selectedBeatId.value));
-const currentBeatId = computed(() => runtimeQuery.data.value?.current_quest_id === props.questId ? runtimeQuery.data.value.current_beat_id : null);
+const currentBeatId = computed(() => runtimeQuery.data.value?.current_quest_id === questId ? runtimeQuery.data.value.current_beat_id : null);
 const presentations = computed(() => deriveQuestBeatPresentations({ beats: beats.value, edges: edges.value, attachments: attachments.value, runtime: runtimeQuery.data.value, transitions: transitions.value, lootByBeat: lootByBeat.value }));
 const visitedEdgeIds = computed(() => visitedRouteEdgeIds(edges.value, transitions.value));
 const isLoading = computed(() => beatsQuery.isLoading.value || edgesQuery.isLoading.value || attachmentsQuery.isLoading.value || lootQuery.isLoading.value);
@@ -222,7 +222,7 @@ async function flushPositions() {
   for (const command of commands) {
     saveError.value = "";
     try {
-      await updateBeat.mutateAsync({ id: command.beatId, questId: props.questId, update: { canvas_x: command.x, canvas_y: command.y } });
+      await updateBeat.mutateAsync({ id: command.beatId, questId, update: { canvas_x: command.x, canvas_y: command.y } });
     } catch (error) {
       saveError.value = error instanceof Error ? error.message : "Unknown save error";
     }
@@ -232,7 +232,7 @@ const savePositions = useDebounceFn(flushPositions, 300, { maxWait: 1000 });
 
 function onCommand(command: QuestGraphCommand) {
   if (command.type === "open" && isMobile.value) {
-    void router.push({ path: `/quests/${props.questId}/beats/${command.beatId}`, query: { returnTo: `/quests/${props.questId}?beat=${command.beatId}` } });
+    void router.push({ path: `/quests/${questId}/beats/${command.beatId}`, query: { returnTo: `/quests/${questId}?beat=${command.beatId}` } });
     return;
   }
   if (command.type === "select" || command.type === "open") { selectedBeatId.value = command.beatId; selectedEdgeId.value = null; }
@@ -264,7 +264,7 @@ async function createComposedBeat(value: { title: string; kind: string; edgeLabe
   composerError.value = "";
   try {
     const created = await createBeatWithRoute.mutateAsync({
-      questId: props.questId,
+      questId,
       title: value.title,
       kind: value.kind,
       canvasX: draft.x,
@@ -284,7 +284,7 @@ async function linkExisting(sourceBeatId: string, targetBeatId: string) {
   const retry = () => void linkExisting(sourceBeatId, targetBeatId);
   try {
     mutationError.value = "";
-    await createEdge.mutateAsync({ quest_id: props.questId, campaign_id: campaign.activeCampaignId, source_beat_id: sourceBeatId, target_beat_id: targetBeatId, label: "" });
+    await createEdge.mutateAsync({ quest_id: questId, campaign_id: campaign.activeCampaignId, source_beat_id: sourceBeatId, target_beat_id: targetBeatId, label: "" });
     retryMutation.value = null;
   } catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not create route"; retryMutation.value = retry; }
 }
@@ -292,7 +292,7 @@ async function linkExisting(sourceBeatId: string, targetBeatId: string) {
 async function saveEdge() {
   if (!selectedEdge.value || edgeSource.value === edgeTarget.value) { mutationError.value = "A route cannot connect a beat to itself."; return; }
   edgeSaving.value = true;
-  try { mutationError.value = ""; await updateEdge.mutateAsync({ id: selectedEdge.value.id, questId: props.questId, update: { source_beat_id: edgeSource.value, target_beat_id: edgeTarget.value, label: edgeLabel.value.trim() } }); retryMutation.value = null; }
+  try { mutationError.value = ""; await updateEdge.mutateAsync({ id: selectedEdge.value.id, questId, update: { source_beat_id: edgeSource.value, target_beat_id: edgeTarget.value, label: edgeLabel.value.trim() } }); retryMutation.value = null; }
   catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not save route"; retryMutation.value = () => void saveEdge(); }
   finally { edgeSaving.value = false; }
 }
@@ -300,7 +300,7 @@ async function saveEdge() {
 async function deleteSelectedEdge() {
   if (!selectedEdge.value || !(await confirm(`Delete this route${selectedEdge.value.label ? ` (“${selectedEdge.value.label}”)` : ""}?`))) return;
   const edge = selectedEdge.value;
-  try { mutationError.value = ""; await deleteEdge.mutateAsync({ id: edge.id, questId: props.questId }); selectedEdgeId.value = null; retryMutation.value = null; }
+  try { mutationError.value = ""; await deleteEdge.mutateAsync({ id: edge.id, questId }); selectedEdgeId.value = null; retryMutation.value = null; }
   catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not delete route"; retryMutation.value = () => void deleteSelectedEdge(); }
 }
 
@@ -313,7 +313,7 @@ async function archivePendingBeat() {
     const endingRuntime = wasCurrent && replacementBeatId.value === "end";
     await archiveBeat.mutateAsync({
       id: beat.id,
-      questId: props.questId,
+      questId,
       expectedRuntimeVersion: wasCurrent ? runtimeQuery.data.value?.version : undefined,
       replacementBeatId: wasCurrent && !endingRuntime ? replacementBeatId.value : undefined,
       endRuntime: endingRuntime,
@@ -337,7 +337,7 @@ if (initialBeatId) selectedBeatId.value = initialBeatId;
 
 let focusedOnOpen = false;
 watch([currentBeatId, beats, canvas], async ([current]) => {
-  if (!props.focusCurrentOnOpen || focusedOnOpen || !current) return;
+  if (!focusCurrentOnOpen || focusedOnOpen || !current) return;
   await nextTick();
   focusedOnOpen = await canvas.value?.focusCurrent() ?? false;
 }, { immediate: true });

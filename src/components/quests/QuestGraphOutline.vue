@@ -19,6 +19,6 @@ import AppButton from "@/components/common/AppButton.vue";
 import type { QuestGraphCommand } from "@/lib/quests/flow";
 import type { QuestBeat } from "@/types/quest.types";
 
-withDefaults(defineProps<{ beats: QuestBeat[]; selectedBeatId?: string | null; editable?: boolean }>(), { editable: true });
+const { beats, selectedBeatId, editable = true } = defineProps<{ beats: QuestBeat[]; selectedBeatId?: string | null; editable?: boolean }>();
 const emit = defineEmits<{ command: [command: QuestGraphCommand] }>();
 </script>

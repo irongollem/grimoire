@@ -79,16 +79,12 @@ import {
 import AppButton from "@/components/common/AppButton.vue";
 import QuestBoardCard from "./QuestBoardCard.vue";
 
-const props = withDefaults(defineProps<{
+const { quests, allQuests, party = [], summaries } = defineProps<{
   quests: Quest[];
   allQuests?: Quest[];
   party?: PartyMember[];
   summaries?: Record<string, QuestBoardSummary>;
-}>(), {
-  party: () => [],
-  allQuests: undefined,
-  summaries: undefined,
-});
+}>();
 
 const emit = defineEmits<{
   move: [payload: { id: string; status: QuestStatus }];
@@ -101,8 +97,8 @@ const columns = computed(() => QUEST_STATUSES.map((status) => ({
   status,
   label: QUEST_STATUS_LABELS[status],
   color: QUEST_STATUS_COLORS[status],
-  quests: props.quests.filter((quest) => quest.status === status),
-  unfilteredCount: (props.allQuests ?? props.quests).filter((quest) => quest.status === status).length,
+  quests: quests.filter((quest) => quest.status === status),
+  unfilteredCount: (allQuests ?? quests).filter((quest) => quest.status === status).length,
 })));
 
 function startDrag(id: string) {
@@ -128,7 +124,7 @@ function dropOn(status: QuestStatus) {
 }
 
 function moveQuest(id: string, status: QuestStatus) {
-  const quest = props.quests.find((candidate) => candidate.id === id);
+  const quest = quests.find((candidate) => candidate.id === id);
   if (!quest || quest.status === status) return;
   emit("move", { id, status });
 }

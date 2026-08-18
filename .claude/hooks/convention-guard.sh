@@ -35,8 +35,8 @@
 # ---------------------------------------------------------------------------
 # The payload's new_string/content is what this session just wrote. Scanning
 # the file instead would re-report the tree's existing drift (39 raw buttons,
-# 42 raw inputs, 12 withDefaults) on every unrelated edit to those files, which
-# is the fastest way to make a hook worthless.
+# 42 raw inputs) on every unrelated edit to those files, which is the fastest
+# way to make a hook worthless.
 #
 # Exit 2 feeds stderr back to Claude. The write has already happened; this is a
 # correction prompt, not a veto.
@@ -89,8 +89,8 @@ esac
 
 case "$file" in
   *.vue | *.ts)
-    # Vue 3.5 destructuring props. Unambiguous in the text, and the repo has
-    # exactly 12 stragglers — all genuine.
+    # Vue 3.5 destructuring props. Unambiguous in the text, and #740 cleared the
+    # last twelve stragglers, so any hit here is newly introduced.
     if printf '%s' "$added" | grep -q 'withDefaults('; then
       note "\`withDefaults\` is banned. Vue 3.5 destructuring props instead: \`const { editable = true } = defineProps<{ editable?: boolean }>()\`."
     fi

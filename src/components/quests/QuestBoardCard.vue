@@ -171,18 +171,13 @@ import {
 } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 
-const props = withDefaults(defineProps<{
+const { quest, party = [], summary, dragging = false, draggable = true } = defineProps<{
   quest: Quest;
   party?: PartyMember[];
   summary?: QuestBoardSummary;
   dragging?: boolean;
   draggable?: boolean;
-}>(), {
-  party: () => [],
-  summary: undefined,
-  dragging: false,
-  draggable: true,
-});
+}>();
 
 const emit = defineEmits<{
   dragstart: [questId: string];
@@ -191,25 +186,25 @@ const emit = defineEmits<{
 }>();
 
 const visibleParty = computed(() => {
-  const ids = new Set(props.quest.player_visible_to ?? []);
-  return props.party.filter((member) => ids.has(member.id));
+  const ids = new Set(quest.player_visible_to ?? []);
+  return party.filter((member) => ids.has(member.id));
 });
 const hiddenPartyCount = computed(() => Math.max(visibleParty.value.length - 4, 0));
 const hiddenPartyLabel = computed(() => `${hiddenPartyCount.value} more ${hiddenPartyCount.value === 1 ? "player" : "players"}`);
-const statusIndex = computed(() => QUEST_STATUSES.indexOf(props.quest.status));
+const statusIndex = computed(() => QUEST_STATUSES.indexOf(quest.status));
 const previousStatus = computed<QuestStatus | null>(() => QUEST_STATUSES[statusIndex.value - 1] ?? null);
 const nextStatus = computed<QuestStatus | null>(() => QUEST_STATUSES[statusIndex.value + 1] ?? null);
 
-const hasSummaryChips = computed(() => props.summary !== undefined);
-const showAction = computed(() => !["completed", "failed"].includes(props.quest.status));
-const actionTo = computed(() => `/quests/${props.quest.id}`);
+const hasSummaryChips = computed(() => summary !== undefined);
+const showAction = computed(() => !["completed", "failed"].includes(quest.status));
+const actionTo = computed(() => `/quests/${quest.id}`);
 
 const lootLabel = computed(() => {
-  if (!props.summary) return "";
-  if (props.summary.undispatchedLootCount) {
-    return `${props.summary.undispatchedLootCount} loot to drop`;
+  if (!summary) return "";
+  if (summary.undispatchedLootCount) {
+    return `${summary.undispatchedLootCount} loot to drop`;
   }
-  return `${props.summary.unclaimedLootCount} unclaimed`;
+  return `${summary.unclaimedLootCount} unclaimed`;
 });
 
 function initials(name: string) {
@@ -229,9 +224,9 @@ function onDragStart(event: DragEvent) {
   // Firefox will not start an HTML drag unless at least one data flavor is set.
   // The board still owns the in-memory id; this payload only makes native DnD
   // interoperable across engines and is never trusted as application state.
-  event.dataTransfer?.setData("text/plain", props.quest.id);
+  event.dataTransfer?.setData("text/plain", quest.id);
   if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-  emit("dragstart", props.quest.id);
+  emit("dragstart", quest.id);
 }
 </script>
 

@@ -122,13 +122,13 @@ const QuestRunContainedTool = defineAsyncComponent({
 });
 const QuestRunBeatEditor = defineAsyncComponent(() => import("./QuestRunBeatEditor.vue"));
 
-const props = withDefaults(defineProps<{ anchorQuestId: string; visibleTo?: string[] }>(), { visibleTo: () => [] });
+const { anchorQuestId, visibleTo = [] } = defineProps<{ anchorQuestId: string; visibleTo?: string[] }>();
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
 const contextQuery = useQuestRuntimeContext();
 const runtimeCommand = useQuestRuntimeCommand();
-const beatsQuery = useQuestBeats(computed(() => props.anchorQuestId));
+const beatsQuery = useQuestBeats(computed(() => anchorQuestId));
 const questsQuery = useQuests();
 const currentQuestId = computed(() => contextQuery.data.value?.current?.quest_id ?? "");
 const runBeatsQuery = useQuestBeats(currentQuestId);
@@ -156,16 +156,16 @@ const currentBeat = computed(() => {
   if (!snapshot) return null;
   return (runBeatsQuery.data.value ?? []).find((beat) => beat.id === snapshot.id) ?? snapshot;
 });
-const runReturn = computed(() => `/quests/${props.anchorQuestId}?beat=${context.value?.current?.id ?? ""}`);
+const runReturn = computed(() => `/quests/${anchorQuestId}?beat=${context.value?.current?.id ?? ""}`);
 const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const currentLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const previewBeat = computed(() => (runBeatsQuery.data.value ?? []).find((beat) => beat.id === previewBeatId.value) ?? context.value?.current ?? null);
-const previewQuestId = computed(() => previewBeat.value?.quest_id ?? props.anchorQuestId);
+const previewQuestId = computed(() => previewBeat.value?.quest_id ?? anchorQuestId);
 const previewVisibleTo = computed(() => {
   const quest = questsQuery.data.value?.find((row) => row.id === previewQuestId.value);
   if (quest) return quest.player_visible_to ?? [];
-  return previewQuestId.value === props.anchorQuestId ? props.visibleTo : [];
+  return previewQuestId.value === anchorQuestId ? visibleTo : [];
 });
 const recentBeatIds = computed(() => {
   const ids = (context.value?.path_so_far ?? []).map((row) => String(row.to_beat_id ?? "")).filter(Boolean).reverse();
@@ -187,7 +187,7 @@ const branchChoices = computed(() => {
 });
 const rankedJumpTargets = computed(() => rankQuestJumpTargets(
   (jumpTargetsQuery.data.value ?? []).filter((target) => target.beat_id !== context.value?.current?.id), questsQuery.data.value ?? [], context.value?.current?.quest_id ?? null,
-  props.anchorQuestId, recentBeatIds.value,
+  anchorQuestId, recentBeatIds.value,
 ));
 
 watch(() => context.value?.current?.id, (beatId) => {

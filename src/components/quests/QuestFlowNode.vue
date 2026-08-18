@@ -36,18 +36,18 @@ import { Handle, Position } from "@vue-flow/core";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import AppButton from "@/components/common/AppButton.vue";
 
-const props = withDefaults(defineProps<{ title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean }>(), { editable: true, deletable: true });
+const { title, kind, visibility, current, presentation, editable = true, deletable = true } = defineProps<{ title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean }>();
 const emit = defineEmits<{ select: []; open: []; delete: []; "create-next": [] }>();
 const accessibleLabel = computed(() => [
-  props.title || "Untitled beat",
-  props.kind,
-  props.visibility,
-  props.current ? "current beat" : "",
-  props.presentation?.isVisited ? "visited" : "",
-  props.presentation?.isDisconnected ? "disconnected staging beat" : "",
-  props.presentation?.prepGapCount ? `${props.presentation.prepGapCount} prep gaps` : "ready",
-  props.presentation?.loot.undispatched ? `${props.presentation.loot.undispatched} loot held` : "",
-  props.presentation?.loot.unclaimed ? `${props.presentation.loot.unclaimed} loot unclaimed` : "",
+  title || "Untitled beat",
+  kind,
+  visibility,
+  current ? "current beat" : "",
+  presentation?.isVisited ? "visited" : "",
+  presentation?.isDisconnected ? "disconnected staging beat" : "",
+  presentation?.prepGapCount ? `${presentation.prepGapCount} prep gaps` : "ready",
+  presentation?.loot.undispatched ? `${presentation.loot.undispatched} loot held` : "",
+  presentation?.loot.unclaimed ? `${presentation.loot.unclaimed} loot unclaimed` : "",
 ].filter(Boolean).join(", "));
 </script>
 

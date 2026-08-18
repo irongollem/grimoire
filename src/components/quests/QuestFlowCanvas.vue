@@ -56,10 +56,10 @@ import { moveBeatCommand, toQuestFlowGraph, type QuestGraphCommand } from "@/lib
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 
-const props = withDefaults(defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; selectedBeatId?: string | null; currentBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>(), { presentations: () => ({}), visitedEdgeIds: () => new Set(), selectedBeatId: null, currentBeatId: null, fitOnOpen: true, initialViewport: null, editable: true });
+const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), selectedBeatId = null, currentBeatId = null, fitOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; selectedBeatId?: string | null; currentBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
 const emit = defineEmits<{ command: [command: QuestGraphCommand]; "viewport-change": [viewport: ViewportTransform] }>();
-const flow = useVueFlow(props.graphId);
-const graph = computed(() => toQuestFlowGraph(props.beats, props.edges, props.presentations, props.visitedEdgeIds));
+const flow = useVueFlow(graphId);
+const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds));
 const nodes = computed({ get: () => graph.value.nodes, set: () => undefined });
 const flowEdges = computed({ get: () => graph.value.edges, set: () => undefined });
 let pendingConnectionSource: string | null = null;
@@ -67,17 +67,17 @@ let connectionCompleted = false;
 
 function onNodeClick(event: { node: { id: string } }) { emit("command", { type: "select", beatId: event.node.id }); }
 function createNext(beatId: string) {
-  const beat = props.beats.find((candidate) => candidate.id === beatId);
+  const beat = beats.find((candidate) => candidate.id === beatId);
   emit("command", { type: "create", sourceBeatId: beatId, x: (beat?.canvas_x ?? 0) + 320, y: beat?.canvas_y ?? 0 });
 }
 function onNodeDragStop(event: { node: { id: string; position: { x: number; y: number } } }) { emit("command", moveBeatCommand(event.node)); }
 function onConnect(connection: { source: string | null; target: string | null }) {
   connectionCompleted = true;
-  if (props.editable && connection.source && connection.target && connection.source !== connection.target) emit("command", { type: "link", sourceBeatId: connection.source, targetBeatId: connection.target });
+  if (editable && connection.source && connection.target && connection.source !== connection.target) emit("command", { type: "link", sourceBeatId: connection.source, targetBeatId: connection.target });
 }
 function onConnectStart(event: { nodeId?: string | null }) { pendingConnectionSource = event.nodeId ?? null; connectionCompleted = false; }
 function onConnectEnd(event?: MouseEvent | TouchEvent) {
-  if (!props.editable || connectionCompleted || !pendingConnectionSource || !event) { pendingConnectionSource = null; return; }
+  if (!editable || connectionCompleted || !pendingConnectionSource || !event) { pendingConnectionSource = null; return; }
   const point = "changedTouches" in event ? event.changedTouches[0] : event;
   if (point) {
     const position = flow.project({ x: point.clientX, y: point.clientY });
@@ -92,9 +92,9 @@ async function fitGraph() {
 }
 
 async function focusCurrent() {
-  if (!props.currentBeatId) return false;
+  if (!currentBeatId) return false;
   await nextTick();
-  const node = nodes.value.find((candidate) => candidate.id === props.currentBeatId);
+  const node = nodes.value.find((candidate) => candidate.id === currentBeatId);
   if (!node) return false;
   return flow.setCenter(node.position.x + 120, node.position.y + 60, {
     zoom: 1.25,

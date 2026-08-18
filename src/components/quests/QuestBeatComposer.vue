@@ -22,7 +22,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 
-withDefaults(defineProps<{ sourceBeatId?: string; saving?: boolean; error?: string }>(), { sourceBeatId: undefined, saving: false, error: "" });
+const { sourceBeatId, saving = false, error = "" } = defineProps<{ sourceBeatId?: string; saving?: boolean; error?: string }>();
 const emit = defineEmits<{ cancel: []; submit: [value: { title: string; kind: string; edgeLabel: string }] }>();
 const title = ref("");
 const kind = ref("neutral");

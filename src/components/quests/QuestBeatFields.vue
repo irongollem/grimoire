@@ -96,29 +96,29 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 
-const props = withDefaults(defineProps<{ beat: QuestBeat; compact?: boolean }>(), { compact: false });
+const { beat, compact = false } = defineProps<{ beat: QuestBeat; compact?: boolean }>();
 const emit = defineEmits<{
   saved: [beat: QuestBeat];
   preview: [context: { draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean }];
 }>();
 const updateBeat = useUpdateQuestBeat();
-const draft = reactive(questBeatToDraft(props.beat));
-let baseline = questBeatToDraft(props.beat);
-const activeBeatId = ref(props.beat.id);
-const version = ref(props.beat.updated_at);
+const draft = reactive(questBeatToDraft(beat));
+let baseline = questBeatToDraft(beat);
+const activeBeatId = ref(beat.id);
+const version = ref(beat.updated_at);
 const dirty = ref(false);
 const saving = ref(false);
 const saveError = ref("");
 const titleError = computed(() => dirty.value && !draft.title.trim() ? "Give this beat a title before it is saved." : "");
 let hydrating = false;
 
-watch(() => props.beat, (beat) => {
-  if (beat.id === activeBeatId.value && dirty.value) return;
+watch(() => beat, (nextBeat) => {
+  if (nextBeat.id === activeBeatId.value && dirty.value) return;
   hydrating = true;
-  activeBeatId.value = beat.id;
-  baseline = questBeatToDraft(beat);
+  activeBeatId.value = nextBeat.id;
+  baseline = questBeatToDraft(nextBeat);
   Object.assign(draft, baseline);
-  version.value = beat.updated_at;
+  version.value = nextBeat.updated_at;
   hydrating = false;
 }, { deep: true });
 
@@ -137,9 +137,9 @@ async function saveNow() {
   const snapshot = { ...draft };
   try {
     const saved = await updateBeat.mutateAsync({
-      id: props.beat.id,
-      questId: props.beat.quest_id,
-      update: questBeatDraftToUpdate(snapshot, props.beat.improv_reviewed_at),
+      id: beat.id,
+      questId: beat.quest_id,
+      update: questBeatDraftToUpdate(snapshot, beat.improv_reviewed_at),
       expectedUpdatedAt: version.value,
     });
     version.value = saved.updated_at;
@@ -161,9 +161,9 @@ async function saveNow() {
 
 function reloadSavedBeat() {
   hydrating = true;
-  baseline = questBeatToDraft(props.beat);
+  baseline = questBeatToDraft(beat);
   Object.assign(draft, baseline);
-  version.value = props.beat.updated_at;
+  version.value = beat.updated_at;
   dirty.value = false;
   saveError.value = "";
   hydrating = false;

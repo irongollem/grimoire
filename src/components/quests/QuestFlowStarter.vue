@@ -42,7 +42,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 
-const props = withDefaults(defineProps<{ parentId?: string | null }>(), { parentId: null });
+const { parentId = null } = defineProps<{ parentId?: string | null }>();
 const router = useRouter();
 const ui = useUiStore();
 const createQuest = useCreateQuest();
@@ -58,7 +58,7 @@ async function createFlow() {
   error.value = "";
   try {
     const created = await createQuest.mutateAsync({
-      parent_quest_id: props.parentId,
+      parent_quest_id: parentId,
       title: title.value.trim(),
       summary: summary.value.trim() || null,
       status: status.value,
