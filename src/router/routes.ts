@@ -374,23 +374,33 @@ export const routes: RouteRecordRaw[] = [
     name: "monsters",
     component: () => import("@/views/monsters/MonstersView.vue"),
     meta: { requiresAuth: true, title: "Bestiary" },
+    // Same shape as `/npcs` — `:id` is a child so the bestiary grid stays
+    // mounted while one monster is being read. See the note there.
+    children: [
+      {
+        path: ":id",
+        name: "monster-detail",
+        component: () => import("@/views/monsters/MonsterDetailView.vue"),
+        // fullscreenMobile: the mobile screen is a full-screen takeover with its
+        // own top + bottom bars, so the global AppTopBar / DmBottomNav are
+        // suppressed on phones to avoid two stacked, overlapping bars. Meta is
+        // merged across matched records, so nesting does not hide it.
+        meta: { requiresAuth: true, title: "Monster", fullscreenMobile: true },
+      },
+    ],
   },
   {
     path: "/monsters/new",
     name: "monster-new",
     component: () => import("@/views/monsters/MonsterDetailView.vue"),
+    // Deliberately NOT nested under /monsters: creating a monster is the full
+    // editor at every width, so there is no list to sit over. Static segments
+    // outrank the `:id` param, so this still wins the match.
     // fullscreenMobile: the mobile edit screen is a full-screen takeover with
     // its own top + bottom bars, so the global AppTopBar / DmBottomNav are
     // suppressed on phones to avoid two stacked, overlapping bars. Desktop is
     // unaffected (the flag only applies below md).
     meta: { requiresAuth: true, title: "New Monster", fullscreenMobile: true },
-  },
-  {
-    path: "/monsters/:id",
-    name: "monster-detail",
-    component: () => import("@/views/monsters/MonsterDetailView.vue"),
-    // See /monsters/new above — full-screen mobile takeover (read + edit).
-    meta: { requiresAuth: true, title: "Monster", fullscreenMobile: true },
   },
 
   // Party

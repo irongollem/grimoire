@@ -1,101 +1,92 @@
 <template>
-  <!-- Mobile read view (<md): standalone scrollable layer with its own app bar.
-       Desktop and all edit modes fall through to the PageHeader block below,
-       which is unchanged. -->
-  <MonsterSheetMobile v-if="showMobileRead && resolvedMonster" :monster="resolvedMonster" />
+  <!--
+    One monster, in whichever form the situation calls for — the same four
+    branches as `NpcDetailView`, in the same reading order, for the same
+    reasons. Reading on tablet and up is a modal over the bestiary, which stays
+    mounted behind it; editing is a commitment and keeps the full page at every
+    width; phones keep their takeover for both. See `useDetailModal`.
+  -->
+  <MonsterDetailModal v-if="asModal" :id="id" @close="close" />
 
-  <!-- Mobile edit view (<md): MonsterDetail renders its own MonsterEditMobile
-       layer (app bar + stacked cards + save bar). It does not need the
-       PageHeader chrome, so we render MonsterDetail directly. -->
+  <MonsterSheetMobile v-else-if="showMobileRead && resolvedMonster" :monster="resolvedMonster" />
+
+  <!-- Mobile edit (<md): MonsterDetail renders its own MonsterEditMobile layer
+       (app bar + stacked cards + save bar), so it needs no PageHeader chrome. -->
   <MonsterDetail
     v-else-if="showMobileEdit"
     :key="id"
     :monster="isNew ? null : resolvedMonster"
   />
 
-  <PageHeader v-else :title="pageTitle" :description="pageDescription">
+  <!-- Desktop edit, and the new-monster form at every width. -->
+  <PageHeader v-else-if="showDesktopEdit" :title="pageTitle" :description="pageDescription">
     <template v-if="!isNew" #actions>
-      <PageHeaderAction
-        label="Back"
-        :icon="IconChevronLeft"
-        @click="router.push('/monsters')"
-      />
-
-      <MonsterRevealControl v-if="resolvedMonster" :monster="resolvedMonster" />
-
-      <PageHeaderAction
-        v-if="!isEditing"
-        label="Edit"
-        :icon="IconEdit"
-        @click="startEditing"
-      />
+      <!-- Back to reading — the modal over the bestiary on desktop, the
+           full-screen sheet on a phone. -->
+      <PageHeaderAction label="View" :icon="IconDocument" @click="stopEditing" />
     </template>
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
-    <template v-else>
-      <MonsterSheet v-if="!isEditing && resolvedMonster" :monster="resolvedMonster" />
-      <MonsterDetail v-else :monster="resolvedMonster" />
-    </template>
+    <MonsterDetail v-else :monster="resolvedMonster" />
   </PageHeader>
 
+  <!-- Reading on a phone, before the row has arrived. Every other branch owns
+       its own loading state; this one has no chrome to hang it on. -->
+  <div v-else class="flex justify-center py-16">
+    <LoadingSpinner />
+  </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
-import { IconChevronLeft, IconEdit } from '@/lib/icons';
-import { useResolvedMonster } from "@/composables/useMonsters";
-import { useLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
+import { IconDocument } from '@/lib/icons';
+import { useMonsterWithArt } from "@/composables/useMonsters";
+import { useDetailModal } from "@/composables/useDetailModal";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import MonsterDetail from "@/components/monsters/MonsterDetail.vue";
-import MonsterSheet from "@/components/monsters/MonsterSheet.vue";
+import MonsterDetailModal from "@/components/monsters/MonsterDetailModal.vue";
 import MonsterSheetMobile from "@/components/monsters/MonsterSheetMobile.vue";
-import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 
 const route = useRoute();
 const router = useRouter();
 
 const isNew = computed(() => route.name === "monster-new");
 const id = computed(() => (isNew.value ? "" : (route.params.id as string)));
+
+// The same reasoning MonstersView uses to decide whether to keep drawing the
+// grid, so the two cannot disagree about which one the user is looking at.
+const { asModal, close } = useDetailModal("/monsters");
+
+// Broader than the composable's `?edit=true` test, because /monsters/new is an
+// edit screen without ever saying so in the query. That route is not nested
+// under the list, so `asModal` is false there regardless.
 const isEditing = computed(() => isNew.value || route.query.edit === "true");
 
-// Mobile-only layers (<md). Desktop keeps the existing PageHeader +
-// MonsterSheet/MonsterDetail chrome, byte-identical to before.
 const isMobile = useMediaQuery("(max-width: 767px)");
 const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isNew.value);
-// Mobile edit: new monster, or existing monster opened with ?edit=true.
 // MonsterDetail owns its own mobile chrome (MonsterEditMobile), so no PageHeader.
 const showMobileEdit = computed(() => isMobile.value && isEditing.value && !isLoading.value);
+const showDesktopEdit = computed(() => !isMobile.value && isEditing.value);
 
-function startEditing() {
-  router.replace({ query: { ...route.query, edit: "true" } });
+function stopEditing() {
+  const q = { ...route.query };
+  delete q.edit;
+  void router.replace({ query: q });
 }
 
-// Own art (user-uploaded) can override the canonical art already in library_monsters.image_url
-const { data: artMap } = useLibraryMonsterArt();
-const { data: resolvedData, isLoading: resolvedLoading } = useResolvedMonster(id);
-const isLibraryMonster = computed(() => resolvedData.value?.isShared === true);
-const libraryMonster = computed(() => {
-  if (!isLibraryMonster.value || !resolvedData.value) return null;
-  const m = resolvedData.value.monster;
-  const art = artMap.value?.[id.value];
-  return art ? { ...m, image_url: art.image_url, portrait_focal_point: art.portrait_focal_point } : m;
-});
+// The DM's own upload over the canonical library art — the same resolution the
+// modal needs, so it lives in the composable rather than in both.
+const { monster: withArt, isLoading: resolvedLoading } = useMonsterWithArt(id);
 
-const isLoading = computed(() =>
-  !isNew.value && resolvedLoading.value,
-);
+const isLoading = computed(() => !isNew.value && resolvedLoading.value);
 
-const resolvedMonster = computed(() => {
-  if (isNew.value) return null;
-  if (isLibraryMonster.value) return libraryMonster.value;
-  return resolvedData.value?.monster ?? null;
-});
+const resolvedMonster = computed(() => (isNew.value ? null : withArt.value));
 
 const pageTitle = computed(() => {
   if (isNew.value) return "New Monster";
@@ -108,5 +99,4 @@ const pageDescription = computed(() => {
   const sourceLabel = m.is_shared ? ` · ${m.source_title ?? m.source ?? "Reference"}` : "";
   return `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}${sourceLabel}`;
 });
-
 </script>

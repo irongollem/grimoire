@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { crBg, crTier, crToNumber, crText, crLabel, UNKNOWN_CR_LABEL } from "@/lib/monsterDisplay";
+import { crBg, crTier, crToNumber, crText, crLabel, monsterIdentityLine, UNKNOWN_CR_LABEL } from "@/lib/monsterDisplay";
 
 describe("crToNumber", () => {
   it("treats CR 0 as zero", () => {
@@ -108,5 +108,29 @@ describe("crText / crLabel", () => {
 
   it("trims incidental whitespace", () => {
     expect(crText(" 12 ")).toBe("12");
+  });
+});
+
+describe("monsterIdentityLine", () => {
+  it("reads as one phrase", () => {
+    expect(monsterIdentityLine({ size: "Large", monster_type: "aberration", alignment: "unaligned" }))
+      .toBe("Large aberration, unaligned");
+  });
+
+  // A hand-built monster can be saved with any of these blank, and a line that
+  // renders "Large , " reads as a defect in the creature rather than a gap in
+  // the form someone chose to leave empty.
+  it("drops a missing alignment rather than leaving a dangling comma", () => {
+    expect(monsterIdentityLine({ size: "Tiny", monster_type: "beast", alignment: "" }))
+      .toBe("Tiny beast");
+  });
+
+  it("drops a missing size", () => {
+    expect(monsterIdentityLine({ size: "", monster_type: "ooze", alignment: "neutral" }))
+      .toBe("ooze, neutral");
+  });
+
+  it("survives a monster with nothing filled in", () => {
+    expect(monsterIdentityLine({})).toBe("");
   });
 });

@@ -2,7 +2,13 @@
   <div class="flex flex-col gap-6">
     <!-- Top: portrait left + stat block right -->
     <div class="grid grid-cols-1 lg:grid-cols-[12.5rem_1fr] gap-6">
-      <!-- Left: portrait -->
+      <!-- Left: portrait.
+           `max-h-[28rem]` is a fixed cap rather than the `75vh` it replaces.
+           The viewport measurement only ever bound below `lg`, where the
+           portrait spans the full width — and it bound badly once this sheet
+           started appearing in a modal, where three quarters of the viewport is
+           most of the panel and the stat block fell off the bottom. At `lg` the
+           12.5rem column decides the height anyway, so nothing changes there. -->
       <div class="flex flex-col gap-3">
         <FocalImage
           :src="monster.image_url"
@@ -10,7 +16,7 @@
           format="portrait"
           :lightbox="true"
           placeholder="/assets/placeholders/monster.webp"
-          class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[75vh]"
+          class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[28rem]"
         />
         <div v-if="monster.tags?.length" class="flex flex-wrap gap-1">
           <span
@@ -35,15 +41,12 @@
         </p>
       </div>
 
-      <!-- Right: identity + stat block + two-column traits -->
+      <!-- Right: stat block + two-column traits.
+           No identity line here. Both hosts — the detail modal and the admin
+           art preview — put it in their header, where it stays put instead of
+           scrolling away from you halfway down a legendary action. `monsterIdentityLine`
+           composes it so the two cannot word it differently. -->
       <div class="flex flex-col gap-4">
-        <!-- Identity header -->
-        <div class="border-b border-primary/30 pb-2">
-          <p class="text-body italic text-muted-foreground capitalize">
-            {{ monster.size }} {{ monster.monster_type }}, {{ monster.alignment }}
-          </p>
-        </div>
-
         <!-- Two-column: stat block left, actions right -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           <!-- Left: stat block panel -->

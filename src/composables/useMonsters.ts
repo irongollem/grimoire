@@ -3,6 +3,7 @@ import { computed, type Ref } from "vue";
 import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useLibrarySourceSlugs } from "@/composables/useEnabledSources";
+import { useLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -251,6 +252,32 @@ export function useLibraryMonster(id: Ref<string>) {
 
 /** Resolve an opaque monster ID against explicit shared/custom stores. */
 export function useResolvedMonster(id: Ref<string>) {
+  const queryClient = useQueryClient();
+
+  /**
+   * This monster's row inside a bestiary list that has already been fetched.
+   *
+   * Searched in the same order the fetch resolves it — library first, then the
+   * DM's own — and normalised the same way, so a seeded value is
+   * indistinguishable from a fetched one. The two caches are read separately
+   * because `useAllMonsters` merges them in a computed rather than storing the
+   * merged list, and the library key carries the enabled slugs and ruleset, so
+   * it has to be matched by prefix.
+   */
+  const fromCache = () => {
+    const library = queryClient
+      .getQueriesData<Monster[]>({ queryKey: [LIBRARY_QUERY_KEY] })
+      .flatMap(([, rows]) => rows ?? [])
+      .find((m) => m.id === id.value);
+    if (library) {
+      return { monster: { ...library, user_id: "", is_shared: true } as Monster, isShared: true };
+    }
+    const custom = queryClient
+      .getQueryData<Monster[]>([QUERY_KEY])
+      ?.find((m) => m.id === id.value);
+    return custom ? { monster: custom, isShared: false } : undefined;
+  };
+
   return useQuery({
     queryKey: computed(() => ["resolved-monster", id.value]),
     queryFn: async () => {
@@ -262,7 +289,51 @@ export function useResolvedMonster(id: Ref<string>) {
       return { monster: await fetchMonster(id.value), isShared: false };
     },
     enabled: () => !!id.value,
+    // Every caller reaches a monster *from* a list that already holds the whole
+    // row. Starting empty spends the first moment showing a spinner over data
+    // that is on screen behind it — barely noticeable on a page that has
+    // navigated away, glaring in a modal that opens on top of the very card it
+    // is enlarging.
+    initialData: fromCache,
   });
+}
+
+/**
+ * A monster with the DM's own art applied over the canonical library image.
+ *
+ * The override lives in `library_monster_art`, keyed by the shared row's id, so
+ * resolving it needs both queries and a rule about which wins — and `MonsterSheet`
+ * takes a finished monster and does not know the art tables exist. Every host of
+ * that sheet therefore needs this exact merge, which is why it is here rather
+ * than copied into each: the detail modal, the detail page's mobile and edit
+ * branches, and whatever adopts the sheet next.
+ *
+ * Only shared rows can be overridden. A DM's own monster carries its art in its
+ * own `image_url`, so there is nothing to look up.
+ *
+ * A wrapper rather than folding the merge into `useResolvedMonster` itself:
+ * that query has a third caller in `QuestRunContainedTool`, which wants the row
+ * as stored and would otherwise pay for an art query it never reads — and mocks
+ * `useResolvedMonster` directly in its test, so changing that shape breaks it.
+ * Art belongs to the surfaces that render a portrait, not to resolution.
+ */
+export function useMonsterWithArt(id: Ref<string>) {
+  const { data: artMap } = useLibraryMonsterArt();
+  const { data, isLoading } = useResolvedMonster(id);
+
+  const isShared = computed(() => data.value?.isShared === true);
+
+  const monster = computed<Monster | null>(() => {
+    const row = data.value?.monster;
+    if (!row) return null;
+    if (!isShared.value) return row;
+    const art = artMap.value?.[id.value];
+    return art
+      ? { ...row, image_url: art.image_url, portrait_focal_point: art.portrait_focal_point }
+      : row;
+  });
+
+  return { monster, isShared, isLoading };
 }
 
 export function useMonster(id: Ref<string>) {

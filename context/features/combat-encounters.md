@@ -7,7 +7,7 @@ The combat features span three interconnected modules: the **Bestiary** (a custo
 Routes:
 
 - `/monsters` — Bestiary list
-- `/monsters/:id` — Monster detail / editor
+- `/monsters/:id` — Monster stat block: a modal over the bestiary on tablet and up, a full-screen takeover on phones; `?edit=true` is the full editor at every width
 - `/encounters` — Encounter list
 - `/encounters/new` — New encounter builder
 - `/encounters/:id` — Encounter sheet (read) or editor (`?edit=true`)
@@ -56,6 +56,19 @@ Each monster stores a full `stat_block` JSONB object with:
 - Trait sections: Traits, Actions, Bonus Actions, Reactions, Legendary Actions, Lair Actions, Mythic Actions
 - Spellcasting block (spell list per level)
 - Portrait image with focal point (for `FocalImage` focal-aware display)
+
+### Reading one monster (`/monsters/:id`)
+
+The same arrangement as the NPC tracker, built on the same components — read that section of `npcs.md` for the reasoning; only what differs is repeated here.
+
+`/monsters/:id` is a **child route of `/monsters`**, so on tablet and up `MonstersView` stays mounted and `MonsterDetailModal` opens over the bestiary grid, leaving scroll position and the revealed page of the infinite scroll untouched. `?edit=true` keeps the full page at every width, and phones keep the `MonsterSheetMobile` takeover. `useDetailModal("/monsters")` decides, and both `MonstersView` (`showList`) and `MonsterDetailView` (`asModal`) ask it.
+
+Two things differ from NPCs:
+
+- **The body scrolls, not the sheet.** `MonsterSheet` flows as one column rather than managing a fixed portrait beside a scrolling pane, so the modal is used *without* `contained` and `EntityDetailModal`'s body owns the scrolling. `NpcSheet` is the other case. The portrait's cap is `max-h-[28rem]` rather than a `vh` measurement for the same reason — see the comment in `MonsterSheet.vue`.
+- **A monster may be a shared library row.** `MonsterDetailModal` folds the DM's `library_monster_art` override in over the canonical `image_url`, exactly as `MonsterDetailView` does for the page — the sheet takes a finished monster and does not know the art tables exist. `useResolvedMonster` is seeded from whichever bestiary cache already holds the row (library by prefix, then the DM's own), normalised the same way the fetch normalises it, so the modal opens populated instead of spinning over a card that is already on screen behind it.
+
+Saving an existing monster returns to `/monsters/:id` on desktop — the bestiary with the saved stat block on show — and to `/monsters` on a phone, where that path is a takeover rather than a list. That is a recorded Sanctioned Exception in `CLAUDE.md`, not a Post-Mutation Navigation slip.
 
 **Template presets** — `src/data/monsterTemplates.ts` ships 12 SRD stat block presets (e.g. Goblin, Dragon, Lich) that pre-populate the form.
 

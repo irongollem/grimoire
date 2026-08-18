@@ -145,10 +145,12 @@ export function useNpc(id: string | Ref<string>) {
     // navigated away, and glaring in a modal that opens on top of the very card
     // it is duplicating.
     initialData: fromList,
-    // Without this the seeded row counts as fetched *now* and the query sits on
-    // whatever the list last saw. Inheriting the list's timestamp means the
-    // modal opens instantly and still refreshes underneath when that data is
-    // stale — which is the whole trade: show it now, correct it if needed.
+    // The seed inherits the list's age rather than claiming to have been
+    // fetched just now. At this query's default `staleTime` of 0 both refetch
+    // on mount either way, so this buys honesty rather than behaviour today —
+    // and it is what keeps the trade intact (show it now, correct it if needed)
+    // the moment anyone gives this query a `staleTime`, which is exactly when
+    // a lie about the data's age would start being believed.
     initialDataUpdatedAt: () =>
       queryClient.getQueryState([QUERY_KEY, campaign.activeCampaignId])?.dataUpdatedAt,
   });

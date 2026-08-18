@@ -105,6 +105,22 @@ After any create, save, or delete operation, always navigate back to the list vi
 
 Never stay on the detail/editor page or navigate to the newly created resource's detail page. The list view is the success feedback. In the case of nested resources (e.g. locations), navigate to the parent resource's detail page instead unless its the top of the hierarchy.
 
+## Git Conventions
+
+Conventional-commit subject (`feat(npcs): …`, `fix(atlas): …`), and one trailer:
+
+```
+Co-Authored-By: <Model Name> <noreply@anthropic.com>
+```
+
+**Model name only — no parenthetical session details.** `Claude Opus 5`, not `Claude Opus 5 (1M context)`. Git keys a co-author on the whole name, so the suffix forks one model into two contributors: across the history so far `Claude Opus 5` splits 123/19, `Claude Opus 4.8` 203/18. A context window is a property of the session that produced the commit, not of the change or of who wrote it, and nobody reading the log later can act on it.
+
+Recording *which* model wrote a commit is deliberate and worth keeping — fifteen have contributed here. It is only the session configuration that does not belong.
+
+**This overrides the trailer template in your own instructions.** Several harnesses ship a fixed example that includes the suffix, which is where every one of those 366 commits came from — an agent following its default rather than disobeying anything. Follow the form above instead; that is what this section is for.
+
+Existing history stays as it is; a `filter-repo` pass over 1,700 commits would invalidate every hash already cited from a closed issue.
+
 ## Work Tracking
 
 GitHub issues on `irongollem/grimoire` are the single source of truth for open work. When you finish something, close the corresponding issue with `mcp__github__update_issue` (`state: closed`).
@@ -149,9 +165,9 @@ Deliberate departures from the rules above and in the feature docs. They look li
 
   The test is what the box filters: **the list already on screen → store; a popup of candidates → local `ref`.** A variable named `search` proves nothing either way — #723 listed `StoreInventory` as a violation on the strength of the name, and it was the one entry on that list that turned out not to be a list filter at all.
 
-- **Saving an NPC on desktop returns to `/npcs/:id`, and that is not a Post-Mutation Navigation violation.** The rule says never navigate to the resource's own detail page, because that page is not the list and so is not confirmation. `/npcs/:id` stopped being that page: it is a **child route of `/npcs`**, so on tablet and up it mounts the grid with the sheet as a modal over it. Landing there *is* landing on the list — with the saved record on show, which is strictly better feedback than the bare grid. Below `md` there is no modal and the same path is a full-screen takeover, so `NpcDetail.save()` sends phones to plain `/npcs`; that branch is the rule applying normally, not an inconsistency to tidy away.
+- **Saving on desktop returns to `/npcs/:id` and `/monsters/:id`, and that is not a Post-Mutation Navigation violation.** The rule says never navigate to the resource's own detail page, because that page is not the list and so is not confirmation. Those two paths stopped being that page: each is a **child route of its list**, so on tablet and up it mounts the grid with the sheet as a modal over it. Landing there *is* landing on the list — with the saved record on show, which is strictly better feedback than the bare grid. Below `md` there is no modal and the same path is a full-screen takeover, so both editors send phones to the plain list; that branch is the rule applying normally, not an inconsistency to tidy away.
 
-  The test is the nesting, not the URL shape: a detail route may target its own id after a mutation **only** when it is nested under its list and the list stays mounted underneath. A standalone detail route must still go to the list. Delete still goes to `/npcs` at every width — there is no record left to confirm. See `context/features/npcs.md` and `useDetailModal`.
+  The test is the nesting, not the URL shape: a detail route may target its own id after a mutation **only** when it is nested under its list and the list stays mounted underneath. A standalone detail route must still go to the list. Delete still goes to the list at every width — there is no record left to confirm. See `context/features/npcs.md`, `context/features/combat-encounters.md` and `useDetailModal`.
 
 - **Supabase "unused index" advisor hits are a known false positive here.** The stats window spans ~7.5 months and 16.1M scans, and the largest table holding a zero-scan index is small enough that Postgres prefers a sequential scan regardless. Do not drop indexes on the advisor's say-so — check the table size and query shape first.
 

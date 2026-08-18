@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { IconClose } from "@/lib/icons";
+import { monsterIdentityLine } from "@/lib/monsterDisplay";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
 import type { Monster } from "@/types/monster.types";
@@ -25,9 +26,17 @@ const emit = defineEmits<{ close: [] }>();
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="emit('close')" />
         <div class="relative w-full max-w-2xl rounded-xl border border-border bg-background shadow-2xl flex flex-col max-h-[90dvh]">
           <div class="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
-            <h2 class="text-heading-sm font-bold text-foreground truncate">
-              {{ (monster ?? spell)?.name ?? "Loading…" }}
-            </h2>
+            <div class="min-w-0">
+              <h2 class="text-heading-sm font-bold text-foreground truncate">
+                {{ (monster ?? spell)?.name ?? "Loading…" }}
+              </h2>
+              <!-- MonsterSheet used to state this itself; both of its hosts now
+                   carry it in the header instead, so it stays put while the body
+                   scrolls. Shared with the detail modal via monsterIdentityLine. -->
+              <p v-if="monster" class="truncate text-caption text-muted-foreground italic capitalize">
+                {{ monsterIdentityLine(monster) }}
+              </p>
+            </div>
             <button
               type="button"
               class="shrink-0 ml-3 text-muted-foreground hover:text-foreground transition-colors p-1 rounded"

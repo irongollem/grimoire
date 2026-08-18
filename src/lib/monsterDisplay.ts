@@ -142,3 +142,21 @@ export function crText(cr: ChallengeRating): string {
 export function crLabel(cr: ChallengeRating): string {
   return `CR ${crText(cr)}`;
 }
+
+/**
+ * What a monster *is*, in one line: "Large aberration, unaligned".
+ *
+ * Added when `MonsterSheet` stopped carrying its own copy — the sheet has two
+ * hosts (the detail modal and the admin art preview) and each shows the line in
+ * its header, so leaving them to compose it separately is how one creature ends
+ * up described two ways in a single session.
+ *
+ * Every field is honestly optional on a hand-built monster, so an absent one is
+ * dropped rather than rendered as a dangling comma.
+ */
+export function monsterIdentityLine(
+  monster: { size?: string | null; monster_type?: string | null; alignment?: string | null },
+): string {
+  const kind = [monster.size, monster.monster_type].filter(Boolean).join(" ");
+  return [kind, monster.alignment].filter(Boolean).join(", ");
+}

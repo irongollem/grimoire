@@ -21,10 +21,17 @@
         -->
         <div data-modal-backdrop class="pointer-events-none absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
+        <!--
+          `focus:outline-none`: the panel takes focus on open so a screen reader
+          announces the dialog from its top, but it is `tabindex="-1"` and
+          unreachable by Tab — so the ring marks something the user cannot have
+          navigated to and reads as a stray highlight around the whole box.
+          Every control inside keeps its own focus styling.
+        -->
         <div
           ref="panelRef"
           data-modal-panel
-          class="relative flex max-h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+          class="relative flex max-h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl focus:outline-none"
           :class="cn('w-full', SIZES[size], panelClass)"
           role="dialog"
           aria-modal="true"

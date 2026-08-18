@@ -1,6 +1,6 @@
 <template>
   <!-- ══ Desktop (≥md): existing ListPageLayout chrome — unchanged ══════════ -->
-  <ListPageLayout v-if="!isMobile" title="Bestiary" description="Your custom monster compendium">
+  <ListPageLayout v-if="showList && !isMobile" title="Bestiary" description="Your custom monster compendium">
     <template #title-suffix>
       <ManualHelpLink page="bestiary-overview" />
     </template>
@@ -78,7 +78,7 @@
   </ListPageLayout>
 
   <!-- ══ Mobile (<md): purpose-built list chrome ═══════════════════════════ -->
-  <div v-else class="flex h-full flex-col">
+  <div v-else-if="showList" class="flex h-full flex-col">
     <div class="shrink-0 px-4 pt-3">
       <!-- Search row -->
       <div class="flex items-center gap-2">
@@ -239,11 +239,20 @@
   </div>
 
   <PaywallModal v-model="showPaywall" resource="monsters" />
+
+  <!--
+    The detail route for one monster. On tablet and up it is a modal teleported
+    over the grid above, which is why the grid is still rendered alongside it;
+    on a phone, and in edit mode at any width, it takes the screen and the
+    branches above render nothing. `useDetailModal` owns that for both halves.
+  -->
+  <RouterView />
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useMediaQuery } from "@vueuse/core";
+import { useDetailModal } from "@/composables/useDetailModal";
 import {
   IconAdd, IconClose, IconGenerate, IconLibrary,
   IconSearch, IconSettings,
@@ -273,6 +282,11 @@ const ui = useUiStore();
 const { canCreate } = useQuota("monsters");
 const showPaywall = ref(false);
 const isMobile = useMediaQuery("(max-width: 767px)");
+
+// False only while the nested detail route has taken the whole screen. An open
+// modal keeps this true, which is what leaves the grid — and its scroll position
+// and revealed page — untouched underneath.
+const { showList } = useDetailModal("/monsters");
 
 const filtersOpen = ref(false);
 const overflowOpen = ref(false);

@@ -536,7 +536,13 @@ async function save() {
         !deepEqual(sb, { ...defaultSb(), ...props.monster.stat_block });
       if (contentChanged) form.ai_provenance = markEdited(form.ai_provenance);
       await update({ id: props.monster.id, update: buildPayload() });
-      router.push(`/monsters/${props.monster.id}`);
+      // Back to the list, which is the confirmation that the save landed. On
+      // tablet and up the monster's own path *is* the list — the bestiary with
+      // this stat block open over it — so it doubles as a look at what was just
+      // saved. A phone has no such layer: `/monsters/:id` there is a
+      // full-screen takeover, which would be staying on the detail page, so it
+      // gets the plain list. See the Sanctioned Exception in CLAUDE.md.
+      router.push(isMobile.value ? "/monsters" : `/monsters/${props.monster.id}`);
     } else {
       const created = await create(buildPayload());
       router.push(`/monsters/${created.id}`);
