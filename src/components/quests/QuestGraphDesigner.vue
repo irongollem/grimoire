@@ -132,6 +132,7 @@ import {
 import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds } from "@/lib/quests/presentation";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";
+import { useUiStore } from "@/stores/ui";
 import { retainSelectedBeatId, type QuestGraphCommand } from "@/lib/quests/flow";
 import { isDuplicateQuestEdge } from "@/lib/quests/mutations";
 import { useCampaignStore } from "@/stores/campaign";
@@ -153,8 +154,12 @@ const canvas = ref<InstanceType<typeof QuestFlowCanvas> | null>(null);
 const route = useRoute();
 const router = useRouter();
 const isMobile = useIsMobile();
-const selectedBeatId = ref<string | null>(null);
-const selectedEdgeId = ref<string | null>(null);
+// Switching to the quest overview unmounts this component, so the selection has
+// to be held outside it or every flip back lands on a blank inspector.
+const ui = useUiStore();
+const restoredSelection = ui.questFlowSelectionFor(questId);
+const selectedBeatId = ref<string | null>(restoredSelection?.beatId ?? null);
+const selectedEdgeId = ref<string | null>(restoredSelection?.edgeId ?? null);
 const saveError = ref("");
 const previewOpen = ref(false);
 const previewContext = ref<{ draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean } | null>(null);
@@ -336,6 +341,10 @@ watch(beats, (rows) => {
 
 const initialBeatId = typeof route.query.beat === "string" ? route.query.beat : null;
 if (initialBeatId) selectedBeatId.value = initialBeatId;
+
+watch([selectedBeatId, selectedEdgeId], ([beatId, edgeId]) => {
+  ui.questFlowSelection = { questId, beatId, edgeId };
+}, { immediate: true });
 
 let focusedOnOpen = false;
 watch([currentBeatId, beats, canvas], async ([current]) => {

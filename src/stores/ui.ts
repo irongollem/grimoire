@@ -208,6 +208,18 @@ export const useUiStore = defineStore("ui", () => {
     questsLootFilter.value,
   );
 
+  // The story-flow canvas is unmounted whenever the DM switches to the quest
+  // overview, so its selection has to live somewhere that outlives the
+  // component. Session-scoped like the filters above: coming back to a quest
+  // weeks later with a beat mysteriously pre-selected would be worse than a
+  // clean canvas. The viewport itself persists separately, per quest, in
+  // `lib/quests/viewport` — it is a place, not a selection.
+  const questFlowSelection = ref<{ questId: string; beatId: string | null; edgeId: string | null } | null>(null);
+
+  function questFlowSelectionFor(questId: string) {
+    return questFlowSelection.value?.questId === questId ? questFlowSelection.value : null;
+  }
+
   function resetQuestsFilters() {
     questsSearch.value = "";
     questsPartyFilter.value = false;
@@ -927,6 +939,8 @@ export const useUiStore = defineStore("ui", () => {
     questsPartyFilter,
     questsEntityFilter,
     questsPrepGapsFilter,
+    questFlowSelection,
+    questFlowSelectionFor,
     questsLootFilter,
     questsHasActiveFilters,
     resetQuestsFilters,

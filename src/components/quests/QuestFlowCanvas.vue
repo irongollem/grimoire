@@ -1,6 +1,6 @@
 <template>
   <div class="quest-flow-shell">
-    <div class="quest-flow-canvas" aria-label="Quest beat graph editor">
+    <div ref="canvasEl" class="quest-flow-canvas" aria-label="Quest beat graph editor">
       <VueFlow
         :id="graphId"
         v-model:nodes="nodes"
@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import { useVueFlow, VueFlow, type ViewportTransform } from "@vue-flow/core";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
@@ -53,12 +53,14 @@ import QuestFlowNode from "./QuestFlowNode.vue";
 import QuestFlowEdge from "./QuestFlowEdge.vue";
 import QuestGraphOutline from "./QuestGraphOutline.vue";
 import { moveBeatCommand, toQuestFlowGraph, type QuestGraphCommand } from "@/lib/quests/flow";
+import { viewportShowsAnyNode } from "@/lib/quests/viewport";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 
 const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), selectedBeatId = null, currentBeatId = null, fitOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; selectedBeatId?: string | null; currentBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
 const emit = defineEmits<{ command: [command: QuestGraphCommand]; "viewport-change": [viewport: ViewportTransform] }>();
 const flow = useVueFlow(graphId);
+const canvasEl = ref<HTMLElement | null>(null);
 const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds));
 const nodes = computed({ get: () => graph.value.nodes, set: () => undefined });
 const flowEdges = computed({ get: () => graph.value.edges, set: () => undefined });
@@ -90,6 +92,20 @@ async function fitGraph() {
   await nextTick();
   return flow.fitView({ padding: 0.2, duration: prefersReducedMotion() ? 0 : 200 });
 }
+
+// A viewport stored in one window is restored into whatever window comes next,
+// and a canvas that was hidden when the transform was captured stores a
+// transform computed against zero. Either way the flow opens on empty space
+// with the beats off the left edge, and the only clue is that pressing Fit
+// flies them in from nowhere. Check before trusting it, and fit if it is wrong.
+onMounted(async () => {
+  if (!initialViewport) return;
+  await nextTick();
+  const box = canvasEl.value?.getBoundingClientRect();
+  if (!box) return;
+  if (viewportShowsAnyNode(initialViewport, nodes.value, { width: box.width, height: box.height })) return;
+  await fitGraph();
+});
 
 async function focusCurrent() {
   if (!currentBeatId) return false;
