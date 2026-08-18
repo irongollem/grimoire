@@ -21,9 +21,15 @@
     <div v-if="npc.race" class="text-caption text-foreground">{{ npc.race }}</div>
     <div class="flex gap-1.5 flex-wrap">
       <span
-        class="px-1.5 py-0.5 rounded text-label font-bold"
-        :style="{ backgroundColor: relColor(npc.relationship) + '22', color: relColor(npc.relationship) }"
-      >{{ npc.relationship }}</span>
+        class="relative px-1.5 py-0.5 rounded text-label font-bold"
+        :class="npcRelationshipText(npc.relationship as NpcRelationship)"
+      >
+        <span
+          class="absolute inset-0 rounded opacity-15"
+          :class="npcRelationshipBg(npc.relationship as NpcRelationship)"
+        />
+        <span class="relative">{{ npc.relationship }}</span>
+      </span>
       <span class="px-1.5 py-0.5 rounded text-label font-bold bg-muted text-muted-foreground">{{ npc.status }}</span>
     </div>
 
@@ -80,11 +86,11 @@
 </template>
 
 <script setup lang="ts">
+import { npcRelationshipBg, npcRelationshipText } from "@/lib/npcDisplay";
 import { IconClose, IconEdit, IconInfo } from '@/lib/icons';
 import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
 import {
-  NPC_RELATIONSHIP_COLORS,
   type NpcRelationship,
   type NpcRelationshipType,
 } from '@/types/npc.types';
@@ -136,9 +142,7 @@ defineEmits<{
   'update:editRelNotes': [value: string];
 }>();
 
-function relColor(rel: string): string {
-  return NPC_RELATIONSHIP_COLORS[rel as NpcRelationship] ?? '#6b7280';
-}
+
 </script>
 
 <style scoped>

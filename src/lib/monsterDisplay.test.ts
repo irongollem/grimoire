@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { crColor, crToNumber, crText, crLabel, UNKNOWN_CR_LABEL } from "@/lib/monsterDisplay";
+import { crBg, crTier, crToNumber, crText, crLabel, UNKNOWN_CR_LABEL } from "@/lib/monsterDisplay";
 
 describe("crToNumber", () => {
   it("treats CR 0 as zero", () => {
@@ -8,7 +8,7 @@ describe("crToNumber", () => {
 
   // `stat_block` is jsonb: the key can simply not be there. It reached
   // production on one AI-generated monster, and every bestiary card calling
-  // crColor threw `Cannot read properties of undefined (reading 'includes')`
+  // crTier threw `Cannot read properties of undefined (reading 'includes')`
   // as soon as infinite scroll rendered that row — taking the whole list with
   // it, on both the Custom tab and All Sources.
   it("returns null for a rating that isn't there", () => {
@@ -41,41 +41,55 @@ describe("crToNumber", () => {
   });
 });
 
-describe("crColor", () => {
-  it("returns the trivial tier (green) for CR ≤ 1/2", () => {
-    expect(crColor("0")).toBe("#22c55e");
-    expect(crColor("1/4")).toBe("#22c55e");
-    expect(crColor("1/2")).toBe("#22c55e");
+describe("crTier", () => {
+  it("names the trivial tier for CR \u2264 1/2", () => {
+    expect(crTier("0")).toBe("trivial");
+    expect(crTier("1/4")).toBe("trivial");
+    expect(crTier("1/2")).toBe("trivial");
   });
 
-  it("returns the low tier (yellow) for CR 1–4", () => {
-    expect(crColor("1")).toBe("#eab308");
-    expect(crColor("4")).toBe("#eab308");
+  it("names the low tier for CR 1\u20134", () => {
+    expect(crTier("1")).toBe("low");
+    expect(crTier("4")).toBe("low");
   });
 
-  it("returns the mid tier (orange) for CR 5–9", () => {
-    expect(crColor("5")).toBe("#f97316");
-    expect(crColor("9")).toBe("#f97316");
+  it("names the moderate tier for CR 5\u20139", () => {
+    expect(crTier("5")).toBe("moderate");
+    expect(crTier("9")).toBe("moderate");
   });
 
-  it("returns the high tier (red) for CR 10–15", () => {
-    expect(crColor("10")).toBe("#dc2626");
-    expect(crColor("15")).toBe("#dc2626");
+  it("names the high tier for CR 10\u201315", () => {
+    expect(crTier("10")).toBe("high");
+    expect(crTier("15")).toBe("high");
   });
 
-  it("returns the deadly tier (purple) for CR ≥ 16", () => {
-    expect(crColor("16")).toBe("#7c3aed");
-    expect(crColor("30")).toBe("#7c3aed");
+  it("names the deadly tier for CR \u2265 16", () => {
+    expect(crTier("16")).toBe("deadly");
+    expect(crTier("30")).toBe("deadly");
   });
 
-  // Neutral, and specifically NOT the CR-0 green: an unrated monster must not
+  // Neutral, and specifically NOT the CR-0 tier: an unrated monster must not
   // read at a glance as a harmless one.
-  it("returns a neutral swatch, off the threat scale, for an unknown rating", () => {
-    const unknown = crColor(undefined);
-    expect(unknown).toBe("#6b7280");
-    expect(crColor(null)).toBe(unknown);
-    expect(crColor("")).toBe(unknown);
-    expect(unknown).not.toBe(crColor("0"));
+  it("names a tier off the threat scale for an unknown rating", () => {
+    expect(crTier(undefined)).toBe("unknown");
+    expect(crTier(null)).toBe("unknown");
+    expect(crTier("")).toBe("unknown");
+    expect(crTier("?")).toBe("unknown");
+    expect(crTier(undefined)).not.toBe(crTier("0"));
+  });
+});
+
+describe("crBg", () => {
+  // The classes must be literals in the source or Tailwind never generates
+  // them — a computed `bg-cr-${tier}` compiles, passes tests, and renders
+  // transparent. Asserting the exact strings is what catches that.
+  it("returns a static utility class per tier", () => {
+    expect(crBg("1/4")).toBe("bg-cr-trivial");
+    expect(crBg("3")).toBe("bg-cr-low");
+    expect(crBg("7")).toBe("bg-cr-moderate");
+    expect(crBg("12")).toBe("bg-cr-high");
+    expect(crBg("20")).toBe("bg-cr-deadly");
+    expect(crBg(undefined)).toBe("bg-cr-unknown");
   });
 });
 

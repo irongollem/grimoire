@@ -52,7 +52,7 @@
           :focal-point="monster.portrait_focal_point"
           placeholder="/assets/placeholders/monster.webp"
           :badge-text="crLabel(monster.stat_block.challenge_rating)"
-          :badge-color="crColor(monster.stat_block.challenge_rating)"
+          :badge-class="crBg(monster.stat_block.challenge_rating)"
           :location="monster.habitat || undefined"
           :shared="isDiscovered(monster)"
         />
@@ -96,7 +96,7 @@ import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useAllMonsters } from "@/composables/useMonsters";
 import { useCampaignDiscoveries } from "@/composables/useDiscoveredMonsters";
 import MonsterGridCard from "@/components/monsters/MonsterGridCard.vue";
-import { crColor, crLabel } from "@/lib/monsterDisplay";
+import { crBg, crLabel } from "@/lib/monsterDisplay";
 import type { Monster } from "@/types/monster.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

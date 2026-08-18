@@ -18,15 +18,6 @@ export const NPC_RELATIONSHIP_LABELS: Record<NpcRelationship, string> = {
   unknown:      "Unknown",
 };
 
-export const NPC_RELATIONSHIP_COLORS: Record<NpcRelationship, string> = {
-  hostile:      "#dc2626", // red
-  unfriendly:   "#ea580c", // orange
-  indifferent:  "#6b7280", // gray
-  friendly:     "#0891b2", // teal
-  helpful:      "#16a34a", // green
-  unknown:      "#9333ea", // purple (matches old "?" treatment)
-};
-
 export type NpcRelationshipType =
   // ── Familial ─────────────────────────────────────────────────────────────
   | "family"          // any blood-kinship not better described by `sibling`

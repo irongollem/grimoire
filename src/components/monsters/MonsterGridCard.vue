@@ -11,7 +11,7 @@
     :focal-point="monster.portrait_focal_point"
     placeholder="/assets/placeholders/monster.webp"
     :locked="locked"
-    :accent-color="challengeColor"
+    :accent-class="challengeClass"
   >
     <template #body>
       <div class="flex items-start justify-between gap-2">
@@ -28,7 +28,7 @@
           </span>
           <span
             class="min-w-8 rounded px-1.5 py-0.5 text-center text-label font-bold text-white"
-            :style="{ backgroundColor: challengeColor }"
+            :class="challengeClass"
           >
             CR {{ crText(monster.stat_block.challenge_rating) }}
           </span>
@@ -89,7 +89,7 @@ import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
 import EntityGridCard from "@/components/common/EntityGridCard.vue";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import { IconEdit } from "@/lib/icons";
-import { crColor, crText } from "@/lib/monsterDisplay";
+import { crBg, crText } from "@/lib/monsterDisplay";
 import { formatHitPoints } from "@/lib/utils";
 import type { Monster } from "@/types/monster.types";
 
@@ -98,6 +98,6 @@ const { monster } = defineProps<{
   locked?: boolean;
 }>();
 
-const challengeColor = computed(() => crColor(monster.stat_block.challenge_rating));
+const challengeClass = computed(() => crBg(monster.stat_block.challenge_rating));
 const sourceLabel = computed(() => monster.source_title ?? monster.source ?? "Reference");
 </script>

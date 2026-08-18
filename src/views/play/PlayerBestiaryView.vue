@@ -177,7 +177,7 @@
               <span
                 v-if="lightbox.monster"
                 class="absolute bottom-2 left-2 px-2 py-0.5 rounded font-cinzel text-2xs md:text-sm font-bold text-white"
-                :style="{ backgroundColor: crColor(lightbox.monster.stat_block.challenge_rating) }"
+                :class="crBg(lightbox.monster.stat_block.challenge_rating)"
               >CR {{ crText(lightbox.monster.stat_block.challenge_rating) }}</span>
             </MiniPortraitOverlay>
           </div>
@@ -279,7 +279,7 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { parseExpression } from "@/lib/dice/dice";
 import type { DieSize } from "@/lib/dice/dice";
 import { parseCr, formatHitPoints } from "@/lib/utils";
-import { crColor, crText } from "@/lib/monsterDisplay";
+import { crBg, crText } from "@/lib/monsterDisplay";
 import { rollParsed } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";

@@ -5,7 +5,7 @@
     desktop MonsterSheet is shown otherwise, byte-identical to before.
 
     Mirrors NpcDetailMobile's structure, with monster-specific differences:
-      - CR pill (tinted by crColor) + SRD/source pill over the hero (no status
+      - CR pill (tinted by crBg) + SRD/source pill over the hero (no status
         dot — monsters have no alive/dead state)
       - quick-facts: Type / Size / Alignment / Habitat
       - accordion: Lore (description + DM notes) + Combat (full stat block);
@@ -100,7 +100,7 @@
         <div class="flex flex-wrap items-center gap-1.5">
           <span
             class="rounded px-2 py-0.5 text-eyebrow font-bold text-white"
-            :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
+            :class="crBg(monster.stat_block.challenge_rating)"
           >
             CR {{ crText(monster.stat_block.challenge_rating) }}
           </span>
@@ -271,7 +271,7 @@ import { IconCopy, IconDelete, IconEdit, IconLocation, IconReveal, IconScrollTex
 import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/useMonsters";
 import { useLocationTree } from "@/composables/useLocations";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
-import { crColor, crText } from "@/lib/monsterDisplay";
+import { crBg, crText } from "@/lib/monsterDisplay";
 import type { Monster } from "@/types/monster.types";
 
 const { monster } = defineProps<{ monster: Monster }>();

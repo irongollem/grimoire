@@ -61,8 +61,8 @@
           :focal-point="getNpcDisplayFocalPoint(npc)"
           placeholder="/assets/placeholders/npc.webp"
           :badge-text="npc.relationship"
-          :badge-color="npcRelationshipColor(npc.relationship)"
-          :status-color="npcStatusColor(npc.status)"
+          :badge-class="npcRelationshipBg(npc.relationship)"
+          :status-class="npcStatusBg(npc.status)"
           :location="
             npc.location_id ? locationName(npc.location_id) : undefined
           "
@@ -120,8 +120,8 @@ import {
   getNpcDisplayName,
   getNpcDisplayPortrait,
   getNpcDisplayFocalPoint,
-  npcRelationshipColor,
-  npcStatusColor,
+  npcRelationshipBg,
+  npcStatusBg,
 } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";

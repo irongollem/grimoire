@@ -1,6 +1,6 @@
 <template>
   <div class="flex flex-col h-full">
-    <div class="h-1 w-full shrink-0" :style="{ backgroundColor: crColor(monster?.stat_block?.challenge_rating) }" />
+    <div class="h-1 w-full shrink-0" :class="crBg(monster?.stat_block?.challenge_rating)" />
     <div class="flex flex-1">
       <div class="shrink-0 w-20 h-24 bg-muted overflow-hidden">
         <FocalImage
@@ -14,7 +14,7 @@
         <div
           v-else
           class="w-full h-full flex items-center justify-center text-title font-bold"
-          :style="{ color: crColor(monster?.stat_block?.challenge_rating) }"
+          :class="crTextColor(monster?.stat_block?.challenge_rating)"
         >{{ name?.charAt(0) }}</div>
       </div>
       <div class="flex flex-col justify-between min-w-0 p-3 flex-1">
@@ -29,7 +29,7 @@
           </template>
           <span
             class="ml-auto px-1.5 py-0.5 rounded font-bold text-white text-2xs"
-            :style="{ backgroundColor: crColor(monster.stat_block.challenge_rating) }"
+            :class="crBg(monster.stat_block.challenge_rating)"
           >CR {{ crText(monster.stat_block.challenge_rating) }}</span>
         </div>
       </div>
@@ -41,7 +41,7 @@
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { Monster } from "@/types/monster.types";
 import { formatHitPoints } from "@/lib/utils";
-import { crColor, crText } from "@/lib/monsterDisplay";
+import { crBg, crText, crTextColor } from "@/lib/monsterDisplay";
 
 defineProps<{
   monster: Monster | null;

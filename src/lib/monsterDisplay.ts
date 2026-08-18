@@ -1,7 +1,8 @@
 /**
  * Shared monster display helpers.
  *
- * `crColor` maps a challenge rating to a threat-tier colour, used by the
+ * `crTier` maps a challenge rating to a named threat tier, and `crBg`/`crVar`
+ * turn that into the theme token for it — used by the
  * Bestiary list cards (MonsterList.vue), the mobile detail hero CR pill
  * (MonsterSheetMobile.vue), the form-card strip and the player bestiary.
  * Extracted here so the single source of truth is reused rather than
@@ -24,7 +25,7 @@ export type ChallengeRating = string | null | undefined;
 
 /** Neutral swatch for a rating we do not have — deliberately not on the
  *  green→purple threat scale, so it cannot be misread as a tier. */
-const UNKNOWN_CR_COLOR = "#6b7280";
+const UNKNOWN_CR_TIER = "unknown" as const;
 
 /** Shown in place of a missing rating. The project's marker for "we do not
  *  know", used instead of a blank that reads as a rendering bug or a 0 that
@@ -62,15 +63,73 @@ export function crToNumber(cr: ChallengeRating): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-/** Threat-tier colour for a challenge rating. */
-export function crColor(cr: ChallengeRating): string {
+/**
+ * Which step of the threat ramp a challenge rating falls on.
+ *
+ * The tier is named rather than coloured, so the thresholds live in one place
+ * and the palette lives in `theme.css`. Previously this returned hex, which put
+ * a colour decision inside a rules function and meant the ramp could not follow
+ * the theme (#742).
+ */
+export type CrTier = "unknown" | "trivial" | "low" | "moderate" | "high" | "deadly";
+
+export function crTier(cr: ChallengeRating): CrTier {
   const num = crToNumber(cr);
-  if (num === null) return UNKNOWN_CR_COLOR;
-  if (num <= 0.5) return "#22c55e";
-  if (num <= 4) return "#eab308";
-  if (num <= 9) return "#f97316";
-  if (num <= 15) return "#dc2626";
-  return "#7c3aed";
+  if (num === null) return UNKNOWN_CR_TIER;
+  if (num <= 0.5) return "trivial";
+  if (num <= 4) return "low";
+  if (num <= 9) return "moderate";
+  if (num <= 15) return "high";
+  return "deadly";
+}
+
+/**
+ * Threat-tier classes and tokens.
+ *
+ * Class literals, not a computed `bg-cr-${tier}`: Tailwind extracts statically,
+ * so only strings that appear in the source get generated. `*Var` exists for
+ * the one consumer a class cannot reach — see `npcDisplay` for the same split.
+ */
+const CR_BG: Record<CrTier, string> = {
+  unknown: "bg-cr-unknown",
+  trivial: "bg-cr-trivial",
+  low: "bg-cr-low",
+  moderate: "bg-cr-moderate",
+  high: "bg-cr-high",
+  deadly: "bg-cr-deadly",
+};
+
+const CR_TEXT: Record<CrTier, string> = {
+  unknown: "text-cr-unknown",
+  trivial: "text-cr-trivial",
+  low: "text-cr-low",
+  moderate: "text-cr-moderate",
+  high: "text-cr-high",
+  deadly: "text-cr-deadly",
+};
+
+const CR_VARS: Record<CrTier, string> = {
+  unknown: "var(--cr-unknown)",
+  trivial: "var(--cr-trivial)",
+  low: "var(--cr-low)",
+  moderate: "var(--cr-moderate)",
+  high: "var(--cr-high)",
+  deadly: "var(--cr-deadly)",
+};
+
+/** Background class for a challenge rating's threat tier. */
+export function crBg(cr: ChallengeRating): string {
+  return CR_BG[crTier(cr)];
+}
+
+/** Text-colour class for a challenge rating's threat tier. */
+export function crTextColor(cr: ChallengeRating): string {
+  return CR_TEXT[crTier(cr)];
+}
+
+/** The tier's token as a `var()`, for SVG and canvas. */
+export function crVar(cr: ChallengeRating): string {
+  return CR_VARS[crTier(cr)];
 }
 
 /** The rating as displayed — the stored text, or the unknown marker. */

@@ -25,11 +25,7 @@
 
       <div class="flex min-w-0 flex-1 flex-col gap-0.5">
         <div class="flex items-center gap-1.5">
-          <span
-            v-if="statusColor"
-            class="size-2 shrink-0 rounded-full"
-            :style="{ backgroundColor: statusColor }"
-          />
+          <span v-if="statusClass" class="size-2 shrink-0 rounded-full" :class="statusClass" />
           <h3 class="truncate font-cinzel text-sm font-bold leading-tight text-foreground">
             {{ title }}
           </h3>
@@ -42,10 +38,10 @@
         <div class="mt-0.5 flex items-center gap-2 text-2xs">
           <span
             v-if="badgeText"
-            class="shrink-0 rounded px-1.5 py-0.5 font-cinzel font-bold uppercase tracking-wider text-white"
-            :style="{ backgroundColor: (badgeColor ?? '#6b7280') + 'EE' }"
+            class="relative shrink-0 rounded px-1.5 py-0.5 font-cinzel font-bold uppercase tracking-wider text-white"
           >
-            {{ badgeText }}
+            <span class="absolute inset-0 rounded opacity-90" :class="badgeClass ?? 'bg-muted-foreground'" />
+            <span class="relative">{{ badgeText }}</span>
           </span>
           <span
             v-if="location"
@@ -89,9 +85,9 @@
         <span
           v-if="badgeText"
           class="absolute right-1.5 top-1.5 rounded px-1.5 py-0.5 text-eyebrow font-bold text-white"
-          :style="{ backgroundColor: (badgeColor ?? '#6b7280') + 'EE' }"
         >
-          {{ badgeText }}
+          <span class="absolute inset-0 rounded opacity-90" :class="badgeClass ?? 'bg-muted-foreground'" />
+          <span class="relative">{{ badgeText }}</span>
         </span>
         <span
           v-if="shared"
@@ -103,11 +99,7 @@
 
       <div class="flex flex-col gap-0.5 p-2.5">
         <div class="flex items-center gap-1.5">
-          <span
-            v-if="statusColor"
-            class="size-2 shrink-0 rounded-full"
-            :style="{ backgroundColor: statusColor }"
-          />
+          <span v-if="statusClass" class="size-2 shrink-0 rounded-full" :class="statusClass" />
           <h3 class="truncate font-cinzel text-sm font-bold leading-tight text-foreground">
             {{ title }}
           </h3>
@@ -137,8 +129,9 @@ const {
   focalPoint?: { x: number; y: number } | null;
   placeholder: string;
   badgeText?: string;
-  badgeColor?: string;
-  statusColor?: string;
+  /** Background utility class from an entity ramp (#742), not a colour value. */
+  badgeClass?: string;
+  statusClass?: string;
   location?: string;
   shared?: boolean;
 }>();

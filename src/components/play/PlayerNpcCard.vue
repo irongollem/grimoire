@@ -25,10 +25,10 @@
         </div>
         <EntityNewDot :is-new="isNew ?? false" class="absolute top-1.5 left-1.5 z-10" />
         <!-- Relationship always shown — "unknown" is a valid soft-hidden state. -->
-        <span
-          class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-eyebrow font-bold text-white"
-          :style="{ backgroundColor: relColor(npc.relationship) + 'EE' }"
-        >{{ npc.relationship }}</span>
+        <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-eyebrow font-bold text-white">
+          <span class="absolute inset-0 rounded opacity-90" :class="npcRelationshipBg(npc.relationship)" />
+          <span class="relative">{{ npc.relationship }}</span>
+        </span>
       </MiniPortraitOverlay>
     </div>
 
@@ -39,7 +39,7 @@
       </h3>
       <!-- Status always shown — "unknown" is a valid soft-hidden state. -->
       <p class="flex items-center gap-1 text-caption text-muted-foreground">
-        <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: statusColor(npc.status) }" />
+        <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="npcStatusBg(npc.status)" />
         {{ npc.status }}
       </p>
       <p v-if="npc.player_visible_fields.includes('race') && npc.race" class="text-caption text-muted-foreground italic truncate">
@@ -64,7 +64,8 @@ import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
-import { NPC_RELATIONSHIP_COLORS, type PlayerNpc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
+import { npcRelationshipBg, npcStatusBg } from "@/lib/npcDisplay";
+import type { PlayerNpc } from "@/types/npc.types";
 
 const props = defineProps<{
   npc: PlayerNpc;
@@ -78,9 +79,4 @@ const displayName = computed(() => getNpcDisplayName(props.npc) ?? "???");
 const displayPortrait = computed(() => getNpcDisplayPortrait(props.npc));
 const displayFocalPoint = computed(() => getNpcDisplayFocalPoint(props.npc));
 
-const STATUS_COLORS: Record<NpcStatus, string> = {
-  alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280",
-};
-function relColor(rel: NpcRelationship) { return NPC_RELATIONSHIP_COLORS[rel] ?? "#6b7280"; }
-function statusColor(s: NpcStatus) { return STATUS_COLORS[s] ?? "#6b7280"; }
 </script>

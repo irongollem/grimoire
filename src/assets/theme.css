@@ -62,6 +62,38 @@
   --color-tone-arcane: var(--tone-arcane);
   --color-tone-caution: var(--tone-caution);
 
+  /* ── Entity ramps (#742) ─────────────────────────────────────────────────
+     Two ordered scales that carry meaning by position: how an NPC feels about
+     the party, and how dangerous a monster is. Unlike the tones above these
+     are *ramps* — the point is that hostile→helpful and trivial→deadly read as
+     progressions, so they cannot be spelled out of the six semantic tones (no
+     tone is teal, orange, or a five-step gradient).
+
+     They lived as hex literals in npc.types.ts and monsterDisplay.ts, applied
+     through inline `:style` bindings, because Tailwind extracts classes
+     statically and `bg-[${color}]` cannot work at runtime. That reasoning was
+     half right: a *computed* class cannot work, but a static map from enum
+     value to a literal class can, and that is what the call sites use now. The
+     consequence of the old way was that neither ramp followed the theme — the
+     same six hues on parchment and on near-black, chosen against one of them.
+
+     Being tokens, a theme can now repaint either ramp the way it repaints
+     `--primary`, and `@custom-variant dark` can override a single step that
+     turns muddy without touching a call site. */
+  --color-relationship-hostile: var(--relationship-hostile);
+  --color-relationship-unfriendly: var(--relationship-unfriendly);
+  --color-relationship-indifferent: var(--relationship-indifferent);
+  --color-relationship-friendly: var(--relationship-friendly);
+  --color-relationship-helpful: var(--relationship-helpful);
+  --color-relationship-unknown: var(--relationship-unknown);
+
+  --color-cr-unknown: var(--cr-unknown);
+  --color-cr-trivial: var(--cr-trivial);
+  --color-cr-low: var(--cr-low);
+  --color-cr-moderate: var(--cr-moderate);
+  --color-cr-high: var(--cr-high);
+  --color-cr-deadly: var(--cr-deadly);
+
   /* Border radius */
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 0.125rem);
@@ -148,6 +180,25 @@
   --tone-info: hsl(217 91% 60%);
   --tone-arcane: hsl(258 90% 66%);
   --tone-caution: hsl(38 92% 50%);
+
+  /* Entity ramps (#742). The hues the hex literals already used, so this is a
+     relocation rather than a repaint — the ramps look today exactly as they did
+     yesterday, and any restyling is now a separate, deliberate edit here.
+     Shared by both themes like the tones above; a theme that wants its own can
+     set them in themes.ts. */
+  --relationship-hostile: hsl(0 74% 50%);
+  --relationship-unfriendly: hsl(21 90% 48%);
+  --relationship-indifferent: hsl(220 9% 46%);
+  --relationship-friendly: hsl(192 91% 36%);
+  --relationship-helpful: hsl(142 71% 36%);
+  --relationship-unknown: hsl(272 84% 56%);
+
+  --cr-unknown: hsl(220 9% 46%);
+  --cr-trivial: hsl(142 71% 45%);
+  --cr-low: hsl(48 96% 47%);
+  --cr-moderate: hsl(25 95% 53%);
+  --cr-high: hsl(0 74% 50%);
+  --cr-deadly: hsl(258 76% 57%);
   --primary-foreground: hsl(0 0% 100%);
 
   --secondary: hsl(340 30% 88%);

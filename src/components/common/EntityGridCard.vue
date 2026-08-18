@@ -31,7 +31,7 @@
     </div>
 
     <!-- A colour bar above the artwork — the monster grid's CR ramp. -->
-    <div v-if="accentColor" class="h-1.5 w-full shrink-0" :style="{ backgroundColor: accentColor }" />
+    <div v-if="accentClass" class="h-1.5 w-full shrink-0" :class="accentClass" />
 
     <div class="relative h-36 shrink-0 overflow-hidden bg-muted">
       <FocalImage
@@ -52,9 +52,20 @@
       <span
         v-if="badgeText"
         class="absolute top-2 right-2 flex h-6 items-center rounded px-1.5 text-eyebrow font-bold text-white backdrop-blur-sm"
-        :style="{ backgroundColor: badgeTint }"
       >
-        {{ badgeText }}
+        <!--
+          The tint is a layer at `opacity-50` rather than a `/50` on the colour
+          class, so the ramp needs exactly one map: `bg-relationship-hostile`
+          and `bg-relationship-hostile/50` are different literals, and Tailwind
+          only generates the ones written in source. Opacity on the layer also
+          leaves the label at full strength, which `/50` on the element would
+          not.
+        -->
+        <span
+          class="absolute inset-0 rounded opacity-50"
+          :class="badgeClass ?? 'bg-muted-foreground'"
+        />
+        <span class="relative">{{ badgeText }}</span>
       </span>
     </div>
 
@@ -73,11 +84,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { IconLock } from "@/lib/icons";
 
-const { imageUrl = null, focalPoint = null, badgeColor } = defineProps<{
+const { imageUrl = null, focalPoint = null } = defineProps<{
   to: string;
   title: string;
   placeholder: string;
@@ -85,23 +95,16 @@ const { imageUrl = null, focalPoint = null, badgeColor } = defineProps<{
   focalPoint?: { x: number; y: number } | null;
   /** Over quota — greys the card out and removes its link. */
   locked?: boolean;
-  /** Corner badge over the artwork: an NPC's relationship, a monster's CR. */
+  /**
+   * Corner badge over the artwork: an NPC's relationship, a monster's CR.
+   * `badgeClass` is a background utility from a ramp (#742) — a class rather
+   * than a colour value, so the badge follows the theme. The `/50` tint matches
+   * the action chips beside it.
+   */
   badgeText?: string;
-  badgeColor?: string;
-  /** Optional colour bar above the artwork. */
-  accentColor?: string;
+  badgeClass?: string;
+  /** Optional colour-bar class above the artwork — the monster grid's CR ramp. */
+  accentClass?: string;
 }>();
 
-/**
- * The badge's 50% tint, to match the action chips.
- *
- * `color-mix` rather than appending `EE` to a hex string, which is what this
- * did before: string concatenation only works if the colour *is* a hex literal,
- * so it silently produced garbage the moment a caller passed a theme token like
- * `var(--tone-danger)` — and NPC status colours became exactly that. `oklab` to
- * match how Tailwind's own `/50` opacities resolve.
- */
-const badgeTint = computed(
-  () => `color-mix(in oklab, ${badgeColor ?? "var(--muted-foreground)"} 50%, transparent)`,
-);
 </script>

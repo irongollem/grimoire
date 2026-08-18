@@ -16,7 +16,7 @@
       <title>{{ opt.label }}</title>
       <path
         :d="wedgePath(i)"
-        :fill="modelValue === opt.value ? opt.color : opt.color + '28'"
+        :style="{ fill: modelValue === opt.value ? opt.color : softFill(opt.color) }"
         stroke="var(--color-card)"
         stroke-width="4"
         class="wedge-path cursor-pointer transition-[fill] duration-150"
@@ -45,7 +45,7 @@
     <title>Unknown — clear stance</title>
     <circle
       cx="100" cy="100" r="32"
-      :fill="modelValue === 'unknown' ? UNKNOWN_COLOR + '33' : 'var(--color-card)'"
+      :style="{ fill: modelValue === 'unknown' ? softFill(UNKNOWN_COLOR, 20) : 'var(--color-card)' }"
       stroke="var(--color-card)"
       stroke-width="4"
       class="center-circle cursor-pointer transition-[fill] duration-150"
@@ -73,24 +73,36 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import {
-  NPC_RELATIONSHIP_COLORS,
-  NPC_RELATIONSHIP_LABELS,
-  type NpcRelationship,
-} from '@/types/npc.types'
+import { npcRelationshipVar } from '@/lib/npcDisplay'
+import { NPC_RELATIONSHIP_LABELS, type NpcRelationship } from '@/types/npc.types'
 
 defineProps<{ modelValue: NpcRelationship }>()
 const emit = defineEmits<{ 'update:modelValue': [value: NpcRelationship] }>()
 
+/**
+ * The wedges take the ramp as `var()` values rather than utility classes (#742).
+ *
+ * An SVG `fill` *attribute* does not resolve `var()` — only the CSS property
+ * does — so these are bound through `:style`, and a class would have needed a
+ * static `fill-*` map plus a second `/16` map for the unselected state. Pointing
+ * at the token keeps the one thing that matters: the wheel now follows the
+ * theme like everything else.
+ */
 type Wedge = Exclude<NpcRelationship, 'unknown'>
 const WEDGES: { value: Wedge; label: string; color: string }[] = [
-  { value: 'indifferent', label: NPC_RELATIONSHIP_LABELS.indifferent, color: NPC_RELATIONSHIP_COLORS.indifferent },
-  { value: 'friendly',    label: NPC_RELATIONSHIP_LABELS.friendly,    color: NPC_RELATIONSHIP_COLORS.friendly },
-  { value: 'helpful',     label: NPC_RELATIONSHIP_LABELS.helpful,     color: NPC_RELATIONSHIP_COLORS.helpful },
-  { value: 'hostile',     label: NPC_RELATIONSHIP_LABELS.hostile,     color: NPC_RELATIONSHIP_COLORS.hostile },
-  { value: 'unfriendly',  label: NPC_RELATIONSHIP_LABELS.unfriendly,  color: NPC_RELATIONSHIP_COLORS.unfriendly },
+  { value: 'indifferent', label: NPC_RELATIONSHIP_LABELS.indifferent, color: npcRelationshipVar('indifferent') },
+  { value: 'friendly',    label: NPC_RELATIONSHIP_LABELS.friendly,    color: npcRelationshipVar('friendly') },
+  { value: 'helpful',     label: NPC_RELATIONSHIP_LABELS.helpful,     color: npcRelationshipVar('helpful') },
+  { value: 'hostile',     label: NPC_RELATIONSHIP_LABELS.hostile,     color: npcRelationshipVar('hostile') },
+  { value: 'unfriendly',  label: NPC_RELATIONSHIP_LABELS.unfriendly,  color: npcRelationshipVar('unfriendly') },
 ]
-const UNKNOWN_COLOR = NPC_RELATIONSHIP_COLORS.unknown
+const UNKNOWN_COLOR = npcRelationshipVar('unknown')
+
+/** A wedge nobody has picked, tinted back toward the card. `color-mix` rather
+ *  than an appended hex alpha, which only ever worked on a hex literal. */
+function softFill(color: string, percent = 16): string {
+  return `color-mix(in oklab, ${color} ${percent}%, transparent)`
+}
 
 const CX = 100
 const CY = 100

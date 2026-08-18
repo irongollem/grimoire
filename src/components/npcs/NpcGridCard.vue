@@ -12,7 +12,7 @@
     placeholder="/assets/placeholders/npc.webp"
     :locked="locked"
     :badge-text="npc.relationship"
-    :badge-color="relColor"
+    :badge-class="relClass"
   >
     <template #body>
       <div class="flex items-start justify-between gap-1">
@@ -22,7 +22,7 @@
         <span
           :title="npc.status"
           class="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-          :style="{ backgroundColor: statusColor }"
+          :class="statusClass"
         />
       </div>
 
@@ -86,8 +86,8 @@ import {
   getNpcDisplayFocalPoint,
   getNpcDisplayName,
   getNpcDisplayPortrait,
-  npcRelationshipColor,
-  npcStatusColor,
+  npcRelationshipBg,
+  npcStatusBg,
 } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";
 
@@ -102,6 +102,6 @@ const { npc, locationName } = defineProps<{
 // when the name is not revealed — so the "no name" case is marked, never
 // coerced to an empty string.
 const displayName = computed(() => getNpcDisplayName(npc) ?? "???");
-const relColor = computed(() => npcRelationshipColor(npc.relationship));
-const statusColor = computed(() => npcStatusColor(npc.status));
+const relClass = computed(() => npcRelationshipBg(npc.relationship));
+const statusClass = computed(() => npcStatusBg(npc.status));
 </script>

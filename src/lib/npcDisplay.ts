@@ -1,4 +1,4 @@
-import { NPC_RELATIONSHIP_COLORS, type Npc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
+import type { Npc, NpcRelationship, NpcStatus } from "@/types/npc.types";
 
 // Per-field reveal toggles surfaced to the DM. Status + relationship are
 // intentionally absent — both have an "unknown" value, so they're always
@@ -47,31 +47,108 @@ export function fieldsForFirstReveal(current: readonly string[]): string[] {
  * `unknown` is deliberately `muted-foreground` rather than a tone: it is the
  * absence of a state, not a state of its own.
  */
-const NPC_STATUS_COLORS: Record<NpcStatus, string> = {
-  alive: "var(--tone-success)",
-  dead: "var(--tone-danger)",
-  missing: "var(--tone-caution)",
-  unknown: "var(--muted-foreground)",
+const NPC_STATUS_BG: Record<NpcStatus, string> = {
+  alive: "bg-tone-success",
+  dead: "bg-tone-danger",
+  missing: "bg-tone-caution",
+  unknown: "bg-muted-foreground",
 };
 
-export function npcStatusColor(status: NpcStatus): string {
-  return NPC_STATUS_COLORS[status] ?? "var(--muted-foreground)";
+export function npcStatusBg(status: NpcStatus): string {
+  return NPC_STATUS_BG[status] ?? NPC_STATUS_BG.unknown;
 }
 
 /**
- * The relationship badge's colour.
+ * How an NPC feels about the party, as theme tokens (#742).
  *
- * Still the raw ramp from `npc.types.ts` — six hues that no existing tone
- * covers (teal, orange and purple have no token), so tokenising it means adding
- * theme variables rather than pointing at ones that exist. Tracked separately;
- * it is shared with the monster CR ramp and reaches ~28 files, which is a
- * bigger change than the one this lives in.
+ * These were six hex literals in `npc.types.ts`, applied through inline
+ * `:style` bindings, on the reasoning that Tailwind extracts classes statically
+ * so `bg-[${color}]` cannot work at runtime. Half right: a *computed* class
+ * cannot work, but a static map from enum value to a class literal can — every
+ * string below is in the source, so Tailwind sees them all.
  *
- * Centralised here regardless, so the desktop card and the mobile card cannot
- * drift — they had already grown their own copy of the lookup.
+ * The cost of the old way was that the ramp did not follow the theme: one set
+ * of hues, picked against parchment, also used on near-black. Now a theme can
+ * repaint it, and a step that goes muddy in dark mode is a one-line override in
+ * `theme.css` rather than an edit at fourteen call sites.
+ *
+ * Two shapes, because two kinds of consumer:
+ *
+ *   *Class — the DOM. A badge, a dot, a bar. Prefer this.
+ *   *Var   — a value, for the places a class cannot reach: an SVG `fill`
+ *            (attribute values don't take a class), and the force-graph, which
+ *            paints to a canvas and needs a resolved colour string.
+ *
+ * Both point at the same token, so they cannot drift.
  */
-export function npcRelationshipColor(relationship: NpcRelationship): string {
-  return NPC_RELATIONSHIP_COLORS[relationship] ?? NPC_RELATIONSHIP_COLORS.indifferent;
+export const NPC_RELATIONSHIP_BG: Record<NpcRelationship, string> = {
+  hostile: "bg-relationship-hostile",
+  unfriendly: "bg-relationship-unfriendly",
+  indifferent: "bg-relationship-indifferent",
+  friendly: "bg-relationship-friendly",
+  helpful: "bg-relationship-helpful",
+  unknown: "bg-relationship-unknown",
+};
+
+export const NPC_RELATIONSHIP_TEXT: Record<NpcRelationship, string> = {
+  hostile: "text-relationship-hostile",
+  unfriendly: "text-relationship-unfriendly",
+  indifferent: "text-relationship-indifferent",
+  friendly: "text-relationship-friendly",
+  helpful: "text-relationship-helpful",
+  unknown: "text-relationship-unknown",
+};
+
+/** Token names. `var()` and canvas resolution are both built from these, so the
+ *  three shapes cannot name different colours. */
+const NPC_RELATIONSHIP_TOKENS: Record<NpcRelationship, string> = {
+  hostile: "--relationship-hostile",
+  unfriendly: "--relationship-unfriendly",
+  indifferent: "--relationship-indifferent",
+  friendly: "--relationship-friendly",
+  helpful: "--relationship-helpful",
+  unknown: "--relationship-unknown",
+};
+
+function relationshipToken(relationship: NpcRelationship): string {
+  return NPC_RELATIONSHIP_TOKENS[relationship] ?? NPC_RELATIONSHIP_TOKENS.indifferent;
+}
+
+/** Background class for a relationship. Falls back to the neutral step. */
+export function npcRelationshipBg(relationship: NpcRelationship): string {
+  return NPC_RELATIONSHIP_BG[relationship] ?? NPC_RELATIONSHIP_BG.indifferent;
+}
+
+/** Text-colour class for a relationship. */
+export function npcRelationshipText(relationship: NpcRelationship): string {
+  return NPC_RELATIONSHIP_TEXT[relationship] ?? NPC_RELATIONSHIP_TEXT.indifferent;
+}
+
+/** The token as a `var()`, for an SVG `fill` bound through `:style`. */
+export function npcRelationshipVar(relationship: NpcRelationship): string {
+  return `var(${relationshipToken(relationship)})`;
+}
+
+/**
+ * The colour as a concrete value, for painting to a canvas.
+ *
+ * The NPC web is a force-graph drawn on a canvas, and `ctx.fillStyle` cannot
+ * take `var(--x)` or a class — it needs a resolved string. Reading the custom
+ * property is the only way to keep that one consumer on the same ramp as
+ * everything else rather than letting it keep a private copy, which is exactly
+ * how it drifted: its copy was still keyed on the pre-5e values
+ * (`ally`/`neutral`/`enemy`), so once `20260519000001` moved the enum on it
+ * matched nothing and every node fell through to the default grey.
+ *
+ * Resolved at call time, so a graph rebuilt after a theme switch picks up the
+ * new palette; one already on screen keeps the old colours until it re-renders.
+ */
+export function npcRelationshipCanvasColor(relationship: NpcRelationship): string {
+  if (typeof document === "undefined") return "#6b7280";
+  const resolved = getComputedStyle(document.documentElement)
+    .getPropertyValue(relationshipToken(relationship))
+    .trim();
+  return resolved || "#6b7280";
 }
 
 export function isNpcConcealed(npc: Pick<Npc, "disguise_name" | "disguise_portrait_url" | "is_revealed">): boolean {

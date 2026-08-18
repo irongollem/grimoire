@@ -92,17 +92,13 @@
       <!-- Overlaid identity -->
       <div class="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 px-4 pb-3">
         <div class="flex flex-wrap items-center gap-1.5">
-          <span
-            class="rounded px-2 py-0.5 text-eyebrow font-bold text-white"
-            :style="{ backgroundColor: relColor + 'EE' }"
-          >
-            {{ NPC_RELATIONSHIP_LABELS[npc.relationship] }}
+          <span class="relative rounded px-2 py-0.5 text-eyebrow font-bold text-white">
+            <span class="absolute inset-0 rounded opacity-90" :class="relClass" />
+            <span class="relative">{{ NPC_RELATIONSHIP_LABELS[npc.relationship] }}</span>
           </span>
-          <span
-            class="rounded px-2 py-0.5 text-eyebrow font-bold text-white"
-            :style="{ backgroundColor: statusColor + 'EE' }"
-          >
-            {{ npc.status }}
+          <span class="relative rounded px-2 py-0.5 text-eyebrow font-bold text-white">
+            <span class="absolute inset-0 rounded opacity-90" :class="statusClass" />
+            <span class="relative">{{ npc.status }}</span>
           </span>
           <span
             v-if="shared"
@@ -283,8 +279,10 @@ import {
   getNpcDisplayPortrait,
   getNpcDisplayFocalPoint,
   isNpcConcealed,
+  npcRelationshipBg,
+  npcStatusBg,
 } from "@/lib/npcDisplay";
-import { NPC_RELATIONSHIP_COLORS, NPC_RELATIONSHIP_LABELS, type Npc, type NpcStatus } from "@/types/npc.types";
+import { NPC_RELATIONSHIP_LABELS, type Npc } from "@/types/npc.types";
 
 const { npc } = defineProps<{ npc: Npc }>();
 
@@ -310,14 +308,8 @@ const disguisedLine = computed(() => {
   return npc.disguise_name ? `Disguised as ${npc.disguise_name}` : "Disguised";
 });
 
-const relColor = computed(() => NPC_RELATIONSHIP_COLORS[npc.relationship] ?? "#6b7280");
-const STATUS_COLORS: Record<NpcStatus, string> = {
-  alive: "#22c55e",
-  dead: "#ef4444",
-  missing: "#f59e0b",
-  unknown: "#6b7280",
-};
-const statusColor = computed(() => STATUS_COLORS[npc.status] ?? "#6b7280");
+const relClass = computed(() => npcRelationshipBg(npc.relationship));
+const statusClass = computed(() => npcStatusBg(npc.status));
 
 const shared = computed(() => npc.player_visible_to.length > 0);
 

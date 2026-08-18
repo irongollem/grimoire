@@ -15,14 +15,14 @@
       </div>
       <div v-if="npc" class="flex flex-wrap gap-2 mt-1">
         <!-- Relationship + status are always shown — "unknown" is the soft-hidden value. -->
-        <span
-          class="px-2 py-0.5 rounded text-label-lg font-bold uppercase text-white"
-          :style="{ backgroundColor: relColor(npc.relationship) + 'CC' }"
-        >{{ npc.relationship }}</span>
+        <span class="relative px-2 py-0.5 rounded text-label-lg font-bold uppercase text-white">
+          <span class="absolute inset-0 rounded opacity-80" :class="npcRelationshipBg(npc.relationship)" />
+          <span class="relative">{{ npc.relationship }}</span>
+        </span>
         <span
           class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted text-label-lg"
         >
-          <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: statusColor(npc.status) }" />
+          <span class="w-1.5 h-1.5 rounded-full" :class="npcStatusBg(npc.status)" />
           {{ npc.status }}
         </span>
       </div>
@@ -58,7 +58,8 @@ import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
 import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
-import { NPC_RELATIONSHIP_COLORS, type PlayerNpc, type NpcRelationship, type NpcStatus } from "@/types/npc.types";
+import { npcRelationshipBg, npcStatusBg } from "@/lib/npcDisplay";
+import type { PlayerNpc } from "@/types/npc.types";
 
 const { npc } = defineProps<{ npc: PlayerNpc | null }>();
 
@@ -71,9 +72,4 @@ const displayName = computed(() => (npc ? getNpcDisplayName(npc) ?? "???" : "???
 const displayPortrait = computed(() => (npc ? getNpcDisplayPortrait(npc) : null));
 const displayFocalPoint = computed(() => (npc ? getNpcDisplayFocalPoint(npc) : null));
 
-const STATUS_COLORS: Record<NpcStatus, string> = {
-  alive: "#22c55e", dead: "#ef4444", missing: "#f59e0b", unknown: "#6b7280",
-};
-function relColor(rel: NpcRelationship) { return NPC_RELATIONSHIP_COLORS[rel] ?? "#6b7280"; }
-function statusColor(s: NpcStatus) { return STATUS_COLORS[s] ?? "#6b7280"; }
 </script>

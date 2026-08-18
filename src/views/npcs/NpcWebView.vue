@@ -97,6 +97,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { IconNetwork } from '@/lib/icons';
+import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
 import { VNetworkGraph, defineConfigs, type EventHandlers } from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -147,16 +148,22 @@ const isLoading = computed(
 
 // ── Graph data ────────────────────────────────────────────────────────────────
 
-const NPC_RELATIONSHIP_COLORS: Record<string, string> = {
-  ally: "#2563eb",
-  neutral: "#6b7280",
-  enemy: "#dc2626",
-  unknown: "#9ca3af",
-};
-
-function relColor(rel: string): string {
-  return NPC_RELATIONSHIP_COLORS[rel] ?? "#6b7280";
+/** A theme custom property as a concrete value — canvas needs a real colour. */
+function cssValue(token: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
 }
+
+// Node colours come from the shared relationship ramp, resolved to concrete
+// values because force-graph paints to a canvas (#742).
+//
+// This file used to keep its own copy of the map, still keyed on the *old*
+// relationship values — `ally`/`neutral`/`enemy`, replaced by the 5e reaction
+// scale in `20260519000001_npc_relationship_5e_scale`. That migration remapped
+// the rows and updated the AI prompt, but a duplicated lookup in an unrelated
+// view is invisible to a schema change: it kept compiling, kept matching
+// nothing, and every NPC node fell through to the default grey. The graph had
+// carried no relationship information since.
 
 // Keys that are pinned (selected) and must always show regardless of search
 const pinnedKeys = computed(() => {
@@ -184,7 +191,7 @@ const graphNodes = computed(() => {
     nodes[key] = {
       name: npc.name,
       nodeType: "npc",
-      nodeColor: relColor(npc.relationship),
+      nodeColor: npcRelationshipCanvasColor(npc.relationship),
       nodeSize: 18,
     };
   }
@@ -196,7 +203,8 @@ const graphNodes = computed(() => {
       nodes[key] = {
         name: pc.name,
         nodeType: "pc",
-        nodeColor: "#d97706",
+        // Party members are the theme accent, not a relationship step.
+        nodeColor: cssValue("--primary", "#d97706"),
         nodeSize: 22,
       };
     }
