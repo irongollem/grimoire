@@ -4,7 +4,7 @@
     <div class="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
       <AppInput ref="titleInput" v-model="title" placeholder="Beat title…" @keydown.escape.prevent="emit('cancel')" />
       <AppSelect v-model="kind" aria-label="Beat kind">
-        <option v-for="option in kinds" :key="option" :value="option">{{ option }}</option>
+        <option v-for="option in QUEST_BEAT_KINDS" :key="option" :value="option">{{ QUEST_BEAT_KIND_LABELS[option] }}</option>
       </AppSelect>
     </div>
     <AppInput v-if="sourceBeatId" v-model="edgeLabel" class="mt-2" placeholder="Route condition (DM-only, optional)…" @keydown.escape.prevent="emit('cancel')" />
@@ -21,6 +21,7 @@ import { nextTick, onMounted, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import { QUEST_BEAT_KINDS, QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
 
 const { sourceBeatId, saving = false, error = "" } = defineProps<{ sourceBeatId?: string; saving?: boolean; error?: string }>();
 const emit = defineEmits<{ cancel: []; submit: [value: { title: string; kind: string; edgeLabel: string }] }>();
@@ -29,7 +30,6 @@ const kind = ref("neutral");
 const edgeLabel = ref("");
 const titleInput = ref<InstanceType<typeof AppInput> | null>(null);
 const composerForm = ref<HTMLFormElement | null>(null);
-const kinds = ["neutral", "combat", "social", "explore", "discovery"];
 
 function submit() {
   if (title.value.trim()) emit("submit", { title: title.value.trim(), kind: kind.value, edgeLabel: edgeLabel.value.trim() });

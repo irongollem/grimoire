@@ -85,6 +85,22 @@ export type QuestObjectiveUpdate = Partial<
 export type QuestBeatVisibility = "hidden" | "rumored" | "revealed";
 export type QuestBeatKind = "combat" | "social" | "explore" | "discovery" | "neutral" | (string & {});
 
+/**
+ * The kinds offered in the UI. `QuestBeatKind` stays open because generated and
+ * imported beats legitimately arrive with their own word for what a scene is,
+ * and silently rewriting that to "neutral" would lose the author's intent — so
+ * an editor showing this list must still keep a value it does not recognise.
+ */
+export const QUEST_BEAT_KINDS = ["neutral", "combat", "social", "explore", "discovery"] as const;
+
+export const QUEST_BEAT_KIND_LABELS: Record<(typeof QUEST_BEAT_KINDS)[number], string> = {
+  neutral: "Neutral",
+  combat: "Combat",
+  social: "Social",
+  explore: "Explore",
+  discovery: "Discovery",
+};
+
 export interface QuestBeat {
   id: string;
   quest_id: string;

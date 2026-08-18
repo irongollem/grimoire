@@ -4,6 +4,7 @@
       <div>
         <h3 class="font-cinzel text-sm font-bold text-foreground">Prepared material</h3>
         <p class="text-caption text-muted-foreground">Place existing campaign material here; its specialist editor stays authoritative.</p>
+        <p class="text-caption text-muted-foreground">Mark what the beat cannot run without — a needed placement counts as a prep gap if its material is later deleted.</p>
       </div>
     </div>
 
@@ -12,7 +13,10 @@
         <span class="rounded bg-muted px-1.5 py-0.5 uppercase text-muted-foreground">{{ adapterLabel(attachment.attachment_type) }}</span>
         <span class="min-w-0 flex-1 truncate" :class="attachment.prep_gap ? 'text-tone-caution' : 'text-foreground'">{{ attachment.label }}</span>
         <AppButton
-          :label="attachment.is_required ? 'Required' : 'Optional'"
+          :label="attachment.is_required ? 'Needed' : 'Optional'"
+          :title="attachment.is_required
+            ? 'The beat cannot run without this — flags a prep gap if the material goes missing'
+            : 'Nice to have — its absence never flags a prep gap'"
           size="xs"
           variant="subtle"
           :active="attachment.is_required"
@@ -21,10 +25,22 @@
           :disabled="!!updatingId && updatingId !== attachment.id"
           @click="setRequired(attachment, !attachment.is_required)"
         />
-        <AppButton v-if="attachment.full_editor_to" :to="specialistUrl(attachment.full_editor_to)" label="Open" size="xs" variant="subtle" />
+        <AppButton v-if="attachment.target_exists" label="Open" size="xs" variant="subtle" @click="opened = attachment" />
         <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === attachment.id" @click="remove(attachment.id)" />
       </li>
     </ul>
+
+    <!-- Opening a placement used to navigate to the material's own screen, which
+         for an NPC means the NPC list with its detail modal on top — the DM lost
+         the beat they were preparing to look up one fact. The Run cockpit already
+         had a contained view for exactly this; prep now uses the same one, and it
+         still carries "Open full editor" for the times a real edit is wanted. -->
+    <QuestRunContainedTool
+      v-if="opened"
+      :attachment="opened"
+      :return-to="`/quests/${beat.quest_id}/beats/${beat.id}`"
+      @close="opened = null"
+    />
     <p v-else class="text-caption italic text-muted-foreground">Nothing placed on this beat yet.</p>
 
     <div data-testid="beat-attachment-form" class="grid min-w-0 grid-cols-[minmax(0,9rem)_minmax(0,1fr)] gap-2">
@@ -75,6 +91,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import QuestRunContainedTool from "./QuestRunContainedTool.vue";
 
 const props = defineProps<{ beat: QuestBeat; attachments: QuestBeatAttachmentSummary[] }>();
 const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "objective", "location_set", "npc", "faction", "item", "monster", "sound", "audio_scene", "playlist", "note", "handout"];
@@ -84,6 +101,7 @@ const adding = ref(false);
 const quickCreating = ref(false);
 const quickEncounterName = ref("");
 const selectedRoomIds = ref<string[]>([]);
+const opened = ref<QuestBeatAttachmentSummary | null>(null);
 const removingId = ref("");
 const updatingId = ref("");
 const error = ref("");
@@ -156,10 +174,6 @@ watch(refId, () => { selectedRoomIds.value = []; });
 
 function adapterLabel(type: QuestBeatAttachmentType) {
   return QUEST_BEAT_ATTACHMENT_ADAPTERS[type].label;
-}
-
-function specialistUrl(path: string) {
-  return withQuestReturnTo(path, `/quests/${props.beat.quest_id}/beats/${props.beat.id}`);
 }
 
 async function add() {

@@ -13,7 +13,9 @@
       </label>
       <label class="space-y-1 text-caption font-semibold text-foreground">
         Kind
-        <AppInput v-model="draft.kind" placeholder="social, combat, discovery…" />
+        <AppSelect v-model="kind">
+          <option v-for="option in kindOptions" :key="option" :value="option">{{ kindLabel(option) }}</option>
+        </AppSelect>
       </label>
       <label class="space-y-1 text-caption font-semibold text-foreground">
         Presentation
@@ -89,7 +91,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useDebounceFn } from "@vueuse/core";
 import { useUpdateQuestBeat } from "@/composables/useQuestFlow";
 import { questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
-import type { QuestBeat } from "@/types/quest.types";
+import { QUEST_BEAT_KINDS, QUEST_BEAT_KIND_LABELS, type QuestBeat } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -110,6 +112,20 @@ const dirty = ref(false);
 const saving = ref(false);
 const saveError = ref("");
 const titleError = computed(() => dirty.value && !draft.title.trim() ? "Give this beat a title before it is saved." : "");
+// The composer offers these five, so this offered free text and the two drifted.
+// A kind the list does not know is kept as an option rather than dropped: a
+// generated or imported beat may carry its own word for the scene, and the save
+// path already treats blank as "neutral", so blank shows as neutral here too.
+const kind = computed({
+  get: () => draft.kind || "neutral",
+  set: (value: string) => { draft.kind = value; },
+});
+const kindOptions = computed<string[]>(() => (QUEST_BEAT_KINDS as readonly string[]).includes(kind.value)
+  ? [...QUEST_BEAT_KINDS]
+  : [...QUEST_BEAT_KINDS, kind.value]);
+function kindLabel(option: string) {
+  return QUEST_BEAT_KIND_LABELS[option as (typeof QUEST_BEAT_KINDS)[number]] ?? option;
+}
 let hydrating = false;
 
 // Our own autosave echoes straight back through this prop — first the optimistic

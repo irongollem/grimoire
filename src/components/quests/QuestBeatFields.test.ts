@@ -60,18 +60,37 @@ describe("QuestBeatFields", () => {
       props: { beat: beat(), compact: true },
       global: { stubs: { RichTextEditor: true, MentionTextarea: true } },
     });
-    const [title, kind] = wrapper.findAll("input");
-    await title!.setValue("The bandits are ");
-    await kind!.setValue("");
+    const title = wrapper.findAll("input")[0]!;
+    await title.setValue("The bandits are ");
     await vi.advanceTimersByTimeAsync(2100);
     await flushPromises();
 
     expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
-      update: expect.objectContaining({ title: "The bandits are", kind: "neutral" }),
+      update: expect.objectContaining({ title: "The bandits are" }),
     }));
-    expect((title!.element as HTMLInputElement).value).toBe("The bandits are ");
-    expect((kind!.element as HTMLInputElement).value).toBe("");
+    expect((title.element as HTMLInputElement).value).toBe("The bandits are ");
     expect(wrapper.text()).toContain("Saved");
+  });
+
+  // The composer creates beats from a fixed list of kinds; this editor used to
+  // offer free text, so the same field had two vocabularies.
+  it("offers the shared kind list without discarding a kind it does not know", () => {
+    const shared = mount(QuestBeatFields, {
+      props: { beat: beat(), compact: true },
+      global: { stubs: { RichTextEditor: true, MentionTextarea: true } },
+    });
+    const kind = shared.findAll("select")[0]!;
+    expect(kind.findAll("option").map((option) => option.attributes("value")))
+      .toEqual(["neutral", "combat", "social", "explore", "discovery"]);
+    expect((kind.element as HTMLSelectElement).value).toBe("social");
+
+    const imported = mount(QuestBeatFields, {
+      props: { beat: { ...beat(), kind: "heist" }, compact: true },
+      global: { stubs: { RichTextEditor: true, MentionTextarea: true } },
+    });
+    const importedKind = imported.findAll("select")[0]!;
+    expect(importedKind.findAll("option").map((option) => option.attributes("value"))).toContain("heist");
+    expect((importedKind.element as HTMLSelectElement).value).toBe("heist");
   });
 
   it("ignores its own saved row echoing back through the beat prop", async () => {
