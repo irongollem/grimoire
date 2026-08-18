@@ -1,4 +1,10 @@
-# GitGuardian / ggshield config (used by pre-commit hooks + CI, not just the dashboard).
+# ggshield config. Note what this does and does not reach: the GitHub App's
+# real-time scan runs server-side and never reads this file, so an alert it
+# raises is resolved in the GitGuardian dashboard, not here. Nothing in
+# .github/ or package.json invokes ggshield today either, so right now this
+# only applies to a manual `ggshield secret scan`. It is still the right home
+# for the reasoning — a verdict recorded in a SaaS dashboard is invisible to
+# whoever next reads this repo.
 version: 2
 
 secret:
@@ -10,3 +16,17 @@ secret:
     # Matched by value so a genuine secret accidentally added elsewhere is still caught.
     - name: Supabase local-dev demo anon key (public, local-only)
       match: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+
+    # The password `scripts/dev-auth.ts` sets on the two local accounts. It is a
+    # real hardcoded password and GitGuardian is right to see one — it just is
+    # not a credential to anything: `readStack()` refuses to proceed unless both
+    # API_URL and DB_URL resolve to loopback, and it fails closed on every other
+    # path (a stack that is not running throws, and a missing URL throws out of
+    # `new URL`). So it cannot address the hosted project even by accident.
+    #
+    # It stays a fixed literal on purpose: CLAUDE.md documents it as the way to
+    # sign in locally, and a generated password would mean the documented value
+    # is wrong for everyone. The admin address it is set on is read from the
+    # local database rather than written here, so no account name is committed.
+    - name: Local dev sign-in password (loopback-only, see scripts/dev-auth.ts)
+      match: grimoire-local-dev
