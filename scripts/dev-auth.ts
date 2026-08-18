@@ -181,10 +181,11 @@ async function main() {
 
   const cloned = cloneRichestCampaign(stack.DB_URL, fixtureId);
   const party = ensureFixtureParty(stack.DB_URL, fixtureId);
+  const beasts = ensureFixtureBestiary(stack.DB_URL, fixtureId);
 
   console.log(`Local sign-in ready — password for both: ${DEV_PASSWORD}\n`);
   console.log(`  admin   ${adminEmail}`);
-  console.log(`  fixture ${FIXTURE_EMAIL}  (${cloned} locations, ${party} party members, ordinary privileges)\n`);
+  console.log(`  fixture ${FIXTURE_EMAIL}  (${cloned} locations, ${party} party members, ${beasts} monsters, ordinary privileges)\n`);
   if (changed.length) {
     console.log(`Password changed for ${changed.join(", ")} — those sessions are signed out.`);
   }
@@ -375,6 +376,73 @@ function ensureFixtureParty(dbUrl: string, ownerId: string): number {
 
   return Number(
     sql(dbUrl, `select count(*) from public.party_members where campaign_id = ${quote(campaignId)}`),
+  );
+}
+
+/**
+ * Enables one library monster source on the fixture campaign, so the Bestiary
+ * has something in it.
+ *
+ * A campaign starts with no sources enabled and the fixture owns no custom
+ * monsters, so `/monsters` renders "No monsters match your filters" and every
+ * bestiary-shaped surface — the grid, the detail modal, the encounter builder's
+ * creature picker, the player bestiary — is unreachable without first knowing
+ * that a Sources panel exists and what to tick in it. That is a poor first five
+ * minutes, and it is why this had to be done by hand to review #743's monster
+ * half at all.
+ *
+ * Enabling a source rather than cloning monsters: `library_monsters` is shared
+ * content that every account can already read, so a row in
+ * `campaign_enabled_sources` is the whole grant — no copying, and nothing owned
+ * by the fixture that could drift from the real thing.
+ *
+ * The slug is looked up rather than hardcoded, because which sources are seeded
+ * locally depends on whichever `seed.sql` dump the machine has.
+ */
+function ensureFixtureBestiary(dbUrl: string, ownerId: string): number {
+  const campaignId = sql(
+    dbUrl,
+    `select id from public.campaigns where user_id = ${quote(ownerId)} order by created_at limit 1`,
+  );
+  if (!campaignId) return 0;
+
+  // Guarded on creatures rather than on rows, because those are not the same
+  // question: a campaign can have several sources enabled and still show an
+  // empty bestiary, which is the state this was written for. Whichever seed.sql
+  // a machine has covers only some slugs, so an enabled source whose monsters
+  // were never seeded locally contributes nothing and reads as "no monsters".
+  const already = countFixtureMonsters(dbUrl, campaignId);
+  if (already > 0) return already;
+
+  // The source with the most creatures in it, so the grid is worth looking at.
+  const slug = sql(
+    dbUrl,
+    `select source from public.library_monsters
+      group by source order by count(*) desc limit 1`,
+  );
+  if (!slug) return 0;
+
+  sql(
+    dbUrl,
+    `insert into public.campaign_enabled_sources (campaign_id, source_slug, source_title)
+     select ${quote(campaignId)}, ${quote(slug)}, coalesce(max(cs.title), ${quote(slug)})
+       from public.content_sources cs where cs.key = ${quote(slug)}
+     on conflict do nothing;`,
+  );
+
+  return countFixtureMonsters(dbUrl, campaignId);
+}
+
+function countFixtureMonsters(dbUrl: string, campaignId: string): number {
+  return Number(
+    sql(
+      dbUrl,
+      `select count(*) from public.library_monsters m
+        where m.source in (
+          select source_slug from public.campaign_enabled_sources
+           where campaign_id = ${quote(campaignId)}
+        )`,
+    ),
   );
 }
 
