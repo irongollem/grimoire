@@ -3,6 +3,7 @@
     :title="displayName"
     :subtitle="subtitle"
     :loading="isLoading"
+    height="content"
     :origin-key="`/monsters/${id}`"
     @close="emit('close')"
   >
@@ -30,8 +31,10 @@
  *
  * The NPC modal's twin, and deliberately the same shape — everything about
  * being a modal belongs to `EntityDetailModal`. What differs is monster-shaped:
- * the sheet flows as one column rather than managing two, so this does *not*
- * ask for `contained` and lets the modal body do the scrolling; and the entity
+ * the sheet flows rather than managing two independently scrolling columns, so
+ * this asks for neither `contained` nor a filled panel height — the body does
+ * the scrolling and the panel ends where the stat block does, which matters
+ * because a CR 1/4 acolyte is a third the length of a dragon; and the entity
  * may be a shared library row, so the art override has to be folded in — which
  * `useMonsterWithArt` does, for this and for the detail page alike.
  */

@@ -172,4 +172,23 @@ describe("AppModal", () => {
     expect(wrapper.emitted("afterLeave")).toHaveLength(1);
     wrapper.unmount();
   });
+
+  // `max-h-full` is the shell's own default. Left in the static class attribute
+  // it sat outside `cn()`, where tailwind-merge could not dedupe it — so it beat
+  // every caller that passed a height and the caller's class was inert.
+  it("lets a caller's height override the shell's default", () => {
+    const wrapper = open({ panelClass: "max-h-[30rem]" });
+
+    const classes = panel()!.className;
+    expect(classes).toContain("max-h-[30rem]");
+    expect(classes).not.toContain("max-h-full");
+    wrapper.unmount();
+  });
+
+  it("keeps the default when the caller asks for no height", () => {
+    const wrapper = open();
+
+    expect(panel()!.className).toContain("max-h-full");
+    wrapper.unmount();
+  });
 });

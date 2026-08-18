@@ -1,8 +1,38 @@
+<template>
+  <EntityDetailModal
+    :title="entity?.name ?? 'Loading…'"
+    :subtitle="subtitle"
+    :loading="!entity"
+    size="xl"
+    height="content"
+    @close="emit('close')"
+  >
+    <MonsterSheet v-if="monster" :monster="monster" />
+    <SpellSheet v-else-if="spell" :spell="spell" />
+  </EntityDetailModal>
+</template>
+
 <script setup lang="ts">
-import { IconClose } from "@/lib/icons";
-import { monsterIdentityLine } from "@/lib/monsterDisplay";
+/**
+ * What an admin is about to publish art onto, in the shared detail-modal shell.
+ *
+ * Used to hand-roll its own overlay — the fifth copy of that recipe (#746) —
+ * and the copy had drifted in the ways those copies do: `@keydown.esc` sat on a
+ * non-focusable `<div>`, so Escape only worked if focus happened to be inside;
+ * nothing trapped Tab; and the panel was `max-w-2xl`. That last one was the
+ * visible symptom. `MonsterSheet` splits into columns at Tailwind's `lg:`,
+ * which is a *viewport* breakpoint rather than a container one, so on a wide
+ * screen it laid out two columns and a three-column ability table inside 42rem
+ * and crushed them. Sharing the shell fixes the width by giving it the same
+ * `xl` every other entity sheet gets, and the rest by not being a copy.
+ *
+ * `height="content"`: an admin flicks through many of these, and most are short.
+ */
+import { computed } from "vue";
+import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
+import { monsterIdentityLine } from "@/lib/monsterDisplay";
 import type { Monster } from "@/types/monster.types";
 import type { Spell } from "@/types/spell.types";
 
@@ -12,66 +42,11 @@ const { monster = null, spell = null } = defineProps<{
 }>();
 
 const emit = defineEmits<{ close: [] }>();
+
+const entity = computed(() => monster ?? spell);
+
+// Only monsters have an identity line to state; a spell's own sheet leads with
+// its level and school, so repeating anything here would be the duplication
+// this line exists to remove.
+const subtitle = computed(() => (monster ? monsterIdentityLine(monster) : undefined));
 </script>
-
-<template>
-  <Teleport to="body">
-    <Transition name="library-preview">
-      <div
-        class="fixed inset-0 z-200 flex items-center justify-center p-4"
-        role="dialog"
-        aria-modal="true"
-        @keydown.esc="emit('close')"
-      >
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="emit('close')" />
-        <div class="relative w-full max-w-2xl rounded-xl border border-border bg-background shadow-2xl flex flex-col max-h-[90dvh]">
-          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
-            <div class="min-w-0">
-              <h2 class="text-heading-sm font-bold text-foreground truncate">
-                {{ (monster ?? spell)?.name ?? "Loading…" }}
-              </h2>
-              <!-- MonsterSheet used to state this itself; both of its hosts now
-                   carry it in the header instead, so it stays put while the body
-                   scrolls. Shared with the detail modal via monsterIdentityLine. -->
-              <p v-if="monster" class="truncate text-caption text-muted-foreground italic capitalize">
-                {{ monsterIdentityLine(monster) }}
-              </p>
-            </div>
-            <button
-              type="button"
-              class="shrink-0 ml-3 text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
-              @click="emit('close')"
-            >
-              <IconClose class="h-4 w-4" />
-            </button>
-          </div>
-          <div class="flex-1 overflow-y-auto p-5">
-            <MonsterSheet v-if="monster" :monster="monster" />
-            <SpellSheet v-else-if="spell" :spell="spell" />
-            <p v-else class="text-caption text-muted-foreground italic">Loading…</p>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
-</template>
-
-<style scoped>
-.library-preview-enter-active,
-.library-preview-leave-active {
-  transition: opacity 0.2s ease;
-}
-.library-preview-enter-active .relative,
-.library-preview-leave-active .relative {
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-.library-preview-enter-from,
-.library-preview-leave-to {
-  opacity: 0;
-}
-.library-preview-enter-from .relative,
-.library-preview-leave-to .relative {
-  transform: translateY(0.75rem);
-  opacity: 0;
-}
-</style>

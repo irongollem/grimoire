@@ -4,7 +4,7 @@
     :size="size"
     :origin-key="originKey"
     :labelled-by="headingId"
-    panel-class="h-[min(48rem,calc(100dvh-2rem))]"
+    :panel-class="PANEL_HEIGHT[height]"
     @close="dismiss"
     @after-leave="emit('close')"
   >
@@ -83,7 +83,7 @@ import AppModal from "@/components/common/AppModal.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { IconClose } from "@/lib/icons";
 
-const { title, subtitle, loading, contained, originKey, size = "xl" } = defineProps<{
+const { title, subtitle, loading, contained, originKey, size = "xl", height = "fill" } = defineProps<{
   title: string;
   /** The "what this is" line — species and occupation, size and type. */
   subtitle?: string;
@@ -93,6 +93,13 @@ const { title, subtitle, loading, contained, originKey, size = "xl" } = definePr
   /** Route this modal was opened towards, so it can fly out of its card. */
   originKey?: string;
   size?: "lg" | "xl" | "full";
+  /**
+   * `fill` (default) fixes the panel height, which is what a sheet that manages
+   * its own columns needs — something has to have a height for them to be
+   * relative to. `content` makes it a ceiling instead, for a body that may be
+   * short: a two-paragraph spell in a fixed 48rem panel is mostly empty panel.
+   */
+  height?: "fill" | "content";
 }>();
 
 const emit = defineEmits<{
@@ -102,6 +109,19 @@ const emit = defineEmits<{
 
 // Names the dialog for screen readers without the caller having to invent an
 // id, and stays unique if two of these ever exist at once.
+/**
+ * Tall enough for a stat block, never taller than the viewport allows.
+ *
+ * Written out as two literals rather than composed at runtime: Tailwind scans
+ * source text for class names, so a class built by concatenation is a class it
+ * never generates — and the failure is silent, arriving as an unstyled panel
+ * rather than a build error.
+ */
+const PANEL_HEIGHT = {
+  fill: "h-[min(48rem,calc(100dvh-2rem))]",
+  content: "max-h-[min(48rem,calc(100dvh-2rem))]",
+} as const;
+
 const headingId = useId();
 
 const open = ref(false);

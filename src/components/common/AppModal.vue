@@ -27,12 +27,17 @@
           unreachable by Tab — so the ring marks something the user cannot have
           navigated to and reads as a stray highlight around the whole box.
           Every control inside keeps its own focus styling.
+
+          `max-h-full` goes through `cn()` rather than sitting in the static
+          class: tailwind-merge can only dedupe what it is handed, so a default
+          left outside it is not a default at all — it simply wins, and a caller
+          passing its own height in `panelClass` gets silently ignored.
         -->
         <div
           ref="panelRef"
           data-modal-panel
-          class="relative flex max-h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl focus:outline-none"
-          :class="cn('w-full', SIZES[size], panelClass)"
+          class="relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl focus:outline-none"
+          :class="cn('w-full max-h-full', SIZES[size], panelClass)"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="labelledBy"
