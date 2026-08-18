@@ -56,17 +56,7 @@
           </div>
 
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2">
-              <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ pantheon.name }}</p>
-              <div class="relative z-10 shrink-0" @click.prevent.stop>
-                <AudienceRevealControl
-                  :name="pantheon.name"
-                  :visible-to="pantheon.player_visible_to"
-                  form="overlay"
-                  @change="(next) => revealPantheon(pantheon.id, next)"
-                />
-              </div>
-            </div>
+            <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ pantheon.name }}</p>
             <p class="text-label text-muted-foreground mt-0.5">
               {{ deityCount(pantheon.id) }} {{ deityCount(pantheon.id) === 1 ? 'deity' : 'deities' }}
             </p>
@@ -79,7 +69,18 @@
             </div>
           </div>
 
-          <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+          <!-- Grouped with the chevron rather than on the title line. See FactionListView. -->
+          <div class="flex shrink-0 items-center gap-1">
+            <div class="relative z-10" @click.prevent.stop>
+              <AudienceRevealControl
+                :name="pantheon.name"
+                :visible-to="pantheon.player_visible_to"
+                form="inline"
+                @change="(next) => revealPantheon(pantheon.id, next)"
+              />
+            </div>
+            <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
         </div>
       </div>
     </template>

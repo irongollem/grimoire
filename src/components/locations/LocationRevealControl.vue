@@ -37,12 +37,13 @@ import RevealOption from "@/components/common/RevealOption.vue";
 import { useParty } from "@/composables/useParty";
 import { useUpdateLocation } from "@/composables/useLocations";
 import { arrayRevealAdapter } from "@/lib/reveal";
+import type { RevealForm } from "@/lib/reveal";
 import { STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 
 const { location, form = "button" } = defineProps<{
   location: Location;
-  form?: "button" | "overlay";
+  form?: RevealForm;
 }>();
 
 type ShareKey = "is_description_shared" | "is_npcs_shared" | "is_inventory_shared" | "is_map_shared";

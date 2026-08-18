@@ -290,7 +290,8 @@ Route: `/factions` (list), `/factions/new`, `/factions/:id`, `/factions/:id?edit
 
 - Filter bar: text search (name, tags) + type dropdown; state in `useUiStore` with Clear button
 - "Populate Setting" button — bulk-inserts seed factions for the active campaign's setting (only shown when the campaign has a recognised `calendar_id` with faction seed data); idempotent, deduplicates by name
-- Responsive card grid (1–3 columns): emblem thumbnail (or shield placeholder), name, type, tags (up to 3), and an `overlay`-form `AudienceRevealControl` — previously a bare Eye icon that reported sharing without letting the DM change it (#741)
+- Responsive card grid (1–3 columns): emblem thumbnail (or shield placeholder), name, type, tags (up to 3), and an `inline`-form `AudienceRevealControl` grouped with the row's chevron — previously a bare Eye icon that reported sharing without letting the DM change it (#741)
+- The reveal is `inline`, **not** `overlay`, and it sits in the row's trailing group rather than on the title line. `overlay` is the dark-scrim chip, and the scrim is only correct on top of artwork — on a faction row there is none behind it, so it landed as a black square on parchment and its gold "shared" state disappeared into its own backdrop. On the title line it was also vertically adrift from the chevron and, being `shrink-0` beside a `truncate` name, cost the longer names a word. The pair shares one `gap-3`; split into two row children the extra gap came straight back out of the names. `PantheonListView` is the same row, same reasoning
 
 **Faction editor** (`FactionEditor.vue`) — two-column layout:
 *Left column:* emblem image (square, click to upload, `asset-images` bucket), type selector (`EntityCombobox`), alignment selector (9 standard alignments), reveal control (`AudienceRevealControl`), tags (`TagInput`)

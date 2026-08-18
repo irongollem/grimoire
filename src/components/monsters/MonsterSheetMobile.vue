@@ -30,8 +30,10 @@
     >
       <button
         type="button"
-        class="flex size-10 shrink-0 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors active:bg-black/60"
-        :class="scrolled && 'bg-transparent text-foreground active:bg-muted'"
+        class="flex size-10 shrink-0 items-center justify-center rounded-full backdrop-blur-sm transition-colors"
+        :class="scrolled
+          ? 'bg-transparent text-foreground active:bg-muted'
+          : 'bg-black/40 text-white active:bg-black/60'"
         aria-label="Back"
         @click="goBack"
       >
@@ -62,12 +64,17 @@
           The app bar's reveal. Below `md` the control opens as a bottom sheet
           on its own, replacing `MonsterRevealSheet` — one of the two mobile
           sheets that had been written twice, independently.
+
+          The form follows the bar; see NpcDetailMobile for why the scrim has to
+          go when the bar solidifies.
         -->
-        <MonsterRevealControl :monster="monster" form="overlay" />
+        <MonsterRevealControl :monster="monster" :form="scrolled ? 'inline' : 'overlay'" />
         <button
           type="button"
-          class="flex size-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors active:bg-black/60"
-          :class="scrolled && 'bg-transparent text-foreground active:bg-muted'"
+          class="flex size-10 items-center justify-center rounded-full backdrop-blur-sm transition-colors"
+          :class="scrolled
+            ? 'bg-transparent text-foreground active:bg-muted'
+            : 'bg-black/40 text-white active:bg-black/60'"
           aria-label="More actions"
           @click="showMenu = true"
         >

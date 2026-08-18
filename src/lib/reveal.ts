@@ -28,6 +28,15 @@ export interface RevealAdapter {
   unshare(): void;
 }
 
+/**
+ * Which shape the reveal control wears. The presentations themselves are
+ * documented on `RevealControl`'s `form` prop; the union lives here because six
+ * components declare it — the control plus one wrapper per storage model — and
+ * when it was written out six times, adding `inline` to the control left the
+ * five wrappers unable to pass it through.
+ */
+export type RevealForm = "button" | "overlay" | "inline";
+
 /** How widely an entity is currently revealed. Drives the button's appearance. */
 export type RevealState = "private" | "partial" | "everyone";
 

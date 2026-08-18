@@ -33,13 +33,13 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useParty } from "@/composables/useParty";
 import { useUpdateNpc } from "@/composables/useNpcs";
 import { fieldsForFirstReveal, NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
-import type { RevealAdapter } from "@/lib/reveal";
+import type { RevealAdapter, RevealForm } from "@/lib/reveal";
 import { useUiStore } from "@/stores/ui";
 import type { Npc } from "@/types/npc.types";
 
 const { npc, form = "button" } = defineProps<{
   npc: Npc;
-  form?: "button" | "overlay";
+  form?: RevealForm;
 }>();
 
 const { mutate: updateNpc } = useUpdateNpc();

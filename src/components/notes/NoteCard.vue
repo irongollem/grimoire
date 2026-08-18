@@ -26,19 +26,6 @@
       </RouterLink>
     </div>
 
-    <!--
-      Reveal, over the category bar. Was a bare `IconReveal` beside the title
-      that said whether the note was shared but could not change it.
-    -->
-    <div class="absolute top-1.5 left-1.5 z-10" @click.prevent.stop>
-      <AudienceRevealControl
-        :name="note.title"
-        :visible-to="note.player_visible_to"
-        form="overlay"
-        @change="reveal"
-      />
-    </div>
-
     <!-- Category colour bar -->
     <div class="h-1.5 w-full shrink-0" :class="CATEGORY_BG[note.category]" />
 
@@ -51,7 +38,12 @@
         </h3>
       </div>
 
-      <!-- Category + session -->
+      <!--
+        Category, session, audience — the three things this note *is*, on one
+        row. Reveal used to float over the category bar at the card's top-left,
+        which put an opaque chip on top of the first word of every title; and
+        the scrim it wore there is for artwork, which a note card has none of.
+      -->
       <div class="flex items-center gap-2">
         <span
           class="relative px-1.5 py-0.5 rounded text-label font-bold capitalize"
@@ -63,6 +55,14 @@
         <span v-if="note.session_num" class="text-caption text-muted-foreground italic">
           Session {{ note.session_num }}
         </span>
+        <div class="relative z-10 shrink-0 -my-1 ml-auto" @click.prevent.stop>
+          <AudienceRevealControl
+            :name="note.title"
+            :visible-to="note.player_visible_to"
+            form="inline"
+            @change="reveal"
+          />
+        </div>
       </div>
 
       <!-- Content preview -->

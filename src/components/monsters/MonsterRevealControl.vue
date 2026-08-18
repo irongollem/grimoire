@@ -31,12 +31,12 @@ import { toRef } from "vue";
 import RevealControl from "@/components/common/RevealControl.vue";
 import RevealOption from "@/components/common/RevealOption.vue";
 import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
-import type { RevealAdapter } from "@/lib/reveal";
+import type { RevealAdapter, RevealForm } from "@/lib/reveal";
 import type { Monster } from "@/types/monster.types";
 
 const { monster, form = "button" } = defineProps<{
   monster: Monster;
-  form?: "button" | "overlay";
+  form?: RevealForm;
 }>();
 
 const { currentDiscovery, isMemberVisible, setWholeParty, toggleMember, unshare, updateStats } =

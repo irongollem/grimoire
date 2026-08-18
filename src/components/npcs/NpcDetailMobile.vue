@@ -24,8 +24,10 @@
     >
       <button
         type="button"
-        class="flex size-10 shrink-0 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors active:bg-black/60"
-        :class="scrolled && 'bg-transparent text-foreground active:bg-muted'"
+        class="flex size-10 shrink-0 items-center justify-center rounded-full backdrop-blur-sm transition-colors"
+        :class="scrolled
+          ? 'bg-transparent text-foreground active:bg-muted'
+          : 'bg-black/40 text-white active:bg-black/60'"
         aria-label="Back"
         @click="goBack"
       >
@@ -56,12 +58,20 @@
           The app bar's reveal. Below `md` the control opens as a bottom sheet
           on its own, which is what the hand-written `NpcRevealSheet` used to do
           — minus that sheet's separate idea of which fields exist.
+
+          The form follows the bar, because what is behind the control changes
+          as you scroll: over the hero it needs `overlay`'s scrim to stay
+          legible on the portrait, and once the bar solidifies into light glass
+          that same scrim is a black pill on a pale bar — the neighbours drop
+          theirs at exactly this point for exactly this reason.
         -->
-        <NpcRevealControl :npc="npc" form="overlay" />
+        <NpcRevealControl :npc="npc" :form="scrolled ? 'inline' : 'overlay'" />
         <button
           type="button"
-          class="flex size-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-colors active:bg-black/60"
-          :class="scrolled && 'bg-transparent text-foreground active:bg-muted'"
+          class="flex size-10 items-center justify-center rounded-full backdrop-blur-sm transition-colors"
+          :class="scrolled
+            ? 'bg-transparent text-foreground active:bg-muted'
+            : 'bg-black/40 text-white active:bg-black/60'"
           aria-label="More actions"
           @click="showMenu = true"
         >

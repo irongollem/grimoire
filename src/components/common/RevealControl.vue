@@ -24,15 +24,9 @@
   -->
   <div ref="containerRef" class="relative flex w-fit">
     <AppButton
-      :variant="overlay ? 'ghost' : state === 'private' ? 'subtle' : 'tinted'"
-      :tone="overlay || state === 'private' ? undefined : 'primary'"
-      :emphasis="state === 'everyone' ? 'strong' : 'soft'"
-      :size="overlay ? 'icon-xs' : 'sm'"
-      :class="overlay ? overlayClass : undefined"
+      v-bind="buttonProps"
       :icon="state === 'private' ? IconHide : IconReveal"
-      :label="overlay ? undefined : label"
       :title="title"
-      :aria-label="overlay ? title : undefined"
       :aria-expanded="open"
       aria-haspopup="dialog"
       @click="toggleOpen"
@@ -92,14 +86,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { CARD_OVERLAY_ACTION } from "@/components/common/appButtonVariants";
+import { CARD_OVERLAY_ACTION, ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import RevealBody from "@/components/common/RevealBody.vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useParty } from "@/composables/useParty";
 import { IconHide, IconReveal } from "@/lib/icons";
 import { revealLabel, revealState } from "@/lib/reveal";
-import type { RevealAdapter } from "@/lib/reveal";
+import type { RevealAdapter, RevealForm } from "@/lib/reveal";
 
 const { adapter, entityName, form = "button" } = defineProps<{
   /** Bridges whichever storage model this entity uses. See `lib/reveal`. */
@@ -107,7 +101,7 @@ const { adapter, entityName, form = "button" } = defineProps<{
   /** Used in the control's title and the sheet's heading. */
   entityName?: string;
   /**
-   * The two shapes this control comes in. Deliberately an enum rather than
+   * The three shapes this control comes in. Deliberately an enum rather than
    * loose size/label props: the point of one reveal control is that a DM
    * recognises it instantly, and nineteen call sites each choosing their own
    * size and label is how the previous four variants came about.
@@ -115,20 +109,31 @@ const { adapter, entityName, form = "button" } = defineProps<{
    *   button  — icon plus the current audience ("Hidden", "3 players",
    *             "Whole party"). For detail headers and action rows, where
    *             there is room to say what the state actually is.
-   *   overlay — icon only, on a translucent backdrop so it stays legible on
-   *             top of artwork. For list cards and gallery tiles, where it
-   *             sits over an image and a word would cover the art.
+   *   overlay — icon only, floating on a translucent dark scrim. ONLY where it
+   *             sits on top of artwork: a portrait, an illustration, a mobile
+   *             hero image. The scrim is what keeps it legible there.
+   *   inline  — icon only, in the theme's own colours, in the flow of a row.
+   *             For cards and rows with no artwork under the control.
    *
-   * `overlay` is sized to the card action pills it stands next to (the Edit
-   * chip on an NPC or monster card), not to a comfortable standalone icon
-   * button — two controls in the same corner at two different heights read as
-   * a mistake. Touch gets the 44px target back via the `max-md` override,
-   * which is the same trade the `md` button size makes.
+   * `inline` exists because `overlay` was used on all of them (#750), and the
+   * scrim is not a neutral default — it is a fixed near-black box, so on a note
+   * card or a faction row it lands as an unexplained dark square on parchment,
+   * and the state colour inside it stops resolving (see `buttonProps`). The
+   * question a call site has to answer is not "is this a card?" but "is there a
+   * picture behind this control?".
+   *
+   * Both icon forms are `icon-xs`, sized to the card action pills they stand
+   * next to (the Edit chip on an NPC or monster card) rather than to a
+   * comfortable standalone icon button — two controls in the same corner at two
+   * different heights read as a mistake. Both take the 44px thumb target back
+   * below `md` via `ICON_TOUCH_TARGET`, which is the same trade the `md` button
+   * size makes. Keeping `inline` to that same 1.5rem box is also what stops
+   * moving the control out of a row's text block from costing that block width:
+   * a larger one pushed faction names into truncating and their tag rows into
+   * wrapping.
    */
-  form?: "button" | "overlay";
+  form?: RevealForm;
 }>();
-
-const overlay = computed(() => form === "overlay");
 
 const { data: partyData } = useParty();
 const party = computed(() => partyData.value ?? []);
@@ -138,31 +143,76 @@ const state = computed(() => revealState(partyIds.value, adapter.isMemberVisible
 const sharedCount = computed(() => partyIds.value.filter(adapter.isMemberVisible).length);
 const label = computed(() => revealLabel(state.value, sharedCount.value));
 
-/**
- * The card-overlay treatment: a small, always-visible, icon-only chip on a dark
- * translucent scrim.
- *
- * Dark rather than theme-tinted because this form sits on top of artwork — a
- * portrait, a monster illustration, a mobile hero image — where a background
- * that follows the theme disappears against half the pictures in the app. It is
- * also what every other action chip in that same corner already does (the Edit
- * chip on an NPC or monster card, the mobile app-bar buttons), and two controls
- * side by side in two different treatments read as an accident.
- *
- * State survives the fixed background in the icon's colour, which is how the
- * hand-rolled card popovers did it before: gold once somebody can see it, white
- * while it is hidden. The hover colours are pinned too — `ghost` would
- * otherwise pull the text back to `foreground` and lose the distinction on the
- * one interaction where the DM is looking straight at it.
- */
-const overlayClass = computed(() => [
-  CARD_OVERLAY_ACTION,
-  state.value === "private" ? "text-white hover:text-white" : "text-primary hover:text-primary",
-]);
-
 const title = computed(() =>
   entityName ? `Reveal ${entityName} to players` : "Reveal to players",
 );
+
+/**
+ * How each `form` dresses the trigger. One computed rather than a ternary per
+ * attribute: with three forms the per-attribute chains stopped saying which
+ * combinations actually exist, and the `overlay` row below is a set of choices
+ * that only make sense together.
+ *
+ *   overlay — a small, always-visible, icon-only chip on a dark translucent
+ *     scrim. Dark rather than theme-tinted because this form sits on top of
+ *     artwork, where a background that follows the theme disappears against
+ *     half the pictures in the app; it is also what every other action chip in
+ *     that same corner already does (the Edit chip on an NPC or monster card,
+ *     the mobile app-bar buttons), and two controls side by side in two
+ *     different treatments read as an accident.
+ *
+ *     Both state colours are therefore *fixed light*, for the same reason the
+ *     scrim is fixed dark. `text-primary` was wrong here and looked right in
+ *     review: on the dark theme `--primary` is a bright gold that reads on
+ *     black, but on the default light theme it is `hsl(42 90% 35%)` — a dark
+ *     amber picked to sit on parchment — so the "someone can see this" chip
+ *     rendered as a featureless olive smear at roughly 1.4:1 against its own
+ *     scrim, and a DM could not tell it from the hidden one. A token that
+ *     follows the theme cannot survive a background that does not, so the pair
+ *     is `gold-300` and white, both chosen against the scrim rather than
+ *     against the page. The hover colours are pinned too — `ghost` would
+ *     otherwise pull the text back to `foreground` and lose the distinction on
+ *     the one interaction where the DM is looking straight at it.
+ *
+ *   button / inline — the same variants, and `inline` is simply the labelled
+ *     one with its label removed: `subtle`'s bordered box while hidden,
+ *     `tinted` primary once someone can see it, `strong` once that is the whole
+ *     party. Both take their colours from the theme, because unlike `overlay`
+ *     they sit on the page's own background.
+ */
+const buttonProps = computed(() => {
+  if (form === "overlay") {
+    return {
+      variant: "ghost",
+      size: "icon-xs",
+      class: [
+        CARD_OVERLAY_ACTION,
+        state.value === "private"
+          ? "text-white hover:text-white"
+          : "text-gold-300 hover:text-gold-300",
+      ],
+      ariaLabel: title.value,
+    } as const;
+  }
+  // `inline` is the `button` form with its label taken away, deliberately down
+  // to the variant. A first cut gave it no chrome at all — bare `ghost` and
+  // `link` glyphs — on the reasoning that a list row should stay quiet. On a
+  // pantheon row that turned out to be unreadable: with no box, a muted
+  // eye-slash on a card reads as a decorative status glyph rather than
+  // something you can press, which is the exact failure this control was
+  // written to end. Quiet is not the same as invisible, and a bordered box is
+  // what the rest of the app uses to say "this is a control".
+  const stateful = {
+    variant: state.value === "private" ? "subtle" : "tinted",
+    tone: state.value === "private" ? undefined : "primary",
+    emphasis: state.value === "everyone" ? "strong" : "soft",
+  } as const;
+
+  if (form === "inline") {
+    return { ...stateful, size: "icon-xs", class: ICON_TOUCH_TARGET, ariaLabel: title.value } as const;
+  }
+  return { ...stateful, size: "sm", label: label.value } as const;
+});
 
 const open = ref(false);
 

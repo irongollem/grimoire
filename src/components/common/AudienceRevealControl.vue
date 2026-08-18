@@ -33,13 +33,14 @@ import { ref, watch } from "vue";
 import RevealControl from "@/components/common/RevealControl.vue";
 import { useParty } from "@/composables/useParty";
 import { arrayRevealAdapter } from "@/lib/reveal";
+import type { RevealForm } from "@/lib/reveal";
 
 const { visibleTo, form = "button" } = defineProps<{
   /** Party member ids currently revealed to. */
   visibleTo: string[];
   /** Names the entity in the control's title and the sheet's heading. */
   name?: string;
-  form?: "button" | "overlay";
+  form?: RevealForm;
 }>();
 
 const emit = defineEmits<{ change: [string[]] }>();

@@ -72,17 +72,7 @@
           </div>
 
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2">
-              <p class="font-cinzel text-sm font-bold text-foreground truncate flex-1">{{ faction.name }}</p>
-              <div class="relative z-10 shrink-0" @click.prevent.stop>
-                <AudienceRevealControl
-                  :name="faction.name"
-                  :visible-to="faction.player_visible_to"
-                  form="overlay"
-                  @change="(next) => revealFaction(faction.id, next)"
-                />
-              </div>
-            </div>
+            <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ faction.name }}</p>
             <p v-if="faction.faction_type" class="text-label text-muted-foreground mt-0.5">
               {{ faction.faction_type }}
             </p>
@@ -95,7 +85,24 @@
             </div>
           </div>
 
-          <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+          <!--
+            Reveal sits with the chevron, not on the title line: inside the text
+            block it was vertically adrift from the only other control in the
+            row. One group rather than two row children, so the pair costs the
+            row a single `gap-3` — split, the extra gap came straight out of the
+            names, which truncated a word earlier for it.
+          -->
+          <div class="flex shrink-0 items-center gap-1">
+            <div class="relative z-10" @click.prevent.stop>
+              <AudienceRevealControl
+                :name="faction.name"
+                :visible-to="faction.player_visible_to"
+                form="inline"
+                @change="(next) => revealFaction(faction.id, next)"
+              />
+            </div>
+            <IconChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
         </div>
       </div>
     </template>

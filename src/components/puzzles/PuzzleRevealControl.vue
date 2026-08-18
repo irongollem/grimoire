@@ -44,12 +44,13 @@ import RevealOption from "@/components/common/RevealOption.vue";
 import { useParty } from "@/composables/useParty";
 import { useUpdatePuzzle } from "@/composables/usePuzzles";
 import { arrayRevealAdapter } from "@/lib/reveal";
+import type { RevealForm } from "@/lib/reveal";
 import { useCampaignStore } from "@/stores/campaign";
 import type { PuzzleRoom, PuzzleUpdate } from "@/types/puzzle.types";
 
 const { puzzle, form = "button" } = defineProps<{
   puzzle: PuzzleRoom;
-  form?: "button" | "overlay";
+  form?: RevealForm;
 }>();
 
 const { mutate: updatePuzzle } = useUpdatePuzzle();

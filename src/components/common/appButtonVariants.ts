@@ -188,6 +188,18 @@ export type AssertEmphasesListed = Assert<
 >;
 
 /**
+ * Grows an `icon-xs` button to a 44px thumb target below `md`. 1.5rem is a fine
+ * pointer target and a poor finger one, and every icon-only control small enough
+ * to be worth `icon-xs` has the same problem.
+ *
+ * Separate from `CARD_OVERLAY_ACTION` because the scrim and the touch target are
+ * two unrelated decisions that happened to ship together: the reveal control's
+ * `inline` form needs the second without the first, and inlining the same two
+ * classes there is how a rule like this stops being one rule.
+ */
+export const ICON_TOUCH_TARGET = "max-md:h-11 max-md:w-11";
+
+/**
  * The chip that floats over card artwork — Edit and Reveal in an entity card's
  * corner, and the buttons in a mobile detail screen's app bar.
  *
@@ -202,5 +214,4 @@ export type AssertEmphasesListed = Assert<
  * reveal control uses that to keep saying whether anyone can see the entity.
  */
 export const CARD_OVERLAY_ACTION =
-  // max-md restores a 44px thumb target; 1.5rem is a fine pointer target and a poor one.
-  "bg-black/50 backdrop-blur-sm hover:bg-black/70 max-md:h-11 max-md:w-11";
+  `bg-black/50 backdrop-blur-sm hover:bg-black/70 ${ICON_TOUCH_TARGET}`;
