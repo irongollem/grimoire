@@ -45,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useVueFlow, VueFlow, type ViewportTransform } from "@vue-flow/core";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
@@ -88,9 +88,42 @@ function onConnectEnd(event?: MouseEvent | TouchEvent) {
   pendingConnectionSource = null;
 }
 
+/**
+ * Persist wherever the canvas now sits.
+ *
+ * VueFlow only emits `viewportChangeEnd` for changes carrying a d3 `sourceEvent`
+ * — that is, gestures. `fitView` and `setCenter` are programmatic and carry
+ * none, so its handler returns early and a fitted or recentred view never
+ * reached the store. Pressing Fit, leaving for the overview and coming back
+ * therefore restored the last view you had *dragged* to, discarding the fit.
+ */
+function publishViewport() {
+  const viewport = flow.viewport.value;
+  // A torn-down or unmeasured canvas reports a degenerate transform, and storing
+  // that is what puts every beat off-screen on the next open.
+  if (!Number.isFinite(viewport.zoom) || viewport.zoom <= 0) return;
+  emit("viewport-change", { x: viewport.x, y: viewport.y, zoom: viewport.zoom });
+}
+
+/**
+ * VueFlow resolves the promise from a viewport move in the d3 transition's
+ * "end" callback, and with a duration of zero it never creates that transition
+ * — so awaiting one under prefers-reduced-motion would wait forever.
+ */
+async function settleViewport(move: Promise<boolean>, duration: number) {
+  if (duration) await move;
+  publishViewport();
+  return move;
+}
+
+function transitionMs() {
+  return prefersReducedMotion() ? 0 : 200;
+}
+
 async function fitGraph() {
   await nextTick();
-  return flow.fitView({ padding: 0.2, duration: prefersReducedMotion() ? 0 : 200 });
+  const duration = transitionMs();
+  return settleViewport(flow.fitView({ padding: 0.2, duration }), duration);
 }
 
 // A viewport stored in one window is restored into whatever window comes next,
@@ -112,11 +145,16 @@ async function focusCurrent() {
   await nextTick();
   const node = nodes.value.find((candidate) => candidate.id === currentBeatId);
   if (!node) return false;
-  return flow.setCenter(node.position.x + 120, node.position.y + 60, {
-    zoom: 1.25,
-    duration: prefersReducedMotion() ? 0 : 200,
-  });
+  const duration = transitionMs();
+  return settleViewport(
+    flow.setCenter(node.position.x + 120, node.position.y + 60, { zoom: 1.25, duration }),
+    duration,
+  );
 }
+
+// Belt and braces for the round trip the DM actually notices: whatever moved the
+// canvas, leaving the surface records where it ended up.
+onBeforeUnmount(publishViewport);
 
 function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
