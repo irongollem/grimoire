@@ -34,14 +34,14 @@ describe("QuestBeatFields", () => {
     });
     const title = wrapper.findAll("input")[0]!;
     await title.setValue("   ");
-    await vi.advanceTimersByTimeAsync(900);
+    await vi.advanceTimersByTimeAsync(2100);
 
     expect(mocks.update).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("Give this beat a title before it is saved.");
     expect(title.attributes("aria-invalid")).toBe("true");
 
     await title.setValue("  A better bargain  ");
-    await vi.advanceTimersByTimeAsync(900);
+    await vi.advanceTimersByTimeAsync(2100);
     await flushPromises();
 
     expect(mocks.update).toHaveBeenCalledOnce();
@@ -50,5 +50,47 @@ describe("QuestBeatFields", () => {
       update: expect.objectContaining({ title: "A better bargain" }),
     }));
     expect(wrapper.text()).not.toContain("Give this beat a title before it is saved.");
+  });
+
+  // The save path trims and defaults on the way out. It used to adopt that
+  // normalised row back into the live draft, which deleted the space off the end
+  // of the word being typed every time an autosave landed mid-sentence.
+  it("leaves the typed text alone when the save normalises it", async () => {
+    const wrapper = mount(QuestBeatFields, {
+      props: { beat: beat(), compact: true },
+      global: { stubs: { RichTextEditor: true, MentionTextarea: true } },
+    });
+    const [title, kind] = wrapper.findAll("input");
+    await title!.setValue("The bandits are ");
+    await kind!.setValue("");
+    await vi.advanceTimersByTimeAsync(2100);
+    await flushPromises();
+
+    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
+      update: expect.objectContaining({ title: "The bandits are", kind: "neutral" }),
+    }));
+    expect((title!.element as HTMLInputElement).value).toBe("The bandits are ");
+    expect((kind!.element as HTMLInputElement).value).toBe("");
+    expect(wrapper.text()).toContain("Saved");
+  });
+
+  it("ignores its own saved row echoing back through the beat prop", async () => {
+    const wrapper = mount(QuestBeatFields, {
+      props: { beat: beat(), compact: true },
+      global: { stubs: { RichTextEditor: true, MentionTextarea: true } },
+    });
+    const title = wrapper.findAll("input")[0]!;
+    await title.setValue("The bandits are ");
+    await vi.advanceTimersByTimeAsync(2100);
+    await flushPromises();
+
+    // What `onSettled`'s refetch delivers: the trimmed row, at the version we
+    // already hold. Re-hydrating from it would undo the character just typed.
+    await wrapper.setProps({ beat: { ...beat(), title: "The bandits are", updated_at: "version-2" } });
+    expect((title.element as HTMLInputElement).value).toBe("The bandits are ");
+
+    // A genuinely newer row from another window still wins.
+    await wrapper.setProps({ beat: { ...beat(), title: "Renamed elsewhere", updated_at: "version-3" } });
+    expect((title.element as HTMLInputElement).value).toBe("Renamed elsewhere");
   });
 });

@@ -112,8 +112,14 @@ const saveError = ref("");
 const titleError = computed(() => dirty.value && !draft.title.trim() ? "Give this beat a title before it is saved." : "");
 let hydrating = false;
 
+// Our own autosave echoes straight back through this prop — first the optimistic
+// write, then the refetch `onSettled` triggers — and the row it carries is the
+// *normalised* one: title trimmed, blank `kind` defaulted, blank prose nulled.
+// Re-seeding the draft from that deletes characters out from under the caret
+// mid-sentence, so only a genuinely newer row from elsewhere may replace live text.
 watch(() => beat, (nextBeat) => {
-  if (nextBeat.id === activeBeatId.value && dirty.value) return;
+  const isEcho = nextBeat.updated_at === version.value;
+  if (nextBeat.id === activeBeatId.value && (dirty.value || saving.value || isEcho)) return;
   hydrating = true;
   activeBeatId.value = nextBeat.id;
   baseline = questBeatToDraft(nextBeat);
@@ -122,7 +128,11 @@ watch(() => beat, (nextBeat) => {
   hydrating = false;
 }, { deep: true });
 
-const saveLater = useDebounceFn(() => void saveNow(), 800, { maxWait: 2500 });
+// These are prose boxes, not a search field: 800ms fired inside the pauses of an
+// ordinary sentence, and the 2.5s ceiling meant a write plus a full beat-list
+// refetch every 2.5s of continuous typing. Long enough now to sit out a
+// think-pause, with a ceiling that still bounds what an unexpected close costs.
+const saveLater = useDebounceFn(() => void saveNow(), 2000, { maxWait: 10_000 });
 watch(draft, () => {
   if (hydrating) return;
   dirty.value = !questBeatDraftsEqual(draft, baseline);
@@ -143,13 +153,12 @@ async function saveNow() {
       expectedUpdatedAt: version.value,
     });
     version.value = saved.updated_at;
-    baseline = questBeatToDraft(saved);
-    if (questBeatDraftsEqual(draft, snapshot)) {
-      hydrating = true;
-      Object.assign(draft, baseline);
-      dirty.value = false;
-      hydrating = false;
-    }
+    // Baseline is what we *sent*, never the row that came back. `questBeatDraftToUpdate`
+    // trims and defaults on the way out, so adopting the saved row here would pull
+    // those edits into the live draft — that is what yanked the trailing space off
+    // the word being typed every time an autosave landed mid-sentence.
+    baseline = { ...snapshot };
+    if (questBeatDraftsEqual(draft, snapshot)) dirty.value = false;
     emit("saved", saved);
   } catch (error) {
     saveError.value = error instanceof Error ? error.message : "Could not save this beat";
@@ -169,7 +178,16 @@ function reloadSavedBeat() {
   hydrating = false;
 }
 
+// A longer debounce needs a backstop the unmount hook cannot give: closing the tab
+// or backgrounding the app never unmounts, and `visibilitychange` is the last event
+// that still reliably gets to start a request.
+function flushOnHide() {
+  if (document.visibilityState === "hidden") void saveNow();
+}
+document.addEventListener("visibilitychange", flushOnHide);
+
 onBeforeUnmount(() => {
+  document.removeEventListener("visibilitychange", flushOnHide);
   void saveNow();
 });
 </script>
