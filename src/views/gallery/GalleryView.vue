@@ -64,13 +64,21 @@
         :key="img.id"
         class="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted"
       >
+        <!--
+          Same hover zoom as the NPC and monster grid cards (EntityGridCard),
+          and the same duration — a gallery of pictures is the one grid where
+          the artwork *is* the content, so it was the odd one out in staying
+          still. The card's `overflow-hidden` is what keeps the scale inside its
+          corners. Clicking flies the full image out of this thumbnail; that
+          half lives in FocalImage/ImageLightbox and applies app-wide.
+        -->
         <FocalImage
           :src="img.image_url"
           :alt="img.prompt"
           format="square"
           :render-width="300"
           lightbox
-          class="h-full w-full"
+          class="h-full w-full transition-transform duration-300 group-hover:scale-105"
         />
 
         <!-- Kind badge -->

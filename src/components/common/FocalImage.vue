@@ -6,7 +6,7 @@
       'w-full h-full',
       format === 'token' && 'rounded-full overflow-hidden',
       format === 'square' && 'overflow-hidden',
-      lightbox && src && 'cursor-zoom-in',
+      lightbox && src && (lightboxPending ? 'cursor-progress' : 'cursor-zoom-in'),
     ]"
     @click="handleImageClick"
   >
@@ -36,7 +36,13 @@
       @load="onPlaceholderLoad"
     />
   </div>
-  <ImageLightbox v-if="lightbox" :src="lightboxSrc" @close="lightboxSrc = null" />
+  <ImageLightbox
+    v-if="lightbox"
+    :src="lightboxSrc"
+    :alt="alt ?? undefined"
+    :origin="lightboxOrigin"
+    @close="closeLightbox"
+  />
 </template>
 
 <script setup lang="ts">
@@ -44,6 +50,7 @@ import { ref, computed, watch, onBeforeUnmount } from "vue";
 import smartcrop from "smartcrop";
 import { backfillVariants, type VariantWidth } from "@/lib/storage";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
+import type { ModalOrigin } from "@/lib/modalOrigin";
 import { initPlaceholderFocalPoints, getPlaceholderFocalPoint } from "@/lib/placeholderFocalPoints";
 
 export type ImageFormat = "portrait" | "landscape" | "token" | "square";
@@ -109,8 +116,83 @@ const variantFailed = ref(false);
 
 const lightboxSrc = ref<string | null>(null);
 
-function handleImageClick() {
-  if (props.lightbox && props.src) lightboxSrc.value = props.src;
+/**
+ * Where the full-size view should fly out of: this thumbnail, measured at the
+ * moment it was clicked.
+ *
+ * Measured here rather than inside the lightbox because by the time the
+ * lightbox exists the page may have scrolled under it, and because this element
+ * is the only one that knows which thumbnail was pressed — the lightbox is
+ * teleported to `body` and has no idea. Every `lightbox` FocalImage in the app
+ * gets the animation from this, not just the Gallery.
+ */
+const lightboxOrigin = ref<ModalOrigin | null>(null);
+
+/** True while the full-size image is being fetched, before the overlay opens. */
+const lightboxPending = ref(false);
+
+/**
+ * Resolves once `url` is decoded and paintable — or once it has failed.
+ *
+ * Never rejects on purpose: a broken URL should still open the lightbox and let
+ * the browser show its own broken-image state, because swallowing the click
+ * instead would look like the picture simply is not clickable.
+ */
+function preload(url: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = url;
+    // `decode()` resolves when the frame is ready to paint, not merely when the
+    // bytes have arrived, which is the difference between the animation flying
+    // a real picture and flying an empty box for its first frames.
+    if (img.decode) img.decode().then(() => resolve(), () => resolve());
+    else {
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+    }
+  });
+}
+
+/**
+ * Opens the full-size view, but only once the image is actually ready.
+ *
+ * The overlay used to mount on the click and start its flight from the image's
+ * own `load` event. Both halves were right individually and wrong together: the
+ * backdrop appeared instantly, then held a dark empty screen while the
+ * full-resolution file downloaded, and the flight began after the eye had
+ * already been pulled away from the thumbnail it was supposed to fly out of.
+ *
+ * It is a real second download, not a cache hit — the card renders a `_w300`
+ * variant and the lightbox opens the original — so the gap is not theoretical.
+ * Waiting first means the overlay and the picture arrive together and the
+ * animation has something to carry.
+ */
+async function handleImageClick() {
+  if (!props.lightbox || !props.src || lightboxPending.value) return;
+  const url = props.src;
+
+  lightboxPending.value = true;
+  await preload(url);
+  lightboxPending.value = false;
+
+  // Re-measured after the wait rather than before it: the rect that matters is
+  // where this thumbnail is when the overlay opens, and the page may have
+  // scrolled while the file was coming down. Gone from the DOM entirely (a
+  // filter changed under the click) means no origin, which falls back to a fade.
+  const rect = rootRef.value?.getBoundingClientRect();
+  lightboxOrigin.value = rect
+    ? { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
+    : null;
+
+  // `props.src` rather than the captured `url`: if the source swapped during
+  // the wait, opening the old one would show a picture that is no longer here.
+  if (props.src !== url) return;
+  lightboxSrc.value = url;
+}
+
+function closeLightbox() {
+  lightboxSrc.value = null;
+  lightboxOrigin.value = null;
 }
 
 // Matches URLs that are already pre-sized variants (_w200/_w300/_w400/_w600).
