@@ -43,7 +43,7 @@
         <!-- Rarity badge -->
         <div
           class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-base"
-          :style="{ borderColor: rarityColor + '66' }"
+          :style="{ borderColor: rarityTint }"
         >
           <div class="flex justify-between">
             <span class="text-muted-foreground">Type</span>
@@ -59,7 +59,7 @@
             <span class="text-muted-foreground">Rarity</span>
             <span
               class="font-bold"
-              :style="{ color: RARITY_BADGE_COLORS[item.rarity] }"
+              :class="RARITY_TEXT[item.rarity]"
               >{{ ITEM_RARITY_LABELS[item.rarity] }}</span
             >
           </div>
@@ -278,8 +278,8 @@ import { useCampaigns } from "@/composables/useCampaigns";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
-  RARITY_COLORS,
-  RARITY_BADGE_COLORS,
+  RARITY_SURFACE_VAR,
+  RARITY_TEXT,
   itemSourceLabel,
 } from "@/types/item.types";
 import type { Item } from "@/types/item.types";
@@ -301,8 +301,10 @@ const scopeLabel = computed(() => {
   return allCampaigns.value?.find((c) => c.id === props.item.campaign_id)?.name ?? "Campaign";
 });
 
-const rarityColor = computed(
-  () => RARITY_COLORS[props.item.rarity] ?? "#888888",
+/** Border tint from the ramp token. `color-mix` rather than an appended hex
+ *  alpha, which only worked while these were hex literals (#744). */
+const rarityTint = computed(
+  () => `color-mix(in oklab, ${RARITY_SURFACE_VAR[props.item.rarity]} 40%, transparent)`,
 );
 const displayCost = computed(
   () => props.priceOverride ?? props.item.cost ?? null,

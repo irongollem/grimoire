@@ -12,7 +12,7 @@
         <div class="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
           <span
             class="text-label font-bold px-2 py-0.5 rounded text-white shrink-0"
-            :style="{ backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD' }"
+            :class="TRAP_TYPE_BG[trap.trap_type]"
           >{{ trap.trap_type }}</span>
           <h2 class="font-cinzel text-sm font-bold text-foreground flex-1 truncate">{{ trap.name }}</h2>
           <span v-if="trap.cr" class="font-cinzel text-xs text-muted-foreground shrink-0">
@@ -162,7 +162,7 @@ import { RouterLink } from "vue-router";
 import { IconClose, IconEdit } from '@/lib/icons';
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 import FocalImage from "@/components/common/FocalImage.vue";
-import { TRAP_TYPE_COLORS } from "@/types/trap.types";
+import { TRAP_TYPE_BG } from "@/types/trap.types";
 import { crToXp } from "@/types/encounter.types";
 import type { Trap } from "@/types/trap.types";
 

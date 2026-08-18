@@ -39,7 +39,7 @@
           />
           <span
             class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
-            :style="{ backgroundColor: TRAP_TYPE_COLORS[trap.trap_type] + 'DD' }"
+            :class="TRAP_TYPE_BG[trap.trap_type]"
           >{{ trap.trap_type }}</span>
         </div>
         <div class="p-2.5 flex flex-col gap-0.5">
@@ -58,7 +58,7 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { useTraps } from "@/composables/useTraps";
-import { TRAP_TYPES, TRAP_TYPE_COLORS } from "@/types/trap.types";
+import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 

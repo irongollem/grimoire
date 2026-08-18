@@ -40,7 +40,7 @@
     </div>
 
     <!-- Category colour bar -->
-    <div class="h-1.5 w-full shrink-0" :style="{ backgroundColor: categoryColor(note.category) }" />
+    <div class="h-1.5 w-full shrink-0" :class="CATEGORY_BG[note.category]" />
 
     <div class="p-3 flex flex-col gap-2 flex-1">
       <!-- Title row -->
@@ -54,10 +54,11 @@
       <!-- Category + session -->
       <div class="flex items-center gap-2">
         <span
-          class="px-1.5 py-0.5 rounded text-label font-bold capitalize"
-          :style="{ backgroundColor: categoryColor(note.category) + '22', color: categoryColor(note.category) }"
+          class="relative px-1.5 py-0.5 rounded text-label font-bold capitalize"
+          :class="CATEGORY_TEXT[note.category]"
         >
-          {{ note.category }}
+          <span class="absolute inset-0 rounded opacity-15" :class="CATEGORY_BG[note.category]" />
+          <span class="relative">{{ note.category }}</span>
         </span>
         <span v-if="note.session_num" class="text-caption text-muted-foreground italic">
           Session {{ note.session_num }}
@@ -109,18 +110,25 @@ function reveal(playerVisibleTo: string[]) {
   updateNote({ id: note.id, update: { player_visible_to: playerVisibleTo } });
 }
 
-const CATEGORY_COLORS: Record<NoteCategory, string> = {
-  general:  "#6b7280",
-  session:  "#2563eb",
-  lore:     "#7c3aed",
-  location: "#059669",
-  quest:    "#d97706",
-  faction:  "#dc2626",
+const CATEGORY_BG: Record<NoteCategory, string> = {
+  general:     "bg-note-general",
+  session:     "bg-note-session",
+  lore:        "bg-note-lore",
+  location:    "bg-note-location",
+  quest:       "bg-note-quest",
+  faction:     "bg-note-faction",
 };
 
-function categoryColor(cat: NoteCategory): string {
-  return CATEGORY_COLORS[cat] ?? "#6b7280";
-}
+/** Text-colour classes for the same ramp. */
+const CATEGORY_TEXT: Record<NoteCategory, string> = {
+  general:     "text-note-general",
+  session:     "text-note-session",
+  lore:        "text-note-lore",
+  location:    "text-note-location",
+  quest:       "text-note-quest",
+  faction:     "text-note-faction",
+};
+
 
 const preview = computed(() => extractTiptapText(note.content));
 </script>

@@ -47,10 +47,8 @@
           <!-- Rarity badge — top right -->
           <span
             class="absolute top-1.5 right-1.5 text-label px-1.5 py-0.5 rounded leading-none"
-            :style="{
-              backgroundColor: rarityColor(item.rarity) + 'cc',
-              color: '#fff',
-            }"
+            :class="RARITY_BG[item.rarity]"
+            style="color: #fff"
           >
             {{ ITEM_RARITY_LABELS[item.rarity] }}
           </span>
@@ -173,8 +171,7 @@ import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useItems } from "@/composables/useItems";
 import { isUuid } from "@/lib/library/contentIdentity";
-import { ITEM_RARITY_LABELS, RARITY_BADGE_COLORS } from "@/types/item.types";
-import type { ItemRarity } from "@/types/item.types";
+import { ITEM_RARITY_LABELS, RARITY_BG } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
@@ -209,7 +206,4 @@ const { savedCount, linkCount } = useScrollRestore("items");
 const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
 linkCount(visibleCount);
 
-function rarityColor(rarity: ItemRarity): string {
-  return RARITY_BADGE_COLORS[rarity] ?? "#9ca3af";
-}
 </script>

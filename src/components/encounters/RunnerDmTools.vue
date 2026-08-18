@@ -105,7 +105,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { TRAP_TYPE_COLORS } from "@/types/trap.types";
+import { TRAP_TYPE_VAR } from "@/types/trap.types";
 import { IconMonster, IconWarning } from "@/lib/icons";
 import ComplicationGeneratorDialog from "./ComplicationGeneratorDialog.vue";
 import type { ComplicationMode } from "@/ai/useComplicationGeneration";
@@ -130,7 +130,7 @@ function triggerLabel(trigger: import("@/types/encounter.types").EventTrigger): 
 }
 
 function trapTypeColor(trapType: string): string {
-  return TRAP_TYPE_COLORS[trapType as keyof typeof TRAP_TYPE_COLORS] ?? "#3D3D3D";
+  return TRAP_TYPE_VAR[trapType as keyof typeof TRAP_TYPE_VAR] ?? "var(--muted-foreground)";
 }
 
 function toggleTrapDetail(id: string) {

@@ -36,7 +36,7 @@
 
               <!-- Selected spell display -->
               <div v-if="selectedSpell" class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-violet-500/10 border border-violet-500/30">
-                <div class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: SCHOOL_COLORS[selectedSpell.school] }" />
+                <div class="h-2 w-2 rounded-full shrink-0" :class="SCHOOL_BG[selectedSpell.school]" />
                 <span class="text-body text-foreground flex-1">{{ selectedSpell.name }}</span>
                 <span class="font-cinzel text-2xs text-muted-foreground">{{ selectedSpell.level === 0 ? 'Cantrip' : `Lvl ${selectedSpell.level}` }}</span>
                 <button type="button" class="text-muted-foreground hover:text-foreground" @click="clearSpell">×</button>
@@ -54,7 +54,7 @@
                   class="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 transition-colors text-left"
                   @click="pickSpell(spell)"
                 >
-                  <div class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: SCHOOL_COLORS[spell.school] }" />
+                  <div class="h-2 w-2 rounded-full shrink-0" :class="SCHOOL_BG[spell.school]" />
                   <span class="text-body text-foreground flex-1 truncate">{{ spell.name }}</span>
                   <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
                 </button>
@@ -175,7 +175,7 @@
 import { ref, watch } from "vue";
 import { IconGenerate, IconSearch } from '@/lib/icons';
 import { useAddInnateSpell } from "@/composables/useCharacterSpells";
-import { SCHOOL_COLORS } from "@/types/spell.types";
+import { SCHOOL_BG } from "@/types/spell.types";
 import type { Spell, InnateSourceType, InnateResetsOn } from "@/types/spell.types";
 import { useSpellSearch } from "@/composables/useSpellSearch";
 

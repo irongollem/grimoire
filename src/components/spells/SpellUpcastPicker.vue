@@ -7,7 +7,7 @@
         <div class="flex items-center gap-2">
           <div
             class="h-2.5 w-2.5 shrink-0 rounded-full"
-            :style="{ backgroundColor: SCHOOL_COLORS[entry.spell.school] }"
+            :class="SCHOOL_BG[entry.spell.school]"
           />
           <h2 class="text-heading-sm font-bold text-foreground">{{ entry.spell.name }}</h2>
         </div>
@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watchEffect } from "vue";
-import { SCHOOL_COLORS } from "@/types/spell.types";
+import { SCHOOL_BG } from "@/types/spell.types";
 import { scaleExpression } from "@/lib/dice/dice";
 import { spellSlotKey, slotPool } from "@/rules/spellSlots";
 import type { CharacterSpellEntry } from "@/types/spell.types";

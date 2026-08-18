@@ -80,7 +80,7 @@
                 </span>
                 <span class="min-w-0">
                   <template v-if="entry.kind === 'item'">
-                    <span class="font-semibold" :style="{ color: rarityColor(entry.item.rarity) }">{{ entry.item.name }}</span>
+                    <span class="font-semibold" :class="rarityTextClass(entry.item.rarity)">{{ entry.item.name }}</span>
                     <span class="text-muted-foreground"> ×{{ entry.dice ?? entry.fixedQty }}</span>
                   </template>
                   <template v-else-if="entry.kind === 'currency'">
@@ -281,7 +281,7 @@ import {
   type LootCrTier,
   type LootEntry,
 } from "@/types/lootTable.types";
-import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_BADGE_COLORS, type ItemRarity } from "@/types/item.types";
+import { ITEM_RARITY_LABELS, ITEM_TYPE_LABELS, RARITY_TEXT, type ItemRarity } from "@/types/item.types";
 
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT_SHORT;
 
@@ -334,8 +334,8 @@ const resolvedEntries = computed<ResolvedLootEntry[]>(() =>
 const unresolvedCount = computed(() => resolvedEntries.value.filter((e) => e.kind === "unresolved").length);
 const creatableCount = computed(() => resolvedEntries.value.length - unresolvedCount.value);
 
-function rarityColor(rarity: string): string {
-  return RARITY_BADGE_COLORS[rarity as ItemRarity] ?? RARITY_BADGE_COLORS.mundane;
+function rarityTextClass(rarity: string): string {
+  return RARITY_TEXT[rarity as ItemRarity] ?? RARITY_TEXT.mundane;
 }
 
 const COIN_ORDER = ["pp", "gp", "ep", "sp", "cp"] as const;

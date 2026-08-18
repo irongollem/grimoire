@@ -198,7 +198,7 @@ import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCompanions } from "@/composables/useCompanions";
-import { TRAP_TYPE_COLORS } from "@/types/trap.types";
+import { TRAP_TYPE_VAR } from "@/types/trap.types";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { parseExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
@@ -392,7 +392,7 @@ const selectedCompanion = computed(() => {
 // ── Trap helper ───────────────────────────────────────────────────────────────
 
 function trapTypeColor(trapType: string): string {
-  return TRAP_TYPE_COLORS[trapType as keyof typeof TRAP_TYPE_COLORS] ?? "#3D3D3D";
+  return TRAP_TYPE_VAR[trapType as keyof typeof TRAP_TYPE_VAR] ?? "var(--muted-foreground)";
 }
 
 // ── Render helpers ────────────────────────────────────────────────────────────

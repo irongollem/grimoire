@@ -3,11 +3,20 @@ import type { AiProvenance } from "@/ai/provenance";
 export const TRAP_TYPES = ["Mechanical", "Magical", "Hybrid", "Environmental"] as const;
 export type TrapType = typeof TRAP_TYPES[number];
 
-export const TRAP_TYPE_COLORS: Record<TrapType, string> = {
-  Mechanical:    "#b45309",
-  Magical:       "#7c3aed",
-  Hybrid:        "#0284c7",
-  Environmental: "#16a34a",
+export const TRAP_TYPE_BG: Record<TrapType, string> = {
+  Mechanical:       "bg-trap-mechanical",
+  Magical:          "bg-trap-magical",
+  Hybrid:           "bg-trap-hybrid",
+  Environmental:    "bg-trap-environmental",
+};
+
+/** The same ramp as `var()` values, for CSS custom properties and other
+ *  places a utility class cannot reach (#744). */
+export const TRAP_TYPE_VAR: Record<TrapType, string> = {
+  Mechanical:    "var(--trap-mechanical)",
+  Magical:       "var(--trap-magical)",
+  Hybrid:        "var(--trap-hybrid)",
+  Environmental: "var(--trap-environmental)",
 };
 
 export const TRAP_TRIGGERS = [

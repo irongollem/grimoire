@@ -3,23 +3,23 @@ import type { AiProvenance } from "@/ai/provenance";
 export const PUZZLE_TYPES = ["Logic", "Physical", "Arcane", "Social", "Environmental"] as const;
 export type PuzzleType = typeof PUZZLE_TYPES[number];
 
-export const PUZZLE_TYPE_COLORS: Record<PuzzleType, string> = {
-  Logic:         "#7c3aed",
-  Physical:      "#b45309",
-  Arcane:        "#0284c7",
-  Social:        "#16a34a",
-  Environmental: "#059669",
+export const PUZZLE_TYPE_BG: Record<PuzzleType, string> = {
+  Logic:            "bg-puzzle-logic",
+  Physical:         "bg-puzzle-physical",
+  Arcane:           "bg-puzzle-arcane",
+  Social:           "bg-puzzle-social",
+  Environmental:    "bg-puzzle-environmental",
 };
 
 export const PUZZLE_DIFFICULTIES = ["Trivial", "Easy", "Medium", "Hard", "Deadly"] as const;
 export type PuzzleDifficulty = typeof PUZZLE_DIFFICULTIES[number];
 
-export const PUZZLE_DIFFICULTY_COLORS: Record<PuzzleDifficulty, string> = {
-  Trivial: "#6b7280",
-  Easy:    "#16a34a",
-  Medium:  "#ca8a04",
-  Hard:    "#dc2626",
-  Deadly:  "#7c3aed",
+export const PUZZLE_DIFFICULTY_BG: Record<PuzzleDifficulty, string> = {
+  Trivial:    "bg-puzzle-difficulty-trivial",
+  Easy:       "bg-puzzle-difficulty-easy",
+  Medium:     "bg-puzzle-difficulty-medium",
+  Hard:       "bg-puzzle-difficulty-hard",
+  Deadly:     "bg-puzzle-difficulty-deadly",
 };
 
 export const PUZZLE_SKILLS = [

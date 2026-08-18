@@ -89,7 +89,7 @@
         <span
           class="shrink-0 mt-0.5 px-2 py-0.5 rounded text-label font-bold"
           :style="{
-            backgroundColor: typeColor(rel) + '22',
+            backgroundColor: `color-mix(in oklab, ${typeColor(rel)} 13%, transparent)`,
             color: typeColor(rel),
           }"
         >
@@ -137,7 +137,7 @@ import {
 import { useNpcs } from "@/composables/useNpcs";
 import {
   NPC_RELATIONSHIP_TYPE_LABELS,
-  NPC_RELATIONSHIP_TYPE_COLORS,
+  NPC_RELATIONSHIP_TYPE_VAR,
   NPC_RELATIONSHIP_INVERSE,
 } from "@/types/npc.types";
 import type { NpcRelationshipType, NpcRelation } from "@/types/npc.types";
@@ -182,7 +182,7 @@ function typeLabel(rel: NpcRelation): string {
   );
 }
 function typeColor(rel: NpcRelation): string {
-  return NPC_RELATIONSHIP_TYPE_COLORS[effectiveType(rel)] ?? "#6b7280";
+  return NPC_RELATIONSHIP_TYPE_VAR[effectiveType(rel)] ?? "var(--muted-foreground)";
 }
 
 function otherNpcId(rel: NpcRelation): string {

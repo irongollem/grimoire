@@ -9,14 +9,14 @@ export const DUNGEON_FEATURE_TYPES = [
 ] as const;
 export type DungeonFeatureType = (typeof DUNGEON_FEATURE_TYPES)[number];
 
-export const DUNGEON_FEATURE_TYPE_COLORS: Record<DungeonFeatureType, string> = {
-  "Secret Door":     "#7c3aed",
-  "Hidden Passage":  "#0284c7",
-  "Treasure Chest":  "#b45309",
-  "Hidden Cache":    "#16a34a",
-  "Concealed Alcove":"#0891b2",
-  "Moving Wall":     "#6b7280",
-  "Other":           "#9ca3af",
+export const DUNGEON_FEATURE_TYPE_BG: Record<DungeonFeatureType, string> = {
+  "Secret Door":       "bg-feature-secret-door",
+  "Hidden Passage":    "bg-feature-hidden-passage",
+  "Treasure Chest":    "bg-feature-treasure-chest",
+  "Hidden Cache":      "bg-feature-hidden-cache",
+  "Concealed Alcove":  "bg-feature-concealed-alcove",
+  "Moving Wall":       "bg-feature-moving-wall",
+  Other:               "bg-feature-other",
 };
 
 export const DUNGEON_FEATURE_TRIGGERS = [

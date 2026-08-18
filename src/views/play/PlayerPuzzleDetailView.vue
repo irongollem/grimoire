@@ -40,11 +40,11 @@
             <div class="flex flex-wrap gap-2">
               <span
                 class="text-label md:text-sm px-2 py-0.5 rounded text-white font-bold"
-                :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
+                :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
               >{{ puzzle.puzzle_type }}</span>
               <span
                 class="text-label md:text-sm px-2 py-0.5 rounded text-white font-bold"
-                :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
+                :class="PUZZLE_DIFFICULTY_BG[puzzle.difficulty]"
               >{{ puzzle.difficulty }}</span>
             </div>
             <div v-if="puzzle.skill_checks.length" class="flex flex-wrap gap-x-3 gap-y-1 mt-1">
@@ -109,7 +109,7 @@ import { RouterLink, useRoute } from "vue-router";
 import { IconChevronLeft, IconPuzzle } from '@/lib/icons';
 import { usePlayerVisiblePuzzle } from "@/composables/usePuzzles";
 import { useMarkRead } from "@/composables/useReadItems";
-import { PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
+import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

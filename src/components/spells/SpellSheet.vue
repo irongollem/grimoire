@@ -24,7 +24,7 @@
             <span class="text-muted-foreground">School</span>
             <span
               class="font-bold capitalize"
-              :style="{ color: SCHOOL_COLORS[spell.school] }"
+              :class="SCHOOL_TEXT[spell.school]"
               >{{ spell.school }}</span
             >
           </div>
@@ -201,7 +201,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { useSpellKnowers } from "@/composables/useCharacterSpells";
 import { useNpcSpellCasters } from "@/composables/useNpcs";
-import { SCHOOL_COLORS, ATTACK_TYPES, spellSourceLabel } from "@/types/spell.types";
+import { SCHOOL_TEXT, ATTACK_TYPES, spellSourceLabel } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 
 const props = defineProps<{ spell: Spell }>();

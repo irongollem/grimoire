@@ -81,22 +81,62 @@ export const NPC_RELATIONSHIP_INVERSE: Record<NpcRelationshipType, NpcRelationsh
   former_enemy:  "former_enemy",
 };
 
-export const NPC_RELATIONSHIP_TYPE_COLORS: Record<NpcRelationshipType, string> = {
-  family:        "#7c3aed",  // violet
-  sibling:       "#a855f7",  // lighter violet — kin-cluster with family
-  chosen_family: "#c084fc",  // lavender — kin-cluster with family but airier
-  friend:        "#059669",
-  ally:          "#2563eb",
-  rival:         "#d97706",
-  enemy:         "#dc2626",
-  mentor:        "#0891b2",
-  apprentice:    "#6366f1",
-  lover:         "#db2777",
-  subordinate:   "#6b7280",
-  superior:      "#374151",
-  contact:       "#64748b",
-  former_ally:   "#92400e",
-  former_enemy:  "#7f1d1d",
+export const NPC_RELATIONSHIP_TYPE_BG: Record<NpcRelationshipType, string> = {
+  family:           "bg-relation-family",
+  sibling:          "bg-relation-sibling",
+  chosen_family:    "bg-relation-chosen-family",
+  friend:           "bg-relation-friend",
+  ally:             "bg-relation-ally",
+  rival:            "bg-relation-rival",
+  enemy:            "bg-relation-enemy",
+  mentor:           "bg-relation-mentor",
+  apprentice:       "bg-relation-apprentice",
+  lover:            "bg-relation-lover",
+  subordinate:      "bg-relation-subordinate",
+  superior:         "bg-relation-superior",
+  contact:          "bg-relation-contact",
+  former_ally:      "bg-relation-former-ally",
+  former_enemy:     "bg-relation-former-enemy",
+};
+
+/** Text-colour classes for the same ramp. */
+export const NPC_RELATIONSHIP_TYPE_TEXT: Record<NpcRelationshipType, string> = {
+  family:           "text-relation-family",
+  sibling:          "text-relation-sibling",
+  chosen_family:    "text-relation-chosen-family",
+  friend:           "text-relation-friend",
+  ally:             "text-relation-ally",
+  rival:            "text-relation-rival",
+  enemy:            "text-relation-enemy",
+  mentor:           "text-relation-mentor",
+  apprentice:       "text-relation-apprentice",
+  lover:            "text-relation-lover",
+  subordinate:      "text-relation-subordinate",
+  superior:         "text-relation-superior",
+  contact:          "text-relation-contact",
+  former_ally:      "text-relation-former-ally",
+  former_enemy:     "text-relation-former-enemy",
+};
+
+/** The same ramp as `var()` values, for borders, gradients and canvas — places
+ *  a utility class cannot reach. Tint with `color-mix`, never by appending a
+ *  hex alpha: that only ever worked on a hex literal. */
+export const NPC_RELATIONSHIP_TYPE_VAR: Record<NpcRelationshipType, string> = {
+  family:           "var(--relation-family)",
+  sibling:          "var(--relation-sibling)",
+  chosen_family:    "var(--relation-chosen-family)",
+  friend:           "var(--relation-friend)",
+  ally:             "var(--relation-ally)",
+  rival:            "var(--relation-rival)",
+  enemy:            "var(--relation-enemy)",
+  mentor:           "var(--relation-mentor)",
+  apprentice:       "var(--relation-apprentice)",
+  lover:            "var(--relation-lover)",
+  subordinate:      "var(--relation-subordinate)",
+  superior:         "var(--relation-superior)",
+  contact:          "var(--relation-contact)",
+  former_ally:      "var(--relation-former-ally)",
+  former_enemy:     "var(--relation-former-enemy)",
 };
 
 export interface NpcRelation {

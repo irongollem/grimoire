@@ -634,13 +634,39 @@ export function getHitDie(cls: string | null | undefined): number {
   return 8;
 }
 
-export const SCHOOL_COLORS: Record<SpellSchool, string> = {
-  abjuration: "#2563eb",
-  conjuration: "#7c3aed",
-  divination: "#0891b2",
-  enchantment: "#db2777",
-  evocation: "#dc2626",
-  illusion: "#9333ea",
-  necromancy: "#4d7c0f",
-  transmutation: "#d97706",
+export const SCHOOL_BG: Record<SpellSchool, string> = {
+  abjuration:       "bg-school-abjuration",
+  conjuration:      "bg-school-conjuration",
+  divination:       "bg-school-divination",
+  enchantment:      "bg-school-enchantment",
+  evocation:        "bg-school-evocation",
+  illusion:         "bg-school-illusion",
+  necromancy:       "bg-school-necromancy",
+  transmutation:    "bg-school-transmutation",
+};
+
+/** Text-colour classes for the same ramp. */
+export const SCHOOL_TEXT: Record<SpellSchool, string> = {
+  abjuration:       "text-school-abjuration",
+  conjuration:      "text-school-conjuration",
+  divination:       "text-school-divination",
+  enchantment:      "text-school-enchantment",
+  evocation:        "text-school-evocation",
+  illusion:         "text-school-illusion",
+  necromancy:       "text-school-necromancy",
+  transmutation:    "text-school-transmutation",
+};
+
+/** The same ramp as `var()` values, for borders, gradients and canvas — places
+ *  a utility class cannot reach. Tint with `color-mix`, never by appending a
+ *  hex alpha: that only ever worked on a hex literal. */
+export const SCHOOL_VAR: Record<SpellSchool, string> = {
+  abjuration:       "var(--school-abjuration)",
+  conjuration:      "var(--school-conjuration)",
+  divination:       "var(--school-divination)",
+  enchantment:      "var(--school-enchantment)",
+  evocation:        "var(--school-evocation)",
+  illusion:         "var(--school-illusion)",
+  necromancy:       "var(--school-necromancy)",
+  transmutation:    "var(--school-transmutation)",
 };

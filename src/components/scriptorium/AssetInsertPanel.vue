@@ -93,9 +93,9 @@
                   v-if="item.badge"
                   class="px-2 py-0.5 rounded text-label font-bold capitalize"
                   :style="{
-                    backgroundColor: item.badgeColor + '22',
+                    backgroundColor: `color-mix(in oklab, ${item.badgeColor} 13%, transparent)`,
                     color: item.badgeColor,
-                    border: `1px solid ${item.badgeColor}44`,
+                    border: `1px solid color-mix(in oklab, ${item.badgeColor} 27%, transparent)`,
                   }"
                 >
                   {{ item.badge }}
@@ -135,25 +135,29 @@ import {
   formatSpellForScriptorium,
   formatLocationForScriptorium,
 } from "@/lib/scriptorium/scriptoriumImport";
-import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
+import { SCHOOL_VAR, spellLevelLabel } from "@/types/spell.types";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { ScriptoriumTheme } from "@/types/scriptorium.types";
 
-const MONSTER_TYPE_COLORS: Record<string, string> = {
-  aberration: "#7c3aed",
-  beast: "#16a34a",
-  celestial: "#f59e0b",
-  construct: "#6b7280",
-  dragon: "#dc2626",
-  elemental: "#ea580c",
-  fey: "#ec4899",
-  fiend: "#991b1b",
-  giant: "#92400e",
-  humanoid: "#2563eb",
-  monstrosity: "#059669",
-  ooze: "#65a30d",
-  plant: "#15803d",
-  undead: "#6b21a8",
+
+/** The same ramp as `var()` values, for borders, gradients and canvas — places
+ *  a utility class cannot reach. Tint with `color-mix`, never by appending a
+ *  hex alpha: that only ever worked on a hex literal. */
+const MONSTER_TYPE_VAR: Record<string, string> = {
+  aberration:     "var(--monstertype-aberration)",
+  beast:          "var(--monstertype-beast)",
+  celestial:      "var(--monstertype-celestial)",
+  construct:      "var(--monstertype-construct)",
+  dragon:         "var(--monstertype-dragon)",
+  elemental:      "var(--monstertype-elemental)",
+  fey:            "var(--monstertype-fey)",
+  fiend:          "var(--monstertype-fiend)",
+  giant:          "var(--monstertype-giant)",
+  humanoid:       "var(--monstertype-humanoid)",
+  monstrosity:    "var(--monstertype-monstrosity)",
+  ooze:           "var(--monstertype-ooze)",
+  plant:          "var(--monstertype-plant)",
+  undead:         "var(--monstertype-undead)",
 };
 const NPC_STATUS_COLORS: Record<string, string> = {
   alive: "#22c55e",
@@ -225,7 +229,7 @@ const allItems = computed<ListItem[]>(() => {
       name: m.name,
       subtitle: `${m.size} ${m.monster_type} · CR ${m.stat_block.challenge_rating}`,
       badge: m.monster_type,
-      badgeColor: MONSTER_TYPE_COLORS[m.monster_type] ?? "#6b7280",
+      badgeColor: MONSTER_TYPE_VAR[m.monster_type] ?? "var(--muted-foreground)",
       type: "monsters" as TabKey,
     }));
   }
@@ -235,7 +239,7 @@ const allItems = computed<ListItem[]>(() => {
       name: s.name,
       subtitle: `${spellLevelLabel(s.level)} ${s.school}${s.concentration ? " · Conc." : ""}`,
       badge: s.school,
-      badgeColor: SCHOOL_COLORS[s.school] ?? "#6b7280",
+      badgeColor: SCHOOL_VAR[s.school] ?? "var(--muted-foreground)",
       type: "spells" as TabKey,
     }));
   }

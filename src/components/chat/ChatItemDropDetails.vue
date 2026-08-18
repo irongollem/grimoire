@@ -7,7 +7,7 @@
       <!-- Stat block -->
       <div
         class="rounded border bg-muted/20 p-2 mb-2 flex flex-col gap-1 text-xs"
-        :style="{ borderColor: rarityColor + '55' }"
+        :style="{ borderColor: rarityTint }"
       >
         <div class="flex justify-between gap-2">
           <span class="text-muted-foreground shrink-0">Type</span>
@@ -17,7 +17,7 @@
         </div>
         <div class="flex justify-between gap-2">
           <span class="text-muted-foreground shrink-0">Rarity</span>
-          <span class="font-semibold" :style="{ color: rarityColor }">
+          <span class="font-semibold" :class="RARITY_TEXT[item.rarity]">
             {{ ITEM_RARITY_LABELS[item.rarity] }}
           </span>
         </div>
@@ -86,15 +86,20 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
-  RARITY_BADGE_COLORS,
+  RARITY_TEXT,
+  RARITY_VAR,
 } from "@/types/item.types";
 
 const props = defineProps<{ itemId: string }>();
 
 const { data: item, isPending } = useItem(props.itemId);
 
-const rarityColor = computed(() =>
-  item.value ? (RARITY_BADGE_COLORS[item.value.rarity] ?? "#9ca3af") : "#9ca3af",
+/** Border tint from the ramp token. `color-mix` rather than an appended hex
+ *  alpha, which only worked while these were hex literals (#744). */
+const rarityTint = computed(() =>
+  item.value
+    ? `color-mix(in oklab, ${RARITY_VAR[item.value.rarity]} 33%, transparent)`
+    : "transparent",
 );
 </script>
 

@@ -99,7 +99,7 @@
             <!-- School colour dot -->
             <div
               class="h-2.5 w-2.5 shrink-0 rounded-full"
-              :style="{ backgroundColor: SCHOOL_COLORS[entry.spell.school] }"
+              :class="SCHOOL_BG[entry.spell.school]"
             />
 
             <!-- Spell name -->
@@ -322,7 +322,7 @@ import { useUpdatePartyMember, useParty, useCastCharacterSpell } from "@/composa
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useConcentration } from "@/composables/useConcentration";
 import { useUiStore } from "@/stores/ui";
-import { SCHOOL_COLORS } from "@/types/spell.types";
+import { SCHOOL_BG } from "@/types/spell.types";
 import { parseExpression, parsedToCounts, scaleExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";

@@ -97,7 +97,7 @@
             <span
               v-if="item.item_id && catalogItemMap.get(item.item_id)"
               class="shrink-0 w-2 h-2 rounded-full"
-              :style="{ backgroundColor: RARITY_COLORS[catalogItemMap.get(item.item_id)!.rarity] }"
+              :class="RARITY_SURFACE_BG[catalogItemMap.get(item.item_id)!.rarity]"
               :title="catalogItemMap.get(item.item_id)!.rarity"
             />
             <RouterLink
@@ -168,7 +168,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";
-import { ITEM_TYPE_LABELS, RARITY_COLORS } from "@/types/item.types";
+import { ITEM_TYPE_LABELS, RARITY_SURFACE_BG } from "@/types/item.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";

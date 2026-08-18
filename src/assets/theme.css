@@ -94,6 +94,98 @@
   --color-cr-high: var(--cr-high);
   --color-cr-deadly: var(--cr-deadly);
 
+  /* ── Entity ramps, part two (#744) ───────────────────────────────────────
+     The same conversion as the relationship and CR ramps above, applied to the
+     rest of them: rarity, note category, calendar event, scriptorium doc type,
+     NPC relation type, trap, puzzle, dungeon feature, spell school, monster
+     type and location tier.
+
+     Long, and deliberately not collapsed into a shared palette. 61 distinct
+     hues sit behind these 120 steps, but 40 of them appear exactly once — so a
+     shared palette would be a handful of real synonyms plus a long tail of
+     coincidences, and merging those means "retint legendary items" silently
+     also retints festivals and bronze traps. A step that happens to equal
+     another today is not the same decision as that other one.
+
+     What this does buy: every ramp is now a knob. A step that goes muddy in
+     dark mode is one line here. */
+  --color-rarity-surface-mundane: var(--rarity-surface-mundane);
+  --color-rarity-surface-common: var(--rarity-surface-common);
+  --color-rarity-surface-uncommon: var(--rarity-surface-uncommon);
+  --color-rarity-surface-rare: var(--rarity-surface-rare);
+  --color-rarity-surface-very-rare: var(--rarity-surface-very-rare);
+  --color-rarity-surface-legendary: var(--rarity-surface-legendary);
+  --color-rarity-surface-artifact: var(--rarity-surface-artifact);
+  --color-rarity-mundane: var(--rarity-mundane);
+  --color-rarity-common: var(--rarity-common);
+  --color-rarity-uncommon: var(--rarity-uncommon);
+  --color-rarity-rare: var(--rarity-rare);
+  --color-rarity-very-rare: var(--rarity-very-rare);
+  --color-rarity-legendary: var(--rarity-legendary);
+  --color-rarity-artifact: var(--rarity-artifact);
+  --color-relation-family: var(--relation-family);
+  --color-relation-sibling: var(--relation-sibling);
+  --color-relation-chosen-family: var(--relation-chosen-family);
+  --color-relation-friend: var(--relation-friend);
+  --color-relation-ally: var(--relation-ally);
+  --color-relation-rival: var(--relation-rival);
+  --color-relation-enemy: var(--relation-enemy);
+  --color-relation-mentor: var(--relation-mentor);
+  --color-relation-apprentice: var(--relation-apprentice);
+  --color-relation-lover: var(--relation-lover);
+  --color-relation-subordinate: var(--relation-subordinate);
+  --color-relation-superior: var(--relation-superior);
+  --color-relation-contact: var(--relation-contact);
+  --color-relation-former-ally: var(--relation-former-ally);
+  --color-relation-former-enemy: var(--relation-former-enemy);
+  --color-trap-mechanical: var(--trap-mechanical);
+  --color-trap-magical: var(--trap-magical);
+  --color-trap-hybrid: var(--trap-hybrid);
+  --color-trap-environmental: var(--trap-environmental);
+  --color-puzzle-logic: var(--puzzle-logic);
+  --color-puzzle-physical: var(--puzzle-physical);
+  --color-puzzle-arcane: var(--puzzle-arcane);
+  --color-puzzle-social: var(--puzzle-social);
+  --color-puzzle-environmental: var(--puzzle-environmental);
+  --color-puzzle-difficulty-trivial: var(--puzzle-difficulty-trivial);
+  --color-puzzle-difficulty-easy: var(--puzzle-difficulty-easy);
+  --color-puzzle-difficulty-medium: var(--puzzle-difficulty-medium);
+  --color-puzzle-difficulty-hard: var(--puzzle-difficulty-hard);
+  --color-puzzle-difficulty-deadly: var(--puzzle-difficulty-deadly);
+  --color-feature-secret-door: var(--feature-secret-door);
+  --color-feature-hidden-passage: var(--feature-hidden-passage);
+  --color-feature-treasure-chest: var(--feature-treasure-chest);
+  --color-feature-hidden-cache: var(--feature-hidden-cache);
+  --color-feature-concealed-alcove: var(--feature-concealed-alcove);
+  --color-feature-moving-wall: var(--feature-moving-wall);
+  --color-feature-other: var(--feature-other);
+  --color-school-abjuration: var(--school-abjuration);
+  --color-school-conjuration: var(--school-conjuration);
+  --color-school-divination: var(--school-divination);
+  --color-school-enchantment: var(--school-enchantment);
+  --color-school-evocation: var(--school-evocation);
+  --color-school-illusion: var(--school-illusion);
+  --color-school-necromancy: var(--school-necromancy);
+  --color-school-transmutation: var(--school-transmutation);
+  --color-note-general: var(--note-general);
+  --color-note-session: var(--note-session);
+  --color-note-lore: var(--note-lore);
+  --color-note-location: var(--note-location);
+  --color-note-quest: var(--note-quest);
+  --color-note-faction: var(--note-faction);
+  --color-doctype-custom: var(--doctype-custom);
+  --color-doctype-spell: var(--doctype-spell);
+  --color-doctype-monster: var(--doctype-monster);
+  --color-doctype-item: var(--doctype-item);
+  --color-doctype-class: var(--doctype-class);
+  --color-doctype-subclass: var(--doctype-subclass);
+  --color-doctype-race: var(--doctype-race);
+  --color-doctype-background: var(--doctype-background);
+  --color-doctype-adventure: var(--doctype-adventure);
+  --color-doctype-npc-sheet: var(--doctype-npc-sheet);
+  --color-doctype-location: var(--doctype-location);
+  --color-doctype-quest: var(--doctype-quest);
+
   /* Border radius */
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 0.125rem);
@@ -199,6 +291,124 @@
   --cr-moderate: hsl(25 95% 53%);
   --cr-high: hsl(0 74% 50%);
   --cr-deadly: hsl(258 76% 57%);
+
+  /* Ramp values (#744). Hues unchanged from the hex maps they replace — a
+     relocation, not a repaint.  is the dark card-fill set;
+      is the vivid badge set. They were two maps and stay two, because
+     they answer different questions about the same item. */
+  /* RARITY_SURFACE_BG */
+  --rarity-surface-mundane: #3d3d3d;
+  --rarity-surface-common: #888888;
+  --rarity-surface-uncommon: #1a4a1a;
+  --rarity-surface-rare: #1a2a5c;
+  --rarity-surface-very-rare: #3d1a5c;
+  --rarity-surface-legendary: #5c3a1a;
+  --rarity-surface-artifact: #6b1c1c;
+
+  /* RARITY_BG */
+  --rarity-mundane: #9ca3af;
+  --rarity-common: #d1d5db;
+  --rarity-uncommon: #4ade80;
+  --rarity-rare: #60a5fa;
+  --rarity-very-rare: #c084fc;
+  --rarity-legendary: #fb923c;
+  --rarity-artifact: #f87171;
+
+
+  /* NPC_RELATIONSHIP_TYPE_BG */
+  --relation-family: #7c3aed;
+  --relation-sibling: #a855f7;
+  --relation-chosen-family: #c084fc;
+  --relation-friend: #059669;
+  --relation-ally: #2563eb;
+  --relation-rival: #d97706;
+  --relation-enemy: #dc2626;
+  --relation-mentor: #0891b2;
+  --relation-apprentice: #6366f1;
+  --relation-lover: #db2777;
+  --relation-subordinate: #6b7280;
+  --relation-superior: #374151;
+  --relation-contact: #64748b;
+  --relation-former-ally: #92400e;
+  --relation-former-enemy: #7f1d1d;
+
+  /* TRAP_TYPE_BG */
+  --trap-mechanical: #b45309;
+  --trap-magical: #7c3aed;
+  --trap-hybrid: #0284c7;
+  --trap-environmental: #16a34a;
+
+  /* PUZZLE_TYPE_BG */
+  --puzzle-logic: #7c3aed;
+  --puzzle-physical: #b45309;
+  --puzzle-arcane: #0284c7;
+  --puzzle-social: #16a34a;
+  --puzzle-environmental: #059669;
+
+  /* PUZZLE_DIFFICULTY_BG */
+  --puzzle-difficulty-trivial: #6b7280;
+  --puzzle-difficulty-easy: #16a34a;
+  --puzzle-difficulty-medium: #ca8a04;
+  --puzzle-difficulty-hard: #dc2626;
+  --puzzle-difficulty-deadly: #7c3aed;
+
+  /* DUNGEON_FEATURE_TYPE_BG */
+  --feature-secret-door: #7c3aed;
+  --feature-hidden-passage: #0284c7;
+  --feature-treasure-chest: #b45309;
+  --feature-hidden-cache: #16a34a;
+  --feature-concealed-alcove: #0891b2;
+  --feature-moving-wall: #6b7280;
+  --feature-other: #9ca3af;
+
+  /* SCHOOL_BG */
+  --school-abjuration: #2563eb;
+  --school-conjuration: #7c3aed;
+  --school-divination: #0891b2;
+  --school-enchantment: #db2777;
+  --school-evocation: #dc2626;
+  --school-illusion: #9333ea;
+  --school-necromancy: #4d7c0f;
+  --school-transmutation: #d97706;
+
+
+  /* CATEGORY_COLORS */
+  --note-general: #6b7280;
+  --note-session: #2563eb;
+  --note-lore: #7c3aed;
+  --note-location: #059669;
+  --note-quest: #d97706;
+  --note-faction: #dc2626;
+
+  /* DOC_TYPE_BG */
+  --doctype-custom: #6b7280;
+  --doctype-spell: #7c3aed;
+  --doctype-monster: #dc2626;
+  --doctype-item: #d97706;
+  --doctype-class: #2563eb;
+  --doctype-subclass: #0891b2;
+  --doctype-race: #059669;
+  --doctype-background: #9333ea;
+  --doctype-adventure: #c2410c;
+  --doctype-npc-sheet: #0f766e;
+  --doctype-location: #0369a1;
+  --doctype-quest: #b45309;
+
+  /* MONSTER_TYPE_BG */
+  --monstertype-aberration: #7c3aed;
+  --monstertype-beast: #16a34a;
+  --monstertype-celestial: #f59e0b;
+  --monstertype-construct: #6b7280;
+  --monstertype-dragon: #dc2626;
+  --monstertype-elemental: #ea580c;
+  --monstertype-fey: #ec4899;
+  --monstertype-fiend: #991b1b;
+  --monstertype-giant: #92400e;
+  --monstertype-humanoid: #2563eb;
+  --monstertype-monstrosity: #059669;
+  --monstertype-ooze: #65a30d;
+  --monstertype-plant: #15803d;
+  --monstertype-undead: #6b21a8;
   --primary-foreground: hsl(0 0% 100%);
 
   --secondary: hsl(340 30% 88%);

@@ -73,7 +73,7 @@
         <!-- Type colour bar -->
         <div
           class="h-1 w-full shrink-0"
-          :style="{ backgroundColor: typeColor(doc.doc_type) }"
+          :class="DOC_TYPE_BG[doc.doc_type]"
         />
 
         <div class="p-4 flex flex-col gap-2 flex-1">
@@ -87,8 +87,8 @@
             <span
               class="shrink-0 px-1.5 py-0.5 rounded text-eyebrow font-bold"
               :style="{
-                backgroundColor: typeColor(doc.doc_type) + '22',
-                color: typeColor(doc.doc_type),
+                backgroundColor: `color-mix(in oklab, ${DOC_TYPE_VAR[doc.doc_type]} 13%, transparent)`,
+                color: DOC_TYPE_VAR[doc.doc_type],
               }"
             >
               {{ DOC_TYPE_LABELS[doc.doc_type] }}
@@ -211,19 +211,38 @@ const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
   quest: "Quest",
 };
 
-const DOC_TYPE_COLORS: Record<ScriptoriumDocType, string> = {
-  custom: "#6b7280",
-  spell: "#7c3aed",
-  monster: "#dc2626",
-  item: "#d97706",
-  class: "#2563eb",
-  subclass: "#0891b2",
-  race: "#059669",
-  background: "#9333ea",
-  adventure: "#c2410c",
-  "npc-sheet": "#0f766e",
-  location: "#0369a1",
-  quest: "#b45309",
+const DOC_TYPE_BG: Record<ScriptoriumDocType, string> = {
+  custom:        "bg-doctype-custom",
+  spell:         "bg-doctype-spell",
+  monster:       "bg-doctype-monster",
+  item:          "bg-doctype-item",
+  class:         "bg-doctype-class",
+  subclass:      "bg-doctype-subclass",
+  race:          "bg-doctype-race",
+  background:    "bg-doctype-background",
+  adventure:     "bg-doctype-adventure",
+  "npc-sheet":   "bg-doctype-npc-sheet",
+  location:      "bg-doctype-location",
+  quest:         "bg-doctype-quest",
+};
+
+
+/** The same ramp as `var()` values, for borders, gradients and canvas — places
+ *  a utility class cannot reach. Tint with `color-mix`, never by appending a
+ *  hex alpha: that only ever worked on a hex literal. */
+const DOC_TYPE_VAR: Record<ScriptoriumDocType, string> = {
+  custom:        "var(--doctype-custom)",
+  spell:         "var(--doctype-spell)",
+  monster:       "var(--doctype-monster)",
+  item:          "var(--doctype-item)",
+  class:         "var(--doctype-class)",
+  subclass:      "var(--doctype-subclass)",
+  race:          "var(--doctype-race)",
+  background:    "var(--doctype-background)",
+  adventure:     "var(--doctype-adventure)",
+  "npc-sheet":   "var(--doctype-npc-sheet)",
+  location:      "var(--doctype-location)",
+  quest:         "var(--doctype-quest)",
 };
 
 // Filter State Pattern — search + type survive opening a document and coming back.
@@ -268,9 +287,6 @@ const filtered = computed(() => {
   return list;
 });
 
-function typeColor(type: ScriptoriumDocType): string {
-  return DOC_TYPE_COLORS[type] ?? "#6b7280";
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {

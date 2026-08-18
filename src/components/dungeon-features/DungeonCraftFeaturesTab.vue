@@ -39,7 +39,7 @@
           />
           <span
             class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
-            :style="{ backgroundColor: DUNGEON_FEATURE_TYPE_COLORS[feature.feature_type] + 'DD' }"
+            :class="DUNGEON_FEATURE_TYPE_BG[feature.feature_type]"
           >{{ feature.feature_type }}</span>
         </div>
         <div class="p-2.5 flex flex-col gap-0.5">
@@ -62,7 +62,7 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { useDungeonFeatures } from "@/composables/useDungeonFeatures";
-import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_COLORS } from "@/types/dungeonFeature.types";
+import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_BG } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 

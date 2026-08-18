@@ -370,7 +370,7 @@ import {
   ITEM_TYPE_LABELS,
   ITEM_RARITIES,
   ITEM_RARITY_LABELS,
-  RARITY_COLORS,
+  RARITY_SURFACE_BG,
   RARITY_PRICE_HINTS,
   isWeaponType,
   isArmorType,
@@ -502,7 +502,7 @@ const isMagic = computed(() => rarity.value !== "mundane");
 
 const rarityPriceHint = computed(() => RARITY_PRICE_HINTS[rarity.value] ?? "");
 const isArtObject = computed(() => itemType.value === "art_object");
-const rarityColor = computed(() => RARITY_COLORS[rarity.value] ?? "#888888");
+const rarityColor = computed(() => RARITY_SURFACE_BG[rarity.value] ?? "#888888");
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 const { mutateAsync: createItem } = useCreateItem();

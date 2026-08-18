@@ -139,7 +139,7 @@
               class="flex items-center gap-2 py-2 first:pt-0 last:pb-0"
             >
               <!-- School colour dot -->
-              <div class="h-2 w-2 shrink-0 rounded-full" :style="{ backgroundColor: SCHOOL_COLORS[spell.school] }" />
+              <div class="h-2 w-2 shrink-0 rounded-full" :class="SCHOOL_BG[spell.school]" />
               <!-- Name + level -->
               <div class="flex-1 min-w-0">
                 <span class="text-body text-foreground">{{ spell.name }}</span>
@@ -288,7 +288,7 @@ import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { supabase } from "@/lib/supabase";
 import { parseExpression, parsedToCounts } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
-import { SCHOOL_COLORS } from "@/types/spell.types";
+import { SCHOOL_BG } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";

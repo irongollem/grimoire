@@ -1,7 +1,7 @@
 <template>
   <div
     class="rounded-lg border bg-card p-3 flex flex-col gap-1.5 font-stat text-base"
-    :style="isIdentified ? { borderColor: rarityColor + '66' } : {}"
+    :style="isIdentified ? { borderColor: rarityTint } : {}"
   >
     <div v-if="displayItemTypeLabel" class="flex justify-between">
       <span class="text-muted-foreground">Type</span>
@@ -15,7 +15,7 @@
       <span class="text-muted-foreground">Rarity</span>
       <span
         class="font-bold"
-        :style="isIdentified ? { color: RARITY_BADGE_COLORS[item.rarity] } : { color: RARITY_BADGE_COLORS['mundane'] }"
+        :class="isIdentified ? RARITY_TEXT[item.rarity] : RARITY_TEXT['mundane']"
       >
         {{ isIdentified ? ITEM_RARITY_LABELS[item.rarity] : ITEM_RARITY_LABELS['mundane'] }}
       </span>
@@ -71,8 +71,8 @@ import { computed } from "vue";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
-  RARITY_COLORS,
-  RARITY_BADGE_COLORS,
+  RARITY_SURFACE_VAR,
+  RARITY_TEXT,
   MAGIC_ONLY_ITEM_TYPES,
 } from "@/types/item.types";
 import type { Item } from "@/types/item.types";
@@ -83,8 +83,10 @@ const { item, isIdentified } = defineProps<{
   isIdentified: boolean;
 }>();
 
-const rarityColor = computed(() =>
-  item ? (RARITY_COLORS[item.rarity] ?? "#888888") : "#888888"
+/** Border tint from the ramp token. `color-mix` rather than an appended hex
+ *  alpha, which only worked while these were hex literals (#744). */
+const rarityTint = computed(() =>
+  item ? `color-mix(in oklab, ${RARITY_SURFACE_VAR[item.rarity]} 40%, transparent)` : "transparent"
 );
 
 const displayItemTypeLabel = computed(() => {

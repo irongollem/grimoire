@@ -33,11 +33,11 @@
             />
             <span
               class="absolute top-2 left-2 text-label md:text-sm px-1.5 py-0.5 rounded text-white font-bold"
-              :style="{ backgroundColor: PUZZLE_TYPE_COLORS[puzzle.puzzle_type] + 'DD' }"
+              :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
             >{{ puzzle.puzzle_type }}</span>
             <span
               class="absolute bottom-2 right-2 text-label md:text-sm px-1.5 py-0.5 rounded text-white font-bold"
-              :style="{ backgroundColor: PUZZLE_DIFFICULTY_COLORS[puzzle.difficulty] + 'DD' }"
+              :class="PUZZLE_DIFFICULTY_BG[puzzle.difficulty]"
             >{{ puzzle.difficulty }}</span>
           </div>
           <div class="p-2.5">
@@ -60,7 +60,7 @@ import { RouterLink } from "vue-router";
 import { IconPuzzle } from '@/lib/icons';
 import { usePlayerVisiblePuzzles } from "@/composables/usePuzzles";
 import { useReadItems } from "@/composables/useReadItems";
-import { PUZZLE_TYPE_COLORS, PUZZLE_DIFFICULTY_COLORS } from "@/types/puzzle.types";
+import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";

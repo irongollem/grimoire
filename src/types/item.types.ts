@@ -93,25 +93,62 @@ export const RARITY_PRICE_HINTS: Partial<Record<ItemRarity, string>> = {
 };
 
 /** Frame colours for card printing, keyed by rarity */
-export const RARITY_COLORS: Record<ItemRarity, string> = {
-  mundane: "#3D3D3D",
-  common: "#888888",
-  uncommon: "#1A4A1A",
-  rare: "#1A2A5C",
-  very_rare: "#3D1A5C",
-  legendary: "#5C3A1A",
-  artifact: "#6B1C1C",
+export const RARITY_SURFACE_BG: Record<ItemRarity, string> = {
+  mundane:      "bg-rarity-surface-mundane",
+  common:       "bg-rarity-surface-common",
+  uncommon:     "bg-rarity-surface-uncommon",
+  rare:         "bg-rarity-surface-rare",
+  very_rare:    "bg-rarity-surface-very-rare",
+  legendary:    "bg-rarity-surface-legendary",
+  artifact:     "bg-rarity-surface-artifact",
+};
+
+/** The same ramp as `var()` values, for borders, gradients and canvas — places
+ *  a utility class cannot reach. Tint with `color-mix`, never by appending a
+ *  hex alpha: that only ever worked on a hex literal. */
+export const RARITY_SURFACE_VAR: Record<ItemRarity, string> = {
+  mundane:      "var(--rarity-surface-mundane)",
+  common:       "var(--rarity-surface-common)",
+  uncommon:     "var(--rarity-surface-uncommon)",
+  rare:         "var(--rarity-surface-rare)",
+  very_rare:    "var(--rarity-surface-very-rare)",
+  legendary:    "var(--rarity-surface-legendary)",
+  artifact:     "var(--rarity-surface-artifact)",
 };
 
 /** Vivid badge colours for UI display */
-export const RARITY_BADGE_COLORS: Record<ItemRarity, string> = {
-  mundane: "#9ca3af",
-  common: "#d1d5db",
-  uncommon: "#4ade80",
-  rare: "#60a5fa",
-  very_rare: "#c084fc",
-  legendary: "#fb923c",
-  artifact: "#f87171",
+export const RARITY_BG: Record<ItemRarity, string> = {
+  mundane:      "bg-rarity-mundane",
+  common:       "bg-rarity-common",
+  uncommon:     "bg-rarity-uncommon",
+  rare:         "bg-rarity-rare",
+  very_rare:    "bg-rarity-very-rare",
+  legendary:    "bg-rarity-legendary",
+  artifact:     "bg-rarity-artifact",
+};
+
+/** Text-colour classes for the same ramp. */
+export const RARITY_TEXT: Record<ItemRarity, string> = {
+  mundane:      "text-rarity-mundane",
+  common:       "text-rarity-common",
+  uncommon:     "text-rarity-uncommon",
+  rare:         "text-rarity-rare",
+  very_rare:    "text-rarity-very-rare",
+  legendary:    "text-rarity-legendary",
+  artifact:     "text-rarity-artifact",
+};
+
+/** The same ramp as `var()` values, for borders, gradients and canvas — places
+ *  a utility class cannot reach. Tint with `color-mix`, never by appending a
+ *  hex alpha: that only ever worked on a hex literal. */
+export const RARITY_VAR: Record<ItemRarity, string> = {
+  mundane:      "var(--rarity-mundane)",
+  common:       "var(--rarity-common)",
+  uncommon:     "var(--rarity-uncommon)",
+  rare:         "var(--rarity-rare)",
+  very_rare:    "var(--rarity-very-rare)",
+  legendary:    "var(--rarity-legendary)",
+  artifact:     "var(--rarity-artifact)",
 };
 
 export const WEAPON_PROPERTIES = [

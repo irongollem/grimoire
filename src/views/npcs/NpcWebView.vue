@@ -114,7 +114,7 @@ import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "
 import { useUiStore } from "@/stores/ui";
 import {
   NPC_RELATIONSHIP_TYPE_LABELS,
-  NPC_RELATIONSHIP_TYPE_COLORS,
+  NPC_RELATIONSHIP_TYPE_VAR,
   NPC_RELATIONSHIP_INVERSE,
 } from "@/types/npc.types";
 import type { NpcRelationshipType } from "@/types/npc.types";
@@ -148,10 +148,27 @@ const isLoading = computed(
 
 // ── Graph data ────────────────────────────────────────────────────────────────
 
-/** A theme custom property as a concrete value — canvas needs a real colour. */
+/**
+ * A theme custom property as a concrete value.
+ *
+ * The graph config takes colours as *values* — they end up on SVG presentation
+ * attributes and in the layout engine, neither of which resolves `var()` or
+ * knows what a utility class is. So the ramps are read out of the document here
+ * rather than the graph keeping its own palette, which is what let its previous
+ * private copy rot (#742/#744).
+ *
+ * Resolved at build time of the graph data, so a rebuild after a theme switch
+ * picks up the new palette.
+ */
 function cssValue(token: string, fallback: string): string {
   if (typeof document === "undefined") return fallback;
   return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
+}
+
+/** `var(--x)` from a ramp map, resolved to a value the graph can paint with. */
+function resolveVar(varExpr: string | undefined, fallback: string): string {
+  const token = varExpr?.match(/^var\((--[^)]+)\)$/)?.[1];
+  return token ? cssValue(token, fallback) : fallback;
 }
 
 // Node colours come from the shared relationship ramp, resolved to concrete
@@ -228,7 +245,7 @@ const graphEdges = computed(() => {
       edges[key] = {
         source: a,
         target: b,
-        edgeColor: NPC_RELATIONSHIP_TYPE_COLORS[rawType] ?? "#6b7280",
+        edgeColor: resolveVar(NPC_RELATIONSHIP_TYPE_VAR[rawType], "#6b7280"),
         dashed: false,
       };
     }
@@ -244,7 +261,7 @@ const graphEdges = computed(() => {
         edges[key] = {
           source: npcKey,
           target: pcKey,
-          edgeColor: NPC_RELATIONSHIP_TYPE_COLORS[note.relationship_type] ?? "#d97706",
+          edgeColor: resolveVar(NPC_RELATIONSHIP_TYPE_VAR[note.relationship_type], "#d97706"),
           dashed: true,
         };
       }
@@ -403,7 +420,7 @@ const panelNpcConnections = computed(() => {
         name: npcById.value[otherId]?.name ?? "Unknown",
         typeLabel: NPC_RELATIONSHIP_TYPE_LABELS[effectiveType] ?? rawType,
         effectiveType,
-        color: NPC_RELATIONSHIP_TYPE_COLORS[effectiveType] ?? "#6b7280",
+        color: resolveVar(NPC_RELATIONSHIP_TYPE_VAR[effectiveType], "#6b7280"),
         notes: r.notes ?? "",
       };
     });

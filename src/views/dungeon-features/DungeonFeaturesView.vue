@@ -70,7 +70,7 @@
             <!-- Type badge -->
             <span
               class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
-              :style="{ backgroundColor: DUNGEON_FEATURE_TYPE_COLORS[feature.feature_type] + 'DD' }"
+              :class="DUNGEON_FEATURE_TYPE_BG[feature.feature_type]"
             >{{ feature.feature_type }}</span>
           </div>
 
@@ -106,7 +106,7 @@ import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { IconAdd, IconLoading, IconPopulate } from '@/lib/icons';
 import { useDungeonFeatures, usePopulateDungeonFeatures } from "@/composables/useDungeonFeatures";
-import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_COLORS } from "@/types/dungeonFeature.types";
+import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_BG } from "@/types/dungeonFeature.types";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

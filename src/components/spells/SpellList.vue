@@ -49,7 +49,7 @@
           <!-- School colour bar -->
           <div
             class="h-1.5 w-full shrink-0"
-            :style="{ backgroundColor: SCHOOL_COLORS[spell.school] }"
+            :class="SCHOOL_BG[spell.school]"
           />
 
           <div class="p-3 flex flex-col gap-2 flex-1">
@@ -62,7 +62,7 @@
               </h3>
               <span
                 class="shrink-0 px-1.5 py-0.5 rounded text-label font-bold text-white whitespace-nowrap"
-                :style="{ backgroundColor: SCHOOL_COLORS[spell.school] }"
+                :class="SCHOOL_BG[spell.school]"
               >
                 {{ spell.level === 0 ? "C" : spell.level }}
               </span>
@@ -183,7 +183,7 @@ import { useAllSpells } from "@/composables/useSpells";
 import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
-import { SCHOOL_COLORS, spellLevelLabel } from "@/types/spell.types";
+import { SCHOOL_BG, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
