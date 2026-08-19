@@ -12,7 +12,7 @@
     :type="isNativeButton ? type : undefined"
     :disabled="isNativeButton ? isInert : undefined"
     :aria-disabled="!isNativeButton && isInert ? true : undefined"
-    :class="cn(buttonVariants({ variant, size, active, block, tone, emphasis, fill }), className)"
+    :class="cn(buttonVariants({ variant, size, active, block, tone, emphasis, fill, surface, shape }), className)"
     :title="isTouch ? undefined : (tooltip ?? label)"
     :aria-label="ariaLabel ?? label ?? tooltip"
     @click="onClick"
@@ -88,6 +88,8 @@ const {
   tone = "neutral",
   emphasis = "soft",
   fill = "none",
+  surface = "none",
+  shape = "default",
   type = "button",
   label,
   icon,
@@ -148,6 +150,10 @@ const {
    * `muted` (neutral wash), or `tone` (tinted by `tone`). See appButtonVariants.
    */
   fill?: ButtonVariants["fill"];
+  /** `pill` rounds the control fully — a circular icon button or a chip. */
+  shape?: ButtonVariants["shape"];
+  /** Background at rest — the companion to `fill`, which only paints on hover. */
+  surface?: ButtonVariants["surface"];
   /** Short label shown below sm instead of the full one. */
   mobileLabel?: string;
   /** Hides the label below the `collapseBelow` breakpoint entirely, leaving the icon. */

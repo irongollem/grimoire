@@ -113,6 +113,21 @@ export const buttonVariants = cva(
         "icon-sm": "h-8 w-8 rounded-md text-label-lg",
       },
       /**
+       * The control's outline. `pill` rounds it fully — a circular icon button, a
+       * filter chip, a pill-shaped search field.
+       *
+       * The largest recipe still unexpressible after six waves: 88 sites, of which
+       * 56 across 45 files are circular icon buttons alone (the mobile search clear,
+       * the AI generate-dialog close, avatar actions). An axis rather than three new
+       * sizes, because the shape is orthogonal to the box — every size can be a pill.
+       *
+       * Declared after `size` on purpose: cva emits variants in key order, so
+       * `rounded-full` lands after the size's own `rounded`/`rounded-md` and wins the
+       * border-radius group in tailwind-merge. Moving this key above `size` silently
+       * un-rounds every pill, which is why the ordering is asserted.
+       */
+      shape: { default: "", pill: "rounded-full" },
+      /**
        * Selected state for toggles and segmented pickers.
        *
        * Deliberately carries no `border-primary`: `ghost`, `link` and `chip` set no
@@ -155,6 +170,22 @@ export const buttonVariants = cva(
        *   tone   — tinted by `tone`, via the compounds below.
        */
       fill: { none: "", muted: "hover:bg-muted", tone: "" },
+      /**
+       * The background the control carries **at rest** — the companion to `fill`,
+       * which only ever paints one on hover. Together they cover the two halves a
+       * call site can ask for.
+       *
+       * Intended for the bordered-neutral variants (`subtle`, `outline`) and `ghost`:
+       * a copy button, an accordion header, a picker card that reads as a raised
+       * surface before you touch it. The variants whose background IS their identity
+       * — `primary`, `chip`, `tinted` — already paint one and should not be given a
+       * second.
+       *
+       * 41 sites, 25 of them `bg-card` across 17 files. The `muted` value normalizes
+       * five different opacities (/20 /30 /40 /50 and bare) onto one, which is the
+       * same trade every size in this sweep makes.
+       */
+      surface: { none: "", card: "bg-card", muted: "bg-muted/40" },
       /**
        * What a `tinted` button means. Semantic rather than hue-named so the palette
        * stays changeable: each maps to a `--color-tone-*` custom property a theme
@@ -340,7 +371,7 @@ export const buttonVariants = cva(
     ],
     defaultVariants: {
       variant: "subtle", size: "sm", active: false, block: false,
-      tone: "neutral", emphasis: "soft", fill: "none",
+      tone: "neutral", emphasis: "soft", fill: "none", surface: "none", shape: "default",
     },
   },
 );
@@ -351,6 +382,8 @@ export type ButtonSize = NonNullable<ButtonVariants["size"]>;
 export type ButtonTone = NonNullable<ButtonVariants["tone"]>;
 export type ButtonEmphasis = NonNullable<ButtonVariants["emphasis"]>;
 export type ButtonFill = NonNullable<ButtonVariants["fill"]>;
+export type ButtonShape = NonNullable<ButtonVariants["shape"]>;
+export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 
 /* ── Enumerations for the component catalogue (#622) ──────────────────────────
    `cva` does not expose its own config, so the catalogue at /dev/components
@@ -392,6 +425,18 @@ export const BUTTON_COLOUR_TONES = BUTTON_TONES.filter((t) => t !== "neutral");
 export const BUTTON_EMPHASES = ["soft", "strong", "outline"] as const satisfies readonly ButtonEmphasis[];
 
 export const BUTTON_FILLS = ["none", "muted", "tone"] as const satisfies readonly ButtonFill[];
+
+export const BUTTON_SHAPES = ["default", "pill"] as const satisfies readonly ButtonShape[];
+
+export const BUTTON_SURFACES = ["none", "card", "muted"] as const satisfies readonly ButtonSurface[];
+
+export type AssertSurfacesListed = Assert<
+  [Exclude<ButtonSurface, (typeof BUTTON_SURFACES)[number]>] extends [never] ? true : false
+>;
+
+export type AssertShapesListed = Assert<
+  [Exclude<ButtonShape, (typeof BUTTON_SHAPES)[number]>] extends [never] ? true : false
+>;
 
 export type AssertFillsListed = Assert<
   [Exclude<ButtonFill, (typeof BUTTON_FILLS)[number]>] extends [never] ? true : false

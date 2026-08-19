@@ -4,7 +4,7 @@
     :value="model"
     :disabled="disabled"
     :aria-label="ariaLabel"
-    :class="cn(fieldVariants({ tone, size, control: 'select', weight }), block ? 'w-full' : 'shrink-0', className)"
+    :class="cn(fieldVariants({ tone, size, control: 'select', weight, shape }), block ? 'w-full' : 'shrink-0', className)"
     @change="onChange"
   >
     <slot />
@@ -31,7 +31,13 @@
  */
 import { useTemplateRef, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
-import { fieldVariants, type FieldSize, type FieldTone, type FieldWeight } from "./fieldVariants";
+import {
+  fieldVariants,
+  type FieldSize,
+  type FieldTone,
+  type FieldWeight,
+  type FieldShape,
+} from "./fieldVariants";
 
 /** Vue stashes a bound `<option :value="x">` on the element as `_value`. */
 type OptionWithValue = HTMLOptionElement & { _value?: unknown };
@@ -48,6 +54,7 @@ const {
   size = "sm",
   tone = "card",
   weight = "semibold",
+  shape = "default",
   block = false,
   disabled = false,
   ariaLabel,
@@ -70,6 +77,8 @@ const {
    * was the bug, exactly as with `tone`.
    */
   weight?: FieldWeight;
+  /** `pill` rounds the control fully. */
+  shape?: FieldShape;
   /** Stretches to the full width of the parent instead of hugging its content. */
   block?: boolean;
   disabled?: boolean;

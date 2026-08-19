@@ -607,3 +607,55 @@ describe("link reads tone (#648)", () => {
     expect(cls).toContain("text-primary");
   });
 });
+
+describe("shape (#648)", () => {
+  // The ordering guard. `shape` is declared after `size` in the cva config so its
+  // `rounded-full` is emitted later and wins the border-radius group in
+  // tailwind-merge. Move the key above `size` and every pill silently un-rounds —
+  // which is invisible to typecheck, lint and the build.
+  it("rounds fully, beating the size's own radius", () => {
+    for (const size of ["xs", "sm", "md", "icon-xs", "icon-sm"] as const) {
+      const cls = mount(AppButton, { props: { size, shape: "pill", label: "x" }, global })
+        .get("button").classes();
+      expect(cls, size).toContain("rounded-full");
+      expect(cls.filter((c) => c.startsWith("rounded")), size).toEqual(["rounded-full"]);
+    }
+  });
+
+  it("defaults to the size's own radius", () => {
+    const cls = mount(AppButton, { props: { size: "sm", label: "x" }, global })
+      .get("button").classes();
+    expect(cls).toContain("rounded-md");
+    expect(cls).not.toContain("rounded-full");
+  });
+});
+
+describe("surface (#648)", () => {
+  it("paints a background at rest, where fill only paints on hover", () => {
+    const rest = mount(AppButton, { props: { variant: "subtle", surface: "card", label: "x" }, global })
+      .get("button").classes();
+    expect(rest).toContain("bg-card");
+
+    const hover = mount(AppButton, { props: { variant: "subtle", fill: "muted", label: "x" }, global })
+      .get("button").classes();
+    expect(hover).toContain("hover:bg-muted");
+    expect(hover.join(" ")).not.toMatch(/(?<!hover:)\bbg-/);
+  });
+
+  // The two are different tailwind-merge groups (bare vs hover modifier), so a
+  // control can carry a resting surface AND a distinct hover fill without either
+  // eating the other. That composition is the whole reason they are two axes.
+  it("composes with fill rather than colliding", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "subtle", surface: "card", fill: "muted", label: "x" }, global,
+    }).get("button").classes();
+    expect(cls).toContain("bg-card");
+    expect(cls).toContain("hover:bg-muted");
+  });
+
+  it("defaults to none, leaving every existing call site flat", () => {
+    const cls = mount(AppButton, { props: { variant: "subtle", label: "x" }, global })
+      .get("button").classes().join(" ");
+    expect(cls).not.toMatch(/(?<!hover:)\bbg-/);
+  });
+});

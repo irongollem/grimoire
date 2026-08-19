@@ -117,3 +117,25 @@ describe("caption tone/size (#648)", () => {
     expect(fieldVariants({ size: "caption", control: "select" })).toContain("px-1.5");
   });
 });
+
+describe("field shape (#648)", () => {
+  // Asserted on a mount, not on fieldVariants() output: cva only concatenates, so
+  // the raw string legitimately carries both the size's `rounded` and the shape's
+  // `rounded-full`. Which one survives is decided by cn()/tailwind-merge at render,
+  // and that is what a call site actually gets.
+  it("rounds fully, beating the size's own radius", () => {
+    for (const size of ["xs", "sm", "body", "caption"] as const) {
+      const cls = mount(AppInput, {
+        props: { modelValue: "", size, shape: "pill" },
+      }).get("input").classes();
+      expect(cls, size).toContain("rounded-full");
+      expect(cls.filter((c) => c.startsWith("rounded")), size).toEqual(["rounded-full"]);
+    }
+  });
+
+  it("defaults to the size's own radius", () => {
+    const cls = mount(AppInput, { props: { modelValue: "", size: "sm" } }).get("input").classes();
+    expect(cls).toContain("rounded-md");
+    expect(cls).not.toContain("rounded-full");
+  });
+})

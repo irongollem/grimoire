@@ -80,6 +80,12 @@ export const fieldVariants = cva(
         caption: "rounded py-0.5 text-caption",
       },
       /**
+       * The field's outline. `pill` rounds it fully — the mobile search bars that
+       * pair with a circular clear button. Declared after `size` so its
+       * `rounded-full` wins the radius group; see appButtonVariants for the detail.
+       */
+      shape: { default: "", pill: "rounded-full" },
+      /**
        * Horizontal padding only. A `<select>` has always sat 4px tighter than an
        * `<input>` at the same size, and unifying them would shift the text inset of
        * every picker in the app — a change worth making deliberately with the
@@ -110,7 +116,7 @@ export const fieldVariants = cva(
       { control: "select", size: "lg", class: "px-2" },
       { control: "select", size: "body", class: "px-2" },
     ],
-    defaultVariants: { tone: "default", size: "sm", control: "input", weight: "normal" },
+    defaultVariants: { tone: "default", size: "sm", control: "input", weight: "normal", shape: "default" },
   },
 );
 
@@ -118,6 +124,7 @@ export type FieldVariants = VariantProps<typeof fieldVariants>;
 export type FieldTone = NonNullable<FieldVariants["tone"]>;
 export type FieldSize = NonNullable<FieldVariants["size"]>;
 export type FieldWeight = NonNullable<FieldVariants["weight"]>;
+export type FieldShape = NonNullable<FieldVariants["shape"]>;
 
 /**
  * What AppInput and AppSelect hand back through `defineExpose`, for typing a

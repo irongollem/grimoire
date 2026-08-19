@@ -78,6 +78,19 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppButton — shape"
+      note="`pill` rounds the control fully. The largest recipe the sweep could not express — 88 sites, 56 of them circular icon buttons across 45 files. An axis rather than new sizes, because the shape is orthogonal to the box: every size can be a pill. It is declared after `size` in the cva config so its rounded-full wins the radius group; a test pins that ordering."
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <AppButton variant="subtle" size="icon-sm" shape="pill" aria-label="Close" :icon="IconClose" />
+        <AppButton variant="ghost" fill="muted" size="icon-xs" shape="pill" aria-label="Clear" :icon="IconClose" />
+        <AppButton variant="subtle" size="xs" shape="pill" label="Filter chip" />
+        <AppButton variant="subtle" size="xs" shape="pill" label="Selected chip" active />
+        <AppButton variant="tinted" tone="info" size="sm" shape="pill" label="Pill" />
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton — iconSize"
       note="The glyph size is a prop, not something to hand-write through the slot. :icon used to hard-code h-3.5, so 58 call sites bypassed the prop entirely to get h-3/h-4/h-5. Reach for the #icon slot only when the glyph needs more than a size — a colour, an opacity, a conditional class."
     >
@@ -311,7 +324,7 @@
 import { computed, onBeforeUnmount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { LocationQueryValue } from "vue-router";
-import { IconWand, IconChevronRight, IconDelete } from "@/lib/icons";
+import { IconWand, IconChevronRight, IconDelete, IconClose } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";

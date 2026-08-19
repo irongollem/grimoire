@@ -6,7 +6,7 @@
     :disabled="disabled"
     :readonly="readonly"
     :placeholder="placeholder"
-    :class="cn(fieldVariants({ tone, size, control: 'input' }), alignClass, block ? 'w-full' : '', className)"
+    :class="cn(fieldVariants({ tone, size, control: 'input', shape }), alignClass, block ? 'w-full' : '', className)"
     @input="onInput"
   />
 </template>
@@ -26,7 +26,7 @@
  */
 import { computed, useTemplateRef, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
-import { fieldVariants, type FieldTone, type FieldSize } from "./fieldVariants";
+import { fieldVariants, type FieldTone, type FieldSize, type FieldShape } from "./fieldVariants";
 
 /**
  * Generic over the value type, for the same reason AppSelect is: a great many
@@ -48,6 +48,7 @@ const {
   size = "sm",
   tone = "default",
   align = "left",
+  shape = "default",
   block = true,
   disabled = false,
   readonly = false,
@@ -59,6 +60,8 @@ const {
   /** Surface it sits on — see fieldVariants. */
   tone?: FieldTone;
   align?: "left" | "center" | "right";
+  /** `pill` rounds the field fully — the mobile search bars. */
+  shape?: FieldShape;
   block?: boolean;
   disabled?: boolean;
   readonly?: boolean;
