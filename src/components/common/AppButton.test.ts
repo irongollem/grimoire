@@ -229,10 +229,20 @@ describe("tinted tones (#623)", () => {
     expect(outline).toContain("hover:bg-tone-danger/10");
   });
 
-  it("leaves non-tinted variants untouched by tone", () => {
-    const a = buttonVariants({ variant: "subtle", tone: "danger", emphasis: "strong" });
-    const b = buttonVariants({ variant: "subtle" });
-    expect(a).toBe(b);
+  // This used to assert that `subtle` ignored `tone`, which was true when only
+  // `tinted` read it. `ghost`, `subtle`, `menu` and `active` all read it now, so the
+  // invariant worth pinning is the boundary rather than the old blanket rule: the
+  // variants with a fixed identity — a gold CTA, a grey pill, a text link — must
+  // stay untouched, or `tone` stops meaning anything.
+  it("leaves the fixed-identity variants untouched by tone", () => {
+    for (const variant of ["primary", "chip", "link"] as const) {
+      for (const tone of BUTTON_COLOUR_TONES) {
+        expect(
+          buttonVariants({ variant, tone, emphasis: "strong" }),
+          `${variant}/${tone}`,
+        ).toBe(buttonVariants({ variant }));
+      }
+    }
   });
 });
 
@@ -553,5 +563,23 @@ describe("active border follows tone (#648)", () => {
   it("does not override tinted's own border colour", () => {
     const cls = buttonVariants({ variant: "tinted", tone: "success", emphasis: "soft", active: true });
     expect(cls).toContain("border-tone-success");
+  });
+});
+
+describe("subtle hover tones (#648)", () => {
+  it("recolours border and text together for every colour tone", () => {
+    for (const tone of BUTTON_COLOUR_TONES) {
+      const cls = mount(AppButton, { props: { variant: "subtle", tone, label: "x" }, global })
+        .get("button").classes().join(" ");
+      expect(cls, tone).toMatch(/hover:text-(primary|destructive|tone-\w+)/);
+      expect(cls, tone).toMatch(/hover:border-(primary|destructive|tone-\w+)/);
+    }
+  });
+
+  it("leaves an untoned subtle button on the neutral hover", () => {
+    const cls = mount(AppButton, { props: { variant: "subtle", label: "x" }, global })
+      .get("button").classes();
+    expect(cls).toContain("hover:text-foreground");
+    expect(cls).toContain("hover:border-primary/50");
   });
 });

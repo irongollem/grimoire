@@ -252,6 +252,19 @@ export const buttonVariants = cva(
        * already render, and the two are separate custom properties that a theme could
        * legitimately diverge. Changing it now would repaint those sites for tidiness.
        */
+      /**
+       * `subtle` gets the same ladder, recolouring its border alongside its text —
+       * a bordered stepper or chip that goes gold/red/green when you point at it.
+       * Its base already hovers `border-primary/50`, so only the toned cases and the
+       * text half need spelling out. 15 sites across 14 files.
+       */
+      { variant: "subtle", tone: "primary", class: "hover:text-primary" },
+      { variant: "subtle", tone: "danger", class: "hover:text-destructive hover:border-destructive/50" },
+      { variant: "subtle", tone: "success", class: "hover:text-tone-success hover:border-tone-success/50" },
+      { variant: "subtle", tone: "info", class: "hover:text-tone-info hover:border-tone-info/50" },
+      { variant: "subtle", tone: "arcane", class: "hover:text-tone-arcane hover:border-tone-arcane/50" },
+      { variant: "subtle", tone: "caution", class: "hover:text-tone-caution hover:border-tone-caution/50" },
+
       { variant: "ghost", tone: "success", class: "hover:text-tone-success" },
       { variant: "ghost", tone: "info", class: "hover:text-tone-info" },
       { variant: "ghost", tone: "arcane", class: "hover:text-tone-arcane" },
