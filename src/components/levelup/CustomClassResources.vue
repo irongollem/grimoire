@@ -2,12 +2,9 @@
   <section class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Resource Pools</h2>
-      <button type="button"
-        class="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-label text-foreground hover:bg-muted/40 transition-colors"
-        @click="addResource">
-        <IconAdd class="h-3 w-3" />
-        Add resource
-      </button>
+      <AppButton variant="outline" size="xs" label="Add resource" @click="addResource">
+        <template #icon><IconAdd class="h-3 w-3" /></template>
+      </AppButton>
     </div>
     <p class="text-body text-muted-foreground">
       Tracked pools (uses, charges, etc.) shown on the character sheet.
@@ -16,50 +13,62 @@
     <div v-if="resources.length === 0" class="text-body text-muted-foreground italic">No resource pools defined.</div>
 
     <div v-for="(res, i) in resources" :key="i" class="rounded-md border border-border p-3 space-y-3 relative">
-      <button type="button" class="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors" @click="removeResource(i)">
-        <IconClose class="h-3.5 w-3.5" />
-      </button>
+      <AppButton
+        variant="ghost"
+        tone="danger"
+        size="icon-xs"
+        :icon="IconClose"
+        class="absolute top-2 right-2"
+        @click="removeResource(i)"
+      />
 
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1">KEY</label>
-          <input :value="res.key" placeholder="e.g. grit_points"
-            class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @input="updateResource(i, 'key', ($event.target as HTMLInputElement).value)" />
+          <AppInput
+            v-model="resourceField(i, 'key').value"
+            placeholder="e.g. grit_points"
+            tone="muted"
+            size="body-xs"
+          />
         </div>
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1">LABEL</label>
-          <input :value="res.label" placeholder="e.g. Grit Points"
-            class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @input="updateResource(i, 'label', ($event.target as HTMLInputElement).value)" />
+          <AppInput
+            v-model="resourceField(i, 'label').value"
+            placeholder="e.g. Grit Points"
+            tone="muted"
+            size="body-xs"
+          />
         </div>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1">RECHARGES ON</label>
-          <select :value="res.rest" class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @change="updateResource(i, 'rest', ($event.target as HTMLSelectElement).value as 'short' | 'long')">
+          <AppSelect v-model="resourceField(i, 'rest').value" tone="muted" size="body-xs" weight="normal" block>
             <option value="short">Short Rest</option>
             <option value="long">Long Rest</option>
-          </select>
+          </AppSelect>
         </div>
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1">SCALING</label>
-          <select :value="res.scaling" class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @change="updateResource(i, 'scaling', ($event.target as HTMLSelectElement).value as 'fixed' | 'per_level' | 'table')">
+          <AppSelect v-model="resourceField(i, 'scaling').value" tone="muted" size="body-xs" weight="normal" block>
             <option value="fixed">Fixed value</option>
             <option value="per_level">Per class level</option>
             <option value="table">Custom table (20 values)</option>
-          </select>
+          </AppSelect>
         </div>
       </div>
 
       <div v-if="res.scaling === 'fixed'">
         <label class="block text-eyebrow text-muted-foreground mb-1">VALUE</label>
-        <input :value="res.fixed_value" type="number" min="0" placeholder="e.g. 1"
-          class="w-full bg-muted/40 border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="updateResource(i, 'fixed_value', Number(($event.target as HTMLInputElement).value))" />
+        <AppInput
+          v-model.number="resourceField(i, 'fixed_value').value"
+          type="number" min="0" placeholder="e.g. 1"
+          tone="muted"
+          size="body-xs"
+        />
       </div>
 
       <div v-if="res.scaling === 'table'">
@@ -78,7 +87,11 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { IconAdd, IconClose } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import type { CustomResource, ResourceScaling } from "@/levelup/customTypes";
 
 const { resources } = defineProps<{
@@ -100,6 +113,16 @@ function removeResource(i: number) {
 function updateResource<K extends keyof CustomResource>(i: number, field: K, value: CustomResource[K]) {
   const next = resources.map((r, idx) => idx === i ? { ...r, [field]: value } : r);
   emit("update:resources", next);
+}
+
+// Per-field writable proxy that routes an AppInput/AppSelect v-model through
+// updateResource() rather than mutating the (immutable, emit-driven) `resources`
+// prop directly — mirrors CustomClassStepsEditor's stepField().
+function resourceField<K extends keyof CustomResource>(i: number, field: K) {
+  return computed<CustomResource[K]>({
+    get: () => resources[i][field],
+    set: (value) => updateResource(i, field, value),
+  });
 }
 
 function setTableValue(i: number, idx: number, value: number) {

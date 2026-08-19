@@ -24,26 +24,32 @@
             >
               {{ member.name }}
             </RouterLink>
-            <button
-              class="shrink-0 text-muted-foreground/50 hover:text-primary transition-colors"
-              title="Preview player portal as this character"
+            <AppButton
+              variant="ghost"
+              tone="primary"
+              size="inline-xs"
+              :icon="IconReveal"
+              tooltip="Preview player portal as this character"
+              class="shrink-0 text-muted-foreground/50"
               @click="previewAsPlayer"
-            >
-              <IconReveal class="h-3.5 w-3.5" />
-            </button>
-            <button
+            />
+            <AppButton
               v-if="dmSharedJournal.length"
-              class="relative shrink-0 transition-colors"
-              :class="unreadJournalCount > 0 ? 'text-amber-500' : 'text-muted-foreground/50 hover:text-amber-500'"
-              title="View player journal entries shared with DM"
+              variant="ghost"
+              tone="caution"
+              size="inline-xs"
+              tooltip="View player journal entries shared with DM"
+              :class="['relative shrink-0', unreadJournalCount > 0 ? 'text-tone-caution' : 'text-muted-foreground/50']"
               @click="showJournalModal = true"
             >
-              <IconScrollText class="h-3.5 w-3.5" />
-              <span
-                v-if="unreadJournalCount > 0"
-                class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-destructive text-2xs font-bold text-white flex items-center justify-center leading-none"
-              />
-            </button>
+              <template #icon>
+                <IconScrollText class="h-3.5 w-3.5" />
+                <span
+                  v-if="unreadJournalCount > 0"
+                  class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-destructive text-2xs font-bold text-white flex items-center justify-center leading-none"
+                />
+              </template>
+            </AppButton>
           </div>
           <p class="text-caption text-muted-foreground italic">
             {{
@@ -63,11 +69,11 @@
           <AppButton
             v-if="member.current_location_id"
             variant="ghost"
+            tone="primary"
             size="inline-xs"
             :to="`/locations/${member.current_location_id}`"
             :icon="IconLocation"
             :label="locationNameMap.get(member.current_location_id) ?? '…'"
-            class="hover:text-primary"
           />
           <span
             v-else
@@ -118,18 +124,23 @@
           </div>
 
           <div class="flex items-center gap-2">
-            <input
+            <AppInput
               v-model.number="hpInput"
               type="number"
               min="0"
               placeholder="Amt"
-              class="w-16 bg-muted border border-border rounded px-2 py-1 text-body text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="filled"
+              size="body-xs"
+              align="center"
+              :block="false"
+              class="w-16"
             />
             <AppButton
-              variant="destructive"
+              variant="tinted"
               size="sm"
               label="Damage"
-              class="bg-destructive/10 border-destructive/30 hover:bg-destructive/20"
+              tone="danger"
+              emphasis="soft"
               @click="dealDamage"
             />
             <AppButton
@@ -232,9 +243,9 @@
       <span class="text-caption text-muted-foreground italic">No companions</span>
       <AppButton
         variant="ghost"
+        tone="primary"
         size="inline-xs"
         label="+ Add Companion"
-        class="hover:text-primary"
         @click="emit('open-companion-form', { companion: null, ownerId: member.id })"
       />
     </div>
@@ -253,6 +264,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconGenerate, IconLocation, IconReveal, IconScrollText } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import { useShieldAcBonus } from "@/composables/useShieldAc";
 import { useReadItems } from "@/composables/useReadItems";

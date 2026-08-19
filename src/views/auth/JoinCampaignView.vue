@@ -10,6 +10,9 @@
       </p>
 
       <!-- Tab: signup / login -->
+      <!-- LEFT: no matching AppButton variant — the selected tab is a neutral
+           bg-card + shadow-sm treatment (`active` always paints gold), a gap
+           documented in the #648 sweep brief. -->
       <div class="flex gap-1 mb-6 rounded-md border border-border p-1 bg-muted">
         <button
           v-for="tab in (['signup', 'login'] as const)"
@@ -27,40 +30,40 @@
       <form class="space-y-4" @submit.prevent="handleAuth">
         <div v-if="activeTab === 'signup'" class="space-y-1.5">
           <label class="text-body text-foreground" for="join-display-name">Username</label>
-          <input
+          <AppInput
             id="join-display-name"
             v-model="displayName"
             type="text"
+            size="body"
             autocomplete="username"
             required
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             placeholder="Shadowmere"
           />
         </div>
 
         <div class="space-y-1.5">
           <label class="text-body text-foreground" for="join-email">Email</label>
-          <input
+          <AppInput
             id="join-email"
             v-model="email"
             type="email"
+            size="body"
             autocomplete="email"
             required
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             placeholder="wizard@faerûn.com"
           />
         </div>
 
         <div class="space-y-1.5">
           <label class="text-body text-foreground" for="join-password">Password</label>
-          <input
+          <AppInput
             id="join-password"
             v-model="password"
             type="password"
+            size="body"
             :autocomplete="activeTab === 'signup' ? 'new-password' : 'current-password'"
             required
             :minlength="activeTab === 'signup' ? 8 : undefined"
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             :placeholder="activeTab === 'signup' ? 'At least 8 characters' : '••••••••'"
           />
         </div>
@@ -68,15 +71,17 @@
         <p v-if="authMessage" class="text-body text-elven-green">{{ authMessage }}</p>
         <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
-        <button
+        <AppButton
           type="submit"
+          variant="primary"
+          size="lg"
+          block
+          class="py-2.5"
           :disabled="auth.loading || !!authMessage"
-          class="w-full rounded-md bg-primary px-4 py-2.5 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {{ auth.loading
+          :label="auth.loading
             ? (activeTab === 'signup' ? 'Creating your tome…' : 'Entering the realm…')
-            : (activeTab === 'signup' ? 'Create Account & Join' : 'Sign In & Join') }}
-        </button>
+            : (activeTab === 'signup' ? 'Create Account & Join' : 'Sign In & Join')"
+        />
       </form>
     </template>
 
@@ -170,6 +175,7 @@ import { useCharacterPool } from "@/composables/useCharacterPool";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import { useCampaigns } from "@/composables/useCampaigns";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const auth = useAuthStore();
 const campaign = useCampaignStore();

@@ -116,14 +116,14 @@
       </div>
     </div>
     <AppButton
-        variant="ghost"
-        tone="primary"
-        size="inline-xs"
-        class="px-1 pt-1"
-        :icon="IconAdd"
-        label="Add Currency Pool"
-        @click="addPool"
-      />
+      variant="ghost"
+      tone="primary"
+      size="inline-xs"
+      class="px-1 pt-1"
+      :icon="IconAdd"
+      label="Add Currency Pool"
+      @click="addPool"
+    />
   </template>
 </template>
 

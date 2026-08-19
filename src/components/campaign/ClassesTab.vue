@@ -34,19 +34,21 @@
       <p class="text-caption text-muted-foreground italic">
         {{ disabled.size }} class{{ disabled.size === 1 ? '' : 'es' }} hidden from party member picker.
       </p>
-      <button
-        type="button"
-        class="text-label text-primary/70 hover:text-primary transition-colors"
+      <AppButton
+        variant="ghost"
+        tone="primary"
+        size="inline-xs"
+        label="Enable all"
+        class="text-primary/70"
         @click="enableAll"
-      >
-        Enable all
-      </button>
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { useAllSystemClasses } from "@/composables/useCustomClasses";

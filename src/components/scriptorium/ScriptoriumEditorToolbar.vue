@@ -343,28 +343,30 @@
         aria-label="Preview theme"
         class="ml-1 inline-flex rounded border border-border overflow-hidden shrink-0"
       >
-        <button
-          type="button"
+        <AppButton
           role="radio"
           :aria-checked="theme === 'onednd2024'"
-          title="OneDnD 2024 theme"
-          class="px-2 h-6.5 text-eyebrow font-semibold transition-colors"
-          :class="theme === 'onednd2024' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
+          tooltip="OneDnD 2024 theme"
+          variant="ghost"
+          fill="muted"
+          size="toolbar"
+          :active="theme === 'onednd2024'"
+          class="uppercase"
+          label="2024"
           @click="$emit('update:theme', 'onednd2024')"
-        >
-          2024
-        </button>
-        <button
-          type="button"
+        />
+        <AppButton
           role="radio"
           :aria-checked="theme === 'phb2014'"
-          title="Classic PHB (2014) theme"
-          class="px-2 h-6.5 text-eyebrow font-semibold transition-colors border-l border-border"
-          :class="theme === 'phb2014' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
+          tooltip="Classic PHB (2014) theme"
+          variant="ghost"
+          fill="muted"
+          size="toolbar"
+          :active="theme === 'phb2014'"
+          class="uppercase border-l border-border"
+          label="Classic"
           @click="$emit('update:theme', 'phb2014')"
-        >
-          Classic
-        </button>
+        />
       </div>
 
       <div class="w-px h-5 bg-border mx-0.5" />
@@ -375,22 +377,20 @@
         aria-label="Page size"
         class="ml-1 inline-flex rounded border border-border overflow-hidden shrink-0"
       >
-        <button
+        <AppButton
           v-for="(sz, idx) in (['A4', 'A5', 'Letter'] as const)"
           :key="sz"
-          type="button"
           role="radio"
           :aria-checked="pageSize === sz"
-          :title="`Page size: ${sz}`"
-          class="px-2 h-6.5 text-eyebrow font-semibold transition-colors"
-          :class="[
-            idx > 0 ? 'border-l border-border' : '',
-            pageSize === sz ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-          ]"
+          :tooltip="`Page size: ${sz}`"
+          variant="ghost"
+          fill="muted"
+          size="toolbar"
+          :active="pageSize === sz"
+          :class="['uppercase', idx > 0 ? 'border-l border-border' : '']"
+          :label="sz"
           @click="$emit('update:pageSize', sz)"
-        >
-          {{ sz }}
-        </button>
+        />
       </div>
 
       <!-- Ink-friendly toggle -->

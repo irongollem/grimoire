@@ -2,24 +2,15 @@
   <div class="flex flex-wrap gap-2 items-end">
     <label class="flex-1 min-w-64">
       <span class="sr-only">Document title</span>
-      <input
-        :value="title"
-        placeholder="Document title…"
-        class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:title', ($event.target as HTMLInputElement).value)"
-      />
+      <AppInput v-model="titleModel" tone="card" size="heading" placeholder="Document title…" />
     </label>
     <label>
       <span class="sr-only">Document type</span>
-      <select
-        :value="docType"
-        class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="$emit('update:docType', ($event.target as HTMLSelectElement).value)"
-      >
+      <AppSelect v-model="docTypeModel">
         <option v-for="t in DOC_TYPE_OPTIONS" :key="t.value" :value="t.value">
           {{ t.label }}
         </option>
-      </select>
+      </AppSelect>
     </label>
     <label class="flex items-center gap-2 cursor-pointer select-none">
       <input
@@ -48,40 +39,36 @@
       />
       <label class="flex items-center gap-1.5">
         <span class="text-eyebrow font-semibold text-muted-foreground whitespace-nowrap">START #</span>
-        <input
-          :value="pageNumberStart"
-          type="number"
-          min="1"
-          class="w-14 bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="$emit('update:pageNumberStart', Number(($event.target as HTMLInputElement).value))"
-        />
+        <AppInput v-model="pageNumberStartModel" type="number" tone="card" size="sm" min="1" class="w-14" />
       </label>
     </template>
-    <button
-      type="button"
+    <AppButton
+      variant="primary"
+      size="md"
+      :icon="IconSave"
+      :label="isSaving ? 'Saving…' : isNew ? 'Create' : 'Save'"
       :disabled="isSaving || !title.trim()"
-      class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
       @click="$emit('save')"
-    >
-      <IconSave class="h-3.5 w-3.5" />
-      {{ isSaving ? "Saving…" : isNew ? "Create" : "Save" }}
-    </button>
-    <button
+    />
+    <AppButton
       v-if="!isNew"
-      type="button"
+      variant="destructive"
+      size="md"
+      :icon="IconDelete"
+      :label="isDeleting ? 'Deleting…' : 'Delete'"
       :disabled="isDeleting"
-      class="inline-flex items-center gap-1.5 rounded-md border border-destructive/50 px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
       @click="$emit('delete')"
-    >
-      <IconDelete class="h-3.5 w-3.5" />
-      {{ isDeleting ? "Deleting…" : "Delete" }}
-    </button>
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { DOC_TYPE_OPTIONS } from "@/lib/scriptorium/editorConstants";
 import { IconSave, IconDelete } from "@/lib/icons";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 
 const {
@@ -106,7 +93,7 @@ const {
   isNew?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   "update:title": [value: string];
   "update:docType": [value: string];
   "update:isPublished": [value: boolean];
@@ -116,6 +103,24 @@ defineEmits<{
   save: [];
   delete: [];
 }>();
+
+// AppInput/AppSelect require a two-way v-model; these props flow one level up
+// through emits rather than owning their own state, so each gets a writable
+// computed proxy at the component boundary.
+const titleModel = computed({
+  get: () => title,
+  set: (value: string) => emit("update:title", value),
+});
+const docTypeModel = computed({
+  get: () => docType,
+  set: (value: ScriptoriumDocType) => emit("update:docType", value),
+});
+// Kept as a string model + Number() on write (rather than v-model.number) to match
+// the original @change behaviour exactly: an emptied field became 0, not null.
+const pageNumberStartModel = computed({
+  get: () => String(pageNumberStart),
+  set: (value: string) => emit("update:pageNumberStart", Number(value)),
+});
 </script>
 
 <style scoped>

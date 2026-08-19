@@ -103,12 +103,13 @@
             />
 
             <!-- Spell name -->
-            <button
-              class="flex-1 text-body text-foreground hover:text-primary transition-colors min-w-0 truncate text-left"
+            <AppButton
+              variant="ghost"
+              tone="primary"
+              size="inline"
+              class="flex-1 min-w-0 justify-start truncate text-body text-foreground"
               @click.stop="selectedSpell = entry.spell"
-            >
-              {{ entry.spell.name }}
-            </button>
+            >{{ entry.spell.name }}</AppButton>
 
             <!-- Badges -->
             <span

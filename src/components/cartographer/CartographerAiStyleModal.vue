@@ -19,6 +19,11 @@
               Re-render this map in an artistic style. The result is a new image — your tile map is unchanged.
             </p>
             <!-- Preset grid -->
+            <!-- LEFT: no matching AppButton variant — a vertical tile (icon over
+                 label over description) rather than the primitive's horizontal
+                 icon+label row, and its selected state (border-amber-500/60
+                 bg-amber-500/10 text-amber-400) uses the documented-unsupported
+                 amber "coin gold" tone. -->
             <div class="grid grid-cols-3 gap-2 mb-4">
               <button
                 v-for="preset in presets"
@@ -54,11 +59,15 @@
           </div>
           <div class="flex justify-end items-center gap-2 px-5 pb-5 pt-2">
             <GenerationCostBadge :credits="credits" :byok="byok" class="mr-auto" />
-            <button
-              type="button"
-              class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            <AppButton
+              variant="subtle"
+              size="sm"
+              class="px-4"
+              label="Cancel"
               @click="$emit('closePicker')"
-            >Cancel</button>
+            />
+            <!-- LEFT: solid-fill non-gold CTA (bg-amber-500 text-black) — documented
+                 gap, no matching AppButton variant. -->
             <button
               type="button"
               :disabled="generating || !canAfford"
@@ -110,29 +119,19 @@
           </div>
           <div class="flex flex-wrap justify-between gap-2 px-5 pb-5 pt-2">
             <div class="flex gap-2">
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-                @click="$emit('retry')"
-              >Retry</button>
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-                @click="$emit('backToPicker')"
-              >Back</button>
+              <AppButton variant="subtle" size="sm" label="Retry" @click="$emit('retry')" />
+              <AppButton variant="subtle" size="sm" label="Back" @click="$emit('backToPicker')" />
             </div>
             <div class="flex gap-2">
-              <button
-                type="button"
-                class="px-3 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-                @click="$emit('downloadStyled')"
-              >↓ Download</button>
-              <button
-                type="button"
+              <AppButton variant="subtle" size="sm" label="↓ Download" @click="$emit('downloadStyled')" />
+              <AppButton
+                variant="primary"
+                size="sm"
+                class="px-4"
                 :disabled="!atlasLocationId || atlasSaving"
-                class="px-4 py-1.5 rounded-md text-label-lg font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+                :label="atlasSaving ? 'Saving…' : 'Save to Atlas'"
                 @click="$emit('saveToAtlas', atlasLocationId)"
-              >{{ atlasSaving ? "Saving…" : "Save to Atlas" }}</button>
+              />
             </div>
           </div>
         </div>
@@ -143,6 +142,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/useAiCredits";

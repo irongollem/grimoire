@@ -2,17 +2,11 @@
   <WizardStepCard title="Ability Score Improvement or Feat">
     <p class="text-body text-muted-foreground">Choose how to apply your improvement.</p>
 
-    <div class="flex rounded-md border border-border overflow-hidden w-fit text-label-lg">
-      <button class="px-3 py-1.5 transition-colors"
-        :class="asiMode === 'plus2' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-        @click="emit('update:asiMode', 'plus2')">+2 to one</button>
-      <button class="px-3 py-1.5 transition-colors"
-        :class="asiMode === 'plus1plus1' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-        @click="emit('update:asiMode', 'plus1plus1')">+1 / +1</button>
-      <button class="px-3 py-1.5 transition-colors"
-        :class="asiMode === 'feat' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-        @click="emit('update:asiMode', 'feat')">Feat</button>
-    </div>
+    <SegmentedControl
+      :model-value="asiMode"
+      :options="ASI_MODE_OPTIONS"
+      @update:model-value="(v) => emit('update:asiMode', v)"
+    />
 
     <!-- ASI mode -->
     <template v-if="asiMode !== 'feat'">
@@ -21,25 +15,27 @@
           <label class="text-label text-muted-foreground">
             {{ asiMode === 'plus2' ? '+2 Ability' : '+1 First Ability' }}
           </label>
-          <select
-            :value="asiPrimary"
-            class="rounded border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @change="emit('update:asiPrimary', ($event.target as HTMLSelectElement).value as AbilityKey | '')"
+          <AppSelect
+            :model-value="asiPrimary"
+            tone="muted"
+            weight="normal"
+            @update:model-value="(v) => emit('update:asiPrimary', v)"
           >
             <option value="" disabled>Select…</option>
             <option v-for="ab in ABILITY_OPTIONS" :key="ab.key" :value="ab.key">{{ ab.label }}</option>
-          </select>
+          </AppSelect>
         </div>
         <div v-if="asiMode === 'plus1plus1'" class="space-y-1">
           <label class="text-label text-muted-foreground">+1 Second Ability</label>
-          <select
-            :value="asiSecondary"
-            class="rounded border border-border bg-muted/40 px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @change="emit('update:asiSecondary', ($event.target as HTMLSelectElement).value as AbilityKey | '')"
+          <AppSelect
+            :model-value="asiSecondary"
+            tone="muted"
+            weight="normal"
+            @update:model-value="(v) => emit('update:asiSecondary', v)"
           >
             <option value="" disabled>Select…</option>
             <option v-for="ab in ABILITY_OPTIONS" :key="ab.key" :value="ab.key">{{ ab.label }}</option>
-          </select>
+          </AppSelect>
         </div>
       </div>
       <div v-if="asiPreview.length > 0" class="text-body text-muted-foreground">
@@ -50,22 +46,30 @@
     <!-- Feat mode -->
     <template v-else>
       <div class="space-y-2">
-        <input
-          :value="featSearch"
+        <AppInput
+          :model-value="featSearch"
           type="text"
           placeholder="Search feats…"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="emit('update:featSearch', ($event.target as HTMLInputElement).value)"
+          tone="muted"
+          size="body"
+          @update:model-value="(v) => emit('update:featSearch', v)"
         />
         <div v-if="filteredFeats.length > 0"
           class="max-h-48 overflow-y-auto rounded border border-border divide-y divide-border">
-          <button v-for="f in filteredFeats" :key="f.id" type="button"
-            class="w-full text-left px-3 py-2 transition-colors"
-            :class="featId === f.id ? 'bg-primary/10 text-primary' : 'bg-card text-foreground hover:bg-muted/40'"
-            @click="emit('update:featId', featId === f.id ? '' : f.id)">
-            <p class="font-cinzel text-xs font-semibold">{{ f.name }}</p>
-            <p v-if="f.description" class="text-caption text-muted-foreground line-clamp-1 mt-0.5">{{ f.description }}</p>
-          </button>
+          <AppButton
+            v-for="f in filteredFeats"
+            :key="f.id"
+            variant="menu"
+            size="body"
+            block
+            :active="featId === f.id"
+            @click="emit('update:featId', featId === f.id ? '' : f.id)"
+          >
+            <div class="flex flex-col items-start gap-0.5">
+              <span class="font-cinzel text-xs font-semibold">{{ f.name }}</span>
+              <span v-if="f.description" class="text-caption text-muted-foreground line-clamp-1">{{ f.description }}</span>
+            </div>
+          </AppButton>
         </div>
         <p v-else-if="featSearch" class="text-body text-muted-foreground italic">No matching features found.</p>
         <p v-if="featId" class="text-label-lg text-primary">✓ {{ selectedFeatName }}</p>
@@ -76,6 +80,10 @@
 
 <script setup lang="ts">
 import WizardStepCard from "@/components/common/WizardStepCard.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import type { AsiMode, AbilityKey } from "./types";
 
 interface FeatOption {
@@ -89,6 +97,12 @@ const ABILITY_LABEL: Record<AbilityKey, string> = {
   int: "Intelligence", wis: "Wisdom", cha: "Charisma",
 };
 const ABILITY_OPTIONS = (Object.entries(ABILITY_LABEL) as [AbilityKey, string][]).map(([key, label]) => ({ key, label }));
+
+const ASI_MODE_OPTIONS: Array<{ value: AsiMode; label: string }> = [
+  { value: "plus2", label: "+2 to one" },
+  { value: "plus1plus1", label: "+1 / +1" },
+  { value: "feat", label: "Feat" },
+];
 
 const {
   asiMode,

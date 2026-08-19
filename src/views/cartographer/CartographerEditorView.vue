@@ -3,41 +3,51 @@
     <template #actions>
       <!-- View mode: export + navigation -->
       <template v-if="viewMode">
-        <button
-          type="button"
+        <AppButton
+          variant="subtle"
+          fill="muted"
+          size="sm"
           :disabled="baking"
-          class="px-3 py-1.5 text-label-lg font-semibold text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
-          title="Download map as PNG"
+          tooltip="Download map as PNG"
+          :label="baking ? 'Baking…' : '↓ PNG'"
           @click="onDownloadPng"
-        >{{ baking ? "Baking…" : "↓ PNG" }}</button>
-        <button
-          type="button"
+        />
+        <AppButton
+          variant="tinted"
+          tone="primary"
+          emphasis="outline"
+          size="sm"
           :disabled="baking || styleGenerating"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
-          title="Re-render this map in an artistic style using AI"
+          tooltip="Re-render this map in an artistic style using AI"
+          :label="styleGenerating ? 'Styling…' : 'AI Style'"
           @click="showStylePicker = true"
         >
-          <IconGenerate class="h-3.5 w-3.5" :class="{ 'animate-pulse': styleGenerating }" />
-          {{ styleGenerating ? "Styling…" : "AI Style" }}
-        </button>
-        <button
-          type="button"
+          <template #icon>
+            <IconGenerate class="h-3.5 w-3.5" :class="{ 'animate-pulse': styleGenerating }" />
+          </template>
+        </AppButton>
+        <AppButton
+          variant="tinted"
+          tone="primary"
+          emphasis="outline"
+          size="sm"
           :disabled="baking"
-          class="px-3 py-1.5 text-label-lg font-semibold border border-primary/40 text-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50"
+          :label="baking ? 'Baking…' : 'Save to Atlas'"
           @click="showAtlasModal = true"
-        >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
+        />
         <ListActionButton label="Edit" @click="onEdit" />
         <ListActionButton variant="primary" label="Done" @click="onDone" />
       </template>
       <!-- Edit mode -->
       <template v-else>
-        <button
+        <AppButton
           v-if="!isNew"
-          type="button"
+          variant="destructive"
+          size="sm"
           :disabled="deleting"
-          class="px-3 py-1.5 text-label-lg font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          :label="deleting ? 'Deleting…' : 'Delete'"
           @click="onDelete"
-        >{{ deleting ? "Deleting…" : "Delete" }}</button>
+        />
         <ListActionButton label="Cancel" @click="onCancel" />
         <ListActionButton
           variant="primary"
@@ -119,37 +129,35 @@
           <span>
             Zoom: <strong class="text-foreground">{{ Math.round(zoom * 100) }}%</strong>
           </span>
-          <button
-            type="button"
-            title="Center map (C)"
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            tooltip="Center map (C)"
             aria-label="Center map"
-            class="inline-flex items-center justify-center rounded-md p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            :icon="IconCenter"
             @click="centerMap"
-          >
-            <IconCenter class="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            title="Undo (Ctrl+Z)"
-            aria-label="Undo"
+          />
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
             :disabled="!canUndo"
-            class="inline-flex items-center justify-center rounded-md p-0.5 transition-colors"
-            :class="canUndo ? 'text-muted-foreground hover:text-foreground hover:bg-muted' : 'text-muted-foreground/30 cursor-not-allowed'"
+            tooltip="Undo (Ctrl+Z)"
+            aria-label="Undo"
+            :icon="IconUndo"
             @click="undoEdit"
-          >
-            <IconUndo class="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            title="Redo (Ctrl+Shift+Z)"
-            aria-label="Redo"
+          />
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
             :disabled="!canRedo"
-            class="inline-flex items-center justify-center rounded-md p-0.5 transition-colors"
-            :class="canRedo ? 'text-muted-foreground hover:text-foreground hover:bg-muted' : 'text-muted-foreground/30 cursor-not-allowed'"
+            tooltip="Redo (Ctrl+Shift+Z)"
+            aria-label="Redo"
+            :icon="IconRedo"
             @click="redoEdit"
-          >
-            <IconRedo class="h-3.5 w-3.5" />
-          </button>
+          />
           <span>
             Pack: <strong class="text-foreground">{{ packRuntime?.manifest.name ?? currentPackId }}</strong>
             <span v-if="packLoadError" class="text-red-500"> ({{ packLoadError }})</span>
@@ -232,6 +240,7 @@ import {
 } from "@/lib/icons";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CartographerSaveAtlasModal from "@/components/cartographer/CartographerSaveAtlasModal.vue";

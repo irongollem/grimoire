@@ -138,15 +138,18 @@
             >
               <MonsterFormCard :monster="entry.monster" :name="entry.name" :image-url="entry.imageUrl" :reveal-stats="true" />
               <!-- DM pin button (preview mode only) -->
-              <button
+              <AppButton
                 v-if="ui.dmPreviewMode"
-                type="button"
-                class="absolute top-1.5 right-1.5 z-10 p-0.5 rounded bg-card/80 text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-                title="Pin form"
+                variant="ghost"
+                tone="primary"
+                fill="tone"
+                size="icon-xs"
+                class="absolute top-1.5 right-1.5 z-10 bg-card/80 [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+                tooltip="Pin form"
                 @click.stop="togglePin(entry.monster)"
               >
-                <IconPin class="h-3 w-3" />
-              </button>
+                <template #icon><IconPin class="h-3 w-3" /></template>
+              </AppButton>
             </div>
           </div>
         </template>

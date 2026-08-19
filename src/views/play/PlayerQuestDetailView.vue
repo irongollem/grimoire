@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-4">
     <!-- Back -->
-    <RouterLink
+    <AppButton
       to="/play/quests"
-      class="inline-flex items-center gap-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
-    >
-      <IconChevronLeft class="h-3.5 w-3.5" />
-      Quest Log
-    </RouterLink>
+      variant="ghost"
+      size="inline"
+      :icon="IconChevronLeft"
+      label="Quest Log"
+    />
 
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -43,24 +43,26 @@
       <div
         class="flex flex-wrap gap-x-4 gap-y-1.5 text-body text-muted-foreground"
       >
-        <button
+        <AppButton
           v-if="giverName"
-          type="button"
-          class="flex items-center gap-1.5 hover:text-primary transition-colors"
+          variant="ghost"
+          tone="primary"
+          size="inline"
+          class="text-body"
+          :icon="IconUser"
+          :label="giverName"
           @click="openNpc(quest!.giver_npc_id!)"
-        >
-          <IconUser class="h-3.5 w-3.5 shrink-0" />
-          {{ giverName }}
-        </button>
-        <button
+        />
+        <AppButton
           v-if="primaryLocationName && quest?.location_id && sharedLocationIds.has(quest.location_id)"
-          type="button"
-          class="flex items-center gap-1.5 hover:text-primary transition-colors"
+          variant="ghost"
+          tone="primary"
+          size="inline"
+          class="text-body"
+          :icon="IconLocation"
+          :label="primaryLocationName"
           @click="openLocation(quest!.location_id!)"
-        >
-          <IconLocation class="h-3.5 w-3.5 shrink-0" />
-          {{ primaryLocationName }}
-        </button>
+        />
         <span v-else-if="primaryLocationName" class="flex items-center gap-1.5">
           <IconLocation class="h-3.5 w-3.5 shrink-0" />
           {{ primaryLocationName }}
@@ -165,18 +167,19 @@
           >
         </div>
         <div class="p-2 flex flex-col gap-1">
-          <button
+          <AppButton
             v-for="ref in linkedNpcRefs"
             :key="ref.id"
-            type="button"
-            class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-left"
+            variant="menu"
+            size="body"
+            block
             @click="openNpc(ref.ref_id)"
           >
             <IconUser class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span class="text-body text-foreground hover:text-primary transition-colors">{{
               npcName(ref.ref_id)
             }}</span>
-          </button>
+          </AppButton>
         </div>
       </div>
 
@@ -193,17 +196,18 @@
         </div>
         <div class="p-2 flex flex-col gap-1">
           <template v-for="ref in linkedLocationRefs" :key="ref.id">
-            <button
+            <AppButton
               v-if="sharedLocationIds.has(ref.ref_id)"
-              type="button"
-              class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 transition-colors text-left w-full"
+              variant="menu"
+              size="body"
+              block
               @click="openLocation(ref.ref_id)"
             >
               <IconLocation class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span class="text-body text-foreground hover:text-primary transition-colors">{{
                 locationName2(ref.ref_id)
               }}</span>
-            </button>
+            </AppButton>
             <div
               v-else
               class="flex items-center gap-2 px-2 py-1.5"
@@ -296,9 +300,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { RouterLink, useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { IconChevronLeft, IconClose, IconLocation, IconMonster, IconScrollText, IconUser } from '@/lib/icons';
 import { countObjectivesComplete } from "@/lib/quests/objectives";
+import AppButton from "@/components/common/AppButton.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import QuestObjectiveStatusMark from "@/components/quests/QuestObjectiveStatusMark.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

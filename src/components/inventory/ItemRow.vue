@@ -35,40 +35,65 @@
     </div>
 
     <!-- Drop to chat -->
-    <button
-      class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-amber-400 hover:bg-amber-400/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-      title="Drop to chat"
+    <AppButton
+      variant="ghost"
+      fill="tone"
+      tone="caution"
+      size="icon-xs"
+      tooltip="Drop to chat"
+      class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
       @click="$emit('drop-to-chat', item)"
-    ><IconArrowUp class="h-3 w-3" /></button>
+    >
+      <template #icon><IconArrowUp class="h-3 w-3" /></template>
+    </AppButton>
 
     <!-- Split stack — always rendered for consistent row width -->
-    <button
-      class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-sky-400 hover:bg-sky-400/10 transition-colors"
-      :class="item.quantity > 1 ? '[@media(hover:hover)]:opacity-0 group-hover:opacity-100' : 'invisible'"
-      title="Split stack"
+    <AppButton
+      variant="ghost"
+      fill="tone"
+      tone="info"
+      size="icon-xs"
+      tooltip="Split stack"
       :disabled="item.quantity <= 1"
+      :class="item.quantity > 1 ? '[@media(hover:hover)]:opacity-0 group-hover:opacity-100' : 'invisible'"
       @click="$emit('split-stack', item)"
-    ><IconScissors class="h-3 w-3" /></button>
+    >
+      <template #icon><IconScissors class="h-3 w-3" /></template>
+    </AppButton>
 
     <!-- List for sale -->
-    <button
+    <AppButton
       v-if="sellable"
-      class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-sky-400 hover:bg-sky-400/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-      title="List for sale"
+      variant="ghost"
+      fill="tone"
+      tone="info"
+      size="icon-xs"
+      tooltip="List for sale"
+      class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
       @click="$emit('sell-item', item)"
-    ><IconShop class="h-3 w-3" /></button>
+    >
+      <template #icon><IconShop class="h-3 w-3" /></template>
+    </AppButton>
 
     <!-- Remove -->
-    <button
-      class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+    <AppButton
+      variant="ghost"
+      fill="tone"
+      tone="danger"
+      size="icon-xs"
+      tooltip="Remove"
+      class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
       @click="$emit('remove', item.id)"
-    ><IconDelete class="h-3 w-3" /></button>
+    >
+      <template #icon><IconDelete class="h-3 w-3" /></template>
+    </AppButton>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconAdd, IconArrowUp, IconDelete, IconDrag, IconMinus, IconScissors, IconShop } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 

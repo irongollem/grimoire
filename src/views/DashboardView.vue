@@ -19,12 +19,8 @@
         <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Party</h2>
           <div class="flex items-center gap-3">
-            <RouterLink to="/downtime" class="text-label font-semibold text-primary hover:opacity-80 transition-opacity">
-              Grant downtime →
-            </RouterLink>
-            <RouterLink to="/party" class="text-label font-semibold text-primary hover:opacity-80 transition-opacity">
-              Full tracker →
-            </RouterLink>
+            <AppButton to="/downtime" variant="link" size="inline-xs" label="Grant downtime →" />
+            <AppButton to="/party" variant="link" size="inline-xs" label="Full tracker →" />
           </div>
         </div>
         <div v-if="partyLoading" class="flex justify-center py-6">
@@ -33,7 +29,7 @@
         <div v-else-if="!party?.length" class="px-4 py-6 text-center">
           <IconNavParty class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
           <p class="text-body text-muted-foreground italic">No party members yet.</p>
-          <RouterLink to="/party" class="mt-2 inline-block text-label-lg text-primary hover:opacity-80">+ Add Members</RouterLink>
+          <AppButton to="/party" variant="link" size="inline" class="mt-2" label="+ Add Members" />
         </div>
         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-border">
           <div v-for="member in party" :key="member.id" class="bg-card px-3 py-2.5 flex flex-col gap-1.5">
@@ -98,12 +94,12 @@
         <div data-tour="dm-quests" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
             <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Active Quests</h2>
-            <RouterLink to="/quests" class="text-label font-semibold text-primary hover:opacity-80">View all →</RouterLink>
+            <AppButton to="/quests" variant="link" size="inline-xs" label="View all →" />
           </div>
           <div v-if="questsLoading" class="flex justify-center py-6"><LoadingSpinner /></div>
           <div v-else-if="!activeQuests.length" class="px-4 py-6 text-center">
             <p class="text-body text-muted-foreground italic">No active quests.</p>
-            <RouterLink to="/quests/new" class="mt-1 inline-block text-label-lg text-primary">+ New Quest</RouterLink>
+            <AppButton to="/quests/new" variant="link" size="inline" class="mt-1" label="+ New Quest" />
           </div>
           <div v-else class="divide-y divide-border">
             <RouterLink
@@ -119,9 +115,7 @@
               </div>
             </RouterLink>
             <div v-if="activeQuests.length > 6" class="px-4 py-2 text-center">
-              <RouterLink to="/quests" class="text-label text-muted-foreground hover:text-primary transition-colors">
-                + {{ activeQuests.length - 6 }} more →
-              </RouterLink>
+              <AppButton to="/quests" variant="ghost" tone="primary" size="inline-xs" :label="`+ ${activeQuests.length - 6} more →`" />
             </div>
           </div>
         </div>
@@ -185,11 +179,17 @@
                   />
                 </div>
                 <div class="flex gap-1.5">
-                  <button
-                    class="flex-1 rounded border border-primary/50 bg-primary/10 px-2 py-1 text-label text-primary hover:bg-primary/20 transition-colors disabled:opacity-40"
+                  <AppButton
+                    type="button"
+                    variant="tinted"
+                    tone="primary"
+                    emphasis="soft"
+                    size="xs"
+                    class="flex-1"
+                    label="Save"
                     :disabled="setToday.isPending.value"
                     @click="saveDate"
-                  >Save</button>
+                  />
                   <AppButton
                     variant="subtle"
                     size="xs"
@@ -210,12 +210,16 @@
                 :options="locationOptions"
                 placeholder="Set location…"
               />
-              <button
+              <AppButton
                 v-if="authStore.isDM && currentLocationId"
-                class="self-start text-label text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                variant="ghost"
+                tone="primary"
+                size="inline-xs"
+                class="self-start"
                 :disabled="syncLocation.isPending.value"
+                :label="syncLocation.isPending.value ? 'Syncing…' : 'Sync to party →'"
                 @click="syncLocationToParty"
-              >{{ syncLocation.isPending.value ? 'Syncing…' : 'Sync to party →' }}</button>
+              />
             </div>
 
           </div>
@@ -234,10 +238,15 @@
                   <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ entry.inv.name }}</p>
                   <p class="text-caption text-muted-foreground italic">{{ entry.carrier ?? "Party stash" }}</p>
                 </div>
-                <button
-                  class="shrink-0 px-2.5 py-1 rounded text-label border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                <AppButton
+                  variant="tinted"
+                  tone="caution"
+                  emphasis="outline"
+                  size="xs"
+                  class="shrink-0 cursor-pointer"
+                  label="Identify"
                   @click="identifyItem(entry.inv.id)"
-                >Identify</button>
+                />
               </div>
             </div>
           </div>
@@ -247,7 +256,7 @@
               <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
                 Rumors <span class="text-caption font-normal text-muted-foreground">({{ onHoldQuests.length }})</span>
               </h2>
-              <RouterLink to="/quests" class="text-label font-semibold text-primary hover:opacity-80">Quest log →</RouterLink>
+              <AppButton to="/quests" variant="link" size="inline-xs" label="Quest log →" />
             </div>
             <div class="flex flex-wrap gap-2 px-4 py-3">
               <RouterLink
@@ -273,7 +282,7 @@
       <div v-if="recentNpcs.length" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Recent NPCs</h2>
-          <RouterLink to="/npcs" class="text-label font-semibold text-primary hover:opacity-80">All NPCs →</RouterLink>
+          <AppButton to="/npcs" variant="link" size="inline-xs" label="All NPCs →" />
         </div>
         <div class="flex gap-4 overflow-x-auto px-4 py-3" style="scrollbar-width: none">
           <RouterLink
@@ -294,7 +303,7 @@
       <div v-if="pinnedNotes.length" class="rounded-lg border border-border bg-card overflow-hidden">
         <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
           <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pinned Notes</h2>
-          <RouterLink to="/notes" class="text-label font-semibold text-primary hover:opacity-80">All notes →</RouterLink>
+          <AppButton to="/notes" variant="link" size="inline-xs" label="All notes →" />
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
           <RouterLink

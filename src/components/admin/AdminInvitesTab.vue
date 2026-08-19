@@ -4,33 +4,28 @@
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
       <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">New Invite Link</h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        <input
+        <AppInput
           v-model="newLabel"
-          type="text"
           placeholder="Label (e.g. For John)"
-          class="sm:col-span-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          class="sm:col-span-2"
         />
-        <input
+        <AppInput
           v-model.number="newMaxUses"
           type="number"
           min="1"
           placeholder="Uses (default 1)"
-          class="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
       </div>
       <div class="flex items-center gap-1.5">
-        <button
+        <AppButton
           v-for="opt in planOptions"
           :key="opt.value"
-          type="button"
-          class="px-3 py-1 rounded-md text-label-lg font-semibold border transition-colors"
-          :class="newGrantedPlan === opt.value
-            ? opt.activeClass
-            : 'border-border text-muted-foreground hover:text-foreground'"
+          variant="subtle"
+          size="xs"
+          :active="newGrantedPlan === opt.value"
+          :label="opt.label"
           @click="newGrantedPlan = opt.value"
-        >
-          {{ opt.label }}
-        </button>
+        />
       </div>
       <div class="flex items-center gap-2">
         <input
@@ -38,14 +33,14 @@
           type="datetime-local"
           class="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
-        <button
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+        <AppButton
+          variant="primary"
+          size="sm"
+          :icon="IconAdd"
+          label="Generate"
           :disabled="createInvite.isPending.value"
           @click="handleCreate"
-        >
-          <IconAdd class="h-3.5 w-3.5" />
-          Generate
-        </button>
+        />
       </div>
     </div>
 
@@ -82,13 +77,17 @@
               <span v-if="isExpired(invite)" class="text-destructive"> · expired</span>
             </p>
           </div>
-          <button
-            class="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          <AppButton
+            variant="ghost"
+            fill="tone"
+            tone="danger"
+            size="icon-xs"
+            class="shrink-0"
+            :icon="IconDelete"
+            tooltip="Delete invite link"
             :disabled="deleteInvite.isPending.value"
             @click="deleteInvite.mutate(invite.id)"
-          >
-            <IconDelete class="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
         <div class="flex items-center gap-2 rounded bg-background px-2 py-1.5">
           <code class="flex-1 text-xs text-muted-foreground truncate font-mono">
@@ -120,6 +119,8 @@ import { ref, computed } from "vue";
 import { IconAdd, IconCheck, IconCopy, IconDelete } from "@/lib/icons";
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
 import type { AppInvite, GrantedPlan } from "@/composables/useAppInvites";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const invitesQuery = useAppInvites();
 const createInvite = useCreateAppInvite();
@@ -132,10 +133,10 @@ const newExpiry = ref("");
 const newMaxUses = ref<number | null>(1);
 const newGrantedPlan = ref<GrantedPlan>("free");
 
-const planOptions: { value: GrantedPlan; label: string; activeClass: string }[] = [
-  { value: "free",   label: "Free",   activeClass: "border-border bg-muted text-foreground" },
-  { value: "tester", label: "Tester", activeClass: "border-amber-500/50 bg-amber-500/10 text-amber-400" },
-  { value: "admin",  label: "Admin",  activeClass: "border-primary/50 bg-primary/10 text-primary" },
+const planOptions: { value: GrantedPlan; label: string }[] = [
+  { value: "free",   label: "Free" },
+  { value: "tester", label: "Tester" },
+  { value: "admin",  label: "Admin" },
 ];
 const copiedId = ref<string | null>(null);
 

@@ -37,12 +37,13 @@
       </div>
     </div>
     <!-- Tab switcher -->
-    <div class="flex rounded-md border border-border overflow-hidden w-fit text-label-lg font-semibold">
-      <button
+    <div class="flex gap-1 w-fit">
+      <AppButton
         v-for="tab in tabs"
         :key="tab.id"
-        class="px-4 py-1.5 transition-colors"
-        :class="activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+        variant="subtle"
+        size="sm"
+        :active="activeTab === tab.id"
         @click="selectTab(tab.id)"
       >
         {{ tab.label }}
@@ -50,11 +51,11 @@
           v-if="tab.count != null && tab.count > 0"
           class="ml-1.5 px-1.5 py-0.5 rounded-full text-2xs md:text-sm"
           :class="[
-            activeTab === tab.id ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground',
+            activeTab === tab.id ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground',
             tab.max != null && tab.count > tab.max ? 'bg-destructive/20! text-destructive!' : ''
           ]"
         >{{ tab.count }}{{ tab.max != null ? ` / ${tab.max}` : '' }}{{ tab.cantrips != null ? ` + ${tab.cantrips}${tab.maxCantrips != null ? `/${tab.maxCantrips}` : ''}C` : '' }}</span>
-      </button>
+      </AppButton>
     </div>
 
     <!-- Prepared tab -->
@@ -93,14 +94,14 @@
     <!-- Innate tab -->
     <template v-else-if="activeTab === 'innate'">
       <div class="flex justify-end mb-2">
-        <button
-          type="button"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-violet-500/15 border border-violet-500/30 text-violet-400 text-label-lg font-semibold hover:bg-violet-500/25 transition-colors"
+        <AppButton
+          variant="tinted"
+          tone="arcane"
+          size="sm"
+          :icon="IconGenerate"
+          label="Add Innate Spell"
           @click="addInnateOpen = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Add Innate Spell
-        </button>
+        />
       </div>
       <PlayerInnateSpells
         :party-member-id="resolvedMemberId"
@@ -129,38 +130,28 @@
           />
         </div>
         <!-- Level -->
-        <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
-          <button
-            v-for="lvl in LEVEL_FILTERS"
-            :key="lvl.value"
-            class="px-2.5 py-1.5 transition-colors"
-            :class="ui.playerSpellsLevelFilter === lvl.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="setLevelFilter(lvl.value)"
-          >
-            {{ lvl.label }}
-          </button>
-        </div>
+        <SegmentedControl
+          :model-value="ui.playerSpellsLevelFilter"
+          :options="LEVEL_FILTERS"
+          @update:model-value="setLevelFilter"
+        />
         <!-- School -->
-        <select
-          v-model="ui.playerSpellsSchoolFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="ui.playerSpellsSchoolFilter">
           <option value="">All Schools</option>
           <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
-        </select>
+        </AppSelect>
         <!-- Class -->
-        <select
-          v-model="ui.playerSpellsClassFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="ui.playerSpellsClassFilter">
           <option v-for="c in availableSpellClasses" :key="c" :value="c">{{ c }}</option>
-        </select>
-        <button
+        </AppSelect>
+        <AppButton
           v-if="ui.playerSpellsHasActiveFilters"
-          type="button"
-          class="px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground border border-border rounded-md hover:border-foreground/30 transition-colors shrink-0"
+          variant="subtle"
+          size="sm"
+          label="Clear"
+          class="shrink-0"
           @click="ui.resetPlayerSpellsFilters()"
-        >Clear</button>
+        />
       </div>
 
       <SpellList
@@ -202,6 +193,9 @@ import PlayerInnateSpells from "@/components/spells/PlayerInnateSpells.vue";
 import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { Spell } from "@/types/spell.types";
 import { SPELL_SCHOOLS, getCasterType, computeMaxPrepared } from "@/types/spell.types";
 import { useCharacterClasses } from "@/composables/useCharacterClasses";

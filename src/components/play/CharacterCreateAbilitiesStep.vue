@@ -67,9 +67,7 @@
           <template v-if="scoreMode === 'array'">Assign the standard array (15, 14, 13, 12, 10, 8) to your abilities.</template>
           <template v-else>4d6 drop lowest — reroll until happy, then assign.</template>
         </p>
-        <button v-if="scoreMode === 'roll'" type="button"
-          class="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity"
-          @click="rollAbilityScores">Reroll Pool</button>
+        <AppButton v-if="scoreMode === 'roll'" variant="primary" size="sm" label="Reroll Pool" @click="rollAbilityScores" />
       </div>
       <div class="flex items-center gap-1.5 flex-wrap rounded-md border border-border bg-card px-3 py-2">
         <span class="text-label text-muted-foreground mr-1">POOL</span>
@@ -85,11 +83,17 @@
           class="rounded-lg border bg-card p-3 flex flex-col items-center gap-1.5 transition-colors"
           :class="asiMode === 'bonus' && racialBonusMap[stat.key] ? 'border-primary/40 bg-primary/2' : 'border-border'">
           <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
-          <select :value="scoreAssignment[stat.key] ?? ''" class="field-input w-full text-center"
-            @change="onPoolPick(stat.key, ($event.target as HTMLSelectElement).value)">
+          <AppSelect
+            :model-value="scoreAssignment[stat.key] ?? ''"
+            tone="filled"
+            size="body"
+            weight="normal"
+            class="w-full text-center px-3"
+            @update:model-value="(v) => onPoolPick(stat.key, String(v))"
+          >
             <option value="">—</option>
             <option v-for="opt in availableForAbility(stat.key)" :key="opt.idx" :value="opt.idx">{{ opt.val }}</option>
-          </select>
+          </AppSelect>
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
             class="font-cinzel text-2xs font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
@@ -108,8 +112,16 @@
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
           <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
-          <input v-model.number="f[stat.key]" type="number" min="1" max="30"
-            class="field-input w-full text-center px-1" />
+          <AppInput
+            v-model.number="f[stat.key]"
+            type="number"
+            tone="filled"
+            size="body"
+            align="center"
+            class="px-1"
+            min="1"
+            max="30"
+          />
           <span v-if="asiMode === 'bonus' && racialBonusMap[stat.key]"
             class="font-cinzel text-2xs font-bold text-primary leading-none">
             +{{ racialBonusMap[stat.key] }} racial
@@ -131,20 +143,12 @@
         <p class="text-label-lg font-semibold text-primary">
           {{ selectedSpecies.name.toUpperCase() }} BONUSES
         </p>
-        <div class="flex rounded overflow-hidden border border-primary/30 text-xs font-cinzel font-semibold">
-          <button v-if="asiIsStructured" type="button"
-            class="px-2.5 py-1 transition-colors"
-            :class="asiMode === 'bonus' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="asiMode = 'bonus'">Racial</button>
-          <button type="button"
-            class="px-2.5 py-1 transition-colors"
-            :class="asiMode === 'custom' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="asiMode = 'custom'">Custom (+3)</button>
-          <button type="button"
-            class="px-2.5 py-1 transition-colors"
-            :class="asiMode === 'manual' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="asiMode = 'manual'">Skip</button>
-        </div>
+        <SegmentedControl
+          :model-value="asiMode"
+          :options="asiModeOptions"
+          size="sm"
+          @update:model-value="onAsiModeChange"
+        />
       </div>
 
       <!-- Racial mode: structured — bonuses shown directly in score cards above -->
@@ -202,10 +206,12 @@
 import { ref, reactive, computed } from "vue";
 import {
   ABILITY_STATS, SCORE_MODES, POINT_BUY_COSTS, STANDARD_ARRAY, roll4d6DropLowest,
-  type AbilityKey,
+  type AbilityKey, type AsiMode,
 } from "@/rules/characterCreation";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 
 const scoreModeOptions = SCORE_MODES.map((mode) => ({ value: mode.id, label: mode.label }));
@@ -230,6 +236,18 @@ const asiIsStructured = computed(() =>
   isStructuredAsi(selectedSpecies.value?.ability_score_increases) &&
   isStructuredAsi(selectedSubrace.value?.ability_score_increases),
 );
+
+const asiModeOptions = computed(() => {
+  const opts: { value: AsiMode; label: string }[] = [];
+  if (asiIsStructured.value) opts.push({ value: "bonus", label: "Racial" });
+  opts.push({ value: "custom", label: "Custom (+3)" });
+  opts.push({ value: "manual", label: "Skip" });
+  return opts;
+});
+
+function onAsiModeChange(mode: AsiMode) {
+  asiMode.value = mode;
+}
 
 const racialBonusMap = computed((): Partial<Record<AbilityKey, number>> => {
   if (!asiIsStructured.value || asiMode.value !== "bonus") return {};
@@ -318,10 +336,3 @@ function onScoreModeChange(mode: typeof SCORE_MODES[number]["id"]) {
   if (mode === "roll" && scorePool.value.length === 0) rollAbilityScores();
 }
 </script>
-
-<style scoped>
-@reference "@/assets/main.css";
-.field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
-</style>

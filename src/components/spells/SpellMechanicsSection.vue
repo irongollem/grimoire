@@ -12,16 +12,17 @@
         <span class="text-eyebrow text-muted-foreground"
           >Attack / Targeting</span
         >
-        <select
-          :value="attackType"
-          class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="$emit('update:attackType', ($event.target as HTMLSelectElement).value)"
+        <AppSelect
+          v-model="attackTypeModel"
+          tone="filled"
+          size="body"
+          weight="normal"
         >
           <option value="">— none selected —</option>
           <option v-for="o in ATTACK_TYPES" :key="o.value" :value="o.value">
             {{ o.label }}
           </option>
-        </select>
+        </AppSelect>
       </label>
 
       <!-- Save attribute + effect (only for saving throw) -->
@@ -30,29 +31,31 @@
           <span class="text-eyebrow text-muted-foreground"
             >Save Attribute</span
           >
-          <select
-            :value="saveAttribute"
-            class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @change="$emit('update:saveAttribute', ($event.target as HTMLSelectElement).value)"
+          <AppSelect
+            v-model="saveAttributeModel"
+            tone="filled"
+            size="body"
+            weight="normal"
           >
             <option value="">—</option>
             <option v-for="a in SAVE_ATTRIBUTES" :key="a" :value="a">{{ a }}</option>
-          </select>
+          </AppSelect>
         </label>
         <label class="flex flex-col gap-1 col-span-2">
           <span class="text-eyebrow text-muted-foreground"
             >Effect on Successful Save</span
           >
-          <select
-            :value="saveEffect"
-            class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @change="$emit('update:saveEffect', ($event.target as HTMLSelectElement).value)"
+          <AppSelect
+            v-model="saveEffectModel"
+            tone="filled"
+            size="body"
+            weight="normal"
           >
             <option value="">—</option>
             <option v-for="o in SAVE_EFFECTS" :key="o.value" :value="o.value">
               {{ o.label }}
             </option>
-          </select>
+          </AppSelect>
         </label>
       </template>
     </div>
@@ -71,11 +74,11 @@
         >Healing Dice
         <span class="normal-case font-fell font-normal">(if applicable)</span></span
       >
-      <input
-        :value="healingDice"
+      <AppInput
+        v-model="healingDiceModel"
         placeholder="e.g. 1d8, 2d6+mod"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:healingDice', ($event.target as HTMLInputElement).value)"
+        tone="filled"
+        size="body"
       />
     </label>
 
@@ -85,11 +88,11 @@
         >Target Description
         <span class="normal-case font-fell font-normal">(what does it hit?)</span></span
       >
-      <input
-        :value="targetDescription"
+      <AppInput
+        v-model="targetDescriptionModel"
         placeholder="e.g. one creature you can see within range, up to three willing creatures…"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:targetDescription', ($event.target as HTMLInputElement).value)"
+        tone="filled"
+        size="body"
       />
     </label>
 
@@ -100,26 +103,28 @@
           >AoE Shape
           <span class="normal-case font-fell font-normal">(if applicable)</span></span
         >
-        <select
-          :value="aoeShape"
-          class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
-          @change="$emit('update:aoeShape', ($event.target as HTMLSelectElement).value)"
+        <AppSelect
+          v-model="aoeShapeModel"
+          tone="filled"
+          size="body"
+          weight="normal"
+          class="capitalize"
         >
           <option value="">—</option>
           <option v-for="s in AOE_SHAPES" :key="s" :value="s" class="capitalize">
             {{ s }}
           </option>
-        </select>
+        </AppSelect>
       </label>
       <label class="flex flex-col gap-1">
         <span class="text-eyebrow text-muted-foreground"
           >AoE Size</span
         >
-        <input
-          :value="aoeSize"
+        <AppInput
+          v-model="aoeSizeModel"
           placeholder="e.g. 20-foot radius"
-          class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="$emit('update:aoeSize', ($event.target as HTMLInputElement).value)"
+          tone="filled"
+          size="body"
         />
       </label>
     </div>
@@ -130,20 +135,23 @@
         >Condition Inflicted
         <span class="normal-case font-fell font-normal">(optional)</span></span
       >
-      <input
-        :value="conditionInflicted"
+      <AppInput
+        v-model="conditionInflictedModel"
         placeholder="e.g. blinded, stunned, frightened…"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:conditionInflicted', ($event.target as HTMLInputElement).value)"
+        tone="filled"
+        size="body"
       />
     </label>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { ATTACK_TYPES, SAVE_ATTRIBUTES, SAVE_EFFECTS, AOE_SHAPES } from "@/types/spell.types";
 import type { SpellSchool } from "@/types/spell.types";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import type { DamageRoll } from "@/lib/dice/dice";
 
 const {
@@ -170,7 +178,7 @@ const {
   school: SpellSchool;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   "update:attackType": [value: string];
   "update:saveAttribute": [value: string];
   "update:saveEffect": [value: string];
@@ -181,4 +189,16 @@ defineEmits<{
   "update:aoeSize": [value: string];
   "update:conditionInflicted": [value: string];
 }>();
+
+// AppInput/AppSelect require a real v-model; this component is a pure
+// prop-in/emit-out controlled component (no local state of its own), so each
+// field gets a thin writable computed bridging the prop to its emit.
+const attackTypeModel = computed({ get: () => attackType, set: (v: string) => emit("update:attackType", v) });
+const saveAttributeModel = computed({ get: () => saveAttribute, set: (v: string) => emit("update:saveAttribute", v) });
+const saveEffectModel = computed({ get: () => saveEffect, set: (v: string) => emit("update:saveEffect", v) });
+const healingDiceModel = computed({ get: () => healingDice, set: (v: string) => emit("update:healingDice", v) });
+const targetDescriptionModel = computed({ get: () => targetDescription, set: (v: string) => emit("update:targetDescription", v) });
+const aoeShapeModel = computed({ get: () => aoeShape, set: (v: string) => emit("update:aoeShape", v) });
+const aoeSizeModel = computed({ get: () => aoeSize, set: (v: string) => emit("update:aoeSize", v) });
+const conditionInflictedModel = computed({ get: () => conditionInflicted, set: (v: string) => emit("update:conditionInflicted", v) });
 </script>

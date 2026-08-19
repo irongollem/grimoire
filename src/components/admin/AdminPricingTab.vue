@@ -79,10 +79,13 @@
           <tr v-for="pack in pricingQuery.packs.data.value" :key="pack.pack_id">
             <td class="py-2 font-fell text-foreground">{{ pack.label }}</td>
             <td class="py-2 text-right">
-              <input
+              <AppInput
                 v-model.number="draftPacks[pack.pack_id].credits"
                 type="number" min="1"
-                class="w-16 bg-muted border border-border rounded px-2 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="filled"
+                size="body-xs"
+                align="right"
+                class="w-16"
               />
             </td>
             <td class="py-2 pl-3 text-right text-caption text-muted-foreground whitespace-nowrap">
@@ -91,22 +94,23 @@
                 : '—' }}
             </td>
             <td class="py-2 pl-3">
-              <input
+              <AppInput
                 v-model="draftPacks[pack.pack_id].stripe_price_id"
-                type="text"
                 placeholder="price_…"
-                class="w-full bg-muted border border-border rounded px-2 py-1 font-mono text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="filled"
+                size="body-xs"
+                class="font-mono text-xs placeholder:text-muted-foreground/50"
                 :class="draftPacks[pack.pack_id].stripe_price_id ? 'text-green-400' : 'text-amber-400'"
               />
             </td>
             <td class="py-2 pl-2 text-right">
-              <button
-                class="px-2.5 py-1 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+              <AppButton
+                variant="primary"
+                size="xs"
+                :label="packSaving[pack.pack_id] ? '…' : 'Save'"
                 :disabled="packSaving[pack.pack_id]"
                 @click="savePack(pack)"
-              >
-                {{ packSaving[pack.pack_id] ? '…' : 'Save' }}
-              </button>
+              />
             </td>
           </tr>
         </tbody>
@@ -145,10 +149,13 @@
               <p class="text-label text-muted-foreground">{{ gen.generation_type }}</p>
             </td>
             <td class="py-2 text-right">
-              <input
+              <AppInput
                 v-model.number="draftGenCosts[gen.generation_type]"
                 type="number" min="0"
-                class="w-24 bg-muted border border-border rounded px-2 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="filled"
+                size="body-xs"
+                align="right"
+                class="w-24"
               />
               <p
                 v-if="derivedNonSquare(gen.generation_type)"
@@ -185,13 +192,13 @@
               >↓ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
             </td>
             <td class="py-2 pl-2 text-right">
-              <button
-                class="px-2.5 py-1 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+              <AppButton
+                variant="primary"
+                size="xs"
+                :label="genCostSaving[gen.generation_type] ? '…' : 'Save'"
                 :disabled="genCostSaving[gen.generation_type]"
                 @click="saveGenCost(gen)"
-              >
-                {{ genCostSaving[gen.generation_type] ? '…' : 'Save' }}
-              </button>
+              />
             </td>
           </tr>
         </tbody>
@@ -208,6 +215,8 @@ import type { CreditPackConfig, GenerationCreditCost } from "@/composables/useAd
 import { useCheckoutConfig } from "@/composables/useCheckoutConfig";
 import { useAdminCalibration } from "@/composables/useAdminCalibration";
 import type { CalibrationHint } from "@/composables/useAdminCalibration";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const pricingQuery = useAdminPricing();
 const calibrationQuery = useAdminCalibration();

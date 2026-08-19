@@ -6,8 +6,10 @@
       v-if="campaigns.length > 0 || campaignStore.activeCampaignId"
       class="relative"
     >
-      <button
-        class="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent transition-colors text-left"
+      <AppButton
+        variant="menu"
+        size="body"
+        block
         @click="open = !open"
       >
         <div
@@ -47,7 +49,7 @@
           class="h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform"
           :class="open ? 'rotate-180' : ''"
         />
-      </button>
+      </AppButton>
 
       <!-- Click-outside backdrop -->
       <div v-if="open" class="fixed inset-0 z-40" @click="open = false" />
@@ -105,8 +107,10 @@
 
         <!-- Archived campaigns -->
         <div v-if="archivedCampaigns.length > 0" class="border-t border-border py-1">
-          <button
-            class="w-full flex items-center gap-2 px-3 py-1.5 text-left"
+          <AppButton
+            variant="menu"
+            size="sm"
+            block
             @click="showArchived = !showArchived"
           >
             <IconArchive class="h-3 w-3 text-muted-foreground/60" />
@@ -117,7 +121,7 @@
               class="h-3 w-3 text-muted-foreground/60 transition-transform"
               :class="showArchived ? 'rotate-180' : ''"
             />
-          </button>
+          </AppButton>
           <template v-if="showArchived">
             <div
               v-for="c in archivedCampaigns"
@@ -140,8 +144,10 @@
         </div>
 
         <div class="border-t border-border py-1">
-          <button
-            class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors"
+          <AppButton
+            variant="menu"
+            size="sm"
+            block
             :disabled="isClaiming"
             @click="claimForActive"
           >
@@ -149,23 +155,27 @@
             <span class="font-cinzel text-xs text-muted-foreground">
               {{ isClaiming ? "Claiming…" : "Claim unclaimed data" }}
             </span>
-          </button>
-          <button
-            class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors"
+          </AppButton>
+          <AppButton
+            variant="menu"
+            size="sm"
+            block
             @click="startCreate"
           >
             <IconAdd class="h-3.5 w-3.5 text-muted-foreground" />
             <span class="font-cinzel text-xs text-muted-foreground"
               >New Campaign</span
             >
-          </button>
-          <button
-            class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-accent transition-colors"
+          </AppButton>
+          <AppButton
+            variant="menu"
+            size="sm"
+            block
             @click="showImport = true; open = false"
           >
             <IconUploadCloud class="h-3.5 w-3.5 text-muted-foreground" />
             <span class="font-cinzel text-xs text-muted-foreground">Import from backup</span>
-          </button>
+          </AppButton>
         </div>
       </div>
     </div>
@@ -175,13 +185,14 @@
       <p class="text-caption text-muted-foreground italic mb-2">
         No campaigns yet.
       </p>
-      <button
-        class="w-full flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+      <AppButton
+        variant="primary"
+        size="sm"
+        block
+        :icon="IconAdd"
+        label="Create Campaign"
         @click="startCreate"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        Create Campaign
-      </button>
+      />
     </div>
   </div>
 
@@ -212,6 +223,7 @@ import { getCalendarAdapter } from "@/calendars/index";
 import type { Campaign } from "@/types/campaign.types";
 import { useQuota } from "@/composables/useQuota";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const campaignStore = useCampaignStore();
 const { onlineUsers } = useCampaignPresence();

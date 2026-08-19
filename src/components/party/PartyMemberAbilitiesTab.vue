@@ -10,13 +10,15 @@
       class="flex flex-col items-center gap-1"
     >
       <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
-      <input
-        :value="form[stat.key]"
+      <AppInput
+        :model-value="form[stat.key]"
         type="number"
         min="1"
         max="30"
-        class="field-input w-full text-center px-1"
-        @change="patch({ [stat.key]: Number(($event.target as HTMLInputElement).value) })"
+        tone="filled"
+        size="body-xs"
+        align="center"
+        @update:model-value="(v) => patch({ [stat.key]: Number(v) })"
       />
       <span
         class="font-cinzel text-xs font-bold"
@@ -34,73 +36,80 @@
   <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
     <label class="block">
       <span class="field-label">Max HP</span>
-      <input
-        :value="form.max_hp"
+      <AppInput
+        :model-value="form.max_hp"
         type="number"
         min="1"
-        class="field-input w-full"
-        @change="patch({ max_hp: Number(($event.target as HTMLInputElement).value) })"
+        tone="filled"
+        size="body"
+        @update:model-value="(v) => patch({ max_hp: Number(v) })"
       />
     </label>
     <label class="block">
       <span class="field-label">Current HP</span>
-      <input
-        :value="form.current_hp"
+      <AppInput
+        :model-value="form.current_hp"
         type="number"
-        class="field-input w-full"
-        @change="patch({ current_hp: Number(($event.target as HTMLInputElement).value) })"
+        tone="filled"
+        size="body"
+        @update:model-value="(v) => patch({ current_hp: Number(v) })"
       />
     </label>
     <label class="block">
       <span class="field-label">Temp HP</span>
-      <input
-        :value="form.temp_hp"
+      <AppInput
+        :model-value="form.temp_hp"
         type="number"
         min="0"
-        class="field-input w-full"
-        @change="patch({ temp_hp: Number(($event.target as HTMLInputElement).value) })"
+        tone="filled"
+        size="body"
+        @update:model-value="(v) => patch({ temp_hp: Number(v) })"
       />
     </label>
     <label class="block">
       <span class="field-label">Armor Class</span>
-      <input
-        :value="form.ac"
+      <AppInput
+        :model-value="form.ac"
         type="number"
         min="1"
-        class="field-input w-full"
-        @change="patch({ ac: Number(($event.target as HTMLInputElement).value) })"
+        tone="filled"
+        size="body"
+        @update:model-value="(v) => patch({ ac: Number(v) })"
       />
       <span class="text-caption text-muted-foreground italic">Without shield — an equipped shield adds its bonus automatically.</span>
     </label>
     <label class="block">
       <span class="field-label">Speed (ft)</span>
-      <input
-        :value="form.speed"
+      <AppInput
+        :model-value="form.speed"
         type="number"
         min="0"
         step="5"
-        class="field-input w-full"
-        @change="patch({ speed: Number(($event.target as HTMLInputElement).value) })"
+        tone="filled"
+        size="body"
+        @update:model-value="(v) => patch({ speed: Number(v) })"
       />
     </label>
     <label class="block">
       <span class="field-label">Initiative Bonus</span>
-      <input
-        :value="form.initiative_bonus"
+      <AppInput
+        :model-value="form.initiative_bonus"
         type="number"
-        class="field-input w-full"
+        tone="filled"
+        size="body"
         placeholder="extra on top of DEX (e.g. Alert +5)"
-        @change="patch({ initiative_bonus: Number(($event.target as HTMLInputElement).value) })"
+        @update:model-value="(v) => patch({ initiative_bonus: Number(v) })"
       />
     </label>
     <label class="block">
       <span class="field-label">Carry Capacity Override</span>
-      <input
-        :value="form.carry_capacity_override ?? ''"
+      <AppInput
+        :model-value="form.carry_capacity_override"
         type="text"
-        class="field-input w-full"
+        tone="filled"
+        size="body"
         placeholder="*2, +30, 150 — blank = STR×15"
-        @input="patch({ carry_capacity_override: ($event.target as HTMLInputElement).value || null })"
+        @update:model-value="(v) => patch({ carry_capacity_override: v || null })"
       />
     </label>
   </div>
@@ -126,13 +135,14 @@
     <p class="text-label-lg font-semibold text-muted-foreground uppercase">
       Spell Slots (Max per Level)
     </p>
-    <button
-      type="button"
-      class="text-label text-primary/70 hover:text-primary transition-colors"
+    <AppButton
+      variant="ghost"
+      tone="primary"
+      size="inline-xs"
+      label="Reset to class defaults"
+      class="text-primary/70"
       @click="emit('resetSlots')"
-    >
-      Reset to class defaults
-    </button>
+    />
   </div>
   <div class="grid grid-cols-3 gap-2">
     <label
@@ -143,13 +153,15 @@
       <span class="text-label font-semibold text-muted-foreground">
         {{ SLOT_LEVEL_LABELS[lvl - 1] }}
       </span>
-      <input
-        :value="spellSlotMaxes[lvl - 1]"
+      <AppInput
+        :model-value="spellSlotMaxes[lvl - 1]"
         type="number"
         min="0"
         max="9"
-        class="field-input w-full text-center px-1"
-        @change="emit('update:spellSlotMax', lvl - 1, Number(($event.target as HTMLInputElement).value))"
+        tone="filled"
+        size="body-xs"
+        align="center"
+        @update:model-value="(v) => emit('update:spellSlotMax', lvl - 1, Number(v))"
       />
     </label>
   </div>
@@ -157,6 +169,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import type { AbilitiesFormSlice } from "./partyMemberForm.types";
 import type { SkillProficiencies } from "@/types/party.types";
 
@@ -219,8 +233,5 @@ const passiveInvestigation = computed(() => {
 @reference "@/assets/main.css";
 .field-label {
   @apply block text-label-lg font-semibold text-muted-foreground mb-1;
-}
-.field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

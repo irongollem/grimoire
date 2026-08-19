@@ -42,10 +42,11 @@
       <!-- Right: Main form -->
       <div class="flex flex-col gap-4">
         <!-- Name -->
-        <input
+        <AppInput
           v-model="name"
           placeholder="Item name…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="card"
+          size="heading"
         />
 
         <!-- Type + Subtype + Rarity -->
@@ -204,11 +205,13 @@
                 class="w-14"
               />
               <span class="text-body text-foreground flex-1">{{ entry.name }}</span>
-              <button
-                type="button"
-                class="text-muted-foreground hover:text-destructive transition-colors"
+              <AppButton
+                variant="ghost"
+                tone="danger"
+                size="inline-xs"
+                :icon="IconClose"
                 @click="removeBundleItem(idx)"
-              ><IconClose class="h-3.5 w-3.5" /></button>
+              />
             </div>
           </div>
           <div class="flex gap-2">

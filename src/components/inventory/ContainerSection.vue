@@ -14,16 +14,16 @@
           ({{ items.length }}<template v-if="weight != null"> · {{ formatWeightLb(weight) }}</template>)
         </span>
       </button>
-      <button
+      <AppButton
         v-if="container"
-        class="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5"
-        title="View item details"
+        variant="ghost"
+        size="icon-xs"
+        tooltip="View item details"
         @click.stop="$emit('open-detail', container)"
-      ><IconInfo class="h-3 w-3" /></button>
-      <button
-        class="font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
-        @click="showAdd = !showAdd"
-      >+ Add</button>
+      >
+        <template #icon><IconInfo class="h-3 w-3" /></template>
+      </AppButton>
+      <AppButton variant="ghost" size="inline-xs" label="+ Add" @click="showAdd = !showAdd" />
       <button
         v-if="removable"
         class="font-cinzel text-2xs text-destructive/60 hover:text-destructive transition-colors ml-1"
@@ -36,13 +36,14 @@
       <!-- Inline add form -->
       <form v-if="showAdd" class="px-4 py-2.5 border-b border-border flex items-center gap-2" @submit.prevent="submit">
         <div class="relative flex-1 min-w-0">
-          <input
+          <AppInput
             ref="addInputRef"
             v-model="addName"
             type="text"
+            tone="muted"
+            size="body-xs"
             placeholder="Search vault…"
             autocomplete="off"
-            class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             :class="addName && !addSelectedId ? 'border-amber-500/50' : ''"
             @input="onInput"
             @focus="onInput"
@@ -52,20 +53,20 @@
             v-if="showSuggestions && suggestions.length"
             class="absolute left-0 top-full mt-0.5 z-20 w-full rounded border border-border bg-card shadow overflow-hidden max-h-40 overflow-y-auto"
           >
-            <button
+            <AppButton
               v-for="it in suggestions"
               :key="it.id"
-              type="button"
-              class="w-full text-left px-2 py-1 text-caption text-foreground hover:bg-muted transition-colors"
+              variant="menu"
+              size="body"
+              block
+              :label="it.name"
               @click="selectSuggestion(it)"
-            >{{ it.name }}</button>
+            />
           </div>
           <div v-if="showSuggestions" class="fixed inset-0 z-10" @click="showSuggestions = false" />
         </div>
-        <button type="submit" class="px-2 py-1 bg-primary text-primary-foreground rounded text-label hover:opacity-90 transition-opacity disabled:opacity-50" :disabled="!addSelectedId">
-          Add
-        </button>
-        <button type="button" class="font-cinzel text-2xs text-muted-foreground hover:text-foreground" @click="showAdd = false">✕</button>
+        <AppButton type="submit" variant="primary" size="xs" label="Add" :disabled="!addSelectedId" />
+        <AppButton variant="ghost" size="inline-xs" label="✕" @click="showAdd = false" />
       </form>
 
       <VueDraggable v-model="localItems" group="inventory" handle=".drag-handle" :animation="150" @end="onEnd" @add="onCrossAdd">
@@ -99,6 +100,9 @@ import type { PartyInventoryItem, InventoryLocation } from "@/types/inventory.ty
 import type { Item } from "@/types/item.types";
 import { formatWeightLb, parseWeightLb } from "@/lib/utils";
 import ItemRow from "./ItemRow.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 
 const props = defineProps<{
   label: string;
@@ -177,7 +181,7 @@ function onCrossAdd(event: SortEvent) {
   emit('reorder', localItems.value);
 }
 const showAdd = ref(false);
-const addInputRef = ref<HTMLInputElement | null>(null);
+const addInputRef = ref<AppInputHandle | null>(null);
 const addName = ref("");
 const addSelectedId = ref("");
 

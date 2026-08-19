@@ -15,9 +15,9 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-semibold text-foreground">Spell Generator</h2>
-        <button class="text-muted-foreground hover:text-foreground" @click="ui.spellGeneratorOpen = false">
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" @click="ui.spellGeneratorOpen = false">
+          <template #icon><IconClose class="h-5 w-5" /></template>
+        </AppButton>
       </div>
 
       <!-- Body -->
@@ -48,24 +48,18 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Level</label>
-              <select
-                v-model="constraints.level"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="constraints.level" tone="filled" size="body" weight="normal" block>
                 <option value="">Any</option>
                 <option value="0">Cantrip</option>
                 <option v-for="n in 9" :key="n" :value="String(n)">{{ n }}{{ levelSuffix(n) }}</option>
-              </select>
+              </AppSelect>
             </div>
             <div>
               <label class="block text-caption text-muted-foreground mb-1">School</label>
-              <select
-                v-model="constraints.school"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
-              >
+              <AppSelect v-model="constraints.school" tone="filled" size="body" weight="normal" block class="capitalize">
                 <option value="">Any</option>
                 <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
-              </select>
+              </AppSelect>
             </div>
           </div>
         </div>
@@ -117,34 +111,34 @@
           :byok="textIsByok"
           class="self-center"
         />
-        <button
+        <AppButton
           v-if="isPro && isAiEnabled"
-          type="button"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
           :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
-          :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          {{ isGenerating ? "Generating…" : "Generate with AI" }}
-        </button>
-        <button
+        />
+        <AppButton
           v-else-if="!isPro"
-          type="button"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
+          label="Generate with AI"
           @click="showPaywall = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate with AI
-        </button>
-        <RouterLink
+        />
+        <AppButton
           to="/spells/new"
-          class="w-full inline-flex items-center justify-center py-2 text-label-lg font-semibold rounded-md hover:opacity-90 transition-opacity"
-          :class="isPro && !aiApiKey ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-foreground hover:bg-muted'"
+          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          size="md"
+          block
+          label="New Blank Spell"
           @click="ui.spellGeneratorOpen = false"
-        >
-          New Blank Spell
-        </RouterLink>
+        />
       </div>
     </aside>
   </Transition>
@@ -153,7 +147,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import { useRouter, RouterLink } from "vue-router";
+import { useRouter } from "vue-router";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -162,6 +156,8 @@ import { useSpellGeneration } from "@/ai/useSpellGeneration";
 import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";

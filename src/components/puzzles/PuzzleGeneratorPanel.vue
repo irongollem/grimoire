@@ -15,9 +15,9 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-semibold text-foreground">Puzzle Generator</h2>
-        <button class="text-muted-foreground hover:text-foreground" @click="ui.puzzleGeneratorOpen = false">
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" @click="ui.puzzleGeneratorOpen = false">
+          <template #icon><IconClose class="h-5 w-5" /></template>
+        </AppButton>
       </div>
 
       <!-- Body -->
@@ -55,23 +55,17 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Type</label>
-              <select
-                v-model="constraints.puzzle_type"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="constraints.puzzle_type" tone="filled" size="body" weight="normal" block>
                 <option value="">Any</option>
                 <option v-for="t in PUZZLE_TYPES" :key="t" :value="t">{{ t }}</option>
-              </select>
+              </AppSelect>
             </div>
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Difficulty</label>
-              <select
-                v-model="constraints.difficulty"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="constraints.difficulty" tone="filled" size="body" weight="normal" block>
                 <option value="">Any</option>
                 <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
-              </select>
+              </AppSelect>
             </div>
           </div>
         </div>
@@ -123,34 +117,34 @@
           :byok="textIsByok"
           class="self-center"
         />
-        <button
+        <AppButton
           v-if="isPro && isAiEnabled"
-          type="button"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
           :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
-          :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          {{ isGenerating ? "Generating…" : "Generate with AI" }}
-        </button>
-        <button
+        />
+        <AppButton
           v-else-if="!isPro"
-          type="button"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
+          label="Generate with AI"
           @click="showPaywall = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate with AI
-        </button>
-        <RouterLink
+        />
+        <AppButton
           to="/puzzles/new"
-          class="w-full inline-flex items-center justify-center py-2 text-label-lg font-semibold rounded-md hover:opacity-90 transition-opacity"
-          :class="isPro && !aiApiKey ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-foreground hover:bg-muted'"
+          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          size="md"
+          block
+          label="New Blank Puzzle"
           @click="ui.puzzleGeneratorOpen = false"
-        >
-          New Blank Puzzle
-        </RouterLink>
+        />
       </div>
     </aside>
   </Transition>
@@ -162,7 +156,7 @@ import { ref, reactive, computed } from "vue";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT;
-import { useRouter, RouterLink } from "vue-router";
+import { useRouter } from "vue-router";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -170,6 +164,8 @@ import { useCreatePuzzle } from "@/composables/usePuzzles";
 import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { usePuzzleGeneration } from "@/ai/usePuzzleGeneration";
