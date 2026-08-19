@@ -1,34 +1,58 @@
+<!--
+  Opens the floating player.
+
+  The icon is a pop-out rather than the soundboard glyph on purpose: this button
+  does not navigate to the soundboard, it detaches a player into a floating
+  window — and on the soundboard page itself a "go to the soundboard" glyph read
+  as nothing at all.
+
+  It is an AppButton for the same reason everything else here is. It used to be a
+  hand-rolled borderless `<button>` sitting between two bordered AppButtons in the
+  soundboard header, which read as an accident rather than a distinction.
+-->
 <template>
-  <button
-    class="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-    :class="store.widgetOpen ? 'text-gold-400 bg-gold-500/10' : ''"
-    title="Toggle soundboard"
+  <AppButton
+    :variant="store.widgetOpen ? 'tinted' : 'subtle'"
+    tone="primary"
+    emphasis="soft"
+    :size="size"
+    :icon="IconPopOut"
+    :aria-label="store.widgetOpen ? 'Close the floating player' : 'Pop out the floating player'"
+    :tooltip="store.widgetOpen ? 'Close the floating player' : 'Pop the player out into a floating window'"
     @click="store.toggleWidget()"
   >
-    <IconNavSoundboard class="h-3.5 w-3.5 shrink-0" />
-    <span v-if="!iconOnly" class="font-fell">Soundboard</span>
+    <span v-if="!iconOnly">Pop out</span>
+    <!--
+      The count is the reason this button is worth finding when the widget is
+      shut: it is the only thing on screen saying something is still audible.
+    -->
     <span
       v-if="totalPlaying > 0"
-      class="flex items-center justify-center h-4 w-4 rounded-full bg-gold-500/20 border border-gold-500/40 text-gold-300 text-2xs font-cinzel"
-      :class="iconOnly ? '' : 'ml-auto'"
+      class="flex h-4 w-4 items-center justify-center rounded-full border border-gold-500/40 bg-gold-500/20 text-2xs font-cinzel text-gold-300"
     >
       {{ totalPlaying }}
     </span>
-  </button>
+  </AppButton>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconNavSoundboard } from '@/lib/icons';
+import { IconPopOut } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import type { ButtonSize } from "@/components/common/appButtonVariants";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 
-defineProps<{ iconOnly?: boolean }>();
+const { iconOnly = false, size = "sm" } = defineProps<{
+  iconOnly?: boolean;
+  /** The top bar runs a tighter scale than the page header. */
+  size?: ButtonSize;
+}>();
 
 const store = useSoundboardStore();
 const spotifyStore = useSpotifyStore();
 
-// Count HTML audio sounds + 1 if Spotify is actively playing
+// HTML audio sounds, plus Spotify if it is actively playing.
 const totalPlaying = computed(
   () => store.activeAudioCount + (spotifyStore.isConnected && spotifyStore.isPlaying ? 1 : 0),
 );

@@ -447,15 +447,17 @@ export const useUiStore = defineStore("ui", () => {
   // order — and mixing them in one list meant neither read as a category.
   const soundboardViewMode = ref<"sounds" | "scenes" | "playlists">("sounds");
 
-  // Perform = fire targets only, for running a session. Arrange = the same
-  // pads with their full control strip, for setting one up. Persisted because
-  // a DM switches modes between prep and play, not within a page visit.
-  const soundboardBoardMode = useLocalStorage<BoardMode>("grimoire_soundboard_mode", "arrange");
   const soundboardPadSize = useLocalStorage<PadSize>("grimoire_soundboard_pad_size", "md");
 
   // The mixer drawer — same pattern as the campaign chat: in-flow, pushes the
   // board left while open. Session-scoped like chatOpen, not persisted.
   const soundboardMixerOpen = ref(false);
+
+  // Board settings. Lives here rather than inside the mixer because the mixer is
+  // only mounted while its drawer is open, and the dialog now has an entry point
+  // in the page header too — the mixer's status row used to be the only way in,
+  // a muted line its own comment called "a read-only echo, not a control".
+  const soundboardSettingsOpen = ref(false);
 
   // Bumped by the mobile bottom-nav FAB. The soundboard view watches it and
   // opens whichever create fits the tab that is showing — adding a sound is a
@@ -553,6 +555,23 @@ export const useUiStore = defineStore("ui", () => {
   function toggleDmMode() {
     dmMode.value = dmMode.value === "prep" ? "play" : "prep";
   }
+
+  /**
+   * Perform = fire targets only, for running a session. Arrange = the same pads
+   * with their full control strip, for setting one up.
+   *
+   * Derived from `dmMode` rather than owning its own switch. It used to be a
+   * persisted ref behind an Arrange/Perform control in the soundboard header,
+   * which was the same prep-vs-play distinction the app already makes globally,
+   * asked a second time on one page — and the two could disagree, so a DM in play
+   * could be looking at a board still dressed for setup.
+   *
+   * The escape hatch is the global toggle: to rearrange mid-session, drop into
+   * prep and back. That is one control instead of two, and it cannot drift.
+   */
+  const soundboardBoardMode = computed<BoardMode>(() =>
+    dmMode.value === "play" ? "perform" : "arrange",
+  );
 
   function enterDmPreview(partyMemberId?: string) {
     dmPreviewPartyMemberId.value = partyMemberId ?? null;
@@ -1031,6 +1050,7 @@ export const useUiStore = defineStore("ui", () => {
     soundboardBoardMode,
     soundboardPadSize,
     soundboardMixerOpen,
+    soundboardSettingsOpen,
     soundboardCreateSignal,
 
     // Species

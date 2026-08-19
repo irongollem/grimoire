@@ -89,7 +89,7 @@
         type="button"
         class="flex w-full items-center gap-1.5 border-t border-border/50 pt-1.5 text-left text-2xs text-muted-foreground transition-colors hover:text-foreground"
         title="Open board settings"
-        @click="showSettings = true"
+        @click="ui.soundboardSettingsOpen = true"
       >
         <IconSettings class="h-3 w-3 shrink-0" />
         <span>
@@ -103,7 +103,6 @@
       </p>
     </template>
 
-    <BoardSettingsDialog :open="showSettings" @close="showSettings = false" />
   </div>
 </template>
 
@@ -118,13 +117,13 @@
 import { computed, ref } from "vue";
 import { IconChevronRight, IconSettings, IconWarning } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
+import { useUiStore } from "@/stores/ui";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
 import type { AudioBus } from "@/lib/audio/audioEngine";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import SceneMixer from "./SceneMixer.vue";
-import BoardSettingsDialog from "./BoardSettingsDialog.vue";
 
 const BUSES = [
   { id: "music", label: "Music" },
@@ -149,11 +148,11 @@ const { collapsible = false, column = false } = defineProps<{
 const stacked = computed(() => collapsible || column);
 
 const store = useSoundboardStore();
+const ui = useUiStore();
 // Read-only here; the dialog owns changing them.
 const { audioTriggersEnabled } = useAudioTriggerPrefs();
 const { broadcasting, broadcastError } = useSoundboardBroadcast();
 
-const showSettings = ref(false);
 
 // Only worth the space when a scene is actually running.
 const showScene = computed(() => store.activeAmbientPlaylists.length > 0);

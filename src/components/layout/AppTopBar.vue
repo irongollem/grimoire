@@ -46,7 +46,7 @@
       @click="ui.toggleDmMode()"
     />
 
-    <SoundboardWidgetToggle :icon-only="true" class="px-1.5! py-1!" />
+    <SoundboardWidgetToggle icon-only size="xs" class="shrink-0" />
 
     <!-- Mobile search overlay -->
     <Teleport to="body">

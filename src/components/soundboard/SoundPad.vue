@@ -21,6 +21,20 @@
     :title="blockedReason ?? undefined"
     @click="fire"
   >
+    <!--
+      Cover art, Perform only. Arrange already shows it in the card header, and
+      an Arrange pad is a bare title row inside someone else's frame — a
+      full-bleed image there would be painting on the wrong surface.
+
+      Held at opacity rather than scrimmed so it works in both themes: a scrim
+      dark enough for light theme washes out dark theme, and the pad's own text
+      colours are theme tokens. At 35% the art reads as the pad's identity
+      without the title having to fight it.
+    -->
+    <span v-if="mode === 'perform' && sound.thumbnail_url" class="absolute inset-0 opacity-35">
+      <FocalImage :src="sound.thumbnail_url" format="square" alt="" />
+    </span>
+
     <!-- The spine is what makes the category readable across a table without
          reading a word of it. Thicker while audible. In Arrange the card
          wrapper draws one spine for the whole surface instead. -->
@@ -30,7 +44,7 @@
       :class="[CATEGORY_SPINE[sound.category], isPlaying ? 'w-1' : 'w-0.75 opacity-75']"
     />
 
-    <span class="flex min-w-0 items-start gap-1.5">
+    <span class="relative flex min-w-0 items-start gap-1.5">
       <component
         :is="CATEGORY_ICON[sound.category]"
         class="mt-px shrink-0"
@@ -54,7 +68,7 @@
       the DM is firing by position and colour, so everything that is not "is it
       playing" comes off — a row of unreadable 8px metadata is worse than none.
     -->
-    <span v-if="mode === 'perform' && size !== 'sm'" class="mt-auto flex min-w-0 items-center gap-1.5 pt-1">
+    <span v-if="mode === 'perform' && size !== 'sm'" class="relative mt-auto flex min-w-0 items-center gap-1.5 pt-1">
       <EqBars v-if="isPlaying" :accent="sound.category" />
       <IconRepeat
         v-if="isLooping"
@@ -73,11 +87,11 @@
 
     <!-- Small pads still show that something is audible, just nothing else.
          Perform only: those pads have fixed heights, so the row costs nothing. -->
-    <span v-else-if="mode === 'perform' && isPlaying" class="mt-auto pt-1">
+    <span v-else-if="mode === 'perform' && isPlaying" class="relative mt-auto pt-1">
       <EqBars :accent="sound.category" />
     </span>
 
-    <span v-if="blockedReason !== null" class="mt-1 text-2xs leading-snug text-destructive">
+    <span v-if="blockedReason !== null" class="relative mt-1 text-2xs leading-snug text-destructive">
       {{ blockedReason }}
     </span>
 
@@ -96,6 +110,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconRepeat, IconMusicNote, IconMusic, IconWind, IconLightning } from "@/lib/icons";
+import FocalImage from "@/components/common/FocalImage.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSoundPlayback } from "@/composables/useSoundPlayback";
 import {

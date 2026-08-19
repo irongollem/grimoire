@@ -171,6 +171,35 @@ Deliberate departures from the rules above and in the feature docs. They look li
 
 - **Supabase "unused index" advisor hits are a known false positive here.** The stats window spans ~7.5 months and 16.1M scans, and the largest table holding a zero-scan index is small enough that Postgres prefers a sequential scan regardless. Do not drop indexes on the advisor's say-so — check the table size and query shape first.
 
+## Brand Marks — third-party logos are not glyphs
+
+A logo is not an icon. `src/lib/icons.ts` routes everything through `glyph()`,
+which repaints the art in `currentColor` so it tints with the surrounding text.
+Do that to someone else's mark and you have recoloured it, which its guidelines
+almost certainly forbid — Spotify's ask for their green specifically. That is a
+legal question, not a styling one.
+
+So brand marks live apart:
+
+- **Source of truth:** the vendor's official SVG, dropped into
+  `src/assets/brands/<name>.svg` and **never edited** — not recoloured, not
+  re-viewBoxed, not "optimized".
+- **Rendered by:** `src/components/brand/BrandIcon.vue`, as an `<img>`. The
+  browser draws the file exactly as shipped, so no stylesheet can reach inside
+  and repaint a path. Each file is well under Vite's 4KB inline limit, so it
+  still becomes a build-time data URI — no extra request.
+- **Never `v-html`.** It was the first thing tried here and it is the wrong tool:
+  a permanent injection vector bought nothing an `<img>` does not already give.
+
+Scaling is fine and expected — a logo has to sit at the same weight as the label
+beside it. Size it with utility classes (`h-4 w-4`) like any other icon. What is
+not fine is recolouring it, distorting it, or scaling the axes independently.
+
+Because `BrandIcon` takes a `name` prop it cannot go through `AppButton`'s
+`:icon`; use the `#icon` slot. That is one of the documented legitimate slot
+cases, not a workaround.
+
+
 ## Shared-Content Naming — say `library`, never `srd`
 
 The shared/admin-provided content tables are `library_monsters`, `library_spells`, `library_items`, `library_species`, `library_rules`, plus the art tables `library_monster_art{,_canonical}`, `library_spell_art{,_canonical}`, `library_art_staging` and `library_art_defaults`.

@@ -5,16 +5,22 @@
     </template>
 
     <template #actions>
-      <!-- Perform vs Arrange lives in the page head with the title: it decides
-           what the whole page below is for, so it does not belong among the
-           per-view furniture. -->
-      <SegmentedControl
-        v-if="ui.soundboardViewMode === 'sounds'"
-        v-model="ui.soundboardBoardMode"
-        :options="BOARD_MODE_OPTIONS"
-        variant="ghost"
+      <!-- No Arrange/Perform control here any more: the board follows the app's
+           own prep/play mode. It was the same question asked twice, and the two
+           could disagree. To rearrange mid-session, drop into prep and back. -->
+
+      <!-- Board settings had exactly one way in: a muted status line at the
+           bottom of the mixer drawer, which its own comment described as "a
+           read-only echo, not a control". Three settings including remote-player
+           sharing and the CarPlay direct-output fix were effectively hidden. -->
+      <AppButton
+        variant="subtle"
         size="sm"
-        class="shrink-0 rounded-lg border border-border/50 bg-muted/40 p-1"
+        :icon="IconSettings"
+        aria-label="Board settings"
+        tooltip="Board settings — pad size, triggers, sharing"
+        class="hidden sm:flex"
+        @click="ui.soundboardSettingsOpen = true"
       />
 
       <!-- The mixer drawer toggle — same idea as the chat toggle. -->
@@ -38,20 +44,25 @@
           tone="success"
           emphasis="outline"
           size="sm"
-          :icon="IconMusicNote"
-          :label="spotifyStore.isReady ? 'Spotify' : 'Connecting…'"
+          :aria-label="spotifyStore.isReady ? 'Spotify connected — disconnect' : 'Connecting to Spotify'"
           :tooltip="spotifyStore.isReady ? 'Spotify connected — click to disconnect' : 'Connecting to Spotify…'"
+          :loading="!spotifyStore.isReady"
           @click="spotifyStore.isReady ? spotifyStore.disconnect() : undefined"
-        />
+        >
+          <!-- Slot, not `:icon`: BrandIcon takes a prop, and the mark must not be
+               recoloured by the button's tone. -->
+          <template #icon><BrandIcon name="spotify" class="h-4 w-4" /></template>
+        </AppButton>
         <AppButton
           v-else
           variant="subtle"
           size="sm"
-          :icon="IconMusicNote"
-          label="Connect Spotify"
+          aria-label="Connect your Spotify account"
           tooltip="Connect your Spotify account"
           @click="spotifyStore.connect()"
-        />
+        >
+          <template #icon><BrandIcon name="spotify" class="h-4 w-4" /></template>
+        </AppButton>
       </template>
 
       <!-- Spotify is per-campaign BYOK. Without a Client ID the whole control
@@ -61,14 +72,15 @@
         v-else-if="auth.isDM"
         variant="subtle"
         size="sm"
-        :icon="IconMusicNote"
-        label="Set up Spotify"
+        aria-label="Set up Spotify"
         tooltip="Spotify needs a Client ID on this campaign before it can be connected"
         :to="{ name: 'campaign-settings', query: { tab: 'spotify' } }"
         class="border-dashed"
-      />
+      >
+        <template #icon><BrandIcon name="spotify" class="h-4 w-4 opacity-60" /></template>
+      </AppButton>
 
-      <SoundboardWidgetToggle />
+      <SoundboardWidgetToggle icon-only />
       <ListActionButton
         v-if="ui.soundboardViewMode === 'sounds'"
         variant="primary"
@@ -289,12 +301,16 @@
         </div>
       </aside>
     </div>
+    <BoardSettingsDialog
+      :open="ui.soundboardSettingsOpen"
+      @close="ui.soundboardSettingsOpen = false"
+    />
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
-import { IconAdd, IconClose, IconDrag, IconMusicNote, IconList, IconListOrdered, IconWind, IconMixer } from '@/lib/icons';
+import { IconAdd, IconClose, IconDrag, IconList, IconListOrdered, IconWind, IconMixer, IconSettings } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage, useMoveSound } from "@/composables/useSounds";
 import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/useSoundboardPages";
@@ -311,7 +327,6 @@ import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -323,6 +338,7 @@ import KeyCap from "@/components/soundboard/KeyCap.vue";
 import AddSoundDialog from "@/components/soundboard/AddSoundDialog.vue";
 import SoundCategoryFilter from "@/components/soundboard/SoundCategoryFilter.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
+import BrandIcon from "@/components/brand/BrandIcon.vue";
 import SoundboardPageTabs from "@/components/soundboard/SoundboardPageTabs.vue";
 import PlaylistsPanel from "@/components/soundboard/PlaylistsPanel.vue";
 
@@ -332,14 +348,9 @@ const VIEW_MODES = [
   { id: "playlists", label: "Playlists", icon: IconListOrdered },
 ] as const;
 
-const BOARD_MODES = [
-  { id: "arrange", label: "Arrange", hint: "Every control, for setting the board up" },
-  { id: "perform", label: "Perform", hint: "Fire targets only, for running a session" },
-] as const;
-
-const BOARD_MODE_OPTIONS = BOARD_MODES.map((b) => ({ value: b.id, label: b.label, tooltip: b.hint }));
 
 import SoundboardMixer from "@/components/soundboard/SoundboardMixer.vue";
+import BoardSettingsDialog from "@/components/soundboard/BoardSettingsDialog.vue";
 import SpotifyErrorBanner from "@/components/soundboard/SpotifyErrorBanner.vue";
 
 const ui = useUiStore();

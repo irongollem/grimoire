@@ -27,6 +27,7 @@ import {
   PencilLine, Pickaxe, Pin, Play, Plus, Printer,
   Puzzle, Quote, Radio, RectangleHorizontal, Redo2, RefreshCw,
   Repeat, Repeat1, RotateCcw,
+  PictureInPicture2,
   Save, ScanEye, Scissors, Scroll, ScrollText, Search, Send, Settings, Settings2,
   Share2, Shield, ShieldCheck, ShoppingBag, Shuffle, SkipBack, SkipForward, Skull, SlidersHorizontal,
   Sparkles, Square, SquareCode, SquareSplitVertical, Stamp, Star, Strikethrough, Sun, Sword, Swords,
@@ -37,6 +38,7 @@ import {
 } from '@lucide/vue'
 
 // ── Actions ───────────────────────────────────────────────────────────────────
+export { PictureInPicture2 as IconPopOut }
 export { Plus as IconAdd }
 export { Minus as IconMinus }
 export { Trash2 as IconDelete }
@@ -255,6 +257,11 @@ export { Layers as IconLayers }
 import { glyph } from "@/lib/glyph";
 import { NAV_GLYPHS } from "@/lib/navGlyphs.generated";
 import { NAV_GLYPHS as ASSET_GLYPHS } from "@/lib/navGlyphs.assets.generated";
+
+// Brand marks are NOT here. A third-party logo may not be recoloured or
+// redrawn, and everything in this file is built to tint with `currentColor`.
+// They live in src/components/brand/ and render verbatim — see BrandMark.vue.
+
 export const IconNavDashboard = glyph(NAV_GLYPHS.dashboard);
 export const IconNavNotes = glyph(NAV_GLYPHS.notes);
 export const IconNavCalendar = glyph(NAV_GLYPHS.calendar);
