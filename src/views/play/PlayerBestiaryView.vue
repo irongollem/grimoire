@@ -80,14 +80,16 @@
       <!-- DM: share all eligible beasts with this druid -->
       <div v-if="ui.dmPreviewMode && isDruid && unsharedEligibleBeasts.length > 0" class="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
         <p class="text-caption text-muted-foreground italic">{{ unsharedEligibleBeasts.length }} eligible beast{{ unsharedEligibleBeasts.length === 1 ? '' : 's' }} not yet shared</p>
-        <button
-          type="button"
+        <AppButton
+          variant="tinted"
+          tone="primary"
+          emphasis="outline"
+          size="xs"
+          class="md:text-sm"
           :disabled="sharingBeasts"
-          class="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-label md:text-sm font-semibold text-primary border border-primary/40 hover:bg-primary/10 transition-colors disabled:opacity-50"
+          :label="sharingBeasts ? 'Sharing…' : 'Share all eligible beasts'"
           @click="shareAllEligibleBeasts"
-        >
-          {{ sharingBeasts ? 'Sharing…' : 'Share all eligible beasts' }}
-        </button>
+        />
       </div>
 
       <div v-if="wildForms.length === 0" class="text-center py-16 space-y-2">
@@ -160,9 +162,15 @@
       >
         <div class="relative bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
           <!-- z-40 keeps this above the mini viewer's z-30 backdrop. -->
-          <button class="absolute top-3 right-3 z-40 text-muted-foreground hover:text-foreground" @click="lightbox = null">
-            <IconClose class="h-4 w-4" />
-          </button>
+          <AppButton
+            variant="ghost"
+            size="inline-xs"
+            class="absolute top-3 right-3 z-40"
+            aria-label="Close"
+            @click="lightbox = null"
+          >
+            <template #icon><IconClose class="h-4 w-4" /></template>
+          </AppButton>
 
           <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
             <MiniPortraitOverlay :source="{ table: 'monsters', id: lightboxMiniSourceId }" badge-position="bottom-right">

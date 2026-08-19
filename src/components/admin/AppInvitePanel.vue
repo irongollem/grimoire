@@ -1,12 +1,15 @@
 <template>
   <!-- Trigger button in sidebar -->
-  <button
-    class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-navy-800 transition-colors font-cinzel tracking-wide"
+  <AppButton
+    variant="ghost"
+    fill="muted"
+    size="sm"
+    block
+    class="justify-start"
+    :icon="IconShieldCheck"
+    label="Admin"
     @click="open = true"
-  >
-    <IconShieldCheck class="h-3.5 w-3.5 shrink-0" />
-    Admin
-  </button>
+  />
 
   <!-- Panel -->
   <Teleport to="body">
@@ -38,18 +41,16 @@
               New Invite Link
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <input
+              <AppInput
                 v-model="newLabel"
-                type="text"
                 placeholder="Label (e.g. For John)"
-                class="sm:col-span-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                class="sm:col-span-2"
               />
-              <input
+              <AppInput
                 v-model.number="newMaxUses"
                 type="number"
                 min="1"
                 placeholder="Uses (default 1)"
-                class="rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
             <!-- Plan picker -->
@@ -73,14 +74,14 @@
                 type="datetime-local"
                 class="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
-              <button
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-cinzel text-xs tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+              <AppButton
+                variant="primary"
+                size="sm"
+                :icon="IconAdd"
+                label="Generate"
                 :disabled="createInvite.isPending.value"
                 @click="handleCreate"
-              >
-                <IconAdd class="h-3.5 w-3.5" />
-                Generate
-              </button>
+              />
             </div>
           </div>
 
@@ -119,13 +120,17 @@
                     <span v-if="isExpired(invite)" class="text-destructive"> · expired</span>
                   </p>
                 </div>
-                <button
-                  class="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                <AppButton
+                  variant="ghost"
+                  fill="tone"
+                  tone="danger"
+                  size="icon-xs"
+                  class="shrink-0"
+                  :icon="IconDelete"
+                  tooltip="Delete invite link"
                   :disabled="deleteInvite.isPending.value"
                   @click="deleteInvite.mutate(invite.id)"
-                >
-                  <IconDelete class="h-3.5 w-3.5" />
-                </button>
+                />
               </div>
               <div class="flex items-center gap-2 rounded bg-background px-2 py-1.5">
                 <code class="flex-1 text-xs text-muted-foreground truncate font-mono">
@@ -214,6 +219,8 @@ import type { AppInvite } from "@/composables/useAppInvites";
 import type { GrantedPlan } from "@/composables/useAppInvites";
 import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const open = ref(false);
 const invitesQuery = useAppInvites();

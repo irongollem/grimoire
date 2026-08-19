@@ -19,13 +19,13 @@
     <header
       class="sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-background/95 px-2 py-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur"
     >
-      <button
-        type="button"
-        class="shrink-0 rounded-md px-2 py-2 text-body text-muted-foreground active:text-foreground"
+      <AppButton
+        variant="ghost"
+        size="sm"
+        label="Cancel"
+        class="shrink-0"
         @click="emit('cancel')"
-      >
-        Cancel
-      </button>
+      />
       <h1 class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground">
         {{ title }}
       </h1>
@@ -221,51 +221,60 @@
     <footer
       class="fixed inset-x-0 bottom-0 z-20 flex gap-3 border-t border-border bg-background/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur"
     >
-      <button
-        type="button"
-        class="min-h-11 shrink-0 basis-28 rounded-lg border border-border px-4 font-cinzel text-sm font-bold tracking-wider text-muted-foreground active:bg-muted"
+      <AppButton
+        variant="subtle"
+        size="md"
+        label="Cancel"
+        class="shrink-0 basis-28"
         @click="emit('cancel')"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        class="min-h-11 flex-1 rounded-lg bg-primary px-4 font-cinzel text-sm font-bold tracking-wider text-primary-foreground active:opacity-90 disabled:opacity-50"
+      />
+      <AppButton
+        variant="primary"
+        size="md"
+        class="flex-1"
+        :label="isSaving ? 'Saving…' : isNew ? 'Create' : 'Save Changes'"
         :disabled="isSaving"
         @click="emit('save')"
-      >
-        {{ isSaving ? "Saving…" : isNew ? "Create" : "Save Changes" }}
-      </button>
+      />
     </footer>
   </div>
 
   <!-- Overflow ⋮ sheet (existing NPCs) — secondary actions -->
   <MobileSheet v-model:open="showMenu" title="Actions">
     <div class="flex flex-col gap-1 pb-2">
-      <button
+      <AppButton
         v-if="isAiEnabled"
-        type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
+        variant="menu"
+        size="md"
+        block
+        class="gap-3"
         @click="runAction('generate')"
       >
-        <IconGenerate class="size-4 shrink-0 text-primary" /> Generate with AI
-      </button>
-      <button
-        type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50 disabled:opacity-50"
+        <template #icon><IconGenerate class="size-4 shrink-0 text-primary" /></template>
+        Generate with AI
+      </AppButton>
+      <AppButton
+        variant="menu"
+        size="md"
+        block
+        class="gap-3"
         :disabled="isSendingToScriptorium"
         @click="runAction('scriptorium')"
       >
-        <IconScrollText class="size-4 shrink-0 text-muted-foreground" />
+        <template #icon><IconScrollText class="size-4 shrink-0 text-muted-foreground" /></template>
         {{ isSendingToScriptorium ? "Exporting…" : "Send to Scriptorium" }}
-      </button>
-      <button
-        type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
+      </AppButton>
+      <AppButton
+        variant="menu"
+        tone="danger"
+        size="md"
+        block
+        class="gap-3"
         @click="runAction('delete')"
       >
-        <IconDelete class="size-4 shrink-0" /> Delete NPC
-      </button>
+        <template #icon><IconDelete class="size-4 shrink-0" /></template>
+        Delete NPC
+      </AppButton>
     </div>
   </MobileSheet>
 </template>
@@ -277,6 +286,7 @@ import type { Npc, NpcInsert, NpcStatus, StatBlock } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { Location } from "@/types/location.types";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
+import AppButton from "@/components/common/AppButton.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";

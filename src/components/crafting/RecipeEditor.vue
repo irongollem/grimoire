@@ -13,41 +13,33 @@
       @save="save"
     >
       <template #controls>
-        <button
-          type="button"
-          :title="
+        <AppButton
+          variant="subtle"
+          size="icon-sm"
+          tone="danger"
+          :active="form.requires_proficiency"
+          :icon="IconLock"
+          :tooltip="
             form.requires_proficiency
               ? 'Requires proficiency — click to allow unskilled attempts'
               : 'Unskilled attempts allowed — click to require proficiency'
           "
-          class="p-2 rounded-md border border-border transition-colors"
-          :class="
-            form.requires_proficiency
-              ? 'bg-destructive/15 text-destructive border-destructive/30'
-              : 'bg-card text-muted-foreground hover:text-foreground'
-          "
           @click="form.requires_proficiency = !form.requires_proficiency"
-        >
-          <IconLock class="h-3.5 w-3.5" />
-        </button>
+        />
 
-        <button
-          type="button"
-          :title="
+        <AppButton
+          variant="subtle"
+          size="icon-sm"
+          tone="danger"
+          :active="form.requires_tools"
+          :icon="IconTool"
+          :tooltip="
             form.requires_tools
               ? 'Requires physical tools — click to allow without tools'
               : 'Attemptable without tools (disadvantage) — click to require them'
           "
-          class="p-2 rounded-md border border-border transition-colors"
-          :class="
-            form.requires_tools
-              ? 'bg-destructive/15 text-destructive border-destructive/30'
-              : 'bg-card text-muted-foreground hover:text-foreground'
-          "
           @click="form.requires_tools = !form.requires_tools"
-        >
-          <IconTool class="h-3.5 w-3.5" />
-        </button>
+        />
       </template>
     </EntityEditorActionBar>
 
@@ -81,12 +73,13 @@
           class="block text-label-lg font-semibold text-muted-foreground mb-1"
           >CRAFTING DC</label
         >
-        <input
+        <AppInput
           v-model.number="form.dc"
           type="number"
           min="1"
           max="30"
-          class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="filled"
+          size="body"
         />
       </div>
 
@@ -97,20 +90,25 @@
           >CRAFTING TIME</label
         >
         <div class="flex gap-2">
-          <input
+          <AppInput
             v-model.number="form.crafting_time"
             type="number"
             min="1"
-            class="flex-1 min-w-0 bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="filled"
+            size="body"
+            :block="false"
+            class="flex-1 min-w-0"
           />
-          <select
+          <AppSelect
             v-model="form.crafting_time_unit"
-            class="bg-muted border border-border rounded-md px-2 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="filled"
+            size="body"
+            weight="normal"
           >
             <option value="minutes">minutes</option>
             <option value="hours">hours</option>
             <option value="days">days</option>
-          </select>
+          </AppSelect>
         </div>
       </div>
     </div>
@@ -172,18 +170,25 @@
           :key="idx"
           class="flex items-center gap-2"
         >
-          <input
+          <AppInput
             v-model="mod.description"
             placeholder="e.g. Full forge available"
-            class="flex-1 bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="filled"
+            size="body"
+            :block="false"
+            class="flex-1"
           />
           <span class="font-cinzel text-xs text-muted-foreground">+</span>
-          <input
+          <AppInput
             v-model.number="mod.bonus"
             type="number"
             min="1"
             max="20"
-            class="w-14 bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
+            tone="filled"
+            size="body-xs"
+            align="center"
+            :block="false"
+            class="w-14"
           />
           <AppButton
             variant="ghost"
@@ -213,6 +218,8 @@ import { IconAdd, IconDelete, IconLock, IconTool } from '@/lib/icons';
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import RecipeOutputsPanel from "@/components/crafting/RecipeOutputsPanel.vue";
 import RecipeIngredientsPanel from "@/components/crafting/RecipeIngredientsPanel.vue";
 import {

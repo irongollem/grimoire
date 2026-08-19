@@ -17,10 +17,13 @@
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0">
         <div class="sm:border-r border-border divide-y divide-border">
-          <button
+          <AppButton
             v-for="skill in SKILLS.slice(0, 9)"
             :key="skill.key"
-            class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group text-left"
+            variant="menu"
+            size="body"
+            block
+            class="group px-4 py-2.5 gap-3 rounded-none"
             v-roll-mode="(mode: RollMode | null) => rollSkill(skill, mode)"
           >
             <span
@@ -35,13 +38,16 @@
               {{ signedNum(skillBonusValue(skill)) }}
             </span>
             <IconChevronRight class="h-3 w-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-          </button>
+          </AppButton>
         </div>
         <div class="divide-y divide-border">
-          <button
+          <AppButton
             v-for="skill in SKILLS.slice(9)"
             :key="skill.key"
-            class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors group text-left"
+            variant="menu"
+            size="body"
+            block
+            class="group px-4 py-2.5 gap-3 rounded-none"
             v-roll-mode="(mode: RollMode | null) => rollSkill(skill, mode)"
           >
             <span
@@ -56,7 +62,7 @@
               {{ signedNum(skillBonusValue(skill)) }}
             </span>
             <IconChevronRight class="h-3 w-3 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-          </button>
+          </AppButton>
         </div>
       </div>
     </div>
@@ -67,6 +73,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconChevronRight } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import type { RollMode } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/roller";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";

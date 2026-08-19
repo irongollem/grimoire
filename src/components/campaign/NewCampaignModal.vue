@@ -22,23 +22,23 @@
         <form class="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto" @submit.prevent="submit">
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">NAME</label>
-            <input
+            <AppInput
               v-model="form.name"
               required
-              type="text"
+              tone="filled"
+              size="heading"
               placeholder="The Lost Mine of Phandelver…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">WORLD</label>
-            <input
+            <AppInput
               v-model="form.setting"
               list="new-campaign-settings-list"
-              type="text"
+              tone="filled"
+              size="body"
               placeholder="Forgotten Realms, Eberron, Homebrew…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <datalist id="new-campaign-settings-list">
               <option value="Forgotten Realms" />
@@ -56,14 +56,17 @@
 
           <div>
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1">RULESET</label>
-            <select
+            <AppSelect
               v-model="form.ruleset"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="filled"
+              weight="normal"
+              size="body"
+              block
             >
               <option v-for="option in RULESET_OPTIONS" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
-            </select>
+            </AppSelect>
             <p class="text-caption text-muted-foreground mt-1">
               Applies to character options, spells, creatures, items, rests, and encounter rules.
             </p>
@@ -72,22 +75,26 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CALENDAR</label>
-              <select
+              <AppSelect
                 v-model="form.calendar_id"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="filled"
+                weight="normal"
+                size="body"
+                block
                 @change="onCalendarChange"
               >
                 <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
                 <option value="custom">— Custom calendar…</option>
-              </select>
+              </AppSelect>
             </div>
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CURRENT YEAR</label>
-              <input
+              <AppInput
                 v-model.number="form.current_year"
                 type="number"
                 min="1"
-                class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="filled"
+                size="body"
               />
             </div>
           </div>
@@ -117,20 +124,14 @@
           </div>
 
           <div class="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
-              @click="close"
-            >
-              Cancel
-            </button>
-            <button
+            <AppButton variant="subtle" size="md" label="Cancel" @click="close" />
+            <AppButton
               type="submit"
+              variant="primary"
+              size="md"
               :disabled="isSaving"
-              class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {{ isSaving ? "Saving…" : "Create Campaign" }}
-            </button>
+              :label="isSaving ? 'Saving…' : 'Create Campaign'"
+            />
           </div>
         </form>
       </div>
@@ -148,6 +149,9 @@ import type { SettingCalendarDef } from "@/settings/types";
 import { useCreateCampaign, useClaimOrphanedData } from "@/composables/useCampaigns";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import type { Campaign } from "@/types/campaign.types";
 import { DEFAULT_RULESET, RULESET_OPTIONS } from "@/types/ruleset.types";

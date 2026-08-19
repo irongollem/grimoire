@@ -98,16 +98,15 @@
         </div>
 
         <!-- Manage billing — only once a Stripe customer exists -->
-        <button
+        <AppButton
           v-if="subscription?.stripe_customer_id"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border text-sm font-cinzel font-semibold tracking-wider text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-60"
-          :disabled="stripeLoading"
+          variant="subtle"
+          size="lg"
+          :loading="stripeLoading"
+          :icon="IconBilling"
+          label="Manage billing"
           @click="openBillingPortal()"
-        >
-          <IconLoading v-if="stripeLoading" class="h-3.5 w-3.5 animate-spin" />
-          <IconBilling v-else class="h-3.5 w-3.5" />
-          Manage billing
-        </button>
+        />
       </template>
     </div>
 
@@ -218,15 +217,13 @@
           Annual
           <span v-if="savedMonths > 0" class="ml-1 text-2xs text-amber-400">save {{ savedMonths }} months</span>
         </button>
-        <div v-if="pricingCurrencies.length > 1" class="ml-auto flex gap-1">
-          <button
-            v-for="c in pricingCurrencies"
-            :key="c"
-            class="px-1.5 py-px text-label rounded border transition-colors"
-            :class="currency === c ? 'border-primary/60 text-foreground bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'"
-            @click="currency = c"
-          >{{ c }}</button>
-        </div>
+        <SegmentedControl
+          v-if="pricingCurrencies.length > 1"
+          v-model="currency"
+          :options="currencyOptions"
+          size="xs"
+          class="ml-auto"
+        />
       </div>
 
       <div class="flex items-end gap-2">
@@ -324,15 +321,12 @@
           <p class="text-eyebrow font-semibold text-muted-foreground">
             Buy more credits
           </p>
-          <div v-if="pricingCurrencies.length > 1" class="flex gap-1">
-            <button
-              v-for="c in pricingCurrencies"
-              :key="c"
-              class="px-1.5 py-px text-label rounded border transition-colors"
-              :class="currency === c ? 'border-primary/60 text-foreground bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'"
-              @click="currency = c"
-            >{{ c }}</button>
-          </div>
+          <SegmentedControl
+            v-if="pricingCurrencies.length > 1"
+            v-model="currency"
+            :options="currencyOptions"
+            size="xs"
+          />
         </div>
         <WithdrawalConsent v-model="packConsent" kind="credit_pack" />
         <div class="grid grid-cols-3 gap-2">
@@ -366,6 +360,8 @@ import { IconBilling, IconDM, IconGenerate, IconLoading, IconQuest } from '@/lib
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import WithdrawalConsent from "@/components/billing/WithdrawalConsent.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
 import { useAiCredits } from "@/composables/useAiCredits";
@@ -415,6 +411,10 @@ const pricingCurrencies = computed(() =>
     ...( creditPacks.value?.map(p => p.stripe_currency_options) ?? [] ),
   )
 );
+
+// Display-only wiring for the two currency-toggle SegmentedControls — same
+// pricingCurrencies list, shaped into the {value, label} pairs the primitive wants.
+const currencyOptions = computed(() => pricingCurrencies.value.map((c) => ({ value: c, label: c })));
 
 // Prices come exclusively from Stripe (synced into the plans table). No hardcoded
 // fallback — if a price isn't configured yet we show "—" rather than a fake one.

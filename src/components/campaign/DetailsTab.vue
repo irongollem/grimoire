@@ -3,24 +3,24 @@
     <!-- Name -->
     <div>
       <label class="block text-label-lg font-semibold text-muted-foreground mb-1">NAME</label>
-      <input
+      <AppInput
         v-model="form.name"
         required
-        type="text"
+        tone="filled"
+        size="heading"
         placeholder="The Lost Mine of Phandelver…"
-        class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       />
     </div>
 
     <!-- World -->
     <div>
       <label class="block text-label-lg font-semibold text-muted-foreground mb-1">WORLD</label>
-      <input
+      <AppInput
         v-model="form.setting"
         list="campaign-settings-list"
-        type="text"
+        tone="filled"
+        size="body"
         placeholder="Forgotten Realms, Eberron, Homebrew…"
-        class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <datalist id="campaign-settings-list">
         <option value="Forgotten Realms" />
@@ -40,22 +40,26 @@
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CALENDAR</label>
-        <select
+        <AppSelect
           v-model="form.calendar_id"
-          class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="filled"
+          weight="normal"
+          size="body"
+          block
           @change="onCalendarChange"
         >
           <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
           <option value="custom">— Custom calendar…</option>
-        </select>
+        </AppSelect>
       </div>
       <div>
         <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CURRENT YEAR</label>
-        <input
+        <AppInput
           v-model.number="form.current_year"
           type="number"
           min="1"
-          class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="filled"
+          size="body"
         />
       </div>
     </div>
@@ -79,15 +83,17 @@
             Seeds locations, notable NPCs, and factions. Skips existing entries.
           </p>
         </div>
-        <button
+        <AppButton
           type="button"
+          variant="primary"
+          size="sm"
+          class="shrink-0"
           :disabled="isPopulating"
-          class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :label="isPopulating ? 'Populating…' : 'Populate'"
           @click="doPopulate"
         >
-          <IconGenerate class="h-3 w-3" />
-          {{ isPopulating ? "Populating…" : "Populate" }}
-        </button>
+          <template #icon><IconGenerate class="h-3 w-3" /></template>
+        </AppButton>
       </div>
       <p v-if="populateError" class="text-caption text-destructive">{{ populateError }}</p>
       <p v-else-if="populateResult" class="text-caption text-muted-foreground">
@@ -189,13 +195,13 @@
 
     <!-- Save -->
     <div class="flex justify-end pt-1">
-      <button
+      <AppButton
         type="submit"
+        variant="primary"
+        size="md"
         :disabled="isSaving"
-        class="px-5 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-      >
-        {{ isSaving ? "Saving…" : "Save Changes" }}
-      </button>
+        :label="isSaving ? 'Saving…' : 'Save Changes'"
+      />
     </div>
   </form>
 </template>
@@ -209,6 +215,9 @@ import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { listCalendarAdapters, createDefaultCustomCalendarDef } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import { usePopulateLocations } from "@/composables/useLocations";
 import { usePopulateFactions } from "@/composables/useFactions";

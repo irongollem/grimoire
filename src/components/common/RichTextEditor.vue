@@ -10,143 +10,166 @@
       ]"
     >
       <template v-if="editor">
-        <button
-          type="button"
-          title="Bold"
-          :class="tbCls(editor.isActive('bold'))"
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('bold')"
+          tooltip="Bold"
           @click="editor.chain().focus().toggleBold().run()"
         >
           <strong class="text-xs leading-none">B</strong>
-        </button>
-        <button
-          type="button"
-          title="Italic"
-          :class="tbCls(editor.isActive('italic'))"
+        </AppButton>
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('italic')"
+          tooltip="Italic"
           @click="editor.chain().focus().toggleItalic().run()"
         >
           <em class="text-xs leading-none">I</em>
-        </button>
-        <button
-          type="button"
-          title="Underline"
-          :class="tbCls(editor.isActive('underline'))"
+        </AppButton>
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('underline')"
+          tooltip="Underline"
+          :icon="IconUnderline"
           @click="editor.chain().focus().toggleUnderline().run()"
-        >
-          <IconUnderline class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Highlight"
-          :class="tbCls(editor.isActive('highlight'))"
+        />
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('highlight')"
+          tooltip="Highlight"
+          :icon="IconHighlight"
           @click="editor.chain().focus().toggleHighlight().run()"
-        >
-          <IconHighlight class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Link"
-          :class="tbCls(editor.isActive('link'))"
+        />
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('link')"
+          tooltip="Link"
+          :icon="IconLink"
           @click="toggleLink"
-        >
-          <IconLink class="h-3.5 w-3.5" />
-        </button>
+        />
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button
-          type="button"
-          title="Align left"
-          :class="tbCls(editor.isActive({ textAlign: 'left' }))"
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive({ textAlign: 'left' })"
+          tooltip="Align left"
+          :icon="IconAlignLeft"
           @click="editor.chain().focus().setTextAlign('left').run()"
-        >
-          <IconAlignLeft class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Align center"
-          :class="tbCls(editor.isActive({ textAlign: 'center' }))"
+        />
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive({ textAlign: 'center' })"
+          tooltip="Align center"
+          :icon="IconAlignCenter"
           @click="editor.chain().focus().setTextAlign('center').run()"
-        >
-          <IconAlignCenter class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Align right"
-          :class="tbCls(editor.isActive({ textAlign: 'right' }))"
+        />
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive({ textAlign: 'right' })"
+          tooltip="Align right"
+          :icon="IconAlignRight"
           @click="editor.chain().focus().setTextAlign('right').run()"
-        >
-          <IconAlignRight class="h-3.5 w-3.5" />
-        </button>
+        />
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button
-          type="button"
-          title="Heading 1"
-          :class="tbCls(editor.isActive('heading', { level: 1 }))"
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('heading', { level: 1 })"
+          tooltip="Heading 1"
           @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
         >
           <span class="text-2xs font-cinzel font-bold leading-none">H1</span>
-        </button>
-        <button
-          type="button"
-          title="Heading 2"
-          :class="tbCls(editor.isActive('heading', { level: 2 }))"
+        </AppButton>
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('heading', { level: 2 })"
+          tooltip="Heading 2"
           @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
         >
           <span class="text-2xs font-cinzel font-bold leading-none">H2</span>
-        </button>
-        <button
-          type="button"
-          title="Heading 3"
-          :class="tbCls(editor.isActive('heading', { level: 3 }))"
+        </AppButton>
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('heading', { level: 3 })"
+          tooltip="Heading 3"
           @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
         >
           <span class="text-2xs font-cinzel font-bold leading-none">H3</span>
-        </button>
+        </AppButton>
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button
-          type="button"
-          title="Bullet list"
-          :class="tbCls(editor.isActive('bulletList'))"
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('bulletList')"
+          tooltip="Bullet list"
+          :icon="IconList"
           @click="editor.chain().focus().toggleBulletList().run()"
-        >
-          <IconList class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Ordered list"
-          :class="tbCls(editor.isActive('orderedList'))"
+        />
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('orderedList')"
+          tooltip="Ordered list"
+          :icon="IconListOrdered"
           @click="editor.chain().focus().toggleOrderedList().run()"
-        >
-          <IconListOrdered class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Blockquote"
-          :class="tbCls(editor.isActive('blockquote'))"
+        />
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('blockquote')"
+          tooltip="Blockquote"
+          :icon="IconQuote"
           @click="editor.chain().focus().toggleBlockquote().run()"
-        >
-          <IconQuote class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Task list"
-          :class="tbCls(editor.isActive('taskList'))"
+        />
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('taskList')"
+          tooltip="Task list"
+          :icon="IconListTodo"
           @click="editor.chain().focus().toggleTaskList().run()"
-        >
-          <IconListTodo class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Horizontal rule"
-          :class="tbCls(false)"
+        />
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          tooltip="Horizontal rule"
+          :icon="IconMinus"
           @click="editor.chain().focus().setHorizontalRule().run()"
-        >
-          <IconMinus class="h-3.5 w-3.5" />
-        </button>
+        />
         <div class="w-px h-5 bg-border mx-0.5" />
         <!-- Table controls -->
-        <button
-          type="button"
-          title="Insert table"
-          :class="tbCls(editor.isActive('table'))"
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('table')"
+          tooltip="Insert table"
+          :icon="IconTable"
           @click="
             editor
               .chain()
@@ -154,123 +177,123 @@
               .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
               .run()
           "
-        >
-          <IconTable class="h-3.5 w-3.5" />
-        </button>
+        />
         <template v-if="editor.isActive('table')">
-          <button
-            type="button"
-            title="Add column after"
-            :class="tbCls(false)"
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            tooltip="Add column after"
+            :icon="IconInsertColumn"
             @click="editor.chain().focus().addColumnAfter().run()"
-          >
-            <IconInsertColumn class="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            title="Add row after"
-            :class="tbCls(false)"
+          />
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            tooltip="Add row after"
+            :icon="IconInsertRow"
             @click="editor.chain().focus().addRowAfter().run()"
-          >
-            <IconInsertRow class="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            title="Delete column"
-            :class="tbCls(false)"
+          />
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            tooltip="Delete column"
             @click="editor.chain().focus().deleteColumn().run()"
           >
-            <span
-              class="text-2xs font-cinzel font-bold leading-none text-destructive"
-              >−C</span
-            >
-          </button>
-          <button
-            type="button"
-            title="Delete row"
-            :class="tbCls(false)"
+            <span class="text-2xs font-cinzel font-bold leading-none text-destructive">−C</span>
+          </AppButton>
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            tooltip="Delete row"
             @click="editor.chain().focus().deleteRow().run()"
           >
-            <span
-              class="text-2xs font-cinzel font-bold leading-none text-destructive"
-              >−R</span
-            >
-          </button>
-          <button
-            type="button"
-            title="Delete table"
-            :class="tbCls(false)"
+            <span class="text-2xs font-cinzel font-bold leading-none text-destructive">−R</span>
+          </AppButton>
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            tooltip="Delete table"
             @click="editor.chain().focus().deleteTable().run()"
           >
-            <IconDelete class="h-3.5 w-3.5 text-destructive" />
-          </button>
+            <template #icon>
+              <IconDelete class="h-3.5 w-3.5 text-destructive" />
+            </template>
+          </AppButton>
         </template>
-        <button
+        <AppButton
           v-if="allowUpload"
-          type="button"
-          title="Upload image"
-          :class="tbCls(false)"
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          tooltip="Upload image"
           :disabled="uploadingImage"
           @click="insertImage"
         >
-          <IconImage
-            class="h-3.5 w-3.5"
-            :class="uploadingImage ? 'animate-pulse' : ''"
-          />
-        </button>
+          <template #icon>
+            <IconImage class="h-3.5 w-3.5" :class="uploadingImage ? 'animate-pulse' : ''" />
+          </template>
+        </AppButton>
         <!-- Image size presets — only shown when an image node is selected -->
         <template v-if="editor.isActive('image')">
           <div class="w-px h-5 bg-border mx-0.5" />
-          <button
+          <AppButton
             v-for="preset in IMG_SIZE_PRESETS"
             :key="preset.value"
-            type="button"
-            :title="`Image width: ${preset.label}`"
-            :class="tbCls(editor.getAttributes('image').width === preset.value)"
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            :active="editor.getAttributes('image').width === preset.value"
+            :tooltip="`Image width: ${preset.label}`"
             @click="editor.chain().focus().updateAttributes('image', { width: preset.value }).run()"
           >
             <span class="text-2xs font-cinzel font-bold leading-none">{{ preset.label }}</span>
-          </button>
+          </AppButton>
         </template>
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button
-          type="button"
-          title="Undo"
-          :class="tbCls(false)"
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          tooltip="Undo"
+          :icon="IconUndo"
           :disabled="!editor.can().undo()"
           @click="editor.chain().focus().undo().run()"
-        >
-          <IconUndo class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Redo"
-          :class="tbCls(false)"
+        />
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          tooltip="Redo"
+          :icon="IconRedo"
           :disabled="!editor.can().redo()"
           @click="editor.chain().focus().redo().run()"
-        >
-          <IconRedo class="h-3.5 w-3.5" />
-        </button>
+        />
         <div class="w-px h-5 bg-border mx-0.5" />
-        <button
-          type="button"
-          title="Wrap selection in two columns (click again to remove)"
-          :class="tbCls(editor.isActive('columns'))"
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          size="icon-xs"
+          :active="editor.isActive('columns')"
+          tooltip="Wrap selection in two columns (click again to remove)"
+          :icon="IconColumns"
           @click="editor.chain().focus().toggleColumns().run()"
-        >
-          <IconColumns class="h-3.5 w-3.5" />
-        </button>
+        />
         <!-- Calendar event ref — only when allowCalendarEvents is enabled -->
         <template v-if="allowCalendarEvents">
           <div class="w-px h-5 bg-border mx-0.5" />
-          <button
-            type="button"
-            title="Insert calendar event reference"
-            :class="tbCls(false)"
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            tooltip="Insert calendar event reference"
+            :icon="IconCalendarDays"
             @click="emit('insert-calendar-event')"
-          >
-            <IconCalendarDays class="h-3.5 w-3.5" />
-          </button>
+          />
         </template>
       </template>
       <slot name="toolbar-end" />
@@ -330,15 +353,13 @@
         class="entity-suggestion-popup"
         :style="{ top: `${suggestionState.position.top}px`, left: `${suggestionState.position.left}px` }"
       >
-        <button
+        <AppButton
           v-for="(item, idx) in suggestionState.items"
           :key="item.id"
-          type="button"
-          class="entity-suggestion-item"
-          :class="[
-            `entity-suggestion-item--${item.entityType}`,
-            idx === suggestionState.selectedIndex ? 'entity-suggestion-item--active' : '',
-          ]"
+          variant="menu"
+          size="body"
+          block
+          :active="idx === suggestionState.selectedIndex"
           @mouseenter="suggestionState.selectedIndex = idx"
           @click="selectSuggestionItem(idx)"
         >
@@ -346,7 +367,7 @@
             {{ ENTITY_TYPE_LABELS[item.entityType] }}
           </span>
           {{ item.label }}
-        </button>
+        </AppButton>
       </div>
     </Teleport>
   </div>
@@ -354,6 +375,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onUnmounted } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
 import { uploadToBucket } from "@/lib/storage";
@@ -859,15 +881,6 @@ async function onEnhance() {
     setTimeout(() => { enhanceError.value = null; }, 4000);
   }
 }
-
-function tbCls(active: boolean) {
-  return [
-    "p-1 rounded min-w-6.5 h-6.5 flex items-center justify-center transition-colors disabled:opacity-40",
-    active
-      ? "bg-primary/20 text-primary"
-      : "text-muted-foreground hover:text-foreground hover:bg-muted",
-  ].join(" ");
-}
 </script>
 
 <style scoped>
@@ -1017,26 +1030,6 @@ function tbCls(active: boolean) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-}
-
-.entity-suggestion-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.75rem;
-  font-family: var(--font-fell, serif);
-  font-size: 0.8rem;
-  color: theme(colors.foreground);
-  text-align: left;
-  width: 100%;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.1s;
-}
-.entity-suggestion-item:hover,
-.entity-suggestion-item--active {
-  background: theme(colors.muted);
 }
 
 .entity-suggestion-badge {

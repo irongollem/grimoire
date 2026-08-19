@@ -53,9 +53,9 @@
                     <span v-if="selectedSpecies.subraces?.length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</span>
                   </div>
                 </div>
-                <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedSpecies = null">
-                  <IconClose class="h-4 w-4" />
-                </button>
+                <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" @click="selectedSpecies = null">
+                  <template #icon><IconClose class="h-4 w-4" /></template>
+                </AppButton>
               </div>
               <div class="flex-1 overflow-y-auto">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
@@ -182,9 +182,9 @@
                   <h2 class="text-heading font-bold text-foreground">{{ selectedBackground.name }}</h2>
                   <span v-if="selectedBackground.source_title" class="text-label text-muted-foreground">{{ selectedBackground.source_title }}</span>
                 </div>
-                <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedBackground = null">
-                  <IconClose class="h-4 w-4" />
-                </button>
+                <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" @click="selectedBackground = null">
+                  <template #icon><IconClose class="h-4 w-4" /></template>
+                </AppButton>
               </div>
               <div class="flex-1 overflow-y-auto">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
@@ -296,9 +296,9 @@
                     </span>
                   </div>
                 </div>
-                <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedClass = null">
-                  <IconClose class="h-4 w-4" />
-                </button>
+                <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" @click="selectedClass = null">
+                  <template #icon><IconClose class="h-4 w-4" /></template>
+                </AppButton>
               </div>
               <div class="flex-1 overflow-y-auto">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
@@ -423,9 +423,9 @@
                     <span v-if="selectedDeity.pantheon?.name" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">{{ selectedDeity.pantheon.name }}</span>
                   </div>
                 </div>
-                <button type="button" class="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" @click="selectedDeity = null">
-                  <IconClose class="h-4 w-4" />
-                </button>
+                <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" @click="selectedDeity = null">
+                  <template #icon><IconClose class="h-4 w-4" /></template>
+                </AppButton>
               </div>
               <div class="flex-1 overflow-y-auto">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">

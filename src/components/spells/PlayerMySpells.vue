@@ -236,15 +236,17 @@
               Cast
             </button>
 
-            <button
+            <AppButton
               v-if="isRitualCastable(entry)"
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-semibold transition-colors border border-violet-500/30 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+              variant="tinted"
+              tone="arcane"
+              emphasis="soft"
+              size="xs"
               :disabled="isCasting"
-              title="Cast as a ritual — takes 10 minutes longer and spends no spell slot"
+              tooltip="Cast as a ritual — takes 10 minutes longer and spends no spell slot"
+              label="Ritual"
               @click="castRitual(entry)"
-            >
-              Ritual
-            </button>
+            />
 
             <!-- Prepare toggle (Wizard spellbook tab). Granted spells are locked. -->
             <button
@@ -269,15 +271,17 @@
             >Always</span>
 
             <!-- Remove button — hidden for subclass-granted spells (locked) -->
-            <button
+            <AppButton
               v-if="!entry.always_prepared"
-              class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-400 p-1 rounded cursor-pointer shrink-0"
-              :title="removeTitle"
+              variant="ghost"
+              tone="danger"
+              size="icon-xs"
+              class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              :icon="IconClose"
+              :tooltip="removeTitle"
               :disabled="isRemoving"
               @click="handleRemove(entry)"
-            >
-              <IconClose class="h-3.5 w-3.5" />
-            </button>
+            />
           </div>
         </div>
       </div>

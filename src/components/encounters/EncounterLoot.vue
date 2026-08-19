@@ -26,17 +26,13 @@
 
         <!-- Qty controls -->
         <div class="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-            @click="decrementItem(item.id)"
-          ><IconMinus class="h-3 w-3" /></button>
+          <AppButton variant="ghost" fill="muted" size="icon-xs" @click="decrementItem(item.id)">
+            <template #icon><IconMinus class="h-3 w-3" /></template>
+          </AppButton>
           <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ qty }}</span>
-          <button
-            type="button"
-            class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-            @click="incrementItem(item.id)"
-          ><IconAdd class="h-3 w-3" /></button>
+          <AppButton variant="ghost" fill="muted" size="icon-xs" @click="incrementItem(item.id)">
+            <template #icon><IconAdd class="h-3 w-3" /></template>
+          </AppButton>
         </div>
 
         <AppButton

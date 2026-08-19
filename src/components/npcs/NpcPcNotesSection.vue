@@ -10,16 +10,8 @@
       <div v-if="editingId !== note.id" class="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
         <span class="font-cinzel text-xs font-semibold text-foreground">{{ memberName(note.party_member_id) }}</span>
         <div class="flex items-center gap-3">
-          <button
-            type="button"
-            class="text-label text-muted-foreground hover:text-foreground transition-colors"
-            @click="startEdit(note)"
-          >Edit</button>
-          <button
-            type="button"
-            class="text-label text-muted-foreground hover:text-destructive transition-colors"
-            @click="remove(note.id)"
-          >Delete</button>
+          <AppButton variant="ghost" size="inline-xs" label="Edit" @click="startEdit(note)" />
+          <AppButton variant="ghost" tone="danger" size="inline-xs" label="Delete" @click="remove(note.id)" />
         </div>
       </div>
       <div v-if="editingId !== note.id" class="px-3 py-2">
@@ -32,12 +24,9 @@
           <template #toolbar-end>
             <div class="ml-auto flex items-center gap-2 pl-1">
               <div class="w-px h-5 bg-border" />
-              <select
-                v-model="editRelType"
-                class="h-6.5 px-1.5 rounded text-label font-semibold bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
-              >
+              <AppSelect v-model="editRelType" tone="filled" size="xs" class="h-6.5">
                 <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
-              </select>
+              </AppSelect>
               <span class="text-label font-semibold text-muted-foreground">
                 {{ memberName(note.party_member_id) }}
               </span>
@@ -47,11 +36,7 @@
                 class="px-2 h-6.5 text-label font-semibold rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
                 @click="saveEdit(note)"
               >{{ isSaving ? '…' : 'Save' }}</button>
-              <button
-                type="button"
-                class="px-2 h-6.5 text-label rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                @click="cancelEdit"
-              >Cancel</button>
+              <AppButton variant="ghost" fill="muted" size="xs" class="h-6.5" label="Cancel" @click="cancelEdit" />
             </div>
           </template>
         </RichTextEditor>
@@ -64,43 +49,33 @@
         <template #toolbar-end>
           <div class="ml-auto flex items-center gap-2 pl-1">
             <div class="w-px h-5 bg-border" />
-            <select
-              v-model="newRelType"
-              class="h-6.5 px-1.5 rounded text-label font-semibold bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
-            >
+            <AppSelect v-model="newRelType" tone="filled" size="xs" class="h-6.5">
               <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
-            </select>
-            <select
-              v-model="newMemberId"
-              class="h-6.5 px-1.5 rounded text-label font-semibold bg-muted text-muted-foreground hover:text-foreground border border-border focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
-            >
+            </AppSelect>
+            <AppSelect v-model="newMemberId" tone="filled" size="xs" class="h-6.5">
               <option value="" disabled>PC…</option>
               <option v-for="m in availableMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
-            </select>
+            </AppSelect>
             <button
               type="button"
               :disabled="!newMemberId || !newText || isSaving"
               class="px-2 h-6.5 text-label font-semibold rounded bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-40 transition-colors"
               @click="addNote"
             >{{ isSaving ? '…' : 'Save' }}</button>
-            <button
-              type="button"
-              class="px-2 h-6.5 text-label rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              @click="cancelAdd"
-            >Cancel</button>
+            <AppButton variant="ghost" fill="muted" size="xs" class="h-6.5" label="Cancel" @click="cancelAdd" />
           </div>
         </template>
       </RichTextEditor>
     </div>
 
-    <button
+    <AppButton
       v-if="!showForm && availableMembers.length > 0"
-      type="button"
-      class="inline-flex items-center gap-1 px-2 py-1 text-label font-semibold border border-border rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+      variant="subtle"
+      size="xs"
+      fill="muted"
+      label="+ Add"
       @click="showForm = true"
-    >
-      + Add
-    </button>
+    />
 
     <p v-if="notes?.length === 0 && !showForm" class="text-caption text-muted-foreground italic">
       No per-PC notes yet.
@@ -112,6 +87,8 @@
 import { ref, computed } from "vue";
 import { useParty } from "@/composables/useParty";
 import { useNpcPcNotes, useUpsertNpcPcNote, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";

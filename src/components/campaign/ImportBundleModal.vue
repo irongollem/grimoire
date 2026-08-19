@@ -107,11 +107,11 @@
                 <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">
                   Campaign Name
                 </label>
-                <input
+                <AppInput
                   v-model="newCampaignName"
-                  type="text"
+                  tone="filled"
+                  size="body"
                   :placeholder="preview.name || 'Campaign name…'"
-                  class="w-full bg-muted border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
             </div>
@@ -162,32 +162,29 @@
 
         <!-- Footer -->
         <div class="shrink-0 flex justify-end gap-2 px-5 py-4 border-t border-border">
-          <button
+          <AppButton
             v-if="preview"
-            type="button"
-            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            variant="subtle"
+            size="md"
+            label="Back"
             :disabled="isPending"
             @click="resetPreview"
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+          />
+          <AppButton
+            variant="subtle"
+            size="md"
+            label="Cancel"
             :disabled="isPending"
             @click="close"
-          >
-            Cancel
-          </button>
-          <button
+          />
+          <AppButton
             v-if="preview"
-            type="button"
+            variant="primary"
+            size="md"
             :disabled="isPending || selectedTypes.size === 0 || !importReady"
-            class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :label="isPending ? 'Importing…' : 'Import Bundle'"
             @click="doImport"
-          >
-            {{ isPending ? "Importing…" : "Import Bundle" }}
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -198,6 +195,8 @@
 import { ref, computed, watch, shallowRef } from "vue";
 import { useRouter } from "vue-router";
 import { IconUpload } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useImportWorldBundle, BUNDLE_ENTITY_TYPES } from "@/composables/useWorldBundle";
 import type { BundleEntityKey, BundlePreview } from "@/composables/useWorldBundle";

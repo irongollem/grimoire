@@ -9,13 +9,13 @@
 
     <form v-if="addItemOpen" class="flex flex-wrap gap-2 px-4 py-3 border-b border-border bg-muted/10" @submit.prevent="submitAddItem">
       <div class="relative flex-1 min-w-32">
-        <input
+        <AppInput
           ref="searchInputRef"
           v-model="newItem.name"
+          size="body"
           placeholder="Search vault or enter custom name…"
           required
           autocomplete="off"
-          class="w-full bg-background border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
           @input="onItemSearchInput"
           @focus="onItemSearchInput"
           @keydown.escape="showItemDropdown = false"
@@ -25,12 +25,14 @@
           v-if="showItemDropdown && (catalogItems?.length ?? 0) > 0"
           class="absolute left-0 top-full mt-0.5 z-20 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden max-h-48 overflow-y-auto"
         >
-          <button
+          <AppButton
             v-for="(item, idx) in filteredCatalogItems"
             :key="item.id"
-            :ref="(el) => { if (el) dropdownItemRefs[idx] = el as HTMLButtonElement }"
-            type="button"
-            class="w-full text-left px-3 py-1.5 text-body text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
+            :ref="(el) => setDropdownItemRef(idx, el)"
+            variant="menu"
+            size="body"
+            block
+            class="items-baseline"
             @click="selectCatalogItem(item)"
             @keydown.down.prevent="focusDropdownItem(idx + 1)"
             @keydown.up.prevent="idx === 0 ? undefined : focusDropdownItem(idx - 1)"
@@ -38,38 +40,45 @@
           >
             <span class="truncate">{{ item.name }}</span>
             <span class="font-cinzel text-2xs text-muted-foreground shrink-0 capitalize">{{ item.rarity }}</span>
-          </button>
+          </AppButton>
           <div v-if="newItem.name.trim()" class="border-t border-border">
-            <button
-              type="button"
-              class="w-full text-left px-3 py-1.5 text-body text-primary hover:bg-muted transition-colors flex items-center gap-2"
+            <AppButton
+              variant="menu"
+              size="body"
+              block
+              class="text-primary"
+              :icon="IconExternalLink"
+              :label='`Create "${newItem.name.trim()}" in Vault`'
               @click="router.push({ path: '/vault/new', query: { name: newItem.name.trim(), redirect: '/party' } })"
-            >
-              <IconExternalLink class="h-3.5 w-3.5 shrink-0" />
-              Create "{{ newItem.name.trim() }}" in Vault
-            </button>
+            />
           </div>
         </div>
         <div v-if="showItemDropdown" class="fixed inset-0 z-10" @click="showItemDropdown = false" />
       </div>
-      <input
+      <AppInput
         v-model.number="newItem.quantity"
         type="number"
         min="1"
+        size="body"
+        align="center"
         placeholder="Qty"
-        class="w-14 bg-background border border-border rounded px-2 py-1.5 text-body text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+        :block="false"
+        class="w-14"
       />
-      <select
+      <AppSelect
         v-model="newItem.carried_by"
-        class="bg-background border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        size="body"
+        weight="normal"
       >
         <option value="">— party</option>
         <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
-      </select>
-      <input
+      </AppSelect>
+      <AppInput
         v-model="newItem.notes"
+        size="body"
         placeholder="Notes (optional)"
-        class="flex-1 min-w-32 bg-background border border-border rounded px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+        :block="false"
+        class="flex-1 min-w-32"
       />
       <div class="flex gap-1.5 ml-auto">
         <AppButton variant="subtle" size="sm" label="Cancel" @click="addItemOpen = false" />
@@ -144,13 +153,15 @@
         >
           <IconArrowUp class="h-3.5 w-3.5" />
         </button>
-        <button
-          type="button"
-          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          fill="tone"
+          size="icon-xs"
+          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground/40"
+          :icon="IconDelete"
           @click="removeItem(item.id)"
-        >
-          <IconDelete class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
     </div>
     <div v-else-if="!addItemOpen" class="px-4 py-6 text-center">
@@ -165,6 +176,9 @@ import { ref, computed, reactive, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { IconArrowUp, IconDelete, IconExternalLink, IconInventory } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import type { Item } from "@/types/item.types";
@@ -194,7 +208,7 @@ const catalogItemMap = computed(() => {
 });
 
 const addItemOpen = ref(false);
-const searchInputRef = ref<HTMLInputElement | null>(null);
+const searchInputRef = ref<AppInputHandle | null>(null);
 const newItem = reactive({ name: "", quantity: 1, carried_by: "", notes: "", selectedItemId: "", isAttuned: false });
 const showItemDropdown = ref(false);
 const dropdownItemRefs = reactive<Record<number, HTMLButtonElement>>({});
@@ -229,6 +243,16 @@ async function selectCatalogItem(item: Item) {
 function focusDropdownItem(idx: number) {
   const el = dropdownItemRefs[idx];
   if (el) el.focus();
+}
+
+// AppButton exposes `$el` (the real <button>), not the raw DOM node, when bound
+// via `ref` — see reka-ui's useForwardExpose. Unwrap it here so
+// `focusDropdownItem` above keeps calling `.focus()` on an actual HTMLButtonElement,
+// exactly as it did against the native `<button ref="...">` this replaced.
+function setDropdownItemRef(idx: number, el: unknown) {
+  if (el && typeof el === "object" && "$el" in el) {
+    dropdownItemRefs[idx] = (el as { $el: HTMLButtonElement }).$el;
+  }
 }
 
 function openAddItem() {

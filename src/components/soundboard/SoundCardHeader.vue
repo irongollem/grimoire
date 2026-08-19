@@ -96,14 +96,16 @@
     </div>
 
     <!-- Edit name button -->
-    <button
+    <AppButton
       v-if="!editingName"
-      class="shrink-0 p-1 rounded text-muted-foreground hover:text-foreground transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-      title="Rename"
+      variant="ghost"
+      size="icon-xs"
+      class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+      tooltip="Rename"
       @click="startNameEdit"
     >
-      <IconEdit class="h-3 w-3" />
-    </button>
+      <template #icon><IconEdit class="h-3 w-3" /></template>
+    </AppButton>
 
     <!-- WebM warning -->
     <span
@@ -116,47 +118,50 @@
     </span>
 
     <!-- Source unavailable (e.g. Freesound 502 after retry) -->
-    <button
+    <AppButton
       v-if="audioState.loadError"
-      type="button"
-      class="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-2xs font-cinzel text-amber-400/80 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 hover:text-amber-300 transition-colors"
-      title="Source failed to load — click to retry"
+      variant="tinted"
+      tone="caution"
+      emphasis="soft"
+      size="xs"
+      class="shrink-0"
+      label="Retry"
+      tooltip="Source failed to load — click to retry"
       @click.stop="soundboardStore.retryLoad(sound.id, sound.file_url)"
     >
-      <IconWarning class="h-2.5 w-2.5 shrink-0" />
-      Retry
-    </button>
+      <template #icon><IconWarning class="h-2.5 w-2.5 shrink-0" /></template>
+    </AppButton>
 
     <!-- Loop toggle (audio only) -->
-    <button
+    <AppButton
       v-if="!isSpotify"
-      class="shrink-0 p-1 rounded transition-colors"
-      :class="
-        audioState.isLooping
-          ? 'text-gold-400 bg-gold-500/10'
-          : 'text-muted-foreground hover:text-foreground'
-      "
-      title="Toggle loop"
+      variant="ghost"
+      size="icon-xs"
+      class="shrink-0"
+      :active="audioState.isLooping"
+      :icon="IconRepeat"
+      tooltip="Toggle loop"
       @click="soundboardStore.toggleLoop(sound.id)"
-    >
-      <IconRepeat class="h-3.5 w-3.5" />
-    </button>
+    />
 
     <!-- Delete button -->
-    <button
+    <AppButton
       v-if="showDelete"
-      class="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive transition-colors [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-      title="Delete sound"
+      variant="ghost"
+      tone="danger"
+      size="icon-xs"
+      class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+      :icon="IconDelete"
+      tooltip="Delete sound"
       @click="$emit('delete', sound)"
-    >
-      <IconDelete class="h-3.5 w-3.5" />
-    </button>
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
 import { IconDelete, IconEdit, IconImage, IconRepeat, IconWarning } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import SoundTrimControl from "./SoundTrimControl.vue";
 import { useSoundboardStore } from "@/stores/soundboard";

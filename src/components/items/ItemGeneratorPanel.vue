@@ -19,12 +19,9 @@
         <h2 class="text-heading-sm font-semibold text-foreground">
           Item Generator
         </h2>
-        <button
-          class="text-muted-foreground hover:text-foreground"
-          @click="ui.itemGeneratorOpen = false"
-        >
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" @click="ui.itemGeneratorOpen = false">
+          <template #icon><IconClose class="h-5 w-5" /></template>
+        </AppButton>
       </div>
 
       <!-- Body -->
@@ -74,29 +71,23 @@
               <label class="block text-caption text-muted-foreground mb-1"
                 >Item Type</label
               >
-              <select
-                v-model="constraints.item_type"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="constraints.item_type" tone="filled" size="body" weight="normal" block>
                 <option value="">Any</option>
                 <option v-for="t in ITEM_TYPES" :key="t" :value="t">
                   {{ ITEM_TYPE_LABELS[t] }}
                 </option>
-              </select>
+              </AppSelect>
             </div>
             <div>
               <label class="block text-caption text-muted-foreground mb-1"
                 >Rarity</label
               >
-              <select
-                v-model="constraints.rarity"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="constraints.rarity" tone="filled" size="body" weight="normal" block>
                 <option value="">Any</option>
                 <option v-for="r in ITEM_RARITIES" :key="r" :value="r">
                   {{ ITEM_RARITY_LABELS[r] }}
                 </option>
-              </select>
+              </AppSelect>
             </div>
           </div>
         </div>
@@ -170,34 +161,34 @@
           :byok="textIsByok"
           class="self-center"
         />
-        <button
+        <AppButton
           v-if="isPro && isAiEnabled"
-          type="button"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
           :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
-          :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          {{ isGenerating ? "Generating…" : "Generate with AI" }}
-        </button>
-        <button
+        />
+        <AppButton
           v-else-if="!isPro"
-          type="button"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
+          label="Generate with AI"
           @click="showPaywall = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate with AI
-        </button>
-        <RouterLink
+        />
+        <AppButton
           to="/vault/new"
-          :class="isPro && !aiApiKey ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-foreground hover:bg-muted'"
-          class="w-full inline-flex items-center justify-center py-2 text-label-lg font-semibold rounded-md hover:opacity-90 transition-opacity"
+          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          size="md"
+          block
+          label="New Blank Item"
           @click="ui.itemGeneratorOpen = false"
-        >
-          New Blank Item
-        </RouterLink>
+        />
       </div>
     </aside>
   </Transition>
@@ -209,7 +200,7 @@ import { ref, reactive, computed } from "vue";
 import { AI_PROMPT_LIMIT } from "@/ai/utils";
 
 const CONCEPT_LIMIT = AI_PROMPT_LIMIT;
-import { useRouter, RouterLink } from "vue-router";
+import { useRouter } from "vue-router";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -217,6 +208,8 @@ import { useCreateItem } from "@/composables/useItems";
 import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useItemGeneration } from "@/ai/useItemGeneration";

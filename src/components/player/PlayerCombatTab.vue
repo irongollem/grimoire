@@ -26,11 +26,14 @@
           </p>
         </div>
       </div>
-      <button
+      <AppButton
         v-if="!isHidden"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+        variant="subtle"
+        fill="muted"
+        size="sm"
+        class="shrink-0"
         :disabled="hiding"
-        title="Take the Hide action"
+        tooltip="Take the Hide action"
         v-roll-mode="(mode: RollMode | null) => takeHideAction(mode)"
       >
         <IconHide class="h-3.5 w-3.5 text-muted-foreground" />
@@ -39,7 +42,7 @@
           {{ signedNum(stealthBonus) }}
         </span>
         <span v-if="checkBadgeLabel" class="font-cinzel text-2xs md:text-sm text-amber-500">{{ checkBadgeLabel }}</span>
-      </button>
+      </AppButton>
       <AppButton
         v-else
         variant="tinted"
@@ -66,9 +69,12 @@
             <div v-for="action in section.entries" :key="action.name" class="px-4 py-3">
               <div class="flex items-start justify-between gap-2 mb-1.5">
                 <span class="text-body text-foreground font-semibold">{{ action.name }}</span>
-                <button
+                <AppButton
                   v-if="parseBeastAttackBonus(action.description) !== null"
-                  class="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors shrink-0"
+                  variant="subtle"
+                  fill="muted"
+                  size="sm"
+                  class="shrink-0"
                   v-roll-mode="(mode: RollMode | null) => rollBeastAttack(action.name, parseBeastAttackBonus(action.description)!, mode)"
                 >
                   <IconSword class="h-3 w-3 text-muted-foreground" />
@@ -77,7 +83,7 @@
                     {{ signedNum(parseBeastAttackBonus(action.description)!) }}
                   </span>
                   <span v-if="attackBadgeLabel" class="font-cinzel text-2xs md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
-                </button>
+                </AppButton>
               </div>
               <p class="text-caption text-muted-foreground leading-relaxed">{{ action.description }}</p>
             </div>
@@ -114,10 +120,13 @@
             <span v-if="hasMastery(item)">✓</span>
           </button>
           <div class="flex flex-wrap gap-2 items-center">
-            <button
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-transparent"
+            <AppButton
+              variant="subtle"
+              fill="muted"
+              size="sm"
+              class="group disabled:hover:border-border disabled:hover:bg-transparent"
               :disabled="weaponAmmoById[inv.id]?.needsAmmo && !weaponAmmoById[inv.id]?.hasAmmo"
-              :title="weaponAmmoById[inv.id]?.needsAmmo && !weaponAmmoById[inv.id]?.hasAmmo ? 'No ammunition available' : undefined"
+              :tooltip="weaponAmmoById[inv.id]?.needsAmmo && !weaponAmmoById[inv.id]?.hasAmmo ? 'No ammunition available' : undefined"
               v-roll-mode="(mode: RollMode | null) => rollWeaponAttack(inv, item, mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -126,11 +135,14 @@
                 {{ signedNum(weaponAttackMod(item)) }}
               </span>
               <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
-            </button>
-            <button
+            </AppButton>
+            <AppButton
               v-if="weaponIsThrowable(inv, item)"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
-              :title="`Throw ${inv.name} — lands on the ground, recoverable from chat`"
+              variant="subtle"
+              fill="muted"
+              size="sm"
+              class="group"
+              :tooltip="`Throw ${inv.name} — lands on the ground, recoverable from chat`"
               v-roll-mode="(mode: RollMode | null) => rollThrowAttack(inv, item, mode)"
             >
               <IconSend class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -139,15 +151,18 @@
                 {{ signedNum(weaponAttackMod(item)) }}
               </span>
               <span class="font-cinzel text-xs text-muted-foreground">× {{ inv.quantity }}</span>
-            </button>
-            <button
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
+            </AppButton>
+            <AppButton
+              variant="subtle"
+              fill="muted"
+              size="sm"
+              class="group hover:border-amber-500/50"
               @click="rollWeaponDamage(inv, item)"
             >
               <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
               <span class="font-cinzel text-xs text-foreground">{{ weaponDamageExpr(item) }}</span>
               <span class="font-cinzel text-xs text-muted-foreground">{{ item?.damage_rolls?.[0]?.type ?? 'bludgeoning' }}</span>
-            </button>
+            </AppButton>
             <span
               v-if="weaponAmmoById[inv.id]?.needsAmmo && weaponAmmoById[inv.id]?.hasAmmo"
               class="font-cinzel text-xs text-muted-foreground self-center"
@@ -177,8 +192,11 @@
             <span class="text-label md:text-sm text-muted-foreground">Proficient</span>
           </div>
           <div class="flex flex-wrap gap-2 items-center">
-            <button
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
+            <AppButton
+              variant="subtle"
+              fill="muted"
+              size="sm"
+              class="group"
               v-roll-mode="(mode: RollMode | null) => rollUnarmedAttack(mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -187,7 +205,7 @@
                 {{ signedNum(unarmedAttackMod) }}
               </span>
               <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
-            </button>
+            </AppButton>
             <span class="font-cinzel text-xs text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
           </div>
         </div>
@@ -197,8 +215,11 @@
             <span class="text-label md:text-sm text-muted-foreground">No proficiency</span>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
+            <AppButton
+              variant="subtle"
+              fill="muted"
+              size="sm"
+              class="group"
               v-roll-mode="(mode: RollMode | null) => rollImprovisedAttack(mode)"
             >
               <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -207,15 +228,18 @@
                 {{ signedNum(improvisedAttackMod) }}
               </span>
               <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
-            </button>
-            <button
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
+            </AppButton>
+            <AppButton
+              variant="subtle"
+              fill="muted"
+              size="sm"
+              class="group hover:border-amber-500/50"
               @click="rollImprovisedDamage"
             >
               <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
               <span class="font-cinzel text-xs text-foreground">1d4</span>
               <span class="font-cinzel text-xs text-muted-foreground">{{ signedNum(improvisedAttackMod) }}</span>
-            </button>
+            </AppButton>
           </div>
         </div>
       </div>

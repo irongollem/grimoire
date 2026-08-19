@@ -15,9 +15,9 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-semibold text-foreground">Monster Generator</h2>
-        <button class="text-muted-foreground hover:text-foreground" @click="ui.monsterGeneratorOpen = false">
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" @click="ui.monsterGeneratorOpen = false">
+          <template #icon><IconClose class="h-5 w-5" /></template>
+        </AppButton>
       </div>
 
       <!-- Body -->
@@ -47,33 +47,28 @@
 
           <div>
             <label class="block text-caption text-muted-foreground mb-1">Challenge Rating</label>
-            <input
+            <AppInput
               v-model="constraints.challenge_rating"
+              tone="filled"
+              size="body"
               placeholder="e.g. 5, 1/2, 1/4"
-              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Monster Type</label>
-              <select
-                v-model="constraints.monster_type"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="constraints.monster_type" tone="filled" size="body" weight="normal" block>
                 <option value="">Any</option>
                 <option v-for="t in MONSTER_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
-              </select>
+              </AppSelect>
             </div>
             <div>
               <label class="block text-caption text-muted-foreground mb-1">Size</label>
-              <select
-                v-model="constraints.size"
-                class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              >
+              <AppSelect v-model="constraints.size" tone="filled" size="body" weight="normal" block>
                 <option value="">Any</option>
                 <option v-for="s in SIZES" :key="s" :value="s" class="capitalize">{{ s }}</option>
-              </select>
+              </AppSelect>
             </div>
           </div>
         </div>
@@ -125,34 +120,34 @@
           :byok="textIsByok"
           class="self-center"
         />
-        <button
+        <AppButton
           v-if="isPro && isAiEnabled"
-          type="button"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
           :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
-          :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          {{ isGenerating ? "Generating…" : "Generate with AI" }}
-        </button>
-        <button
+        />
+        <AppButton
           v-else-if="!isPro"
-          type="button"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
+          label="Generate with AI"
           @click="showPaywall = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate with AI
-        </button>
-        <RouterLink
+        />
+        <AppButton
           to="/monsters/new"
-          class="w-full inline-flex items-center justify-center py-2 text-label-lg font-semibold rounded-md hover:opacity-90 transition-opacity"
-          :class="isPro && !aiApiKey ? 'bg-primary text-primary-foreground' : 'border border-border bg-card text-foreground hover:bg-muted'"
+          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          size="md"
+          block
+          label="New Blank Monster"
           @click="ui.monsterGeneratorOpen = false"
-        >
-          New Blank Monster
-        </RouterLink>
+        />
       </div>
     </aside>
   </Transition>
@@ -161,7 +156,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
-import { useRouter, RouterLink } from "vue-router";
+import { useRouter } from "vue-router";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -169,6 +164,9 @@ import { useCreateMonster } from "@/composables/useMonsters";
 import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useMonsterGeneration } from "@/ai/useMonsterGeneration";

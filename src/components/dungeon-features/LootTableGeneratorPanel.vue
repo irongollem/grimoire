@@ -15,9 +15,9 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-semibold text-foreground">Loot Table Generator</h2>
-        <button class="text-muted-foreground hover:text-foreground" @click="handleClose">
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton variant="ghost" size="icon-sm" tooltip="Close" aria-label="Close" @click="handleClose">
+          <template #icon><IconClose class="h-5 w-5" /></template>
+        </AppButton>
       </div>
 
       <!-- Body -->
@@ -195,25 +195,25 @@
         <!-- Results: create the table -->
         <template v-if="result">
           <p v-if="createError" class="text-caption text-destructive text-center">{{ createError }}</p>
-          <button
+          <AppButton
             v-if="!createdTableId"
-            type="button"
+            variant="primary"
+            size="md"
+            block
             :disabled="creating || creatableCount === 0"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :icon="IconAdd"
+            :label="creating ? 'Creating…' : `Create Table (${creatableCount} ${creatableCount === 1 ? 'entry' : 'entries'})`"
             @click="createTable"
-          >
-            <IconAdd class="h-3.5 w-3.5" />
-            {{ creating ? "Creating…" : `Create Table (${creatableCount} ${creatableCount === 1 ? "entry" : "entries"})` }}
-          </button>
-          <button
+          />
+          <AppButton
             v-else
-            type="button"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            variant="primary"
+            size="md"
+            block
+            :icon="IconCheckCircle"
+            label="View Table →"
             @click="viewCreated"
-          >
-            <IconCheckCircle class="h-3.5 w-3.5" />
-            View Table →
-          </button>
+          />
         </template>
 
         <!-- Form: generate -->
@@ -224,26 +224,26 @@
             :byok="textIsByok"
             class="self-center"
           />
-          <button
+          <AppButton
             v-if="isPro && isAiEnabled"
-            type="button"
+            variant="primary"
+            size="md"
+            block
             :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
-            :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+            :icon="IconGenerate"
+            :label="isGenerating ? 'Generating…' : 'Generate with AI'"
             @click="runGenerate"
-          >
-            <IconGenerate class="h-3.5 w-3.5" />
-            {{ isGenerating ? "Generating…" : "Generate with AI" }}
-          </button>
-          <button
+          />
+          <AppButton
             v-else-if="!isPro"
-            type="button"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            variant="primary"
+            size="md"
+            block
+            :icon="IconGenerate"
+            label="Generate with AI"
             @click="showPaywall = true"
-          >
-            <IconGenerate class="h-3.5 w-3.5" />
-            Generate with AI
-          </button>
+          />
         </template>
       </div>
     </aside>
@@ -267,6 +267,7 @@ import { useCreateLootTable } from "@/composables/useLootTables";
 import { useLootGeneration } from "@/ai/useLootGeneration";
 import { resolveGeneratedLoot, type ResolvedLootEntry } from "@/ai/resolveGeneratedLoot";
 import { useSubscription } from "@/composables/useSubscription";
+import AppButton from "@/components/common/AppButton.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import PaywallModal from "@/components/common/PaywallModal.vue";

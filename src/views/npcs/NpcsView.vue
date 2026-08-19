@@ -166,13 +166,7 @@
           {{ chip.label }}
           <IconClose class="size-3 text-muted-foreground" />
         </button>
-        <button
-          type="button"
-          class="text-label-lg font-semibold text-primary"
-          @click="clearFilters"
-        >
-          Clear all
-        </button>
+        <AppButton variant="link" size="inline" label="Clear all" @click="clearFilters" />
       </div>
     </div>
 
@@ -254,37 +248,48 @@
     <!-- Overflow ⋮ sheet -->
     <MobileSheet v-model:open="overflowOpen" title="More">
       <div class="flex flex-col gap-1 py-1">
-        <RouterLink
+        <AppButton
+          variant="menu"
+          size="body"
+          block
           to="/npcs/sets"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-body text-foreground hover:bg-muted/50"
+          label="Sets"
           @click="overflowOpen = false"
         >
-          <IconLayers class="size-5 shrink-0 text-muted-foreground" /> Sets
-        </RouterLink>
-        <RouterLink
+          <template #icon><IconLayers class="size-5 shrink-0 text-muted-foreground" /></template>
+        </AppButton>
+        <AppButton
+          variant="menu"
+          size="body"
+          block
           to="/npcs/web"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-body text-foreground hover:bg-muted/50"
+          label="Web"
           @click="overflowOpen = false"
         >
-          <IconNetwork class="size-5 shrink-0 text-muted-foreground" /> Web
-        </RouterLink>
-        <button
-          type="button"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left text-body text-foreground hover:bg-muted/50"
+          <template #icon><IconNetwork class="size-5 shrink-0 text-muted-foreground" /></template>
+        </AppButton>
+        <AppButton
+          variant="menu"
+          size="body"
+          block
+          label="Generate"
           @click="overflowOpen = false; ui.npcGeneratorOpen = true"
         >
-          <IconGenerate class="size-5 shrink-0 text-muted-foreground" /> Generate
-        </button>
-        <button
+          <template #icon><IconGenerate class="size-5 shrink-0 text-muted-foreground" /></template>
+        </AppButton>
+        <AppButton
           v-if="hasSetting"
-          type="button"
+          variant="menu"
+          size="body"
+          block
           :disabled="populateMutation.isPending.value"
-          class="flex items-center gap-3 rounded-lg px-2 py-3 text-left text-body text-foreground hover:bg-muted/50 disabled:opacity-50"
+          :label="populateStatusLabel"
           @click="overflowOpen = false; handlePopulate()"
         >
-          <component :is="populateMutation.isPending.value ? IconLoading : IconPopulate" class="size-5 shrink-0 text-muted-foreground" />
-          {{ populateStatusLabel }}
-        </button>
+          <template #icon>
+            <component :is="populateMutation.isPending.value ? IconLoading : IconPopulate" class="size-5 shrink-0 text-muted-foreground" />
+          </template>
+        </AppButton>
       </div>
     </MobileSheet>
   </div>
@@ -310,6 +315,7 @@ import {
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";

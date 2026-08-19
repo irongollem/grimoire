@@ -15,9 +15,9 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-semibold text-foreground">Encounter Generator</h2>
-        <button class="text-muted-foreground hover:text-foreground" @click="handleClose">
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" @click="handleClose">
+          <template #icon><IconClose class="h-5 w-5" /></template>
+        </AppButton>
       </div>
 
       <!-- Body -->
@@ -172,16 +172,14 @@
             <label class="block text-label-lg font-semibold text-muted-foreground mb-1.5">
               DIFFICULTY
             </label>
-            <div class="grid grid-cols-5 gap-2">
-              <button
-                v-for="option in DIFFICULTY_OPTIONS"
-                :key="option.value"
-                type="button"
-                class="py-1.5 text-caption font-semibold rounded-md border transition-colors"
-                :class="difficulty === option.value ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground hover:text-foreground'"
-                @click="difficulty = option.value"
-              >{{ option.label }}</button>
-            </div>
+            <SegmentedControl
+              v-model="difficulty"
+              :options="DIFFICULTY_OPTIONS"
+              variant="subtle"
+              size="sm"
+              gap="loose"
+              block
+            />
           </div>
         </template>
       </div>
@@ -190,25 +188,25 @@
       <div class="px-5 py-4 border-t border-border shrink-0 flex flex-col gap-2">
         <!-- Results: create the encounter -->
         <template v-if="result">
-          <button
+          <AppButton
             v-if="!createdEncounterId"
-            type="button"
+            variant="primary"
+            size="md"
+            block
+            :icon="IconAdd"
             :disabled="creating"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :label="creating ? 'Creating…' : 'Create Encounter'"
             @click="createEncounterFromResult"
-          >
-            <IconAdd class="h-3.5 w-3.5" />
-            {{ creating ? "Creating…" : "Create Encounter" }}
-          </button>
-          <button
+          />
+          <AppButton
             v-else
-            type="button"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            variant="primary"
+            size="md"
+            block
+            :icon="IconCheckCircle"
+            label="Open Encounter →"
             @click="viewCreated"
-          >
-            <IconCheckCircle class="h-3.5 w-3.5" />
-            Open Encounter →
-          </button>
+          />
         </template>
 
         <!-- Form: generate -->
@@ -219,26 +217,26 @@
             :byok="textIsByok"
             class="self-center"
           />
-          <button
+          <AppButton
             v-if="isPro && isAiEnabled"
-            type="button"
+            variant="primary"
+            size="md"
+            block
+            :icon="IconGenerate"
             :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
-            :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+            :label="isGenerating ? 'Generating…' : 'Generate with AI'"
             @click="runGenerate"
-          >
-            <IconGenerate class="h-3.5 w-3.5" />
-            {{ isGenerating ? "Generating…" : "Generate with AI" }}
-          </button>
-          <button
+          />
+          <AppButton
             v-else-if="!isPro"
-            type="button"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            variant="primary"
+            size="md"
+            block
+            :icon="IconGenerate"
+            label="Generate with AI"
             @click="showPaywall = true"
-          >
-            <IconGenerate class="h-3.5 w-3.5" />
-            Generate with AI
-          </button>
+          />
         </template>
       </div>
     </aside>
@@ -267,6 +265,8 @@ import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useAllMonsters } from "@/composables/useMonsters";

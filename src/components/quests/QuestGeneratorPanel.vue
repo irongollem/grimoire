@@ -15,9 +15,9 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-semibold text-foreground">Quest Generator</h2>
-        <button class="text-muted-foreground hover:text-foreground" @click="handleClose">
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" @click="handleClose">
+          <template #icon><IconClose class="h-5 w-5" /></template>
+        </AppButton>
       </div>
 
       <!-- Body -->
@@ -97,16 +97,15 @@
             />
 
             <div class="flex items-center gap-2 flex-wrap">
-              <button
+              <AppButton
                 v-if="!createdQuestIds[i]"
-                type="button"
+                variant="primary"
+                size="sm"
+                :icon="IconAdd"
                 :disabled="creatingIndex === i"
-                class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+                :label="creatingIndex === i ? 'Creating…' : 'Create Quest'"
                 @click="createFromHook(hook, i)"
-              >
-                <IconAdd class="h-3.5 w-3.5" />
-                {{ creatingIndex === i ? "Creating…" : "Create Quest" }}
-              </button>
+              />
               <template v-else>
                 <span class="inline-flex items-center gap-1 font-cinzel text-xs font-semibold text-emerald-500">
                   <IconCheckCircle class="h-3.5 w-3.5" />
@@ -205,30 +204,30 @@
           :byok="textIsByok"
           class="self-center"
         />
-        <button
+        <AppButton
           v-if="isPro && isAiEnabled && !hooks.length"
-          type="button"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
           :disabled="isAnyAiGenerating || !affordable(textCreditCost, textIsByok)"
-          :title="
+          :tooltip="
             isAnyAiGenerating && !isGenerating
               ? 'Another generation is already in progress'
               : undefined
           "
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :label="isGenerating ? 'Generating…' : 'Generate Quest Hooks'"
           @click="runGenerate"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          {{ isGenerating ? "Generating…" : "Generate Quest Hooks" }}
-        </button>
-        <button
+        />
+        <AppButton
           v-else-if="!isPro"
-          type="button"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
+          label="Generate Quest Hooks"
           @click="showPaywall = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate Quest Hooks
-        </button>
+        />
       </div>
     </aside>
   </Transition>
@@ -255,6 +254,7 @@ import { useAllFactions } from "@/composables/useFactions";
 import { useCreateQuest, useCreateObjective, useCreateQuestRef } from "@/composables/useQuests";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { useQuestGeneration } from "@/ai/useQuestGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { useSubscription } from "@/composables/useSubscription";

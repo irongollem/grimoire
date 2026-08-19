@@ -12,18 +12,27 @@
               title="Edit attack"
               @click="startEdit(attack)"
             ><IconEdit class="h-3 w-3" /></button>
-            <button
-              class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-              title="Delete attack"
+            <AppButton
+              variant="ghost"
+              tone="danger"
+              fill="tone"
+              size="icon-xs"
+              class="text-muted-foreground/40"
+              tooltip="Delete attack"
               @click="removeAttack(attack.id)"
-            ><IconDelete class="h-3 w-3" /></button>
+            >
+              <template #icon><IconDelete class="h-3 w-3" /></template>
+            </AppButton>
           </div>
         </div>
         <div class="flex flex-wrap gap-2 items-center">
-          <button
+          <AppButton
             v-if="attack.attack_bonus !== null"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-primary/50 hover:bg-muted/30 transition-colors group"
             v-roll-mode="(mode: RollMode | null) => rollAttack(attack, mode)"
+            variant="subtle"
+            fill="muted"
+            size="sm"
+            class="group"
           >
             <IconSword class="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
             <span class="font-cinzel text-xs text-foreground">Attack</span>
@@ -31,7 +40,7 @@
               {{ signedNum(attack.attack_bonus) }}
             </span>
             <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
-          </button>
+          </AppButton>
           <button
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
             @click="rollDamage(attack)"
