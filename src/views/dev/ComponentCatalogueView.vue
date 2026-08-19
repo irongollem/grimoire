@@ -98,7 +98,7 @@
       <div class="flex flex-wrap items-center gap-2">
         <AppButton variant="ghost" active label="default (gold)" />
         <AppButton
-          v-for="tone in BUTTON_TONES.filter((t) => t !== 'primary')"
+          v-for="tone in BUTTON_COLOUR_TONES.filter((t) => t !== 'primary')"
           :key="tone"
           variant="ghost"
           active
@@ -149,7 +149,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="tone in BUTTON_TONES" :key="tone">
+          <tr v-for="tone in BUTTON_COLOUR_TONES" :key="tone">
             <th class="text-label font-semibold text-foreground text-left">{{ tone }}</th>
             <td v-for="emphasis in BUTTON_EMPHASES" :key="emphasis">
               <AppButton variant="tinted" :tone="tone" :emphasis="emphasis" :label="tone" />
@@ -307,7 +307,7 @@ import CatalogueSection from "./CatalogueSection.vue";
 import {
   BUTTON_VARIANTS,
   BUTTON_SIZES,
-  BUTTON_TONES,
+  BUTTON_COLOUR_TONES,
   BUTTON_EMPHASES,
   BUTTON_FILLS,
   type ButtonSize,

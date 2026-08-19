@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { h } from "vue";
 import { RouterLinkStub } from "@vue/test-utils";
 import AppButton from "./AppButton.vue";
-import { buttonVariants, BUTTON_TONES, BUTTON_EMPHASES } from "./appButtonVariants";
+import { vRollMode } from "@/directives/vRollMode";
+import { buttonVariants, BUTTON_COLOUR_TONES, BUTTON_EMPHASES } from "./appButtonVariants";
 
 const global = { stubs: { RouterLink: RouterLinkStub } };
 
@@ -200,7 +201,7 @@ describe("tinted tones (#623)", () => {
   // The colour must stay one indirection away, or a theme can no longer repaint
   // these by reassigning `--tone-*`.
   it("resolves every tone through a --color-tone-* token, never a raw hue", () => {
-    for (const tone of BUTTON_TONES) {
+    for (const tone of BUTTON_COLOUR_TONES) {
       for (const emphasis of BUTTON_EMPHASES) {
         const cls = buttonVariants({ variant: "tinted", tone, emphasis });
         expect(cls, `${tone}/${emphasis}`).toContain(`tone-${tone}`);
@@ -313,7 +314,7 @@ describe("fill (#648)", () => {
   });
 
   it("fill=tone resolves through the tone custom properties, not a pinned hue", () => {
-    for (const tone of BUTTON_TONES) {
+    for (const tone of BUTTON_COLOUR_TONES) {
       const cls = buttonVariants({ variant: "ghost", fill: "tone", tone });
       expect(cls, tone).toContain(`hover:bg-tone-${tone}/10`);
       expect(cls, tone).not.toMatch(
@@ -352,19 +353,20 @@ describe("active × tone (#648)", () => {
   // The whole point: a selected state that is deliberately not gold. Each of these
   // stayed hand-rolled through three waves because `active` ignored `tone`.
   it("takes the tone's colour when one is given", () => {
-    for (const tone of BUTTON_TONES.filter((t) => t !== "primary")) {
+    for (const tone of BUTTON_COLOUR_TONES.filter((t) => t !== "primary")) {
       const cls = buttonVariants({ variant: "ghost", active: true, tone });
       expect(cls, tone).toContain(`bg-tone-${tone}/15`);
       expect(cls, tone).toContain(`text-tone-${tone}`);
     }
   });
 
-  // primary is the default tone, so a compound for it would repaint every plain
-  // :active button in the app. Its absence is load-bearing, not an omission.
-  it("has no primary compound, so the default cannot be repainted by accident", () => {
-    const explicit = buttonVariants({ variant: "ghost", active: true, tone: "primary" });
-    const implicit = buttonVariants({ variant: "ghost", active: true });
+  // `active` has no primary compound: gold is already the untoned default, so a rule
+  // for it would be redundant. Both spellings must land on the same gold.
+  it("gives explicit primary and the untoned default the same gold", () => {
+    const explicit = buttonVariants({ variant: "chip", active: true, tone: "primary" });
+    const implicit = buttonVariants({ variant: "chip", active: true });
     expect(explicit).toBe(implicit);
+    expect(explicit).toContain("bg-primary/10");
     expect(explicit).not.toContain("bg-tone-primary");
   });
 });
@@ -399,5 +401,99 @@ describe("menu + danger (#648)", () => {
       .get("button").classes();
     expect(cls).toContain("hover:bg-muted");
     expect(cls).not.toContain("text-destructive");
+  });
+});
+
+describe("v-roll-mode composes with AppButton (#648)", () => {
+  // 20 roll triggers across 7 files stayed hand-rolled through four waves on the
+  // assumption that a directive attaching raw listeners could not survive being put
+  // on a component. It can: AppButton is single-root, so Vue hands the directive the
+  // real <button>. Asserted here so the next sweep does not re-litigate it.
+  it("fires through the component onto the underlying button", async () => {
+    const handler = vi.fn();
+    const wrapper = mount(
+      {
+        components: { AppButton },
+        template: `<AppButton v-roll-mode="h" label="Attack" />`,
+        setup: () => ({ h: handler }),
+      },
+      { global: { ...global, directives: { "roll-mode": vRollMode } } },
+    );
+
+    await wrapper.get("button").trigger("click");
+    expect(handler).toHaveBeenCalledTimes(1);
+    // A plain click means "roll as normal" — the picker passes a mode instead.
+    expect(handler.mock.calls[0][0]).toBeNull();
+  });
+
+  // Worth pinning explicitly: AppButton's own click guard uses stopPropagation,
+  // which does NOT stop other listeners on the same element, so the guard is not
+  // what protects a disabled roll button. A native `disabled` button never
+  // dispatches click at all — that is. If AppButton is ever rendered as a link
+  // (`to`/`href`), `disabled` stops being native and this protection disappears.
+  it("does not fire when disabled", async () => {
+    const handler = vi.fn();
+    const wrapper = mount(
+      {
+        components: { AppButton },
+        template: `<AppButton v-roll-mode="h" disabled label="Attack" />`,
+        setup: () => ({ h: handler }),
+      },
+      { global: { ...global, directives: { "roll-mode": vRollMode } } },
+    );
+
+    await wrapper.get("button").trigger("click");
+    expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe("neutral is the default tone (#648)", () => {
+  // The whole reason `neutral` exists. While `primary` was the default, "explicitly
+  // primary" and "unspecified" were the same value, so a ghost+primary rule would
+  // have repainted every plain ghost button. These two assertions are what make the
+  // distinction real, and what would break if the default ever moved back.
+  it("leaves an untoned ghost button on the neutral hover", () => {
+    const cls = mount(AppButton, { props: { variant: "ghost", label: "Edit" }, global })
+      .get("button").classes();
+    expect(cls).toContain("hover:text-foreground");
+    expect(cls).not.toContain("hover:text-primary");
+  });
+
+  it("gives an explicitly primary ghost button the gold hover", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "ghost", tone: "primary", label: "Add pool" },
+      global,
+    }).get("button").classes();
+    expect(cls).toContain("hover:text-primary");
+    expect(cls).not.toContain("hover:text-foreground");
+  });
+
+  // Guards the migration itself: every tinted call site was checked to pass an
+  // explicit tone before the default moved, because tinted is the variant that would
+  // silently lose its colour. If someone adds an untoned one, it renders bare.
+  it("gives tinted no colour without an explicit tone", () => {
+    const bare = buttonVariants({ variant: "tinted" });
+    expect(bare).not.toMatch(/bg-tone-/);
+  });
+});
+
+describe("ghost hover tones (#648)", () => {
+  // Only expressible once `neutral` became the default tone. Before that, any rule
+  // keyed on a tone would have fired on every untoned ghost button in the app.
+  // Asserted on a mount, not on buttonVariants() output: cva only concatenates, so
+  // the raw string legitimately contains BOTH ghost's `hover:text-foreground` and the
+  // compound's colour. Which one survives is decided by cn()/tailwind-merge at render,
+  // and that is the thing a call site actually gets.
+  it("recolours the hover for every colour tone", () => {
+    for (const tone of BUTTON_COLOUR_TONES) {
+      const cls = mount(AppButton, { props: { variant: "ghost", tone, label: "x" }, global })
+        .get("button").classes();
+      expect(cls.join(" "), tone).toMatch(/hover:text-(primary|destructive|tone-\w+)/);
+      expect(cls, tone).not.toContain("hover:text-foreground");
+    }
+  });
+
+  it("still leaves the untoned ghost neutral", () => {
+    expect(buttonVariants({ variant: "ghost" })).toContain("hover:text-foreground");
   });
 });

@@ -80,7 +80,7 @@ const {
   size,
   active = false,
   block = false,
-  tone = "primary",
+  tone = "neutral",
   emphasis = "soft",
   fill = "none",
   type = "button",

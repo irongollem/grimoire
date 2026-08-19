@@ -82,6 +82,18 @@ export const buttonVariants = cva(
          * with a call-site class. 12 sites across 9 files.
          */
         body: "gap-2 rounded-md px-3 py-1.5 text-body",
+        /**
+         * Fixed 1.625rem height, for a control dropped into a text editor's toolbar
+         * row — RichTextEditor's `#toolbar-end` slot and the panes around it. The
+         * height is fixed rather than padding-derived because these sit shoulder to
+         * shoulder with the editor's own toolbar buttons and have to align to the
+         * pixel; a `py-*` size drifts as soon as the type role changes.
+         *
+         * 17 sites across 4 files (ScriptoriumEditorToolbar, ScriptoriumPreviewPane,
+         * NpcPcNotesSection, PlayerNotesWidget), one of which had already resorted to
+         * a `class="h-6.5"` override to line up.
+         */
+        toolbar: "gap-1 rounded px-2 h-6.5 text-label",
         "icon-xs": "h-6 w-6 rounded text-label-lg",
         "icon-sm": "h-8 w-8 rounded-md text-label-lg",
       },
@@ -137,6 +149,20 @@ export const buttonVariants = cva(
        * `fill="tone"` on any variant. Ignored otherwise.
        */
       tone: {
+        /**
+         * No tone — the default, and the reason this value exists at all.
+         *
+         * `tone` used to default to `primary`, which made "explicitly primary"
+         * indistinguishable from "unspecified": a `{ variant: "ghost", tone: "primary" }`
+         * compound would have fired on every plain ghost button in the app. That
+         * blocked `ghost` + primary hover (`text-muted-foreground hover:text-primary`)
+         * through four waves of the #648 sweep, reported four separate times.
+         *
+         * Safe to change because all 36 `tinted` call sites already pass an explicit
+         * tone — checked before moving the default, since `tinted` is the variant that
+         * would silently lose its colour otherwise.
+         */
+        neutral: "",
         /** The theme's accent — soundboard source tabs, "Drop chest in chat". */
         primary: "",
         /** Damage, destructive rolls. */
@@ -210,6 +236,26 @@ export const buttonVariants = cva(
        * affordance disappears from an app without anyone deciding to remove it.
        */
       { variant: "ghost", tone: "danger", class: "hover:text-destructive" },
+      /**
+       * The "add another one" affordance — `text-muted-foreground hover:text-primary`,
+       * 10 sites across 8 files (QuestObjectivesList, DiceRoller, EncounterLoot,
+       * RewardCurrencyPoolsEditor…). Only expressible once `neutral` became the
+       * default tone; before that this rule would have repainted every ghost button.
+       */
+      { variant: "ghost", tone: "primary", class: "hover:text-primary" },
+      /**
+       * The rest of the ladder — a dim icon that takes on a semantic colour when you
+       * point at it ("Drop to chat" going coin-gold, a heal action going green).
+       *
+       * `danger` above resolves to `text-destructive` rather than `text-tone-danger`
+       * on purpose: it predates these and is what the 58 converted remove-row crosses
+       * already render, and the two are separate custom properties that a theme could
+       * legitimately diverge. Changing it now would repaint those sites for tidiness.
+       */
+      { variant: "ghost", tone: "success", class: "hover:text-tone-success" },
+      { variant: "ghost", tone: "info", class: "hover:text-tone-info" },
+      { variant: "ghost", tone: "arcane", class: "hover:text-tone-arcane" },
+      { variant: "ghost", tone: "caution", class: "hover:text-tone-caution" },
 
       /**
        * The destructive menu row — "Sign Out", "Delete monster". Unlike `ghost`,
@@ -245,7 +291,7 @@ export const buttonVariants = cva(
     ],
     defaultVariants: {
       variant: "subtle", size: "sm", active: false, block: false,
-      tone: "primary", emphasis: "soft", fill: "none",
+      tone: "neutral", emphasis: "soft", fill: "none",
     },
   },
 );
@@ -271,7 +317,7 @@ export const BUTTON_VARIANTS = [
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "xs", "sm", "md", "lg", "body", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "xs", "sm", "md", "lg", "body", "toolbar", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional
@@ -285,8 +331,14 @@ export type AssertSizesListed = Assert<
 >;
 
 export const BUTTON_TONES = [
-  "primary", "danger", "success", "info", "arcane", "caution",
+  "neutral", "primary", "danger", "success", "info", "arcane", "caution",
 ] as const satisfies readonly ButtonTone[];
+
+/**
+ * The tones that actually carry a colour. `tinted` and `fill="tone"` are meaningless
+ * without one, so the catalogue and the tests iterate this rather than BUTTON_TONES.
+ */
+export const BUTTON_COLOUR_TONES = BUTTON_TONES.filter((t) => t !== "neutral");
 
 export const BUTTON_EMPHASES = ["soft", "strong", "outline"] as const satisfies readonly ButtonEmphasis[];
 
