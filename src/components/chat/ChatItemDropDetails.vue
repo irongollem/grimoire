@@ -71,7 +71,11 @@
         <RichTextViewer :content="item.description" />
       </div>
     </template>
-    <!-- item is null when the player can't yet read it (RLS-blocked until claimed) -->
+    <!-- item is null only once both lookups miss: the base table (owner-only —
+         always null for a player) and the player-visible projection (only
+         populated once the drop is claimed into party_inventory, or the item
+         sits in a shared, visible store). Same "unclaimed" placeholder either
+         way — see the composed lookup below. -->
     <p v-else class="text-xs italic text-muted-foreground py-1">
       You don't know anything about this item yet — claim it to reveal its details.
     </p>
@@ -80,7 +84,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useItem } from "@/composables/useItems";
+import { useItem, usePlayerVisibleItems } from "@/composables/useItems";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
@@ -92,7 +96,16 @@ import {
 
 const props = defineProps<{ itemId: string }>();
 
-const { data: item, isPending } = useItem(props.itemId);
+// Base-table lookup (owner RLS — resolves for the DM, always null for a
+// player) combined with the player-visible projection (resolves once the
+// drop lands in party_inventory or a shared, visible store — see
+// get_player_visible_items, migration 20260711000014). No role branch is
+// needed: exactly one side ever has data for a given viewer, and DM-preview
+// is already handled inside usePlayerVisibleItems.
+const { data: baseItem, isPending: baseItemPending } = useItem(props.itemId);
+const { data: visibleItems, isLoading: visibleItemsLoading } = usePlayerVisibleItems();
+const item = computed(() => baseItem.value ?? visibleItems.value?.find((i) => i.id === props.itemId) ?? null);
+const isPending = computed(() => baseItemPending.value || visibleItemsLoading.value);
 
 /** Border tint from the ramp token. `color-mix` rather than an appended hex
  *  alpha, which only worked while these were hex literals (#744). */

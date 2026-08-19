@@ -103,7 +103,7 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 
-const isNewItem = computed(() => route.name === "vault-new");
+const isNewItem = computed(() => route.name === "item-new");
 const id = computed(() => (isNewItem.value ? "" : (route.params.id as string)));
 
 const { data: resolvedData, isLoading: itemLoading } = useResolvedItem(id);
