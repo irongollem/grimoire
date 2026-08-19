@@ -18,13 +18,15 @@
           >
             Insert Block
           </h2>
-          <button
-            type="button"
-            class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="$emit('close')"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
+          />
         </div>
 
         <!-- Scrollable body -->
@@ -37,29 +39,29 @@
               {{ group }}
             </h3>
             <div class="space-y-1">
-              <button
+              <AppButton
                 v-for="entry in entriesByGroup[group]"
                 :key="entry.label"
-                type="button"
+                variant="menu"
+                size="body"
+                surface="card"
+                block
                 :disabled="isDisabled(entry)"
-                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border bg-card text-left transition-colors"
-                :class="
-                  isDisabled(entry)
-                    ? 'opacity-40 cursor-not-allowed'
-                    : 'hover:bg-muted hover:border-primary/30 group'
-                "
+                :class="isDisabled(entry) ? 'border border-border' : 'border border-border hover:border-primary/30 group'"
                 @click="activate(entry)"
               >
-                <div
-                  class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center"
-                  :class="
-                    isDisabled(entry)
-                      ? 'bg-muted text-muted-foreground'
-                      : 'bg-primary/10 text-primary group-hover:bg-primary/20'
-                  "
-                >
-                  <component :is="entry.icon" class="h-4 w-4" />
-                </div>
+                <template #icon>
+                  <div
+                    class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center"
+                    :class="
+                      isDisabled(entry)
+                        ? 'bg-muted text-muted-foreground'
+                        : 'bg-primary/10 text-primary group-hover:bg-primary/20'
+                    "
+                  >
+                    <component :is="entry.icon" class="h-4 w-4" />
+                  </div>
+                </template>
                 <div class="min-w-0">
                   <p
                     class="font-cinzel text-xs font-semibold text-foreground leading-tight"
@@ -72,7 +74,7 @@
                     {{ entry.description }}
                   </p>
                 </div>
-              </button>
+              </AppButton>
             </div>
           </section>
 
@@ -84,16 +86,21 @@
               Images
             </h3>
             <div class="space-y-1">
-              <button
-                type="button"
-                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border bg-card text-left hover:bg-muted hover:border-primary/30 transition-colors group"
+              <AppButton
+                variant="menu"
+                size="body"
+                surface="card"
+                block
+                class="border border-border hover:border-primary/30 group"
                 @click="insertImageFromUrl"
               >
-                <div
-                  class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20"
-                >
-                  <IconLink class="h-4 w-4" />
-                </div>
+                <template #icon>
+                  <div
+                    class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20"
+                  >
+                    <IconLink class="h-4 w-4" />
+                  </div>
+                </template>
                 <div class="min-w-0">
                   <p
                     class="font-cinzel text-xs font-semibold text-foreground leading-tight"
@@ -106,18 +113,23 @@
                     Insert an image by pasting its web address
                   </p>
                 </div>
-              </button>
+              </AppButton>
 
-              <button
-                type="button"
-                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border bg-card text-left hover:bg-muted hover:border-primary/30 transition-colors group"
+              <AppButton
+                variant="menu"
+                size="body"
+                surface="card"
+                block
+                class="border border-border hover:border-primary/30 group"
                 @click="openAssetLibrary"
               >
-                <div
-                  class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20"
-                >
-                  <IconLibrary class="h-4 w-4" />
-                </div>
+                <template #icon>
+                  <div
+                    class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20"
+                  >
+                    <IconLibrary class="h-4 w-4" />
+                  </div>
+                </template>
                 <div class="min-w-0">
                   <p
                     class="font-cinzel text-xs font-semibold text-foreground leading-tight"
@@ -130,18 +142,23 @@
                     Browse and insert saved NPCs, monsters, spells, or locations
                   </p>
                 </div>
-              </button>
+              </AppButton>
 
-              <button
-                type="button"
-                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border bg-card text-left hover:bg-muted hover:border-primary/30 transition-colors group"
+              <AppButton
+                variant="menu"
+                size="body"
+                surface="card"
+                block
+                class="border border-border hover:border-primary/30 group"
                 @click="openArtPicker"
               >
-                <div
-                  class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20"
-                >
-                  <IconGridView class="h-4 w-4" />
-                </div>
+                <template #icon>
+                  <div
+                    class="shrink-0 w-8 h-8 rounded-md flex items-center justify-center bg-primary/10 text-primary group-hover:bg-primary/20"
+                  >
+                    <IconGridView class="h-4 w-4" />
+                  </div>
+                </template>
                 <div class="min-w-0">
                   <p
                     class="font-cinzel text-xs font-semibold text-foreground leading-tight"
@@ -154,7 +171,7 @@
                     Pick from your uploaded NPC, monster, location, or document art
                   </p>
                 </div>
-              </button>
+              </AppButton>
             </div>
           </section>
         </div>
@@ -173,6 +190,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconClose, IconLibrary, IconLink, IconGridView } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import type { Editor } from "@tiptap/core";
 import type { FurnitureKind } from "@/types/scriptorium.types";
 import {

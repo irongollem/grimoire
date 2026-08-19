@@ -134,21 +134,19 @@
         <div class="grid grid-cols-1 md:grid-cols-[1fr_11.25rem] gap-3">
           <div class="space-y-1.5">
             <label class="text-eyebrow font-semibold text-muted-foreground">Name</label>
-            <input
+            <AppInput
               v-model="form.name"
+              tone="card"
+              size="heading"
               required
               placeholder="Bandit Camp Loot"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <div class="space-y-1.5">
             <label class="text-eyebrow font-semibold text-muted-foreground">CR Tier</label>
-            <select
-              v-model="form.cr_tier"
-              class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model="form.cr_tier" size="body" weight="normal" block>
               <option v-for="t in LOOT_CR_TIERS" :key="t" :value="t">{{ LOOT_CR_TIER_LABELS[t] }}</option>
-            </select>
+            </AppSelect>
           </div>
         </div>
 
@@ -187,9 +185,16 @@
               class="inline-flex items-center gap-1 font-cinzel text-2xs bg-muted/60 text-muted-foreground rounded px-2 py-0.5"
             >
               <IconMonster class="h-2.5 w-2.5 shrink-0" />{{ monstersById.get(mid)?.name ?? mid }}
-              <button type="button" class="ml-0.5 hover:text-destructive transition-colors" @click="removeMonster(mid)">
-                <IconClose class="h-2.5 w-2.5" />
-              </button>
+              <AppButton
+                variant="ghost"
+                tone="danger"
+                size="inline-xs"
+                icon-size="xs"
+                class="ml-0.5"
+                :icon="IconClose"
+                aria-label="Remove monster"
+                @click="removeMonster(mid)"
+              />
             </span>
           </div>
           <EntityCombobox
@@ -216,16 +221,15 @@
       <div class="self-start">
         <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
           <h3 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Roll loot</h3>
-          <button
-            type="button"
+          <AppButton
+            variant="primary"
+            size="md"
             :disabled="!form.entries.length || entriesError !== null"
-            :title="entriesError ?? undefined"
-            class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+            :tooltip="entriesError ?? undefined"
+            :icon="IconDiceRoll"
+            label="Roll"
             @click="onRoll"
-          >
-            <IconDiceRoll class="size-3.5" />
-            Roll
-          </button>
+          />
 
           <div v-if="lastRoll" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2">
             <span class="text-eyebrow font-semibold text-muted-foreground">Drops</span>
@@ -332,6 +336,8 @@ import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";

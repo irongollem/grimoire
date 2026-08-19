@@ -65,10 +65,15 @@
           />
         </div>
       </div>
-      <button
-        class="ml-auto h-7 px-3 rounded border border-destructive/40 bg-destructive/10 text-label md:text-sm text-destructive hover:bg-destructive/20 transition-colors"
+      <AppButton
+        variant="tinted"
+        tone="danger"
+        emphasis="soft"
+        size="xs"
+        label="Roll d20"
+        class="ml-auto"
         @click="rollDeathSave"
-      >Roll d20</button>
+      />
     </div>
   </div>
 </template>
@@ -86,6 +91,7 @@ import {
   isExhaustion,
 } from "@/rules/conditions";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import type { PartyMember } from "@/types/party.types";
 
 const props = defineProps<{ member: PartyMember }>();

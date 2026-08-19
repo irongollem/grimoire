@@ -4,11 +4,10 @@
       <label class="block text-eyebrow text-muted-foreground mb-1">
         Name
       </label>
-      <input
-        :value="name"
-        type="text"
-        class="w-full bg-background border border-border rounded-md px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:name', ($event.target as HTMLInputElement).value)"
+      <AppInput
+        :model-value="name"
+        size="body-xs"
+        @update:model-value="$emit('update:name', $event)"
       />
     </div>
 
@@ -17,14 +16,13 @@
         Tile Pack
       </label>
       <div class="space-y-1">
-        <button
+        <AppButton
           v-for="p in bundledPacks"
           :key="p.pack_id"
-          type="button"
-          class="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-caption text-left transition-colors"
-          :class="currentPackId === p.pack_id
-            ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
-            : 'hover:bg-muted text-muted-foreground'"
+          variant="menu"
+          size="caption"
+          block
+          :active="currentPackId === p.pack_id"
           @click="$emit('update:currentPackId', p.pack_id)"
         >
           <span class="flex-1 truncate">{{ p.name }}</span>
@@ -36,7 +34,7 @@
           <svg v-else class="h-3 w-3 shrink-0 animate-spin text-muted-foreground/50" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 20" />
           </svg>
-        </button>
+        </AppButton>
       </div>
       <p
         v-if="packValidationMissing > 0"
@@ -56,16 +54,17 @@
         Object
       </label>
       <div class="grid grid-cols-3 gap-1 mb-2">
-        <button
+        <AppButton
           v-for="cat in objectCategories"
           :key="cat"
-          type="button"
-          class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 text-caption-sm transition-colors capitalize"
-          :class="activeObjectCategory === cat
-            ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
-            : 'hover:bg-muted text-muted-foreground'"
+          variant="ghost"
+          fill="muted"
+          size="caption"
+          class="capitalize"
+          :active="activeObjectCategory === cat"
+          :label="cat.replace('object', '')"
           @click="$emit('update:activeObjectCategory', cat)"
-        >{{ cat.replace('object', '') }}</button>
+        />
       </div>
       <div class="flex flex-wrap items-center gap-1">
         <span class="text-eyebrow text-muted-foreground w-full">Rotate</span>
@@ -106,14 +105,13 @@
       <label class="block text-eyebrow text-muted-foreground mb-1">
         Label ({{ selectedCell[0] }}, {{ selectedCell[1] }})
       </label>
-      <input
+      <AppInput
         ref="annotationInputEl"
-        :value="annotationText"
-        type="text"
+        :model-value="annotationText"
         placeholder="Enter label…"
         maxlength="32"
-        class="w-full bg-background border border-border rounded-md px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:annotationText', ($event.target as HTMLInputElement).value)"
+        size="body-xs"
+        @update:model-value="$emit('update:annotationText', $event)"
       />
       <p class="text-caption-sm text-muted-foreground mt-1">Click a cell to select it.</p>
     </div>
@@ -157,19 +155,19 @@
         Shape
       </label>
       <div class="grid grid-cols-3 gap-1 mb-2">
-        <button
+        <AppButton
           v-for="shape in templateShapes"
           :key="shape.id"
-          type="button"
-          class="flex flex-col items-center gap-0.5 rounded-md py-1.5 px-1 text-caption transition-colors"
-          :class="activeTemplateShape === shape.id
-            ? 'bg-primary/15 text-foreground ring-1 ring-inset ring-primary/40'
-            : 'hover:bg-muted text-muted-foreground'"
+          variant="ghost"
+          fill="muted"
+          size="caption"
+          class="flex-col gap-0.5"
+          :active="activeTemplateShape === shape.id"
           @click="$emit('update:activeTemplateShape', shape.id)"
         >
           <span class="text-base leading-none">{{ shape.icon }}</span>
           <span class="font-cinzel text-2xs tracking-wide">{{ shape.label }}</span>
-        </button>
+        </AppButton>
       </div>
       <p class="text-caption-sm text-muted-foreground">Click center, drag to size. Walls auto-added.</p>
     </div>
@@ -196,7 +194,9 @@
 import { ref } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 
 const CAVE_RADIUS_OPTIONS = [3, 5, 7, 9].map((size) => ({ value: size, label: String(size) }));
 
@@ -250,7 +250,7 @@ defineEmits<{
   "update:caveRadius": [size: number];
 }>();
 
-const annotationInputEl = ref<HTMLInputElement | null>(null);
+const annotationInputEl = ref<AppInputHandle | null>(null);
 
 defineExpose({ annotationInputEl });
 </script>

@@ -41,14 +41,15 @@
         class="sr-only"
         @change="onFileSelected"
       />
-      <button
+      <AppButton
         v-if="form.emblem_url"
-        type="button"
-        class="font-cinzel text-2xs text-destructive hover:underline text-left"
+        variant="link"
+        tone="danger"
+        size="inline-xs"
+        class="hover:underline"
+        label="Remove emblem"
         @click.stop="form.emblem_url = ''"
-      >
-        Remove emblem
-      </button>
+      />
 
       <!-- Type -->
       <div class="space-y-1.5">
@@ -91,11 +92,12 @@
     <div class="flex flex-col gap-4">
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Name</label>
-        <input
+        <AppInput
           v-model="form.name"
           placeholder="Faction name…"
           required
-          class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="card"
+          size="heading"
         />
       </div>
       <div class="flex-1 space-y-1.5">
@@ -109,33 +111,30 @@
 
       <!-- Action row -->
       <div class="flex items-center justify-end gap-2">
-        <button
+        <AppButton
           v-if="!isNew"
-          type="button"
+          variant="destructive"
+          size="md"
+          :icon="IconDelete"
+          label="Delete"
           :disabled="deleting"
-          class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
           @click="handleDelete"
-        >
-          <IconDelete class="h-3.5 w-3.5" />
-          Delete
-        </button>
-        <button
+        />
+        <AppButton
           v-if="!isNew"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+          variant="subtle"
+          size="md"
+          label="Cancel"
           @click="onCancel"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
+        />
+        <AppButton
+          variant="primary"
+          size="md"
+          :icon="IconSave"
+          :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
           :disabled="saving || !form.name.trim()"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           @click="handleSave"
-        >
-          <IconSave class="h-3.5 w-3.5" />
-          {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-        </button>
+        />
       </div>
     </div>
   </div>
@@ -156,6 +155,8 @@ import { FACTION_TYPES, FACTION_ALIGNMENTS, type Faction } from "@/types/faction
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";

@@ -32,14 +32,7 @@
       </div>
       <div>
         <label class="block text-label-lg font-semibold text-muted-foreground mb-1">DAYS PER WEEK</label>
-        <input
-          :value="daysPerWeek"
-          type="number"
-          min="1"
-          max="30"
-          class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="setDaysPerWeek(($event.target as HTMLInputElement).valueAsNumber)"
-        />
+        <AppInput v-model.number="daysPerWeekModel" type="number" min="1" max="30" tone="filled" size="body" />
       </div>
     </div>
 
@@ -47,15 +40,16 @@
     <div>
       <label class="block text-label-lg font-semibold text-muted-foreground mb-1">DAY NAMES</label>
       <div class="flex flex-wrap gap-1.5">
-        <input
+        <AppInput
           v-for="i in daysPerWeek"
           :key="i"
-          :value="def.dayLabels?.[i - 1] ?? ''"
-          type="text"
+          v-model="dayLabelModel(i).value"
           maxlength="12"
           :placeholder="`Day ${i}`"
-          class="w-20 bg-muted border border-border rounded-md px-2 py-1.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="setDayLabel(i - 1, ($event.target as HTMLInputElement).value)"
+          tone="filled"
+          size="caption"
+          align="center"
+          class="w-20"
         />
       </div>
     </div>
@@ -116,14 +110,15 @@
             align="center"
             class="col-span-2"
           />
-          <button
-            type="button"
-            class="col-span-1 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+          <AppButton
+            variant="ghost"
+            tone="danger"
+            size="icon-xs"
+            :icon="IconDelete"
             :aria-label="`Remove ${m.name || 'month ' + (i + 1)}`"
+            class="col-span-1"
             @click="removeMonth(i)"
-          >
-            <IconDelete class="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
         <p v-if="def.months.length === 0" class="text-caption text-muted-foreground italic">
           No months yet. Add one to start.
@@ -170,14 +165,15 @@
               />
               <span class="text-eyebrow text-muted-foreground">LEAP</span>
             </label>
-            <button
-              type="button"
-              class="col-span-1 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+            <AppButton
+              variant="ghost"
+              tone="danger"
+              size="icon-xs"
+              :icon="IconDelete"
               :aria-label="`Remove ${d.name || 'festival ' + (i + 1)}`"
+              class="col-span-1"
               @click="removeIntercalary(i)"
-            >
-              <IconDelete class="h-3.5 w-3.5" />
-            </button>
+            />
           </div>
           <AppInput v-model="d.description" tone="card" size="body" placeholder="Short description" />
         </div>
@@ -221,6 +217,15 @@ function defaultLabelsFor(n: number): string[] {
 
 const daysPerWeek = computed(() => def.value.dayLabels?.length || 7);
 
+// AppInput's model can't carry the derived rebuild-the-array logic directly, so a
+// writable computed bridges it the same way monthAliasModel does below. An empty
+// field reads back as `null`; `setDaysPerWeek` already treats a falsy input as "7"
+// (it does `rawN || 7` internally), so `?? 7` here reproduces that exact fallback.
+const daysPerWeekModel = computed<number | null>({
+  get: () => daysPerWeek.value,
+  set: (v) => setDaysPerWeek(v ?? 7),
+});
+
 function setDaysPerWeek(rawN: number) {
   const n = Math.max(1, Math.min(30, Math.round(rawN || 7)));
   const current = def.value.dayLabels ?? defaultLabelsFor(daysPerWeek.value);
@@ -240,6 +245,14 @@ function setDayLabel(i: number, v: string) {
   const next = [...cur];
   next[i] = v;
   def.value.dayLabels = next;
+}
+
+/** Same writable-computed-per-row bridge as monthAliasModel, for the day-label inputs. */
+function dayLabelModel(i: number) {
+  return computed<string>({
+    get: () => def.value.dayLabels?.[i - 1] ?? "",
+    set: (v) => setDayLabel(i - 1, v),
+  });
 }
 
 // `SettingMonthDef.alias` is `string | undefined`; AppInput's model is

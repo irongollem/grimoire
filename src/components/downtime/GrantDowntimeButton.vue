@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { useGrantDowntime } from "@/composables/useDowntime";
 
 const { partyMemberId, partyMemberName } = defineProps<{
@@ -43,13 +45,14 @@ async function submit() {
 
 <template>
   <div class="relative inline-block">
-    <button
-      type="button"
-      class="inline-flex items-center rounded border border-border bg-card px-2 py-0.5 font-cinzel text-2xs hover:bg-muted"
+    <AppButton
+      variant="outline"
+      surface="card"
+      fill="muted"
+      size="xs"
+      label="Grant downtime"
       @click="open = !open"
-    >
-      Grant downtime
-    </button>
+    />
 
     <div
       v-if="open"
@@ -62,39 +65,30 @@ async function submit() {
 
       <label class="mt-3 block text-2xs font-medium">
         Draws
-        <input
-          v-model.number="amount"
-          type="number"
-          min="1"
-          max="10"
-          class="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm"
-        />
+        <AppInput v-model.number="amount" type="number" min="1" max="10" size="body" class="mt-1" />
       </label>
 
       <label class="mt-2 block text-2xs font-medium">
         Reason <span class="font-normal text-muted-foreground">(optional)</span>
-        <input
+        <AppInput
           v-model="reason"
-          type="text"
           placeholder="The party winters in Neverwinter"
-          class="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm"
+          size="body"
+          class="mt-1"
         />
       </label>
 
       <p v-if="errorMessage" class="mt-2 text-2xs text-destructive">{{ errorMessage }}</p>
 
       <div class="mt-3 flex justify-end gap-2">
-        <button type="button" class="px-2 py-1 text-2xs text-muted-foreground" @click="reset">
-          Cancel
-        </button>
-        <button
-          type="button"
+        <AppButton variant="ghost" size="caption" label="Cancel" @click="reset" />
+        <AppButton
+          variant="primary"
+          size="caption"
           :disabled="grant.isPending.value"
-          class="rounded bg-primary px-2 py-1 text-2xs text-primary-foreground disabled:opacity-50"
+          :label="grant.isPending.value ? 'Granting…' : 'Grant'"
           @click="submit"
-        >
-          {{ grant.isPending.value ? "Granting…" : "Grant" }}
-        </button>
+        />
       </div>
     </div>
   </div>

@@ -2,63 +2,48 @@
   <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
     <!-- Year/month navigation -->
     <div class="flex items-center gap-2">
-      <button
-        class="rounded-md border border-border px-2.5 py-1 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        @click="emit('shift-back')"
-      >
-        ←
-      </button>
+      <AppButton variant="outline" size="body" label="←" @click="emit('shift-back')" />
       <div class="text-center min-w-36">
         <p class="font-cinzel text-sm font-semibold text-foreground">
           {{ rangeLabel }}
         </p>
       </div>
-      <button
-        class="rounded-md border border-border px-2.5 py-1 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-        @click="emit('shift-forward')"
-      >
-        →
-      </button>
+      <AppButton variant="outline" size="body" label="→" @click="emit('shift-forward')" />
     </div>
 
     <!-- Zoom selector -->
     <div class="flex items-center gap-1">
       <span class="text-label-lg text-muted-foreground mr-1">ZOOM</span>
-      <button
+      <AppButton
         v-for="z in zoomPresets"
         :key="z.value"
-        class="rounded border px-2 py-0.5 text-label-lg font-semibold transition-colors"
-        :class="
-          zoomYears === z.value
-            ? 'border-primary bg-primary/10 text-primary'
-            : 'border-border text-muted-foreground hover:text-foreground'
-        "
+        variant="subtle"
+        size="xs"
+        :active="zoomYears === z.value"
+        :label="z.label"
         @click="emit('set-zoom', z.value)"
-      >
-        {{ z.label }}
-      </button>
+      />
     </div>
 
     <!-- Jump to year -->
     <form class="flex items-center gap-1.5" @submit.prevent="emit('jump-to-year', localJumpYear)">
-      <input
+      <AppInput
         v-model.number="localJumpYear"
         type="number"
         placeholder="Jump to year…"
-        class="w-32 bg-muted border border-border rounded-md px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        tone="filled"
+        size="body"
+        class="w-32"
       />
-      <button
-        type="submit"
-        class="rounded-md border border-border px-2.5 py-1 font-cinzel text-xs font-semibold text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-      >
-        Go
-      </button>
+      <AppButton type="submit" variant="outline" size="sm" label="Go" />
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const { rangeLabel, zoomYears, zoomPresets, initialYear } = defineProps<{
   rangeLabel: string;

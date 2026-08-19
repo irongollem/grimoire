@@ -1,63 +1,58 @@
 <template>
   <div>
-    <button
+    <AppButton
       v-if="!model"
-      type="button"
-      class="font-cinzel text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+      variant="link"
+      size="inline"
+      label="+ Add Spellcasting"
       @click="addSpellcasting"
-    >
-      + Add Spellcasting
-    </button>
+    />
 
     <template v-else>
       <div class="flex items-center justify-between mb-3">
         <p class="text-label-lg font-semibold text-muted-foreground">SPELLCASTING</p>
-        <button
-          type="button"
-          class="font-cinzel text-2xs text-destructive hover:opacity-80 transition-opacity"
+        <AppButton
+          variant="link"
+          tone="danger"
+          size="inline-xs"
+          label="Remove"
           @click="model = null"
-        >
-          Remove
-        </button>
+        />
       </div>
 
       <!-- Ability / DC / Attack Bonus -->
       <div class="grid grid-cols-3 gap-3 mb-4">
         <label class="block">
           <span class="field-label">Ability</span>
-          <select
-            :value="model.ability ?? ''"
-            class="field-input w-full"
-            @change="onAbilityChange(($event.target as HTMLSelectElement).value)"
-          >
+          <AppSelect v-model="abilityModel" tone="filled" weight="normal" size="body" block>
             <option value="">—</option>
             <option>INT</option>
             <option>WIS</option>
             <option>CHA</option>
-          </select>
+          </AppSelect>
         </label>
         <label class="block">
           <span class="field-label">Spell Save DC</span>
-          <input
-            :value="model.save_dc ?? ''"
+          <AppInput
+            v-model.number="saveDcModel"
             type="number"
             min="1"
             max="30"
-            class="field-input w-full"
+            tone="filled"
+            size="body"
             placeholder="15"
-            @input="patch({ save_dc: ($event.target as HTMLInputElement).value ? Number(($event.target as HTMLInputElement).value) : undefined })"
           />
         </label>
         <label class="block">
           <span class="field-label">Attack Bonus</span>
-          <input
-            :value="model.attack_bonus ?? ''"
+          <AppInput
+            v-model.number="attackBonusModel"
             type="number"
             min="-5"
             max="20"
-            class="field-input w-full"
+            tone="filled"
+            size="body"
             placeholder="7"
-            @input="patch({ attack_bonus: ($event.target as HTMLInputElement).value ? Number(($event.target as HTMLInputElement).value) : undefined })"
           />
         </label>
       </div>
@@ -70,20 +65,26 @@
           class="rounded-md border border-border bg-muted/30 p-3 space-y-2"
         >
           <div class="flex items-center gap-2">
-            <input
-              :value="entry.frequency"
+            <AppInput
+              :model-value="entry.frequency"
               type="text"
               placeholder="Frequency (e.g. at will, 3/day each, 1st level (4 slots))"
-              class="field-input flex-1"
-              @input="updateFrequency(i, ($event.target as HTMLInputElement).value)"
+              tone="filled"
+              size="body"
+              class="flex-1"
+              :block="false"
+              @update:model-value="(v) => updateFrequency(i, v ?? '')"
             />
-            <button
-              type="button"
-              class="text-muted-foreground hover:text-destructive transition-colors text-lg leading-none shrink-0"
+            <AppButton
+              variant="ghost"
+              tone="danger"
+              size="icon-xs"
+              icon-size="md"
+              :icon="IconClose"
+              aria-label="Remove spell group"
+              class="shrink-0"
               @click="removeEntry(i)"
-            >
-              ✕
-            </button>
+            />
           </div>
 
           <!-- Spell chips -->
@@ -94,24 +95,25 @@
               class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/30 text-caption text-foreground"
             >
               {{ spellName(spellId) }}
-              <button
-                type="button"
-                class="text-muted-foreground hover:text-destructive transition-colors leading-none"
+              <AppButton
+                variant="ghost"
+                tone="danger"
+                size="inline-xs"
+                class="leading-none"
                 @click="removeSpell(i, spellId)"
-              >
-                ×
-              </button>
+              >×</AppButton>
             </span>
           </div>
 
           <!-- Spell search input -->
           <div class="relative" :ref="el => setSearchRef(i, el as HTMLElement | null)">
-            <input
-              :value="searchQuery[i] ?? ''"
+            <AppInput
+              :model-value="searchQuery[i]"
               type="text"
               placeholder="Search spells to add…"
-              class="field-input w-full"
-              @input="onSearchInput(i, ($event.target as HTMLInputElement).value)"
+              tone="filled"
+              size="body"
+              @update:model-value="(v) => onSearchInput(i, v ?? '')"
               @focus="openSearch(i)"
               @blur="closeSearch(i)"
               @keydown.enter.prevent="addFirstSpell(i)"
@@ -123,14 +125,16 @@
                 :style="dropdownStyle[i]"
                 class="fixed z-9999 max-h-52 overflow-y-auto rounded-md border border-border bg-card shadow-lg"
               >
-                <li
-                  v-for="spell in filteredSpells(i)"
-                  :key="spell.id"
-                  class="px-3 py-1.5 text-body text-foreground hover:bg-muted/60 transition-colors cursor-pointer flex items-center gap-2"
-                  @mousedown.prevent="addSpell(i, spell.id)"
-                >
-                  <span class="font-cinzel text-2xs text-muted-foreground w-16 shrink-0">{{ levelLabel(spell.level) }}</span>
-                  {{ spell.name }}
+                <li v-for="spell in filteredSpells(i)" :key="spell.id">
+                  <AppButton
+                    variant="menu"
+                    size="body"
+                    block
+                    @mousedown.prevent="addSpell(i, spell.id)"
+                  >
+                    <span class="font-cinzel text-2xs text-muted-foreground w-16 shrink-0">{{ levelLabel(spell.level) }}</span>
+                    {{ spell.name }}
+                  </AppButton>
                 </li>
               </ul>
               <div
@@ -145,13 +149,13 @@
         </div>
       </div>
 
-      <button
-        type="button"
-        class="mt-3 font-cinzel text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+      <AppButton
+        variant="link"
+        size="inline"
+        label="+ Add Spell Group"
+        class="mt-3"
         @click="addEntry"
-      >
-        + Add Spell Group
-      </button>
+      />
     </template>
   </div>
 </template>
@@ -159,6 +163,10 @@
 <script setup lang="ts">
 import { reactive, computed, nextTick } from "vue";
 import { useSpells } from "@/composables/useSpells";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import { IconClose } from "@/lib/icons";
 import type { SpellcastingBlock, SpellcastingEntry, SpellcastingAbility } from "@/types/npc.types";
 
 const model = defineModel<SpellcastingBlock | null>();
@@ -200,6 +208,31 @@ function onAbilityChange(ability: string) {
   }
   model.value = { ...model.value, ...update };
 }
+
+// AppSelect's empty "—" option is a static value="", which is not itself a
+// SpellcastingAbility — onAbilityChange already treats "" as "no ability" and
+// derives save_dc/attack_bonus, so the model stays a plain string rather than
+// a per-row computed that would just re-implement that same defaulting.
+const abilityModel = computed<string>({
+  get: () => model.value?.ability ?? "",
+  set: (v) => onAbilityChange(v),
+});
+
+// save_dc / attack_bonus are optional numbers backed by an immutable-spread
+// `patch()`, not a plain ref — a writable computed is the correct bridge here
+// (not the `?? ''` anti-pattern UPDATE 1 warns about, which was for fields a
+// plain v-model could have reached directly). Typed `number | null` rather
+// than `| undefined` because AppInput's own empty-input coercion always
+// emits `null` (see AppInput.vue's onInput) — same shape CalendarEditor's
+// daysPerWeekModel already uses for the identical reason.
+const saveDcModel = computed<number | null>({
+  get: () => model.value?.save_dc ?? null,
+  set: (v) => patch({ save_dc: v ?? undefined }),
+});
+const attackBonusModel = computed<number | null>({
+  get: () => model.value?.attack_bonus ?? null,
+  set: (v) => patch({ attack_bonus: v ?? undefined }),
+});
 
 const spellMap = computed(() => {
   const m = new Map<string, string>();
@@ -323,8 +356,5 @@ function onSearchInput(i: number, value: string) {
 
 .field-label {
   @apply block text-label-lg font-semibold text-muted-foreground mb-1;
-}
-.field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

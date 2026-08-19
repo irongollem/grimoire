@@ -3,19 +3,16 @@
     <!-- Month navigation -->
     <div class="flex items-center justify-between mb-4 gap-2">
       <div class="flex items-center gap-1 shrink-0">
-        <button
-          title="Previous year"
-          class="rounded-md border border-border px-2 py-1.5 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+        <AppButton
+          variant="outline"
+          size="body"
+          tooltip="Previous year"
+          label="◀◀"
           @click="calendar.goToYear(calendar.currentYear - 1)"
-        >
-          ◀◀
-        </button>
-        <button
-          class="rounded-md border border-border px-2 py-1.5 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-          @click="calendar.prevMonth()"
-        >
+        />
+        <AppButton variant="outline" size="body" @click="calendar.prevMonth()">
           ← <span class="hidden sm:inline">Previous</span>
-        </button>
+        </AppButton>
       </div>
 
       <div class="text-center min-w-0 flex-1">
@@ -26,12 +23,14 @@
           <p v-if="currentMonth.alias" class="text-caption md:text-sm text-muted-foreground italic">
             {{ currentMonth.alias }} ·
           </p>
-          <input
+          <AppInput
             v-if="!readOnly"
-            :value="calendar.currentYear"
+            v-model.number="yearModel"
             type="number"
-            class="w-16 md:w-20 bg-transparent border-b border-border text-center text-caption md:text-sm text-muted-foreground italic focus:outline-none focus:border-primary"
-            @change="onYearInput"
+            tone="underline"
+            size="caption"
+            align="center"
+            class="w-16 md:w-20 text-muted-foreground italic"
           />
           <span
             v-else
@@ -44,19 +43,16 @@
       </div>
 
       <div class="flex items-center gap-1 shrink-0">
-        <button
-          class="rounded-md border border-border px-2 py-1.5 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-          @click="calendar.nextMonth()"
-        >
+        <AppButton variant="outline" size="body" @click="calendar.nextMonth()">
           <span class="hidden sm:inline">Next</span> →
-        </button>
-        <button
-          title="Next year"
-          class="rounded-md border border-border px-2 py-1.5 text-body text-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+        </AppButton>
+        <AppButton
+          variant="outline"
+          size="body"
+          tooltip="Next year"
+          label="▶▶"
           @click="calendar.goToYear(calendar.currentYear + 1)"
-        >
-          ▶▶
-        </button>
+        />
       </div>
     </div>
 
@@ -213,6 +209,8 @@ import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarEvents } from "@/composables/useCalendarEvents";
 import { linkedEntityType, linkedEntityId, eventColor } from "@/types/calendar.types";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
 
@@ -357,10 +355,15 @@ function formatEventDate(event: CalendarEvent): string {
   return "";
 }
 
-function onYearInput(e: Event) {
-  const val = parseInt((e.target as HTMLInputElement).value, 10);
-  if (!isNaN(val) && val > 0) calendar.goToYear(val);
-}
+// AppInput's v-model.number casts an empty field to `null` rather than NaN — the
+// guard below covers both, so clearing the field or typing something invalid is
+// still a no-op exactly as the old parseInt-based handler was.
+const yearModel = computed<number | null>({
+  get: () => calendar.currentYear,
+  set: (val) => {
+    if (val !== null && !isNaN(val) && val > 0) calendar.goToYear(val);
+  },
+});
 
 const ENTITY_ROUTES: Record<string, string> = {
   quest: "/quests",

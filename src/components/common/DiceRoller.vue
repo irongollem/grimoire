@@ -1,16 +1,18 @@
 <template>
   <div class="relative">
     <!-- Trigger button -->
-    <button
+    <AppButton
       ref="triggerRef"
-      type="button"
-      class="dice-trigger"
-      :class="{ 'is-open': isOpen }"
-      title="Dice Roller"
+      variant="subtle"
+      surface="card"
+      tone="primary"
+      size="icon-sm"
+      :active="isOpen"
+      :icon="IconDiceRoll"
+      icon-size="md"
+      tooltip="Dice Roller"
       @click="togglePanel"
-    >
-      <IconDiceRoll class="h-4 w-4" />
-    </button>
+    />
 
     <!-- Foldout panel + backdrop, teleported to <body> so they escape the
          sidebar's sticky stacking context (otherwise <main> paints over them). -->
@@ -30,13 +32,14 @@
             class="text-label-lg font-bold text-foreground"
             >Dice Roller</span
           >
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-foreground text-lg leading-none"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="closePanel"
-          >
-            ×
-          </button>
+          />
         </div>
 
         <!-- Dice grid -->
@@ -95,30 +98,28 @@
 
         <!-- Advantage / Normal / Disadvantage (only relevant when d20 included) -->
         <div class="adv-row">
-          <button
+          <AppButton
             v-for="m in MODES"
             :key="m.value"
-            type="button"
-            class="adv-btn"
-            :class="{
-              'adv-active': mode === m.value,
-              [m.cls]: mode === m.value,
-            }"
+            variant="ghost"
+            size="sm"
+            :tone="m.tone"
+            :active="mode === m.value"
+            :label="m.label"
+            class="flex-1 rounded-none py-1.5"
             @click="mode = m.value"
-          >
-            {{ m.label }}
-          </button>
+          />
         </div>
 
         <!-- Roll button -->
-        <button
-          type="button"
-          class="roll-btn"
+        <AppButton
+          variant="primary"
+          size="md"
+          block
           :disabled="totalDice === 0"
+          :label="`Roll ${rollLabel}`"
           @click="roll"
-        >
-          Roll {{ rollLabel }}
-        </button>
+        />
 
         <!-- Result -->
         <Transition name="result-fade">
@@ -153,7 +154,7 @@
         </Transition>
 
           <!-- Quick clear -->
-          <button type="button" class="clear-btn" @click="clearAll">Clear</button>
+          <AppButton variant="ghost" size="xs" block label="Clear" @click="clearAll" />
         </div>
       </Transition>
     </Teleport>
@@ -161,12 +162,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick, onBeforeUnmount, type Component } from "vue";
-import { IconDiceRoll, IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100 } from '@/lib/icons';
+import { ref, reactive, computed, nextTick, onBeforeUnmount, type Component, type ComponentPublicInstance } from "vue";
+import { IconDiceRoll, IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconDie20, IconDie100, IconClose } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import DiceResult from "@/components/common/DiceResult.vue";
 import { primeDiceAudio } from "@/lib/dice/diceAudio";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { DieSize, RollMode, RollResult } from "@/lib/dice/roller";
+import type { ButtonTone } from "./appButtonVariants";
 
 const DICE: { sides: DieSize; icon: Component }[] = [
   { sides: 4, icon: IconDie4 },
@@ -178,14 +181,14 @@ const DICE: { sides: DieSize; icon: Component }[] = [
   { sides: 100, icon: IconDie100 },
 ];
 
-const MODES: { value: RollMode; label: string; cls: string }[] = [
-  { value: "disadvantage", label: "DIS", cls: "adv-dis" },
-  { value: "normal", label: "Normal", cls: "adv-normal" },
-  { value: "advantage", label: "ADV", cls: "adv-adv" },
+const MODES: { value: RollMode; label: string; tone: ButtonTone }[] = [
+  { value: "disadvantage", label: "DIS", tone: "danger" },
+  { value: "normal", label: "Normal", tone: "neutral" },
+  { value: "advantage", label: "ADV", tone: "success" },
 ];
 
 const isOpen = ref(false);
-const triggerRef = ref<HTMLElement | null>(null);
+const triggerRef = ref<ComponentPublicInstance | null>(null);
 const panelRef = ref<HTMLElement | null>(null);
 // The panel is teleported to <body> and fixed-positioned from the trigger's
 // viewport rect, so it sits above all page content without any z-index games.
@@ -193,7 +196,7 @@ const panelRef = ref<HTMLElement | null>(null);
 const panelStyle = ref<Record<string, string>>({});
 
 function positionPanel() {
-  const trigger = triggerRef.value;
+  const trigger = triggerRef.value?.$el as HTMLElement | undefined;
   const panel = panelRef.value;
   if (!trigger || !panel) return;
   const t = trigger.getBoundingClientRect();
@@ -296,13 +299,6 @@ function clearAll() {
 <style scoped>
 @reference "@/assets/main.css";
 
-.dice-trigger {
-  @apply inline-flex items-center justify-center w-8 h-8 rounded-lg border border-border bg-card text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors;
-}
-.dice-trigger.is-open {
-  @apply text-primary border-primary/50 bg-primary/5;
-}
-
 .dice-backdrop {
   @apply fixed inset-0 z-50;
 }
@@ -361,25 +357,6 @@ function clearAll() {
 .adv-row {
   @apply flex rounded-lg overflow-hidden border border-border;
 }
-.adv-btn {
-  @apply flex-1 py-1.5 text-label font-bold text-muted-foreground hover:text-foreground transition-colors;
-}
-.adv-active {
-  @apply text-foreground;
-}
-.adv-dis.adv-active {
-  @apply bg-destructive/20 text-destructive;
-}
-.adv-normal.adv-active {
-  @apply bg-muted text-foreground;
-}
-.adv-adv.adv-active {
-  @apply bg-green-500/20 text-green-600 dark:text-green-400;
-}
-
-.roll-btn {
-  @apply w-full py-2 text-label-lg font-bold bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40;
-}
 
 .result-panel {
   @apply flex flex-col items-center gap-1 bg-muted/40 rounded-lg px-3 py-2;
@@ -404,10 +381,6 @@ function clearAll() {
 }
 .result-mod {
   @apply font-cinzel text-xs font-semibold text-primary;
-}
-
-.clear-btn {
-  @apply w-full py-1 text-label text-muted-foreground hover:text-foreground transition-colors;
 }
 
 /* Transitions */

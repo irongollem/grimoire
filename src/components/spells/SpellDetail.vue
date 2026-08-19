@@ -59,11 +59,12 @@
             >{{ spellSourceLabel(source, props.spell.source_title) }}</a>
             <span v-else>{{ spellSourceLabel(source, props.spell.source_title) }}</span>
           </div>
-          <input
+          <AppInput
             v-else
             v-model="source"
             placeholder="e.g. Homebrew, PHB, XGtE…"
-            class="bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="card"
+            size="body"
           />
         </div>
 
@@ -93,10 +94,11 @@
         <!-- Name -->
         <label>
           <span class="sr-only">Spell name</span>
-          <input
+          <AppInput
             v-model="name"
             placeholder="Spell name…"
-            class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="card"
+            size="heading"
           />
         </label>
 
@@ -104,22 +106,16 @@
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
             <span class="text-label-lg text-muted-foreground uppercase">Level</span>
-            <select
-              v-model.number="level"
-              class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model.number="level" size="lg">
               <option :value="0">Cantrip (0)</option>
               <option v-for="n in 9" :key="n" :value="n">{{ n }}{{ levelSuffix(n) }}-Level</option>
-            </select>
+            </AppSelect>
           </label>
           <label class="flex flex-col gap-1">
             <span class="text-label-lg text-muted-foreground uppercase">School</span>
-            <select
-              v-model="school"
-              class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize"
-            >
+            <AppSelect v-model="school" size="lg" class="capitalize">
               <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
-            </select>
+            </AppSelect>
           </label>
         </div>
 
@@ -258,6 +254,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { SPELL_SCHOOLS, spellSourceLabel } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/useSpells";

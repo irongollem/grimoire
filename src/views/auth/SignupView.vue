@@ -23,40 +23,43 @@
       <form class="space-y-4" @submit.prevent="handleSubmit">
         <div class="space-y-1.5">
           <label class="text-body text-foreground" for="display-name">Username</label>
-          <input
+          <AppInput
             id="display-name"
             v-model="displayName"
             type="text"
+            tone="default"
+            size="body"
             autocomplete="username"
             required
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             placeholder="Shadowmere"
           />
         </div>
 
         <div class="space-y-1.5">
           <label class="text-body text-foreground" for="email">Email</label>
-          <input
+          <AppInput
             id="email"
             v-model="email"
             type="email"
+            tone="default"
+            size="body"
             autocomplete="email"
             required
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             placeholder="wizard@faerûn.com"
           />
         </div>
 
         <div class="space-y-1.5">
           <label class="text-body text-foreground" for="password">Password</label>
-          <input
+          <AppInput
             id="password"
             v-model="password"
             type="password"
+            tone="default"
+            size="body"
             autocomplete="new-password"
             required
             minlength="8"
-            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             placeholder="At least 8 characters"
           />
         </div>
@@ -79,13 +82,14 @@
           </span>
         </label>
 
-        <button
+        <AppButton
           type="submit"
+          variant="primary"
+          size="lg"
+          block
           :disabled="auth.loading || !!successMessage || !agreedToTerms"
-          class="w-full rounded-md bg-primary px-4 py-2.5 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {{ auth.loading ? "Creating your tome…" : "Create Your Tome" }}
-        </button>
+          :label="auth.loading ? 'Creating your tome…' : 'Create Your Tome'"
+        />
       </form>
 
       <p class="mt-6 text-center text-body text-muted-foreground">
@@ -105,6 +109,8 @@ import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";
 import { TERMS_VERSION } from "@/lib/legal";
 import { legalUrl } from "@/lib/marketing";
+import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 type TokenState = "validating" | "invalid" | "valid";
 

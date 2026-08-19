@@ -37,16 +37,15 @@
       <!-- Falloff curve pills -->
       <div class="flex items-center gap-1.5">
         <span class="text-eyebrow text-muted-foreground mr-1">Falloff</span>
-        <button
+        <AppButton
           v-for="curve in (['linear', 'quadratic', 'cubic'] as FalloffCurve[])"
           :key="curve"
-          type="button"
-          class="text-label px-2 py-0.5 rounded border transition-colors"
-          :class="dof.falloff === curve
-            ? 'border-primary text-primary'
-            : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+          variant="subtle"
+          size="xs"
+          :active="dof.falloff === curve"
+          :label="curve"
           @click="emit('set-falloff', curve)"
-        >{{ curve }}</button>
+        />
       </div>
 
       <!-- Focus radius -->
@@ -96,6 +95,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import type { DofBlurOptions, FalloffCurve } from "@/lib/illuminate/dofBlur";
 
 type DofNumericField = "focusRadius" | "blurStrength" | "desaturation";

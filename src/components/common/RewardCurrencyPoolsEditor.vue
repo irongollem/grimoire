@@ -13,12 +13,14 @@
         class="rounded border border-border bg-muted/10 px-2 py-2 flex flex-col gap-1.5"
       >
         <div class="flex items-center gap-2">
-          <input
-            :value="pool.label"
+          <AppInput
+            :model-value="pool.label"
             type="text"
+            tone="underline"
+            size="caption"
             placeholder="Label (e.g. Iron Chest)…"
-            class="flex-1 bg-transparent border-b border-border px-1 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
-            @input="updatePool(pool.id, 'label', ($event.target as HTMLInputElement).value)"
+            class="flex-1"
+            @update:model-value="updatePool(pool.id, 'label', $event)"
           />
           <AppButton
             variant="link"
@@ -76,12 +78,14 @@
       class="rounded border border-border bg-muted/10 px-2 py-2 flex flex-col gap-1.5"
     >
       <div class="flex items-center gap-2">
-        <input
-          :value="pool.label"
+        <AppInput
+          :model-value="pool.label"
           type="text"
+          tone="underline"
+          size="caption"
           placeholder="Label (e.g. Iron Chest)…"
-          class="flex-1 bg-transparent border-b border-border px-1 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
-          @input="updatePool(pool.id, 'label', ($event.target as HTMLInputElement).value)"
+          class="flex-1"
+          @update:model-value="updatePool(pool.id, 'label', $event)"
         />
         <AppButton
           variant="link"
@@ -134,6 +138,7 @@
 <script setup lang="ts">
 import { IconAdd, IconClose, IconCoins } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 

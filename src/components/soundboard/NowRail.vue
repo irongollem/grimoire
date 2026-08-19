@@ -29,15 +29,9 @@
           <span class="tabular-nums opacity-60">{{ music.currentIndex + 1 }}/{{ music.trackSoundIds.length }}</span>
         </p>
       </div>
-      <button type="button" class="shrink-0 text-muted-foreground hover:text-foreground" title="Previous track" @click="store.musicPlaylistPrev()">
-        <IconSkipBack class="h-3.5 w-3.5" />
-      </button>
-      <button type="button" class="shrink-0 text-muted-foreground hover:text-foreground" title="Next track" @click="store.musicPlaylistNext()">
-        <IconSkipForward class="h-3.5 w-3.5" />
-      </button>
-      <button type="button" class="shrink-0 text-muted-foreground hover:text-foreground" title="Stop the music slot" @click="store.stopMusicPlaylist()">
-        <IconStop class="h-3.5 w-3.5" />
-      </button>
+      <AppButton variant="ghost" size="inline-xs" class="shrink-0" :icon="IconSkipBack" tooltip="Previous track" @click="store.musicPlaylistPrev()" />
+      <AppButton variant="ghost" size="inline-xs" class="shrink-0" :icon="IconSkipForward" tooltip="Next track" @click="store.musicPlaylistNext()" />
+      <AppButton variant="ghost" size="inline-xs" class="shrink-0" :icon="IconStop" tooltip="Stop the music slot" @click="store.stopMusicPlaylist()" />
     </div>
 
     <!-- Scenes and loose sounds: a second lane that scrolls, because they
@@ -65,14 +59,12 @@
           </p>
         </div>
         <!-- Scoped by id: pulling the rain must not close the tavern. -->
-        <button
-          type="button"
-          class="shrink-0 text-muted-foreground hover:text-foreground"
-          :title="`Stop ${scene.playlistName}`"
+        <AppButton
+          variant="ghost" size="inline-xs" class="shrink-0"
+          :icon="IconStop"
+          :tooltip="`Stop ${scene.playlistName}`"
           @click="store.stopAmbientPlaylist(scene.playlistId)"
-        >
-          <IconStop class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
 
       <!-- Sounds fired straight from the grid, outside any slot. -->
@@ -90,14 +82,12 @@
             <CausedByChip :trigger="triggerForSound(loose.id)" small />
           </div>
         </div>
-        <button
-          type="button"
-          class="shrink-0 text-muted-foreground hover:text-foreground"
-          :title="`Stop ${loose.name}`"
+        <AppButton
+          variant="ghost" size="inline-xs" class="shrink-0"
+          :icon="IconStop"
+          :tooltip="`Stop ${loose.name}`"
           @click="store.stop(loose.id)"
-        >
-          <IconStop class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
     </div>
   </div>
@@ -107,6 +97,7 @@
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { IconSkipBack, IconSkipForward, IconStop, IconWind } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSounds } from "@/composables/useSounds";
 import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";

@@ -242,14 +242,16 @@
           icon-size="md"
           @click="showMenu = false; bugReportOpen = true"
         />
-        <button
-          type="button"
-          class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-destructive hover:bg-muted transition-colors"
+        <AppButton
+          variant="menu"
+          tone="danger"
+          size="sm"
+          block
+          label="Sign Out"
+          :icon="IconLogOut"
+          icon-size="md"
           @click="showMenu = false; handleSignOut()"
-        >
-          <IconLogOut class="h-4 w-4" />
-          Sign Out
-        </button>
+        />
       </div>
     </div>
   </Teleport>
@@ -269,18 +271,20 @@
           <p class="text-label-lg font-semibold text-muted-foreground mb-3">CAMPAIGNS</p>
 
           <div class="space-y-1 mb-3">
-            <button
+            <AppButton
               v-for="c in campaigns"
               :key="c.id"
-              type="button"
-              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors text-left"
-              :class="c.id === campaign.activeCampaignId
-                ? 'bg-primary/10 border-primary/40 text-foreground'
-                : 'border-transparent hover:bg-muted text-foreground'"
+              variant="menu"
+              size="md"
+              block
+              :active="c.id === campaign.activeCampaignId"
+              class="gap-3 rounded-lg"
               @click="switchCampaign(c)"
             >
-              <span class="h-2 w-2 rounded-full shrink-0"
-                :class="c.id === campaign.activeCampaignId ? 'bg-primary' : 'bg-muted-foreground/30'" />
+              <template #icon>
+                <span class="h-2 w-2 rounded-full shrink-0"
+                  :class="c.id === campaign.activeCampaignId ? 'bg-primary' : 'bg-muted-foreground/30'" />
+              </template>
               <div class="flex-1 min-w-0">
                 <p class="font-cinzel text-xs font-semibold truncate">{{ c.name }}</p>
                 <p class="text-caption text-muted-foreground italic truncate">{{ c.setting }}</p>
@@ -293,7 +297,7 @@
               >
                 {{ campaignRoleMap.get(c.id) === 'dm' ? 'DM' : 'Player' }}
               </span>
-            </button>
+            </AppButton>
 
             <p v-if="campaigns.length === 0" class="text-body text-muted-foreground italic px-3 py-2">
               No campaigns found.

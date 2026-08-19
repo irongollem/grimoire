@@ -240,6 +240,7 @@ import {
 } from "@/lib/icons";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 import AppButton from "@/components/common/AppButton.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -458,7 +459,16 @@ let caveSeed = 0;
 
 // M4 — Cell selection (annotate + link tools)
 const selectedCell = ref<[number, number] | null>(null);
-const annotationInputEl = ref<HTMLInputElement | null>(null);
+/**
+ * The annotation field lives inside CartographerInspectorPanel, which exposes it.
+ *
+ * This used to be a local `ref<HTMLInputElement>` that was never bound to anything,
+ * so `.focus()` below silently did nothing every time a cell was selected with the
+ * annotate tool — the panel's own `ref="inspectorPanelRef"` was already on the
+ * component but had no backing ref either. Reaching through the panel is what makes
+ * the focus actually land.
+ */
+const inspectorPanelRef = ref<{ annotationInputEl: AppInputHandle | null } | null>(null);
 
 // M4 — Map metadata (entity links), lives alongside layers
 const metadata = ref<Record<CellKey, CellMetadata>>({});
@@ -1373,7 +1383,7 @@ function onPointerDown(ev: PointerEvent): void {
   if ((activeTool.value === "link" || activeTool.value === "annotate") && ev.button !== 2) {
     selectedCell.value = [cx, cy];
     if (activeTool.value === "annotate") {
-      setTimeout(() => annotationInputEl.value?.focus(), 0);
+      setTimeout(() => inspectorPanelRef.value?.annotationInputEl?.focus(), 0);
     }
     return;
   }

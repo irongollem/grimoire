@@ -51,39 +51,37 @@
         @pin-click="router.push(`/locations/${$event}`)"
       />
       <div class="flex items-center gap-2">
-        <button
-          type="button"
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
           :disabled="isMapUploading"
-          class="text-label text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          :label="isMapUploading ? 'Uploading…' : 'Change map'"
           @click="mapFileInput?.click()"
-        >
-          {{ isMapUploading ? "Uploading…" : "Change map" }}
-        </button>
+        />
         <span class="text-muted-foreground/40 text-xs">·</span>
-        <button
-          type="button"
-          class="text-label text-muted-foreground hover:text-foreground transition-colors"
-          :title="mapCompact ? 'Show full size' : 'Compact map'"
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          :tooltip="mapCompact ? 'Show full size' : 'Compact map'"
+          :label="mapCompact ? 'Full size' : 'Compact'"
           @click="mapCompact = !mapCompact"
-        >
-          {{ mapCompact ? "Full size" : "Compact" }}
-        </button>
+        />
         <span class="text-muted-foreground/40 text-xs">·</span>
-        <button
-          type="button"
-          class="text-label text-destructive hover:opacity-80 transition-opacity"
+        <AppButton
+          variant="link"
+          tone="danger"
+          size="inline-xs"
+          label="Remove"
           @click="onClearMap"
-        >
-          Remove
-        </button>
+        />
         <template v-if="sourceMapId">
           <span class="text-muted-foreground/40 text-xs">·</span>
-          <RouterLink
+          <AppButton
+            variant="link"
+            size="inline-xs"
             :to="`/cartographer/${sourceMapId}`"
-            class="text-label text-primary hover:opacity-80 transition-opacity"
-          >
-            Edit in Cartographer
-          </RouterLink>
+            label="Edit in Cartographer"
+          />
         </template>
         <template v-if="locationId">
           <span class="text-muted-foreground/40 text-xs">·</span>
@@ -101,17 +99,13 @@
           </label>
           <template v-if="isBattleMap">
             <span class="text-muted-foreground/40 text-xs">·</span>
-            <button
-              type="button"
-              class="text-label transition-colors"
-              :class="gridCalibration
-                ? 'text-muted-foreground hover:text-foreground'
-                : 'text-primary hover:opacity-80'"
-              :title="gridCalibration ? 'Re-calibrate the 5-ft grid' : 'Set the 5-ft grid scale for the VTT'"
+            <AppButton
+              :variant="gridCalibration ? 'ghost' : 'link'"
+              size="inline-xs"
+              :tooltip="gridCalibration ? 'Re-calibrate the 5-ft grid' : 'Set the 5-ft grid scale for the VTT'"
+              :label="gridCalibration ? 'Re-calibrate grid' : 'Calibrate grid'"
               @click="$emit('open-calibration')"
-            >
-              {{ gridCalibration ? 'Re-calibrate grid' : 'Calibrate grid' }}
-            </button>
+            />
           </template>
         </template>
         <input
@@ -130,6 +124,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import ImageUpload from '@/components/common/ImageUpload.vue';
+import AppButton from '@/components/common/AppButton.vue';
 import LocationMap from '@/components/locations/LocationMap.vue';
 import { useImageUpload } from '@/composables/useImageUpload';
 import type { Location, MapPin as MapPinType, GridCalibration } from '@/types/location.types';

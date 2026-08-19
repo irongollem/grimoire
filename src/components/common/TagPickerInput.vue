@@ -8,11 +8,13 @@
         class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 font-cinzel text-2xs tracking-wide text-foreground"
       >
         {{ tag }}
-        <button
-          type="button"
-          class="ml-0.5 leading-none transition-colors hover:text-destructive"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="inline-xs"
+          class="ml-0.5 leading-none"
           @click="remove(idx)"
-        >×</button>
+        >×</AppButton>
       </span>
     </div>
 
@@ -36,29 +38,31 @@
       <!-- Filtered results while typing -->
       <template v-if="query.trim()">
         <div class="flex max-h-52 flex-wrap gap-1 overflow-y-auto p-2">
-          <button
+          <AppButton
             v-for="item in filteredItems"
             :key="item"
-            type="button"
-            class="rounded-full border px-2.5 py-1 font-cinzel text-2xs tracking-wide transition-colors"
-            :class="isSelected(item)
-              ? 'cursor-default border-border bg-muted text-foreground opacity-50'
-              : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary'"
+            variant="subtle"
+            tone="primary"
+            surface="card"
+            fill="tone"
+            shape="pill"
+            size="xs"
             :disabled="isSelected(item)"
+            :label="item"
             @mousedown.prevent
             @click="add(item)"
-          >
-            {{ item }}
-          </button>
-          <button
+          />
+          <AppButton
             v-if="canAddCustom"
-            type="button"
-            class="rounded-full border border-dashed border-primary/40 bg-transparent px-2.5 py-1 font-cinzel text-2xs tracking-wide text-primary transition-colors hover:bg-primary/10"
+            variant="tinted"
+            tone="primary"
+            emphasis="outline"
+            shape="pill"
+            size="xs"
+            class="border-dashed"
             @mousedown.prevent
             @click="addCustom"
-          >
-            + Add "{{ query.trim() }}"
-          </button>
+          >+ Add "{{ query.trim() }}"</AppButton>
           <p v-if="filteredItems.length === 0 && !canAddCustom" class="px-1 py-1 text-caption italic text-muted-foreground">
             Already added.
           </p>
@@ -102,6 +106,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconSearch } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import type { ProficiencyGroup } from "@/lib/proficiency-lists";
 
 const model = defineModel<string[]>({ required: true });

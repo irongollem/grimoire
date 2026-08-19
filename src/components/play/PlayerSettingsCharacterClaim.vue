@@ -7,13 +7,7 @@
           {{ linkedCharacter.class }} {{ linkedCharacter.level > 0 ? `· Level ${linkedCharacter.level}` : '' }}
         </p>
       </div>
-      <button
-        type="button"
-        class="font-cinzel text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1 transition-colors"
-        @click="showClaim = true"
-      >
-        Change
-      </button>
+      <AppButton variant="subtle" size="sm" label="Change" @click="showClaim = true" />
     </div>
 
     <div v-else>
@@ -21,20 +15,8 @@
         Build your own character sheet, or claim an existing party member created by your DM.
       </p>
       <div class="flex flex-wrap gap-2">
-        <RouterLink
-          to="/play/character/create"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-        >
-          <IconUser class="h-3.5 w-3.5" />
-          Create character
-        </RouterLink>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 font-cinzel text-xs text-primary hover:bg-primary/20 transition-colors"
-          @click="showClaim = true"
-        >
-          Claim existing
-        </button>
+        <AppButton to="/play/character/create" variant="primary" size="sm" :icon="IconUser" label="Create character" />
+        <AppButton variant="tinted" tone="primary" emphasis="soft" size="sm" label="Claim existing" @click="showClaim = true" />
       </div>
     </div>
 
@@ -45,39 +27,28 @@
         No unclaimed characters available. Ask your DM to add one.
       </div>
       <div v-else class="space-y-1.5">
-        <button
+        <AppButton
           v-for="m in unclaimedMembers"
           :key="m.id"
-          type="button"
-          class="w-full text-left rounded px-3 py-2 border transition-colors"
-          :class="claimTarget === m.id
-            ? 'border-primary/50 bg-primary/10 text-foreground'
-            : 'border-border bg-card hover:border-primary/30'"
+          variant="menu" size="sm" block
+          :active="claimTarget === m.id"
           @click="claimTarget = m.id"
         >
           <span class="font-cinzel text-sm font-semibold">{{ m.name }}</span>
           <span class="text-caption text-muted-foreground ml-2">
             {{ m.class }} {{ m.level > 0 ? `· Lv ${m.level}` : '' }}
           </span>
-        </button>
+        </AppButton>
       </div>
       <div class="flex gap-2">
-        <button
-          type="button"
+        <AppButton
+          variant="primary" size="sm"
+          :icon="IconCheck"
+          label="Claim"
           :disabled="!claimTarget || claimingChar"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
           @click="claimCharacter"
-        >
-          <IconCheck class="h-3.5 w-3.5" />
-          Claim
-        </button>
-        <button
-          type="button"
-          class="rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
-          @click="showClaim = false; claimTarget = null"
-        >
-          Cancel
-        </button>
+        />
+        <AppButton variant="subtle" size="sm" label="Cancel" @click="showClaim = false; claimTarget = null" />
       </div>
       <p v-if="claimError" class="text-caption text-destructive">{{ claimError }}</p>
     </div>
@@ -86,8 +57,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { RouterLink } from "vue-router";
 import SettingsSection from "@/components/common/SettingsSection.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconCheck, IconUser } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { useParty } from "@/composables/useParty";

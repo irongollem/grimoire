@@ -13,9 +13,15 @@
             Describe the spell concept. Lock the level or school to constrain the result.
           </p>
         </div>
-        <button type="button" @click="emit('close')" class="shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5">
-          <IconClose class="h-4 w-4" />
-        </button>
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          icon-size="md"
+          :icon="IconClose"
+          aria-label="Close"
+          class="mt-0.5"
+          @click="emit('close')"
+        />
       </div>
 
       <!-- Concept prompt -->
@@ -45,18 +51,18 @@
         <div class="grid grid-cols-2 gap-3">
           <label class="flex flex-col gap-1">
             <span class="text-caption text-muted-foreground">Level</span>
-            <select v-model="levelChoice" :disabled="isGenerating" class="field-input disabled:opacity-50">
+            <AppSelect v-model="levelChoice" tone="filled" size="body" weight="normal" :disabled="isGenerating">
               <option value="">Any</option>
               <option value="0">Cantrip</option>
               <option v-for="n in 9" :key="n" :value="String(n)">{{ n }}{{ levelSuffix(n) }}</option>
-            </select>
+            </AppSelect>
           </label>
           <label class="flex flex-col gap-1">
             <span class="text-caption text-muted-foreground">School</span>
-            <select v-model="schoolChoice" :disabled="isGenerating" class="field-input disabled:opacity-50 capitalize">
+            <AppSelect v-model="schoolChoice" tone="filled" size="body" weight="normal" :disabled="isGenerating" class="capitalize">
               <option value="">Any</option>
               <option v-for="s in SPELL_SCHOOLS" :key="s" :value="s" class="capitalize">{{ s }}</option>
-            </select>
+            </AppSelect>
           </label>
         </div>
       </div>
@@ -97,15 +103,14 @@
         >
           Cancel
         </button>
-        <button
-          type="button"
+        <AppButton
+          variant="primary"
+          size="sm"
           :disabled="!prompt.trim()"
+          :icon="IconGenerate"
+          label="Generate"
           @click="run"
-          class="inline-flex items-center gap-1.5 px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate
-        </button>
+        />
       </div>
 
     </div>
@@ -115,6 +120,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconClose, IconGenerate } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { AI_PROMPT_LIMIT } from "./utils";
 
 const PROMPT_LIMIT = AI_PROMPT_LIMIT;

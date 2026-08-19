@@ -21,23 +21,23 @@
 
       <label class="flex items-center gap-2">
         <span class="text-caption text-muted-foreground">Theme</span>
-        <select v-model="theme" class="rounded border border-border bg-background px-2 py-1">
+        <AppSelect v-model="theme" tone="default" weight="normal" size="xs">
           <option v-for="t in THEMES" :key="t" :value="t">{{ t }}</option>
-        </select>
+        </AppSelect>
       </label>
 
       <label class="flex items-center gap-2">
         <span class="text-caption text-muted-foreground">Side</span>
-        <select v-model="side" class="rounded border border-border bg-background px-2 py-1">
+        <AppSelect v-model="side" tone="default" weight="normal" size="xs">
           <option v-for="s in SIDES" :key="s" :value="s">{{ s }}</option>
-        </select>
+        </AppSelect>
       </label>
 
       <label class="flex items-center gap-2">
         <span class="text-caption text-muted-foreground">Page</span>
-        <select v-model="pageSize" class="rounded border border-border bg-background px-2 py-1">
+        <AppSelect v-model="pageSize" tone="default" weight="normal" size="xs">
           <option v-for="p in PAGE_SIZES" :key="p" :value="p">{{ p }}</option>
-        </select>
+        </AppSelect>
       </label>
 
       <label class="flex items-center gap-2">
@@ -51,20 +51,21 @@
       </label>
 
       <template v-if="editMode">
-        <button
-          type="button"
-          class="rounded border border-primary bg-primary/15 px-3 py-1 font-cinzel text-xs tracking-wide hover:bg-primary/25 transition-colors"
+        <AppButton
+          variant="tinted"
+          tone="primary"
+          emphasis="soft"
+          size="sm"
+          :label="copied ? 'Copied!' : 'Copy config'"
           @click="copyConfig"
-        >
-          {{ copied ? "Copied!" : "Copy config" }}
-        </button>
-        <button
-          type="button"
-          class="rounded border border-border bg-card px-3 py-1 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+        />
+        <AppButton
+          variant="subtle"
+          surface="card"
+          size="sm"
+          label="Reset"
           @click="resetFields"
-        >
-          Reset
-        </button>
+        />
         <span v-if="selected !== null" class="text-caption font-mono text-muted-foreground">
           {{ editFields[selected]?.section }}: [{{ editFields[selected]?.box.join(", ") }}]
           — drag to move, corner to resize, arrows nudge 0.1% (⇧ 0.5%, ⌥ resizes)
@@ -118,6 +119,8 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter, type LocationQueryValue } from "vue-router";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import IllustratedSheet from "@/components/character-sheet/illustrated/IllustratedSheet.vue";
 import {
   PAGE_PX,

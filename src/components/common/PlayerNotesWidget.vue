@@ -27,12 +27,15 @@
             <span class="text-label text-muted-foreground/40">
               {{ privateSaved ? '' : 'Unsaved' }}
             </span>
-            <button
+            <AppButton
               v-if="myPrivateNote"
-              type="button"
-              class="px-2 h-6.5 text-label rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+              variant="ghost"
+              tone="danger"
+              fill="muted"
+              size="toolbar"
+              label="Clear"
               @click="clearPrivate"
-            >Clear</button>
+            />
             <button
               type="button"
               :disabled="privateSaving || privateSaved"
@@ -60,12 +63,15 @@
             <span class="text-label text-muted-foreground/40">
               {{ sharedSaved ? '' : 'Unsaved' }}
             </span>
-            <button
+            <AppButton
               v-if="mySharedNote"
-              type="button"
-              class="px-2 h-6.5 text-label rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+              variant="ghost"
+              tone="danger"
+              fill="muted"
+              size="toolbar"
+              label="Clear"
               @click="clearShared"
-            >Clear</button>
+            />
             <button
               type="button"
               :disabled="sharedSaving || sharedSaved"
@@ -126,6 +132,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { IconFaction, IconLock } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberByUserId } from "@/composables/useCampaignMembers";
 import {

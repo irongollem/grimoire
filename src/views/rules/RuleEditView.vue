@@ -109,8 +109,8 @@
               <AppSelect
                 v-model="tracker.type"
                 size="body"
+                tone="default"
                 block
-                class="bg-background"
                 @change="onTypeChange"
               >
                 <option value="level">Level — named states (Chilled → Frozen → Hypothermic)</option>
@@ -180,7 +180,8 @@
                 <AppSelect
                   :model-value="lvl.color ?? null"
                   size="sm"
-                  class="bg-muted w-24"
+                  tone="filled"
+                  class="w-24"
                   @update:model-value="(v) => (lvl.color = v ?? undefined)"
                 >
                   <option :value="null">no color</option>
@@ -202,7 +203,7 @@
                   :key="fi"
                   class="flex items-center gap-1.5"
                 >
-                  <AppSelect v-model="fx.type" size="xs" class="bg-muted">
+                  <AppSelect v-model="fx.type" size="xs" tone="filled">
                     <option value="note">Note</option>
                     <option value="speed">Speed penalty</option>
                     <option value="disadvantage_checks">Disadv. ability checks</option>
@@ -251,7 +252,8 @@
                     <AppSelect
                       :model-value="fx.ability ?? null"
                       size="xs"
-                      class="bg-muted w-16"
+                      tone="filled"
+                      class="w-16"
                       @update:model-value="(v) => (fx.ability = v ?? undefined)"
                     >
                       <option :value="null">Ability</option>

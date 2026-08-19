@@ -66,10 +66,14 @@
           <div class="fi-row items-start">
             <span class="fi-label mt-1">Corner</span>
             <div class="grid grid-cols-2 gap-1 flex-1">
-              <button v-for="c in CORNERS" :key="c.v" type="button"
-                class="px-1.5 py-1 rounded border text-eyebrow transition-colors"
-                :class="str('position', 'bottom-right') === c.v ? 'border-primary/50 text-primary bg-primary/10' : 'border-border text-muted-foreground hover:bg-muted'"
-                @click="patchProps({ position: c.v })">{{ c.label }}</button>
+              <AppButton
+                v-for="c in CORNERS" :key="c.v"
+                variant="subtle" fill="muted" size="xs"
+                :active="str('position', 'bottom-right') === c.v"
+                class="uppercase"
+                :label="c.label"
+                @click="patchProps({ position: c.v })"
+              />
             </div>
           </div>
         </template>
@@ -90,12 +94,18 @@
         <div class="fi-row">
           <span class="fi-label">Layer</span>
           <div class="flex gap-1 flex-1">
-            <button type="button" class="flex-1 px-2 py-1 rounded border text-eyebrow transition-colors"
-              :class="item.z === 'under' ? 'border-primary/50 text-primary bg-primary/10' : 'border-border text-muted-foreground hover:bg-muted'"
-              @click="patch({ z: 'under' })">Behind</button>
-            <button type="button" class="flex-1 px-2 py-1 rounded border text-eyebrow transition-colors"
-              :class="item.z === 'over' ? 'border-primary/50 text-primary bg-primary/10' : 'border-border text-muted-foreground hover:bg-muted'"
-              @click="patch({ z: 'over' })">Above</button>
+            <AppButton
+              variant="subtle" fill="muted" size="xs" class="flex-1 uppercase"
+              :active="item.z === 'under'"
+              label="Behind"
+              @click="patch({ z: 'under' })"
+            />
+            <AppButton
+              variant="subtle" fill="muted" size="xs" class="flex-1 uppercase"
+              :active="item.z === 'over'"
+              label="Above"
+              @click="patch({ z: 'over' })"
+            />
           </div>
         </div>
 
@@ -103,11 +113,12 @@
           Drag the decoration on the page to move it; drag its corner to resize.
         </p>
 
-        <button type="button"
-          class="mt-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded border border-destructive/40 text-eyebrow font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-          @click="$emit('delete', item.id)">
-          <IconDelete class="h-3 w-3" /> Remove decoration
-        </button>
+        <AppButton
+          variant="destructive" size="xs" class="mt-1 uppercase"
+          :icon="IconDelete" icon-size="xs"
+          label="Remove decoration"
+          @click="$emit('delete', item.id)"
+        />
       </div>
     </div>
   </Teleport>

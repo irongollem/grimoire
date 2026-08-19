@@ -33,18 +33,22 @@
       <!-- Preset buttons -->
       <div class="flex items-center gap-1.5 flex-wrap">
         <span class="text-eyebrow text-muted-foreground mr-1">Presets</span>
-        <button
+        <AppButton
           v-for="preset in GRADING_PRESETS"
           :key="preset.label"
-          type="button"
-          class="text-label px-2 py-0.5 rounded border border-border hover:border-primary hover:text-primary transition-colors"
+          variant="subtle"
+          tone="primary"
+          size="xs"
+          :label="preset.label"
           @click="emit('apply-preset', preset.values)"
-        >{{ preset.label }}</button>
-        <button
-          type="button"
-          class="text-label text-muted-foreground hover:text-foreground transition-colors ml-auto"
+        />
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          label="Reset"
+          class="ml-auto"
           @click="emit('reset')"
-        >Reset</button>
+        />
       </div>
 
       <!-- Grading sliders -->
@@ -73,6 +77,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import { GRADING_PRESETS, type ColourGradingOptions } from "@/lib/illuminate/colourGrading";
 
 const {

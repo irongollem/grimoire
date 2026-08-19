@@ -7,7 +7,7 @@
             <p class="font-cinzel text-sm font-bold truncate">Resolve {{ spell.name }}</p>
             <p class="text-caption text-muted-foreground">Choose each target's actual outcome before any effect is rolled.</p>
           </div>
-          <button type="button" class="rounded px-2 py-1 text-muted-foreground hover:text-foreground" aria-label="Close resolver" @click="emit('close')">×</button>
+          <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close resolver" @click="emit('close')" />
         </header>
 
         <div class="p-4 space-y-4">
@@ -19,26 +19,26 @@
           <template v-else>
             <label class="block font-cinzel text-xs text-muted-foreground">
               Targets
-              <input v-model.number="targetCount" type="number" min="1" max="20" class="ml-2 w-16 rounded border border-border bg-background px-2 py-1 text-foreground" />
+              <AppInput v-model.number="targetCount" type="number" min="1" max="20" size="body-xs" :block="false" class="ml-2 w-16" />
             </label>
 
             <div class="space-y-2">
               <div v-for="target in targets" :key="target.id" class="grid grid-cols-[1fr_auto] gap-2">
-                <input v-model="target.name" :aria-label="`Target ${target.id} name`" class="min-w-0 rounded border border-border bg-background px-2 py-1.5 text-body" :placeholder="`Target ${target.id}`" />
-                <select v-if="outcomeOptions.length > 1" v-model="target.outcome" :aria-label="`Target ${target.id} outcome`" class="rounded border border-border bg-background px-2 py-1.5 text-body">
+                <AppInput v-model="target.name" :aria-label="`Target ${target.id} name`" size="body-xs" class="min-w-0" :placeholder="`Target ${target.id}`" />
+                <AppSelect v-if="outcomeOptions.length > 1" v-model="target.outcome" :aria-label="`Target ${target.id} outcome`" tone="default" size="body" weight="normal">
                   <option v-for="option in outcomeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-                </select>
+                </AppSelect>
               </div>
             </div>
 
             <div class="flex flex-wrap gap-2" role="group" aria-label="Effect phase">
-              <button
+              <AppButton
                 v-for="phase in phases" :key="phase"
-                type="button"
-                class="rounded border px-3 py-1 font-cinzel text-xs"
-                :class="selectedPhase === phase ? 'border-primary bg-primary/15 text-primary' : 'border-border text-muted-foreground'"
+                variant="subtle"
+                :active="selectedPhase === phase"
+                :label="phaseLabel(phase)"
                 @click="selectedPhase = phase"
-              >{{ phaseLabel(phase) }}</button>
+              />
             </div>
 
             <div class="rounded border border-border bg-muted/20 p-3 text-body text-muted-foreground">
@@ -48,9 +48,14 @@
               <li v-for="reminder in reminders" :key="reminder">{{ reminder }}</li>
             </ul>
 
-            <button type="button" class="w-full rounded bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground disabled:opacity-40" :disabled="resolving" @click="resolveSelectedPhase">
-              {{ resolving ? "Resolving…" : `Resolve ${phaseLabel(selectedPhase)}` }}
-            </button>
+            <AppButton
+              variant="primary"
+              size="lg"
+              block
+              :disabled="resolving"
+              :label="resolving ? 'Resolving…' : `Resolve ${phaseLabel(selectedPhase)}`"
+              @click="resolveSelectedPhase"
+            />
           </template>
         </div>
       </section>
@@ -68,6 +73,10 @@ import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useToast } from "@/composables/useToast";
 import { metamagicReminders, metamagicTargetBonus } from "@/rules/metamagicPolicy";
 import { useRuleset } from "@/composables/useRuleset";
+import { IconClose } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 const { spell, castLevel, characterLevel, spellcastingModifier = 0, damageTypeOverride = null, metamagicNames = [] } = defineProps<{
   spell: Spell | null;

@@ -3,10 +3,11 @@
     <!-- Name input -->
     <label>
       <span class="sr-only">Ability name</span>
-      <input
+      <AppInput
         v-model="form.name"
         placeholder="Ability name…"
-        class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        tone="card"
+        size="heading"
       />
     </label>
 
@@ -16,42 +17,38 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       <div>
         <label class="block text-eyebrow text-muted-foreground mb-1.5">TYPE</label>
-        <select
-          v-model="form.feature_type"
-          class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="form.feature_type" tone="card" size="body" weight="normal" block>
           <option v-for="t in FEATURE_TYPES" :key="t" :value="t">{{ FEATURE_TYPE_LABELS[t] }}</option>
-        </select>
+        </AppSelect>
       </div>
 
       <div>
         <label class="block text-eyebrow text-muted-foreground mb-1.5">SOURCE</label>
-        <input
+        <AppInput
           v-model="form.source"
           placeholder="PHB, XGtE, Homebrew…"
-          class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="card"
+          size="body"
         />
       </div>
 
       <div>
         <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
-        <select
-          v-model="campaignScope"
-          class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="campaignScope" tone="card" size="body" weight="normal" block>
           <option value="all">All my campaigns</option>
           <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
+        </AppSelect>
       </div>
     </div>
 
     <!-- Prerequisite -->
     <div>
       <label class="block text-eyebrow text-muted-foreground mb-1.5">PREREQUISITE</label>
-      <input
+      <AppInput
         v-model="form.prerequisite"
         placeholder="e.g. Dexterity 13 or higher, Proficiency with a martial weapon…"
-        class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        tone="card"
+        size="body"
       />
     </div>
 
@@ -78,6 +75,8 @@ import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useCreateFeature, useUpdateFeature, useDeleteFeature } from "@/composables/useFeatures";
 import { useCampaigns } from "@/composables/useCampaigns";
 import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";

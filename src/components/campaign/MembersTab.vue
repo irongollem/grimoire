@@ -89,15 +89,19 @@
         </div>
 
         <!-- Remove button (can't remove DM — that's the campaign owner) -->
-        <button
+        <AppButton
           v-if="member.role === 'player'"
-          class="shrink-0 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          title="Remove from campaign"
+          variant="ghost"
+          tone="danger"
+          fill="tone"
+          size="icon-xs"
+          icon-size="md"
+          class="shrink-0"
+          :icon="IconRemoveUser"
+          tooltip="Remove from campaign"
           :disabled="removeMember.isPending.value"
           @click="confirmRemove(member)"
-        >
-          <IconRemoveUser class="h-4 w-4" />
-        </button>
+        />
       </div>
 
       <!-- Empty -->
@@ -135,24 +139,30 @@
           </div>
           <!-- Claimed characters (owner_user_id set) can only be detached — RLS
                no longer permits deleting them; unclaimed ones can still be removed. -->
-          <button
+          <AppButton
             v-if="pm.owner_user_id"
-            class="shrink-0 p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            title="Detach — return to owner's pool"
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            class="shrink-0 hover:bg-accent"
+            :icon="IconUndo"
+            tooltip="Detach — return to owner's pool"
             :disabled="detachCharacter.isPending.value"
             @click="detachOrphan(pm)"
-          >
-            <IconUndo class="h-4 w-4" />
-          </button>
-          <button
+          />
+          <AppButton
             v-else
-            class="shrink-0 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            title="Remove character"
+            variant="ghost"
+            tone="danger"
+            fill="tone"
+            size="icon-xs"
+            icon-size="md"
+            class="shrink-0"
+            :icon="IconDelete"
+            tooltip="Remove character"
             :disabled="deleteCharacter.isPending.value"
             @click="removeOrphan(pm)"
-          >
-            <IconDelete class="h-4 w-4" />
-          </button>
+          />
         </div>
       </div>
     </template>
@@ -184,12 +194,15 @@
           bring {{ removedPlayerCharacters.length > 1 ? "them" : "it" }} to another campaign.
         </p>
         <div class="flex gap-2 justify-end">
-          <button
-            class="px-3 py-1.5 rounded-md border border-border text-body text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="subtle"
+            size="body"
+            label="Cancel"
             @click="memberToRemove = null"
-          >
-            Cancel
-          </button>
+          />
+          <!-- Solid bg-destructive CTA has no matching variant: `destructive` is
+               outlined (border + bg-destructive/10), not a solid fill. Left
+               native — see #648 sweep brief, "solid-fill non-gold CTA". -->
           <button
             class="px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground text-body hover:opacity-90 transition-opacity"
             :disabled="removeMember.isPending.value"
@@ -218,6 +231,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 

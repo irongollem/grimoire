@@ -12,25 +12,26 @@
           />
         </div>
 
-        <select v-model="filterFormat" class="rounded-md border border-border bg-background px-2 py-1.5 text-body">
+        <AppSelect v-model="filterFormat" tone="default" size="body" weight="normal">
           <option value="all">All formats</option>
           <option value="print">Print</option>
           <option value="vtt">VTT</option>
-        </select>
+        </AppSelect>
 
-        <select v-model="filterStatus" class="rounded-md border border-border bg-background px-2 py-1.5 text-body">
+        <AppSelect v-model="filterStatus" tone="default" size="body" weight="normal">
           <option value="all">All statuses</option>
           <option value="ready">Ready</option>
           <option value="in-progress">In progress</option>
           <option value="failed">Failed</option>
-        </select>
+        </AppSelect>
 
-        <button
+        <AppButton
           v-if="hasActiveFilters"
-          type="button"
-          class="px-2.5 py-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+          variant="subtle"
+          size="sm"
+          label="Clear"
           @click="ui.resetMinisFilters()"
-        >Clear</button>
+        />
       </div>
     </template>
 
@@ -62,6 +63,8 @@
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import PageHeader from "@/components/common/PageHeader.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import VitruvianIcon from "@/components/common/VitruvianIcon.vue";

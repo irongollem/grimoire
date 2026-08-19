@@ -33,16 +33,15 @@
       <!-- Mode pill buttons -->
       <div class="flex items-center gap-1.5">
         <span class="text-eyebrow text-muted-foreground mr-1">Mode</span>
-        <button
+        <AppButton
           v-for="m in (['transparent', 'colour'] as VignetteMode[])"
           :key="m"
-          type="button"
-          class="text-label px-2 py-0.5 rounded border transition-colors"
-          :class="vignette.mode === m
-            ? 'border-primary text-primary'
-            : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+          variant="subtle"
+          size="xs"
+          :active="vignette.mode === m"
+          :label="m"
           @click="emit('set-mode', m)"
-        >{{ m }}</button>
+        />
       </div>
 
       <!-- Colour picker — only in colour mode -->
@@ -90,6 +89,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import type { VignetteOptions, VignetteMode } from "@/lib/illuminate/vignette";
 
 type VignetteNumericField = "strength" | "softness";

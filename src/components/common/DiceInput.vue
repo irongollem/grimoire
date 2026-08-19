@@ -17,21 +17,21 @@
         v-if="suggestions.length"
         class="absolute top-full left-0 z-30 mt-1 rounded-md border border-border bg-card shadow-lg overflow-hidden min-w-36"
       >
-        <button
+        <AppButton
           v-for="(s, i) in suggestions"
           :key="s"
-          type="button"
-          class="w-full px-3 py-1.5 text-left text-body capitalize transition-colors"
-          :class="
-            i === activeIdx
-              ? 'bg-primary/20 text-foreground'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-          "
+          variant="menu"
+          size="body"
+          block
+          :active="i === activeIdx"
+          class="capitalize"
           @mousedown.prevent="select(s)"
         >
-          <span class="text-primary font-semibold">{{ s.slice(0, activeWord?.word.length) }}</span
-          >{{ s.slice(activeWord?.word.length) }}
-        </button>
+          <span
+            ><span class="text-primary font-semibold">{{ s.slice(0, activeWord?.word.length) }}</span
+            >{{ s.slice(activeWord?.word.length) }}</span
+          >
+        </AppButton>
       </div>
     </Transition>
   </div>
@@ -39,6 +39,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { DAMAGE_TYPES } from "@/types/damage.types";
 
 defineOptions({ inheritAttrs: false });

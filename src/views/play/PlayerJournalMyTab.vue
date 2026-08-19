@@ -1,25 +1,22 @@
 <template>
   <!-- Category filter -->
   <div class="flex flex-wrap gap-1.5">
-    <button
-      type="button"
-      class="px-2.5 py-1 rounded-full text-label md:text-sm font-semibold transition-colors border"
-      :class="filterCategory === null
-        ? 'bg-primary/15 text-primary border-primary/30'
-        : 'text-muted-foreground border-border hover:border-foreground/30'"
+    <AppButton
+      variant="subtle" shape="pill" size="xs"
+      :active="filterCategory === null"
+      label="All"
       @click="$emit('update:filterCategory', null)"
-    >All</button>
-    <button
+    />
+    <AppButton
       v-for="[key, cat] in JOURNAL_CATEGORY_LIST"
       :key="key"
-      type="button"
-      class="px-2.5 py-1 rounded-full text-label md:text-sm font-semibold transition-colors border"
-      :class="filterCategory === key
-        ? 'border-current'
-        : 'text-muted-foreground border-border hover:border-foreground/20'"
+      variant="subtle" shape="pill" size="xs"
+      :active="filterCategory === key"
+      :class="filterCategory === key ? 'border-current' : ''"
       :style="filterCategory === key ? { color: cat.color, backgroundColor: cat.color + '18', borderColor: cat.color + '60' } : {}"
+      :label="cat.label"
       @click="$emit('update:filterCategory', filterCategory === key ? null : key)"
-    >{{ cat.label }}</button>
+    />
   </div>
 
   <!-- Loading -->
@@ -110,11 +107,13 @@
           >
             <option v-for="[key, cat] in JOURNAL_CATEGORY_LIST" :key="key" :value="key">{{ cat.label }}</option>
           </AppSelect>
-          <input
-            :value="editForm.title ?? ''"
+          <AppInput
+            v-model="titleModel"
+            tone="underline"
+            size="lg"
+            :block="false"
             placeholder="Entry title (optional)…"
-            class="flex-1 min-w-32 bg-transparent border-b border-border px-1 py-1 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary"
-            @input="$emit('editFormChange', { title: ($event.target as HTMLInputElement).value })"
+            class="flex-1 min-w-32 font-bold"
           />
         </div>
         <RichTextEditor
@@ -186,6 +185,7 @@ import { ref, computed, watch } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { IconDrag, IconLock, IconPopulate, IconReveal, IconSave } from '@/lib/icons';
 import AppButton from '@/components/common/AppButton.vue';
+import AppInput from '@/components/common/AppInput.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
 import JournalCard from '@/components/player/JournalCard.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
@@ -263,6 +263,10 @@ const refTypeModel = computed<string>({
 const refIdModel = computed<string>({
   get: () => editForm.ref_id,
   set: (value) => emit('editFormChange', { ref_id: value }),
+});
+const titleModel = computed<string>({
+  get: () => editForm.title ?? '',
+  set: (value) => emit('editFormChange', { title: value }),
 });
 
 // Local mutable copy for drag-and-drop (manual sort); kept in sync with the

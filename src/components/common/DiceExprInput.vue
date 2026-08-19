@@ -1,23 +1,28 @@
 <template>
   <div>
     <div class="flex items-center gap-1.5">
-      <input
-        :value="model ?? ''"
+      <AppInput
+        :model-value="model"
         type="text"
+        size="body"
+        :block="false"
+        class="flex-1 min-w-0"
         :placeholder="placeholder"
-        class="flex-1 min-w-0 bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="onInput"
+        @update:model-value="onModelUpdate"
         @keydown.enter.prevent="tryRoll"
       />
-      <button
+      <AppButton
         v-if="parsed"
-        type="button"
-        title="Click to roll · Enter to roll"
-        class="shrink-0 h-8.5 w-8.5 rounded-md border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+        variant="subtle"
+        surface="card"
+        tone="primary"
+        size="icon-sm"
+        icon-size="md"
+        :icon="IconDice"
+        tooltip="Click to roll · Enter to roll"
+        class="shrink-0"
         @click="tryRoll"
-      >
-        <IconDice class="h-4 w-4" />
-      </button>
+      />
     </div>
     <div v-if="!compact" class="h-4 mt-0.5">
       <Transition name="dice-anim">
@@ -47,6 +52,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconDice } from '@/lib/icons';
+import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { parseExpression, averageExpression, rollExpression } from "@/lib/dice/dice";
 
 const model = defineModel<string | null>({ required: true });
@@ -63,8 +70,7 @@ const average = computed(() =>
   parsed.value ? averageExpression(parsed.value) : null,
 );
 
-function onInput(e: Event) {
-  const val = (e.target as HTMLInputElement).value;
+function onModelUpdate(val: string | null) {
   model.value = val || null;
   rollResult.value = null;
 }

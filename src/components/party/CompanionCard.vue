@@ -45,22 +45,23 @@
 
       <!-- Edit / delete -->
       <div class="flex items-center gap-1 shrink-0">
-        <button
-          type="button"
-          class="p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
-          title="Edit companion"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          icon-size="xs"
+          :icon="IconEdit"
+          tooltip="Edit companion"
           @click="$emit('edit', companion)"
-        >
-          <IconEdit class="h-3 w-3" />
-        </button>
-        <button
-          type="button"
-          class="p-1 text-muted-foreground hover:text-destructive transition-colors rounded"
-          title="Remove companion"
+        />
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="icon-xs"
+          icon-size="xs"
+          :icon="IconClose"
+          tooltip="Remove companion"
           @click="$emit('delete', companion)"
-        >
-          <IconClose class="h-3 w-3" />
-        </button>
+        />
       </div>
     </div>
 
@@ -103,12 +104,16 @@
 
       <!-- Damage -->
       <div class="flex items-center gap-1 ml-auto">
-        <input
+        <AppInput
           v-model.number="hpAmount"
           type="number"
           min="1"
           placeholder="HP"
-          class="w-12 bg-muted border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="filled"
+          size="caption"
+          align="center"
+          :block="false"
+          class="w-12"
         />
         <AppButton
           variant="tinted"
@@ -159,13 +164,15 @@
 
     <!-- Add condition inline input -->
     <div v-if="addingCondition" class="flex items-center gap-1">
-      <select
+      <AppSelect
         v-model="newCondition"
-        class="flex-1 bg-card border border-border rounded px-2 py-1 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        size="caption"
+        weight="normal"
+        class="flex-1"
       >
         <option value="">Pick condition…</option>
         <option v-for="c in availableConditions" :key="c" :value="c">{{ c }}</option>
-      </select>
+      </AppSelect>
       <AppButton variant="link" size="sm" label="Add" @click="addCondition" />
       <AppButton variant="ghost" size="sm" label="✕" @click="addingCondition = false; newCondition = ''" />
     </div>
@@ -187,6 +194,8 @@
 import { ref, computed } from "vue";
 import { IconClose, IconEdit } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useUpdateCompanion } from "@/composables/useCompanions";
 import { useRuleset } from "@/composables/useRuleset";
 import {

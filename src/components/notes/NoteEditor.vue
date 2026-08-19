@@ -4,10 +4,11 @@
     <div class="flex flex-wrap items-center gap-2">
       <label class="flex-1 min-w-48">
         <span class="sr-only">Note title</span>
-        <input
+        <AppInput
           v-model="title"
+          tone="card"
+          size="heading"
           placeholder="Note title…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </label>
 
@@ -82,24 +83,28 @@
         <div class="space-y-1.5">
           <p class="text-caption text-muted-foreground">Start date (in-game)</p>
           <div class="flex gap-2 flex-wrap">
-            <input
+            <AppInput
               v-model.number="sessionStartYear"
               type="number"
               min="1"
               placeholder="Year"
-              class="w-24 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="card"
+              size="body-xs"
+              class="w-24"
             />
             <AppSelect v-model.number="sessionStartMonth" size="body">
               <option :value="null">— Month —</option>
               <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
             </AppSelect>
-            <input
+            <AppInput
               v-model.number="sessionStartDay"
               type="number"
               min="1"
               max="30"
               placeholder="Day"
-              class="w-20 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="card"
+              size="body-xs"
+              class="w-20"
             />
           </div>
         </div>
@@ -108,24 +113,28 @@
         <div class="space-y-1.5">
           <p class="text-caption text-muted-foreground">End date (in-game, optional)</p>
           <div class="flex gap-2 flex-wrap">
-            <input
+            <AppInput
               v-model.number="sessionEndYear"
               type="number"
               min="1"
               placeholder="Year"
-              class="w-24 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="card"
+              size="body-xs"
+              class="w-24"
             />
             <AppSelect v-model.number="sessionEndMonth" size="body">
               <option :value="null">— Month —</option>
               <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
             </AppSelect>
-            <input
+            <AppInput
               v-model.number="sessionEndDay"
               type="number"
               min="1"
               max="30"
               placeholder="Day"
-              class="w-20 bg-card border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="card"
+              size="body-xs"
+              class="w-20"
             />
           </div>
         </div>

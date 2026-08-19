@@ -43,12 +43,16 @@
         </div>
         <!-- HP steppers — owner only -->
         <div v-if="isOwner" class="flex items-center gap-1 mt-2">
-          <input
+          <AppInput
             v-model.number="hpAmount"
             type="number"
             min="1"
             placeholder="HP"
-            class="w-12 bg-card border border-border rounded px-1.5 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="card"
+            size="caption"
+            align="center"
+            :block="false"
+            class="w-12"
           />
           <AppButton
             variant="tinted"
@@ -83,18 +87,18 @@
     <div v-if="isOwner" class="flex items-center gap-2">
       <span class="text-label-lg font-semibold text-muted-foreground">Status</span>
       <div class="flex rounded-md border border-border overflow-hidden text-label-lg font-semibold">
-        <button
-          type="button"
-          class="px-3 py-1.5 transition-colors"
-          :class="companion?.combat_ready ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+        <AppButton
+          variant="ghost" size="sm" class="flex-1 rounded-none"
+          :active="!!companion?.combat_ready"
+          label="With the party"
           @click="setCombatReady(true)"
-        >With the party</button>
-        <button
-          type="button"
-          class="px-3 py-1.5 transition-colors"
-          :class="!companion?.combat_ready ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+        />
+        <AppButton
+          variant="ghost" size="sm" class="flex-1 rounded-none"
+          :active="!companion?.combat_ready"
+          label="Elsewhere"
           @click="setCombatReady(false)"
-        >Elsewhere</button>
+        />
       </div>
     </div>
 
@@ -111,20 +115,28 @@
         class="flex items-center gap-1 text-label md:text-sm px-1.5 py-0.5 rounded bg-destructive/10 text-destructive"
       >
         {{ cond }}
-        <button v-if="isOwner" type="button" class="leading-none hover:opacity-70" @click="removeCondition(cond)">×</button>
+        <AppButton
+          v-if="isOwner"
+          variant="link" tone="danger" size="inline-xs"
+          :aria-label="`Remove ${cond}`"
+          @click="removeCondition(cond)"
+        >×</AppButton>
       </span>
     </div>
 
     <!-- Add condition — owner only -->
     <div v-if="isOwner">
       <div v-if="addingCondition" class="flex items-center gap-1">
-        <select
+        <AppSelect
           v-model="newCondition"
-          class="flex-1 bg-card border border-border rounded px-2 py-1 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="card"
+          size="caption"
+          weight="normal"
+          class="flex-1"
         >
           <option value="">Pick condition…</option>
           <option v-for="c in availableConditions" :key="c" :value="c">{{ c }}</option>
-        </select>
+        </AppSelect>
         <AppButton variant="link" size="inline" label="Add" @click="addCondition" />
         <AppButton variant="ghost" size="inline" label="✕" @click="addingCondition = false; newCondition = ''" />
       </div>
@@ -153,6 +165,8 @@
 import { ref, computed } from "vue";
 import { IconShield, IconEdit, IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";

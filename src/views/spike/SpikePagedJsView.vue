@@ -3,22 +3,16 @@
     <div class="flex items-center gap-3 flex-wrap shrink-0">
       <h1 class="text-heading font-bold">Paged.js Spike (#330)</h1>
 
-      <select
-        v-model="scenario"
-        class="rounded border border-border bg-card px-2 py-1 font-cinzel text-xs"
-      >
+      <AppSelect v-model="scenario" size="sm" weight="normal">
         <option v-for="s in SPIKE_SCENARIOS" :key="s" :value="s">{{ s }}</option>
-      </select>
+      </AppSelect>
 
-      <select
-        v-model.number="targetPages"
-        class="rounded border border-border bg-card px-2 py-1 font-cinzel text-xs"
-      >
+      <AppSelect v-model.number="targetPages" size="sm" weight="normal">
         <option :value="10">~10 pages</option>
         <option :value="30">~30 pages</option>
         <option :value="60">~60 pages</option>
         <option :value="100">~100 pages</option>
-      </select>
+      </AppSelect>
 
       <button
         type="button"
@@ -58,6 +52,7 @@ import {
   type SpikeScenario,
 } from "@/lib/scriptorium/spike/spikeContent";
 import { usePagedPreview } from "@/composables/usePagedPreview";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 /* Served from public/ as a plain URL — Paged.js fetches and parses it itself
    (blob: URLs break its internal relative-URL resolution). */

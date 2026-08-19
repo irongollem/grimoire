@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import DowntimeActivityCard from "./DowntimeActivityCard.vue";
 import { getDowntimeActivity } from "@/data/downtimeActivities";
@@ -206,22 +208,24 @@ async function onCancel() {
           <div class="flex items-end gap-2">
             <label class="min-w-0 flex-1 text-2xs font-medium">
               Draft with AI <span class="text-muted-foreground">(optional steer)</span>
-              <input
+              <AppInput
                 v-model="steer"
-                type="text"
                 placeholder="Aim it at the Duke — he owes them a favour"
-                class="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                size="body"
+                class="mt-1"
                 @keydown.enter.prevent="onDraft"
               />
             </label>
-            <button
-              type="button"
+            <AppButton
+              variant="tinted"
+              tone="primary"
+              emphasis="outline"
+              size="xs"
               :disabled="isGenerating || !canAfford"
-              class="h-8 shrink-0 rounded border border-primary px-3 font-cinzel text-2xs text-primary disabled:opacity-50"
+              :label="isGenerating ? 'Drafting…' : 'Draft'"
+              class="shrink-0"
               @click="onDraft"
-            >
-              {{ isGenerating ? "Drafting…" : "Draft" }}
-            </button>
+            />
           </div>
           <p class="mt-1 text-2xs text-muted-foreground">{{ creditLine }}</p>
           <p v-if="!canAfford" class="mt-1 text-2xs text-destructive">
@@ -232,12 +236,7 @@ async function onCancel() {
 
         <label class="mt-3 block text-2xs font-medium">
           Title
-          <input
-            v-model="title"
-            type="text"
-            placeholder="A friend in low places"
-            class="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-sm"
-          />
+          <AppInput v-model="title" placeholder="A friend in low places" size="body" class="mt-1" />
         </label>
 
         <div class="mt-3">
@@ -270,22 +269,21 @@ async function onCancel() {
         <p v-if="errorMessage" class="mt-2 text-2xs text-destructive">{{ errorMessage }}</p>
 
         <div class="mt-4 flex items-center gap-2">
-          <button
-            type="button"
+          <AppButton
+            variant="primary"
+            size="xs"
             :disabled="!canResolve || resolve.isPending.value"
-            class="rounded bg-primary px-3 py-1 font-cinzel text-2xs text-primary-foreground disabled:opacity-50"
+            :label="resolve.isPending.value ? 'Resolving…' : 'Resolve'"
             @click="onResolve"
-          >
-            {{ resolve.isPending.value ? "Resolving…" : "Resolve" }}
-          </button>
-          <button
-            type="button"
+          />
+          <AppButton
+            variant="subtle"
+            fill="muted"
+            size="caption"
             :disabled="cancel.isPending.value"
-            class="rounded border border-border px-3 py-1 text-2xs text-muted-foreground hover:bg-muted"
+            label="Cancel draw (refunds the credit)"
             @click="onCancel"
-          >
-            Cancel draw (refunds the credit)
-          </button>
+          />
         </div>
       </div>
     </div>
