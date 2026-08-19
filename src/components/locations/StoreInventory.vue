@@ -56,9 +56,10 @@
           <!-- Post to chat -->
           <AppButton
             variant="ghost"
+            tone="success"
+            :active="offeringId === si.id"
             size="icon-xs"
             class="shrink-0"
-            :class="offeringId === si.id ? 'text-emerald-400' : 'text-muted-foreground hover:text-emerald-400'"
             :tooltip="offeringId === si.id ? 'Cancel offer' : 'Post vendor offer to chat'"
             :icon="IconShop"
             @click="toggleOffer(si)"
@@ -67,8 +68,9 @@
           <!-- Remove -->
           <AppButton
             variant="ghost"
+            tone="danger"
             size="icon-xs"
-            class="shrink-0 hover:text-destructive"
+            class="shrink-0"
             tooltip="Remove from store"
             :icon="IconClose"
             @click="remove(si.id)"
@@ -140,17 +142,18 @@
         v-if="dropdownOpen && searchResults.length"
         class="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border bg-popover shadow-lg overflow-hidden max-h-48 overflow-y-auto"
       >
-        <button
+        <AppButton
           v-for="item in searchResults"
           :key="item.id"
-          type="button"
-          class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors"
+          variant="menu"
+          size="body"
+          block
           @mousedown.prevent="addItem(item)"
         >
           <span class="font-cinzel text-xs font-semibold text-foreground truncate flex-1">{{ item.name }}</span>
           <span class="text-caption-sm text-muted-foreground shrink-0">{{ ITEM_TYPE_LABELS[item.item_type] }}</span>
           <span v-if="item.cost" class="text-caption-sm text-muted-foreground/70 shrink-0">{{ item.cost }}</span>
-        </button>
+        </AppButton>
       </div>
     </div>
 
@@ -168,10 +171,10 @@
         class="w-10"
       />
       <span class="text-caption text-muted-foreground">×</span>
-      <AppSelect v-model="fillRarity" size="sm" class="bg-muted">
+      <AppSelect v-model="fillRarity" size="sm" tone="filled">
         <option v-for="r in ITEM_RARITIES" :key="r" :value="r">{{ ITEM_RARITY_LABELS[r] }}</option>
       </AppSelect>
-      <AppSelect v-model="fillType" size="sm" class="bg-muted">
+      <AppSelect v-model="fillType" size="sm" tone="filled">
         <option value="">any type</option>
         <option v-for="t in ITEM_TYPES" :key="t" :value="t">{{ ITEM_TYPE_LABELS[t] }}</option>
       </AppSelect>

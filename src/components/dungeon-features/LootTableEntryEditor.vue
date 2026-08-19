@@ -6,7 +6,8 @@
         <AppButton
           variant="subtle"
           size="sm"
-          class="bg-card px-2"
+          surface="card"
+          class="px-2"
           :icon="IconAdd"
           label="Item"
           @click="emit('add', 'item')"
@@ -14,7 +15,8 @@
         <AppButton
           variant="subtle"
           size="sm"
-          class="bg-card px-2"
+          surface="card"
+          class="px-2"
           :icon="IconAdd"
           label="Currency"
           @click="emit('add', 'currency')"
@@ -22,7 +24,8 @@
         <AppButton
           variant="subtle"
           size="sm"
-          class="bg-card px-2"
+          surface="card"
+          class="px-2"
           :icon="IconAdd"
           label="Random"
           @click="emit('add', 'random')"
@@ -57,19 +60,21 @@
               <AppInput
                 v-model.number="entry.drop_chance"
                 type="number" min="1" max="100"
-                tone="muted"
-                size="xs"
-                class="w-14 text-body text-right"
+                tone="filled"
+                size="body-xs"
+                align="right"
+                class="w-14"
               />
               <span class="text-caption text-muted-foreground">%</span>
             </div>
-            <input
-              :value="entry.dice ?? ''"
+            <AppInput
+              :model-value="entry.dice ?? ''"
+              tone="filled"
+              size="body-xs"
               placeholder="2d4 or 3"
-              class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
+              @update:model-value="(v) => onQuantityInput(entry, String(v ?? ''))"
             />
-            <AppButton variant="ghost" size="icon-xs" class="hover:text-destructive" :icon="IconDelete" @click="emit('remove', idx)" />
+            <AppButton variant="ghost" tone="danger" size="icon-xs" :icon="IconDelete" @click="emit('remove', idx)" />
           </div>
         </template>
 
@@ -78,7 +83,7 @@
           <div class="grid grid-cols-[1fr_5.625rem_auto] gap-2 items-center">
             <AppInput
               :model-value="entry.currency_label ?? ''"
-              tone="muted"
+              tone="filled"
               size="body"
               placeholder="Label (e.g. Belt pouch)"
               @update:model-value="(v) => { entry.currency_label = typeof v === 'number' ? String(v) : v; }"
@@ -87,24 +92,28 @@
               <AppInput
                 v-model.number="entry.drop_chance"
                 type="number" min="1" max="100"
-                tone="muted"
-                size="xs"
-                class="w-14 text-body text-right"
+                tone="filled"
+                size="body-xs"
+                align="right"
+                class="w-14"
               />
               <span class="text-caption text-muted-foreground">%</span>
             </div>
-            <AppButton variant="ghost" size="icon-xs" class="hover:text-destructive" :icon="IconDelete" @click="emit('remove', idx)" />
+            <AppButton variant="ghost" tone="danger" size="icon-xs" :icon="IconDelete" @click="emit('remove', idx)" />
           </div>
           <!-- Coin amounts -->
           <div class="grid grid-cols-5 gap-1.5">
             <div v-for="coin in COINS" :key="coin.key" class="flex flex-col gap-0.5">
               <span class="text-eyebrow font-semibold text-muted-foreground text-center">{{ coin.symbol }}</span>
-              <input
-                :value="getCoinVal(entry, coin.key)"
-                type="number" min="0"
-                class="w-full bg-muted border border-border rounded px-1.5 py-1 text-body text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+              <AppInput
+                :model-value="getCoinVal(entry, coin.key)"
+                type="number"
+                min="0"
+                tone="filled"
+                size="body-xs"
+                align="right"
                 placeholder="0"
-                @input="setCoinVal(entry, coin.key, ($event.target as HTMLInputElement).value)"
+                @update:model-value="(v) => setCoinVal(entry, coin.key, String(v ?? ''))"
               />
             </div>
           </div>
@@ -117,8 +126,9 @@
             <div class="flex gap-1.5">
               <AppSelect
                 :model-value="entry.rarity ?? ''"
+                tone="filled"
                 size="sm"
-                class="flex-1 min-w-0 bg-muted"
+                class="flex-1 min-w-0"
                 @update:model-value="(v) => { entry.rarity = v; }"
               >
                 <option value="">— rarity —</option>
@@ -126,8 +136,9 @@
               </AppSelect>
               <AppSelect
                 :model-value="entry.item_type_filter ?? null"
+                tone="filled"
                 size="sm"
-                class="flex-1 min-w-0 bg-muted"
+                class="flex-1 min-w-0"
                 @update:model-value="(v) => { entry.item_type_filter = v; }"
               >
                 <option :value="null">any type</option>
@@ -139,20 +150,22 @@
               <AppInput
                 v-model.number="entry.drop_chance"
                 type="number" min="1" max="100"
-                tone="muted"
-                size="xs"
-                class="w-14 text-body text-right"
+                tone="filled"
+                size="body-xs"
+                align="right"
+                class="w-14"
               />
               <span class="text-caption text-muted-foreground">%</span>
             </div>
             <!-- Qty -->
-            <input
-              :value="entry.dice ?? ''"
+            <AppInput
+              :model-value="entry.dice ?? ''"
+              tone="filled"
+              size="body-xs"
               placeholder="2d4 or 1"
-              class="w-full bg-muted border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              @input="(e) => onQuantityInput(entry, (e.target as HTMLInputElement).value)"
+              @update:model-value="(v) => onQuantityInput(entry, String(v ?? ''))"
             />
-            <AppButton variant="ghost" size="icon-xs" class="hover:text-destructive" :icon="IconDelete" @click="emit('remove', idx)" />
+            <AppButton variant="ghost" tone="danger" size="icon-xs" :icon="IconDelete" @click="emit('remove', idx)" />
           </div>
           <!-- Pool size hint — amber when empty, since the entry can only ever under-deliver -->
           <p
@@ -171,14 +184,14 @@
           placeholder="Notes (optional)"
           class="w-full bg-muted border border-border rounded px-2 py-1 text-caption text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
         />
-        <button
+        <AppButton
           v-else
-          type="button"
-          class="text-left text-caption-sm text-muted-foreground hover:text-foreground italic"
+          variant="ghost"
+          size="inline-caption"
+          class="italic"
+          label="+ add note"
           @click="entry.notes = ''"
-        >
-          + add note
-        </button>
+        />
       </div>
     </div>
   </div>

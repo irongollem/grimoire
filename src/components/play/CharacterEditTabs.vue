@@ -146,12 +146,13 @@
       <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-2">Skills</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
         <div v-for="skill in SKILLS" :key="skill.key" class="flex items-center gap-2">
-          <div class="flex rounded overflow-hidden border border-border text-2xs font-cinzel font-semibold shrink-0">
-            <button v-for="level in PROF_LEVELS" :key="level.value" type="button"
-              class="px-1.5 py-0.5 transition-colors"
-              :class="(f.skill_proficiencies[skill.key] ?? 'none') === level.value ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-              @click="setSkillProf(skill.key, level.value)">{{ level.label }}</button>
-          </div>
+          <SegmentedControl
+            :model-value="f.skill_proficiencies[skill.key] ?? 'none'"
+            :options="PROF_LEVELS"
+            size="xs"
+            class="shrink-0"
+            @update:model-value="(v) => setSkillProf(skill.key, v)"
+          />
           <span class="text-caption text-foreground flex-1">{{ skill.label }}</span>
           <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ skillBonus(skill.key, skill.ability) }}</span>
         </div>
@@ -190,6 +191,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
 
 const form = inject(CHARACTER_FORM_KEY)!;

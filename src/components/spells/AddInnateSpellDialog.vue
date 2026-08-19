@@ -48,17 +48,19 @@
                 v-else-if="searchResults.length > 0 && spellSearch.length >= 2"
                 class="max-h-40 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border"
               >
-                <button
+                <AppButton
                   v-for="spell in searchResults"
                   :key="spell.id"
-                  type="button"
-                  class="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/50 transition-colors text-left"
+                  variant="menu"
+                  size="body"
+                  block
+                  class="rounded-none"
                   @click="pickSpell(spell)"
                 >
                   <div class="h-2 w-2 rounded-full shrink-0" :class="SCHOOL_BG[spell.school]" />
                   <span class="text-body text-foreground flex-1 truncate">{{ spell.name }}</span>
                   <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ spell.level === 0 ? 'C' : spell.level }}</span>
-                </button>
+                </AppButton>
               </div>
               <p v-else-if="spellSearch.length >= 2 && !isSearching" class="text-caption text-muted-foreground italic px-1">No spells found</p>
             </div>
@@ -93,24 +95,34 @@
                   @click="setAtWill"
                 />
                 <div class="flex items-center border border-border rounded-md overflow-hidden">
-                  <button
-                    type="button"
-                    class="px-2.5 py-1.5 font-cinzel text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  <AppButton
+                    variant="ghost"
+                    fill="muted"
+                    size="sm"
+                    class="rounded-none"
+                    label="−"
                     :disabled="usesPerDay === null || usesInput <= 1"
                     @click="usesInput = Math.max(1, usesInput - 1); usesPerDay = usesInput"
-                  >−</button>
-                  <button
-                    type="button"
-                    class="px-3 py-1.5 font-cinzel text-xs font-semibold min-w-12 transition-colors"
-                    :class="usesPerDay !== null ? 'bg-violet-500/15 text-violet-400' : 'bg-card text-muted-foreground'"
+                  />
+                  <AppButton
+                    variant="ghost"
+                    surface="card"
+                    tone="arcane"
+                    :active="usesPerDay !== null"
+                    size="sm"
+                    class="rounded-none min-w-12"
+                    :label="usesPerDay !== null ? `${usesInput}/day` : 'N/day'"
                     @click="setLimited"
-                  >{{ usesPerDay !== null ? `${usesInput}/day` : 'N/day' }}</button>
-                  <button
-                    type="button"
-                    class="px-2.5 py-1.5 font-cinzel text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  />
+                  <AppButton
+                    variant="ghost"
+                    fill="muted"
+                    size="sm"
+                    class="rounded-none"
+                    label="+"
                     :disabled="usesPerDay === null"
                     @click="usesInput = usesInput + 1; usesPerDay = usesInput"
-                  >+</button>
+                  />
                 </div>
               </div>
             </div>

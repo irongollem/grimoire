@@ -107,13 +107,15 @@
                     <p v-if="invite.label" class="font-cinzel text-xs font-semibold text-foreground">
                       {{ invite.label }}
                     </p>
-                    <span
+                    <AppButton
                       v-if="invite.granted_plan !== 'free'"
-                      class="px-1.5 py-0.5 rounded text-eyebrow font-semibold"
-                      :class="invite.granted_plan === 'admin'
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-amber-500/10 text-amber-400'"
-                    >{{ invite.granted_plan }}</span>
+                      as="span"
+                      variant="tinted"
+                      size="xs"
+                      class="uppercase"
+                      :tone="invite.granted_plan === 'admin' ? 'primary' : 'caution'"
+                      :label="invite.granted_plan"
+                    />
                   </div>
                   <p class="text-caption text-muted-foreground italic">
                     {{ invite.use_count }}{{ invite.max_uses ? `/${invite.max_uses}` : '' }} uses

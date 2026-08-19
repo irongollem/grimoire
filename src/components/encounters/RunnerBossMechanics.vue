@@ -82,15 +82,16 @@
       </span>
     </div>
     <div class="mt-2 flex flex-wrap gap-1.5">
-      <button
+      <AppButton
         v-for="(action, idx) in getLegendaryActions(legendary.monster_id)"
         :key="idx"
-        type="button"
-        class="px-2 py-1 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-300 text-label hover:bg-rose-500/20 hover:border-rose-500/60 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        :title="action.description"
+        variant="tinted"
+        tone="danger"
+        size="xs"
+        :tooltip="action.description"
         :disabled="actionCost(action.name) > (legendary.legendary_actions_remaining ?? 0)"
         @click="fireLegendaryAction(legendary.instance_id, legendary.name, action)"
-      >{{ action.name }}<span v-if="actionCost(action.name) > 1" class="ml-1 text-muted-foreground">(×{{ actionCost(action.name) }})</span></button>
+      ><span>{{ action.name }}<span v-if="actionCost(action.name) > 1" class="ml-1 text-muted-foreground">(×{{ actionCost(action.name) }})</span></span></AppButton>
     </div>
   </div>
 </template>

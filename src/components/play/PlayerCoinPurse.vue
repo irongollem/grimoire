@@ -50,29 +50,33 @@
           </div>
         </div>
         <div class="flex gap-2">
-          <button
-            class="flex-1 py-1 bg-primary text-primary-foreground rounded text-label-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+          <AppButton
+            variant="primary"
+            size="sm"
+            class="flex-1"
+            label="Drop"
             :disabled="!coinDropHasValue || coinDropOverLimit"
             @click="$emit('submit-drop')"
-          >
-            Drop
-          </button>
-          <button
-            class="px-3 py-1 border border-border rounded font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
+          />
+          <AppButton
+            variant="subtle"
+            size="sm"
+            label="Cancel"
             @click="$emit('cancel-drop')"
-          >
-            Cancel
-          </button>
+          />
         </div>
       </div>
-      <button
+      <AppButton
         v-else
-        class="mt-2 w-full flex items-center justify-center gap-1.5 py-1 border border-dashed border-border rounded text-label md:text-sm text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+        variant="subtle"
+        size="sm"
+        block
+        class="mt-2 border-dashed"
+        :icon="IconMessage"
+        icon-size="xs"
+        label="Drop Coins to Chat"
         @click="$emit('open-drop')"
-      >
-        <IconMessage class="h-3 w-3" />
-        Drop Coins to Chat
-      </button>
+      />
     </template>
   </div>
 </template>
@@ -80,6 +84,7 @@
 <script setup lang="ts">
 import { COINS, type CoinKey } from '@/rules/currency';
 import { IconMessage } from '@/lib/icons';
+import AppButton from '@/components/common/AppButton.vue';
 import CoinRow from '@/components/inventory/CoinRow.vue';
 
 const {

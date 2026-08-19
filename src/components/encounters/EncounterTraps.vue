@@ -22,32 +22,39 @@
         class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
       >
         <IconTrap class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <button
-          type="button"
-          class="text-body text-foreground flex-1 truncate text-left hover:text-primary transition-colors"
+        <AppButton
+          variant="ghost"
+          tone="primary"
+          size="inline-body"
+          class="flex-1 justify-start text-left text-foreground truncate"
+          :label="trap.name"
           @click="previewTrap = trap"
-        >{{ trap.name }}</button>
+        />
         <span v-if="trap.cr" class="font-cinzel text-2xs text-muted-foreground shrink-0">
           CR {{ trap.cr }} · {{ crToXp(trap.cr) * qty }} XP
         </span>
 
         <!-- Qty controls -->
         <div class="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            :icon="IconMinus"
+            icon-size="xs"
+            aria-label="Decrease trap quantity"
             @click="decrement(trap.id)"
-          >
-            <IconMinus class="h-3 w-3" />
-          </button>
+          />
           <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ qty }}</span>
-          <button
-            type="button"
-            class="w-5 h-5 rounded bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            :icon="IconAdd"
+            icon-size="xs"
+            aria-label="Increase trap quantity"
             @click="increment(trap.id)"
-          >
-            <IconAdd class="h-3 w-3" />
-          </button>
+          />
         </div>
 
         <AppButton

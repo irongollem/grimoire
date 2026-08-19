@@ -46,12 +46,15 @@
 
     <!-- Proficiencies (collapsible) -->
     <div class="rounded-lg border border-border bg-card">
-      <button type="button"
-        class="w-full flex items-center justify-between px-3 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
+      <AppButton
+        variant="ghost"
+        size="sm"
+        block
+        class="justify-between px-3 py-2 rounded-none"
         @click="showProfs = !showProfs">
         <span>PROFICIENCIES — SKILLS · SAVES · TOOLS · LANGUAGES</span>
         <span class="text-base transition-transform" :class="showProfs ? '' : '-rotate-90'">▾</span>
-      </button>
+      </AppButton>
       <div v-if="showProfs" class="px-3 pb-3 space-y-4">
 
         <!-- ── Saving throws ─────────────────────────────────────────────── -->
@@ -107,18 +110,16 @@
               <span class="text-amber-600/70">({{ bgChosenSkills.length }}/{{ bgChoiceLimit }} chosen)</span>
             </p>
             <div class="flex flex-wrap gap-1.5">
-              <button v-for="opt in (choice.options.length ? choice.options : SKILLS.map(s => s.key))"
-                :key="opt" type="button"
-                class="px-2 py-0.5 rounded font-cinzel text-2xs border transition-colors"
-                :class="bgChosenSkills.includes(opt)
-                  ? 'bg-amber-500/25 border-amber-500/50 text-amber-700 dark:text-amber-400'
-                  : bgChosenSkills.length >= bgChoiceLimit
-                    ? 'border-border text-muted-foreground/50 cursor-not-allowed'
-                    : 'border-border text-muted-foreground hover:border-amber-500/40 hover:text-foreground'"
+              <AppButton v-for="opt in (choice.options.length ? choice.options : SKILLS.map(s => s.key))"
+                :key="opt"
+                variant="subtle"
+                size="xs"
+                tone="caution"
+                :active="bgChosenSkills.includes(opt)"
                 :disabled="!bgChosenSkills.includes(opt) && bgChosenSkills.length >= bgChoiceLimit"
-                @click="toggleBgSkillChoice(opt)">
-                {{ skillLabel(opt) }}
-              </button>
+                :label="skillLabel(opt)"
+                @click="toggleBgSkillChoice(opt)"
+              />
             </div>
           </div>
 
@@ -129,20 +130,17 @@
                 ? 'opacity-50'
                 : ''">
               <!-- Proficiency toggle -->
-              <div class="flex rounded overflow-hidden border text-2xs font-cinzel font-semibold shrink-0"
-                :class="isFromBackground(skill.key)
-                  ? 'border-amber-500/40 opacity-80 cursor-not-allowed'
-                  : 'border-border'">
-                <button v-for="level in PROF_LEVELS" :key="level.value" type="button"
-                  class="px-1.5 py-0.5 transition-colors"
-                  :class="(f.skill_proficiencies[skill.key] ?? 'none') === level.value
-                    ? isFromBackground(skill.key)
-                      ? 'bg-amber-500/25 text-amber-700 dark:text-amber-400'
-                      : 'bg-primary text-primary-foreground'
-                    : 'bg-card text-muted-foreground hover:text-foreground'"
+              <div class="flex gap-1 shrink-0">
+                <AppButton v-for="level in PROF_LEVELS" :key="level.value"
+                  variant="subtle"
+                  size="xs"
+                  :tone="isFromBackground(skill.key) ? 'caution' : undefined"
+                  :active="(f.skill_proficiencies[skill.key] ?? 'none') === level.value"
                   :disabled="isFromBackground(skill.key)"
-                  :title="isFromBackground(skill.key) ? 'Granted by background' : undefined"
-                  @click="!isFromBackground(skill.key) && setSkillProf(skill.key, level.value)">{{ level.label }}</button>
+                  :tooltip="isFromBackground(skill.key) ? 'Granted by background' : undefined"
+                  :label="level.label"
+                  @click="setSkillProf(skill.key, level.value)"
+                />
               </div>
 
               <!-- Skill name -->
@@ -197,6 +195,7 @@ import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import { CLASS_SKILL_CHOICES, FALLBACK_SKILL_DATA } from "@/data/classSkillChoices";
 import type { SkillKey } from "@/data/classSkillChoices";
+import AppButton from "@/components/common/AppButton.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 

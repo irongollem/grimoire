@@ -168,7 +168,7 @@ import { IconDelete, IconEdit, IconImage, IconRepeat, IconWarning } from '@/lib/
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import type { AppInputHandle } from "@/components/common/fieldVariants";
+import type { AppInputHandle, AppSelectHandle } from "@/components/common/fieldVariants";
 import FocalImage from "@/components/common/FocalImage.vue";
 import SoundTrimControl from "./SoundTrimControl.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
@@ -241,7 +241,7 @@ function cancelNameEdit() {
 // ── Inline artist editing ─────────────────────────────────────────────────
 
 const editingArtist = ref(false);
-const artistInput = ref<HTMLInputElement | null>(null);
+const artistInput = ref<AppInputHandle | null>(null);
 const artistDraft = ref("");
 
 function startArtistEdit() {
@@ -266,7 +266,7 @@ function cancelArtistEdit() {
 // ── Inline category editing ───────────────────────────────────────────────
 
 const editingCategory = ref(false);
-const categoryInput = ref<HTMLSelectElement | null>(null);
+const categoryInput = ref<AppSelectHandle | null>(null);
 
 function startCategoryEdit() {
   editingCategory.value = true;

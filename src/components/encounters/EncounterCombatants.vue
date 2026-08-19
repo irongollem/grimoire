@@ -83,16 +83,17 @@
           :key="monster.id"
           class="flex items-center gap-1 group rounded-md hover:bg-card transition-colors"
         >
-          <button
-            type="button"
-            class="flex-1 flex items-center justify-between px-3 py-2 text-left"
+          <AppButton
+            variant="menu"
+            size="body"
+            class="flex-1 justify-between px-3 py-2"
             @click="addMonsterToCombatants(monster)"
           >
             <span class="text-body text-foreground">{{ monster.name }}</span>
             <span class="font-cinzel text-2xs text-muted-foreground">
               CR {{ monster.stat_block.challenge_rating }} · AC {{ monster.stat_block.armor_class }} · {{ monster.stat_block.speed }}
             </span>
-          </button>
+          </AppButton>
           <AppButton
             variant="ghost"
             tone="danger"

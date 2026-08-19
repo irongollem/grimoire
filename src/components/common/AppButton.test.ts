@@ -772,3 +772,25 @@ describe("chromeless reading-face sizes (#648)", () => {
       .get("button").classes()).toContain("text-label-lg");
   });
 });
+
+describe("tinted solid emphasis (#648)", () => {
+  it("paints an opaque fill for every tone", () => {
+    for (const tone of BUTTON_COLOUR_TONES) {
+      const cls = buttonVariants({ variant: "tinted", tone, emphasis: "solid" });
+      // opaque: no /NN opacity suffix on the background
+      expect(cls, tone).toMatch(/bg-(primary|tone-\w+)(?!\/)/);
+      expect(cls, tone).not.toMatch(/bg-tone-\w+\/\d+/);
+    }
+  });
+
+  // amber at full opacity fails contrast against white — which is why both
+  // hand-rolled amber CTAs this replaces wrote text-black themselves.
+  it("gives caution black text and the rest white", () => {
+    expect(buttonVariants({ variant: "tinted", tone: "caution", emphasis: "solid" })).toContain("text-black");
+    expect(buttonVariants({ variant: "tinted", tone: "danger", emphasis: "solid" })).toContain("text-white");
+  });
+
+  it("leaves the softer emphases translucent", () => {
+    expect(buttonVariants({ variant: "tinted", tone: "danger", emphasis: "soft" })).toContain("bg-tone-danger/10");
+  });
+});

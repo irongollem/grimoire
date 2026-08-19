@@ -19,16 +19,20 @@
         class="flex items-center gap-2 group rounded px-2 py-1.5 hover:bg-muted/40 transition-colors"
       >
         <IconPackage class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <RouterLink
+        <AppButton
           :to="`/vault/${item.id}`"
-          class="text-body text-foreground flex-1 truncate hover:text-primary transition-colors"
-        >{{ item.name }}</RouterLink>
+          variant="ghost"
+          tone="primary"
+          size="inline-body"
+          class="flex-1 justify-start text-left text-foreground truncate"
+          :label="item.name"
+        />
 
         <!-- Qty controls -->
         <div class="flex items-center gap-1 shrink-0">
-          <AppButton variant="ghost" fill="muted" size="icon-xs" :icon="IconMinus" icon-size="xs" @click="decrementItem(item.id)" />
+          <AppButton variant="ghost" fill="muted" size="icon-xs" :icon="IconMinus" icon-size="xs" aria-label="Decrease quantity" @click="decrementItem(item.id)" />
           <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ qty }}</span>
-          <AppButton variant="ghost" fill="muted" size="icon-xs" :icon="IconAdd" icon-size="xs" @click="incrementItem(item.id)" />
+          <AppButton variant="ghost" fill="muted" size="icon-xs" :icon="IconAdd" icon-size="xs" aria-label="Increase quantity" @click="incrementItem(item.id)" />
         </div>
 
         <AppButton
@@ -84,6 +88,7 @@
             size="icon-xs"
             :icon="IconClose"
             class="shrink-0"
+            aria-label="Remove pool"
             @click="removePool(pool.id)"
           />
         </div>
@@ -116,12 +121,17 @@
             :options="allItems"
             placeholder="Add loot item…"
           />
-          <button
-            type="button"
+          <AppButton
+            variant="ghost"
+            tone="primary"
+            size="inline"
+            :icon="IconAdd"
+            icon-size="md"
             :disabled="!selectedItemId"
-            class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 shrink-0"
+            aria-label="Add loot item"
+            class="shrink-0"
             @click="addItem"
-          ><IconAdd class="h-4 w-4" /></button>
+          />
         </div>
         <!-- Add currency pool -->
         <AppButton

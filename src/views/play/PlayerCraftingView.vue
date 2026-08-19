@@ -8,28 +8,29 @@
     <template v-else>
       <!-- Discipline tabs — only disciplines with accessible recipes, plus All -->
       <div class="flex flex-wrap gap-1 mb-6 overflow-x-auto pb-1">
-        <button
-          class="flex items-center gap-1.5 px-3 py-2 rounded-md border font-cinzel text-xs tracking-wide transition-colors shrink-0"
-          :class="ui.playerCraftingActiveTab === 'all'
-            ? 'border-primary bg-primary/10 text-foreground'
-            : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'"
+        <AppButton
+          variant="subtle"
+          size="sm"
+          class="shrink-0"
+          :active="ui.playerCraftingActiveTab === 'all'"
+          :icon="IconListView"
+          label="All"
           @click="ui.playerCraftingActiveTab = 'all'"
-        >
-          <IconListView class="h-3.5 w-3.5" />
-          All
-        </button>
-        <button
+        />
+        <AppButton
           v-for="d in availableDisciplines"
           :key="d.id"
-          class="flex items-center gap-1.5 px-3 py-2 rounded-md border font-cinzel text-xs tracking-wide transition-colors shrink-0"
-          :class="tabClass(d)"
-          :title="!hasProficiency(d.tools) ? `No ${d.tools[0]} proficiency — no proficiency bonus` : d.label"
+          variant="subtle"
+          size="sm"
+          class="shrink-0"
+          :class="isTabDimmed(d) ? 'opacity-60' : ''"
+          :active="ui.playerCraftingActiveTab === d.id"
+          :icon="d.icon"
+          :tooltip="!hasProficiency(d.tools) ? `No ${d.tools[0]} proficiency — no proficiency bonus` : d.label"
           @click="ui.playerCraftingActiveTab = d.id"
         >
-          <component :is="d.icon" class="h-3.5 w-3.5" />
-          {{ d.label }}
-          <span v-if="!hasProficiency(d.tools)" class="text-eyebrow md:text-sm text-muted-foreground/60">NO PROF</span>
-        </button>
+          <span>{{ d.label }}<span v-if="!hasProficiency(d.tools)" class="text-eyebrow md:text-sm text-muted-foreground/60 ml-1">NO PROF</span></span>
+        </AppButton>
       </div>
 
       <!-- Discipline description (only when a specific discipline is selected) -->
@@ -147,15 +148,16 @@
 
           <!-- Attempt button -->
           <div class="px-4 py-3 border-t border-border">
-            <button
+            <AppButton
+              variant="primary"
+              size="md"
+              block
+              :icon="IconDiceRoll"
               :disabled="!canCraft(recipe)"
-              :title="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools) ? `Requires ${getDiscipline(recipe.discipline).tools[0]} proficiency` : undefined"
-              class="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
+              :tooltip="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools) ? `Requires ${getDiscipline(recipe.discipline).tools[0]} proficiency` : undefined"
+              label="Attempt Craft"
               @click="openAttempt(recipe)"
-            >
-              <IconDiceRoll class="h-3.5 w-3.5" />
-              Attempt Craft
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -188,6 +190,7 @@ import { ref, computed } from "vue";
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconListView } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import type { DisciplineConfig } from "@/lib/crafting-disciplines";
@@ -321,10 +324,10 @@ function canCraft(recipe: CraftingRecipe): boolean {
   return ingredientsFor(recipe.id).every((ing) => hasEnough(ing));
 }
 
-function tabClass(d: DisciplineConfig) {
-  if (ui.playerCraftingActiveTab === d.id) return "border-primary bg-primary/10 text-foreground";
-  if (!hasProficiency(d.tools)) return "border-border/60 text-muted-foreground/60 hover:text-muted-foreground hover:border-border/80";
-  return "border-border text-muted-foreground hover:text-foreground hover:border-border/80";
+// Dims a tab for a discipline the character has no proficiency in — but only
+// while it isn't the selected tab, matching the old ternary's precedence.
+function isTabDimmed(d: DisciplineConfig): boolean {
+  return ui.playerCraftingActiveTab !== d.id && !hasProficiency(d.tools);
 }
 
 function renderDescription(content: string | null): string {

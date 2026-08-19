@@ -39,18 +39,7 @@
     <!-- Ring width -->
     <div>
       <p class="text-label-lg font-semibold text-muted-foreground mb-2">Ring Width</p>
-      <div class="flex flex-wrap gap-2">
-        <button
-          v-for="w in RING_WIDTHS"
-          :key="w.label"
-          type="button"
-          class="px-3 py-1.5 rounded-md text-label-lg font-semibold border transition-colors"
-          :class="ringWidth === w.value
-            ? 'bg-primary/15 text-primary border-primary/40'
-            : 'text-muted-foreground border-border hover:border-foreground/30'"
-          @click="emit('update:ringWidth', w.value)"
-        >{{ w.label }}</button>
-      </div>
+      <SegmentedControl v-model="ringWidthModel" :options="RING_WIDTHS" size="sm" wrap gap="loose" />
     </div>
 
     <!-- Name label toggle -->
@@ -78,23 +67,15 @@
     <!-- Export size -->
     <div>
       <p class="text-label-lg font-semibold text-muted-foreground mb-2">Export Size</p>
-      <div class="flex flex-wrap gap-2">
-        <button
-          v-for="s in EXPORT_SIZES"
-          :key="s.value"
-          type="button"
-          class="px-3 py-1.5 rounded-md text-label-lg font-semibold border transition-colors"
-          :class="exportSize === s.value
-            ? 'bg-primary/15 text-primary border-primary/40'
-            : 'text-muted-foreground border-border hover:border-foreground/30'"
-          @click="emit('update:exportSize', s.value)"
-        >{{ s.label }}</button>
-      </div>
+      <SegmentedControl v-model="exportSizeModel" :options="EXPORT_SIZES" size="sm" wrap gap="loose" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
+
 const RING_PRESETS = [
   { label: "Party",   color: "#3b82f6" },
   { label: "Ally",    color: "#ca8a04" },
@@ -129,4 +110,14 @@ const emit = defineEmits<{
   (e: 'update:showName', value: boolean): void;
   (e: 'update:exportSize', value: number): void;
 }>();
+
+const ringWidthModel = computed<number>({
+  get: () => ringWidth,
+  set: (value) => emit('update:ringWidth', value),
+});
+
+const exportSizeModel = computed<number>({
+  get: () => exportSize,
+  set: (value) => emit('update:exportSize', value),
+});
 </script>

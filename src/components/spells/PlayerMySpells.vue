@@ -43,9 +43,14 @@
 
       <div v-for="group in levelGroups" :key="group.level" class="mb-2">
         <!-- Level header (accordion toggle) -->
-        <button
-          class="w-full flex items-center gap-2 px-3 py-2 rounded-t-lg bg-muted/40 border border-border hover:bg-muted/60 transition-colors"
-          :class="ui.playerSpellOpenLevels.includes(group.level) ? 'rounded-t-lg border-b-0' : 'rounded-lg'"
+        <AppButton
+          variant="outline"
+          size="body"
+          surface="muted"
+          fill="muted"
+          block
+          class="justify-start py-2"
+          :class="ui.playerSpellOpenLevels.includes(group.level) ? 'rounded-t-lg rounded-b-none border-b-0' : 'rounded-lg'"
           @click="ui.togglePlayerSpellLevel(group.level)"
         >
           <IconChevronRight
@@ -64,6 +69,13 @@
               <span v-if="slotPool(slot) !== 'spellcasting'" class="font-cinzel text-2xs text-violet-400">
                 {{ slotPool(slot) === 'pact' ? 'PACT' : slotPool(slot) === 'temporary' ? 'CREATED' : 'FEATURE' }}
               </span>
+              <!--
+                Stays native: a spell-slot pip is 14px with a 2px border, and the
+                smallest icon size is 24px with a 1px one. Converting bumps it 71%
+                and thins the ring, which on a nine-level slot table is a visible
+                layout change, not a normalization. This is the documented
+                "icon-only sizes below icon-xs" gap, not an oversight.
+              -->
               <button
                 v-for="pip in slot.max"
                 :key="pip"
@@ -84,7 +96,7 @@
           <span class="ml-auto text-label text-muted-foreground">
             {{ group.entries.length }}
           </span>
-        </button>
+        </AppButton>
 
         <!-- Spell rows -->
         <div
@@ -129,12 +141,18 @@
             >Granted</span>
 
             <!-- Spell attack roll (multiclass-aware via source class) -->
-            <button
+            <AppButton
               v-if="isCastable(entry) && attackBonusFor(entry) !== null && (entry.spell.attack_type === 'ranged_spell' || entry.spell.attack_type === 'melee_spell')"
-              class="shrink-0 font-cinzel text-2xs rounded border border-border bg-muted/40 text-muted-foreground px-1.5 py-0.5 transition-colors hover:bg-primary/10 hover:text-primary hover:border-primary/30"
-              title="Roll spell attack (d20 + attack bonus)"
+              variant="subtle"
+              surface="muted"
+              fill="tone"
+              tone="primary"
+              size="xs"
+              class="shrink-0"
+              tooltip="Roll spell attack (d20 + attack bonus)"
+              :label="`Atk ${signedNum(attackBonusFor(entry)!)}`"
               v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollSpellAttack(entry, m); } }"
-            >Atk {{ signedNum(attackBonusFor(entry)!) }}</button>
+            />
             <!-- Saving-throw prompt — announces DC + ability to the table -->
             <AppButton
               v-else-if="isCastable(entry) && saveDcFor(entry) !== null && entry.spell.attack_type === 'save'"

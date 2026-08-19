@@ -95,15 +95,17 @@
               <div class="px-4 py-2 font-cinzel text-2xs tracking-widest text-muted-foreground/60 uppercase bg-secondary/30 border-b border-t border-border/50">
                 {{ group.label }}
               </div>
-              <RouterLink
+              <AppButton
                 v-for="item in group.items"
                 :key="item.id"
                 :to="item.route"
-                class="flex items-center px-4 py-3 text-body text-foreground hover:bg-secondary/60 border-b border-border/30 transition-colors"
+                variant="menu"
+                size="body"
+                block
+                class="px-4 py-3 border-b border-border/30"
+                :label="item.name"
                 @click="searchOpen = false"
-              >
-                {{ item.name }}
-              </RouterLink>
+              />
             </template>
           </template>
         </div>

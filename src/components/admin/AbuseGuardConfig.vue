@@ -23,26 +23,26 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label class="space-y-1">
           <span class="block text-eyebrow font-semibold text-muted-foreground">New-account age (days)</span>
-          <input v-model.number="local.young_account_days" type="number" min="0" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="local.young_account_days" type="number" min="0" tone="filled" size="body-xs" />
         </label>
         <label class="space-y-1">
           <span class="block text-eyebrow font-semibold text-muted-foreground">Window (hours)</span>
-          <input v-model.number="local.window_hours" type="number" min="1" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="local.window_hours" type="number" min="1" tone="filled" size="body-xs" />
         </label>
         <label class="space-y-1">
           <span class="block text-eyebrow font-semibold text-muted-foreground">Max purchased / window</span>
-          <input v-model.number="local.max_purchased_spend_window" type="number" min="0" class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+          <AppInput v-model.number="local.max_purchased_spend_window" type="number" min="0" tone="filled" size="body-xs" />
         </label>
       </div>
 
       <div class="flex items-center gap-2">
-        <button
-          class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+        <AppButton
+          variant="primary"
+          size="sm"
           :disabled="update.isPending.value"
+          :label="update.isPending.value ? 'Saving…' : 'Save'"
           @click="save"
-        >
-          {{ update.isPending.value ? 'Saving…' : 'Save' }}
-        </button>
+        />
         <span v-if="saved" class="text-caption text-green-500 self-center">Saved.</span>
       </div>
     </template>
@@ -52,6 +52,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useAbuseGuard, type AbuseGuardConfig } from "@/composables/useAbuseGuard";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const { query, update } = useAbuseGuard();
 

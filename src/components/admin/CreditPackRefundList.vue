@@ -30,18 +30,34 @@
             </p>
           </div>
 
-          <span :class="['text-eyebrow px-2 py-0.5 rounded-full shrink-0', badge(lot).class]">
-            {{ badge(lot).label }}
-          </span>
+          <AppButton
+            as="span"
+            variant="tinted"
+            size="xs"
+            shape="pill"
+            class="uppercase shrink-0"
+            :tone="badgeTone(lot)"
+            :label="badgeLabel(lot)"
+          />
 
+          <AppButton
+            v-if="!lot.alreadyRefunded && confirmingPi !== lot.paymentIntentId && lot.eligible"
+            variant="primary"
+            size="sm"
+            class="shrink-0"
+            label="Refund"
+            :disabled="refundPack.isPending.value"
+            @click="startConfirm(lot)"
+          />
+          <!-- Ineligible refund stays native: a solid non-gold (amber) CTA has no
+               AppButton equivalent yet — see #648 sweep VARIANT-GAP notes. -->
           <button
-            v-if="!lot.alreadyRefunded && confirmingPi !== lot.paymentIntentId"
-            class="px-3 py-1 text-label font-semibold rounded-md shrink-0 transition-opacity hover:opacity-90 disabled:opacity-50"
-            :class="lot.eligible ? 'bg-primary text-primary-foreground' : 'bg-amber-600/80 text-white'"
+            v-else-if="!lot.alreadyRefunded && confirmingPi !== lot.paymentIntentId"
+            class="px-3 py-1 text-label font-semibold rounded-md shrink-0 transition-opacity hover:opacity-90 disabled:opacity-50 bg-amber-600/80 text-white"
             :disabled="refundPack.isPending.value"
             @click="startConfirm(lot)"
           >
-            {{ lot.eligible ? 'Refund' : 'Refund (override)' }}
+            Refund (override)
           </button>
         </div>
 
@@ -59,6 +75,8 @@
           />
           <p v-if="errorMsg" class="text-caption-sm text-destructive">{{ errorMsg }}</p>
           <div class="flex items-center gap-2">
+            <!-- Stays native: no AppButton variant renders a solid destructive
+                 fill — `destructive` is outline-only. See #648 sweep VARIANT-GAP. -->
             <button
               class="px-3 py-1 text-label font-semibold bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
               :disabled="refundPack.isPending.value || (!lot.eligible && !reason.trim())"
@@ -87,6 +105,7 @@ import { computed, ref, toRef } from 'vue'
 import { useAdminRefunds, type PackLot } from '@/composables/useAdminRefunds'
 import AppButton from '@/components/common/AppButton.vue'
 import AppInput from '@/components/common/AppInput.vue'
+import type { ButtonTone } from '@/components/common/appButtonVariants'
 
 const { userId } = defineProps<{ userId: string }>()
 
@@ -104,11 +123,17 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-function badge(lot: PackLot): { label: string; class: string } {
-  if (lot.alreadyRefunded) return { label: 'Refunded', class: 'bg-muted text-muted-foreground' }
-  if (lot.eligible) return { label: 'Eligible', class: 'bg-green-600/20 text-green-400' }
-  if (!lot.withinWindow) return { label: 'Past 14d', class: 'bg-amber-600/20 text-amber-400' }
-  return { label: 'Partly spent', class: 'bg-amber-600/20 text-amber-400' }
+function badgeTone(lot: PackLot): ButtonTone {
+  if (lot.alreadyRefunded) return 'neutral'
+  if (lot.eligible) return 'success'
+  return 'caution'
+}
+
+function badgeLabel(lot: PackLot): string {
+  if (lot.alreadyRefunded) return 'Refunded'
+  if (lot.eligible) return 'Eligible'
+  if (!lot.withinWindow) return 'Past 14d'
+  return 'Partly spent'
 }
 
 function ineligibleReason(lot: PackLot): string {

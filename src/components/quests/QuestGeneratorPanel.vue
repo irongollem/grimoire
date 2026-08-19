@@ -28,7 +28,7 @@
           </p>
           <AppButton
             variant="ghost"
-            size="caption"
+            size="inline-caption"
             class="mt-1 underline underline-offset-2"
             label="Continue in background"
             @click="dismissToBackground"
@@ -51,7 +51,7 @@
             </p>
             <AppButton
               variant="ghost"
-              size="caption"
+              size="inline-caption"
               class="underline underline-offset-2"
               label="Regenerate"
               @click="clearHooks"
@@ -111,14 +111,14 @@
                 </span>
                 <AppButton
                   variant="link"
-                  size="caption"
+                  size="inline-caption"
                   class="hover:underline underline-offset-2"
                   label="View Quest →"
                   @click="viewCreated(i)"
                 />
                 <AppButton
                   variant="link"
-                  size="caption"
+                  size="inline-caption"
                   class="hover:underline underline-offset-2"
                   label="Build flow →"
                   @click="buildCreated(i)"

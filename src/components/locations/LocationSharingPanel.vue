@@ -11,11 +11,10 @@
         class="text-label text-muted-foreground"
         >Summary (always visible)</label
       >
-      <input
-        :value="playerSummary"
+      <AppInput
+        v-model="playerSummaryModel"
+        size="body"
         placeholder="A short description players always see when they discover this location…"
-        class="w-full bg-background border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:playerSummary', ($event.target as HTMLInputElement).value)"
       />
     </div>
 
@@ -83,6 +82,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import AppInput from "@/components/common/AppInput.vue";
+
 const {
   playerSummary,
   isDescriptionShared,
@@ -97,10 +99,15 @@ const {
   showInventoryToggle?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   'update:playerSummary': [value: string];
   'update:isDescriptionShared': [value: boolean];
   'update:isNpcsShared': [value: boolean];
   'update:isInventoryShared': [value: boolean];
 }>();
+
+const playerSummaryModel = computed<string>({
+  get: () => playerSummary,
+  set: (value) => emit('update:playerSummary', value),
+});
 </script>

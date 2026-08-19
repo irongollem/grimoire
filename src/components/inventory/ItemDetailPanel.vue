@@ -258,10 +258,12 @@
             <div class="grid grid-cols-5 gap-1">
               <div v-for="coin in COINS" :key="coin.key" class="flex flex-col items-center gap-0.5">
                 <span class="font-cinzel text-2xs font-bold" :class="coin.color">{{ coin.symbol }}</span>
-                <input
+                <AppInput
                   v-model.number="sellPrice[coin.key]"
                   type="number" min="0"
-                  class="w-full bg-muted/30 border border-border rounded px-1 py-0.5 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                  tone="muted"
+                  size="xs"
+                  align="center"
                 />
               </div>
             </div>
@@ -292,6 +294,7 @@ import { IconAdd, IconClose, IconHide, IconMinus, IconReveal, IconShop, IconWand
 import { useQuery } from "@tanstack/vue-query";
 import { COINS, type CoinKey, parseCoinText } from "@/rules/currency";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";

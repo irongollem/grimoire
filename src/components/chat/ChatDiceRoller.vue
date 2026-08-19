@@ -17,15 +17,39 @@
       <div v-for="d in ALL_DICE" :key="d" class="flex items-center gap-1">
         <template v-if="(diceCounts[d] ?? 0) > 0">
           <span class="font-cinzel text-2xs text-muted-foreground">d{{ d }}:</span>
-          <button type="button" class="count-btn" @click="decrement(d)">−</button>
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            :icon="IconMinus"
+            icon-size="xs"
+            :aria-label="`Decrease d${d} count`"
+            @click="decrement(d)"
+          />
           <span class="font-cinzel text-xs font-bold text-foreground w-4 text-center">{{ diceCounts[d] }}</span>
-          <button type="button" class="count-btn" @click="increment(d)">+</button>
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            :icon="IconAdd"
+            icon-size="xs"
+            :aria-label="`Increase d${d} count`"
+            @click="increment(d)"
+          />
         </template>
       </div>
     </div>
     <div class="flex items-center gap-2">
       <span class="font-cinzel text-2xs text-muted-foreground">Mod:</span>
-      <button type="button" class="count-btn" @click="modifier--">−</button>
+      <AppButton
+        variant="ghost"
+        fill="muted"
+        size="icon-xs"
+        :icon="IconMinus"
+        icon-size="xs"
+        aria-label="Decrease modifier"
+        @click="modifier--"
+      />
       <AppInput
         v-model.number="modifier"
         type="number"
@@ -35,7 +59,15 @@
         :block="false"
         class="w-10 font-bold"
       />
-      <button type="button" class="count-btn" @click="modifier++">+</button>
+      <AppButton
+        variant="ghost"
+        fill="muted"
+        size="icon-xs"
+        :icon="IconAdd"
+        icon-size="xs"
+        aria-label="Increase modifier"
+        @click="modifier++"
+      />
       <SegmentedControl
         v-model="mode"
         :options="MODES"
@@ -61,6 +93,7 @@
 import { reactive, ref, computed } from 'vue';
 import { ALL_DICE } from '@/lib/dice/dice';
 import type { DieSize, RollMode } from '@/lib/dice/dice';
+import { IconAdd, IconMinus } from '@/lib/icons';
 import AppButton from '@/components/common/AppButton.vue';
 import AppInput from '@/components/common/AppInput.vue';
 import SegmentedControl from '@/components/common/SegmentedControl.vue';
@@ -98,11 +131,3 @@ function onRoll() {
   emit('roll', { counts: { ...diceCounts }, modifier: modifier.value, mode: mode.value });
 }
 </script>
-
-<style scoped>
-@reference "@/assets/main.css";
-
-.count-btn {
-  @apply w-5 h-5 rounded bg-muted border border-border font-cinzel text-xs flex items-center justify-center hover:bg-card transition-colors leading-none;
-}
-</style>

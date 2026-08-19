@@ -245,7 +245,16 @@ export const buttonVariants = cva(
        *   strong  — selected/active, already at full tint (soundboard source tabs)
        *   outline — outlined until hovered (Drop chest in chat, roll actions)
        */
-      emphasis: { soft: "", strong: "", outline: "" },
+      /**
+       *   soft    — resting pill, tints further on hover (DMG, HEAL, +Temp)
+       *   strong  — selected/active, already at full tint (soundboard source tabs)
+       *   outline — outlined until hovered (Drop chest in chat, roll actions)
+       *   solid   — an opaque fill. The confirm-destructive and upgrade CTAs, which
+       *             had no home at all: `primary` is gold by definition and
+       *             `destructive` is outline-only, so 14 sites across 14 files stayed
+       *             hand-rolled on raw `bg-destructive` / `bg-amber-500`.
+       */
+      emphasis: { soft: "", strong: "", outline: "", solid: "" },
     },
     compoundVariants: [
       // ── tinted × tone × emphasis ──────────────────────────────────────────
@@ -287,6 +296,18 @@ export const buttonVariants = cva(
       { variant: "tinted", tone: "caution", emphasis: "soft", class: "bg-tone-caution/10 border-tone-caution/30 text-tone-caution hover:bg-tone-caution/20" },
       { variant: "tinted", tone: "caution", emphasis: "strong", class: "bg-tone-caution/25 border-tone-caution/60 text-tone-caution" },
       { variant: "tinted", tone: "caution", emphasis: "outline", class: "border-tone-caution/40 text-tone-caution hover:bg-tone-caution/10" },
+
+      // ── tinted × tone × solid ─────────────────────────────────────────────
+      // `caution` takes black text rather than white: amber at full opacity fails
+      // contrast against white, which is why the two hand-rolled amber CTAs this
+      // replaces both wrote `text-black` themselves.
+      { variant: "tinted", tone: "primary", emphasis: "solid", class: "bg-tone-primary border-tone-primary text-white hover:opacity-90" },
+      { variant: "tinted", tone: "danger", emphasis: "solid", class: "bg-tone-danger border-tone-danger text-white hover:opacity-90" },
+      { variant: "tinted", tone: "success", emphasis: "solid", class: "bg-tone-success border-tone-success text-white hover:opacity-90" },
+      { variant: "tinted", tone: "info", emphasis: "solid", class: "bg-tone-info border-tone-info text-white hover:opacity-90" },
+      { variant: "tinted", tone: "arcane", emphasis: "solid", class: "bg-tone-arcane border-tone-arcane text-white hover:opacity-90" },
+      { variant: "tinted", tone: "caution", emphasis: "solid", class: "bg-tone-caution border-tone-caution text-black hover:opacity-90" },
+      { variant: "tinted", tone: "neutral", emphasis: "solid", class: "bg-muted border-border text-foreground hover:opacity-90" },
 
       // ── fill="tone" × tone ────────────────────────────────────────────────
       // Spelled out for the same reason as the tinted table: Tailwind extracts
@@ -483,7 +504,7 @@ export const BUTTON_TONES = [
  */
 export const BUTTON_COLOUR_TONES = BUTTON_TONES.filter((t) => t !== "neutral");
 
-export const BUTTON_EMPHASES = ["soft", "strong", "outline"] as const satisfies readonly ButtonEmphasis[];
+export const BUTTON_EMPHASES = ["soft", "strong", "outline", "solid"] as const satisfies readonly ButtonEmphasis[];
 
 export const BUTTON_FILLS = ["none", "muted", "tone"] as const satisfies readonly ButtonFill[];
 

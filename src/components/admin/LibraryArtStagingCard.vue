@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import {
   UploadIcon,
   AlertCircleIcon,
-  Loader2Icon,
   Trash2Icon,
 } from "@lucide/vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import type { ButtonTone } from "@/components/common/appButtonVariants";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,6 +58,19 @@ function filteredOptions(): EntityOption[] {
   if (q.length < 2) return [];
   return options.filter((o) => o.name.toLowerCase().includes(q)).slice(0, 20);
 }
+
+// AppInput's v-model needs a writable target; bridge the search prop/emit pair
+// (the parent's v-model:search) into one.
+const searchModel = computed({
+  get: () => search,
+  set: (value: string) => emit("update:search", value),
+});
+
+function assignTone(): ButtonTone {
+  if (assignStatus === "error") return "danger";
+  if (!selected.length) return "neutral";
+  return "primary";
+}
 </script>
 
 <template>
@@ -71,12 +87,11 @@ function filteredOptions(): EntityOption[] {
     <!-- controls -->
     <div class="p-2 flex flex-col gap-2">
       <!-- search -->
-      <input
-        :value="search"
+      <AppInput
+        v-model="searchModel"
         type="text"
+        size="caption"
         placeholder="Search monsters…"
-        class="w-full rounded border border-border bg-background px-2 py-1 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-        @input="emit('update:search', ($event.target as HTMLInputElement).value)"
       />
 
       <!-- checkbox results -->
@@ -127,42 +142,34 @@ function filteredOptions(): EntityOption[] {
 
       <div class="flex gap-1.5">
         <!-- Assign selected -->
-        <button
-          class="flex-1 flex items-center justify-center gap-1 py-1 rounded font-cinzel text-xs tracking-wide border transition-colors"
+        <AppButton
+          variant="tinted"
+          emphasis="outline"
+          size="sm"
+          icon-size="xs"
+          class="flex-1"
+          :tone="assignTone()"
+          :icon="assignStatus === 'error' ? AlertCircleIcon : UploadIcon"
+          :loading="assignStatus === 'assigning'"
           :disabled="!selected.length || assignStatus === 'assigning'"
-          :class="
-            assignStatus === 'error'
-              ? 'border-destructive text-destructive hover:bg-destructive/10'
-              : !selected.length
-                ? 'border-border text-muted-foreground cursor-not-allowed'
-                : 'border-primary text-primary hover:bg-primary/10'
-          "
           @click="emit('assign')"
         >
-          <Loader2Icon
-            v-if="assignStatus === 'assigning'"
-            class="h-3 w-3 animate-spin"
-          />
-          <AlertCircleIcon
-            v-else-if="assignStatus === 'error'"
-            class="h-3 w-3"
-          />
-          <UploadIcon v-else class="h-3 w-3" />
           <template v-if="assignStatus === 'error'">Retry</template>
           <template v-else-if="selected.length">
             Assign {{ selected.length }} selected
           </template>
           <template v-else>Assign</template>
-        </button>
+        </AppButton>
 
         <!-- Discard without assigning -->
-        <button
-          class="flex items-center gap-1 px-2 py-1 rounded border border-border font-cinzel text-xs tracking-wide text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
-          title="Discard"
+        <AppButton
+          variant="subtle"
+          tone="danger"
+          size="icon-xs"
+          tooltip="Discard"
+          :icon="Trash2Icon"
           @click="emit('discard')"
-        >
-          <Trash2Icon class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
     </div>
   </div>

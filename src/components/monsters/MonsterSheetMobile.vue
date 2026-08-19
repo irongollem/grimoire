@@ -28,28 +28,36 @@
       class="fixed inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 transition-colors duration-200"
       :class="scrolled ? 'border-b border-border bg-background/85 backdrop-blur-md' : ''"
     >
-      <button
-        type="button"
-        class="flex size-10 shrink-0 items-center justify-center rounded-full backdrop-blur-sm transition-colors"
-        :class="scrolled
-          ? 'bg-transparent text-foreground active:bg-muted'
-          : 'bg-black/40 text-white active:bg-black/60'"
+      <!-- Box normalized to icon-sm (32px) from the original size-10 (40px), and the
+           scroll-driven active:bg-* touch feedback normalizes to `fill="muted"`'s
+           hover: (AppButton has no active: axis) — same trade the #648 sweep makes
+           everywhere else. The not-scrolled look reuses CARD_OVERLAY_SCRIM, which is
+           named for exactly this "icon button over hero art" case. -->
+      <AppButton
+        variant="ghost"
+        fill="muted"
+        shape="pill"
+        size="icon-sm"
+        class="backdrop-blur-sm"
+        :class="scrolled ? 'text-foreground' : `${CARD_OVERLAY_SCRIM} text-white`"
         aria-label="Back"
         @click="goBack"
       >
-        <svg
-          class="size-5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-      </button>
+        <template #icon>
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </template>
+      </AppButton>
 
       <!-- Name fades in once scrolled past the hero -->
       <h1
@@ -69,22 +77,26 @@
           go when the bar solidifies.
         -->
         <MonsterRevealControl :monster="monster" :form="scrolled ? 'inline' : 'overlay'" />
-        <button
-          type="button"
-          class="flex size-10 items-center justify-center rounded-full backdrop-blur-sm transition-colors"
-          :class="scrolled
-            ? 'bg-transparent text-foreground active:bg-muted'
-            : 'bg-black/40 text-white active:bg-black/60'"
+        <!-- Same normalization as the back button above. -->
+        <AppButton
+          variant="ghost"
+          fill="muted"
+          shape="pill"
+          size="icon-sm"
+          class="backdrop-blur-sm"
+          :class="scrolled ? 'text-foreground' : `${CARD_OVERLAY_SCRIM} text-white`"
           aria-label="More actions"
           @click="showMenu = true"
         >
-          <!-- vertical ellipsis -->
-          <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="12" cy="5" r="1.6" />
-            <circle cx="12" cy="12" r="1.6" />
-            <circle cx="12" cy="19" r="1.6" />
-          </svg>
-        </button>
+          <template #icon>
+            <!-- vertical ellipsis -->
+            <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.6" />
+              <circle cx="12" cy="12" r="1.6" />
+              <circle cx="12" cy="19" r="1.6" />
+            </svg>
+          </template>
+        </AppButton>
       </div>
     </header>
 
@@ -278,6 +290,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, toRef } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import { useRouter } from "vue-router";
 import { useScroll } from "@vueuse/core";
 import FocalImage from "@/components/common/FocalImage.vue";

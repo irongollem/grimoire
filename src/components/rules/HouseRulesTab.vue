@@ -79,16 +79,20 @@
             :key="rule.id"
             class="rounded-lg border border-border bg-card overflow-hidden"
           >
-            <button
-              type="button"
-              class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+            <AppButton
+              variant="menu"
+              size="lg"
+              block
+              class="gap-2"
               @click="toggleRule(rule.id)"
             >
-              <IconChevronRight
-                class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
-                :class="openRules.has(rule.id) ? 'rotate-90' : ''"
-              />
-              <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ rule.title }}</span>
+              <template #icon>
+                <IconChevronRight
+                  class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
+                  :class="openRules.has(rule.id) ? 'rotate-90' : ''"
+                />
+              </template>
+              <span class="flex-1">{{ rule.title }}</span>
               <span
                 v-if="rule.category"
                 class="shrink-0 px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
@@ -104,7 +108,7 @@
                   {{ tag }}
                 </span>
               </div>
-            </button>
+            </AppButton>
 
             <div v-if="openRules.has(rule.id)" class="px-4 pb-4 border-t border-border">
               <div v-if="rule.tags.length" class="flex sm:hidden flex-wrap gap-1 pt-3 pb-1">
