@@ -28,12 +28,15 @@
           class="text-body text-foreground truncate"
           :class="entity.routeTo ? 'hover:text-primary transition-colors' : ''"
         >{{ entity.name }}</component>
-        <button
-          type="button"
-          class="text-label text-muted-foreground hover:text-destructive transition-colors shrink-0"
-          :title="`Remove ${entity.name}`"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="inline-xs"
+          label="×"
+          class="shrink-0"
+          :tooltip="`Remove ${entity.name}`"
           @click="onRemove(entity.id)"
-        >×</button>
+        />
       </li>
     </ul>
   </div>
@@ -42,6 +45,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 export interface ReferenceOption {
   id: string;

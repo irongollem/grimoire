@@ -20,46 +20,52 @@
 
         <!-- Zoom controls -->
         <div class="flex items-center rounded border border-border overflow-hidden">
-          <button
-            type="button"
-            title="Zoom out"
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="toolbar"
+            :icon="IconZoomOut"
+            icon-size="xs"
             :disabled="effectiveZoom <= 0.25"
-            class="px-1.5 h-6.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            tooltip="Zoom out"
             @click="zoomOut"
-          >
-            <IconZoomOut class="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            :title="zoomMode === 'fit' ? 'Fit to width' : 'Click to fit to width'"
-            class="px-1.5 h-6.5 text-label font-semibold border-x border-border transition-colors min-w-9.5 text-center"
-            :class="zoomMode === 'fit' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'"
+          />
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="toolbar"
+            class="min-w-9.5 border-x border-border"
+            :active="zoomMode === 'fit'"
+            :label="zoomMode === 'fit' ? 'Fit' : zoomLabel"
+            :tooltip="zoomMode === 'fit' ? 'Fit to width' : 'Click to fit to width'"
             @click="zoomFit"
-          >
-            {{ zoomMode === "fit" ? "Fit" : zoomLabel }}
-          </button>
-          <button
-            type="button"
-            title="Zoom in"
+          />
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="toolbar"
+            :icon="IconZoomIn"
+            icon-size="xs"
             :disabled="effectiveZoom >= 2.0"
-            class="px-1.5 h-6.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            tooltip="Zoom in"
             @click="zoomIn"
-          >
-            <IconZoomIn class="h-3 w-3" />
-          </button>
+          />
         </div>
 
-        <button
-          type="button"
-          title="Export as PDF"
+        <AppButton
+          variant="subtle"
+          size="xs"
+          class="uppercase"
           :disabled="isGeneratingPdf"
-          class="inline-flex items-center gap-1 px-2 py-1 rounded text-eyebrow font-semibold border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          tooltip="Export as PDF"
           @click="onExportPdf"
         >
-          <IconLoading v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />
-          <IconExport v-else class="h-3 w-3" />
+          <template #icon>
+            <IconLoading v-if="isGeneratingPdf" class="h-3 w-3 animate-spin" />
+            <IconExport v-else class="h-3 w-3" />
+          </template>
           {{ isGeneratingPdf ? "Building…" : "PDF" }}
-        </button>
+        </AppButton>
       </div>
     </div>
 
@@ -78,14 +84,15 @@
           class="text-primary hover:underline"
         >read how in the DM Manual</RouterLink>.
       </p>
-      <button
-        type="button"
-        class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        class="shrink-0"
+        :icon="IconClose"
+        icon-size="xs"
         aria-label="Dismiss tip"
         @click="dismissShareTip"
-      >
-        <IconClose class="h-3 w-3" />
-      </button>
+      />
     </div>
 
     <!-- The auto-paginated book (Paged.js) — the live preview. -->
@@ -117,6 +124,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconClose, IconExport, IconInfo, IconLoading, IconZoomIn, IconZoomOut } from "@/lib/icons";
 import { docTypeLabel, docTypeColor } from "@/lib/scriptorium/editorConstants";
 import { useScriptoriumZoom } from "@/composables/useScriptoriumZoom";

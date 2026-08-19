@@ -10,13 +10,7 @@
         <h2 class="text-heading-sm font-bold text-foreground">
           {{ props.member ? `Edit ${props.member.name}` : "Add Hero" }}
         </h2>
-        <button
-          type="button"
-          class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
-          @click="emit('close')"
-        >
-          ×
-        </button>
+        <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="emit('close')" />
       </div>
 
       <!-- Tabs -->
@@ -83,31 +77,24 @@
 
       <!-- Footer -->
       <div class="flex items-center justify-between gap-2 px-5 py-4 border-t border-border shrink-0">
-        <button
+        <AppButton
           v-if="props.member"
-          type="button"
+          variant="link"
+          tone="danger"
+          size="inline-xs"
           :disabled="saving"
-          class="font-cinzel text-xs text-destructive hover:opacity-80 transition-opacity disabled:opacity-50"
+          :label="props.member.owner_user_id ? 'Detach from party' : 'Remove from party'"
           @click="remove"
-        >
-          {{ props.member.owner_user_id ? "Detach from party" : "Remove from party" }}
-        </button>
+        />
         <div class="flex gap-2 ml-auto">
-          <button
-            type="button"
-            class="px-4 py-2 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors"
-            @click="emit('close')"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
+          <AppButton variant="subtle" size="md" label="Cancel" @click="emit('close')" />
+          <AppButton
+            variant="primary"
+            size="md"
             :disabled="!form.name.trim() || saving"
-            class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+            :label="props.member ? 'Save Changes' : 'Add to Party'"
             @click="save"
-          >
-            {{ props.member ? "Save Changes" : "Add to Party" }}
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -118,6 +105,8 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, reactive, computed, watch } from "vue";
+import { IconClose } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import TabBar from "@/components/common/TabBar.vue";
 import PartyMemberIdentityTab from "./PartyMemberIdentityTab.vue";
 import PartyMemberAbilitiesTab from "./PartyMemberAbilitiesTab.vue";

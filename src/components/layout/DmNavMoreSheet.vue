@@ -8,15 +8,17 @@
     <!-- Context-aware create — the create path in Play mode (whose center FAB
          is the dice roller, not "+"). Shown whenever the current section has a
          create route. -->
-    <button
+    <AppButton
       v-if="create"
-      type="button"
-      class="mb-4 flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-3 font-cinzel text-sm font-bold tracking-wider text-primary-foreground transition-opacity hover:opacity-90"
+      variant="primary"
+      size="lg"
+      block
+      class="mb-4 font-bold"
+      :icon="IconAdd"
+      icon-size="md"
+      :label="create.label"
       @click="onCreate"
-    >
-      <IconAdd class="h-4 w-4 shrink-0" />
-      {{ create.label }}
-    </button>
+    />
 
     <!-- Prep / Play mode toggle -->
     <DmModeToggle size="md" :labels="['Prep mode', 'Play mode']" class="mb-4" />
@@ -60,24 +62,28 @@
       Dot = currently pinned to the {{ ui.dmMode }} bar.
     </p>
 
-    <button
+    <AppButton
       v-if="updateAvailable"
-      type="button"
-      class="mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-3 text-label-lg font-bold text-primary transition-colors hover:bg-primary/20"
+      variant="menu"
+      size="md"
+      block
+      class="mt-4 gap-3 text-primary font-bold"
+      :icon="IconRefresh"
+      icon-size="md"
+      label="Reload to update"
       @click="reloadApp"
-    >
-      <IconRefresh class="h-4 w-4 shrink-0" />
-      Reload to update
-    </button>
+    />
 
-    <button
-      type="button"
-      class="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-border px-3 py-2.5 text-label-lg text-muted-foreground transition-colors hover:text-foreground"
+    <AppButton
+      variant="menu"
+      size="md"
+      block
+      class="mt-2 gap-3"
+      :icon="IconBug"
+      icon-size="md"
+      label="Report a bug"
       @click="emit('update:open', false); bugReportOpen = true"
-    >
-      <IconBug class="h-4 w-4 shrink-0" />
-      Report a bug
-    </button>
+    />
     <BugReportModal v-if="bugReportMounted" v-model="bugReportOpen" />
   </MobileSheet>
 </template>
@@ -85,6 +91,7 @@
 <script setup lang="ts">
 import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import AppButton from "@/components/common/AppButton.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import { useLazyMount } from "@/composables/useLazyMount";

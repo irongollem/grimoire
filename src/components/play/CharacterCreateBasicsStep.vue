@@ -12,11 +12,11 @@
       <div class="flex-1 flex flex-col gap-2">
         <label class="block">
           <span class="field-label">Character Name *</span>
-          <input v-model="f.name" class="field-input w-full" placeholder="Aric Stormblade" autofocus />
+          <AppInput v-model="f.name" tone="filled" size="body" placeholder="Aric Stormblade" autofocus />
         </label>
         <label class="block">
           <span class="field-label">Player Name</span>
-          <input v-model="f.player_name" class="field-input w-full"
+          <AppInput v-model="f.player_name" tone="filled" size="body"
             :placeholder="auth.membership?.display_name ?? 'Your name'" />
         </label>
       </div>
@@ -64,14 +64,15 @@
         class="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
         <p class="text-label-lg font-semibold text-primary">CHOOSE A VARIANT</p>
         <div class="flex flex-wrap gap-2">
-          <button v-for="sr in subraceOptions" :key="sr" type="button"
-            class="px-3 py-1.5 rounded-md font-cinzel text-xs font-semibold transition-colors"
-            :class="f.subrace === sr
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card border border-border text-muted-foreground hover:text-foreground'"
-            @click="f.subrace = f.subrace === sr ? '' : sr">
-            {{ sr }}
-          </button>
+          <AppButton
+            v-for="sr in subraceOptions" :key="sr"
+            variant="subtle"
+            size="sm"
+            :active="f.subrace === sr"
+            surface="card"
+            :label="sr"
+            @click="f.subrace = f.subrace === sr ? '' : sr"
+          />
         </div>
       </div>
 
@@ -85,6 +86,8 @@
 <script setup lang="ts">
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
@@ -96,8 +99,5 @@ const { f, auth, portraitUrl, focalPoint, speciesChoices, selectedSpecies, subra
 @reference "@/assets/main.css";
 .field-label {
   @apply block text-label-lg font-semibold text-muted-foreground mb-1;
-}
-.field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

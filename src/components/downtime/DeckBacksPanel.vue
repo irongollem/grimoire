@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcs } from "@/composables/useNpcs";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
@@ -143,29 +145,35 @@ async function addBack() {
         <label for="deck-back-archetype" class="mb-1 block text-2xs font-medium">
           Archetype
         </label>
-        <select
+        <AppSelect
           id="deck-back-archetype"
           v-model="activityKey"
-          class="w-full rounded-md border border-border bg-card px-3 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
+          size="body"
+          weight="normal"
+          block
+          class="px-3"
         >
           <option v-for="a in DOWNTIME_ACTIVITIES" :key="a.key" :value="a.key">
             {{ a.title }}
           </option>
-        </select>
+        </AppSelect>
       </div>
 
       <div>
         <label for="deck-back-type" class="mb-1 block text-2xs font-medium">Type</label>
-        <select
+        <AppSelect
           id="deck-back-type"
           v-model="rewardType"
-          class="w-full rounded-md border border-border bg-card px-3 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
+          size="body"
+          weight="normal"
+          block
+          class="px-3"
           @change="onRewardTypeChange"
         >
           <option v-for="t in PREP_TYPES" :key="t.value" :value="t.value">
             {{ t.label }}
           </option>
-        </select>
+        </AppSelect>
       </div>
 
       <div class="min-w-0">
@@ -177,18 +185,18 @@ async function addBack() {
         />
       </div>
 
-      <!-- `leading-5` + a transparent border give the button the same box model as
-           the selects (border + py-1.5 + 1.25rem line-height). Without them it is
-           ~8px shorter, and bottom-aligning a shorter control is what made it read
-           as sitting oddly low next to the fields. -->
-      <button
-        type="button"
+      <!-- `py-1.5 leading-5` override AppButton's `xs` size to match the selects'
+           box model (py-1.5 + 1.25rem line-height). Without them it is ~8px
+           shorter, and bottom-aligning a shorter control is what made it read as
+           sitting oddly low next to the fields. -->
+      <AppButton
+        variant="primary"
+        size="xs"
+        label="Prep"
         :disabled="createBack.isPending.value"
-        class="rounded-md border border-transparent bg-primary px-4 py-1.5 font-cinzel text-2xs leading-5 text-primary-foreground disabled:opacity-50"
+        class="px-4 py-1.5 leading-5"
         @click="addBack"
-      >
-        Prep
-      </button>
+      />
     </div>
 
     <!-- The text is one span, not loose nodes: `gap-2` treats every child as a
@@ -230,13 +238,14 @@ async function addBack() {
           >
             recurring
           </span>
-          <button
-            type="button"
-            class="ml-auto text-destructive hover:underline"
+          <AppButton
+            variant="link"
+            tone="danger"
+            size="inline-xs"
+            label="Remove"
+            class="ml-auto hover:underline"
             @click="deleteBack.mutate(back.id)"
-          >
-            Remove
-          </button>
+          />
         </li>
       </ul>
     </div>

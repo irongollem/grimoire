@@ -34,15 +34,15 @@
       <p class="text-body text-muted-foreground italic">
         Read-only reference. Customize to create your own editable copy.
       </p>
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="md"
+        class="shrink-0"
         :disabled="cloning"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+        :icon="IconCopy"
+        :label="cloning ? 'Copying…' : 'Customize'"
         @click="customize"
-      >
-        <IconCopy class="h-3.5 w-3.5" />
-        {{ cloning ? "Copying…" : "Customize" }}
-      </button>
+      />
     </div>
 
     <!-- Top bar (editable monsters only) -->
@@ -60,35 +60,35 @@
       @delete="remove"
     >
       <template #extra-actions>
-        <button
+        <AppButton
           v-if="isAiEnabled"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-primary/40 px-3 py-2 font-cinzel text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
+          variant="tinted"
+          tone="primary"
+          emphasis="outline"
+          size="md"
+          :icon="IconGenerate"
+          label="Generate"
           @click="showGenerateDialog = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate
-        </button>
-        <button
+        />
+        <AppButton
           v-if="props.monster"
-          type="button"
+          variant="outline"
+          fill="muted"
+          size="md"
           :disabled="sendingToScriptorium"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+          :icon="IconScrollText"
+          :label="sendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium'"
           @click="sendToScriptorium"
-        >
-          <IconScrollText class="h-3.5 w-3.5" />
-          {{ sendingToScriptorium ? "Exporting…" : "Send to Scriptorium" }}
-        </button>
-        <button
+        />
+        <AppButton
           v-if="props.monster"
-          type="button"
+          variant="subtle"
+          size="md"
           :disabled="duplicating"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors disabled:opacity-50"
+          :icon="IconCopy"
+          :label="duplicating ? 'Copying…' : 'Duplicate'"
           @click="duplicate"
-        >
-          <IconCopy class="h-3.5 w-3.5" />
-          {{ duplicating ? "Copying…" : "Duplicate" }}
-        </button>
+        />
       </template>
     </EntityEditorActionBar>
 
@@ -133,9 +133,13 @@
           <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <label class="block">
               <span class="field-label">Type</span>
-              <select
+              <AppSelect
                 v-model="form.monster_type"
-                class="field-input w-full capitalize"
+                tone="filled"
+                size="body"
+                weight="normal"
+                block
+                class="capitalize"
               >
                 <option
                   v-for="t in MONSTER_TYPES"
@@ -145,11 +149,11 @@
                 >
                   {{ t }}
                 </option>
-              </select>
+              </AppSelect>
             </label>
             <label class="block">
               <span class="field-label">Size</span>
-              <select v-model="form.size" class="field-input w-full capitalize">
+              <AppSelect v-model="form.size" tone="filled" size="body" weight="normal" block class="capitalize">
                 <option
                   v-for="s in SIZES"
                   :key="s"
@@ -158,11 +162,11 @@
                 >
                   {{ s }}
                 </option>
-              </select>
+              </AppSelect>
             </label>
             <label class="block">
               <span class="field-label">Alignment</span>
-              <select v-model="form.alignment" class="field-input w-full">
+              <AppSelect v-model="form.alignment" tone="filled" size="body" weight="normal" block>
                 <option
                   v-for="a in ALIGNMENTS"
                   :key="a"
@@ -170,22 +174,24 @@
                 >
                   {{ a }}
                 </option>
-              </select>
+              </AppSelect>
             </label>
             <label class="block">
               <span class="field-label">Source</span>
-              <input
+              <AppInput
                 v-model="form.source"
-                class="field-input w-full"
+                tone="filled"
+                size="body"
                 placeholder="Monster Manual"
               />
             </label>
             <CampaignScopeField v-model="form.campaign_id" />
             <label class="block">
               <span class="field-label">Habitat</span>
-              <input
+              <AppInput
                 v-model="form.habitat"
-                class="field-input w-full"
+                tone="filled"
+                size="body"
                 placeholder="Forest, underground…"
               />
             </label>
@@ -251,6 +257,9 @@ import { useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import { IconCopy, IconGenerate, IconScrollText } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import MonsterEditMobile from "@/components/monsters/MonsterEditMobile.vue";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
@@ -572,9 +581,6 @@ async function remove() {
 
 .field-label {
   @apply block text-label-lg font-semibold text-muted-foreground mb-1;
-}
-.field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 .section-heading {
   @apply text-label-lg font-semibold text-muted-foreground uppercase mb-3;

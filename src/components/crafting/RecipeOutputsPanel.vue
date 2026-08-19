@@ -14,20 +14,25 @@
         <span class="flex-1 text-body text-foreground truncate">
           {{ itemById(out.item_id)?.name ?? "Unknown item" }}
         </span>
-        <input
+        <AppInput
           v-model.number="out.quantity"
           type="number"
           min="1"
-          class="w-16 bg-muted border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring text-center"
+          tone="filled"
+          size="body-xs"
+          align="center"
+          :block="false"
+          class="w-16"
         />
         <span class="text-caption text-muted-foreground">×</span>
-        <button
-          type="button"
-          class="text-muted-foreground hover:text-destructive transition-colors"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="inline-xs"
+          :icon="IconDelete"
+          aria-label="Remove output"
           @click="emit('remove', idx)"
-        >
-          <IconDelete class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
 
       <!-- Search -->
@@ -46,16 +51,17 @@
         v-if="search.length > 1"
         class="max-h-40 overflow-y-auto rounded-md border border-border bg-card divide-y divide-border"
       >
-        <button
+        <AppButton
           v-for="item in filteredItems"
           :key="item.id"
-          type="button"
-          class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/40 transition-colors"
+          variant="menu"
+          size="body"
+          block
           @click="emit('add', item.id)"
         >
           <span class="font-cinzel text-xs font-semibold text-foreground flex-1 truncate">{{ item.name }}</span>
           <span class="text-caption-sm text-muted-foreground capitalize shrink-0">{{ item.item_type.replace(/_/g, " ") }}</span>
-        </button>
+        </AppButton>
         <p v-if="filteredItems.length === 0" class="px-3 py-2 text-caption text-muted-foreground italic">
           No items found.
         </p>
@@ -65,6 +71,8 @@
 </template>
 
 <script setup lang="ts">
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { IconDelete, IconSearch } from "@/lib/icons";
 import type { Item } from "@/types/item.types";
 

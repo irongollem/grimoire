@@ -24,13 +24,15 @@
             {{ triggerActionSummary(trig) }}
           </p>
         </div>
-        <button
-          type="button"
-          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="icon-xs"
+          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          :icon="IconClose"
+          aria-label="Remove consequence"
           @click="emit('remove', trig)"
-        >
-          <IconClose class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
 
       <!-- Add trigger form -->
@@ -55,11 +57,13 @@
             <option v-for="obj in objectives" :key="obj.id" :value="obj.id">{{ obj.description }}</option>
           </AppSelect>
           <div class="flex items-center gap-1 col-span-2">
-            <input
+            <AppInput
               v-model.number="newTrigger.offset_days"
               type="number"
               min="0"
-              class="w-16 bg-background border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              size="body-xs"
+              :block="false"
+              class="w-16"
             />
             <span class="text-caption text-muted-foreground">days later →</span>
           </div>
@@ -72,10 +76,11 @@
             <option value="send_broadcast">Send broadcast</option>
           </AppSelect>
           <template v-if="newTrigger.action_type === 'create_calendar_event'">
-            <input
+            <AppInput
               v-model="newTriggerCalTitle"
+              size="body-xs"
               placeholder="Event title…"
-              class="bg-background border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
+              class="col-span-2"
             />
             <AppSelect
               v-model="newTriggerCalType"
@@ -86,10 +91,11 @@
             </AppSelect>
           </template>
           <template v-else>
-            <input
+            <AppInput
               v-model="newTriggerMessage"
+              size="body-xs"
               placeholder="Broadcast message…"
-              class="bg-background border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring col-span-2"
+              class="col-span-2"
             />
           </template>
         </div>
@@ -115,6 +121,7 @@ import { useCreateQuestTrigger } from "@/composables/useQuests";
 import type { QuestObjective } from "@/types/quest.types";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const CALENDAR_EVENT_TYPES = [
   "quest", "world", "campaign", "discovery", "deadline",

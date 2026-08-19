@@ -8,21 +8,21 @@
       </h1>
       <div class="mt-3 flex items-center gap-1 overflow-x-auto pb-1">
         <template v-for="(step, idx) in activeSteps" :key="step.id">
-          <button type="button"
-            class="shrink-0 flex items-center gap-1.5 px-2 py-1 rounded text-label font-semibold transition-colors"
-            :class="wizardStep === idx
-              ? 'bg-primary text-primary-foreground'
-              : idx < wizardStep
-                ? 'text-primary/70 hover:text-primary cursor-pointer'
-                : 'text-muted-foreground/40 cursor-default'"
+          <AppButton
+            variant="ghost"
+            size="xs"
+            class="shrink-0"
+            :active="wizardStep === idx"
             :disabled="idx > wizardStep"
-            @click="idx < wizardStep && (wizardStep = idx)">
+            :class="idx < wizardStep ? 'text-primary/70 hover:text-primary' : ''"
+            @click="idx < wizardStep && (wizardStep = idx)"
+          >
             <span class="w-4 h-4 rounded-full text-2xs flex items-center justify-center shrink-0"
               :class="wizardStep === idx ? 'bg-white/20' : idx < wizardStep ? 'bg-primary/20' : 'bg-muted'">
               {{ idx + 1 }}
             </span>
             {{ step.label }}
-          </button>
+          </AppButton>
           <div v-if="idx < activeSteps.length - 1" class="shrink-0 w-3 h-px bg-border" />
         </template>
       </div>

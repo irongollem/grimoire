@@ -12,13 +12,15 @@
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <h2 class="font-cinzel font-bold text-sm tracking-wide text-foreground">Insert Asset</h2>
-          <button
-            type="button"
-            class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="$emit('close')"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
+          />
         </div>
 
         <!-- Tabs -->
@@ -45,11 +47,12 @@
 
         <!-- Search -->
         <div class="px-4 pt-3 pb-2 shrink-0">
-          <input
+          <AppInput
             v-model="search"
             type="search"
+            tone="filled"
+            size="body"
             placeholder="Filter by name…"
-            class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
 
@@ -70,11 +73,13 @@
           </div>
 
           <div v-else class="space-y-1.5 pt-1">
-            <button
+            <AppButton
               v-for="item in filteredItems"
               :key="item.id"
-              type="button"
-              class="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-border bg-card hover:bg-muted hover:border-primary/30 transition-colors text-left group"
+              variant="subtle"
+              fill="muted"
+              block
+              class="group justify-between gap-3 py-2.5 rounded-lg text-left"
               @click="insertItem(item)"
             >
               <div class="min-w-0">
@@ -106,7 +111,7 @@
                   Insert →
                 </span>
               </div>
-            </button>
+            </AppButton>
           </div>
         </div>
 
@@ -123,6 +128,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { IconClose, IconGenerate, IconLocation, IconMonster, IconParty } from '@/lib/icons';
 import type { Editor } from "@tiptap/core";
 import { useNpcs } from "@/composables/useNpcs";

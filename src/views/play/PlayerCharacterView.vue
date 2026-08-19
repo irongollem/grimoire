@@ -10,12 +10,7 @@
         <p class="text-body text-muted-foreground italic">
           Build your own character sheet, or ask your DM to link you to an existing party member.
         </p>
-        <RouterLink
-          to="/play/character/create"
-          class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-        >
-          Create Character
-        </RouterLink>
+        <AppButton to="/play/character/create" variant="primary" size="md" label="Create Character" />
       </template>
     </div>
 
@@ -73,15 +68,13 @@
 
       <!-- ── Tabs + Export Sheet ──────────────────────────── -->
       <div class="flex items-center gap-3 flex-wrap">
-        <div class="flex flex-wrap rounded-md border border-border overflow-hidden w-fit text-label-lg font-semibold">
-          <button
-            v-for="tab in visibleTabs"
-            :key="tab.id"
-            class="cursor-pointer px-4 py-1.5 transition-colors"
-            :class="activeTab === tab.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="activeTab = tab.id"
-          >{{ tab.label }}</button>
-        </div>
+        <SegmentedControl
+          v-model="activeTab"
+          :options="tabOptions"
+          variant="ghost"
+          size="sm"
+          class="rounded-md border border-border/50 bg-muted/40 p-1"
+        />
         <div v-if="!hidePlayerActions && member" class="flex items-center gap-2 ml-auto">
           <AppButton v-if="!ui.dmPreviewMode" to="/play/champions" variant="subtle" size="sm" label="My Characters" />
           <AppButton :to="{ name: 'play-character-sheet' }" variant="subtle" size="sm" label="Export Sheet" />
@@ -200,17 +193,18 @@
               No eligible forms yet — discover beasts in the Bestiary or ask your DM to pin forms.
             </p>
             <div v-else class="divide-y divide-border">
-              <button
+              <AppButton
                 v-for="m in wildshapeForms"
                 :key="m.id"
-                type="button"
-                class="w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-muted/30"
+                variant="menu"
+                size="body"
+                block
                 @click="previewBeast = m"
               >
                 <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
                 <span class="text-caption-sm md:text-sm text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
                 <span class="text-caption-sm md:text-sm text-muted-foreground shrink-0">AC {{ m.stat_block?.armor_class }}</span>
-              </button>
+              </AppButton>
             </div>
           </template>
         </div>
@@ -232,7 +226,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { RouterLink } from "vue-router";
 import WildshapePreviewLightbox from "@/components/play/WildshapePreviewLightbox.vue";
 import type { WildshapeState } from "@/types/encounter.types";
 import { useAllMonsters } from "@/composables/useMonsters";
@@ -260,6 +253,7 @@ import { hitPointsToMax } from "@/lib/dice/dice";
 import type { PartyMember } from "@/types/party.types";
 import { useRules, usePlayerVisibleRules } from "@/composables/useRules";
 import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import RollToast from "@/components/common/RollToast.vue";
 import type { RollResult } from "@/components/common/RollToast.vue";
@@ -436,6 +430,7 @@ const activeTab = ref<TabId>("skills");
 const visibleTabs = computed(() =>
   ALL_TABS.filter((t) => t.id !== "wildshape" || isDruid.value || !!activeWildshape.value),
 );
+const tabOptions = computed(() => visibleTabs.value.map((t) => ({ value: t.id, label: t.label })));
 
 // ── Ability helpers ────────────────────────────────────────────────────────────
 type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";

@@ -38,14 +38,15 @@
             >
               {{ title }}
             </h2>
-            <button
-              type="button"
-              class="flex size-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+            <AppButton
+              variant="ghost"
+              size="icon-sm"
+              shape="pill"
+              icon-size="lg"
+              :icon="IconClose"
               aria-label="Close"
               @click="open = false"
-            >
-              <IconClose class="size-5" />
-            </button>
+            />
           </div>
 
           <!-- Body -->
@@ -69,6 +70,7 @@
 
 <script setup lang="ts">
 import { IconClose } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 
 const open = defineModel<boolean>("open", { required: true });
 defineProps<{ title?: string }>();

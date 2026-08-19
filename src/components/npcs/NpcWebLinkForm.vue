@@ -2,9 +2,7 @@
   <div class="p-4 space-y-4">
     <div class="flex items-center justify-between gap-2">
       <h2 class="text-label-lg font-bold text-primary uppercase">New Connection</h2>
-      <button type="button" class="text-muted-foreground hover:text-foreground transition-colors" @click="$emit('cancel')">
-        <IconClose class="h-4 w-4" />
-      </button>
+      <AppButton variant="ghost" size="inline-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="emit('cancel')" />
     </div>
 
     <!-- The two nodes -->
@@ -17,9 +15,9 @@
     <!-- Relationship type -->
     <div>
       <label class="field-label">Relationship</label>
-      <select :value="linkType" class="field-input" @change="$emit('update:linkType', ($event.target as HTMLSelectElement).value)">
+      <AppSelect v-model="linkTypeModel" tone="filled" size="body" weight="normal" block>
         <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
-      </select>
+      </AppSelect>
     </div>
 
     <!-- Notes -->
@@ -28,40 +26,39 @@
         Notes
         <span class="font-fell font-normal normal-case text-muted-foreground">(optional)</span>
       </label>
-      <input
-        :value="linkNotes"
-        placeholder="Brief context…"
-        class="field-input"
-        @input="$emit('update:linkNotes', ($event.target as HTMLInputElement).value)"
-      />
+      <AppInput v-model="linkNotesModel" tone="filled" size="body" placeholder="Brief context…" />
     </div>
 
     <!-- Actions -->
     <div class="flex gap-2 pt-1 flex-wrap">
-      <button
-        type="button"
-        class="flex-1 px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors"
-        @click="$emit('cancel')"
-      >Cancel</button>
-      <button
-        type="button"
+      <AppButton variant="subtle" size="sm" class="flex-1" label="Cancel" @click="emit('cancel')" />
+      <AppButton
+        variant="primary"
+        size="sm"
+        class="flex-1"
         :disabled="isSaving"
-        class="flex-1 px-3 py-1.5 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-        @click="$emit('save')"
-      >{{ isSaving ? 'Saving…' : 'Save' }}</button>
-      <button
+        :label="isSaving ? 'Saving…' : 'Save'"
+        @click="emit('save')"
+      />
+      <AppButton
         v-if="canDelete"
-        type="button"
+        variant="destructive"
+        size="sm"
+        block
         :disabled="isSaving"
-        class="w-full px-3 py-1.5 font-cinzel text-xs font-semibold text-destructive border border-destructive/40 rounded-md hover:bg-destructive/10 disabled:opacity-50 transition-colors"
-        @click="$emit('delete')"
-      >Delete connection</button>
+        label="Delete connection"
+        @click="emit('delete')"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { IconClose, IconLinkAlt } from '@/lib/icons';
+import AppButton from '@/components/common/AppButton.vue';
+import AppInput from '@/components/common/AppInput.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 import type { NpcRelationshipType } from '@/types/npc.types';
 
 const {
@@ -82,20 +79,30 @@ const {
   typeOptions: [NpcRelationshipType, string][];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   cancel: [];
   save: [];
   delete: [];
   'update:linkType': [value: string];
   'update:linkNotes': [value: string];
 }>();
+
+// AppSelect/AppInput need a two-way v-model; this component's type/notes are
+// controlled entirely by the parent via props + emit, so a writable computed
+// bridges the two without introducing local state.
+const linkTypeModel = computed<NpcRelationshipType>({
+  get: () => linkType,
+  set: (value) => emit('update:linkType', value),
+});
+
+const linkNotesModel = computed<string>({
+  get: () => linkNotes,
+  set: (value) => emit('update:linkNotes', value),
+});
 </script>
 
 <style scoped>
 @reference "@/assets/main.css";
-.field-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
 .field-label {
   @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }

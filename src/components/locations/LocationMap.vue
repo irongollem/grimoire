@@ -129,8 +129,9 @@
               />
               <AppButton
                 variant="ghost"
+                tone="danger"
                 size="icon-xs"
-                class="shrink-0 hover:text-destructive"
+                class="shrink-0"
                 :icon="IconClose"
                 title="Remove pin"
                 @click.stop="removePin(pin.child_location_id)"

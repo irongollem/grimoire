@@ -43,14 +43,15 @@
       title="No heroes yet"
       :description="isAppAdmin ? 'Add the first hero to the Hall.' : 'The Hall of Heroes is empty.'"
     >
-      <RouterLink
+      <AppButton
         v-if="isAppAdmin"
         to="/hall-of-heroes/new"
-        class="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        Add Hero
-      </RouterLink>
+        variant="primary"
+        size="md"
+        :icon="IconAdd"
+        label="Add Hero"
+        class="mt-4"
+      />
     </EmptyState>
 
     <p v-else-if="!filtered.length" class="py-10 text-center font-fell text-muted-foreground">
@@ -123,21 +124,23 @@
           </button>
 
           <template v-if="isAppAdmin">
-            <RouterLink
+            <AppButton
               :to="`/hall-of-heroes/${hero.id}/edit`"
-              class="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              title="Edit"
-            >
-              <IconEdit class="h-3.5 w-3.5" />
-            </RouterLink>
-            <button
-              type="button"
-              class="rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-              title="Delete"
+              variant="ghost"
+              fill="muted"
+              size="icon-xs"
+              :icon="IconEdit"
+              tooltip="Edit"
+            />
+            <AppButton
+              variant="ghost"
+              fill="tone"
+              tone="danger"
+              size="icon-xs"
+              :icon="IconDelete"
+              tooltip="Delete"
               @click="handleDelete(hero)"
-            >
-              <IconDelete class="h-3.5 w-3.5" />
-            </button>
+            />
           </template>
         </div>
       </div>
@@ -163,6 +166,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

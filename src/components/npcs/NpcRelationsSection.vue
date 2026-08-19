@@ -4,14 +4,15 @@
       <div class="text-heading-sm font-bold text-foreground">
         NPC Connections
       </div>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 px-2.5 py-1 text-label-lg font-semibold border border-border rounded-md hover:bg-muted transition-colors"
+      <AppButton
+        variant="outline"
+        fill="muted"
+        size="sm"
+        :icon="IconAdd"
+        icon-size="xs"
+        label="Add"
         @click="showForm = true"
-      >
-        <IconAdd class="h-3 w-3" />
-        Add
-      </button>
+      />
     </div>
     <div class="gold-divider mb-3" />
 
@@ -32,11 +33,11 @@
         </div>
         <div>
           <label class="field-label">Relationship</label>
-          <select v-model="newType" class="field-input">
+          <AppSelect v-model="newType" tone="filled" size="body" weight="normal" block>
             <option v-for="[k, label] in typeOptions" :key="k" :value="k">
               {{ label }}
             </option>
-          </select>
+          </AppSelect>
         </div>
         <div class="col-span-2">
           <label class="field-label"
@@ -46,29 +47,23 @@
               >(optional)</span
             ></label
           >
-          <input
+          <AppInput
             v-model="newNotes"
+            tone="filled"
+            size="body"
             placeholder="Brief context…"
-            class="field-input"
           />
         </div>
       </div>
       <div class="flex justify-end gap-2">
-        <button
-          type="button"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground border border-border rounded-md hover:text-foreground transition-colors"
-          @click="cancelAdd"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
+        <AppButton variant="subtle" size="sm" label="Cancel" @click="cancelAdd" />
+        <AppButton
+          variant="primary"
+          size="sm"
           :disabled="!newRelatedId || isSaving"
-          class="px-3 py-1.5 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :label="isSaving ? 'Saving…' : 'Add'"
           @click="addRelation"
-        >
-          {{ isSaving ? "Saving…" : "Add" }}
-        </button>
+        />
       </div>
     </div>
 
@@ -113,13 +108,14 @@
         </div>
 
         <!-- Delete -->
-        <button
-          type="button"
-          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="inline-xs"
+          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-all"
+          :icon="IconClose"
           @click="removeRelation(rel.id)"
-        >
-          <IconClose class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
     </div>
   </section>
@@ -128,6 +124,9 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconClose } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import {
   useNpcRelations,
@@ -223,9 +222,6 @@ async function removeRelation(id: string) {
 
 <style scoped>
 @reference "@/assets/main.css";
-.field-input {
-  @apply w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
 .field-label {
   @apply block text-label-lg font-semibold text-muted-foreground mb-1;
 }

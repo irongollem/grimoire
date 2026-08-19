@@ -43,13 +43,16 @@
           <span class="type-badge" :class="combatant.type">{{ combatant.type === 'player' ? 'PC' : combatant.npc_id ? 'NPC' : 'Monster' }}</span>
           <span v-if="wildshape" class="wildshape-row-badge" title="Wildshaping">🐺 {{ wildshape.beast_name }}</span>
           <span v-if="combatant.hp === 0 && combatant.type === 'monster'" class="dead-badge">☠</span>
-          <button
+          <AppButton
             v-if="combatant.surprised"
-            type="button"
-            class="surprised-badge surprised-toggle"
-            title="Surprised — tap to remove"
+            variant="tinted"
+            tone="caution"
+            size="xs"
+            class="ml-1"
+            label="✦ Surprised ×"
+            tooltip="Surprised — tap to remove"
             @click.stop="store.toggleSurprised(combatant.instance_id)"
-          >✦ Surprised ×</button>
+          />
           <button
             v-else-if="!store.started || store.round === 1"
             type="button"
@@ -105,17 +108,20 @@
       class="mc-quick"
       @click.stop
     >
-      <input
+      <AppInput
         v-model.number="quickAmount"
         type="number"
         min="0"
+        size="xs"
+        align="center"
+        :block="false"
+        class="w-14 font-bold"
         placeholder="amt"
-        class="quick-input"
         @keydown.enter="quickDamage"
       />
-      <button type="button" class="quick-btn quick-dmg" @click="quickDamage">Dmg</button>
-      <button type="button" class="quick-btn quick-heal" @click="quickHeal">Heal</button>
-      <button type="button" class="quick-btn quick-temp" @click="quickTemp">+Temp</button>
+      <AppButton variant="tinted" tone="danger" emphasis="outline" size="xs" label="Dmg" @click="quickDamage" />
+      <AppButton variant="tinted" tone="success" emphasis="outline" size="xs" label="Heal" @click="quickHeal" />
+      <AppButton variant="tinted" tone="info" emphasis="outline" size="xs" label="+Temp" @click="quickTemp" />
     </div>
 
     <!-- Row 5: conditions -->
@@ -151,6 +157,8 @@
 
 <script setup lang="ts">
 import { IconHide, IconReveal } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
@@ -247,12 +255,6 @@ function toggleDetail() {
   @apply text-caption-sm text-amber-400 italic ml-1;
 }
 
-.surprised-badge {
-  @apply text-label text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 ml-1;
-}
-.surprised-toggle { cursor: pointer; }
-.surprised-toggle:hover { @apply bg-amber-500/20 border-amber-500/60; }
-
 .surprised-set-btn {
   @apply text-label text-muted-foreground/50 px-1 py-0.5 rounded border border-dashed border-muted-foreground/20 hover:text-amber-500 hover:border-amber-500/40 transition-colors;
 }
@@ -298,41 +300,6 @@ function toggleDetail() {
 }
 .damage-flash.is-damage { @apply text-destructive; }
 .damage-flash.is-heal   { @apply text-green-500; }
-
-/* ── Quick HP panel ─────────────────────────────────────────────────────── */
-.quick-input {
-  width: 3.5rem;
-  background: theme(colors.background);
-  border: 1px solid theme(colors.border);
-  border-radius: 0.25rem;
-  padding: 0.2rem 0.4rem;
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  text-align: center;
-  color: theme(colors.foreground);
-  outline: none;
-}
-.quick-input:focus { border-color: theme(colors.ring); }
-.quick-input::-webkit-inner-spin-button,
-.quick-input::-webkit-outer-spin-button { -webkit-appearance: none; }
-
-.quick-btn {
-  padding: 0.2rem 0.5rem;
-  border-radius: 0.25rem;
-  font-family: var(--font-cinzel, serif);
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  border: 1px solid;
-  transition: background-color 0.15s;
-}
-.quick-dmg  { border-color: theme(colors.rose.500 / 40%); color: theme(colors.rose.500); }
-.quick-dmg:hover  { background: theme(colors.rose.500 / 15%); }
-.quick-heal { border-color: theme(colors.green.500 / 40%); color: theme(colors.green.500); }
-.quick-heal:hover { background: theme(colors.green.500 / 15%); }
-.quick-temp { border-color: theme(colors.sky.400 / 40%); color: theme(colors.sky.400); }
-.quick-temp:hover { background: theme(colors.sky.400 / 15%); }
 
 /* ── Mobile card layout ─────────────────────────────────────────────────── */
 .mc-card {

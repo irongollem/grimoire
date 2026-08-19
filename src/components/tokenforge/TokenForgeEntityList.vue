@@ -15,12 +15,13 @@
           {{ customImageUrl ? 'Change image' : 'Upload image (optional)' }}
           <input type="file" accept="image/*" class="sr-only" @change="emit('custom-image-pick', $event)" />
         </label>
-        <button
-          type="button"
+        <AppButton
+          variant="link"
+          size="inline"
+          label="Use → Token Preview"
           :disabled="!customName.trim()"
-          class="text-label-lg text-primary hover:opacity-80 disabled:opacity-40 transition-opacity text-left"
           @click="emit('apply-custom')"
-        >Use → Token Preview</button>
+        />
       </div>
     </template>
 
@@ -57,6 +58,7 @@
 </template>
 
 <script setup lang="ts">
+import AppButton from "@/components/common/AppButton.vue";
 import { IconUpload } from "@/lib/icons";
 import FocalImage from "@/components/common/FocalImage.vue";
 import type { TokenEntity } from "@/lib/tokenRenderer";

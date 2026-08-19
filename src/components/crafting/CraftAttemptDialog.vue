@@ -16,11 +16,15 @@
               <span v-else-if="!hasProficiency" class="text-gold-400"> · no proficiency</span>
             </p>
           </div>
-          <button
+          <AppButton
             v-if="!attempting"
-            class="text-muted-foreground hover:text-foreground text-xl leading-none"
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="$emit('close')"
-          >✕</button>
+          />
         </div>
 
         <div class="px-5 py-4 flex flex-col gap-4">
@@ -155,29 +159,29 @@
         </div>
 
         <div class="flex justify-end gap-2 px-5 py-4 border-t border-border">
-          <button
+          <AppButton
             v-if="!result"
-            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            variant="subtle"
+            size="md"
+            label="Cancel"
             @click="$emit('close')"
-          >
-            Cancel
-          </button>
-          <button
+          />
+          <AppButton
             v-if="!result"
+            variant="primary"
+            size="md"
+            :icon="IconDiceRoll"
+            :label="attempting ? 'Rolling…' : 'Attempt Craft'"
             :disabled="!canAttempt || attempting"
-            class="inline-flex items-center gap-1.5 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
             @click="attempt"
-          >
-            <IconDiceRoll class="h-3.5 w-3.5" />
-            {{ attempting ? "Rolling…" : "Attempt Craft" }}
-          </button>
-          <button
+          />
+          <AppButton
             v-if="result"
-            class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+            variant="primary"
+            size="md"
+            label="Done"
             @click="$emit('done', result)"
-          >
-            Done
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -186,7 +190,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconCheckCircle, IconCloseCircle, IconDiceRoll, IconWarning } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import { IconCheckCircle, IconClose, IconCloseCircle, IconDiceRoll, IconWarning } from '@/lib/icons';
 import { getDiscipline } from "@/lib/crafting-disciplines";
 import { useAttemptCraft } from "@/composables/useCrafting";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";

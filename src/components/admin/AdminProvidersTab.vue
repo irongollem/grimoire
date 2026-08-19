@@ -54,13 +54,13 @@
           <h3 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">
             {{ PROVIDER_LABELS[row.provider] ?? row.provider }}
           </h3>
-          <button
-            class="px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          <AppButton
+            variant="primary"
+            size="sm"
             :disabled="providerSaving[row.provider]"
+            :label="providerSaving[row.provider] ? 'Saving…' : 'Save config'"
             @click="saveProvider(row.provider)"
-          >
-            {{ providerSaving[row.provider] ? 'Saving…' : 'Save config' }}
-          </button>
+          />
         </div>
 
         <!-- Save error -- e.g. the DB's "at most one embedding vendor" unique index
@@ -113,16 +113,16 @@
               <div v-if="IMAGE_QUALITY_OPTIONS[row.provider]" class="space-y-1">
                 <label class="block text-label text-muted-foreground">Quality</label>
                 <div class="flex gap-1">
-                  <button
+                  <AppButton
                     v-for="opt in IMAGE_QUALITY_OPTIONS[row.provider]"
                     :key="opt.value"
-                    type="button"
-                    class="flex-1 px-1.5 py-1 text-label font-semibold rounded border transition-colors"
-                    :class="draftProviders[row.provider]?.image_quality === opt.value
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background text-muted-foreground border-border hover:text-foreground'"
+                    variant="subtle"
+                    size="xs"
+                    class="flex-1"
+                    :active="draftProviders[row.provider]?.image_quality === opt.value"
+                    :label="opt.label"
                     @click="draftProviders[row.provider].image_quality = opt.value"
-                  >{{ opt.label }}</button>
+                  />
                 </div>
                 <p class="text-caption-sm text-muted-foreground/60 italic">Higher = more output tokens = higher real cost.</p>
               </div>
@@ -261,13 +261,14 @@
               </span>
 
               <!-- Save (marks verified) -->
-              <button
-                class="px-2 py-0.5 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity shrink-0"
+              <AppButton
+                variant="primary"
+                size="xs"
+                class="shrink-0"
                 :disabled="modelPricingSaving[m.model]"
+                :label="modelPricingSaving[m.model] ? '…' : 'Save'"
                 @click="saveModelPricing(m.model, row.provider, m.model_type)"
-              >
-                {{ modelPricingSaving[m.model] ? '…' : 'Save' }}
-              </button>
+              />
             </div>
           </div>
         </div>
@@ -281,6 +282,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { useAdminKeys, PROVIDERS } from "@/composables/useAdminKeys";
 import type { KeyProvider } from "@/composables/useAdminKeys";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/useAdminProviders";

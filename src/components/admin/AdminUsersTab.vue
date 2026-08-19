@@ -30,12 +30,8 @@
           </p>
         </div>
         <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <span v-if="user.banned" class="text-label font-semibold px-2 py-0.5 rounded border border-destructive/50 text-destructive">
-            Locked
-          </span>
-          <span v-else-if="user.suspended_at" class="text-label font-semibold px-2 py-0.5 rounded border border-amber-500/50 text-amber-400">
-            Frozen
-          </span>
+          <AppButton v-if="user.banned" as="span" variant="tinted" size="xs" tone="danger" label="Locked" />
+          <AppButton v-else-if="user.suspended_at" as="span" variant="tinted" size="xs" tone="caution" label="Frozen" />
           <span class="text-label font-semibold px-2 py-0.5 rounded border"
             :class="planBadgeClass(user.plan_id)">
             {{ user.plan_id }}

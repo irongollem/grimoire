@@ -9,11 +9,12 @@
     </div>
     <AppInput v-model="search" placeholder="Search quest or beat…" autofocus />
     <div class="max-h-80 space-y-1 overflow-y-auto">
-      <button
+      <AppButton
         v-for="target in targets"
         :key="target.beat_id"
-        type="button"
-        class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left hover:bg-muted"
+        variant="menu"
+        size="body"
+        block
         @click="selected = target"
       >
         <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ groupLabel(target.group) }}</span>
@@ -22,7 +23,7 @@
           <span class="block truncate text-caption text-muted-foreground">{{ target.quest_title }}</span>
         </span>
         <span v-if="target.recentRank < 999" class="text-label text-primary">Recent</span>
-      </button>
+      </AppButton>
       <p v-if="!targets.length" class="p-3 text-caption italic text-muted-foreground">No eligible beats match.</p>
     </div>
     <div v-if="selected" class="space-y-2 rounded-lg border border-border bg-background p-3">

@@ -46,14 +46,16 @@
 
           <!-- Footer -->
           <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
-            <button
+            <AppButton
               v-if="dialog.type === 'confirm'"
-              type="button"
-              class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+              variant="subtle"
+              size="sm"
+              label="Cancel"
               @click="cancel"
-            >
-              Cancel
-            </button>
+            />
+            <!-- Solid-fill non-gold CTA (`bg-destructive text-destructive-foreground`)
+                 when danger — no AppButton variant draws a solid destructive fill
+                 (`destructive` is outlined only), so this stays native. See #648. -->
             <button
               type="button"
               class="px-4 py-1.5 rounded-md text-label-lg font-semibold transition-colors"
@@ -76,6 +78,7 @@
 <script setup lang="ts">
 import { IconInfo, IconWarning } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
+import AppButton from "@/components/common/AppButton.vue";
 
 const { dialog, _resolve } = useConfirm();
 

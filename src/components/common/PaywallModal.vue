@@ -32,13 +32,15 @@
                 </template>
               </p>
             </div>
-            <button
-              class="text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-0.5"
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              icon-size="md"
+              :icon="IconClose"
+              class="shrink-0 mt-0.5"
               aria-label="Close"
               @click="close"
-            >
-              <IconClose class="h-4 w-4" />
-            </button>
+            />
           </div>
 
           <!-- Pro benefits -->
@@ -75,6 +77,8 @@
 
           <!-- Actions -->
           <div class="flex items-center gap-3 px-5 pb-5">
+            <!-- Solid-fill non-gold CTA (`bg-amber-500 text-black`) — no AppButton
+                 variant draws this fill/text pair, so it stays native. See #648. -->
             <button
               type="button"
               class="flex-1 px-4 py-2 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2"
@@ -82,13 +86,7 @@
             >
               Upgrade to Pro
             </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-              @click="close"
-            >
-              Maybe later
-            </button>
+            <AppButton variant="subtle" size="md" label="Maybe later" @click="close" />
           </div>
         </div>
       </div>
@@ -100,6 +98,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconClose, IconDM } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useQuota } from "@/composables/useQuota";
 import { usePlan } from "@/composables/usePlan";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";

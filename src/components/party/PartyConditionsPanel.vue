@@ -30,18 +30,19 @@
         v-model="curseInputText"
         size="xs"
         tone="bare"
+        shape="pill"
         placeholder="Curse name…"
-        class="rounded-full border border-violet-500/50 bg-violet-500/10 text-violet-400 placeholder:text-violet-400/40 focus:ring-0 w-32"
+        class="border border-violet-500/50 bg-violet-500/10 text-violet-400 placeholder:text-violet-400/40 focus:ring-0 w-32"
         @keydown.enter.prevent="addCurse"
         @keydown.escape="curseInputOpen = false"
       />
       <AppButton
         variant="tinted"
         size="xs"
+        shape="pill"
         label="Add"
         tone="arcane"
         emphasis="outline"
-        class="rounded-full"
         @click="addCurse"
       />
     </template>
@@ -50,9 +51,11 @@
       <AppButton
         variant="subtle"
         size="xs"
+        shape="pill"
+        tone="primary"
         :icon="IconAdd"
         label="Condition"
-        class="rounded-full border-dashed border-muted-foreground/40 hover:text-primary"
+        class="border-dashed border-muted-foreground/40"
         @click="toggleDropdown"
       />
       <div v-if="conditionOpen" class="fixed inset-0 z-10" @click="conditionOpen = false" />
@@ -61,14 +64,16 @@
         class="absolute left-0 z-20 w-48 rounded-lg border border-border bg-card shadow-lg p-1"
         :class="conditionOpenUp ? 'bottom-full mb-1' : 'top-full mt-1'"
       >
-        <button
+        <AppButton
           v-for="cond in availableConditions"
           :key="cond"
-          type="button"
-          class="w-full text-left px-2 py-1 rounded font-cinzel text-xs text-foreground hover:bg-muted transition-colors"
-          :title="getConditionDescription(cond, ruleset)"
+          variant="menu"
+          size="xs"
+          block
+          :tooltip="getConditionDescription(cond, ruleset)"
+          :label="cond"
           @click="addCondition(cond)"
-        >{{ cond }}</button>
+        />
         <div class="border-t border-border mt-1 pt-1">
           <button
             type="button"
