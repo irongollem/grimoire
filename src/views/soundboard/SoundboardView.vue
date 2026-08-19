@@ -167,7 +167,10 @@
          chat's pattern: in-flow while open, so it pushes the grid left rather
          than covering it, and gone entirely while closed. The toggle lives in
          the page head. -->
-    <div class="mt-3 flex min-w-0 items-start gap-4">
+    <!-- No `gap` between the board and the rail: the gap would pop into
+         existence the instant the rail mounts, ahead of the panel it belongs to.
+         It is the rail's own padding instead, so it opens with everything else. -->
+    <div class="mt-3 flex min-w-0 items-start">
       <div class="min-w-0 flex-1">
 
     <!-- One panel, filtered by type — scenes and playlists are the same table
@@ -275,31 +278,40 @@
       <!-- Mixer — the same component the floating widget uses, so the two
            soundboard surfaces can never drift apart. Desktop only: below lg
            the floating widget is the mixer surface. -->
-      <aside
-        v-if="ui.soundboardMixerOpen"
-        class="sticky top-0 hidden w-72 shrink-0 rounded-lg border border-border bg-card lg:block"
-        aria-label="Mixer"
-      >
-        <!-- No Stop All here: it has exactly one home, the widget header, which
-             follows the DM everywhere including this page. Two panic buttons
-             for the same act is how one of them drifts. -->
-        <div class="flex items-center gap-2 border-b border-border/60 px-3 py-2">
-          <h2 class="flex-1 font-cinzel text-2xs font-bold tracking-[0.16em] text-gold-500 uppercase">
-            Mixer
-          </h2>
-          <button
-            type="button"
-            class="text-muted-foreground transition-colors hover:text-foreground"
-            title="Close the mixer"
-            @click="ui.soundboardMixerOpen = false"
-          >
-            <IconClose class="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <div class="px-3 py-2">
-          <SoundboardMixer />
-        </div>
-      </aside>
+      <Transition v-bind="railTransition()">
+        <aside
+          v-if="ui.soundboardMixerOpen"
+          class="sticky top-0 hidden shrink-0 pl-4 lg:block"
+          aria-label="Mixer"
+        >
+          <!-- The card is a fixed-width child of the rail, not the rail itself.
+               The rail is clipped as it opens, so a full-width card would reflow
+               to the shrinking box and squeeze the faders shut; at a fixed width
+               it holds its shape and slides out from behind the page edge. -->
+          <div class="w-72 rounded-lg border border-border bg-card">
+            <!-- No Stop All here: it has exactly one home, the widget header, which
+                 follows the DM everywhere including this page. Two panic buttons
+                 for the same act is how one of them drifts. -->
+            <div class="flex items-center gap-2 border-b border-border/60 px-3 py-2">
+              <h2 class="flex-1 font-cinzel text-2xs font-bold tracking-[0.16em] text-gold-500 uppercase">
+                Mixer
+              </h2>
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                :icon="IconClose"
+                icon-size="sm"
+                aria-label="Close the mixer"
+                tooltip="Close the mixer"
+                @click="ui.soundboardMixerOpen = false"
+              />
+            </div>
+            <div class="px-3 py-2">
+              <SoundboardMixer />
+            </div>
+          </div>
+        </aside>
+      </Transition>
     </div>
     <BoardSettingsDialog
       :open="ui.soundboardSettingsOpen"
@@ -314,6 +326,7 @@ import { IconAdd, IconClose, IconDrag, IconList, IconListOrdered, IconWind, Icon
 import { VueDraggable } from "vue-draggable-plus";
 import { useSounds, useDeleteSound, useReorderSounds, useBulkAssignToPage, useMoveSound } from "@/composables/useSounds";
 import { useSoundboardPages, useCreateSoundboardPage } from "@/composables/useSoundboardPages";
+import { railTransition } from "@/lib/motion";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useAuthStore } from "@/stores/auth";

@@ -1,11 +1,18 @@
 <template>
   <!-- ── Side panel (md+): part of document flow, squashes content ── -->
-  <Transition name="side-panel">
+  <Transition v-bind="railTransition()">
     <aside
       v-if="ui.chatOpen"
-      class="hidden md:flex flex-col w-80 shrink-0 border-l border-border bg-card"
+      class="hidden w-80 shrink-0 md:flex"
       :class="contained ? 'h-full min-h-0' : 'sticky top-0 h-dvh'"
     >
+      <!--
+        Fixed width, so the panel slides out from the page edge rather than
+        rewrapping every message while the rail opens. The border and background
+        sit here rather than on the rail for the same reason: chrome that stays
+        behind while its contents travel reads as two things moving, not one.
+      -->
+      <div class="flex w-80 shrink-0 flex-col border-l border-border bg-card">
       <ChatPanelContent
         :messages="messages"
         :loading="loading"
@@ -32,6 +39,7 @@
         @load-older="loadOlder"
         @close="ui.chatOpen = false"
       />
+      </div>
     </aside>
   </Transition>
 
@@ -99,6 +107,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { IconMessage } from '@/lib/icons';
+import { railTransition } from "@/lib/motion";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
@@ -461,19 +470,6 @@ async function handleDeleteAll() {
 </script>
 
 <style scoped>
-.side-panel-enter-active,
-.side-panel-leave-active {
-  transition:
-    width 0.2s ease,
-    opacity 0.2s ease;
-  overflow: hidden;
-}
-.side-panel-enter-from,
-.side-panel-leave-to {
-  width: 0;
-  opacity: 0;
-}
-
 .tab-fade-enter-active,
 .tab-fade-leave-active {
   transition:

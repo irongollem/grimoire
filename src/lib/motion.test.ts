@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { drawerKeyframes, drawerTransition, originTransform, REST_TRANSFORM } from "./motion";
+import { drawerTransition, railTransition, revealKeyframes, originTransform, REST_TRANSFORM } from "./motion";
 
 const PANEL = { top: 100, left: 200, width: 400, height: 300 };
 
@@ -27,17 +27,17 @@ describe("originTransform", () => {
   });
 });
 
-const DRAWER = {
-  height: 240,
-  paddingTop: "6px",
-  paddingBottom: "12px",
-  borderTopWidth: "1px",
-  borderBottomWidth: "0px",
+const BOX = {
+  size: 240,
+  startPadding: "6px",
+  endPadding: "12px",
+  startBorder: "1px",
+  endBorder: "0px",
 };
 
-describe("drawerKeyframes", () => {
-  it("travels between a zero box and the measured one", () => {
-    const [shut, open] = drawerKeyframes(DRAWER);
+describe("revealKeyframes", () => {
+  it("travels between a zero box and the measured one, on the block axis", () => {
+    const [shut, open] = revealKeyframes("block", BOX);
     expect(shut).toEqual({
       height: "0px",
       paddingTop: "0px",
@@ -56,28 +56,42 @@ describe("drawerKeyframes", () => {
     });
   });
 
-  it("collapses padding and borders too, not just height", () => {
-    // Left at rest, a padded drawer shuts onto a stub of empty card and an
+  it("drives width and the horizontal edges on the inline axis", () => {
+    const [shut, open] = revealKeyframes("inline", BOX);
+    expect(Object.keys(shut).sort()).toEqual(
+      ["borderLeftWidth", "borderRightWidth", "opacity", "paddingLeft", "paddingRight", "width"],
+    );
+    expect(open.width).toBe("240px");
+    expect(open.paddingLeft).toBe("6px");
+    expect(open.borderLeftWidth).toBe("1px");
+    // Nothing vertical: a rail that also collapsed its height would fold away
+    // upward on its way in.
+    expect(open.height).toBeUndefined();
+  });
+
+  it("collapses padding and borders too, not just the size", () => {
+    // Left at rest, a padded panel shuts onto a stub of empty card and an
     // accordion's header rule is left hanging over nothing.
-    const [shut] = drawerKeyframes({ ...DRAWER, paddingTop: "1rem", paddingBottom: "1rem" });
+    const [shut] = revealKeyframes("block", { ...BOX, startPadding: "1rem", endPadding: "1rem" });
     expect(shut.paddingTop).toBe("0px");
     expect(shut.paddingBottom).toBe("0px");
     expect(shut.borderTopWidth).toBe("0px");
   });
 });
 
-describe("drawerTransition", () => {
+describe("drawerTransition / railTransition", () => {
   it("hands control back immediately where Web Animations is unavailable", () => {
-    // jsdom has no `animate`, which is also the reduced-motion path: the drawer
+    // jsdom has no `animate`, which is also the reduced-motion path: the panel
     // opens, it just does not travel. Vue still has to be told the transition ended.
-    const hooks = drawerTransition();
-    const el = document.createElement("div");
-    const entered = vi.fn();
-    const left = vi.fn();
-    hooks.onEnter(el, entered);
-    hooks.onLeave(el, left);
-    expect(entered).toHaveBeenCalledOnce();
-    expect(left).toHaveBeenCalledOnce();
-    expect(hooks.css).toBe(false);
+    for (const hooks of [drawerTransition(), railTransition()]) {
+      const el = document.createElement("div");
+      const entered = vi.fn();
+      const left = vi.fn();
+      hooks.onEnter(el, entered);
+      hooks.onLeave(el, left);
+      expect(entered).toHaveBeenCalledOnce();
+      expect(left).toHaveBeenCalledOnce();
+      expect(hooks.css).toBe(false);
+    }
   });
 });

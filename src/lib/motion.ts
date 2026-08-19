@@ -69,44 +69,59 @@ export function whenSettled(animations: Animation | Animation[], done: () => voi
 }
 
 /** A drawer is a disclosure, not a reveal — it should feel like it just opened. */
-const DRAWER_MS = 200;
+const REVEAL_MS = 200;
 
-/** The resting box a drawer opens to, measured while it is in the DOM. */
-export interface DrawerBox {
-  /** Border-box height: `scrollHeight` (content + padding) plus the vertical borders. */
-  height: number;
-  paddingTop: string;
-  paddingBottom: string;
-  borderTopWidth: string;
-  borderBottomWidth: string;
+/**
+ * Which way a panel opens. `block` is a drawer folding down from a header;
+ * `inline` is a rail arriving from the side of the page.
+ */
+export type RevealAxis = "block" | "inline";
+
+/** The resting box a panel opens to, measured while it is in the DOM. */
+export interface RevealBox {
+  /** Border-box extent along the axis: the scroll size plus both borders. */
+  size: number;
+  /** Top/left, then bottom/right — the two edges the axis travels between. */
+  startPadding: string;
+  endPadding: string;
+  startBorder: string;
+  endBorder: string;
+}
+
+/** The CSS properties an axis collapses, in `[size, padding×2, border×2]` order. */
+function axisProps(axis: RevealAxis): [string, string, string, string, string] {
+  return axis === "block"
+    ? ["height", "paddingTop", "paddingBottom", "borderTopWidth", "borderBottomWidth"]
+    : ["width", "paddingLeft", "paddingRight", "borderLeftWidth", "borderRightWidth"];
 }
 
 /**
- * The two ends of a drawer's travel — collapsed first, open second.
+ * The two ends of a panel's travel — collapsed first, open second.
  *
- * `height: auto` cannot be animated, so a drawer has to be measured and then
- * driven between two explicit boxes. Padding and borders travel with the height
- * because they have to: left at their resting values, a drawer with vertical
- * padding never reaches zero and closes onto a stub of empty card, and one with
- * a top rule — the common accordion shape, a line under the header — leaves that
- * line hanging when there is nothing under it.
+ * `height: auto` cannot be animated (nor can `width: auto`), so a panel has to be
+ * measured and then driven between two explicit boxes. Padding and borders
+ * travel with the size because they have to: left at their resting values, a
+ * padded panel shuts onto a stub of empty card, and one with an edge rule — the
+ * common shapes, a line under an accordion header or down the side of a rail —
+ * leaves that line hanging when there is nothing behind it.
  */
-export function drawerKeyframes(box: DrawerBox): [Keyframe, Keyframe] {
+export function revealKeyframes(axis: RevealAxis, box: RevealBox): [Keyframe, Keyframe] {
+  const [size, startPad, endPad, startBorder, endBorder] = axisProps(axis);
   return [
     {
-      height: "0px",
-      paddingTop: "0px",
-      paddingBottom: "0px",
-      borderTopWidth: "0px",
-      borderBottomWidth: "0px",
+      [size]: "0px",
+      [startPad]: "0px",
+      [endPad]: "0px",
+      [startBorder]: "0px",
+      [endBorder]: "0px",
       opacity: 0,
     },
     {
-      height: `${box.height}px`,
-      paddingTop: box.paddingTop,
-      paddingBottom: box.paddingBottom,
-      borderTopWidth: box.borderTopWidth,
-      borderBottomWidth: box.borderBottomWidth,
+      [size]: `${box.size}px`,
+      [startPad]: box.startPadding,
+      [endPad]: box.endPadding,
+      [startBorder]: box.startBorder,
+      [endBorder]: box.endBorder,
       opacity: 1,
     },
   ];
@@ -117,19 +132,7 @@ function px(value: string): number {
   return Number.parseFloat(value) || 0;
 }
 
-/**
- * Transition hooks for a drawer: `<Transition v-bind="drawerTransition()">`.
- *
- * Pair it with `v-show`, not `v-if`. A drawer's contents are usually live — a
- * fader mid-drag, a field mid-edit — and `v-if` throws that away and rebuilds it
- * on every open. Vue clears `display` before the enter hook runs, so the panel
- * can still be measured.
- *
- * The element it wraps must be a single node owning its own padding and borders
- * — both collapse with the height, so the rule under an accordion header goes
- * with the drawer rather than being left behind over nothing.
- */
-export function drawerTransition(duration = DRAWER_MS) {
+function revealTransition(axis: RevealAxis, duration: number) {
   function run(el: Element, closing: boolean, done: () => void) {
     const node = el as HTMLElement;
     if (!canAnimate(node)) {
@@ -137,18 +140,20 @@ export function drawerTransition(duration = DRAWER_MS) {
       return;
     }
     const cs = getComputedStyle(node);
-    const [shut, open] = drawerKeyframes({
-      // `scrollHeight` counts content and padding but not borders, and every box
-      // in this app is border-box — so a bordered drawer measured without them
-      // opens a hairline short and clips its own last row.
-      height: node.scrollHeight + px(cs.borderTopWidth) + px(cs.borderBottomWidth),
-      paddingTop: cs.paddingTop,
-      paddingBottom: cs.paddingBottom,
-      borderTopWidth: cs.borderTopWidth,
-      borderBottomWidth: cs.borderBottomWidth,
+    const [, startPad, endPad, startBorder, endBorder] = axisProps(axis);
+    // `scrollWidth`/`scrollHeight` count content and padding but not borders, and
+    // every box in this app is border-box — so a bordered panel measured without
+    // them opens a hairline short and clips its own last row.
+    const scroll = axis === "block" ? node.scrollHeight : node.scrollWidth;
+    const [shut, open] = revealKeyframes(axis, {
+      size: scroll + px(cs[startBorder as "borderTopWidth"]) + px(cs[endBorder as "borderTopWidth"]),
+      startPadding: cs[startPad as "paddingTop"],
+      endPadding: cs[endPad as "paddingTop"],
+      startBorder: cs[startBorder as "borderTopWidth"],
+      endBorder: cs[endBorder as "borderTopWidth"],
     });
     // Clipped while it travels, or the contents hang out of the shrinking box.
-    // Restored rather than blanked: the drawer may want its own overflow open.
+    // Restored rather than blanked: the panel may want its own overflow open.
     const overflow = node.style.overflow;
     node.style.overflow = "hidden";
     const finish = () => {
@@ -169,4 +174,36 @@ export function drawerTransition(duration = DRAWER_MS) {
     onEnter: (el: Element, done: () => void) => run(el, false, done),
     onLeave: (el: Element, done: () => void) => run(el, true, done),
   };
+}
+
+/**
+ * Transition hooks for a drawer — a block that opens downward to whatever height
+ * its content needs. `<Transition v-bind="drawerTransition()">`.
+ *
+ * Prefer `v-show` over `v-if`. A drawer's contents are usually live — a fader
+ * mid-drag, a field mid-edit — and `v-if` throws that away and rebuilds it on
+ * every open. Vue clears `display` before the enter hook runs, so the panel can
+ * still be measured.
+ *
+ * The element it wraps must be a single node owning its own padding and borders:
+ * both collapse with the height, so the rule under an accordion header goes with
+ * the drawer rather than being left over nothing.
+ */
+export function drawerTransition(duration = REVEAL_MS) {
+  return revealTransition("block", duration);
+}
+
+/**
+ * Transition hooks for a rail — an in-flow side panel that opens horizontally,
+ * pushing the page over rather than covering it. `<Transition v-bind="railTransition()">`.
+ *
+ * Give the rail a **fixed-width child** and let the rail itself size to it. The
+ * rail is clipped while it travels, so a child that is `w-full` reflows to the
+ * shrinking box — sliders squeezing, text rewrapping — whereas a fixed child
+ * holds its shape and simply slides out from behind the page edge, which is what
+ * "slides in from the right" means. Put the border, radius and background on
+ * that child too, or the chrome travels without its contents.
+ */
+export function railTransition(duration = REVEAL_MS) {
+  return revealTransition("inline", duration);
 }

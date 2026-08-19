@@ -114,11 +114,11 @@
       size="sm"
       :icon="IconAdd"
       :tooltip="canCreatePage ? 'Add page' : 'Pro feature — upgrade to create multiple soundboard pages'"
-      class="shrink-0 border-dashed relative"
+      class="shrink-0 border-dashed"
       @click="addPage"
     >
       Add Page
-      <span v-if="!canCreatePage" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
+      <ProBadge v-if="!canCreatePage" />
     </AppButton>
   </div>
 
@@ -131,6 +131,7 @@ import type { ComponentPublicInstance } from "vue";
 import { IconAdd, IconChevronLeft, IconChevronRight, IconClose, IconDrag } from '@/lib/icons';
 import { VueDraggable } from "vue-draggable-plus";
 import AppButton from "@/components/common/AppButton.vue";
+import ProBadge from "@/components/common/ProBadge.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import {
   useCreateSoundboardPage,

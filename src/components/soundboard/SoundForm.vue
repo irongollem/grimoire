@@ -59,13 +59,13 @@
           size="sm"
           :tooltip="isPro ? undefined : 'Pro feature — upgrade to upload your own audio files'"
           :class="[
-            'flex-1 relative',
+            'flex-1',
             activeSourceTab !== 'upload' && !isPro ? 'text-muted-foreground/40 cursor-not-allowed' : '',
           ]"
           @click="isPro ? onUploadTabClick() : undefined"
         >
           Upload
-          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
+          <ProBadge v-if="!isPro" />
         </AppButton>
         <AppButton
           v-if="spotifyStore.isEnabled"
@@ -85,13 +85,13 @@
           size="sm"
           :tooltip="isPro ? undefined : 'Pro feature — upgrade to generate AI music'"
           :class="[
-            'flex-1 relative',
+            'flex-1',
             activeSourceTab !== 'generate' && !isPro ? 'text-muted-foreground/40 cursor-not-allowed' : '',
           ]"
           @click="isPro ? (activeSourceTab = 'generate') : undefined"
         >
           Generate
-          <span v-if="!isPro" class="absolute -top-1.5 -right-1.5 px-1 rounded text-2xs font-cinzel bg-amber-500 text-black leading-4">PRO</span>
+          <ProBadge v-if="!isPro" />
         </AppButton>
         <AppButton
           :variant="activeSourceTab === 'browse' ? 'tinted' : 'subtle'"
@@ -272,6 +272,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/common/AppButton.vue";
+import ProBadge from "@/components/common/ProBadge.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
