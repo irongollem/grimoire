@@ -42,10 +42,10 @@
       size="icon-xs"
       tooltip="Drop to chat"
       class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+      :icon="IconArrowUp"
+      icon-size="xs"
       @click="$emit('drop-to-chat', item)"
-    >
-      <template #icon><IconArrowUp class="h-3 w-3" /></template>
-    </AppButton>
+    />
 
     <!-- Split stack — always rendered for consistent row width -->
     <AppButton
@@ -56,10 +56,10 @@
       tooltip="Split stack"
       :disabled="item.quantity <= 1"
       :class="item.quantity > 1 ? '[@media(hover:hover)]:opacity-0 group-hover:opacity-100' : 'invisible'"
+      :icon="IconScissors"
+      icon-size="xs"
       @click="$emit('split-stack', item)"
-    >
-      <template #icon><IconScissors class="h-3 w-3" /></template>
-    </AppButton>
+    />
 
     <!-- List for sale -->
     <AppButton
@@ -70,10 +70,10 @@
       size="icon-xs"
       tooltip="List for sale"
       class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+      :icon="IconShop"
+      icon-size="xs"
       @click="$emit('sell-item', item)"
-    >
-      <template #icon><IconShop class="h-3 w-3" /></template>
-    </AppButton>
+    />
 
     <!-- Remove -->
     <AppButton
@@ -83,10 +83,10 @@
       size="icon-xs"
       tooltip="Remove"
       class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+      :icon="IconDelete"
+      icon-size="xs"
       @click="$emit('remove', item.id)"
-    >
-      <template #icon><IconDelete class="h-3 w-3" /></template>
-    </AppButton>
+    />
   </div>
 </template>
 

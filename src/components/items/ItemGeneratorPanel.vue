@@ -19,9 +19,7 @@
         <h2 class="text-heading-sm font-semibold text-foreground">
           Item Generator
         </h2>
-        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" @click="ui.itemGeneratorOpen = false">
-          <template #icon><IconClose class="h-5 w-5" /></template>
-        </AppButton>
+        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" :icon="IconClose" icon-size="lg" @click="ui.itemGeneratorOpen = false" />
       </div>
 
       <!-- Body -->

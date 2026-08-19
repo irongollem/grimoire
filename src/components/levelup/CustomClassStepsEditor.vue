@@ -2,9 +2,7 @@
   <section class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Wizard Steps</h2>
-      <AppButton variant="outline" size="xs" label="Add step" @click="addStep">
-        <template #icon><IconAdd class="h-3 w-3" /></template>
-      </AppButton>
+      <AppButton variant="outline" size="xs" label="Add step" :icon="IconAdd" icon-size="xs" @click="addStep" />
     </div>
     <p class="text-body text-muted-foreground">
       Steps shown to the player in the level-up wizard (e.g. choose a fighting style at level 1).

@@ -19,10 +19,10 @@
               size="icon-xs"
               class="text-muted-foreground/40"
               tooltip="Delete attack"
+              :icon="IconDelete"
+              icon-size="xs"
               @click="removeAttack(attack.id)"
-            >
-              <template #icon><IconDelete class="h-3 w-3" /></template>
-            </AppButton>
+            />
           </div>
         </div>
         <div class="flex flex-wrap gap-2 items-center">

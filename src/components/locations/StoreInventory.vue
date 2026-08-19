@@ -209,10 +209,10 @@
             variant="ghost"
             size="icon-xs"
             class="ml-1 shrink-0"
+            :icon="IconClose"
+            icon-size="md"
             @click="selected = null"
-          >
-            <template #icon><IconClose class="h-4 w-4" /></template>
-          </AppButton>
+          />
         </div>
         <div class="flex-1 overflow-y-auto px-4 py-4">
           <ItemSheet :item="selected.item" :price-override="selected.price_override" />

@@ -104,81 +104,77 @@
     <!-- Controls row -->
     <div class="flex items-center gap-1.5">
       <!-- Not active: Play -->
-      <button
+      <AppButton
         v-if="!isActive"
-        class="flex items-center gap-1.5 flex-1 justify-center py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
-        :class="playlist.playlist_type === 'music'
-          ? 'border-gold-500/30 text-gold-400 hover:bg-gold-500/10'
-          : 'border-green-500/30 text-green-400 hover:bg-green-500/10'"
+        variant="tinted"
+        :tone="playlist.playlist_type === 'music' ? 'primary' : 'success'"
+        emphasis="outline"
+        size="sm"
+        class="flex-1"
+        :icon="IconPlay"
+        label="Play"
         :disabled="tracksLoading || trackCount === 0"
-        title="Play"
         @click="togglePlay"
-      >
-        <IconPlay class="h-3.5 w-3.5" />
-        Play
-      </button>
+      />
 
       <!-- Active: Pause / Resume + Stop -->
       <template v-else>
-        <button
-          class="flex items-center gap-1.5 flex-1 justify-center py-1.5 rounded-md border text-xs font-cinzel tracking-wide transition-colors"
-          :class="isPaused
-            ? (playlist.playlist_type === 'music'
-                ? 'border-gold-500/30 text-gold-400 hover:bg-gold-500/10'
-                : 'border-green-500/30 text-green-400 hover:bg-green-500/10')
-            : 'border-amber-500/40 text-amber-400 hover:bg-amber-500/10'"
-          :title="isPaused ? 'Resume' : 'Pause'"
+        <AppButton
+          variant="tinted"
+          :tone="isPaused ? (playlist.playlist_type === 'music' ? 'primary' : 'success') : 'caution'"
+          emphasis="outline"
+          size="sm"
+          class="flex-1"
+          :icon="isPaused ? IconPlay : IconPause"
+          :label="isPaused ? 'Resume' : 'Pause'"
           @click="togglePause"
-        >
-          <IconPlay v-if="isPaused" class="h-3.5 w-3.5" />
-          <IconPause v-else class="h-3.5 w-3.5" />
-          {{ isPaused ? "Resume" : "Pause" }}
-        </button>
-        <button
-          class="p-1.5 rounded-md border border-destructive/40 text-destructive hover:bg-destructive/10 transition-colors"
-          title="Stop"
+        />
+        <AppButton
+          variant="destructive"
+          size="icon-xs"
+          :icon="IconStop"
+          tooltip="Stop"
           @click="togglePlay"
-        >
-          <IconStop class="h-3.5 w-3.5" />
-        </button>
+        />
       </template>
 
       <!-- Music: prev / next / cast when active -->
       <template v-if="isActive && playlist.playlist_type === 'music'">
-        <button
-          class="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors"
-          title="Previous track"
+        <AppButton
+          variant="subtle"
+          size="icon-xs"
+          :icon="IconSkipBack"
+          tooltip="Previous track"
           @click="store.musicPlaylistPrev()"
-        >
-          <IconSkipBack class="h-3.5 w-3.5" />
-        </button>
-        <button
-          class="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors"
-          title="Next track"
+        />
+        <AppButton
+          variant="subtle"
+          size="icon-xs"
+          :icon="IconSkipForward"
+          tooltip="Next track"
           @click="store.musicPlaylistNext()"
-        >
-          <IconSkipForward class="h-3.5 w-3.5" />
-        </button>
+        />
         <CastButton class="p-1.5 rounded-md border border-border" />
       </template>
 
       <!-- Edit -->
-      <button
-        class="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground transition-colors"
-        title="Edit playlist"
+      <AppButton
+        variant="subtle"
+        size="icon-xs"
+        :icon="IconEdit"
+        tooltip="Edit playlist"
         @click="$emit('edit')"
-      >
-        <IconEdit class="h-3.5 w-3.5" />
-      </button>
+      />
 
       <!-- Delete -->
-      <button
-        class="p-1.5 rounded-md border border-border text-muted-foreground hover:text-destructive transition-colors"
-        title="Delete playlist"
+      <AppButton
+        variant="subtle"
+        tone="danger"
+        size="icon-xs"
+        :icon="IconDelete"
+        tooltip="Delete playlist"
         @click="$emit('delete')"
-      >
-        <IconDelete class="h-3.5 w-3.5" />
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -190,6 +186,7 @@ import { useSoundboardStore } from "@/stores/soundboard";
 import { usePlaylistTracks } from "@/composables/useSoundboardPlaylists";
 import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
 import type { SoundboardPlaylist } from "@/types/sound.types";
+import AppButton from "@/components/common/AppButton.vue";
 import CastButton from "./CastButton.vue";
 import CausedByChip from "./CausedByChip.vue";
 

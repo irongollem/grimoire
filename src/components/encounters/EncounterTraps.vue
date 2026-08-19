@@ -77,10 +77,10 @@
           class="shrink-0"
           :disabled="!selectedId"
           aria-label="Add trap"
+          :icon="IconAdd"
+          icon-size="md"
           @click="addTrap"
-        >
-          <template #icon><IconAdd class="h-4 w-4" /></template>
-        </AppButton>
+        />
       </div>
     </div>
   </div>

@@ -24,60 +24,69 @@
         the schema vocabulary this control exists to replace.
       -->
       <span v-if="layer" class="inline-flex shrink-0 rounded-md border border-border bg-background p-px">
-        <button
-          type="button"
-          class="flex items-center gap-1 rounded px-1.5 py-0.5 font-cinzel text-2xs font-bold tracking-wide uppercase transition-colors"
-          :class="layer.is_generator ? 'text-muted-foreground hover:text-foreground' : 'bg-green-500/20 text-green-300'"
-          title="Loops continuously underneath the scene"
+        <AppButton
+          variant="ghost"
+          tone="success"
+          size="xs"
+          class="font-bold uppercase"
+          :active="!layer.is_generator"
+          :icon="IconRepeat"
+          icon-size="xs"
+          label="Loop"
+          tooltip="Loops continuously underneath the scene"
           @click="patch({ is_generator: false })"
-        >
-          <IconRepeat class="h-2.5 w-2.5" />
-          Loop
-        </button>
-        <button
-          type="button"
-          class="flex items-center gap-1 rounded px-1.5 py-0.5 font-cinzel text-2xs font-bold tracking-wide uppercase transition-colors"
-          :class="layer.is_generator ? 'bg-gold-500/20 text-gold-300' : 'text-muted-foreground hover:text-foreground'"
-          title="Fires one-shots at random intervals"
+        />
+        <AppButton
+          variant="ghost"
+          tone="primary"
+          size="xs"
+          class="font-bold uppercase"
+          :active="layer.is_generator"
+          :icon="IconDice"
+          icon-size="xs"
+          label="Random"
+          tooltip="Fires one-shots at random intervals"
           @click="patch({ is_generator: true })"
-        >
-          <IconDice class="h-2.5 w-2.5" />
-          Random
-        </button>
+        />
       </span>
 
       <!-- Hear this layer on its own, while deciding about it. -->
-      <button
+      <AppButton
         v-if="layer"
-        type="button"
-        class="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-        title="Fire once, to hear it"
+        variant="ghost"
+        size="inline-xs"
+        class="shrink-0"
+        :icon="IconPlay"
+        icon-size="xs"
+        tooltip="Fire once, to hear it"
         @click="$emit('preview')"
-      >
-        <IconPlay class="h-3 w-3" />
-      </button>
+      />
 
       <!-- The numbers live behind the disclosure; the decision does not. -->
-      <button
+      <AppButton
         v-if="layer"
-        type="button"
-        class="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+        variant="ghost"
+        size="inline-xs"
+        class="shrink-0"
         :aria-expanded="expanded"
-        :title="expanded ? 'Hide the numbers' : 'Level, timing and spread'"
+        :tooltip="expanded ? 'Hide the numbers' : 'Level, timing and spread'"
         @click="expanded = !expanded"
       >
-        <IconChevronRight class="h-3 w-3 transition-transform" :class="expanded ? 'rotate-90' : ''" />
-      </button>
+        <template #icon>
+          <IconChevronRight class="h-3 w-3 transition-transform" :class="expanded ? 'rotate-90' : ''" />
+        </template>
+      </AppButton>
 
       <!-- Remove button -->
-      <button
-        type="button"
-        class="shrink-0 text-muted-foreground/40 opacity-60 transition-colors hover:text-destructive group-hover/row:opacity-100"
-        title="Remove from playlist"
+      <AppButton
+        variant="ghost"
+        tone="danger"
+        size="inline-xs"
+        class="shrink-0 text-muted-foreground/40 opacity-60 group-hover/row:opacity-100"
+        :icon="IconClose"
+        tooltip="Remove from playlist"
         @click="$emit('remove')"
-      >
-        <IconClose class="h-3.5 w-3.5" />
-      </button>
+      />
     </div>
 
     <!--
@@ -177,6 +186,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconDrag, IconClose, IconRepeat, IconPlay, IconDice, IconChevronRight } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import type { Sound, PlaylistTrackLayer } from "@/types/sound.types";
 

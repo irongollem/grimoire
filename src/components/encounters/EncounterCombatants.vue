@@ -155,20 +155,20 @@
             size="icon-xs"
             class="bg-card"
             aria-label="Decrease count"
+            :icon="IconMinus"
+            icon-size="xs"
             @click="changeCount(entry, -1)"
-          >
-            <template #icon><IconMinus class="h-3 w-3" /></template>
-          </AppButton>
+          />
           <span class="font-cinzel text-sm font-bold text-foreground w-6 text-center">{{ entry.count }}</span>
           <AppButton
             variant="subtle"
             size="icon-xs"
             class="bg-card"
             aria-label="Increase count"
+            :icon="IconAdd"
+            icon-size="xs"
             @click="changeCount(entry, 1)"
-          >
-            <template #icon><IconAdd class="h-3 w-3" /></template>
-          </AppButton>
+          />
         </div>
 
         <!-- Faction selector -->
@@ -186,10 +186,10 @@
           tone="danger"
           size="inline"
           aria-label="Remove combatant"
+          :icon="IconClose"
+          icon-size="md"
           @click="removeCombatant(entry.id)"
-        >
-          <template #icon><IconClose class="h-4 w-4" /></template>
-        </AppButton>
+        />
       </div>
     </div>
 

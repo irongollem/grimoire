@@ -72,10 +72,10 @@
                 size="inline-xs"
                 class="shrink-0"
                 tooltip="Previous track"
+                :icon="IconSkipBack"
+                icon-size="xs"
                 @click="spotifyStore.previousTrack()"
-              >
-                <template #icon><IconSkipBack class="h-3 w-3" /></template>
-              </AppButton>
+              />
               <AppButton
                 variant="ghost"
                 size="inline-xs"
@@ -93,10 +93,10 @@
                 size="inline-xs"
                 class="shrink-0"
                 tooltip="Next track"
+                :icon="IconSkipForward"
+                icon-size="xs"
                 @click="spotifyStore.nextTrack()"
-              >
-                <template #icon><IconSkipForward class="h-3 w-3" /></template>
-              </AppButton>
+              />
             </div>
 
             <!-- Progress bar + repeat/shuffle on same row -->
@@ -170,20 +170,20 @@
                 size="inline-xs"
                 class="shrink-0"
                 tooltip="Previous track"
+                :icon="IconSkipBack"
+                icon-size="xs"
                 @click="store.musicPlaylistPrev()"
-              >
-                <template #icon><IconSkipBack class="h-3 w-3" /></template>
-              </AppButton>
+              />
               <!-- Next -->
               <AppButton
                 variant="ghost"
                 size="inline-xs"
                 class="shrink-0"
                 tooltip="Next track"
+                :icon="IconSkipForward"
+                icon-size="xs"
                 @click="store.musicPlaylistNext()"
-              >
-                <template #icon><IconSkipForward class="h-3 w-3" /></template>
-              </AppButton>
+              />
               <!-- Stop -->
               <AppButton
                 variant="ghost"
@@ -191,10 +191,10 @@
                 size="inline-xs"
                 class="shrink-0"
                 tooltip="Stop playlist"
+                :icon="IconStop"
+                icon-size="xs"
                 @click="store.stopMusicPlaylist()"
-              >
-                <template #icon><IconStop class="h-3 w-3" /></template>
-              </AppButton>
+              />
             </div>
           </div>
 
@@ -225,10 +225,10 @@
                 size="inline-xs"
                 class="shrink-0"
                 :tooltip="`Stop ${scene.playlistName}`"
+                :icon="IconStop"
+                icon-size="xs"
                 @click="store.stopAmbientPlaylist(scene.playlistId)"
-              >
-                <template #icon><IconStop class="h-3 w-3" /></template>
-              </AppButton>
+              />
             </div>
           </div>
 
@@ -258,10 +258,10 @@
                 size="inline-xs"
                 class="shrink-0"
                 tooltip="Stop"
+                :icon="IconStop"
+                icon-size="xs"
                 @click="store.stop(sound.id)"
-              >
-                <template #icon><IconStop class="h-3 w-3" /></template>
-              </AppButton>
+              />
             </div>
           </template>
 

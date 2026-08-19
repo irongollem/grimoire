@@ -26,13 +26,9 @@
 
         <!-- Qty controls -->
         <div class="flex items-center gap-1 shrink-0">
-          <AppButton variant="ghost" fill="muted" size="icon-xs" @click="decrementItem(item.id)">
-            <template #icon><IconMinus class="h-3 w-3" /></template>
-          </AppButton>
+          <AppButton variant="ghost" fill="muted" size="icon-xs" :icon="IconMinus" icon-size="xs" @click="decrementItem(item.id)" />
           <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ qty }}</span>
-          <AppButton variant="ghost" fill="muted" size="icon-xs" @click="incrementItem(item.id)">
-            <template #icon><IconAdd class="h-3 w-3" /></template>
-          </AppButton>
+          <AppButton variant="ghost" fill="muted" size="icon-xs" :icon="IconAdd" icon-size="xs" @click="incrementItem(item.id)" />
         </div>
 
         <AppButton

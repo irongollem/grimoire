@@ -71,10 +71,10 @@
           size="inline"
           :disabled="!newObjective.trim()"
           aria-label="Add objective"
+          :icon="IconAdd"
+          icon-size="md"
           @click="submit"
-        >
-          <template #icon><IconAdd class="h-4 w-4" /></template>
-        </AppButton>
+        />
       </div>
       <p
         v-else

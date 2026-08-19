@@ -27,10 +27,10 @@
           variant="ghost"
           size="icon-xs"
           aria-label="Close chat"
+          :icon="IconClose"
+          icon-size="md"
           @click="$emit('close')"
-        >
-          <template #icon><IconClose class="h-4 w-4" /></template>
-        </AppButton>
+        />
       </div>
     </div>
 
@@ -289,10 +289,10 @@
         class="shrink-0"
         :active="diceOpen"
         tooltip="Dice roller"
+        :icon="IconDiceRoll"
+        icon-size="md"
         @click="diceOpen = !diceOpen; vendorOpen = false"
-      >
-        <template #icon><IconDiceRoll class="h-4 w-4" /></template>
-      </AppButton>
+      />
       <button
         v-if="auth.isDM"
         type="button"
@@ -323,10 +323,10 @@
         size="icon-sm"
         class="shrink-0 disabled:opacity-40"
         :disabled="!inputText.trim()"
+        :icon="IconSend"
+        icon-size="md"
         @click="send"
-      >
-        <template #icon><IconSend class="h-4 w-4" /></template>
-      </AppButton>
+      />
     </div>
   </div>
 </template>

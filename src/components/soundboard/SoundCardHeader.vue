@@ -102,10 +102,10 @@
       size="icon-xs"
       class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
       tooltip="Rename"
+      :icon="IconEdit"
+      icon-size="xs"
       @click="startNameEdit"
-    >
-      <template #icon><IconEdit class="h-3 w-3" /></template>
-    </AppButton>
+    />
 
     <!-- WebM warning -->
     <span

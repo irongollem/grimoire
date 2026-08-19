@@ -19,10 +19,10 @@
         variant="ghost"
         size="icon-xs"
         tooltip="View item details"
+        :icon="IconInfo"
+        icon-size="xs"
         @click.stop="$emit('open-detail', container)"
-      >
-        <template #icon><IconInfo class="h-3 w-3" /></template>
-      </AppButton>
+      />
       <AppButton variant="ghost" size="inline-xs" label="+ Add" @click="showAdd = !showAdd" />
       <button
         v-if="removable"

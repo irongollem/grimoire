@@ -123,12 +123,15 @@
               <span class="text-label-lg font-semibold text-muted-foreground">
                 5-FT SQUARES BETWEEN HANDLES
               </span>
-              <input
+              <AppInput
                 v-model.number="cellsBetween"
                 type="number"
                 min="1"
                 step="1"
-                class="w-32 bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="filled"
+                size="body"
+                :block="false"
+                class="w-32"
               />
             </label>
             <label class="flex flex-col gap-1 min-w-48">
@@ -158,21 +161,19 @@
         </div>
 
         <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <button
-            type="button"
-            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+          <AppButton
+            variant="subtle"
+            size="md"
+            label="Cancel"
             @click="cancel"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
+          />
+          <AppButton
+            variant="primary"
+            size="md"
             :disabled="!preview || saving"
-            class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :label="saving ? 'Saving…' : 'Save Calibration'"
             @click="save"
-          >
-            {{ saving ? "Saving…" : "Save Calibration" }}
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -181,6 +182,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { calibrateGrid } from "@/lib/battlemap/gridCalibration";
 import { gridLinePositions } from "@/lib/battlemap/battleMapGeometry";
 import { DEFAULT_GRID_OPACITY, type GridCalibration } from "@/types/location.types";

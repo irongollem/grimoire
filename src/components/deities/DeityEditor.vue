@@ -81,10 +81,11 @@
       <!-- Symbol description -->
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Symbol Description</label>
-        <input
+        <AppInput
           v-model="form.symbol"
+          tone="card"
+          size="body"
           placeholder="Describe the holy symbol…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -110,21 +111,23 @@
       <!-- Name -->
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Name</label>
-        <input
+        <AppInput
           v-model="form.name"
-          placeholder="Deity name…"
+          tone="card"
+          size="heading"
           required
-          class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          placeholder="Deity name…"
         />
       </div>
 
       <!-- Titles / epithets -->
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Titles &amp; Epithets</label>
-        <input
+        <AppInput
           v-model="form.titles"
+          tone="card"
+          size="body"
           placeholder="e.g. The Morninglord, Lord of Dawn…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -139,30 +142,26 @@
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Cleric Domains</label>
         <div class="flex flex-wrap gap-1.5">
-          <button
+          <AppButton
             v-for="domain in CLERIC_DOMAINS"
             :key="domain"
-            type="button"
-            :class="[
-              'px-2 py-1 rounded text-label border transition-colors',
-              selectedDomains.includes(domain)
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-muted text-muted-foreground border-border hover:border-muted-foreground/50',
-            ]"
+            variant="subtle"
+            size="xs"
+            :active="selectedDomains.includes(domain)"
+            :label="domain"
             @click="toggleDomain(domain)"
-          >
-            {{ domain }}
-          </button>
+          />
         </div>
       </div>
 
       <!-- Portfolio -->
       <div class="space-y-1.5">
         <label class="text-eyebrow font-semibold text-muted-foreground">Portfolio</label>
-        <input
+        <AppInput
           v-model="form.portfolio"
+          tone="card"
+          size="body"
           placeholder="What does this deity govern? (war, harvest, death…)"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -199,6 +198,8 @@ import { useImageUpload } from "@/composables/useImageUpload";
 import { useCreateDeity, useUpdateDeity, useDeleteDeity, useAllPantheons } from "@/composables/useDeities";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS, type Deity } from "@/types/deity.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";

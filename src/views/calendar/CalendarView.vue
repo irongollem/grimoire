@@ -34,31 +34,15 @@
           <div class="grid grid-cols-3 gap-1.5">
             <div class="flex flex-col gap-0.5">
               <label class="text-label text-muted-foreground">Month</label>
-              <input
-                v-model.number="todayForm.month"
-                type="number"
-                min="1"
-                max="12"
-                class="w-full bg-background border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              <AppInput v-model.number="todayForm.month" type="number" min="1" max="12" size="body-xs" align="right" />
             </div>
             <div class="flex flex-col gap-0.5">
               <label class="text-label text-muted-foreground">Day</label>
-              <input
-                v-model.number="todayForm.day"
-                type="number"
-                min="1"
-                max="30"
-                class="w-full bg-background border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              <AppInput v-model.number="todayForm.day" type="number" min="1" max="30" size="body-xs" align="right" />
             </div>
             <div class="flex flex-col gap-0.5">
               <label class="text-label text-muted-foreground">Year</label>
-              <input
-                v-model.number="todayForm.year"
-                type="number"
-                class="w-full bg-background border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+              <AppInput v-model.number="todayForm.year" type="number" size="body-xs" align="right" />
             </div>
           </div>
           <div class="flex items-center gap-2 pt-0.5">
@@ -118,13 +102,14 @@
       />
 
       <!-- Add event -->
-      <button
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
+      <AppButton
+        variant="primary"
+        size="sm"
+        :icon="IconAdd"
+        label="Event"
+        class="shrink-0"
         @click="openCreateModal"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        Event
-      </button>
+      />
     </template>
 
     <!-- Month grid view -->
@@ -153,6 +138,7 @@ import { SETTING_BUNDLES } from "@/data/bundles/index";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import CalendarGrid from "@/components/calendar/CalendarGrid.vue";
 import CalendarTimeline from "@/components/calendar/CalendarTimeline.vue";
 import EventModal from "@/components/calendar/EventModal.vue";

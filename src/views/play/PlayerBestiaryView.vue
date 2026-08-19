@@ -146,10 +146,10 @@
                 size="icon-xs"
                 class="absolute top-1.5 right-1.5 z-10 bg-card/80 [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
                 tooltip="Pin form"
+                :icon="IconPin"
+                icon-size="xs"
                 @click.stop="togglePin(entry.monster)"
-              >
-                <template #icon><IconPin class="h-3 w-3" /></template>
-              </AppButton>
+              />
             </div>
           </div>
         </template>
@@ -170,10 +170,10 @@
             size="inline-xs"
             class="absolute top-3 right-3 z-40"
             aria-label="Close"
+            :icon="IconClose"
+            icon-size="md"
             @click="lightbox = null"
-          >
-            <template #icon><IconClose class="h-4 w-4" /></template>
-          </AppButton>
+          />
 
           <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
             <MiniPortraitOverlay :source="{ table: 'monsters', id: lightboxMiniSourceId }" badge-position="bottom-right">

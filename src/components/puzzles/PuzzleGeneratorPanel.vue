@@ -15,9 +15,7 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-semibold text-foreground">Puzzle Generator</h2>
-        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" @click="ui.puzzleGeneratorOpen = false">
-          <template #icon><IconClose class="h-5 w-5" /></template>
-        </AppButton>
+        <AppButton variant="ghost" size="inline-xs" tooltip="Close" aria-label="Close" :icon="IconClose" icon-size="lg" @click="ui.puzzleGeneratorOpen = false" />
       </div>
 
       <!-- Body -->

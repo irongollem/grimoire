@@ -9,19 +9,21 @@
     <!-- Superiority dice track -->
     <div class="flex items-center gap-2 px-4 py-2 border-b border-border">
       <span class="text-body text-muted-foreground flex-1">Superiority Dice</span>
-      <button
-        class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      <AppButton
+        variant="subtle"
+        size="icon-xs"
         :disabled="superiorityDiceCurrent <= 0"
         @click="emit('spend-superiority-die')"
-      >−</button>
+      >−</AppButton>
       <span class="font-cinzel text-sm text-foreground w-10 text-center">
         {{ superiorityDiceCurrent }} / {{ superiorityDiceMax }}
       </span>
-      <button
-        class="h-6 w-6 rounded border border-border font-cinzel text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+      <AppButton
+        variant="subtle"
+        size="icon-xs"
         :disabled="superiorityDiceCurrent >= superiorityDiceMax"
         @click="emit('restore-superiority-die')"
-      >+</button>
+      >+</AppButton>
     </div>
     <!-- Known maneuvers -->
     <div class="divide-y divide-border">
@@ -51,29 +53,32 @@
     <!-- Learn maneuver -->
     <div v-if="availableToLearn.length > 0" class="px-4 py-2.5 border-t border-border">
       <div v-if="!showLearnForm" class="flex justify-start">
-        <button
-          class="text-label text-muted-foreground hover:text-foreground transition-colors"
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          label="+ Learn Maneuver"
           @click="showLearnForm = true"
-        >+ Learn Maneuver</button>
+        />
       </div>
       <div v-else class="space-y-2">
-        <select
-          v-model="pendingLearn"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="pendingLearn" tone="muted" size="body" weight="normal" block>
           <option value="" disabled>Select maneuver to learn…</option>
           <option v-for="m in availableToLearn" :key="m.name" :value="m.name">{{ m.name }}</option>
-        </select>
+        </AppSelect>
         <div class="flex gap-2">
-          <button
+          <AppButton
+            variant="primary"
+            size="xs"
+            label="Learn"
             :disabled="!pendingLearn"
-            class="text-label px-3 py-1 rounded bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
             @click="confirmLearn"
-          >Learn</button>
-          <button
-            class="text-label px-3 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+          />
+          <AppButton
+            variant="subtle"
+            size="xs"
+            label="Cancel"
             @click="showLearnForm = false; pendingLearn = ''"
-          >Cancel</button>
+          />
         </div>
       </div>
     </div>
@@ -83,6 +88,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconChevronDown } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import type { BattleManeuver } from "@/data/battleMasterManeuvers";
 
 const {

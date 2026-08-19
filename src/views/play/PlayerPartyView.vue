@@ -5,15 +5,14 @@
     <section>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-heading font-bold text-foreground">The Party</h2>
-        <button
+        <AppButton
           v-if="viewerMemberId"
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+          variant="subtle"
+          size="sm"
+          :icon="IconAdd"
+          label="Add companion"
           @click="openCompanionForm(null)"
-        >
-          <IconAdd class="h-3.5 w-3.5" />
-          Add companion
-        </button>
+        />
       </div>
 
       <div v-if="partyLoading" class="flex justify-center py-8">
@@ -77,39 +76,35 @@
               class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
-          <select
-            v-model="ui.playerPeopleFilterRelationship"
-            class="bg-card border border-border rounded-md px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
+          <AppSelect v-model="ui.playerPeopleFilterRelationship" size="body" weight="normal">
             <option value="all">All relations</option>
             <option v-for="(label, value) in NPC_RELATIONSHIP_LABELS" :key="value" :value="value">
               {{ label }}
             </option>
-          </select>
-          <select
-            v-model="ui.playerPeopleFilterStatus"
-            class="bg-card border border-border rounded-md px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          >
+          </AppSelect>
+          <AppSelect v-model="ui.playerPeopleFilterStatus" size="body" weight="normal">
             <option value="all">All statuses</option>
             <option value="alive">Alive</option>
             <option value="dead">Dead</option>
             <option value="missing">Missing</option>
             <option value="unknown">Unknown</option>
-          </select>
-          <select
+          </AppSelect>
+          <AppSelect
             v-if="availableLocations.length"
             v-model="ui.playerPeopleFilterLocation"
-            class="bg-card border border-border rounded-md px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            size="body"
+            weight="normal"
           >
             <option value="">All locations</option>
             <option v-for="loc in availableLocations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
-          </select>
-          <button
+          </AppSelect>
+          <AppButton
             v-if="ui.playerPeopleHasActiveFilters"
-            type="button"
-            class="px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground border border-border rounded-md hover:border-foreground/30 transition-colors"
+            variant="subtle"
+            size="sm"
+            label="Clear"
             @click="ui.resetPlayerPeopleFilters()"
-          >Clear</button>
+          />
         </div>
 
         <p
@@ -163,6 +158,8 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconSearch, IconAdd } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";

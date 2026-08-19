@@ -69,12 +69,7 @@
               Thank you — issue #{{ issueNumber }} has been filed and the
               development team will look into it.
             </p>
-            <button
-              class="mt-2 px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-              @click="close"
-            >
-              Close
-            </button>
+            <AppButton variant="subtle" size="sm" label="Close" class="mt-2" @click="close" />
           </div>
 
           <!-- Form -->
@@ -96,23 +91,19 @@
                   role="radiogroup"
                   aria-label="Report type"
                 >
-                  <button
+                  <AppButton
                     v-for="opt in KIND_OPTIONS"
                     :key="opt.value"
-                    type="button"
                     role="radio"
                     :aria-checked="kind === opt.value"
-                    class="flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-cinzel font-semibold tracking-wide transition-colors"
-                    :class="
-                      kind === opt.value
-                        ? 'border-gold-500 bg-gold-500/10 text-foreground'
-                        : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
-                    "
+                    variant="subtle"
+                    size="md"
+                    :active="kind === opt.value"
+                    :icon="opt.icon"
+                    icon-size="md"
+                    :label="opt.label"
                     @click="kind = opt.value"
-                  >
-                    <component :is="opt.icon" class="h-4 w-4 shrink-0" />
-                    <span>{{ opt.label }}</span>
-                  </button>
+                  />
                 </div>
                 <p class="text-caption-sm text-muted-foreground">
                   {{
@@ -135,12 +126,12 @@
                     >(optional)</span
                   >
                 </label>
-                <input
+                <AppInput
                   v-model="form.where"
                   type="text"
                   :required="isBug"
+                  size="body"
                   placeholder="e.g. Encounter tracker, NPC detail page…"
-                  class="w-full px-3 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
                 />
               </div>
 
@@ -279,27 +270,14 @@
                 {{ error }}
               </p>
               <div v-else class="flex-1" />
-              <button
-                type="button"
-                class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-                @click="close"
-              >
-                Cancel
-              </button>
-              <button
+              <AppButton variant="subtle" size="sm" label="Cancel" @click="close" />
+              <AppButton
                 type="submit"
-                :disabled="submitting"
-                class="flex items-center gap-2 px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                <IconLoading v-if="submitting" class="h-3 w-3 animate-spin" />
-                <span>{{
-                  submitting
-                    ? "Submitting…"
-                    : isBug
-                      ? "Submit Report"
-                      : "Submit Request"
-                }}</span>
-              </button>
+                variant="primary"
+                size="sm"
+                :loading="submitting"
+                :label="submitting ? 'Submitting…' : isBug ? 'Submit Report' : 'Submit Request'"
+              />
             </div>
           </form>
         </div>
@@ -316,8 +294,9 @@ import {
   IconCircleCheck,
   IconClose,
   IconLightbulb,
-  IconLoading,
 } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { supabase } from "@/lib/supabase";
 
 type ReportKind = "bug" | "feature";

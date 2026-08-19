@@ -210,7 +210,7 @@
       <div class="flex flex-col gap-1 py-1">
         <AppButton
           variant="menu"
-          size="sm"
+          size="body"
           block
           label="Monster Sources"
           @click="overflowOpen = false; sourcesOpen = true"
@@ -219,7 +219,7 @@
         </AppButton>
         <AppButton
           variant="menu"
-          size="sm"
+          size="body"
           block
           label="Generate"
           @click="overflowOpen = false; ui.monsterGeneratorOpen = true"

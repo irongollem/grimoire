@@ -16,9 +16,7 @@
                 class="text-label text-destructive hover:opacity-70 transition-opacity"
                 @click="emit('unequip')"
               >Unequip</button>
-              <AppButton variant="ghost" size="inline" ariaLabel="Close" @click="$emit('close')">
-                <template #icon><IconClose class="h-5 w-5" /></template>
-              </AppButton>
+              <AppButton variant="ghost" size="inline" ariaLabel="Close" :icon="IconClose" icon-size="lg" @click="$emit('close')" />
             </div>
           </div>
 
@@ -72,16 +70,22 @@
         <div class="rounded-lg border border-border bg-card/50 p-3 flex items-center justify-between gap-3">
           <span class="text-label-lg font-semibold text-muted-foreground uppercase">Quantity</span>
           <div class="flex items-center gap-2">
-            <button
-              class="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40"
+            <AppButton
+              variant="subtle"
+              fill="muted"
+              size="icon-sm"
+              :icon="IconMinus"
               :disabled="inv.quantity <= 1"
               @click="adjustQty(-1)"
-            ><IconMinus class="h-3.5 w-3.5" /></button>
+            />
             <span class="text-heading-sm font-bold text-foreground min-w-8 text-center">{{ inv.quantity }}</span>
-            <button
-              class="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-muted transition-colors"
+            <AppButton
+              variant="subtle"
+              fill="muted"
+              size="icon-sm"
+              :icon="IconAdd"
               @click="adjustQty(1)"
-            ><IconAdd class="h-3.5 w-3.5" /></button>
+            />
           </div>
         </div>
 
@@ -155,10 +159,10 @@
                 :disabled="!canCastSpell || isCasting"
                 :tooltip="castButtonTitle"
                 label="Cast"
+                :icon="IconWand"
+                icon-size="xs"
                 @click="castFromItem(spell)"
-              >
-                <template #icon><IconWand class="h-3 w-3" /></template>
-              </AppButton>
+              />
             </div>
           </div>
         </div>

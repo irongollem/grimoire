@@ -19,15 +19,14 @@
         :icon="IconDelete"
         @click="remove"
       />
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="md"
+        :icon="IconSave"
+        :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
         :disabled="saving || !canSave"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
-      >
-        <IconSave class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-      </button>
+      />
     </template>
 
     <CustomClassSheet v-if="!isNew && !isEditing && existing" :cls="existing" />
@@ -42,46 +41,42 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-eyebrow text-muted-foreground mb-1.5">HIT DIE</label>
-            <select
-              v-model.number="form.hit_die"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model.number="form.hit_die" size="body" weight="normal" block>
               <option :value="6">d6</option>
               <option :value="8">d8</option>
               <option :value="10">d10</option>
               <option :value="12">d12</option>
-            </select>
+            </AppSelect>
           </div>
 
           <div>
             <label class="block text-eyebrow text-muted-foreground mb-1.5">PRIMARY ABILITY</label>
-            <input
+            <AppInput
               v-model="form.primary_ability"
+              tone="card"
+              size="body"
               placeholder="e.g. Strength or Dexterity"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div>
             <label class="block text-eyebrow text-muted-foreground mb-1.5">SUBCLASS-GRANTING LEVEL</label>
-            <input
+            <AppInput
               v-model.number="form.subclass_level"
               type="number"
+              tone="card"
+              size="body"
               min="1"
               max="20"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div>
             <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
-            <select
-              v-model="campaignScope"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model="campaignScope" size="body" weight="normal" block>
               <option value="all">All my campaigns</option>
               <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
+            </AppSelect>
           </div>
         </div>
       </section>
@@ -115,11 +110,13 @@
             class="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 font-cinzel text-xs text-primary"
           >
             {{ lvl }}
-            <button
-              type="button"
-              class="ml-0.5 text-primary/60 hover:text-destructive transition-colors leading-none"
+            <AppButton
+              variant="ghost"
+              tone="danger"
+              size="inline-xs"
+              class="ml-0.5 leading-none text-primary/60"
               @click="removeAsi(lvl)"
-            >×</button>
+            >×</AppButton>
           </span>
         </div>
 
@@ -180,6 +177,7 @@ import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { IconAdd, IconDelete, IconSave } from '@/lib/icons';
 import { useCustomClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/useCustomClasses";

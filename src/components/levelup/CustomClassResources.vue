@@ -2,9 +2,7 @@
   <section class="rounded-lg border border-border bg-card p-4 space-y-4">
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Resource Pools</h2>
-      <AppButton variant="outline" size="xs" label="Add resource" @click="addResource">
-        <template #icon><IconAdd class="h-3 w-3" /></template>
-      </AppButton>
+      <AppButton variant="outline" size="xs" label="Add resource" :icon="IconAdd" icon-size="xs" @click="addResource" />
     </div>
     <p class="text-body text-muted-foreground">
       Tracked pools (uses, charges, etc.) shown on the character sheet.

@@ -90,10 +90,10 @@
           class="shrink-0"
           :disabled="isPopulating"
           :label="isPopulating ? 'Populating…' : 'Populate'"
+          :icon="IconGenerate"
+          icon-size="xs"
           @click="doPopulate"
-        >
-          <template #icon><IconGenerate class="h-3 w-3" /></template>
-        </AppButton>
+        />
       </div>
       <p v-if="populateError" class="text-caption text-destructive">{{ populateError }}</p>
       <p v-else-if="populateResult" class="text-caption text-muted-foreground">

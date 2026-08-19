@@ -32,11 +32,11 @@
     <!-- Search input -->
     <div class="space-y-1">
       <label class="text-caption text-muted-foreground">Search {{ provider.label }}</label>
-      <input
+      <AppInput
         v-model="query"
         type="search"
+        size="body"
         placeholder="e.g. tavern crowd, dragon roar, sword clash"
-        class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
       />
     </div>
 
@@ -44,40 +44,36 @@
          three-second door creak means auditioning forty-second field recordings. -->
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex items-center gap-1">
-        <button
+        <AppButton
           v-for="preset in LENGTH_PRESETS"
           :key="preset.label"
-          type="button"
-          class="px-2 py-1 rounded-md border text-caption transition-colors"
-          :class="
-            isActivePreset(preset)
-              ? 'bg-gold-500/15 border-gold-500/40 text-gold-300'
-              : 'border-border text-muted-foreground hover:text-foreground'
-          "
+          variant="subtle"
+          size="body"
+          :active="isActivePreset(preset)"
+          :label="preset.label"
           @click="applyPreset(preset)"
-        >
-          {{ preset.label }}
-        </button>
+        />
       </div>
 
-      <select
+      <AppSelect
         v-model="filters.sort"
-        class="rounded-md border border-border bg-background px-2 py-1 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+        tone="default"
+        size="caption"
+        weight="normal"
         aria-label="Sort results"
       >
         <option v-for="option in PROVIDER_SORTS" :key="option.value" :value="option.value">
           {{ option.label }}
         </option>
-      </select>
+      </AppSelect>
 
-      <button
+      <AppButton
         v-if="hasActiveFilters"
-        type="button"
-        class="px-2 py-1 rounded-md border border-border text-caption text-muted-foreground hover:text-foreground transition-colors"
+        variant="subtle"
+        size="body"
+        label="Clear"
         @click="resetFilters"
-      >
-        Clear
-      </button>
+      />
     </div>
 
     <!-- Status -->
@@ -111,25 +107,23 @@
       v-if="searchData && (searchData.page > 1 || searchData.hasNext)"
       class="flex items-center justify-between gap-2 pt-1"
     >
-      <button
-        type="button"
-        class="px-2 py-1 rounded-md border border-border text-caption text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
+      <AppButton
+        variant="subtle"
+        size="body"
+        label="← Prev"
         :disabled="searchData.page <= 1"
         @click="page = Math.max(1, page - 1)"
-      >
-        ← Prev
-      </button>
+      />
       <span class="text-caption text-muted-foreground">
         Page {{ searchData.page }}<span v-if="searchData.total !== null"> · {{ searchData.total }} sounds</span>
       </span>
-      <button
-        type="button"
-        class="px-2 py-1 rounded-md border border-border text-caption text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
+      <AppButton
+        variant="subtle"
+        size="body"
+        label="Next →"
         :disabled="!searchData.hasNext"
         @click="page = page + 1"
-      >
-        Next →
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -138,6 +132,9 @@
 import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { RouterLink } from "vue-router";
 import { refDebounced } from "@vueuse/core";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import SoundProviderRow from "./SoundProviderRow.vue";
 import { useProviderSearch } from "@/composables/useProviderSearch";
 import {

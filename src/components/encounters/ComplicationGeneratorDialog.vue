@@ -15,9 +15,7 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-semibold text-foreground">{{ dialogTitle }}</h2>
-        <button class="text-muted-foreground hover:text-foreground" @click="handleClose">
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton variant="ghost" size="inline-xs" icon-size="lg" :icon="IconClose" tooltip="Close" aria-label="Close" @click="handleClose" />
       </div>
 
       <!-- Body -->
@@ -143,15 +141,15 @@
         <!-- Preview: approve, retry, or abandon -->
         <template v-if="resolved">
           <p v-if="persistError" class="text-caption text-destructive text-center">{{ persistError }}</p>
-          <button
-            type="button"
+          <AppButton
+            variant="primary"
+            size="md"
+            block
+            :icon="IconAdd"
             :disabled="addingToEvents"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :label="addingToEvents ? 'Adding…' : 'Add to Events'"
             @click="handleAddToEvents"
-          >
-            <IconAdd class="h-3.5 w-3.5" />
-            {{ addingToEvents ? "Adding…" : "Add to Events" }}
-          </button>
+          />
           <div class="flex gap-2">
             <button
               type="button"
@@ -181,26 +179,26 @@
             :byok="textIsByok"
             class="self-center"
           />
-          <button
+          <AppButton
             v-if="isPro && isAiEnabled"
-            type="button"
+            variant="primary"
+            size="md"
+            block
+            :icon="IconGenerate"
             :disabled="isAnyAiGenerating || !affordable(textCreditCost, textIsByok)"
-            :title="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+            :label="isGenerating ? 'Generating…' : 'Generate'"
             @click="runGenerate"
-          >
-            <IconGenerate class="h-3.5 w-3.5" />
-            {{ isGenerating ? "Generating…" : "Generate" }}
-          </button>
-          <button
+          />
+          <AppButton
             v-else-if="!isPro"
-            type="button"
-            class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+            variant="primary"
+            size="md"
+            block
+            :icon="IconGenerate"
+            label="Generate"
             @click="showPaywall = true"
-          >
-            <IconGenerate class="h-3.5 w-3.5" />
-            Generate
-          </button>
+          />
         </template>
       </div>
     </aside>
@@ -223,6 +221,7 @@ import { resolveGeneratedComplication, buildComplicationEvent } from "@/ai/resol
 import { useSubscription } from "@/composables/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
+import AppButton from "@/components/common/AppButton.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/useAiCredits";

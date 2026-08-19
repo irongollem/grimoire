@@ -43,11 +43,14 @@
         class="text-caption text-muted-foreground italic"
         >Loading…</span
       >
-      <RouterLink
+      <AppButton
         v-for="child in children"
         :key="child.id"
         :to="`/locations/${child.id}`"
-        class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/50 hover:border-primary/50 hover:bg-muted transition-colors px-2 py-0.5 max-w-full min-w-0"
+        variant="subtle"
+        fill="muted"
+        size="xs"
+        class="bg-muted/50 max-w-full min-w-0"
       >
         <span
           class="h-1.5 w-1.5 rounded-full shrink-0"
@@ -59,14 +62,16 @@
           class="font-cinzel text-xs font-semibold text-foreground truncate"
           >{{ child.name }}</span
         >
-      </RouterLink>
+      </AppButton>
       <!-- Inline child search -->
       <div class="relative ml-auto">
-        <input
+        <AppInput
           v-model="childSearch"
-          type="text"
+          tone="bare"
+          size="sm"
+          :block="false"
           placeholder="Add child…"
-          class="font-cinzel text-xs text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none w-24 focus:w-36 transition-all"
+          class="placeholder:text-muted-foreground/50 w-24 focus:w-36 transition-all"
           @focus="childDropdownOpen = true"
           @blur="onChildBlur"
           @keydown.escape="childDropdownOpen = false"
@@ -78,11 +83,12 @@
           "
           class="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
         >
-          <button
+          <AppButton
             v-for="opt in childOptions"
             :key="opt.id"
-            type="button"
-            class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors"
+            variant="menu"
+            size="body"
+            block
             @mousedown.prevent="addChild(opt)"
           >
             <span
@@ -99,21 +105,23 @@
               class="text-caption-sm text-muted-foreground shrink-0"
               >{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span
             >
-          </button>
-          <button
-            type="button"
-            class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors border-t border-border text-primary"
+          </AppButton>
+          <AppButton
+            variant="menu"
+            size="body"
+            block
+            class="border-t border-border"
             @mousedown.prevent="$emit('create-child', childSearch.trim())"
           >
-            <IconAdd class="h-3 w-3 shrink-0" />
-            <span class="font-cinzel text-xs truncate flex-1">
+            <IconAdd class="h-3 w-3 shrink-0 text-primary" />
+            <span class="font-cinzel text-xs truncate flex-1 text-primary">
               {{
                 childSearch.trim()
                   ? `Create "${childSearch.trim()}"`
                   : "Create new child location"
               }}
             </span>
-          </button>
+          </AppButton>
         </div>
       </div>
     </div>
@@ -129,12 +137,15 @@
     <div
       class="flex-1 flex flex-wrap items-center gap-1.5 border border-border rounded-md px-3 py-1.5 min-h-8.5 bg-background relative"
     >
-      <button
+      <AppButton
         v-for="relId in relatedLocationIds"
         :key="relId"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded border border-border bg-muted/50 hover:border-destructive/50 hover:bg-muted transition-colors px-2 py-0.5 max-w-full min-w-0 group"
-        :title="`Remove ${relatedLocationMap.get(relId)?.name ?? relId}`"
+        variant="subtle"
+        fill="muted"
+        tone="danger"
+        size="xs"
+        class="group bg-muted/50 max-w-full min-w-0"
+        :tooltip="`Remove ${relatedLocationMap.get(relId)?.name ?? relId}`"
         @click="$emit('update:relatedLocationIds', relatedLocationIds.filter((id) => id !== relId))"
       >
         <span
@@ -146,14 +157,16 @@
           {{ relatedLocationMap.get(relId)?.name ?? relId }}
         </span>
         <IconClose class="h-2.5 w-2.5 text-muted-foreground group-hover:text-destructive shrink-0" />
-      </button>
+      </AppButton>
       <!-- Inline related search -->
       <div class="relative ml-auto">
-        <input
+        <AppInput
           v-model="relatedSearch"
-          type="text"
+          tone="bare"
+          size="sm"
+          :block="false"
           placeholder="Add related…"
-          class="font-cinzel text-xs text-foreground placeholder:text-muted-foreground/50 bg-transparent focus:outline-none w-24 focus:w-36 transition-all"
+          class="placeholder:text-muted-foreground/50 w-24 focus:w-36 transition-all"
           @focus="relatedDropdownOpen = true"
           @blur="onRelatedBlur"
           @keydown.escape="relatedDropdownOpen = false"
@@ -162,11 +175,12 @@
           v-if="relatedDropdownOpen && relatedOptions.length"
           class="absolute right-0 top-full mt-1 z-50 w-56 rounded-md border border-border bg-popover shadow-lg overflow-hidden"
         >
-          <button
+          <AppButton
             v-for="opt in relatedOptions"
             :key="opt.id"
-            type="button"
-            class="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors"
+            variant="menu"
+            size="body"
+            block
             @mousedown.prevent="addRelated(opt)"
           >
             <span
@@ -175,7 +189,7 @@
             />
             <span class="font-cinzel text-xs text-foreground truncate flex-1">{{ opt.name }}</span>
             <span class="text-caption-sm text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[opt.location_type] }}</span>
-          </button>
+          </AppButton>
         </div>
       </div>
     </div>
@@ -185,6 +199,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { IconAdd, IconChevronUp, IconClose, IconLink, IconLocation } from '@/lib/icons';
+import AppButton from '@/components/common/AppButton.vue';
+import AppInput from '@/components/common/AppInput.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
 import { useLocations, useUpdateLocation } from '@/composables/useLocations';
 import {

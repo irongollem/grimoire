@@ -51,17 +51,15 @@
           <p v-else class="text-body text-muted-foreground italic">Note not found.</p>
           <!-- Footer -->
           <div class="flex items-center justify-between pt-2 border-t border-border">
-            <button type="button" class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors" @click="close">
-              Close
-            </button>
-            <RouterLink
+            <AppButton variant="subtle" size="md" label="Close" @click="close" />
+            <AppButton
               v-if="linkedNote"
               :to="`/notes/${linkedNote.id}`"
-              class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+              variant="primary"
+              size="md"
+              label="Open in Notes →"
               @click="close"
-            >
-              Open in Notes →
-            </RouterLink>
+            />
           </div>
         </div>
 
@@ -74,12 +72,13 @@
             >
               TITLE
             </label>
-            <input
+            <AppInput
               v-model="form.title"
               required
               type="text"
+              tone="muted"
+              size="body"
               placeholder="Event name…"
-              class="w-full bg-muted border border-border rounded-md px-3 py-2 font-fell text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
 
@@ -146,13 +145,13 @@
             <span class="text-body text-muted-foreground flex-1 capitalize">
               Pinned {{ editEvent?.event_type }}
             </span>
-            <RouterLink
+            <AppButton
               :to="entityRoute"
-              class="font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
+              variant="link"
+              size="inline"
+              label="Open →"
               @click="close"
-            >
-              Open →
-            </RouterLink>
+            />
           </div>
 
           <!-- Player visibility toggle -->
@@ -167,37 +166,24 @@
 
           <!-- Actions -->
           <div class="flex items-center justify-between gap-2 pt-1">
-            <button
+            <AppButton
               v-if="editEvent"
-              type="button"
+              variant="destructive"
+              size="md"
+              :label="isDeleting ? 'Deleting…' : 'Delete'"
               :disabled="isPending || isDeleting"
-              class="px-4 py-2 text-label-lg font-semibold text-destructive hover:opacity-80 border border-destructive/40 rounded-md transition-opacity disabled:opacity-50"
               @click="deleteAndClose"
-            >
-              {{ isDeleting ? "Deleting…" : "Delete" }}
-            </button>
+            />
             <div v-else />
             <div class="flex gap-2">
-              <button
-                type="button"
-                class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
-                @click="close"
-              >
-                Cancel
-              </button>
-              <button
+              <AppButton variant="subtle" size="md" label="Cancel" @click="close" />
+              <AppButton
                 type="submit"
+                variant="primary"
+                size="md"
+                :label="isPending ? 'Saving…' : editEvent ? 'Save Changes' : 'Create Event'"
                 :disabled="isPending"
-                class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-              >
-                {{
-                  isPending
-                    ? "Saving…"
-                    : editEvent
-                      ? "Save Changes"
-                      : "Create Event"
-                }}
-              </button>
+              />
             </div>
           </div>
         </form>
@@ -208,8 +194,9 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
-import { RouterLink } from "vue-router";
 import { IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

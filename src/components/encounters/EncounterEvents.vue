@@ -95,22 +95,17 @@
             <div class="text-caption text-muted-foreground mt-0.5 truncate">{{ eventSummary(event) }}</div>
           </div>
           <span v-if="!event.fire_once" class="shrink-0 font-cinzel text-2xs px-1 py-0.5 rounded bg-primary/10 text-primary" title="Repeating">∞</span>
-          <button
-            type="button"
-            class="shrink-0 transition-colors"
-            :class="event.is_player_visible ? 'text-primary' : 'text-muted-foreground hover:text-foreground'"
-            :title="event.is_player_visible ? 'Visible to players' : 'Hidden from players'"
+          <AppButton
+            variant="ghost"
+            size="inline-xs"
+            class="shrink-0"
+            :active="event.is_player_visible"
+            :icon="event.is_player_visible ? IconReveal : IconHide"
+            :tooltip="event.is_player_visible ? 'Visible to players' : 'Hidden from players'"
             @click="toggleVisibility(event)"
-          >
-            <IconReveal v-if="event.is_player_visible" class="h-3.5 w-3.5" />
-            <IconHide v-else class="h-3.5 w-3.5" />
-          </button>
-          <button type="button" class="shrink-0 text-muted-foreground hover:text-foreground transition-colors" title="Edit" @click="startEditEvent(event)">
-            <IconEdit class="h-3.5 w-3.5" />
-          </button>
-          <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive transition-colors" @click="removeEvent(event.id)">
-            <IconClose class="h-3.5 w-3.5" />
-          </button>
+          />
+          <AppButton variant="ghost" size="inline-xs" class="shrink-0" :icon="IconEdit" tooltip="Edit" @click="startEditEvent(event)" />
+          <AppButton variant="ghost" tone="danger" size="inline-xs" class="shrink-0" :icon="IconClose" @click="removeEvent(event.id)" />
         </div>
 
       </template>

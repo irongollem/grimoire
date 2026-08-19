@@ -77,10 +77,10 @@
           size="icon-xs"
           tooltip="Menu"
           data-tour="account-menu"
+          :icon="IconMenu"
+          icon-size="md"
           @click="showMenu = !showMenu"
-        >
-          <template #icon><IconMenu class="h-4 w-4" /></template>
-        </AppButton>
+        />
       </div>
     </header>
 
@@ -218,10 +218,10 @@
           size="sm"
           block
           label="Campaigns"
+          :icon="IconPopulate"
+          icon-size="md"
           @click="showMenu = false; showCampaignSheet = true"
-        >
-          <template #icon><IconPopulate class="h-4 w-4" /></template>
-        </AppButton>
+        />
         <ModeToggle class="px-4 py-3" />
         <AppButton
           :to="{ name: 'play-settings' }"
@@ -229,19 +229,19 @@
           size="sm"
           block
           label="Settings"
+          :icon="IconSettingsAlt"
+          icon-size="md"
           @click="showMenu = false"
-        >
-          <template #icon><IconSettingsAlt class="h-4 w-4" /></template>
-        </AppButton>
+        />
         <AppButton
           variant="menu"
           size="sm"
           block
           label="Report a bug"
+          :icon="IconBug"
+          icon-size="md"
           @click="showMenu = false; bugReportOpen = true"
-        >
-          <template #icon><IconBug class="h-4 w-4" /></template>
-        </AppButton>
+        />
         <button
           type="button"
           class="w-full flex items-center gap-2.5 px-4 py-3 font-cinzel text-xs font-semibold text-destructive hover:bg-muted transition-colors"
