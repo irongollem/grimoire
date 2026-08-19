@@ -17,59 +17,73 @@
       class="absolute right-0 top-full mt-1.5 w-52 bg-card border border-border rounded-md shadow-lg z-20 py-1 overflow-hidden"
     >
       <!-- Party stash -->
-      <button
-        type="button"
+      <AppButton
+        variant="menu"
+        size="sm"
+        block
+        class="rounded-none"
         :disabled="isAddingToStash"
-        class="w-full flex items-center gap-2 px-3 py-2 font-cinzel text-xs text-left text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+        :label="isAddingToStash ? 'Adding…' : 'Add to Party Stash'"
         @click="addToStash"
       >
-        <IconArchive class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        {{ isAddingToStash ? "Adding…" : "Add to Party Stash" }}
-      </button>
+        <template #icon>
+          <IconArchive class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </template>
+      </AppButton>
 
       <!-- Assign to player -->
       <div>
-        <button
-          type="button"
-          class="w-full flex items-center justify-between gap-2 px-3 py-2 font-cinzel text-xs text-left text-foreground hover:bg-muted transition-colors"
+        <AppButton
+          variant="menu"
+          size="sm"
+          block
+          class="rounded-none"
           @click="showPlayerPicker = !showPlayerPicker"
         >
-          <span class="flex items-center gap-2">
+          <template #icon>
             <IconUser class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            Assign to Player
-          </span>
-          <IconChevronRight class="h-3 w-3 text-muted-foreground" :class="{ 'rotate-90': showPlayerPicker }" />
-        </button>
+          </template>
+          <span class="flex-1 text-left">Assign to Player</span>
+          <IconChevronRight
+            class="h-3 w-3 text-muted-foreground shrink-0 transition-transform"
+            :class="{ 'rotate-90': showPlayerPicker }"
+          />
+        </AppButton>
 
         <div v-if="showPlayerPicker" class="border-t border-border/50 bg-muted/40">
           <p v-if="!party?.length" class="px-4 py-2 text-caption text-muted-foreground italic">
             No party members yet.
           </p>
-          <button
+          <AppButton
             v-for="member in party"
             :key="member.id"
-            type="button"
+            variant="menu"
+            size="body"
+            block
+            class="rounded-none"
             :disabled="assigningTo === member.id"
-            class="w-full text-left px-4 py-1.5 text-body text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            :label="assigningTo === member.id ? 'Adding…' : member.name"
             @click="assignToPlayer(member)"
-          >
-            {{ assigningTo === member.id ? "Adding…" : member.name }}
-          </button>
+          />
         </div>
       </div>
 
       <div class="border-t border-border/50 my-1" />
 
       <!-- Drop in chat -->
-      <button
-        type="button"
+      <AppButton
+        variant="menu"
+        size="sm"
+        block
+        class="rounded-none"
         :disabled="isDroppingInChat"
-        class="w-full flex items-center gap-2 px-3 py-2 font-cinzel text-xs text-left text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+        :label="isDroppingInChat ? 'Dropping…' : 'Drop in Chat'"
         @click="dropInChat"
       >
-        <IconComment class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        {{ isDroppingInChat ? "Dropping…" : "Drop in Chat" }}
-      </button>
+        <template #icon>
+          <IconComment class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </template>
+      </AppButton>
     </div>
 
     <!-- Brief confirmation -->

@@ -26,13 +26,13 @@
           <p class="text-body text-muted-foreground italic text-center">
             {{ currentLoadingQuote }}
           </p>
-          <button
-            type="button"
-            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          <AppButton
+            variant="ghost"
+            size="caption"
+            class="mt-1 underline underline-offset-2"
+            label="Continue in background"
             @click="dismissToBackground"
-          >
-            Continue in background
-          </button>
+          />
         </div>
 
         <!-- Error state -->
@@ -49,13 +49,13 @@
             <p class="text-label-lg font-semibold text-muted-foreground">
               GENERATED HOOKS
             </p>
-            <button
-              type="button"
-              class="text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            <AppButton
+              variant="ghost"
+              size="caption"
+              class="underline underline-offset-2"
+              label="Regenerate"
               @click="clearHooks"
-            >
-              Regenerate
-            </button>
+            />
           </div>
 
           <div
@@ -109,20 +109,20 @@
                   <IconCheckCircle class="h-3.5 w-3.5" />
                   Created
                 </span>
-                <button
-                  type="button"
-                  class="text-caption text-primary hover:underline underline-offset-2 transition-colors"
+                <AppButton
+                  variant="link"
+                  size="caption"
+                  class="hover:underline underline-offset-2"
+                  label="View Quest →"
                   @click="viewCreated(i)"
-                >
-                  View Quest →
-                </button>
-                <button
-                  type="button"
-                  class="text-caption text-primary hover:underline underline-offset-2 transition-colors"
+                />
+                <AppButton
+                  variant="link"
+                  size="caption"
+                  class="hover:underline underline-offset-2"
+                  label="Build flow →"
                   @click="buildCreated(i)"
-                >
-                  Build flow →
-                </button>
+                />
               </template>
             </div>
           </div>

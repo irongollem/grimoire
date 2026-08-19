@@ -100,31 +100,40 @@
             <tr v-for="lvl in 20" :key="lvl" class="border-t border-border/40">
               <td class="font-cinzel text-2xs text-primary pr-2 text-left py-0.5">{{ lvl }}</td>
               <td v-for="sl in 9" :key="sl" class="py-0.5 px-0.5">
-                <input
-                  :value="(spellSlots[lvl - 1] ?? [])[sl - 1] ?? 0"
+                <AppInput
+                  v-model.number="slotModel(lvl - 1, sl - 1).value"
                   type="number"
+                  tone="muted"
+                  size="caption"
+                  align="center"
                   min="0"
                   max="9"
-                  class="w-9 bg-muted/40 border border-border rounded px-1 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
-                  @input="onSetSlot(lvl - 1, sl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
+                  :block="false"
+                  class="w-9"
                 />
               </td>
               <td v-if="spellsKnown !== null" class="py-0.5 pl-2">
-                <input
-                  :value="(spellsKnown ?? [])[lvl - 1] ?? 0"
+                <AppInput
+                  v-model.number="spellsKnownModel(lvl - 1).value"
                   type="number"
+                  tone="muted"
+                  size="caption"
+                  align="center"
                   min="0"
-                  class="w-10 bg-muted/40 border border-border rounded px-1 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
-                  @input="onSetSpellsKnown(lvl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
+                  :block="false"
+                  class="w-10"
                 />
               </td>
               <td v-if="cantripsKnown !== null" class="py-0.5 pl-2">
-                <input
-                  :value="(cantripsKnown ?? [])[lvl - 1] ?? 0"
+                <AppInput
+                  v-model.number="cantripsKnownModel(lvl - 1).value"
                   type="number"
+                  tone="muted"
+                  size="caption"
+                  align="center"
                   min="0"
-                  class="w-10 bg-muted/40 border border-border rounded px-1 py-0.5 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
-                  @input="onSetCantripsKnown(lvl - 1, ($event.target as HTMLInputElement).valueAsNumber)"
+                  :block="false"
+                  class="w-10"
                 />
               </td>
             </tr>
@@ -140,6 +149,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import AppInput from "@/components/common/AppInput.vue";
 import type { CasterType, PreparedAbility } from "@/levelup/customTypes";
 
 const CASTER_TYPE_OPTIONS = [
@@ -212,5 +223,31 @@ function onSetCantripsKnown(levelIdx: number, value: number) {
   const arr = [...(cantripsKnown ?? Array(20).fill(0))];
   arr[levelIdx] = isNaN(value) ? 0 : value;
   emit("update:cantripsKnown", arr);
+}
+
+// AppInput requires a v-model; these bridge each grid cell's array-index value
+// (and its whole-array emit) into a small writable computed per cell. The
+// existing onSet* setters keep their own NaN guard, so a cleared field (which
+// AppInput's `.number` modifier hands back as `null`) still resolves to 0 —
+// the same "empty means 0 slots" rule this table already displayed.
+function slotModel(levelIdx: number, slotLevelIdx: number) {
+  return computed<number | null>({
+    get: () => (spellSlots[levelIdx] ?? [])[slotLevelIdx] ?? 0,
+    set: (value) => onSetSlot(levelIdx, slotLevelIdx, value ?? 0),
+  });
+}
+
+function spellsKnownModel(levelIdx: number) {
+  return computed<number | null>({
+    get: () => (spellsKnown ?? [])[levelIdx] ?? 0,
+    set: (value) => onSetSpellsKnown(levelIdx, value ?? 0),
+  });
+}
+
+function cantripsKnownModel(levelIdx: number) {
+  return computed<number | null>({
+    get: () => (cantripsKnown ?? [])[levelIdx] ?? 0,
+    set: (value) => onSetCantripsKnown(levelIdx, value ?? 0),
+  });
 }
 </script>

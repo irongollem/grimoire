@@ -37,25 +37,26 @@
       <!-- The name itself is not repeated here: the pad above already carries
            it as the card's title. This input only surfaces while renaming, in
            the same spot the "Rename" button below opens it. -->
-      <input
+      <AppInput
         v-if="editingName"
         ref="nameInput"
         v-model="nameDraft"
-        type="text"
-        class="w-full rounded border border-gold-500/50 bg-background px-1.5 py-0.5 font-cinzel text-sm font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
+        tone="underline"
+        size="lg"
+        class="font-semibold"
         @keydown.enter="saveName"
         @keydown.escape="cancelNameEdit"
         @blur="saveName"
       />
 
       <!-- Artist (inline editable; shows placeholder on hover when empty) -->
-      <input
+      <AppInput
         v-if="editingArtist"
         ref="artistInput"
         v-model="artistDraft"
-        type="text"
+        tone="underline"
+        size="caption"
         placeholder="Artist name…"
-        class="w-full rounded border border-gold-500/50 bg-background px-1.5 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
         @keydown.enter="saveArtist"
         @keydown.escape="cancelArtistEdit"
         @blur="saveArtist"
@@ -71,19 +72,22 @@
       >{{ sound.artist || 'Add artist…' }}</p>
 
       <!-- Category (inline editable; click to change type) -->
-      <select
+      <AppSelect
         v-if="editingCategory"
         ref="categoryInput"
-        :value="sound.category"
-        class="w-full rounded border border-gold-500/50 bg-background px-1 py-0.5 text-caption-sm text-foreground capitalize focus:outline-none focus:ring-1 focus:ring-gold-500"
-        @change="saveCategory(($event.target as HTMLSelectElement).value)"
+        :model-value="sound.category"
+        tone="underline"
+        size="caption"
+        weight="normal"
+        class="capitalize"
+        @update:model-value="saveCategory($event)"
         @blur="editingCategory = false"
       >
         <option value="ambient">Ambient</option>
         <option value="music">Music</option>
         <option value="effects">Effects</option>
         <option value="misc">Misc</option>
-      </select>
+      </AppSelect>
       <p
         v-else
         class="text-caption-sm text-muted-foreground/60 italic capitalize cursor-pointer hover:text-muted-foreground"
@@ -162,6 +166,9 @@
 import { computed, nextTick, ref } from "vue";
 import { IconDelete, IconEdit, IconImage, IconRepeat, IconWarning } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 import FocalImage from "@/components/common/FocalImage.vue";
 import SoundTrimControl from "./SoundTrimControl.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
@@ -210,7 +217,7 @@ async function handleThumbChange(e: Event) {
 // ── Inline name editing ───────────────────────────────────────────────────
 
 const editingName = ref(false);
-const nameInput = ref<HTMLInputElement | null>(null);
+const nameInput = ref<AppInputHandle | null>(null);
 const nameDraft = ref("");
 
 function startNameEdit() {

@@ -7,40 +7,43 @@
           Set · {{ updatedAtLabel }}
         </span>
         <span v-else class="font-cinzel text-2xs tracking-widest text-muted-foreground/60 uppercase">Not configured</span>
-        <button
+        <AppButton
           v-if="isSet"
-          class="px-2 py-0.5 text-label font-semibold text-destructive border border-destructive/40 rounded hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+          variant="destructive"
+          size="xs"
           :disabled="clearing"
+          :label="clearing ? '…' : 'Clear'"
           @click="doClear"
-        >
-          {{ clearing ? '…' : 'Clear' }}
-        </button>
+        />
       </div>
     </div>
     <div class="flex gap-2">
       <div class="relative flex-1">
-        <input
+        <AppInput
           v-model="draft"
           :type="visible ? 'text' : 'password'"
           :placeholder="isSet ? '•••••••• (leave blank to keep current)' : hint"
-          class="w-full bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring pr-9"
+          class="font-mono pr-9"
           autocomplete="off"
         />
-        <button
+        <AppButton
           type="button"
-          class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          variant="ghost"
+          size="icon-xs"
+          class="absolute right-2 top-1/2 -translate-y-1/2"
+          :icon="visible ? IconHide : IconReveal"
+          :aria-label="visible ? 'Hide key' : 'Show key'"
           @click="visible = !visible"
-        >
-          <component :is="visible ? IconHide : IconReveal" class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
-      <button
-        class="shrink-0 px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+      <AppButton
+        variant="primary"
+        size="sm"
+        class="shrink-0"
         :disabled="saving || !draft.trim()"
+        :label="saving ? 'Saving…' : 'Set Key'"
         @click="save"
-      >
-        {{ saving ? 'Saving…' : 'Set Key' }}
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -48,6 +51,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconHide, IconReveal } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { useAdminKeys } from "@/composables/useAdminKeys";
 import type { KeyProvider } from "@/composables/useAdminKeys";
 

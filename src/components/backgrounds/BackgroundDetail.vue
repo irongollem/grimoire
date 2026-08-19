@@ -17,10 +17,11 @@
       </div>
 
       <div class="flex-1 flex flex-col gap-3 min-w-0">
-        <input
+        <AppInput
           v-model="form.name"
+          tone="card"
+          size="heading"
           placeholder="Background name…"
-          class="w-full bg-card border border-border rounded-md px-3 py-2 text-heading font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
 
         <div
@@ -78,10 +79,11 @@
     <!-- Feature -->
     <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
       <span class="text-label-lg font-semibold text-muted-foreground">Background feature</span>
-      <input
+      <AppInput
         v-model="form.feature_name"
+        size="lg"
+        class="font-bold"
         placeholder="Feature name (e.g. Shelter of the Faithful)"
-        class="w-full bg-background border border-border rounded-md px-3 py-2 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <RichTextEditor
         v-model="form.feature_description"
@@ -93,10 +95,11 @@
     <!-- Feat grant (2024 PHB) -->
     <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
       <span class="text-label-lg font-semibold text-muted-foreground">Feat grant <span class="font-normal text-muted-foreground/60">(2024 PHB — optional)</span></span>
-      <input
+      <AppInput
         v-model="form.feat_grant_name"
+        size="lg"
+        class="font-bold"
         placeholder="Feat name, e.g. Magic Initiate (Wizard)"
-        class="w-full bg-background border border-border rounded-md px-3 py-2 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       />
       <RichTextEditor
         v-model="form.feat_grant_description"
@@ -112,16 +115,16 @@
     <div class="flex flex-col gap-2 rounded-lg border border-border bg-card/50 px-4 py-3">
       <span class="text-label-lg font-semibold text-muted-foreground">Ability score trio <span class="font-normal text-muted-foreground/60">(2024 PHB — optional, pick exactly 3)</span></span>
       <div class="flex flex-wrap gap-2">
-        <button
+        <AppButton
           v-for="key in ABILITY_SCORE_KEYS"
           :key="key"
-          type="button"
-          class="px-3 py-1.5 rounded-md border font-cinzel text-xs font-semibold capitalize transition-colors"
-          :class="asiTrioSet.has(key)
-            ? 'border-primary bg-primary/10 text-primary'
-            : 'border-border text-muted-foreground hover:text-foreground'"
+          variant="subtle"
+          size="sm"
+          class="capitalize"
+          :active="asiTrioSet.has(key)"
+          :label="key"
           @click="toggleAsiTrioAbility(key)"
-        >{{ key }}</button>
+        />
       </div>
       <p
         class="text-caption italic"
@@ -151,6 +154,8 @@
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import ImageUpload from "@/components/common/ImageUpload.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";

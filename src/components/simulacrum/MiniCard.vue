@@ -39,44 +39,55 @@
       <p class="text-caption-sm text-muted-foreground/70">{{ new Date(mini.created_at).toLocaleDateString() }}</p>
 
       <div class="flex flex-wrap items-center gap-1 pt-1">
-        <button
+        <AppButton
           v-if="canPreview"
-          type="button"
-          title="Preview"
-          class="p-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          variant="subtle"
+          size="icon-xs"
+          tooltip="Preview"
+          :icon="IconReveal"
           @click="previewOpen = true"
-        ><IconReveal class="h-3.5 w-3.5" /></button>
+        />
 
-        <a
+        <AppButton
           v-if="glbUrl"
           :href="glbUrl"
           download
-          title="Download GLB"
-          class="p-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
-        ><IconDownload class="h-3.5 w-3.5" /></a>
+          variant="subtle"
+          size="icon-xs"
+          tooltip="Download GLB"
+          :icon="IconDownload"
+        />
 
-        <a
+        <AppButton
           v-if="stlUrl"
           :href="stlUrl"
           download
-          title="Download STL"
-          class="inline-flex items-center gap-1 px-1.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-label"
-        ><IconDownload class="h-3.5 w-3.5" />STL</a>
+          variant="subtle"
+          size="xs"
+          tooltip="Download STL"
+          :icon="IconDownload"
+          label="STL"
+        />
 
-        <RouterLink
+        <AppButton
           v-if="canResume"
           :to="resumeTo"
-          title="Resume"
-          class="p-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
-        ><IconRefresh class="h-3.5 w-3.5" /></RouterLink>
+          variant="subtle"
+          size="icon-xs"
+          tooltip="Resume"
+          :icon="IconRefresh"
+        />
 
-        <button
-          type="button"
-          title="Delete"
-          class="ml-auto p-1 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+        <AppButton
+          variant="subtle"
+          tone="danger"
+          size="icon-xs"
+          class="ml-auto"
+          tooltip="Delete"
+          :icon="IconDelete"
           :disabled="deleting"
           @click="onDelete"
-        ><IconDelete class="h-3.5 w-3.5" /></button>
+        />
       </div>
     </div>
 
@@ -96,11 +107,16 @@
           />
           <AiGeneratedBadge variant="chip" :provenance="{ provider: mini.provider, generatedAt: mini.created_at }" />
         </div>
-        <button
-          type="button"
-          class="absolute top-4 right-4 rounded-full bg-black/40 p-1.5 text-white/70 hover:text-white transition-colors"
+        <AppButton
+          variant="ghost"
+          shape="pill"
+          size="icon-sm"
+          :class="[CARD_OVERLAY_SCRIM, 'absolute top-4 right-4 text-white/70 hover:text-white']"
+          :icon="IconClose"
+          icon-size="lg"
+          ariaLabel="Close preview"
           @click="previewOpen = false"
-        ><IconClose class="h-5 w-5" /></button>
+        />
       </div>
     </Teleport>
   </div>
@@ -108,9 +124,10 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { RouterLink } from "vue-router";
 import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
 import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { IconClose, IconDelete, IconDownload, IconRefresh, IconReveal } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";

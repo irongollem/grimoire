@@ -21,12 +21,14 @@
       <div class="bg-card border border-border rounded-lg w-full max-w-xl shadow-xl">
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 class="text-heading-sm font-bold text-foreground">Grimoire Admin</h2>
-          <button
-            class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="open = false"
-          >
-            ✕
-          </button>
+          />
         </div>
 
         <div class="px-5 py-4 space-y-5 max-h-[70vh] overflow-y-auto">
@@ -55,18 +57,17 @@
             </div>
             <!-- Plan picker -->
             <div class="flex items-center gap-1.5">
-              <button
+              <AppButton
                 v-for="opt in planOptions"
                 :key="opt.value"
                 type="button"
-                class="px-3 py-1 rounded-md text-label-lg font-semibold border transition-colors"
-                :class="newGrantedPlan === opt.value
-                  ? opt.activeClass
-                  : 'border-border text-muted-foreground hover:text-foreground'"
+                variant="tinted"
+                size="sm"
+                :tone="opt.tone"
+                :emphasis="newGrantedPlan === opt.value ? 'strong' : 'outline'"
+                :label="opt.label"
                 @click="newGrantedPlan = opt.value"
-              >
-                {{ opt.label }}
-              </button>
+              />
             </div>
             <div class="flex items-center gap-2">
               <input
@@ -136,17 +137,18 @@
                 <code class="flex-1 text-xs text-muted-foreground truncate font-mono">
                   {{ signupUrl(invite.token) }}
                 </code>
-                <button
-                  class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-xs font-cinzel tracking-wide transition-colors"
-                  :class="copiedId === invite.id
-                    ? 'bg-elven-green/20 text-elven-green'
-                    : 'border border-border text-foreground hover:bg-muted'"
+                <AppButton
+                  variant="outline"
+                  size="xs"
+                  icon-size="xs"
+                  class="shrink-0"
+                  tone="success"
+                  :fill="copiedId === invite.id ? 'none' : 'muted'"
+                  :active="copiedId === invite.id"
+                  :icon="copiedId === invite.id ? IconCheck : IconCopy"
+                  :label="copiedId === invite.id ? 'Copied!' : 'Copy'"
                   @click="copy(invite)"
-                >
-                  <IconCheck v-if="copiedId === invite.id" class="h-3 w-3" />
-                  <IconCopy v-else class="h-3 w-3" />
-                  {{ copiedId === invite.id ? 'Copied!' : 'Copy' }}
-                </button>
+                />
               </div>
             </div>
 
@@ -213,7 +215,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconCheck, IconCopy, IconDelete, IconShieldCheck } from '@/lib/icons';
+import { IconAdd, IconCheck, IconClose, IconCopy, IconDelete, IconShieldCheck } from '@/lib/icons';
 import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
 import type { AppInvite } from "@/composables/useAppInvites";
 import type { GrantedPlan } from "@/composables/useAppInvites";
@@ -221,6 +223,7 @@ import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vu
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import type { ButtonTone } from "@/components/common/appButtonVariants";
 
 const open = ref(false);
 const invitesQuery = useAppInvites();
@@ -235,10 +238,10 @@ const newExpiry = ref("");
 const newMaxUses = ref<number | null>(1);
 const newGrantedPlan = ref<GrantedPlan>("free");
 
-const planOptions: { value: GrantedPlan; label: string; activeClass: string }[] = [
-  { value: "free",   label: "Free",   activeClass: "border-border bg-muted text-foreground" },
-  { value: "tester", label: "Tester", activeClass: "border-amber-500/50 bg-amber-500/10 text-amber-400" },
-  { value: "admin",  label: "Admin",  activeClass: "border-primary/50 bg-primary/10 text-primary" },
+const planOptions: { value: GrantedPlan; label: string; tone: ButtonTone }[] = [
+  { value: "free",   label: "Free",   tone: "neutral" },
+  { value: "tester", label: "Tester", tone: "caution" },
+  { value: "admin",  label: "Admin",  tone: "primary" },
 ];
 const copiedId = ref<string | null>(null);
 

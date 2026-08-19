@@ -119,19 +119,9 @@
           </template>
         </span>
         <div class="flex gap-2">
-          <button
-            class="text-label font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            @click="selectAll"
-          >
-            All
-          </button>
+          <AppButton variant="ghost" size="inline-xs" label="All" @click="selectAll" />
           <span class="text-border">·</span>
-          <button
-            class="text-label font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            @click="selectNone"
-          >
-            None
-          </button>
+          <AppButton variant="ghost" size="inline-xs" label="None" @click="selectNone" />
         </div>
       </div>
 

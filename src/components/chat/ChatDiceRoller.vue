@@ -1,20 +1,17 @@
 <template>
   <div class="shrink-0 border-t border-border bg-muted/20 px-3 py-2 space-y-2">
     <div class="flex flex-wrap gap-1">
-      <button
+      <AppButton
         v-for="d in ALL_DICE"
         :key="d"
-        type="button"
-        class="h-7 w-9 rounded border font-cinzel text-2xs font-bold transition-colors"
-        :class="
-          (diceCounts[d] ?? 0) > 0
-            ? 'border-primary/60 bg-primary/15 text-primary'
-            : 'border-border bg-muted/40 text-muted-foreground hover:border-primary/40'
-        "
+        variant="subtle"
+        surface="muted"
+        size="xs"
+        :active="(diceCounts[d] ?? 0) > 0"
+        class="h-7 w-9 font-bold"
+        :label="`d${d}`"
         @click="toggleDie(d)"
-      >
-        d{{ d }}
-      </button>
+      />
     </div>
     <div v-if="totalDice > 0" class="flex flex-wrap gap-2">
       <div v-for="d in ALL_DICE" :key="d" class="flex items-center gap-1">
@@ -29,37 +26,34 @@
     <div class="flex items-center gap-2">
       <span class="font-cinzel text-2xs text-muted-foreground">Mod:</span>
       <button type="button" class="count-btn" @click="modifier--">−</button>
-      <input
+      <AppInput
         v-model.number="modifier"
         type="number"
-        class="w-10 text-center bg-background border border-border rounded px-1 py-0.5 font-cinzel text-xs font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        size="xs"
+        tone="default"
+        align="center"
+        :block="false"
+        class="w-10 font-bold"
       />
       <button type="button" class="count-btn" @click="modifier++">+</button>
-      <div class="flex rounded border border-border overflow-hidden ml-auto">
-        <button
-          v-for="m in MODES"
-          :key="m.value"
-          type="button"
-          class="px-2 py-0.5 text-label font-bold transition-colors"
-          :class="
-            mode === m.value
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          "
-          @click="mode = m.value"
-        >
-          {{ m.label }}
-        </button>
-      </div>
+      <SegmentedControl
+        v-model="mode"
+        :options="MODES"
+        variant="ghost"
+        size="xs"
+        class="ml-auto rounded border border-border overflow-hidden"
+      />
     </div>
-    <button
-      type="button"
+    <AppButton
+      variant="primary"
+      size="sm"
+      block
+      class="font-bold"
       :disabled="totalDice === 0"
-      class="w-full py-1.5 text-label-lg font-bold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-40"
       @click="onRoll"
     >
       🎲 Roll &amp; Post
-    </button>
+    </AppButton>
   </div>
 </template>
 
@@ -67,6 +61,9 @@
 import { reactive, ref, computed } from 'vue';
 import { ALL_DICE } from '@/lib/dice/dice';
 import type { DieSize, RollMode } from '@/lib/dice/dice';
+import AppButton from '@/components/common/AppButton.vue';
+import AppInput from '@/components/common/AppInput.vue';
+import SegmentedControl from '@/components/common/SegmentedControl.vue';
 
 const emit = defineEmits<{
   roll: [payload: { counts: Partial<Record<DieSize, number>>; modifier: number; mode: RollMode }];

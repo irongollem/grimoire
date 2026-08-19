@@ -13,19 +13,19 @@
     <div v-else class="flex flex-col gap-3">
       <!-- Filter bar -->
       <div class="flex flex-wrap items-center gap-2">
-        <input
+        <AppInput
           v-model="ruleSearch"
           type="search"
+          tone="card"
+          size="body"
+          :block="false"
           placeholder="Filter rules…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          class="flex-1 min-w-40"
         />
-        <select
-          v-model="ruleCategory"
-          class="bg-card border border-border rounded-md px-3 py-1.5 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="ruleCategory">
           <option value="">All categories</option>
           <option v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</option>
-        </select>
+        </AppSelect>
       </div>
 
       <p v-if="!filteredBuiltIns.length && !filteredCustom.length" class="text-body text-muted-foreground italic text-center py-6">
@@ -43,18 +43,22 @@
             :key="def.key"
             class="rounded-lg border border-border bg-card overflow-hidden"
           >
-            <button
-              type="button"
-              class="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+            <AppButton
+              variant="menu"
+              size="lg"
+              block
+              class="gap-2"
               @click="toggleBuiltIn(def.key)"
             >
-              <IconChevronRight
-                class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
-                :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
-              />
-              <span class="font-cinzel text-sm font-bold text-foreground flex-1">{{ def.name }}</span>
+              <template #icon>
+                <IconChevronRight
+                  class="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200"
+                  :class="openBuiltIns.has(def.key) ? 'rotate-90' : ''"
+                />
+              </template>
+              <span class="flex-1">{{ def.name }}</span>
               <span class="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 text-label text-emerald-400">active</span>
-            </button>
+            </AppButton>
             <div v-if="openBuiltIns.has(def.key)" class="px-4 pb-4 border-t border-border">
               <p class="text-caption text-muted-foreground italic mt-3 mb-2">{{ def.summary }}</p>
               <!-- eslint-disable-next-line vue/no-v-html -->
@@ -124,6 +128,9 @@
 
 <script setup lang="ts">
 import { ref, computed, shallowRef } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
 import { IconChevronRight } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

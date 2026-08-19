@@ -5,37 +5,24 @@
       <div class="flex items-center gap-2 flex-wrap">
 
         <!-- Back style -->
-        <div class="flex rounded-md overflow-hidden border border-border">
-          <button
-            v-for="bs in TOKEN_BACK_STYLES"
-            :key="bs.id"
-            type="button"
-            class="px-3 py-1.5 font-cinzel text-xs font-semibold transition-colors"
-            :class="backStyle === bs.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="emit('update:backStyle', bs.id)"
-          >{{ bs.label }}</button>
-        </div>
+        <SegmentedControl
+          v-model="backStyleModel"
+          :options="backStyleOptions"
+        />
 
         <!-- Token size -->
-        <div class="flex rounded-md overflow-hidden border border-border">
-          <button
-            v-for="ts in TOKEN_PRINT_SIZES"
-            :key="ts.id"
-            type="button"
-            class="px-3 py-1.5 font-cinzel text-xs font-semibold transition-colors"
-            :class="printSize === ts.id ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
-            @click="emit('update:printSize', ts.id)"
-          >{{ ts.label }}</button>
-        </div>
+        <SegmentedControl
+          v-model="printSizeModel"
+          :options="printSizeOptions"
+        />
 
-        <button
-          type="button"
+        <AppButton
+          variant="primary"
+          size="md"
           :disabled="rendering"
-          class="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :label="rendering ? 'Rendering…' : 'Print Sheet'"
           @click="emit('print')"
-        >
-          {{ rendering ? 'Rendering…' : 'Print Sheet' }}
-        </button>
+        />
       </div>
     </div>
 
@@ -54,7 +41,7 @@
           <span v-else class="text-white/60">{{ qe.entity.name.charAt(0) }}</span>
         </div>
         <span class="font-cinzel text-xs text-foreground">{{ qe.entity.name }}</span>
-        <button type="button" class="text-muted-foreground hover:text-destructive transition-colors text-xs leading-none" @click="emit('remove', qi)">✕</button>
+        <AppButton variant="ghost" tone="danger" size="inline-xs" ariaLabel="Remove" label="✕" @click="emit('remove', qi)" />
       </div>
     </div>
 
@@ -66,7 +53,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import {
   TOKEN_PRINT_SIZES,
   TOKEN_BACK_STYLES,
@@ -93,4 +83,16 @@ const emit = defineEmits<{
   remove: [index: number];
   print: [];
 }>();
+
+const backStyleOptions = TOKEN_BACK_STYLES.map((bs) => ({ value: bs.id, label: bs.label }));
+const printSizeOptions = TOKEN_PRINT_SIZES.map((ts) => ({ value: ts.id, label: ts.label }));
+
+const backStyleModel = computed<TokenBackStyleId>({
+  get: () => backStyle,
+  set: (value) => emit('update:backStyle', value),
+});
+const printSizeModel = computed<TokenPrintSizeId>({
+  get: () => printSize,
+  set: (value) => emit('update:printSize', value),
+});
 </script>

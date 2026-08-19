@@ -10,6 +10,7 @@ import {
 } from "@lucide/vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -160,37 +161,36 @@ function resolvedFocalPoint() {
           class="h-4 w-4 animate-spin text-muted-foreground"
         />
         <template v-else>
-          <button
-            class="flex items-center gap-1 px-2 py-1 rounded text-xs font-cinzel tracking-wide border transition-colors"
-            :class="
-              status === 'error'
-                ? 'border-destructive text-destructive hover:bg-destructive/10'
-                : dragging
-                  ? 'border-primary text-primary'
-                  : 'border-border text-foreground hover:bg-muted'
-            "
+          <AppButton
+            :variant="status === 'error' ? 'destructive' : 'outline'"
+            size="xs"
+            tone="primary"
+            :fill="status === 'error' ? 'none' : 'muted'"
+            :active="status !== 'error' && dragging"
+            :label="status === 'error' ? 'Retry' : (status === 'done' || entity.has_user_art) ? 'Replace' : 'Upload'"
             @click.stop="triggerUpload()"
           >
-            <AlertCircleIcon v-if="status === 'error'" class="h-3 w-3 shrink-0" />
-            <CheckIcon
-              v-else-if="status === 'done' || entity.has_user_art"
-              class="h-3 w-3 shrink-0 text-green-500"
-            />
-            <UploadIcon v-else class="h-3 w-3 shrink-0" />
-            <span v-if="status === 'error'">Retry</span>
-            <span v-else-if="status === 'done' || entity.has_user_art">Replace</span>
-            <span v-else>Upload</span>
-          </button>
+            <template #icon>
+              <AlertCircleIcon v-if="status === 'error'" class="h-3 w-3 shrink-0" />
+              <CheckIcon
+                v-else-if="status === 'done' || entity.has_user_art"
+                class="h-3 w-3 shrink-0 text-green-500"
+              />
+              <UploadIcon v-else class="h-3 w-3 shrink-0" />
+            </template>
+          </AppButton>
 
           <!-- Clear art — only when there is art to clear -->
-          <button
+          <AppButton
             v-if="entity.image_url || entity.has_user_art || status === 'done'"
-            class="flex items-center justify-center w-7 h-7 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
-            title="Clear art"
+            variant="subtle"
+            size="icon-xs"
+            icon-size="xs"
+            tone="danger"
+            tooltip="Clear art"
+            :icon="Trash2Icon"
             @click.stop="emit('clear')"
-          >
-            <Trash2Icon class="h-3 w-3" />
-          </button>
+          />
         </template>
       </div>
     </div>

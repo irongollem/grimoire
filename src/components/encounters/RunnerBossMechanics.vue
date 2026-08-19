@@ -8,26 +8,27 @@
       <span class="text-label-lg font-semibold text-amber-500">
         SURPRISE — Optional
       </span>
-      <button
-        type="button"
-        class="font-cinzel text-2xs text-muted-foreground hover:text-foreground transition-colors"
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        :label="showSurprise ? 'Hide' : 'Mark surprised'"
         @click="showSurprise = !showSurprise"
-      >{{ showSurprise ? 'Hide' : 'Mark surprised' }}</button>
+      />
     </div>
     <p v-if="!showSurprise && surprisedCount === 0" class="text-caption text-muted-foreground italic mt-0.5">
       Mark creatures that are surprised — they'll skip their first turn.
     </p>
     <div v-else-if="showSurprise" class="mt-2 flex flex-wrap gap-1.5">
-      <button
+      <AppButton
         v-for="c in store.combatants"
         :key="c.instance_id"
-        type="button"
-        class="px-2 py-0.5 rounded text-label border transition-colors"
-        :class="c.surprised
-          ? 'bg-amber-500/20 border-amber-500/60 text-amber-400'
-          : 'bg-card border-border text-muted-foreground hover:border-amber-500/40'"
+        variant="subtle"
+        surface="card"
+        tone="caution"
+        size="xs"
+        :active="c.surprised"
         @click="store.toggleSurprised(c.instance_id)"
-      >{{ c.name }}{{ c.surprised ? ' ✦' : '' }}</button>
+      >{{ c.name }}{{ c.surprised ? ' ✦' : '' }}</AppButton>
     </div>
     <p v-if="!showSurprise && surprisedCount > 0" class="text-caption text-amber-400 mt-0.5">
       {{ surprisedCount }} surprised creature{{ surprisedCount > 1 ? 's' : '' }}.
@@ -51,14 +52,17 @@
       </span>
     </div>
     <div v-if="store.lairCanFireThisRound && lairActions.length > 0" class="mt-2 flex flex-wrap gap-1.5">
-      <button
+      <AppButton
         v-for="(action, idx) in lairActions"
         :key="idx"
-        type="button"
-        class="px-2 py-1 rounded-md border border-violet-500/30 bg-violet-500/10 text-violet-300 text-label hover:bg-violet-500/20 hover:border-violet-500/60 transition-colors"
-        :title="action.description"
+        variant="tinted"
+        tone="arcane"
+        size="xs"
+        class="rounded-md py-1"
+        :label="action.name"
+        :tooltip="action.description"
         @click="fireLairAction(action)"
-      >{{ action.name }}</button>
+      />
     </div>
   </div>
 
@@ -95,6 +99,7 @@
 import { ref, computed } from "vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import AppButton from "@/components/common/AppButton.vue";
 
 const store = useEncounterRunStore();
 // Chat posting is best-effort from the runner — sendSystemMessage no-ops

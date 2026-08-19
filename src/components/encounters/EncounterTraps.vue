@@ -50,14 +50,15 @@
           </button>
         </div>
 
-        <button
-          type="button"
-          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
-          title="Remove all"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="inline"
+          :icon="IconClose"
+          tooltip="Remove all"
+          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
           @click="removeAll(trap.id)"
-        >
-          <IconClose class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
 
       <!-- Add control -->

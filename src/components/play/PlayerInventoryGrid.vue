@@ -5,12 +5,15 @@
       <p class="text-label-lg font-semibold text-muted-foreground">
         Containers
       </p>
-      <button
-        class="flex items-center gap-1 text-label md:text-sm text-muted-foreground hover:text-foreground transition-colors"
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        icon-size="xs"
+        :icon="IconAdd"
+        label="Add container"
+        class="md:text-sm"
         @click="$emit('toggle-container-picker')"
-      >
-        <IconAdd class="h-3 w-3" />Add container
-      </button>
+      />
     </div>
 
     <!-- Container picker -->
@@ -21,34 +24,35 @@
       <p class="text-label md:text-sm text-muted-foreground">
         Pick an item from your inventory:
       </p>
-      <input
-        :value="containerPickerSearch"
+      <AppInput
+        v-model="containerSearchModel"
         type="text"
+        tone="muted"
+        size="body-xs"
         placeholder="Filter items…"
-        class="w-full bg-muted/30 border border-border rounded px-2 py-1 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update-container-search', ($event.target as HTMLInputElement).value)"
       />
       <div v-if="containerCandidates.length" class="rounded border border-border overflow-hidden">
-        <button
+        <AppButton
           v-for="item in containerCandidates"
           :key="item.id"
-          type="button"
-          class="w-full text-left px-3 py-1.5 text-body text-foreground hover:bg-muted transition-colors border-b border-border last:border-0"
+          variant="menu"
+          size="body"
+          block
+          :label="item.name"
+          class="rounded-none border-b border-border last:border-0"
           @click="$emit('promote-container', item)"
-        >
-          {{ item.name }}
-        </button>
+        />
       </div>
       <p v-else class="text-caption text-muted-foreground/50 italic">
         No items in inventory.
       </p>
-      <button
-        type="button"
-        class="font-cinzel text-2xs md:text-sm text-muted-foreground hover:text-foreground self-end"
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        label="Cancel"
+        class="self-end md:text-sm"
         @click="$emit('close-container-picker')"
-      >
-        Cancel
-      </button>
+      />
     </div>
 
     <!-- Default backpack always shown -->
@@ -194,7 +198,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { IconAdd } from '@/lib/icons';
 import type { PartyInventoryItem, InventoryLocation } from '@/types/inventory.types';
@@ -202,6 +206,8 @@ import type { PartyMember } from '@/types/party.types';
 import type { Item } from '@/types/item.types';
 import ContainerSection from '@/components/inventory/ContainerSection.vue';
 import ItemRow from '@/components/inventory/ItemRow.vue';
+import AppButton from '@/components/common/AppButton.vue';
+import AppInput from '@/components/common/AppInput.vue';
 
 const {
   backpackItems,
@@ -283,4 +289,11 @@ function onStashAdd(event: SortAddEvent) {
   const item = localStashItems.value[event.newIndex ?? 0];
   if (item) emit('move', item, 'stash', null);
 }
+
+// Bridges the container-picker search prop/emit pair into a two-way model for
+// AppInput, which requires v-model — same shape as any other props+emit field.
+const containerSearchModel = computed({
+  get: () => containerPickerSearch,
+  set: (value: string) => emit('update-container-search', value),
+});
 </script>

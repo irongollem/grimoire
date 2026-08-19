@@ -74,6 +74,18 @@ export const buttonVariants = cva(
          */
         "inline-xs": "gap-1 text-label",
         inline: "gap-1 text-label-lg",
+        /**
+         * The chromeless sizes in the *reading* face rather than the display one.
+         *
+         * `inline-xs` and `inline` are the only sizes with no box at all, but both
+         * name a #552 label role, which carries Cinzel. A boxless action sitting in a
+         * sentence of Crimson prose — "Undo", "Clear", a "Delete" at the end of a
+         * body-text row — had nothing to reach for, so 29 sites stayed native and 10
+         * more became AppButtons that cancel the forced face with a call-site
+         * `class="text-body"`. That override is the anti-pattern; these are the fix.
+         */
+        "inline-body": "gap-1 text-body",
+        "inline-caption": "gap-1 text-caption",
         xs: "gap-1 rounded px-2 py-0.5 text-label",
         sm: "gap-1.5 rounded-md px-3 py-1.5 text-label-lg",
         /** min-h-11 is a ≥44px tap target on touch; ≥md reverts to py-2 so desktop is unchanged. */
@@ -448,7 +460,7 @@ export const BUTTON_VARIANTS = [
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional

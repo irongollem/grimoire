@@ -208,24 +208,27 @@
       <MonsterRevealControl :monster="monster" />
 
       <!-- SRD monsters clone to an editable copy (Customize); custom monsters edit -->
-      <button
+      <AppButton
         v-if="monster.is_shared"
-        type="button"
+        variant="primary"
+        size="md"
+        class="flex-1"
         :disabled="cloning"
-        class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-3 font-cinzel text-sm font-bold tracking-wider text-primary-foreground active:opacity-90 disabled:opacity-50"
+        :icon="IconCopy"
+        icon-size="md"
+        :label="cloning ? 'Copying…' : 'Customize'"
         @click="customize"
-      >
-        <IconCopy class="size-4" />
-        {{ cloning ? "Copying…" : "Customize" }}
-      </button>
-      <RouterLink
+      />
+      <AppButton
         v-else
+        variant="primary"
+        size="md"
+        class="flex-1"
         :to="`/monsters/${monster.id}?edit=true`"
-        class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-3 font-cinzel text-sm font-bold tracking-wider text-primary-foreground active:opacity-90"
-      >
-        <IconEdit class="size-4" />
-        Edit
-      </RouterLink>
+        :icon="IconEdit"
+        icon-size="md"
+        label="Edit"
+      />
     </div>
   </div>
 
@@ -234,21 +237,32 @@
        is offered for custom monsters only (SRD uses Customize above). -->
   <MobileSheet v-model:open="showMenu" :title="monster.name">
     <div class="flex flex-col gap-1 pb-2">
-      <RouterLink
+      <AppButton
         v-if="!monster.is_shared"
+        variant="menu"
+        size="md"
+        block
+        class="gap-3"
         :to="`/monsters/${monster.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
+        :icon="IconCopy"
+        icon-size="md"
+        label="Duplicate"
         @click="showMenu = false"
-      >
-        <IconCopy class="size-4 shrink-0" /> Duplicate
-      </RouterLink>
-      <RouterLink
+      />
+      <AppButton
+        variant="menu"
+        size="md"
+        block
+        class="gap-3"
         :to="`/monsters/${monster.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
+        :icon="IconScrollText"
+        icon-size="md"
+        label="Send to Scriptorium"
         @click="showMenu = false"
-      >
-        <IconScrollText class="size-4 shrink-0" /> Send to Scriptorium
-      </RouterLink>
+      />
+      <!-- Destructive row's active:bg-destructive/10 touch feedback has no
+           AppButton equivalent (fill only emits hover:) — left native, matching
+           the same call in MonsterEditMobile's overflow sheet. -->
       <button
         v-if="!monster.is_shared"
         type="button"
@@ -263,6 +277,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, toRef } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { useRouter } from "vue-router";
 import { useScroll } from "@vueuse/core";
 import FocalImage from "@/components/common/FocalImage.vue";

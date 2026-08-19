@@ -9,12 +9,14 @@
         <!-- Header -->
         <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h2 class="text-heading font-bold text-foreground">Import World Bundle</h2>
-          <button
-            class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="close"
-          >
-            ✕
-          </button>
+          />
         </div>
 
         <div class="flex-1 overflow-y-auto px-5 py-4 space-y-5">
@@ -194,7 +196,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, shallowRef } from "vue";
 import { useRouter } from "vue-router";
-import { IconUpload } from '@/lib/icons';
+import { IconUpload, IconClose } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { useCampaignStore } from "@/stores/campaign";

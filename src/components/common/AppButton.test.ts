@@ -746,3 +746,29 @@ describe("menu tone ladder (#648)", () => {
     expect(danger).not.toContain("hover:bg-muted");
   });
 });
+
+describe("chromeless reading-face sizes (#648)", () => {
+  // Paired with `ghost`, which draws nothing of its own, so what is asserted is the
+  // SIZE's contribution. Mounting bare would inherit the default `subtle` variant and
+  // its border — which is the variant's business, not the size's.
+  it("carry no box at all, like the other inline sizes", () => {
+    for (const size of ["inline-body", "inline-caption", "inline", "inline-xs"] as const) {
+      const cls = mount(AppButton, { props: { variant: "ghost", size, label: "Undo" }, global })
+        .get("button").classes().join(" ");
+      expect(cls, size).not.toMatch(/\bp[xy]?-[\d.]/);
+      expect(cls, size).not.toMatch(/\bborder\b/);
+      expect(cls, size).not.toMatch(/\brounded/);
+    }
+  });
+
+  // The whole point: the reading face, not the Cinzel label roles the other inline
+  // sizes force. 10 call sites were already cancelling that with a class override.
+  it("render the reading face rather than a label role", () => {
+    expect(mount(AppButton, { props: { size: "inline-body", label: "x" }, global })
+      .get("button").classes()).toContain("text-body");
+    expect(mount(AppButton, { props: { size: "inline-caption", label: "x" }, global })
+      .get("button").classes()).toContain("text-caption");
+    expect(mount(AppButton, { props: { size: "inline", label: "x" }, global })
+      .get("button").classes()).toContain("text-label-lg");
+  });
+});

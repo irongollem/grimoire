@@ -11,11 +11,14 @@
           <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <h2 class="text-heading-sm font-semibold text-foreground truncate pr-2">{{ inv.name }}</h2>
             <div class="flex items-center gap-2 shrink-0">
-              <button
+              <AppButton
                 v-if="inv.location === 'equipped'"
-                class="text-label text-destructive hover:opacity-70 transition-opacity"
+                variant="link"
+                tone="danger"
+                size="inline-xs"
+                label="Unequip"
                 @click="emit('unequip')"
-              >Unequip</button>
+              />
               <AppButton variant="ghost" size="inline" ariaLabel="Close" :icon="IconClose" icon-size="lg" @click="$emit('close')" />
             </div>
           </div>

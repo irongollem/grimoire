@@ -83,9 +83,10 @@
           <AppButton
             v-else
             variant="ghost"
+            tone="danger"
             size="inline-xs"
             label="Remove"
-            class="text-caption hover:text-destructive"
+            class="text-caption"
             @click="removeTracker"
           />
         </div>
@@ -189,8 +190,9 @@
                 </AppSelect>
                 <AppButton
                   variant="ghost"
+                  tone="danger"
                   size="icon-xs"
-                  class="shrink-0 hover:text-destructive"
+                  class="shrink-0"
                   :icon="IconClose"
                   @click="removeLevel(li)"
                 />
@@ -290,8 +292,9 @@
                   />
                   <AppButton
                     variant="ghost"
+                    tone="danger"
                     size="icon-xs"
-                    class="shrink-0 hover:text-destructive"
+                    class="shrink-0"
                     :icon="IconClose"
                     @click="removeEffect(lvl, fi)"
                   />
@@ -387,8 +390,9 @@
               </label>
               <AppButton
                 variant="ghost"
+                tone="danger"
                 size="icon-xs"
-                class="shrink-0 hover:text-destructive"
+                class="shrink-0"
                 :icon="IconClose"
                 @click="removeButton(bi)"
               />

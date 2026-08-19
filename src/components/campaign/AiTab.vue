@@ -110,15 +110,12 @@
             <AppButton
               variant="ghost"
               size="icon-xs"
+              icon-size="md"
               class="absolute right-2.5 top-1/2 -translate-y-1/2"
+              :icon="showKeys[p.id] ? IconHide : IconReveal"
               :tooltip="showKeys[p.id] ? 'Hide key' : 'Reveal key'"
               @click="showKeys[p.id] = !showKeys[p.id]"
-            >
-              <template #icon>
-                <IconReveal v-if="!showKeys[p.id]" class="h-4 w-4" />
-                <IconHide v-else class="h-4 w-4" />
-              </template>
-            </AppButton>
+            />
           </div>
         </div>
       </div>

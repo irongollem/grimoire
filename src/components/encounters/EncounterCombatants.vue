@@ -38,18 +38,21 @@
         />
       </div>
       <div v-if="filteredNpcs.length" class="max-h-48 overflow-y-auto flex flex-col gap-1">
-        <button
+        <AppButton
           v-for="npc in filteredNpcs"
           :key="npc.id"
-          type="button"
-          class="flex items-center justify-between px-3 py-2 rounded-md hover:bg-card transition-colors text-left"
+          variant="menu"
+          size="body"
+          block
           @click="addNpcToCombatants(npc)"
         >
-          <span class="text-body text-foreground">{{ npc.name }}</span>
-          <span class="font-cinzel text-2xs text-muted-foreground">
-            CR {{ npc.stat_block?.challenge_rating ?? "—" }}
+          <span class="flex-1 flex items-center justify-between">
+            <span class="text-body text-foreground">{{ npc.name }}</span>
+            <span class="font-cinzel text-2xs text-muted-foreground">
+              CR {{ npc.stat_block?.challenge_rating ?? "—" }}
+            </span>
           </span>
-        </button>
+        </AppButton>
       </div>
       <p v-else-if="npcSearch" class="text-caption text-muted-foreground italic text-center py-2">
         No NPCs match.

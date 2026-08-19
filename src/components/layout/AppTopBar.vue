@@ -16,13 +16,15 @@
 
     <!-- Phones only: at md+ within bar mode (a tablet), the inline search
          above replaces this icon button. -->
-    <button
-      class="md:hidden text-muted-foreground hover:text-foreground transition-colors"
+    <AppButton
+      variant="ghost"
+      size="inline"
+      icon-size="lg"
+      :icon="IconSearch"
+      class="md:hidden"
       aria-label="Search"
       @click="searchOpen = true"
-    >
-      <IconSearch class="h-5 w-5" />
-    </button>
+    />
 
     <!-- At md+ within bar mode (a tablet), the top bar carries the full
          Prep/Play toggle, freeing the bottom bar's width for more nav tabs. -->
@@ -33,18 +35,16 @@
     <!-- DM Prep/Play toggle — compact single-word pill showing current state.
          Phones only: at md+ within bar mode (a tablet), the toggle above
          replaces this pill. -->
-    <button
+    <AppButton
       v-if="isDm"
-      type="button"
-      :title="ui.dmMode === 'play' ? 'Play mode — click to stop broadcasting' : 'Prep mode — click to broadcast'"
-      class="md:hidden rounded border px-2 py-0.5 font-cinzel text-2xs tracking-widest font-bold transition-colors shrink-0"
-      :class="ui.dmMode === 'play'
-        ? 'border-primary/60 bg-primary/15 text-primary'
-        : 'border-border text-muted-foreground'"
+      variant="subtle"
+      size="xs"
+      :active="ui.dmMode === 'play'"
+      class="md:hidden shrink-0 font-bold"
+      :tooltip="ui.dmMode === 'play' ? 'Play mode — click to stop broadcasting' : 'Prep mode — click to broadcast'"
+      :label="ui.dmMode === 'play' ? 'PLAY' : 'PREP'"
       @click="ui.toggleDmMode()"
-    >
-      {{ ui.dmMode === 'play' ? 'PLAY' : 'PREP' }}
-    </button>
+    />
 
     <SoundboardWidgetToggle :icon-only="true" class="px-1.5! py-1!" />
 
@@ -66,12 +66,15 @@
               class="w-full pl-8 pr-8 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
               @keydown.escape="searchOpen = false"
             />
-            <button
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            <AppButton
+              variant="ghost"
+              size="inline"
+              icon-size="md"
+              :icon="IconClose"
+              aria-label="Close"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2"
               @click="searchOpen = false"
-            >
-              <IconClose class="h-4 w-4" />
-            </button>
+            />
           </div>
         </div>
 
@@ -115,6 +118,7 @@ import { useRoute } from "vue-router";
 import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import AppButton from "@/components/common/AppButton.vue";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import DmModeToggle from "./DmModeToggle.vue";

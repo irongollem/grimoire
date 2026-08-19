@@ -57,23 +57,27 @@
         class="rounded border border-border bg-muted/10 px-2 py-2 flex flex-col gap-1.5"
       >
         <div class="flex items-center gap-2">
-          <input
-            :value="pool.label"
-            type="text"
+          <AppInput
+            :model-value="pool.label"
+            tone="underline"
+            size="caption"
+            :block="false"
+            class="flex-1"
             placeholder="Label (e.g. Iron Chest)…"
-            class="flex-1 bg-transparent border-b border-border px-1 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
-            @input="updatePool(pool.id, 'label', ($event.target as HTMLInputElement).value)"
+            @update:model-value="(v) => updatePool(pool.id, 'label', v)"
           />
-          <button
-            type="button"
+          <AppButton
+            variant="link"
+            tone="caution"
+            size="inline-xs"
+            :icon="IconCoins"
+            icon-size="xs"
+            label="Drop"
+            class="shrink-0"
             :disabled="!hasCoins(pool)"
-            :title="'Drop \'' + (pool.label || 'Pool') + '\' to chat'"
-            class="shrink-0 inline-flex items-center gap-1 text-label font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30"
+            :tooltip="`Drop '${pool.label || 'Pool'}' to chat`"
             @click="emit('drop-pool', pool)"
-          >
-            <IconCoins class="h-3 w-3" />
-            Drop
-          </button>
+          />
           <AppButton
             variant="ghost"
             tone="danger"
@@ -136,6 +140,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconClose, IconCoins, IconLoot, IconMinus, IconPackage } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";

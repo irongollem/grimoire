@@ -50,12 +50,12 @@
           <p v-if="!lot.eligible" class="text-caption-sm text-amber-400">
             {{ ineligibleReason(lot) }} This will still issue a full Stripe refund; clawback is clamped to the available balance.
           </p>
-          <input
+          <AppInput
             v-if="!lot.eligible"
             v-model="reason"
-            type="text"
+            tone="filled"
+            size="caption"
             placeholder="Override reason (required)…"
-            class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <p v-if="errorMsg" class="text-caption-sm text-destructive">{{ errorMsg }}</p>
           <div class="flex items-center gap-2">
@@ -66,13 +66,13 @@
             >
               {{ refundPack.isPending.value ? 'Refunding…' : `Confirm refund (−${clawbackPreview(lot)} credits)` }}
             </button>
-            <button
-              class="px-3 py-1 text-label text-muted-foreground hover:text-foreground"
+            <AppButton
+              variant="ghost"
+              size="xs"
               :disabled="refundPack.isPending.value"
+              label="Cancel"
               @click="cancel"
-            >
-              Cancel
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -85,6 +85,8 @@
 <script setup lang="ts">
 import { computed, ref, toRef } from 'vue'
 import { useAdminRefunds, type PackLot } from '@/composables/useAdminRefunds'
+import AppButton from '@/components/common/AppButton.vue'
+import AppInput from '@/components/common/AppInput.vue'
 
 const { userId } = defineProps<{ userId: string }>()
 

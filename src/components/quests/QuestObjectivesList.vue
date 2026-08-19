@@ -32,37 +32,36 @@
         >
           {{ obj.description }}
         </span>
-        <button
-          type="button"
-          :title="
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          :class="obj.is_player_visible ? 'text-elven-green' : ''"
+          :icon="obj.is_player_visible ? IconReveal : IconHide"
+          :tooltip="
             obj.is_player_visible
               ? 'Visible to players — click to hide'
               : 'Hidden from players — click to reveal'
           "
-          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-          :class="
-            obj.is_player_visible
-              ? 'text-elven-green'
-              : 'text-muted-foreground hover:text-foreground'
-          "
           @click="$emit('toggle-visibility', obj)"
-        >
-          <IconReveal v-if="obj.is_player_visible" class="h-3.5 w-3.5" />
-          <IconHide v-else class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
+        />
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="inline-xs"
+          class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+          :icon="IconClose"
+          aria-label="Remove objective"
           @click="$emit('remove', obj)"
-        >
-          <IconClose class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
       <div v-if="!isNew" class="flex items-center gap-2 pt-1">
-        <input
+        <AppInput
           v-model="newObjective"
+          tone="underline"
+          size="body"
+          class="flex-1"
           placeholder="Add objective…"
-          class="flex-1 bg-transparent border-b border-border px-1 py-1 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
           @keydown.enter.prevent="submit"
         />
         <AppButton
@@ -90,6 +89,7 @@
 import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconHide, IconReveal } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { countObjectivesComplete, nextObjectiveStatus, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 import type { QuestObjective } from "@/types/quest.types";

@@ -57,9 +57,9 @@
               />
               <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1">
-                  <AppButton variant="subtle" size="icon-xs" class="bg-card" :icon="IconMinus" @click="editEventData.spawnCount = Math.max(1, editEventData.spawnCount - 1)" />
+                  <AppButton variant="subtle" size="icon-xs" surface="card" :icon="IconMinus" @click="editEventData.spawnCount = Math.max(1, editEventData.spawnCount - 1)" />
                   <span class="font-cinzel text-sm font-bold w-6 text-center">{{ editEventData.spawnCount }}</span>
-                  <AppButton variant="subtle" size="icon-xs" class="bg-card" :icon="IconAdd" @click="editEventData.spawnCount = Math.min(20, editEventData.spawnCount + 1)" />
+                  <AppButton variant="subtle" size="icon-xs" surface="card" :icon="IconAdd" @click="editEventData.spawnCount = Math.min(20, editEventData.spawnCount + 1)" />
                 </div>
                 <EntityCombobox
                   :model-value="editEventData.spawnFaction"
@@ -154,9 +154,9 @@
             />
             <div class="flex items-center gap-2">
               <div class="flex items-center gap-1">
-                <AppButton variant="subtle" size="icon-xs" class="bg-card" :icon="IconMinus" @click="newEvent.spawnCount = Math.max(1, newEvent.spawnCount - 1)" />
+                <AppButton variant="subtle" size="icon-xs" surface="card" :icon="IconMinus" @click="newEvent.spawnCount = Math.max(1, newEvent.spawnCount - 1)" />
                 <span class="font-cinzel text-sm font-bold w-6 text-center">{{ newEvent.spawnCount }}</span>
-                <AppButton variant="subtle" size="icon-xs" class="bg-card" :icon="IconAdd" @click="newEvent.spawnCount = Math.min(20, newEvent.spawnCount + 1)" />
+                <AppButton variant="subtle" size="icon-xs" surface="card" :icon="IconAdd" @click="newEvent.spawnCount = Math.min(20, newEvent.spawnCount + 1)" />
               </div>
               <EntityCombobox
                 :model-value="newEvent.spawnFaction"
