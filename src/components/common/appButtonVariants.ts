@@ -306,6 +306,20 @@ export const buttonVariants = cva(
        */
       // `link` is toned at REST, not on hover — that is the whole point of it reading
       // `tone`. `primary` needs no rule: it is what the variant already renders.
+      /**
+       * `outline` + a neutral wash and nothing else — a bordered Copy, Render or
+       * Cancel that lights up its background on hover without recolouring its text.
+       * 29 sites across 25 files, reported by five separate passes.
+       *
+       * Only the text half needs stating: `fill="muted"` already beats the variant's
+       * `hover:bg-accent`, because both are the background group. Its
+       * `hover:text-accent-foreground` sits in a *different* group, so nothing
+       * cancels it and every one of those sites read as "outline is wrong for this"
+       * rather than "outline is one rule short". Setting it back to the resting
+       * colour is what makes the hover a pure wash.
+       */
+      { variant: "outline", fill: "muted", class: "hover:text-foreground" },
+
       { variant: "link", tone: "danger", class: "text-destructive" },
       { variant: "link", tone: "success", class: "text-tone-success" },
       { variant: "link", tone: "info", class: "text-tone-info" },

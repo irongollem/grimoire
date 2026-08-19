@@ -659,3 +659,24 @@ describe("surface (#648)", () => {
     expect(cls).not.toMatch(/(?<!hover:)\bbg-/);
   });
 });
+
+describe("outline + fill is a pure hover wash (#648)", () => {
+  it("lights the background without recolouring the text", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "outline", fill: "muted", label: "Copy" }, global,
+    }).get("button").classes();
+
+    expect(cls).toContain("hover:bg-muted");
+    expect(cls).toContain("hover:text-foreground");
+    // the two the variant sets by default, both of which must lose
+    expect(cls).not.toContain("hover:bg-accent");
+    expect(cls).not.toContain("hover:text-accent-foreground");
+  });
+
+  it("leaves a plain outline button's accent hover alone", () => {
+    const cls = mount(AppButton, { props: { variant: "outline", label: "Copy" }, global })
+      .get("button").classes();
+    expect(cls).toContain("hover:bg-accent");
+    expect(cls).toContain("hover:text-accent-foreground");
+  });
+});
