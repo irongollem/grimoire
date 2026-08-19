@@ -43,7 +43,7 @@ const {
   class: className,
 } = defineProps<{
   modelValue: boolean;
-  /** `sm` for dense inline rows, `md` (default) for panels, `lg` for settings pages. */
+  /** `md` (default) for panels and inline rows; `lg` for settings rows with a description. */
   size?: SwitchSize;
   ariaLabel?: string;
   disabled?: boolean;

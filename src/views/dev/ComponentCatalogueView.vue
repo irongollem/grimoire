@@ -109,6 +109,22 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="ToggleSwitch — size, against the labels each one sits beside"
+      note="Two sizes, not the three the raw measurement suggested. A third (h-4 w-7, 6 sites) was measured and rejected: those sites contradicted each other — one picked it beside the same text-xs label the md sites use, another beside a larger one, and one Illuminate panel picked it while its four siblings on the same screen did not. Each row here pairs a size with the label typography its call sites actually carry."
+    >
+      <div class="flex flex-col gap-4">
+        <div v-for="row in SWITCH_ROWS" :key="row.size" class="flex items-center gap-4">
+          <span class="w-8 shrink-0 text-label text-muted-foreground">{{ row.size }}</span>
+          <div class="flex w-64 items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+            <span :class="row.labelClass">{{ row.label }}</span>
+            <ToggleSwitch v-model="switchStates[row.size]" :size="row.size" :aria-label="row.label" />
+          </div>
+          <span class="text-caption text-muted-foreground">{{ row.note }}</span>
+        </div>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton — fill"
       note="Whether a button paints a background on hover rather than only recolouring text. The largest recipe the sweep could not express — 104 hover:bg-muted and 116 hover:bg-<tone>/N occurrences across the app. It is an axis rather than a variant so it composes: ghost+fill is a toolbar toggle, ghost+fill+danger is a destructive icon button."
     >
@@ -334,6 +350,8 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import { SWITCH_SIZES } from "@/components/common/toggleSwitchVariants";
 import CatalogueSection from "./CatalogueSection.vue";
 import {
   BUTTON_VARIANTS,
@@ -345,6 +363,13 @@ import {
   type ButtonSize,
 } from "@/components/common/appButtonVariants";
 import { FIELD_SIZES, FIELD_TONES } from "@/components/common/fieldVariants";
+
+const SWITCH_ROWS = [
+  { size: "md", label: "GENERATE PORTRAIT ART", labelClass: "font-cinzel text-xs font-bold tracking-widest uppercase text-foreground", note: "IlluminateDofPanel — a panel option row" },
+  { size: "lg", label: "Keep screen awake", labelClass: "font-cinzel text-sm text-foreground", note: "PlayerSettingsAppearance — a settings row with a description" },
+] as const satisfies readonly { size: (typeof SWITCH_SIZES)[number]; label: string; labelClass: string; note: string }[];
+
+const switchStates = ref<Record<string, boolean>>({ md: true, lg: true });
 
 const SEGMENT_OPTIONS = [
   { value: "url", label: "URL" },
