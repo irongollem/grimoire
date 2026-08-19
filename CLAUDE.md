@@ -200,6 +200,38 @@ Because `BrandIcon` takes a `name` prop it cannot go through `AppButton`'s
 cases, not a workaround.
 
 
+## Motion — panels animate through `src/lib/motion.ts`
+
+Every animation that opens or closes a panel goes through this module. Not a
+style preference: the same twelve-line transform had been hand-written into
+`AppModal` and `ImageLightbox`, and `prefersReducedMotion` into four components,
+each identical and each free to drift. A set of animations meant to read as one
+system is exactly the thing that must not be re-derived per call site.
+
+| You want                                    | Use                                                        |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| A panel to grow out of the thing clicked    | `originTransform(origin, panelRect)` → `REST_TRANSFORM`     |
+| A block to open to its content's height     | `<Transition v-bind="drawerTransition()">` over a `v-show`  |
+| To honour the OS reduce-motion setting      | `prefersReducedMotion()` / `canAnimate(el)`                 |
+| To tell Vue a JS transition finished        | `whenSettled(animation, done)`                              |
+
+Three things that are easy to get wrong and are already handled:
+
+- **`whenSettled` is not optional.** A cancelled animation *rejects*; uncaught,
+  Vue never hears the transition ended and leaves the element mid-flight.
+- **A drawer collapses its padding and borders, not just its height.** Left at
+  rest, a padded drawer shuts onto a stub of empty card and an accordion's header
+  rule hangs over nothing. `scrollHeight` also excludes borders, so a bordered
+  drawer measured naively opens a hairline short and clips its own last row.
+- **Distance wants duration.** A short hop is 260ms (`AppModal`); the soundboard
+  widget crosses ~640px and needed 340ms, and `ImageLightbox` 380ms — below that
+  the eye registers that something changed without seeing it travel, which
+  defeats the point of animating it at all.
+
+Reach for `canAnimate` before `el.animate`: Web Animations is absent in the test
+DOM, so an unguarded animation makes a component untestable rather than merely
+unanimated.
+
 ## Shared-Content Naming — say `library`, never `srd`
 
 The shared/admin-provided content tables are `library_monsters`, `library_spells`, `library_items`, `library_species`, `library_rules`, plus the art tables `library_monster_art{,_canonical}`, `library_spell_art{,_canonical}`, `library_art_staging` and `library_art_defaults`.

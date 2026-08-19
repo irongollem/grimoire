@@ -14,29 +14,31 @@
       <span class="font-cinzel text-base font-bold tracking-wide text-foreground">
         {{ title }}
       </span>
-      <!-- Chevron (inline SVG — rotates 180° when open) -->
-      <svg
+      <IconChevronDown
         class="size-5 shrink-0 text-muted-foreground transition-transform duration-200"
         :class="open && 'rotate-180'"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
         aria-hidden="true"
-      >
-        <polyline points="6 9 12 15 18 9" />
-      </svg>
+      />
     </button>
 
-    <div v-if="open" class="border-t border-border px-4 pt-3 pb-4">
-      <slot />
-    </div>
+    <!--
+      `v-show`, not `v-if`: the body holds live form fields on the NPC sheet, and
+      rebuilding them on every open would drop whatever was mid-edit. The rule
+      under the header rides along with the drawer — drawerTransition collapses
+      the border with the height, so it is never left hanging over nothing.
+    -->
+    <Transition v-bind="drawerTransition()">
+      <div v-show="open" class="border-t border-border px-4 pt-3 pb-4">
+        <slot />
+      </div>
+    </Transition>
   </section>
 </template>
 
 <script setup lang="ts">
+import { IconChevronDown } from "@/lib/icons";
+import { drawerTransition } from "@/lib/motion";
+
 defineProps<{ title: string }>();
 const open = defineModel<boolean>("open", { required: true });
 </script>

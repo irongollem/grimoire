@@ -297,7 +297,7 @@
           </button>
         </div>
         <div class="px-3 py-2">
-          <SoundboardMixer column />
+          <SoundboardMixer />
         </div>
       </aside>
     </div>

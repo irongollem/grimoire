@@ -1,5 +1,5 @@
 <template>
-  <div :class="stacked ? 'space-y-2' : 'flex flex-wrap items-center gap-x-4 gap-y-2'">
+  <div class="space-y-2">
     <p
       v-if="store.isCasting"
       class="flex w-full items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-2xs text-amber-500"
@@ -38,71 +38,72 @@
       </span>
     </button>
 
-    <template v-if="!collapsible || open">
-      <div class="flex min-w-0 items-center gap-2" :class="stacked ? '' : 'flex-1'">
+    <!--
+      A drawer rather than a v-if, so the faders keep their DOM: the widget's
+      mixer can be folded away mid-session with a bus part-way down, and
+      rebuilding the sliders on every open would be both a jump and a lost drag.
+    -->
+    <Transition v-bind="drawerTransition()">
+      <div v-show="!collapsible || open" class="space-y-2">
+        <div class="flex min-w-0 items-center gap-2">
+          <VolumeSlider
+            class="flex-1"
+            label="Master"
+            wide
+            show-percent
+            :disabled-reason="store.volumeControlNote"
+            :model-value="store.masterVolume"
+            @update:model-value="store.setMasterVolume($event)"
+          />
+          <!-- Puts the whole mix in a space, rather than one selected track.
+               Direct output has no graph to put anything in, so the control goes
+               rather than sitting there doing nothing. -->
+          <SoundEffectPicker
+            v-if="!store.directOutput"
+            :model-value="store.masterEffect"
+            @update:model-value="store.setMasterEffect($event)"
+          />
+        </div>
+
+        <SceneMixer v-if="showScene" class="border-t border-border/50 pt-1.5" />
+
         <VolumeSlider
-          class="flex-1"
-          label="Master"
+          v-for="bus in BUSES"
+          :key="bus.id"
+          class="min-w-0"
+          :label="bus.label"
           wide
           show-percent
+          :muted="store.masterVolume === 0"
           :disabled-reason="store.volumeControlNote"
-          :model-value="store.masterVolume"
-          @update:model-value="store.setMasterVolume($event)"
+          :model-value="store.busVolumes[bus.id]"
+          @update:model-value="store.setBusVolume(bus.id, $event)"
         />
-        <!-- Puts the whole mix in a space, rather than one selected track.
-             Direct output has no graph to put anything in, so the control goes
-             rather than sitting there doing nothing. -->
-        <SoundEffectPicker
-          v-if="!store.directOutput"
-          :model-value="store.masterEffect"
-          @update:model-value="store.setMasterEffect($event)"
-        />
+
+        <!--
+          A read-only echo, not a control. The mixer is for levels; two
+          checkboxes among the faders read as levels too. But this is still where
+          a DM looks when the audio did something they did not ask for, so the
+          state stays visible here and opens the dialog that owns it.
+        -->
+        <button
+          type="button"
+          class="flex w-full items-center gap-1.5 border-t border-border/50 pt-1.5 text-left text-2xs text-muted-foreground transition-colors hover:text-foreground"
+          title="Open board settings"
+          @click="ui.soundboardSettingsOpen = true"
+        >
+          <IconSettings class="h-3 w-3 shrink-0" />
+          <span>
+            Triggers {{ audioTriggersEnabled ? "on" : "off" }} · Sharing {{ broadcasting ? "on" : "off" }}
+            · Output {{ store.directOutput ? "direct" : "mixer" }}
+          </span>
+        </button>
+
+        <p v-if="broadcastError" class="w-full text-2xs text-destructive">
+          {{ broadcastError }}
+        </p>
       </div>
-
-      <SceneMixer
-        v-if="showScene"
-        :class="stacked ? '' : 'w-full'"
-        class="border-t border-border/50 pt-1.5"
-      />
-
-      <VolumeSlider
-        v-for="bus in BUSES"
-        :key="bus.id"
-        class="min-w-0"
-        :class="stacked ? '' : 'flex-1'"
-        :label="bus.label"
-        wide
-        show-percent
-        :muted="store.masterVolume === 0"
-        :disabled-reason="store.volumeControlNote"
-        :model-value="store.busVolumes[bus.id]"
-        @update:model-value="store.setBusVolume(bus.id, $event)"
-      />
-
-      <!--
-        A read-only echo, not a control. The mixer is for levels; two
-        checkboxes among the faders read as levels too. But this is still where
-        a DM looks when the audio did something they did not ask for, so the
-        state stays visible here and opens the dialog that owns it.
-      -->
-      <button
-        type="button"
-        class="flex w-full items-center gap-1.5 border-t border-border/50 pt-1.5 text-left text-2xs text-muted-foreground transition-colors hover:text-foreground"
-        title="Open board settings"
-        @click="ui.soundboardSettingsOpen = true"
-      >
-        <IconSettings class="h-3 w-3 shrink-0" />
-        <span>
-          Triggers {{ audioTriggersEnabled ? "on" : "off" }} · Sharing {{ broadcasting ? "on" : "off" }}
-          · Output {{ store.directOutput ? "direct" : "mixer" }}
-        </span>
-      </button>
-
-      <p v-if="broadcastError" class="w-full text-2xs text-destructive">
-        {{ broadcastError }}
-      </p>
-    </template>
-
+    </Transition>
   </div>
 </template>
 
@@ -116,6 +117,7 @@
 // Anything new belongs here, not in one of the two hosts.
 import { computed, ref } from "vue";
 import { IconChevronRight, IconSettings, IconWarning } from "@/lib/icons";
+import { drawerTransition } from "@/lib/motion";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useUiStore } from "@/stores/ui";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
@@ -131,21 +133,17 @@ const BUSES = [
   { id: "effects", label: "Effects" },
 ] as const satisfies readonly { id: AudioBus; label: string }[];
 
-const { collapsible = false, column = false } = defineProps<{
+const { collapsible = false } = defineProps<{
   /** Widget mode: fold behind a disclosure row because vertical space is scarce. */
   collapsible?: boolean;
-  /**
-   * Narrow-column mode: faders stack instead of sharing a row.
-   *
-   * The wrapping row assumes a full-width strip. In a 16.5rem sidebar it
-   * squeezes four faders and their labels onto one line, which is unreadable
-   * and unusable.
-   */
-  column?: boolean;
 }>();
 
-/** Both the widget and the sidebar want vertical stacking; only the widget folds. */
-const stacked = computed(() => collapsible || column);
+// The faders always stack. There used to be a `column` prop selecting between a
+// full-width wrapping row and this column, but both surfaces that mount the
+// mixer are narrow — a 16.5rem sidebar and a 18rem floating widget — and the row
+// squeezed four faders and their labels onto one unreadable line in either. So
+// every mount point passed the column, and the row branch had been unreachable
+// for as long as it had two call sites.
 
 const store = useSoundboardStore();
 const ui = useUiStore();

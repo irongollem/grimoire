@@ -296,7 +296,7 @@
 import { computed, ref } from "vue";
 import { IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWind } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
-import { canAnimate, originTransform, REST_TRANSFORM } from "@/lib/motion";
+import { canAnimate, originTransform, REST_TRANSFORM, whenSettled } from "@/lib/motion";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
@@ -334,12 +334,6 @@ const LEAVE_MS = 240;
 /** No origin recorded — nothing to fly from, so it just arrives. */
 const FADE_MS = 150;
 
-function settle(anim: Animation, done: () => void) {
-  // A cancelled animation rejects. The widget is open (or shut) either way, so
-  // the transition has to be told it finished or Vue leaves it mid-flight.
-  anim.finished.then(() => done()).catch(() => done());
-}
-
 function flight(el: Element): string | null {
   const origin = store.widgetLaunchRect;
   if (!origin) return null;
@@ -352,7 +346,7 @@ function onEnter(el: Element, done: () => void) {
     return;
   }
   const from = flight(el);
-  settle(
+  whenSettled(
     (el as HTMLElement).animate(
       { transform: [from ?? "scale(0.96)", REST_TRANSFORM], opacity: [from ? 0.4 : 0, 1] },
       {
@@ -371,7 +365,7 @@ function onLeave(el: Element, done: () => void) {
     return;
   }
   const to = flight(el);
-  settle(
+  whenSettled(
     (el as HTMLElement).animate(
       { transform: [REST_TRANSFORM, to ?? "scale(0.96)"], opacity: [1, 0] },
       { duration: to ? LEAVE_MS : FADE_MS, easing: "ease-in" },

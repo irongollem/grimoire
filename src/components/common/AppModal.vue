@@ -71,7 +71,7 @@ import { ref } from "vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { cn } from "@/lib/utils";
 import { takeModalOrigin } from "@/lib/modalOrigin";
-import { canAnimate, originTransform, REST_TRANSFORM } from "@/lib/motion";
+import { canAnimate, originTransform, REST_TRANSFORM, whenSettled } from "@/lib/motion";
 
 const SIZES = {
   sm: "max-w-sm",
@@ -206,14 +206,6 @@ function parts(root: Element) {
   };
 }
 
-function settle(animations: Animation[], done: () => void) {
-  Promise.all(animations.map((a) => a.finished))
-    .then(done)
-    // A cancelled animation rejects. The modal is still open either way, so the
-    // transition has to be told it finished or Vue leaves it mid-flight.
-    .catch(done);
-}
-
 function onEnter(el: Element, done: () => void) {
   focusOnClose = (document.activeElement as HTMLElement | null) ?? null;
   const { backdrop, panel } = parts(el);
@@ -233,7 +225,7 @@ function onEnter(el: Element, done: () => void) {
   // anywhere on screen".
   const from = origin ? originTransform(origin, to) : "scale(0.96)";
 
-  settle(
+  whenSettled(
     [
       backdrop.animate({ opacity: [0, 1] }, { duration: FADE_MS, easing: "ease-out" }),
       panel.animate(
@@ -263,7 +255,7 @@ function onLeave(el: Element, done: () => void) {
     return;
   }
 
-  settle(
+  whenSettled(
     [
       backdrop.animate({ opacity: [1, 0] }, { duration: LEAVE_MS, easing: "ease-in" }),
       panel.animate(
