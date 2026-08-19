@@ -70,14 +70,17 @@
           :options="pickableTraps"
           placeholder="Add trap or hazard…"
         />
-        <button
-          type="button"
+        <AppButton
+          variant="ghost"
+          tone="primary"
+          size="inline"
+          class="shrink-0"
           :disabled="!selectedId"
-          class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 shrink-0"
+          aria-label="Add trap"
           @click="addTrap"
         >
-          <IconAdd class="h-4 w-4" />
-        </button>
+          <template #icon><IconAdd class="h-4 w-4" /></template>
+        </AppButton>
       </div>
     </div>
   </div>
@@ -88,6 +91,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconMinus, IconTrap } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TrapPreviewModal from "@/components/traps/TrapPreviewModal.vue";
 import { crToXp } from "@/types/encounter.types";

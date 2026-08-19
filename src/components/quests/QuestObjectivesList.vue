@@ -65,14 +65,16 @@
           class="flex-1 bg-transparent border-b border-border px-1 py-1 text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
           @keydown.enter.prevent="submit"
         />
-        <button
-          type="button"
+        <AppButton
+          variant="ghost"
+          tone="primary"
+          size="inline"
           :disabled="!newObjective.trim()"
-          class="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+          aria-label="Add objective"
           @click="submit"
         >
-          <IconAdd class="h-4 w-4" />
-        </button>
+          <template #icon><IconAdd class="h-4 w-4" /></template>
+        </AppButton>
       </div>
       <p
         v-else
@@ -87,6 +89,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconHide, IconReveal } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import { countObjectivesComplete, nextObjectiveStatus, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 import type { QuestObjective } from "@/types/quest.types";

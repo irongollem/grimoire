@@ -54,14 +54,15 @@
           </div>
         </div>
       </div>
-      <button
-        type="button"
-        class="flex items-center gap-1.5 text-label font-semibold text-muted-foreground hover:text-primary transition-colors px-1 pt-1"
+      <AppButton
+        variant="ghost"
+        tone="primary"
+        size="inline-xs"
+        class="px-1 pt-1"
+        :icon="IconAdd"
+        label="Add Loot Pool"
         @click="addPool"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        Add Loot Pool
-      </button>
+      />
     </div>
   </div>
 
@@ -114,14 +115,15 @@
         </div>
       </div>
     </div>
-    <button
-      type="button"
-      class="flex items-center gap-1.5 text-label font-semibold text-muted-foreground hover:text-primary transition-colors px-1 pt-1"
-      @click="addPool"
-    >
-      <IconAdd class="h-3.5 w-3.5" />
-      Add Currency Pool
-    </button>
+    <AppButton
+        variant="ghost"
+        tone="primary"
+        size="inline-xs"
+        class="px-1 pt-1"
+        :icon="IconAdd"
+        label="Add Currency Pool"
+        @click="addPool"
+      />
   </template>
 </template>
 
