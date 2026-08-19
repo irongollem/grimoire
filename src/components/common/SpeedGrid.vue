@@ -39,15 +39,20 @@
 
       <!-- Other speeds -->
       <div v-else class="relative w-full">
-        <input
-          :value="(speed as Record<string, number | undefined>)[sp.key] ?? ''"
+        <AppInput
+          :model-value="(speed as Record<string, number | undefined>)[sp.key] === undefined
+            ? ''
+            : String((speed as Record<string, number | undefined>)[sp.key])"
           type="number"
           step="5"
           min="0"
           placeholder="—"
-          class="field-input speed-input w-full text-center"
+          tone="filled"
+          size="body"
+          align="center"
+          class="speed-input"
+          @update:model-value="setSpeed(sp.key, $event)"
           @focus="($event.target as HTMLInputElement).select()"
-          @input="setSpeed(sp.key, ($event.target as HTMLInputElement).value)"
         />
         <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-2xs text-muted-foreground">ft.</span>
       </div>
@@ -57,6 +62,7 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { IconWind } from "@/lib/icons";
 import { parseSpeed, speedToString } from "@/lib/utils";
 import type { SpeedBlock } from "@/lib/utils";
@@ -102,3 +108,13 @@ function toggleHover() {
   emit("update:modelValue", speedToString(speed));
 }
 </script>
+
+<style scoped>
+.speed-input {
+  -moz-appearance: textfield;
+}
+.speed-input::-webkit-outer-spin-button,
+.speed-input::-webkit-inner-spin-button {
+  appearance: none;
+}
+</style>

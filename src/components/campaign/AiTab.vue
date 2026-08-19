@@ -96,23 +96,29 @@
             </div>
           </div>
           <div class="relative">
-            <input
+            <AppInput
               v-model="form.keys[p.id]"
               :type="showKeys[p.id] ? 'text' : 'password'"
               :disabled="clearedKeys[p.id]"
               :placeholder="clearedKeys[p.id] ? 'Will use platform credits' : (providerHasKey(p.id) ? 'Enter a new key to replace…' : p.placeholder)"
-              class="field-input pr-10 w-full disabled:opacity-50"
+              tone="filled"
+              size="body"
+              class="pr-10"
               autocomplete="off"
               spellcheck="false"
             />
-            <button
-              type="button"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2"
+              :tooltip="showKeys[p.id] ? 'Hide key' : 'Reveal key'"
               @click="showKeys[p.id] = !showKeys[p.id]"
             >
-              <IconReveal v-if="!showKeys[p.id]" class="h-4 w-4" />
-              <IconHide v-else class="h-4 w-4" />
-            </button>
+              <template #icon>
+                <IconReveal v-if="!showKeys[p.id]" class="h-4 w-4" />
+                <IconHide v-else class="h-4 w-4" />
+              </template>
+            </AppButton>
           </div>
         </div>
       </div>
@@ -130,13 +136,15 @@
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Text generation</label>
           <p class="text-caption text-muted-foreground italic">Used for NPCs, monsters, items, spells, and puzzles.</p>
           <!-- BYOK: picker based on entered keys -->
-          <select
+          <AppSelect
             v-if="hasByokTextKey && availableTextProviders.length > 0"
             v-model="form.text_provider"
-            class="field-input text-sm"
+            tone="filled"
+            size="body"
+            weight="normal"
           >
             <option v-for="o in availableTextProviders" :key="o.value" :value="o.value">{{ o.label }}</option>
-          </select>
+          </AppSelect>
           <!-- Platform: fixed GPT-4o mini -->
           <div v-else-if="!hasByokTextKey" class="field-input text-sm text-muted-foreground select-none">
             GPT-4o mini · platform credits
@@ -161,13 +169,15 @@
           <p class="text-caption text-muted-foreground italic">
             Used for portrait and artwork generation.
           </p>
-          <select
+          <AppSelect
             v-if="availableImageProviders.length > 0"
             v-model="form.image_provider"
-            class="field-input text-sm"
+            tone="filled"
+            size="body"
+            weight="normal"
           >
             <option v-for="o in availableImageProviders" :key="o.value" :value="o.value">{{ o.label }} · {{ imageSpeed(o.value) }}</option>
-          </select>
+          </AppSelect>
           <div v-else class="field-input text-sm opacity-50 cursor-not-allowed select-none text-muted-foreground">
             No provider available
           </div>
@@ -186,14 +196,13 @@
     <div class="rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
         <span class="text-label-lg font-semibold text-muted-foreground">Campaign Setting Prompt</span>
-        <button
+        <AppButton
           v-if="settingDefaultPrompt"
-          type="button"
-          class="text-label font-semibold text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
+          variant="subtle"
+          size="xs"
+          :label="`Load ${settingLabel} Defaults`"
           @click="form.ai_setting_prompt = settingDefaultPrompt"
-        >
-          Load {{ settingLabel }} Defaults
-        </button>
+        />
       </div>
       <div class="p-4 flex flex-col gap-3">
         <p class="text-caption text-muted-foreground italic">
@@ -239,13 +248,14 @@
     </template><!-- end v-if="form.ai_enabled" -->
 
     <div class="flex justify-end">
-      <button
+      <AppButton
         type="submit"
+        variant="primary"
+        size="sm"
+        class="px-4"
         :disabled="isSaving"
-        class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-      >
-        {{ isSaving ? "Saving…" : "Save" }}
-      </button>
+        :label="isSaving ? 'Saving…' : 'Save'"
+      />
     </div>
 
   </form>
@@ -267,6 +277,9 @@ import { AI_USE_NOTICE_VERSION } from "@/lib/legal";
 import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
 import AiNoticeDialog from "@/components/campaign/AiNoticeDialog.vue";
 import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 const { isPro } = useSubscription();
 const { hasAcknowledged } = useAiAcknowledgements();
@@ -531,3 +544,13 @@ async function save() {
   }
 }
 </script>
+
+<style scoped>
+@reference "@/assets/main.css";
+/* Static provider-status placeholders (not real <select>s, so AppSelect
+   doesn't apply) and the setting-prompt textarea (sanctioned native exception)
+   still need this recipe — see fieldVariants' tone="filled" + size="body". */
+.field-input {
+  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+}
+</style>

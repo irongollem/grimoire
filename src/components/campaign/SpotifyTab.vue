@@ -104,22 +104,22 @@
     </div>
 
     <div class="flex justify-end gap-2">
-      <button
+      <AppButton
         v-if="campaign.activeCampaign?.spotify_client_id"
         type="button"
-        class="px-4 py-1.5 text-label-lg font-semibold border border-destructive/40 text-destructive rounded-md hover:bg-destructive/10 transition-colors"
+        variant="destructive"
+        size="sm"
         :disabled="isSaving"
+        label="Remove"
         @click="remove"
-      >
-        Remove
-      </button>
-      <button
+      />
+      <AppButton
         type="submit"
+        variant="primary"
+        size="sm"
         :disabled="isSaving || !clientId.trim()"
-        class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-      >
-        {{ isSaving ? "Saving…" : "Save" }}
-      </button>
+        :label="isSaving ? 'Saving…' : 'Save'"
+      />
     </div>
 
   </form>
@@ -127,6 +127,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconCheck, IconCopy, IconHide, IconReveal } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
@@ -184,3 +185,11 @@ async function remove() {
   }
 }
 </script>
+
+<style scoped>
+@reference "@/assets/main.css";
+
+.field-input {
+  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
+}
+</style>

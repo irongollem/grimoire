@@ -80,22 +80,16 @@
 
       <!-- Actions -->
       <div v-else class="flex justify-end gap-2">
-        <button
+        <AppButton type="button" variant="subtle" size="sm" label="Cancel" @click="emit('close')" />
+        <AppButton
           type="button"
-          @click="emit('close')"
-          class="px-4 py-1.5 text-label-lg font-semibold border border-border rounded-md hover:bg-muted transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
+          variant="primary"
+          size="sm"
           :disabled="!prompt.trim()"
+          :icon="IconGenerate"
+          label="Generate"
           @click="run"
-          class="inline-flex items-center gap-1.5 px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate
-        </button>
+        />
       </div>
 
     </div>
@@ -104,6 +98,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import { AI_PROMPT_LIMIT } from "./utils";
 
@@ -131,3 +126,11 @@ async function run() {
   if (result) emit("generated", result);
 }
 </script>
+
+<style scoped>
+@reference "@/assets/main.css";
+
+.field-input {
+  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-full;
+}
+</style>
