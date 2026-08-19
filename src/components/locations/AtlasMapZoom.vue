@@ -41,6 +41,7 @@ import {
   ZOOM_PARENT_SCALE,
   preloadImage,
 } from "@/lib/locations/mapZoom";
+import { prefersReducedMotion } from "@/lib/motion";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 
 const { plan, settling = false, compact = false } = defineProps<{
@@ -98,16 +99,10 @@ const toStyle = ref<Record<string, string>>({
 
 let finishTimer: ReturnType<typeof setTimeout> | undefined;
 
-/**
- * A viewer who has asked for less motion gets the destination, not a shortened
- * version of the journey — the point of the setting is that nothing flies at
- * them, and a fast zoom is still a zoom.
- */
-function prefersReducedMotion(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 onMounted(async () => {
+  // A viewer who has asked for less motion gets the destination, not a shortened
+  // version of the journey — the point of the setting is that nothing flies at
+  // them, and a fast zoom is still a zoom.
   if (prefersReducedMotion()) {
     emit("done");
     return;

@@ -71,6 +71,7 @@ import { ref } from "vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { cn } from "@/lib/utils";
 import { takeModalOrigin } from "@/lib/modalOrigin";
+import { canAnimate, originTransform, REST_TRANSFORM } from "@/lib/motion";
 
 const SIZES = {
   sm: "max-w-sm",
@@ -198,15 +199,6 @@ const ENTER_MS = 260;
 const FADE_MS = 180;
 const LEAVE_MS = 140;
 
-function prefersReducedMotion(): boolean {
-  return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-}
-
-/** Web Animations is absent in the test DOM; there, every modal opens instantly. */
-function canAnimate(el: Element): boolean {
-  return typeof (el as HTMLElement).animate === "function" && !prefersReducedMotion();
-}
-
 function parts(root: Element) {
   return {
     backdrop: root.querySelector<HTMLElement>("[data-modal-backdrop]"),
@@ -236,19 +228,16 @@ function onEnter(el: Element, done: () => void) {
   const origin = originKey ? takeModalOrigin(originKey) : null;
   const to = panel.getBoundingClientRect();
 
-  // Pixels, because this is a measured flight path between two real rects, not
-  // a design value — there is no rem equivalent of "where that card is".
-  const from = origin
-    ? `translate(${origin.left + origin.width / 2 - (to.left + to.width / 2)}px, ${
-        origin.top + origin.height / 2 - (to.top + to.height / 2)
-      }px) scale(${Math.min(1, origin.width / to.width)})`
-    : "scale(0.96)";
+  // Without an origin there is nowhere to fly from, so the panel swells very
+  // slightly instead — the honest animation for "this did not come from
+  // anywhere on screen".
+  const from = origin ? originTransform(origin, to) : "scale(0.96)";
 
   settle(
     [
       backdrop.animate({ opacity: [0, 1] }, { duration: FADE_MS, easing: "ease-out" }),
       panel.animate(
-        { transform: [from, "translate(0, 0) scale(1)"], opacity: [origin ? 0.4 : 0, 1] },
+        { transform: [from, REST_TRANSFORM], opacity: [origin ? 0.4 : 0, 1] },
         {
           duration: origin ? ENTER_MS : FADE_MS,
           // Overshoot-free ease-out: the panel arrives rather than bounces.

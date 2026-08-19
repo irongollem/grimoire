@@ -12,6 +12,7 @@
 -->
 <template>
   <AppButton
+    ref="btn"
     :variant="store.widgetOpen ? 'tinted' : 'subtle'"
     tone="primary"
     emphasis="soft"
@@ -19,7 +20,7 @@
     :icon="IconPopOut"
     :aria-label="store.widgetOpen ? 'Close the floating player' : 'Pop out the floating player'"
     :tooltip="store.widgetOpen ? 'Close the floating player' : 'Pop the player out into a floating window'"
-    @click="store.toggleWidget()"
+    @click="toggle"
   >
     <span v-if="!iconOnly">Pop out</span>
     <!--
@@ -36,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { IconPopOut } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import type { ButtonSize } from "@/components/common/appButtonVariants";
@@ -49,7 +50,24 @@ const { iconOnly = false, size = "sm" } = defineProps<{
   size?: ButtonSize;
 }>();
 
+const btn = ref<InstanceType<typeof AppButton> | null>(null);
 const store = useSoundboardStore();
+
+/**
+ * Hands the widget this button's rect so it can fly out of here.
+ *
+ * `$el` rather than the ref itself: AppButton forwards its real <button> through
+ * reka-ui's `useForwardExpose`, so the template ref is the component. Falls
+ * through to a plain toggle if the node is somehow missing — an animation is not
+ * worth swallowing the click over.
+ */
+function toggle() {
+  const el = btn.value?.$el as HTMLElement | undefined;
+  const r = el?.getBoundingClientRect();
+  store.toggleWidget(
+    r ? { top: r.top, left: r.left, width: r.width, height: r.height } : undefined,
+  );
+}
 const spotifyStore = useSpotifyStore();
 
 // HTML audio sounds, plus Spotify if it is actively playing.

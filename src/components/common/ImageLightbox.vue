@@ -40,6 +40,7 @@ import { IconClose } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import type { ModalOrigin } from "@/lib/modalOrigin";
+import { originTransform, prefersReducedMotion, REST_TRANSFORM } from "@/lib/motion";
 
 const props = defineProps<{
   src?: string | null;
@@ -73,10 +74,6 @@ const imgRef = ref<HTMLImageElement | null>(null);
 const ENTER_MS = 380;
 const FADE_MS = 180;
 
-const reducedMotion = () =>
-  typeof window !== "undefined" &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
 /**
  * Runs on the image's `load`, not on open.
  *
@@ -106,7 +103,7 @@ function playEnter() {
 
   backdrop.animate({ opacity: [0, 1] }, { duration: FADE_MS, easing: "ease-out" });
 
-  if (!props.origin || reducedMotion()) {
+  if (!props.origin || prefersReducedMotion()) {
     img.animate({ opacity: [0, 1] }, { duration: FADE_MS, easing: "ease-out" });
     return;
   }
@@ -114,20 +111,17 @@ function playEnter() {
   const to = img.getBoundingClientRect();
   if (!to.width || !to.height) return;
 
-  // Pixels, because this is a measured flight path between two real rects, not
-  // a design value — there is no rem equivalent of "where that thumbnail is".
-  // Same shape as AppModal's origin animation, deliberately, so a picture
-  // opening from a card and a panel opening from a card move alike.
-  const from = `translate(${props.origin.left + props.origin.width / 2 - (to.left + to.width / 2)}px, ${
-    props.origin.top + props.origin.height / 2 - (to.top + to.height / 2)
-  }px) scale(${Math.min(1, props.origin.width / to.width)})`;
+  // The same flight AppModal flies, from the same helper — a picture opening
+  // from a card and a panel opening from a card have to move alike, and they
+  // only stay alike while there is one copy of the arithmetic.
+  const from = originTransform(props.origin, to);
 
   // No opacity ramp: FocalImage decodes the file before opening, so the picture
   // is fully there from the first frame and only has to travel. Fading it in on
   // top of the movement was the other half of the flash — a brightening landing
   // on an image that was already visible.
   img.animate(
-    { transform: [from, "translate(0, 0) scale(1)"] },
+    { transform: [from, REST_TRANSFORM] },
     { duration: ENTER_MS, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
   );
 }

@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import type { ModalOrigin } from "@/lib/modalOrigin";
 import type {
   SoundPlaybackState,
   PlaylistTrackWithSound,
@@ -121,6 +122,18 @@ export const useSoundboardStore = defineStore("soundboard", () => {
 
   // Floating widget visibility
   const widgetOpen = ref(false);
+
+  /**
+   * Rect of the button the widget was last opened from, so it can look like it
+   * came out of that button rather than materialising in a corner of the screen
+   * the DM was not looking at.
+   *
+   * In the store because the two never meet: the toggle sits in the top bar or a
+   * page header, the widget is teleported to `body` from the layout. Deliberately
+   * NOT cleared on close — the panel shrinks back into the same button, which is
+   * the half of the effect that answers "where did it go?".
+   */
+  const widgetLaunchRect = ref<ModalOrigin | null>(null);
 
   // True while a Google Cast session is active — local audio.play() is skipped
   // so the Cast device plays instead. Set externally by useCast composable.
@@ -1209,7 +1222,13 @@ export const useSoundboardStore = defineStore("soundboard", () => {
     });
   }
 
-  function toggleWidget(): void {
+  /**
+   * `from` is the rect of whatever was clicked. Omitted — a keyboard shortcut,
+   * the widget's own close button — the last known one stands rather than being
+   * wiped, because that button is still on screen and still the right answer.
+   */
+  function toggleWidget(from?: ModalOrigin): void {
+    if (from) widgetLaunchRect.value = from;
     widgetOpen.value = !widgetOpen.value;
   }
 
@@ -1224,6 +1243,7 @@ export const useSoundboardStore = defineStore("soundboard", () => {
   return {
     playbackStates,
     widgetOpen,
+    widgetLaunchRect,
     playingCount,
     activeAudioCount,
     hasActiveAudio,

@@ -53,6 +53,7 @@ import QuestFlowNode from "./QuestFlowNode.vue";
 import QuestFlowEdge from "./QuestFlowEdge.vue";
 import QuestGraphOutline from "./QuestGraphOutline.vue";
 import { moveBeatCommand, toQuestFlowGraph, type QuestGraphCommand } from "@/lib/quests/flow";
+import { prefersReducedMotion } from "@/lib/motion";
 import { viewportShowsAnyNode } from "@/lib/quests/viewport";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
@@ -155,10 +156,6 @@ async function focusCurrent() {
 // Belt and braces for the round trip the DM actually notices: whatever moved the
 // canvas, leaving the surface records where it ended up.
 onBeforeUnmount(publishViewport);
-
-function prefersReducedMotion() {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 defineExpose({ fitGraph, focusCurrent });
 </script>

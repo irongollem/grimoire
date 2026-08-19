@@ -1,11 +1,12 @@
 <template>
   <Teleport to="body">
-    <Transition
-      enter-active-class="transition-opacity duration-200 ease-out"
-      leave-active-class="transition-opacity duration-150 ease-in"
-      enter-from-class="opacity-0"
-      leave-to-class="opacity-0"
-    >
+    <!--
+      `:css="false"` because the flight is measured, not declared: it runs from
+      wherever the pop-out button happens to be to wherever the panel lands, and
+      no static class can know either. Vue is told the animation finished by the
+      hooks below.
+    -->
+    <Transition :css="false" @enter="onEnter" @leave="onLeave">
       <div
         v-if="store.widgetOpen"
         ref="widgetEl"
@@ -292,9 +293,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from "vue";
+import { computed, ref } from "vue";
 import { IconClose, IconMusicNote, IconMute, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward, IconStop, IconWind } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import { canAnimate, originTransform, REST_TRANSFORM } from "@/lib/motion";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSounds } from "@/composables/useSounds";
@@ -308,6 +310,75 @@ import SpotifyErrorBanner from "./SpotifyErrorBanner.vue";
 import CastButton from "./CastButton.vue";
 
 const store = useSoundboardStore();
+
+// ── Pop-out flight ────────────────────────────────────────────────────────────
+//
+// The widget opens at an edge of the screen while the DM is looking at a button
+// somewhere else entirely, which read as the panel appearing out of nowhere. So
+// it grows out of the button and shrinks back into it — the same flight
+// AppModal and ImageLightbox fly, from the same helper.
+
+/**
+ * Longer than AppModal's 260ms, for the reason ImageLightbox is longer still:
+ * distance wants duration. A modal panel nudges a short way into the middle of
+ * the screen; this crosses ~640px from a top-bar button to the opposite corner,
+ * and at 260ms the eye registered that something had changed without ever seeing
+ * it travel — which defeats the whole point, since the animation exists to say
+ * *where the widget went*. Not pushed to the lightbox's 380ms because this is a
+ * panel a DM toggles all session, and a reveal that is right once is tiresome by
+ * the tenth time.
+ */
+const ENTER_MS = 340;
+/** Leaving is allowed to be brisker than arriving, but still has to be seen. */
+const LEAVE_MS = 240;
+/** No origin recorded — nothing to fly from, so it just arrives. */
+const FADE_MS = 150;
+
+function settle(anim: Animation, done: () => void) {
+  // A cancelled animation rejects. The widget is open (or shut) either way, so
+  // the transition has to be told it finished or Vue leaves it mid-flight.
+  anim.finished.then(() => done()).catch(() => done());
+}
+
+function flight(el: Element): string | null {
+  const origin = store.widgetLaunchRect;
+  if (!origin) return null;
+  return originTransform(origin, el.getBoundingClientRect());
+}
+
+function onEnter(el: Element, done: () => void) {
+  if (!canAnimate(el)) {
+    done();
+    return;
+  }
+  const from = flight(el);
+  settle(
+    (el as HTMLElement).animate(
+      { transform: [from ?? "scale(0.96)", REST_TRANSFORM], opacity: [from ? 0.4 : 0, 1] },
+      {
+        duration: from ? ENTER_MS : FADE_MS,
+        // Overshoot-free ease-out: the panel arrives rather than bounces.
+        easing: from ? "cubic-bezier(0.22, 1, 0.36, 1)" : "ease-out",
+      },
+    ),
+    done,
+  );
+}
+
+function onLeave(el: Element, done: () => void) {
+  if (!canAnimate(el)) {
+    done();
+    return;
+  }
+  const to = flight(el);
+  settle(
+    (el as HTMLElement).animate(
+      { transform: [REST_TRANSFORM, to ?? "scale(0.96)"], opacity: [1, 0] },
+      { duration: to ? LEAVE_MS : FADE_MS, easing: "ease-in" },
+    ),
+    done,
+  );
+}
 const { musicTrigger, triggerForPlaylist } = useActiveAudioTriggers();
 const spotifyStore = useSpotifyStore();
 const { data: sounds } = useSounds();
@@ -318,17 +389,21 @@ const widgetEl = ref<HTMLElement | null>(null);
 const pos = ref<{ x: number; y: number } | null>(null);
 const dragging = ref(false);
 
-// The component only exists when widgetOpen is true (v-if), so onMounted
-// fires exactly when the widget first appears — initialize position then.
-onMounted(async () => {
-  await nextTick();
-  const h = widgetEl.value?.offsetHeight ?? 320;
-  pos.value = {
-    x: window.innerWidth - 288 - 16,
-    y: window.innerHeight - h - 64,
-  };
-});
-
+/**
+ * `null` until the DM drags it, and then it stays put across a close and reopen.
+ *
+ * There used to be an onMounted here that computed x/y from the viewport, on the
+ * stated assumption that the component only exists while the widget is open. It
+ * does not — DefaultLayout mounts it once at boot and the `v-if` is on the panel
+ * inside — so it ran with `widgetEl` still null, guessed a height of 320 and
+ * pinned the widget to whatever the window size was at app start. Resize the
+ * window before ever opening it and the panel arrived off the bottom edge.
+ *
+ * Nothing has to be measured for the resting position: `right`/`bottom` anchor
+ * it correctly at any viewport size. Only dragging needs an x/y, so only
+ * dragging computes one — from the element's real rect, at the moment it is
+ * grabbed.
+ */
 const posStyle = computed(() =>
   pos.value
     ? { left: `${pos.value.x}px`, top: `${pos.value.y}px` }
@@ -338,7 +413,12 @@ const posStyle = computed(() =>
 let dragOffset = { x: 0, y: 0 };
 
 function startDrag(e: PointerEvent) {
-  if (!pos.value) return;
+  const el = widgetEl.value;
+  if (!el) return;
+  if (!pos.value) {
+    const r = el.getBoundingClientRect();
+    pos.value = { x: r.left, y: r.top };
+  }
   e.preventDefault();
   dragging.value = true;
   document.body.style.userSelect = "none";
