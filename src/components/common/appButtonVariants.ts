@@ -128,6 +128,27 @@ export const buttonVariants = cva(
        */
       shape: { default: "", pill: "rounded-full" },
       /**
+       * The background the control carries **at rest** — the companion to `fill`,
+       * which only ever paints one on hover. Together they cover the two halves a
+       * call site can ask for.
+       *
+       * Intended for the bordered-neutral variants (`subtle`, `outline`) and `ghost`:
+       * a copy button, an accordion header, a picker card that reads as a raised
+       * surface before you touch it. The variants whose background IS their identity
+       * — `primary`, `chip`, `tinted` — already paint one and should not be given a
+       * second.
+       *
+       * 41 sites, 25 of them `bg-card` across 17 files. The `muted` value normalizes
+       * five different opacities (/20 /30 /40 /50 and bare) onto one, which is the
+       * same trade every size in this sweep makes.
+       */
+      surface: { none: "", card: "bg-card", muted: "bg-muted/40" },
+      // ^ declared BEFORE `active` on purpose. cva emits in key order and both write
+      // the background group, so with `surface` last a selected button carrying
+      // `surface="card"` silently lost `active`'s `bg-primary/10` tint — the toggle
+      // still worked, it just stopped looking selected. Found at a call site that
+      // worked around it rather than reporting it; the ordering is now asserted.
+      /**
        * Selected state for toggles and segmented pickers.
        *
        * Deliberately carries no `border-primary`: `ghost`, `link` and `chip` set no
@@ -170,22 +191,6 @@ export const buttonVariants = cva(
        *   tone   — tinted by `tone`, via the compounds below.
        */
       fill: { none: "", muted: "hover:bg-muted", tone: "" },
-      /**
-       * The background the control carries **at rest** — the companion to `fill`,
-       * which only ever paints one on hover. Together they cover the two halves a
-       * call site can ask for.
-       *
-       * Intended for the bordered-neutral variants (`subtle`, `outline`) and `ghost`:
-       * a copy button, an accordion header, a picker card that reads as a raised
-       * surface before you touch it. The variants whose background IS their identity
-       * — `primary`, `chip`, `tinted` — already paint one and should not be given a
-       * second.
-       *
-       * 41 sites, 25 of them `bg-card` across 17 files. The `muted` value normalizes
-       * five different opacities (/20 /30 /40 /50 and bare) onto one, which is the
-       * same trade every size in this sweep makes.
-       */
-      surface: { none: "", card: "bg-card", muted: "bg-muted/40" },
       /**
        * What a `tinted` button means. Semantic rather than hue-named so the palette
        * stays changeable: each maps to a `--color-tone-*` custom property a theme
@@ -235,6 +240,18 @@ export const buttonVariants = cva(
       // Spelled out cell by cell because Tailwind extracts classes statically and
       // `bg-tone-<x>/10` cannot be composed at runtime. The colour itself still is
       // not pinned here — each `tone-*` resolves through a custom property.
+      /**
+       * `tinted` + the untoned default: a plain pill, no colour. It exists because a
+       * *dynamic* badge is all-or-nothing — AdminUsersTab's plan badge is
+       * free/tester/pro and AdminProvidersTab's is text/image/audio/embedding, and in
+       * both the two or three coloured states mapped cleanly while the one neutral
+       * state had nowhere to go, so the whole control stayed hand-rolled. One missing
+       * state blocks the control, not just that state.
+       */
+      { variant: "tinted", tone: "neutral", emphasis: "soft", class: "bg-muted border-border text-muted-foreground" },
+      { variant: "tinted", tone: "neutral", emphasis: "strong", class: "bg-muted border-border text-foreground" },
+      { variant: "tinted", tone: "neutral", emphasis: "outline", class: "border-border text-muted-foreground hover:bg-muted" },
+
       { variant: "tinted", tone: "primary", emphasis: "soft", class: "bg-tone-primary/10 border-tone-primary/30 text-tone-primary hover:bg-tone-primary/20" },
       { variant: "tinted", tone: "primary", emphasis: "strong", class: "bg-tone-primary/25 border-tone-primary/60 text-tone-primary" },
       { variant: "tinted", tone: "primary", emphasis: "outline", class: "border-tone-primary/40 text-tone-primary hover:bg-tone-primary/10" },
@@ -353,6 +370,24 @@ export const buttonVariants = cva(
        * left them native rather than ship a dead affordance.
        */
       { variant: "menu", tone: "danger", class: "text-destructive hover:bg-destructive/10" },
+
+      /**
+       * The rest of the ladder for `menu`. Like `danger` above these colour the row
+       * AT REST — a "Cursed…" entry that reads arcane before you point at it — but
+       * unlike `danger` they keep the neutral `hover:bg-muted` fill from the base.
+       * That asymmetry is deliberate and comes from the call sites: a destructive row
+       * earns a red hover band, an arcane one is just a differently-coloured option
+       * in an otherwise ordinary list.
+       *
+       * `subtle`, `ghost` and `link` each got a full ladder when their gap surfaced;
+       * `menu` only ever got `danger`, so `tone="arcane"` on a row was silently a
+       * no-op and the site stayed hand-rolled.
+       */
+      { variant: "menu", tone: "primary", class: "text-primary" },
+      { variant: "menu", tone: "success", class: "text-tone-success" },
+      { variant: "menu", tone: "info", class: "text-tone-info" },
+      { variant: "menu", tone: "arcane", class: "text-tone-arcane" },
+      { variant: "menu", tone: "caution", class: "text-tone-caution" },
 
       // ── active × tone ─────────────────────────────────────────────────────
       // `primary` is intentionally absent: it is the default `tone`, so a compound

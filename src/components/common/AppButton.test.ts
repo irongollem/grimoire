@@ -680,3 +680,69 @@ describe("outline + fill is a pure hover wash (#648)", () => {
     expect(cls).toContain("hover:text-accent-foreground");
   });
 });
+
+describe("active outranks surface (#648)", () => {
+  // Ordering guard. `surface` and `active` both write the background group, so the
+  // key order in the cva config decides which survives. With `surface` declared
+  // after `active`, a selected button with a resting surface silently stopped
+  // looking selected — it still toggled, it just lost its tint.
+  it("keeps the selected tint when a resting surface is also set", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "subtle", surface: "card", active: true, label: "x" }, global,
+    }).get("button").classes();
+
+    expect(cls).toContain("bg-primary/10");
+    expect(cls).not.toContain("bg-card");
+  });
+
+  it("still paints the surface when not selected", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "subtle", surface: "card", label: "x" }, global,
+    }).get("button").classes();
+    expect(cls).toContain("bg-card");
+  });
+});
+
+describe("tinted neutral (#648)", () => {
+  // A dynamic badge is all-or-nothing: if one of its states has no home, the whole
+  // control stays hand-rolled. `neutral` is what lets a free/tester/pro or
+  // text/image/audio/embedding pill convert as a unit.
+  it("renders a plain pill with no tone colour", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "tinted", as: "span", label: "free" }, global,
+    }).get("span").classes().join(" ");
+    expect(cls).toContain("bg-muted");
+    expect(cls).not.toMatch(/bg-tone-/);
+  });
+
+  it("still colours the toned states beside it", () => {
+    const cls = mount(AppButton, {
+      props: { variant: "tinted", tone: "info", as: "span", label: "tester" }, global,
+    }).get("span").classes().join(" ");
+    expect(cls).toContain("bg-tone-info/10");
+  });
+});
+
+describe("menu tone ladder (#648)", () => {
+  it("colours the row at rest for every tone", () => {
+    for (const tone of BUTTON_COLOUR_TONES) {
+      const cls = mount(AppButton, { props: { variant: "menu", tone, label: "x" }, global })
+        .get("button").classes().join(" ");
+      expect(cls, tone).toMatch(/(?<!hover:)text-(primary|destructive|tone-\w+)/);
+    }
+  });
+
+  // danger earns a red hover band; the other tones keep menu's neutral one. That
+  // asymmetry comes from the call sites, so it is asserted rather than assumed.
+  it("keeps the neutral hover fill for every tone except danger", () => {
+    for (const tone of BUTTON_COLOUR_TONES.filter((t) => t !== "danger")) {
+      const cls = mount(AppButton, { props: { variant: "menu", tone, label: "x" }, global })
+        .get("button").classes();
+      expect(cls, tone).toContain("hover:bg-muted");
+    }
+    const danger = mount(AppButton, { props: { variant: "menu", tone: "danger", label: "x" }, global })
+      .get("button").classes();
+    expect(danger).toContain("hover:bg-destructive/10");
+    expect(danger).not.toContain("hover:bg-muted");
+  });
+});
