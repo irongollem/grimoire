@@ -230,23 +230,49 @@ export interface Item extends VersionedContentMetadata {
   /** DM-only rich-text notes never shown to players. */
   dm_notes: string | null;
   ai_provenance?: AiProvenance | null;
+  /** In-world written content (Tiptap JSON string) — what the object itself says. NULL = not a document item. Distinct from description (meta, about the item). */
+  content: string | null;
+  /** When true, campaign members may append item_entries to this item. */
+  content_player_writable: boolean;
+  /** Bumped by trigger when content changes; player unread dots key on this rather than updated_at so unrelated item edits do not re-flag. */
+  content_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export type ItemInsert = Omit<
   Item,
-  "id" | "user_id" | "created_at" | "updated_at" | "mundane_description" | "mundane_image_url" | "mundane_image_focal_point" | "campaign_id" | "dm_notes"
+  "id" | "user_id" | "created_at" | "updated_at" | "mundane_description" | "mundane_image_url" | "mundane_image_focal_point" | "campaign_id" | "dm_notes" | "content" | "content_player_writable" | "content_updated_at"
 > & {
   mundane_description?: string | null;
   mundane_image_url?: string | null;
   mundane_image_focal_point?: { x: number; y: number } | null;
   campaign_id?: string | null;
   dm_notes?: string | null;
+  content?: string | null;
+  content_player_writable?: boolean;
 };
 export type ItemUpdate = Partial<ItemInsert>;
 /** Subset used by static data files — fields managed by the DB are omitted */
 export type StaticItemData = Omit<ItemInsert, "user_id" | "curse_description" | "is_arcane_focus">;
+
+/** A player- or DM-authored addition to a document item's writing. Append-only:
+ *  authors own their own entries (RLS), nobody edits or deletes another's. */
+export interface ItemEntry {
+  id: string;
+  item_id: string;
+  campaign_id: string;
+  user_id: string;
+  /** The in-fiction hand that wrote it; null for the DM (or a departed member). */
+  party_member_id: string | null;
+  /** Tiptap JSON string, capped at 50000 chars (matches the DB check constraint). */
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ItemEntryInsert = Omit<ItemEntry, "id" | "user_id" | "created_at" | "updated_at">;
+export type ItemEntryUpdate = Pick<ItemEntry, "content">;
 
 /** True for item types that can have weapon damage dice */
 export function isWeaponType(t: ItemType): boolean {

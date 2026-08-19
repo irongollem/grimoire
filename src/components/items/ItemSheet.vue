@@ -185,6 +185,16 @@
           <RichTextViewer :content="item.description" />
         </div>
 
+        <!-- Written contents + player entries -->
+        <ItemDocumentSection
+          :item="item"
+          :campaign-id="activeCampaignId"
+          :can-write-entries="canWriteEntries"
+          :author-party-member-id="authorPartyMemberId"
+          :can-moderate="!playerView"
+          :dm-user-id="dmUserId"
+        />
+
         <!-- Curse (DM always sees it; players never see it from this template view) -->
         <div
           v-if="item.curse_description && !playerView"
@@ -267,14 +277,18 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { IconPackage, IconParty, IconShop, IconUser } from '@/lib/icons';
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import WeaponMasteryBadge from "@/components/items/WeaponMasteryBadge.vue";
+import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
 import { useLootTablesByItem } from "@/composables/useLootTables";
 import { useItemHolders } from "@/composables/useItemHolders";
 import { useCampaigns } from "@/composables/useCampaigns";
+import { useCampaignStore } from "@/stores/campaign";
+import { useAuthStore } from "@/stores/auth";
 import {
   ITEM_TYPE_LABELS,
   ITEM_RARITY_LABELS,
@@ -295,6 +309,17 @@ const { data: holders } = useItemHolders(computed(() => props.item.id));
 const { data: allCampaigns } = useCampaigns();
 
 const sheetArtTab = ref<'identified' | 'mundane'>('identified');
+
+// ── Written contents + entries ───────────────────────────────────────────────
+const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
+const auth = useAuthStore();
+const dmUserId = computed(() => activeCampaign.value?.user_id ?? null);
+const canWriteEntries = computed(
+  () => !props.playerView || props.item.content_player_writable,
+);
+const authorPartyMemberId = computed(
+  () => (props.playerView ? auth.linkedPartyMemberId : null),
+);
 
 const scopeLabel = computed(() => {
   if (!props.item.campaign_id) return "General";

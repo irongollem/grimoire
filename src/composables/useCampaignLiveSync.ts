@@ -72,6 +72,10 @@ const SYNC_TABLES = [
   // transcribed from the table's sourcebooks) — shared reference content, so
   // one member typing it in must reach everyone at the table.
   ["class_option_texts",      "class-option-texts"],
+  // Player writing appended to a document item (a ledger, a contract) — the
+  // object is a passed-around prop at the table, so an entry must reach
+  // everyone, not just refetch for whoever wrote it.
+  ["item_entries",            "item-entries"],
 ] as const;
 
 // Deduped set of every key the sync owns, plus "campaigns" (handled specially
