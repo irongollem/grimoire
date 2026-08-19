@@ -29,7 +29,15 @@ export const buttonVariants = cva(
         subtle: "border border-border text-muted-foreground hover:text-foreground hover:border-primary/50",
         /** No chrome at all — inline actions inside dense rows. */
         ghost: "text-muted-foreground hover:text-foreground",
-        /** Text-only, gold. "Open →", "Add", "+ Condition". */
+        /**
+         * Text-only, no box. Gold by default — "Open →", "Add", "+ Condition" — but
+         * it reads `tone`, so a destructive text action ("Unequip", "Remove symbol
+         * image") is red *at rest* rather than only on hover.
+         *
+         * That last part is why `tone` had to reach here: `ghost`'s ladder only fires
+         * on `:hover`, and `destructive` draws a box these sites never had. 35 sites
+         * across 31 files were stranded between the two.
+         */
         link: "text-primary hover:opacity-80",
         destructive: "border border-destructive/40 text-destructive hover:bg-destructive/10",
         /** Filled pill — tags, counts, secondary navigation chips. */
@@ -82,6 +90,13 @@ export const buttonVariants = cva(
          * with a call-site class. 12 sites across 9 files.
          */
         body: "gap-2 rounded-md px-3 py-1.5 text-body",
+        /**
+         * The reading font at 0.75rem — the button-side twin of the field `caption`
+         * size added in the same sweep. 16 sites across 13 files, typically a pair of
+         * tight secondary actions ("Regenerate" / "Discard") under a generated result,
+         * where `body` at 0.875rem visibly outweighs the text it sits beneath.
+         */
+        caption: "gap-1.5 rounded-md px-3 py-1.5 text-caption",
         /**
          * Fixed 1.625rem height, for a control dropped into a text editor's toolbar
          * row — RichTextEditor's `#toolbar-end` slot and the panes around it. The
@@ -258,6 +273,14 @@ export const buttonVariants = cva(
        * Its base already hovers `border-primary/50`, so only the toned cases and the
        * text half need spelling out. 15 sites across 14 files.
        */
+      // `link` is toned at REST, not on hover — that is the whole point of it reading
+      // `tone`. `primary` needs no rule: it is what the variant already renders.
+      { variant: "link", tone: "danger", class: "text-destructive" },
+      { variant: "link", tone: "success", class: "text-tone-success" },
+      { variant: "link", tone: "info", class: "text-tone-info" },
+      { variant: "link", tone: "arcane", class: "text-tone-arcane" },
+      { variant: "link", tone: "caution", class: "text-tone-caution" },
+
       { variant: "subtle", tone: "primary", class: "hover:text-primary" },
       { variant: "subtle", tone: "danger", class: "hover:text-destructive hover:border-destructive/50" },
       { variant: "subtle", tone: "success", class: "hover:text-tone-success hover:border-tone-success/50" },
@@ -343,7 +366,7 @@ export const BUTTON_VARIANTS = [
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "xs", "sm", "md", "lg", "body", "toolbar", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional

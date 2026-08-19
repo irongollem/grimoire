@@ -229,13 +229,14 @@ describe("tinted tones (#623)", () => {
     expect(outline).toContain("hover:bg-tone-danger/10");
   });
 
-  // This used to assert that `subtle` ignored `tone`, which was true when only
-  // `tinted` read it. `ghost`, `subtle`, `menu` and `active` all read it now, so the
-  // invariant worth pinning is the boundary rather than the old blanket rule: the
-  // variants with a fixed identity — a gold CTA, a grey pill, a text link — must
-  // stay untouched, or `tone` stops meaning anything.
+  // This has now been narrowed twice, each time on measured evidence: first when
+  // `ghost`/`subtle` gained tone ladders, then when `link` did (35 text-only sites
+  // that are coloured at rest, which neither ghost's hover-only ladder nor
+  // `destructive`'s box could serve). What is left is the real boundary: a variant
+  // whose colour IS its identity — the gold CTA and the grey pill — must ignore
+  // `tone`, or the axis stops meaning anything.
   it("leaves the fixed-identity variants untouched by tone", () => {
-    for (const variant of ["primary", "chip", "link"] as const) {
+    for (const variant of ["primary", "chip"] as const) {
       for (const tone of BUTTON_COLOUR_TONES) {
         expect(
           buttonVariants({ variant, tone, emphasis: "strong" }),
@@ -581,5 +582,28 @@ describe("subtle hover tones (#648)", () => {
       .get("button").classes();
     expect(cls).toContain("hover:text-foreground");
     expect(cls).toContain("hover:border-primary/50");
+  });
+});
+
+describe("link reads tone (#648)", () => {
+  // Coloured at REST, unlike ghost's hover-only ladder — that distinction is the
+  // reason this exists, so assert the resting class specifically.
+  it("colours the text at rest, not on hover", () => {
+    const cls = mount(AppButton, { props: { variant: "link", tone: "danger", label: "Unequip" }, global })
+      .get("button").classes();
+    expect(cls).toContain("text-destructive");
+  });
+
+  it("draws no box, which is what separates it from destructive", () => {
+    const cls = mount(AppButton, { props: { variant: "link", tone: "danger", label: "x" }, global })
+      .get("button").classes().join(" ");
+    expect(cls).not.toMatch(/\bborder\b/);
+    expect(cls).not.toMatch(/(?<!hover:)\bbg-/);
+  });
+
+  it("stays gold when untoned", () => {
+    const cls = mount(AppButton, { props: { variant: "link", label: "Open →" }, global })
+      .get("button").classes();
+    expect(cls).toContain("text-primary");
   });
 });
