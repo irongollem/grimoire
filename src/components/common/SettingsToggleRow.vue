@@ -5,6 +5,7 @@
       <p class="text-caption text-muted-foreground italic">{{ description }}</p>
     </div>
     <ToggleSwitch
+      size="lg"
       :model-value="modelValue"
       :aria-label="label"
       class="ml-3"

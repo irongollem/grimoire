@@ -8,6 +8,7 @@
     :placeholder="placeholder"
     :class="cn(fieldVariants({ tone, size, control: 'input', shape }), alignClass, block ? 'w-full' : '', className)"
     @input="onInput"
+    @change="onChange"
   />
 </template>
 
@@ -20,9 +21,18 @@
  * This is Cinzel-faced input: names, counters, dice quantities, currency. Prose
  * fields belong in RichTextEditor, not here.
  *
- * `v-model.number` and `v-model.trim` work as they do on a native input — the
- * modifiers are read off defineModel and applied in `onInput`, because a component
- * that ignores them would silently hand a numeric field a string.
+ * `v-model.number`, `v-model.trim` and `v-model.lazy` all work as they do on a
+ * native input — the modifiers are read off defineModel and applied on commit,
+ * because a component that ignores them would silently hand a numeric field a
+ * string, or fire a parse on every keystroke.
+ *
+ * `.lazy` is not decoration. Twenty-one inputs across ten files bind `:value`
+ * plus `@change`/`@blur` by hand precisely because they must NOT commit per
+ * keystroke: a level field that parses "STR" one letter at a time collapses it
+ * before the word exists, and a tiptap toolbar that writes on every keypress
+ * moves the image while you are still typing the number. Without this modifier
+ * those sites could not use the primitive at all — three separate agents in the
+ * #648 sweep reached them independently and each correctly refused to convert.
  */
 import { computed, useTemplateRef, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
@@ -39,7 +49,7 @@ import { fieldVariants, type FieldTone, type FieldSize, type FieldShape } from "
  * the model keeps each call site's own type intact: a `Ref<string>` site still
  * resolves `T` to `string` and still cannot be handed `undefined`.
  */
-const [model, modifiers] = defineModel<T, "number" | "trim">({
+const [model, modifiers] = defineModel<T, "number" | "trim" | "lazy">({
   required: true,
 });
 
@@ -73,7 +83,20 @@ const alignClass = computed(() =>
   align === "center" ? "text-center" : align === "right" ? "text-right" : "",
 );
 
+/**
+ * `.lazy` swaps which DOM event commits. `change` covers both ways a field is
+ * finished — blurring it and pressing Enter — which is why the hand-rolled sites
+ * that listened for `@blur` *and* `@keydown.enter` need only this one.
+ */
 function onInput(event: Event) {
+  if (!modifiers.lazy) commit(event);
+}
+
+function onChange(event: Event) {
+  if (modifiers.lazy) commit(event);
+}
+
+function commit(event: Event) {
   const raw = (event.target as HTMLInputElement).value;
   if (modifiers.number) {
     // An empty numeric field is absent, not zero — `?? 0` here would silently

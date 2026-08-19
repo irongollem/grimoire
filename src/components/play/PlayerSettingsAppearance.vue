@@ -42,6 +42,7 @@
       </div>
       <ToggleSwitch
         v-if="wakeLockSupported"
+        size="lg"
         :model-value="wakeLockEnabled"
         aria-label="Keep screen awake"
         @update:model-value="toggleWakeLock"
