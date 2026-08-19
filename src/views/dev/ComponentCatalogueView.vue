@@ -78,6 +78,24 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppButton — iconSize"
+      note="The glyph size is a prop, not something to hand-write through the slot. :icon used to hard-code h-3.5, so 58 call sites bypassed the prop entirely to get h-3/h-4/h-5. Reach for the #icon slot only when the glyph needs more than a size — a colour, an opacity, a conditional class."
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <AppButton
+          v-for="s in BUTTON_ICON_SIZES"
+          :key="s"
+          variant="subtle"
+          :icon="IconWand"
+          :icon-size="s"
+          :label="s"
+        />
+        <AppButton :icon="IconWand" icon-size="lg" label="Loading" loading />
+        <AppButton :icon-right="IconChevronRight" icon-size="lg" label="Trailing" />
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton — fill"
       note="Whether a button paints a background on hover rather than only recolouring text. The largest recipe the sweep could not express — 104 hover:bg-muted and 116 hover:bg-<tone>/N occurrences across the app. It is an axis rather than a variant so it composes: ghost+fill is a toolbar toggle, ghost+fill+danger is a destructive icon button."
     >
@@ -310,6 +328,7 @@ import {
   BUTTON_COLOUR_TONES,
   BUTTON_EMPHASES,
   BUTTON_FILLS,
+  BUTTON_ICON_SIZES,
   type ButtonSize,
 } from "@/components/common/appButtonVariants";
 import { FIELD_SIZES, FIELD_TONES } from "@/components/common/fieldVariants";

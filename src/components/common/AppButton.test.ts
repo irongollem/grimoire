@@ -8,6 +8,9 @@ import { buttonVariants, BUTTON_COLOUR_TONES, BUTTON_EMPHASES } from "./appButto
 
 const global = { stubs: { RouterLink: RouterLinkStub } };
 
+/** Minimal stand-in for an icon component — the tests only care about its class. */
+const IconStub = { render: () => h("svg") };
+
 describe("buttonVariants", () => {
   it("defaults to the most common control in the app (subtle / sm)", () => {
     const cls = buttonVariants({});
@@ -495,5 +498,36 @@ describe("ghost hover tones (#648)", () => {
 
   it("still leaves the untoned ghost neutral", () => {
     expect(buttonVariants({ variant: "ghost" })).toContain("hover:text-foreground");
+  });
+});
+
+describe("iconSize (#648)", () => {
+  // Default must stay h-3.5, which is what :icon hard-coded before this prop
+  // existed — 243 call sites rely on it and none of them passes iconSize.
+  it("defaults to the historic h-3.5", () => {
+    const html = mount(AppButton, { props: { icon: IconStub, label: "x" }, global }).html();
+    expect(html).toContain("h-3.5 w-3.5");
+  });
+
+  it("sizes the glyph without touching the button box", () => {
+    for (const [size, cls] of [["xs", "h-3 w-3"], ["md", "h-4 w-4"], ["lg", "h-5 w-5"]] as const) {
+      const wrapper = mount(AppButton, { props: { icon: IconStub, iconSize: size, label: "x" }, global });
+      expect(wrapper.html(), size).toContain(cls);
+      // the button's own padding comes from `size`, not `iconSize`
+      expect(wrapper.get("button").classes(), size).toContain("px-3");
+    }
+  });
+
+  it("applies to the trailing icon and the loading spinner too", () => {
+    const trailing = mount(AppButton, {
+      props: { iconRight: IconStub, iconSize: "lg", label: "x" }, global,
+    }).html();
+    expect(trailing).toContain("h-5 w-5");
+
+    const loading = mount(AppButton, {
+      props: { icon: IconStub, iconSize: "lg", loading: true, label: "x" }, global,
+    }).html();
+    expect(loading).toContain("h-5 w-5");
+    expect(loading).toContain("animate-spin");
   });
 });

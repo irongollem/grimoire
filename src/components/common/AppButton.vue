@@ -20,10 +20,10 @@
     <slot name="icon">
       <span
         v-if="loading"
-        class="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+        :class="[iconClass, 'animate-spin rounded-full border-2 border-current border-t-transparent']"
         aria-hidden="true"
       />
-      <component v-else-if="icon" :is="icon" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <component v-else-if="icon" :is="icon" :class="iconClass" aria-hidden="true" />
     </slot>
 
     <slot>
@@ -40,7 +40,7 @@
       </template>
     </slot>
 
-    <component v-if="iconRight" :is="iconRight" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+    <component v-if="iconRight" :is="iconRight" :class="iconClass" aria-hidden="true" />
   </Primitive>
 </template>
 
@@ -66,7 +66,12 @@ import { RouterLink, type RouteLocationRaw } from "vue-router";
 import { Primitive, useForwardExpose } from "reka-ui";
 import { cn } from "@/lib/utils";
 import { useIsTouch } from "@/composables/useBreakpoint";
-import { buttonVariants, type ButtonVariants } from "./appButtonVariants";
+import {
+  buttonVariants,
+  ICON_SIZE_CLASS,
+  type ButtonVariants,
+  type ButtonIconSize,
+} from "./appButtonVariants";
 
 // Hover-less pointers get no tooltip: on touch a `title` never appears but does
 // hijack long-press. Reactive rather than read once at import, so a hybrid device
@@ -87,6 +92,7 @@ const {
   label,
   icon,
   iconRight,
+  iconSize = "sm",
   to,
   href,
   as,
@@ -106,6 +112,13 @@ const {
   label?: string;
   icon?: Component;
   iconRight?: Component;
+  /**
+   * Glyph size: `xs` 0.75rem, `sm` 0.875rem (default, the historic hard-coded
+   * value), `md` 1rem, `lg` 1.25rem. Applies to `icon`, `iconRight` and the
+   * loading spinner. Reach for the `#icon` slot only when the glyph needs more
+   * than a size — a colour, an opacity, a conditional class.
+   */
+  iconSize?: ButtonIconSize;
   /**
    * Renders a <RouterLink>. Mutually exclusive with `href` / `as`. Takes anything
    * RouterLink takes, including named-route objects — several call sites navigate
@@ -176,6 +189,8 @@ const passthroughAttrs = computed(() => {
   const { class: _class, ...rest } = attrs;
   return rest;
 });
+
+const iconClass = computed(() => `${ICON_SIZE_CLASS[iconSize]} shrink-0`);
 
 const isInert = computed(() => disabled || loading);
 

@@ -365,6 +365,32 @@ export type AssertEmphasesListed = Assert<
  * `inline` form needs the second without the first, and inlining the same two
  * classes there is how a rule like this stops being one rule.
  */
+/**
+ * How big the glyph inside a button is.
+ *
+ * `:icon` used to hard-code `h-3.5 w-3.5`, so any call site wanting another size
+ * had to bypass the prop entirely and hand-write the icon through the `#icon`
+ * slot. 58 sites had done exactly that — 20 at h-3, 19 at h-4, 9 at h-5 — which is
+ * the same "primitive forces a value, call sites route around it" failure as
+ * AppSelect's `tone` and `weight`, wearing a disguise: using a slot is not a class
+ * override, so it never tripped the rule that would have surfaced it.
+ *
+ * Not derived from the button `size`, which would have been the tidier story:
+ * measured across those call sites the correlation is genuinely weak (`inline-xs`
+ * takes h-3 eight times and h-5 six times), so deriving it would be inventing a
+ * rule the app does not follow. The slot remains for icons that need more than a
+ * size — a colour, an opacity, a conditional `animate-pulse`, a non-icon component.
+ */
+export const BUTTON_ICON_SIZES = ["xs", "sm", "md", "lg"] as const;
+export type ButtonIconSize = (typeof BUTTON_ICON_SIZES)[number];
+
+export const ICON_SIZE_CLASS: Record<ButtonIconSize, string> = {
+  xs: "h-3 w-3",
+  sm: "h-3.5 w-3.5",
+  md: "h-4 w-4",
+  lg: "h-5 w-5",
+};
+
 export const ICON_TOUCH_TARGET = "max-md:h-11 max-md:w-11";
 
 /**
