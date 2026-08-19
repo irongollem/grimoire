@@ -143,18 +143,16 @@
         </div>
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 text-label-lg font-semibold transition-colors px-2 py-1 rounded border"
-              :class="editForm.is_private
-                ? 'text-muted-foreground border-border'
-                : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
+            <AppButton
+              variant="subtle"
+              :active="!editForm.is_private"
+              :tone="editForm.is_private ? 'neutral' : 'success'"
+              size="sm"
+              :icon="editForm.is_private ? IconLock : IconReveal"
+              icon-size="xs"
+              :label="editForm.is_private ? 'Private' : 'Shared'"
               @click="$emit('editFormChange', { is_private: !editForm.is_private, shared_with_dm: editForm.is_private ? editForm.shared_with_dm : false })"
-            >
-              <IconLock v-if="editForm.is_private" class="h-3 w-3" />
-              <IconReveal v-else class="h-3 w-3" />
-              {{ editForm.is_private ? 'Private' : 'Shared' }}
-            </button>
+            />
             <label v-if="editForm.is_private" class="inline-flex items-center gap-1.5 cursor-pointer select-none">
               <input
                 :checked="editForm.shared_with_dm"

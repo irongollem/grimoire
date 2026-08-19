@@ -63,15 +63,17 @@
           ]"
         >
           <!-- Delete button (own messages; DM can delete any) -->
-          <button
+          <AppButton
             v-if="msg.user_id === myUserId || auth.isDM"
-            type="button"
-            class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0 self-start p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive"
-            title="Delete message"
+            variant="ghost"
+            tone="danger"
+            fill="tone"
+            size="icon-xs"
+            class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0 self-start text-muted-foreground/40"
+            :icon="IconDelete"
+            tooltip="Delete message"
             @click="$emit('delete', msg.id)"
-          >
-            <IconDelete class="h-3.5 w-3.5" />
-          </button>
+          />
 
           <!-- Item drop message -->
           <ChatItemDropMessage
@@ -201,16 +203,18 @@
             v-if="vendorShowItems && vendorItemSuggestions.length"
             class="absolute left-0 bottom-full mb-0.5 z-20 w-full rounded border border-border bg-card shadow overflow-hidden max-h-40 overflow-y-auto"
           >
-            <button
+            <AppButton
               v-for="it in vendorItemSuggestions"
               :key="it.id"
-              type="button"
-              class="w-full text-left px-2 py-1 text-caption text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
+              variant="menu"
+              size="caption"
+              block
+              class="items-baseline gap-2"
               @click="vendorItemQuery = it.name; vendorItemId = it.id; vendorShowItems = false"
             >
               <span class="truncate">{{ it.name }}</span>
               <span class="font-cinzel text-2xs text-muted-foreground shrink-0 capitalize">{{ it.item_type }}</span>
-            </button>
+            </AppButton>
           </div>
           <div v-if="vendorShowItems" class="fixed inset-0 z-10" @click="vendorShowItems = false" />
         </div>
@@ -268,15 +272,18 @@
         class="text-label text-muted-foreground shrink-0"
         >To:</span
       >
-      <select
+      <AppSelect
         v-model="whisperTarget"
-        class="flex-1 bg-muted/40 border border-border rounded px-2 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        tone="muted"
+        size="caption"
+        weight="normal"
+        class="flex-1"
       >
         <option value="">Everyone</option>
         <option v-for="m in otherMembers" :key="m.id" :value="m.user_id">
           {{ bestName(m) }} (whisper)
         </option>
-      </select>
+      </AppSelect>
     </div>
 
     <!-- Input bar -->
@@ -293,20 +300,19 @@
         icon-size="md"
         @click="diceOpen = !diceOpen; vendorOpen = false"
       />
-      <button
+      <AppButton
         v-if="auth.isDM"
-        type="button"
-        class="p-1.5 rounded-md transition-colors shrink-0"
-        :class="
-          vendorOpen
-            ? 'text-emerald-400 bg-emerald-500/10'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-        "
-        title="Vendor offer"
+        variant="ghost"
+        size="icon-sm"
+        fill="muted"
+        tone="success"
+        :active="vendorOpen"
+        class="shrink-0"
+        tooltip="Vendor offer"
+        :icon="IconShop"
+        icon-size="md"
         @click="vendorOpen = !vendorOpen; diceOpen = false"
-      >
-        <IconShop class="h-4 w-4" />
-      </button>
+      />
       <textarea
         ref="inputEl"
         v-model="inputText"
@@ -338,6 +344,7 @@ import { IconClose, IconDelete, IconDiceRoll, IconMessage, IconSend, IconShop } 
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import { formatChatTimestamp } from "@/lib/utils";
 import { useLocalePrefs } from "@/composables/useLocalePrefs";

@@ -53,12 +53,13 @@
             />
 
             <!-- Spell name -->
-            <button
-              class="flex-1 text-body text-foreground hover:text-primary transition-colors min-w-0 truncate text-left"
+            <AppButton
+              variant="ghost"
+              tone="primary"
+              size="inline"
+              class="flex-1 min-w-0 justify-start truncate text-body text-foreground"
               @click.stop="selectedSpell = entry.spell"
-            >
-              {{ entry.spell.name }}
-            </button>
+            >{{ entry.spell.name }}</AppButton>
 
             <!-- Concentration / ritual badges -->
             <span
@@ -80,18 +81,26 @@
               class="shrink-0 font-cinzel text-2xs text-muted-foreground"
             >DC {{ saveDcFor(entry) }}</span>
 
-            <button
+            <AppButton
               v-if="entry.spell.damage_rolls?.length && entry.spell.mechanics_reviewed !== false"
-              class="shrink-0 font-cinzel text-2xs rounded border border-red-500/30 bg-red-500/10 text-red-500 px-1.5 py-0.5 hover:bg-red-500/20"
-              title="Roll damage after resolving the spell attack or target saving throw"
+              variant="tinted"
+              size="xs"
+              tone="danger"
+              emphasis="soft"
+              tooltip="Roll damage after resolving the spell attack or target saving throw"
+              :label="entry.spell.effects?.length ? 'Resolve' : 'Damage'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : rollInnateDamage(entry)"
-            >{{ entry.spell.effects?.length ? "Resolve" : "Damage" }}</button>
-            <button
+            />
+            <AppButton
               v-if="entry.spell.healing_dice && entry.spell.mechanics_reviewed !== false"
-              class="shrink-0 font-cinzel text-2xs rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 hover:bg-emerald-500/20"
-              title="Roll healing"
+              variant="tinted"
+              size="xs"
+              tone="success"
+              emphasis="soft"
+              tooltip="Roll healing"
+              :label="entry.spell.effects?.length ? 'Resolve' : 'Healing'"
               @click.stop="entry.spell.effects?.length ? openEffectResolution(entry) : rollInnateHealing(entry)"
-            >{{ entry.spell.effects?.length ? "Resolve" : "Healing" }}</button>
+            />
             <span v-if="entry.spell.mechanics_reviewed === false" class="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-cinzel text-2xs text-amber-500">Manual</span>
 
             <!-- Use tracking: pips or "At will" -->
@@ -116,26 +125,28 @@
             >At will</span>
 
             <!-- Cast button -->
-            <button
-              class="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-label font-semibold transition-colors border"
-              :class="castButtonClass(entry)"
+            <AppButton
+              v-bind="castButtonStyle(entry)"
+              size="xs"
+              :icon="IconWand"
+              icon-size="xs"
+              label="Cast"
               :disabled="isCasting || (entry.uses_per_day !== null && !entry.uses_remaining)"
-              :title="castButtonTitle(entry)"
+              :tooltip="castButtonTitle(entry)"
               @click="castSpell(entry)"
-            >
-              <IconWand class="h-3 w-3" />
-              Cast
-            </button>
+            />
 
             <!-- Remove button -->
-            <button
-              class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-400 p-1 rounded cursor-pointer shrink-0"
-              title="Remove innate spell"
+            <AppButton
+              variant="ghost"
+              tone="danger"
+              size="icon-xs"
+              class="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              :icon="IconClose"
+              tooltip="Remove innate spell"
               :disabled="isRemoving"
               @click="handleRemove(entry)"
-            >
-              <IconClose class="h-3.5 w-3.5" />
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -155,6 +166,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconChevronRight, IconClose, IconGenerate, IconWand } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import type { ButtonFill, ButtonTone, ButtonVariant } from "@/components/common/appButtonVariants";
 import {
   useCharacterSpellsWithDetails,
   useRemoveCharacterSpellById,
@@ -241,13 +254,17 @@ const sourceGroups = computed(() => {
   return [...map.entries()].map(([label, entries]) => ({ label, entries }));
 });
 
-function castButtonClass(entry: CharacterSpellEntry): string {
+/**
+ * Cast button styling has three distinct states that don't collapse onto a
+ * single tinted look, so it's a prop bag spread via v-bind rather than a
+ * class string: exhausted (neutral, disabled), cantrip (muted resting,
+ * arcane on hover), and a spent slot (arcane tinted at rest).
+ */
+function castButtonStyle(entry: CharacterSpellEntry): { variant: ButtonVariant; tone: ButtonTone; fill: ButtonFill } {
   const exhausted = entry.uses_per_day !== null && !entry.uses_remaining;
-  if (exhausted) return "bg-muted/30 border-border/50 text-muted-foreground/40 cursor-not-allowed";
-  if (entry.spell.level === 0) {
-    return "bg-muted/50 border-border text-muted-foreground hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/30";
-  }
-  return "bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20";
+  if (exhausted) return { variant: "subtle", tone: "neutral", fill: "none" };
+  if (entry.spell.level === 0) return { variant: "subtle", tone: "arcane", fill: "tone" };
+  return { variant: "tinted", tone: "arcane", fill: "none" };
 }
 
 function castButtonTitle(entry: CharacterSpellEntry): string {

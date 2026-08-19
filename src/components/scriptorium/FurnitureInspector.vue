@@ -14,9 +14,7 @@
         @pointerdown="onHeaderDown"
       >
         <h2 class="text-label-lg font-bold uppercase text-foreground pointer-events-none">{{ kindLabel }}</h2>
-        <button type="button" class="text-muted-foreground hover:text-foreground transition-colors" title="Close" @click="$emit('close')" @pointerdown.stop>
-          <IconClose class="h-4 w-4" />
-        </button>
+        <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="$emit('close')" @pointerdown.stop />
       </div>
 
       <div class="flex flex-col gap-3 p-3">
@@ -24,8 +22,7 @@
         <template v-if="item.kind === 'watercolor'">
           <div class="fi-row">
             <span class="fi-label">Variant</span>
-            <input type="number" min="1" :max="WATERCOLOR_COUNT" :value="num('variant', 1)" class="sc-inp w-16"
-              @input="patchProps({ variant: clampInt(($event.target as HTMLInputElement).value, 1, WATERCOLOR_COUNT) })" />
+            <AppInput v-model.number="variantModel" type="number" :min="1" :max="WATERCOLOR_COUNT" tone="default" size="caption" :block="false" class="w-16" />
           </div>
           <div class="fi-row">
             <span class="fi-label">Tint</span>
@@ -44,8 +41,7 @@
         <template v-else-if="item.kind === 'watermark'">
           <div class="fi-row">
             <span class="fi-label">Text</span>
-            <input type="text" :value="str('text', 'DRAFT')" class="sc-inp flex-1"
-              @input="patchProps({ text: ($event.target as HTMLInputElement).value })" />
+            <AppInput v-model="watermarkTextModel" tone="default" size="caption" :block="false" class="flex-1" />
           </div>
           <div class="fi-row">
             <span class="fi-label">Rotation</span>
@@ -65,8 +61,7 @@
         <template v-else-if="item.kind === 'artistCredit'">
           <div class="fi-row">
             <span class="fi-label">Artist</span>
-            <input type="text" :value="str('artistName')" placeholder="Art by…" class="sc-inp flex-1"
-              @input="patchProps({ artistName: ($event.target as HTMLInputElement).value })" />
+            <AppInput v-model="artistNameModel" placeholder="Art by…" tone="default" size="caption" :block="false" class="flex-1" />
           </div>
           <div class="fi-row items-start">
             <span class="fi-label mt-1">Corner</span>
@@ -122,6 +117,8 @@
 import { computed, ref, onBeforeUnmount } from "vue";
 import { IconClose, IconDelete } from "@/lib/icons";
 import ImageUpload from "@/components/common/ImageUpload.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { WATERCOLOR_COUNT } from "@/data/watercolorAssets";
 import type { PageFurnitureItem } from "@/types/scriptorium.types";
 
@@ -198,6 +195,21 @@ function patch(p: Partial<PageFurnitureItem>) {
 function patchProps(p: Record<string, string | number>) {
   if (item) emit("update", { ...item, props: { ...item.props, ...p } });
 }
+
+// Writable computeds bridge AppInput's required v-model onto the props-bag
+// getter/setter (`num`/`str` + `patchProps`) this panel already used.
+const variantModel = computed<number | null>({
+  get: () => num("variant", 1),
+  set: (v) => patchProps({ variant: clampInt(String(v ?? 1), 1, WATERCOLOR_COUNT) }),
+});
+const watermarkTextModel = computed({
+  get: () => str("text", "DRAFT"),
+  set: (v: string) => patchProps({ text: v }),
+});
+const artistNameModel = computed({
+  get: () => str("artistName"),
+  set: (v: string) => patchProps({ artistName: v }),
+});
 </script>
 
 <style scoped>
@@ -213,8 +225,5 @@ function patchProps(p: Record<string, string | number>) {
 }
 .fi-val {
   @apply text-caption-sm text-muted-foreground w-7 text-right;
-}
-.sc-inp {
-  @apply rounded border border-border bg-background px-1.5 py-1 text-caption text-foreground;
 }
 </style>

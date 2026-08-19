@@ -38,13 +38,14 @@
             >
               Unlimited
             </span>
-            <button
-              class="px-3 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            <AppButton
+              variant="primary"
+              size="sm"
               :disabled="planSaving[plan.id]"
               @click="savePlan(plan)"
             >
               {{ planSaving[plan.id] ? "Saving…" : "Save" }}
-            </button>
+            </AppButton>
           </div>
         </div>
 
@@ -56,11 +57,13 @@
             Monthly Included Credits
           </label>
           <div class="flex items-center gap-3">
-            <input
+            <AppInput
               v-model.number="draftMonthlyCredits[plan.id]"
               type="number"
               min="0"
-              class="w-32 bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              size="body"
+              :block="false"
+              class="w-32"
             />
             <p class="text-caption text-muted-foreground italic">
               {{ creditsHelper(draftMonthlyCredits[plan.id]) }}
@@ -87,11 +90,12 @@
             >
               {{ LABELS[resource] }}
             </label>
-            <input
+            <AppInput
               v-model.number="draftQuotas[plan.id][resource]"
               type="number"
               min="0"
-              class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              size="body"
+              tone="filled"
             />
           </div>
         </div>
@@ -153,13 +157,14 @@
             >
               {{ plan.name }}
             </h3>
-            <button
-              class="px-2.5 py-1 text-label font-semibold bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 transition-opacity"
+            <AppButton
+              variant="primary"
+              size="xs"
               :disabled="planPriceSyncing[plan.id]"
               @click="syncPlanPrices(plan.id)"
             >
               {{ planPriceSyncing[plan.id] ? "Saving…" : "Save" }}
-            </button>
+            </AppButton>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div class="space-y-1">
@@ -168,16 +173,19 @@
                 >Monthly Price ID</label
               >
               <div class="flex items-center gap-2">
-                <input
+                <AppInput
                   v-model="draftPlanPrices[plan.id].monthlyPriceId"
                   type="text"
                   placeholder="price_…"
-                  class="flex-1 bg-muted border border-border rounded px-2 py-1 font-mono text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-                  :class="
+                  tone="filled"
+                  size="body-xs"
+                  :block="false"
+                  :class="[
+                    'flex-1 font-mono text-xs placeholder:text-muted-foreground/50',
                     draftPlanPrices[plan.id].monthlyPriceId
                       ? 'text-green-400'
-                      : 'text-amber-400'
-                  "
+                      : 'text-amber-400',
+                  ]"
                 />
                 <span
                   v-if="plan.stripe_monthly_unit_amount && plan.stripe_currency"
@@ -198,16 +206,19 @@
                 >Annual Price ID</label
               >
               <div class="flex items-center gap-2">
-                <input
+                <AppInput
                   v-model="draftPlanPrices[plan.id].annualPriceId"
                   type="text"
                   placeholder="price_…"
-                  class="flex-1 bg-muted border border-border rounded px-2 py-1 font-mono text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-                  :class="
+                  tone="filled"
+                  size="body-xs"
+                  :block="false"
+                  :class="[
+                    'flex-1 font-mono text-xs placeholder:text-muted-foreground/50',
                     draftPlanPrices[plan.id].annualPriceId
                       ? 'text-green-400'
-                      : 'text-amber-400'
-                  "
+                      : 'text-amber-400',
+                  ]"
                 />
                 <span
                   v-if="plan.stripe_annual_unit_amount && plan.stripe_currency"
@@ -231,6 +242,8 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { useAdminPlans } from "@/composables/useAdminPlans";
 import { useGenerationCreditCosts } from "@/composables/useCreditConfig";
 import { sizeMultiplier } from "@/composables/useAiCredits";

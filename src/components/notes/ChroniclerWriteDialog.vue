@@ -30,20 +30,7 @@
           <!-- Tone selector -->
           <div class="flex flex-col gap-1 shrink-0">
             <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Tone</label>
-            <div class="flex gap-1.5 flex-wrap">
-              <button
-                v-for="t in TONES"
-                :key="t.value"
-                type="button"
-                class="rounded-md border px-2.5 py-1 font-cinzel text-xs transition-colors"
-                :class="tone === t.value
-                  ? 'border-primary bg-primary/10 text-primary font-semibold'
-                  : 'border-border bg-background text-muted-foreground hover:border-primary/50'"
-                @click="tone = t.value"
-              >
-                {{ t.label }}
-              </button>
-            </div>
+            <SegmentedControl v-model="tone" :options="TONES" size="sm" gap="loose" wrap />
           </div>
 
           <!-- Error -->
@@ -56,23 +43,18 @@
               :byok="textIsByok"
               class="mr-auto"
             />
-            <button
-              type="button"
-              class="px-3 py-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
-              :disabled="isGenerating"
-              @click="emit('close')"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            <AppButton variant="subtle" size="sm" label="Cancel" :disabled="isGenerating" @click="emit('close')" />
+            <AppButton
+              variant="primary"
+              size="sm"
               :disabled="isGenerating || !rawText.trim() || rawText.length > NOTES_LIMIT || !affordable(textCreditCost, textIsByok)"
+              :label="isGenerating ? 'Writing…' : 'Write Chronicle'"
               @click="generate"
             >
-              <IconNote class="h-3 w-3" :class="isGenerating ? 'animate-pulse' : ''" />
-              {{ isGenerating ? 'Writing…' : 'Write Chronicle' }}
-            </button>
+              <template #icon>
+                <IconNote class="h-3 w-3" :class="isGenerating ? 'animate-pulse' : ''" />
+              </template>
+            </AppButton>
           </div>
         </template>
 
@@ -81,13 +63,7 @@
           <div class="flex flex-col gap-1 min-h-0 flex-1">
             <div class="flex items-center justify-between">
               <span class="font-cinzel text-xs text-muted-foreground tracking-wide">Preview</span>
-              <button
-                type="button"
-                class="text-label font-semibold text-muted-foreground hover:text-foreground border border-border rounded px-2 py-0.5 transition-colors"
-                @click="resetToInput"
-              >
-                ← Edit
-              </button>
+              <AppButton variant="subtle" size="xs" label="← Edit" @click="resetToInput" />
             </div>
             <div class="overflow-y-auto border border-border rounded-md p-4 bg-background min-h-0 flex-1">
               <RichTextViewer :content="previewContent" />
@@ -96,21 +72,15 @@
 
           <!-- Preview actions -->
           <div class="flex gap-2 justify-end shrink-0">
-            <button
-              type="button"
-              class="px-3 py-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
-              @click="emit('close')"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+            <AppButton variant="subtle" size="sm" label="Cancel" @click="emit('close')" />
+            <AppButton
+              variant="primary"
+              size="sm"
+              :icon="IconNote"
+              icon-size="xs"
+              label="Insert into Note"
               @click="insertChronicle"
-            >
-              <IconNote class="h-3 w-3" />
-              Insert into Note
-            </button>
+            />
           </div>
         </template>
       </div>
@@ -141,6 +111,8 @@ import { useProviderConfig } from "@/composables/useProviderConfig";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 
 const TONES = CHRONICLER_TONES;
 

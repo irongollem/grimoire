@@ -42,26 +42,27 @@
       </div>
       <div v-else class="flex items-center gap-2">
         <span class="text-caption text-muted-foreground truncate flex-1">{{ filename }}</span>
-        <button
-          type="button"
-          class="text-label text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          class="shrink-0"
+          label="Remove"
           @click="emit('clear')"
-        >Remove</button>
+        />
       </div>
 
       <!-- Blend mode pills -->
       <div class="flex items-center gap-1.5 flex-wrap">
         <span class="text-eyebrow text-muted-foreground mr-1">Blend</span>
-        <button
+        <AppButton
           v-for="mode in BLEND_MODES"
           :key="mode"
-          type="button"
-          class="text-label px-2 py-0.5 rounded border transition-colors"
-          :class="texture.blendMode === mode
-            ? 'border-primary text-primary'
-            : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+          variant="subtle"
+          size="xs"
+          :active="texture.blendMode === mode"
+          :label="BLEND_MODE_LABELS[mode]"
           @click="emit('set-blend-mode', mode)"
-        >{{ BLEND_MODE_LABELS[mode] }}</button>
+        />
       </div>
 
       <!-- Opacity slider -->
@@ -97,6 +98,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import {
   BLEND_MODES,
   BLEND_MODE_LABELS,

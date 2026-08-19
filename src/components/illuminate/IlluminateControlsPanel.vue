@@ -95,34 +95,37 @@
 
     <!-- Footer: reset + export -->
     <div class="border-t border-border p-4 flex flex-col gap-2">
-      <button
-        type="button"
-        class="text-label text-muted-foreground hover:text-foreground transition-colors text-right mb-1"
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        class="justify-end mb-1"
+        label="Reset all to defaults"
         @click="emit('reset')"
-      >Reset all to defaults</button>
+      />
 
       <!-- Save to Scriptorium — only shown when launched from a document -->
-      <button
+      <AppButton
         v-if="returnDocId"
-        type="button"
+        variant="primary"
+        size="md"
         :disabled="!hasImage || isExporting"
-        class="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
+        :label="isSavingBack ? 'Saving…' : 'Save to Scriptorium'"
         @click="emit('save-scriptorium')"
       >
-        <IconLoadingAlt v-if="isSavingBack" class="h-3.5 w-3.5 shrink-0 animate-spin" />
-        <IconSave v-else class="h-3.5 w-3.5 shrink-0" />
-        {{ isSavingBack ? 'Saving…' : 'Save to Scriptorium' }}
-      </button>
+        <template #icon>
+          <IconLoadingAlt v-if="isSavingBack" class="h-3.5 w-3.5 shrink-0 animate-spin" />
+          <IconSave v-else class="h-3.5 w-3.5 shrink-0" />
+        </template>
+      </AppButton>
 
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="md"
         :disabled="!hasImage || isExporting"
-        class="flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
+        :icon="IconDownload"
+        :label="isExporting ? 'Processing…' : 'Download PNG'"
         @click="emit('download')"
-      >
-        <IconDownload class="h-3.5 w-3.5 shrink-0" />
-        {{ isExporting ? 'Processing…' : 'Download PNG' }}
-      </button>
+      />
 
       <button
         type="button"
@@ -139,6 +142,7 @@
 
 <script setup lang="ts">
 import { IconCheck, IconClipboard, IconDownload, IconLoadingAlt, IconSave } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import IlluminateBrushPanel from "@/components/illuminate/IlluminateBrushPanel.vue";
 import IlluminateColorGradingPanel from "@/components/illuminate/IlluminateColorGradingPanel.vue";
 import IlluminateVignettePanel from "@/components/illuminate/IlluminateVignettePanel.vue";

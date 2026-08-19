@@ -23,13 +23,14 @@
             <h2 :id="dialogTitleId" class="font-cinzel text-sm font-bold text-foreground tracking-wide flex-1">
               {{ playlist ? `Edit ${noun.singular}` : `New ${noun.singular}` }}
             </h2>
-            <button
-              type="button"
-              class="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              icon-size="md"
+              :icon="IconClose"
+              aria-label="Close"
               @click="$emit('close')"
-            >
-              <IconClose class="h-4 w-4" />
-            </button>
+            />
           </div>
 
           <!-- Body (scrollable) -->
@@ -138,21 +139,16 @@
               A sound already claimed by another running scene is skipped — one element per sound,
               so nothing plays over itself.
             </p>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-md border border-border font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-              @click="$emit('close')"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-md bg-gold-500/20 border border-gold-500/40 font-cinzel text-xs tracking-wide text-gold-400 hover:bg-gold-500/30 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            <AppButton variant="subtle" size="md" label="Cancel" @click="$emit('close')" />
+            <AppButton
+              variant="tinted"
+              tone="primary"
+              emphasis="soft"
+              size="md"
+              :label="saving ? 'Saving…' : `Save ${noun.singular}`"
               :disabled="!localName.trim() || saving"
               @click="save"
-            >
-              {{ saving ? "Saving…" : `Save ${noun.singular}` }}
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -176,6 +172,7 @@ import type { SoundboardPlaylist, PlaylistType, Sound, PlaylistTrackLayer } from
 import PlaylistTrackRow from "./PlaylistTrackRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 interface TrackListItem {
   sound: Sound;

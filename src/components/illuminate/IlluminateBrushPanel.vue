@@ -16,31 +16,30 @@
       <!-- Brush type selector -->
       <div class="flex items-center gap-1.5 flex-wrap">
         <span class="text-eyebrow text-muted-foreground mr-1">Shape</span>
-        <button
+        <AppButton
           v-for="bt in (['round', 'splatter', 'rough', 'chalk'] as BrushType[])"
           :key="bt"
-          type="button"
-          class="text-label px-2 py-0.5 rounded border transition-colors capitalize"
-          :class="brush.brushType === bt
-            ? 'border-primary text-primary'
-            : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+          variant="subtle"
+          size="xs"
+          class="capitalize"
+          :active="brush.brushType === bt"
+          :label="bt"
           @click="emit('update:brush', { ...brush, brushType: bt })"
-        >{{ bt }}</button>
+        />
       </div>
 
       <!-- Pressure target toggle -->
       <div class="flex items-center gap-1.5">
         <span class="text-eyebrow text-muted-foreground mr-1">Pressure →</span>
-        <button
+        <AppButton
           v-for="pt in (['size', 'opacity'] as PressureTarget[])"
           :key="pt"
-          type="button"
-          class="text-label px-2 py-0.5 rounded border transition-colors"
-          :class="brush.pressureTarget === pt
-            ? 'border-primary text-primary'
-            : 'border-border hover:border-primary/60 hover:text-foreground text-muted-foreground'"
+          variant="subtle"
+          size="xs"
+          :active="brush.pressureTarget === pt"
+          :label="pt"
           @click="emit('update:brush', { ...brush, pressureTarget: pt })"
-        >{{ pt }}</button>
+        />
       </div>
 
       <!-- Brush sliders (hardness hidden for non-round shapes) -->
@@ -62,17 +61,20 @@
 
       <!-- Undo + Clear -->
       <div class="flex items-center gap-2 pt-1">
-        <button
-          type="button"
-          class="text-label px-3 py-1.5 rounded border border-border hover:border-primary/60 hover:text-foreground text-muted-foreground transition-colors"
+        <AppButton
+          variant="subtle"
+          size="xs"
+          label="Undo (Ctrl+Z)"
           @click="emit('undo')"
-        >Undo (Ctrl+Z)</button>
-        <button
-          type="button"
+        />
+        <AppButton
+          variant="subtle"
+          size="xs"
+          tone="danger"
           :disabled="!hasStrokes"
-          class="text-label px-3 py-1.5 rounded border border-border hover:border-destructive/60 hover:text-destructive text-muted-foreground transition-colors disabled:opacity-40"
+          label="Clear mask"
           @click="emit('clear')"
-        >Clear mask</button>
+        />
       </div>
       <p class="text-caption text-muted-foreground italic">
         Left-drag erases · Right-drag restores · Ctrl+Z undo
@@ -84,6 +86,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconChevronRight } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import type { BrushState, BrushType, PressureTarget } from "@/lib/illuminate/brushMask";
 
 const {

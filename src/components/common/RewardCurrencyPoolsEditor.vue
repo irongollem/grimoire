@@ -20,16 +20,18 @@
             class="flex-1 bg-transparent border-b border-border px-1 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
             @input="updatePool(pool.id, 'label', ($event.target as HTMLInputElement).value)"
           />
-          <button
-            type="button"
+          <AppButton
+            variant="link"
+            tone="caution"
+            size="inline-xs"
             :disabled="!hasCoins(pool)"
-            :title="'Drop \'' + (pool.label || 'Pool') + '\' to chat'"
-            class="shrink-0 inline-flex items-center gap-1 text-label font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30"
+            :tooltip="'Drop \'' + (pool.label || 'Pool') + '\' to chat'"
+            :icon="IconCoins"
+            icon-size="xs"
+            label="Drop"
+            class="shrink-0"
             @click="drop(pool)"
-          >
-            <IconCoins class="h-3 w-3" />
-            Drop
-          </button>
+          />
           <AppButton
             variant="ghost"
             tone="danger"
@@ -81,16 +83,18 @@
           class="flex-1 bg-transparent border-b border-border px-1 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
           @input="updatePool(pool.id, 'label', ($event.target as HTMLInputElement).value)"
         />
-        <button
-          type="button"
+        <AppButton
+          variant="link"
+          tone="caution"
+          size="inline-xs"
           :disabled="!hasCoins(pool)"
-          :title="'Drop \'' + (pool.label || 'Pool') + '\' to chat'"
-          class="shrink-0 inline-flex items-center gap-1 text-label font-semibold text-amber-400 hover:opacity-80 transition-opacity disabled:opacity-30"
+          :tooltip="'Drop \'' + (pool.label || 'Pool') + '\' to chat'"
+          :icon="IconCoins"
+          icon-size="xs"
+          label="Drop"
+          class="shrink-0"
           @click="drop(pool)"
-        >
-          <IconCoins class="h-3 w-3" />
-          Drop
-        </button>
+        />
         <AppButton
           variant="ghost"
           tone="danger"

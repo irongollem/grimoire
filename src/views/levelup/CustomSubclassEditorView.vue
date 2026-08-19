@@ -4,32 +4,29 @@
     description="Define a subclass — features, resources, and progression for your custom class"
   >
     <template v-if="isNew || isEditing" #actions>
-      <button
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
+        variant="subtle"
+        size="md"
+        label="Cancel"
         @click="onCancel"
-      >
-        Cancel
-      </button>
-      <button
+      />
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+        variant="destructive"
+        size="md"
+        label="Delete"
+        :icon="IconDelete"
         @click="remove"
-      >
-        <IconDelete class="h-3.5 w-3.5" />
-        Delete
-      </button>
-      <button
-        type="button"
+      />
+      <AppButton
+        variant="primary"
+        size="md"
+        :icon="IconSave"
+        :label="saving ? 'Saving…' : isNew ? 'Create' : 'Save'"
         :disabled="saving || !canSave"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="save"
-      >
-        <IconSave class="h-3.5 w-3.5" />
-        {{ saving ? "Saving…" : isNew ? "Create" : "Save" }}
-      </button>
+      />
     </template>
 
     <CustomSubclassSheet v-if="!isNew && !isEditing && existing" :sub="existing" />
@@ -53,24 +50,18 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-eyebrow text-muted-foreground mb-1.5">BASE CLASS</label>
-            <select
-              v-model="form.class_name"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model="form.class_name" size="body" weight="normal" block>
               <option value="" disabled>Select class…</option>
               <option v-for="cls in CLASS_NAMES" :key="cls" :value="cls">{{ cls }}</option>
-            </select>
+            </AppSelect>
           </div>
 
           <div>
             <label class="block text-eyebrow text-muted-foreground mb-1.5">CAMPAIGN SCOPE</label>
-            <select
-              v-model="campaignScope"
-              class="w-full bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            >
+            <AppSelect v-model="campaignScope" size="body" weight="normal" block>
               <option value="all">All my campaigns</option>
               <option v-for="c in campaigns" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
+            </AppSelect>
           </div>
         </div>
       </section>
@@ -109,6 +100,8 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/PageHeader.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { IconDelete, IconSave } from '@/lib/icons';
 import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/useCustomSubclasses";
 import CustomSubclassSheet from "@/components/levelup/CustomSubclassSheet.vue";

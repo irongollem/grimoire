@@ -17,12 +17,13 @@
               class="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
-          <button
+          <AppButton
             v-if="hasActiveFilters"
-            type="button"
-            class="px-2.5 py-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+            variant="subtle"
+            size="sm"
+            label="Clear"
             @click="resetGalleryFilters"
-          >Clear</button>
+          />
         </div>
 
         <!-- Kind tabs -->
@@ -88,19 +89,23 @@
 
         <!-- Actions -->
         <div class="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
+          <AppButton
             v-if="navTarget(img)"
-            type="button"
-            title="Open source"
-            class="p-1 rounded bg-black/60 text-white hover:bg-primary"
+            variant="ghost"
+            size="icon-xs"
+            :icon="IconExternalLink"
+            tooltip="Open source"
+            :class="[CARD_OVERLAY_SCRIM, 'text-white hover:bg-primary']"
             @click.stop="goToEntity(img)"
-          ><IconExternalLink class="h-3.5 w-3.5" /></button>
-          <button
-            type="button"
-            title="Remove from gallery"
-            class="p-1 rounded bg-black/60 text-white hover:bg-destructive"
+          />
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            :icon="IconDelete"
+            tooltip="Remove from gallery"
+            :class="[CARD_OVERLAY_SCRIM, 'text-white hover:bg-destructive']"
             @click.stop="onDelete(img)"
-          ><IconDelete class="h-3.5 w-3.5" /></button>
+          />
         </div>
 
         <!-- Prompt + date -->
@@ -122,6 +127,8 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import { IconNavGallery, IconSearch, IconExternalLink, IconDelete } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useConfirm } from "@/composables/useConfirm";

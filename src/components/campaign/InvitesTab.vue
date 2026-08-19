@@ -10,11 +10,11 @@
         <!-- Label -->
         <div class="space-y-1">
           <label class="text-caption text-muted-foreground italic">Label (optional)</label>
-          <input
+          <AppInput
             v-model="newLabel"
             type="text"
             placeholder="e.g. For Alice"
-            class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            size="body"
           />
         </div>
 
@@ -31,24 +31,26 @@
         <!-- Max uses -->
         <div class="space-y-1">
           <label class="text-caption text-muted-foreground italic">Max uses (optional)</label>
-          <input
+          <AppInput
             v-model.number="newMaxUses"
             type="number"
             min="1"
             placeholder="Unlimited"
-            class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            size="body"
           />
         </div>
       </div>
 
-      <button
-        class="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground font-cinzel text-sm tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+      <AppButton
+        variant="primary"
+        size="lg"
+        :icon="IconAdd"
+        icon-size="md"
         :disabled="createInvite.isPending.value"
         @click="handleCreate"
       >
-        <IconAdd class="h-4 w-4" />
         {{ createInvite.isPending.value ? 'Generating…' : 'Generate Link' }}
-      </button>
+      </AppButton>
     </div>
 
     <!-- Existing invites -->
@@ -73,14 +75,18 @@
               <span v-if="isExpired(invite)" class="text-destructive">· Expired</span>
             </p>
           </div>
-          <button
-            class="shrink-0 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            title="Revoke invite"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            fill="tone"
+            tone="danger"
+            :icon="IconDelete"
+            tooltip="Revoke invite"
             :disabled="revokeInvite.isPending.value"
+            class="shrink-0"
             @click="revokeInvite.mutate(invite.id)"
-          >
-            <IconDelete class="h-4 w-4" />
-          </button>
+          />
         </div>
 
         <!-- URL row -->
@@ -124,6 +130,8 @@ import {
   useRevokeInvite,
 } from "@/composables/useCampaignMembers";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import type { CampaignInvite } from "@/types/campaign.types";
 
 const invitesQuery = useCampaignInvites();

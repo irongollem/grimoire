@@ -26,11 +26,11 @@
         <div class="flex-1 flex flex-col gap-2">
           <label class="block">
             <span class="field-label">Character Name *</span>
-            <input v-model="f.name" class="field-input w-full" placeholder="Aric Stormblade" />
+            <AppInput v-model="f.name" tone="filled" size="body" placeholder="Aric Stormblade" />
           </label>
           <label class="block">
             <span class="field-label">Player Name</span>
-            <input v-model="f.player_name" class="field-input w-full" :placeholder="auth.membership?.display_name ?? 'Your name'" />
+            <AppInput v-model="f.player_name" tone="filled" size="body" :placeholder="auth.membership?.display_name ?? 'Your name'" />
           </label>
         </div>
       </div>
@@ -74,7 +74,7 @@
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
         <label v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
           <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
-          <input v-model.number="f[stat.key]" type="number" min="1" max="30" class="field-input w-full text-center px-1" />
+          <AppInput v-model.number="f[stat.key]" type="number" min="1" max="30" tone="filled" size="body" align="center" class="px-1" />
           <span class="font-cinzel text-xs font-bold" :class="mod(f[stat.key]) >= 0 ? 'text-green-500' : 'text-destructive'">
             {{ mod(f[stat.key]) >= 0 ? "+" : "" }}{{ mod(f[stat.key]) }}
           </span>
@@ -83,14 +83,14 @@
 
       <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-2">Combat</p>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <label class="block"><span class="field-label">Max HP</span><input v-model.number="f.max_hp" type="number" min="1" class="field-input w-full" /></label>
-        <label class="block"><span class="field-label">Current HP</span><input v-model.number="f.current_hp" type="number" class="field-input w-full" /></label>
-        <label class="block"><span class="field-label">Temp HP</span><input v-model.number="f.temp_hp" type="number" min="0" class="field-input w-full" /></label>
+        <label class="block"><span class="field-label">Max HP</span><AppInput v-model.number="f.max_hp" type="number" min="1" tone="filled" size="body" /></label>
+        <label class="block"><span class="field-label">Current HP</span><AppInput v-model.number="f.current_hp" type="number" tone="filled" size="body" /></label>
+        <label class="block"><span class="field-label">Temp HP</span><AppInput v-model.number="f.temp_hp" type="number" min="0" tone="filled" size="body" /></label>
         <!-- Armor Class — formula picker -->
         <div class="block col-span-2 sm:col-span-3">
           <span class="field-label">Armor Class</span>
           <div class="flex flex-wrap gap-2 items-center">
-            <select v-model="acFormulaType" class="field-input shrink-0">
+            <AppSelect v-model="acFormulaType" tone="filled" size="body" weight="normal">
               <option value="">Manual</option>
               <option value="armor">Equipped armor</option>
               <option value="unarmored:dex+con">Unarmored Defense (Barbarian)</option>
@@ -98,21 +98,21 @@
               <option value="mage_armor">Mage Armor</option>
               <option value="natural">Natural Armor</option>
               <option value="natural_dex">Natural Armor (base + Dex) — Lizardfolk, Draconic Resilience</option>
-            </select>
+            </AppSelect>
             <!-- Editable number: manual mode, or armor mode with nothing derivable equipped -->
-            <input v-if="!acFormulaType || (acFormulaType === 'armor' && armorDerivedAc === null)" v-model.number="f.ac" type="number" min="1" class="field-input w-20" />
+            <AppInput v-if="!acFormulaType || (acFormulaType === 'armor' && armorDerivedAc === null)" v-model.number="f.ac" type="number" min="1" tone="filled" size="body" class="w-20" />
             <!-- Formula / derived: computed read-only value + optional natural base input -->
             <template v-else>
               <span class="field-input w-16 text-center font-bold pointer-events-none select-none">{{ acFormulaType === 'armor' ? armorDerivedAc : f.ac }}</span>
               <span class="text-caption text-muted-foreground italic">{{ acFormulaLabel }}</span>
-              <input v-if="acFormulaType === 'natural' || acFormulaType === 'natural_dex'" v-model.number="naturalBase" type="number" min="1" class="field-input w-20" placeholder="Base AC" />
+              <AppInput v-if="acFormulaType === 'natural' || acFormulaType === 'natural_dex'" v-model.number="naturalBase" type="number" min="1" tone="filled" size="body" class="w-20" placeholder="Base AC" />
             </template>
           </div>
           <p class="text-caption text-muted-foreground italic mt-1">Without shield — an equipped shield adds its bonus automatically. “Equipped armor” derives base AC from the armor in the paper doll, so it updates when you swap armor.</p>
         </div>
-        <label class="block"><span class="field-label">Speed (ft)</span><input v-model.number="f.speed" type="number" min="0" step="5" class="field-input w-full" /></label>
-        <label class="block"><span class="field-label">Initiative Bonus</span><input v-model.number="f.initiative_bonus" type="number" class="field-input w-full" placeholder="extra on top of DEX (e.g. Alert +5)" /></label>
-        <label class="block"><span class="field-label">Carry Capacity Override</span><input v-model="f.carry_capacity_override" type="text" class="field-input w-full" placeholder="*2, +30, 150" /></label>
+        <label class="block"><span class="field-label">Speed (ft)</span><AppInput v-model.number="f.speed" type="number" min="0" step="5" tone="filled" size="body" /></label>
+        <label class="block"><span class="field-label">Initiative Bonus</span><AppInput v-model.number="f.initiative_bonus" type="number" tone="filled" size="body" placeholder="extra on top of DEX (e.g. Alert +5)" /></label>
+        <label class="block"><span class="field-label">Carry Capacity Override</span><AppInput v-model="f.carry_capacity_override" type="text" tone="filled" size="body" placeholder="*2, +30, 150" /></label>
       </div>
 
       <div class="rounded-lg bg-muted/30 border border-border p-3 grid grid-cols-3 gap-2 text-center">
@@ -128,7 +128,7 @@
       <div class="grid grid-cols-3 gap-2">
         <label v-for="lvl in 9" :key="lvl" class="flex flex-col items-center gap-1">
           <span class="text-label font-semibold text-muted-foreground">{{ SLOT_LEVEL_LABELS[lvl - 1] }}</span>
-          <input v-model.number="spellSlotMaxes[lvl - 1]" type="number" min="0" max="9" class="field-input w-full text-center px-1" />
+          <AppInput v-model.number="spellSlotMaxes[lvl - 1]" type="number" min="0" max="9" tone="filled" size="body" align="center" class="px-1" />
         </label>
       </div>
     </div>
@@ -186,6 +186,8 @@ import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } 
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";

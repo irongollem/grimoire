@@ -98,15 +98,16 @@
           <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
           <span v-if="checkDisadvantage"  class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
           <span v-if="exhaustionD20Penalty !== 0" class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>
-          <button
+          <AppButton
             v-if="member.concentration"
-            class="text-label md:text-sm text-indigo-300 px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/30 ml-1 hover:bg-indigo-500/20 transition-colors inline-flex items-center gap-1"
-            :title="`Concentrating on ${member.concentration.spellName} — click to drop`"
+            variant="tinted"
+            tone="arcane"
+            emphasis="soft"
+            size="xs"
+            class="md:text-sm ml-1"
+            :tooltip="`Concentrating on ${member.concentration.spellName} — click to drop`"
             @click="dropConcentration"
-          >
-            ✦ Conc: {{ member.concentration.spellName }}
-            <span class="text-muted-foreground">×</span>
-          </button>
+          >✦ Conc: {{ member.concentration.spellName }} <span class="text-muted-foreground">×</span></AppButton>
         </div>
 
         <!-- HP controls (directly below the readout) -->
@@ -157,17 +158,19 @@
                   />
                 </div>
                 <div class="max-h-56 overflow-y-auto">
-                  <button
+                  <AppButton
                     v-for="cond in filteredConditions"
                     :key="cond"
-                    class="w-full text-left px-3 py-1.5 text-label-lg transition-colors"
-                    :class="hasCondition(cond)
-                      ? 'text-destructive/40 cursor-default'
-                      : 'text-foreground hover:bg-amber-500/10 hover:text-amber-500'"
+                    variant="menu"
+                    block
+                    size="sm"
+                    :tone="hasCondition(cond) ? 'danger' : 'caution'"
+                    :fill="hasCondition(cond) ? 'none' : 'tone'"
                     :disabled="hasCondition(cond)"
-                    :title="getConditionDescription(cond, ruleset)"
+                    :label="cond"
+                    :tooltip="getConditionDescription(cond, ruleset)"
                     @click="addCondition(cond)"
-                  >{{ cond }}</button>
+                  />
                 </div>
               </div>
             </template>

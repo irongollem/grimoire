@@ -56,18 +56,21 @@
         class="text-caption text-muted-foreground/80 italic mb-1.5 leading-snug"
       >{{ meta.description }}</p>
       <!-- Expand details toggle (vault items only) -->
-      <button
+      <AppButton
         v-if="meta.item_id"
-        type="button"
-        class="flex items-center gap-1 text-label text-muted-foreground hover:text-foreground transition-colors mb-1"
+        variant="ghost"
+        size="inline-xs"
+        class="mb-1"
+        :label="expanded ? 'Hide Details' : 'Show Details'"
         @click="emit('toggle-details', messageId)"
       >
-        <IconChevronDown
-          class="h-3 w-3 transition-transform"
-          :class="expanded ? 'rotate-180' : ''"
-        />
-        {{ expanded ? 'Hide Details' : 'Show Details' }}
-      </button>
+        <template #icon>
+          <IconChevronDown
+            class="h-3 w-3 transition-transform"
+            :class="expanded ? 'rotate-180' : ''"
+          />
+        </template>
+      </AppButton>
       <ChatItemDropDetails v-if="expanded" :item-id="meta.item_id!" />
 
       <!-- ── Stacked drop: remaining count + grab buttons ───────── -->
@@ -95,28 +98,29 @@
           </div>
           <div class="flex flex-wrap gap-1.5 mt-1.5">
             <template v-if="linkedPartyMemberId">
-              <button
+              <AppButton
                 v-if="meta.quantity! > 1"
-                type="button"
-                class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-label text-amber-400 hover:bg-amber-500/30 transition-colors"
+                variant="tinted"
+                tone="caution"
+                emphasis="soft"
+                size="xs"
+                label="Grab 1"
                 @click="emit('grab', { messageId, qty: 1, intoStash: false })"
-              >
-                Grab 1
-              </button>
-              <button
-                type="button"
-                class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-label text-amber-400 hover:bg-amber-500/30 transition-colors"
+              />
+              <AppButton
+                variant="tinted"
+                tone="caution"
+                emphasis="soft"
+                size="xs"
+                :label="meta.quantity! > 1 ? 'Grab All' : 'Grab'"
                 @click="emit('grab', { messageId, qty: -1, intoStash: false })"
-              >
-                {{ meta.quantity! > 1 ? 'Grab All' : 'Grab' }}
-              </button>
-              <button
-                type="button"
-                class="px-2.5 py-1 rounded border border-border text-label text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+              />
+              <AppButton
+                variant="subtle"
+                size="xs"
+                label="To Stash"
                 @click="emit('grab', { messageId, qty: -1, intoStash: true })"
-              >
-                To Stash
-              </button>
+              />
             </template>
             <div v-if="isDM && npcs.length > 0" class="w-36">
               <EntityCombobox
@@ -143,20 +147,20 @@
         </div>
         <div v-else class="flex flex-wrap gap-1.5 mt-2">
           <template v-if="linkedPartyMemberId">
-            <button
-              type="button"
-              class="px-2.5 py-1 rounded bg-amber-500/20 border border-amber-500/40 text-label text-amber-400 hover:bg-amber-500/30 transition-colors"
+            <AppButton
+              variant="tinted"
+              tone="caution"
+              emphasis="soft"
+              size="xs"
+              label="Claim"
               @click="emit('claim', { messageId, intoStash: false })"
-            >
-              Claim
-            </button>
-            <button
-              type="button"
-              class="px-2.5 py-1 rounded border border-border text-label text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+            />
+            <AppButton
+              variant="subtle"
+              size="xs"
+              label="To Stash"
               @click="emit('claim', { messageId, intoStash: true })"
-            >
-              To Stash
-            </button>
+            />
           </template>
           <div v-if="isDM && npcs.length > 0" class="w-36">
             <EntityCombobox
@@ -179,6 +183,7 @@
 import { computed } from 'vue';
 import { IconChevronDown, IconLoot } from '@/lib/icons';
 import ChatItemDropDetails from '@/components/chat/ChatItemDropDetails.vue';
+import AppButton from '@/components/common/AppButton.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
 import type { ItemDropMetadata } from '@/types/chat.types';
 

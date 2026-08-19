@@ -3,40 +3,47 @@
     <!-- Rows -->
     <div v-for="(row, i) in rows" :key="i" class="flex items-center gap-2">
       <!-- Dice -->
-      <input
-        :value="row.dice"
+      <AppInput
+        :model-value="row.dice"
         placeholder="2d6"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring w-24 shrink-0"
-        @input="updateRow(i, 'dice', ($event.target as HTMLInputElement).value)"
+        tone="filled"
+        size="body"
+        :block="false"
+        class="w-24 shrink-0"
+        @update:model-value="(v) => updateRow(i, 'dice', v)"
       />
       <!-- Type -->
-      <select
-        :value="row.type"
-        class="bg-muted border border-border rounded-md px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring capitalize flex-1 min-w-0"
-        @change="updateRow(i, 'type', ($event.target as HTMLSelectElement).value)"
+      <AppSelect
+        :model-value="row.type"
+        tone="filled"
+        size="body"
+        weight="normal"
+        class="capitalize flex-1 min-w-0"
+        @update:model-value="(v) => updateRow(i, 'type', v ?? '')"
       >
         <option value="">— untyped —</option>
         <option v-for="t in DAMAGE_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
-      </select>
+      </AppSelect>
       <!-- Remove -->
-      <button
-        type="button"
-        class="text-muted-foreground hover:text-destructive transition-colors shrink-0 leading-none text-lg"
+      <AppButton
+        variant="ghost"
+        tone="danger"
+        size="inline-xs"
+        class="text-lg leading-none shrink-0"
         @click="removeRow(i)"
       >
         ×
-      </button>
+      </AppButton>
     </div>
 
     <!-- Avg + Add row -->
     <div class="flex items-center gap-3 flex-wrap">
-      <button
-        type="button"
-        class="text-label text-muted-foreground hover:text-foreground transition-colors"
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        label="+ Add damage"
         @click="addRow"
-      >
-        + Add damage
-      </button>
+      />
       <span v-if="totalAvg > 0" class="text-caption text-muted-foreground">
         Avg: {{ Math.round(totalAvg) }}
       </span>
@@ -44,25 +51,31 @@
 
     <!-- Quick-parse expression -->
     <div class="flex gap-2 items-center mt-1">
-      <input
+      <AppInput
         v-model="parseInput"
         :placeholder="parsePlaceholder"
-        class="bg-muted/60 border border-border/60 rounded-md px-3 py-1.5 text-caption text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring flex-1"
+        tone="filled"
+        size="caption"
+        :block="false"
+        class="flex-1"
         @keydown.enter.prevent="parseAndApply"
       />
-      <button
-        type="button"
-        class="text-label text-primary hover:opacity-80 transition-opacity shrink-0"
+      <AppButton
+        variant="link"
+        size="inline-xs"
+        class="shrink-0"
+        label="Parse →"
         @click="parseAndApply"
-      >
-        Parse →
-      </button>
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { DAMAGE_TYPES } from "@/types/damage.types";
 import { parseDiceAvg, parseDamageExpression, type DamageRoll } from "@/lib/dice/dice";
 

@@ -12,9 +12,7 @@
             <IconPackageOpen class="h-4 w-4 text-primary" />
             Drop chest in chat
           </h2>
-          <button class="text-muted-foreground hover:text-foreground" @click="emit('close')">
-            <IconClose class="h-4 w-4" />
-          </button>
+          <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="emit('close')" />
         </div>
 
         <div class="overflow-y-auto px-5 py-4 flex flex-col gap-3">
@@ -31,12 +29,7 @@
 
           <div class="space-y-1.5">
             <label class="text-eyebrow font-semibold text-muted-foreground">Claims (dice or fixed)</label>
-            <input
-              :value="claimsDice"
-              placeholder="1d4, 2, 1d6+1…"
-              class="w-full bg-muted border border-border rounded px-2 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              @input="emit('update:claimsDice', ($event.target as HTMLInputElement).value)"
-            />
+            <AppInput v-model="claimsDiceModel" tone="filled" size="body" placeholder="1d4, 2, 1d6+1…" />
             <p class="text-caption-sm text-muted-foreground italic">
               Fixed number or dice expression. Capped at the number of items that actually rolled.
             </p>
@@ -46,13 +39,15 @@
             <label class="text-eyebrow font-semibold text-muted-foreground">Chest art (optional)</label>
             <div v-if="chestImageUrl" class="relative w-24 h-24 rounded border border-border overflow-hidden bg-muted">
               <FocalImage :src="chestImageUrl" alt="Chest" format="square" />
-              <button
-                type="button"
-                class="absolute top-1 right-1 rounded bg-black/60 text-white p-0.5 hover:bg-black/80"
+              <AppButton
+                variant="ghost"
+                size="icon-xs"
+                icon-size="xs"
+                :icon="IconClose"
+                :class="[CARD_OVERLAY_SCRIM, 'absolute top-1 right-1 rounded text-white']"
+                aria-label="Remove chest art"
                 @click="emit('update:chestImageUrl', null)"
-              >
-                <IconClose class="h-3 w-3" />
-              </button>
+              />
             </div>
             <input
               v-else
@@ -109,22 +104,15 @@
         </div>
 
         <div class="px-5 py-4 border-t border-border flex items-center justify-end gap-2">
-          <button
-            type="button"
-            class="text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            @click="emit('close')"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
+          <AppButton variant="ghost" size="inline" label="Cancel" @click="emit('close')" />
+          <AppButton
+            variant="primary"
+            size="md"
+            :icon="IconPackageOpen"
             :disabled="dropping || !atoms.length || effectiveCap === null || effectiveCap <= 0"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+            :label="dropping ? 'Dropping…' : `Drop chest (${effectiveCap} ${effectiveCap === 1 ? 'claim' : 'claims'})`"
             @click="emit('drop')"
-          >
-            <IconPackageOpen class="size-3.5" />
-            {{ dropping ? "Dropping…" : `Drop chest (${effectiveCap} ${effectiveCap === 1 ? 'claim' : 'claims'})` }}
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -132,11 +120,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { IconClose, IconPackageOpen, IconWarning } from '@/lib/icons';
 import { formatCoinParts } from '@/rules/currency';
 import { useImageUpload } from '@/composables/useImageUpload';
 import FocalImage from '@/components/common/FocalImage.vue';
+import AppButton from '@/components/common/AppButton.vue';
+import AppInput from '@/components/common/AppInput.vue';
+import { CARD_OVERLAY_SCRIM } from '@/components/common/appButtonVariants';
 import type { LootChestAtom } from '@/types/chat.types';
 import { unresolvedReasonLabel, type RolledUnresolvedEntry } from '@/lib/lootTableRoll';
 
@@ -167,6 +158,14 @@ const emit = defineEmits<{
 }>();
 
 const uploadingChestImg = ref(false);
+
+// AppInput requires a writable v-model; this dialog holds `claimsDice` as a
+// prop + `update:claimsDice` emit pair rather than a defineModel, so the two
+// are bridged here instead of at every call site.
+const claimsDiceModel = computed({
+  get: () => claimsDice,
+  set: (value: string) => emit('update:claimsDice', value),
+});
 
 function onChestFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];

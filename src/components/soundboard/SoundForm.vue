@@ -17,28 +17,26 @@
     <!-- Name -->
     <div v-if="activeSourceTab !== 'browse'" class="space-y-1">
       <label class="text-caption text-muted-foreground">Name</label>
-      <input
+      <AppInput
         ref="nameInputRef"
         v-model="form.name"
         type="text"
         required
+        tone="default"
+        size="body"
         placeholder="Tavern Ambience"
-        class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
       />
     </div>
 
     <!-- Category -->
     <div v-if="activeSourceTab !== 'browse'" class="space-y-1">
       <label class="text-caption text-muted-foreground">Category</label>
-      <select
-        v-model="form.category"
-        class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-gold-500"
-      >
+      <AppSelect v-model="form.category" tone="default" size="body" weight="normal" block>
         <option value="ambient">Ambient</option>
         <option value="music">Music</option>
         <option value="effects">Effects</option>
         <option value="misc">Misc</option>
-      </select>
+      </AppSelect>
     </div>
 
     <!-- Source type toggle -->
@@ -112,23 +110,25 @@
 
       <!-- URL input -->
       <div v-if="activeSourceTab === 'url'" class="space-y-1">
-        <input
+        <AppInput
           v-model="form.external_url"
           type="url"
           required
+          tone="default"
+          size="body"
           placeholder="https://example.com/sound.mp3"
-          class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
         />
       </div>
 
       <!-- Spotify URL input -->
       <div v-else-if="activeSourceTab === 'spotify'" class="space-y-1">
-        <input
+        <AppInput
           v-model="form.external_url"
           type="url"
           required
+          tone="default"
+          size="body"
           placeholder="https://open.spotify.com/track/… or /playlist/…"
-          class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-gold-500"
         />
         <p v-if="form.external_url && !isValidSpotifyUrl" class="text-caption text-destructive">
           Paste a Spotify track, playlist, album, or episode URL.
@@ -236,11 +236,7 @@
           class="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2"
         >
           <span class="flex-1 text-caption text-foreground truncate">{{ selectedFile.name }}</span>
-          <button
-            type="button"
-            class="shrink-0 text-label text-muted-foreground hover:text-foreground transition-colors"
-            @click="fileInputRef?.click()"
-          >Change</button>
+          <AppButton variant="ghost" size="inline-xs" label="Change" class="shrink-0" @click="fileInputRef?.click()" />
         </div>
         <p v-else class="text-caption text-muted-foreground italic text-center">
           Drop a file anywhere, or <button type="button" class="underline hover:text-foreground transition-colors" @click="fileInputRef?.click()">choose one</button>.
@@ -276,6 +272,9 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/useSubscription";
@@ -426,7 +425,7 @@ onMounted(() => {
 const selectedFile = ref<File | null>(null);
 const uploadError = ref("");
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const nameInputRef = ref<HTMLInputElement | null>(null);
+const nameInputRef = ref<AppInputHandle | null>(null);
 const MAX_FILE_SIZE_MB = 20;
 
 function applyFilenameToName(file: File) {

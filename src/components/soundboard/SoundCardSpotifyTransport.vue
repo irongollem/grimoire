@@ -15,12 +15,14 @@
   >
     <IconMusicNote class="h-3.5 w-3.5 text-green-400/70 shrink-0" />
     <p class="text-caption text-muted-foreground italic flex-1">Connect Spotify to play</p>
-    <button
-      class="text-caption text-green-400 hover:text-green-300 transition-colors shrink-0"
+    <AppButton
+      variant="link"
+      tone="success"
+      size="inline-xs"
+      class="text-caption shrink-0"
+      label="Connect →"
       @click="spotifyStore.connect()"
-    >
-      Connect →
-    </button>
+    />
   </div>
 
   <!-- ── Spotify ready: album art + track info ──────────────────────── -->
@@ -144,6 +146,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuffle, IconSkipBack, IconSkipForward } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSoundPlayback } from "@/composables/useSoundPlayback";

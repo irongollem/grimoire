@@ -236,10 +236,11 @@
             </h3>
             <span v-if="selectedSpells.length" class="text-caption-sm text-muted-foreground italic">{{ selectedSpells.length }} linked</span>
           </div>
-          <input
+          <AppInput
             v-model="spellSearch"
             placeholder="Search your Spellbook…"
-            class="bg-muted border border-border rounded-md px-3 py-1.5 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="filled"
+            size="caption"
           />
           <div class="max-h-40 overflow-y-auto flex flex-col gap-1 rounded border border-border/50 bg-muted/30 p-2">
             <p v-if="!filteredSpells.length" class="text-caption text-muted-foreground italic px-1">
