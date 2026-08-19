@@ -301,9 +301,9 @@
                 </div>
                 <AppButton
                   variant="ghost"
-                  size="inline-xs"
+                  size="inline-caption"
                   label="+ add effect"
-                  class="text-caption-sm italic"
+                  class="italic"
                   @click="addEffect(lvl)"
                 />
               </div>
@@ -419,10 +419,11 @@
         </RouterLink>
         <AppButton
           v-if="!isNew"
-          variant="ghost"
-          size="inline"
+          variant="link"
+          tone="danger"
+          size="inline-body"
           label="Delete"
-          class="ml-auto text-body text-destructive hover:text-destructive/70"
+          class="ml-auto"
           @click="handleDelete"
         />
       </div>

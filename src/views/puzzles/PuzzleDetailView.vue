@@ -221,25 +221,19 @@
             <div class="flex-1 grid grid-cols-2 gap-3">
               <div class="col-span-2">
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Name</label>
-                <AppInput v-model="form.name" size="lg" placeholder="Puzzle name…" class="font-bold" />
+                <AppInput v-model="form.name" size="heading" placeholder="Puzzle name…" />
               </div>
               <div>
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Type</label>
-                <select
-                  v-model="form.puzzle_type"
-                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
+                <AppSelect v-model="form.puzzle_type" tone="default" size="body" weight="normal" block>
                   <option v-for="t in PUZZLE_TYPES" :key="t" :value="t">{{ t }}</option>
-                </select>
+                </AppSelect>
               </div>
               <div>
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Difficulty</label>
-                <select
-                  v-model="form.difficulty"
-                  class="w-full bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
+                <AppSelect v-model="form.difficulty" tone="default" size="body" weight="normal" block>
                   <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
-                </select>
+                </AppSelect>
               </div>
               <div>
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Location</label>
@@ -389,6 +383,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import TagInput from "@/components/common/TagInput.vue";

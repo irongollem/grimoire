@@ -97,13 +97,16 @@
         />
 
         <!-- Delete button (visible on hover, hidden for active page while only 1 exists) -->
-        <button
-          class="shrink-0 p-0.5 rounded text-muted-foreground/40 hover:text-destructive transition-colors [@media(hover:hover)]:opacity-0 group-hover/tab:opacity-100"
-          title="Delete page"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="inline-xs"
+          icon-size="xs"
+          :icon="IconClose"
+          tooltip="Delete page"
+          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover/tab:opacity-100"
           @click.stop="deletePage(page.id)"
-        >
-          <IconClose class="h-2.5 w-2.5" />
-        </button>
+        />
       </div>
       </VueDraggable>
     </div>

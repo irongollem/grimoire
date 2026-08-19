@@ -14,13 +14,14 @@
               Import pre-authored historical events for your campaign setting.
             </p>
           </div>
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="close"
-          >
-            ✕
-          </button>
+          />
         </div>
 
         <!-- Content -->
@@ -91,22 +92,20 @@
 
         <!-- Footer -->
         <div v-if="bundle" class="flex justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
-          <button
-            type="button"
-            class="px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
+          <AppButton
+            variant="subtle"
+            size="md"
+            :label="result === 'success' ? 'Close' : 'Cancel'"
             @click="close"
-          >
-            {{ result === 'success' ? 'Close' : 'Cancel' }}
-          </button>
-          <button
+          />
+          <AppButton
             v-if="result !== 'success'"
-            type="button"
+            variant="primary"
+            size="md"
             :disabled="importing"
-            class="px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+            :label="importing ? 'Importing…' : `Import All ${bundle.events.length} Events`"
             @click="importAll"
-          >
-            {{ importing ? 'Importing…' : `Import All ${bundle.events.length} Events` }}
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -119,6 +118,8 @@ import { useCalendarStore } from "@/stores/calendar";
 import { useCreateCalendarEvent } from "@/composables/useCalendarEvents";
 import { SETTING_BUNDLES } from "@/data/bundles/index";
 import type { BundleEvent } from "@/data/bundles/index";
+import AppButton from "@/components/common/AppButton.vue";
+import { IconClose } from "@/lib/icons";
 
 const open = defineModel<boolean>({ required: true });
 

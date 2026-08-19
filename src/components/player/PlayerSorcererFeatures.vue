@@ -10,18 +10,24 @@
           <p class="text-muted-foreground">For 1 minute, Sorcerer spell attacks have Advantage and your Sorcerer spell save DC increases by 1.</p>
           <p v-if="level >= 7" class="text-muted-foreground">Sorcery Incarnate also lets you combine two Metamagic options. With no uses left, activation costs 2 SP.</p>
         </div>
-        <button
+        <AppButton
           v-if="!active"
-          type="button"
-          class="rounded border border-violet-500/40 bg-violet-500/15 px-3 py-1.5 font-cinzel text-xs text-violet-500 disabled:opacity-40"
+          variant="tinted"
+          tone="arcane"
+          emphasis="soft"
+          size="sm"
           :disabled="activating || (innate.current <= 0 && (level < 7 || sorcery.current < 2))"
           @click="activate"
-        >Activate ({{ innate.current }}/{{ innate.max }})</button>
-        <button
-          v-else type="button"
-          class="rounded border border-violet-500/40 bg-violet-500/20 px-3 py-1.5 font-cinzel text-xs text-violet-500"
-          :disabled="ending" @click="end"
-        >Active · End</button>
+        >Activate ({{ innate.current }}/{{ innate.max }})</AppButton>
+        <AppButton
+          v-else
+          variant="tinted"
+          tone="arcane"
+          emphasis="strong"
+          size="sm"
+          :disabled="ending"
+          @click="end"
+        >Active · End</AppButton>
       </div>
 
       <div v-if="level >= 5" class="flex items-center gap-3 border-t border-violet-500/15 pt-3">
@@ -29,12 +35,13 @@
           <p class="font-cinzel text-xs font-semibold">Sorcerous Restoration</p>
           <p class="text-muted-foreground">After a Short Rest, regain up to {{ restoration }} SP. Once per Long Rest.</p>
         </div>
-        <button
-          type="button"
-          class="rounded border border-border bg-muted/40 px-3 py-1.5 font-cinzel text-xs disabled:opacity-40"
+        <AppButton
+          variant="outline"
+          surface="muted"
+          size="sm"
           :disabled="restoring || !restorationAvailable || restoration === 0"
           @click="restore"
-        >Restore ({{ sorcery.current }}/{{ sorcery.max }})</button>
+        >Restore ({{ sorcery.current }}/{{ sorcery.max }})</AppButton>
       </div>
 
       <p v-if="level >= 20" class="border-t border-violet-500/15 pt-3 text-muted-foreground">
@@ -46,6 +53,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import type { PartyMember } from "@/types/party.types";
 import {
   useActivateInnateSorcery,

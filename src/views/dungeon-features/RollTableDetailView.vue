@@ -174,28 +174,34 @@
                 class="grid grid-cols-[5rem_1fr_auto] gap-2 items-start rounded-md border border-border bg-card p-2"
               >
                 <div class="flex items-center gap-1">
-                  <input
+                  <AppInput
                     v-model.number="entry.min"
                     type="number"
+                    tone="filled"
+                    size="caption"
+                    align="center"
                     :min="1"
                     :max="dieMax"
-                    class="w-9 bg-muted border border-border rounded px-1 py-1 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-9"
                   />
                   <span class="text-caption text-muted-foreground">–</span>
-                  <input
+                  <AppInput
                     v-model.number="entry.max"
                     type="number"
+                    tone="filled"
+                    size="caption"
+                    align="center"
                     :min="entry.min"
                     :max="dieMax"
-                    class="w-9 bg-muted border border-border rounded px-1 py-1 text-caption text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
+                    class="w-9"
                   />
                 </div>
                 <div class="flex flex-col gap-1.5 min-w-0">
                   <AppInput
                     v-model="entry.label"
                     size="body-xs"
+                    tone="filled"
                     placeholder="What happens?"
-                    class="bg-muted"
                   />
                   <EntityCombobox
                     :model-value="entry.encounter_id ?? ''"
@@ -220,14 +226,14 @@
                   placeholder="Notes (optional)"
                   class="col-span-3 w-full bg-muted border border-border rounded px-2 py-1 text-caption text-muted-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-y"
                 />
-                <button
+                <AppButton
                   v-else
-                  type="button"
-                  class="col-span-3 text-left text-caption-sm text-muted-foreground hover:text-foreground italic"
+                  variant="ghost"
+                  size="inline-caption"
+                  class="col-span-3 justify-start italic"
+                  label="+ add note"
                   @click="entry.notes = ''"
-                >
-                  + add note
-                </button>
+                />
               </div>
             </div>
           </div>

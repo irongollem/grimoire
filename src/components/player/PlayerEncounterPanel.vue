@@ -10,13 +10,15 @@
         <IconEncounter v-else class="h-3.5 w-3.5 text-muted-foreground/40" />
         <span class="text-label-lg font-bold text-foreground">ENCOUNTER</span>
       </div>
-      <button
-        class="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
-        title="Close encounter panel"
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        icon-size="md"
+        :icon="IconClose"
+        tooltip="Close encounter panel"
+        aria-label="Close encounter panel"
         @click="$emit('close')"
-      >
-        <IconClose class="h-4 w-4" />
-      </button>
+      />
     </div>
 
     <!-- Scrollable content -->
@@ -32,14 +34,18 @@
 
         <template v-else>
           <!-- View battle map (tablet+ only) — phones stay on the stats panel -->
-          <RouterLink
+          <AppButton
             v-if="canShowBattleMap"
             to="/play/encounter/map"
-            class="battle-map-cta hidden md:flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
-          >
-            <IconMap class="h-4 w-4 text-primary shrink-0" />
-            <span class="text-label-lg font-semibold text-primary">View battle map</span>
-          </RouterLink>
+            variant="tinted"
+            tone="primary"
+            emphasis="soft"
+            size="sm"
+            class="hidden md:flex"
+            :icon="IconMap"
+            icon-size="md"
+            label="View battle map"
+          />
 
           <!-- Your Turn! banner -->
           <div
@@ -82,18 +88,19 @@
                 />
               </div>
               <span class="min-w-0 flex-1 text-body text-foreground truncate">{{ companion.name }}</span>
-              <button
-                type="button"
-                class="shrink-0 rounded-full border px-3 py-1 text-caption font-semibold transition-colors"
-                :class="companionCombatReady(companion)
-                  ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
-                  : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted/60'"
+              <AppButton
+                variant="subtle"
+                size="caption"
+                shape="pill"
+                surface="muted"
+                fill="muted"
+                :active="companionCombatReady(companion)"
                 role="switch"
                 :aria-checked="companionCombatReady(companion)"
+                :label="companionCombatReady(companion) ? 'Joining' : 'Elsewhere'"
+                class="shrink-0"
                 @click="toggleCompanionCombatReady(companion)"
-              >
-                {{ companionCombatReady(companion) ? "Joining" : "Elsewhere" }}
-              </button>
+              />
             </div>
           </div>
 
@@ -144,16 +151,19 @@
             <span class="text-label-lg font-semibold text-muted-foreground">
               YOUR INITIATIVE
             </span>
-            <button
+            <AppButton
               v-if="myInitiative === null"
-              type="button"
-              class="flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 font-cinzel text-sm font-bold text-primary tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-50"
+              variant="tinted"
+              tone="primary"
+              emphasis="soft"
+              size="lg"
+              class="font-bold"
+              :icon="IconDice"
+              icon-size="md"
               :disabled="rollingInitiative"
+              :label="rollingInitiative ? 'Rolling…' : `Roll d20 ${dexModLabel}`"
               @click="rollMyInitiative"
-            >
-              <IconDice class="h-4 w-4" />
-              {{ rollingInitiative ? "Rolling…" : `Roll d20 ${dexModLabel}` }}
-            </button>
+            />
             <span v-else class="text-title font-bold text-primary">{{ myInitiative }}</span>
           </div>
 
@@ -231,6 +241,7 @@ import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import EncounterCombatantLightbox from "@/components/player/EncounterCombatantLightbox.vue";
 import TurnTimer from "@/components/encounters/TurnTimer.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 defineEmits<{ close: [] }>();
 

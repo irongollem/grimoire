@@ -106,13 +106,13 @@
         <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
           <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
-          <button
-            type="button"
-            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          <AppButton
+            variant="ghost"
+            size="inline-caption"
+            class="mt-1 underline underline-offset-2"
+            label="Continue in background"
             @click="ui.locationGeneratorOpen = false"
-          >
-            Continue in background
-          </button>
+          />
         </div>
 
         <!-- Error -->

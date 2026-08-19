@@ -101,12 +101,16 @@
             </div>
           </div>
           <div class="flex gap-2">
-            <button
-              type="button"
+            <AppButton
+              variant="tinted"
+              tone="success"
+              emphasis="solid"
+              size="xs"
+              class="flex-1"
               :disabled="!offerDesc.trim() || !offerHasPrice"
-              class="flex-1 py-1 bg-emerald-600 text-white rounded text-label hover:opacity-90 transition-opacity disabled:opacity-40"
+              label="Post to Chat"
               @click="postOffer(si)"
-            >Post to Chat</button>
+            />
             <AppButton
               variant="subtle"
               size="xs"

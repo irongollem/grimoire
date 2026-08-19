@@ -89,12 +89,15 @@
         <div class="flex items-baseline gap-1.5 px-3 pt-1 flex-wrap">
           <span class="text-title font-bold" :class="hpColor">{{ displayHp }}</span>
           <span class="text-body text-muted-foreground">/ {{ displayMaxHp }}</span>
-          <button
+          <AppButton
             v-if="member.temp_hp"
-            class="font-cinzel text-2xs md:text-sm text-blue-400 ml-1 hover:text-blue-300 transition-colors inline-flex items-center gap-0.5"
-            title="Click to clear temp HP"
+            variant="link"
+            tone="info"
+            size="inline-xs"
+            class="md:text-sm ml-1"
+            tooltip="Click to clear temp HP"
             @click="clearTempHp"
-          >+{{ member.temp_hp }} tmp <span class="text-blue-400/50">×</span></button>
+          >+{{ member.temp_hp }} tmp <span class="text-tone-info/50">×</span></AppButton>
           <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
           <span v-if="checkDisadvantage"  class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
           <span v-if="exhaustionD20Penalty !== 0" class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>

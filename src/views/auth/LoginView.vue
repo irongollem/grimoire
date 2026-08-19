@@ -8,26 +8,26 @@
     <form class="space-y-4" @submit.prevent="handleSubmit">
       <div class="space-y-1.5">
         <label class="text-body text-foreground" for="email">Email</label>
-        <input
+        <AppInput
           id="email"
           v-model="email"
           type="email"
           autocomplete="email"
           required
-          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          size="body"
           placeholder="wizard@faerûn.com"
         />
       </div>
 
       <div class="space-y-1.5">
         <label class="text-body text-foreground" for="password">Password</label>
-        <input
+        <AppInput
           id="password"
           v-model="password"
           type="password"
           autocomplete="current-password"
           required
-          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          size="body"
           placeholder="••••••••"
         />
       </div>
@@ -36,13 +36,14 @@
         {{ errorMessage }}
       </p>
 
-      <button
+      <AppButton
         type="submit"
+        variant="primary"
+        size="lg"
+        block
         :disabled="auth.loading"
-        class="w-full rounded-md bg-primary px-4 py-2.5 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {{ auth.loading ? "Entering the realm…" : "Enter the Realm" }}
-      </button>
+        :label="auth.loading ? 'Entering the realm…' : 'Enter the Realm'"
+      />
     </form>
 
     <p class="mt-6 text-center text-body text-muted-foreground">
@@ -58,6 +59,8 @@
 import { ref } from "vue";
 import { useRouter, useRoute, RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const auth = useAuthStore();
 const router = useRouter();

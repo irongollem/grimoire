@@ -4,27 +4,31 @@
   </div>
   <template v-else-if="lootTables?.length">
     <div class="flex flex-wrap items-center gap-2 mb-4">
-      <input
+      <AppInput
         v-model="lootTablesSearch"
         type="search"
+        tone="card"
+        size="body"
+        :block="false"
         placeholder="Search loot tables…"
-        class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="flex-1 min-w-40"
       />
-      <select
+      <AppSelect
         v-model="lootTablesTierFilter"
-        class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        tone="card"
+        size="body"
+        weight="normal"
       >
         <option value="">All Tiers</option>
         <option v-for="t in LOOT_CR_TIERS" :key="t" :value="t">{{ LOOT_CR_TIER_LABELS[t] }}</option>
-      </select>
-      <button
+      </AppSelect>
+      <AppButton
         v-if="ui.lootTablesHasActiveFilters"
-        type="button"
-        class="text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+        variant="subtle"
+        size="body"
+        label="Clear"
         @click="ui.resetLootTablesFilters()"
-      >
-        Clear
-      </button>
+      />
     </div>
     <p v-if="!filteredLootTables.length" class="text-center text-body text-muted-foreground italic py-8">
       No loot tables match your filter.
@@ -62,6 +66,9 @@ import { RouterLink, useRouter } from "vue-router";
 import { useLootTables } from "@/composables/useLootTables";
 import { useUiStore } from "@/stores/ui";
 import { LOOT_CR_TIERS, LOOT_CR_TIER_LABELS } from "@/types/lootTable.types";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 

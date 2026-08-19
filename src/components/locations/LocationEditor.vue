@@ -42,10 +42,7 @@
       @delete="remove"
     >
       <template #controls>
-        <select
-          v-model="locationType"
-          class="bg-card border border-border rounded-md px-3 py-2 font-cinzel text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="locationType" tone="card" size="sm">
           <option
             v-for="(label, value) in LOCATION_TYPE_LABELS"
             :key="value"
@@ -53,7 +50,7 @@
           >
             {{ label }}
           </option>
-        </select>
+        </AppSelect>
       </template>
     </EntityEditorActionBar>
 
@@ -109,20 +106,22 @@
             <IconClock class="h-3.5 w-3.5" />Era
           </span>
           <div class="flex-1 flex items-center gap-1.5">
-            <input
-              :value="eraStart ?? ''"
+            <AppInput
+              v-model.number="eraStart"
               type="number"
+              tone="card"
+              size="body"
               placeholder="From year…"
-              class="w-0 flex-1 bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              @input="eraStart = parseEraYear(($event.target as HTMLInputElement).value)"
+              class="w-0 flex-1"
             />
             <span class="text-muted-foreground shrink-0">–</span>
-            <input
-              :value="eraEnd ?? ''"
+            <AppInput
+              v-model.number="eraEnd"
               type="number"
+              tone="card"
+              size="body"
               placeholder="To year…"
-              class="w-0 flex-1 bg-card border border-border rounded-md px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              @input="eraEnd = parseEraYear(($event.target as HTMLInputElement).value)"
+              class="w-0 flex-1"
             />
           </div>
         </div>
@@ -266,6 +265,8 @@ import LocationHierarchyPanel from "@/components/locations/LocationHierarchyPane
 import LocationSharingPanel from "@/components/locations/LocationSharingPanel.vue";
 import LocationResidents from "@/components/locations/LocationResidents.vue";
 import LocationMapEditor from "@/components/locations/LocationMapEditor.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { useNpcs } from "@/composables/useNpcs";
 import { usePlaylists } from "@/composables/useSoundboardPlaylists";
 import { useSounds } from "@/composables/useSounds";
@@ -393,9 +394,6 @@ const tags = ref<string[]>(
 );
 const eraStart = ref<number | null>(props.location?.era_start ?? null);
 const eraEnd = ref<number | null>(props.location?.era_end ?? null);
-function parseEraYear(raw: string): number | null {
-  return raw === "" ? null : parseInt(raw, 10);
-}
 const audioTheme = ref<string | null>(props.location?.audio_theme ?? null);
 
 // ── Ambient theme suggestions — every label already in use, so a DM re-uses

@@ -13,9 +13,15 @@
             Describe the NPC you need. The more detail, the better the result.
           </p>
         </div>
-        <button type="button" @click="emit('close')" class="shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5">
-          <IconClose class="h-4 w-4" />
-        </button>
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          icon-size="md"
+          :icon="IconClose"
+          aria-label="Close"
+          class="shrink-0 mt-0.5"
+          @click="emit('close')"
+        />
       </div>
 
       <!-- Prompt input -->

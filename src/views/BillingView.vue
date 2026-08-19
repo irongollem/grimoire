@@ -246,25 +246,25 @@
 
       <WithdrawalConsent v-model="subConsent" kind="subscription" class="mb-1" />
 
-      <button
-        class="w-full py-2.5 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+      <AppButton
+        variant="tinted"
+        tone="caution"
+        emphasis="solid"
+        size="md"
+        block
+        :loading="stripeLoading"
         :disabled="stripeLoading || !activeProPrice || !subConsent"
-        @click="createCheckoutSession(annual ? 'year' : 'month', subConsent)"
-      >
-        <IconLoading
-          v-if="stripeLoading"
-          class="inline h-3.5 w-3.5 animate-spin mr-1.5"
-        />
-        {{
+        :label="
           stripeLoading
-            ? "Redirecting…"
+            ? 'Redirecting…'
             : !activeProPrice
-              ? "Pricing unavailable"
+              ? 'Pricing unavailable'
               : annual
                 ? `Upgrade — ${activeProPrice}/year`
                 : `Upgrade — ${activeProPrice}/month`
-        }}
-      </button>
+        "
+        @click="createCheckoutSession(annual ? 'year' : 'month', subConsent)"
+      />
 
       <p class="text-caption text-muted-foreground italic text-center">
         Cancel anytime from the billing portal. No hidden fees. Taxes calculated at checkout.

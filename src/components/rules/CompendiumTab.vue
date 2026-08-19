@@ -26,17 +26,17 @@
       <template v-else>
         <!-- IconSearch results (flat) -->
         <template v-if="ui.compendiumSearch.trim()">
-          <button
+          <AppButton
             v-for="rule in searchResults"
             :key="rule.id"
-            class="text-left px-2.5 py-1.5 rounded-md text-body transition-colors"
-            :class="selected?.id === rule.id
-              ? 'bg-primary/10 text-primary font-semibold'
-              : 'text-foreground hover:bg-muted/60'"
+            variant="menu"
+            size="body"
+            block
+            :active="selected?.id === rule.id"
+            :class="selected?.id === rule.id ? 'font-semibold' : ''"
+            :label="rule.name"
             @click="selected = rule"
-          >
-            {{ rule.name }}
-          </button>
+          />
           <p v-if="!searchResults.length" class="text-caption text-muted-foreground italic px-1">
             No matches.
           </p>
@@ -45,27 +45,29 @@
         <!-- Tree (root → children) -->
         <template v-else>
           <div v-for="root in rootRules" :key="root.id">
-            <button
-              class="w-full text-left px-2.5 py-1.5 rounded-md text-label-lg font-semibold transition-colors"
-              :class="selected?.id === root.id
-                ? 'bg-primary/10 text-primary'
-                : 'text-foreground hover:bg-muted/60'"
+            <AppButton
+              variant="menu"
+              size="sm"
+              block
+              class="font-semibold"
+              :active="selected?.id === root.id"
+              :label="root.name"
               @click="selectRule(root)"
-            >
-              {{ root.name }}
-            </button>
+            />
             <div v-if="childrenOf(root.slug).length" class="ml-3 border-l border-border/50 pl-2 mt-0.5 space-y-0.5">
-              <button
+              <AppButton
                 v-for="child in childrenOf(root.slug)"
                 :key="child.id"
-                class="w-full text-left px-2 py-1 rounded text-body transition-colors"
-                :class="selected?.id === child.id
-                  ? 'bg-primary/10 text-primary font-semibold'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'"
+                variant="ghost"
+                fill="muted"
+                size="body"
+                block
+                class="justify-start text-left"
+                :active="selected?.id === child.id"
+                :class="selected?.id === child.id ? 'font-semibold' : ''"
+                :label="child.name"
                 @click="selected = child"
-              >
-                {{ child.name }}
-              </button>
+              />
             </div>
           </div>
         </template>
@@ -96,6 +98,7 @@ import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import type { LibraryRule } from "@/types/rule.types";
 
 const { data: libraryRules, isLoading, error } = useLibraryRules();

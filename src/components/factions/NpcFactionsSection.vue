@@ -13,35 +13,39 @@
         <RouterLink :to="`/factions/${e.faction.id}`" class="font-cinzel text-2xs font-semibold text-foreground hover:text-primary transition-colors">
           {{ e.faction.name }}
         </RouterLink>
-        <select
-          :value="e.role ?? 'Member'"
-          class="bg-transparent border-none text-caption-sm text-muted-foreground focus:outline-none cursor-pointer"
-          @change="updateRole(e, ($event.target as HTMLSelectElement).value)"
+        <AppSelect
+          :model-value="e.role ?? 'Member'"
+          tone="bare"
+          size="caption"
+          weight="normal"
+          class="cursor-pointer"
+          @update:model-value="updateRole(e, $event)"
         >
           <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
-        </select>
+        </AppSelect>
         <!-- Status badge — shown when not Active -->
         <span
           v-if="e.status && e.status !== 'Active'"
           class="font-cinzel text-2xs font-semibold italic"
           :style="{ color: NPC_FACTION_STATUS_COLORS[e.status as NpcFactionStatus] }"
         >{{ e.status }}</span>
-        <button type="button" class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none shrink-0" @click="remove(e)">×</button>
+        <AppButton variant="ghost" tone="danger" size="inline-xs" class="shrink-0" label="×" @click="remove(e)" />
       </div>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">No faction memberships yet.</p>
 
     <div class="flex items-center gap-2 mt-1">
       <EntityCombobox v-model="newFactionId" :options="availableFactions" placeholder="Add faction…" />
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="sm"
+        :icon="IconAdd"
+        icon-size="xs"
+        label="Add"
+        class="shrink-0"
         :disabled="!newFactionId || adding"
-        class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="add"
-      >
-        <IconAdd class="h-3 w-3" />
-        Add
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -60,6 +64,8 @@ import { NPC_FACTION_ROLES, NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } f
 import type { FactionNpc, Faction } from "@/types/faction.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 const props = defineProps<{ npcId: string }>();
 

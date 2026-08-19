@@ -5,21 +5,21 @@
     </template>
 
     <template #actions>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+      <AppButton
+        variant="subtle"
+        size="md"
+        surface="card"
+        :icon="IconBeast"
+        label="Add Companion"
         @click="tracker?.openCompanionForm(null)"
-      >
-        <IconBeast class="h-3.5 w-3.5" />
-        Add Companion
-      </button>
-      <RouterLink
+      />
+      <AppButton
         to="/party/new"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        Add Hero
-      </RouterLink>
+        variant="primary"
+        size="md"
+        :icon="IconAdd"
+        label="Add Hero"
+      />
     </template>
 
     <PartyTracker ref="tracker" />
@@ -35,26 +35,27 @@
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <input ref="uploadInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
-          <button
-            type="button"
+          <AppButton
+            variant="subtle"
+            size="sm"
+            class="bg-background"
             :disabled="generating"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            title="Upload your own art"
+            :icon="IconUpload"
+            label="Upload"
+            tooltip="Upload your own art"
             @click="uploadInput?.click()"
-          >
-            <IconUpload class="h-3.5 w-3.5" />
-            Upload
-          </button>
-          <button
-            type="button"
+          />
+          <AppButton
+            variant="subtle"
+            size="sm"
+            class="bg-background"
             :disabled="generating || !hasPartyMembers"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold rounded-md border border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            :title="!hasPartyMembers ? 'Add party members first' : groupPortraitUrl ? 'Regenerate group portrait' : 'Generate group portrait'"
+            :tooltip="!hasPartyMembers ? 'Add party members first' : groupPortraitUrl ? 'Regenerate group portrait' : 'Generate group portrait'"
             @click="generateGroupPortrait"
           >
-            <IconGenerate class="h-3.5 w-3.5" :class="generating ? 'animate-pulse' : ''" />
+            <template #icon><IconGenerate class="h-3.5 w-3.5" :class="generating ? 'animate-pulse' : ''" /></template>
             {{ generating ? 'Generating…' : groupPortraitUrl ? 'Regenerate' : 'Generate' }}
-          </button>
+          </AppButton>
         </div>
       </div>
 
@@ -81,10 +82,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { RouterLink } from "vue-router";
 import { IconAdd, IconBeast, IconGenerate, IconUpload } from '@/lib/icons';
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
 import { useGroupPortrait } from "@/composables/useGroupPortrait";
 

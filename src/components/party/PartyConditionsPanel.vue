@@ -12,7 +12,7 @@
       :title="getConditionDescription(cond, ruleset)"
     >
       {{ cond }}
-      <button type="button" class="hover:text-destructive/60 transition-colors" @click="removeCondition(cond)">×</button>
+      <AppButton variant="link" tone="danger" size="inline-xs" label="×" @click="removeCondition(cond)" />
     </span>
 
     <span
@@ -21,7 +21,7 @@
       class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-500/10 border border-violet-500/30 font-cinzel text-2xs font-semibold text-violet-400"
     >
       Cursed: {{ curse }}
-      <button type="button" class="hover:text-violet-400/60 transition-colors" @click="removeCurse(curse)">×</button>
+      <AppButton variant="link" tone="arcane" size="inline-xs" label="×" @click="removeCurse(curse)" />
     </span>
 
     <template v-if="curseInputOpen">
@@ -75,11 +75,7 @@
           @click="addCondition(cond)"
         />
         <div class="border-t border-border mt-1 pt-1">
-          <button
-            type="button"
-            class="w-full text-left px-2 py-1 rounded font-cinzel text-xs text-violet-400 hover:bg-muted transition-colors"
-            @click="openCurseInput"
-          >Cursed…</button>
+          <AppButton variant="menu" tone="arcane" size="xs" block label="Cursed…" @click="openCurseInput" />
         </div>
       </div>
     </div>

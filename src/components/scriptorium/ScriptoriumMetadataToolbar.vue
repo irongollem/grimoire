@@ -31,11 +31,13 @@
       <span class="text-label-lg font-semibold text-muted-foreground">PAGE #S</span>
     </label>
     <template v-if="showPageNumbers">
-      <input
-        :value="footerText"
+      <AppInput
+        v-model="footerTextModel"
+        tone="card"
+        size="caption"
+        :block="false"
         placeholder="Footer text…"
-        class="w-40 bg-card border border-border rounded-md px-2 py-1.5 text-caption text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:footerText', ($event.target as HTMLInputElement).value)"
+        class="w-40"
       />
       <label class="flex items-center gap-1.5">
         <span class="text-eyebrow font-semibold text-muted-foreground whitespace-nowrap">START #</span>
@@ -121,12 +123,8 @@ const pageNumberStartModel = computed({
   get: () => String(pageNumberStart),
   set: (value: string) => emit("update:pageNumberStart", Number(value)),
 });
+const footerTextModel = computed({
+  get: () => footerText,
+  set: (value: string) => emit("update:footerText", value),
+});
 </script>
-
-<style scoped>
-input:not([type="checkbox"]):not([type="radio"]),
-select {
-  background-color: var(--card);
-  color: var(--foreground);
-}
-</style>

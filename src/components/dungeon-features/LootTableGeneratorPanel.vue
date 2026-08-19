@@ -26,13 +26,13 @@
           <p class="text-body text-muted-foreground italic text-center">
             {{ currentLoadingQuote }}
           </p>
-          <button
-            type="button"
-            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          <AppButton
+            variant="ghost"
+            size="inline-caption"
+            class="mt-1 underline underline-offset-2"
+            label="Continue in background"
             @click="dismissToBackground"
-          >
-            Continue in background
-          </button>
+          />
         </div>
 
         <!-- Error state -->
@@ -47,13 +47,13 @@
         <template v-else-if="result">
           <div class="flex items-center justify-between">
             <p class="text-label-lg font-semibold text-muted-foreground">GENERATED HOARD</p>
-            <button
-              type="button"
-              class="text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            <AppButton
+              variant="ghost"
+              size="inline-caption"
+              class="underline underline-offset-2"
+              label="Regenerate"
               @click="clearResult"
-            >
-              Regenerate
-            </button>
+            />
           </div>
 
           <div class="rounded-md border border-border bg-muted/30 p-4 space-y-3">
@@ -166,14 +166,16 @@
               <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(filters which items the AI is offered)</span>
             </label>
             <div class="grid grid-cols-3 gap-2">
-              <button
+              <AppButton
                 v-for="t in LOOT_CR_TIERS"
                 :key="t"
-                type="button"
-                class="py-1.5 text-label-lg font-semibold rounded-md border transition-colors"
-                :class="crTier === t ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground hover:text-foreground'"
+                variant="subtle"
+                surface="muted"
+                size="sm"
+                :active="crTier === t"
+                :label="LOOT_CR_TIER_LABELS[t]"
                 @click="crTier = t"
-              >{{ LOOT_CR_TIER_LABELS[t] }}</button>
+              />
             </div>
             <p class="text-caption text-muted-foreground/70 mt-1.5">
               {{ tierRarityHint }}

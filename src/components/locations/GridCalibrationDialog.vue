@@ -10,13 +10,14 @@
       >
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 class="text-heading font-bold text-foreground">Calibrate Battle Map Grid</h2>
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="cancel"
-          >
-            ✕
-          </button>
+          />
         </div>
 
         <div class="px-5 py-4 space-y-4">
@@ -184,6 +185,7 @@
 import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import { IconClose } from "@/lib/icons";
 import { calibrateGrid } from "@/lib/battlemap/gridCalibration";
 import { gridLinePositions } from "@/lib/battlemap/battleMapGeometry";
 import { DEFAULT_GRID_OPACITY, type GridCalibration } from "@/types/location.types";

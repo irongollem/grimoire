@@ -8,12 +8,13 @@
           {{ headerDescription }}
         </p>
       </div>
-      <RouterLink
+      <AppButton
         to="/play"
-        class="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-      >
-        ← Back
-      </RouterLink>
+        variant="subtle"
+        size="sm"
+        class="shrink-0"
+        label="← Back"
+      />
     </div>
 
     <!-- Filter bar -->
@@ -52,15 +53,18 @@
           <!-- Subrace picker (when species has subraces) -->
           <div v-if="pendingSpecies.subraces?.length">
             <p class="text-eyebrow md:text-sm font-semibold text-muted-foreground mb-2">VARIANT</p>
-            <select
+            <AppSelect
               v-model="selectedSubrace"
-              class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="filled"
+              size="body"
+              weight="normal"
+              block
             >
               <option value="">— None —</option>
               <option v-for="sr in pendingSpecies.subraces" :key="sr.name" :value="sr.name">
                 {{ sr.name }}
               </option>
-            </select>
+            </AppSelect>
           </div>
 
           <!-- Languages to be added -->
@@ -112,21 +116,15 @@
 
           <!-- Action buttons -->
           <div class="flex gap-3 pt-2">
-            <button
-              type="button"
-              class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold border border-border rounded-md text-muted-foreground hover:text-foreground transition-colors"
-              @click="cancel"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
+            <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="cancel" />
+            <AppButton
+              variant="primary"
+              size="md"
+              class="flex-1"
               :disabled="saving"
-              class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+              :label="saving ? 'Saving…' : 'Confirm & Apply'"
               @click="confirm"
-            >
-              {{ saving ? "Saving…" : "Confirm & Apply" }}
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -144,6 +142,8 @@ import SpeciesList from "@/components/species/SpeciesList.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import type { Species } from "@/types/species.types";
 import { applySpeciesSpellGrants, removeSpeciesSpellGrants } from "@/composables/useCharacterSpells";
 import { useAllSpecies } from "@/composables/useSpecies";

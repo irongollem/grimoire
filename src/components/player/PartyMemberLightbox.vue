@@ -8,12 +8,16 @@
       >
         <div class="relative bg-card rounded-xl border border-border w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
           <!-- Close -->
-          <button
-            class="absolute top-2 right-2 z-10 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            shape="pill"
+            :class="[CARD_OVERLAY_SCRIM, 'absolute top-2 right-2 z-10 text-white hover:text-white']"
+            :icon="IconClose"
+            icon-size="md"
+            aria-label="Close"
             @click="$emit('close')"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
+          />
 
           <!-- Body: single scrollable area, two columns on sm+ -->
           <div class="overflow-y-auto">
@@ -120,9 +124,14 @@
         <div class="bg-card rounded-xl border border-border w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
           <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <h3 class="font-cinzel text-sm font-bold text-foreground">{{ displaySpecies.name }}</h3>
-            <button type="button" class="text-muted-foreground hover:text-foreground" @click="speciesModalOpen = false">
-              <IconClose class="h-4 w-4" />
-            </button>
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconClose"
+              icon-size="md"
+              aria-label="Close species details"
+              @click="speciesModalOpen = false"
+            />
           </div>
           <div class="overflow-y-auto p-4 space-y-4">
             <!-- Image + meta -->
@@ -188,6 +197,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconClose, IconShield } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";

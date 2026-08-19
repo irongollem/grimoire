@@ -46,10 +46,12 @@
               {{ cat.label }}
             </option>
           </AppSelect>
-          <input
+          <AppInput
             v-model="formTitle"
+            tone="underline"
+            size="lg"
             placeholder="Entry title (optional)…"
-            class="flex-1 min-w-48 bg-transparent border-b border-border px-1 py-1 font-cinzel text-sm font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+            class="flex-1 min-w-48 font-bold placeholder:text-muted-foreground/60"
           />
         </div>
 
@@ -87,18 +89,16 @@
         <!-- Footer row: privacy + actions -->
         <div class="flex items-center justify-between gap-2 pt-1">
           <div class="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 text-label-lg font-semibold transition-colors px-2 py-1 rounded border"
-              :class="formIsPrivate
-                ? 'text-muted-foreground border-border hover:border-foreground/30'
-                : 'text-elven-green border-elven-green/30 bg-elven-green/10'"
+            <AppButton
+              variant="subtle"
+              size="sm"
+              :active="!formIsPrivate"
+              :tone="formIsPrivate ? undefined : 'success'"
+              :icon="formIsPrivate ? IconLock : IconReveal"
+              icon-size="xs"
+              :label="formIsPrivate ? 'Private' : 'Shared'"
               @click="toggleFormPrivacy"
-            >
-              <IconLock v-if="formIsPrivate" class="h-3 w-3" />
-              <IconReveal v-else class="h-3 w-3" />
-              {{ formIsPrivate ? 'Private' : 'Shared' }}
-            </button>
+            />
             <label v-if="formIsPrivate" class="inline-flex items-center gap-1.5 cursor-pointer select-none">
               <input v-model="formSharedWithDm" type="checkbox" class="rounded border-border accent-amber-500 h-3 w-3" />
               <span class="text-label-lg text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
@@ -203,6 +203,7 @@ import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLocation, Ico
 import TabBar from "@/components/common/TabBar.vue";
 import SortControl from "@/components/common/SortControl.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";
 import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";

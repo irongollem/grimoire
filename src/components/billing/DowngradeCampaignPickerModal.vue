@@ -22,15 +22,15 @@
 
         <!-- Campaign list -->
         <div class="px-6 py-4 space-y-2 max-h-[50vh] overflow-y-auto">
-          <button
+          <AppButton
             v-for="c in allCampaigns"
             :key="c.id"
-            class="w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors"
-            :class="
-              selected === c.id
-                ? 'border-primary bg-primary/10'
-                : 'border-border hover:border-primary/40 hover:bg-muted/50'
-            "
+            variant="subtle"
+            fill="muted"
+            size="md"
+            block
+            class="justify-start text-left"
+            :active="selected === c.id"
             @click="selected = c.id"
           >
             <span
@@ -39,7 +39,7 @@
             >
               <span v-if="selected === c.id" class="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
             </span>
-            <div class="flex-1 min-w-0">
+            <div class="flex-1 min-w-0 flex flex-col items-start">
               <p class="font-cinzel text-sm font-semibold text-foreground truncate">
                 {{ c.name }}
               </p>
@@ -47,24 +47,28 @@
                 {{ c.setting }} · last updated {{ formatDate(c.updated_at) }}
               </p>
             </div>
-          </button>
+          </AppButton>
         </div>
 
         <!-- Footer -->
         <div class="px-6 py-4 border-t border-border flex flex-col gap-2">
-          <button
-            class="w-full py-2.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+          <AppButton
+            variant="primary"
+            size="md"
+            block
             :disabled="!selected || isArchiving"
+            :label="isArchiving ? 'Archiving…' : `Keep &quot;${selectedCampaign?.name ?? ''}&quot; — archive the rest`"
             @click="confirm"
-          >
-            {{ isArchiving ? "Archiving…" : `Keep "${selectedCampaign?.name ?? ''}" — archive the rest` }}
-          </button>
-          <button
-            class="w-full py-2 rounded-md border border-amber-500/40 text-amber-400 text-label-lg font-semibold hover:bg-amber-500/10 transition-colors"
+          />
+          <AppButton
+            variant="tinted"
+            tone="caution"
+            emphasis="outline"
+            size="md"
+            block
+            label="Upgrade to Pro instead"
             @click="goUpgrade"
-          >
-            Upgrade to Pro instead
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -77,6 +81,7 @@ import { useRouter } from 'vue-router'
 import { IconArchive } from '@/lib/icons'
 import { useAllCampaigns, useArchiveCampaign } from '@/composables/useCampaigns'
 import { useCampaignStore } from '@/stores/campaign'
+import AppButton from '@/components/common/AppButton.vue'
 
 defineProps<{ show: boolean; campaignLimit: number }>()
 

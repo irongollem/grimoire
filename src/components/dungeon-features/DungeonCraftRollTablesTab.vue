@@ -14,19 +14,24 @@
     </div>
     <template v-else-if="rollTables?.length">
       <div class="flex flex-wrap items-center gap-2 mb-4">
-        <input
+        <AppInput
           v-model="rollTablesSearch"
           type="search"
+          tone="card"
+          size="body"
+          :block="false"
+          class="flex-1 min-w-40"
           placeholder="Search roll tables…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        <select
+        <AppSelect
           v-model="rollTablesDieFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="card"
+          size="body"
+          weight="normal"
         >
           <option value="">All Dice</option>
           <option v-for="d in ROLL_TABLE_DICE" :key="d" :value="d">{{ d }}</option>
-        </select>
+        </AppSelect>
       </div>
       <p v-if="!filteredRollTables.length" class="text-center text-body text-muted-foreground italic py-8">
         No roll tables match your filter.
@@ -65,6 +70,8 @@ import { useRollTables } from "@/composables/useRollTables";
 import { ROLL_TABLE_DICE } from "@/types/rollTable.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import RollTableDetailView from "@/views/dungeon-features/RollTableDetailView.vue";
 
 const selectedRollTableId = ref<string | null>(null);

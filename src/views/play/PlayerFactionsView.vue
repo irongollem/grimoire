@@ -17,18 +17,22 @@
     <div v-else class="flex flex-col gap-3">
       <!-- Filter bar -->
       <div class="flex flex-wrap items-center gap-2">
-        <input
+        <AppInput
           v-model="ui.playerFactionsSearch"
           type="search"
           placeholder="Filter factions…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          tone="card"
+          size="body"
+          class="flex-1 min-w-40"
         />
-        <button
+        <AppButton
           v-if="ui.playerFactionsHasActiveFilters"
-          type="button"
-          class="px-3 py-1.5 font-cinzel text-xs tracking-wide text-muted-foreground hover:text-foreground border border-border rounded-md hover:border-foreground/30 transition-colors shrink-0"
+          variant="subtle"
+          size="sm"
+          label="Clear"
+          class="shrink-0"
           @click="ui.resetPlayerFactionsFilters()"
-        >Clear</button>
+        />
       </div>
 
       <p v-if="!filtered.length" class="text-body text-muted-foreground italic text-center py-6">
@@ -91,9 +95,15 @@
                 {{ [selected.faction_type, selected.alignment].filter(Boolean).join(' · ') }}
               </p>
             </div>
-            <button class="shrink-0 text-muted-foreground hover:text-foreground transition-colors" @click="close">
-              <IconClose class="h-4 w-4" />
-            </button>
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              icon-size="md"
+              :icon="IconClose"
+              aria-label="Close"
+              class="shrink-0"
+              @click="close"
+            />
           </div>
 
           <div class="p-4 overflow-y-auto space-y-4">
@@ -168,6 +178,8 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const auth = useAuthStore();
 const ui   = useUiStore();

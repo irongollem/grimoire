@@ -27,37 +27,44 @@
     </div>
 
     <!-- Role — editable on active rows, read-only on former rows -->
-    <select
+    <AppSelect
       v-if="!readonlyRole"
-      :value="role ?? 'Member'"
-      class="bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-2xs text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
-      @change="emit('update:role', ($event.target as HTMLSelectElement).value)"
+      v-model="roleModel"
+      tone="filled"
+      size="xs"
+      weight="normal"
+      class="text-muted-foreground"
     >
       <option v-for="r in NPC_FACTION_ROLES" :key="r" :value="r">{{ r }}</option>
-    </select>
+    </AppSelect>
     <span v-else class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ role ?? 'Member' }}</span>
 
     <!-- Status -->
-    <select
-      :value="status ?? 'Active'"
-      class="bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-2xs focus:outline-none focus:ring-1 focus:ring-ring shrink-0"
+    <AppSelect
+      v-model="statusModel"
+      tone="filled"
+      size="xs"
+      weight="normal"
       :style="{ color: NPC_FACTION_STATUS_COLORS[(status ?? 'Active') as NpcFactionStatus] ?? NPC_FACTION_STATUS_COLORS.Active }"
-      @change="emit('update:status', ($event.target as HTMLSelectElement).value)"
     >
       <option v-for="s in NPC_FACTION_STATUSES" :key="s" :value="s">{{ s }}</option>
-    </select>
+    </AppSelect>
 
-    <button
-      type="button"
-      class="shrink-0 text-muted-foreground hover:text-destructive transition-colors text-base leading-none"
+    <AppButton
+      variant="ghost"
+      tone="danger"
+      size="inline"
+      class="shrink-0"
       @click="emit('remove')"
-    >×</button>
+    >×</AppButton>
   </div>
 </template>
 
 <script setup lang="ts">
-import { type Component } from "vue";
+import { type Component, computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import {
   NPC_FACTION_ROLES,
   NPC_FACTION_STATUSES,
@@ -65,7 +72,7 @@ import {
   type NpcFactionStatus,
 } from "@/types/faction.types";
 
-const { readonlyRole = false, former = false } = defineProps<{
+const { readonlyRole = false, former = false, role, status } = defineProps<{
   portraitUrl: string | null;
   portraitFocalPoint?: { x: number; y: number } | null;
   fallbackIcon: Component;
@@ -82,4 +89,15 @@ const emit = defineEmits<{
   (e: "update:status", value: string): void;
   (e: "remove"): void;
 }>();
+
+// AppSelect requires a genuine v-model; this component only has prop+emit, so
+// bridge the two with a local writable computed rather than the old :value/@change pair.
+const roleModel = computed({
+  get: () => role ?? "Member",
+  set: (v: string) => emit("update:role", v),
+});
+const statusModel = computed({
+  get: () => status ?? "Active",
+  set: (v: string) => emit("update:status", v),
+});
 </script>

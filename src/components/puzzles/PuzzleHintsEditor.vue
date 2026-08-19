@@ -2,13 +2,12 @@
   <div class="rounded-lg border border-border bg-card overflow-hidden">
     <div class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between">
       <span class="text-label-lg font-semibold text-muted-foreground">Hints</span>
-      <button
-        type="button"
-        class="text-label font-semibold text-primary hover:opacity-80 transition-opacity"
+      <AppButton
+        variant="link"
+        size="inline-xs"
+        label="+ Add Hint"
         @click="emit('add-hint')"
-      >
-        + Add Hint
-      </button>
+      />
     </div>
     <div class="p-4 space-y-3">
       <p v-if="!sortedHints.length" class="text-caption text-muted-foreground italic">
@@ -24,29 +23,30 @@
           @update:model-value="emit('update-hint-text', hint.order, $event)"
         />
         <div class="shrink-0 flex flex-col gap-0.5 mt-1">
-          <button
+          <AppButton
             v-if="i > 0"
-            type="button"
-            class="text-muted-foreground hover:text-foreground transition-colors"
+            variant="ghost"
+            size="inline-xs"
+            :icon="IconChevronUp"
+            aria-label="Move hint up"
             @click="emit('move-hint', i, -1)"
-          >
-            <IconChevronUp class="size-3.5" />
-          </button>
-          <button
+          />
+          <AppButton
             v-if="i < sortedHints.length - 1"
-            type="button"
-            class="text-muted-foreground hover:text-foreground transition-colors"
+            variant="ghost"
+            size="inline-xs"
+            :icon="IconChevronDown"
+            aria-label="Move hint down"
             @click="emit('move-hint', i, 1)"
-          >
-            <IconChevronDown class="size-3.5" />
-          </button>
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-destructive transition-colors"
+          />
+          <AppButton
+            variant="ghost"
+            tone="danger"
+            size="inline-xs"
+            :icon="IconClose"
+            aria-label="Remove hint"
             @click="emit('remove-hint', i)"
-          >
-            <IconClose class="size-3.5" />
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -57,6 +57,7 @@
 import { IconChevronDown, IconChevronUp, IconClose } from "@/lib/icons";
 import type { PuzzleHint } from "@/types/puzzle.types";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 defineProps<{
   sortedHints: PuzzleHint[];

@@ -93,15 +93,17 @@
             placeholder="Search monsters…"
             class="h-11 w-full rounded-full border border-border bg-card pl-9 pr-9 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
-          <button
+          <AppButton
             v-if="ui.monstersSearch"
-            type="button"
-            class="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+            variant="ghost"
+            size="icon-xs"
+            shape="pill"
+            class="absolute right-2 top-1/2 -translate-y-1/2"
+            :icon="IconClose"
+            icon-size="md"
             aria-label="Clear search"
             @click="ui.monstersSearch = ''"
-          >
-            <IconClose class="size-4" />
-          </button>
+          />
         </div>
 
         <button
@@ -136,16 +138,18 @@
 
       <!-- Active-filter chips -->
       <div v-if="activeChips.length" class="mt-2 flex flex-wrap items-center gap-1.5">
-        <button
+        <AppButton
           v-for="chip in activeChips"
           :key="chip.key"
-          type="button"
-          class="inline-flex items-center gap-1 rounded-full border border-border bg-card py-1 pl-2.5 pr-1.5 text-caption text-foreground"
+          variant="outline"
+          surface="card"
+          shape="pill"
+          size="caption"
+          :label="chip.label"
+          :icon-right="IconClose"
+          icon-size="xs"
           @click="chip.clear()"
-        >
-          {{ chip.label }}
-          <IconClose class="size-3 text-muted-foreground" />
-        </button>
+        />
         <AppButton
           variant="link"
           size="inline"

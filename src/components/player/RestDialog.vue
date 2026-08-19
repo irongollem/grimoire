@@ -72,16 +72,18 @@
               <!-- Short rest: spend dice -->
               <template v-if="mode === 'short'">
                 <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    class="flex-1 cursor-pointer rounded border border-primary/40 bg-primary/10 px-3 py-1.5 font-cinzel text-xs text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  <AppButton
+                    variant="tinted"
+                    tone="primary"
+                    emphasis="soft"
+                    size="sm"
+                    class="flex-1"
                     :disabled="
                       remainingAfterSpend <= 0 || previewHp >= member.max_hp
                     "
+                    :label="`Roll d${hitDie} (${abilityModifier(props.member.con)})`"
                     @click="rollHitDie"
-                  >
-                    Roll d{{ hitDie }} ({{ abilityModifier(props.member.con) }})
-                  </button>
+                  />
                 </div>
 
                 <!-- Roll history -->
@@ -141,20 +143,18 @@
 
           <!-- Footer -->
           <div class="flex justify-end gap-2 px-5 pb-5">
-            <button
-              type="button"
-              class="cursor-pointer px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            <AppButton
+              variant="subtle"
+              size="sm"
+              label="Cancel"
               @click="$emit('close')"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="cursor-pointer px-4 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity"
+            />
+            <AppButton
+              variant="primary"
+              size="sm"
+              :label="mode === 'short' ? 'Finish Rest' : 'Sleep'"
               @click="confirm"
-            >
-              {{ mode === "short" ? "Finish Rest" : "Sleep" }}
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -165,6 +165,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { getHitDie } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";

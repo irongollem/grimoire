@@ -13,13 +13,17 @@
       </ListFilterBar>
 
       <template v-if="ui.manualSearch.trim()">
-        <button
+        <AppButton
           v-for="page in searchResults"
           :key="page.id"
-          class="text-left px-2.5 py-1.5 rounded-md text-body transition-colors"
-          :class="selectedId === page.id ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground hover:bg-muted/60'"
+          variant="menu"
+          size="body"
+          block
+          :active="selectedId === page.id"
+          :class="selectedId === page.id ? 'font-semibold' : ''"
+          :label="page.title"
           @click="selectPage(page.id)"
-        >{{ page.title }}</button>
+        />
         <p v-if="!searchResults.length" class="text-caption text-muted-foreground italic px-1">No matches.</p>
       </template>
 
@@ -68,14 +72,14 @@
               The DM Manual walks you through every feature — from setting up your first campaign to running live combat.
             </p>
           </div>
-          <button
+          <AppButton
             v-if="introPageId"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground font-cinzel text-xs font-semibold tracking-wide hover:bg-primary/90 transition-colors"
+            variant="primary"
+            size="md"
+            :icon="IconPopulate"
+            label="Start with the Introduction"
             @click="selectPage(introPageId)"
-          >
-            <IconPopulate class="h-3.5 w-3.5" />
-            Start with the Introduction
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -90,6 +94,7 @@ import { manualSections } from "@/lib/manualLoader";
 import { useUiStore } from "@/stores/ui";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const route = useRoute();
 const router = useRouter();

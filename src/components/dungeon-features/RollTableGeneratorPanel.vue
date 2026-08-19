@@ -26,13 +26,13 @@
           <p class="text-body text-muted-foreground italic text-center">
             {{ currentLoadingQuote }}
           </p>
-          <button
-            type="button"
-            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          <AppButton
+            variant="ghost"
+            size="inline-caption"
+            class="mt-1 underline underline-offset-2"
+            label="Continue in background"
             @click="dismissToBackground"
-          >
-            Continue in background
-          </button>
+          />
         </div>
 
         <!-- Error state -->
@@ -49,13 +49,13 @@
             <p class="text-label-lg font-semibold text-muted-foreground">
               GENERATED TABLE
             </p>
-            <button
-              type="button"
-              class="text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+            <AppButton
+              variant="ghost"
+              size="inline-caption"
+              class="underline underline-offset-2"
+              label="Regenerate"
               @click="clearResult"
-            >
-              Regenerate
-            </button>
+            />
           </div>
 
           <div class="rounded-md border border-border bg-muted/30 p-4 space-y-3">
@@ -126,16 +126,7 @@
               DIE
               <span class="font-fell normal-case tracking-normal text-muted-foreground/60 ml-1">(entries cover 1–{{ dieMax }})</span>
             </label>
-            <div class="grid grid-cols-5 gap-2">
-              <button
-                v-for="d in DIE_OPTIONS"
-                :key="d"
-                type="button"
-                class="py-1.5 text-label-lg font-semibold rounded-md border transition-colors"
-                :class="die === d ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted border-border text-muted-foreground hover:text-foreground'"
-                @click="die = d"
-              >{{ d }}</button>
-            </div>
+            <SegmentedControl v-model="die" :options="dieOptions" block />
           </div>
         </template>
       </div>
@@ -221,6 +212,7 @@ import { useRollTableGeneration } from "@/ai/useRollTableGeneration";
 import { resolveGeneratedEntities, type ResolvedEntity } from "@/ai/resolveGeneratedEntities";
 import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
@@ -232,6 +224,7 @@ import { ROLL_TABLE_DIE_MAX } from "@/types/rollTable.types";
 import type { RollTableDie } from "@/types/rollTable.types";
 
 const DIE_OPTIONS: RollTableDie[] = ["1d6", "1d8", "1d10", "1d12", "1d20"];
+const dieOptions = DIE_OPTIONS.map((d) => ({ value: d, label: d }));
 
 const ui = useUiStore();
 const router = useRouter();

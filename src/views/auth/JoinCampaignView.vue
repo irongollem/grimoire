@@ -9,23 +9,19 @@
         Create an account or sign in to join the campaign.
       </p>
 
-      <!-- Tab: signup / login -->
-      <!-- LEFT: no matching AppButton variant — the selected tab is a neutral
-           bg-card + shadow-sm treatment (`active` always paints gold), a gap
-           documented in the #648 sweep brief. -->
-      <div class="flex gap-1 mb-6 rounded-md border border-border p-1 bg-muted">
-        <button
-          v-for="tab in (['signup', 'login'] as const)"
-          :key="tab"
-          class="flex-1 py-1.5 rounded text-sm font-cinzel tracking-wide transition-colors"
-          :class="activeTab === tab
-            ? 'bg-card text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'"
-          @click="activeTab = tab"
-        >
-          {{ tab === 'signup' ? 'New Account' : 'Sign In' }}
-        </button>
-      </div>
+      <!-- Tab: signup / login. The selected tab used to be a neutral `bg-card`
+           chip in a trough, held back through the #648 sweep on the theory that
+           the gold `active` tint was wrong here. It is not — it is the app's one
+           selected treatment, and three rival neutral versions were the whole
+           problem. -->
+      <SegmentedControl
+        :model-value="activeTab"
+        :options="AUTH_TABS"
+        size="sm"
+        block
+        class="mb-6"
+        @update:model-value="(v) => (activeTab = v)"
+      />
 
       <form class="space-y-4" @submit.prevent="handleAuth">
         <div v-if="activeTab === 'signup'" class="space-y-1.5">
@@ -167,6 +163,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useQueryClient } from "@tanstack/vue-query";
@@ -186,6 +183,11 @@ const { switchMode } = useModeSwitch();
 const { refetch: refetchCampaigns } = useCampaigns();
 
 const token = route.params.token as string;
+const AUTH_TABS = [
+  { value: "signup", label: "New Account" },
+  { value: "login", label: "Sign In" },
+] as const satisfies readonly SegmentedOption<string>[];
+
 const activeTab = ref<"signup" | "login">("signup");
 const displayName = ref("");
 const email = ref("");

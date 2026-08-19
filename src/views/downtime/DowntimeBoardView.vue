@@ -2,6 +2,8 @@
 import { computed } from "vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import DowntimeResolvePanel from "@/components/downtime/DowntimeResolvePanel.vue";
 import DeckBacksPanel from "@/components/downtime/DeckBacksPanel.vue";
 import DowntimeOutcomeVignette from "@/components/downtime/DowntimeOutcomeVignette.vue";
@@ -134,40 +136,31 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
           <label for="downtime-filter-status" class="mb-1 block text-2xs font-medium">
             Status
           </label>
-          <select
-            id="downtime-filter-status"
-            v-model="filterStatus"
-            class="rounded-md border border-border bg-card px-3 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
-          >
+          <AppSelect id="downtime-filter-status" v-model="filterStatus" size="body" weight="normal">
             <option value="all">All</option>
             <option v-for="s in DOWNTIME_DRAW_STATUSES" :key="s" :value="s">
               {{ DOWNTIME_DRAW_STATUS_LABELS[s] }}
             </option>
-          </select>
+          </AppSelect>
         </div>
 
         <div>
           <label for="downtime-filter-character" class="mb-1 block text-2xs font-medium">
             Character
           </label>
-          <select
-            id="downtime-filter-character"
-            v-model="filterCharacter"
-            class="rounded-md border border-border bg-card px-3 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
-          >
+          <AppSelect id="downtime-filter-character" v-model="filterCharacter" size="body" weight="normal">
             <option value="">Everyone</option>
             <option v-for="m in party ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
-          </select>
+          </AppSelect>
         </div>
 
-        <button
+        <AppButton
           v-if="ui.downtimeHasActiveFilters"
-          type="button"
-          class="rounded-md border border-border px-3 py-1.5 text-2xs leading-5 text-muted-foreground hover:bg-muted"
+          variant="subtle"
+          size="sm"
+          label="Clear"
           @click="ui.resetDowntimeFilters()"
-        >
-          Clear
-        </button>
+        />
       </div>
 
       <p v-if="pendingDraws.length === 0" class="mt-3 text-2xs text-muted-foreground">

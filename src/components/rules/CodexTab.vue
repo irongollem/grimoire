@@ -1,22 +1,15 @@
 <template>
   <div class="flex flex-col gap-4">
-    <!-- Section pills -->
-    <div class="flex gap-1 p-1 rounded-lg bg-muted w-fit">
-      <button
-        v-for="s in codexSections"
-        :key="s.id"
-        type="button"
-        class="px-3 py-1.5 rounded-md font-cinzel text-xs font-semibold transition-colors"
-        :class="
-          codexSection === s.id
-            ? 'bg-card text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'
-        "
-        @click="codexSection = s.id"
-      >
-        {{ s.label }}
-      </button>
-    </div>
+    <!-- Section pills. The selected one used to be a `bg-card` chip in a
+         `bg-muted` trough, which was a fourth rival "selected" treatment; the
+         app has one, AppButton's gold `active` tint, and SegmentedControl is
+         where it lives. Roving focus and arrow-key navigation come with it. -->
+    <SegmentedControl
+      :model-value="codexSection"
+      :options="CODEX_SECTIONS"
+      size="sm"
+      @update:model-value="(v) => (codexSection = v)"
+    />
 
     <!-- ── Species ── -->
     <div v-if="codexSection === 'species'">
@@ -478,6 +471,7 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import CodexCard from "./CodexCard.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { useAllSpecies } from "@/composables/useSpecies";
@@ -490,13 +484,13 @@ import { useAllDeities } from "@/composables/useDeities";
 import { useAuthStore } from "@/stores/auth";
 import type { Deity, Pantheon } from "@/types/deity.types";
 
-const codexSections = [
-  { id: "species",     label: "Species" },
-  { id: "backgrounds", label: "Backgrounds" },
-  { id: "classes",     label: "Classes" },
-  { id: "deities",     label: "Deities" },
-] as const;
-type CodexSection = (typeof codexSections)[number]["id"];
+const CODEX_SECTIONS = [
+  { value: "species",     label: "Species" },
+  { value: "backgrounds", label: "Backgrounds" },
+  { value: "classes",     label: "Classes" },
+  { value: "deities",     label: "Deities" },
+] as const satisfies readonly SegmentedOption<string>[];
+type CodexSection = (typeof CODEX_SECTIONS)[number]["value"];
 const codexSection = ref<CodexSection>("species");
 
 // ── Species ──

@@ -42,22 +42,17 @@
                  decision made about once per campaign. -->
             <section class="space-y-1.5">
               <span class="block font-cinzel text-body-sm text-foreground">Pad size in Perform</span>
-              <div class="flex gap-1 rounded-lg border border-border/50 bg-muted/40 p-1 w-fit">
-                <button
-                  v-for="pad in PAD_SIZES"
-                  :key="pad.id"
-                  type="button"
-                  class="rounded-md px-2.5 py-1 font-cinzel text-xs tracking-wide transition-colors"
-                  :class="ui.soundboardPadSize === pad.id
-                    ? 'bg-card shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'"
-                  @click="ui.soundboardPadSize = pad.id"
-                >
-                  {{ pad.label }}
-                </button>
-              </div>
+              <!-- The selected size used to be a `bg-card` chip in a trough — a
+                   rival to AppButton's gold `active` tint, which is the app's one
+                   selected treatment. -->
+              <SegmentedControl
+                :model-value="ui.soundboardPadSize"
+                :options="PAD_SIZES"
+                size="sm"
+                @update:model-value="(v) => (ui.soundboardPadSize = v)"
+              />
               <p class="text-caption text-muted-foreground">
-                {{ PAD_SIZES.find((p) => p.id === ui.soundboardPadSize)?.hint }}
+                {{ PAD_SIZES.find((p) => p.value === ui.soundboardPadSize)?.hint }}
               </p>
             </section>
 
@@ -156,13 +151,15 @@ import { useHotkeys } from "@/composables/useHotkeys";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
 import { useSoundboardStore } from "@/stores/soundboard";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import type { PadSize } from "@/types/sound.types";
 import { useUiStore } from "@/stores/ui";
 
 const PAD_SIZES = [
-  { id: "sm", label: "Small", hint: "Name and colour only — fits the most on screen." },
-  { id: "md", label: "Medium", hint: "Name, length and loop mark." },
-  { id: "lg", label: "Large", hint: "Adds the artist." },
-] as const;
+  { value: "sm", label: "Small", hint: "Name and colour only — fits the most on screen." },
+  { value: "md", label: "Medium", hint: "Name, length and loop mark." },
+  { value: "lg", label: "Large", hint: "Adds the artist." },
+] as const satisfies readonly (SegmentedOption<PadSize> & { hint: string })[];
 
 /**
  * The two switches that used to sit in the mixer wearing faders' clothes.

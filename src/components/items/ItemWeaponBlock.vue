@@ -18,12 +18,7 @@
       </label>
       <label class="flex flex-col gap-1">
         <span class="text-eyebrow text-muted-foreground">Range</span>
-        <input
-          :value="weaponRange"
-          placeholder="e.g. 80/320 ft."
-          class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="emit('update:weaponRange', ($event.target as HTMLInputElement).value)"
-        />
+        <AppInput v-model="weaponRangeModel" tone="filled" size="body" placeholder="e.g. 80/320 ft." />
       </label>
     </div>
     <div class="flex flex-col gap-2">
@@ -48,22 +43,21 @@
     <!-- Mastery — 2024 PHB only; each weapon carries at most one -->
     <div v-if="is2024" class="flex flex-col gap-1">
       <span class="text-eyebrow text-muted-foreground">Mastery <span class="normal-case font-fell font-normal text-muted-foreground/60">— 2024 only</span></span>
-      <select
-        :value="mastery ?? ''"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @change="emit('update:mastery', (($event.target as HTMLSelectElement).value || null) as WeaponMasteryProperty | null)"
-      >
+      <AppSelect v-model="masteryModel" tone="filled" weight="normal">
         <option value="">None</option>
         <option v-for="m in WEAPON_MASTERY_PROPERTIES" :key="m" :value="m">{{ WEAPON_MASTERY_DEFINITIONS[m].label }}</option>
-      </select>
+      </AppSelect>
       <p v-if="mastery" class="text-caption text-muted-foreground italic">{{ WEAPON_MASTERY_DEFINITIONS[mastery].description }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";
 import type { DamageRoll } from "@/lib/dice/dice";
 import type { WeaponMasteryProperty } from "@/types/item.types";
@@ -93,6 +87,19 @@ const emit = defineEmits<{
 }>();
 
 const { is2024 } = useRuleset();
+
+// AppInput/AppSelect require v-model; these bridge the component's existing
+// prop-down/emit-up contract (unchanged) onto that, same as a native
+// v-model desugars to modelValue/update:modelValue.
+const weaponRangeModel = computed({
+  get: () => weaponRange,
+  set: (v: string) => emit("update:weaponRange", v),
+});
+
+const masteryModel = computed({
+  get: () => mastery ?? "",
+  set: (v: string) => emit("update:mastery", (v || null) as WeaponMasteryProperty | null),
+});
 
 function toggleProperty(p: string) {
   const next = properties.includes(p)
