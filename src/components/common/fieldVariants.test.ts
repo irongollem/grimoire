@@ -104,3 +104,16 @@ describe("filled tone (#648)", () => {
     expect(filled).toContain("focus:ring-1");
   });
 });
+
+describe("caption tone/size (#648)", () => {
+  it("is the reading font at caption scale, not a Cinzel label", () => {
+    const caption = fieldVariants({ size: "caption" });
+    expect(caption).toContain("text-caption");
+    expect(caption).not.toContain("text-label");
+  });
+
+  it("keeps the select 2px tighter than the input, like every other size", () => {
+    expect(fieldVariants({ size: "caption", control: "input" })).toContain("px-2");
+    expect(fieldVariants({ size: "caption", control: "select" })).toContain("px-1.5");
+  });
+});

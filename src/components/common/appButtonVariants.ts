@@ -283,11 +283,24 @@ export const buttonVariants = cva(
       { active: true, tone: "arcane", class: "bg-tone-arcane/15 text-tone-arcane hover:text-tone-arcane" },
       { active: true, tone: "caution", class: "bg-tone-caution/15 text-tone-caution hover:text-tone-caution" },
 
-      // Only the variants that already draw a border get the selected border colour.
-      { variant: "outline", active: true, class: "border-primary" },
-      { variant: "subtle", active: true, class: "border-primary" },
-      { variant: "destructive", active: true, class: "border-primary" },
-      { variant: "tinted", active: true, class: "border-primary" },
+      // Only the variants that already draw a border get the selected border colour,
+      // and only while the button is untoned. Gating on `tone` matters: without it a
+      // `tone="success"` selected button rendered green text on a green fill inside a
+      // GOLD border, and the rule also outranked `tinted`'s own per-tone border from
+      // the table above. The toned borders follow immediately below.
+      { variant: "outline", active: true, tone: ["neutral", "primary"], class: "border-primary" },
+      { variant: "subtle", active: true, tone: ["neutral", "primary"], class: "border-primary" },
+      { variant: "destructive", active: true, tone: ["neutral", "primary"], class: "border-primary" },
+      { variant: "tinted", active: true, tone: ["neutral", "primary"], class: "border-primary" },
+
+      // Applied regardless of variant: a border colour on a variant that sets no
+      // border *width* paints nothing, which is the same reasoning the `active`
+      // comment gives for leaving the width alone.
+      { active: true, tone: "danger", class: "border-tone-danger" },
+      { active: true, tone: "success", class: "border-tone-success" },
+      { active: true, tone: "info", class: "border-tone-info" },
+      { active: true, tone: "arcane", class: "border-tone-arcane" },
+      { active: true, tone: "caution", class: "border-tone-caution" },
     ],
     defaultVariants: {
       variant: "subtle", size: "sm", active: false, block: false,

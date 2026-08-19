@@ -66,6 +66,18 @@ export const fieldVariants = cva(
          * recipe bolds it — that is part of the role, not a per-site choice.
          */
         heading: "rounded-md py-2 text-heading font-bold",
+        /**
+         * The smallest reading-font field — Crimson 0.75rem. Inline edits inside
+         * dense rows: a soundboard track's artist, a loot pool's label, a carrier
+         * picker in an inventory row.
+         *
+         * 35 sites across the sweep, and the most-requested missing size by a wide
+         * margin — six separate agents reported being blocked on it. Their paddings
+         * scatter across twelve combinations (px-1 through px-3, py-0.5 through
+         * py-1.5) with no dominant recipe, so this normalizes them to the tightest
+         * common shape rather than pretending one of the twelve was canonical.
+         */
+        caption: "rounded py-0.5 text-caption",
       },
       /**
        * Horizontal padding only. A `<select>` has always sat 4px tighter than an
@@ -88,6 +100,8 @@ export const fieldVariants = cva(
       // a tighter select form would be pinning a look no call site actually asked for.
       { control: "input", size: "body-xs", class: "px-2" },
       { control: "select", size: "body-xs", class: "px-2" },
+      { control: "input", size: "caption", class: "px-2" },
+      { control: "select", size: "caption", class: "px-1.5" },
       { control: "input", size: "heading", class: "px-3" },
       { control: "select", size: "heading", class: "px-2" },
       { control: "select", size: "xs", class: "px-1.5" },
@@ -134,7 +148,7 @@ export interface AppSelectHandle {
 type Assert<T extends true> = T;
 
 export const FIELD_TONES = ["default", "card", "muted", "filled", "bare"] as const satisfies readonly FieldTone[];
-export const FIELD_SIZES = ["xs", "sm", "md", "lg", "body", "body-xs", "heading"] as const satisfies readonly FieldSize[];
+export const FIELD_SIZES = ["xs", "sm", "md", "lg", "body", "body-xs", "caption", "heading"] as const satisfies readonly FieldSize[];
 
 export type AssertFieldTonesListed = Assert<
   [Exclude<FieldTone, (typeof FIELD_TONES)[number]>] extends [never] ? true : false

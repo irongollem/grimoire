@@ -531,3 +531,27 @@ describe("iconSize (#648)", () => {
     expect(loading).toContain("animate-spin");
   });
 });
+
+describe("active border follows tone (#648)", () => {
+  // A selected `tone="success"` button used to render green text on a green fill
+  // inside a GOLD border, because the border rule ignored tone entirely.
+  it("colours the selected border to match the tone", () => {
+    for (const tone of BUTTON_COLOUR_TONES.filter((t) => t !== "primary")) {
+      const cls = buttonVariants({ variant: "subtle", active: true, tone });
+      expect(cls, tone).toContain(`border-tone-${tone}`);
+    }
+  });
+
+  it("keeps gold for an untoned selection", () => {
+    const cls = buttonVariants({ variant: "subtle", active: true });
+    expect(cls).toContain("border-primary");
+    expect(cls).not.toMatch(/border-tone-/);
+  });
+
+  // The gold rule also used to outrank tinted's own per-tone border from the
+  // tinted x tone x emphasis table.
+  it("does not override tinted's own border colour", () => {
+    const cls = buttonVariants({ variant: "tinted", tone: "success", emphasis: "soft", active: true });
+    expect(cls).toContain("border-tone-success");
+  });
+});
