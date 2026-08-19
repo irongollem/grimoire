@@ -34,6 +34,16 @@ export const fieldVariants = cva(
         filled: "bg-muted border border-border focus:ring-1 focus:ring-ring",
         /** Inline edit — no box until focus. */
         bare: "bg-transparent border-0 focus:ring-0",
+        /**
+         * A rule under the text and nothing else — a loot-pool label, a journal
+         * entry title, a name edited in place inside a row.
+         *
+         * Distinct from `bare`, which removes the border entirely: this keeps a
+         * bottom edge as a standing affordance and colours it on focus rather than
+         * drawing a ring. 9 sites across 8 files, reported by four separate passes
+         * that each correctly refused to fake it with `bare` plus a border class.
+         */
+        underline: "bg-transparent border-0 border-b border-border focus:ring-0 focus:border-primary",
       },
       size: {
         xs: "rounded py-0.5 text-label",
@@ -96,6 +106,12 @@ export const fieldVariants = cva(
       weight: { normal: "", semibold: "font-semibold" },
     },
     compoundVariants: [
+      // `rounded-none` has to live here, not in the tone. `tone` is declared before
+      // `size`, so a radius set there is emitted first and loses the group to the
+      // size's own `rounded`/`rounded-md` — leaving a curved box with only a bottom
+      // border. Compounds are emitted after every variant, so this wins. The same
+      // ordering hazard is why `shape` sits after `size` rather than before it.
+      { tone: "underline", class: "rounded-none" },
       { control: "input", size: "xs", class: "px-1.5" },
       { control: "input", size: "sm", class: "px-3" },
       { control: "input", size: "md", class: "px-3" },
@@ -154,7 +170,7 @@ export interface AppSelectHandle {
 
 type Assert<T extends true> = T;
 
-export const FIELD_TONES = ["default", "card", "muted", "filled", "bare"] as const satisfies readonly FieldTone[];
+export const FIELD_TONES = ["default", "card", "muted", "filled", "bare", "underline"] as const satisfies readonly FieldTone[];
 export const FIELD_SIZES = ["xs", "sm", "md", "lg", "body", "body-xs", "caption", "heading"] as const satisfies readonly FieldSize[];
 
 export type AssertFieldTonesListed = Assert<

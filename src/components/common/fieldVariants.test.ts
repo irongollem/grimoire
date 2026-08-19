@@ -139,3 +139,24 @@ describe("field shape (#648)", () => {
     expect(cls).not.toContain("rounded-full");
   });
 })
+
+describe("underline tone (#648)", () => {
+  // `rounded-none` is load-bearing: every size sets a radius, and a rounded box with
+  // only a bottom border renders as a stray curved rule. It is declared inside the
+  // tone rather than left to the size for exactly that reason.
+  it("draws a bottom rule and no box", () => {
+    const cls = mount(AppInput, { props: { modelValue: "", tone: "underline" } })
+      .get("input").classes();
+    expect(cls).toContain("border-b");
+    expect(cls).toContain("bg-transparent");
+    expect(cls).toContain("rounded-none");
+    expect(cls).not.toContain("rounded-md");
+  });
+
+  it("colours the rule on focus instead of drawing a ring", () => {
+    const cls = mount(AppInput, { props: { modelValue: "", tone: "underline" } })
+      .get("input").classes().join(" ");
+    expect(cls).toContain("focus:border-primary");
+    expect(cls).not.toMatch(/focus:ring-1/);
+  });
+});
