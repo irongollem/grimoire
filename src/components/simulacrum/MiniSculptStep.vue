@@ -16,14 +16,13 @@
         </div>
       </div>
       <div class="flex flex-col items-center gap-1.5">
-        <button
-          type="button"
+        <AppButton
+          variant="primary"
+          size="md"
           :disabled="isFirstSculpt ? !affordable(sculptCost) : resculptsLeft <= 0"
-          class="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :label="isFirstSculpt ? 'Sculpt' : `Sculpt new image (free, ${resculptsLeft} left)`"
           @click="isFirstSculpt ? runSculpt() : runResculpt()"
-        >
-          {{ isFirstSculpt ? "Sculpt" : `Sculpt new image (free, ${resculptsLeft} left)` }}
-        </button>
+        />
         <GenerationCostBadge v-if="isFirstSculpt" :credits="sculptCost" />
         <p v-if="isFirstSculpt && !affordable(sculptCost)" class="text-caption text-destructive">
           Not enough credits — buy a pack or wait for the monthly refresh.
@@ -86,17 +85,16 @@
           />
           <span class="w-px h-5 bg-border" />
           <div class="flex items-center gap-1">
-            <button
+            <AppButton
               v-for="scale in SCALE_OPTIONS"
               :key="scale"
-              type="button"
-              class="px-2 py-1 rounded text-label border transition-colors disabled:opacity-50"
-              :class="mini.scale_mm === scale
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border text-muted-foreground hover:text-foreground'"
+              variant="subtle"
+              size="xs"
+              :active="mini.scale_mm === scale"
               :disabled="isRebasing"
+              :label="`${scale}mm`"
               @click="applyBase(mini.base_id ?? DEFAULT_BASE_ID, scale)"
-            >{{ scale }}mm</button>
+            />
           </div>
           <IconLoading v-if="isRebasing" class="h-3.5 w-3.5 animate-spin text-muted-foreground" />
         </div>

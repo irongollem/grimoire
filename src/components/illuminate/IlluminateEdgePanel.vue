@@ -35,17 +35,13 @@
             class="flex-1 font-cinzel text-2xs font-semibold tracking-widest uppercase transition-colors"
             :class="opts[edge].enabled ? 'text-foreground' : 'text-muted-foreground'"
           >{{ edge }}</span>
-          <button
-            type="button"
-            class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors"
-            :class="opts[edge].enabled ? 'bg-primary' : 'bg-muted-foreground/30'"
-            @click.stop="emit('set-edge-enabled', edge, !opts[edge].enabled)"
-          >
-            <span
-              class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform"
-              :class="opts[edge].enabled ? 'translate-x-3.5' : 'translate-x-0.5'"
-            />
-          </button>
+          <ToggleSwitch
+            :model-value="opts[edge].enabled"
+            size="md"
+            :aria-label="`${edge} edge treatment enabled`"
+            @click.stop
+            @update:model-value="(value) => emit('set-edge-enabled', edge, value)"
+          />
         </div>
 
         <div
@@ -80,6 +76,7 @@
 
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import type { EdgeTreatmentOptions } from "@/lib/illuminate/edgeTreatment";
 
 const EDGE_KEYS = ["top", "right", "bottom", "left"] as const;

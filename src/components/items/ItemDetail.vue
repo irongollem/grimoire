@@ -283,6 +283,26 @@
           />
         </div>
 
+        <!-- Written contents — in-world text the object itself carries -->
+        <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
+              Written Contents
+              <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional; what the item itself says</span>
+            </h3>
+            <label class="flex items-center gap-2 cursor-pointer shrink-0">
+              <input type="checkbox" v-model="contentPlayerWritable" class="rounded" />
+              <span class="text-label-lg font-semibold text-muted-foreground">PLAYER WRITABLE</span>
+            </label>
+          </div>
+          <RichTextEditor
+            v-model="content"
+            allow-upload
+            placeholder="A ledger's pages, a contract's clauses, a scroll's text…"
+            min-height="140px"
+          />
+        </div>
+
         <!-- DM notes — never shown to players -->
         <div class="rounded-lg border border-amber-700/40 bg-amber-950/10 p-4 flex flex-col gap-2">
           <h3 class="text-label-lg font-bold text-amber-300/80 uppercase">
@@ -379,6 +399,12 @@ import WeightInput from "@/components/common/WeightInput.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import {
+  cleanupRemovedRichTextImages,
+  removeRichTextImages,
+  extractRichTextImageUrls,
+} from "@/composables/useImageUpload";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
+import {
   ITEM_TYPES,
   ITEM_TYPE_LABELS,
   ITEM_RARITIES,
@@ -411,6 +437,8 @@ const weight = ref<number | null>(
 );
 const cost = ref(props.item?.cost ?? "");
 const description = ref(props.item?.description ?? "");
+const content = ref<string | null>(props.item?.content ?? null);
+const contentPlayerWritable = ref(props.item?.content_player_writable ?? false);
 const mundaneDescription = ref(props.item?.mundane_description ?? "");
 const source = ref(props.item?.source ?? "");
 const imageUrl = ref(props.item?.image_url ?? "");
@@ -517,6 +545,15 @@ const rarityPriceHint = computed(() => RARITY_PRICE_HINTS[rarity.value] ?? "");
 const isArtObject = computed(() => itemType.value === "art_object");
 const rarityColor = computed(() => RARITY_SURFACE_BG[rarity.value] ?? "#888888");
 
+// A doc with no text and no embedded images isn't a document — persist NULL
+// rather than an empty Tiptap doc string, matching the migration's contract
+// (content is NULL for "not a document item").
+function isBlankContent(json: string | null): boolean {
+  if (!json) return true;
+  return !tiptapToPlainText(json).trim() && extractRichTextImageUrls(json).length === 0;
+}
+const normalizedContent = computed(() => (isBlankContent(content.value) ? null : content.value));
+
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 const { mutateAsync: createItem } = useCreateItem();
 const { mutateAsync: updateItem } = useUpdateItem();
@@ -550,6 +587,8 @@ function buildPayload() {
       : null,
     spell_ids: spellIds.value,
     description: description.value,
+    content: normalizedContent.value,
+    content_player_writable: contentPlayerWritable.value,
     mundane_description: isMagic.value ? mundaneDescription.value || null : null,
     source: source.value.trim() || null,
     source_title: props.item?.source_title ?? null,
@@ -607,7 +646,9 @@ async function save() {
         isArcaneFocus.value !== props.item.is_arcane_focus;
       if (contentChanged) aiProvenance.value = markEdited(aiProvenance.value);
 
+      const oldContent = props.item.content;
       await updateItem({ id: props.item.id, update: buildPayload() });
+      cleanupRemovedRichTextImages(oldContent, normalizedContent.value);
       router.push("/vault");
     } else {
       await createItem(buildPayload());
@@ -626,7 +667,9 @@ async function confirmDelete() {
   if (!await confirm(`Delete "${props.item.name}"? This cannot be undone.`)) return;
   isDeleting.value = true;
   try {
+    const oldContent = props.item.content;
     await deleteItem(props.item);
+    removeRichTextImages(oldContent);
     router.push("/vault");
   } catch {
     notify("Failed to delete item. Please try again.");

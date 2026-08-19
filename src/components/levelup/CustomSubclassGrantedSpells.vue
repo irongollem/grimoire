@@ -18,11 +18,15 @@
               class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-caption text-emerald-600 dark:text-emerald-400"
             >
               {{ spellNameById(sid) }}
-              <button
-                type="button"
-                class="ml-0.5 text-emerald-500/60 hover:text-destructive transition-colors leading-none"
+              <AppButton
+                variant="ghost"
+                tone="danger"
+                size="inline-xs"
+                class="ml-0.5"
+                label="×"
+                :aria-label="`Remove ${spellNameById(sid)}`"
                 @click="removeSpellFromLevel(lvl, sid)"
-              >×</button>
+              />
             </span>
           </div>
           <EntityCombobox
@@ -36,22 +40,20 @@
     </div>
 
     <div class="flex items-center gap-2 pt-1">
-      <select
-        v-model="addSpellLevel"
-        class="bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      <AppSelect v-model="addSpellLevel" weight="normal">
         <option value="" disabled>Level…</option>
         <option v-for="n in 20" :key="n" :value="n">{{ n }}</option>
-      </select>
-      <button
-        type="button"
+      </AppSelect>
+      <AppButton
+        variant="outline"
+        fill="muted"
+        size="sm"
+        :icon="IconAdd"
+        icon-size="xs"
+        label="Add level"
         :disabled="!addSpellLevel || populatedLevels.includes(Number(addSpellLevel))"
-        class="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-foreground hover:bg-muted/40 transition-colors disabled:opacity-40"
         @click="addLevel"
-      >
-        <IconAdd class="h-3 w-3" />
-        Add level
-      </button>
+      />
     </div>
   </section>
 </template>
@@ -61,6 +63,8 @@ import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconAdd } from "@/lib/icons";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 const { grantedSpells, allSpellOptions } = defineProps<{
   grantedSpells: Record<string, string[]>;

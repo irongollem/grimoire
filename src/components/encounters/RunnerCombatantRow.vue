@@ -71,22 +71,32 @@
       <!-- HP -->
       <div class="hp-cell" @click.stop>
         <button class="hp-btn" @click="handleAdjustHp(-1)">−</button>
-        <input
+        <AppInput
+          :model-value="String(displayHp)"
+          :model-modifiers="{ lazy: true }"
           type="number"
-          :value="displayHp"
+          tone="filled"
+          size="xs"
+          align="center"
+          :block="false"
+          class="w-12 font-bold"
           min="0"
           :max="displayMaxHp"
-          class="hp-input"
-          @change="(e) => handleSetHp(Number((e.target as HTMLInputElement).value))"
+          @update:model-value="(v) => handleSetHp(Number(v))"
         />
         <span class="hp-max">/</span>
-        <input
+        <AppInput
+          :model-value="String(displayMaxHp)"
+          :model-modifiers="{ lazy: true }"
           type="number"
-          :value="displayMaxHp"
+          tone="bare"
+          size="xs"
+          align="center"
+          :block="false"
+          class="w-11 text-muted-foreground font-normal"
           min="1"
-          class="hp-input hp-max-input"
           title="Max HP — edit to raise or lower on the fly"
-          @change="(e) => handleSetMaxHp(Number((e.target as HTMLInputElement).value))"
+          @update:model-value="(v) => handleSetMaxHp(Number(v))"
         />
         <button class="hp-btn" @click="handleAdjustHp(1)">+</button>
         <span
@@ -285,15 +295,6 @@ function toggleDetail() {
 /* ── Shared HP styles ───────────────────────────────────────────────────── */
 .hp-btn {
   @apply w-6 h-6 rounded bg-muted border border-border font-cinzel font-bold text-sm flex items-center justify-center hover:bg-card transition-colors;
-}
-
-.hp-input {
-  @apply w-12 text-center bg-muted border border-border rounded px-1 py-0.5 font-cinzel text-sm font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
-
-/* Max HP editor sits next to the current-HP input; muted to read as the denominator. */
-.hp-max-input {
-  @apply w-11 text-muted-foreground font-normal bg-transparent border-transparent hover:bg-muted hover:border-border focus:bg-muted focus:border-border;
 }
 
 @keyframes damage-flash {

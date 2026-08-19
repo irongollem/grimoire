@@ -38,19 +38,14 @@
         class="flex items-start gap-3 rounded-md border border-border bg-card px-3 py-2.5"
       >
         <!-- Toggle -->
-        <button
-          type="button"
+        <ToggleSwitch
+          size="lg"
+          class="mt-0.5"
+          :model-value="isEnabled(def.key)"
           :aria-label="isEnabled(def.key) ? `Disable ${def.name}` : `Enable ${def.name}`"
           :disabled="toggling === def.key"
-          class="mt-0.5 shrink-0 w-9 h-5 rounded-full transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-          :class="isEnabled(def.key) ? 'bg-primary' : 'bg-muted border border-border'"
-          @click="toggle(def.key)"
-        >
-          <span
-            class="absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform"
-            :class="isEnabled(def.key) ? 'translate-x-4' : 'translate-x-0'"
-          />
-        </button>
+          @update:model-value="toggle(def.key)"
+        />
 
         <!-- Rule info -->
         <div class="flex-1 min-w-0">
@@ -71,14 +66,15 @@
               class="flex items-center gap-2 text-caption text-muted-foreground"
             >
               <span>{{ field.label }}</span>
-              <input
+              <AppInput
+                v-model.lazy="fieldModel(def.key, field).value"
                 type="number"
                 :min="field.min"
                 :max="field.max"
-                :value="configValue(def.key, field.key)"
+                size="body-xs"
+                :block="false"
+                class="w-20"
                 :disabled="savingConfig === def.key"
-                class="w-20 bg-background border border-border rounded-md px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-                @change="onConfigChange(def, field, $event)"
               />
               <span v-if="field.unit">{{ field.unit }}</span>
             </label>
@@ -101,7 +97,9 @@ import {
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { DEFAULT_RULESET, RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.types";
-import type { OptionalRuleDef, RuleConfigField } from "@/types/rule.types";
+import type { RuleConfigField } from "@/types/rule.types";
+import AppInput from "@/components/common/AppInput.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 
 const allRules = listOptionalRules();
 const { data: campaignRules } = useOptionalRules();
@@ -147,15 +145,27 @@ async function toggle(ruleKey: string) {
   }
 }
 
-async function onConfigChange(def: OptionalRuleDef, field: RuleConfigField, e: Event) {
-  const raw = Number((e.target as HTMLInputElement).value);
-  const clamped = Math.min(field.max ?? Infinity, Math.max(field.min ?? -Infinity, Math.round(raw)));
-  const next = { ...resolveRuleConfig(campaignRules.value, def.key), [field.key]: clamped };
-  savingConfig.value = def.key;
+async function commitConfigValue(ruleKey: string, field: RuleConfigField, raw: string) {
+  const clamped = Math.min(field.max ?? Infinity, Math.max(field.min ?? -Infinity, Math.round(Number(raw))));
+  const next = { ...resolveRuleConfig(campaignRules.value, ruleKey), [field.key]: clamped };
+  savingConfig.value = ruleKey;
   try {
-    await upsertRule({ ruleKey: def.key, enabled: isEnabled(def.key), config: next });
+    await upsertRule({ ruleKey, enabled: isEnabled(ruleKey), config: next });
   } finally {
     savingConfig.value = null;
   }
+}
+
+// AppInput requires a v-model, and `v-model.lazy` is what makes it commit on
+// blur/Enter (via the `change` event) rather than per keystroke — exactly what
+// the old `:value` + `@change` pair did. It needs something assignable, so each
+// field gets its own writable computed bridging AppInput's string model onto the
+// server-derived config value; the setter re-runs the same clamp + upsert the
+// native input's @change handler used to.
+function fieldModel(ruleKey: string, field: RuleConfigField) {
+  return computed<string>({
+    get: () => String(configValue(ruleKey, field.key)),
+    set: (raw) => { void commitConfigValue(ruleKey, field, raw); },
+  });
 }
 </script>

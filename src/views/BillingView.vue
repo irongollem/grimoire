@@ -193,18 +193,7 @@
         >
           Monthly
         </button>
-        <button
-          class="relative inline-flex h-5 w-9 items-center rounded-full border transition-colors"
-          :class="
-            annual ? 'bg-amber-500 border-amber-500' : 'bg-muted border-border'
-          "
-          @click="annual = !annual"
-        >
-          <span
-            class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
-            :class="annual ? 'translate-x-4.5' : 'translate-x-0.5'"
-          />
-        </button>
+        <ToggleSwitch v-model="annual" aria-label="Annual billing" />
         <button
           class="text-label-lg font-semibold transition-colors"
           :class="
@@ -362,6 +351,7 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import WithdrawalConsent from "@/components/billing/WithdrawalConsent.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { useStripe } from "@/composables/useStripe";
 import { useAiCredits } from "@/composables/useAiCredits";

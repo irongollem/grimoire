@@ -12,17 +12,7 @@
         class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
         :class="enabled && hasImage ? 'text-foreground' : 'text-muted-foreground'"
       >Texture Overlay</span>
-      <button
-        type="button"
-        class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-        :class="enabled && hasImage ? 'bg-primary' : 'bg-muted-foreground/30'"
-        @click.stop="emit('update:enabled', !enabled)"
-      >
-        <span
-          class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
-          :class="enabled && hasImage ? 'translate-x-4.5' : 'translate-x-0.5'"
-        />
-      </button>
+      <ToggleSwitch v-model="switchModel" aria-label="Texture overlay" @click.stop />
     </div>
 
     <div
@@ -97,8 +87,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { IconChevronRight } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import {
   BLEND_MODES,
   BLEND_MODE_LABELS,
@@ -132,4 +124,14 @@ const emit = defineEmits<{
   "set-blend-mode": [mode: TextureBlendMode];
   "set-field": [key: TextureNumericField, value: number];
 }>();
+
+// Visually the switch reads `enabled && hasImage` — showing "off" whenever
+// there's nothing to overlay yet, even if the DM already flipped it on. But a
+// click always has to flip the real `enabled` prop, not the display value, or
+// toggling ON while hasImage is false would go straight back to OFF on the
+// next click without ever reaching the parent's `enabled=true`.
+const switchModel = computed({
+  get: () => enabled && hasImage,
+  set: () => emit("update:enabled", !enabled),
+});
 </script>

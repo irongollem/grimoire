@@ -18,11 +18,14 @@
               class="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-caption text-primary"
             >
               {{ featureNameById(fid) }}
-              <button
-                type="button"
-                class="ml-0.5 text-primary/60 hover:text-destructive transition-colors leading-none"
+              <AppButton
+                variant="ghost"
+                tone="danger"
+                size="inline-caption"
+                class="ml-0.5 text-primary/60 leading-none"
+                aria-label="Remove feature"
                 @click="removeFeatureFromLevel(lvl, fid)"
-              >×</button>
+              >×</AppButton>
             </span>
           </div>
           <EntityCombobox
@@ -36,22 +39,20 @@
     </div>
 
     <div class="flex items-center gap-2 pt-1">
-      <select
-        v-model="addFeatureLevel"
-        class="bg-card border border-border rounded-md px-2 py-1.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      <AppSelect v-model="addFeatureLevel" size="sm" weight="normal">
         <option value="" disabled>Level…</option>
         <option v-for="n in 20" :key="n" :value="n">{{ n }}</option>
-      </select>
-      <button
-        type="button"
+      </AppSelect>
+      <AppButton
+        variant="outline"
+        fill="muted"
+        size="sm"
+        :icon="IconAdd"
+        icon-size="xs"
+        label="Add level"
         :disabled="!addFeatureLevel || populatedLevels.includes(Number(addFeatureLevel))"
-        class="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 font-cinzel text-xs text-foreground hover:bg-muted/40 transition-colors disabled:opacity-40"
         @click="addLevel"
-      >
-        <IconAdd class="h-3 w-3" />
-        Add level
-      </button>
+      />
     </div>
   </section>
 </template>
@@ -61,6 +62,8 @@ import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconAdd } from "@/lib/icons";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 const { features, allFeatureOptions } = defineProps<{
   features: Record<string, string[]>;

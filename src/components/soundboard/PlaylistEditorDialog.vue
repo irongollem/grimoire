@@ -38,10 +38,10 @@
             <!-- Name -->
             <div class="space-y-1.5">
               <label class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Name</label>
-              <input
+              <AppInput
                 v-model="localName"
-                type="text"
-                class="w-full rounded-md border border-border bg-input px-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                tone="filled"
+                size="body"
                 placeholder="Tavern Music, Battle Scene…"
                 maxlength="80"
               />
@@ -173,6 +173,7 @@ import PlaylistTrackRow from "./PlaylistTrackRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 interface TrackListItem {
   sound: Sound;

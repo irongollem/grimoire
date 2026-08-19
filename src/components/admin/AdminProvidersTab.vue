@@ -168,21 +168,23 @@
               <template v-if="m.model_type === 'text'">
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-2xs text-muted-foreground">TXT-IN $</span>
-                  <input
+                  <AppInput
                     type="text" inputmode="decimal"
-                    :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
-                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
-                    class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    :model-value="draftModelPricing[m.model].input_cost_per_million_tokens"
+                    align="right" size="caption" :block="false"
+                    class="w-16 font-mono"
+                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-2xs text-muted-foreground">OUT $</span>
-                  <input
+                  <AppInput
                     type="text" inputmode="decimal"
-                    :value="draftModelPricing[m.model].output_cost_per_million_tokens ?? ''"
-                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'output_cost_per_million_tokens', e)"
-                    class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    :model-value="draftModelPricing[m.model].output_cost_per_million_tokens"
+                    align="right" size="caption" :block="false"
+                    class="w-16 font-mono"
+                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'output_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
@@ -190,31 +192,34 @@
               <template v-else-if="m.model_type === 'image'">
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-2xs text-muted-foreground">TXT-IN $</span>
-                  <input
+                  <AppInput
                     type="text" inputmode="decimal"
-                    :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
-                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
-                    class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    :model-value="draftModelPricing[m.model].input_cost_per_million_tokens"
+                    align="right" size="caption" :block="false"
+                    class="w-14 font-mono"
+                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-2xs text-muted-foreground">IMG-IN $</span>
-                  <input
+                  <AppInput
                     type="text" inputmode="decimal"
-                    :value="draftModelPricing[m.model].image_input_cost_per_million_tokens ?? ''"
-                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'image_input_cost_per_million_tokens', e)"
-                    class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    :model-value="draftModelPricing[m.model].image_input_cost_per_million_tokens"
+                    align="right" size="caption" :block="false"
+                    class="w-14 font-mono"
+                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'image_input_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-2xs text-muted-foreground">IMG-OUT $</span>
-                  <input
+                  <AppInput
                     type="text" inputmode="decimal"
-                    :value="draftModelPricing[m.model].image_output_cost_per_million_tokens ?? ''"
-                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'image_output_cost_per_million_tokens', e)"
-                    class="w-14 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    :model-value="draftModelPricing[m.model].image_output_cost_per_million_tokens"
+                    align="right" size="caption" :block="false"
+                    class="w-14 font-mono"
+                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'image_output_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
@@ -223,11 +228,12 @@
                 <!-- audio: flat per-generation cost -->
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-2xs text-muted-foreground">PER GEN $</span>
-                  <input
+                  <AppInput
                     type="text" inputmode="decimal"
-                    :value="draftModelPricing[m.model].cost_per_image_usd ?? ''"
-                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'cost_per_image_usd', e)"
-                    class="w-20 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    :model-value="draftModelPricing[m.model].cost_per_image_usd"
+                    align="right" size="caption" :block="false"
+                    class="w-20 font-mono"
+                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'cost_per_image_usd', e)"
                   />
                 </div>
                 <span class="font-cinzel text-2xs text-amber-400/60 shrink-0">est.</span>
@@ -237,11 +243,12 @@
                      note on why output cost is left null rather than zero. -->
                 <div class="flex items-center gap-1 shrink-0">
                   <span class="font-cinzel text-2xs text-muted-foreground">IN $</span>
-                  <input
+                  <AppInput
                     type="text" inputmode="decimal"
-                    :value="draftModelPricing[m.model].input_cost_per_million_tokens ?? ''"
-                    @blur="(e) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
-                    class="w-16 bg-background border border-border rounded px-1.5 py-0.5 font-mono text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                    :model-value="draftModelPricing[m.model].input_cost_per_million_tokens"
+                    align="right" size="caption" :block="false"
+                    class="w-16 font-mono"
+                    @change="(e: Event) => setDecimal(draftModelPricing[m.model], 'input_cost_per_million_tokens', e)"
                   />
                   <span class="font-cinzel text-2xs text-muted-foreground">/M</span>
                 </div>
@@ -283,6 +290,7 @@
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { useAdminKeys, PROVIDERS } from "@/composables/useAdminKeys";
 import type { KeyProvider } from "@/composables/useAdminKeys";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/useAdminProviders";

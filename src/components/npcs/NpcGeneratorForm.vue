@@ -202,17 +202,7 @@
     <span class="text-caption text-muted-foreground"
       >Generate portrait art</span
     >
-    <button
-      type="button"
-      class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-      :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
-      @click="emit('update:generateImage', !generateImage)"
-    >
-      <span
-        class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-        :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
-      />
-    </button>
+    <ToggleSwitch v-model="generateImageModel" size="md" aria-label="Generate portrait art" />
   </div>
 
   <!-- Generating state -->
@@ -226,8 +216,8 @@
     </p>
     <AppButton
       variant="ghost"
-      size="inline-xs"
-      class="mt-1 text-caption underline underline-offset-2"
+      size="inline-caption"
+      class="mt-1 underline underline-offset-2"
       @click="emit('dismiss-to-background')"
     >
       Continue in background
@@ -257,6 +247,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import type { Location } from "@/types/location.types";
 
@@ -340,6 +331,13 @@ const templateIdModel = computed<QuickForm["templateId"]>({
 const relatedNpcRelationshipModel = computed<NpcRelationshipType>({
   get: () => quickForm.related_npc_relationship,
   set: (value) => patchForm("related_npc_relationship", value),
+});
+// ToggleSwitch requires a v-model; generateImage is a prop paired with a
+// single update:generateImage emit, so bridge it the same way as the fields
+// above rather than a local ref.
+const generateImageModel = computed<boolean>({
+  get: () => generateImage,
+  set: (value) => emit("update:generateImage", value),
 });
 
 const RACES = [

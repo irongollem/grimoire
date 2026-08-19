@@ -1,8 +1,10 @@
 <template>
   <div class="relative">
-    <input
-      ref="inputEl"
-      :value="model"
+    <AppInput
+      ref="field"
+      v-model="model"
+      :tone="tone"
+      :size="size"
       v-bind="$attrs"
       autocomplete="off"
       @input="onInput"
@@ -38,15 +40,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from "vue";
+import { computed, ref, nextTick, useTemplateRef } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import type { AppInputHandle, FieldSize, FieldTone } from "@/components/common/fieldVariants";
 import { DAMAGE_TYPES } from "@/types/damage.types";
 
 defineOptions({ inheritAttrs: false });
 
 const model = defineModel<string>({ required: true });
 
-const inputEl = ref<HTMLInputElement | null>(null);
+/**
+ * The field recipe is the primitive's, not this component's.
+ *
+ * This used to render a bare `<input v-bind="$attrs">`, so both of its call
+ * sites had to hand it the whole box as a class string — the same
+ * `bg-muted border border-border rounded … focus:ring-1 focus:ring-ring`
+ * recipe, differing only in padding. A wrapper that cannot express the chrome
+ * forces every caller to re-declare it, which is the drift this sweep exists to
+ * remove; that the wrapper was itself a "shared component" only hid it.
+ */
+const { tone = "filled", size = "body" } = defineProps<{
+  tone?: FieldTone;
+  size?: FieldSize;
+}>();
+
+// The suggestion logic reads and moves the caret, so it needs the real element;
+// AppInput exposes it rather than resolving a ref to the component instance.
+const field = useTemplateRef<AppInputHandle>("field");
+const inputEl = computed(() => field.value?.el ?? null);
 const suggestions = ref<string[]>([]);
 const activeIdx = ref(0);
 
@@ -85,9 +107,9 @@ function refreshSuggestions() {
   activeIdx.value = 0;
 }
 
-function onInput(e: Event) {
-  const val = (e.target as HTMLInputElement).value;
-  model.value = val;
+// AppInput's v-model already committed the value; this only has to re-derive
+// the suggestions from the new caret position.
+function onInput() {
   nextTick(refreshSuggestions);
 }
 

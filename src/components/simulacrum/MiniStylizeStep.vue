@@ -30,11 +30,13 @@
            source portraits carry very specific poses the mini shouldn't keep. -->
       <label class="block">
         <span class="text-eyebrow font-semibold text-muted-foreground">Art direction (optional)</span>
-        <input
+        <AppInput
           v-model="instructions"
           type="text"
+          tone="default"
+          size="body"
+          class="mt-1"
           placeholder="e.g. heroic action pose with sword raised, thicker staff, less clutter"
-          class="mt-1 w-full bg-background border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <p class="mt-1 text-caption-sm text-muted-foreground/70 italic">
           Describe the pose or details the mini should have — it doesn't have to match the portrait.
@@ -42,29 +44,28 @@
       </label>
 
       <div class="flex flex-col items-center gap-1.5">
-        <button
-          type="button"
+        <AppButton
+          :variant="stylizedUrl ? 'outline' : 'primary'"
+          :fill="stylizedUrl ? 'muted' : 'none'"
+          size="md"
           :disabled="isStylizing || isResumingStylize || !sourcePortraitUrl || !affordable(stylizeCost)"
-          class="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-label-lg font-semibold rounded-md disabled:opacity-50 transition-opacity"
-          :class="stylizedUrl
-            ? 'border border-border hover:bg-muted text-foreground'
-            : 'bg-primary text-primary-foreground hover:opacity-90'"
+          :label="(isStylizing || isResumingStylize) ? (stylizedUrl ? 'Re-rolling…' : 'Stylizing…') : (stylizedUrl ? 'Re-roll' : 'Stylize portrait')"
           @click="runStylize"
         >
-          <IconGenerate class="h-3.5 w-3.5" :class="(isStylizing || isResumingStylize) ? 'animate-pulse text-primary' : ''" />
-          {{ (isStylizing || isResumingStylize) ? (stylizedUrl ? 'Re-rolling…' : 'Stylizing…') : (stylizedUrl ? 'Re-roll' : 'Stylize portrait') }}
-        </button>
+          <template #icon>
+            <IconGenerate class="h-3.5 w-3.5" :class="(isStylizing || isResumingStylize) ? 'animate-pulse text-primary' : ''" />
+          </template>
+        </AppButton>
         <GenerationCostBadge :credits="stylizeCost" :show-balance="false" />
       </div>
 
       <div v-if="stylizedUrl && !isResumingStylize" class="flex justify-end pt-2 border-t border-border">
-        <button
-          type="button"
-          class="px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity"
+        <AppButton
+          variant="primary"
+          size="md"
+          label="Continue to sculpt →"
           @click="emit('continue')"
-        >
-          Continue to sculpt →
-        </button>
+        />
       </div>
 
       <p v-if="error" class="text-caption text-destructive text-center">{{ error }}</p>
@@ -75,6 +76,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { IconGenerate } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
 import { useSubscription } from "@/composables/useSubscription";

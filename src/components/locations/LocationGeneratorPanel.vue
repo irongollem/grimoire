@@ -73,31 +73,11 @@
         <div v-if="isAiEnabled" class="space-y-2.5">
           <div class="flex items-center justify-between">
             <span class="text-caption text-muted-foreground">Generate location art</span>
-            <button
-              type="button"
-              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-              :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
-              @click="generateImage = !generateImage"
-            >
-              <span
-                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-                :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
-              />
-            </button>
+            <ToggleSwitch v-model="generateImage" aria-label="Generate location art" />
           </div>
           <div class="flex items-center justify-between">
             <span class="text-caption text-muted-foreground">Generate map sketch</span>
-            <button
-              type="button"
-              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-              :class="generateMap ? 'bg-primary' : 'bg-muted border border-border'"
-              @click="generateMap = !generateMap"
-            >
-              <span
-                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-                :class="generateMap ? 'translate-x-4.5' : 'translate-x-0.5'"
-              />
-            </button>
+            <ToggleSwitch v-model="generateMap" aria-label="Generate map sketch" />
           </div>
         </div>
 
@@ -180,6 +160,7 @@ import { useSubscription } from "@/composables/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useLocationGeneration } from "@/ai/useLocationGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";

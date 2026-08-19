@@ -15,6 +15,13 @@
       </p>
     </div>
 
+    <!-- Written contents indicator -->
+    <IconFeather
+      v-if="hasContent"
+      class="h-3.5 w-3.5 shrink-0 text-muted-foreground/50"
+      title="Has written contents"
+    />
+
     <!-- Weight -->
     <span
       v-if="unitWeight > 0"
@@ -92,8 +99,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { IconAdd, IconArrowUp, IconDelete, IconDrag, IconMinus, IconScissors, IconShop } from '@/lib/icons';
+import { IconAdd, IconArrowUp, IconDelete, IconDrag, IconFeather, IconMinus, IconScissors, IconShop } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import { usePlayerVisibleItems } from "@/composables/useItems";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 
@@ -105,6 +113,17 @@ const props = defineProps<{
   sellable?: boolean;
   weightPerUnit?: number;
 }>();
+
+// Resolves against the same player-visible item catalogue the surrounding
+// inventory views already query — this row only carries item_id, not the
+// vault item's own fields (content included), and ItemRow has no parent-fed
+// item map to read instead, so it shares the cached query directly.
+const { data: allVisibleItems } = usePlayerVisibleItems();
+const hasContent = computed(() => {
+  const id = props.item.item_id;
+  if (!id) return false;
+  return allVisibleItems.value?.find((it) => it.id === id)?.content != null;
+});
 
 defineEmits<{
   'adjust-qty': [item: PartyInventoryItem, delta: number];

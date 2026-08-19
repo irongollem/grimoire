@@ -232,50 +232,58 @@
           <div class="w-px h-5 bg-border mx-0.5" />
           <label class="flex items-center gap-0.5">
             <span class="font-cinzel text-2xs text-muted-foreground">T</span>
-            <input
+            <AppInput
+              v-model.lazy="posTopModel"
               type="number"
-              :value="editor.getAttributes('image').posTop ?? ''"
               min="0"
               max="1200"
-              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="card"
+              size="xs"
+              :block="false"
               placeholder="px"
-              @change="$emit('setImagePos', 'posTop', ($event.target as HTMLInputElement).value)"
+              class="w-12 h-5.5 font-mono text-2xs"
             />
           </label>
           <label class="flex items-center gap-0.5">
             <span class="font-cinzel text-2xs text-muted-foreground">L</span>
-            <input
+            <AppInput
+              v-model.lazy="posLeftModel"
               type="number"
-              :value="editor.getAttributes('image').posLeft ?? ''"
               min="0"
               max="800"
-              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="card"
+              size="xs"
+              :block="false"
               placeholder="px"
-              @change="$emit('setImagePos', 'posLeft', ($event.target as HTMLInputElement).value)"
+              class="w-12 h-5.5 font-mono text-2xs"
             />
           </label>
           <label class="flex items-center gap-0.5">
             <span class="font-cinzel text-2xs text-muted-foreground">R</span>
-            <input
+            <AppInput
+              v-model.lazy="posRightModel"
               type="number"
-              :value="editor.getAttributes('image').posRight ?? ''"
               min="0"
               max="800"
-              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="card"
+              size="xs"
+              :block="false"
               placeholder="px"
-              @change="$emit('setImagePos', 'posRight', ($event.target as HTMLInputElement).value)"
+              class="w-12 h-5.5 font-mono text-2xs"
             />
           </label>
           <label class="flex items-center gap-0.5">
             <span class="font-cinzel text-2xs text-muted-foreground">B</span>
-            <input
+            <AppInput
+              v-model.lazy="posBottomModel"
               type="number"
-              :value="editor.getAttributes('image').posBottom ?? ''"
               min="0"
               max="1200"
-              class="w-12 h-5.5 rounded border border-border bg-card px-1 font-mono text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="card"
+              size="xs"
+              :block="false"
               placeholder="px"
-              @change="$emit('setImagePos', 'posBottom', ($event.target as HTMLInputElement).value)"
+              class="w-12 h-5.5 font-mono text-2xs"
             />
           </label>
         </template>
@@ -407,8 +415,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import type { Editor } from "@tiptap/vue-3";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import {
   IMAGE_SIZES,
 } from "@/lib/scriptorium/editorConstants";
@@ -459,7 +469,7 @@ const {
   hasDoc?: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   "update:isTwoColumn": [value: boolean];
   "update:theme": [value: ScriptoriumTheme];
   "update:pageSize": [value: ScriptoriumPageSize];
@@ -470,6 +480,24 @@ defineEmits<{
   editInIlluminator: [];
   setImagePos: [side: "posTop" | "posLeft" | "posRight" | "posBottom", value: string];
 }>();
+
+/**
+ * Bridges the tiptap image-attribute reads (imperative, but reactive — see
+ * @tiptap/vue-3's Editor, whose `.state` getter reads a debounced Vue ref) to
+ * an AppInput v-model. `.lazy` keeps the original commit-on-change behaviour:
+ * a value written per keystroke would move the image while still typing.
+ */
+function imagePosModel(side: "posTop" | "posLeft" | "posRight" | "posBottom") {
+  return computed<string>({
+    get: () => editor?.getAttributes("image")[side] ?? "",
+    set: (value) => emit("setImagePos", side, value),
+  });
+}
+
+const posTopModel = imagePosModel("posTop");
+const posLeftModel = imagePosModel("posLeft");
+const posRightModel = imagePosModel("posRight");
+const posBottomModel = imagePosModel("posBottom");
 </script>
 
 <style scoped>

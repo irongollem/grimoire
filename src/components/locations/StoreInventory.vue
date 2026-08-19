@@ -42,14 +42,18 @@
 
           <!-- Price -->
           <div class="flex items-center gap-1 shrink-0">
-            <input
-              :value="si.price_override ?? si.item.cost ?? ''"
+            <AppInput
+              :model-value="si.price_override ?? si.item.cost ?? ''"
+              :model-modifiers="{ lazy: true }"
               type="text"
               placeholder="Price…"
               :title="rarityPriceHint(si.item.rarity)"
-              class="w-20 bg-background border border-border rounded px-2 py-0.5 text-caption text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring text-right"
-              @blur="onPriceBlur(si, $event)"
-              @keydown.enter="($event.target as HTMLInputElement).blur()"
+              tone="default"
+              size="caption"
+              align="right"
+              :block="false"
+              class="w-20 placeholder:text-muted-foreground/50"
+              @update:model-value="(value) => onPriceCommit(si, value)"
             />
           </div>
 
@@ -293,8 +297,8 @@ function toggleVisible(si: StoreItem) {
 }
 
 // ── Price override ──────────────────────────────────────────────────────────────
-function onPriceBlur(si: StoreItem, e: FocusEvent) {
-  const val = (e.target as HTMLInputElement).value.trim() || null;
+function onPriceCommit(si: StoreItem, value: string) {
+  const val = value.trim() || null;
   const effective = val === si.item.cost ? null : val;
   if (effective !== si.price_override) {
     update({ id: si.id, update: { price_override: effective } });

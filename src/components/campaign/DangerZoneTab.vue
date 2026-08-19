@@ -53,14 +53,16 @@
       </div>
 
       <ConfirmByNameInput v-model="deleteConfirmInput" :name="campaign?.name ?? ''" />
-      <button
-        type="button"
+      <AppButton
+        variant="tinted"
+        tone="danger"
+        emphasis="solid"
+        size="md"
+        block
         :disabled="!canDelete || isDeleting"
-        class="w-full px-4 py-2 text-label-lg font-semibold bg-destructive text-destructive-foreground rounded-md hover:opacity-90 disabled:opacity-30 transition-opacity"
+        :label="isDeleting ? 'Deleting…' : 'Delete Campaign'"
         @click="doDelete"
-      >
-        {{ isDeleting ? "Deleting…" : "Delete Campaign" }}
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -72,6 +74,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useDeleteCampaign, useCampaigns, useCampaignScopedHomebrewCounts } from "@/composables/useCampaigns";
 import TransferOwnershipPanel from "@/components/campaign/TransferOwnershipPanel.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import {
   hasScopedHomebrew,
   summarizeHomebrewCounts,

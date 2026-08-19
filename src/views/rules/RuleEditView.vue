@@ -161,13 +161,18 @@
               <div class="flex items-center gap-2">
                 <div class="flex flex-col items-center gap-0.5 shrink-0">
                   <span class="font-cinzel text-2xs text-muted-foreground">VAL</span>
-                  <input
-                    :value="lvl.value"
+                  <AppInput
+                    :model-value="String(lvl.value)"
+                    :model-modifiers="{ lazy: true }"
                     type="text"
+                    tone="filled"
+                    size="xs"
+                    align="center"
+                    :block="false"
+                    class="w-12"
                     placeholder="0"
                     title="Number (e.g. 3) or ability modifier (STR, DEX, CON, INT, WIS, CHA)"
-                    class="w-12 bg-muted border border-border rounded px-1.5 py-1 font-cinzel text-xs text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
-                    @change="lvl.value = parseLevelValue(($event.target as HTMLInputElement).value)"
+                    @update:model-value="(v) => (lvl.value = parseLevelValue(v))"
                   />
                 </div>
                 <AppInput

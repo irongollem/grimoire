@@ -123,18 +123,22 @@
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
           <label class="flex items-center gap-1.5 text-caption text-muted-foreground">
             Every
-            <input
+            <AppInput
+              v-model.number.lazy="minIntervalModel"
               type="number" min="1" max="3600" step="1"
-              class="w-14 rounded border border-border bg-background px-1 py-0.5 text-caption text-foreground"
-              :value="layer.min_interval_s"
-              @change="patchInterval('min', $event)"
+              tone="default"
+              size="caption"
+              :block="false"
+              class="w-14"
             />
             –
-            <input
+            <AppInput
+              v-model.number.lazy="maxIntervalModel"
               type="number" min="1" max="3600" step="1"
-              class="w-14 rounded border border-border bg-background px-1 py-0.5 text-caption text-foreground"
-              :value="layer.max_interval_s"
-              @change="patchInterval('max', $event)"
+              tone="default"
+              size="caption"
+              :block="false"
+              class="w-14"
             />
             s
           </label>
@@ -187,6 +191,7 @@
 import { computed, ref } from "vue";
 import { IconDrag, IconClose, IconRepeat, IconPlay, IconDice, IconChevronRight } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import type { Sound, PlaylistTrackLayer } from "@/types/sound.types";
 
@@ -230,17 +235,30 @@ function patch(next: Partial<PlaylistTrackLayer>): void {
 /**
  * Keep min <= max on both ranges. Dragging one past the other would otherwise
  * persist a pair the DB check constraint rejects, failing the whole save.
+ *
+ * `raw` is null for a cleared field (AppInput's `.number` modifier reports an
+ * empty box as absent rather than 0) — treated as 0 here, same as the old
+ * `Number((event.target as HTMLInputElement).value)` did for `""`, so the
+ * clamp below still floors it to 1.
  */
-function patchInterval(edge: "min" | "max", event: Event): void {
+function patchInterval(edge: "min" | "max", raw: number | null): void {
   if (!layer) return;
-  const raw = Number((event.target as HTMLInputElement).value);
-  const value = Math.max(1, Math.min(3600, raw));
+  const value = Math.max(1, Math.min(3600, raw ?? 0));
   if (edge === "min") {
     patch({ min_interval_s: value, max_interval_s: Math.max(value, layer.max_interval_s) });
   } else {
     patch({ max_interval_s: value, min_interval_s: Math.min(value, layer.min_interval_s) });
   }
 }
+
+const minIntervalModel = computed<number | null>({
+  get: () => layer?.min_interval_s ?? null,
+  set: (value) => patchInterval("min", value),
+});
+const maxIntervalModel = computed<number | null>({
+  get: () => layer?.max_interval_s ?? null,
+  set: (value) => patchInterval("max", value),
+});
 
 function patchGain(edge: "min" | "max", value: number): void {
   if (!layer) return;

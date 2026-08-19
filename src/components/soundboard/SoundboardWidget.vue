@@ -22,14 +22,15 @@
           <IconMusicNote class="h-3.5 w-3.5 text-gold-400 shrink-0" />
           <span class="font-cinzel text-xs font-semibold text-foreground flex-1 tracking-wide">Soundboard</span>
           <CastButton />
-          <button
+          <AppButton
             v-if="store.hasActiveAudio || spotifyStore.isPlaying"
-            class="text-caption-sm text-muted-foreground hover:text-destructive transition-colors px-1.5 py-0.5 rounded border border-border hover:border-destructive/40"
-            title="Stop all sounds"
+            variant="subtle"
+            tone="danger"
+            size="caption"
+            tooltip="Stop all sounds"
+            label="Stop All"
             @click="stopAll"
-          >
-            Stop All
-          </button>
+          />
           <AppButton
             variant="ghost"
             size="icon-xs"

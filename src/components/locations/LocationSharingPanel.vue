@@ -25,17 +25,11 @@
       <span class="font-cinzel text-xs text-foreground"
         >Share full description</span
       >
-      <button
-        type="button"
-        class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors focus:outline-none"
-        :class="isDescriptionShared ? 'bg-primary' : 'bg-muted-foreground/30'"
-        @click="$emit('update:isDescriptionShared', !isDescriptionShared)"
-      >
-        <span
-          class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
-          :class="isDescriptionShared ? 'translate-x-3.5' : 'translate-x-0.5'"
-        />
-      </button>
+      <ToggleSwitch
+        :model-value="isDescriptionShared"
+        aria-label="Share full description"
+        @update:model-value="$emit('update:isDescriptionShared', $event)"
+      />
     </label>
 
     <!-- Share linked NPCs -->
@@ -45,17 +39,11 @@
       <span class="font-cinzel text-xs text-foreground"
         >Share linked NPCs</span
       >
-      <button
-        type="button"
-        class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors focus:outline-none"
-        :class="isNpcsShared ? 'bg-primary' : 'bg-muted-foreground/30'"
-        @click="$emit('update:isNpcsShared', !isNpcsShared)"
-      >
-        <span
-          class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
-          :class="isNpcsShared ? 'translate-x-3.5' : 'translate-x-0.5'"
-        />
-      </button>
+      <ToggleSwitch
+        :model-value="isNpcsShared"
+        aria-label="Share linked NPCs"
+        @update:model-value="$emit('update:isNpcsShared', $event)"
+      />
     </label>
 
     <!-- Share inventory (store / tavern / inn only) -->
@@ -66,17 +54,11 @@
       <span class="font-cinzel text-xs text-foreground"
         >Share inventory with players</span
       >
-      <button
-        type="button"
-        class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors focus:outline-none"
-        :class="isInventoryShared ? 'bg-primary' : 'bg-muted-foreground/30'"
-        @click="$emit('update:isInventoryShared', !isInventoryShared)"
-      >
-        <span
-          class="inline-block h-3 w-3 rounded-full bg-white shadow transition-transform"
-          :class="isInventoryShared ? 'translate-x-3.5' : 'translate-x-0.5'"
-        />
-      </button>
+      <ToggleSwitch
+        :model-value="isInventoryShared"
+        aria-label="Share inventory with players"
+        @update:model-value="$emit('update:isInventoryShared', $event)"
+      />
     </label>
   </div>
 </template>
@@ -84,6 +66,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppInput from "@/components/common/AppInput.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 
 const {
   playerSummary,

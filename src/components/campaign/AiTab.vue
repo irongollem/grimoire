@@ -11,17 +11,13 @@
             When disabled, all AI generation buttons are hidden across the campaign. Players who prefer a fully hand-crafted experience won't see any AI UI.
           </p>
         </div>
-        <button
-          type="button"
-          class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus:outline-none"
-          :class="form.ai_enabled ? 'bg-primary' : 'bg-muted'"
-          @click="toggleAi"
-        >
-          <span
-            class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
-            :class="form.ai_enabled ? 'translate-x-5' : 'translate-x-0.5'"
-          />
-        </button>
+        <ToggleSwitch
+          :model-value="form.ai_enabled"
+          size="lg"
+          aria-label="AI Assistant"
+          class="shrink-0"
+          @update:model-value="toggleAi"
+        />
       </div>
     </div>
 
@@ -277,6 +273,7 @@ import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 
 const { isPro } = useSubscription();
 const { hasAcknowledged } = useAiAcknowledgements();

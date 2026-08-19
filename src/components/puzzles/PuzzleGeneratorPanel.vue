@@ -71,17 +71,7 @@
         <!-- Image generation toggle -->
         <div v-if="isAiEnabled" class="flex items-center justify-between">
           <span class="text-caption text-muted-foreground">Generate room illustration</span>
-          <button
-            type="button"
-            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-            :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
-            @click="generateImage = !generateImage"
-          >
-            <span
-              class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-              :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
-            />
-          </button>
+          <ToggleSwitch v-model="generateImage" aria-label="Generate room illustration" />
         </div>
 
         <!-- No API key nudge -->
@@ -89,13 +79,13 @@
         <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
           <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
-          <button
-            type="button"
-            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          <AppButton
+            variant="ghost"
+            size="inline-caption"
+            class="mt-1 underline underline-offset-2"
+            label="Continue in background"
             @click="ui.puzzleGeneratorOpen = false"
-          >
-            Continue in background
-          </button>
+          />
         </div>
 
         <!-- Error -->
@@ -164,6 +154,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { usePuzzleGeneration } from "@/ai/usePuzzleGeneration";

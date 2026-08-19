@@ -16,39 +16,37 @@
         <div>
           <p class="text-eyebrow font-semibold text-muted-foreground mb-2">CAST AT LEVEL</p>
           <div class="flex flex-wrap gap-2">
-            <button
+            <AppButton
               v-for="slot in upcastSlots"
               :key="spellSlotKey(slot)"
-              class="flex flex-col items-center px-3 py-2 rounded-lg border font-cinzel text-xs font-semibold transition-colors"
-              :class="selectedKey === spellSlotKey(slot)
-                ? 'bg-primary/15 border-primary text-primary'
-                : 'bg-muted border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
+              variant="subtle"
+              surface="muted"
+              size="md"
+              :active="selectedKey === spellSlotKey(slot)"
               @click="selectedKey = spellSlotKey(slot)"
             >
-              <span>{{ SLOT_LEVEL_LABELS[slot.level - 1] }}</span>
-              <span class="text-caption-sm font-normal opacity-70">{{ poolLabel(slot) }}</span>
-              <span v-if="scaledDiceLabel(slot.level)" class="text-caption-sm font-normal mt-0.5 opacity-80">
-                {{ scaledDiceLabel(slot.level) }}
-              </span>
-            </button>
+              <div class="flex flex-col items-center">
+                <span>{{ SLOT_LEVEL_LABELS[slot.level - 1] }}</span>
+                <span class="text-caption-sm font-normal opacity-70">{{ poolLabel(slot) }}</span>
+                <span v-if="scaledDiceLabel(slot.level)" class="text-caption-sm font-normal mt-0.5 opacity-80">
+                  {{ scaledDiceLabel(slot.level) }}
+                </span>
+              </div>
+            </AppButton>
           </div>
         </div>
 
         <!-- Action buttons -->
         <div class="flex gap-3 pt-1">
-          <button
-            type="button"
-            class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold border border-border rounded-md text-muted-foreground hover:text-foreground transition-colors"
-            @click="emit('cancel')"
-          >Cancel</button>
-          <button
-            type="button"
+          <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="emit('cancel')" />
+          <AppButton
+            variant="primary"
+            size="md"
+            class="flex-1"
             :disabled="isCasting"
-            class="flex-1 px-4 py-2 font-cinzel text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+            :label="isCasting ? 'Casting…' : 'Cast'"
             @click="selectedSlot && emit('cast', selectedSlot)"
-          >
-            {{ isCasting ? "Casting…" : "Cast" }}
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -57,6 +55,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watchEffect } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { SCHOOL_BG } from "@/types/spell.types";
 import { scaleExpression } from "@/lib/dice/dice";
 import { spellSlotKey, slotPool } from "@/rules/spellSlots";

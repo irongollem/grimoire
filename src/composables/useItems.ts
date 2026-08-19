@@ -97,6 +97,12 @@ async function fetchLibraryItems(enabledSlugs: string[], ruleset: RulesetKey): P
     // library_items carries no spell_ids column — the field only exists on
     // user-authored items with linked spells (e.g. a homebrew staff).
     spell_ids: [],
+    // Nor the document-item columns: shared catalog rows are never documents.
+    // Without these the raw row leaves them undefined, which reads as "has
+    // content" to `content !== null` checks (feather badge on every SRD item).
+    content: null,
+    content_player_writable: false,
+    content_updated_at: null,
   })) as Item[];
 }
 
@@ -340,7 +346,18 @@ export function useResolvedItem(id: Ref<string>) {
       if (sharedError) throw sharedError;
       if (!shared) throw new Error("Item not found");
       return {
-        item: { ...shared, user_id: "", campaign_id: null, dm_notes: null, spell_ids: [] } as Item,
+        item: {
+          ...shared,
+          user_id: "",
+          campaign_id: null,
+          dm_notes: null,
+          spell_ids: [],
+          // Same patch as fetchLibraryItems: these columns don't exist on
+          // library_items, and undefined would read as "has content".
+          content: null,
+          content_player_writable: false,
+          content_updated_at: null,
+        } as Item,
         isShared: true,
       };
     },

@@ -112,32 +112,30 @@
           class="text-label text-muted-foreground shrink-0"
           >To:</span
         >
-        <select
-          v-model="whisperTarget"
-          class="flex-1 bg-muted/40 border border-border rounded px-2 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="whisperTarget" tone="muted" size="caption" weight="normal" block>
           <option value="">Everyone</option>
           <option v-for="m in otherMembers" :key="m.id" :value="m.user_id">
             🤫 {{ bestName(m) }} (whisper)
           </option>
-        </select>
+        </AppSelect>
       </div>
       <div class="flex gap-2">
-        <input
+        <AppInput
           v-model="chatInput"
           type="text"
           :placeholder="whisperTarget ? `Whisper…` : 'Say something…'"
+          tone="muted"
+          size="body"
           :class="whisperTarget ? 'border-amber-500/40 bg-amber-500/5' : ''"
-          class="flex-1 bg-muted/30 border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           @keydown.enter="sendChat"
         />
-        <button
-          class="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-label-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+        <AppButton
+          variant="primary"
+          size="sm"
           :disabled="!chatInput.trim()"
+          label="Send"
           @click="sendChat"
-        >
-          Send
-        </button>
+        />
       </div>
     </div>
   </div>
@@ -150,6 +148,9 @@ import { useParty } from "@/composables/useParty";
 import { useCampaignMembers } from "@/composables/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import type { RollMetadata } from "@/types/chat.types";
 import type { CampaignMember } from "@/types/campaign.types";
 import { formatChatTimestamp } from "@/lib/utils";

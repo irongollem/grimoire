@@ -1,20 +1,24 @@
 <template>
   <div class="relative">
-    <button
-      class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-caption text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+    <AppButton
+      variant="ghost"
+      fill="muted"
+      size="caption"
+      block
+      class="justify-start"
+      :icon="IconAnnounce"
+      label="Announce to players"
       @click="open = !open"
-    >
-      <IconAnnounce class="h-3.5 w-3.5 shrink-0" />
-      Announce to players
-    </button>
+    />
 
     <!-- Popover -->
     <div
       v-if="open"
       class="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-border bg-card shadow-lg p-3 space-y-2 z-50"
     >
-      <p class="text-label font-semibold text-muted-foreground">
-        IconSend Announcement
+      <p class="flex items-center gap-1.5 text-label font-semibold text-muted-foreground">
+        <IconSend class="h-3 w-3" />
+        Announcement
       </p>
       <textarea
         v-model="text"
@@ -25,18 +29,16 @@
         @keydown.escape="open = false"
       />
       <div class="flex justify-end gap-2">
-        <button
-          class="text-caption text-muted-foreground hover:text-foreground transition-colors"
-          @click="open = false"
-        >Cancel</button>
-        <button
+        <AppButton variant="ghost" size="inline-caption" label="Cancel" @click="open = false" />
+        <AppButton
+          variant="primary"
+          size="xs"
+          icon-size="xs"
+          :icon="IconSend"
           :disabled="!text.trim() || sending"
-          class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1 text-label font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+          :label="sending ? 'Sending…' : 'Send'"
           @click="send"
-        >
-          <IconSend class="h-3 w-3" />
-          {{ sending ? "Sending…" : "Send" }}
-        </button>
+        />
       </div>
       <p v-if="sent" class="text-caption text-elven-green text-right">Sent!</p>
     </div>
@@ -46,6 +48,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconAnnounce, IconSend } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 

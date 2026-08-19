@@ -7,15 +7,19 @@
     <span class="absolute inset-y-0 inset-s-0 w-0.75" :class="spineClass" />
 
     <!-- Preview -->
-    <button
-      type="button"
-      class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-border/80 hover:text-foreground"
-      :title="isPreviewing ? 'Stop preview' : 'Preview'"
+    <AppButton
+      variant="subtle"
+      shape="pill"
+      size="icon-xs"
+      class="shrink-0"
+      :tooltip="isPreviewing ? 'Stop preview' : 'Preview'"
       @click="emit('preview')"
     >
-      <IconPause v-if="isPreviewing" class="h-3.5 w-3.5" />
-      <IconPlay v-else class="h-3.5 w-3.5 translate-x-px" />
-    </button>
+      <template #icon>
+        <IconPause v-if="isPreviewing" class="h-3.5 w-3.5" />
+        <IconPlay v-else class="h-3.5 w-3.5 translate-x-px" />
+      </template>
+    </AppButton>
 
     <!-- Info -->
     <div class="flex-1 min-w-0">
@@ -51,20 +55,23 @@
     </div>
 
     <!-- Add -->
-    <button
-      type="button"
-      class="shrink-0 px-2 py-1 rounded-md border bg-gold-500/15 border-gold-500/40 text-gold-300 hover:bg-gold-500/25 font-cinzel text-xs tracking-wide transition-colors disabled:opacity-50"
+    <AppButton
+      variant="tinted"
+      tone="primary"
+      emphasis="soft"
+      size="sm"
+      class="shrink-0"
       :disabled="isAdding"
+      :label="isAdding ? 'Adding…' : 'Add'"
       @click="emit('add')"
-    >
-      {{ isAdding ? "Adding…" : "Add" }}
-    </button>
+    />
   </li>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconPause, IconPlay } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import { CATEGORY_SPINE } from "@/lib/audio/soundCategories";
 import type { ProviderHit } from "@/lib/audio/providers";
 

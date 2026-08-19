@@ -84,13 +84,16 @@
     <!-- Row 3: HP adjust controls -->
     <div class="mc-hp-controls" @click.stop>
       <button class="hp-btn hp-btn-lg" @click="handleAdjustHp(-1)">−</button>
-      <input
+      <AppInput
+        v-model.lazy="hpFieldModel"
         type="number"
-        :value="displayHp"
         min="0"
         :max="displayMaxHp"
-        class="hp-input hp-input-lg"
-        @change="(e) => handleSetHp(Number((e.target as HTMLInputElement).value))"
+        tone="filled"
+        size="lg"
+        align="center"
+        :block="false"
+        class="w-16 h-8 font-bold"
       />
       <button class="hp-btn hp-btn-lg" @click="handleAdjustHp(1)">+</button>
       <span
@@ -156,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { IconHide, IconReveal } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -206,6 +210,14 @@ const {
 function toggleDetail() {
   emit("select", selectedId === combatant.instance_id ? null : combatant.instance_id);
 }
+
+// AppInput's `.lazy` modifier commits the raw string on change (blur/Enter),
+// same as the hand-rolled `:value` + `@change` this replaces — the setter
+// mirrors the original `Number((e.target as HTMLInputElement).value)` parse.
+const hpFieldModel = computed<string | number>({
+  get: () => displayHp.value,
+  set: (raw) => handleSetHp(Number(raw)),
+});
 </script>
 
 <style scoped>
@@ -272,10 +284,6 @@ function toggleDetail() {
 /* ── Shared HP styles ───────────────────────────────────────────────────── */
 .hp-btn {
   @apply w-6 h-6 rounded bg-muted border border-border font-cinzel font-bold text-sm flex items-center justify-center hover:bg-card transition-colors;
-}
-
-.hp-input {
-  @apply w-12 text-center bg-muted border border-border rounded px-1 py-0.5 font-cinzel text-sm font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 
 @keyframes damage-flash {
@@ -392,7 +400,6 @@ function toggleDetail() {
 }
 
 .hp-btn-lg  { @apply w-8 h-8 text-base; }
-.hp-input-lg { @apply w-16 h-8 text-base; }
 
 .mc-quick {
   display: flex;

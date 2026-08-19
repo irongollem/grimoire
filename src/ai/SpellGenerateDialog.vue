@@ -70,17 +70,7 @@
       <!-- Image toggle -->
       <div class="flex items-center justify-between">
         <span class="text-caption text-muted-foreground">Generate spell-effect art</span>
-        <button
-          type="button"
-          class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-          :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
-          @click="generateImage = !generateImage"
-        >
-          <span
-            class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-            :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
-          />
-        </button>
+        <ToggleSwitch v-model="generateImage" aria-label="Generate spell-effect art" />
       </div>
 
       <!-- Error -->
@@ -96,13 +86,13 @@
 
       <!-- Actions -->
       <div v-else class="flex justify-end gap-2">
-        <button
-          type="button"
+        <AppButton
+          variant="outline"
+          fill="muted"
+          size="sm"
+          label="Cancel"
           @click="emit('close')"
-          class="px-4 py-1.5 text-label-lg font-semibold border border-border rounded-md hover:bg-muted transition-colors"
-        >
-          Cancel
-        </button>
+        />
         <AppButton
           variant="primary"
           size="sm"
@@ -122,6 +112,7 @@ import { ref } from "vue";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { AI_PROMPT_LIMIT } from "./utils";
 
 const PROMPT_LIMIT = AI_PROMPT_LIMIT;

@@ -18,7 +18,7 @@
           :options="sortOptions"
         />
         <AppButton
-          v-if="activeTab !== 'dm-notes' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
+          v-if="!activeTome && activeTab !== 'dm-notes' && activeTab !== 'quest-log' && activeTab !== 'puzzles'"
           variant="primary"
           size="md"
           :icon="IconAdd"
@@ -122,6 +122,31 @@
     <!-- Tab bar -->
     <TabBar :tabs="TABS" :model-value="activeTab" @update:model-value="setTab" />
 
+    <!-- Tome tabs — one per document item currently in the party's
+         inventory. TabBar's fixed label/count/badge markup has no slot for
+         the EntityNewDot each tome needs, and TabBar itself is outside this
+         story's editable files, so these render as a second row of pill
+         AppButtons (the same recipe PlayerJournalMyTab's category filter
+         uses) rather than forking TabBar's underline markup by hand. -->
+    <div v-if="tomeTabs.length" class="flex flex-wrap items-center gap-1.5">
+      <AppButton
+        v-for="tome in tomeTabs"
+        :key="tome.id"
+        variant="subtle"
+        shape="pill"
+        size="xs"
+        :active="activeTab === tome.id"
+        :icon="IconFeather"
+        icon-size="xs"
+        @click="setTab(tome.id)"
+      >
+        <span class="inline-flex items-center gap-1.5">
+          {{ tome.label }}
+          <EntityNewDot :is-new="isTomeUnread(tome.id, tome.item.content_updated_at ?? undefined)" size="sm" />
+        </span>
+      </AppButton>
+    </div>
+
     <!-- Quest Log tab -->
     <PlayerJournalQuestLogTab
       v-if="activeTab === 'quest-log'"
@@ -163,6 +188,12 @@
       :author-name="authorName"
       @update:filter-category="filterCategory = $event"
       @toggle="toggleExpand"
+    />
+
+    <!-- Tome tab (dynamic — one of tomeTabs is active) -->
+    <PlayerJournalTomeTab
+      v-else-if="activeTome"
+      :item="activeTome.item"
     />
 
     <!-- My Journal tab (default) -->
@@ -210,6 +241,8 @@ import PlayerJournalPartyTab from "./PlayerJournalPartyTab.vue";
 import PlayerJournalDmNotesTab from "./PlayerJournalDmNotesTab.vue";
 import PlayerJournalQuestLogTab from "./PlayerJournalQuestLogTab.vue";
 import PlayerJournalPuzzlesTab from "./PlayerJournalPuzzlesTab.vue";
+import PlayerJournalTomeTab from "./PlayerJournalTomeTab.vue";
+import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import type { Component } from "vue";
 import {
   useMyJournalEntries, useSharedJournalEntries,
@@ -228,6 +261,7 @@ import { usePlayerVisiblePuzzles } from "@/composables/usePuzzles";
 import { useSharedNpcs } from "@/composables/useNpcs";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePartyInventory } from "@/composables/usePartyInventory";
+import { usePlayerVisibleItems } from "@/composables/useItems";
 import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
 import { useNotes } from "@/composables/useNotes";
@@ -254,6 +288,7 @@ const { data: puzzles, isLoading: loadingPuzzles } = usePlayerVisiblePuzzles();
 const { data: sharedNpcs }        = useSharedNpcs();
 const { data: sharedLocations }   = useSharedLocations();
 const { data: inventory }         = usePartyInventory();
+const { data: allVisibleItems }   = usePlayerVisibleItems();
 const { data: allMonsters }       = usePlayerVisibleMonsters();
 const { data: playerDiscoveries } = usePlayerDiscoveries();
 
@@ -333,15 +368,50 @@ function toggleNote(id: string) {
 const route = useRoute();
 const router = useRouter();
 
-type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes";
+// `(string & {})` (see quest.types.ts QuestBeatKind for the same trick) keeps
+// the five static ids literal for autocomplete/comparison while still
+// admitting an arbitrary tome item id — TabBar's own T stays inferred as
+// this widened type wherever activeTab feeds it, so the static tabs simply
+// show none-active while a tome tab is open.
+type TabId = "mine" | "party" | "quest-log" | "puzzles" | "dm-notes" | (string & {});
 const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "puzzles", "dm-notes"];
+
+// One tab per document item currently in the party's inventory — derived
+// from the inventory + player-visible-items queries rather than stored
+// state, so losing the item drops its inventory row, which drops it here,
+// which drops the tab. Both queries live-sync already.
+const tomeTabs = computed(() => {
+  const carriedItemIds = new Set(
+    (inventory.value ?? [])
+      .map((inv) => inv.item_id)
+      .filter((id): id is string => id !== null),
+  );
+  return (allVisibleItems.value ?? [])
+    .filter((it) => carriedItemIds.has(it.id) && it.content !== null)
+    .map((it) => ({ id: it.id, label: it.name, item: it }));
+});
+
 const activeTab = computed<TabId>(() => {
   const q = route.query.tab as string;
-  return VALID_TABS.includes(q as TabId) ? (q as TabId) : "mine";
+  if (VALID_TABS.includes(q as TabId)) return q as TabId;
+  if (tomeTabs.value.some((t) => t.id === q)) return q as TabId;
+  return "mine";
 });
+const activeTome = computed(() => tomeTabs.value.find((t) => t.id === activeTab.value) ?? null);
 function setTab(id: TabId) {
   router.replace({ query: { tab: id } });
 }
+
+// Unread state for the tome tab strip. The exact rule would be the later of
+// content_updated_at and the newest entry's created_at, but that needs a
+// live useItemEntries query per tome held in THIS parent — a dynamic,
+// unbounded number of query hooks driven by a v-for, which fights Vue's
+// one-composable-call-per-component-instance model for an unbounded list.
+// Falling back to content_updated_at only for the dot in the tab strip;
+// PlayerJournalTomeTab still re-marks read off the live entries query once a
+// tome is actually the active tab (see that file).
+const { isNew: isTomeUnread } = useReadItems("item_document");
+
 const TABS = computed(() => [
   { id: "mine"      as const, label: "My Journal",    count: myEntries.value?.length ?? 0 },
   { id: "party"     as const, label: "Party Journal", count: sharedEntries.value?.length ?? 0 },

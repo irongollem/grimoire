@@ -12,17 +12,12 @@
         class="flex-1 font-cinzel text-xs font-bold tracking-widest uppercase transition-colors"
         :class="enabled ? 'text-foreground' : 'text-muted-foreground'"
       >Colour Grading</span>
-      <button
-        type="button"
-        class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-        :class="enabled ? 'bg-primary' : 'bg-muted-foreground/30'"
-        @click.stop="emit('update:enabled', !enabled)"
-      >
-        <span
-          class="inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform"
-          :class="enabled ? 'translate-x-4.5' : 'translate-x-0.5'"
-        />
-      </button>
+      <ToggleSwitch
+        :model-value="enabled"
+        aria-label="Toggle colour grading"
+        @update:model-value="emit('update:enabled', $event)"
+        @click.stop
+      />
     </div>
 
     <div
@@ -78,6 +73,7 @@
 <script setup lang="ts">
 import { IconChevronRight } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { GRADING_PRESETS, type ColourGradingOptions } from "@/lib/illuminate/colourGrading";
 
 const {

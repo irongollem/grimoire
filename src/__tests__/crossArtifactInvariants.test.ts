@@ -26,6 +26,8 @@
 // the node types in for itself rather than widening the app config for everyone.
 
 import { describe, it, expect } from "vitest";
+import { parse } from "@vue/compiler-sfc";
+import { NodeTypes, type TemplateChildNode } from "@vue/compiler-core";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -39,6 +41,17 @@ const REPO_ROOT = process.cwd();
 
 /** This file, repo-relative — see the filter in `trackedFiles`. */
 const SELF = "src/__tests__/crossArtifactInvariants.test.ts";
+
+/**
+ * Every name this repo can render as a component: the basename of each .vue file,
+ * plus every `Icon*` / `Glyph*` the icon barrel re-exports. Deliberately narrow —
+ * the point is to catch a real component name sitting in a text node, not to
+ * police PascalCase in prose.
+ */
+const COMPONENT_NAMES = new Set<string>([
+  ...trackedFiles("src/**/*.vue").map((f) => path.basename(f, ".vue")),
+  ...[...read("src/lib/icons.ts").matchAll(/\bas\s+(Icon[A-Za-z0-9_]+)/g)].map((m) => m[1]),
+]);
 
 /** Tracked files only — never node_modules, dist, or a stray local scratch file. */
 function trackedFiles(...globs: string[]): string[] {
@@ -228,6 +241,55 @@ describe("component tags resolve to real imports", () => {
 
         if (!bound) violations.push(`${file} uses <${tag}> but never imports it`);
       }
+    }
+
+    expect(checked).toBeGreaterThan(0);
+    expect(violations).toEqual([]);
+  });
+
+  // The sibling failure, and a nastier one: a component name written as *prose*
+  // rather than as a tag. `IconSend Announcement` in DMAnnounceButton's popover
+  // header shipped the literal string "IconSend Announcement" to the screen —
+  // no tag, so the import check above cannot see it, and nothing else looks at
+  // rendered text at all. It is the only instance in the repo, found by an agent
+  // that happened to be reading the file.
+  //
+  // Parsed rather than regexed: an earlier grep-shaped attempt at this reported
+  // three more, and all three were `:icon="IconDelete"` inside multi-line tags
+  // that a `<[^>]*>` strip had truncated on a `>` inside an attribute expression.
+  // Text nodes are a thing the compiler knows and a regex does not.
+  it("no component name is rendered as literal text", () => {
+    const violations: string[] = [];
+    let checked = 0;
+
+    // The catalogue at /dev/components captions each demo with the component's
+    // own name, which is the one place where printing one as text is the point.
+    const NAMES_COMPONENTS_ON_PURPOSE = /dev\/(ComponentCatalogueView|CatalogueSection)\.vue$/;
+
+    for (const file of trackedFiles("src/**/*.vue")) {
+      if (NAMES_COMPONENTS_ON_PURPOSE.test(file)) continue;
+      const { descriptor } = parse(read(file), { filename: file });
+      if (!descriptor.template) continue;
+      checked++;
+
+      const walk = (nodes: TemplateChildNode[]): void => {
+        for (const node of nodes) {
+          if (node.type === NodeTypes.TEXT) {
+            for (const word of node.content.match(/\b[A-Z][a-z0-9]+[A-Z][A-Za-z0-9]*\b/g) ?? []) {
+              // PascalCase in prose is normally a proper noun ("Forgotten Realms",
+              // "CarPlay"). What cannot be prose is a name this repo actually
+              // registers as a component.
+              if (COMPONENT_NAMES.has(word)) {
+                violations.push(`${file} renders "${word}" as text — missing angle brackets?`);
+              }
+            }
+          }
+          if ("children" in node && Array.isArray(node.children)) {
+            walk(node.children as TemplateChildNode[]);
+          }
+        }
+      };
+      walk(descriptor.template.ast?.children ?? []);
     }
 
     expect(checked).toBeGreaterThan(0);

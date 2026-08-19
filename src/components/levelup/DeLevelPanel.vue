@@ -50,30 +50,28 @@
       <!-- Action row -->
       <div class="flex items-center justify-between gap-4 pt-1">
         <!-- De-level trigger / confirm -->
-        <button
+        <AppButton
           v-if="!showConfirmation"
-          type="button"
-          class="text-label-lg text-muted-foreground hover:text-destructive transition-colors"
+          variant="ghost"
+          tone="danger"
+          size="inline"
           @click="showConfirmation = true"
-        >
-          ← Back to level {{ member.level - 1 }}
-        </button>
+        >← Back to level {{ member.level - 1 }}</AppButton>
         <div v-else class="flex items-center gap-3">
-          <button
-            type="button"
-            class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="ghost"
+            size="inline"
             @click="showConfirmation = false"
-          >
-            × cancel
-          </button>
-          <button
-            type="button"
-            class="rounded-md bg-destructive px-3 py-1.5 text-label-lg font-semibold text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+          >× cancel</AppButton>
+          <AppButton
+            variant="tinted"
+            tone="danger"
+            emphasis="solid"
+            size="sm"
             :disabled="isPending"
+            :label="isPending ? 'Applying…' : `Confirm — remove level ${member.level}`"
             @click="confirmDeLevel"
-          >
-            {{ isPending ? 'Applying…' : `Confirm — remove level ${member.level}` }}
-          </button>
+          />
         </div>
       </div>
     </template>
@@ -83,6 +81,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
+import AppButton from '@/components/common/AppButton.vue';
 import { supabase } from '@/lib/supabase';
 import { useCustomClassByName, useAllSystemClasses } from '@/composables/useCustomClasses';
 import { getMulticlassSpellSlots } from '@/types/spell.types';

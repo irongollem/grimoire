@@ -74,17 +74,7 @@
         <!-- Image generation toggle -->
         <div v-if="isAiEnabled" class="flex items-center justify-between">
           <span class="text-caption text-muted-foreground">Generate portrait art</span>
-          <button
-            type="button"
-            class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-            :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
-            @click="generateImage = !generateImage"
-          >
-            <span
-              class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-              :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
-            />
-          </button>
+          <ToggleSwitch v-model="generateImage" aria-label="Generate portrait art" />
         </div>
 
         <!-- No API key nudge -->
@@ -165,6 +155,7 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useMonsterGeneration } from "@/ai/useMonsterGeneration";

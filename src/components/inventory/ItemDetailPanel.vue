@@ -217,6 +217,20 @@
           <RichTextViewer :content="displayDescription" />
         </div>
 
+        <!-- Written contents + player entries. `vaultItem.content` is already
+             nulled by the get_player_visible_items projection while
+             unidentified, so ItemDocumentSection naturally renders nothing
+             extra — no separate identified gate needed here. -->
+        <ItemDocumentSection
+          v-if="vaultItem"
+          :item="vaultItem"
+          :campaign-id="activeCampaignId"
+          :can-write-entries="canWriteEntries"
+          :author-party-member-id="authorPartyMemberId"
+          :can-moderate="canModerate"
+          :dm-user-id="dmUserId"
+        />
+
         <!-- Curse (DM sees it always with reveal toggle; players only see it when revealed) -->
         <div
           v-if="vaultItem?.curse_description && (canIdentify || inv?.curse_revealed)"
@@ -290,6 +304,7 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { IconAdd, IconClose, IconHide, IconMinus, IconReveal, IconShop, IconWand } from '@/lib/icons';
 import { useQuery } from "@tanstack/vue-query";
 import { COINS, type CoinKey, parseCoinText } from "@/rules/currency";
@@ -298,9 +313,14 @@ import AppInput from "@/components/common/AppInput.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";
+import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
 import { useUpdateInventoryItem } from "@/composables/usePartyInventory";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { useMarkRead } from "@/composables/useReadItems";
+import { useAuthStore } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { supabase } from "@/lib/supabase";
 import { parseExpression, parsedToCounts } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
@@ -322,6 +342,35 @@ const emit = defineEmits<{
   sell: [pp: number, gp: number, ep: number, sp: number, cp: number];
   consume: [id: string]; // scroll fully used up — parent should remove the inventory row
 }>();
+
+// ── Written contents + entries ───────────────────────────────────────────────
+// This panel is the player surface (mounted only from PlayerInventoryView),
+// but the same view also renders for the DM's own real access (canIdentify
+// follows the identical `isDM && !dmPreviewMode` gate) and for DM preview —
+// mirror ItemSheet.vue's split rather than assuming a single audience.
+const auth = useAuthStore();
+const ui = useUiStore();
+const { activeCampaignId, activeCampaign } = storeToRefs(useCampaignStore());
+
+const isRealDm = computed(() => auth.isDM && !ui.dmPreviewMode);
+const dmUserId = computed(() => activeCampaign.value?.user_id ?? null);
+const authorPartyMemberId = computed(() =>
+  isRealDm.value ? null : (ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId),
+);
+const canWriteEntries = computed(() => isRealDm.value || (props.vaultItem?.content_player_writable ?? false));
+const canModerate = computed(() => isRealDm.value);
+
+const { mutate: markRead } = useMarkRead();
+// Mark the tome read whenever the panel opens on an item that has content —
+// mirrors PlayerLocationDialog.vue's open-marks-read idiom.
+watch(
+  () => props.inv?.id,
+  (id) => {
+    if (id && props.vaultItem && props.vaultItem.content !== null) {
+      markRead({ entityType: "item_document", entityId: props.vaultItem.id });
+    }
+  },
+);
 
 const sellOpen  = ref(false);
 const sellPrice = reactive<Record<CoinKey, number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
