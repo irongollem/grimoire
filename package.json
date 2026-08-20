@@ -114,6 +114,9 @@
     "@rolldown/binding-darwin-arm64": "^1.0.0-rc.15"
   },
   "overrides": {
+    "@vercel/speed-insights": {
+      "vue-router": "$vue-router"
+    },
     "@vue/test-utils": {
       "js-beautify": "^2.0.3",
       "nopt": "^9.0.0"

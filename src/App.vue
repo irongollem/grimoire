@@ -28,9 +28,7 @@
     </div>
   </Transition>
 
-  <!-- Vercel Speed Insights -->
   <SpeedInsights />
-
 </template>
 
 <script setup lang="ts">
