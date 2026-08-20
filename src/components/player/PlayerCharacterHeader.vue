@@ -28,13 +28,21 @@
               <h1 class="text-heading font-bold text-foreground leading-tight truncate">
                 {{ wildshape ? wildshape.beast_name : member.name }}
               </h1>
-              <button
+              <AppButton
                 v-if="!wildshape"
-                class="shrink-0 flex items-center justify-center transition-colors"
-                :class="member.inspiration ? 'text-gold-500' : 'text-muted-foreground/30 hover:text-muted-foreground/60'"
-                title="Inspiration"
+                variant="ghost"
+                size="inline-xs"
+                :active="member.inspiration"
+                active-fill="none"
+                class="shrink-0"
+                :class="member.inspiration ? '' : 'text-muted-foreground/30 hover:text-muted-foreground/60'"
+                tooltip="Inspiration"
                 @click="toggleInspiration"
-              ><IconStar class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-gold-500' : ''" /></button>
+              >
+                <template #icon>
+                  <IconStar class="h-3.5 w-3.5" :class="member.inspiration ? 'fill-current' : ''" />
+                </template>
+              </AppButton>
             </div>
             <p class="text-caption text-muted-foreground italic">
               <template v-if="wildshape">🐺 {{ member.name }}</template>

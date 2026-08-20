@@ -182,30 +182,28 @@
 
       <!-- Billing toggle -->
       <div class="flex items-center gap-3">
-        <button
-          class="text-label-lg font-semibold transition-colors"
-          :class="
-            !annual
-              ? 'text-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          "
+        <AppButton
+          variant="ghost"
+          size="inline"
+          :active="!annual"
+          active-fill="none"
+          :class="!annual ? 'text-foreground' : ''"
           @click="annual = false"
         >
           Monthly
-        </button>
+        </AppButton>
         <ToggleSwitch v-model="annual" aria-label="Annual billing" />
-        <button
-          class="text-label-lg font-semibold transition-colors"
-          :class="
-            annual
-              ? 'text-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          "
+        <AppButton
+          variant="ghost"
+          size="inline"
+          :active="annual"
+          active-fill="none"
+          :class="annual ? 'text-foreground' : ''"
           @click="annual = true"
         >
           Annual
           <span v-if="savedMonths > 0" class="ml-1 text-2xs text-amber-400">save {{ savedMonths }} months</span>
-        </button>
+        </AppButton>
         <SegmentedControl
           v-if="pricingCurrencies.length > 1"
           v-model="currency"

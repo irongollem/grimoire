@@ -177,18 +177,24 @@
           <div v-for="stat in ABILITY_STATS" :key="stat.key" class="flex flex-col items-center gap-1">
             <span class="text-label font-semibold text-muted-foreground">{{ stat.label }}</span>
             <div class="flex items-center gap-1">
-              <button type="button"
-                class="w-5 h-5 rounded border border-border font-cinzel text-xs font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
+              <AppButton
+                variant="outline"
+                size="icon-2xs"
+                label="−"
                 :disabled="customAsi[stat.key] <= 0"
-                @click="adjustCustomAsi(stat.key, -1)">−</button>
+                @click="adjustCustomAsi(stat.key, -1)"
+              />
               <span class="font-cinzel text-sm font-bold w-5 text-center"
                 :class="customAsi[stat.key] > 0 ? 'text-primary' : 'text-muted-foreground'">
                 +{{ customAsi[stat.key] }}
               </span>
-              <button type="button"
-                class="w-5 h-5 rounded border border-border font-cinzel text-xs font-bold transition-colors hover:border-primary hover:text-primary disabled:opacity-30"
+              <AppButton
+                variant="outline"
+                size="icon-2xs"
+                label="+"
                 :disabled="customAsi[stat.key] >= 2 || customAsiTotal >= 3"
-                @click="adjustCustomAsi(stat.key, 1)">+</button>
+                @click="adjustCustomAsi(stat.key, 1)"
+              />
             </div>
           </div>
         </div>

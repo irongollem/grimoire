@@ -45,10 +45,12 @@
     <!-- Name label toggle -->
     <div class="flex items-center justify-between">
       <p class="text-label-lg font-semibold text-muted-foreground">Name Label</p>
-      <button
-        type="button"
-        class="inline-flex items-center gap-2 text-label-lg transition-colors"
-        :class="showName ? 'text-primary' : 'text-muted-foreground'"
+      <AppButton
+        variant="ghost"
+        size="inline"
+        :active="showName"
+        active-fill="none"
+        class="gap-2"
         @click="emit('update:showName', !showName)"
       >
         <div
@@ -61,7 +63,7 @@
           />
         </div>
         {{ showName ? 'On' : 'Off' }}
-      </button>
+      </AppButton>
     </div>
 
     <!-- Export size -->
@@ -74,6 +76,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 
 const RING_PRESETS = [

@@ -47,14 +47,16 @@
     <!-- Spotify playback controls -->
     <div class="flex items-center gap-2">
       <!-- Previous (only when active) -->
-      <button
+      <AppButton
         v-if="isActive"
-        class="flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
-        title="Previous track"
+        variant="ghost"
+        size="icon-2xs"
+        icon-size="xs"
+        class="shrink-0"
+        :icon="IconSkipBack"
+        tooltip="Previous track"
         @click="spotifyStore.previousTrack()"
-      >
-        <IconSkipBack class="h-3 w-3" />
-      </button>
+      />
 
       <!-- IconPlay / IconPause -->
       <AppButton
@@ -75,14 +77,16 @@
       </AppButton>
 
       <!-- Next (only when active) -->
-      <button
+      <AppButton
         v-if="isActive"
-        class="flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
-        title="Next track"
+        variant="ghost"
+        size="icon-2xs"
+        icon-size="xs"
+        class="shrink-0"
+        :icon="IconSkipForward"
+        tooltip="Next track"
         @click="spotifyStore.nextTrack()"
-      >
-        <IconSkipForward class="h-3 w-3" />
-      </button>
+      />
 
       <!-- Volume -->
       <VolumeSlider
@@ -123,14 +127,18 @@
         <IconRepeat v-else class="h-2.5 w-2.5" />
       </button>
       <!-- IconShuffle -->
-      <button
-        class="shrink-0 p-0.5 rounded transition-all [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
-        :class="spotifyStore.shuffleOn ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
-        title="Shuffle"
+      <AppButton
+        variant="ghost"
+        size="icon-2xs"
+        icon-size="xs"
+        active-fill="none"
+        tone="success"
+        :active="spotifyStore.shuffleOn"
+        class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100"
+        :icon="IconShuffle"
+        tooltip="Shuffle"
         @click="spotifyStore.setShuffle(!spotifyStore.shuffleOn)"
-      >
-        <IconShuffle class="h-2.5 w-2.5" />
-      </button>
+      />
     </div>
 
     <!-- Not-ready indicator -->

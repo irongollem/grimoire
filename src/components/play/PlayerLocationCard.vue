@@ -1,7 +1,7 @@
 <template>
   <div
     class="rounded-lg border bg-card overflow-hidden"
-    :class="[isFavourite ? 'border-amber-400/40' : 'border-border', outOfEra && 'opacity-60']"
+    :class="[isFavourite ? 'border-primary/40' : 'border-border', outOfEra && 'opacity-60']"
     :style="depth ? { marginLeft: `${depth * 16}px` } : undefined"
   >
     <!-- Header row -->
@@ -44,7 +44,9 @@
         fill="muted"
         size="sm"
         class="shrink-0 border-l border-border"
-        :class="isFavourite ? 'text-amber-400 hover:text-amber-300' : 'hover:text-amber-400'"
+        :active="isFavourite"
+        active-fill="none"
+        :class="isFavourite ? '' : 'hover:text-primary'"
         :tooltip="isFavourite ? 'Remove from favourites' : 'Add to favourites'"
         @click.stop="$emit('toggle-favourite', loc.id)"
       >

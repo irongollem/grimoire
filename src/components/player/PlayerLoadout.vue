@@ -24,15 +24,18 @@
           v-if="(entry.inv.quantity ?? 1) > 1"
           class="font-cinzel text-2xs text-muted-foreground shrink-0"
         >×{{ entry.inv.quantity }}</span>
-        <button
-          type="button"
-          class="shrink-0 flex items-center justify-center w-4 h-4 rounded text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
-          title="Unequip"
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          fill="tone"
+          size="icon-2xs"
+          icon-size="xs"
+          class="shrink-0 text-muted-foreground/60"
+          :icon="IconClose"
+          tooltip="Unequip"
           :disabled="isUnequipping"
           @click="unequip(entry.inv)"
-        >
-          <IconClose class="h-3 w-3" />
-        </button>
+        />
       </span>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">
@@ -44,6 +47,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconClose, IconInventory } from '@/lib/icons';
 import { usePartyInventory, useUpdateInventoryItem } from "@/composables/usePartyInventory";
 import type { PartyInventoryItem, InventorySlot } from "@/types/inventory.types";

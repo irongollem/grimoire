@@ -15,20 +15,31 @@
 
     <!-- ± buttons -->
     <div class="flex items-center gap-0.5">
-      <button
-        class="h-4 w-4 rounded flex items-center justify-center bg-muted/50 hover:bg-muted border border-border transition-colors"
+      <AppButton
+        variant="outline"
+        surface="muted"
+        fill="muted"
+        size="icon-2xs"
+        icon-size="xs"
+        :icon="IconMinus"
         @click="adjust(-1)"
-      ><IconMinus class="h-2 w-2" /></button>
-      <button
-        class="h-4 w-4 rounded flex items-center justify-center bg-muted/50 hover:bg-muted border border-border transition-colors"
+      />
+      <AppButton
+        variant="outline"
+        surface="muted"
+        fill="muted"
+        size="icon-2xs"
+        icon-size="xs"
+        :icon="IconAdd"
         @click="adjust(1)"
-      ><IconAdd class="h-2 w-2" /></button>
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconAdd, IconMinus } from '@/lib/icons';
 
 const props = defineProps<{ label: string; symbol: string; color: string; value: number }>();
