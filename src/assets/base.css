@@ -65,8 +65,35 @@
    Because `appearance: none` also removes the space the browser reserved for its
    arrow, this rule owns the caret and the padding that clears it. Both are in
    `em` so they track the control's font size, from `text-label` filter pickers up
-   to `text-sm` field rows. The caret is drawn with two gradients rather than an
-   SVG data URI so it can use `currentColor` and follow every theme.
+   to `text-sm` field rows.
+
+   The caret is a CHEVRON, and it is drawn to match `EntityCombobox`'s
+   `IconChevronDown` — same shape, same `--muted-foreground`, same weight. That is
+   deliberate and it is the leading design: a select and a combobox routinely sit
+   side by side in a filter row (the Interlude's "Stack the deck" is three of them
+   in a row), and until now the select drew a small filled TRIANGLE in
+   `currentColor` while the combobox drew a thin chevron in muted — two different
+   glyphs for the same affordance, 8px apart.
+
+   Still gradients rather than an SVG data URI, for the original reason: a data URI
+   cannot read a CSS custom property, so it could not follow the runtime themes
+   that `lib/themes.ts` sets. Two thin strokes make the V where two half-fills used
+   to make the triangle.
+
+   The numbers are not guesses. Measured off the real glyph at a 14px control:
+   visible 7.00 x 3.50px, stroke 1.17px, `--muted-foreground`. Two adjacent SxS
+   squares make a V that is 2S wide and S tall, so S = 0.25em; a 45deg gradient
+   across that box has an axis of S*sqrt(2), and a stop band of d% is the stroke's
+   perpendicular thickness, so d = 1.17 / (3.5*1.414) = 23.6%.
+
+   ONE difference remains and gradients cannot close it: Lucide strokes the path
+   with `stroke-linecap: round`, and a gradient band has square ends. At 1.17px
+   this is sub-pixel and invisible in practice, but it is why these are a match
+   rather than the same glyph. Making them literally identical means overlaying the
+   real `IconChevronDown` inside `AppSelect`, which needs a wrapper element around
+   the native <select> at 231 call sites — a layout risk that buys back only the
+   line caps. Deliberately not done; revisit only if the icon set is swapped, since
+   that WOULD drift these apart. Compare them at the Interlude's deck panel.
 
    Unlayered on purpose: Tailwind utilities live in `@layer utilities`, and layer
    order beats specificity, so a base-layer rule would lose its padding to any
@@ -77,10 +104,10 @@ select:not([multiple]):not([size]) {
   appearance: none;
   padding-inline-end: 1.65em;
   background-image:
-    linear-gradient(45deg, transparent 50%, color-mix(in oklab, currentColor 70%, transparent) 50%),
-    linear-gradient(135deg, color-mix(in oklab, currentColor 70%, transparent) 50%, transparent 50%);
-  background-position: right 0.85em center, right 0.55em center;
-  background-size: 0.3em 0.3em;
+    linear-gradient(45deg, transparent 42%, var(--muted-foreground) 42%, var(--muted-foreground) 66%, transparent 66%),
+    linear-gradient(135deg, transparent 34%, var(--muted-foreground) 34%, var(--muted-foreground) 58%, transparent 58%);
+  background-position: right 0.70em center, right 0.45em center;
+  background-size: 0.25em 0.25em;
   background-repeat: no-repeat;
 }
 /* ─────────────────────────────────────────────────────────────────────────────
