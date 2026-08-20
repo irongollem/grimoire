@@ -5,21 +5,7 @@
     </div>
 
     <!-- Tab bar -->
-    <div class="flex gap-1 border-b border-border overflow-x-auto">
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        type="button"
-        class="flex items-center gap-1.5 px-3 py-2 text-label-lg font-semibold transition-colors border-b-2 -mb-px shrink-0"
-        :class="activeTab === tab.id
-          ? 'border-primary text-primary'
-          : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="setTab(tab.id)"
-      >
-        <component :is="tab.icon" class="h-3.5 w-3.5" />
-        {{ tab.label }}
-      </button>
-    </div>
+    <TabBar :tabs="tabs" v-model="activeTab" wrapper-class="overflow-x-auto" />
 
     <ScreenTab v-if="activeTab === 'screen'" />
     <CompendiumTab v-else-if="activeTab === 'compendium'" />
@@ -33,6 +19,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconBookMarked, IconLandmark, IconMonitor, IconPopulate, IconQuest } from '@/lib/icons';
+import TabBar from "@/components/common/TabBar.vue";
 import ScreenTab from "@/components/rules/ScreenTab.vue";
 import CompendiumTab from "@/components/rules/CompendiumTab.vue";
 import CodexTab from "@/components/rules/CodexTab.vue";
@@ -54,12 +41,13 @@ const router = useRouter();
 
 const VALID_TABS = new Set<string>(tabs.map((t) => t.id));
 
-const activeTab = computed<TabId>(() => {
-  const q = route.query.tab;
-  return VALID_TABS.has(q as string) ? (q as TabId) : "screen";
+const activeTab = computed<TabId>({
+  get: () => {
+    const q = route.query.tab;
+    return VALID_TABS.has(q as string) ? (q as TabId) : "screen";
+  },
+  set: (id) => {
+    router.replace({ query: { ...route.query, tab: id } });
+  },
 });
-
-function setTab(id: TabId) {
-  router.replace({ query: { ...route.query, tab: id } });
-}
 </script>

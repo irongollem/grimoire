@@ -6,18 +6,7 @@
   -->
   <div class="flex flex-col gap-4">
     <!-- Tabs -->
-    <div class="flex gap-0 border-b border-border">
-      <button
-        v-for="tab in TABS"
-        :key="tab.key"
-        type="button"
-        class="px-4 py-2 text-label-lg font-semibold border-b-2 transition-colors -mb-px"
-        :class="activeTab === tab.key
-          ? 'border-primary text-foreground'
-          : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="activeTab = tab.key"
-      >{{ tab.label }}</button>
-    </div>
+    <TabBar :tabs="TABS_BAR" v-model="activeTab" />
 
     <!-- Lore tab -->
     <div v-if="activeTab === 'lore'" class="space-y-4">
@@ -85,6 +74,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import TabBar from "@/components/common/TabBar.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
@@ -105,6 +95,7 @@ const TABS = [
   { key: 'voice',     label: 'Voice' },
 ] as const;
 type TabKey = typeof TABS[number]['key'];
+const TABS_BAR = TABS.map(t => ({ id: t.key, label: t.label }));
 
 const activeTab = ref<TabKey>('lore');
 </script>

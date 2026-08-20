@@ -197,20 +197,7 @@
     </template>
 
     <!-- Tab bar -->
-    <div class="flex gap-1 mb-6 border-b border-border overflow-x-auto">
-      <button
-        v-for="tab in TABS"
-        :key="tab.id"
-        class="flex items-center gap-1.5 px-4 py-2.5 text-label-lg font-semibold border-b-2 -mb-px transition-colors shrink-0"
-        :class="activeTab === tab.id
-          ? 'border-primary text-primary'
-          : 'border-transparent text-muted-foreground hover:text-foreground'"
-        @click="selectTab(tab.id)"
-      >
-        <component :is="tab.icon" class="h-3.5 w-3.5" />
-        {{ tab.label }}
-      </button>
-    </div>
+    <TabBar :tabs="TABS" v-model="activeTab" wrapper-class="mb-6 overflow-x-auto" />
 
     <SpeciesList v-if="activeTab === 'species'" :readonly="!isDM" />
     <BackgroundList v-else-if="activeTab === 'backgrounds'" :readonly="!isDM" />
@@ -229,6 +216,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { onClickOutside } from "@vueuse/core";
 import { IconAdd, IconBookUser, IconDownload, IconLevel, IconLightning, IconLoading, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
+import TabBar from "@/components/common/TabBar.vue";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
@@ -285,7 +273,10 @@ const isDM = auth.isDM;
 const route = useRoute();
 const router = useRouter();
 
-const activeTab = computed<TabId>(() => ui.codexActiveTab as TabId);
+const activeTab = computed<TabId>({
+  get: () => ui.codexActiveTab as TabId,
+  set: (id) => selectTab(id),
+});
 
 const MANUAL_PAGE_BY_TAB: Record<TabId, string> = {
   species: "species-and-backgrounds",

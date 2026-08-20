@@ -12,22 +12,7 @@
     </div>
 
     <!-- Tabs bar -->
-    <div class="px-4 md:px-6 shrink-0 flex gap-1 border-b border-border overflow-x-auto">
-      <button
-        v-for="tab in TABS"
-        :key="tab.id"
-        class="flex items-center gap-1.5 px-4 py-2.5 text-label-lg font-semibold border-b-2 -mb-px transition-colors shrink-0"
-        :class="
-          activeTab === tab.id
-            ? 'border-primary text-primary'
-            : 'border-transparent text-muted-foreground hover:text-foreground'
-        "
-        @click="setTab(tab.id)"
-      >
-        <component :is="tab.icon" class="h-3.5 w-3.5" />
-        {{ tab.label }}
-      </button>
-    </div>
+    <TabBar :tabs="TABS" v-model="activeTab" wrapper-class="px-4 md:px-6 shrink-0 overflow-x-auto" />
 
     <!-- Tab body -->
     <div class="flex-1 min-h-0 overflow-y-auto px-4 md:px-6 py-5">
@@ -50,6 +35,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAddUser, IconBug, IconCoins, IconDocument, IconGridView, IconLibrary, IconParty, IconSettings, IconShieldCheck, IconTag } from "@/lib/icons";
+import TabBar from "@/components/common/TabBar.vue";
 import AdminPlansTab     from "@/components/admin/AdminPlansTab.vue";
 import AdminUsersTab     from "@/components/admin/AdminUsersTab.vue";
 import AdminInvitesTab   from "@/components/admin/AdminInvitesTab.vue";
@@ -81,14 +67,15 @@ const TABS = [
   { id: "requests"  as TabId, label: "Requests",  icon: IconDocument },
 ];
 
-const activeTab = computed<TabId>(() => {
-  const q = route.query.tab;
-  // 'keys' tab was merged into 'providers'
-  if (q === "keys") return "providers";
-  return VALID_TABS.has(q as string) ? (q as TabId) : "plans";
+const activeTab = computed<TabId>({
+  get: () => {
+    const q = route.query.tab;
+    // 'keys' tab was merged into 'providers'
+    if (q === "keys") return "providers";
+    return VALID_TABS.has(q as string) ? (q as TabId) : "plans";
+  },
+  set: (id) => {
+    router.replace({ query: { ...route.query, tab: id } });
+  },
 });
-
-function setTab(id: TabId) {
-  router.replace({ query: { ...route.query, tab: id } });
-}
 </script>
