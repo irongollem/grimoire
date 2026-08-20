@@ -284,50 +284,39 @@
         </div>
 
         <!-- Written contents — in-world text the object itself carries -->
-        <div class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
-              Written Contents
-              <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional; what the item itself says</span>
-            </h3>
-            <label class="flex items-center gap-2 cursor-pointer shrink-0">
-              <input type="checkbox" v-model="contentPlayerWritable" class="rounded" />
-              <span class="text-label-lg font-semibold text-muted-foreground">PLAYER WRITABLE</span>
-            </label>
-          </div>
+        <ItemEditorCard
+          title="Written Contents"
+          hint="optional; what the item itself says"
+          toggle-label="PLAYER WRITABLE"
+          toggle-shrink
+          v-model:toggle="contentPlayerWritable"
+        >
           <RichTextEditor
             v-model="content"
             allow-upload
             placeholder="A ledger's pages, a contract's clauses, a scroll's text…"
             min-height="140px"
           />
-        </div>
+        </ItemEditorCard>
 
         <!-- DM notes — never shown to players -->
-        <div class="rounded-lg border border-amber-700/40 bg-amber-950/10 p-4 flex flex-col gap-2">
-          <h3 class="text-label-lg font-bold text-amber-300/80 uppercase">
-            DM Notes
-            <span class="normal-case font-fell font-normal text-muted-foreground/70"> — never shown to players</span>
-          </h3>
+        <ItemEditorCard title="DM Notes" hint="never shown to players" tone="amber">
           <RichTextEditor
             v-model="dmNotes"
             placeholder="GM-side notes, foreshadowing, structural beats this item serves…"
             min-height="100px"
           />
-        </div>
+        </ItemEditorCard>
 
         <!-- Curse -->
-        <div v-if="isMagic && !isArtObject" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-3">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
-              Curse
-              <span class="normal-case font-fell font-normal text-muted-foreground/60"> — optional</span>
-            </h3>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" v-model="isCursed" class="rounded" />
-              <span class="text-label-lg font-semibold text-muted-foreground">CURSED</span>
-            </label>
-          </div>
+        <ItemEditorCard
+          v-if="isMagic && !isArtObject"
+          title="Curse"
+          hint="optional"
+          toggle-label="CURSED"
+          v-model:toggle="isCursed"
+          :gap="3"
+        >
           <template v-if="isCursed">
             <RichTextEditor
               v-model="curseDescription"
@@ -338,7 +327,7 @@
               Reveal the curse to players via the party inventory panel once a player attunes or triggers it.
             </p>
           </template>
-        </div>
+        </ItemEditorCard>
 
         <!-- Scope -->
         <CampaignScopeField v-model="campaignId" />
@@ -389,6 +378,7 @@ import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import ItemWeaponBlock from "@/components/items/ItemWeaponBlock.vue";
 import ItemArmorBlock from "@/components/items/ItemArmorBlock.vue";
+import ItemEditorCard from "@/components/items/ItemEditorCard.vue";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
 import { useSpells } from "@/composables/useSpells";
 import { useCampaignStore } from "@/stores/campaign";
