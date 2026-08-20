@@ -105,7 +105,7 @@
         <RichTextEditor
           v-model="form.description"
           placeholder="History, motives, known activities…"
-          size="lg"
+          size="md"
         />
       </div>
 

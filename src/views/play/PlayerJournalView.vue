@@ -56,7 +56,7 @@
         </div>
 
         <!-- Content -->
-        <RichTextEditor v-model="formContent" placeholder="Write your entry…" size="md" allow-upload :entity-mention-items="mentionItems" />
+        <RichTextEditor v-model="formContent" placeholder="Write your entry…" size="lg" allow-upload :entity-mention-items="mentionItems" />
 
         <!-- Context link row -->
         <div class="flex flex-wrap items-center gap-2">

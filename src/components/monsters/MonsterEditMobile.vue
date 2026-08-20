@@ -172,7 +172,7 @@
           <RichTextEditor
             v-model="form.description"
             placeholder="Lore, habitat, behaviour, and flavour text…"
-            size="lg"
+            size="md"
           />
         </section>
 

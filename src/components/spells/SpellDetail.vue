@@ -176,7 +176,7 @@
           <RichTextEditor
             v-model="description"
             placeholder="Describe the spell's effects…"
-            size="lg"
+            size="md"
           />
         </div>
 

@@ -42,7 +42,7 @@
 
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       DM lead
-      <RichTextEditor v-model="draft.dm_content" :size="compact ? 'md' : 'lg'" :sticky-toolbar="!compact" placeholder="What should the DM know first?" />
+      <RichTextEditor v-model="draft.dm_content" :sticky-toolbar="!compact" placeholder="What should the DM know first?" />
     </label>
 
     <template v-if="!compact">
@@ -52,7 +52,7 @@
       </label>
       <label class="block space-y-1 text-caption font-semibold text-foreground">
         How it plays
-        <RichTextEditor v-model="draft.how_it_plays" size="lg" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" />
+        <RichTextEditor v-model="draft.how_it_plays" size="md" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" />
       </label>
       <label class="block space-y-1 text-caption font-semibold text-foreground">
         Outcomes

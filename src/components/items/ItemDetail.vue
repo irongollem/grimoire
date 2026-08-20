@@ -279,7 +279,7 @@
           <RichTextEditor
             v-model="description"
             placeholder="Describe this item's properties, lore, and any special effects…"
-            size="lg"
+            size="md"
           />
         </div>
 

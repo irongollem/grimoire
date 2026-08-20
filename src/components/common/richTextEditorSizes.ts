@@ -31,15 +31,36 @@ export const EDITOR_MIN_HEIGHTS = {
    * one line, and giving them a description-sized box invites an essay.
    */
   sm: "4.5rem",
-  /** The default, and the right answer for almost everything: descriptions, DM notes, lore, journal entries. */
-  md: "7.5rem",
   /**
-   * Long-form. **Provisional** — see #750. Every site on this step is a
-   * "Description" field that someone happened to make taller than the identical
-   * field elsewhere, so on the evidence `lg` may not deserve to exist at all. It is
-   * kept for now only so that adopting the scale does not silently shrink eleven
-   * editors; the sites are listed on the issue for the owner to confirm or collapse
-   * into `md`.
+   * The default, and the right answer for almost everything: descriptions, DM
+   * notes, lore, quest beats.
+   *
+   * 8.75rem rather than 7.5rem because `min-height` is on the editor's WRAPPER, so
+   * the toolbar eats into it — and the toolbar is not a fixed cost. It wraps to two
+   * rows in a narrow column and stays on one in a wide one, which measured as 63px
+   * vs 39px. At 7.5rem the faction editor's box therefore offered 57px of writing
+   * room, about 2.4 lines, while the same `md` gave noticeably more elsewhere. The
+   * extra 1.25rem is exactly one line-height (20px at the editor's 14px text), so
+   * the tightest case gets a usable third and fourth line.
+   */
+  md: "8.75rem",
+  /**
+   * Long-form: a surface you sit down and WRITE at, rather than a field you fill
+   * in. Three sites, and the test is the activity, not the entity — a journal entry
+   * and a campaign note, not "this description feels important".
+   *
+   * It very nearly did not survive. Adopting the scale first put eleven sites here,
+   * inherited from whoever had typed the tallest number; read back as a list they
+   * were all just "Description" fields — the monster's, the spell's, the item's,
+   * the feature's — each taller than the identical field elsewhere for no reason
+   * anyone chose. A size earns its name from what the caller is DOING, and none of
+   * them could be told apart from the `md` descriptions on that basis. They were
+   * collapsed into `md`.
+   *
+   * So: before reaching for `lg`, ask whether the user is composing prose there. If
+   * they are filling in a record, it is `md`. Scriptorium is the shape of a genuine
+   * exception — and note it does not appear here at all, because it is a separate
+   * editor rather than a taller RichTextEditor.
    */
   lg: "12rem",
 } as const;

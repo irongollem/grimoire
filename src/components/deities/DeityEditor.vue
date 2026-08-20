@@ -173,7 +173,7 @@
         <RichTextEditor
           v-model="form.description"
           placeholder="Origin myth, appearance, worshippers, holy sites…"
-          size="lg"
+          size="md"
         />
       </div>
 

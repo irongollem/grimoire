@@ -170,6 +170,7 @@
     <RichTextEditor
       ref="rteRef"
       v-model="body"
+      size="lg"
       placeholder="Write your note here…"
       allow-upload
       allow-calendar-events

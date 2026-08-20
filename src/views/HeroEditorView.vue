@@ -217,7 +217,7 @@
             <RichTextEditor
               v-model="form.backstory"
               placeholder="Their history and origins…"
-              size="lg"
+              size="md"
             />
           </div>
 
