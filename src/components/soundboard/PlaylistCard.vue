@@ -154,7 +154,7 @@
           tooltip="Next track"
           @click="store.musicPlaylistNext()"
         />
-        <CastButton class="p-1.5 rounded-md border border-border" />
+        <CastButton variant="subtle" size="icon-xs" />
       </template>
 
       <!-- Edit -->
