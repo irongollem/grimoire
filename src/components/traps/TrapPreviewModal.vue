@@ -18,9 +18,15 @@
           <span v-if="trap.cr" class="font-cinzel text-xs text-muted-foreground shrink-0">
             CR {{ trap.cr }} · {{ crToXp(trap.cr) }} XP
           </span>
-          <button type="button" class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0" @click="emit('close')">
-            <IconClose class="h-4 w-4" />
-          </button>
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
+            class="ml-1 shrink-0"
+            @click="emit('close')"
+          />
         </div>
 
         <!-- Scrollable body -->
@@ -161,6 +167,7 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconClose, IconEdit } from '@/lib/icons';
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
+import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { TRAP_TYPE_BG } from "@/types/trap.types";
 import { crToXp } from "@/types/encounter.types";

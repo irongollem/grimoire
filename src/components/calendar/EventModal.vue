@@ -18,13 +18,7 @@
               {{ isSessionNote ? (linkedNote?.title ?? 'Session Note') : (editEvent ? "Edit Event" : "New Event") }}
             </h2>
           </div>
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
-            @click="close"
-          >
-            ✕
-          </button>
+          <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="close" />
         </div>
 
         <!-- Session note read-only view -->
@@ -194,7 +188,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
-import { IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
+import { IconClose, IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";

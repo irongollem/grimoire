@@ -22,13 +22,15 @@
             <h2 id="add-sound-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
               Add Sound
             </h2>
-            <button
-              type="button"
-              class="ml-auto p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              icon-size="md"
+              class="ml-auto"
+              :icon="IconClose"
+              aria-label="Close"
               @click="$emit('close')"
-            >
-              <IconClose class="h-4 w-4" />
-            </button>
+            />
           </div>
 
           <!-- Body -->
@@ -51,6 +53,7 @@
 import { IconClose, IconMusic } from '@/lib/icons';
 import SoundForm from "./SoundForm.vue";
 import { useHotkeys } from "@/composables/useHotkeys";
+import AppButton from "@/components/common/AppButton.vue";
 
 const { open } = defineProps<{
   open: boolean;

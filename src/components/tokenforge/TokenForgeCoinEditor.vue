@@ -5,16 +5,15 @@
     <div>
       <p class="text-label-lg font-semibold text-muted-foreground mb-2">Metal</p>
       <div class="flex flex-wrap gap-2">
-        <button
+        <AppButton
           v-for="m in COIN_METALS"
           :key="m.id"
-          type="button"
-          class="px-3 py-1.5 rounded-md text-label-lg font-semibold border transition-colors"
-          :class="coin.metal === m.id
-            ? 'bg-primary/15 text-primary border-primary/40'
-            : 'text-muted-foreground border-border hover:border-foreground/30'"
+          variant="subtle"
+          size="sm"
+          :active="coin.metal === m.id"
+          :label="m.label"
           @click="emit('update:coin', { ...coin, metal: m.id })"
-        >{{ m.label }}</button>
+        />
       </div>
     </div>
 
@@ -77,19 +76,16 @@
     <div>
       <p class="text-label-lg font-semibold text-muted-foreground mb-2">Print Size</p>
       <div class="flex flex-wrap gap-2">
-        <button
+        <AppButton
           v-for="ps in COIN_PRINT_SIZES"
           :key="ps.id"
-          type="button"
-          class="px-3 py-1.5 rounded-md text-label-lg font-semibold border transition-colors"
-          :class="coin.printSize === ps.id
-            ? 'bg-primary/15 text-primary border-primary/40'
-            : 'text-muted-foreground border-border hover:border-foreground/30'"
+          variant="subtle"
+          size="sm"
+          :active="coin.printSize === ps.id"
           @click="emit('update:coin', { ...coin, printSize: ps.id })"
         >
-          {{ ps.label }}
-          <span class="ml-1 text-caption-sm font-normal opacity-60">~{{ ps.perSheet }}/sheet</span>
-        </button>
+          <span>{{ ps.label }}<span class="ml-1 text-caption-sm font-normal opacity-60">~{{ ps.perSheet }}/sheet</span></span>
+        </AppButton>
       </div>
     </div>
   </div>

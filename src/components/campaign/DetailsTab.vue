@@ -107,12 +107,14 @@
     <div>
       <label class="block text-label-lg font-semibold text-muted-foreground mb-2">THEME</label>
       <div class="flex flex-col gap-1.5">
-        <button
+        <AppButton
           v-for="theme in themes"
           :key="theme.id"
-          type="button"
-          class="flex items-center gap-3 rounded-md border px-3 py-2 transition-colors text-left"
-          :class="form.theme === theme.id ? 'border-primary bg-primary/10' : 'border-border hover:border-border/80 hover:bg-muted/40'"
+          variant="outline"
+          fill="muted"
+          size="md"
+          block
+          :active="form.theme === theme.id"
           @click="form.theme = theme.id"
         >
           <div class="shrink-0 flex gap-1">
@@ -122,7 +124,7 @@
           </div>
           <span class="flex-1 font-cinzel text-xs font-semibold text-foreground tracking-wide">{{ theme.label }}</span>
           <IconCheck v-if="form.theme === theme.id" class="h-3.5 w-3.5 text-primary shrink-0" />
-        </button>
+        </AppButton>
       </div>
     </div>
 
@@ -130,12 +132,14 @@
     <div>
       <label class="block text-label-lg font-semibold text-muted-foreground mb-2">HEALTH VISIBILITY</label>
       <div class="flex flex-col gap-1.5">
-        <button
+        <AppButton
           v-for="opt in HEALTH_VIS_OPTIONS"
           :key="opt.value"
-          type="button"
-          class="flex items-center gap-3 rounded-md border px-3 py-2 transition-colors text-left"
-          :class="form.health_visibility === opt.value ? 'border-primary bg-primary/10' : 'border-border hover:border-border/80 hover:bg-muted/40'"
+          variant="outline"
+          fill="muted"
+          size="md"
+          block
+          :active="form.health_visibility === opt.value"
           @click="form.health_visibility = opt.value"
         >
           <div class="flex-1 min-w-0">
@@ -143,24 +147,14 @@
             <p class="text-caption text-muted-foreground mt-0.5">{{ opt.desc }}</p>
           </div>
           <IconCheck v-if="form.health_visibility === opt.value" class="h-3.5 w-3.5 text-primary shrink-0" />
-        </button>
+        </AppButton>
       </div>
     </div>
 
     <!-- Immersive Rolls -->
     <div>
-      <label class="flex items-start gap-3 cursor-pointer" @click="form.immersive_rolls = !form.immersive_rolls">
-        <div class="shrink-0 mt-0.5">
-          <div
-            class="h-5 w-9 rounded-full border-2 transition-colors relative"
-            :class="form.immersive_rolls ? 'bg-primary border-primary' : 'bg-muted border-border'"
-          >
-            <div
-              class="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform"
-              :class="form.immersive_rolls ? 'translate-x-4' : 'translate-x-0.5'"
-            />
-          </div>
-        </div>
+      <label class="flex items-start gap-3 cursor-pointer">
+        <ToggleSwitch v-model="form.immersive_rolls" size="lg" aria-label="Immersive Rolls" class="shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Immersive Rolls</span>
           <p class="text-caption text-muted-foreground mt-0.5">
@@ -172,18 +166,8 @@
 
     <!-- VTT tokens visible to players -->
     <div>
-      <label class="flex items-start gap-3 cursor-pointer" @click="form.battle_map_show_tokens = !form.battle_map_show_tokens">
-        <div class="shrink-0 mt-0.5">
-          <div
-            class="h-5 w-9 rounded-full border-2 transition-colors relative"
-            :class="form.battle_map_show_tokens ? 'bg-primary border-primary' : 'bg-muted border-border'"
-          >
-            <div
-              class="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform"
-              :class="form.battle_map_show_tokens ? 'translate-x-4' : 'translate-x-0.5'"
-            />
-          </div>
-        </div>
+      <label class="flex items-start gap-3 cursor-pointer">
+        <ToggleSwitch v-model="form.battle_map_show_tokens" size="lg" aria-label="Show VTT tokens to players" class="shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Show VTT tokens to players</span>
           <p class="text-caption text-muted-foreground mt-0.5">
@@ -218,6 +202,7 @@ import type { SettingCalendarDef } from "@/settings/types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import { usePopulateLocations } from "@/composables/useLocations";
 import { usePopulateFactions } from "@/composables/useFactions";

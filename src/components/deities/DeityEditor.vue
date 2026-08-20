@@ -47,14 +47,16 @@
           </div>
         </div>
         <input ref="fileInput" type="file" accept="image/*" class="sr-only" @change="onFileSelected" />
-        <button
+        <AppButton
           v-if="form.symbol_image_url"
-          type="button"
-          class="mt-1 font-cinzel text-2xs text-destructive hover:underline text-left"
+          variant="link"
+          tone="danger"
+          size="inline-xs"
+          class="mt-1"
           @click.stop="form.symbol_image_url = ''"
         >
           Remove symbol image
-        </button>
+        </AppButton>
       </div>
 
       <!-- Pantheon -->

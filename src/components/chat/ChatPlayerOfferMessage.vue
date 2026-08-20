@@ -33,16 +33,17 @@
       </div>
       <!-- Buy button: players who aren't the seller, or DM -->
       <template v-else-if="canBuy">
-        <button
-          type="button"
-          class="mt-1 px-2.5 py-1 rounded border text-label transition-colors"
-          :class="isDM || canAfford
-            ? 'bg-sky-500/20 border-sky-500/40 text-sky-400 hover:bg-sky-500/30'
-            : 'border-border text-muted-foreground/40 cursor-not-allowed'"
+        <AppButton
+          variant="tinted"
+          tone="info"
+          emphasis="soft"
+          size="xs"
+          class="mt-1"
+          :label="isDM ? 'Accept (DM)' : 'Buy'"
           :disabled="!isDM && !canAfford"
-          :title="isDM || canAfford ? 'Buy' : 'Insufficient funds'"
+          :tooltip="isDM || canAfford ? 'Buy' : 'Insufficient funds'"
           @click="emit('buy-player-offer', { messageId })"
-        >{{ isDM ? 'Accept (DM)' : 'Buy' }}</button>
+        />
         <span v-if="!isDM && !canAfford" class="ml-2 text-caption-sm text-destructive/70">Insufficient funds</span>
       </template>
       <p class="text-caption-sm text-muted-foreground/50 mt-1.5">
@@ -54,6 +55,7 @@
 
 <script setup lang="ts">
 import { IconTag } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { COINS } from '@/rules/currency';
 import type { PlayerOfferMetadata } from '@/types/chat.types';
 

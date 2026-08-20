@@ -14,15 +14,15 @@
         :is-loading="sourcesLoading"
       >
         <template #trigger="{ open: pickerOpen, toggle }">
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors shrink-0"
-            :class="pickerOpen ? 'border-primary/50 text-foreground' : ''"
-            title="Manage item sources for this campaign"
+          <AppButton
+            variant="subtle"
+            size="icon-sm"
+            :active="pickerOpen"
+            :icon="IconLibrary"
+            class="shrink-0"
+            tooltip="Manage item sources for this campaign"
             @click="toggle"
-          >
-            <IconLibrary class="size-3.5 shrink-0" />
-          </button>
+          />
         </template>
       </SourcesPickerPanel>
 
@@ -73,6 +73,7 @@
 import { computed } from "vue";
 import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

@@ -29,13 +29,7 @@
     >
       <template #icon><IconNavScriptorium class="h-16 w-16" /></template>
       <template #action>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-          @click="handleNew"
-        >
-          Create your first document
-        </button>
+        <AppButton variant="primary" size="lg" label="Create your first document" @click="handleNew" />
       </template>
     </EmptyState>
 
@@ -160,6 +154,7 @@ const { confirm } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconDelete, IconFaction, IconLock, IconNavScriptorium } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import {
   useScriptoriumDocuments,
   useDeleteScriptoriumDocument,

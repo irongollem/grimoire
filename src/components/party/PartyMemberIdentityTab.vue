@@ -70,12 +70,15 @@
     <div v-if="form.species_id && isShapeshifter" class="col-span-2 rounded-md border border-border/60 bg-muted/20 p-3 flex flex-col gap-3">
       <div class="flex items-center justify-between">
         <span class="text-label-lg font-semibold text-muted-foreground uppercase">Disguise</span>
-        <button
+        <AppButton
           v-if="form.disguise_species_id"
-          type="button"
-          class="text-caption text-muted-foreground hover:text-destructive transition-colors italic"
+          variant="ghost"
+          tone="danger"
+          size="inline-caption"
+          class="italic"
+          label="Clear disguise"
           @click="clearDisguise"
-        >Clear disguise</button>
+        />
       </div>
       <p class="text-caption text-muted-foreground/70 italic -mt-1">
         Other players will see this species' full entry instead of the true race.
@@ -202,6 +205,7 @@ import { computed } from "vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import type { IdentityFormSlice } from "./partyMemberForm.types";
 import { buildEntityContext } from "@/ai/utils";
 

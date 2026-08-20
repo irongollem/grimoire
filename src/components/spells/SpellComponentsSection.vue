@@ -13,17 +13,19 @@
         <span class="font-cinzel text-sm font-semibold text-foreground">{{ c }}</span>
       </label>
     </div>
-    <input
+    <AppInput
       v-if="components.includes('M')"
-      :value="material"
+      :model-value="material"
+      tone="filled"
+      size="body"
       placeholder="Material component (e.g. a pinch of sulfur and powdered iron)…"
-      class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      @input="$emit('update:material', ($event.target as HTMLInputElement).value)"
+      @update:model-value="emit('update:material', $event)"
     />
   </div>
 </template>
 
 <script setup lang="ts">
+import AppInput from "@/components/common/AppInput.vue";
 import { SPELL_COMPONENTS } from "@/types/spell.types";
 
 const { components, material } = defineProps<{

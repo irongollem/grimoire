@@ -8,14 +8,14 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <button
-        type="button"
-        class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+      <AppButton
+        variant="primary"
+        size="sm"
         :disabled="scanning || backfilling"
         @click="runScan"
       >
         {{ scanning ? 'Scanning…' : hasScanned ? 'Re-scan' : 'Scan' }}
-      </button>
+      </AppButton>
       <button
         v-if="hasScanned && totalMissing > 0"
         type="button"
@@ -105,6 +105,7 @@ import {
   type SweepTarget, type MissingVariants,
 } from "@/lib/storage";
 import { IconLoading } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 
 interface SweepRow {
   target: SweepTarget;

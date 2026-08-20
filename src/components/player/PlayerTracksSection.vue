@@ -10,16 +10,17 @@
         />
         <!-- Player-visible buttons for this tracker -->
         <div v-if="visibleButtons(t).length" class="flex flex-wrap gap-1 mt-1">
-          <button
+          <AppButton
             v-for="btn in visibleButtons(t)"
             :key="btn.label"
-            type="button"
+            variant="subtle"
+            surface="card"
+            size="xs"
             :disabled="applying"
-            class="inline-flex items-center px-2 py-0.5 rounded border border-border bg-card font-cinzel text-2xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
             @click="applyButton(t, btn)"
           >
             {{ btn.label }}
-          </button>
+          </AppButton>
         </div>
       </div>
     </div>
@@ -29,6 +30,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import RuleTrackerPanel from "@/components/rules/RuleTrackerPanel.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { useTrackerStates, useApplyTrackerDelta } from "@/composables/useTrackerState";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { useParty } from "@/composables/useParty";

@@ -33,16 +33,17 @@
       </div>
       <!-- Pay button (players with a linked character only) -->
       <template v-else-if="linkedPartyMemberId">
-        <button
-          type="button"
-          class="mt-1 px-2.5 py-1 rounded border text-label transition-colors"
-          :class="canAfford
-            ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/30'
-            : 'border-border text-muted-foreground/40 cursor-not-allowed'"
+        <AppButton
+          variant="tinted"
+          tone="success"
+          emphasis="soft"
+          size="xs"
+          class="mt-1"
+          label="Pay"
           :disabled="!canAfford"
-          :title="canAfford ? 'Pay' : 'Insufficient funds'"
+          :tooltip="canAfford ? 'Pay' : 'Insufficient funds'"
           @click="emit('pay-vendor-offer', { messageId })"
-        >Pay</button>
+        />
         <span v-if="!canAfford" class="ml-2 text-caption-sm text-destructive/70">Insufficient funds</span>
       </template>
       <p class="text-caption-sm text-muted-foreground/50 mt-1.5">
@@ -54,6 +55,7 @@
 
 <script setup lang="ts">
 import { IconShop } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { COINS } from '@/rules/currency';
 import type { VendorOfferMetadata } from '@/types/chat.types';
 

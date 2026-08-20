@@ -50,13 +50,14 @@
         <div class="bg-card rounded-xl border border-border w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
           <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <h2 class="text-heading-sm font-bold text-foreground">{{ modalSpell.name }}</h2>
-            <button
-              type="button"
-              class="text-muted-foreground hover:text-foreground transition-colors"
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              icon-size="md"
+              :icon="IconClose"
+              aria-label="Close"
               @click="modalSpell = null"
-            >
-              <IconClose class="h-4 w-4" />
-            </button>
+            />
           </div>
           <div class="overflow-y-auto p-4">
             <SpellSheet :spell="modalSpell" />
@@ -70,6 +71,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconChevronRight, IconClose } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useSpells } from "@/composables/useSpells";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
 import type { SpellcastingBlock } from "@/types/npc.types";

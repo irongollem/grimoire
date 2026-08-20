@@ -11,12 +11,7 @@
       >
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 class="text-heading font-bold text-foreground">New Campaign</h2>
-          <button
-            class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none"
-            @click="close"
-          >
-            ✕
-          </button>
+          <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="close" />
         </div>
 
         <form class="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto" @submit.prevent="submit">
@@ -143,6 +138,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { IconClose } from "@/lib/icons";
 import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";

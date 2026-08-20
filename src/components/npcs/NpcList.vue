@@ -18,13 +18,7 @@
     >
       <template #icon><IconNavNpcs class="h-16 w-16" /></template>
       <template #action>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-          @click="handleNew"
-        >
-          Add your first NPC
-        </button>
+        <AppButton variant="primary" size="lg" label="Add your first NPC" @click="handleNew" />
       </template>
     </EmptyState>
 
@@ -107,6 +101,7 @@ import { useMediaQuery } from "@vueuse/core";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { IconNavNpcs } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import { useNpcs } from "@/composables/useNpcs";
 import { useNpcPcNotesByPartyMember } from "@/composables/useNpcPcNotes";
 import { useAllLocations, useLocationTree } from "@/composables/useLocations";

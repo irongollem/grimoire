@@ -2,20 +2,14 @@
   <div class="max-w-2xl mx-auto space-y-6">
     <!-- Action bar -->
     <div class="flex items-center justify-end gap-2">
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-destructive px-3 py-2 font-cinzel text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-        @click="handleDelete"
-      >
-        <IconDelete class="h-3.5 w-3.5" />Delete
-      </button>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+      <AppButton variant="destructive" size="md" :icon="IconDelete" label="Delete" @click="handleDelete" />
+      <AppButton
+        variant="primary"
+        size="md"
+        :icon="IconEdit"
+        label="Edit"
         @click="router.push({ query: { ...route.query, edit: 'true' } })"
-      >
-        <IconEdit class="h-3.5 w-3.5" />Edit
-      </button>
+      />
     </div>
 
     <!-- Identity card -->
@@ -175,6 +169,7 @@ import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useDeleteCustomClass } from "@/composables/useCustomClasses";
 import { useAllFeatures } from "@/composables/useFeatures";
+import AppButton from "@/components/common/AppButton.vue";
 import type { CustomClass } from "@/levelup/customTypes";
 
 const props = defineProps<{ cls: CustomClass }>();

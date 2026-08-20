@@ -8,13 +8,14 @@
       <div class="bg-card rounded-lg border border-border p-4 w-72 flex flex-col gap-3">
         <div class="flex items-center justify-between">
           <span class="text-label-lg font-bold">Scene Library</span>
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="emit('close')"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
+          />
         </div>
 
         <p v-if="!images?.length" class="text-caption text-muted-foreground italic text-center py-4">
@@ -42,6 +43,7 @@
 
 <script setup lang="ts">
 import { IconClose } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useChroniclerImages } from "@/composables/useChroniclerImages";
 
 defineProps<{ visible: boolean }>();

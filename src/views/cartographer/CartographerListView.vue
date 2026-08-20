@@ -28,11 +28,14 @@
 
     <template v-else-if="maps?.length">
       <div class="flex flex-wrap items-center gap-2 mb-4">
-        <input
+        <AppInput
           v-model="ui.cartographerSearch"
           type="search"
+          tone="card"
+          size="body"
+          :block="false"
+          class="flex-1 min-w-40"
           placeholder="Search maps…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
@@ -112,6 +115,7 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const router = useRouter();
 const ui = useUiStore();

@@ -16,16 +16,17 @@
       </div>
       <!-- DM buttons -->
       <div class="flex flex-wrap gap-1">
-        <button
+        <AppButton
           v-for="btn in entry.dmButtons"
           :key="btn.label"
-          type="button"
+          variant="subtle"
+          surface="card"
+          size="xs"
           :disabled="applying"
-          class="inline-flex items-center px-2 py-0.5 rounded border border-border bg-card font-cinzel text-2xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
           @click="apply(entry, btn)"
         >
           {{ btn.label }}
-        </button>
+        </AppButton>
       </div>
     </div>
   </div>
@@ -35,6 +36,7 @@
 import { computed, ref } from "vue";
 import { useTrackerStates, useApplyTrackerDelta } from "@/composables/useTrackerState";
 import { useRules } from "@/composables/useRules";
+import AppButton from "@/components/common/AppButton.vue";
 import type { DmButton } from "@/types/rule.types";
 
 const props = defineProps<{

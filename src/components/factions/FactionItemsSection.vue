@@ -13,21 +13,22 @@
           {{ e.item.name }}
         </RouterLink>
         <span class="text-label text-muted-foreground shrink-0 capitalize">{{ e.item.rarity }}</span>
-        <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive transition-colors text-base leading-none" @click="remove(e)">×</button>
+        <AppButton variant="ghost" tone="danger" size="inline-xs" class="shrink-0" label="×" @click="remove(e)" />
       </div>
     </div>
 
     <div class="flex items-center gap-2">
       <EntityCombobox v-model="newItemId" :options="availableItems" placeholder="Add item…" />
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="sm"
+        :icon="IconAdd"
+        icon-size="xs"
+        label="Add"
+        class="shrink-0"
         :disabled="!newItemId || adding"
-        class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="add"
-      >
-        <IconAdd class="h-3 w-3" />
-        Add
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -43,6 +44,7 @@ import {
 } from "@/composables/useFactions";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const props = defineProps<{ factionId: string }>();
 

@@ -13,13 +13,10 @@
     @empty-action="router.push('/traps/new')"
   >
     <template #filters>
-      <select
-        v-model="trapsTypeFilter"
-        class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      <AppSelect v-model="trapsTypeFilter" tone="card" size="body">
         <option value="">All Types</option>
         <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
-      </select>
+      </AppSelect>
     </template>
     <template #card>
       <RouterLink
@@ -60,6 +57,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { useTraps } from "@/composables/useTraps";
 import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();

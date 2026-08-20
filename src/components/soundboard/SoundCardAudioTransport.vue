@@ -2,22 +2,21 @@
   <!-- ── HTML Audio controls ────────────────────── -->
   <div class="flex items-center gap-2">
     <!-- IconPlay / IconPause -->
-    <button
-      class="flex items-center justify-center w-7 h-7 rounded-full border transition-colors shrink-0"
-      :class="
-        playBlocked
-          ? 'border-border text-muted-foreground/30 cursor-not-allowed'
-          : audioState.isPlaying
-          ? 'bg-gold-500/20 border-gold-500/50 text-gold-300 hover:bg-gold-500/30'
-          : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
-      "
-      :title="blockedReason ?? (audioState.isPlaying ? 'Pause' : 'Play')"
+    <AppButton
+      variant="subtle"
+      shape="pill"
+      size="icon-xs"
+      class="shrink-0"
+      :active="audioState.isPlaying"
       :disabled="playBlocked"
+      :tooltip="blockedReason ?? (audioState.isPlaying ? 'Pause' : 'Play')"
       @click="togglePlay"
     >
-      <IconPause v-if="audioState.isPlaying" class="h-3.5 w-3.5" />
-      <IconPlay v-else class="h-3.5 w-3.5 translate-x-px" />
-    </button>
+      <template #icon>
+        <IconPause v-if="audioState.isPlaying" class="h-3.5 w-3.5" />
+        <IconPlay v-else class="h-3.5 w-3.5 translate-x-px" />
+      </template>
+    </AppButton>
 
     <!-- Stop -->
     <button
@@ -72,6 +71,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconPause, IconPlay, IconStop } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import { useSoundboardStore } from "@/stores/soundboard";

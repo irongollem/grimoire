@@ -4,14 +4,15 @@
     <div class="space-y-3">
       <div class="flex items-center justify-between">
         <h1 class="text-heading-lg font-bold text-foreground">Forge a Simulacrum</h1>
-        <button
-          type="button"
-          class="text-muted-foreground hover:text-foreground transition-colors"
-          title="Cancel"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          icon-size="md"
+          :icon="IconClose"
+          tooltip="Cancel"
+          aria-label="Cancel"
           @click="router.push('/minis')"
-        >
-          <IconClose class="h-4 w-4" />
-        </button>
+        />
       </div>
 
       <div v-if="sourceEntity" class="flex items-center gap-2.5">
@@ -71,6 +72,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import WizardStepIndicator from "@/components/common/WizardStepIndicator.vue";
 import type { WizardStep } from "@/components/common/WizardStepIndicator.vue";
 import { IconClose } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import MiniFormatStep from "@/components/simulacrum/MiniFormatStep.vue";
 import MiniStylizeStep from "@/components/simulacrum/MiniStylizeStep.vue";
 import MiniSculptStep from "@/components/simulacrum/MiniSculptStep.vue";

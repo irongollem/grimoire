@@ -11,13 +11,7 @@
     >
       <template #icon><IconNavBestiary class="h-16 w-16" /></template>
       <template #action>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-          @click="handleNew"
-        >
-          Add your first monster
-        </button>
+        <AppButton variant="primary" size="lg" label="Add your first monster" @click="handleNew" />
       </template>
     </EmptyState>
 
@@ -90,6 +84,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { IconNavBestiary } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";

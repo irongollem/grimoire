@@ -9,21 +9,17 @@
             When enabled, a promo code field appears on the Stripe checkout page. Disable when no active promotion is running so users don't wonder if they're missing out.
           </p>
         </div>
-        <button
-          class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus:outline-none"
-          :class="checkoutConfig.data.value?.promo_codes_enabled ? 'bg-primary' : 'bg-muted'"
+        <ToggleSwitch
+          size="lg"
+          :model-value="!!checkoutConfig.data.value?.promo_codes_enabled"
           :disabled="checkoutConfig.update.isPending.value"
-          @click="
+          aria-label="Promotion Codes"
+          @update:model-value="
             checkoutConfig.update.mutate({
               promo_codes_enabled: !checkoutConfig.data.value?.promo_codes_enabled,
             })
           "
-        >
-          <span
-            class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
-            :class="checkoutConfig.data.value?.promo_codes_enabled ? 'translate-x-5' : 'translate-x-0.5'"
-          />
-        </button>
+        />
       </div>
     </div>
 
@@ -37,21 +33,17 @@
             checkout CTAs return. Toggling automatically rebuilds the marketing site (takes a minute or two).
           </p>
         </div>
-        <button
-          class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus:outline-none"
-          :class="checkoutConfig.data.value?.pro_signup_open ? 'bg-primary' : 'bg-muted'"
+        <ToggleSwitch
+          size="lg"
+          :model-value="!!checkoutConfig.data.value?.pro_signup_open"
           :disabled="checkoutConfig.update.isPending.value"
-          @click="
+          aria-label="Pro Signup (marketing site)"
+          @update:model-value="
             checkoutConfig.update.mutate({
               pro_signup_open: !checkoutConfig.data.value?.pro_signup_open,
             })
           "
-        >
-          <span
-            class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
-            :class="checkoutConfig.data.value?.pro_signup_open ? 'translate-x-5' : 'translate-x-0.5'"
-          />
-        </button>
+        />
       </div>
     </div>
 
@@ -217,6 +209,7 @@ import { useAdminCalibration } from "@/composables/useAdminCalibration";
 import type { CalibrationHint } from "@/composables/useAdminCalibration";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 
 const pricingQuery = useAdminPricing();
 const calibrationQuery = useAdminCalibration();

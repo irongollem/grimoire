@@ -1,14 +1,7 @@
 <template>
   <PageHeader :title="pageTitle" :description="pageDescription">
     <template v-if="isNew || isEditing" #actions>
-      <button
-        v-if="!isNew"
-        type="button"
-        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
-        @click="onCancel"
-      >
-        Cancel
-      </button>
+      <AppButton v-if="!isNew" variant="subtle" size="md" label="Cancel" @click="onCancel" />
       <DetailActions :detail-ref="detailRef" :exists="!!background" />
     </template>
 
@@ -24,6 +17,7 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useBackground } from "@/composables/useBackgrounds";
+import AppButton from "@/components/common/AppButton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DetailActions from "@/components/common/DetailActions.vue";

@@ -21,13 +21,15 @@
             <h2 id="hotkey-sheet-title" class="font-cinzel text-sm font-bold tracking-wide text-foreground">
               Keyboard shortcuts
             </h2>
-            <button
-              type="button"
-              class="ml-auto rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              icon-size="md"
+              class="ml-auto"
+              :icon="IconClose"
+              aria-label="Close"
               @click="$emit('close')"
-            >
-              <IconClose class="h-4 w-4" />
-            </button>
+            />
           </div>
 
           <div class="max-h-[60vh] overflow-y-auto px-5 py-4">
@@ -66,6 +68,7 @@
 import { computed } from "vue";
 import { IconClose, IconKeyboard } from "@/lib/icons";
 import { useActiveHotkeys, useHotkeys, type HotkeyLayer } from "@/composables/useHotkeys";
+import AppButton from "@/components/common/AppButton.vue";
 
 const { open } = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: [] }>();

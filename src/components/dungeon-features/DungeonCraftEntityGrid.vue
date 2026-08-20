@@ -4,12 +4,14 @@
   </div>
   <template v-else-if="items?.length">
     <div class="flex flex-wrap items-center gap-2 mb-4">
-      <input
-        :value="search"
+      <AppInput
+        v-model="searchModel"
         type="search"
+        tone="card"
+        size="body"
+        :block="false"
+        class="flex-1 min-w-40"
         :placeholder="searchPlaceholder"
-        class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="emit('update:search', ($event.target as HTMLInputElement).value)"
       />
       <slot name="filters" />
     </div>
@@ -31,8 +33,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const {
   items,
@@ -62,4 +66,12 @@ const emit = defineEmits<{
   "update:search": [value: string];
   "empty-action": [];
 }>();
+
+// AppInput requires a v-model; this component receives its search value as a
+// prop and re-emits `update:search`, so the model is a writable proxy over
+// that prop/emit pair rather than a local ref.
+const searchModel = computed({
+  get: () => search,
+  set: (value: string) => emit("update:search", value),
+});
 </script>

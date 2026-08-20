@@ -21,13 +21,15 @@
             <h2 id="board-settings-title" class="font-cinzel text-sm font-bold tracking-wide text-foreground">
               Board settings
             </h2>
-            <button
-              type="button"
-              class="ml-auto rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              icon-size="md"
+              class="ml-auto"
+              :icon="IconClose"
+              aria-label="Close"
               @click="emit('close')"
-            >
-              <IconClose class="h-4 w-4" />
-            </button>
+            />
           </div>
 
           <!--
@@ -151,6 +153,7 @@ import { useHotkeys } from "@/composables/useHotkeys";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
 import { useSoundboardStore } from "@/stores/soundboard";
+import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import type { PadSize } from "@/types/sound.types";
 import { useUiStore } from "@/stores/ui";

@@ -34,12 +34,12 @@
               class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               @click="$emit('update:modelValue', false)"
             >Cancel</button>
-            <button
-              type="button"
+            <AppButton
+              variant="primary"
+              size="sm"
               :disabled="!locationId || baking"
-              class="px-4 py-1.5 rounded-md text-label-lg font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
               @click="$emit('save', locationId)"
-            >{{ baking ? "Baking…" : "Save to Atlas" }}</button>
+            >{{ baking ? "Baking…" : "Save to Atlas" }}</AppButton>
           </div>
         </div>
       </div>
@@ -49,6 +49,7 @@
 
 <script setup lang="ts">
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 interface LocationOption {
   id: string;

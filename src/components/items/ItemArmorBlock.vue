@@ -5,17 +5,20 @@
     </h3>
     <label class="flex flex-col gap-1">
       <span class="text-eyebrow text-muted-foreground">Armor Class</span>
-      <input
-        :value="armorClass"
+      <AppInput
+        :model-value="armorClass"
+        tone="filled"
+        size="body"
         placeholder="e.g. 13 + DEX modifier (max 2)"
-        class="bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="emit('update:armorClass', ($event.target as HTMLInputElement).value)"
+        @update:model-value="emit('update:armorClass', $event)"
       />
     </label>
   </div>
 </template>
 
 <script setup lang="ts">
+import AppInput from "@/components/common/AppInput.vue";
+
 const { armorClass = "" } = defineProps<{
   armorClass?: string;
 }>();

@@ -15,26 +15,23 @@
           class="font-cinzel text-2xs font-semibold text-foreground hover:text-primary transition-colors"
         >{{ e.faction.name }}</RouterLink>
         <span v-if="e.faction.faction_type" class="text-caption-sm text-muted-foreground italic">{{ e.faction.faction_type }}</span>
-        <button
-          type="button"
-          class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none shrink-0"
-          @click="remove(e)"
-        >×</button>
+        <AppButton variant="ghost" tone="danger" size="inline-xs" class="shrink-0" label="×" @click="remove(e)" />
       </div>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">No factions worship this deity.</p>
 
     <div class="flex items-center gap-2 mt-1">
       <EntityCombobox v-model="newFactionId" :options="availableFactions" placeholder="Add faction…" />
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="sm"
+        :icon="IconAdd"
+        icon-size="xs"
+        label="Add"
+        class="shrink-0"
         :disabled="!newFactionId || adding"
-        class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="add"
-      >
-        <IconAdd class="h-3 w-3" />
-        Add
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -53,6 +50,7 @@ import type { FactionDeity } from "@/types/faction.types";
 import type { Faction } from "@/types/faction.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const props = defineProps<{ deityId: string }>();
 

@@ -4,6 +4,7 @@ import type { PartyMember } from "@/types/party.types";
 import { useCampaignSpecies } from "@/composables/useSpecies";
 import { useSetShapeshifterAppearance, useClearShapeshifterAppearance } from "@/composables/useParty";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const props = defineProps<{ member: PartyMember }>();
 
@@ -33,15 +34,16 @@ function onAppearanceSelected(id: string) {
       <span class="text-label-lg font-semibold text-muted-foreground uppercase">
         Current Appearance
       </span>
-      <button
+      <AppButton
         v-if="member.disguise_species_id"
-        type="button"
-        class="text-caption text-muted-foreground hover:text-destructive transition-colors italic"
+        variant="ghost"
+        tone="danger"
+        size="inline-caption"
+        class="italic"
         :disabled="clearing"
+        :label="clearing ? 'Reverting…' : 'Revert to true form'"
         @click="clearAppearance(member.id)"
-      >
-        {{ clearing ? 'Reverting…' : 'Revert to true form' }}
-      </button>
+      />
     </div>
     <p v-if="!member.disguise_species_id" class="text-body text-muted-foreground/60 italic">
       Showing true form — pick a species below to take on a disguise.

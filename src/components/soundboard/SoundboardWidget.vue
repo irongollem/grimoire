@@ -116,24 +116,34 @@
                 {{ formatSpotifyTime(spotifyStore.durationMs) }}
               </span>
               <!-- IconRepeat -->
-              <button
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                :active="spotifyStore.repeatMode > 0"
+                :tone="spotifyStore.repeatMode > 0 ? 'success' : 'neutral'"
                 class="shrink-0 transition-all opacity-40 [@media(hover:hover)]:opacity-0 group-hover/spotify:opacity-100"
-                :class="spotifyStore.repeatMode > 0 ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
-                :title="repeatTitle"
+                :tooltip="repeatTitle"
                 @click="cycleRepeat"
               >
-                <IconRepeatOne v-if="spotifyStore.repeatMode === 2" class="h-2.5 w-2.5" />
-                <IconRepeat v-else class="h-2.5 w-2.5" />
-              </button>
+                <template #icon>
+                  <IconRepeatOne v-if="spotifyStore.repeatMode === 2" class="h-2.5 w-2.5" />
+                  <IconRepeat v-else class="h-2.5 w-2.5" />
+                </template>
+              </AppButton>
               <!-- IconShuffle -->
-              <button
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                :active="spotifyStore.shuffleOn"
+                :tone="spotifyStore.shuffleOn ? 'success' : 'neutral'"
                 class="shrink-0 transition-all opacity-40 [@media(hover:hover)]:opacity-0 group-hover/spotify:opacity-100"
-                :class="spotifyStore.shuffleOn ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'"
-                title="Shuffle"
+                tooltip="Shuffle"
                 @click="spotifyStore.setShuffle(!spotifyStore.shuffleOn)"
               >
-                <IconShuffle class="h-2.5 w-2.5" />
-              </button>
+                <template #icon>
+                  <IconShuffle class="h-2.5 w-2.5" />
+                </template>
+              </AppButton>
             </div>
           </div>
 

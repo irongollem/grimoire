@@ -105,14 +105,17 @@
           </div>
 
           <!-- Select button (shown in selectMode) -->
-          <button
+          <AppButton
             v-if="selectMode"
-            type="button"
-            class="relative z-10 mt-2 w-full rounded-md border border-primary/60 bg-primary/10 px-3 py-1.5 font-cinzel text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+            variant="tinted"
+            tone="primary"
+            emphasis="soft"
+            size="sm"
+            block
+            class="relative z-10 mt-2"
+            label="Select"
             @click.stop="emit('select', s)"
-          >
-            Select
-          </button>
+          />
         </div>
 
         <!-- Edit button — DM mode only, not shown for srd (shared) species cards -->
@@ -151,6 +154,7 @@ import { useScrollRestore } from "@/composables/useScrollRestore";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const { selectMode } = defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
 const emit = defineEmits<{ select: [species: Species] }>();

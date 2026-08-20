@@ -39,19 +39,22 @@
         <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
           Lv {{ memberLevelDisplay(member.id, member.level) }}
         </span>
-        <select
+        <AppSelect
           v-if="partyMemberIds.includes(member.id)"
-          :value="partyMemberFactions[member.id] ?? 'players'"
-          class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          :model-value="partyMemberFactions[member.id] ?? 'players'"
+          tone="filled"
+          size="xs"
+          weight="normal"
+          class="shrink-0"
           :style="{
             borderColor:
               factions.find((f) => f.id === (partyMemberFactions[member.id] ?? 'players'))?.color ?? undefined,
           }"
           @click.stop
-          @change="(e) => $emit('set-member-faction', member.id, (e.target as HTMLSelectElement).value)"
+          @update:model-value="(v) => $emit('set-member-faction', member.id, v)"
         >
           <option v-for="f in factions" :key="f.id" :value="f.id">{{ f.name }}</option>
-        </select>
+        </AppSelect>
       </label>
 
       <!-- Companions -->
@@ -82,19 +85,22 @@
           <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
             {{ comp.current_hp }}/{{ comp.max_hp }} HP
           </span>
-          <select
+          <AppSelect
             v-if="companionIds.includes(comp.id)"
-            :value="partyMemberFactions[comp.id] ?? 'players'"
-            class="shrink-0 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-2xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            :model-value="partyMemberFactions[comp.id] ?? 'players'"
+            tone="filled"
+            size="xs"
+            weight="normal"
+            class="shrink-0"
             :style="{
               borderColor:
                 factions.find((f) => f.id === (partyMemberFactions[comp.id] ?? 'players'))?.color ?? undefined,
             }"
             @click.stop
-            @change="(e) => $emit('set-member-faction', comp.id, (e.target as HTMLSelectElement).value)"
+            @update:model-value="(v) => $emit('set-member-faction', comp.id, v)"
           >
             <option v-for="f in factions" :key="f.id" :value="f.id">{{ f.name }}</option>
-          </select>
+          </AppSelect>
         </label>
       </template>
     </div>
@@ -110,6 +116,7 @@ import type { PartyMember } from '@/types/party.types';
 import type { Companion } from '@/types/companion.types';
 import type { FactionDef } from '@/types/encounter.types';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
+import AppSelect from '@/components/common/AppSelect.vue';
 
 const {
   party = null,

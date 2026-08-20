@@ -57,22 +57,22 @@
       </button>
 
       <!-- IconPlay / IconPause -->
-      <button
-        class="flex items-center justify-center w-7 h-7 rounded-full border transition-colors shrink-0"
-        :class="
-          !spotifyStore.isReady
-            ? 'border-border text-muted-foreground/30 cursor-not-allowed'
-            : isActive && spotifyStore.isPlaying
-            ? 'bg-green-500/20 border-green-500/50 text-green-300 hover:bg-green-500/30'
-            : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
-        "
-        :title="!spotifyStore.isReady ? 'Spotify connecting…' : isActive && spotifyStore.isPlaying ? 'Pause' : 'Play'"
+      <AppButton
+        variant="subtle"
+        shape="pill"
+        size="icon-xs"
+        class="shrink-0"
+        :active="isActive && spotifyStore.isPlaying"
+        :tone="isActive && spotifyStore.isPlaying ? 'success' : undefined"
         :disabled="!spotifyStore.isReady"
+        :tooltip="!spotifyStore.isReady ? 'Spotify connecting…' : isActive && spotifyStore.isPlaying ? 'Pause' : 'Play'"
         @click="toggleSpotify"
       >
-        <IconPause v-if="isActive && spotifyStore.isPlaying" class="h-3.5 w-3.5" />
-        <IconPlay v-else class="h-3.5 w-3.5 translate-x-px" />
-      </button>
+        <template #icon>
+          <IconPause v-if="isActive && spotifyStore.isPlaying" class="h-3.5 w-3.5" />
+          <IconPlay v-else class="h-3.5 w-3.5 translate-x-px" />
+        </template>
+      </AppButton>
 
       <!-- Next (only when active) -->
       <button

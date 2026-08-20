@@ -98,12 +98,14 @@
               class="text-label font-semibold text-center"
               :style="{ color: coin.color }"
             >{{ coin.label }}</label>
-            <input
-              :value="pool[coin.key as keyof typeof pool]"
+            <AppInput
+              :model-value="pool[coin.key as keyof typeof pool]"
               type="number"
               min="0"
-              class="w-full text-center bg-card border border-border rounded px-1 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-              @input="updatePool(pool.id, coin.key, Number(($event.target as HTMLInputElement).value) || 0)"
+              tone="card"
+              size="caption"
+              align="center"
+              @update:model-value="updatePool(pool.id, coin.key, Number($event) || 0)"
             />
           </div>
         </div>

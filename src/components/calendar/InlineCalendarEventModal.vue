@@ -9,7 +9,7 @@
         <!-- Header -->
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 class="text-heading-sm font-bold text-foreground">Add Calendar Event</h2>
-          <button type="button" class="text-muted-foreground hover:text-foreground transition-colors text-xl leading-none" @click="close">✕</button>
+          <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="close" />
         </div>
 
         <!-- Form -->
@@ -117,6 +117,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";

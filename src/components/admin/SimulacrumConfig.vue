@@ -39,13 +39,14 @@
       </p>
 
       <div class="flex items-center gap-2">
-        <button
-          class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+        <AppButton
+          variant="primary"
+          size="sm"
           :disabled="update.isPending.value || localMode === query.data.value?.mode"
           @click="save"
         >
           {{ update.isPending.value ? 'Saving…' : 'Save' }}
-        </button>
+        </AppButton>
         <span v-if="saved" class="text-caption text-green-500 self-center">Saved.</span>
       </div>
 
@@ -71,6 +72,7 @@ import { useFeatureInterestCount } from "@/composables/useFeatureInterest";
 import { useAdminKeys } from "@/composables/useAdminKeys";
 import { SIMULACRUM_FEATURE_KEY, type SimulacrumMode } from "@/types/mini.types";
 import PlatformKeyField from "@/components/admin/PlatformKeyField.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const { query } = useSimulacrumConfig();
 const update = useUpdateSimulacrumMode();

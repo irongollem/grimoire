@@ -13,13 +13,10 @@
     @empty-action="router.push('/dungeon-features/new')"
   >
     <template #filters>
-      <select
-        v-model="featuresTypeFilter"
-        class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      <AppSelect v-model="featuresTypeFilter" tone="card" size="body">
         <option value="">All Types</option>
         <option v-for="t in DUNGEON_FEATURE_TYPES" :key="t" :value="t">{{ t }}</option>
-      </select>
+      </AppSelect>
     </template>
     <template #card>
       <RouterLink
@@ -64,6 +61,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { useDungeonFeatures } from "@/composables/useDungeonFeatures";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_BG } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();

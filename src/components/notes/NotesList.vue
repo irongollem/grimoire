@@ -26,13 +26,7 @@
     >
       <template #icon><IconNavNotes class="h-16 w-16" /></template>
       <template #action>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
-          @click="handleNew"
-        >
-          Write your first note
-        </button>
+        <AppButton variant="primary" size="lg" label="Write your first note" @click="handleNew" />
       </template>
     </EmptyState>
 
@@ -83,6 +77,7 @@ import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
 import { IconNavNotes } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import { useNotes, useReorderNotes } from "@/composables/useNotes";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

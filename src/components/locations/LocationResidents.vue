@@ -8,14 +8,13 @@
           >({{ locationNpcs.length }})</span
         >
       </h2>
-      <button
+      <AppButton
         v-if="locationNpcs.length > 3"
-        type="button"
-        class="text-label text-muted-foreground hover:text-foreground transition-colors"
+        variant="ghost"
+        size="inline-xs"
+        :label="npcsExpanded ? 'Show less' : `Show all ${locationNpcs.length}`"
         @click="npcsExpanded = !npcsExpanded"
-      >
-        {{ npcsExpanded ? "Show less" : `Show all ${locationNpcs.length}` }}
-      </button>
+      />
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       <RouterLink
@@ -112,14 +111,15 @@
         class="text-caption-sm text-muted-foreground italic"
         >{{ m.class }}</span
       >
-      <button
-        type="button"
-        class="text-muted-foreground hover:text-destructive transition-colors text-sm leading-none ml-1"
-        title="Remove from this location"
+      <AppButton
+        variant="ghost"
+        tone="danger"
+        size="inline-xs"
+        class="ml-1"
+        label="×"
+        tooltip="Remove from this location"
         @click="removeMember(m.id)"
-      >
-        ×
-      </button>
+      />
     </div>
   </div>
   <p v-else class="text-caption text-muted-foreground italic">
@@ -133,14 +133,14 @@
       :options="availableMembers"
       placeholder="Move a party member here…"
     />
-    <button
-      type="button"
+    <AppButton
+      variant="primary"
+      size="sm"
+      label="Move here"
+      class="shrink-0"
       :disabled="!newResidentId || movingMember"
-      class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
       @click="addMember"
-    >
-      Move here
-    </button>
+    />
   </div>
 </template>
 
@@ -148,6 +148,7 @@
 import { ref, computed } from 'vue';
 import { IconChevronRight } from '@/lib/icons';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
+import AppButton from '@/components/common/AppButton.vue';
 import { useParty, useUpdatePartyMember } from '@/composables/useParty';
 import { useNpcsByLocations } from '@/composables/useNpcs';
 import { useEncountersByLocation } from '@/composables/useEncounters';

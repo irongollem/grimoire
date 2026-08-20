@@ -31,14 +31,17 @@
 
     <!-- Former members -->
     <div v-if="formerMembers.length">
-      <button
-        type="button"
-        class="flex items-center gap-1.5 text-eyebrow font-semibold text-muted-foreground hover:text-foreground transition-colors mb-1.5"
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        class="uppercase mb-1.5"
         @click="showFormer = !showFormer"
       >
-        <IconChevronDown class="h-3 w-3 transition-transform" :class="showFormer && 'rotate-180'" />
+        <template #icon>
+          <IconChevronDown class="h-3 w-3 transition-transform" :class="showFormer && 'rotate-180'" />
+        </template>
         Former Members ({{ formerMembers.length }})
-      </button>
+      </AppButton>
 
       <div v-if="showFormer" class="flex flex-col gap-1.5">
         <FactionMemberRow
@@ -75,15 +78,16 @@
         :options="availableMembers"
         placeholder="Add party member…"
       />
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="sm"
+        :icon="IconAdd"
+        icon-size="xs"
+        label="Add"
+        class="shrink-0"
         :disabled="!newMemberId || adding"
-        class="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 font-cinzel text-xs font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
         @click="addMember"
-      >
-        <IconAdd class="h-3 w-3" />
-        Add
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -106,6 +110,7 @@ import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import FactionMemberRow from "@/components/factions/FactionMemberRow.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const props = defineProps<{ factionId: string }>();
 

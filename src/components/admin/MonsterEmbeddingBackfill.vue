@@ -13,14 +13,14 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <button
-        type="button"
-        class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+      <AppButton
+        variant="primary"
+        size="sm"
         :disabled="isRunning"
         @click="runBackfill"
       >
         {{ isRunning ? 'Running…' : 'Re-embed all content' }}
-      </button>
+      </AppButton>
       <button
         v-if="isRunning"
         type="button"
@@ -44,6 +44,7 @@
 // implementation and ONE in-flight run instead of two copies of the same loop.
 import { useEmbeddingBackfill, BATCH_LIMIT } from "@/composables/useEmbeddingBackfill";
 import EmbeddingBackfillStatus from "@/components/admin/EmbeddingBackfillStatus.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const { isRunning, stopRequested, runBackfill, stopBackfill } = useEmbeddingBackfill();
 </script>

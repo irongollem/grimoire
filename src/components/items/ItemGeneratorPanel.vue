@@ -94,17 +94,7 @@
         <div v-if="isAiEnabled" class="space-y-2">
           <div class="flex items-center justify-between">
             <span class="text-caption text-muted-foreground">Generate item art</span>
-            <button
-              type="button"
-              class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none"
-              :class="generateImage ? 'bg-primary' : 'bg-muted border border-border'"
-              @click="generateImage = !generateImage"
-            >
-              <span
-                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow-sm"
-                :class="generateImage ? 'translate-x-4.5' : 'translate-x-0.5'"
-              />
-            </button>
+            <ToggleSwitch v-model="generateImage" aria-label="Generate item art" />
           </div>
           <div class="flex items-center justify-between">
             <span class="text-caption text-muted-foreground">Make it cursed <span class="text-muted-foreground/50">(AI chooses the curse)</span></span>
@@ -208,6 +198,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useItemGeneration } from "@/ai/useItemGeneration";

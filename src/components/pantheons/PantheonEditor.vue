@@ -34,14 +34,16 @@
           </div>
         </div>
         <input ref="fileInput" type="file" accept="image/*" class="sr-only" @change="onFileSelected" />
-        <button
+        <AppButton
           v-if="form.emblem_url"
-          type="button"
-          class="mt-1 font-cinzel text-2xs text-destructive hover:underline text-left"
+          variant="link"
+          tone="danger"
+          size="inline-xs"
+          class="mt-1"
           @click.stop="form.emblem_url = ''"
         >
           Remove emblem
-        </button>
+        </AppButton>
       </div>
 
       <!-- Visibility -->
@@ -97,6 +99,7 @@ import { useImageUpload } from "@/composables/useImageUpload";
 import { useCreatePantheon, useUpdatePantheon, useDeletePantheon } from "@/composables/useDeities";
 import type { Pantheon } from "@/types/deity.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";

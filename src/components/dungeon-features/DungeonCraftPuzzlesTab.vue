@@ -13,20 +13,14 @@
     @empty-action="router.push('/puzzles/new')"
   >
     <template #filters>
-      <select
-        v-model="puzzlesTypeFilter"
-        class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      <AppSelect v-model="puzzlesTypeFilter" tone="card" size="body">
         <option value="">All Types</option>
         <option v-for="t in PUZZLE_TYPES" :key="t" :value="t">{{ t }}</option>
-      </select>
-      <select
-        v-model="puzzlesDifficultyFilter"
-        class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      >
+      </AppSelect>
+      <AppSelect v-model="puzzlesDifficultyFilter" tone="card" size="body">
         <option value="">All Difficulties</option>
         <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
-      </select>
+      </AppSelect>
     </template>
     <template #card>
       <RouterLink
@@ -75,6 +69,7 @@ import { RouterLink, useRouter } from "vue-router";
 import { usePuzzles } from "@/composables/usePuzzles";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();

@@ -19,14 +19,7 @@
         >
           Export Sheet
         </RouterLink>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-          @click="editOpen = true"
-        >
-          <IconEdit class="h-3.5 w-3.5" />
-          Edit
-        </button>
+        <AppButton variant="primary" size="md" :icon="IconEdit" label="Edit" @click="editOpen = true" />
       </template>
     </div>
 
@@ -50,6 +43,7 @@ import { useRoute, RouterLink } from "vue-router";
 import { IconEdit } from '@/lib/icons';
 import { useParty } from "@/composables/useParty";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 // Lazy-load to avoid pulling Tiptap into the same chunk (prevents TDZ init error)
 const PartyMemberForm = defineAsyncComponent(
