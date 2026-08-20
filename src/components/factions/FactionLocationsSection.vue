@@ -1,41 +1,28 @@
 <template>
-  <div class="flex flex-col gap-3">
-    <h2 class="text-label-lg font-semibold text-muted-foreground uppercase">Locations</h2>
-
-    <div v-if="entries?.length" class="flex flex-col gap-1.5">
-      <div
-        v-for="e in entries"
-        :key="e.id"
-        class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
-      >
-        <IconLocation class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        <RouterLink :to="`/locations/${e.location.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
-          {{ e.location.name }}
-        </RouterLink>
-        <span class="text-label text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[e.location.location_type] }}</span>
-        <AppButton variant="ghost" tone="danger" size="inline-xs" class="shrink-0" label="×" @click="remove(e)" />
-      </div>
-    </div>
-
-    <div class="flex items-center gap-2">
-      <EntityCombobox v-model="newLocationId" :options="availableLocations" placeholder="Add location…" />
-      <AppButton
-        variant="primary"
-        size="sm"
-        :icon="IconAdd"
-        icon-size="xs"
-        label="Add"
-        class="shrink-0"
-        :disabled="!newLocationId || adding"
-        @click="add"
-      />
-    </div>
-  </div>
+  <EntityLinkSection
+    v-model="newLocationId"
+    :entries="entries ?? []"
+    :options="availableLocations"
+    heading="Locations"
+    placeholder="Add location…"
+    :adding="adding"
+    remove-label="location"
+    @add="add"
+    @remove="remove"
+  >
+    <template #entry="{ entry }">
+      <IconLocation class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+      <RouterLink :to="`/locations/${entry.location.id}`" class="font-cinzel text-xs font-semibold text-foreground hover:text-primary transition-colors flex-1 truncate">
+        {{ entry.location.name }}
+      </RouterLink>
+      <span class="text-label text-muted-foreground shrink-0">{{ LOCATION_TYPE_LABELS[entry.location.location_type] }}</span>
+    </template>
+  </EntityLinkSection>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconAdd, IconLocation } from '@/lib/icons';
+import { IconLocation } from '@/lib/icons';
 import {
   useFactionLocations,
   useAddFactionLocation,
@@ -44,8 +31,7 @@ import {
 } from "@/composables/useFactions";
 import { useAllLocations } from "@/composables/useLocations";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import AppButton from "@/components/common/AppButton.vue";
+import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
 
 const props = defineProps<{ factionId: string }>();
 
