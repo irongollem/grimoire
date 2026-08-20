@@ -7,9 +7,10 @@
     <!-- Header row -->
     <div class="w-full flex items-stretch">
       <!-- Main bar: toggle children when present, otherwise open details (favourites are flat). -->
-      <button
-        type="button"
-        class="flex-1 flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left min-w-0"
+      <AppButton
+        variant="menu"
+        size="lg"
+        class="flex-1 min-w-0"
         @click="onMainClick"
       >
         <span
@@ -26,30 +27,44 @@
           class="h-3.5 w-3.5 text-muted-foreground transition-transform duration-150 shrink-0"
           :class="childrenOpen ? 'rotate-180' : ''"
         />
-      </button>
+      </AppButton>
 
       <!-- Star: toggle favourite (style differs in fav section vs. main list) -->
-      <button
-        type="button"
-        class="shrink-0 flex items-center gap-1.5 px-3 hover:bg-muted/30 transition-colors border-l border-border"
-        :class="isFavourite ? 'text-amber-400 hover:text-amber-300' : 'text-muted-foreground hover:text-amber-400'"
-        :title="isFavourite ? 'Remove from favourites' : 'Add to favourites'"
+      <!--
+        The selected state is the glyph's colour, not a box. `:active` would be
+        the obvious prop and is deliberately not used: it paints a background
+        tint, and a favourite star never had one — a chip appearing behind the
+        star is a different control. AppButton has no "selected without a box"
+        state (15 sites across the app want one), so the state colour is the one
+        token this call site overrides, which is the sanctioned case; the box
+        itself still comes entirely from the primitive.
+      -->
+      <AppButton
+        variant="ghost"
+        fill="muted"
+        size="sm"
+        class="shrink-0 border-l border-border"
+        :class="isFavourite ? 'text-amber-400 hover:text-amber-300' : 'hover:text-amber-400'"
+        :tooltip="isFavourite ? 'Remove from favourites' : 'Add to favourites'"
         @click.stop="$emit('toggle-favourite', loc.id)"
       >
-        <IconStar class="h-3.5 w-3.5 shrink-0" :class="isFavourite ? 'fill-current' : ''" />
-      </button>
+        <template #icon>
+          <IconStar class="h-3.5 w-3.5 shrink-0" :class="isFavourite ? 'fill-current' : ''" />
+        </template>
+      </AppButton>
 
       <!-- Details toggle -->
-      <button
-        type="button"
-        class="shrink-0 flex items-center gap-1.5 px-3 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-l border-border"
-        :class="detailOpen ? 'text-foreground' : ''"
-        :title="detailOpen ? 'Hide details' : 'Show details'"
+      <AppButton
+        variant="ghost"
+        fill="muted"
+        size="sm"
+        :icon="IconReveal"
+        :class="['shrink-0 border-l border-border', detailOpen ? 'text-foreground' : '']"
+        :tooltip="detailOpen ? 'Hide details' : 'Show details'"
         @click="$emit('toggle-detail', loc.id)"
       >
-        <IconReveal class="h-3.5 w-3.5 shrink-0" />
         <span class="hidden sm:inline text-label md:text-sm">Details</span>
-      </button>
+      </AppButton>
     </div>
 
     <!-- Detail panel (rendered by parent via slot to keep expand state there) -->
@@ -60,6 +75,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconChevronDown, IconReveal, IconStar } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import { LOCATION_TYPE_COLORS, LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Location } from "@/types/location.types";

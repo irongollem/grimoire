@@ -7,11 +7,12 @@
       <div class="flex-1 space-y-1">
         <label class="block">
           <span class="sr-only">{{ label }} name</span>
-          <input
-            :value="entry.name"
+          <AppInput
+            :model-value="entry.name"
+            tone="filled"
+            size="body"
             placeholder="Name"
-            class="w-full bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @input="update(i, 'name', ($event.target as HTMLInputElement).value)"
+            @update:model-value="(v) => update(i, 'name', v)"
           />
         </label>
         <RichTextEditor
@@ -20,27 +21,27 @@
           @update:model-value="update(i, 'description', $event)"
         />
       </div>
-      <button
-        type="button"
-        class="text-muted-foreground hover:text-destructive transition-colors shrink-0 mt-1 text-lg leading-none"
+      <AppButton
+        variant="ghost"
+        tone="danger"
+        size="inline-xs"
+        icon-size="md"
+        :icon="IconClose"
+        class="shrink-0 mt-1"
+        :aria-label="`Remove ${label.toLowerCase()}`"
         @click="remove(i)"
-      >
-        ✕
-      </button>
+      />
     </div>
-    <button
-      type="button"
-      class="font-cinzel text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
-      @click="add"
-    >
-      + Add {{ label }}
-    </button>
+    <AppButton variant="link" size="inline" :label="`+ Add ${label}`" @click="add" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import { IconClose } from "@/lib/icons";
 
 defineProps<{ label: string }>();
 

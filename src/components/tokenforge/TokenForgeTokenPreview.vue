@@ -27,23 +27,22 @@
 
     <!-- Export buttons -->
     <div class="flex gap-2">
-      <button
-        type="button"
-        class="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+      <AppButton
+        variant="primary"
+        size="md"
+        class="flex-1"
+        :icon="IconDownload"
+        label="Download PNG"
         @click="emit('download')"
-      >
-        <IconDownload class="h-3.5 w-3.5" />
-        Download PNG
-      </button>
-      <button
+      />
+      <AppButton
         v-if="canCopy"
-        type="button"
-        class="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+        variant="subtle"
+        size="md"
+        :icon="IconCopy"
+        label="Copy"
         @click="emit('copy')"
-      >
-        <IconCopy class="h-3.5 w-3.5" />
-        Copy
-      </button>
+      />
     </div>
 
     <!-- VTT hint -->
@@ -57,19 +56,19 @@
     </div>
 
     <!-- Add to print queue -->
-    <button
-      type="button"
-      class="inline-flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+    <AppButton
+      variant="subtle"
+      size="md"
+      label="+ Add to Print Sheet"
       @click="emit('add-to-queue')"
-    >
-      + Add to Print Sheet
-    </button>
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
 import { IconCopy, IconDownload, IconInfo } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import TokenForgeTokenSettings from "@/components/tokenforge/TokenForgeTokenSettings.vue";
 
 const {

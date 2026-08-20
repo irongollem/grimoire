@@ -28,26 +28,34 @@
     <!-- AI generation — only when the parent opts in and the campaign allows AI -->
     <div v-if="showAiButton || showMiniButton" class="mt-2 flex flex-col gap-1">
       <div class="flex gap-1.5">
-        <button
+        <AppButton
           v-if="showAiButton"
-          type="button"
+          variant="outline"
+          fill="muted"
+          size="sm"
+          class="flex-1"
           :disabled="isGenerating || disabled || !affordable(imageCost, imageByok)"
-          class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold border border-border rounded-md hover:bg-muted disabled:opacity-50 transition-colors"
           @click="runGenerate"
         >
-          <IconGenerate class="h-3.5 w-3.5" :class="isGenerating ? 'animate-pulse text-primary' : ''" />
+          <template #icon>
+            <IconGenerate class="h-3.5 w-3.5" :class="isGenerating ? 'animate-pulse text-primary' : ''" />
+          </template>
           {{ isGenerating ? "Generating…" : (modelValue ? "Regenerate with AI" : "Generate with AI") }}
-        </button>
-        <button
+        </AppButton>
+        <AppButton
           v-if="showMiniButton"
-          type="button"
-          title="Forge a 3D mini from this portrait"
-          class="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-label-lg font-semibold border border-border rounded-md hover:bg-muted transition-colors"
+          variant="outline"
+          fill="muted"
+          size="sm"
+          class="shrink-0"
+          tooltip="Forge a 3D mini from this portrait"
+          label="Mini"
           @click="goToMiniForge"
         >
-          <VitruvianIcon class="text-sm" />
-          Mini
-        </button>
+          <template #icon>
+            <VitruvianIcon class="text-sm" />
+          </template>
+        </AppButton>
       </div>
       <div v-if="showAiButton && !isGenerating" class="flex justify-center">
         <GenerationCostBadge :credits="imageCost" :byok="imageByok" :show-balance="false" />
@@ -63,6 +71,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
+import AppButton from "@/components/common/AppButton.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import VitruvianIcon from "@/components/common/VitruvianIcon.vue";

@@ -10,26 +10,26 @@
         @input="$emit('update:search', ($event.target as HTMLInputElement).value)"
       />
     </div>
-    <select
-      :value="typeFilter"
-      aria-label="Location type filter"
-      class="rounded-md border border-border bg-muted/40 px-2 py-1.5 text-label md:text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      @change="$emit('update:typeFilter', ($event.target as HTMLSelectElement).value)"
-    >
+    <AppSelect v-model="typeFilterModel" tone="muted" size="sm" ariaLabel="Location type filter">
       <option value="all">All types</option>
       <option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-    </select>
-    <button
+    </AppSelect>
+    <AppButton
       v-if="hasActiveFilters"
-      type="button"
-      class="text-label md:text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+      variant="ghost"
+      size="inline"
+      class="shrink-0"
+      label="Clear"
       @click="$emit('clear')"
-    >Clear</button>
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { IconSearch } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 
 interface TypeOption {
   value: string;
@@ -43,9 +43,14 @@ const { search, typeFilter, typeOptions } = defineProps<{
   hasActiveFilters: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   'update:search': [value: string];
   'update:typeFilter': [value: string];
   clear: [];
 }>();
+
+const typeFilterModel = computed({
+  get: () => typeFilter,
+  set: (v: string) => emit('update:typeFilter', v),
+});
 </script>

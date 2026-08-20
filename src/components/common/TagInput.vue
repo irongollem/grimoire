@@ -10,13 +10,7 @@
         class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-muted text-label-lg text-muted-foreground"
       >
         {{ tag }}
-        <button
-          type="button"
-          class="hover:text-destructive transition-colors leading-none text-sm"
-          @click.stop="remove(tag)"
-        >
-          ×
-        </button>
+        <AppButton variant="ghost" tone="danger" size="inline-xs" label="×" @click.stop="remove(tag)" />
       </span>
       <input
         v-no-pwm
@@ -39,15 +33,15 @@
         :style="dropdownStyle"
         class="fixed z-9999 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
       >
-        <button
+        <AppButton
           v-for="s in filteredSuggestions"
           :key="s"
-          type="button"
-          class="w-full text-left px-3 py-1.5 text-body text-foreground hover:bg-muted/60 transition-colors capitalize"
+          variant="menu"
+          size="body"
+          block
+          class="capitalize"
           @mousedown.prevent="addTag(s)"
-        >
-          {{ s }}
-        </button>
+        >{{ s }}</AppButton>
       </div>
     </Teleport>
   </div>
@@ -55,6 +49,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const { placeholder = "Add tag...", suggestions = [] } = defineProps<{
   placeholder?: string;

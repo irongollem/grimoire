@@ -39,22 +39,25 @@
       </p>
 
       <div class="flex gap-3">
-        <button
+        <AppButton
           type="button"
+          variant="primary"
+          size="lg"
+          class="flex-1"
           :disabled="deciding"
-          class="flex-1 rounded-md bg-primary px-4 py-2.5 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          :label="deciding ? 'Sealing the pact…' : 'Allow'"
           @click="decide(true)"
-        >
-          {{ deciding ? "Sealing the pact…" : "Allow" }}
-        </button>
-        <button
+        />
+        <AppButton
           type="button"
+          variant="outline"
+          fill="muted"
+          size="lg"
+          class="flex-1"
           :disabled="deciding"
-          class="flex-1 rounded-md border border-input bg-background px-4 py-2.5 font-cinzel text-sm font-semibold text-foreground tracking-wider transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          label="Deny"
           @click="decide(false)"
-        >
-          Deny
-        </button>
+        />
       </div>
     </div>
   </div>
@@ -63,6 +66,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
+import AppButton from "@/components/common/AppButton.vue";
 import { supabase } from "@/lib/supabase";
 import type { OAuthAuthorizationDetails } from "@supabase/supabase-js";
 

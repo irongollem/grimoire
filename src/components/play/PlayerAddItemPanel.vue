@@ -8,12 +8,13 @@
     </p>
     <div class="flex items-center gap-2">
       <div class="relative flex-1 min-w-0">
-        <input
+        <AppInput
           v-model="newItemName"
           type="text"
+          tone="muted"
+          size="body"
           placeholder="Search vault…"
           autocomplete="off"
-          class="w-full bg-muted/30 border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           :class="newItemName && !newItemSelectedId ? 'border-amber-500/50' : ''"
           @input="onAddInput"
           @focus="onAddInput"
@@ -24,20 +25,23 @@
           v-if="showDropdown && filteredItems.length"
           class="absolute left-0 bottom-full mb-0.5 z-20 w-full rounded-md border border-border bg-card shadow-lg overflow-hidden max-h-48 overflow-y-auto"
         >
-          <button
+          <AppButton
             v-for="(it, idx) in filteredItems"
             :key="it.id"
-            :ref="(el) => { if (el) dropdownRefs[idx] = el as HTMLButtonElement; }"
-            type="button"
-            class="w-full text-left px-3 py-1.5 text-body text-foreground hover:bg-muted transition-colors flex items-baseline gap-2"
+            :ref="(el) => setDropdownRef(idx, el)"
+            variant="menu"
+            size="body"
+            block
             @click="selectItem(it)"
             @keydown.down.prevent="focusDropdownItem(idx + 1)"
             @keydown.up.prevent="idx > 0 ? focusDropdownItem(idx - 1) : undefined"
             @keydown.escape="showDropdown = false"
           >
-            <span class="truncate">{{ it.name }}</span>
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0 capitalize">{{ it.rarity }}</span>
-          </button>
+            <span class="flex items-baseline gap-2 w-full">
+              <span class="truncate">{{ it.name }}</span>
+              <span class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0 capitalize">{{ it.rarity }}</span>
+            </span>
+          </AppButton>
         </div>
         <div
           v-if="showDropdown"
@@ -45,25 +49,31 @@
           @click="showDropdown = false"
         />
       </div>
-      <input
+      <AppInput
         v-model.number="newItemQty"
         type="number"
+        tone="muted"
+        size="sm"
+        align="center"
+        :block="false"
+        class="w-14"
         min="1"
-        class="w-14 bg-muted/30 border border-border rounded-md px-2 py-1.5 font-cinzel text-sm text-foreground text-center focus:outline-none focus:ring-1 focus:ring-ring"
       />
-      <button
+      <AppButton
         type="submit"
-        class="px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-label-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+        variant="primary"
+        size="sm"
+        label="Add"
         :disabled="!newItemSelectedId"
-      >
-        Add
-      </button>
+      />
     </div>
   </form>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import type { Item } from "@/types/item.types";
 
 const { allItems } = defineProps<{
@@ -99,6 +109,16 @@ function selectItem(it: Item) {
 
 function focusDropdownItem(idx: number) {
   dropdownRefs[idx]?.focus();
+}
+
+// AppButton exposes `$el` (the real <button>), not the raw DOM node, when bound
+// via `ref` — see reka-ui's useForwardExpose. Unwrap it here so
+// `focusDropdownItem` above keeps calling `.focus()` on an actual HTMLButtonElement,
+// exactly as it did against the native `<button ref="...">` this replaced.
+function setDropdownRef(idx: number, el: unknown) {
+  if (el && typeof el === "object" && "$el" in el) {
+    dropdownRefs[idx] = (el as { $el: HTMLButtonElement }).$el;
+  }
 }
 
 function submit() {

@@ -23,19 +23,19 @@
     <template v-else-if="features?.length">
       <!-- Filters -->
       <div class="flex flex-wrap items-center gap-2 mb-4">
-        <input
+        <AppInput
           v-model="search"
           type="search"
+          tone="card"
+          size="body"
+          :block="false"
+          class="flex-1 min-w-40"
           placeholder="Search features…"
-          class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        <select
-          v-model="typeFilter"
-          class="bg-card border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <AppSelect v-model="typeFilter" tone="card" size="body" weight="normal">
           <option value="">All Types</option>
           <option v-for="t in DUNGEON_FEATURE_TYPES" :key="t" :value="t">{{ t }}</option>
-        </select>
+        </AppSelect>
         <AppButton
           v-if="ui.dungeonFeaturesHasActiveFilters"
           variant="subtle"
@@ -113,6 +113,8 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useUiStore } from "@/stores/ui";
 
 const router = useRouter();

@@ -1,30 +1,22 @@
 <template>
   <WizardStepCard title="Leveling in">
-    <select
-      :value="modelValue"
-      class="w-full rounded border border-border bg-muted/40 px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
-    >
+    <AppSelect v-model="modelValueProxy" tone="muted" size="body" weight="normal" block>
       <option v-for="entry in existingClassOptions" :key="entry.id" :value="entry.id">
         {{ entry.class_name }}{{ entry.subclass_name ? ` (${entry.subclass_name})` : '' }}
         — Level {{ entry.levels }} → {{ entry.levels + 1 }}
       </option>
       <option value="__new__">Take a level in a new class…</option>
-    </select>
+    </AppSelect>
 
     <template v-if="isAddingNewClass">
       <div class="space-y-2">
         <label class="text-label text-muted-foreground">New Class</label>
-        <select
-          :value="newClassName"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="emit('update:newClassName', ($event.target as HTMLSelectElement).value)"
-        >
+        <AppSelect v-model="newClassNameProxy" tone="muted" size="body" weight="normal" block>
           <option value="" disabled>Select…</option>
           <option v-for="candidate in newClassCandidates" :key="candidate.key" :value="candidate.key">
             {{ candidate.label }}
           </option>
-        </select>
+        </AppSelect>
       </div>
 
       <!-- Prereq warning -->
@@ -55,8 +47,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import WizardStepCard from "@/components/common/WizardStepCard.vue";
 import CalloutChip from "@/components/common/CalloutChip.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import type { CharacterClass } from "@/types/multiclass.types";
 
 const {
@@ -83,4 +77,17 @@ const emit = defineEmits<{
   "update:modelValue": [value: string];
   "update:newClassName": [value: string];
 }>();
+
+// AppSelect needs a two-way v-model; this component's selections are
+// controlled entirely by the parent via props + emit, so a writable computed
+// bridges the two without introducing local state.
+const modelValueProxy = computed<string>({
+  get: () => modelValue,
+  set: (value) => emit("update:modelValue", value),
+});
+
+const newClassNameProxy = computed<string>({
+  get: () => newClassName,
+  set: (value) => emit("update:newClassName", value),
+});
 </script>

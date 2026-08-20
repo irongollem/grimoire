@@ -26,13 +26,13 @@
           <p class="text-body text-muted-foreground italic text-center">
             {{ currentLoadingQuote }}
           </p>
-          <button
-            type="button"
-            class="mt-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          <AppButton
+            variant="ghost"
+            size="inline-caption"
+            class="mt-1 underline underline-offset-2"
+            label="Continue in background"
             @click="dismissToBackground"
-          >
-            Continue in background
-          </button>
+          />
         </div>
 
         <!-- Error state -->
@@ -151,23 +151,24 @@
             @click="handleAddToEvents"
           />
           <div class="flex gap-2">
-            <button
-              type="button"
+            <AppButton
+              variant="subtle"
+              size="caption"
+              class="flex-1"
+              :icon="IconRefresh"
+              icon-size="xs"
               :disabled="addingToEvents || isAnyAiGenerating"
-              class="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 text-caption font-semibold rounded-md border border-border text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+              label="Regenerate"
               @click="runGenerate"
-            >
-              <IconRefresh class="h-3 w-3" />
-              Regenerate
-            </button>
-            <button
-              type="button"
+            />
+            <AppButton
+              variant="subtle"
+              size="caption"
+              class="flex-1"
               :disabled="addingToEvents"
-              class="flex-1 py-1.5 text-caption font-semibold rounded-md border border-border text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+              label="Discard"
               @click="handleDiscard"
-            >
-              Discard
-            </button>
+            />
           </div>
         </template>
 

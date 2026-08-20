@@ -23,25 +23,32 @@
         <p class="text-body text-muted-foreground">Resistance: bludgeoning, piercing, slashing</p>
         <p class="text-body text-muted-foreground">Advantage on STR checks and saving throws</p>
       </div>
-      <button
-        class="text-label text-muted-foreground hover:text-foreground transition-colors"
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        label="End Rage"
         @click="endRage"
-      >End Rage</button>
+      />
     </div>
 
     <!-- Not raging -->
     <div v-else class="px-4 py-2.5">
-      <button
-        class="text-label px-3 py-1 rounded bg-red-500/15 border border-red-500/30 text-red-600 hover:bg-red-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      <AppButton
+        variant="tinted"
+        tone="danger"
+        emphasis="soft"
+        size="xs"
         :disabled="rageUsesCurrent <= 0"
+        label="Enter Rage"
         @click="enterRage"
-      >Enter Rage</button>
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import type { PartyMember } from "@/types/party.types";
 

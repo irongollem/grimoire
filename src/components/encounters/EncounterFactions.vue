@@ -4,14 +4,13 @@
       <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider uppercase">
         Factions
       </h2>
-      <button
-        type="button"
-        class="inline-flex items-center gap-1 font-cinzel text-xs text-primary hover:opacity-80 transition-opacity"
+      <AppButton
+        variant="link"
+        size="inline"
+        :icon="IconAdd"
+        label="Add Custom"
         @click="addCustomFaction"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        Add Custom
-      </button>
+      />
     </div>
 
     <div class="flex flex-col gap-2">
@@ -37,11 +36,12 @@
           </div>
 
           <!-- Name -->
-          <input
+          <AppInput
             v-if="isCustomFaction(faction.id)"
             v-model="faction.name"
-            type="text"
-            class="flex-1 bg-muted border border-border rounded px-2 py-0.5 font-cinzel text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="filled"
+            size="xs"
+            class="flex-1"
             @change="emitFactions"
           />
           <span v-else class="flex-1 font-cinzel text-sm font-semibold text-foreground">
@@ -49,33 +49,32 @@
           </span>
 
           <!-- Remove custom -->
-          <button
+          <AppButton
             v-if="isCustomFaction(faction.id)"
-            type="button"
-            class="text-muted-foreground hover:text-destructive transition-colors"
+            variant="ghost"
+            tone="danger"
+            size="inline-xs"
+            :icon="IconClose"
+            aria-label="Remove custom faction"
             @click="removeCustomFaction(faction.id)"
-          >
-            <IconClose class="h-3.5 w-3.5" />
-          </button>
+          />
         </div>
 
         <!-- Hostile to chips -->
         <div class="flex flex-wrap gap-1">
           <span class="font-cinzel text-2xs text-muted-foreground self-center mr-1">Hostile to:</span>
-          <button
+          <AppButton
             v-for="other in localFactions.filter((f) => f.id !== faction.id)"
             :key="other.id"
-            type="button"
-            class="px-2 py-0.5 rounded-full font-cinzel text-2xs font-semibold border transition-colors"
-            :class="
-              faction.hostile_to.includes(other.id)
-                ? 'bg-destructive/20 border-destructive/50 text-destructive'
-                : 'bg-muted border-border text-muted-foreground hover:border-primary/40'
-            "
+            variant="subtle"
+            size="xs"
+            shape="pill"
+            surface="muted"
+            :tone="faction.hostile_to.includes(other.id) ? 'danger' : 'neutral'"
+            :active="faction.hostile_to.includes(other.id)"
+            :label="other.name"
             @click="toggleFactionHostility(faction.id, other.id)"
-          >
-            {{ other.name }}
-          </button>
+          />
           <span v-if="faction.hostile_to.length === 0" class="text-caption text-muted-foreground italic">
             None
           </span>
@@ -87,6 +86,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconClose } from '@/lib/icons';
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { FactionDef } from "@/types/encounter.types";

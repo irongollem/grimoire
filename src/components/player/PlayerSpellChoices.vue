@@ -20,13 +20,16 @@
         </div>
         <!-- Still picking — keep the picker open until `count` choices are made -->
         <div v-if="choicesForStep(step.key).length < (step.count ?? 1)" class="pl-13 flex items-center gap-2">
-          <select
+          <AppSelect
             v-model="pendingPicks[step.key]"
-            class="flex-1 bg-muted/40 border border-border rounded px-2 py-1 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            tone="muted"
+            size="body"
+            weight="normal"
+            class="min-w-0 flex-1"
           >
             <option value="" disabled>Choose a spell…</option>
             <option v-for="opt in remainingOptions(step)" :key="opt" :value="opt">{{ opt }}</option>
-          </select>
+          </AppSelect>
           <button
             :disabled="!pendingPicks[step.key]"
             class="px-2.5 py-1 bg-primary text-primary-foreground rounded text-label md:text-sm disabled:opacity-40 transition-opacity hover:opacity-90"
@@ -40,6 +43,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useUpdatePartyMember } from "@/composables/useParty";
 import type { CustomStep } from "@/levelup/customTypes";
 import type { PartyMember } from "@/types/party.types";

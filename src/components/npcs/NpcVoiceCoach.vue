@@ -8,14 +8,15 @@
     <template v-if="lines.length">
       <div class="flex items-center justify-between">
         <p class="text-label-lg font-semibold text-muted-foreground">SUGGESTED LINES</p>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 text-caption text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+        <AppButton
+          variant="ghost"
+          size="inline-caption"
+          class="underline underline-offset-2"
+          :icon="IconRefresh"
+          icon-size="xs"
+          label="Ask again"
           @click="askAgain"
-        >
-          <IconRefresh class="h-3 w-3" />
-          Ask again
-        </button>
+        />
       </div>
 
       <ul class="flex flex-col gap-3">
@@ -70,25 +71,25 @@
           :byok="textIsByok"
           class="self-center"
         />
-        <button
+        <AppButton
           v-if="isPro && isAiEnabled"
-          type="button"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
           :disabled="isGenerating || !situation.trim() || !affordable(textCreditCost, textIsByok)"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          label="Suggest lines"
           @click="runSuggest"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Suggest lines
-        </button>
-        <button
+        />
+        <AppButton
           v-else-if="!isPro"
-          type="button"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
+          label="Suggest lines"
           @click="showPaywall = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Suggest lines
-        </button>
+        />
       </div>
     </template>
   </div>
@@ -108,6 +109,7 @@ import { useSubscription } from "@/composables/useSubscription";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useNpcVoiceCoach } from "@/ai/useNpcVoiceCoach";
+import AppButton from "@/components/common/AppButton.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import type { Npc } from "@/types/npc.types";

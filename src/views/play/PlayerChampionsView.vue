@@ -7,13 +7,13 @@
         <h1 class="text-heading-lg font-bold text-foreground">Champions</h1>
         <p class="text-body text-muted-foreground italic mt-0.5">Your characters in this campaign</p>
       </div>
-      <RouterLink
+      <AppButton
+        variant="primary"
+        size="sm"
         :to="{ name: 'play-character-create' }"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        New Character
-      </RouterLink>
+        :icon="IconAdd"
+        label="New Character"
+      />
     </div>
 
     <!-- Loading -->
@@ -28,13 +28,13 @@
         <p class="font-cinzel text-sm font-semibold text-foreground">No characters yet</p>
         <p class="text-body text-muted-foreground italic mt-1">Create your first champion to begin your adventure.</p>
       </div>
-      <RouterLink
+      <AppButton
+        variant="primary"
+        size="md"
         :to="{ name: 'play-character-create' }"
-        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-label-lg font-semibold hover:opacity-90 transition-opacity"
-      >
-        <IconAdd class="h-3.5 w-3.5" />
-        Create Character
-      </RouterLink>
+        :icon="IconAdd"
+        label="Create Character"
+      />
     </div>
 
     <template v-else>
@@ -77,28 +77,28 @@
 
               <!-- Actions -->
               <div class="flex items-center gap-2 mt-2">
-                <button
+                <AppButton
                   v-if="!isActive(char)"
-                  type="button"
+                  variant="subtle"
+                  size="sm"
                   :disabled="settingActive === char.id"
-                  class="text-label-lg px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors disabled:opacity-50"
                   @click="setActive(char.id)"
                 >
                   {{ settingActive === char.id ? 'Switching…' : 'Set Active' }}
-                </button>
-                <RouterLink
+                </AppButton>
+                <AppButton
+                  variant="subtle"
+                  size="sm"
                   :to="{ name: 'play-character-edit', query: { memberId: char.id } }"
-                  class="text-label-lg px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Edit
-                </RouterLink>
-                <RouterLink
+                  label="Edit"
+                />
+                <AppButton
                   v-if="isActive(char) && char.level > 0"
+                  variant="subtle"
+                  size="sm"
                   :to="{ name: 'play-character-levelup', query: { memberId: char.id } }"
-                  class="text-label-lg px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Level Up
-                </RouterLink>
+                  label="Level Up"
+                />
                 <AppButton
                   v-if="!ui.dmPreviewMode"
                   variant="subtle"
@@ -159,14 +159,14 @@
                 </p>
               </div>
               <div class="flex items-center gap-2 mt-2">
-                <button
-                  type="button"
+                <AppButton
+                  variant="primary"
+                  size="sm"
                   :disabled="assuming === char.id"
-                  class="text-label-lg px-3 py-1 rounded bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
                   @click="assume(char.id)"
                 >
                   {{ assuming === char.id ? 'Assuming…' : 'Assume this character' }}
-                </button>
+                </AppButton>
               </div>
             </div>
           </div>
@@ -184,7 +184,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { RouterLink, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { IconAdd, IconDM } from '@/lib/icons';
 import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/useParty';
 import { useDetachCharacter, useCloneCharacter } from '@/composables/useCharacterPool';

@@ -97,26 +97,34 @@
 
     <!-- Save actions -->
     <div v-if="!isEditMode" class="flex flex-col sm:flex-row items-stretch gap-3">
-      <button type="button"
+      <AppButton
+        variant="primary"
+        size="lg"
+        class="flex-1"
         :disabled="!f.name.trim() || saving"
-        class="flex-1 px-4 py-3 font-cinzel text-sm font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="save(false)">
-        {{ saving ? 'Creating…' : 'Begin My Adventure' }}
-      </button>
-      <button type="button"
+        :label="saving ? 'Creating…' : 'Begin My Adventure'"
+        @click="save(false)"
+      />
+      <AppButton
+        variant="tinted"
+        tone="primary"
+        emphasis="outline"
+        size="lg"
+        class="flex-1"
         :disabled="!f.name.trim() || saving"
-        class="flex-1 px-4 py-3 font-cinzel text-sm font-semibold border border-primary text-primary rounded-md hover:bg-primary/5 transition-colors disabled:opacity-50"
-        @click="save(true)">
-        Begin + Level Up to 2
-      </button>
+        label="Begin + Level Up to 2"
+        @click="save(true)"
+      />
     </div>
     <div v-else>
-      <button type="button"
+      <AppButton
+        variant="primary"
+        size="lg"
+        block
         :disabled="!f.name.trim() || saving"
-        class="w-full px-4 py-3 font-cinzel text-sm font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
-        @click="save(false)">
-        {{ saving ? 'Saving…' : 'Save Character' }}
-      </button>
+        :label="saving ? 'Saving…' : 'Save Character'"
+        @click="save(false)"
+      />
     </div>
   </div>
 </template>
@@ -124,6 +132,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { ABILITY_STATS, SLOT_LEVEL_LABELS, type AbilityKey } from "@/rules/characterCreation";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 

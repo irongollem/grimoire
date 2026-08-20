@@ -52,19 +52,17 @@
         <div class="flex flex-col gap-1">
           <label class="font-cinzel text-xs text-muted-foreground tracking-wide">Shape</label>
           <div class="flex gap-1.5">
-            <button
+            <AppButton
               v-for="s in SHAPES"
               :key="s.value"
-              type="button"
-              class="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors"
-              :class="size === s.value
-                ? 'border-primary bg-primary/10 text-primary font-semibold'
-                : 'border-border bg-background text-muted-foreground hover:border-primary/50'"
+              variant="subtle"
+              size="xs"
+              :active="size === s.value"
               @click="size = s.value"
             >
               <span class="font-cinzel text-xs">{{ s.label }}</span>
               <span class="text-caption-sm opacity-60">{{ byok ? 'BYOK' : `${shapeCost(s.value)} cr` }}</span>
-            </button>
+            </AppButton>
           </div>
         </div>
 
@@ -86,22 +84,18 @@
           <span v-if="queuedCount > 0" class="text-caption text-muted-foreground/70">
             Queued this session: {{ queuedCount }}
           </span>
-          <button
-            type="button"
-            class="px-3 py-1.5 text-label-lg font-semibold text-muted-foreground hover:text-foreground border border-border rounded-md transition-colors"
-            @click="emit('close')"
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          <AppButton variant="subtle" size="sm" label="Close" @click="emit('close')" />
+          <AppButton
+            variant="primary"
+            size="sm"
             :disabled="starting || !scenePrompt.trim() || scenePrompt.length > SCENE_LIMIT || !affordable(selectedCost, byok)"
+            :label="starting ? 'Queuing…' : 'Generate'"
             @click="generate"
           >
-            <IconGenerate class="h-3 w-3" :class="starting ? 'animate-pulse' : ''" />
-            {{ starting ? 'Queuing…' : 'Generate' }}
-          </button>
+            <template #icon>
+              <IconGenerate class="h-3 w-3" :class="starting ? 'animate-pulse' : ''" />
+            </template>
+          </AppButton>
         </div>
       </div>
     </div>
@@ -119,6 +113,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
 import type { ChroniclerSize } from "@/types/chronicler.types";
+import AppButton from "@/components/common/AppButton.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useEntityMentionItems } from "@/composables/useEntityMentionItems";

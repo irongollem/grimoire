@@ -40,7 +40,7 @@
                 d{{ row.sides }}
               </span>
               <div class="flex flex-wrap gap-1.5">
-                <input
+                <AppInput
                   v-for="(_, i) in row.inputs"
                   :key="i"
                   v-model.number="row.inputs[i]"
@@ -48,7 +48,10 @@
                   :min="1"
                   :max="row.sides"
                   :placeholder="'1–' + row.sides"
-                  class="w-16 rounded-md border border-border bg-background px-2 py-1 text-center font-mono text-sm focus:border-primary focus:outline-none"
+                  size="body-xs"
+                  align="center"
+                  :block="false"
+                  class="w-16 font-mono"
                 />
               </div>
               <span
@@ -72,21 +75,14 @@
           </div>
 
           <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
-            <button
-              type="button"
-              class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-              @click="cancel"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="px-4 py-1.5 rounded-md text-label-lg font-semibold transition-colors bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            <AppButton variant="subtle" size="sm" label="Cancel" @click="cancel" />
+            <AppButton
+              variant="primary"
+              size="sm"
+              label="Submit"
               :disabled="!allFilled"
               @click="submit"
-            >
-              Submit
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -98,6 +94,8 @@
 import { computed, ref, watch } from "vue";
 import type { DieSize } from "@/lib/dice/dice";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const { pending, _resolveManual } = usePromptedRoll();
 

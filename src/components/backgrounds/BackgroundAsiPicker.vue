@@ -2,19 +2,21 @@
   <div class="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2.5">
     <div class="flex items-center justify-between flex-wrap gap-2">
       <p class="text-label-lg font-semibold text-primary">ABILITY SCORE INCREASE</p>
-      <div class="flex rounded overflow-hidden border border-primary/30 text-xs font-cinzel font-semibold">
-        <button
-          type="button"
-          class="px-2.5 py-1 transition-colors"
-          :class="mode === 'plus2plus1' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+      <div class="flex gap-1">
+        <AppButton
+          variant="subtle"
+          size="xs"
+          :active="mode === 'plus2plus1'"
+          label="+2 / +1"
           @click="setMode('plus2plus1')"
-        >+2 / +1</button>
-        <button
-          type="button"
-          class="px-2.5 py-1 transition-colors"
-          :class="mode === 'plus1plus1plus1' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:text-foreground'"
+        />
+        <AppButton
+          variant="subtle"
+          size="xs"
+          :active="mode === 'plus1plus1plus1'"
+          label="+1 / +1 / +1"
           @click="setMode('plus1plus1plus1')"
-        >+1 / +1 / +1</button>
+        />
       </div>
     </div>
 
@@ -31,14 +33,15 @@
         Pick one ability for +2 and a different one for +1{{ mode === null ? "" : "." }}
       </p>
       <div class="flex flex-wrap gap-2">
-        <button
+        <AppButton
           v-for="key in trio"
           :key="key"
-          type="button"
-          class="px-2.5 py-1 rounded-md border font-cinzel text-xs font-semibold capitalize transition-colors"
-          :class="badgeClass(key)"
+          v-bind="trioButtonProps(key)"
+          size="xs"
+          class="capitalize"
+          :label="badgeLabel(key)"
           @click="pick(key)"
-        >{{ key }}<template v-if="modelValue?.primary === abilityToSaveKey(key)"> +2</template><template v-else-if="modelValue?.secondary === abilityToSaveKey(key)"> +1</template></button>
+        />
       </div>
     </div>
 
@@ -50,6 +53,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
+import type { ButtonVariants } from "@/components/common/appButtonVariants";
 import {
   ABILITY_TO_SAVE_KEY,
   isValidAsiChoice,
@@ -93,11 +98,18 @@ function setMode(next: BackgroundAsiMode) {
   emit("update:modelValue", { mode: next, primary: modelValue?.primary, secondary: modelValue?.secondary });
 }
 
-function badgeClass(key: AbilityScoreKey): string {
+function trioButtonProps(key: AbilityScoreKey): Pick<ButtonVariants, "variant" | "tone" | "emphasis"> {
   const saveKey = abilityToSaveKey(key);
-  if (modelValue?.primary === saveKey) return "border-primary bg-primary text-primary-foreground";
-  if (modelValue?.secondary === saveKey) return "border-primary/60 bg-primary/20 text-primary";
-  return "border-border text-muted-foreground hover:text-foreground";
+  if (modelValue?.primary === saveKey) return { variant: "primary" };
+  if (modelValue?.secondary === saveKey) return { variant: "tinted", tone: "primary", emphasis: "soft" };
+  return { variant: "subtle" };
+}
+
+function badgeLabel(key: AbilityScoreKey): string {
+  const saveKey = abilityToSaveKey(key);
+  if (modelValue?.primary === saveKey) return `${key} +2`;
+  if (modelValue?.secondary === saveKey) return `${key} +1`;
+  return key;
 }
 
 /**

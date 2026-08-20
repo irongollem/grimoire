@@ -12,31 +12,35 @@
         <span class="flex-1 text-body text-foreground truncate">
           {{ item.quantity > 1 ? `${item.quantity}× ` : "" }}{{ item.name }}
         </span>
-        <RouterLink
+        <AppButton
           v-if="item.item_id"
+          variant="link"
+          size="inline-xs"
           :to="`/vault/${item.item_id}`"
-          class="font-cinzel text-2xs text-primary hover:opacity-80 transition-opacity shrink-0"
-          title="View in vault"
-        >Vault</RouterLink>
+          tooltip="View in vault"
+          label="Vault"
+          class="shrink-0"
+        />
         <span v-if="item.notes" class="text-caption text-muted-foreground italic truncate max-w-32">
           {{ item.notes }}
         </span>
-        <button
-          type="button"
-          title="Drop to chat"
-          class="p-1 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          tooltip="Drop to chat"
+          :icon="IconLoot"
+          class="shrink-0"
           @click="dropToChat(item)"
-        >
-          <IconLoot class="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          title="Remove"
-          class="p-1 rounded text-muted-foreground hover:text-destructive transition-colors shrink-0"
+        />
+        <AppButton
+          variant="ghost"
+          tone="danger"
+          size="icon-xs"
+          tooltip="Remove"
+          :icon="IconDelete"
+          class="shrink-0"
           @click="remove(item)"
-        >
-          <IconDelete class="h-3.5 w-3.5" />
-        </button>
+        />
       </div>
     </div>
 
@@ -50,15 +54,16 @@
         placeholder="Search vault items…"
         class="flex-1"
       />
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="sm"
+        :icon="IconAdd"
+        icon-size="xs"
+        label="Add"
         :disabled="!selectedVaultId || adding"
-        class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity shrink-0"
+        class="shrink-0"
         @click="addFromVault"
-      >
-        <IconAdd class="h-3 w-3" />
-        Add
-      </button>
+      />
     </div>
   </section>
 </template>
@@ -66,6 +71,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconDelete, IconLoot } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/useNpcInventory";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";

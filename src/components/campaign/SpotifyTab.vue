@@ -24,15 +24,19 @@
         <!-- Redirect URI copy box -->
         <div class="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/40 border border-border font-mono text-xs text-foreground">
           <span class="flex-1 truncate select-all">{{ redirectUri }}</span>
-          <button
-            type="button"
-            class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-            :title="copied ? 'Copied!' : 'Copy'"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            class="shrink-0"
+            :tooltip="copied ? 'Copied!' : 'Copy'"
+            aria-label="Copy redirect URI"
             @click="copyRedirectUri"
           >
-            <IconCheck v-if="copied" class="h-3.5 w-3.5 text-green-400" />
-            <IconCopy v-else class="h-3.5 w-3.5" />
-          </button>
+            <template #icon>
+              <IconCheck v-if="copied" class="h-3.5 w-3.5 text-green-400" />
+              <IconCopy v-else class="h-3.5 w-3.5" />
+            </template>
+          </AppButton>
         </div>
         <ol class="text-caption text-muted-foreground space-y-1 list-decimal list-inside" start="3">
           <li>
@@ -65,22 +69,32 @@
           Found on your Spotify Developer App dashboard. This is not a secret — it is safe to store in your campaign.
         </p>
         <div class="relative">
-          <input
+          <!--
+            `pr-10` clears the reveal button. It genuinely overrides the size's
+            own `px-3`: Tailwind emits per-side padding after the axis shorthand,
+            so the later rule wins — measured in the live dev server as well as
+            the production bundle, and independent of class-attribute order. This
+            is the sanctioned override-one-token case.
+          -->
+          <AppInput
             v-model="clientId"
             :type="showId ? 'text' : 'password'"
             placeholder="e.g. 1a2b3c4d5e6f…"
-            class="field-input pr-10"
+            tone="filled"
+            size="body"
+            class="pr-10"
             autocomplete="off"
             spellcheck="false"
           />
-          <button
-            type="button"
-            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="revealIcon"
+            class="absolute right-2.5 top-1/2 -translate-y-1/2"
+            aria-label="Toggle Client ID visibility"
             @click="showId = !showId"
-          >
-            <IconReveal v-if="!showId" class="h-4 w-4" />
-            <IconHide v-else class="h-4 w-4" />
-          </button>
+          />
         </div>
 
         <!-- Connection status -->
@@ -128,6 +142,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import { IconCheck, IconCopy, IconHide, IconReveal } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
@@ -141,6 +156,8 @@ const clientId = ref(campaign.activeCampaign?.spotify_client_id ?? "");
 const showId = ref(false);
 const isSaving = ref(false);
 const copied = ref(false);
+
+const revealIcon = computed(() => (showId.value ? IconHide : IconReveal));
 
 const redirectUri = computed(() => `${window.location.origin}/spotify/callback`);
 
@@ -186,10 +203,3 @@ async function remove() {
 }
 </script>
 
-<style scoped>
-@reference "@/assets/main.css";
-
-.field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
-}
-</style>

@@ -5,29 +5,40 @@
     <template v-if="(step.count ?? 1) > 1">
       <div v-for="pickIdx in (step.count ?? 1)" :key="pickIdx" class="space-y-1">
         <label class="text-label text-muted-foreground">Choice {{ pickIdx }}</label>
-        <select
-          :value="(multiValues[step.key] ?? [])[pickIdx - 1] ?? ''"
-          class="w-full rounded border border-border bg-muted/40 px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @change="onMultiChange(step, pickIdx - 1, ($event.target as HTMLSelectElement).value)">
+        <AppSelect
+          :model-value="(multiValues[step.key] ?? [])[pickIdx - 1] ?? ''"
+          tone="muted"
+          size="body"
+          weight="normal"
+          block
+          @update:model-value="(value) => onMultiChange(step, pickIdx - 1, value)"
+        >
           <option value="" disabled>Select…</option>
           <option v-for="opt in step.options" :key="opt" :value="opt"
             :disabled="isMultiPickTaken(step, pickIdx - 1, opt)">{{ opt }}</option>
-        </select>
+        </AppSelect>
       </div>
     </template>
 
-    <select v-else :value="singleValues[step.key] ?? ''"
-      class="w-full rounded border border-border bg-muted/40 px-3 py-2 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      @change="onSingleChange(step, ($event.target as HTMLSelectElement).value)">
+    <AppSelect
+      v-else
+      :model-value="singleValues[step.key] ?? ''"
+      tone="muted"
+      size="body"
+      weight="normal"
+      block
+      @update:model-value="(value) => onSingleChange(step, value)"
+    >
       <option value="" disabled>Select…</option>
       <option v-for="opt in step.options" :key="opt" :value="opt"
         :disabled="isSinglePickTaken(step, opt)">{{ opt }}</option>
-    </select>
+    </AppSelect>
   </WizardStepCard>
 </template>
 
 <script setup lang="ts">
 import WizardStepCard from "@/components/common/WizardStepCard.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import type { ClassStep } from "./types";
 
 const {

@@ -19,12 +19,7 @@
         <h2 class="text-heading-sm font-semibold text-foreground">
           NPC Generator
         </h2>
-        <button
-          class="text-muted-foreground hover:text-foreground"
-          @click="handleClose"
-        >
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton variant="ghost" size="inline-xs" icon-size="lg" :icon="IconClose" tooltip="Close" aria-label="Close" @click="handleClose" />
       </div>
 
       <!-- Body -->
@@ -51,38 +46,34 @@
           class="text-caption text-center"
           :class="canAfford ? 'text-muted-foreground' : 'text-destructive font-semibold'"
         >{{ creditLine }}</p>
-        <button
+        <AppButton
           v-if="isPro && isAiEnabled"
-          type="button"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
           :disabled="isAnyAiGenerating || !concept.trim() || (effectiveCreditCost > 0 && !canAfford)"
-          :title="
-            isAnyAiGenerating && !isGenerating
-              ? 'Another generation is already in progress'
-              : undefined
-          "
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
+          :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          {{ isGenerating ? "Generating…" : "Generate with AI" }}
-        </button>
-        <button
+        />
+        <AppButton
           v-else-if="!isPro"
-          type="button"
-          class="w-full inline-flex items-center justify-center gap-1.5 py-2 text-label-lg font-semibold rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
+          block
+          :icon="IconGenerate"
+          label="Generate with AI"
           @click="showPaywall = true"
-        >
-          <IconGenerate class="h-3.5 w-3.5" />
-          Generate with AI
-        </button>
-        <button
-          type="button"
+        />
+        <AppButton
+          variant="primary"
+          size="md"
+          block
           :disabled="isCreating"
-          class="w-full py-2 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          :label="isCreating ? 'Creating…' : 'Quick Create NPC'"
           @click="quickCreate"
-        >
-          {{ isCreating ? "Creating…" : "Quick Create NPC" }}
-        </button>
+        />
       </div>
     </aside>
   </Transition>
@@ -107,6 +98,7 @@ import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
 import { useSubscription } from "@/composables/useSubscription";
+import AppButton from "@/components/common/AppButton.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useLocationTree } from "@/composables/useLocations";

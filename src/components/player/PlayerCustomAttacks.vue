@@ -7,11 +7,17 @@
         <div class="flex items-center justify-between mb-2">
           <span class="text-body text-foreground font-semibold">{{ attack.name }}</span>
           <div class="flex items-center gap-1 shrink-0">
-            <button
-              class="h-6 w-6 flex items-center justify-center rounded text-muted-foreground/40 hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Edit attack"
+            <AppButton
+              variant="ghost"
+              tone="primary"
+              fill="tone"
+              size="icon-xs"
+              class="text-muted-foreground/40"
+              tooltip="Edit attack"
+              :icon="IconEdit"
+              icon-size="xs"
               @click="startEdit(attack)"
-            ><IconEdit class="h-3 w-3" /></button>
+            />
             <AppButton
               variant="ghost"
               tone="danger"
@@ -41,14 +47,18 @@
             </span>
             <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
           </AppButton>
-          <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border hover:border-amber-500/50 hover:bg-muted/30 transition-colors group"
+          <AppButton
+            variant="subtle"
+            fill="muted"
+            tone="caution"
+            size="sm"
+            class="group"
             @click="rollDamage(attack)"
           >
             <IconLightning class="h-3.5 w-3.5 text-muted-foreground group-hover:text-amber-400 transition-colors" />
             <span class="font-cinzel text-xs text-foreground">{{ attack.damage }}</span>
             <span v-if="attack.damage_type" class="font-cinzel text-xs text-muted-foreground">{{ attack.damage_type }}</span>
-          </button>
+          </AppButton>
         </div>
       </div>
     </div>

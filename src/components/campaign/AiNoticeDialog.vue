@@ -15,13 +15,15 @@
               {{ copy.title }}
             </h2>
           </div>
-          <button
-            type="button"
-            class="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            class="shrink-0"
+            aria-label="Close"
             @click="cancel"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
+          />
         </div>
 
         <div class="px-5 pb-4 flex flex-col gap-3">
@@ -55,21 +57,8 @@
         </div>
 
         <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
-          <button
-            type="button"
-            class="px-4 py-1.5 rounded-md border border-border text-label-lg font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            @click="cancel"
-          >
-            {{ cancelLabel }}
-          </button>
-          <button
-            type="button"
-            :disabled="isSaving"
-            class="px-4 py-1.5 rounded-md text-label-lg font-semibold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
-            @click="confirm"
-          >
-            {{ confirmLabel }}
-          </button>
+          <AppButton variant="subtle" size="sm" :label="cancelLabel" @click="cancel" />
+          <AppButton variant="primary" size="sm" :disabled="isSaving" :label="confirmLabel" @click="confirm" />
         </div>
       </div>
     </div>
@@ -79,6 +68,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { IconInfo, IconClose, IconExternalLink } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 import { useAiAcknowledgements, type AiAcknowledgementKind } from "@/composables/useAiAcknowledgements";
 import { AI_USE_NOTICE_VERSION, AI_LIKENESS_NOTICE_VERSION, AI_PRO_REOFFER_NOTICE_VERSION } from "@/lib/legal";
 

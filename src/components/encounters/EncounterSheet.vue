@@ -24,8 +24,9 @@
 
         <AppButton
           size="md"
-          :variant="encounter.is_finished ? 'subtle' : 'outline'"
-          :class="encounter.is_finished ? '' : 'border-primary/40 text-primary hover:bg-primary/10 hover:text-primary'"
+          :variant="encounter.is_finished ? 'subtle' : 'tinted'"
+          :tone="encounter.is_finished ? undefined : 'primary'"
+          :emphasis="encounter.is_finished ? undefined : 'outline'"
           :icon="IconCheckDouble"
           :label="encounter.is_finished ? 'Reopen' : 'Mark Done'"
           @click="toggleFinished"
@@ -40,14 +41,13 @@
           @click="handleDelete"
         />
 
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+        <AppButton
+          variant="primary"
+          size="md"
+          :icon="IconEdit"
+          label="Edit"
           @click="router.push({ query: { ...route.query, edit: 'true' } })"
-        >
-          <IconEdit class="h-3.5 w-3.5" />
-          Edit
-        </button>
+        />
 
         <!-- Live controls -->
         <template v-if="thisIsLive">
@@ -65,25 +65,23 @@
             label="Stop"
             @click="handleStop"
           />
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          <AppButton
+            variant="primary"
+            size="md"
+            :icon="IconPlay"
+            label="Resume"
             @click="handleRunEncounter"
-          >
-            <IconPlay class="h-3.5 w-3.5" />
-            Resume
-          </button>
+          />
         </template>
 
-        <button
+        <AppButton
           v-else
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
+          :icon="IconPlay"
+          label="Run Encounter"
           @click="handleRunEncounter"
-        >
-          <IconPlay class="h-3.5 w-3.5" />
-          Run Encounter
-        </button>
+        />
       </div>
     </div>
 

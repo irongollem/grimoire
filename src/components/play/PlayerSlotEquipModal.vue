@@ -32,25 +32,28 @@
           <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-widest uppercase mb-1.5">
             Equip from inventory
           </p>
-          <button
+          <AppButton
             v-for="item in candidates"
             :key="item.id"
-            class="w-full text-left px-3 py-1.5 rounded-md hover:bg-muted/40 text-body text-foreground transition-colors"
+            variant="menu"
+            size="body"
+            block
+            :label="item.name"
             @click="emit('equip', item)"
-          >
-            {{ item.name }}
-          </button>
+          />
         </div>
         <p v-else class="text-caption text-muted-foreground italic">
           No items available to equip here.
         </p>
 
-        <button
-          class="w-full mt-1 font-cinzel text-xs text-muted-foreground hover:text-foreground transition-colors"
+        <AppButton
+          variant="ghost"
+          size="inline"
+          block
+          class="mt-1"
+          label="Close"
           @click="emit('close')"
-        >
-          Close
-        </button>
+        />
       </div>
     </div>
   </Transition>
@@ -58,6 +61,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import type { PartyInventoryItem, InventorySlot } from "@/types/inventory.types";
 
 const { slot, slotItem, candidates } = defineProps<{

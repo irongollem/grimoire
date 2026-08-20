@@ -54,30 +54,34 @@
         <div class="flex flex-wrap items-end gap-2">
           <div class="space-y-1">
             <label class="block text-eyebrow font-semibold text-muted-foreground">Grant amount</label>
-            <input
+            <AppInput
               v-model.number="grantAmount"
               type="number"
               min="1"
-              class="w-28 bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="filled"
+              size="body"
+              :block="false"
+              class="w-28"
               placeholder="e.g. 10"
             />
           </div>
           <div class="space-y-1 flex-1 min-w-32">
             <label class="block text-eyebrow font-semibold text-muted-foreground">Reason</label>
-            <input
+            <AppInput
               v-model="grantReason"
               type="text"
-              class="w-full bg-muted border border-border rounded px-2.5 py-1.5 text-body text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              tone="filled"
+              size="body"
               placeholder="admin_grant"
             />
           </div>
-          <button
-            class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          <AppButton
+            variant="primary"
+            size="sm"
             :disabled="!grantAmount || usersQuery.grantCredits.isPending.value"
+            :label="usersQuery.grantCredits.isPending.value ? 'Granting…' : 'Grant'"
             @click="doGrantCredits"
-          >
-            {{ usersQuery.grantCredits.isPending.value ? 'Granting…' : 'Grant' }}
-          </button>
+          />
           <p v-if="grantSuccess" class="text-caption text-green-500 self-center">Granted.</p>
         </div>
 
@@ -145,6 +149,8 @@ import { ref, computed } from "vue";
 import { useAdminUsers } from "@/composables/useAdminUsers";
 import { useUserLedger } from "@/composables/useUserLedger";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import AiUsageStatsPanel from "@/components/common/AiUsageStatsPanel.vue";
 import CreditPackRefundList from "@/components/admin/CreditPackRefundList.vue";
 import AbuseGuardConfig from "@/components/admin/AbuseGuardConfig.vue";

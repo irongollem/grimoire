@@ -1,25 +1,37 @@
 <template>
   <!-- Category filter -->
   <div class="flex flex-wrap gap-1.5">
-    <button
-      type="button"
-      class="px-2.5 py-1 rounded-full text-label md:text-sm font-semibold transition-colors border"
-      :class="filterCategory === null
-        ? 'bg-primary/15 text-primary border-primary/30'
-        : 'text-muted-foreground border-border hover:border-foreground/30'"
+    <AppButton
+      variant="subtle"
+      size="xs"
+      shape="pill"
+      class="md:text-sm"
+      :active="filterCategory === null"
+      label="All"
       @click="$emit('update:filterCategory', null)"
-    >All</button>
-    <button
+    />
+    <!--
+      The chips take their colour from the category row, so they cannot use the
+      `tone` enum — but that is no reason for half the row to be a primitive and
+      half to be hand-rolled, which is exactly the drift this sweep removes. They
+      are AppButtons like the "All" chip beside them, with the one thing no enum
+      can express — a runtime colour — handed over as an inline style. Inline
+      styles beat the variant's classes, so the selected chip shows its own colour
+      instead of the gold `active` tint; everything else about the box comes from
+      the primitive.
+    -->
+    <AppButton
       v-for="[key, cat] in JOURNAL_CATEGORY_LIST"
       :key="key"
-      type="button"
-      class="px-2.5 py-1 rounded-full text-label md:text-sm font-semibold transition-colors border"
-      :class="filterCategory === key
-        ? 'border-current'
-        : 'text-muted-foreground border-border hover:border-foreground/20'"
-      :style="filterCategory === key ? { color: cat.color, backgroundColor: cat.color + '18', borderColor: cat.color + '60' } : {}"
+      variant="subtle"
+      size="xs"
+      shape="pill"
+      class="md:text-sm"
+      :active="filterCategory === key"
+      :style="filterCategory === key ? { color: cat.color, backgroundColor: cat.color + '18', borderColor: cat.color + '60' } : undefined"
+      :label="cat.label"
       @click="$emit('update:filterCategory', filterCategory === key ? null : key)"
-    >{{ cat.label }}</button>
+    />
   </div>
 
   <!-- Loading -->
@@ -67,6 +79,7 @@
 
 <script setup lang="ts">
 import { IconPopulate } from '@/lib/icons';
+import AppButton from '@/components/common/AppButton.vue';
 import JournalCard from '@/components/player/JournalCard.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import RichTextViewer from '@/components/common/RichTextViewer.vue';

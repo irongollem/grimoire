@@ -17,7 +17,7 @@
         <AppButton
           variant="outline"
           size="sm"
-          :class="showTodayEditor ? 'border-primary/60 bg-primary/5' : ''"
+          :active="showTodayEditor"
           @click="toggleTodayEditor"
         >
           <IconCalendarDays class="h-3.5 w-3.5 text-primary shrink-0" />
@@ -64,30 +64,13 @@
       </div>
 
       <!-- View toggle -->
-      <div class="flex rounded-md border border-border overflow-hidden shrink-0">
-        <button
-          class="px-3 py-1.5 text-label-lg font-semibold transition-colors"
-          :class="
-            view === 'month'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card text-muted-foreground hover:text-foreground'
-          "
-          @click="calendar.setView('month')"
-        >
-          Month
-        </button>
-        <button
-          class="px-3 py-1.5 text-label-lg font-semibold transition-colors"
-          :class="
-            view === 'timeline'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card text-muted-foreground hover:text-foreground'
-          "
-          @click="calendar.setView('timeline')"
-        >
-          Chronicle
-        </button>
-      </div>
+      <SegmentedControl
+        :model-value="view"
+        :options="CALENDAR_VIEW_OPTIONS"
+        size="sm"
+        class="shrink-0"
+        @update:model-value="calendar.setView"
+      />
 
       <!-- Setting bundle import -->
       <AppButton
@@ -139,11 +122,18 @@ import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import CalendarGrid from "@/components/calendar/CalendarGrid.vue";
 import CalendarTimeline from "@/components/calendar/CalendarTimeline.vue";
 import EventModal from "@/components/calendar/EventModal.vue";
 import SettingBundleModal from "@/components/calendar/SettingBundleModal.vue";
 import type { CalendarEvent } from "@/types/calendar.types";
+import type { CalendarView } from "@/stores/calendar";
+
+const CALENDAR_VIEW_OPTIONS = [
+  { value: "month", label: "Month" },
+  { value: "timeline", label: "Chronicle" },
+] as const satisfies ReadonlyArray<{ value: CalendarView; label: string }>;
 
 const calendar = useCalendarStore();
 const campaignStore = useCampaignStore();

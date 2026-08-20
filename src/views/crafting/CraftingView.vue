@@ -122,20 +122,23 @@
               :visible-to="recipe.player_visible_to"
               @change="onVisibilityChange(recipe, $event)"
             />
-            <button
-              class="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Edit recipe"
+            <AppButton
+              variant="ghost"
+              fill="muted"
+              size="icon-xs"
+              :icon="IconEdit"
+              tooltip="Edit recipe"
               @click="$router.push(`/crafting/${recipe.id}`)"
-            >
-              <IconEdit class="h-3.5 w-3.5" />
-            </button>
-            <button
-              class="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
-              title="Delete recipe"
+            />
+            <AppButton
+              variant="ghost"
+              tone="danger"
+              fill="muted"
+              size="icon-xs"
+              :icon="IconDelete"
+              tooltip="Delete recipe"
               @click="remove(recipe)"
-            >
-              <IconDelete class="h-3.5 w-3.5" />
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -149,6 +152,7 @@ import { computed, ref } from "vue";
 import { IconAdd, IconAward, IconDelete, IconDownload, IconEdit, IconListView, IconLoading, IconNavWorkshop, IconReveal, IconTool } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";

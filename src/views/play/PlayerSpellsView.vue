@@ -26,14 +26,16 @@
       <p class="text-body text-muted-foreground">These spells predate multiclass source tracking. Assign each one before changing its preparation.</p>
       <div v-for="entry in legacySpells" :key="entry.id" class="flex items-center gap-3">
         <span class="text-body flex-1">{{ entry.spell.name }}</span>
-        <select
-          class="bg-card border border-border rounded px-2 py-1 text-sm"
+        <AppSelect
+          :model-value="''"
+          size="sm"
+          weight="normal"
           :disabled="isAssigningSource"
-          @change="assignLegacySource(entry.id, ($event.target as HTMLSelectElement).value)"
+          @update:model-value="(v) => assignLegacySource(entry.id, v)"
         >
           <option value="">Choose source class…</option>
           <option v-for="choice in sourceChoicesFor(entry.spell)" :key="choice.id" :value="choice.id">{{ choice.class_name }}</option>
-        </select>
+        </AppSelect>
       </div>
     </div>
     <!-- Tab switcher -->

@@ -189,6 +189,7 @@ A full equipment and item management system. Full detail documented separately i
 - Custom containers: any inventory item promoted via "Add container" button becomes a collapsible section; items tagged "container" in the vault are auto-promoted on add
 - Extradimensional containers (tagged `extradimensional`) contribute 0 weight
 - Each container section supports: add item, move item (to other container, belt, backpack, stored, or party stash), adjust quantity, split stack, drop to chat (removes from inventory + posts chat message), sell (posts offer to chat), reorder (drag-and-drop)
+- Rows show a small feather icon when the underlying vault item carries written content (`item.content !== null`), resolved against the cached player-visible items catalogue since the inventory row itself only carries the item id, not the vault item's own fields
 
 **Stored Elsewhere:** Items with `location = 'stored'` that aren't in a container
 
@@ -196,9 +197,24 @@ A full equipment and item management system. Full detail documented separately i
 
 **Add Item form:** Searchable vault dropdown; selecting a bundle item (adventurer's pack etc.) expands all contents into the container automatically.
 
-**Item detail panel:** Slide-up panel showing item art, description, rarity, weight, attunement toggle (with 3-slot cap enforcement), charges tracking (optimistic local state), identify/consume/sell actions.
+**Item detail panel:** Slide-up panel showing item art, description, rarity, weight, attunement toggle (with 3-slot cap enforcement), charges tracking (optimistic local state), identify/consume/sell actions, and — for document items — a Written Contents section (see "Document Items" below). The panel needs no separate identified-gate for it: the unidentified projection has already nulled `content` before the panel ever sees the item.
 
 All inventory mutations are live-synced via Supabase realtime (`useInventoryLive()`), so DM changes appear instantly.
+
+## Document Items (Written Contents)
+
+Some vault items carry their own in-world writing — a ledger's pages, a contract's clauses — in `items.content`, separate from the item's `description`. Full schema, RLS and DM-editor detail live in `items-spells-crafting.md`; this section covers the player-facing behavior, which is the same wherever a document item appears (the inventory item detail panel above, the DM's item sheet, and the journal tome tab below).
+
+**Who can write** — the DM always can; a player can only when the item's `content_player_writable` flag is on (set by the DM in the Vault editor). Both write into the same append-only `item_entries` thread, rendered by the shared `ItemDocumentSection` component.
+
+**Authorship display** — an entry is labelled "DM" only when `entry.user_id` matches the campaign owner's user id — never merely because `party_member_id` is null. A player with no linked character also posts entries with a null `party_member_id`, so that alone cannot distinguish a DM entry from an unlinked player's; the label always compares user ids.
+
+**Unread (`item_document`)** — document items use their own entity type in the shared read-tracking system (`useReadItems`/`useMarkRead`). Mark-read fires when:
+
+- The inventory item detail panel opens on an item that has content (`ItemDetailPanel.vue`, watched on the panel's open item id).
+- The journal's tome tab is opened, and again on every change to that tome's entries — which also covers a player's own new post, since `ItemDocumentSection` emits no distinct "posted" signal; the tab just watches the live entries query and re-marks read on any change while mounted.
+
+The tome-tab strip's own unread dot (`EntityNewDot`) is only an approximation of that: the exact rule would be the later of `content_updated_at` and the newest entry's `created_at`, but that needs a live `useItemEntries` query per tome held in the journal's parent view — an unbounded number of query hooks driven by a `v-for`, which fights Vue's one-composable-call-per-component-instance model. So the strip's dot keys off `content_updated_at` alone; opening the tab is what re-marks read against the live entries query, the accurate check.
 
 ## Level-Up Wizard
 
@@ -248,6 +264,8 @@ Each entry has:
 - Privacy toggle: Private (only you) or Shared (visible in Party Journal)
 
 Players can filter their journal by category. Entries can be expanded inline to read or edit. The privacy toggle on any entry can be flipped post-creation.
+
+**Tome tabs** — one additional tab per document item currently in the party's inventory (any item with non-null `content` that the player can see). Derived live from the intersection of party inventory and player-visible items — not stored state — so a tome appears the moment the party picks the item up and disappears the moment it leaves the inventory (sold, dropped, given away); both source queries already live-sync. Rendered as a second row of pill `AppButton`s below the main tab bar (the fixed tab bar has no slot for a per-tome unread dot, so this is a separate strip using the same pill-button recipe used elsewhere in the journal) with a feather icon and an `EntityNewDot`. Tab identity is the item's id, with the static tabs falling back to `"mine"`, so `?tab=<item-id>` deep-links straight into a tome. Selecting one renders `PlayerJournalTomeTab`, which mounts `ItemDocumentSection` — see "Document Items (Written Contents)" above for composing/authorship/unread rules.
 
 ### Reliquary (Rules Reference)
 

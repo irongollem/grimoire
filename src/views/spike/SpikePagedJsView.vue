@@ -14,23 +14,25 @@
         <option :value="100">~100 pages</option>
       </AppSelect>
 
-      <button
-        type="button"
+      <AppButton
+        variant="outline"
+        fill="muted"
+        size="xs"
+        class="uppercase"
         :disabled="isRendering"
-        class="rounded border border-border px-3 py-1 text-label-lg font-semibold uppercase hover:bg-muted disabled:opacity-50"
+        :label="isRendering ? 'Rendering…' : 'Render'"
         @click="renderNow"
-      >
-        {{ isRendering ? "Rendering…" : "Render" }}
-      </button>
+      />
 
-      <button
-        type="button"
+      <AppButton
+        variant="outline"
+        fill="muted"
+        size="xs"
+        class="uppercase"
         :disabled="isRendering || pageCount === 0"
-        class="rounded border border-border px-3 py-1 text-label-lg font-semibold uppercase hover:bg-muted disabled:opacity-50"
+        label="Print"
         @click="printSpike"
-      >
-        Print
-      </button>
+      />
 
       <span v-if="pageCount" class="text-caption text-muted-foreground">
         {{ pageCount }} pages · layout {{ layoutMs }} ms
@@ -52,6 +54,7 @@ import {
   type SpikeScenario,
 } from "@/lib/scriptorium/spike/spikeContent";
 import { usePagedPreview } from "@/composables/usePagedPreview";
+import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 
 /* Served from public/ as a plain URL — Paged.js fetches and parses it itself

@@ -12,7 +12,7 @@
     :type="isNativeButton ? type : undefined"
     :disabled="isNativeButton ? isInert : undefined"
     :aria-disabled="!isNativeButton && isInert ? true : undefined"
-    :class="cn(buttonVariants({ variant, size, active, block, tone, emphasis, fill, surface, shape }), className)"
+    :class="cn(buttonVariants({ variant, size, active, block, tone, emphasis, fill, press, surface, shape }), className)"
     :title="isTouch ? undefined : (tooltip ?? label)"
     :aria-label="ariaLabel ?? label ?? tooltip"
     @click="onClick"
@@ -88,6 +88,7 @@ const {
   tone = "neutral",
   emphasis = "soft",
   fill = "none",
+  press = "none",
   surface = "none",
   shape = "default",
   type = "button",
@@ -150,6 +151,11 @@ const {
    * `muted` (neutral wash), or `tone` (tinted by `tone`). See appButtonVariants.
    */
   fill?: ButtonVariants["fill"];
+  /**
+   * `fill`'s twin, on `active:` — press feedback for touch. Mobile-only screens
+   * use this instead of `fill`, because a `:hover` state sticks after a tap.
+   */
+  press?: ButtonVariants["press"];
   /** `pill` rounds the control fully — a circular icon button or a chip. */
   shape?: ButtonVariants["shape"];
   /** Background at rest — the companion to `fill`, which only paints on hover. */

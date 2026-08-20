@@ -204,6 +204,22 @@ export const buttonVariants = cva(
        */
       fill: { none: "", muted: "hover:bg-muted", tone: "" },
       /**
+       * Press feedback for touch, on `active:` rather than `hover:`.
+       *
+       * `fill`'s twin, and it exists because `fill` cannot serve the mobile-only
+       * screens. A `:hover` state on a touch device sticks after the tap — the
+       * button stays lit until you touch something else — so `NpcDetailMobile`,
+       * `NpcEditMobile`, `MonsterSheetMobile`, `MonsterEditMobile` and
+       * `DmBottomNav` all deliberately use `active:` instead and could not adopt
+       * the primitive at all. Eight controls across those five files, every one a
+       * `md:hidden` surface: unlike most rejected axis proposals, the sites here
+       * agree with each other and the reason is functional rather than cosmetic.
+       *
+       * Compose it with `fill` rather than instead of it — a control that is both
+       * pointer- and touch-reachable wants `fill="muted" press="muted"`.
+       */
+      press: { none: "", muted: "active:bg-muted", tone: "" },
+      /**
        * What a `tinted` button means. Semantic rather than hue-named so the palette
        * stays changeable: each maps to a `--color-tone-*` custom property a theme
        * can reassign, whereas `tone="red"` would pin the colour here.
@@ -318,6 +334,12 @@ export const buttonVariants = cva(
       { fill: "tone", tone: "info", class: "hover:bg-tone-info/10" },
       { fill: "tone", tone: "arcane", class: "hover:bg-tone-arcane/10" },
       { fill: "tone", tone: "caution", class: "hover:bg-tone-caution/10" },
+      { press: "tone", tone: "primary", class: "active:bg-tone-primary/10" },
+      { press: "tone", tone: "danger", class: "active:bg-tone-danger/10" },
+      { press: "tone", tone: "success", class: "active:bg-tone-success/10" },
+      { press: "tone", tone: "info", class: "active:bg-tone-info/10" },
+      { press: "tone", tone: "arcane", class: "active:bg-tone-arcane/10" },
+      { press: "tone", tone: "caution", class: "active:bg-tone-caution/10" },
 
       /**
        * The chromeless "remove this row" ✕ — 58 sites across 51 files, every one of
@@ -453,7 +475,7 @@ export const buttonVariants = cva(
     ],
     defaultVariants: {
       variant: "subtle", size: "sm", active: false, block: false,
-      tone: "neutral", emphasis: "soft", fill: "none", surface: "none", shape: "default",
+      tone: "neutral", emphasis: "soft", fill: "none", press: "none", surface: "none", shape: "default",
     },
   },
 );
@@ -464,6 +486,7 @@ export type ButtonSize = NonNullable<ButtonVariants["size"]>;
 export type ButtonTone = NonNullable<ButtonVariants["tone"]>;
 export type ButtonEmphasis = NonNullable<ButtonVariants["emphasis"]>;
 export type ButtonFill = NonNullable<ButtonVariants["fill"]>;
+export type ButtonPress = NonNullable<ButtonVariants["press"]>;
 export type ButtonShape = NonNullable<ButtonVariants["shape"]>;
 export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 
@@ -507,6 +530,7 @@ export const BUTTON_COLOUR_TONES = BUTTON_TONES.filter((t) => t !== "neutral");
 export const BUTTON_EMPHASES = ["soft", "strong", "outline", "solid"] as const satisfies readonly ButtonEmphasis[];
 
 export const BUTTON_FILLS = ["none", "muted", "tone"] as const satisfies readonly ButtonFill[];
+export const BUTTON_PRESSES = ["none", "muted", "tone"] as const satisfies readonly ButtonPress[];
 
 export const BUTTON_SHAPES = ["default", "pill"] as const satisfies readonly ButtonShape[];
 
@@ -522,6 +546,10 @@ export type AssertShapesListed = Assert<
 
 export type AssertFillsListed = Assert<
   [Exclude<ButtonFill, (typeof BUTTON_FILLS)[number]>] extends [never] ? true : false
+>;
+
+export type AssertPressesListed = Assert<
+  [Exclude<ButtonPress, (typeof BUTTON_PRESSES)[number]>] extends [never] ? true : false
 >;
 
 export type AssertTonesListed = Assert<

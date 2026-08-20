@@ -103,27 +103,32 @@
 
     <!-- Identity (collapsible) -->
     <div class="rounded-lg border border-border bg-card">
-      <button type="button"
-        class="w-full flex items-center justify-between px-3 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
-        @click="showIdentity = !showIdentity">
+      <AppButton
+        variant="ghost"
+        size="md"
+        block
+        class="justify-between"
+        @click="showIdentity = !showIdentity"
+      >
         <span>IDENTITY — ALIGNMENT · AGE · APPEARANCE</span>
         <span class="text-base transition-transform" :class="showIdentity ? '' : '-rotate-90'">▾</span>
-      </button>
+      </AppButton>
       <div v-if="showIdentity" class="px-3 pb-3 space-y-3">
         <div class="grid grid-cols-2 gap-3">
           <label class="block">
             <span class="field-label">Alignment</span>
-            <select v-model="f.alignment" class="field-input w-full">
+            <AppSelect v-model="f.alignment" tone="filled" size="body" weight="normal" block>
               <option value="">—</option>
               <option v-for="a in ALIGNMENT_OPTIONS" :key="a" :value="a">{{ a }}</option>
-            </select>
+            </AppSelect>
           </label>
           <!-- Deity: free-text + optional campaign deity suggestions -->
           <div class="block relative">
             <span class="field-label">Deity</span>
-            <input
+            <AppInput
               v-model="f.deity"
-              class="field-input w-full"
+              tone="filled"
+              size="body"
               placeholder="Tyr, Mielikki, none…"
               autocomplete="off"
               @input="f.deity_id = null"
@@ -134,14 +139,17 @@
               v-if="showDeityDropdown && deityHints.length"
               class="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto"
             >
-              <li
-                v-for="d in deityHints"
-                :key="d.id"
-                class="flex items-baseline gap-1.5 px-3 py-2 text-body text-foreground hover:bg-muted cursor-pointer"
-                @mousedown.prevent="selectDeity(d.id, d.name)"
-              >
-                <span>{{ d.name }}</span>
-                <span v-if="d.titles" class="text-muted-foreground text-xs truncate">— {{ d.titles }}</span>
+              <li v-for="d in deityHints" :key="d.id">
+                <AppButton
+                  variant="menu"
+                  size="body"
+                  block
+                  class="items-baseline"
+                  @mousedown.prevent="selectDeity(d.id, d.name)"
+                >
+                  <span>{{ d.name }}</span>
+                  <span v-if="d.titles" class="text-muted-foreground text-xs truncate">— {{ d.titles }}</span>
+                </AppButton>
               </li>
             </ul>
           </div>
@@ -149,15 +157,15 @@
         <div class="grid grid-cols-3 gap-2">
           <label class="block">
             <span class="field-label">Age</span>
-            <input v-model="f.age" class="field-input w-full" placeholder="47, ancient…" />
+            <AppInput v-model="f.age" tone="filled" size="body" placeholder="47, ancient…" />
           </label>
           <label class="block">
             <span class="field-label">Gender</span>
-            <input v-model="f.gender" class="field-input w-full" />
+            <AppInput v-model="f.gender" tone="filled" size="body" />
           </label>
           <label class="block">
             <span class="field-label">Pronouns</span>
-            <input v-model="f.pronouns" class="field-input w-full" placeholder="she/her" />
+            <AppInput v-model="f.pronouns" tone="filled" size="body" placeholder="she/her" />
           </label>
         </div>
         <label class="block">
@@ -170,12 +178,16 @@
 
     <!-- Personality (collapsible) -->
     <div class="rounded-lg border border-border bg-card">
-      <button type="button"
-        class="w-full flex items-center justify-between px-3 py-2 text-label-lg font-semibold text-muted-foreground hover:text-foreground transition-colors"
-        @click="showPersonality = !showPersonality">
+      <AppButton
+        variant="ghost"
+        size="md"
+        block
+        class="justify-between"
+        @click="showPersonality = !showPersonality"
+      >
         <span>PERSONALITY · IDEALS · BONDS · FLAWS</span>
         <span class="text-base transition-transform" :class="showPersonality ? '' : '-rotate-90'">▾</span>
-      </button>
+      </AppButton>
       <div v-if="showPersonality" class="px-3 pb-3 space-y-2">
         <label class="block">
           <span class="field-label">Personality Traits</span>
@@ -212,6 +224,9 @@
 import { ref, computed } from "vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { IconCheck } from "@/lib/icons";
@@ -268,8 +283,5 @@ const ALIGNMENT_OPTIONS = [
 @reference "@/assets/main.css";
 .field-label {
   @apply block text-label-lg font-semibold text-muted-foreground mb-1;
-}
-.field-input {
-  @apply bg-muted border border-border rounded-md px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring;
 }
 </style>

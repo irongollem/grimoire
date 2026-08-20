@@ -57,6 +57,7 @@ Each card is the shared `EntityGridCard`. The item card is deliberately the lean
 - **Linked Spells** (non-mundane items only) — search and multi-select spells from the Spellbook to associate with this item (e.g. a staff that can cast specific spells).
 - **Mundane Description** (non-mundane items only) — rich text field shown to players before identification.
 - **Description** — rich text full item description shown after identification.
+- **Written Contents** — optional in-world text the item itself carries (a ledger's pages, a contract's clauses, a scroll's text), distinct from Description, which is meta text *about* the item. A "PLAYER WRITABLE" toggle lets campaign members append their own writing at the table. See "Document Items" below.
 - **DM Notes** — rich text amber-bordered panel **never shown to players**. Use for GM-side asides, structural beats, foreshadowing. Rendered DM-side in ItemSheet when present.
 - **Curse** (non-mundane items only) — toggle + rich text curse description. The hint reminds the DM to reveal the curse via the party inventory panel once triggered.
 - **Scope** — two-button toggle: "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — *active campaign name*" (`campaign_id = active`). New items default to the active campaign; SRD imports stay general. The Vault list and every downstream `useItems()` caller (chat search, store inventory, crafting recipes, NPC inventory, encounters, loot tables, quests, party inventory) filter by this scope unless `includeAllScopes` is opted in.
@@ -73,6 +74,28 @@ Each card is the shared `EntityGridCard`. The item card is deliberately the lean
 - "Delete" — confirmation prompt then removal (also deletes associated storage images).
 
 **Filter state** — search, type, rarity, source, and the "show all scopes" toggle are persisted in `useUiStore` (`vaultSearch`, `vaultFilterType`, `vaultFilterRarity`, `vaultFilterSource`, `vaultShowAllScopes`) so they survive navigation within a session.
+
+---
+
+### Document Items
+
+Any item can carry `items.content` — the object's own in-world writing (a ledger's pages, a contract's clauses, a scroll's text), Tiptap JSON like every other rich text field. It is NULL for an ordinary item, and distinct from `description`, which is meta text *about* the item rather than words the item itself carries. The editor persists NULL rather than an empty Tiptap doc when the field is blank, so "has content" stays a real signal rather than a presence check on an empty string.
+
+- **`content_player_writable`** — the "PLAYER WRITABLE" toggle in the editor. When on, campaign members may append their own writing to the item; the DM can always write regardless of the flag.
+- **`content_updated_at`** — stamped by a server-side trigger (`items_touch_content_updated_at`) whenever `content` changes, never by the client, so the unread signal cannot be skipped by a client code path. Player unread dots key on this column rather than `updated_at`, so an unrelated item edit (renaming it, reweighing it) does not re-flag a tome a player has already read.
+- **Identification gating** — `content` is masked by `get_player_visible_items()` exactly like `description`: hidden (returned NULL) while any of the player's copies of the item is unidentified. That projection is `returns setof items` with a hand-maintained positional column list, so widening `items` with these three columns required recreating the function in the same migration (see `20260724000005` for the outage this pattern guards against).
+- **`library_items` rows are never documents** — the shared catalog table has no document columns. `useItems.ts` patches `content`/`content_player_writable`/`content_updated_at` to `null`/`false`/`null` at the fetch seam (`fetchLibraryItems`, `useResolvedItem`) for every shared row; leaving them `undefined` on the raw row would read as "has content" to a `!== null` check, putting the feather badge on every SRD item.
+
+**Player writing (`item_entries` table)** — append-only, never a shared column, so entries survive concurrent writers without clobbering and carry their own authorship:
+
+- Each row carries `item_id`, `campaign_id`, `user_id` (author), `party_member_id` (the in-fiction hand — null for the DM, or for a departed character), and `content` (Tiptap JSON, capped at 50,000 characters — the app's first player-writable long-text column).
+- **Soft ink** — authors may revise their own entries while still in the campaign (`item_entries_update` policy). Dropping that policy would make entries immutable ("hard ink") if that is ever wanted.
+- **DM moderation** — the DM can delete any entry at their table regardless of authorship; an author can also delete their own. Nobody else can touch another author's entry — "nobody rewrites someone else's ink" is RLS structure, not an app-level rule.
+- **The anchor guard trigger** (`guard_item_entry_anchors`) — `item_id`, `campaign_id` and `user_id` are immutable after insert, and `party_member_id` may only ever fall to `null`, never retarget to a different character. It exists because an `UPDATE ... WITH CHECK` policy cannot see the row's pre-update (`OLD`) values — only a trigger can — so without it an author could retarget their own already-`USING`-approved row onto a locked item (bypassing `content_player_writable`, which only the INSERT policy enforces) or into a different campaign they happen to belong to. The one legal transition — `party_member_id` falling to `null` — has to stay legal, because deleting a character (`ON DELETE SET NULL`) performs a real `UPDATE` that fires this same trigger.
+- Reading follows campaign membership alone (`private.is_campaign_member`), deliberately with no item-visibility gate: entries are the table's own writing, not a DM secret. Anything players must not read yet belongs in `items.content` (masked by the projection until identified), never in an entry.
+- Realtime: `item_entries` is on `supabase_realtime` and wired into `useCampaignLiveSync` under the `item-entries` key — the object is a prop passed around the table, so a new entry has to reach everyone, not just refetch for whoever wrote it.
+
+**Rendering** — one shared component, `ItemDocumentSection`, mounts in the DM's `ItemSheet`, the player's inventory `ItemDetailPanel`, and the player journal's `PlayerJournalTomeTab` (see `player-portal.md`). It renders `content` read-only, then the `item_entries` thread with a composer shown only when `canWriteEntries`; every parent decides who can write, who can moderate, and which party member id to stamp via props — the component itself has no DM/player branching.
 
 ---
 
@@ -160,6 +183,7 @@ Slides in when any item row or slot button is clicked. Shows the linked Vault it
 - Equip / Unequip button
 - Consume button (removes the item row)
 - Sell form (posts a player offer to campaign chat)
+- Written Contents section (document items only) — see "Document Items" above
 
 #### Live Sync
 
@@ -377,22 +401,26 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 | `mundane_image_focal_point` | object             |                                                                                               |
 | `requires_attunement`       | boolean            |                                                                                               |
 | `attunement_requirements`   | string             | "by a spellcaster", etc.                                                                      |
-| `charges`                   | number             | max charges                                                                                   |
-| `recharge_roll`             | string             | dice expression                                                                               |
-| `recharge_when`             | string             | "dawn", "short rest", etc.                                                                    |
+| `charges`                   | number             | max charges (staff/wand/rod) or quantity (ammunition)                                         |
+| `recharge`                  | string             | combined roll + trigger, e.g. "Regains 1d6+4 charges daily at dawn" — no separate roll/trigger columns |
 | `is_arcane_focus`           | boolean            |                                                                                               |
-| `is_container`              | boolean            | tags `container` auto-sets this                                                               |
 | `damage_rolls`              | DamageRoll[]       | JSONB array                                                                                   |
 | `versatile_damage`          | string             | dice expression                                                                               |
 | `weapon_range`              | string             | "80/320 ft."                                                                                  |
 | `properties`                | string[]           | finesse, light, thrown, etc.                                                                  |
+| `mastery`                   | enum               | 2024 PHB weapon mastery property (weapons only) — Cleave, Graze, Nick, Push, Sap, Slow, Topple, Vex |
 | `armor_class`               | string             | "13 + DEX modifier (max 2)"                                                                   |
 | `spell_ids`                 | string[]           | linked Vault spells                                                                           |
 | `bundle_items`              | {name, quantity}[] | pack expansion                                                                                |
 | `description`               | Tiptap JSON        | rich text, post-identification                                                                |
 | `mundane_description`       | Tiptap JSON        | rich text, pre-identification                                                                 |
-| `curse_description`         | Tiptap JSON        |                                                                                               |
-| `is_cursed`                 | boolean            |                                                                                               |
+| `content`                   | Tiptap JSON        | in-world text the item itself carries; NULL = not a document item. Distinct from `description` |
+| `content_player_writable`   | boolean            | when true, campaign members may append `item_entries`; the DM always can                      |
+| `content_updated_at`        | timestamp          | bumped by trigger on `content` change only — not on other item edits                          |
+| `curse_description`         | Tiptap JSON        | non-null = cursed; no separate `is_cursed` boolean                                             |
+| `campaign_id`               | uuid               | null = general (all campaigns); set = scoped to that campaign                                 |
+| `dm_notes`                  | Tiptap JSON        | DM-only, never shown to players                                                               |
+| `ai_provenance`             | jsonb              | AI generation/edit provenance for the Generator panel; null for hand-authored items            |
 | `source`                    | string             | slug                                                                                          |
 | `source_title`              | string             | display name                                                                                  |
 | `source_url`                | string             | link to external source                                                                       |

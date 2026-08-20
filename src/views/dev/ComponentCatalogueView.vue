@@ -109,6 +109,28 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppInput — icon inset"
+      note="A leading or trailing glyph inside the field. This was recorded as an unsupported recipe for three waves on the theory that a call-site pl-9 could not beat fieldVariants' px-3 — nobody tested it. Both classes do survive cn(), and it does not matter: Tailwind emits per-side padding AFTER the axis shorthand, so the inset wins. This is the sanctioned override-one-token case, not the banned re-declare-the-whole-box."
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="relative w-64">
+          <IconWand class="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <AppInput v-model="insetValue" tone="card" size="body" class="pl-9" placeholder="Search…" />
+        </div>
+        <div class="relative w-64">
+          <AppInput v-model="insetValue" tone="card" size="body" class="pr-9" placeholder="Trailing action…" />
+          <AppButton
+            variant="ghost"
+            size="icon-xs"
+            class="absolute top-1/2 right-1.5 -translate-y-1/2"
+            aria-label="Clear"
+            :icon="IconClose"
+          />
+        </div>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="ToggleSwitch — size, against the labels each one sits beside"
       note="Two sizes, not the three the raw measurement suggested. A third (h-4 w-7, 6 sites) was measured and rejected: those sites contradicted each other — one picked it beside the same text-xs label the md sites use, another beside a larger one, and one Illuminate panel picked it while its four siblings on the same screen did not. Each row here pairs a size with the label typography its call sites actually carry."
     >
@@ -134,6 +156,20 @@
           <AppButton variant="ghost" :fill="f" label="Ghost" :icon="IconWand" />
           <AppButton variant="ghost" :fill="f" tone="danger" label="Danger" :icon="IconDelete" />
           <AppButton variant="ghost" :fill="f" size="icon-sm" aria-label="Icon" :icon="IconWand" />
+        </div>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
+      title="AppButton — press (touch feedback)"
+      note="`fill`'s twin, on `active:` rather than `hover:`. It exists because a :hover state sticks after a tap on a touch device — the button stays lit until you touch something else — so the mobile-only screens (NpcDetailMobile, NpcEditMobile, MonsterSheetMobile, MonsterEditMobile, DmBottomNav) deliberately avoid hover and could not use the primitive at all. Compose it WITH fill for a control reachable by both pointer and touch. These only visibly change while held down."
+    >
+      <div class="flex flex-col gap-3">
+        <div v-for="p in BUTTON_PRESSES" :key="p" class="flex flex-wrap items-center gap-2">
+          <span class="w-16 shrink-0 text-label text-muted-foreground">{{ p }}</span>
+          <AppButton variant="ghost" :press="p" label="Hold me" :icon="IconWand" />
+          <AppButton variant="ghost" :press="p" tone="danger" label="Danger" :icon="IconDelete" />
+          <AppButton variant="ghost" fill="muted" :press="p" label="fill + press" />
         </div>
       </div>
     </CatalogueSection>
@@ -359,6 +395,7 @@ import {
   BUTTON_COLOUR_TONES,
   BUTTON_EMPHASES,
   BUTTON_FILLS,
+  BUTTON_PRESSES,
   BUTTON_ICON_SIZES,
   type ButtonSize,
 } from "@/components/common/appButtonVariants";
@@ -370,6 +407,7 @@ const SWITCH_ROWS = [
 ] as const satisfies readonly { size: (typeof SWITCH_SIZES)[number]; label: string; labelClass: string; note: string }[];
 
 const switchStates = ref<Record<string, boolean>>({ md: true, lg: true });
+const insetValue = ref("");
 
 const SEGMENT_OPTIONS = [
   { value: "url", label: "URL" },

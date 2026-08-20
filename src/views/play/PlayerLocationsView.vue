@@ -65,16 +65,14 @@
       </div>
 
       <div class="flex justify-end">
-        <button
-          type="button"
-          class="text-label md:text-sm transition-colors"
-          :class="detailOpen.size > 0 || childrenOpen.size > 0
-            ? 'text-muted-foreground hover:text-foreground'
-            : 'invisible pointer-events-none'"
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          :class="detailOpen.size > 0 || childrenOpen.size > 0 ? '' : 'invisible pointer-events-none'"
           @click="detailOpen = new Set(); childrenOpen = new Set()"
         >
-          Close all
-        </button>
+          <span class="text-label md:text-sm">Close all</span>
+        </AppButton>
       </div>
 
       <p v-if="isFiltering && !visibleTree.length" class="text-center text-body text-muted-foreground italic py-8">
@@ -152,13 +150,15 @@
           <span class="text-label md:text-sm text-muted-foreground shrink-0">
             {{ LOCATION_TYPE_LABELS[watchingLocation.location_type] }}
           </span>
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0"
+          <AppButton
+            variant="ghost"
+            size="inline-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
+            class="ml-1 shrink-0"
             @click="watchingLocation = null"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
+          />
         </div>
         <div class="flex-1 overflow-y-auto">
           <div v-if="watchingLocation.image_url" class="w-full aspect-video">
@@ -206,6 +206,7 @@ import { extractTiptapText } from "@/lib/utils";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
 
+import AppButton from "@/components/common/AppButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";

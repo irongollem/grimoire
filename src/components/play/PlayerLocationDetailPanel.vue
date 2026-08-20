@@ -39,13 +39,13 @@
           No pins placed yet.
         </p>
         <span v-else />
-        <button
-          type="button"
-          class="text-label md:text-sm text-muted-foreground hover:text-foreground transition-colors"
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          class="md:text-sm"
+          :label="isFullSize ? 'Compact' : 'Full size'"
           @click="$emit('toggle-map-size', loc.id)"
-        >
-          {{ isFullSize ? 'Compact' : 'Full size' }}
-        </button>
+        />
       </div>
     </div>
 
@@ -65,11 +65,14 @@
     <div v-if="loc.is_npcs_shared" class="border-t border-border pt-3">
       <p class="text-label md:text-sm text-muted-foreground mb-2">People in the Area</p>
       <div v-if="npcs.length" class="flex flex-col gap-1.5">
-        <button
+        <AppButton
           v-for="npc in npcs"
           :key="npc.id"
-          type="button"
-          class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2 hover:bg-muted/60 transition-colors text-left w-full"
+          variant="menu"
+          surface="muted"
+          size="md"
+          block
+          class="border border-border"
           @click="$emit('open-npc', npc)"
         >
           <div class="flex-1 min-w-0">
@@ -78,7 +81,7 @@
               {{ [npc.race, npc.occupation].filter(Boolean).join(" · ") }}
             </p>
           </div>
-        </button>
+        </AppButton>
       </div>
       <p v-else class="text-caption text-muted-foreground italic">No one here yet.</p>
     </div>
@@ -93,6 +96,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerStoreWares from "@/components/locations/PlayerStoreWares.vue";

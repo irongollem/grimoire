@@ -28,19 +28,18 @@
 
         <!-- Kind tabs -->
         <div class="flex flex-wrap gap-1.5">
-          <button
+          <AppButton
             v-for="tab in tabs"
             :key="tab.key"
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-cinzel text-xs tracking-wide transition-colors"
-            :class="activeKind === tab.key
-              ? 'border-primary bg-primary/10 text-primary font-semibold'
-              : 'border-border text-muted-foreground hover:text-foreground hover:border-primary/50'"
+            variant="subtle"
+            size="sm"
+            shape="pill"
+            :active="activeKind === tab.key"
             @click="activeKind = tab.key"
           >
             {{ tab.label }}
             <span class="text-caption-sm opacity-60">{{ tab.count }}</span>
-          </button>
+          </AppButton>
         </div>
       </div>
     </template>

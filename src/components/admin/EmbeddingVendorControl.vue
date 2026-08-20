@@ -16,32 +16,36 @@
       <div class="flex flex-wrap items-end gap-3">
         <div class="space-y-1">
           <label class="block text-label text-muted-foreground">Vendor</label>
-          <select
+          <AppSelect
             v-model="selectedProvider"
-            class="bg-background border border-border rounded px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+            tone="default"
+            size="sm"
+            weight="normal"
             :disabled="isBusy"
           >
             <option v-for="v in embeddingVendors" :key="v" :value="v">{{ PROVIDER_LABELS[v] ?? v }}</option>
-          </select>
+          </AppSelect>
         </div>
         <div class="space-y-1">
           <label class="block text-label text-muted-foreground">Model</label>
-          <select
+          <AppSelect
             v-model="selectedModel"
-            class="bg-background border border-border rounded px-2.5 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+            tone="default"
+            size="sm"
+            weight="normal"
+            class="font-mono"
             :disabled="isBusy || !selectedProvider"
           >
             <option v-for="m in modelOptions" :key="m" :value="m">{{ m }}</option>
-          </select>
+          </AppSelect>
         </div>
-        <button
-          type="button"
-          class="px-4 py-1.5 text-label-lg font-semibold bg-primary text-primary-foreground rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+        <AppButton
+          variant="primary"
+          size="sm"
           :disabled="!hasChanges || isBusy"
+          :label="configPhase === 'applying' ? 'Applying…' : 'Apply'"
           @click="apply"
-        >
-          {{ configPhase === 'applying' ? 'Applying…' : 'Apply' }}
-        </button>
+        />
       </div>
 
       <!-- Phase 1: the set_embedding_provider RPC itself. Distinct copy from
@@ -71,6 +75,8 @@
 // instead of merely caught after the fact.
 import { ref, computed, watch } from "vue";
 import { Loader2Icon } from "@lucide/vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import { useAdminProviders, PROVIDER_LABELS } from "@/composables/useAdminProviders";
 import { useConfirm } from "@/composables/useConfirm";
 import { useEmbeddingBackfill } from "@/composables/useEmbeddingBackfill";

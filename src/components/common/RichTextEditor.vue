@@ -714,6 +714,11 @@ const pendingImageResolver = usePendingImageResolver(() => editor.value);
 watch(editor, (e) => { if (e) pendingImageResolver.scan(); }, { immediate: true });
 
 defineExpose({
+  /** Reset to an empty doc. For composer-style parents that submit and start
+   *  fresh — writing to v-model can't do it, the editor only emits outward. */
+  clearContent(): void {
+    editor.value?.commands.clearContent(true);
+  },
   insertCalendarEventRef(attrs: CalendarEventRefAttrs): void {
     editor.value?.commands.insertCalendarEventRef(attrs);
   },

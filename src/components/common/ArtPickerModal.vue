@@ -15,34 +15,33 @@
             <IconLibrary class="h-4 w-4 text-muted-foreground" />
             <h2 class="font-cinzel font-bold text-sm tracking-wide text-foreground">Art Library</h2>
           </div>
-          <button
-            type="button"
-            class="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          <AppButton
+            variant="ghost"
+            fill="muted"
+            size="icon-xs"
+            icon-size="md"
+            :icon="IconClose"
+            aria-label="Close"
             @click="$emit('close')"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
+          />
         </div>
 
         <!-- Body: sidebar + grid -->
         <div class="flex flex-1 min-h-0">
           <!-- Category sidebar -->
           <aside class="w-44 shrink-0 border-r border-border overflow-y-auto py-2">
-            <button
+            <AppButton
               v-for="cat in CATEGORIES"
               :key="cat.bucketKey"
-              type="button"
-              class="w-full flex items-center gap-2.5 px-3 py-2 font-cinzel text-xs tracking-wide transition-colors text-left"
-              :class="
-                activeCategory?.bucketKey === cat.bucketKey
-                  ? 'bg-primary/10 text-primary font-semibold'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              "
+              variant="menu"
+              size="sm"
+              block
+              :active="activeCategory?.bucketKey === cat.bucketKey"
+              :icon="cat.icon"
+              :label="cat.label"
+              :class="activeCategory?.bucketKey === cat.bucketKey ? 'font-semibold' : 'text-muted-foreground'"
               @click="selectCategory(cat)"
-            >
-              <component :is="cat.icon" class="h-3.5 w-3.5 shrink-0" />
-              {{ cat.label }}
-            </button>
+            />
           </aside>
 
           <!-- Image grid panel -->
@@ -110,6 +109,7 @@
 
 <script setup lang="ts">
 import { ref, watch, type Component } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import {
   IconClose, IconLibrary,
   IconUserRound, IconMonster, IconGem, IconGenerate,
