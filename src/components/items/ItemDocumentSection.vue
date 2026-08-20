@@ -59,6 +59,7 @@
       <!-- Composer -->
       <div v-if="canCompose" class="rounded-lg border border-border bg-card p-3 flex flex-col gap-2">
         <RichTextEditor
+          ref="composerRef"
           v-model="newContent"
           allow-upload
           placeholder="Add your own writing to this item…"
@@ -171,6 +172,7 @@ function isOwn(entry: ItemEntry): boolean {
 
 // ── Compose ───────────────────────────────────────────────────────────────────
 const newContent = ref<string | null>(null);
+const composerRef = ref<InstanceType<typeof RichTextEditor> | null>(null);
 
 async function addEntry() {
   if (campaignId === null || isBlankDoc(newContent.value)) return;
@@ -182,6 +184,8 @@ async function addEntry() {
     content,
   });
   newContent.value = null;
+  // The editor only emits outward — nulling the ref doesn't reach it.
+  composerRef.value?.clearContent();
 }
 
 // ── Edit ──────────────────────────────────────────────────────────────────────
