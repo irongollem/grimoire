@@ -121,6 +121,24 @@ export const buttonVariants = cva(
          * a `class="h-6.5"` override to line up.
          */
         toolbar: "gap-1 rounded px-2 h-6.5 text-label",
+        /**
+         * 20px. The floor was `icon-xs` (24px) and nine controls sat below it, which
+         * is why they each stayed a hand-rolled `<button>` through five waves of the
+         * #648 sweep: the ItemRow and CoinRow quantity steppers and PlayerLoadout at
+         * 16px, the Spotify prev/next and the CharacterCreateAbilitiesStep steppers
+         * at 20px.
+         *
+         * ONE size rather than two, and 20px rather than 16px, because the 16/20
+         * split was not a distinction — ItemRow's stepper and
+         * CharacterCreateAbilitiesStep's stepper are the same control written by two
+         * authors. 20px is also the larger tap target, and two of the nine are
+         * thumb-operated transport buttons where 16px is genuinely small.
+         *
+         * Do NOT add a 16px sibling: the ten remaining sub-24px controls are
+         * colour-swatch pips where the colour IS the state, which is a fill problem,
+         * not a size one.
+         */
+        "icon-2xs": "h-5 w-5 rounded text-label",
         "icon-xs": "h-6 w-6 rounded text-label-lg",
         "icon-sm": "h-8 w-8 rounded-md text-label-lg",
       },
@@ -178,9 +196,23 @@ export const buttonVariants = cva(
          * crafting proficiency locks), and each of them stayed hand-rolled through
          * three waves of this sweep because `active` ignored `tone`.
          */
-        true: "bg-primary/10 text-primary hover:text-primary",
+        true: "text-primary hover:text-primary",
         false: "",
       },
+      /**
+       * Whether a selected control paints a background, or only recolours.
+       *
+       * `tint` is the default and is what `active` has always done, so nothing moves.
+       * `none` exists for the fifteen controls whose selected state is the glyph's
+       * COLOUR and nothing else — the inspiration star, the favourite star,
+       * CastButton, the Spotify transport, the bottom-nav tabs. A star with a filled
+       * box behind it reads as two competing signals, which is why every one of those
+       * fifteen stayed hand-rolled rather than adopt `active`.
+       *
+       * The tint moved out of `active.true` and into compounds below so that this
+       * axis can suppress it. Ordering matters there and is commented at the site.
+       */
+      activeFill: { tint: "", none: "" },
       block: { true: "w-full", false: "" },
       /**
        * Whether the button paints a *background* on hover, as opposed to only
@@ -462,11 +494,25 @@ export const buttonVariants = cva(
       // `primary` is intentionally absent: it is the default `tone`, so a compound
       // for it would fire on every plain `:active` button in the app and repaint the
       // existing look. The gold above stays the untoned default; these five are opt-in.
-      { active: true, tone: "danger", class: "bg-tone-danger/15 text-tone-danger hover:text-tone-danger" },
-      { active: true, tone: "success", class: "bg-tone-success/15 text-tone-success hover:text-tone-success" },
-      { active: true, tone: "info", class: "bg-tone-info/15 text-tone-info hover:text-tone-info" },
-      { active: true, tone: "arcane", class: "bg-tone-arcane/15 text-tone-arcane hover:text-tone-arcane" },
-      { active: true, tone: "caution", class: "bg-tone-caution/15 text-tone-caution hover:text-tone-caution" },
+      { active: true, tone: "danger", class: "text-tone-danger hover:text-tone-danger" },
+      { active: true, tone: "success", class: "text-tone-success hover:text-tone-success" },
+      { active: true, tone: "info", class: "text-tone-info hover:text-tone-info" },
+      { active: true, tone: "arcane", class: "text-tone-arcane hover:text-tone-arcane" },
+      { active: true, tone: "caution", class: "text-tone-caution hover:text-tone-caution" },
+
+      // ── active × activeFill ───────────────────────────────────────────────
+      // The selected tint. It used to live in `active.true`; it is a compound now so
+      // `activeFill="none"` can withhold it. The untoned gold MUST stay above the
+      // five toned fills: compounds are emitted in source order, so a toned selected
+      // button needs `bg-tone-<x>/15` to land after `bg-primary/10` to win the
+      // background group — exactly the override that worked before, when the gold
+      // was a variant (always emitted before any compound).
+      { active: true, activeFill: "tint", class: "bg-primary/10" },
+      { active: true, activeFill: "tint", tone: "danger", class: "bg-tone-danger/15" },
+      { active: true, activeFill: "tint", tone: "success", class: "bg-tone-success/15" },
+      { active: true, activeFill: "tint", tone: "info", class: "bg-tone-info/15" },
+      { active: true, activeFill: "tint", tone: "arcane", class: "bg-tone-arcane/15" },
+      { active: true, activeFill: "tint", tone: "caution", class: "bg-tone-caution/15" },
 
       // Only the variants that already draw a border get the selected border colour,
       // and only while the button is untoned. Gating on `tone` matters: without it a
@@ -490,6 +536,7 @@ export const buttonVariants = cva(
     defaultVariants: {
       variant: "subtle", size: "sm", active: false, block: false,
       tone: "neutral", emphasis: "soft", fill: "none", press: "none", surface: "none", shape: "default",
+      activeFill: "tint",
     },
   },
 );
@@ -501,6 +548,7 @@ export type ButtonTone = NonNullable<ButtonVariants["tone"]>;
 export type ButtonEmphasis = NonNullable<ButtonVariants["emphasis"]>;
 export type ButtonFill = NonNullable<ButtonVariants["fill"]>;
 export type ButtonPress = NonNullable<ButtonVariants["press"]>;
+export type ButtonActiveFill = NonNullable<ButtonVariants["activeFill"]>;
 export type ButtonShape = NonNullable<ButtonVariants["shape"]>;
 export type ButtonSurface = NonNullable<ButtonVariants["surface"]>;
 
@@ -518,7 +566,7 @@ export const BUTTON_VARIANTS = [
 ] as const satisfies readonly ButtonVariant[];
 
 export const BUTTON_SIZES = [
-  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "icon-xs", "icon-sm",
+  "inline-xs", "inline", "inline-body", "inline-caption", "xs", "sm", "md", "lg", "body", "caption", "toolbar", "icon-2xs", "icon-xs", "icon-sm",
 ] as const satisfies readonly ButtonSize[];
 
 // `[X] extends [never]` rather than `X extends never`: a naked conditional
@@ -545,6 +593,7 @@ export const BUTTON_EMPHASES = ["soft", "strong", "outline", "solid"] as const s
 
 export const BUTTON_FILLS = ["none", "muted", "tone"] as const satisfies readonly ButtonFill[];
 export const BUTTON_PRESSES = ["none", "muted", "tone", "dim"] as const satisfies readonly ButtonPress[];
+export const BUTTON_ACTIVE_FILLS = ["tint", "none"] as const satisfies readonly ButtonActiveFill[];
 
 export const BUTTON_SHAPES = ["default", "pill"] as const satisfies readonly ButtonShape[];
 
@@ -564,6 +613,9 @@ export type AssertFillsListed = Assert<
 
 export type AssertPressesListed = Assert<
   [Exclude<ButtonPress, (typeof BUTTON_PRESSES)[number]>] extends [never] ? true : false
+>;
+export type AssertActiveFillsListed = Assert<
+  [Exclude<ButtonActiveFill, (typeof BUTTON_ACTIVE_FILLS)[number]>] extends [never] ? true : false
 >;
 
 export type AssertTonesListed = Assert<

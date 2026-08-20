@@ -192,6 +192,22 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppButton — activeFill (selection without a box)"
+      note="`tint` is the default and is what `active` has always drawn. `none` recolours the glyph and paints nothing, for the fifteen controls whose selected state IS the colour — the inspiration star, the favourite star, CastButton, the Spotify transport, the bottom-nav tabs. Each of those stayed hand-rolled through five waves of #648 because `active` always painted a box behind them, and a filled box behind a star reads as two competing signals. Compare the rows: the stars on the right are the real case."
+    >
+      <div class="flex flex-col gap-3">
+        <div v-for="af in BUTTON_ACTIVE_FILLS" :key="af" class="flex flex-wrap items-center gap-2">
+          <span class="w-16 shrink-0 text-label text-muted-foreground">{{ af }}</span>
+          <AppButton variant="ghost" active :active-fill="af" label="selected" />
+          <AppButton variant="ghost" active :active-fill="af" tone="success" label="success" />
+          <AppButton variant="ghost" active :active-fill="af" tone="danger" label="danger" />
+          <AppButton variant="ghost" active :active-fill="af" size="icon-xs" :icon="IconStar" aria-label="Inspiration" />
+          <AppButton variant="ghost" :active-fill="af" size="icon-xs" :icon="IconStar" aria-label="Not inspired" />
+        </div>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppButton — menu rows"
       note="A row in a dropdown, popover or picker list. The only variant that overrides the base `justify-center`, because a menu row is left-aligned and full-bleed — pair it with `block`. It fills on hover rather than just recolouring text: the whole band is the hit target, so the highlight has to cover the band."
     >
@@ -376,7 +392,7 @@
 import { computed, onBeforeUnmount, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { LocationQueryValue } from "vue-router";
-import { IconWand, IconChevronRight, IconDelete, IconClose } from "@/lib/icons";
+import { IconWand, IconChevronRight, IconDelete, IconClose, IconStar } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -396,6 +412,7 @@ import {
   BUTTON_EMPHASES,
   BUTTON_FILLS,
   BUTTON_PRESSES,
+  BUTTON_ACTIVE_FILLS,
   BUTTON_ICON_SIZES,
   type ButtonSize,
 } from "@/components/common/appButtonVariants";

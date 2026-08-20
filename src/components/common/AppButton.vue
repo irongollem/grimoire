@@ -12,7 +12,7 @@
     :type="isNativeButton ? type : undefined"
     :disabled="isNativeButton ? isInert : undefined"
     :aria-disabled="!isNativeButton && isInert ? true : undefined"
-    :class="cn(buttonVariants({ variant, size, active, block, tone, emphasis, fill, press, surface, shape }), className)"
+    :class="cn(buttonVariants({ variant, size, active, activeFill, block, tone, emphasis, fill, press, surface, shape }), className)"
     :title="isTouch ? undefined : (tooltip ?? label)"
     :aria-label="ariaLabel ?? label ?? tooltip"
     @click="onClick"
@@ -89,6 +89,7 @@ const {
   emphasis = "soft",
   fill = "none",
   press = "none",
+  activeFill = "tint",
   surface = "none",
   shape = "default",
   type = "button",
@@ -156,6 +157,12 @@ const {
    * use this instead of `fill`, because a `:hover` state sticks after a tap.
    */
   press?: ButtonVariants["press"];
+  /**
+   * Whether a selected control paints a background (`tint`, the default) or only
+   * recolours its glyph (`none`). See the axis in appButtonVariants.ts — `none` is
+   * for the controls whose selected state IS the colour, like the inspiration star.
+   */
+  activeFill?: ButtonVariants["activeFill"];
   /** `pill` rounds the control fully — a circular icon button or a chip. */
   shape?: ButtonVariants["shape"];
   /** Background at rest — the companion to `fill`, which only paints on hover. */
