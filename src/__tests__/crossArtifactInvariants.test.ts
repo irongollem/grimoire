@@ -328,3 +328,40 @@ describe("component tags resolve to real imports", () => {
     expect(violations).toEqual([]);
   });
 });
+
+describe("responsive type steps stay inside the type scale", () => {
+  // `text-sm` is 0.875rem — byte-for-byte the size of the `text-body` role. So a
+  // breakpoint step *to* `text-sm` lands whatever it is applied to on the reading
+  // role, and if the thing being stepped was a micro-label, the portal's smallest
+  // role and its body role render at the same size from 768px up.
+  //
+  // That is not hypothetical. `md:text-sm` reached 209 sites, all of them from one
+  // mechanical pass (39b4bbf4, "#339 responsive typography pass") that appended it
+  // to every hardcoded pixel size it swept, with no per-site judgement. Measured in
+  // the browser, PlayerCharacterHeader's combat row came out:
+  //
+  //     390px   AC 10px · 16 12px bold · ft 10px    label under value — correct
+  //     1280px  AC 14px · 16 12px bold · ft 14px    label OVER value — inverted
+  //
+  // The other 25 were `class="md:text-sm"` on an `AppButton size="xs"`, i.e. a call
+  // site overriding the primitive's own font size at a breakpoint and leaving its
+  // padding and height behind — 14px text in an xs box.
+  //
+  // If you want a responsive step, step between *roles* (`text-caption md:text-body`)
+  // so the result still names something. `@utility` roles take variants fine.
+  it("nothing steps up to text-sm at a breakpoint", () => {
+    const offenders: string[] = [];
+
+    for (const file of trackedFiles("src/**/*.vue", "src/**/*.ts")) {
+      read(file)
+        .split("\n")
+        .forEach((line, i) => {
+          if (/\b(sm|md|lg|xl|2xl):text-sm\b/.test(line)) {
+            offenders.push(`${file}:${i + 1}  ${line.trim().slice(0, 100)}`);
+          }
+        });
+    }
+
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});

@@ -39,17 +39,17 @@
             <p class="text-caption text-muted-foreground italic">
               <template v-if="wildshape">🐺 {{ member.name }}</template>
               <template v-else>{{ [speciesName, member.subrace, classLabel].filter(Boolean).join(" · ") }}</template>
-              <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-2xs md:text-sm text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
+              <span v-if="!wildshape && memberTotalLevel" class="font-cinzel text-2xs text-primary not-italic ml-1">Lv {{ memberTotalLevel }}</span>
             </p>
             <!-- XP progress -->
             <div v-if="xpLevellingEnabled && !wildshape && ((member.experience_points ?? 0) > 0 || readyToLevelUp)" class="mt-1 flex items-center gap-1.5">
-              <span class="text-eyebrow md:text-sm text-muted-foreground">XP</span>
+              <span class="text-eyebrow text-muted-foreground">XP</span>
               <div class="flex-1 max-w-32 h-1 rounded-full bg-muted overflow-hidden">
                 <div class="h-full transition-all"
                   :class="readyToLevelUp ? 'bg-primary' : 'bg-primary/50'"
                   :style="{ width: `${xpPct}%` }" />
               </div>
-              <span class="font-cinzel text-2xs md:text-sm text-muted-foreground">
+              <span class="font-cinzel text-2xs text-muted-foreground">
                 {{ member.experience_points ?? 0 }}<template v-if="xpToNext !== null"> / {{ xpToNext }}</template>
               </span>
               <!-- DM: emit event (player /play/* routes aren't accessible to DMs) -->
@@ -57,7 +57,7 @@
                 v-if="readyToLevelUp && auth.isDM"
                 variant="link"
                 size="inline-xs"
-                class="md:text-sm ml-0.5"
+                class="ml-0.5"
                 label="Ready ↑"
                 @click="emit('level-up')"
               />
@@ -66,7 +66,7 @@
                 v-else-if="readyToLevelUp && !hidePlayerActions"
                 variant="link"
                 size="inline-xs"
-                class="md:text-sm ml-0.5"
+                class="ml-0.5"
                 :to="`/play/character/levelup?memberId=${member.id}`"
                 label="Ready ↑"
               />
@@ -78,8 +78,8 @@
         <div class="flex items-center flex-wrap gap-y-0.5 px-3 pb-2">
           <template v-for="(cs, csIdx) in combatStats" :key="cs.label">
             <div class="flex items-baseline gap-0.5">
-              <span class="text-label md:text-sm text-muted-foreground">{{ cs.label }}</span>
-              <span class="font-cinzel text-xs font-bold text-foreground ml-0.5">{{ cs.value }}<span v-if="cs.suffix" class="text-2xs md:text-sm text-muted-foreground">{{ cs.suffix }}</span></span>
+              <span class="text-label text-muted-foreground">{{ cs.label }}</span>
+              <span class="font-cinzel text-xs font-bold text-foreground ml-0.5">{{ cs.value }}<span v-if="cs.suffix" class="text-2xs text-muted-foreground">{{ cs.suffix }}</span></span>
             </div>
             <span v-if="csIdx < combatStats.length - 1" class="text-border mx-1 select-none">·</span>
           </template>
@@ -94,20 +94,20 @@
             variant="link"
             tone="info"
             size="inline-xs"
-            class="md:text-sm ml-1"
+            class="ml-1"
             tooltip="Click to clear temp HP"
             @click="clearTempHp"
           >+{{ member.temp_hp }} tmp <span class="text-tone-info/50">×</span></AppButton>
-          <span v-if="attackDisadvantage" class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
-          <span v-if="checkDisadvantage"  class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
-          <span v-if="exhaustionD20Penalty !== 0" class="text-label md:text-sm text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>
+          <span v-if="attackDisadvantage" class="text-label text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on attack rolls">⚔ Dis</span>
+          <span v-if="checkDisadvantage"  class="text-label text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Disadvantage on ability checks">✦ Dis</span>
+          <span v-if="exhaustionD20Penalty !== 0" class="text-label text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 ml-1" title="Exhaustion penalty on every d20 Test (attack rolls, ability checks, saving throws)">{{ exhaustionD20Penalty }} d20</span>
           <AppButton
             v-if="member.concentration"
             variant="tinted"
             tone="arcane"
             emphasis="soft"
             size="xs"
-            class="md:text-sm ml-1"
+            class="ml-1"
             :tooltip="`Concentrating on ${member.concentration.spellName} — click to drop`"
             @click="dropConcentration"
           >✦ Conc: {{ member.concentration.spellName }} <span class="text-muted-foreground">×</span></AppButton>

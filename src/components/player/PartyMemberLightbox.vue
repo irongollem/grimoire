@@ -39,7 +39,7 @@
                   <div>
                     <span
                       v-if="member.id === auth.linkedPartyMemberId"
-                      class="text-label md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground mb-1 inline-block"
+                      class="text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground mb-1 inline-block"
                     >You</span>
                     <h2 class="text-heading-sm font-bold text-foreground leading-tight">{{ member.name }}</h2>
                     <p class="text-body text-muted-foreground italic">
@@ -52,7 +52,7 @@
                   <div class="rounded-md bg-muted p-2.5">
                     <template v-if="showNumericHp">
                       <div class="flex items-center justify-between mb-1">
-                        <span class="text-label md:text-sm text-muted-foreground">HP</span>
+                        <span class="text-label text-muted-foreground">HP</span>
                         <span class="font-cinzel text-sm font-bold" :class="hpColor">
                           {{ member.current_hp }} / {{ member.max_hp }}
                         </span>
@@ -64,7 +64,7 @@
                     </template>
                     <template v-else>
                       <div class="flex items-center justify-between">
-                        <span class="text-label md:text-sm text-muted-foreground">HP</span>
+                        <span class="text-label text-muted-foreground">HP</span>
                         <span class="text-body italic" :class="hpColor">{{ hpLabel }}</span>
                       </div>
                     </template>
@@ -74,7 +74,7 @@
                   <div class="rounded-md bg-muted p-2.5 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                       <IconShield class="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span class="text-label md:text-sm text-muted-foreground">AC</span>
+                      <span class="text-label text-muted-foreground">AC</span>
                     </div>
                     <span class="font-cinzel text-sm font-bold text-foreground">{{ displayAc }}</span>
                   </div>
@@ -83,10 +83,10 @@
                   <div v-if="displaySpecies" class="flex flex-wrap gap-1.5">
                     <button
                       type="button"
-                      class="px-2 py-0.5 rounded bg-muted border border-border text-label md:text-sm text-foreground hover:bg-primary/10 hover:border-primary/40 transition-colors"
+                      class="px-2 py-0.5 rounded bg-muted border border-border text-label text-foreground hover:bg-primary/10 hover:border-primary/40 transition-colors"
                       @click="speciesModalOpen = true"
                     >{{ displaySpecies.name }}</button>
-                    <span v-if="displaySpecies.size" class="px-2 py-0.5 rounded bg-muted border border-border text-label md:text-sm text-muted-foreground">
+                    <span v-if="displaySpecies.size" class="px-2 py-0.5 rounded bg-muted border border-border text-label text-muted-foreground">
                       {{ displaySpecies.size }}
                     </span>
                   </div>
@@ -97,11 +97,11 @@
               <div class="flex-1 p-4 space-y-4 border-t sm:border-t-0 border-border">
                 <div v-if="member.conditions?.length" class="flex flex-wrap gap-1.5">
                   <span v-for="cond in member.conditions" :key="cond"
-                    class="text-label md:text-sm px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">{{ cond }}</span>
+                    class="text-label px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">{{ cond }}</span>
                 </div>
 
                 <div v-if="member.player_description">
-                  <p class="text-eyebrow md:text-sm text-muted-foreground mb-1.5">About</p>
+                  <p class="text-eyebrow text-muted-foreground mb-1.5">About</p>
                   <RichTextViewer :content="member.player_description" />
                 </div>
 
@@ -147,16 +147,16 @@
               </div>
               <div class="flex flex-col gap-1.5">
                 <div class="flex flex-wrap gap-1">
-                  <span v-if="displaySpecies.size" class="px-2 py-0.5 rounded bg-primary/10 text-primary text-label md:text-sm">{{ capitalize(displaySpecies.size) }}</span>
-                  <span v-if="displaySpecies.source" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label md:text-sm">{{ displaySpecies.source }}</span>
+                  <span v-if="displaySpecies.size" class="px-2 py-0.5 rounded bg-primary/10 text-primary text-label">{{ capitalize(displaySpecies.size) }}</span>
+                  <span v-if="displaySpecies.source" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ displaySpecies.source }}</span>
                 </div>
                 <div v-if="speedPills.length" class="flex flex-wrap gap-1">
-                  <span v-for="pill in speedPills" :key="pill" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label md:text-sm">{{ pill }}</span>
+                  <span v-for="pill in speedPills" :key="pill" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ pill }}</span>
                 </div>
                 <p v-if="asiText" class="text-body text-muted-foreground">{{ asiText }}</p>
                 <div v-if="displaySpecies.languages?.length" class="flex flex-wrap gap-1 items-center">
-                  <span class="text-label md:text-sm text-muted-foreground">Lang:</span>
-                  <span v-for="lang in displaySpecies.languages" :key="lang" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label md:text-sm">{{ lang }}</span>
+                  <span class="text-label text-muted-foreground">Lang:</span>
+                  <span v-for="lang in displaySpecies.languages" :key="lang" class="px-2 py-0.5 rounded bg-muted text-muted-foreground text-label">{{ lang }}</span>
                 </div>
               </div>
             </div>
@@ -166,22 +166,22 @@
 
             <!-- Traits -->
             <div v-if="displaySpecies.traits?.length" class="space-y-2">
-              <p class="text-label md:text-sm font-semibold text-muted-foreground">RACIAL TRAITS</p>
+              <p class="text-label font-semibold text-muted-foreground">RACIAL TRAITS</p>
               <div v-for="trait in displaySpecies.traits" :key="trait.name">
-                <span class="inline-block text-label md:text-sm font-semibold bg-primary/10 text-primary rounded px-2 py-0.5 mb-1">{{ trait.name }}</span>
+                <span class="inline-block text-label font-semibold bg-primary/10 text-primary rounded px-2 py-0.5 mb-1">{{ trait.name }}</span>
                 <RichTextViewer :content="trait.description" />
               </div>
             </div>
 
             <!-- Subraces -->
             <div v-if="displaySpecies.subraces?.length" class="space-y-3">
-              <p class="text-label md:text-sm font-semibold text-muted-foreground">SUBRACES</p>
+              <p class="text-label font-semibold text-muted-foreground">SUBRACES</p>
               <div v-for="sub in displaySpecies.subraces" :key="sub.name" class="space-y-1">
                 <h4 class="font-cinzel text-sm font-bold text-foreground">{{ sub.name }}</h4>
                 <RichTextViewer v-if="sub.description" :content="sub.description" />
                 <div v-if="sub.traits?.length" class="pl-3 border-l border-border space-y-1.5 mt-1">
                   <div v-for="trait in sub.traits" :key="trait.name">
-                    <span class="inline-block text-label md:text-sm font-semibold bg-muted/40 text-muted-foreground rounded px-2 py-0.5 mb-0.5">{{ trait.name }}</span>
+                    <span class="inline-block text-label font-semibold bg-muted/40 text-muted-foreground rounded px-2 py-0.5 mb-0.5">{{ trait.name }}</span>
                     <RichTextViewer :content="trait.description" />
                   </div>
                 </div>

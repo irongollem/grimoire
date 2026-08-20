@@ -32,7 +32,7 @@
           <span
             v-for="tag in note.tags"
             :key="tag"
-            class="text-label md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+            class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
           >{{ tag }}</span>
         </div>
       </div>

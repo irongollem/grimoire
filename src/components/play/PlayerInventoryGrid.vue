@@ -11,7 +11,6 @@
         icon-size="xs"
         :icon="IconAdd"
         label="Add container"
-        class="md:text-sm"
         @click="$emit('toggle-container-picker')"
       />
     </div>
@@ -21,7 +20,7 @@
       v-if="showContainerPicker"
       class="mb-2 rounded-lg border border-border bg-card p-3 flex flex-col gap-2"
     >
-      <p class="text-label md:text-sm text-muted-foreground">
+      <p class="text-label text-muted-foreground">
         Pick an item from your inventory:
       </p>
       <AppInput
@@ -50,7 +49,7 @@
         variant="ghost"
         size="inline-xs"
         label="Cancel"
-        class="self-end md:text-sm"
+        class="self-end"
         @click="$emit('close-container-picker')"
       />
     </div>

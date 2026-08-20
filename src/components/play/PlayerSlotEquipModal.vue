@@ -17,7 +17,7 @@
         >
           <span class="text-body text-foreground flex-1 min-w-0 truncate">{{ slotItem.name }}</span>
           <button
-            class="shrink-0 font-cinzel text-2xs md:text-sm text-destructive hover:opacity-70"
+            class="shrink-0 font-cinzel text-2xs text-destructive hover:opacity-70"
             @click="emit('unequip')"
           >
             Remove
@@ -29,7 +29,7 @@
 
         <!-- Items that can go in this slot (owned, not equipped elsewhere) -->
         <div v-if="candidates.length">
-          <p class="font-cinzel text-2xs md:text-sm text-muted-foreground tracking-widest uppercase mb-1.5">
+          <p class="font-cinzel text-2xs text-muted-foreground tracking-widest uppercase mb-1.5">
             Equip from inventory
           </p>
           <AppButton

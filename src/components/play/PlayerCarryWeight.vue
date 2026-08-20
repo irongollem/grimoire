@@ -17,7 +17,7 @@
       <div class="flex items-center justify-between mb-1 gap-2">
         <!-- Burden label -->
         <span
-          class="text-label md:text-sm font-semibold transition-colors"
+          class="text-label font-semibold transition-colors"
           :class="BURDEN_META[burdenLevel].color"
         >
           {{ BURDEN_META[burdenLevel].label }}
@@ -27,10 +27,10 @@
         <div class="flex items-center gap-1.5 shrink-0">
           <span
             v-if="powerfulBuild"
-            class="text-eyebrow md:text-sm text-amber-400/70"
+            class="text-eyebrow text-amber-400/70"
           >Powerful Build</span>
-          <span class="font-cinzel text-2xs md:text-sm text-foreground">{{ formatWeightLb(totalCarriedWeight) }}</span>
-          <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/40">/</span>
+          <span class="font-cinzel text-2xs text-foreground">{{ formatWeightLb(totalCarriedWeight) }}</span>
+          <span class="font-cinzel text-2xs text-muted-foreground/40">/</span>
 
           <!-- editable capacity -->
           <form
@@ -45,26 +45,25 @@
               align="center"
               placeholder="*2 / +30 / 150"
               autofocus
-              class="w-20 md:text-sm"
+              class="w-20"
               @keydown.escape="$emit('cancel-capacity')"
             />
-            <AppButton type="submit" variant="link" size="inline-xs" class="md:text-sm" label="✓" />
+            <AppButton type="submit" variant="link" size="inline-xs" label="✓" />
             <AppButton
               v-if="hasCapacityOverride"
               variant="ghost"
               size="inline-xs"
-              class="md:text-sm"
               label="↺"
               tooltip="Reset to STR×15"
               @click="$emit('reset-capacity')"
             />
-            <AppButton variant="ghost" size="inline-xs" class="md:text-sm" label="✕" @click="$emit('cancel-capacity')" />
+            <AppButton variant="ghost" size="inline-xs" label="✕" @click="$emit('cancel-capacity')" />
           </form>
           <AppButton
             v-else
             variant="ghost"
             size="inline-xs"
-            :class="['md:text-sm', hasCapacityOverride ? 'text-amber-400 hover:text-amber-400' : '']"
+            :class="hasCapacityOverride ? 'text-amber-400 hover:text-amber-400' : ''"
             @click="$emit('open-capacity')"
           >
             {{ formatWeightLb(effectiveCapacity) }}
@@ -94,11 +93,11 @@
         <!-- threshold labels -->
         <div class="relative h-3.5 mt-0.5" aria-hidden="true">
           <span
-            class="absolute font-cinzel text-2xs md:text-sm text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
+            class="absolute font-cinzel text-2xs text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
             :style="{ left: encumberedMarkerPct + '%' }"
           >{{ formatWeightLb(encumberedThreshold) }}</span>
           <span
-            class="absolute font-cinzel text-2xs md:text-sm text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
+            class="absolute font-cinzel text-2xs text-muted-foreground/40 -translate-x-1/2 whitespace-nowrap"
             :style="{ left: heavyMarkerPct + '%' }"
           >{{ formatWeightLb(heavyThreshold) }}</span>
         </div>

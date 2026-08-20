@@ -28,7 +28,7 @@
           {{ quest.title }}
         </h2>
         <span
-          class="text-label md:text-sm px-2.5 py-1 rounded-full"
+          class="text-label px-2.5 py-1 rounded-full"
           :style="{
             color: QUEST_STATUS_COLORS[quest.status],
             borderColor: QUEST_STATUS_COLORS[quest.status] + '50',

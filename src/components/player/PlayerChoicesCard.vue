@@ -34,7 +34,7 @@
         :key="entry.key"
         class="flex gap-3 px-4 py-2.5"
       >
-        <span class="text-label md:text-sm text-muted-foreground w-32 shrink-0 pt-0.5">
+        <span class="text-label text-muted-foreground w-32 shrink-0 pt-0.5">
           {{ entry.label }}
         </span>
         <div class="flex flex-wrap gap-1.5">

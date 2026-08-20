@@ -22,7 +22,7 @@
 
       <!-- Drop form -->
       <div v-if="showCoinDrop" class="mt-3 border-t border-border pt-3">
-        <p class="text-eyebrow md:text-sm text-muted-foreground mb-2">
+        <p class="text-eyebrow text-muted-foreground mb-2">
           Drop to Chat
         </p>
         <div class="grid grid-cols-5 gap-1.5 mb-3">
@@ -32,7 +32,7 @@
             class="flex flex-col items-center gap-1"
           >
             <span
-              class="font-cinzel text-2xs md:text-sm font-bold"
+              class="font-cinzel text-2xs font-bold"
               :class="coin.color"
               :title="coin.label"
             >{{ coin.symbol }}</span>
@@ -46,7 +46,7 @@
               :title="`Max: ${memberCoins[coin.key]}`"
               @input="$emit('update-drop', coin.key, Number(($event.target as HTMLInputElement).value))"
             />
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/60">/ {{ memberCoins[coin.key] }}</span>
+            <span class="font-cinzel text-2xs text-muted-foreground/60">/ {{ memberCoins[coin.key] }}</span>
           </div>
         </div>
         <div class="flex gap-2">

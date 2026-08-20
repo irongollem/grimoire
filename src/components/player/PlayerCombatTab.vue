@@ -41,7 +41,7 @@
         <span class="font-cinzel text-xs" :class="stealthBonus >= 0 ? 'text-elven-green' : 'text-destructive'">
           {{ signedNum(stealthBonus) }}
         </span>
-        <span v-if="checkBadgeLabel" class="font-cinzel text-2xs md:text-sm text-amber-500">{{ checkBadgeLabel }}</span>
+        <span v-if="checkBadgeLabel" class="font-cinzel text-2xs text-amber-500">{{ checkBadgeLabel }}</span>
       </AppButton>
       <AppButton
         v-else
@@ -82,7 +82,7 @@
                   <span class="font-cinzel text-xs" :class="parseBeastAttackBonus(action.description)! >= 0 ? 'text-elven-green' : 'text-destructive'">
                     {{ signedNum(parseBeastAttackBonus(action.description)!) }}
                   </span>
-                  <span v-if="attackBadgeLabel" class="font-cinzel text-2xs md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
+                  <span v-if="attackBadgeLabel" class="font-cinzel text-2xs text-amber-500">{{ attackBadgeLabel }}</span>
                 </AppButton>
               </div>
               <p class="text-caption text-muted-foreground leading-relaxed">{{ action.description }}</p>
@@ -102,8 +102,8 @@
         <div v-for="{ inv, item } in equippedWeapons" :key="inv.id" class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
             <span class="text-body text-foreground font-semibold">{{ inv.name }}</span>
-            <span v-if="item?.subtype" class="text-label md:text-sm text-muted-foreground">{{ item.subtype }}</span>
-            <span v-else-if="!item" class="text-label md:text-sm text-muted-foreground">Custom</span>
+            <span v-if="item?.subtype" class="text-label text-muted-foreground">{{ item.subtype }}</span>
+            <span v-else-if="!item" class="text-label text-muted-foreground">Custom</span>
           </div>
           <!-- Weapon mastery — 2024 campaigns only; toggles whether this character has mastery with the weapon -->
           <button
@@ -134,7 +134,7 @@
               <span class="font-cinzel text-xs" :class="weaponAttackMod(item) >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(weaponAttackMod(item)) }}
               </span>
-              <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
+              <span v-if="attackBadgeLabel" class="text-label text-amber-500">{{ attackBadgeLabel }}</span>
             </AppButton>
             <AppButton
               v-if="weaponIsThrowable(inv, item)"
@@ -189,7 +189,7 @@
         <div class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
             <span class="text-body text-foreground font-semibold">Unarmed Strike</span>
-            <span class="text-label md:text-sm text-muted-foreground">Proficient</span>
+            <span class="text-label text-muted-foreground">Proficient</span>
           </div>
           <div class="flex flex-wrap gap-2 items-center">
             <AppButton
@@ -204,7 +204,7 @@
               <span class="font-cinzel text-xs" :class="unarmedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(unarmedAttackMod) }}
               </span>
-              <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
+              <span v-if="attackBadgeLabel" class="text-label text-amber-500">{{ attackBadgeLabel }}</span>
             </AppButton>
             <span class="font-cinzel text-xs text-muted-foreground">{{ unarmedDamage }} bludgeoning</span>
           </div>
@@ -212,7 +212,7 @@
         <div class="px-4 py-3">
           <div class="flex items-center justify-between mb-2">
             <span class="text-body text-foreground font-semibold">Improvised Weapon</span>
-            <span class="text-label md:text-sm text-muted-foreground">No proficiency</span>
+            <span class="text-label text-muted-foreground">No proficiency</span>
           </div>
           <div class="flex flex-wrap gap-2">
             <AppButton
@@ -227,7 +227,7 @@
               <span class="font-cinzel text-xs" :class="improvisedAttackMod >= 0 ? 'text-elven-green' : 'text-destructive'">
                 {{ signedNum(improvisedAttackMod) }}
               </span>
-              <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
+              <span v-if="attackBadgeLabel" class="text-label text-amber-500">{{ attackBadgeLabel }}</span>
             </AppButton>
             <AppButton
               variant="subtle"

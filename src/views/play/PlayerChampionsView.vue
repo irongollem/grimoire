@@ -67,7 +67,7 @@
                   <h2 class="font-cinzel text-sm font-bold text-foreground truncate">{{ char.name }}</h2>
                   <span
                     v-if="isActive(char)"
-                    class="shrink-0 text-label md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
+                    class="shrink-0 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
                   >Active</span>
                 </div>
                 <p class="text-caption text-muted-foreground italic mt-0.5 truncate">

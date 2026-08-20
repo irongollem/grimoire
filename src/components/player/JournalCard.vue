@@ -10,11 +10,11 @@
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline gap-2 flex-wrap">
           <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ title }}</p>
-          <span class="text-label md:text-sm shrink-0" :style="{ color }">{{ categoryLabel }}</span>
+          <span class="text-label shrink-0" :style="{ color }">{{ categoryLabel }}</span>
         </div>
         <div v-if="preview" class="text-caption text-muted-foreground mt-0.5 line-clamp-1">{{ preview }}</div>
         <div class="flex flex-wrap items-center gap-3 mt-1.5">
-          <span class="text-label md:text-sm text-muted-foreground/60">{{ date }}</span>
+          <span class="text-label text-muted-foreground/60">{{ date }}</span>
           <slot name="meta" />
         </div>
       </div>

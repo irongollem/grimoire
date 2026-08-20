@@ -76,7 +76,7 @@
             <template v-if="(member?.level ?? 0) < 8"> · no fly/swim speed</template>
           </p>
         </div>
-        <span v-if="isDruid && isCircleOfMoon" class="text-eyebrow md:text-sm px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
+        <span v-if="isDruid && isCircleOfMoon" class="text-eyebrow px-1.5 py-0.5 rounded border border-primary/40 text-primary bg-primary/10">MOON</span>
       </div>
 
       <!-- DM: share all eligible beasts with this druid -->
@@ -87,7 +87,6 @@
           tone="primary"
           emphasis="outline"
           size="xs"
-          class="md:text-sm"
           :disabled="sharingBeasts"
           :label="sharingBeasts ? 'Sharing…' : 'Share all eligible beasts'"
           @click="shareAllEligibleBeasts"
@@ -105,7 +104,7 @@
       <template v-else>
         <!-- Pinned section -->
         <template v-if="pinnedForms.length">
-          <p class="text-eyebrow md:text-sm text-muted-foreground">PINNED BY DM</p>
+          <p class="text-eyebrow text-muted-foreground">PINNED BY DM</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div
               v-for="entry in pinnedForms"
@@ -130,7 +129,7 @@
 
         <!-- Eligible section -->
         <template v-if="eligibleForms.length">
-          <p class="text-eyebrow md:text-sm text-muted-foreground mt-2">ELIGIBLE FORMS</p>
+          <p class="text-eyebrow text-muted-foreground mt-2">ELIGIBLE FORMS</p>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <div
               v-for="entry in eligibleForms"
@@ -189,7 +188,7 @@
               <!-- Left, not right: the mini badge owns bottom-right here. -->
               <span
                 v-if="lightbox.monster"
-                class="absolute bottom-2 left-2 px-2 py-0.5 rounded font-cinzel text-2xs md:text-sm font-bold text-white"
+                class="absolute bottom-2 left-2 px-2 py-0.5 rounded font-cinzel text-2xs font-bold text-white"
                 :class="crBg(lightbox.monster.stat_block.challenge_rating)"
               >CR {{ crText(lightbox.monster.stat_block.challenge_rating) }}</span>
             </MiniPortraitOverlay>
@@ -206,15 +205,15 @@
             <template v-if="lightbox.monster && (lightbox.revealStats ?? activeTab === 'forms')">
               <div class="flex gap-4 font-cinzel text-sm">
                 <div class="text-center">
-                  <p class="text-2xs md:text-sm text-muted-foreground tracking-wider">AC</p>
+                  <p class="text-2xs text-muted-foreground tracking-wider">AC</p>
                   <p class="font-bold">{{ lightbox.monster.stat_block.armor_class }}</p>
                 </div>
                 <div class="text-center">
-                  <p class="text-2xs md:text-sm text-muted-foreground tracking-wider">HP</p>
+                  <p class="text-2xs text-muted-foreground tracking-wider">HP</p>
                   <p class="font-bold">{{ formatHitPoints(lightbox.monster.stat_block.hit_points) }}</p>
                 </div>
                 <div class="text-center">
-                  <p class="text-2xs md:text-sm text-muted-foreground tracking-wider">SPD</p>
+                  <p class="text-2xs text-muted-foreground tracking-wider">SPD</p>
                   <p class="font-bold">{{ lightbox.monster.stat_block.speed }}</p>
                 </div>
               </div>
@@ -227,7 +226,7 @@
               />
               <template v-for="section in lightboxTraitSections" :key="section.label">
                 <div class="border-t border-border pt-3">
-                  <p class="text-label md:text-sm text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
+                  <p class="text-label text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
                   <div v-for="t in section.traits" :key="t.name" class="mb-3 last:mb-0">
                     <div class="flex items-start gap-2 flex-wrap">
                       <p class="font-cinzel text-xs font-semibold text-foreground shrink-0">{{ t.name }}.</p>
@@ -239,7 +238,6 @@
                           size="xs"
                           tone="caution"
                           emphasis="outline"
-                          class="md:text-sm"
                           :label="`⚔ ${(parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : ''}${parseAttackBonus(t.description) ?? 0}`"
                         />
                         <AppButton
@@ -248,7 +246,6 @@
                           size="xs"
                           tone="danger"
                           emphasis="outline"
-                          class="md:text-sm"
                           :label="`🎲 ${actionDiceLabel(t.description)}`"
                           @click.stop="rollActionDamage(t.description, t.name)"
                         />

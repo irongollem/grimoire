@@ -91,7 +91,7 @@
       <!-- Weapon slots + other -->
       <div class="flex-1 min-w-0 flex flex-col justify-between">
         <div class="space-y-1.5">
-          <p class="font-cinzel text-2xs md:text-sm text-muted-foreground/60 tracking-widest uppercase">
+          <p class="font-cinzel text-2xs text-muted-foreground/60 tracking-widest uppercase">
             Weapons
           </p>
           <EquipSlotRow
@@ -106,7 +106,7 @@
           />
         </div>
         <div class="space-y-1.5 mt-3">
-          <p class="font-cinzel text-2xs md:text-sm text-muted-foreground/60 tracking-widest uppercase">
+          <p class="font-cinzel text-2xs text-muted-foreground/60 tracking-widest uppercase">
             Other
           </p>
           <EquipSlotRow
@@ -128,7 +128,7 @@
 
     <!-- Attunement slots -->
     <div v-if="hasMember" class="mt-2 flex items-center justify-between gap-2">
-      <span class="text-label md:text-sm text-muted-foreground/50">ATTUNEMENT</span>
+      <span class="text-label text-muted-foreground/50">ATTUNEMENT</span>
       <div class="flex items-center gap-1.5">
         <div
           v-for="n in 3"
@@ -141,14 +141,14 @@
           "
           :title="n <= attunedItems.length ? attunedItems[n - 1]?.name : 'Empty slot'"
         />
-        <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/50">{{ attunedItems.length }}/3</span>
+        <span class="font-cinzel text-2xs text-muted-foreground/50">{{ attunedItems.length }}/3</span>
       </div>
     </div>
 
     <!-- Equipped weight -->
     <p
       v-if="hasMember && equippedWeight > 0"
-      class="text-label md:text-sm text-muted-foreground/50 text-right"
+      class="text-label text-muted-foreground/50 text-right"
     >
       Equipped: {{ formatWeightLb(equippedWeight) }}
     </p>

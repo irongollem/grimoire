@@ -11,7 +11,7 @@
       >
         <span class="text-body text-foreground flex-1">{{ res.label }}</span>
         <span
-          class="text-label md:text-sm rounded px-1.5 py-0.5 shrink-0"
+          class="text-label rounded px-1.5 py-0.5 shrink-0"
           :class="res.rest === 'short'
             ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
             : 'bg-blue-500/10 text-blue-600 border border-blue-500/20'"

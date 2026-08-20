@@ -52,7 +52,7 @@
 
           <!-- Subrace picker (when species has subraces) -->
           <div v-if="pendingSpecies.subraces?.length">
-            <p class="text-eyebrow md:text-sm font-semibold text-muted-foreground mb-2">VARIANT</p>
+            <p class="text-eyebrow font-semibold text-muted-foreground mb-2">VARIANT</p>
             <AppSelect
               v-model="selectedSubrace"
               tone="filled"
@@ -69,7 +69,7 @@
 
           <!-- Languages to be added -->
           <div v-if="languagesToAdd.length > 0">
-            <p class="text-eyebrow md:text-sm font-semibold text-muted-foreground mb-2">
+            <p class="text-eyebrow font-semibold text-muted-foreground mb-2">
               LANGUAGES GRANTED
             </p>
             <div class="flex flex-wrap gap-1.5">
@@ -93,7 +93,7 @@
 
           <!-- Free-pick spell grants -->
           <div v-if="freePickGrants.length > 0">
-            <p class="text-eyebrow md:text-sm font-semibold text-muted-foreground mb-2">
+            <p class="text-eyebrow font-semibold text-muted-foreground mb-2">
               SPELLS REQUIRING YOUR CHOICE
             </p>
             <div class="space-y-1">
@@ -104,7 +104,7 @@
               >
                 <div class="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
                 <span class="text-body text-foreground flex-1">{{ grant.spell_name }}</span>
-                <span class="font-cinzel text-2xs md:text-sm text-amber-500">
+                <span class="font-cinzel text-2xs text-amber-500">
                   {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
                 </span>
               </div>

@@ -6,7 +6,7 @@
     <div class="divide-y divide-border">
       <div v-for="step in steps" :key="step.key" class="px-4 py-3 space-y-2">
         <div class="flex items-baseline gap-3">
-          <span class="text-label md:text-sm text-muted-foreground w-10 shrink-0">Lvl {{ step.level }}</span>
+          <span class="text-label text-muted-foreground w-10 shrink-0">Lvl {{ step.level }}</span>
           <span class="text-body font-semibold text-foreground">{{ step.label }}</span>
         </div>
         <p v-if="step.description" class="text-caption text-muted-foreground pl-13">{{ step.description }}</p>
@@ -32,7 +32,7 @@
           </AppSelect>
           <button
             :disabled="!pendingPicks[step.key]"
-            class="px-2.5 py-1 bg-primary text-primary-foreground rounded text-label md:text-sm disabled:opacity-40 transition-opacity hover:opacity-90"
+            class="px-2.5 py-1 bg-primary text-primary-foreground rounded text-label disabled:opacity-40 transition-opacity hover:opacity-90"
             @click="confirmPick(step.key, step.count ?? 1)"
           >Save</button>
         </div>

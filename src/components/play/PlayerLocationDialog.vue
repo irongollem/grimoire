@@ -17,7 +17,7 @@
             <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
               {{ loc?.name ?? 'Location' }}
             </h2>
-            <span v-if="loc" class="text-label md:text-sm text-muted-foreground shrink-0">
+            <span v-if="loc" class="text-label text-muted-foreground shrink-0">
               {{ LOCATION_TYPE_LABELS[loc.location_type] }}
             </span>
             <AppButton
@@ -58,7 +58,6 @@
                 <AppButton
                   variant="link"
                   size="inline-xs"
-                  class="md:text-sm"
                   label="View in Atlas →"
                   @click="viewInAtlas"
                 />

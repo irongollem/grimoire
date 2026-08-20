@@ -16,7 +16,7 @@
         />
         <span
           v-if="isOwn"
-          class="absolute top-2 left-2 text-label md:text-sm px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
+          class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded bg-primary text-primary-foreground"
         >You</span>
       </MiniPortraitOverlay>
     </div>
@@ -31,8 +31,8 @@
       <div>
         <template v-if="showNumericHp">
           <div class="flex items-center justify-between mb-0.5">
-            <span class="text-label md:text-sm text-muted-foreground">HP</span>
-            <span class="font-cinzel text-2xs md:text-sm" :class="hpColor">{{ member.current_hp }} / {{ member.max_hp }}</span>
+            <span class="text-label text-muted-foreground">HP</span>
+            <span class="font-cinzel text-2xs" :class="hpColor">{{ member.current_hp }} / {{ member.max_hp }}</span>
           </div>
           <div class="h-1.5 rounded-full bg-muted overflow-hidden">
             <div
@@ -43,7 +43,7 @@
           </div>
         </template>
         <template v-else>
-          <span class="text-eyebrow md:text-sm text-muted-foreground">HP</span>
+          <span class="text-eyebrow text-muted-foreground">HP</span>
           <p class="text-caption italic" :class="hpColor">{{ immersiveHpLabel }}</p>
         </template>
       </div>
@@ -55,9 +55,9 @@
         <span
           v-for="cond in (member.conditions ?? []).slice(0, 2)"
           :key="cond"
-          class="text-label md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive"
+          class="text-label px-1 py-0.5 rounded bg-destructive/10 text-destructive"
         >{{ cond }}</span>
-        <span v-if="(member.conditions?.length ?? 0) > 2" class="text-caption-sm md:text-sm text-muted-foreground italic">
+        <span v-if="(member.conditions?.length ?? 0) > 2" class="text-caption-sm text-muted-foreground italic">
           +{{ (member.conditions?.length ?? 0) - 2 }}
         </span>
       </div>

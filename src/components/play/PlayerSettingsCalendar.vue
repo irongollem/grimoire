@@ -16,7 +16,6 @@
         variant="outline"
         fill="muted"
         size="xs"
-        class="md:text-sm"
         :tooltip="calCopied ? 'Copied!' : 'Copy URL'"
         :label="calCopied ? 'Copied' : 'Copy'"
         @click="copyFeedUrl"
@@ -32,7 +31,7 @@
     <div class="mt-3">
       <a
         :href="webcalUrl"
-        class="inline-flex items-center gap-1.5 text-label md:text-sm px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        class="inline-flex items-center gap-1.5 text-label px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
       >
         <IconAddEvent class="h-3 w-3" />
         Subscribe in Calendar App

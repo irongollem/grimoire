@@ -123,7 +123,7 @@
         <!-- Usage pips -->
         <div class="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-4">
           <div class="flex items-center gap-1.5">
-            <span class="text-label md:text-sm text-muted-foreground">Uses</span>
+            <span class="text-label text-muted-foreground">Uses</span>
             <div class="flex gap-1">
               <span
                 v-for="i in wildshapeMaxUses"
@@ -132,9 +132,9 @@
                 :class="i <= wildshapesUsed ? 'border-primary bg-primary/80' : 'border-muted-foreground/30'"
               />
             </div>
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground">{{ wildshapesUsed }}/{{ wildshapeMaxUses }}</span>
+            <span class="font-cinzel text-2xs text-muted-foreground">{{ wildshapesUsed }}/{{ wildshapeMaxUses }}</span>
           </div>
-          <span class="text-caption-sm md:text-sm text-muted-foreground italic">Max CR {{ wildshapeCrDisplay }}<template v-if="isCircleOfMoon"> · Moon</template></span>
+          <span class="text-caption-sm text-muted-foreground italic">Max CR {{ wildshapeCrDisplay }}<template v-if="isCircleOfMoon"> · Moon</template></span>
         </div>
 
         <!-- Active form -->
@@ -145,14 +145,12 @@
               <AppButton
                 variant="outline"
                 size="xs"
-                class="md:text-sm"
                 :label="showWildshapePicker ? 'Cancel' : 'Change'"
                 @click="showWildshapePicker = !showWildshapePicker"
               />
               <AppButton
                 variant="outline"
                 size="xs"
-                class="md:text-sm"
                 label="Revert"
                 @click="doRevertWildshape(); showWildshapePicker = false"
               />
@@ -160,15 +158,15 @@
           </div>
           <div class="flex gap-6 px-4 py-2.5">
             <div class="text-center">
-              <p class="text-eyebrow md:text-sm text-muted-foreground">HP</p>
+              <p class="text-eyebrow text-muted-foreground">HP</p>
               <p class="font-cinzel text-sm font-bold">{{ activeWildshape.beast_hp }}/{{ activeWildshape.beast_max_hp }}</p>
             </div>
             <div class="text-center">
-              <p class="text-label md:text-sm text-muted-foreground">AC</p>
+              <p class="text-label text-muted-foreground">AC</p>
               <p class="font-cinzel text-sm font-bold">{{ activeWildshape.beast_ac }}</p>
             </div>
             <div v-if="beastMonster?.stat_block?.speed" class="text-center">
-              <p class="text-label md:text-sm text-muted-foreground">SPEED</p>
+              <p class="text-label text-muted-foreground">SPEED</p>
               <p class="font-cinzel text-sm font-bold">{{ beastMonster.stat_block.speed }}</p>
             </div>
           </div>
@@ -182,7 +180,6 @@
               v-if="!activeWildshape"
               variant="outline"
               size="xs"
-              class="md:text-sm"
               :label="showWildshapePicker ? 'Cancel' : '🐺 Choose Form'"
               :disabled="!canWildshape"
               @click="showWildshapePicker = !showWildshapePicker"
@@ -202,8 +199,8 @@
                 @click="previewBeast = m"
               >
                 <span class="font-cinzel text-xs font-semibold flex-1 min-w-0 truncate">{{ m.name }}</span>
-                <span class="text-caption-sm md:text-sm text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
-                <span class="text-caption-sm md:text-sm text-muted-foreground shrink-0">AC {{ m.stat_block?.armor_class }}</span>
+                <span class="text-caption-sm text-muted-foreground shrink-0">CR {{ m.stat_block?.challenge_rating }}</span>
+                <span class="text-caption-sm text-muted-foreground shrink-0">AC {{ m.stat_block?.armor_class }}</span>
               </AppButton>
             </div>
           </template>

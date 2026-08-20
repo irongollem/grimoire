@@ -9,7 +9,7 @@
     <template #portrait-overlay>
       <span
         v-if="companion"
-        class="absolute top-2 left-2 text-label md:text-sm px-1.5 py-0.5 rounded text-white"
+        class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white"
         :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] + 'CC' }"
       >{{ COMPANION_TYPE_LABELS[companion.companion_type] }}</span>
     </template>
@@ -19,7 +19,7 @@
         <h2 class="text-heading font-bold text-foreground">{{ companion?.name }}</h2>
         <span
           v-if="companion && !companion.combat_ready"
-          class="text-label md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground italic"
+          class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground italic"
         >Elsewhere</span>
       </div>
       <p v-if="ownerName" class="text-body text-muted-foreground italic">
@@ -29,7 +29,7 @@
     <div v-if="companion" class="grid grid-cols-2 gap-3">
       <div class="rounded-md bg-muted p-2.5">
         <div class="flex items-center justify-between mb-1">
-          <span class="text-label md:text-sm text-muted-foreground">HP</span>
+          <span class="text-label text-muted-foreground">HP</span>
           <span class="font-cinzel text-sm font-bold" :class="hpColor">
             {{ companion.current_hp }} / {{ companion.max_hp }}
           </span>
@@ -77,7 +77,7 @@
       <div class="rounded-md bg-muted p-2.5 flex items-center gap-2">
         <IconShield class="h-4 w-4 text-muted-foreground shrink-0" />
         <div>
-          <p class="text-eyebrow md:text-sm text-muted-foreground">AC</p>
+          <p class="text-eyebrow text-muted-foreground">AC</p>
           <p class="font-cinzel text-sm font-bold text-foreground">{{ companion.ac }}</p>
         </div>
       </div>
@@ -112,7 +112,7 @@
       <span
         v-for="cond in companion.conditions.filter((c) => isOwner ? !isExhaustion(c) : true)"
         :key="cond"
-        class="flex items-center gap-1 text-label md:text-sm px-1.5 py-0.5 rounded bg-destructive/10 text-destructive"
+        class="flex items-center gap-1 text-label px-1.5 py-0.5 rounded bg-destructive/10 text-destructive"
       >
         {{ cond }}
         <AppButton

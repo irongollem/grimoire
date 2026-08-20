@@ -32,11 +32,11 @@
               class="group-hover:scale-105 transition-transform duration-300"
             />
             <span
-              class="absolute top-2 left-2 text-label md:text-sm px-1.5 py-0.5 rounded text-white font-bold"
+              class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
               :class="PUZZLE_TYPE_BG[puzzle.puzzle_type]"
             >{{ puzzle.puzzle_type }}</span>
             <span
-              class="absolute bottom-2 right-2 text-label md:text-sm px-1.5 py-0.5 rounded text-white font-bold"
+              class="absolute bottom-2 right-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
               :class="PUZZLE_DIFFICULTY_BG[puzzle.difficulty]"
             >{{ puzzle.difficulty }}</span>
           </div>
@@ -45,7 +45,7 @@
               <EntityNewDot :is-new="isNew(puzzle.id, puzzle.updated_at)" size="sm" />
               <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
             </div>
-            <p v-if="puzzle.shared_hints.length" class="text-caption-sm md:text-sm text-primary mt-0.5">
+            <p v-if="puzzle.shared_hints.length" class="text-caption-sm text-primary mt-0.5">
               {{ puzzle.shared_hints.length }} hint{{ puzzle.shared_hints.length === 1 ? '' : 's' }} available
             </p>
           </div>

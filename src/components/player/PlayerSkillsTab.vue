@@ -2,13 +2,13 @@
   <div class="space-y-3">
     <!-- Passives -->
     <div class="rounded-lg border border-border bg-card px-4 py-2.5 flex flex-wrap gap-x-6 gap-y-1">
-      <span class="text-label md:text-sm text-muted-foreground">
+      <span class="text-label text-muted-foreground">
         Passive Perception <span class="text-foreground font-bold">{{ passivePerception }}</span>
       </span>
-      <span class="text-label md:text-sm text-muted-foreground">
+      <span class="text-label text-muted-foreground">
         Passive Insight <span class="text-foreground font-bold">{{ passiveInsight }}</span>
       </span>
-      <span class="text-label md:text-sm text-muted-foreground">
+      <span class="text-label text-muted-foreground">
         Passive Investigation <span class="text-foreground font-bold">{{ passiveInvestigation }}</span>
       </span>
     </div>
@@ -33,7 +33,7 @@
               <span v-if="isExpertise(skill.key)" class="h-1.5 w-1.5 rounded-full bg-current" />
             </span>
             <span class="text-body flex-1 text-foreground">{{ skill.label }}</span>
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/50 mr-1">{{ skill.ability.toUpperCase() }}</span>
+            <span class="font-cinzel text-2xs text-muted-foreground/50 mr-1">{{ skill.ability.toUpperCase() }}</span>
             <span class="font-cinzel text-sm font-bold" :class="skillBonusValue(skill) >= 0 ? 'text-foreground' : 'text-destructive'">
               {{ signedNum(skillBonusValue(skill)) }}
             </span>
@@ -57,7 +57,7 @@
               <span v-if="isExpertise(skill.key)" class="h-1.5 w-1.5 rounded-full bg-current" />
             </span>
             <span class="text-body flex-1 text-foreground">{{ skill.label }}</span>
-            <span class="font-cinzel text-2xs md:text-sm text-muted-foreground/50 mr-1">{{ skill.ability.toUpperCase() }}</span>
+            <span class="font-cinzel text-2xs text-muted-foreground/50 mr-1">{{ skill.ability.toUpperCase() }}</span>
             <span class="font-cinzel text-sm font-bold" :class="skillBonusValue(skill) >= 0 ? 'text-foreground' : 'text-destructive'">
               {{ signedNum(skillBonusValue(skill)) }}
             </span>

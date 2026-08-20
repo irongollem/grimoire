@@ -5,7 +5,7 @@
     </div>
     <div class="divide-y divide-border">
       <div v-if="languages?.length" class="flex gap-3 px-4 py-2.5">
-        <span class="text-label md:text-sm text-muted-foreground w-32 shrink-0 pt-0.5">Languages</span>
+        <span class="text-label text-muted-foreground w-32 shrink-0 pt-0.5">Languages</span>
         <div class="flex flex-wrap gap-1.5">
           <template v-for="lang in languages" :key="lang">
             <RouterLink
@@ -22,7 +22,7 @@
         </div>
       </div>
       <div v-if="toolProficiencies?.length" class="flex gap-3 px-4 py-2.5">
-        <span class="text-label md:text-sm text-muted-foreground w-32 shrink-0 pt-0.5">Tools</span>
+        <span class="text-label text-muted-foreground w-32 shrink-0 pt-0.5">Tools</span>
         <div class="flex flex-wrap gap-1.5">
           <span
             v-for="tool in toolProficiencies"

@@ -19,7 +19,7 @@
         />
         <EntityNewDot :is-new="isNew" title="New" />
         <span class="flex-1 font-cinzel text-sm font-semibold text-foreground truncate">{{ loc.name }}</span>
-        <span class="text-label md:text-sm text-muted-foreground shrink-0">
+        <span class="text-label text-muted-foreground shrink-0">
           {{ locLabel }}
         </span>
         <IconChevronDown
@@ -63,7 +63,7 @@
         :tooltip="detailOpen ? 'Hide details' : 'Show details'"
         @click="$emit('toggle-detail', loc.id)"
       >
-        <span class="hidden sm:inline text-label md:text-sm">Details</span>
+        <span class="hidden sm:inline text-label">Details</span>
       </AppButton>
     </div>
 

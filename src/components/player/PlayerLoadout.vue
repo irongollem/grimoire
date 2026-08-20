@@ -4,7 +4,7 @@
       <span class="text-label-lg font-semibold text-muted-foreground">LOADOUT</span>
       <RouterLink
         to="/play/inventory"
-        class="flex items-center gap-1 text-label md:text-sm text-primary hover:opacity-80 transition-opacity"
+        class="flex items-center gap-1 text-label text-primary hover:opacity-80 transition-opacity"
       >
         <IconInventory class="h-3 w-3" />
         Manage
@@ -18,11 +18,11 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 pl-2 pr-1 py-0.5 max-w-full"
         :title="`${entry.inv.name} — ${SLOT_LABELS[entry.slot] ?? entry.slot}`"
       >
-        <span class="text-eyebrow md:text-sm text-muted-foreground shrink-0">{{ SLOT_LABELS[entry.slot] ?? entry.slot }}</span>
+        <span class="text-eyebrow text-muted-foreground shrink-0">{{ SLOT_LABELS[entry.slot] ?? entry.slot }}</span>
         <span class="text-caption text-foreground truncate">{{ entry.inv.name }}</span>
         <span
           v-if="(entry.inv.quantity ?? 1) > 1"
-          class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0"
+          class="font-cinzel text-2xs text-muted-foreground shrink-0"
         >×{{ entry.inv.quantity }}</span>
         <button
           type="button"

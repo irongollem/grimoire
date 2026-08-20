@@ -47,7 +47,7 @@
         aria-label="Keep screen awake"
         @update:model-value="toggleWakeLock"
       />
-      <span v-else class="text-label md:text-sm text-muted-foreground px-2 py-1 rounded border border-border">
+      <span v-else class="text-label text-muted-foreground px-2 py-1 rounded border border-border">
         Unavailable
       </span>
     </div>

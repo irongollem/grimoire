@@ -5,7 +5,6 @@
       variant="subtle"
       size="xs"
       shape="pill"
-      class="md:text-sm"
       :active="filterCategory === null"
       label="All"
       @click="$emit('update:filterCategory', null)"
@@ -26,7 +25,6 @@
       variant="subtle"
       size="xs"
       shape="pill"
-      class="md:text-sm"
       :active="filterCategory === key"
       :style="filterCategory === key ? { color: cat.color, backgroundColor: cat.color + '18', borderColor: cat.color + '60' } : undefined"
       :label="cat.label"
@@ -69,7 +67,7 @@
           <span
             v-for="tag in entry.tags"
             :key="tag"
-            class="text-label md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+            class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
           >{{ tag }}</span>
         </div>
       </div>

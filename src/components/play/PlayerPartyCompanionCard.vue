@@ -13,12 +13,12 @@
         class="group-hover:scale-105 transition-transform duration-300"
       />
       <span
-        class="absolute top-2 right-2 text-label md:text-sm px-1.5 py-0.5 rounded text-white"
+        class="absolute top-2 right-2 text-label px-1.5 py-0.5 rounded text-white"
         :style="{ backgroundColor: COMPANION_TYPE_COLORS[companion.companion_type] + 'CC' }"
       >{{ COMPANION_TYPE_LABELS[companion.companion_type] }}</span>
       <span
         v-if="!companion.combat_ready"
-        class="absolute top-2 left-2 text-label md:text-sm px-1.5 py-0.5 rounded bg-black/60 text-white italic"
+        class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded bg-black/60 text-white italic"
         title="Not with the party right now"
       >Elsewhere</span>
     </div>
@@ -30,8 +30,8 @@
       <div>
         <template v-if="showNumericHp">
           <div class="flex items-center justify-between mb-0.5">
-            <span class="text-label md:text-sm text-muted-foreground">HP</span>
-            <span class="font-cinzel text-2xs md:text-sm" :class="hpColor">{{ companion.current_hp }} / {{ companion.max_hp }}</span>
+            <span class="text-label text-muted-foreground">HP</span>
+            <span class="font-cinzel text-2xs" :class="hpColor">{{ companion.current_hp }} / {{ companion.max_hp }}</span>
           </div>
           <div class="h-1.5 rounded-full bg-muted overflow-hidden">
             <div
@@ -42,7 +42,7 @@
           </div>
         </template>
         <template v-else>
-          <span class="text-eyebrow md:text-sm text-muted-foreground">HP</span>
+          <span class="text-eyebrow text-muted-foreground">HP</span>
           <p class="text-caption italic" :class="hpColor">{{ immersiveHpLabel }}</p>
         </template>
       </div>
@@ -54,7 +54,7 @@
         <span
           v-for="cond in (companion.conditions ?? []).slice(0, 2)"
           :key="cond"
-          class="text-label md:text-sm px-1 py-0.5 rounded bg-destructive/10 text-destructive"
+          class="text-label px-1 py-0.5 rounded bg-destructive/10 text-destructive"
         >{{ cond }}</span>
       </div>
     </div>

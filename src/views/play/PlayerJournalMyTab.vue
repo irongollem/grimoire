@@ -65,7 +65,7 @@
       <template #meta>
         <span v-if="entry.ref_label" class="text-caption text-muted-foreground/70 italic truncate max-w-32">{{ entry.ref_label }}</span>
         <span
-          class="inline-flex items-center gap-1 text-label md:text-sm"
+          class="inline-flex items-center gap-1 text-label"
           :class="entry.is_private ? 'text-muted-foreground/50' : 'text-elven-green'"
         >
           <IconLock v-if="entry.is_private" class="h-2.5 w-2.5" />
@@ -86,7 +86,7 @@
             <span
               v-for="tag in entry.tags"
               :key="tag"
-              class="text-label md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+              class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
             >{{ tag }}</span>
           </div>
         </div>

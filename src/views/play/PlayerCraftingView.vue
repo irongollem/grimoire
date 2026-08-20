@@ -29,7 +29,7 @@
           :tooltip="!hasProficiency(d.tools) ? `No ${d.tools[0]} proficiency — no proficiency bonus` : d.label"
           @click="ui.playerCraftingActiveTab = d.id"
         >
-          <span>{{ d.label }}<span v-if="!hasProficiency(d.tools)" class="text-eyebrow md:text-sm text-muted-foreground/60 ml-1">NO PROF</span></span>
+          <span>{{ d.label }}<span v-if="!hasProficiency(d.tools)" class="text-eyebrow text-muted-foreground/60 ml-1">NO PROF</span></span>
         </AppButton>
       </div>
 
@@ -75,7 +75,7 @@
                 <p class="font-cinzel text-sm font-bold text-foreground truncate">{{ recipe.name }}</p>
                 <span
                   v-if="!activeDiscipline"
-                  class="shrink-0 text-label md:text-sm px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+                  class="shrink-0 text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
                 >{{ getDiscipline(recipe.discipline).label }}</span>
               </div>
               <p class="text-caption text-muted-foreground">
@@ -93,21 +93,21 @@
             </div>
             <span
               v-if="recipe.requires_proficiency && !hasProficiency(getDiscipline(recipe.discipline).tools)"
-              class="shrink-0 text-eyebrow md:text-sm px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+              class="shrink-0 text-eyebrow px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
               :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} proficiency`"
             >
               LOCKED
             </span>
             <span
               v-else-if="recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
-              class="shrink-0 text-eyebrow md:text-sm px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
+              class="shrink-0 text-eyebrow px-1.5 py-0.5 rounded border border-destructive/40 text-destructive bg-destructive/10"
               :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory`"
             >
               NO TOOLS
             </span>
             <span
               v-else-if="!hasTools(getDiscipline(recipe.discipline).tools)"
-              class="shrink-0 text-eyebrow md:text-sm px-1.5 py-0.5 rounded border border-gold-500/40 text-gold-400 bg-gold-500/10"
+              class="shrink-0 text-eyebrow px-1.5 py-0.5 rounded border border-gold-500/40 text-gold-400 bg-gold-500/10"
               :title="`Requires ${getDiscipline(recipe.discipline).tools[0]} in inventory — roll at disadvantage`"
             >
               DISADV
@@ -123,7 +123,7 @@
 
           <!-- Ingredients -->
           <div class="px-4 py-3 flex-1">
-            <p class="text-label md:text-sm font-semibold text-muted-foreground mb-2">INGREDIENTS</p>
+            <p class="text-label font-semibold text-muted-foreground mb-2">INGREDIENTS</p>
             <div
               v-for="ing in ingredientsFor(recipe.id)"
               :key="ing.id"
@@ -137,7 +137,7 @@
               <span class="text-caption text-foreground flex-1 truncate" :class="{ italic: !ing.item_id }">
                 {{ ingredientLabel(ing) }}
               </span>
-              <span class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0">
+              <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
                 {{ ownedCount(ing) }}/{{ ing.quantity }}
               </span>
             </div>

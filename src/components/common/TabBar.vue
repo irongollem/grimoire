@@ -13,7 +13,7 @@
       {{ tab.label }}
       <span
         v-if="typeof tab.count === 'number' && tab.count > 0"
-        class="ml-1.5 text-caption-sm font-normal md:text-sm opacity-70"
+        class="ml-1.5 text-caption-sm font-normal opacity-70"
       >({{ tab.count }})</span>
       <span
         v-if="tab.badge"

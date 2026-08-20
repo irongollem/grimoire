@@ -50,7 +50,7 @@
           :active="diceMode === 'tool'"
           @click="setDiceMode('tool')"
         >
-          <span class="text-label md:text-sm">TOOL</span>
+          <span class="text-label">TOOL</span>
         </AppButton>
         <AppButton
           variant="subtle"
@@ -59,7 +59,7 @@
           :active="diceMode === 'physical'"
           @click="setDiceMode('physical')"
         >
-          <span class="text-label md:text-sm">PHYSICAL</span>
+          <span class="text-label">PHYSICAL</span>
         </AppButton>
       </div>
     </div>

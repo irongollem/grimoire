@@ -26,7 +26,7 @@
             class="w-full text-left flex items-center gap-3 cursor-pointer"
             @click="isSpellcasting(featureName(feat)) ? emit('navigate-spells') : featureDescription(feat) && toggleExpanded(`class-${group.class_name}-${lvl}-${featureName(feat)}`)"
           >
-            <span class="text-label md:text-sm text-muted-foreground w-10 shrink-0">Lvl {{ lvl }}</span>
+            <span class="text-label text-muted-foreground w-10 shrink-0">Lvl {{ lvl }}</span>
             <span class="text-body text-foreground flex-1">{{ featureName(feat) }}</span>
             <IconGenerate v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
             <IconChevronDown
@@ -54,9 +54,9 @@
             class="w-full text-left flex items-center gap-3 cursor-pointer"
             @click="isSpellcasting(featureName(feat)) ? emit('navigate-spells') : featureDescription(feat) && toggleExpanded(`sub-${group.class_name}-${lvl}-${featureName(feat)}`)"
           >
-            <span class="text-label md:text-sm text-muted-foreground w-10 shrink-0">Lvl {{ lvl }}</span>
+            <span class="text-label text-muted-foreground w-10 shrink-0">Lvl {{ lvl }}</span>
             <span class="text-body text-foreground flex-1">{{ featureName(feat) }}</span>
-            <span class="text-label md:text-sm text-primary/60 shrink-0 mr-1">Subclass</span>
+            <span class="text-label text-primary/60 shrink-0 mr-1">Subclass</span>
             <IconGenerate v-if="isSpellcasting(featureName(feat))" class="h-3 w-3 text-primary/60 shrink-0" />
             <IconChevronDown
               v-else-if="featureDescription(feat)"

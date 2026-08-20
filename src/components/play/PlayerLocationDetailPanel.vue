@@ -42,7 +42,6 @@
         <AppButton
           variant="ghost"
           size="inline-xs"
-          class="md:text-sm"
           :label="isFullSize ? 'Compact' : 'Full size'"
           @click="$emit('toggle-map-size', loc.id)"
         />
@@ -51,19 +50,19 @@
 
     <!-- Full description (when shared) -->
     <div v-if="loc.is_description_shared && loc.description" class="border-t border-border pt-3">
-      <p class="text-label md:text-sm text-muted-foreground mb-1">Description</p>
+      <p class="text-label text-muted-foreground mb-1">Description</p>
       <RichTextViewer :content="loc.description" />
     </div>
 
     <!-- Wares (store / tavern / inn when inventory shared) -->
     <div v-if="isStoreType && loc.is_inventory_shared" class="border-t border-border pt-3">
-      <p class="text-label md:text-sm text-muted-foreground mb-2">Wares</p>
+      <p class="text-label text-muted-foreground mb-2">Wares</p>
       <PlayerStoreWares :location-id="loc.id" />
     </div>
 
     <!-- Linked NPCs (when shared) -->
     <div v-if="loc.is_npcs_shared" class="border-t border-border pt-3">
-      <p class="text-label md:text-sm text-muted-foreground mb-2">People in the Area</p>
+      <p class="text-label text-muted-foreground mb-2">People in the Area</p>
       <div v-if="npcs.length" class="flex flex-col gap-1.5">
         <AppButton
           v-for="npc in npcs"

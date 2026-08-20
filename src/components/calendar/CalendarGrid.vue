@@ -20,7 +20,7 @@
           {{ currentMonth.name }}
         </p>
         <div class="flex items-center justify-center gap-1 mt-0.5 flex-wrap">
-          <p v-if="currentMonth.alias" class="text-caption md:text-sm text-muted-foreground italic">
+          <p v-if="currentMonth.alias" class="text-caption text-muted-foreground italic">
             {{ currentMonth.alias }} ·
           </p>
           <AppInput
@@ -34,9 +34,9 @@
           />
           <span
             v-else
-            class="text-caption md:text-sm text-muted-foreground italic"
+            class="text-caption text-muted-foreground italic"
           >{{ calendar.currentYear }}</span>
-          <p class="text-caption md:text-sm text-muted-foreground italic">
+          <p class="text-caption text-muted-foreground italic">
             {{ calendar.adapter.epochName }}
           </p>
         </div>

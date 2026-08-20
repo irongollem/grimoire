@@ -56,7 +56,7 @@
           <div v-else-if="pendingBg.feat_grant_name"
             class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
             <div class="flex items-center gap-2">
-              <p class="text-eyebrow md:text-sm font-semibold text-amber-600 dark:text-amber-400">
+              <p class="text-eyebrow font-semibold text-amber-600 dark:text-amber-400">
                 FEAT GRANT
               </p>
               <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
@@ -66,7 +66,7 @@
 
           <!-- Proficiencies granted by the new background -->
           <div v-if="propsToApply.length > 0">
-            <p class="text-eyebrow md:text-sm font-semibold text-muted-foreground mb-2">
+            <p class="text-eyebrow font-semibold text-muted-foreground mb-2">
               PROFICIENCIES GRANTED
             </p>
             <div class="flex flex-wrap gap-1.5">

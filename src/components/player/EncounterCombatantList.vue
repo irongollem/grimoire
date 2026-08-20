@@ -19,7 +19,7 @@
           <div class="flex-1 min-w-0 self-center">
             <div class="flex items-center gap-2 overflow-hidden">
               <span class="combatant-name font-cinzel text-sm font-semibold text-muted-foreground italic truncate">???</span>
-              <span class="pc-npc-badge shrink-0 text-eyebrow md:text-sm px-1.5 py-0.5 rounded font-bold bg-muted text-muted-foreground">NPC</span>
+              <span class="pc-npc-badge shrink-0 text-eyebrow px-1.5 py-0.5 rounded font-bold bg-muted text-muted-foreground">NPC</span>
             </div>
           </div>
         </div>
@@ -57,13 +57,13 @@
             <div class="flex items-center gap-2 overflow-hidden">
               <span class="combatant-name font-cinzel text-sm font-semibold text-foreground truncate min-w-0">{{ combatant.name }}</span>
               <span
-                class="pc-npc-badge shrink-0 text-label md:text-sm px-1.5 py-0.5 rounded font-bold"
+                class="pc-npc-badge shrink-0 text-label px-1.5 py-0.5 rounded font-bold"
                 :class="combatant.type === 'player' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'"
               >{{ combatant.type === "player" ? "PC" : "NPC" }}</span>
               <span
                 v-for="cond in combatant.conditions"
                 :key="cond"
-                class="shrink-0 text-label md:text-sm px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500"
+                class="shrink-0 text-label px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500"
               >{{ cond }}</span>
             </div>
             <div

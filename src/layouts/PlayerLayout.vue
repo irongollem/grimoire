@@ -4,7 +4,7 @@
     <header class="h-14 border-b border-border bg-card flex items-center px-4 gap-3 shrink-0">
       <div class="flex items-center gap-2 shrink-0">
         <span class="font-cinzel text-base font-bold text-gold-500 tracking-widest">Grimoire</span>
-        <span class="text-caption md:text-sm text-muted-foreground italic hidden sm:inline">
+        <span class="text-caption text-muted-foreground italic hidden sm:inline">
           · {{ campaignName }}
         </span>
       </div>

@@ -10,7 +10,7 @@
       :disabled="resting"
       @click="restDialog = 'short'"
     >
-      <span class="text-label md:text-sm">Rest</span>
+      <span class="text-label">Rest</span>
     </AppButton>
     <AppButton
       variant="tinted"
@@ -24,7 +24,7 @@
       :disabled="resting"
       @click="restDialog = 'long'"
     >
-      <span class="text-label md:text-sm">Sleep</span>
+      <span class="text-label">Sleep</span>
     </AppButton>
   </div>
 

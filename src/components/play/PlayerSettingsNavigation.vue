@@ -24,7 +24,7 @@
         <span class="text-label-lg flex-1">{{ item.label }}</span>
         <span
           v-if="i < MOBILE_NAV_SLOTS"
-          class="text-label md:text-sm px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
+          class="text-label px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0"
         >bar</span>
       </li>
     </ol>

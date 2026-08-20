@@ -28,7 +28,7 @@
 
       <!-- Favourites pinned section -->
       <div v-if="!isFiltering && favouriteLocations.length" class="flex flex-col gap-1.5">
-        <p class="text-eyebrow md:text-sm text-muted-foreground">Favourites</p>
+        <p class="text-eyebrow text-muted-foreground">Favourites</p>
         <PlayerLocationCard
           v-for="loc in favouriteLocations"
           :key="`fav-${loc.id}`"
@@ -71,7 +71,7 @@
           :class="detailOpen.size > 0 || childrenOpen.size > 0 ? '' : 'invisible pointer-events-none'"
           @click="detailOpen = new Set(); childrenOpen = new Set()"
         >
-          <span class="text-label md:text-sm">Close all</span>
+          <span class="text-label">Close all</span>
         </AppButton>
       </div>
 
@@ -147,7 +147,7 @@
           <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
             {{ watchingLocation.name }}
           </h2>
-          <span class="text-label md:text-sm text-muted-foreground shrink-0">
+          <span class="text-label text-muted-foreground shrink-0">
             {{ LOCATION_TYPE_LABELS[watchingLocation.location_type] }}
           </span>
           <AppButton

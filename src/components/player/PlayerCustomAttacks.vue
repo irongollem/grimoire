@@ -45,7 +45,7 @@
             <span class="font-cinzel text-xs" :class="attack.attack_bonus >= 0 ? 'text-elven-green' : 'text-destructive'">
               {{ signedNum(attack.attack_bonus) }}
             </span>
-            <span v-if="attackBadgeLabel" class="text-label md:text-sm text-amber-500">{{ attackBadgeLabel }}</span>
+            <span v-if="attackBadgeLabel" class="text-label text-amber-500">{{ attackBadgeLabel }}</span>
           </AppButton>
           <AppButton
             variant="subtle"

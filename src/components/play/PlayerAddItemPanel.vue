@@ -39,7 +39,7 @@
           >
             <span class="flex items-baseline gap-2 w-full">
               <span class="truncate">{{ it.name }}</span>
-              <span class="font-cinzel text-2xs md:text-sm text-muted-foreground shrink-0 capitalize">{{ it.rarity }}</span>
+              <span class="font-cinzel text-2xs text-muted-foreground shrink-0 capitalize">{{ it.rarity }}</span>
             </span>
           </AppButton>
         </div>
