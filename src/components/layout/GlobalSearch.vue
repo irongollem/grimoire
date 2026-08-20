@@ -3,12 +3,13 @@
     <!-- IconSearch input -->
     <div class="relative">
       <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-      <input
+      <AppInput
         ref="inputRef"
         v-model="query"
-        type="text"
+        tone="default"
+        size="body"
         placeholder="Search…"
-        class="w-full pl-7 py-1.5 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500 transition-colors"
+        class="pl-7"
         :class="hotkey && !query ? 'pr-12' : 'pr-7'"
         @focus="open = true"
         @keydown.escape="close"
@@ -16,14 +17,16 @@
         @keydown.up.prevent="moveFocus(-1)"
         @keydown.enter.prevent="selectFocused"
       />
-      <button
+      <AppButton
         v-if="query"
-        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+        variant="ghost"
+        size="icon-xs"
+        class="absolute right-2 top-1/2 -translate-y-1/2"
         tabindex="-1"
+        :icon="IconClose"
+        aria-label="Clear search"
         @click="clear"
-      >
-        <IconClose class="h-3.5 w-3.5" />
-      </button>
+      />
       <!-- Advertises mod+k only where the shortcut is actually registered —
            the bar-mode tablet instance passes hotkey=false and a tablet has
            no keyboard to advertise the shortcut to anyway. -->
@@ -87,6 +90,9 @@ import { useGlobalSearch } from "@/composables/useGlobalSearch";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { formatCombo, isMacPlatform } from "@/lib/hotkeys";
 import type { SearchGroup } from "@/composables/useGlobalSearch";
+import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 
 const { hotkey = true } = defineProps<{
   hotkey?: boolean;
@@ -99,7 +105,7 @@ const router = useRouter();
 const query = ref("");
 const open = ref(false);
 const focusedIndex = ref(-1);
-const inputRef = ref<HTMLInputElement | null>(null);
+const inputRef = ref<AppInputHandle | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 
 const { data, isFetching } = useGlobalSearch(query);
@@ -140,7 +146,7 @@ function selectFocused() {
 function close() {
   open.value = false;
   focusedIndex.value = -1;
-  inputRef.value?.blur();
+  inputRef.value?.el?.blur();
 }
 
 function clear() {

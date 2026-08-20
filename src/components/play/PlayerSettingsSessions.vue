@@ -37,26 +37,28 @@
         </div>
         <!-- 3-way toggle -->
         <div class="flex items-center gap-1 shrink-0">
-          <button
-            class="inline-flex items-center gap-1 px-2 py-1 rounded text-label md:text-sm border transition-colors"
-            :class="myAvailability(s.id) === true
-              ? 'border-elven-green/50 bg-elven-green/15 text-elven-green'
-              : 'border-border text-muted-foreground hover:border-elven-green/30 hover:text-elven-green'"
+          <AppButton
+            variant="subtle"
+            size="xs"
+            tone="success"
+            :active="myAvailability(s.id) === true"
+            class="md:text-sm"
+            :icon="IconCheck"
+            icon-size="xs"
+            label="Yes"
             @click="setAvailability(s, true)"
-          >
-            <IconCheck class="h-3 w-3" />
-            Yes
-          </button>
-          <button
-            class="inline-flex items-center gap-1 px-2 py-1 rounded text-label md:text-sm border transition-colors"
-            :class="myAvailability(s.id) === false
-              ? 'border-destructive/50 bg-destructive/10 text-destructive'
-              : 'border-border text-muted-foreground hover:border-destructive/30 hover:text-destructive'"
+          />
+          <AppButton
+            variant="subtle"
+            size="xs"
+            tone="danger"
+            :active="myAvailability(s.id) === false"
+            class="md:text-sm"
+            :icon="IconClose"
+            icon-size="xs"
+            label="No"
             @click="setAvailability(s, false)"
-          >
-            <IconClose class="h-3 w-3" />
-            No
-          </button>
+          />
         </div>
       </div>
     </div>
@@ -65,6 +67,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
 import { IconCalendarCheck, IconCheck, IconClose } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";

@@ -4,16 +4,16 @@
     <!-- Mode toggle -->
     <div class="px-4 py-3 border-b border-border flex items-center gap-2">
       <span class="text-eyebrow text-muted-foreground mr-1">Mode</span>
-      <button
+      <AppButton
         v-for="m in (['auto', 'brush'] as IlluminatorMode[])"
         :key="m"
-        type="button"
-        class="text-label px-3 py-1 rounded-full border transition-colors"
-        :class="mode === m
-          ? 'border-primary text-primary bg-primary/10'
-          : 'border-border text-muted-foreground hover:border-primary/60 hover:text-foreground'"
+        variant="subtle"
+        size="xs"
+        shape="pill"
+        :active="mode === m"
+        :label="m === 'auto' ? 'Auto' : 'Brush'"
         @click="emit('update:mode', m)"
-      >{{ m === 'auto' ? 'Auto' : 'Brush' }}</button>
+      />
     </div>
 
     <!-- Brush section (brush mode only) -->
@@ -127,15 +127,15 @@
         @click="emit('download')"
       />
 
-      <button
-        type="button"
+      <AppButton
+        variant="outline"
+        fill="muted"
+        size="md"
         :disabled="!hasImage || isExporting || !clipboardSupported"
-        class="flex items-center justify-center gap-2 rounded-md border border-border px-4 py-2 text-label-lg font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+        :icon="copySuccess ? IconCheck : IconClipboard"
+        :label="copySuccess ? 'Copied!' : 'Copy to clipboard'"
         @click="emit('copy')"
-      >
-        <component :is="copySuccess ? IconCheck : IconClipboard" class="h-3.5 w-3.5 shrink-0" />
-        {{ copySuccess ? 'Copied!' : 'Copy to clipboard' }}
-      </button>
+      />
     </div>
   </div>
 </template>

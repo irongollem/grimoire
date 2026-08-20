@@ -1,17 +1,31 @@
 <template>
   <div class="flex items-center gap-1">
-    <button
-      class="h-6 flex items-center gap-1 px-1.5 rounded border border-border text-label md:text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-      title="Short Rest"
+    <AppButton
+      variant="subtle"
+      size="toolbar"
+      :icon="IconMoon"
+      icon-size="xs"
+      tooltip="Short Rest"
+      aria-label="Rest"
       :disabled="resting"
       @click="restDialog = 'short'"
-    ><IconMoon class="h-3 w-3" /> Rest</button>
-    <button
-      class="h-6 flex items-center gap-1 px-1.5 rounded bg-primary/10 border border-primary/30 text-label md:text-sm text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-      title="Long Rest"
+    >
+      <span class="text-label md:text-sm">Rest</span>
+    </AppButton>
+    <AppButton
+      variant="tinted"
+      tone="primary"
+      emphasis="soft"
+      size="toolbar"
+      :icon="IconSun"
+      icon-size="xs"
+      tooltip="Long Rest"
+      aria-label="Sleep"
       :disabled="resting"
       @click="restDialog = 'long'"
-    ><IconSun class="h-3 w-3" /> Sleep</button>
+    >
+      <span class="text-label md:text-sm">Sleep</span>
+    </AppButton>
   </div>
 
   <RestDialog
@@ -26,6 +40,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
+import AppButton from "@/components/common/AppButton.vue";
 import RestDialog from "@/components/player/RestDialog.vue";
 import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/useParty";
 import { getCasterType, getDefaultSpellSlots } from "@/types/spell.types";

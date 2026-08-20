@@ -9,23 +9,18 @@
     <div v-if="campaignStore.activeCampaign" class="flex flex-col md:flex-row flex-1 min-h-0">
       <!-- Sidebar tabs -->
       <aside class="hidden md:flex flex-col w-48 shrink-0 border-r border-border px-3 py-4 gap-0.5">
-        <button
+        <AppButton
           v-for="tab in tabs"
           :key="tab.id"
-          class="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-cinzel tracking-wide transition-colors text-left w-full"
-          :class="
-            tab.id === 'danger'
-              ? activeTab === 'danger'
-                ? 'bg-destructive/10 text-destructive'
-                : 'text-destructive/60 hover:text-destructive'
-              : activeTab === tab.id
-                ? 'bg-muted text-foreground font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-          "
+          variant="ghost"
+          size="sm"
+          block
+          class="justify-start text-left"
+          :active="activeTab === tab.id"
+          :tone="tab.id === 'danger' ? 'danger' : undefined"
+          :label="tab.label"
           @click="setTab(tab.id)"
-        >
-          {{ tab.label }}
-        </button>
+        />
       </aside>
 
       <!-- Mobile top tabs -->
@@ -104,6 +99,7 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
+import AppButton from "@/components/common/AppButton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

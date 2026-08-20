@@ -23,8 +23,9 @@
         <AppButton
           v-if="props.encounter"
           size="md"
-          :variant="props.encounter.is_finished ? 'subtle' : 'outline'"
-          :class="props.encounter.is_finished ? '' : 'border-primary/40 text-primary hover:bg-primary/10 hover:text-primary'"
+          :variant="props.encounter.is_finished ? 'subtle' : 'tinted'"
+          :tone="props.encounter.is_finished ? undefined : 'primary'"
+          :emphasis="props.encounter.is_finished ? undefined : 'outline'"
           :disabled="updateEncounterMutation.isPending.value"
           :icon="IconCheckDouble"
           :label="props.encounter.is_finished ? 'Reopen' : 'Mark Done'"
@@ -71,27 +72,25 @@
             label="Stop"
             @click="handleStop"
           />
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          <AppButton
+            variant="primary"
+            size="md"
+            :icon="IconPlay"
+            label="Resume"
             @click="handleRunEncounter"
-          >
-            <IconPlay class="h-3.5 w-3.5" />
-            Resume
-          </button>
+          />
         </template>
 
         <!-- No encounter running or another is running -->
-        <button
+        <AppButton
           v-else
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          variant="primary"
+          size="md"
           :disabled="isSaving"
+          :icon="IconPlay"
+          label="Run Encounter"
           @click="handleRunEncounter"
-        >
-          <IconPlay class="h-3.5 w-3.5" />
-          Run Encounter
-        </button>
+        />
       </div>
     </div>
 

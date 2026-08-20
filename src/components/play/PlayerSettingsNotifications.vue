@@ -42,19 +42,25 @@
         <p class="font-cinzel text-xs text-foreground tracking-wide">Dice source</p>
         <p class="text-caption text-muted-foreground italic">Physical mode prompts you to enter the result of dice you rolled yourself.</p>
       </div>
-      <div class="flex rounded-md border border-border overflow-hidden text-label md:text-sm shrink-0 ml-3">
-        <button
-          type="button"
-          class="px-3 py-1 transition-colors"
-          :class="diceMode === 'tool' ? 'bg-primary text-primary-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'"
+      <div class="flex items-center gap-1 shrink-0 ml-3">
+        <AppButton
+          variant="subtle"
+          surface="muted"
+          size="sm"
+          :active="diceMode === 'tool'"
           @click="setDiceMode('tool')"
-        >TOOL</button>
-        <button
-          type="button"
-          class="px-3 py-1 transition-colors border-l border-border"
-          :class="diceMode === 'physical' ? 'bg-primary text-primary-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'"
+        >
+          <span class="text-label md:text-sm">TOOL</span>
+        </AppButton>
+        <AppButton
+          variant="subtle"
+          surface="muted"
+          size="sm"
+          :active="diceMode === 'physical'"
           @click="setDiceMode('physical')"
-        >PHYSICAL</button>
+        >
+          <span class="text-label md:text-sm">PHYSICAL</span>
+        </AppButton>
       </div>
     </div>
   </SettingsSection>
@@ -62,6 +68,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
 import SettingsToggleRow from "@/components/common/SettingsToggleRow.vue";
 import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";

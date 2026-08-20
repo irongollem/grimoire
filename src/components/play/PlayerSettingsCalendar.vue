@@ -12,15 +12,20 @@
         class="flex-1 bg-background border border-border rounded-md px-3 py-1.5 font-mono text-xs text-muted-foreground select-all focus:outline-none focus:ring-1 focus:ring-ring truncate"
         @click="($event.target as HTMLInputElement).select()"
       />
-      <button
-        class="shrink-0 inline-flex items-center gap-1 text-label md:text-sm px-2.5 py-1.5 rounded border border-border hover:bg-muted transition-colors"
-        :title="calCopied ? 'Copied!' : 'Copy URL'"
+      <AppButton
+        variant="outline"
+        fill="muted"
+        size="xs"
+        class="md:text-sm"
+        :tooltip="calCopied ? 'Copied!' : 'Copy URL'"
+        :label="calCopied ? 'Copied' : 'Copy'"
         @click="copyFeedUrl"
       >
-        <IconCheck v-if="calCopied" class="h-3 w-3 text-elven-green" />
-        <IconCopy v-else class="h-3 w-3" />
-        {{ calCopied ? 'Copied' : 'Copy' }}
-      </button>
+        <template #icon>
+          <IconCheck v-if="calCopied" class="h-3 w-3 text-elven-green" />
+          <IconCopy v-else class="h-3 w-3" />
+        </template>
+      </AppButton>
     </div>
 
     <!-- Subscribe button -->
@@ -38,6 +43,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
 import { IconAddEvent, IconCheck, IconCopy } from "@/lib/icons";
 import { useCampaignById } from "@/composables/useCampaigns";

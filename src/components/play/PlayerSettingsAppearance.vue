@@ -3,16 +3,16 @@
   <SettingsSection title="Appearance" description="Your DM sets the campaign theme. Override it here if you prefer a different look.">
     <div class="flex items-center justify-between">
       <p class="font-cinzel text-xs text-foreground tracking-wide">Theme</p>
-      <div class="flex rounded-md border border-border overflow-hidden text-label md:text-sm shrink-0">
-        <button
-          v-for="opt in THEME_OVERRIDE_OPTIONS"
-          :key="opt.value"
-          type="button"
-          class="px-2.5 py-1 transition-colors border-l border-border first:border-l-0"
-          :class="currentOverride === opt.value ? 'bg-primary text-primary-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'"
-          @click="setOverride(opt.value)"
-        >{{ opt.label }}</button>
-      </div>
+      <!-- The selected option used to be a solid bg-primary fill — one of the
+           four rival "selected" treatments SegmentedControl exists to retire
+           in favour of AppButton's gold `active` tint. -->
+      <SegmentedControl
+        :model-value="currentOverride"
+        :options="THEME_OVERRIDE_OPTIONS"
+        size="sm"
+        class="shrink-0"
+        @update:model-value="setOverride"
+      />
     </div>
   </SettingsSection>
 
@@ -71,6 +71,7 @@ import { ref, computed, watch } from "vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { IconReset } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import type { ThemeOverride } from "@/composables/useTheme";

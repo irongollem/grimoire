@@ -8,13 +8,16 @@
       <!-- Amount -->
       <label class="flex flex-col gap-1">
         <span class="text-eyebrow text-muted-foreground">XP</span>
-        <input
+        <AppInput
           v-model.number="amount"
           type="number"
           min="0"
           step="10"
           placeholder="0"
-          class="w-24 bg-background border border-border rounded-md px-3 py-1.5 text-body text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          tone="default"
+          size="body"
+          :block="false"
+          class="w-24"
         />
       </label>
 
@@ -24,14 +27,13 @@
         <EntityCombobox v-model="targetId" :options="targetOptions" placeholder="Everyone" />
       </label>
 
-      <button
-        type="button"
+      <AppButton
+        variant="primary"
+        size="sm"
         :disabled="!canAward || saving"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 text-label-lg font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40"
+        :label="saving ? 'Awarding…' : 'Award'"
         @click="award"
-      >
-        {{ saving ? "Awarding…" : "Award" }}
-      </button>
+      />
     </div>
   </div>
 </template>
@@ -43,6 +45,8 @@ import { useToast } from "@/composables/useToast";
 import { levelForXp } from "@/types/party.types";
 import type { PartyMember } from "@/types/party.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 
 const { party } = defineProps<{ party: PartyMember[] }>();
 

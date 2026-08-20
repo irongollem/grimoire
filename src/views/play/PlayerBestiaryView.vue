@@ -23,11 +23,13 @@
         <div class="flex items-center gap-2">
           <div class="relative flex-1">
             <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input
+            <AppInput
               v-model="ui.playerBestiarySearch"
               type="text"
+              tone="card"
+              size="body"
               placeholder="Search bestiary…"
-              class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              class="pl-8"
             />
           </div>
           <AppButton
@@ -296,6 +298,7 @@ import type { RollMode } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { DiscoveredMonster, Monster } from "@/types/monster.types";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

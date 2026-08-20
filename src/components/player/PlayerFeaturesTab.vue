@@ -21,14 +21,24 @@
 
     <!-- ── Rest buttons (hidden when header already provides them) ────────── -->
     <div v-if="showRestButtons" class="flex gap-2">
-      <button
-        class="flex-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 font-cinzel text-xs text-amber-600 hover:bg-amber-500/20 transition-colors"
+      <AppButton
+        variant="tinted"
+        tone="caution"
+        emphasis="soft"
+        size="md"
+        class="flex-1"
+        label="Short Rest"
         @click="shortRest"
-      >Short Rest</button>
-      <button
-        class="flex-1 rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-2 font-cinzel text-xs text-blue-600 hover:bg-blue-500/20 transition-colors"
+      />
+      <AppButton
+        variant="tinted"
+        tone="info"
+        emphasis="soft"
+        size="md"
+        class="flex-1"
+        label="Long Rest"
         @click="longRest"
-      >Long Rest</button>
+      />
     </div>
 
     <!-- ── Resource pools ─────────────────────────────────────────────────── -->
@@ -172,6 +182,7 @@
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
+import AppButton from "@/components/common/AppButton.vue";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import PlayerWildshapeTraits from "./PlayerWildshapeTraits.vue";
 import PlayerResourcePools from "./PlayerResourcePools.vue";

@@ -124,11 +124,12 @@
         <!-- IconSearch -->
         <div class="relative flex-1 min-w-48">
           <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
+          <AppInput
             v-model="ui.playerSpellsSearch"
-            type="text"
+            tone="card"
+            size="body"
             placeholder="Search by name…"
-            class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="pl-8"
           />
         </div>
         <!-- Level -->
@@ -196,6 +197,7 @@ import AddInnateSpellDialog from "@/components/spells/AddInnateSpellDialog.vue";
 import PlayerSpellModal from "@/components/spells/PlayerSpellModal.vue";
 import RulesetReviewBanner from "@/components/common/RulesetReviewBanner.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { Spell } from "@/types/spell.types";

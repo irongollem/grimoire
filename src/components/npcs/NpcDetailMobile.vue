@@ -22,28 +22,30 @@
       class="fixed inset-x-0 top-0 z-30 flex items-center justify-between gap-2 px-3 pt-[calc(env(safe-area-inset-top)+0.5rem)] pb-2 transition-colors duration-200"
       :class="scrolled ? 'border-b border-border bg-background/85 backdrop-blur-md' : ''"
     >
-      <button
-        type="button"
-        class="flex size-10 shrink-0 items-center justify-center rounded-full backdrop-blur-sm transition-colors"
-        :class="scrolled
-          ? 'bg-transparent text-foreground active:bg-muted'
-          : 'bg-black/40 text-white active:bg-black/60'"
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        shape="pill"
+        press="muted"
+        :class="[ICON_TOUCH_TARGET, 'shrink-0 backdrop-blur-sm', scrolled ? 'text-foreground' : 'bg-black/40 text-white hover:text-white active:bg-black/60']"
         aria-label="Back"
         @click="goBack"
       >
-        <svg
-          class="size-5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-      </button>
+        <template #icon>
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </template>
+      </AppButton>
 
       <!-- Name fades in once scrolled past the hero -->
       <h1
@@ -66,22 +68,24 @@
           theirs at exactly this point for exactly this reason.
         -->
         <NpcRevealControl :npc="npc" :form="scrolled ? 'inline' : 'overlay'" />
-        <button
-          type="button"
-          class="flex size-10 items-center justify-center rounded-full backdrop-blur-sm transition-colors"
-          :class="scrolled
-            ? 'bg-transparent text-foreground active:bg-muted'
-            : 'bg-black/40 text-white active:bg-black/60'"
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          shape="pill"
+          press="muted"
+          :class="[ICON_TOUCH_TARGET, 'backdrop-blur-sm', scrolled ? 'text-foreground' : 'bg-black/40 text-white hover:text-white active:bg-black/60']"
           aria-label="More actions"
           @click="showMenu = true"
         >
-          <!-- vertical ellipsis -->
-          <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="12" cy="5" r="1.6" />
-            <circle cx="12" cy="12" r="1.6" />
-            <circle cx="12" cy="19" r="1.6" />
-          </svg>
-        </button>
+          <template #icon>
+            <!-- vertical ellipsis -->
+            <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.6" />
+              <circle cx="12" cy="12" r="1.6" />
+              <circle cx="12" cy="19" r="1.6" />
+            </svg>
+          </template>
+        </AppButton>
       </div>
     </header>
 
@@ -218,13 +222,16 @@
       <!-- `button` form: there is room here to name the audience outright. -->
       <NpcRevealControl :npc="npc" />
 
-      <RouterLink
+      <AppButton
         :to="`/npcs/${npc.id}?edit=true`"
-        class="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-3 font-cinzel text-sm font-bold tracking-wider text-primary-foreground active:opacity-90"
-      >
-        <IconEdit class="size-4" />
-        Edit
-      </RouterLink>
+        variant="primary"
+        size="md"
+        press="dim"
+        class="flex-1"
+        :icon="IconEdit"
+        icon-size="md"
+        label="Edit"
+      />
     </div>
   </div>
 
@@ -232,34 +239,53 @@
        form (they require the form to be mounted), so these route into it. -->
   <MobileSheet v-model:open="showMenu" :title="displayName">
     <div class="flex flex-col gap-1 pb-2">
-      <RouterLink
+      <AppButton
         :to="`/npcs/${npc.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
+        variant="menu"
+        size="body"
+        block
+        press="muted"
+        class="hover:bg-transparent"
+        :icon="IconGenerate"
+        icon-size="md"
+        label="Generate with AI"
         @click="showMenu = false"
-      >
-        <IconGenerate class="size-4 shrink-0" /> Generate with AI
-      </RouterLink>
-      <RouterLink
+      />
+      <AppButton
         :to="`/npcs/${npc.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
+        variant="menu"
+        size="body"
+        block
+        press="muted"
+        class="hover:bg-transparent"
+        :icon="IconScrollText"
+        icon-size="md"
+        label="Send to Scriptorium"
         @click="showMenu = false"
-      >
-        <IconScrollText class="size-4 shrink-0" /> Send to Scriptorium
-      </RouterLink>
-      <RouterLink
+      />
+      <AppButton
         :to="`/npcs/${npc.id}?edit=true`"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-foreground active:bg-muted/50"
+        variant="menu"
+        size="body"
+        block
+        press="muted"
+        class="hover:bg-transparent"
+        :icon="IconTag"
+        icon-size="md"
+        label="Edit tags"
         @click="showMenu = false"
-      >
-        <IconTag class="size-4 shrink-0" /> Edit tags
-      </RouterLink>
-      <button
-        type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
+      />
+      <AppButton
+        variant="menu"
+        tone="danger"
+        size="body"
+        block
+        icon-size="md"
+        class="hover:bg-transparent active:bg-destructive/10"
+        :icon="IconDelete"
+        label="Delete NPC"
         @click="onDelete"
-      >
-        <IconDelete class="size-4 shrink-0" /> Delete NPC
-      </button>
+      />
     </div>
   </MobileSheet>
 </template>
@@ -274,6 +300,8 @@ import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
 import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";

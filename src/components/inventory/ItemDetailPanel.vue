@@ -57,13 +57,16 @@
               {{ localIdentified ? 'Players see the full description' : 'Players see only the mundane description' }}
             </span>
           </div>
-          <button
-            class="shrink-0 px-3 py-1 rounded-md text-label border transition-colors cursor-pointer"
-            :class="localIdentified
-              ? 'border-border text-muted-foreground hover:border-amber-500/50 hover:text-amber-500 hover:bg-amber-500/5'
-              : 'border-amber-500/50 text-amber-500 hover:bg-amber-500/10'"
+          <AppButton
+            :variant="localIdentified ? 'subtle' : 'tinted'"
+            tone="caution"
+            emphasis="outline"
+            fill="tone"
+            size="xs"
+            class="shrink-0"
+            :label="localIdentified ? 'Unidentify' : 'Identify'"
             @click="toggleIdentified"
-          >{{ localIdentified ? 'Unidentify' : 'Identify' }}</button>
+          />
         </div>
 
         <!-- Stat block: type / rarity / cost / weight -->

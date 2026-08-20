@@ -70,23 +70,29 @@
 
     <template #footer>
       <div class="shrink-0 border-t border-border px-4 py-3 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          class="font-cinzel text-xs px-3 py-1.5 rounded border border-border hover:bg-muted/50 transition-colors"
+        <AppButton
+          variant="outline"
+          fill="muted"
+          size="sm"
+          label="Cancel"
           @click="emit('close')"
-        >Cancel</button>
-        <button
-          type="button"
+        />
+        <AppButton
+          variant="tinted"
+          tone="primary"
+          emphasis="soft"
+          size="sm"
+          label="🐺 Wild Shape"
           :disabled="!canWildshape && !activeWildshape"
-          class="font-cinzel text-xs px-3 py-1.5 rounded border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           @click="emit('confirm')"
-        >🐺 Wild Shape</button>
+        />
       </div>
     </template>
   </EntityLightbox>
 </template>
 
 <script setup lang="ts">
+import AppButton from "@/components/common/AppButton.vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import type { Monster } from "@/types/monster.types";

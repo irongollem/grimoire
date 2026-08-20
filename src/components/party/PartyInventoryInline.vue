@@ -127,14 +127,17 @@
           <span class="font-cinzel text-xs font-bold text-foreground w-5 text-center">{{ item.quantity }}</span>
           <button type="button" class="count-btn-sm" @click="changeQty(item, 1)">+</button>
         </div>
-        <select
-          :value="item.carried_by ?? ''"
-          class="hidden sm:block bg-muted/40 border border-border rounded px-2 py-0.5 text-caption text-foreground focus:outline-none focus:ring-1 focus:ring-ring shrink-0 max-w-28"
-          @change="updateCarrier(item, ($event.target as HTMLSelectElement).value)"
+        <AppSelect
+          :model-value="item.carried_by ?? ''"
+          tone="muted"
+          size="caption"
+          weight="normal"
+          class="hidden sm:block max-w-28"
+          @update:model-value="(value) => updateCarrier(item, value)"
         >
           <option value="">— party</option>
           <option v-for="m in party" :key="m.id" :value="m.id">{{ m.name }}</option>
-        </select>
+        </AppSelect>
         <AppButton
           :variant="item.is_attuned ? 'tinted' : 'subtle'"
           :class="item.is_attuned ? '' : 'text-muted-foreground/40 hover:text-muted-foreground'"
@@ -145,14 +148,16 @@
           emphasis="soft"
           @click="toggleAttuned(item)"
         />
-        <button
-          type="button"
-          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 rounded flex items-center justify-center text-muted-foreground/40 hover:text-amber-400 hover:bg-amber-400/10"
-          title="Drop to chat"
+        <AppButton
+          variant="ghost"
+          tone="caution"
+          fill="tone"
+          size="icon-xs"
+          :icon="IconArrowUp"
+          tooltip="Drop to chat"
+          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/40"
           @click="dropInventoryItemToChat(item)"
-        >
-          <IconArrowUp class="h-3.5 w-3.5" />
-        </button>
+        />
         <AppButton
           variant="ghost"
           tone="danger"

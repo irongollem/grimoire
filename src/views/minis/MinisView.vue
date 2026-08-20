@@ -4,11 +4,13 @@
       <div class="flex flex-wrap items-center gap-2">
         <div class="relative max-w-xs flex-1">
           <IconSearch class="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
+          <AppInput
             v-model="search"
             type="text"
+            tone="default"
+            size="body"
             placeholder="Search minis…"
-            class="w-full rounded-md border border-border bg-background pl-7 pr-2 py-1.5 text-body focus:outline-none focus:ring-1 focus:ring-ring"
+            class="pl-7"
           />
         </div>
 
@@ -64,6 +66,7 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

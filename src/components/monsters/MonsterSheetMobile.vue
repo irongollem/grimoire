@@ -272,17 +272,23 @@
         label="Send to Scriptorium"
         @click="showMenu = false"
       />
-      <!-- Destructive row's active:bg-destructive/10 touch feedback has no
-           AppButton equivalent (fill only emits hover:) — left native, matching
-           the same call in MonsterEditMobile's overflow sheet. -->
-      <button
+      <!-- Destructive row's active:bg-destructive/10 touch feedback is now
+           `press="tone"` — `fill`'s twin for this md:hidden screen. Normalizes
+           to active:bg-tone-danger/10 rather than the literal destructive
+           custom property, same trade as the other toned recolours in #648. -->
+      <AppButton
         v-if="!monster.is_shared"
-        type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
+        variant="menu"
+        tone="danger"
+        press="tone"
+        size="md"
+        block
+        class="gap-3"
+        :icon="IconDelete"
+        icon-size="md"
+        label="Delete monster"
         @click="onDelete"
-      >
-        <IconDelete class="size-4 shrink-0" /> Delete monster
-      </button>
+      />
     </div>
   </MobileSheet>
 </template>

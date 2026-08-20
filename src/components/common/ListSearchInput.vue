@@ -16,12 +16,14 @@
     <IconSearch
       class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
     />
-    <input
+    <AppInput
       v-no-pwm
       v-model="model"
       type="text"
+      tone="card"
+      size="body"
       :placeholder="placeholder"
-      class="w-full bg-card border border-border rounded-md pl-8 pr-3 min-h-11 py-1.5 md:min-h-0 md:py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      class="pl-8 min-h-11 md:min-h-0"
     />
   </div>
 </template>
@@ -29,9 +31,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconSearch } from '@/lib/icons';
+import AppInput from "@/components/common/AppInput.vue";
 
 const model = defineModel<string>({ required: true });
-const { inline = true, placeholder = "IconSearch…" } = defineProps<{
+const { inline = true, placeholder = "Search…" } = defineProps<{
   placeholder?: string;
   /**
    * When `true` (default) the input is full-width on mobile and grows to fill

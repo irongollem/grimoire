@@ -2,12 +2,12 @@
   <div class="flex items-center gap-2">
     <div class="relative flex-1">
       <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-      <input
-        :value="search"
-        type="text"
+      <AppInput
+        v-model="searchModel"
+        tone="muted"
+        size="body"
+        class="pl-8"
         placeholder="Search locations…"
-        class="w-full rounded-md border border-border bg-muted/40 pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        @input="$emit('update:search', ($event.target as HTMLInputElement).value)"
       />
     </div>
     <AppSelect v-model="typeFilterModel" tone="muted" size="sm" ariaLabel="Location type filter">
@@ -29,6 +29,7 @@
 import { computed } from "vue";
 import { IconSearch } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 
 interface TypeOption {
@@ -52,5 +53,10 @@ const emit = defineEmits<{
 const typeFilterModel = computed({
   get: () => typeFilter,
   set: (v: string) => emit('update:typeFilter', v),
+});
+
+const searchModel = computed({
+  get: () => search,
+  set: (v: string) => emit('update:search', v),
 });
 </script>

@@ -20,13 +20,15 @@
             <span v-if="loc" class="text-label md:text-sm text-muted-foreground shrink-0">
               {{ LOCATION_TYPE_LABELS[loc.location_type] }}
             </span>
-            <button
-              type="button"
-              class="text-muted-foreground hover:text-foreground transition-colors ml-1 shrink-0"
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              icon-size="md"
+              class="ml-1 shrink-0"
+              :icon="IconClose"
+              aria-label="Close"
               @click="close"
-            >
-              <IconClose class="h-4 w-4" />
-            </button>
+            />
           </div>
 
           <div class="flex-1 overflow-y-auto">
@@ -53,13 +55,13 @@
                 @open-npc="selectedNpc = $event"
               />
               <div class="px-4 pb-4">
-                <button
-                  type="button"
-                  class="text-label md:text-sm text-primary hover:opacity-80 transition-opacity"
+                <AppButton
+                  variant="link"
+                  size="inline-xs"
+                  class="md:text-sm"
+                  label="View in Atlas →"
                   @click="viewInAtlas"
-                >
-                  View in Atlas →
-                </button>
+                />
               </div>
             </template>
           </div>
@@ -98,6 +100,7 @@ import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerLocationDetailPanel from "@/components/play/PlayerLocationDetailPanel.vue";
 import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
+import AppButton from "@/components/common/AppButton.vue";
 
 const ui = useUiStore();
 const router = useRouter();

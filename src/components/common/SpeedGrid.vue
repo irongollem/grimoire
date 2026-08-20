@@ -24,15 +24,18 @@
             :class="speed.hover && speed.fly ? 'text-primary-foreground' : 'text-muted-foreground/60'"
           />
         </button>
-        <input
-          :value="speed.fly ?? ''"
+        <AppInput
+          :model-value="speed.fly === undefined ? '' : String(speed.fly)"
           type="number"
           step="5"
           min="0"
           placeholder="—"
-          class="speed-input w-full bg-transparent pl-6 pr-8 py-1.5 text-body text-foreground text-center placeholder:text-muted-foreground/40 focus:outline-none"
+          tone="bare"
+          size="body"
+          align="center"
+          class="speed-input pl-6 pr-8"
           @focus="($event.target as HTMLInputElement).select()"
-          @input="setSpeed('fly', ($event.target as HTMLInputElement).value)"
+          @update:model-value="setSpeed('fly', $event)"
         />
         <span class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none font-cinzel text-2xs text-muted-foreground">ft.</span>
       </div>

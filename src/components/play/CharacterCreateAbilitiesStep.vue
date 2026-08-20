@@ -32,7 +32,7 @@
             <AppButton
               variant="outline"
               size="icon-xs"
-              class="rounded-full"
+              shape="pill"
               label="−"
               :disabled="f[stat.key] <= 8"
               @click="f[stat.key]--"
@@ -41,7 +41,7 @@
             <AppButton
               variant="outline"
               size="icon-xs"
-              class="rounded-full"
+              shape="pill"
               label="+"
               :disabled="f[stat.key] >= 15 || pointsRemaining <= 0 || (pointsRemaining < (POINT_BUY_COSTS[f[stat.key] + 1] ?? 99) - POINT_BUY_COSTS[f[stat.key]])"
               @click="f[stat.key]++"

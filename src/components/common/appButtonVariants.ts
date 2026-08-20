@@ -218,7 +218,21 @@ export const buttonVariants = cva(
        * Compose it with `fill` rather than instead of it — a control that is both
        * pointer- and touch-reachable wants `fill="muted" press="muted"`.
        */
-      press: { none: "", muted: "active:bg-muted", tone: "" },
+      press: {
+        none: "",
+        muted: "active:bg-muted",
+        tone: "",
+        /**
+         * For the solid fills — `primary`, `link`, `tinted`+`solid` — whose feedback
+         * is a dim rather than a wash. It also cancels the `hover:opacity-90` those
+         * variants bake in, which is the point: on a touch-only screen that hover
+         * sticks after the tap, and the alternative was every call site writing
+         * `class="hover:opacity-100 active:opacity-90"` to undo the primitive — the
+         * exact override this axis exists to remove. tailwind-merge resolves the two
+         * `hover:opacity-*` against each other, and this one is emitted later.
+         */
+        dim: "hover:opacity-100 active:opacity-90",
+      },
       /**
        * What a `tinted` button means. Semantic rather than hue-named so the palette
        * stays changeable: each maps to a `--color-tone-*` custom property a theme
@@ -530,7 +544,7 @@ export const BUTTON_COLOUR_TONES = BUTTON_TONES.filter((t) => t !== "neutral");
 export const BUTTON_EMPHASES = ["soft", "strong", "outline", "solid"] as const satisfies readonly ButtonEmphasis[];
 
 export const BUTTON_FILLS = ["none", "muted", "tone"] as const satisfies readonly ButtonFill[];
-export const BUTTON_PRESSES = ["none", "muted", "tone"] as const satisfies readonly ButtonPress[];
+export const BUTTON_PRESSES = ["none", "muted", "tone", "dim"] as const satisfies readonly ButtonPress[];
 
 export const BUTTON_SHAPES = ["default", "pill"] as const satisfies readonly ButtonShape[];
 

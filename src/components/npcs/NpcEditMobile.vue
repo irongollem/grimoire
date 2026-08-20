@@ -29,20 +29,27 @@
       <h1 class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground">
         {{ title }}
       </h1>
-      <button
+      <!-- Box normalized to icon-sm (32px) from the original size-10 (40px); the
+           active:bg-muted touch feedback becomes `press="muted"`, `fill`'s twin
+           for this md:hidden screen. -->
+      <AppButton
         v-if="!isNew"
-        type="button"
-        class="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+        variant="ghost"
+        press="muted"
+        shape="pill"
+        size="icon-sm"
         aria-label="More actions"
         @click="showMenu = true"
       >
-        <!-- vertical ellipsis -->
-        <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="12" cy="5" r="1.6" />
-          <circle cx="12" cy="12" r="1.6" />
-          <circle cx="12" cy="19" r="1.6" />
-        </svg>
-      </button>
+        <template #icon>
+          <!-- vertical ellipsis -->
+          <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="12" cy="5" r="1.6" />
+            <circle cx="12" cy="12" r="1.6" />
+            <circle cx="12" cy="19" r="1.6" />
+          </svg>
+        </template>
+      </AppButton>
       <span v-else class="size-10 shrink-0" aria-hidden="true" />
     </header>
 

@@ -50,11 +50,13 @@
         <IconSearch
           class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
         />
-        <input
-          :value="itemSearch"
+        <AppInput
+          :model-value="itemSearch"
+          tone="filled"
+          size="body"
           placeholder="Add specific item…"
-          class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="emit('update:itemSearch', ($event.target as HTMLInputElement).value)"
+          class="pl-9"
+          @update:model-value="(value) => emit('update:itemSearch', value)"
         />
       </div>
       <div
@@ -83,11 +85,13 @@
           <IconTag
             class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
           />
-          <input
-            :value="tagInput"
+          <AppInput
+            :model-value="tagInput"
+            tone="filled"
+            size="body"
             placeholder='Add by tag(s), e.g. "meat" or "glass, container"…'
-            class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-            @input="emit('update:tagInput', ($event.target as HTMLInputElement).value)"
+            class="pl-9"
+            @update:model-value="(value) => emit('update:tagInput', value)"
             @keydown.enter.prevent="emit('addTag')"
           />
         </div>

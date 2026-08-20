@@ -29,12 +29,13 @@
     >
       <div class="relative">
         <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <input
+        <AppInput
           v-model="npcSearch"
-          type="text"
+          tone="card"
+          size="body"
+          class="pl-8"
           placeholder="Search NPCs with a combat profile…"
           autofocus
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
       <div v-if="filteredNpcs.length" class="max-h-48 overflow-y-auto flex flex-col gap-1">
@@ -69,12 +70,13 @@
     >
       <div class="relative">
         <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <input
+        <AppInput
           v-model="monsterSearch"
-          type="text"
+          tone="card"
+          size="body"
+          class="pl-8"
           placeholder="Search monsters…"
           autofocus
-          class="w-full bg-card border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
       <div v-if="filteredMonsters.length" class="max-h-48 overflow-y-auto flex flex-col gap-1">

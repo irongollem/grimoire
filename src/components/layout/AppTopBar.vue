@@ -58,12 +58,13 @@
         <div class="bg-card border-b border-border px-4 py-3">
           <div class="relative">
             <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input
+            <AppInput
               ref="mobileInputRef"
               v-model="mobileQuery"
-              type="text"
+              tone="default"
+              size="body"
               placeholder="Search anything…"
-              class="w-full pl-8 pr-8 py-2 rounded-md bg-background border border-border text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-gold-500"
+              class="pl-8 pr-8"
               @keydown.escape="searchOpen = false"
             />
             <AppButton
@@ -121,6 +122,8 @@ import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import DmModeToggle from "./DmModeToggle.vue";
@@ -135,7 +138,7 @@ const pageTitle = computed(() => (route.meta.title as string | undefined) ?? "Gr
 
 const searchOpen = ref(false);
 const mobileQuery = ref("");
-const mobileInputRef = ref<HTMLInputElement | null>(null);
+const mobileInputRef = ref<AppInputHandle | null>(null);
 
 const { data, isFetching } = useGlobalSearch(mobileQuery);
 

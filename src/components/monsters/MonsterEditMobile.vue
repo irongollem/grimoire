@@ -36,21 +36,25 @@
       <h1 class="min-w-0 flex-1 truncate text-center text-heading-sm font-bold text-foreground">
         {{ title }}
       </h1>
-      <button
+      <AppButton
         v-if="!isNew && !isShared"
-        type="button"
-        class="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+        variant="ghost"
+        press="muted"
+        shape="pill"
+        size="icon-sm"
         aria-label="More actions"
         @click="showMenu = true"
       >
-        <!-- vertical ellipsis -->
-        <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="12" cy="5" r="1.6" />
-          <circle cx="12" cy="12" r="1.6" />
-          <circle cx="12" cy="19" r="1.6" />
-        </svg>
-      </button>
-      <span v-else class="size-10 shrink-0" aria-hidden="true" />
+        <template #icon>
+          <!-- vertical ellipsis -->
+          <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="12" cy="5" r="1.6" />
+            <circle cx="12" cy="12" r="1.6" />
+            <circle cx="12" cy="19" r="1.6" />
+          </svg>
+        </template>
+      </AppButton>
+      <span v-else class="size-8 shrink-0" aria-hidden="true" />
     </header>
 
     <!-- ── 2. Scroll body ─────────────────────────────────────────────────── -->
@@ -243,13 +247,18 @@
         <template #icon><IconCopy class="size-4 shrink-0 text-muted-foreground" /></template>
         {{ isDuplicating ? "Copying…" : "Duplicate" }}
       </AppButton>
-      <button
-        type="button"
-        class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-body text-destructive active:bg-destructive/10"
+      <AppButton
+        variant="link"
+        tone="danger"
+        press="tone"
+        size="body"
+        block
+        :icon="IconDelete"
+        icon-size="md"
+        label="Delete monster"
+        class="justify-start"
         @click="runAction('delete')"
-      >
-        <IconDelete class="size-4 shrink-0" /> Delete monster
-      </button>
+      />
     </div>
   </MobileSheet>
 </template>

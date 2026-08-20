@@ -1,7 +1,7 @@
 <template>
   <SettingsSection title="Display Name" description="This is how your DM and party members see you in the campaign. It defaults to your email address.">
     <form class="flex gap-2" @submit.prevent="saveName">
-      <input
+      <AppInput
         v-model="displayName"
         type="text"
         maxlength="60"
@@ -9,17 +9,18 @@
         autocomplete="off"
         data-1p-ignore
         data-lpignore="true"
-        class="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        tone="default"
+        size="body"
+        class="flex-1"
       />
-      <button
+      <AppButton
         type="submit"
+        variant="primary"
+        size="md"
         :disabled="savingName || !displayName.trim() || displayName.trim() === currentName"
-        class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-label-lg font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-40 transition-opacity"
-      >
-        <IconCheck v-if="nameSaved" class="h-3.5 w-3.5" />
-        <IconSave v-else class="h-3.5 w-3.5" />
-        {{ nameSaved ? "Saved" : "Save" }}
-      </button>
+        :icon="nameSaved ? IconCheck : IconSave"
+        :label="nameSaved ? 'Saved' : 'Save'"
+      />
     </form>
     <p v-if="nameError" class="text-caption text-destructive mt-2">{{ nameError }}</p>
   </SettingsSection>
@@ -28,6 +29,8 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconCheck, IconSave } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { supabase } from "@/lib/supabase";

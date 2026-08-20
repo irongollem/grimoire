@@ -21,11 +21,13 @@
     <!-- IconSearch input -->
     <div class="relative">
       <IconSearch class="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-      <input
+      <AppInput
         ref="inputRef"
         v-model="query"
+        tone="filled"
+        size="body"
         :placeholder="placeholder"
-        class="w-full rounded-md border border-border bg-muted py-1.5 pl-8 pr-3 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+        class="pl-8"
         @focus="open = true"
         @blur="onBlur"
         @keydown.enter.prevent="onEnter"
@@ -77,19 +79,26 @@
               {{ group.name }}
             </p>
             <div class="flex flex-wrap gap-1">
-              <button
+              <!--
+                Selected used to be a neutral `bg-muted` chip — one of the four
+                rival "selected" treatments this sweep converges. It takes the
+                gold `active` tint like every other selected control now; the ✓
+                stays, because in a multi-select the tint alone does not say how
+                many are on.
+              -->
+              <AppButton
                 v-for="item in group.items"
                 :key="item"
-                type="button"
-                class="rounded-full border px-2.5 py-1 font-cinzel text-2xs tracking-wide transition-colors"
-                :class="isSelected(item)
-                  ? 'border-border bg-muted font-semibold text-foreground'
-                  : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary'"
+                variant="subtle"
+                surface="card"
+                size="xs"
+                shape="pill"
+                :active="isSelected(item)"
                 @mousedown.prevent
                 @click="toggle(item)"
               >
                 <span v-if="isSelected(item)" class="mr-0.5 opacity-70">✓</span>{{ item }}
-              </button>
+              </AppButton>
             </div>
           </div>
         </div>
@@ -107,17 +116,19 @@
 import { ref, computed } from "vue";
 import { IconSearch } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
+import type { AppInputHandle } from "@/components/common/fieldVariants";
 import type { ProficiencyGroup } from "@/lib/proficiency-lists";
 
 const model = defineModel<string[]>({ required: true });
-const { groups, placeholder = "IconSearch…" } = defineProps<{
+const { groups, placeholder = "Search…" } = defineProps<{
   groups: ProficiencyGroup[];
   placeholder?: string;
 }>();
 
 const query = ref("");
 const open = ref(false);
-const inputRef = ref<HTMLInputElement | null>(null);
+const inputRef = ref<AppInputHandle | null>(null);
 
 const allItems = computed(() => groups.flatMap((g) => g.items));
 

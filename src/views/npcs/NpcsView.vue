@@ -106,12 +106,15 @@
           <IconSearch
             class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
-          <input
+          <AppInput
             v-model="search"
             type="search"
             inputmode="search"
+            tone="card"
+            size="body"
+            shape="pill"
             placeholder="Search NPCs…"
-            class="h-11 w-full rounded-full border border-border bg-card pl-9 pr-9 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="h-11 pl-9 pr-9"
           />
           <AppButton
             v-if="search"
@@ -320,6 +323,7 @@ import {
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";

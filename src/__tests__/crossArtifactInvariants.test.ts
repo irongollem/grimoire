@@ -295,4 +295,36 @@ describe("component tags resolve to real imports", () => {
     expect(checked).toBeGreaterThan(0);
     expect(violations).toEqual([]);
   });
+
+  // The same accident one layer down: a component name left inside a *string*
+  // rather than a text node. `ListSearchInput`'s default placeholder read
+  // "IconSearch…" and `TagPickerInput`'s did too — a find/replace that turned
+  // <IconSearch/> into text and then into a prop default. Latent in both cases
+  // only because most call sites pass their own placeholder, and ListSearchInput
+  // is the shared search field for 21 views.
+  //
+  // Scoped to the handful of props that reach a user's eyes. A component name in
+  // any other string is usually a legitimate reference (an import path, a test
+  // name, a comment), which is why this does not scan strings generally.
+  it("no component name sits inside a user-facing string", () => {
+    const USER_FACING = /(placeholder|label|title|aria-label|ariaLabel|tooltip)\s*[=:]\s*"([^"]{2,80})"/g;
+    const violations: string[] = [];
+    let checked = 0;
+
+    for (const file of trackedFiles("src/**/*.vue", "src/**/*.ts")) {
+      if (file === SELF || /icons\.ts$|\.test\.ts$|dev\/(ComponentCatalogueView|CatalogueSection)\.vue$/.test(file)) continue;
+      const source = read(file);
+      for (const [, prop, text] of source.matchAll(USER_FACING)) {
+        checked++;
+        for (const word of text.match(/\b[A-Z][a-z0-9]+[A-Z][A-Za-z0-9]*\b/g) ?? []) {
+          if (COMPONENT_NAMES.has(word)) {
+            violations.push(`${file} shows "${word}" to the user via ${prop}`);
+          }
+        }
+      }
+    }
+
+    expect(checked).toBeGreaterThan(0);
+    expect(violations).toEqual([]);
+  });
 });

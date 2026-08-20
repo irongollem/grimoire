@@ -40,11 +40,12 @@
         <IconSearch
           class="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none"
         />
-        <input
-          :value="search"
+        <AppInput
+          v-model="searchModel"
+          tone="filled"
+          size="body"
           placeholder="Add output item…"
-          class="w-full bg-muted border border-border rounded-md pl-9 pr-3 py-2 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-          @input="emit('update:search', ($event.target as HTMLInputElement).value)"
+          class="pl-9"
         />
       </div>
       <div
@@ -71,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { IconDelete, IconSearch } from "@/lib/icons";
@@ -97,4 +99,9 @@ const emit = defineEmits<{
   remove: [idx: number];
   "update:search": [value: string];
 }>();
+
+const searchModel = computed({
+  get: () => search,
+  set: (value: string) => emit("update:search", value),
+});
 </script>

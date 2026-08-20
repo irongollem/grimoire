@@ -15,20 +15,27 @@
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
         <h2 class="text-heading-sm font-semibold text-foreground">Import from Open5e</h2>
-        <button class="text-muted-foreground hover:text-foreground" @click="ui.speciesOpen5ePanelOpen = false">
-          <IconClose class="h-5 w-5" />
-        </button>
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          icon-size="lg"
+          :icon="IconClose"
+          aria-label="Close"
+          @click="ui.speciesOpen5ePanelOpen = false"
+        />
       </div>
 
       <!-- IconSearch -->
       <div class="px-5 py-3 border-b border-border shrink-0">
         <div class="relative">
           <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
+          <AppInput
             v-model="query"
             type="text"
+            tone="filled"
+            size="body"
             placeholder="Search races…"
-            class="w-full bg-muted border border-border rounded-md pl-8 pr-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="pl-8"
             @input="onSearch"
           />
         </div>
@@ -52,20 +59,23 @@
           Type to search Open5e races.
         </p>
 
-        <ul v-else class="divide-y divide-border">
-          <li
+        <div v-else class="divide-y divide-border">
+          <AppButton
             v-for="race in results"
             :key="race.key"
-            class="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/50 cursor-pointer transition-colors"
+            variant="menu"
+            size="body"
+            block
+            class="rounded-none"
             @click="importRace(race)"
           >
-            <div class="min-w-0">
-              <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ race.name }}</p>
-              <p class="text-caption text-muted-foreground italic">{{ race.document.display_name ?? race.document.name }}</p>
+            <div class="min-w-0 flex-1 flex flex-col items-start">
+              <span class="font-cinzel text-sm font-semibold text-foreground truncate">{{ race.name }}</span>
+              <span class="text-caption text-muted-foreground italic">{{ race.document.display_name ?? race.document.name }}</span>
             </div>
             <IconDownload class="h-4 w-4 text-muted-foreground shrink-0" />
-          </li>
-        </ul>
+          </AppButton>
+        </div>
       </div>
 
       <!-- Importing indicator -->
@@ -86,6 +96,8 @@ import { useRouter } from "vue-router";
 import { IconClose, IconDownload, IconSearch } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables/useSpecies";
+import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import { buildImportedFields, buildCreateOnlyDefaults } from "@/lib/library/open5eSpeciesImport";
 import type { Open5eRace } from "@/lib/library/open5eSpeciesImport";
