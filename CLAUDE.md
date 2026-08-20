@@ -137,7 +137,7 @@ npm run dev:auth     # ensure local accounts + known password
 npm run dev          # already --mode localdb
 ```
 
-`dev:auth` (`scripts/dev-auth.ts`) sets `grimoire-local-dev` as the password on two **local** accounts and prints them. It reads the running stack's own keys from `supabase status` and **refuses to run against anything but loopback**, so it cannot address the hosted project. Remote work still needs a real token, via the Supabase MCP as usual.
+`dev:auth` (`scripts/dev-auth.ts`) sets `grimoire-local-dev` as the password on three **local** accounts and prints them. It reads the running stack's own keys from `supabase status` and **refuses to run against anything but loopback**, so it cannot address the hosted project. Remote work still needs a real token, via the Supabase MCP as usual. Player-portal surfaces specifically need the player fixture: `/play` is lens- and role-guarded away from DM accounts, so no amount of DM-fixture testing reaches them.
 
 **Sign in as `dm-fixture@example.invalid`, not the admin.** `seed.sql` is a dump of real data, so every row belongs to whoever pulled it — the admin — which leaves the admin as the only account with anything in it. That is precisely the fixture that hid #736: an RLS-scoped read path tested clean as admin and broke every real user. `dev:auth` clones a campaign and its locations onto a plain non-admin user for this reason. Use the admin login only when you are specifically exercising an admin path.
 

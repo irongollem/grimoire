@@ -33,8 +33,19 @@
  * So this also clones a campaign and its locations onto a plain, non-admin user.
  * Same data shape, ordinary privileges — what a real DM actually sees.
  *
+ * A third account exists for the same reason, one layer deeper. The DM fixture
+ * above still cannot reach the player portal at all: `/play` routes are fenced
+ * by the persisted DM/Player lens (#729) and `requiresPlayer` guards, so every
+ * player-side surface — the player journal, the inventory panel, any portal
+ * read path — is untestable without a real player membership. This session's
+ * document-items work (Aug 2026) had to hand-roll a player account over `psql`
+ * to see the feature live; `ensureFixturePlayer` below is what now owns that
+ * account properly. Same #736 lesson, one level deeper: the DM fixture fixed
+ * "only the admin has data", this fixes "no account can stand where a player
+ * stands".
+ *
  * Usage:
- *   npm run dev:auth              # ensure both accounts, print credentials
+ *   npm run dev:auth              # ensure all three accounts, print credentials
  *   npm run dev:auth -- --check   # report state, change nothing
  */
 
@@ -47,6 +58,7 @@ import { ensureFixtureContent } from "./lib/dev-fixture-content.ts";
 /** Local-only, deliberately boring, never valid anywhere but this machine. */
 const DEV_PASSWORD = "grimoire-local-dev";
 const FIXTURE_EMAIL = "dm-fixture@example.invalid";
+const PLAYER_EMAIL = "player-fixture@example.invalid";
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
@@ -147,12 +159,31 @@ async function main() {
     `select id from auth.users where email = ${quote(FIXTURE_EMAIL)} limit 1`,
   );
 
+  // ── The player fixture ──────────────────────────────────────────────────────
+  const existingPlayer = sql(
+    stack.DB_URL,
+    `select id from auth.users where email = ${quote(PLAYER_EMAIL)} limit 1`,
+  );
+
   if (checkOnly) {
     const owned = existing
       ? sql(stack.DB_URL, `select count(*) from public.locations where user_id = ${quote(existing)}`)
       : "0";
+    const playerMemberships = existingPlayer
+      ? sql(
+          stack.DB_URL,
+          `select count(*) from public.campaign_members where user_id = ${quote(existingPlayer)}`,
+        )
+      : "0";
     console.log(`admin account   : ${adminEmail}`);
     console.log(`fixture account : ${existing ? `${FIXTURE_EMAIL} (${owned} locations)` : "absent"}`);
+    console.log(
+      `player account  : ${
+        existingPlayer
+          ? `${PLAYER_EMAIL} (${playerMemberships} campaign memberships)`
+          : "absent"
+      }`,
+    );
     console.log(`\nRun without --check to (re)set passwords to "${DEV_PASSWORD}".`);
     return;
   }
@@ -178,6 +209,9 @@ async function main() {
   // Party first: the content below spreads its reveal state across party
   // members, so it needs somebody to share with.
   const party = ensureFixtureParty(stack.DB_URL, fixtureId);
+  // And the player needs the party: it claims a seat in it.
+  const player = await ensureFixturePlayer(stack, admin, fixtureId);
+  if (player.passwordChanged) changed.push(PLAYER_EMAIL);
   const beasts = ensureFixtureBestiary(stack.DB_URL, fixtureId);
   const content = ensureFixtureContent(stack.DB_URL, fixtureId);
 
@@ -188,10 +222,14 @@ async function main() {
     ...Object.entries(content).map(([name, n]) => `${n} ${name}`),
   ].join(", ");
 
-  console.log(`Local sign-in ready — password for both: ${DEV_PASSWORD}\n`);
+  console.log(`Local sign-in ready — password for all three: ${DEV_PASSWORD}\n`);
   console.log(`  admin   ${adminEmail}`);
   console.log(`  fixture ${FIXTURE_EMAIL}`);
-  console.log(`          ${inventory}, ordinary privileges\n`);
+  console.log(`          ${inventory}, ordinary privileges`);
+  console.log(`  player  ${PLAYER_EMAIL}`);
+  console.log(
+    `          member of the fixture campaign, playing ${player.characterName ?? "no claimed character"}\n`,
+  );
   if (changed.length) {
     console.log(`Password changed for ${changed.join(", ")} — those sessions are signed out.`);
   }
@@ -379,6 +417,116 @@ function ensureFixtureParty(dbUrl: string, ownerId: string): number {
   return Number(
     sql(dbUrl, `select count(*) from public.party_members where campaign_id = ${quote(campaignId)}`),
   );
+}
+
+/** What `ensureFixturePlayer` converged on, for the CLI summary. */
+interface FixturePlayerState {
+  characterName: string | null;
+  passwordChanged: boolean;
+}
+
+/**
+ * Ensures the player fixture: an auth user, a `campaign_members` row on the
+ * fixture campaign with role `player`, and a claimed party member so the
+ * account is not just a login but an actual seat at the table.
+ *
+ * Find-or-create mirrors the DM fixture's inline handling in `main` exactly —
+ * same `ensurePassword` probe, same `email_confirm: true` — but is its own
+ * function because, unlike the DM fixture, there is real work after the auth
+ * user exists: the membership row and the character claim.
+ *
+ * The `campaign_members` upsert is keyed on the table's own
+ * `(campaign_id, user_id)` uniqueness, so re-running this converges an
+ * already-existing row (role, party_member_id, display_name all reset to the
+ * canonical values) rather than erroring on it — load-bearing the first time
+ * this ran here, because the stack already had a hand-made row from before
+ * this function existed.
+ */
+async function ensureFixturePlayer(
+  stack: StackStatus,
+  admin: SupabaseClient,
+  dmOwnerId: string,
+): Promise<FixturePlayerState> {
+  const dbUrl = stack.DB_URL;
+
+  const existing = sql(dbUrl, `select id from auth.users where email = ${quote(PLAYER_EMAIL)} limit 1`);
+
+  let playerId = existing;
+  let passwordChanged = false;
+  if (!playerId) {
+    const { data, error } = await admin.auth.admin.createUser({
+      email: PLAYER_EMAIL,
+      password: DEV_PASSWORD,
+      email_confirm: true,
+      user_metadata: { display_name: "Fixture Player" },
+    });
+    if (error || !data.user) throw new Error(`Could not create player user: ${error?.message}`);
+    playerId = data.user.id;
+  } else if (await ensurePassword(stack, admin, PLAYER_EMAIL, playerId)) {
+    passwordChanged = true;
+  }
+
+  const campaignId = sql(
+    dbUrl,
+    `select id from public.campaigns where user_id = ${quote(dmOwnerId)} order by created_at limit 1`,
+  );
+  if (!campaignId) return { characterName: null, passwordChanged };
+
+  const character = findClaimableCharacter(dbUrl, campaignId);
+
+  sql(
+    dbUrl,
+    `insert into public.campaign_members (campaign_id, user_id, role, party_member_id, display_name)
+     values (
+       ${quote(campaignId)}, ${quote(playerId)}, 'player',
+       ${character ? quote(character.id) : "null"}, 'Fixture Player'
+     )
+     on conflict (campaign_id, user_id) do update
+       set role = excluded.role,
+           party_member_id = excluded.party_member_id,
+           display_name = excluded.display_name;`,
+  );
+
+  // Claimed-character state: the party member's own row has to point back at
+  // the player too, not just the membership row. `owner_user_id` is what the
+  // player-portal read paths (and the party UI's "claimed" badge) key off.
+  if (character) {
+    sql(
+      dbUrl,
+      `update public.party_members set owner_user_id = ${quote(playerId)}
+        where id = ${quote(character.id)};`,
+    );
+  }
+
+  return { characterName: character?.name ?? null, passwordChanged };
+}
+
+/**
+ * The party member this player's account claims: Nessa Quill by name, or —
+ * should a future fixture roster ever drop that name — whichever member sorts
+ * first. Falling back instead of returning nothing keeps the player account
+ * useful (a claimed character, not an empty portal) even if the party's
+ * makeup changes.
+ */
+function findClaimableCharacter(
+  dbUrl: string,
+  campaignId: string,
+): { id: string; name: string } | null {
+  const preferred = sql(
+    dbUrl,
+    `select id, name from public.party_members
+      where campaign_id = ${quote(campaignId)} and name = 'Nessa Quill' limit 1`,
+  );
+  const row =
+    preferred ||
+    sql(
+      dbUrl,
+      `select id, name from public.party_members
+        where campaign_id = ${quote(campaignId)} order by sort_order limit 1`,
+    );
+  if (!row) return null;
+  const [id, name] = row.split("\t");
+  return { id, name };
 }
 
 /**
