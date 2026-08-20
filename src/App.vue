@@ -28,12 +28,14 @@
     </div>
   </Transition>
 
+  <SpeedInsights />
 </template>
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQueryClient } from "@tanstack/vue-query";
+import { SpeedInsights } from "@vercel/speed-insights/vue";
 import { layoutLoaders } from "@/layouts/layoutLoader";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import ToastHost from "@/components/common/ToastHost.vue";
