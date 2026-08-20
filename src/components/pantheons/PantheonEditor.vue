@@ -82,7 +82,7 @@
         <RichTextEditor
           v-model="form.description"
           placeholder="Origins, major deities, holy wars, theological schisms…"
-          min-height="320px"
+          size="lg"
         />
       </div>
 

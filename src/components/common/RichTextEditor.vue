@@ -1,7 +1,7 @@
 <template>
   <div
     class="rich-editor relative flex flex-col rounded-lg border border-border bg-card overflow-clip"
-    :style="{ minHeight: minHeight ?? '11.25rem' }"
+    :style="{ minHeight: EDITOR_MIN_HEIGHTS[size] }"
   >
     <div
       :class="[
@@ -376,6 +376,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onUnmounted } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { EDITOR_MIN_HEIGHTS, type EditorSize } from "./richTextEditorSizes";
 import { getCurrentUser } from "@/lib/supabase";
 import { toWebP } from "@/lib/mediaConvert";
 import { uploadToBucket } from "@/lib/storage";
@@ -452,10 +453,11 @@ const {
   entityMentionItems,
   stickyToolbar,
   aiContext,
+  size = "md",
 } = defineProps<{
   modelValue: string | null | undefined;
   placeholder?: string;
-  minHeight?: string;
+  size?: EditorSize;
   allowUpload?: boolean;
   allowCalendarEvents?: boolean;
   entityMentionItems?: EntityMentionItem[];

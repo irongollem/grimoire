@@ -169,7 +169,7 @@
       <RichTextEditor
         v-model="description"
         placeholder="Describe this location…"
-        min-height="120px"
+        size="md"
         :ai-context="`location description — ${name || 'unnamed location'}`"
       />
     </div>

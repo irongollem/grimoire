@@ -12,7 +12,7 @@
         v-model="content"
         allow-upload
         placeholder="A ledger's pages, a contract's clauses, a scroll's text…"
-        min-height="140px"
+        size="md"
       />
       <p class="text-caption text-muted-foreground italic">
         Players can read this once the item is identified, and while the party carries it,

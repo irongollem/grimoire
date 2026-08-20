@@ -118,7 +118,7 @@
         </div>
         <RichTextEditor
           :model-value="editForm.content"
-          min-height="160px"
+          size="lg"
           allow-upload
           :entity-mention-items="mentionItems"
           @update:model-value="(v: string) => $emit('editFormChange', { content: v })"

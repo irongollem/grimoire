@@ -122,7 +122,7 @@
       <RichTextEditor
         v-model="form.description"
         placeholder="How is this item crafted? Any special requirements or lore…"
-        min-height="140px"
+        size="md"
       />
     </div>
 

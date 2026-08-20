@@ -42,25 +42,25 @@
 
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       DM lead
-      <RichTextEditor v-model="draft.dm_content" :min-height="compact ? '7rem' : '11rem'" :sticky-toolbar="!compact" placeholder="What should the DM know first?" />
+      <RichTextEditor v-model="draft.dm_content" :size="compact ? 'md' : 'lg'" :sticky-toolbar="!compact" placeholder="What should the DM know first?" />
     </label>
 
     <template v-if="!compact">
       <label class="block space-y-1 text-caption font-semibold text-foreground">
         Read aloud or paraphrase
-        <RichTextEditor v-model="draft.read_aloud" min-height="9rem" placeholder="Player-safe boxed text…" />
+        <RichTextEditor v-model="draft.read_aloud" size="md" placeholder="Player-safe boxed text…" />
       </label>
       <label class="block space-y-1 text-caption font-semibold text-foreground">
         How it plays
-        <RichTextEditor v-model="draft.how_it_plays" min-height="11rem" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" />
+        <RichTextEditor v-model="draft.how_it_plays" size="lg" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" />
       </label>
       <label class="block space-y-1 text-caption font-semibold text-foreground">
         Outcomes
-        <RichTextEditor v-model="draft.outcomes" min-height="9rem" placeholder="Likely immediate outcomes and branches…" />
+        <RichTextEditor v-model="draft.outcomes" size="md" placeholder="Likely immediate outcomes and branches…" />
       </label>
       <label class="block space-y-1 text-caption font-semibold text-foreground">
         Consequences
-        <RichTextEditor v-model="draft.consequences" min-height="9rem" placeholder="What changes later in the world or other quests?" />
+        <RichTextEditor v-model="draft.consequences" size="md" placeholder="What changes later in the world or other quests?" />
       </label>
     </template>
 

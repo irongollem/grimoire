@@ -193,7 +193,7 @@
             <RichTextEditor
               v-model="form.appearance"
               placeholder="Describe how this character looks…"
-              min-height="6rem"
+              size="md"
             />
           </div>
 
@@ -205,7 +205,7 @@
             <RichTextEditor
               v-model="form.personality"
               placeholder="Their traits, ideals, and mannerisms…"
-              min-height="6rem"
+              size="md"
             />
           </div>
 
@@ -217,7 +217,7 @@
             <RichTextEditor
               v-model="form.backstory"
               placeholder="Their history and origins…"
-              min-height="10rem"
+              size="lg"
             />
           </div>
 
@@ -229,7 +229,7 @@
             <RichTextEditor
               v-model="form.notes"
               placeholder="Private notes…"
-              min-height="6rem"
+              size="md"
             />
           </div>
         </div>

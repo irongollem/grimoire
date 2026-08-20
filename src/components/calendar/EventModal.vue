@@ -117,7 +117,7 @@
             <RichTextEditor
               v-model="form.description"
               placeholder="What happened…"
-              min-height="120px"
+              size="md"
             />
           </div>
 

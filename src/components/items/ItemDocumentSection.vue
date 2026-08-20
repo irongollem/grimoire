@@ -38,7 +38,7 @@
 
         <!-- Edit mode -->
         <div v-if="editingId === entry.id" class="p-3 flex flex-col gap-2">
-          <RichTextEditor v-model="editContent" allow-upload min-height="100px" />
+          <RichTextEditor v-model="editContent" allow-upload size="md" />
           <div class="flex items-center gap-2 justify-end">
             <AppButton variant="ghost" size="inline" label="Cancel" @click="cancelEdit" />
             <AppButton
@@ -63,7 +63,7 @@
           v-model="newContent"
           allow-upload
           placeholder="Add your own writing to this item…"
-          min-height="100px"
+          size="md"
         />
         <AppButton
           variant="primary"

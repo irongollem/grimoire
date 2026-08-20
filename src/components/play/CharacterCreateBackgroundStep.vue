@@ -170,7 +170,7 @@
         </div>
         <label class="block">
           <span class="field-label">Physical Description</span>
-          <RichTextEditor v-model="f.physical_description" min-height="4.5rem"
+          <RichTextEditor v-model="f.physical_description" size="sm"
             placeholder="Hair, build, scars, anything that helps the table picture them." />
         </label>
       </div>
@@ -191,22 +191,22 @@
       <div v-if="showPersonality" class="px-3 pb-3 space-y-2">
         <label class="block">
           <span class="field-label">Personality Traits</span>
-          <RichTextEditor v-model="f.personality_traits" min-height="4.5rem"
+          <RichTextEditor v-model="f.personality_traits" size="sm"
             placeholder="Two short traits that shape their behaviour." />
         </label>
         <label class="block">
           <span class="field-label">Ideals</span>
-          <RichTextEditor v-model="f.ideals" min-height="4.5rem"
+          <RichTextEditor v-model="f.ideals" size="sm"
             placeholder="What drives them — justice, freedom, knowledge…" />
         </label>
         <label class="block">
           <span class="field-label">Bonds</span>
-          <RichTextEditor v-model="f.bonds" min-height="4.5rem"
+          <RichTextEditor v-model="f.bonds" size="sm"
             placeholder="People, places, or artifacts they'd die for." />
         </label>
         <label class="block">
           <span class="field-label">Flaws</span>
-          <RichTextEditor v-model="f.flaws" min-height="4.5rem"
+          <RichTextEditor v-model="f.flaws" size="sm"
             placeholder="One clear weakness that gets them in trouble." />
         </label>
       </div>
@@ -215,7 +215,7 @@
     <!-- Notes -->
     <div>
       <p class="text-label-lg font-semibold text-muted-foreground mb-2">BACKSTORY &amp; NOTES</p>
-      <RichTextEditor v-model="f.notes" placeholder="Background, goals, secrets…" min-height="80px" />
+      <RichTextEditor v-model="f.notes" placeholder="Background, goals, secrets…" size="sm" />
     </div>
   </div>
 </template>

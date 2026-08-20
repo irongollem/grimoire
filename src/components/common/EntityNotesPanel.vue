@@ -33,7 +33,7 @@
 
         <!-- Edit mode -->
         <div v-if="editingId === note.id" class="p-3 flex flex-col gap-2">
-          <RichTextEditor v-model="editContent" min-height="100px" />
+          <RichTextEditor v-model="editContent" size="md" />
           <div class="flex items-center gap-2">
             <label class="flex items-center gap-1.5 cursor-pointer select-none">
               <input type="checkbox" v-model="editPrivate" class="rounded" />
@@ -56,7 +56,7 @@
         New note
       </div>
       <div class="p-3 flex flex-col gap-2">
-        <RichTextEditor v-model="newContent" min-height="100px" placeholder="Write your note…" />
+        <RichTextEditor v-model="newContent" size="md" placeholder="Write your note…" />
         <div class="flex items-center gap-2">
           <label class="flex items-center gap-1.5 cursor-pointer select-none">
             <input type="checkbox" v-model="newPrivate" class="rounded" />

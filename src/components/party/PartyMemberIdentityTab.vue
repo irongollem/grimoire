@@ -194,7 +194,7 @@
     <RichTextEditor
       :model-value="form.notes"
       placeholder="Background, personality, goals…"
-      min-height="120px"
+      size="md"
       @update:model-value="patch({ notes: $event })"
     />
   </div>

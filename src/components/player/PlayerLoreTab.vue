@@ -14,7 +14,7 @@
           v-if="isOwner"
           :model-value="member.player_description ?? null"
           placeholder="Describe yourself to your party…"
-          min-height="80px"
+          size="sm"
           @update:model-value="saveDescription"
         />
         <RichTextViewer
@@ -48,7 +48,7 @@
           <label class="field-label">Physical Description</label>
           <RichTextEditor
             :model-value="form.physical_description"
-            min-height="4.5rem"
+            size="sm"
             placeholder="Height, build, hair, eyes, distinguishing marks…"
             @update:model-value="form.physical_description = $event; scheduleAutoSave()"
           />
@@ -117,7 +117,7 @@
           <label class="field-label">Personality Traits</label>
           <RichTextEditor
             :model-value="form.personality_traits"
-            min-height="4.5rem"
+            size="sm"
             placeholder="I always have a plan…"
             @update:model-value="form.personality_traits = $event; scheduleAutoSave()"
           />
@@ -126,7 +126,7 @@
           <label class="field-label">Ideals</label>
           <RichTextEditor
             :model-value="form.ideals"
-            min-height="4.5rem"
+            size="sm"
             placeholder="What drives you…"
             @update:model-value="form.ideals = $event; scheduleAutoSave()"
           />
@@ -135,7 +135,7 @@
           <label class="field-label">Bonds</label>
           <RichTextEditor
             :model-value="form.bonds"
-            min-height="4.5rem"
+            size="sm"
             placeholder="Who or what do you protect…"
             @update:model-value="form.bonds = $event; scheduleAutoSave()"
           />
@@ -144,7 +144,7 @@
           <label class="field-label">Flaws</label>
           <RichTextEditor
             :model-value="form.flaws"
-            min-height="4.5rem"
+            size="sm"
             placeholder="Your weakness or vice…"
             @update:model-value="form.flaws = $event; scheduleAutoSave()"
           />

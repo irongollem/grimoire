@@ -115,7 +115,7 @@
           <span class="text-label-lg font-semibold text-muted-foreground">Contents / What's Inside</span>
         </div>
         <div class="p-4">
-          <RichTextEditor v-model="form.contents_description" placeholder="Gold, a forgotten relic, a hidden stairway leading to the lower vaults…" min-height="100px" />
+          <RichTextEditor v-model="form.contents_description" placeholder="Gold, a forgotten relic, a hidden stairway leading to the lower vaults…" size="md" />
         </div>
       </div>
 
@@ -125,7 +125,7 @@
           <span class="text-label-lg font-semibold text-muted-foreground">Description</span>
         </div>
         <div class="p-3">
-          <RichTextEditor v-model="form.description" placeholder="Flavor text, appearance, atmosphere…" min-height="120px" />
+          <RichTextEditor v-model="form.description" placeholder="Flavor text, appearance, atmosphere…" size="md" />
         </div>
       </div>
 
@@ -135,7 +135,7 @@
           <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
         </div>
         <div class="p-3">
-          <RichTextEditor v-model="form.notes" placeholder="Private notes, encounter hooks, related quests…" min-height="100px" />
+          <RichTextEditor v-model="form.notes" placeholder="Private notes, encounter hooks, related quests…" size="md" />
         </div>
       </div>
     </div>

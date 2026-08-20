@@ -43,7 +43,7 @@
           <RichTextEditor
             v-model="form.description"
             placeholder="Flavour text describing this archetype…"
-            min-height="120px"
+            size="md"
           />
         </div>
 

@@ -365,3 +365,33 @@ describe("responsive type steps stay inside the type scale", () => {
     expect(offenders, offenders.join("\n")).toEqual([]);
   });
 });
+
+describe("RichTextEditor is sized by name, not by a CSS length", () => {
+  // `min-height` was a free CSS string, and it reached 78 call sites in 12 distinct
+  // values (#750). They were not 12 decisions — `6.25rem` and `6rem` are `100px` and
+  // `96px`, and the drift showed up on single field names: "Description" existed at
+  // 7.5, 8.75, 10, 12.5 AND 13.75rem, and QuestBeatFields had "Player-safe boxed
+  // text" at both 9rem and 11rem in the same file.
+  //
+  // The prop is `size` now, but nothing stops someone re-adding `min-height`: Vue
+  // treats an unknown prop as a fallthrough ATTRIBUTE rather than an error, so it
+  // lands on the root element as invalid HTML and is silently ignored. vue-tsc,
+  // oxlint and the whole test suite pass while the editor quietly renders at the
+  // default height. That is why this is a test and not a type.
+  it("no call site passes min-height to a RichTextEditor", () => {
+    const offenders: string[] = [];
+
+    for (const file of trackedFiles("src/**/*.vue")) {
+      const source = read(file);
+      if (!/<RichTextEditor/.test(source)) continue;
+
+      source.split("\n").forEach((line, i) => {
+        if (/:?min-height\s*=/.test(line)) {
+          offenders.push(`${file}:${i + 1}  ${line.trim().slice(0, 100)}`);
+        }
+      });
+    }
+
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});

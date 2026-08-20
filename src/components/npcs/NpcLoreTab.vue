@@ -5,7 +5,7 @@
       <RichTextEditor
         :model-value="appearance"
         placeholder="Physical description, clothing, distinguishing features…"
-        min-height="100px"
+        size="md"
         :ai-context="`NPC appearance — ${npcName || 'unnamed NPC'}`"
         @update:model-value="emit('update:appearance', $event)"
       />
@@ -15,7 +15,7 @@
       <RichTextEditor
         :model-value="personality"
         placeholder="Traits, mannerisms, ideals, bonds, flaws…"
-        min-height="100px"
+        size="md"
         :ai-context="`NPC personality — ${npcName || 'unnamed NPC'}`"
         @update:model-value="emit('update:personality', $event)"
       />
@@ -25,7 +25,7 @@
       <RichTextEditor
         :model-value="backstory"
         placeholder="History, origin, formative events…"
-        min-height="140px"
+        size="md"
         :ai-context="`NPC backstory — ${npcName || 'unnamed NPC'}`"
         @update:model-value="emit('update:backstory', $event)"
       />
@@ -35,7 +35,7 @@
       <RichTextEditor
         :model-value="notes"
         placeholder="Session notes, secrets, loose threads…"
-        min-height="100px"
+        size="md"
         :ai-context="`NPC notes — ${npcName || 'unnamed NPC'}`"
         @update:model-value="emit('update:notes', $event)"
       />

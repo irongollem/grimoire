@@ -45,7 +45,7 @@
  * form: uppercase heading with an optional inline hint, an optional
  * right-aligned checkbox toggle, and a body slot. The RichTextEditor body
  * stays at each call site — editors differ in v-model, placeholder,
- * min-height and allow-upload, and the Curse card's editor is itself
+ * size and allow-upload, and the Curse card's editor is itself
  * conditional on the toggle, so absorbing it here would only re-hide that
  * variation rather than remove it.
  */

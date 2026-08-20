@@ -191,7 +191,7 @@
           <span class="text-label-lg font-semibold text-muted-foreground">Description</span>
         </div>
         <div class="p-3">
-          <RichTextEditor v-model="form.description" placeholder="Flavor text, lore, appearance…" min-height="120px" />
+          <RichTextEditor v-model="form.description" placeholder="Flavor text, lore, appearance…" size="md" />
         </div>
       </div>
 
@@ -201,7 +201,7 @@
           <span class="text-label-lg font-semibold text-muted-foreground">DM Notes</span>
         </div>
         <div class="p-3">
-          <RichTextEditor v-model="form.notes" placeholder="Private notes, encounter ideas, variants…" min-height="100px" />
+          <RichTextEditor v-model="form.notes" placeholder="Private notes, encounter ideas, variants…" size="md" />
         </div>
       </div>
     </div>

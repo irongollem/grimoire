@@ -269,7 +269,7 @@
           <RichTextEditor
             v-model="mundaneDescription"
             placeholder="What does this item appear to be before it's identified? Describe only its physical appearance — no magical hints…"
-            min-height="120px"
+            size="md"
           />
         </div>
 
@@ -279,7 +279,7 @@
           <RichTextEditor
             v-model="description"
             placeholder="Describe this item's properties, lore, and any special effects…"
-            min-height="200px"
+            size="lg"
           />
         </div>
 
@@ -296,7 +296,7 @@
           <RichTextEditor
             v-model="dmNotes"
             placeholder="GM-side notes, foreshadowing, structural beats this item serves…"
-            min-height="100px"
+            size="md"
           />
         </ItemEditorCard>
 
@@ -313,7 +313,7 @@
             <RichTextEditor
               v-model="curseDescription"
               placeholder="Describe the curse effect, trigger, and how it can be removed…"
-              min-height="120px"
+              size="md"
             />
             <p class="text-caption text-muted-foreground italic">
               Reveal the curse to players via the party inventory panel once a player attunes or triggers it.

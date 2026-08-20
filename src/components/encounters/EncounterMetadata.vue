@@ -23,7 +23,7 @@
         <RichTextEditor
           :model-value="description"
           placeholder="Scene-setting notes, terrain, objectives…"
-          min-height="120px"
+          size="md"
           @update:model-value="$emit('update:description', $event)"
         />
       </div>

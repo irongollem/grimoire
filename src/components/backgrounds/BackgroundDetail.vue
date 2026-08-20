@@ -62,7 +62,7 @@
       <RichTextEditor
         v-model="form.description"
         placeholder="Describe the background's narrative hook…"
-        min-height="120px"
+        size="md"
       />
     </div>
 
@@ -72,7 +72,7 @@
       <RichTextEditor
         v-model="form.equipment"
         placeholder="Items provided by the background, with any starting coin."
-        min-height="80px"
+        size="sm"
       />
     </div>
 
@@ -88,7 +88,7 @@
       <RichTextEditor
         v-model="form.feature_description"
         placeholder="Describe what the feature does mechanically and in play."
-        min-height="100px"
+        size="md"
       />
     </div>
 
@@ -104,7 +104,7 @@
       <RichTextEditor
         v-model="form.feat_grant_description"
         placeholder="Brief summary of what the feat grants — passive bonuses, spells, proficiencies…"
-        min-height="80px"
+        size="sm"
       />
       <p v-if="form.feat_grant_name" class="text-caption text-muted-foreground italic">
         Linked to the Origin feat "{{ originFeatPreview?.name }}"<template v-if="originFeatPreview?.variant"> ({{ originFeatPreview.variant }})</template> — matched by name against imported feats when a character picks this background.
@@ -144,7 +144,7 @@
       <RichTextEditor
         v-model="form.suggested_characteristics"
         placeholder="Personality traits, ideals, bonds, and flaws to inspire players."
-        min-height="120px"
+        size="md"
       />
     </div>
   </div>

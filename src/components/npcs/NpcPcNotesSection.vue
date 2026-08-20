@@ -20,7 +20,7 @@
 
       <!-- Edit mode: RichTextEditor with PC name in toolbar -->
       <div v-else>
-        <RichTextEditor v-model="editText" placeholder="How do they know each other…" min-height="80px">
+        <RichTextEditor v-model="editText" placeholder="How do they know each other…" size="sm">
           <template #toolbar-end>
             <div class="ml-auto flex items-center gap-2 pl-1">
               <div class="w-px h-5 bg-border" />
@@ -45,7 +45,7 @@
 
     <!-- Add note: RichTextEditor with PC selector + save in toolbar -->
     <div v-if="showForm">
-      <RichTextEditor v-model="newText" placeholder="How do they know each other…" min-height="80px">
+      <RichTextEditor v-model="newText" placeholder="How do they know each other…" size="sm">
         <template #toolbar-end>
           <div class="ml-auto flex items-center gap-2 pl-1">
             <div class="w-px h-5 bg-border" />

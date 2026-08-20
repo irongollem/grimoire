@@ -78,7 +78,7 @@
       <span class="field-label">Physical Description</span>
       <RichTextEditor
         :model-value="form.physical_description"
-        min-height="4.5rem"
+        size="sm"
         placeholder="Hair, build, scars, anything that helps the table picture them."
         @update:model-value="patch({ physical_description: $event })"
       />
@@ -89,7 +89,7 @@
       <span class="field-label">Personality Traits</span>
       <RichTextEditor
         :model-value="form.personality_traits"
-        min-height="4.5rem"
+        size="sm"
         placeholder="Two short traits that shape their behaviour."
         @update:model-value="patch({ personality_traits: $event })"
       />
@@ -98,7 +98,7 @@
       <span class="field-label">Ideals</span>
       <RichTextEditor
         :model-value="form.ideals"
-        min-height="4.5rem"
+        size="sm"
         placeholder="What drives them — justice, freedom, knowledge…"
         @update:model-value="patch({ ideals: $event })"
       />
@@ -107,7 +107,7 @@
       <span class="field-label">Bonds</span>
       <RichTextEditor
         :model-value="form.bonds"
-        min-height="4.5rem"
+        size="sm"
         placeholder="People, places, or artifacts they'd die for."
         @update:model-value="patch({ bonds: $event })"
       />
@@ -116,7 +116,7 @@
       <span class="field-label">Flaws</span>
       <RichTextEditor
         :model-value="form.flaws"
-        min-height="4.5rem"
+        size="sm"
         placeholder="One clear weakness that gets them in trouble."
         @update:model-value="patch({ flaws: $event })"
       />

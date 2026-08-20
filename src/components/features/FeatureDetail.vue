@@ -64,7 +64,7 @@
       <RichTextEditor
         v-model="form.description"
         placeholder="Full rules text — mechanics, damage rolls, saving throws, conditions…"
-        min-height="220px"
+        size="lg"
       />
     </div>
   </div>

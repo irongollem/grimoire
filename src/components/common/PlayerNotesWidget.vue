@@ -20,7 +20,7 @@
           <span class="text-label text-muted-foreground">Share with DM</span>
         </label>
       </div>
-      <RichTextEditor v-model="privateContent" :placeholder="placeholder" min-height="80px" :sticky-toolbar="false">
+      <RichTextEditor v-model="privateContent" :placeholder="placeholder" size="sm" :sticky-toolbar="false">
         <template #toolbar-end>
           <div class="ml-auto flex items-center gap-2 pl-1">
             <div class="w-px h-5 bg-border" />
@@ -56,7 +56,7 @@
           <span class="text-caption-sm text-muted-foreground/50 italic ml-2">Visible to everyone in the campaign</span>
         </div>
       </div>
-      <RichTextEditor v-model="sharedContent" :placeholder="placeholder" min-height="80px" :sticky-toolbar="false">
+      <RichTextEditor v-model="sharedContent" :placeholder="placeholder" size="sm" :sticky-toolbar="false">
         <template #toolbar-end>
           <div class="ml-auto flex items-center gap-2 pl-1">
             <div class="w-px h-5 bg-border" />

@@ -221,7 +221,7 @@
             <RichTextEditor
               v-model="form.description"
               placeholder="Lore, habitat, behaviour, and flavour text…"
-              min-height="160px"
+              size="lg"
             />
           </section>
 
@@ -231,7 +231,7 @@
             <RichTextEditor
               v-model="form.notes"
               placeholder="Encounter notes, tactics, lair description…"
-              min-height="120px"
+              size="md"
             />
           </section>
         </div>

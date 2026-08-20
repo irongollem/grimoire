@@ -173,7 +173,7 @@
         <RichTextEditor
           v-model="form.description"
           placeholder="Origin myth, appearance, worshippers, holy sites…"
-          min-height="220px"
+          size="lg"
         />
       </div>
 
@@ -183,7 +183,7 @@
         <RichTextEditor
           v-model="form.dm_notes"
           placeholder="Hidden truths, true motivations, secret agenda…"
-          min-height="140px"
+          size="md"
         />
       </div>
 

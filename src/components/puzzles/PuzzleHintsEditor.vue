@@ -18,7 +18,7 @@
         <RichTextEditor
           :model-value="hint.text"
           :placeholder="`Hint ${hint.order}…`"
-          min-height="80px"
+          size="sm"
           class="flex-1"
           @update:model-value="emit('update-hint-text', hint.order, $event)"
         />

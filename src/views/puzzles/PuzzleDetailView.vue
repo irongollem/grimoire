@@ -280,7 +280,7 @@
             <RichTextEditor
               :model-value="form.description"
               placeholder="Describe the room, the mechanisms, and what is immediately observable…"
-              min-height="140px"
+              size="md"
               @update:model-value="form.description = $event"
             />
           </div>
@@ -314,7 +314,7 @@
             <RichTextEditor
               :model-value="form.solution"
               placeholder="The answer is… / The mechanism works by…"
-              min-height="120px"
+              size="md"
               @update:model-value="form.solution = $event"
             />
           </div>
@@ -331,7 +331,7 @@
               <RichTextEditor
                 :model-value="form.success_outcome"
                 placeholder="What happens when the puzzle is solved…"
-                min-height="100px"
+                size="md"
                 @update:model-value="form.success_outcome = $event"
               />
             </div>
@@ -340,7 +340,7 @@
               <RichTextEditor
                 :model-value="form.failure_consequence"
                 placeholder="What happens on a wrong answer or giving up…"
-                min-height="100px"
+                size="md"
                 @update:model-value="form.failure_consequence = $event"
               />
             </div>
@@ -356,7 +356,7 @@
             <RichTextEditor
               :model-value="form.notes"
               placeholder="Running notes, variant solutions, pacing tips…"
-              min-height="100px"
+              size="md"
               @update:model-value="form.notes = $event"
             />
           </div>

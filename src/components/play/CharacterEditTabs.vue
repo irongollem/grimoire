@@ -64,7 +64,7 @@
 
       <div>
         <span class="field-label">Notes</span>
-        <RichTextEditor v-model="f.notes" placeholder="Background, personality, goals…" min-height="120px" />
+        <RichTextEditor v-model="f.notes" placeholder="Background, personality, goals…" size="md" />
       </div>
     </div>
 
