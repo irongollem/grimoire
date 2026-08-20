@@ -59,6 +59,28 @@ const SCOPES = [
 
 
 /**
+ * Thrown when a Spotify endpoint cannot be reached at all — offline, DNS
+ * failure, a blocked request. Distinct from an error *response*: the session
+ * and tokens are presumed fine, so callers should surface a connectivity
+ * message rather than log the user out.
+ */
+export class SpotifyUnreachableError extends Error {
+  constructor(url: string) {
+    super(`Could not reach ${new URL(url).host} — check your connection.`);
+    this.name = "SpotifyUnreachableError";
+  }
+}
+
+/** `fetch()` that turns a network-level throw into `SpotifyUnreachableError`. */
+export async function spotifyFetch(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new SpotifyUnreachableError(url);
+  }
+}
+
+/**
  * Spotify replies to a failed auth/API call with a JSON body that says exactly
  * what is wrong (`error` / `error_description`, or a nested `error.message`).
  * Swallowing it leaves the UI able to say only "it failed", which is useless to
@@ -145,7 +167,7 @@ export async function exchangeCode(code: string, state: string | undefined, clie
   localStorage.removeItem(CLIENT_ID_KEY);
   if (!id) throw new Error("No Spotify client ID available for the token exchange.");
 
-  const res = await fetch("https://accounts.spotify.com/api/token", {
+  const res = await spotifyFetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -170,7 +192,7 @@ export async function exchangeCode(code: string, state: string | undefined, clie
 }
 
 async function refreshAccessToken(clientId: string, refreshToken: string): Promise<SpotifyTokens | null> {
-  const res = await fetch("https://accounts.spotify.com/api/token", {
+  const res = await spotifyFetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -212,7 +234,12 @@ export function clearTokens(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-/** Returns a valid access token, refreshing silently if expired. Null = not logged in. */
+/**
+ * Returns a valid access token, refreshing silently if expired. Null = not
+ * logged in. Throws `SpotifyUnreachableError` when a needed refresh cannot
+ * reach Spotify — being offline is not being logged out, so callers must not
+ * clear the session on that path.
+ */
 export async function getValidToken(clientId: string, forceRefresh = false): Promise<string | null> {
   const tokens = getStoredTokens();
   if (!tokens) return null;

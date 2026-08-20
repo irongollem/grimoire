@@ -19,6 +19,8 @@ import {
   getStoredTokens,
   urlToUri,
   isContextUri,
+  spotifyFetch,
+  SpotifyUnreachableError,
 } from "@/lib/audio/spotifyAuth";
 
 // ── SDK type declarations (no npm package) ────────────────────────────────
@@ -143,21 +145,34 @@ export const useSpotifyStore = defineStore("spotify", () => {
     sdkPlayer = null;
   }
 
+  // Network-level failures (offline, a waking laptop, a blocked request) are
+  // normal operating conditions for a soundboard used live — surface them on
+  // the shared banner instead of leaking an unhandled rejection to Sentry.
+  // Anything else is a real bug and still throws.
+  function _handleUnreachable(e: unknown): void {
+    if (!(e instanceof SpotifyUnreachableError)) throw e;
+    playError.value = e.message;
+  }
+
   async function fetchAccount() {
-    const token = await getValidToken(clientId.value);
-    if (!token) return;
-    const res = await fetch("https://api.spotify.com/v1/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      // A 403 here means the login succeeded but the account cannot use the
-      // app — almost always Development mode without the user allowlisted.
-      // Silently returning left the UI looking connected but inert.
-      playError.value = await readSpotifyError(res);
-      return;
+    try {
+      const token = await getValidToken(clientId.value);
+      if (!token) return;
+      const res = await spotifyFetch("https://api.spotify.com/v1/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        // A 403 here means the login succeeded but the account cannot use the
+        // app — almost always Development mode without the user allowlisted.
+        // Silently returning left the UI looking connected but inert.
+        playError.value = await readSpotifyError(res);
+        return;
+      }
+      const data = await res.json() as { display_name: string; email: string; product: string };
+      spotifyUser.value = { display_name: data.display_name, email: data.email, product: data.product };
+    } catch (e) {
+      _handleUnreachable(e);
     }
-    const data = await res.json() as { display_name: string; email: string; product: string };
-    spotifyUser.value = { display_name: data.display_name, email: data.email, product: data.product };
   }
 
   // ── SDK lifecycle ──────────────────────────────────────────────────────
@@ -185,7 +200,15 @@ export const useSpotifyStore = defineStore("spotify", () => {
     sdkPlayer = new window.Spotify.Player({
       name: "Grimoire Soundboard",
       getOAuthToken: async (cb) => {
-        const token = await getValidToken(clientId.value);
+        let token: string | null;
+        try {
+          token = await getValidToken(clientId.value);
+        } catch (e) {
+          // Offline mid-refresh — give the SDK nothing and keep the session.
+          // disconnect() here would log the DM out over a Wi-Fi blip.
+          _handleUnreachable(e);
+          return;
+        }
         if (token) {
           cb(token);
         } else {
@@ -214,7 +237,15 @@ export const useSpotifyStore = defineStore("spotify", () => {
       isReady.value = false;
       // Force-refresh once before nuking the session — Spotify can emit this
       // for transient reasons while the refresh token is still good.
-      const refreshed = await getValidToken(clientId.value, true);
+      let refreshed: string | null;
+      try {
+        refreshed = await getValidToken(clientId.value, true);
+      } catch (e) {
+        // Same as getOAuthToken: unreachable ≠ logged out. Stay not-ready;
+        // the SDK's next getOAuthToken call is the recovery path.
+        _handleUnreachable(e);
+        return;
+      }
       if (refreshed && sdkPlayer) {
         sdkPlayer.connect();
       } else {
@@ -280,40 +311,44 @@ export const useSpotifyStore = defineStore("spotify", () => {
   async function play(fileUrl: string) {
     if (!deviceId.value) return;
 
-    const uri = urlToUri(fileUrl) ?? fileUrl;
-    const token = await getValidToken(clientId.value);
-    if (!token) return;
+    try {
+      const uri = urlToUri(fileUrl) ?? fileUrl;
+      const token = await getValidToken(clientId.value);
+      if (!token) return;
 
-    const body = isContextUri(uri)
-      ? { context_uri: uri }
-      : { uris: [uri] };
+      const body = isContextUri(uri)
+        ? { context_uri: uri }
+        : { uris: [uri] };
 
-    const res = await fetch(
-      `https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const res = await spotifyFetch(
+        `https://api.spotify.com/v1/me/player/play?device_id=${deviceId.value}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-      },
-    );
+      );
 
-    if (!res.ok) {
-      let msg = `Spotify error ${res.status}`;
-      try {
-        const body = await res.json() as { error?: { message?: string } };
-        if (body.error?.message) msg = body.error.message;
-      } catch { /* ignore parse errors */ }
-      // Common: 403 "Player command failed: Not allowed" → desktop app is holding playback.
-      // Common: 403 "Player command failed: Premium required" → free account.
-      playError.value = msg;
-      return;
+      if (!res.ok) {
+        let msg = `Spotify error ${res.status}`;
+        try {
+          const body = await res.json() as { error?: { message?: string } };
+          if (body.error?.message) msg = body.error.message;
+        } catch { /* ignore parse errors */ }
+        // Common: 403 "Player command failed: Not allowed" → desktop app is holding playback.
+        // Common: 403 "Player command failed: Premium required" → free account.
+        playError.value = msg;
+        return;
+      }
+
+      playError.value = null;
+      lastPlayedUrl.value = fileUrl;
+    } catch (e) {
+      _handleUnreachable(e);
     }
-
-    playError.value = null;
-    lastPlayedUrl.value = fileUrl;
   }
 
   async function pause() {
@@ -348,25 +383,33 @@ export const useSpotifyStore = defineStore("spotify", () => {
 
   async function setShuffle(on: boolean) {
     if (!deviceId.value) return;
-    const token = await getValidToken(clientId.value);
-    if (!token) return;
-    await fetch(
-      `https://api.spotify.com/v1/me/player/shuffle?state=${on}&device_id=${deviceId.value}`,
-      { method: "PUT", headers: { Authorization: `Bearer ${token}` } },
-    );
-    shuffleOn.value = on;
+    try {
+      const token = await getValidToken(clientId.value);
+      if (!token) return;
+      await spotifyFetch(
+        `https://api.spotify.com/v1/me/player/shuffle?state=${on}&device_id=${deviceId.value}`,
+        { method: "PUT", headers: { Authorization: `Bearer ${token}` } },
+      );
+      shuffleOn.value = on;
+    } catch (e) {
+      _handleUnreachable(e);
+    }
   }
 
   async function setRepeat(mode: 0 | 1 | 2) {
     if (!deviceId.value) return;
-    const token = await getValidToken(clientId.value);
-    if (!token) return;
-    const stateStr = mode === 2 ? "track" : mode === 1 ? "context" : "off";
-    await fetch(
-      `https://api.spotify.com/v1/me/player/repeat?state=${stateStr}&device_id=${deviceId.value}`,
-      { method: "PUT", headers: { Authorization: `Bearer ${token}` } },
-    );
-    repeatMode.value = mode;
+    try {
+      const token = await getValidToken(clientId.value);
+      if (!token) return;
+      const stateStr = mode === 2 ? "track" : mode === 1 ? "context" : "off";
+      await spotifyFetch(
+        `https://api.spotify.com/v1/me/player/repeat?state=${stateStr}&device_id=${deviceId.value}`,
+        { method: "PUT", headers: { Authorization: `Bearer ${token}` } },
+      );
+      repeatMode.value = mode;
+    } catch (e) {
+      _handleUnreachable(e);
+    }
   }
 
   return {
@@ -389,6 +432,7 @@ export const useSpotifyStore = defineStore("spotify", () => {
     connect,
     disconnect,
     initSDK,
+    fetchAccount,
     play,
     pause,
     resume,

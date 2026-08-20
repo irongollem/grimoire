@@ -1,9 +1,17 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
-import { buildAuthUrl, exchangeCode, readSpotifyError } from "@/lib/audio/spotifyAuth";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import {
+  buildAuthUrl,
+  exchangeCode,
+  getValidToken,
+  readSpotifyError,
+  spotifyFetch,
+  SpotifyUnreachableError,
+} from "@/lib/audio/spotifyAuth";
 
 function res(status: number, body: unknown): Response {
   return {
     status,
+    ok: status >= 200 && status < 300,
     json: async () => body,
   } as unknown as Response;
 }
@@ -42,6 +50,61 @@ describe("readSpotifyError", () => {
   it("degrades to the status alone when the body is not JSON", async () => {
     const broken = { status: 502, json: async () => { throw new Error("not json"); } } as unknown as Response;
     expect(await readSpotifyError(broken)).toBe("Spotify returned 502");
+  });
+});
+
+describe("spotifyFetch", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("turns a network-level throw into SpotifyUnreachableError, naming the host", async () => {
+    // What a dead connection or a blocked request looks like from fetch().
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
+
+    await expect(spotifyFetch("https://api.spotify.com/v1/me")).rejects.toMatchObject({
+      name: "SpotifyUnreachableError",
+      message: expect.stringContaining("api.spotify.com") as unknown,
+    });
+  });
+
+  it("passes an error response through untouched — only transport failures convert", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(res(403, {}))));
+
+    const r = await spotifyFetch("https://api.spotify.com/v1/me");
+    expect(r.status).toBe(403);
+  });
+});
+
+describe("getValidToken when a refresh is due", () => {
+  beforeEach(() => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+      clear: () => values.clear(),
+    });
+    localStorage.setItem("spotify_tokens", JSON.stringify({
+      access_token: "expired",
+      refresh_token: "refresh",
+      expires_at: Date.now() - 1_000,
+      client_id: "client-id",
+    }));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("throws SpotifyUnreachableError and keeps the tokens when Spotify is unreachable", async () => {
+    // Being offline is not being logged out: the caller must be able to tell
+    // the two apart, or a Wi-Fi blip during refresh wipes a valid session.
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
+
+    await expect(getValidToken("client-id")).rejects.toBeInstanceOf(SpotifyUnreachableError);
+    expect(localStorage.getItem("spotify_tokens")).toBeTruthy();
+  });
+
+  it("returns null when Spotify itself rejects the refresh token", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(res(400, { error: "invalid_grant" }))));
+
+    expect(await getValidToken("client-id")).toBeNull();
   });
 });
 
