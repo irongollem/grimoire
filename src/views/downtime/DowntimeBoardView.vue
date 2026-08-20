@@ -94,7 +94,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
     <!-- Grant credits -->
     <section class="mt-6 rounded-lg border border-border bg-card p-4">
       <h2 class="text-heading-sm font-semibold">Grant downtime</h2>
-      <p class="mt-1 text-2xs text-muted-foreground">
+      <p class="mt-1 text-caption-sm text-muted-foreground">
         A draw is a gift you give when the story says there is a lull. One credit, one turn of
         the deck.
       </p>
@@ -102,18 +102,18 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
            campaign has no characters while the query is in flight is a lie the
            user can see: they land here, read "no characters", and only a refresh
            (warm cache) proves otherwise. -->
-      <p v-if="partyPending" class="mt-3 text-2xs text-muted-foreground">Loading the party…</p>
+      <p v-if="partyPending" class="mt-3 text-caption-sm text-muted-foreground">Loading the party…</p>
       <ul v-else-if="party && party.length > 0" class="mt-3 space-y-1">
         <li
           v-for="member in party"
           :key="member.id"
           class="flex items-center justify-between rounded border border-border px-2 py-1"
         >
-          <span class="text-sm">{{ member.name }}</span>
+          <span class="text-body">{{ member.name }}</span>
           <GrantDowntimeButton :party-member-id="member.id" :party-member-name="member.name" />
         </li>
       </ul>
-      <p v-else class="mt-3 text-2xs text-muted-foreground">No characters in this campaign yet.</p>
+      <p v-else class="mt-3 text-caption-sm text-muted-foreground">No characters in this campaign yet.</p>
     </section>
 
     <!-- Pending draws: the batch resolution board.
@@ -123,7 +123,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
     <section class="mt-6 rounded-lg border border-border bg-card p-4">
       <h2 class="text-heading-sm font-semibold">
         Awaiting you
-        <span class="text-2xs font-normal text-muted-foreground">
+        <span class="text-caption-sm font-normal text-muted-foreground">
           ({{ pendingDraws.length }})
         </span>
       </h2>
@@ -133,7 +133,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
            controls tall and left the heading floating in dead space. -->
       <div class="mt-3 flex flex-wrap items-end gap-2 border-b border-border pb-3">
         <div>
-          <label for="downtime-filter-status" class="mb-1 block text-2xs font-medium">
+          <label for="downtime-filter-status" class="mb-1 block text-eyebrow font-medium">
             Status
           </label>
           <AppSelect id="downtime-filter-status" v-model="filterStatus" size="body" weight="normal">
@@ -145,7 +145,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
         </div>
 
         <div>
-          <label for="downtime-filter-character" class="mb-1 block text-2xs font-medium">
+          <label for="downtime-filter-character" class="mb-1 block text-eyebrow font-medium">
             Character
           </label>
           <AppSelect id="downtime-filter-character" v-model="filterCharacter" size="body" weight="normal">
@@ -163,7 +163,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
         />
       </div>
 
-      <p v-if="pendingDraws.length === 0" class="mt-3 text-2xs text-muted-foreground">
+      <p v-if="pendingDraws.length === 0" class="mt-3 text-caption-sm text-muted-foreground">
         Nothing pending. Grant a credit and your players can spend it between sessions.
       </p>
       <div v-else class="mt-3 space-y-4">

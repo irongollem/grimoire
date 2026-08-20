@@ -173,19 +173,19 @@ async function onCancel() {
     <div class="flex gap-4">
       <div class="w-28 shrink-0">
         <DowntimeActivityCard v-if="activity" :activity="activity" :interactive="false" />
-        <p v-else class="text-2xs text-muted-foreground">??? (unknown archetype)</p>
+        <p v-else class="text-caption-sm text-muted-foreground">??? (unknown archetype)</p>
       </div>
 
       <div class="min-w-0 flex-1">
         <header>
           <h3 class="text-heading-sm font-semibold">{{ memberName }}</h3>
-          <p class="text-2xs text-muted-foreground">{{ sourceLabel }}</p>
+          <p class="text-caption-sm text-muted-foreground">{{ sourceLabel }}</p>
         </header>
 
         <!-- What the deck yielded -->
         <p
           v-if="result?.source === 'prepped'"
-          class="mt-2 rounded border border-primary/40 bg-primary/5 p-2 text-2xs"
+          class="mt-2 rounded border border-primary/40 bg-primary/5 p-2 text-caption-sm"
         >
           Your prepped <span class="capitalize">{{ result.back.reward_type }}</span> is waiting.
           Resolving links it to this outcome<span v-if="!result.back.is_recurring">
@@ -194,19 +194,19 @@ async function onCancel() {
         </p>
         <p
           v-else-if="result?.source === 'seed' && seedReward"
-          class="mt-2 rounded border border-border bg-muted/40 p-2 text-2xs"
+          class="mt-2 rounded border border-border bg-muted/40 p-2 text-caption-sm"
         >
           A new {{ seedReward.noun }} — <span class="font-medium">{{ seedReward.name }}</span> —
           will be created in your campaign and linked to this outcome.
         </p>
-        <p v-else class="mt-2 text-2xs text-destructive">
+        <p v-else class="mt-2 text-caption-sm text-destructive">
           Nothing to draw. Prep a card back, or resolve with no reward attached.
         </p>
 
         <!-- AI drafting: replaces what the deck dealt with a ready-to-edit outcome -->
         <div v-if="isAiEnabled && activity" class="mt-3 rounded border border-dashed border-border p-2">
           <div class="flex items-end gap-2">
-            <label class="min-w-0 flex-1 text-2xs font-medium">
+            <label class="min-w-0 flex-1 text-eyebrow font-medium">
               Draft with AI <span class="text-muted-foreground">(optional steer)</span>
               <AppInput
                 v-model="steer"
@@ -227,34 +227,34 @@ async function onCancel() {
               @click="onDraft"
             />
           </div>
-          <p class="mt-1 text-2xs text-muted-foreground">{{ creditLine }}</p>
-          <p v-if="!canAfford" class="mt-1 text-2xs text-destructive">
+          <p class="mt-1 text-caption-sm text-muted-foreground">{{ creditLine }}</p>
+          <p v-if="!canAfford" class="mt-1 text-caption-sm text-destructive">
             Not enough credits to draft this outcome.
           </p>
-          <p v-if="draftError" class="mt-1 text-2xs text-destructive">{{ draftError }}</p>
+          <p v-if="draftError" class="mt-1 text-caption-sm text-destructive">{{ draftError }}</p>
         </div>
 
-        <label class="mt-3 block text-2xs font-medium">
+        <label class="mt-3 block text-eyebrow font-medium">
           Title
           <AppInput v-model="title" placeholder="A friend in low places" size="body" class="mt-1" />
         </label>
 
         <div class="mt-3">
-          <p class="mb-1 text-2xs font-medium">Vignette</p>
+          <p class="mb-1 text-eyebrow font-medium">Vignette</p>
           <RichTextEditor v-model="vignette" placeholder="What happened during the interlude…" />
         </div>
 
         <!-- Proposed effects: nothing is applied until the DM ticks it -->
         <fieldset v-if="effects.length > 0" class="mt-3">
-          <legend class="text-2xs font-medium">Proposed consequences</legend>
-          <p class="mb-1 text-2xs text-muted-foreground">
+          <legend class="text-eyebrow font-medium">Proposed consequences</legend>
+          <p class="mb-1 text-caption-sm text-muted-foreground">
             Your world, your call. Coin, HP, and conditions are applied automatically;
             items are yours to hand out.
           </p>
           <label
             v-for="(effect, i) in effects"
             :key="i"
-            class="flex items-baseline gap-2 py-0.5 text-2xs"
+            class="flex items-baseline gap-2 py-0.5 text-caption-sm"
           >
             <input v-model="effect.applied" type="checkbox" class="mt-0.5" />
             <span class="capitalize font-medium">{{ effect.kind }}</span>
@@ -266,7 +266,7 @@ async function onCancel() {
           </label>
         </fieldset>
 
-        <p v-if="errorMessage" class="mt-2 text-2xs text-destructive">{{ errorMessage }}</p>
+        <p v-if="errorMessage" class="mt-2 text-caption-sm text-destructive">{{ errorMessage }}</p>
 
         <div class="mt-4 flex items-center gap-2">
           <AppButton

@@ -129,7 +129,7 @@ async function addBack() {
   <section class="rounded-lg border border-border bg-card p-4">
     <header>
       <h2 class="text-heading-sm font-semibold">Stack the deck</h2>
-      <p class="mt-1 text-2xs text-muted-foreground">
+      <p class="mt-1 text-caption-sm text-muted-foreground">
         Slot a real NPC, item, or note onto the back of a card. Prepped backs are dealt first,
         in order; when the pile runs dry the deck falls back to a random system seed.
       </p>
@@ -142,7 +142,7 @@ async function addBack() {
          combobox, and the combobox's label sat higher than the other two. -->
     <div class="mt-4 grid gap-2 sm:grid-cols-[1fr_auto_2fr_auto] sm:items-end">
       <div>
-        <label for="deck-back-archetype" class="mb-1 block text-2xs font-medium">
+        <label for="deck-back-archetype" class="mb-1 block text-eyebrow font-medium">
           Archetype
         </label>
         <AppSelect
@@ -160,7 +160,7 @@ async function addBack() {
       </div>
 
       <div>
-        <label for="deck-back-type" class="mb-1 block text-2xs font-medium">Type</label>
+        <label for="deck-back-type" class="mb-1 block text-eyebrow font-medium">Type</label>
         <AppSelect
           id="deck-back-type"
           v-model="rewardType"
@@ -177,7 +177,7 @@ async function addBack() {
       </div>
 
       <div class="min-w-0">
-        <span class="mb-1 block text-2xs font-medium">{{ rewardTypeLabel }}</span>
+        <span class="mb-1 block text-eyebrow font-medium">{{ rewardTypeLabel }}</span>
         <EntityCombobox
           v-model="rewardId"
           :options="rewardOptions"
@@ -201,40 +201,40 @@ async function addBack() {
 
     <!-- The text is one span, not loose nodes: `gap-2` treats every child as a
          flex item, so an inline <em> here would get spaced on both sides. -->
-    <label class="mt-2 flex items-center gap-2 text-2xs">
+    <label class="mt-2 flex items-center gap-2 text-caption-sm">
       <input v-model="isRecurring" type="checkbox" />
       <span>
         Recurring — this back is <em>always</em> what they find here (never consumed)
       </span>
     </label>
 
-    <p v-if="errorMessage" class="mt-2 text-2xs text-destructive">{{ errorMessage }}</p>
+    <p v-if="errorMessage" class="mt-2 text-caption-sm text-destructive">{{ errorMessage }}</p>
 
     <!-- The pile -->
     <div class="mt-5">
-      <h3 class="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+      <h3 class="text-eyebrow font-medium text-muted-foreground">
         Waiting in the pile
       </h3>
-      <p v-if="pile.length === 0" class="mt-1 text-2xs text-muted-foreground">
+      <p v-if="pile.length === 0" class="mt-1 text-caption-sm text-muted-foreground">
         Nothing prepped. Every draw will surface a random system seed.
       </p>
       <ul v-else class="mt-2 space-y-1">
         <li
           v-for="(back, i) in pile"
           :key="back.id"
-          class="flex items-center gap-2 rounded border border-border px-2 py-1 text-2xs"
+          class="flex items-center gap-2 rounded border border-border px-2 py-1 text-caption-sm"
         >
           <span class="w-5 shrink-0 text-muted-foreground">{{ i + 1 }}.</span>
           <span class="font-medium">{{ rewardName(back.reward_type, back.reward_id) }}</span>
           <span
-            class="rounded-full border border-border px-1.5 text-2xs capitalize text-muted-foreground"
+            class="rounded-full border border-border px-1.5 text-caption-sm capitalize text-muted-foreground"
           >
             {{ back.reward_type }}
           </span>
           <span class="text-muted-foreground">→ {{ activityTitle(back.activity_key) }}</span>
           <span
             v-if="back.is_recurring"
-            class="rounded-full border border-border px-1.5 text-2xs text-muted-foreground"
+            class="rounded-full border border-border px-1.5 text-caption-sm text-muted-foreground"
           >
             recurring
           </span>
@@ -251,14 +251,14 @@ async function addBack() {
     </div>
 
     <div v-if="consumed.length > 0" class="mt-4">
-      <h3 class="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+      <h3 class="text-eyebrow font-medium text-muted-foreground">
         Already dealt
       </h3>
       <ul class="mt-2 space-y-1">
         <li
           v-for="back in consumed"
           :key="back.id"
-          class="flex items-center gap-2 text-2xs text-muted-foreground line-through"
+          class="flex items-center gap-2 text-caption-sm text-muted-foreground line-through"
         >
           <span>{{ rewardName(back.reward_type, back.reward_id) }}</span>
           <span>→ {{ activityTitle(back.activity_key) }}</span>

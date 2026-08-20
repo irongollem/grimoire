@@ -85,7 +85,7 @@ function onSelect() {
     <!-- Card foot -->
     <div class="shrink-0 border-t border-border bg-card p-3">
       <h3 class="font-cinzel text-sm font-semibold">{{ activity.title }}</h3>
-      <p class="mt-1 line-clamp-2 text-2xs text-muted-foreground">{{ activity.hook }}</p>
+      <p class="mt-1 line-clamp-2 text-caption-sm text-muted-foreground">{{ activity.hook }}</p>
     </div>
   </component>
 </template>

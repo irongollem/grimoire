@@ -74,13 +74,13 @@ function effectSummary(effect: DowntimeEffect): string {
             <span class="sr-only">Unread</span>
           </span>
         </h3>
-        <p class="text-2xs text-muted-foreground">
+        <p class="text-caption-sm text-muted-foreground">
           {{ activity ? activity.title : "???" }}
         </p>
       </div>
     </header>
 
-    <div v-if="outcome.vignette" class="mt-3 text-sm">
+    <div v-if="outcome.vignette" class="mt-3 text-body">
       <RichTextViewer :content="outcome.vignette" />
     </div>
 
@@ -89,14 +89,14 @@ function effectSummary(effect: DowntimeEffect): string {
       <RouterLink
         v-if="rewardHref && rewardName"
         :to="rewardHref"
-        class="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-2xs hover:bg-muted"
+        class="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-caption-sm hover:bg-muted"
       >
         <span class="capitalize text-muted-foreground">{{ outcome.reward_type }}</span>
         <span class="font-medium">{{ rewardName }}</span>
       </RouterLink>
       <span
         v-else
-        class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-2.5 py-1 text-2xs text-muted-foreground"
+        class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-2.5 py-1 text-caption-sm text-muted-foreground"
       >
         <span class="capitalize">{{ outcome.reward_type }}</span>
         <span>{{ rewardLabel }}</span>
@@ -107,7 +107,7 @@ function effectSummary(effect: DowntimeEffect): string {
       <li
         v-for="(effect, i) in appliedEffects"
         :key="i"
-        class="flex items-baseline gap-2 text-2xs text-muted-foreground"
+        class="flex items-baseline gap-2 text-caption-sm text-muted-foreground"
       >
         <span class="capitalize">{{ effect.kind }}:</span>
         <span>{{ effectSummary(effect) }}</span>
