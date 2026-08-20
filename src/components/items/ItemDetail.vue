@@ -284,20 +284,12 @@
         </div>
 
         <!-- Written contents — in-world text the object itself carries -->
-        <ItemEditorCard
-          title="Written Contents"
-          hint="optional; what the item itself says"
-          toggle-label="PLAYER WRITABLE"
-          toggle-shrink
-          v-model:toggle="contentPlayerWritable"
-        >
-          <RichTextEditor
-            v-model="content"
-            allow-upload
-            placeholder="A ledger's pages, a contract's clauses, a scroll's text…"
-            min-height="140px"
-          />
-        </ItemEditorCard>
+        <ItemWrittenContentsCard
+          :item="item"
+          v-model:has-written-content="hasWrittenContent"
+          v-model:content="content"
+          v-model:player-writable="contentPlayerWritable"
+        />
 
         <!-- DM notes — never shown to players -->
         <ItemEditorCard title="DM Notes" hint="never shown to players" tone="amber">
@@ -379,6 +371,7 @@ import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import ItemWeaponBlock from "@/components/items/ItemWeaponBlock.vue";
 import ItemArmorBlock from "@/components/items/ItemArmorBlock.vue";
 import ItemEditorCard from "@/components/items/ItemEditorCard.vue";
+import ItemWrittenContentsCard from "@/components/items/ItemWrittenContentsCard.vue";
 import { useCreateItem, useUpdateItem, useDeleteItem } from "@/composables/useItems";
 import { useSpells } from "@/composables/useSpells";
 import { useCampaignStore } from "@/stores/campaign";
@@ -429,6 +422,13 @@ const cost = ref(props.item?.cost ?? "");
 const description = ref(props.item?.description ?? "");
 const content = ref<string | null>(props.item?.content ?? null);
 const contentPlayerWritable = ref(props.item?.content_player_writable ?? false);
+// Master fold for the Written Contents card: non-null content is a real signal
+// (feather badge, tome tab in player journals), so the editor only opens once
+// the DM says the item carries writing. Initialized from the writable flag too,
+// so a writable-but-blank item doesn't silently lose its flag on save.
+const hasWrittenContent = ref(
+  (props.item?.content ?? null) !== null || (props.item?.content_player_writable ?? false),
+);
 const mundaneDescription = ref(props.item?.mundane_description ?? "");
 const source = ref(props.item?.source ?? "");
 const imageUrl = ref(props.item?.image_url ?? "");
@@ -543,6 +543,11 @@ function isBlankContent(json: string | null): boolean {
   return !tiptapToPlainText(json).trim() && extractRichTextImageUrls(json).length === 0;
 }
 const normalizedContent = computed(() => (isBlankContent(content.value) ? null : content.value));
+// Folding the card closed unsays "this is a document": drafted text stays in
+// the ref (reopening the fold restores it pre-save) but persists as NULL.
+const effectiveContent = computed(() =>
+  hasWrittenContent.value ? normalizedContent.value : null,
+);
 
 // ── Save / Delete ─────────────────────────────────────────────────────────────
 const { mutateAsync: createItem } = useCreateItem();
@@ -577,8 +582,8 @@ function buildPayload() {
       : null,
     spell_ids: spellIds.value,
     description: description.value,
-    content: normalizedContent.value,
-    content_player_writable: contentPlayerWritable.value,
+    content: effectiveContent.value,
+    content_player_writable: hasWrittenContent.value ? contentPlayerWritable.value : false,
     mundane_description: isMagic.value ? mundaneDescription.value || null : null,
     source: source.value.trim() || null,
     source_title: props.item?.source_title ?? null,
@@ -638,7 +643,7 @@ async function save() {
 
       const oldContent = props.item.content;
       await updateItem({ id: props.item.id, update: buildPayload() });
-      cleanupRemovedRichTextImages(oldContent, normalizedContent.value);
+      cleanupRemovedRichTextImages(oldContent, effectiveContent.value);
       router.push("/vault");
     } else {
       await createItem(buildPayload());

@@ -2,7 +2,7 @@
   <div v-if="!hasNothingToShow" class="flex flex-col gap-4">
     <!-- The item's own writing — DM-authored, in-world text carried by the
          object itself (a ledger's pages, a contract's clauses). -->
-    <div v-if="item.content !== null" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
+    <div v-if="!hideContent && item.content !== null" class="rounded-lg border border-border bg-card/50 p-4 flex flex-col gap-2">
       <h3 class="text-label-lg font-bold text-muted-foreground uppercase">Written Contents</h3>
       <RichTextViewer :content="item.content" />
     </div>
@@ -115,6 +115,7 @@ const {
   authorPartyMemberId,
   canModerate,
   dmUserId,
+  hideContent = false,
 } = defineProps<{
   item: Item;
   /** Entries scope; null when the DM is browsing /vault with no active
@@ -124,6 +125,10 @@ const {
   /** Stamped on new entries. Null for the DM. */
   authorPartyMemberId: string | null;
   canModerate: boolean;
+  /** The item editor mounts this thread below its own `content` editor box,
+   *  so it suppresses the read-only content block that every other parent
+   *  wants. */
+  hideContent?: boolean;
   /**
    * The campaign owner's user id. An entry is labelled "DM" only when
    * `entry.user_id` matches this — never merely because `party_member_id` is
@@ -152,7 +157,9 @@ const { mutateAsync: deleteEntryMut } = useDeleteItemEntry(itemId, campaignIdRef
 const hasEntries = computed(() => (entries.value?.length ?? 0) > 0);
 const canCompose = computed(() => canWriteEntries && campaignId !== null);
 const showEntriesBlock = computed(() => hasEntries.value || canCompose.value);
-const hasNothingToShow = computed(() => item.content === null && !showEntriesBlock.value);
+const hasNothingToShow = computed(
+  () => (hideContent || item.content === null) && !showEntriesBlock.value,
+);
 
 /** A doc with no text and no embedded images carries nothing worth saving. */
 function isBlankDoc(json: string | null): boolean {
