@@ -72,14 +72,18 @@
             <AppInput v-if="editEventData.actionType === 'broadcast_message'" v-model="editEventData.message" tone="card" size="body" placeholder="Message to broadcast…" />
           </div>
           <div class="flex items-center gap-3">
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input v-model="editEventData.fire_once" type="checkbox" class="rounded border-border" />
-              <span class="font-cinzel text-xs text-muted-foreground">Fire once</span>
-            </label>
-            <label class="flex items-center gap-1.5 cursor-pointer">
-              <input v-model="editEventData.is_player_visible" type="checkbox" class="rounded border-border" />
-              <span class="font-cinzel text-xs text-muted-foreground">Show to players</span>
-            </label>
+            <AppCheckbox
+              v-model="editEventData.fire_once"
+              label="Fire once"
+              label-role="label-lg"
+              label-weight="normal"
+            />
+            <AppCheckbox
+              v-model="editEventData.is_player_visible"
+              label="Show to players"
+              label-role="label-lg"
+              label-weight="normal"
+            />
           </div>
           <p v-if="editEventError" class="text-caption text-destructive">{{ editEventError }}</p>
           <div class="flex gap-2 justify-end pt-1">
@@ -169,14 +173,18 @@
           <AppInput v-if="newEvent.actionType === 'broadcast_message'" v-model="newEvent.message" tone="card" size="body" placeholder="Message to broadcast to players…" />
         </div>
         <div class="flex items-center gap-3">
-          <label class="flex items-center gap-1.5 cursor-pointer">
-            <input v-model="newEvent.fire_once" type="checkbox" class="rounded border-border" />
-            <span class="font-cinzel text-xs text-muted-foreground">Fire once</span>
-          </label>
-          <label class="flex items-center gap-1.5 cursor-pointer">
-            <input v-model="newEvent.is_player_visible" type="checkbox" class="rounded border-border" />
-            <span class="font-cinzel text-xs text-muted-foreground">Show to players</span>
-          </label>
+          <AppCheckbox
+            v-model="newEvent.fire_once"
+            label="Fire once"
+            label-role="label-lg"
+            label-weight="normal"
+          />
+          <AppCheckbox
+            v-model="newEvent.is_player_visible"
+            label="Show to players"
+            label-role="label-lg"
+            label-weight="normal"
+          />
         </div>
         <p v-if="eventFormError" class="text-caption text-destructive">{{ eventFormError }}</p>
         <div class="flex gap-2 justify-end pt-1">
@@ -192,6 +200,7 @@
 import { ref, computed, watch } from "vue";
 import { IconAdd, IconClose, IconEdit, IconHide, IconMinus, IconReveal } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";

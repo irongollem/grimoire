@@ -99,10 +99,16 @@
               :label="formIsPrivate ? 'Private' : 'Shared'"
               @click="toggleFormPrivacy"
             />
-            <label v-if="formIsPrivate" class="inline-flex items-center gap-1.5 cursor-pointer select-none">
-              <input v-model="formSharedWithDm" type="checkbox" class="rounded border-border accent-amber-500 h-3 w-3" />
-              <span class="text-label-lg text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
-            </label>
+            <AppCheckbox
+              v-if="formIsPrivate"
+              v-model="formSharedWithDm"
+              size="sm"
+              accent="amber"
+              label-role="label-lg"
+              label-weight="normal"
+          label-class="text-amber-600/80 dark:text-amber-400/80"
+              label="Share with DM"
+            />
           </div>
           <div class="flex items-center gap-2">
             <AppButton variant="ghost" size="inline" @click="cancelForm">Cancel</AppButton>
@@ -217,6 +223,7 @@ import { IconAdd, IconCalendarDays, IconDocument, IconFeather, IconLocation, Ico
 import TabBar from "@/components/common/TabBar.vue";
 import SortControl from "@/components/common/SortControl.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import PlayerJournalMyTab from "./PlayerJournalMyTab.vue";

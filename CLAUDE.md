@@ -308,10 +308,11 @@ A new `<button class="px-2 py-0.5 border rounded …">` or `<input class="bg-mut
 | `<button>` with any padding/border/radius/hover class | `AppButton` — variant + size, never classes |
 | `<input>` with the field recipe                       | `AppInput` — tone + size                    |
 | `<select>` with chrome (small fixed option set)       | `AppSelect`; dynamic/searchable → `EntityCombobox` |
+| `<input type="checkbox">` — any, labelled or not      | `AppCheckbox` — size + labelRole + accent (#751) |
 | A coloured pill whose colour means something          | `AppButton variant="tinted"` + `tone` + `emphasis` |
 | A toggle/segmented picker                             | `AppButton :active` or `SegmentedControl`   |
 
-Every variant is rendered at `/dev/components` — open it rather than guessing which one matches. If none does, add a variant to `appButtonVariants.ts` / `fieldVariants.ts` (the compile-time assertion forces it into the catalogue); do **not** fall back to a class string. A raw `<button>`/`<input>` is fine only when it carries *no* chrome — a bare word of clickable text, or a checkbox/radio/file input.
+Every variant is rendered at `/dev/components` — open it rather than guessing which one matches. If none does, add a variant to `appButtonVariants.ts` / `fieldVariants.ts` / `checkboxVariants.ts` (the compile-time assertion forces it into the catalogue); do **not** fall back to a class string. A raw `<button>`/`<input>` is fine only when it carries *no* chrome — a bare word of clickable text, or a radio/file input. Checkboxes are **not** in that exception: the original carve-out assumed a checkbox carries no chrome, and measurement (#751, 21 Aug 2026) found 100 of them in twelve visual states — they route through `AppCheckbox`, whose one deliberate raw survivor (the `sr-only` travel chip in `EventModalTravelFields`) is named in its docstring.
 
 `cn()` registers the #552 typography roles in tailwind-merge's `font-size` group, so a call-site `class="text-caption"` genuinely overrides a variant's `text-label-lg`. Overriding one token on a primitive is expected; re-declaring the whole box is not.
 

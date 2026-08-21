@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcs } from "@/composables/useNpcs";
@@ -201,12 +202,9 @@ async function addBack() {
 
     <!-- The text is one span, not loose nodes: `gap-2` treats every child as a
          flex item, so an inline <em> here would get spaced on both sides. -->
-    <label class="mt-2 flex items-center gap-2 text-caption-sm">
-      <input v-model="isRecurring" type="checkbox" />
-      <span>
-        Recurring — this back is <em>always</em> what they find here (never consumed)
-      </span>
-    </label>
+    <AppCheckbox v-model="isRecurring" class="mt-2 gap-2 text-caption-sm">
+      Recurring — this back is <em>always</em> what they find here (never consumed)
+    </AppCheckbox>
 
     <p v-if="errorMessage" class="mt-2 text-caption-sm text-destructive">{{ errorMessage }}</p>
 

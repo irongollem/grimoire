@@ -152,15 +152,17 @@
               :label="editForm.is_private ? 'Private' : 'Shared'"
               @click="$emit('editFormChange', { is_private: !editForm.is_private, shared_with_dm: editForm.is_private ? editForm.shared_with_dm : false })"
             />
-            <label v-if="editForm.is_private" class="inline-flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                :checked="editForm.shared_with_dm"
-                type="checkbox"
-                class="rounded border-border accent-amber-500 h-3 w-3"
-                @change="$emit('editFormChange', { shared_with_dm: ($event.target as HTMLInputElement).checked })"
-              />
-              <span class="text-label-lg text-amber-600/80 dark:text-amber-400/80">Share with DM</span>
-            </label>
+            <AppCheckbox
+              v-if="editForm.is_private"
+              size="sm"
+              accent="amber"
+              label-role="label-lg"
+              label-weight="normal"
+          label-class="text-amber-600/80 dark:text-amber-400/80"
+              label="Share with DM"
+              :model-value="editForm.shared_with_dm"
+              @update:model-value="$emit('editFormChange', { shared_with_dm: $event })"
+            />
           </div>
           <div class="flex items-center gap-2">
             <AppButton variant="ghost" size="inline" @click="$emit('cancelEdit')">Cancel</AppButton>
@@ -185,6 +187,7 @@ import { ref, computed, watch } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import { IconDrag, IconLock, IconPopulate, IconReveal, IconSave } from '@/lib/icons';
 import AppButton from '@/components/common/AppButton.vue';
+import AppCheckbox from '@/components/common/AppCheckbox.vue';
 import AppInput from '@/components/common/AppInput.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
 import JournalCard from '@/components/player/JournalCard.vue';

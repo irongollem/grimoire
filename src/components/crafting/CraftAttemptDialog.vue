@@ -78,42 +78,38 @@
             <p class="text-label-lg font-semibold text-muted-foreground mb-2">AVAILABLE MODIFIERS</p>
             <div class="flex flex-col gap-1.5">
               <!-- Standard workspace bonus -->
-              <label
+              <AppCheckbox
                 v-if="workspaceBonus > 0"
-                class="flex items-center gap-2.5 rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
-                :class="workspaceEnabled ? 'border-primary/40 bg-primary/5' : ''"
+                v-model="workspaceEnabled"
+                label-layout="row"
+                :class="['gap-2.5 rounded-md border px-3 py-2 hover:bg-muted/40 transition-colors', workspaceEnabled ? 'border-primary/40 bg-primary/5' : 'border-border']"
               >
-                <input type="checkbox" class="accent-primary" v-model="workspaceEnabled" />
-                <span class="flex-1 text-body text-foreground">{{ workspaceLabel }}</span>
-                <span class="font-cinzel text-xs text-primary font-semibold shrink-0">+{{ workspaceBonus }}</span>
-              </label>
+                <span>{{ workspaceLabel }}</span>
+                <span class="font-cinzel text-xs text-primary font-semibold ml-auto shrink-0">+{{ workspaceBonus }}</span>
+              </AppCheckbox>
 
               <!-- Standard poor-ingredient penalty -->
-              <label
-                class="flex items-center gap-2.5 rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
-                :class="poorIngredientsEnabled ? 'border-destructive/40 bg-destructive/5' : ''"
+              <AppCheckbox
+                v-model="poorIngredientsEnabled"
+                label-layout="row"
+                :class="['gap-2.5 rounded-md border px-3 py-2 hover:bg-muted/40 transition-colors', poorIngredientsEnabled ? 'border-destructive/40 bg-destructive/5' : 'border-border']"
               >
-                <input type="checkbox" class="accent-primary" v-model="poorIngredientsEnabled" />
-                <span class="flex-1 text-body text-foreground">Poor quality ingredients</span>
-                <span class="font-cinzel text-xs text-destructive font-semibold shrink-0">{{ POOR_INGREDIENTS_PENALTY }}</span>
-              </label>
+                <span>Poor quality ingredients</span>
+                <span class="font-cinzel text-xs text-destructive font-semibold ml-auto shrink-0">{{ POOR_INGREDIENTS_PENALTY }}</span>
+              </AppCheckbox>
 
               <!-- Recipe-specific modifiers -->
-              <label
+              <AppCheckbox
                 v-for="(mod, idx) in modifiers"
                 :key="idx"
-                class="flex items-center gap-2.5 rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/40 transition-colors"
-                :class="selectedModifiers.has(idx) ? 'border-primary/40 bg-primary/5' : ''"
+                :model-value="selectedModifiers.has(idx)"
+                label-layout="row"
+                :class="['gap-2.5 rounded-md border px-3 py-2 hover:bg-muted/40 transition-colors', selectedModifiers.has(idx) ? 'border-primary/40 bg-primary/5' : 'border-border']"
+                @update:model-value="toggleModifier(idx)"
               >
-                <input
-                  type="checkbox"
-                  class="accent-primary"
-                  :checked="selectedModifiers.has(idx)"
-                  @change="toggleModifier(idx)"
-                />
-                <span class="flex-1 text-body text-foreground">{{ mod.description }}</span>
-                <span class="font-cinzel text-xs text-primary font-semibold shrink-0">+{{ mod.bonus }}</span>
-              </label>
+                <span>{{ mod.description }}</span>
+                <span class="font-cinzel text-xs text-primary font-semibold ml-auto shrink-0">+{{ mod.bonus }}</span>
+              </AppCheckbox>
             </div>
           </div>
 
@@ -191,6 +187,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { IconCheckCircle, IconClose, IconCloseCircle, IconDiceRoll, IconWarning } from '@/lib/icons';
 import { getDiscipline } from "@/lib/crafting-disciplines";
 import { useAttemptCraft } from "@/composables/useCrafting";

@@ -4,14 +4,13 @@
       >Components</span
     >
     <div class="flex items-center gap-4">
-      <label
+      <AppCheckbox
         v-for="c in SPELL_COMPONENTS"
         :key="c"
-        class="flex items-center gap-1.5 cursor-pointer"
-      >
-        <input type="checkbox" :value="c" :checked="components.includes(c)" class="rounded" @change="toggleComponent(c)" />
-        <span class="font-cinzel text-sm font-semibold text-foreground">{{ c }}</span>
-      </label>
+        v-model="componentsModel"
+        :value="c"
+        :label="c"
+      />
     </div>
     <AppInput
       v-if="components.includes('M')"
@@ -25,6 +24,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { SPELL_COMPONENTS } from "@/types/spell.types";
 
@@ -38,10 +39,11 @@ const emit = defineEmits<{
   "update:material": [value: string];
 }>();
 
-function toggleComponent(c: string) {
-  const next = components.includes(c)
-    ? components.filter((x) => x !== c)
-    : [...components, c];
-  emit("update:components", next);
-}
+// AppCheckbox's array-group binding needs a writable v-model; `components` is
+// a prop paired with an `update:components` emit rather than a local ref, so
+// bridge the two through a computed (same pattern as SpellTimingSection).
+const componentsModel = computed<string[]>({
+  get: () => components,
+  set: (value) => emit("update:components", value),
+});
 </script>

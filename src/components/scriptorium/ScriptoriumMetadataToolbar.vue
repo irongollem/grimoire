@@ -12,24 +12,18 @@
         </option>
       </AppSelect>
     </label>
-    <label class="flex items-center gap-2 cursor-pointer select-none">
-      <input
-        type="checkbox"
-        :checked="isPublished"
-        class="rounded"
-        @change="$emit('update:isPublished', ($event.target as HTMLInputElement).checked)"
-      />
-      <span class="text-label-lg font-semibold text-muted-foreground">PUBLISHED</span>
-    </label>
-    <label class="flex items-center gap-2 cursor-pointer select-none">
-      <input
-        type="checkbox"
-        :checked="showPageNumbers"
-        class="rounded"
-        @change="$emit('update:showPageNumbers', ($event.target as HTMLInputElement).checked)"
-      />
-      <span class="text-label-lg font-semibold text-muted-foreground">PAGE #S</span>
-    </label>
+    <AppCheckbox
+      label-role="label-lg"
+      label="PUBLISHED"
+      :model-value="isPublished"
+      @update:model-value="$emit('update:isPublished', $event)"
+    />
+    <AppCheckbox
+      label-role="label-lg"
+      label="PAGE #S"
+      :model-value="showPageNumbers"
+      @update:model-value="$emit('update:showPageNumbers', $event)"
+    />
     <template v-if="showPageNumbers">
       <AppInput
         v-model="footerTextModel"
@@ -71,6 +65,7 @@ import { IconSave, IconDelete } from "@/lib/icons";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 
 const {

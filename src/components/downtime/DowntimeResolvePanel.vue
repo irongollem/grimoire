@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import DowntimeActivityCard from "./DowntimeActivityCard.vue";
@@ -251,19 +252,20 @@ async function onCancel() {
             Your world, your call. Coin, HP, and conditions are applied automatically;
             items are yours to hand out.
           </p>
-          <label
+          <AppCheckbox
             v-for="(effect, i) in effects"
             :key="i"
-            class="flex items-baseline gap-2 py-0.5 text-caption-sm"
+            v-model="effect.applied"
+            align="start"
+            class="items-baseline gap-2 py-0.5"
           >
-            <input v-model="effect.applied" type="checkbox" class="mt-0.5" />
             <span class="capitalize font-medium">{{ effect.kind }}</span>
             <span>{{ effectSummary(effect) }}</span>
             <span v-if="!isAutoApplied(effect)" class="text-muted-foreground">
               (apply at the table)
             </span>
             <span v-if="effect.note" class="italic text-muted-foreground">— {{ effect.note }}</span>
-          </label>
+          </AppCheckbox>
         </fieldset>
 
         <p v-if="errorMessage" class="mt-2 text-caption-sm text-destructive">{{ errorMessage }}</p>

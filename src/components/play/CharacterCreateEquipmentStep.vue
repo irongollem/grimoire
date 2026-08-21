@@ -33,10 +33,12 @@
           </ul>
         </button>
       </div>
-      <label class="flex items-start gap-2 cursor-pointer">
-        <input type="checkbox" v-model="importClassEquipment" class="mt-0.5 h-4 w-4 rounded border-border bg-muted" />
-        <span class="text-caption text-muted-foreground">Add selected loadout to my inventory automatically.</span>
-      </label>
+      <AppCheckbox
+        v-model="importClassEquipment"
+        align="start"
+        label-role="caption"
+        label="Add selected loadout to my inventory automatically."
+      />
     </div>
 
     <div v-else class="rounded-lg border border-border bg-card p-3">
@@ -50,10 +52,13 @@
     <div v-if="selectedBg?.equipment" class="rounded-lg border border-border bg-card p-3 space-y-2">
       <p class="text-label-lg font-semibold text-muted-foreground">BACKGROUND EQUIPMENT</p>
       <p class="text-body text-foreground whitespace-pre-wrap">{{ selectedBg.equipment }}</p>
-      <label class="flex items-start gap-2 cursor-pointer pt-0.5">
-        <input type="checkbox" v-model="importBackgroundEquipment" class="mt-0.5 h-4 w-4 rounded border-border bg-muted" />
-        <span class="text-caption text-muted-foreground">Add background equipment to inventory automatically.</span>
-      </label>
+      <AppCheckbox
+        v-model="importBackgroundEquipment"
+        align="start"
+        label-role="caption"
+        label="Add background equipment to inventory automatically."
+        class="pt-0.5"
+      />
     </div>
 
     <div v-if="!classEquipmentPack && !selectedBg?.equipment"
@@ -67,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();

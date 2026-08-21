@@ -58,10 +58,12 @@
           <option value="">All sources</option>
           <option v-for="s in sources" :key="s.slug" :value="s.slug">{{ itemSourceLabel(s.slug, s.title) }}</option>
         </ListFilterSelect>
-        <label class="inline-flex items-center gap-1.5 cursor-pointer">
-          <input type="checkbox" v-model="showAllScopes" class="rounded" />
-          <span class="text-label-lg text-muted-foreground">Show items from all campaigns</span>
-        </label>
+        <AppCheckbox
+          v-model="showAllScopes"
+          label-role="label-lg"
+          label-weight="normal"
+          label="Show items from all campaigns"
+        />
       </ListFilterBar>
     </template>
 
@@ -74,6 +76,7 @@ import { computed } from "vue";
 import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

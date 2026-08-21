@@ -32,23 +32,20 @@
         <span class="text-label-lg font-semibold text-muted-foreground">UNIVERSAL SPECIES</span>
       </div>
       <div class="divide-y divide-border">
-        <label
+        <AppCheckbox
           v-for="sp in universalSpecies"
           :key="sp.id"
-          class="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-muted/20 transition-colors"
+          :model-value="!disabled.has(sp.id)"
+          class="gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors"
+          label-layout="row"
+          @update:model-value="toggle(sp.id)"
         >
-          <input
-            type="checkbox"
-            :checked="!disabled.has(sp.id)"
-            class="h-4 w-4 rounded border-border bg-background shrink-0"
-            @change="toggle(sp.id)"
-          />
-          <span class="text-body text-foreground flex-1">{{ sp.name }}</span>
+          <span class="flex-1">{{ sp.name }}</span>
           <span
             v-if="disabled.has(sp.id)"
             class="text-label text-muted-foreground/60 shrink-0"
           >hidden</span>
-        </label>
+        </AppCheckbox>
       </div>
     </div>
 
@@ -74,6 +71,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { useAllSpecies } from "@/composables/useSpecies";
 

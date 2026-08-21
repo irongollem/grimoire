@@ -36,9 +36,13 @@
       <span class="text-caption text-muted-foreground">Uses saved player data; DM fields never enter the preview.</span>
     </div>
 
-    <label v-if="beat.is_improvised" class="flex items-center gap-2 rounded-md border border-tone-caution/40 bg-tone-caution/5 p-2 text-caption text-foreground">
-      <input v-model="draft.improv_reviewed" type="checkbox" /> Post-session review complete
-    </label>
+    <AppCheckbox
+      v-if="beat.is_improvised"
+      v-model="draft.improv_reviewed"
+      label-role="caption"
+      label="Post-session review complete"
+      class="rounded-md border border-tone-caution/40 bg-tone-caution/5 p-2"
+    />
 
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       DM lead
@@ -93,6 +97,7 @@ import { useUpdateQuestBeat } from "@/composables/useQuestFlow";
 import { questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
 import { QUEST_BEAT_KINDS, QUEST_BEAT_KIND_LABELS, type QuestBeat } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";

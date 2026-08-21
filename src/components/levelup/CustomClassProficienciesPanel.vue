@@ -6,20 +6,14 @@
     <div>
       <label class="block text-eyebrow text-muted-foreground mb-2">SAVING THROWS</label>
       <div class="flex flex-wrap gap-2">
-        <label
+        <AppCheckbox
           v-for="st in SAVE_KEYS"
           :key="st.key"
-          class="flex items-center gap-1.5 cursor-pointer"
-        >
-          <input
-            type="checkbox"
-            :value="st.key"
-            :checked="savingThrows.includes(st.key)"
-            class="accent-primary"
-            @change="toggleSave(st.key)"
-          />
-          <span class="font-cinzel text-xs text-foreground">{{ st.label }}</span>
-        </label>
+          :model-value="savingThrows.includes(st.key)"
+          :label="st.label"
+          class="gap-1.5"
+          @update:model-value="toggleSave(st.key)"
+        />
       </div>
     </div>
 
@@ -39,6 +33,7 @@
 
 <script setup lang="ts">
 import TagInput from "@/components/common/TagInput.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 
 const SAVE_KEYS = [
   { key: "Strength",     label: "STR" },

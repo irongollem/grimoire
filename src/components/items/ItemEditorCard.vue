@@ -18,10 +18,12 @@
           :class="tone === 'amber' ? 'text-muted-foreground/70' : 'text-muted-foreground/60'"
         > — {{ hint }}</span>
       </h3>
-      <label class="flex items-center gap-2 cursor-pointer" :class="[toggleShrink && 'shrink-0']">
-        <input type="checkbox" v-model="toggle" class="rounded" />
-        <span class="text-label-lg font-semibold text-muted-foreground">{{ toggleLabel }}</span>
-      </label>
+      <AppCheckbox
+        v-model="toggle"
+        label-role="label-lg"
+        :label="toggleLabel"
+        :class="[toggleShrink && 'shrink-0']"
+      />
     </div>
     <h3
       v-else
@@ -49,6 +51,8 @@
  * conditional on the toggle, so absorbing it here would only re-hide that
  * variation rather than remove it.
  */
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
+
 const {
   title,
   hint,

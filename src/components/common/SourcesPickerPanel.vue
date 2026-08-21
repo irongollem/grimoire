@@ -20,23 +20,20 @@
         <p class="text-caption text-muted-foreground italic">{{ emptyMessage }}</p>
       </div>
       <div v-else class="p-2 flex flex-col gap-0.5 max-h-72 overflow-y-auto">
-        <label
+        <AppCheckbox
           v-for="src in availableSources"
           :key="src.source"
-          class="flex items-center gap-2.5 px-2 py-2 rounded cursor-pointer hover:bg-accent transition-colors"
-          :class="isMutating ? 'pointer-events-none opacity-60' : ''"
+          :model-value="isEnabled(src.source)"
+          :class="[
+            'gap-2.5 px-2 py-2 rounded hover:bg-accent transition-colors',
+            isMutating ? 'pointer-events-none opacity-60' : '',
+          ]"
+          label-layout="row"
+          @update:model-value="toggleSource(src)"
         >
-          <input
-            type="checkbox"
-            :checked="isEnabled(src.source)"
-            class="accent-primary shrink-0"
-            @change="toggleSource(src)"
-          />
-          <span class="text-body text-foreground flex-1 min-w-0 truncate">
-            {{ src.source_title ?? src.source }}
-          </span>
+          <span class="min-w-0 flex-1 truncate">{{ src.source_title ?? src.source }}</span>
           <span class="font-cinzel text-2xs text-muted-foreground shrink-0">{{ src.count.toLocaleString() }}</span>
-        </label>
+        </AppCheckbox>
       </div>
       <div class="p-2 border-t border-border">
         <RouterLink
@@ -61,23 +58,20 @@
       {{ emptyMessage }}
     </p>
     <div v-else class="flex flex-col gap-0.5">
-      <label
+      <AppCheckbox
         v-for="src in availableSources"
         :key="src.source"
-        class="flex items-center gap-3 rounded-lg px-2 py-3 hover:bg-muted/50"
-        :class="isMutating ? 'pointer-events-none opacity-60' : ''"
+        :model-value="isEnabled(src.source)"
+        :class="[
+          'gap-3 rounded-lg px-2 py-3 hover:bg-muted/50',
+          isMutating ? 'pointer-events-none opacity-60' : '',
+        ]"
+        label-layout="row"
+        @update:model-value="toggleSource(src)"
       >
-        <input
-          type="checkbox"
-          :checked="isEnabled(src.source)"
-          class="size-4 shrink-0 accent-primary"
-          @change="toggleSource(src)"
-        />
-        <span class="min-w-0 flex-1 truncate text-body text-foreground">
-          {{ src.source_title ?? src.source }}
-        </span>
+        <span class="min-w-0 flex-1 truncate">{{ src.source_title ?? src.source }}</span>
         <span class="shrink-0 font-cinzel text-2xs text-muted-foreground">{{ src.count.toLocaleString() }}</span>
-      </label>
+      </AppCheckbox>
     </div>
     <RouterLink
       to="/rules?tab=licenses"
@@ -93,6 +87,7 @@ import { ref, computed } from "vue";
 import { RouterLink } from "vue-router";
 import { onClickOutside } from "@vueuse/core";
 import { IconLoading } from "@/lib/icons";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import {
   useEnabledSources,
   useEnableSource,

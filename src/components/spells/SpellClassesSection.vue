@@ -9,25 +9,20 @@
       Which classes have access to this spell?
     </p>
     <div class="flex flex-col gap-2">
-      <label
+      <AppCheckbox
         v-for="cls in SPELL_CLASSES"
         :key="cls"
-        class="flex items-center gap-2 cursor-pointer"
-      >
-        <input
-          type="checkbox"
-          :value="cls"
-          :checked="classes.includes(cls)"
-          class="rounded"
-          @change="toggleClass(cls)"
-        />
-        <span class="text-body text-foreground">{{ cls }}</span>
-      </label>
+        v-model="classesModel"
+        :value="cls"
+        :label="cls"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { SPELL_CLASSES } from "@/types/spell.types";
 
 const { classes } = defineProps<{
@@ -38,10 +33,11 @@ const emit = defineEmits<{
   "update:classes": [value: string[]];
 }>();
 
-function toggleClass(cls: string) {
-  const next = classes.includes(cls)
-    ? classes.filter((x) => x !== cls)
-    : [...classes, cls];
-  emit("update:classes", next);
-}
+// AppCheckbox's array-group binding needs a writable v-model; `classes` is a
+// prop paired with an `update:classes` emit rather than a local ref, so
+// bridge the two through a computed (same pattern as SpellTimingSection).
+const classesModel = computed<string[]>({
+  get: () => classes,
+  set: (value) => emit("update:classes", value),
+});
 </script>

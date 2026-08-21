@@ -137,11 +137,14 @@
     <div v-if="activeTab === 'profs'" class="space-y-4">
       <p class="text-label-lg font-semibold text-muted-foreground uppercase">Saving Throw Proficiencies</p>
       <div class="grid grid-cols-3 gap-2">
-        <label v-for="save in SAVE_STATS" :key="save.key" class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" :checked="f.saving_throw_proficiencies.includes(save.key)" class="rounded" @change="toggleSave(save.key)" />
-          <span class="font-cinzel text-xs text-foreground">{{ save.label }}</span>
-          <span class="font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
-        </label>
+        <AppCheckbox
+          v-for="save in SAVE_STATS" :key="save.key"
+          :model-value="f.saving_throw_proficiencies.includes(save.key)"
+          @update:model-value="toggleSave(save.key)"
+        >
+          <span>{{ save.label }}</span>
+          <span class="ml-2 font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
+        </AppCheckbox>
       </div>
       <p class="text-label-lg font-semibold text-muted-foreground uppercase mt-2">Skills</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -187,6 +190,7 @@ import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } 
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";

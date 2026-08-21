@@ -46,19 +46,21 @@
         <!-- Spells known toggle -->
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1.5">SPELLS KNOWN TABLE</label>
-          <label class="flex items-center gap-2 cursor-pointer text-body text-foreground">
-            <input type="checkbox" :checked="spellsKnown !== null" class="accent-primary" @change="onToggleSpellsKnown" />
-            Known caster (Bard, Ranger, Sorcerer, Warlock style)
-          </label>
+          <AppCheckbox
+            :model-value="spellsKnown !== null"
+            label="Known caster (Bard, Ranger, Sorcerer, Warlock style)"
+            @update:model-value="onToggleSpellsKnown"
+          />
         </div>
 
         <!-- Cantrips known toggle -->
         <div>
           <label class="block text-eyebrow text-muted-foreground mb-1.5">CANTRIPS KNOWN TABLE</label>
-          <label class="flex items-center gap-2 cursor-pointer text-body text-foreground">
-            <input type="checkbox" :checked="cantripsKnown !== null" class="accent-primary" @change="onToggleCantripsKnown" />
-            Track cantrips known per level
-          </label>
+          <AppCheckbox
+            :model-value="cantripsKnown !== null"
+            label="Track cantrips known per level"
+            @update:model-value="onToggleCantripsKnown"
+          />
         </div>
 
         <!-- Prepared spell formula (only for prepared/spellbook) -->
@@ -150,6 +152,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { CasterType, PreparedAbility } from "@/levelup/customTypes";
 
@@ -196,13 +199,11 @@ const emit = defineEmits<{
   "update:preparedDivisor": [value: number];
 }>();
 
-function onToggleSpellsKnown(e: Event) {
-  const checked = (e.target as HTMLInputElement).checked;
+function onToggleSpellsKnown(checked: boolean) {
   emit("update:spellsKnown", checked ? Array(20).fill(0) : null);
 }
 
-function onToggleCantripsKnown(e: Event) {
-  const checked = (e.target as HTMLInputElement).checked;
+function onToggleCantripsKnown(checked: boolean) {
   emit("update:cantripsKnown", checked ? Array(20).fill(0) : null);
 }
 

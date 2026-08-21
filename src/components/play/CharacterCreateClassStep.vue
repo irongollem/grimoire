@@ -80,12 +80,14 @@
 
           <!-- No class: manual checkboxes -->
           <div v-else class="grid grid-cols-3 gap-2">
-            <label v-for="save in SAVE_STATS" :key="save.key" class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" :checked="f.saving_throw_proficiencies.includes(save.key)"
-                class="rounded" @change="toggleSave(save.key)" />
-              <span class="font-cinzel text-xs text-foreground">{{ save.label }}</span>
-              <span class="font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
-            </label>
+            <AppCheckbox
+              v-for="save in SAVE_STATS" :key="save.key"
+              :model-value="f.saving_throw_proficiencies.includes(save.key)"
+              @update:model-value="toggleSave(save.key)"
+            >
+              <span>{{ save.label }}</span>
+              <span class="ml-2 font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
+            </AppCheckbox>
           </div>
         </div>
 
@@ -196,6 +198,7 @@ import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-list
 import { CLASS_SKILL_CHOICES, FALLBACK_SKILL_DATA } from "@/data/classSkillChoices";
 import type { SkillKey } from "@/data/classSkillChoices";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
 import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
 

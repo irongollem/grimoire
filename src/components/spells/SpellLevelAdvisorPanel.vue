@@ -150,20 +150,9 @@
 
       <!-- Checkboxes -->
       <div class="flex flex-col gap-2">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" v-model="adv.requiresConcentration" class="rounded" />
-          <span class="text-body text-foreground">Requires Concentration</span>
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" v-model="adv.hasSecondaryEffect" class="rounded" />
-          <span class="text-body text-foreground"
-            >Secondary condition / rider effect</span
-          >
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" v-model="adv.isRitual" class="rounded" />
-          <span class="text-body text-foreground">Can be cast as Ritual</span>
-        </label>
+        <AppCheckbox v-model="adv.requiresConcentration" label="Requires Concentration" />
+        <AppCheckbox v-model="adv.hasSecondaryEffect" label="Secondary condition / rider effect" />
+        <AppCheckbox v-model="adv.isRitual" label="Can be cast as Ritual" />
       </div>
 
       <!-- Result -->
@@ -282,6 +271,7 @@
 <script setup lang="ts">
 import { IconChevronDown, IconTip } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import DiceInput from "@/components/common/DiceInput.vue";
 import { parseDiceAvg, DAMAGE_BENCHMARKS } from "@/lib/spellAdvisor";

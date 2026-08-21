@@ -124,26 +124,20 @@
                 Include
               </p>
               <div class="space-y-1.5">
-                <label
+                <AppCheckbox
                   v-for="type in availableTypes"
                   :key="type.key"
-                  class="flex items-center justify-between gap-2 cursor-pointer group"
+                  :model-value="selectedTypes.has(type.key)"
+                  size="sm"
+                  class="gap-2.5 group"
+                  label-layout="row" label-class="justify-between group-hover:text-primary transition-colors"
+                  @update:model-value="toggleType(type.key)"
                 >
-                  <div class="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      :checked="selectedTypes.has(type.key)"
-                      class="h-3.5 w-3.5 rounded border-border text-primary focus:ring-ring"
-                      @change="toggleType(type.key)"
-                    />
-                    <span class="text-body text-foreground group-hover:text-primary transition-colors">
-                      {{ type.label }}
-                    </span>
-                  </div>
+                  <span>{{ type.label }}</span>
                   <span class="font-cinzel text-xs font-semibold text-muted-foreground shrink-0">
                     {{ preview.entityCounts[type.key] ?? 0 }}
                   </span>
-                </label>
+                </AppCheckbox>
               </div>
             </div>
 
@@ -198,6 +192,7 @@ import { ref, computed, watch, shallowRef } from "vue";
 import { useRouter } from "vue-router";
 import { IconUpload, IconClose } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useImportWorldBundle, BUNDLE_ENTITY_TYPES } from "@/composables/useWorldBundle";

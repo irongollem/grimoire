@@ -20,21 +20,18 @@
             {{ group.label }}
           </p>
           <div class="px-4 py-3 space-y-2.5">
-            <label
+            <AppCheckbox
               v-for="type in group.types"
               :key="type.key"
-              class="flex items-center gap-2.5 group"
-              :class="isLocked(type.key) ? 'cursor-not-allowed' : 'cursor-pointer'"
+              :model-value="selectedCategories.has(type.key)"
+              :disabled="isLocked(type.key)"
+              size="sm"
+              class="gap-2.5 group"
+              label-layout="row"
+              @update:model-value="toggleCategory(type.key)"
             >
-              <input
-                type="checkbox"
-                :checked="selectedCategories.has(type.key)"
-                :disabled="isLocked(type.key)"
-                class="h-3.5 w-3.5 rounded border-border text-primary focus:ring-ring disabled:opacity-60"
-                @change="toggleCategory(type.key)"
-              />
               <span
-                class="text-body transition-colors"
+                class="transition-colors"
                 :class="isLocked(type.key) ? 'text-muted-foreground' : 'text-foreground group-hover:text-primary'"
               >
                 {{ type.label }}
@@ -45,7 +42,7 @@
               >
                 required by Characters
               </span>
-            </label>
+            </AppCheckbox>
           </div>
         </div>
       </div>
@@ -136,19 +133,16 @@
           </p>
         </div>
         <div v-else class="max-h-72 overflow-y-auto divide-y divide-border">
-          <label
+          <AppCheckbox
             v-for="item in filteredItems"
             :key="item.id"
-            class="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors"
-          >
-            <input
-              type="checkbox"
-              :checked="currentSelection.has(item.id)"
-              class="h-3.5 w-3.5 rounded border-border text-primary focus:ring-ring shrink-0"
-              @change="toggleEntity(item.id)"
-            />
-            <span class="text-body text-foreground truncate">{{ item.label }}</span>
-          </label>
+            :model-value="currentSelection.has(item.id)"
+            size="sm"
+            class="gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors"
+            label-class="truncate"
+            :label="item.label"
+            @update:model-value="toggleEntity(item.id)"
+          />
         </div>
       </div>
 
@@ -294,6 +288,7 @@
 <script setup lang="ts">
 import { ref, computed, shallowRef, watch } from "vue";
 import { IconChevronLeft, IconChevronRight, IconDownload, IconSearch, IconUpload } from '@/lib/icons';
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import {

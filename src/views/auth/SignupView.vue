@@ -67,20 +67,12 @@
         <p v-if="successMessage" class="text-body text-elven-green">{{ successMessage }}</p>
         <p v-if="errorMessage" class="text-body text-destructive">{{ errorMessage }}</p>
 
-        <label class="flex items-start gap-2 text-caption text-muted-foreground">
-          <input
-            v-model="agreedToTerms"
-            type="checkbox"
-            required
-            class="mt-0.5 shrink-0 accent-primary"
-          />
-          <span>
-            I agree to the
-            <a :href="legalUrl('terms')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Terms of Service</a>
-            and
-            <a :href="legalUrl('privacy')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Privacy Policy</a>.
-          </span>
-        </label>
+        <AppCheckbox v-model="agreedToTerms" required align="start" label-role="caption">
+          I agree to the
+          <a :href="legalUrl('terms')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Terms of Service</a>
+          and
+          <a :href="legalUrl('privacy')" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground transition-colors">Privacy Policy</a>.
+        </AppCheckbox>
 
         <AppButton
           type="submit"
@@ -111,6 +103,7 @@ import { TERMS_VERSION } from "@/lib/legal";
 import { legalUrl } from "@/lib/marketing";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 
 type TokenState = "validating" | "invalid" | "valid";
 

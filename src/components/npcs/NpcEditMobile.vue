@@ -171,15 +171,11 @@
       <section class="space-y-3 rounded-xl border border-border bg-card p-4">
         <div class="flex items-center justify-between gap-2">
           <h3 class="text-heading-sm font-bold text-foreground">Stat Block</h3>
-          <label class="flex cursor-pointer items-center gap-2">
-            <input
-              :checked="hasStatBlock"
-              type="checkbox"
-              class="size-4 rounded border-border accent-primary"
-              @change="emit('update:hasStatBlock', ($event.target as HTMLInputElement).checked)"
-            />
-            <span class="text-body text-foreground">Include</span>
-          </label>
+          <AppCheckbox
+            :model-value="hasStatBlock"
+            label="Include"
+            @update:model-value="emit('update:hasStatBlock', $event)"
+          />
         </div>
 
         <template v-if="hasStatBlock">
@@ -288,6 +284,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import type { Npc, NpcInsert, NpcStatus, StatBlock } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";

@@ -11,14 +11,13 @@
     <p v-if="query.isPending.value" class="text-body text-muted-foreground">Loading…</p>
 
     <template v-else-if="local">
-      <label class="flex items-center gap-2 text-body text-foreground">
-        <input v-model="local.enabled" type="checkbox" class="accent-primary" />
-        Enabled
-      </label>
-      <label class="flex items-center gap-2 text-body" :class="local.enabled ? 'text-foreground' : 'text-muted-foreground'">
-        <input v-model="local.enforce" type="checkbox" :disabled="!local.enabled" class="accent-primary" />
-        Enforce (block over-limit spends) — off = log-only
-      </label>
+      <AppCheckbox v-model="local.enabled" label="Enabled" />
+      <AppCheckbox
+        v-model="local.enforce"
+        :disabled="!local.enabled"
+        label="Enforce (block over-limit spends) — off = log-only"
+        :label-class="local.enabled ? undefined : 'text-muted-foreground'"
+      />
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label class="space-y-1">
@@ -53,6 +52,7 @@
 import { ref, watch } from "vue";
 import { useAbuseGuard, type AbuseGuardConfig } from "@/composables/useAbuseGuard";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 
 const { query, update } = useAbuseGuard();

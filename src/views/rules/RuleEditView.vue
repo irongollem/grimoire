@@ -49,11 +49,10 @@
       </div>
 
       <!-- Player visibility -->
-      <label class="flex items-center gap-2 cursor-pointer select-none">
-        <input type="checkbox" v-model="form.isPlayerVisible" class="rounded" />
-        <span class="text-label-lg font-semibold text-muted-foreground">VISIBLE TO PLAYERS</span>
-        <span class="text-caption text-muted-foreground italic">— players can read this rule in their portal</span>
-      </label>
+      <AppCheckbox v-model="form.isPlayerVisible" label-role="label-lg">
+        VISIBLE TO PLAYERS
+        <span class="ml-2 font-normal text-caption text-muted-foreground italic">— players can read this rule in their portal</span>
+      </AppCheckbox>
 
       <!-- Rich text content -->
       <div class="space-y-1.5">
@@ -280,10 +279,13 @@
                       title="Base DC value"
                       @update:model-value="(v) => (fx.dcBase = numOrUndef(v))"
                     />
-                    <label class="flex items-center gap-1 shrink-0 cursor-pointer" title="Add current tracker value to DC">
-                      <input type="checkbox" v-model="fx.dcAddTracker" class="rounded" />
-                      <span class="font-cinzel text-2xs text-muted-foreground">+VAL</span>
-                    </label>
+                    <AppCheckbox
+                      :model-value="fx.dcAddTracker ?? false"
+                      label-role="label"
+                      label="+VAL"
+                      title="Add current tracker value to DC"
+                      @update:model-value="fx.dcAddTracker = $event"
+                    />
                   </template>
                   <AppInput
                     v-if="fx.type !== 'save'"
@@ -386,13 +388,13 @@
                 @update:model-value="(v) => (btn.setValue = numOrUndef(v))"
               />
               <!-- Player visibility toggle -->
-              <label
-                class="flex items-center gap-1 shrink-0 cursor-pointer"
+              <AppCheckbox
+                :model-value="btn.playerVisible ?? false"
+                label-role="label"
+                label="Players"
                 title="Also show this button to players in their portal"
-              >
-                <input type="checkbox" v-model="btn.playerVisible" class="rounded" />
-                <span class="font-cinzel text-2xs text-muted-foreground">Players</span>
-              </label>
+                @update:model-value="btn.playerVisible = $event"
+              />
               <AppButton
                 variant="ghost"
                 tone="danger"
@@ -450,6 +452,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";

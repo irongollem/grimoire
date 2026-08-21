@@ -39,17 +39,20 @@
         </div>
 
         <!-- Shapeshifter flag -->
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" v-model="form.is_shapeshifter" class="rounded" />
-          <span class="text-body text-muted-foreground italic">Shapeshifter (player can polymorph)</span>
-        </label>
+        <AppCheckbox
+          v-model="form.is_shapeshifter"
+          label="Shapeshifter (player can polymorph)"
+          label-tone="muted"
+            label-class="italic"
+        />
 
         <!-- Campaign-specific flag -->
         <div v-if="campaignStore.activeCampaignId" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-1">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" :checked="form.campaign_id === campaignStore.activeCampaignId" class="rounded" @change="toggleCampaignSpecific" />
-            <span class="text-body text-foreground">Campaign-only</span>
-          </label>
+          <AppCheckbox
+            :model-value="form.campaign_id === campaignStore.activeCampaignId"
+            label="Campaign-only"
+            @update:model-value="toggleCampaignSpecific"
+          />
           <p class="text-caption text-muted-foreground italic pl-6">
             Restrict this species to <strong>{{ campaignStore.activeCampaign?.name }}</strong>. It won't appear in other campaigns.
           </p>
@@ -224,6 +227,7 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import SpeciesSpellGrants from "@/components/species/SpeciesSpellGrants.vue";

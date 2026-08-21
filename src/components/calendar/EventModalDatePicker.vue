@@ -40,15 +40,11 @@
 
   <!-- Multi-day toggle -->
   <div>
-    <label class="flex items-center gap-2 cursor-pointer">
-      <input
-        :checked="isMultiDay"
-        type="checkbox"
-        class="w-4 h-4 rounded border-border accent-primary"
-        @change="emit('update:isMultiDay', ($event.target as HTMLInputElement).checked)"
-      />
-      <span class="text-body text-foreground">Multi-day event</span>
-    </label>
+    <AppCheckbox
+      :model-value="isMultiDay"
+      label="Multi-day event"
+      @update:model-value="emit('update:isMultiDay', $event)"
+    />
 
     <div v-if="isMultiDay" class="mt-3 grid grid-cols-3 gap-2">
       <div>
@@ -72,6 +68,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";

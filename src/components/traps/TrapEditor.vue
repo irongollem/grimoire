@@ -288,10 +288,7 @@
                 </AppSelect>
               </div>
               <div class="flex items-end pb-1">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" v-model="advisorInputs.isInstantDeath" class="accent-primary" />
-                  <span class="text-body text-foreground">Save-or-die mechanic</span>
-                </label>
+                <AppCheckbox v-model="advisorInputs.isInstantDeath" label="Save-or-die mechanic" />
               </div>
             </div>
             <div v-if="advisorResult" class="rounded-lg border border-border bg-muted/20 p-4 flex flex-col gap-3">
@@ -375,6 +372,7 @@ import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 

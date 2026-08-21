@@ -44,27 +44,25 @@
     </div>
 
     <div class="entity-list">
-      <label
+      <AppCheckbox
         v-for="item in filteredList"
         :key="item.id"
+        :model-value="store.selectedIds[store.source].has(item.id)"
         class="entity-row"
+        @update:model-value="store.toggleSelect(item.id)"
       >
-        <input
-          type="checkbox"
-          :checked="store.selectedIds[store.source].has(item.id)"
-          @change="store.toggleSelect(item.id)"
-        />
         <div class="entity-info">
           <span class="entity-name">{{ item.name }}</span>
           <span class="entity-sub">{{ item.sub }}</span>
         </div>
-      </label>
+      </AppCheckbox>
       <p v-if="!filteredList.length" class="empty-list">No results</p>
     </div>
   </aside>
 </template>
 
 <script setup lang="ts">
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useCardForgeStore } from "@/stores/cardForge";
 import { useCardForgeData } from "@/composables/useCardForgeData";
 import type { SourceId } from "@/stores/cardForge";
@@ -136,9 +134,6 @@ function selectAll() {
 }
 .entity-row {
   @apply flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-muted/60 transition-colors;
-}
-.entity-row input[type="checkbox"] {
-  @apply accent-primary shrink-0;
 }
 .entity-info {
   @apply flex flex-col min-w-0;

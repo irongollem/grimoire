@@ -29,7 +29,7 @@
     <div v-if="selected" class="space-y-2 rounded-lg border border-border bg-background p-3">
       <p class="text-caption font-semibold text-foreground">Jump to {{ selected.beat_title }}</p>
       <AppInput v-model="reason" placeholder="Why did the story jump?" />
-      <label class="flex items-center gap-2 text-caption text-foreground"><input v-model="pushReturn" type="checkbox" /> Save the current beat as a return point</label>
+      <AppCheckbox v-model="pushReturn" label-role="caption" label="Save the current beat as a return point" />
       <div class="flex justify-end gap-2">
         <AppButton label="Cancel" size="sm" variant="subtle" @click="selected = null" />
         <AppButton label="Jump" size="sm" variant="primary" :disabled="!reason.trim()" @click="submit" />
@@ -42,6 +42,7 @@
 import { ref } from "vue";
 import type { RankedQuestJumpTarget, QuestJumpGroup } from "@/lib/quests/run";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 
 defineProps<{ targets: RankedQuestJumpTarget[] }>();

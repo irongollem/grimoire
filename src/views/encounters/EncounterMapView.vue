@@ -54,10 +54,12 @@
         </template>
         <button class="zoom-btn" title="Reveal everything (clear fog)" @click="resetFog('reveal')">Reveal all</button>
         <button class="zoom-btn" title="Re-hide everything (reset fog)" @click="resetFog('hide')">Hide all</button>
-        <label class="fog-label inline-flex items-center gap-1 cursor-pointer">
-          <input v-model="previewAsPlayer" type="checkbox" />
-          <span>As player</span>
-        </label>
+        <AppCheckbox
+          v-model="previewAsPlayer"
+          label="As player"
+          label-class="fog-label"
+          class="inline-flex items-center gap-1"
+        />
       </div>
 
       <div class="topbar-right">
@@ -165,6 +167,7 @@ import { computed, ref, watch } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { useEncounter } from "@/composables/useEncounters";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useLocation } from "@/composables/useLocations";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive, liveState } from "@/composables/useEncounterLive";

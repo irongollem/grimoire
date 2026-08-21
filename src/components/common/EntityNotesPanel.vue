@@ -35,10 +35,12 @@
         <div v-if="editingId === note.id" class="p-3 flex flex-col gap-2">
           <RichTextEditor v-model="editContent" size="md" />
           <div class="flex items-center gap-2">
-            <label class="flex items-center gap-1.5 cursor-pointer select-none">
-              <input type="checkbox" v-model="editPrivate" class="rounded" />
-              <span class="text-label text-muted-foreground">Private</span>
-            </label>
+            <AppCheckbox
+              v-model="editPrivate"
+              label-role="label"
+              label="Private"
+              class="gap-1.5 select-none"
+            />
             <AppButton variant="ghost" size="inline" label="Cancel" class="ml-auto" @click="cancelEdit" />
             <AppButton variant="link" size="inline" label="Save" :disabled="saving" @click="saveEdit(note)" />
           </div>
@@ -58,10 +60,12 @@
       <div class="p-3 flex flex-col gap-2">
         <RichTextEditor v-model="newContent" size="md" placeholder="Write your note…" />
         <div class="flex items-center gap-2">
-          <label class="flex items-center gap-1.5 cursor-pointer select-none">
-            <input type="checkbox" v-model="newPrivate" class="rounded" />
-            <span class="text-label text-muted-foreground">Private (only you)</span>
-          </label>
+          <AppCheckbox
+            v-model="newPrivate"
+            label-role="label"
+            label="Private (only you)"
+            class="gap-1.5 select-none"
+          />
           <AppButton variant="ghost" size="inline" label="Cancel" class="ml-auto" @click="composing = false" />
           <AppButton variant="link" size="inline" label="Save" :disabled="saving" @click="create" />
         </div>
@@ -94,6 +98,7 @@ import {
 } from "@/composables/useEntityNotes";
 import type { EntityNote } from "@/types/faction.types";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 

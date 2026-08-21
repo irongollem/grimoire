@@ -128,10 +128,7 @@
           <h3 class="text-label-lg font-bold text-muted-foreground uppercase">
             Magic Properties
           </h3>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="requiresAttunement" class="rounded" />
-            <span class="text-label-lg font-semibold text-muted-foreground">REQUIRES ATTUNEMENT</span>
-          </label>
+          <AppCheckbox v-model="requiresAttunement" label-role="label-lg" label="REQUIRES ATTUNEMENT" />
           <AppInput
             v-if="requiresAttunement"
             v-model="attunementRequirements"
@@ -174,14 +171,8 @@
               />
             </div>
           </div>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="isArcaneFocus" class="rounded" />
-            <span class="text-label-lg font-semibold text-muted-foreground">ARCANE FOCUS</span>
-          </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" v-model="isContainer" class="rounded" />
-            <span class="text-label-lg font-semibold text-muted-foreground">CONTAINER</span>
-          </label>
+          <AppCheckbox v-model="isArcaneFocus" label-role="label-lg" label="ARCANE FOCUS" />
+          <AppCheckbox v-model="isContainer" label-role="label-lg" label="CONTAINER" />
         </div>
 
         <!-- Bundle contents (packs only) -->
@@ -246,17 +237,20 @@
             <p v-if="!filteredSpells.length" class="text-caption text-muted-foreground italic px-1">
               {{ spellsLoading ? 'Loading spells…' : 'No spells found. Add spells in the Spellbook.' }}
             </p>
-            <label
+            <AppCheckbox
               v-for="spell in filteredSpells"
               :key="spell.id"
-              class="flex items-center gap-2 cursor-pointer py-0.5 px-1 rounded hover:bg-muted"
+              v-model="spellIds"
+              :value="spell.id"
+              label-role="caption"
+              label-layout="row"
+              class="rounded py-0.5 px-1 hover:bg-muted"
             >
-              <input type="checkbox" :value="spell.id" v-model="spellIds" class="rounded shrink-0" />
-              <span class="text-caption text-foreground">{{ spell.name }}</span>
+              <span class="truncate">{{ spell.name }}</span>
               <span class="font-cinzel text-2xs text-muted-foreground ml-auto shrink-0">
                 {{ spell.level === 0 ? 'Cantrip' : `L${spell.level}` }} · {{ spell.school }}
               </span>
-            </label>
+            </AppCheckbox>
           </div>
         </div>
 
@@ -363,6 +357,7 @@ const { confirm, notify } = useConfirm();
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";

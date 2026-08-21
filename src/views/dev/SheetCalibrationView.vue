@@ -40,15 +40,9 @@
         </AppSelect>
       </label>
 
-      <label class="flex items-center gap-2">
-        <input type="checkbox" v-model="debug" class="size-4" />
-        <span class="text-caption text-muted-foreground">Debug boxes</span>
-      </label>
+      <AppCheckbox v-model="debug" label-role="caption" label="Debug boxes" />
 
-      <label class="flex items-center gap-2">
-        <input type="checkbox" v-model="editMode" class="size-4" />
-        <span class="text-caption text-muted-foreground">Edit boxes</span>
-      </label>
+      <AppCheckbox v-model="editMode" label-role="caption" label="Edit boxes" />
 
       <template v-if="editMode">
         <AppButton
@@ -120,6 +114,7 @@
 import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter, type LocationQueryValue } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import IllustratedSheet from "@/components/character-sheet/illustrated/IllustratedSheet.vue";
 import {

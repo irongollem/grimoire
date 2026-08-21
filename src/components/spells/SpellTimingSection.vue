@@ -68,34 +68,25 @@
       />
     </div>
     <div class="flex flex-col gap-3 justify-end pb-1">
-      <label class="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          :checked="concentration"
-          class="rounded"
-          @change="$emit('update:concentration', ($event.target as HTMLInputElement).checked)"
-        />
-        <span class="text-label-lg font-semibold text-muted-foreground"
-          >CONCENTRATION</span
-        >
-      </label>
-      <label class="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          :checked="ritual"
-          class="rounded"
-          @change="$emit('update:ritual', ($event.target as HTMLInputElement).checked)"
-        />
-        <span class="text-label-lg font-semibold text-muted-foreground"
-          >RITUAL</span
-        >
-      </label>
+      <AppCheckbox
+        :model-value="concentration"
+        label="CONCENTRATION"
+        label-role="label-lg"
+        @update:model-value="$emit('update:concentration', $event)"
+      />
+      <AppCheckbox
+        :model-value="ritual"
+        label="RITUAL"
+        label-role="label-lg"
+        @update:model-value="$emit('update:ritual', $event)"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { CASTING_TIME_OPTIONS, DURATION_OPTIONS, RANGE_OPTIONS } from "@/types/spell.types";

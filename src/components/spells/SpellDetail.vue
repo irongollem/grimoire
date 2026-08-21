@@ -73,15 +73,11 @@
           v-if="!isShared && campaignStore.activeCampaignId"
           class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-1"
         >
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              :checked="campaignId === campaignStore.activeCampaignId"
-              class="rounded"
-              @change="toggleCampaignSpecific"
-            />
-            <span class="text-body text-foreground">Campaign-only</span>
-          </label>
+          <AppCheckbox
+            :model-value="campaignId === campaignStore.activeCampaignId"
+            label="Campaign-only"
+            @update:model-value="toggleCampaignSpecific"
+          />
           <p class="text-caption text-muted-foreground italic">
             Restrict this spell to <strong>{{ campaignStore.activeCampaign?.name }}</strong>.
             It won't appear in other campaigns.
@@ -251,6 +247,7 @@ import type { SpellAiGenerated } from "@/ai/types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import { useCampaignStore } from "@/stores/campaign";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";

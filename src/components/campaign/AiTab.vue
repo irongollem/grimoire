@@ -39,14 +39,7 @@
         <span class="text-label-lg font-semibold text-muted-foreground">Key Storage Mode</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input
-            v-model="localModeEnabled"
-            type="checkbox"
-            class="h-4 w-4 rounded border-border bg-background"
-          />
-          <span class="text-sm">Store keys locally on this device only</span>
-        </label>
+        <AppCheckbox v-model="localModeEnabled" label="Store keys locally on this device only" />
         <p class="text-caption text-muted-foreground italic">
           <span v-if="localModeEnabled" class="block text-yellow-600 dark:text-yellow-500 font-semibold mb-1">
             ⚠️ Local storage only: Your keys are not saved to your account. Using Grimoire on a different browser or device will require re-entering them.
@@ -224,14 +217,11 @@
         <span class="text-label-lg font-semibold text-muted-foreground">Chronicler Promotion</span>
       </div>
       <div class="p-4 flex flex-col gap-3">
-        <label class="flex items-start gap-2 cursor-pointer">
-          <input
-            v-model="form.allow_chronicle_promotion"
-            type="checkbox"
-            class="h-4 w-4 mt-0.5 rounded border-border bg-background shrink-0"
-          />
-          <span class="text-sm">Allow Grimoire to use my campaign's Chronicler scene illustrations for promotional purposes</span>
-        </label>
+        <AppCheckbox
+          v-model="form.allow_chronicle_promotion"
+          align="start"
+          label="Allow Grimoire to use my campaign's Chronicler scene illustrations for promotional purposes"
+        />
         <p class="text-caption text-muted-foreground italic">
           Opt-in only. If enabled, AI-generated scene images from your notes may be featured in Grimoire's gallery or marketing materials. Your campaign name, notes, and player data are never shared.
         </p>
@@ -257,6 +247,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch } from "vue";
 import { IconHide, IconReveal } from '@/lib/icons';
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUpdateCampaign } from "@/composables/useCampaigns";
 import { encryptApiKey, decryptApiKey, primeDecryptCache } from "@/lib/apiKeyVault";

@@ -60,10 +60,12 @@
     <fieldset v-if="attachmentType === 'location_set' && refId && roomOptions.length" class="space-y-1 rounded-md border border-dashed border-border p-2">
       <legend class="px-1 text-caption font-medium text-foreground">Rooms included</legend>
       <p class="text-caption text-muted-foreground">The selected location is the root. Choose the rooms needed for this beat.</p>
-      <label v-for="room in roomOptions" :key="room.id" class="flex items-center gap-2 text-caption text-foreground">
-        <input v-model="selectedRoomIds" type="checkbox" :value="room.id" />
-        <span>{{ room.name }}</span>
-      </label>
+      <AppCheckbox
+        v-for="room in roomOptions" :key="room.id"
+        v-model="selectedRoomIds"
+        :value="room.id"
+        :label="room.name"
+      />
     </fieldset>
     <p v-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
   </section>
@@ -88,6 +90,7 @@ import { withQuestReturnTo } from "@/lib/quests/navigation";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";

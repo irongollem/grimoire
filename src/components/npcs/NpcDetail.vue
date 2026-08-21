@@ -177,10 +177,7 @@
             <!-- Include stat block toggle -->
             <div class="flex items-center justify-between">
               <p class="font-cinzel text-sm font-bold text-foreground">Stat Block</p>
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input v-model="hasStatBlock" type="checkbox" class="w-4 h-4 rounded border-border accent-primary" />
-                <span class="text-body text-foreground">Include stat block</span>
-              </label>
+              <AppCheckbox v-model="hasStatBlock" label="Include stat block" />
             </div>
             <div class="gold-divider" />
 
@@ -205,6 +202,7 @@
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMediaQuery } from '@vueuse/core'

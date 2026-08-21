@@ -24,20 +24,15 @@
     <div class="flex flex-col gap-2">
       <span class="text-eyebrow text-muted-foreground">Properties</span>
       <div class="flex flex-wrap gap-x-4 gap-y-2">
-        <label
+        <AppCheckbox
           v-for="p in WEAPON_PROPERTIES"
           :key="p"
-          class="flex items-center gap-1.5 cursor-pointer"
-        >
-          <input
-            type="checkbox"
-            :value="p"
-            :checked="properties.includes(p)"
-            class="rounded"
-            @change="toggleProperty(p)"
-          />
-          <span class="text-body text-foreground capitalize">{{ p }}</span>
-        </label>
+          :model-value="properties.includes(p)"
+          :label="p"
+          label-class="capitalize"
+          class="gap-1.5"
+          @update:model-value="toggleProperty(p)"
+        />
       </div>
     </div>
     <!-- Mastery — 2024 PHB only; each weapon carries at most one -->
@@ -56,6 +51,7 @@
 import { computed } from "vue";
 import DamageRollsInput from "@/components/common/DamageRollsInput.vue";
 import DiceExprInput from "@/components/common/DiceExprInput.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types";

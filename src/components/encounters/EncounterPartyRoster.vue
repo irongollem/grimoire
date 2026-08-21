@@ -10,18 +10,17 @@
       No party members found. Add heroes in the Party Tracker first.
     </p>
     <div v-else class="flex flex-col gap-2">
-      <label
+      <AppCheckbox
         v-for="member in party"
         :key="member.id"
-        class="flex items-center gap-3 rounded-md border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors"
-        :class="partyMemberIds.includes(member.id) ? 'border-primary/50 bg-primary/5' : ''"
+        :model-value="partyMemberIds.includes(member.id)"
+        label-layout="row"
+        :class="[
+          'gap-3 rounded-md border border-border p-3 hover:border-primary/40 transition-colors',
+          partyMemberIds.includes(member.id) ? 'border-primary/50 bg-primary/5' : '',
+        ]"
+        @update:model-value="$emit('toggle-party-member', member.id)"
       >
-        <input
-          type="checkbox"
-          :checked="partyMemberIds.includes(member.id)"
-          class="accent-primary"
-          @change="$emit('toggle-party-member', member.id)"
-        />
         <div class="flex-1 min-w-0">
           <span class="font-cinzel text-sm font-semibold text-foreground">{{ member.name }}</span>
           <span class="ml-2 text-caption text-muted-foreground italic">
@@ -55,7 +54,7 @@
         >
           <option v-for="f in factions" :key="f.id" :value="f.id">{{ f.name }}</option>
         </AppSelect>
-      </label>
+      </AppCheckbox>
 
       <!-- Companions -->
       <template v-if="companions?.length">
@@ -64,18 +63,17 @@
           <span class="text-eyebrow text-muted-foreground shrink-0">Companions</span>
           <div class="h-px flex-1 bg-border" />
         </div>
-        <label
+        <AppCheckbox
           v-for="comp in companions"
           :key="comp.id"
-          class="flex items-center gap-3 rounded-md border border-border p-3 cursor-pointer hover:border-primary/40 transition-colors"
-          :class="companionIds.includes(comp.id) ? 'border-primary/50 bg-primary/5' : ''"
+          :model-value="companionIds.includes(comp.id)"
+          label-layout="row"
+          :class="[
+            'gap-3 rounded-md border border-border p-3 hover:border-primary/40 transition-colors',
+            companionIds.includes(comp.id) ? 'border-primary/50 bg-primary/5' : '',
+          ]"
+          @update:model-value="$emit('toggle-companion', comp.id)"
         >
-          <input
-            type="checkbox"
-            :checked="companionIds.includes(comp.id)"
-            class="accent-primary"
-            @change="$emit('toggle-companion', comp.id)"
-          />
           <div class="flex-1 min-w-0">
             <span class="font-cinzel text-sm font-semibold text-foreground">{{ comp.name }}</span>
             <span class="ml-2 text-caption text-muted-foreground italic capitalize">
@@ -101,7 +99,7 @@
           >
             <option v-for="f in factions" :key="f.id" :value="f.id">{{ f.name }}</option>
           </AppSelect>
-        </label>
+        </AppCheckbox>
       </template>
     </div>
   </div>
@@ -117,6 +115,7 @@ import type { Companion } from '@/types/companion.types';
 import type { FactionDef } from '@/types/encounter.types';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
+import AppCheckbox from '@/components/common/AppCheckbox.vue';
 
 const {
   party = null,

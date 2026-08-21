@@ -40,16 +40,14 @@
         </div>
         <p v-else-if="!filtered.length" class="picker-empty">No NPCs match.</p>
         <div v-else class="picker-list">
-          <label
+          <AppCheckbox
             v-for="npc in filtered"
             :key="npc.id"
+            :model-value="selected.has(npc.id)"
             class="picker-row"
+            label-class="contents"
+            @update:model-value="toggle(npc.id)"
           >
-            <input
-              type="checkbox"
-              :checked="selected.has(npc.id)"
-              @change="toggle(npc.id)"
-            />
             <img
               class="picker-thumb"
               :src="portrait(npc)"
@@ -61,7 +59,7 @@
               <span class="picker-name">{{ displayName(npc) }}</span>
               <span v-if="subtitle(npc)" class="picker-sub">{{ subtitle(npc) }}</span>
             </div>
-          </label>
+          </AppCheckbox>
         </div>
       </div>
 
@@ -82,6 +80,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useNpcs } from "@/composables/useNpcs";
 import { useCreateNpcSet, useUpdateNpcSet } from "@/composables/useNpcSets";
 import { getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
@@ -219,9 +218,6 @@ function close() {
 }
 .picker-row {
   @apply flex items-center gap-2.5 px-2 py-1.5 rounded cursor-pointer hover:bg-muted/60 transition-colors;
-}
-.picker-row input[type="checkbox"] {
-  @apply accent-primary shrink-0;
 }
 .picker-thumb {
   @apply size-8 shrink-0 rounded object-cover bg-muted;

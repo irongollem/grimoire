@@ -85,18 +85,16 @@
         </template>
         <template v-if="locationId">
           <span class="text-muted-foreground/40 text-xs">·</span>
-          <label
-            class="inline-flex items-center gap-1 text-label text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+          <AppCheckbox
+            :model-value="isBattleMap"
+            size="sm"
+            label-role="label"
+            label="Battle map"
+            class="group inline-flex gap-1"
+            label-class="group-hover:text-foreground transition-colors"
             :title="isBattleMap ? 'This map is a tactical battle map: hidden from the player atlas, available in the VTT.' : 'Mark this map as a tactical battle map (hidden from the player atlas; enables VTT + fog).'"
-          >
-            <input
-              :checked="isBattleMap"
-              type="checkbox"
-              class="h-3 w-3"
-              @change="$emit('update:isBattleMap', ($event.target as HTMLInputElement).checked)"
-            />
-            Battle map
-          </label>
+            @update:model-value="$emit('update:isBattleMap', $event)"
+          />
           <template v-if="isBattleMap">
             <span class="text-muted-foreground/40 text-xs">·</span>
             <AppButton
@@ -125,6 +123,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import ImageUpload from '@/components/common/ImageUpload.vue';
 import AppButton from '@/components/common/AppButton.vue';
+import AppCheckbox from '@/components/common/AppCheckbox.vue';
 import LocationMap from '@/components/locations/LocationMap.vue';
 import { useImageUpload } from '@/composables/useImageUpload';
 import type { Location, MapPin as MapPinType, GridCalibration } from '@/types/location.types';

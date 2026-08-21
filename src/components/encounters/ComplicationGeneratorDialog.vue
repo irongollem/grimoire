@@ -129,10 +129,11 @@
 
           <div class="gold-divider" />
 
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input v-model="isPlayerVisible" type="checkbox" class="accent-primary" />
-            <span class="text-caption text-muted-foreground">Show to players when fired</span>
-          </label>
+          <AppCheckbox
+            v-model="isPlayerVisible"
+            label="Show to players when fired"
+            label-role="caption"
+          />
         </template>
       </div>
 
@@ -223,6 +224,7 @@ import { useSubscription } from "@/composables/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/useAiCredits";

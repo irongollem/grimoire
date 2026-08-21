@@ -138,23 +138,14 @@
         </div>
       </div>
 
-      <label class="flex items-start gap-2.5 cursor-pointer group">
-        <input
-          v-model="leaveCampaign"
-          type="checkbox"
-          class="mt-0.5 h-3.5 w-3.5 border-border text-primary focus:ring-ring"
-        />
-        <div>
-          <span class="text-body text-foreground group-hover:text-primary transition-colors">
-            Leave the campaign as well
-          </span>
-          <p class="text-caption text-muted-foreground italic">
-            Unchecked, you stay on as a player and the new DM can assign you a
-            character. Checked, your membership is removed and you would need a new
-            invite to come back.
-          </p>
-        </div>
-      </label>
+      <AppCheckbox
+        v-model="leaveCampaign"
+        size="sm"
+        label="Leave the campaign as well"
+        hint="Unchecked, you stay on as a player and the new DM can assign you a character. Checked, your membership is removed and you would need a new invite to come back."
+        class="gap-2.5 group"
+        label-class="group-hover:text-primary transition-colors"
+      />
 
       <ConfirmByNameInput
         v-model="confirmInput"
@@ -177,6 +168,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useModeSwitch } from "@/composables/useModeSwitch";

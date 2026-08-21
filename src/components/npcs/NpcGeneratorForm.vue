@@ -172,19 +172,15 @@
     v-if="isAiEnabled"
     class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1.5"
   >
-    <label class="flex items-center gap-2.5 cursor-pointer">
-      <input
-        type="checkbox"
-        :checked="generateAlterEgo"
-        :disabled="!generateImage"
-        class="rounded accent-primary"
-        @change="emit('update:generateAlterEgo', ($event.target as HTMLInputElement).checked)"
-      />
-      <span
-        class="text-label-lg font-semibold text-foreground"
-        >Generate Alter Ego</span
-      >
-    </label>
+    <AppCheckbox
+      :model-value="generateAlterEgo"
+      :disabled="!generateImage"
+      label-role="label-lg"
+      label="Generate Alter Ego"
+      label-tone="foreground"
+      class="gap-2.5"
+      @update:model-value="emit('update:generateAlterEgo', $event)"
+    />
     <p
       v-if="generateAlterEgo"
       class="text-caption text-amber-500 italic"
@@ -235,6 +231,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { IconGenerate } from "@/lib/icons";
 import { NPC_TEMPLATES, NPC_TEMPLATE_CATEGORIES } from "@/data/npcTemplates";
 import type { NpcRelationship, NpcRelationshipType } from "@/types/npc.types";

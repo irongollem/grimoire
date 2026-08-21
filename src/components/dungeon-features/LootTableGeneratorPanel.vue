@@ -183,10 +183,11 @@
           </div>
 
           <!-- Attunement -->
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input v-model="excludeAttunement" type="checkbox" class="accent-primary" />
-            <span class="text-caption text-muted-foreground">Skip items that require attunement</span>
-          </label>
+          <AppCheckbox
+            v-model="excludeAttunement"
+            label="Skip items that require attunement"
+            label-role="caption"
+          />
         </template>
       </div>
 
@@ -268,6 +269,7 @@ import { useLootGeneration } from "@/ai/useLootGeneration";
 import { resolveGeneratedLoot, type ResolvedLootEntry } from "@/ai/resolveGeneratedLoot";
 import { useSubscription } from "@/composables/useSubscription";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import PaywallModal from "@/components/common/PaywallModal.vue";

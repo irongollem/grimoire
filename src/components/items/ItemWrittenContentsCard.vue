@@ -18,10 +18,7 @@
         Players can read this once the item is identified, and while the party carries it,
         it appears as a tome tab in their journals.
       </p>
-      <label class="flex items-center gap-2 cursor-pointer self-start">
-        <input type="checkbox" v-model="playerWritable" class="rounded" />
-        <span class="text-label-lg font-semibold text-muted-foreground">PLAYER WRITABLE</span>
-      </label>
+      <AppCheckbox v-model="playerWritable" label-role="label-lg" label="PLAYER WRITABLE" class="self-start" />
       <!-- The entries journal — the same thread as the view sheet, so the DM
            can read, add and moderate entries without leaving the editor.
            Entries mutate immediately; they are not part of the form's Save. -->
@@ -52,6 +49,7 @@
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useCampaignStore } from "@/stores/campaign";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
 import ItemEditorCard from "@/components/items/ItemEditorCard.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";

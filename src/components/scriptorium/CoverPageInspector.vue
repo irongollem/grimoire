@@ -69,16 +69,15 @@
                 placeholder="Drop cover art or click to upload"
               />
             </div>
-            <label
+            <AppCheckbox
               v-if="variant === 'front' && local.backgroundImage"
-              class="flex items-start gap-2 cursor-pointer"
-            >
-              <input v-model="local.titleScrim" type="checkbox" class="mt-0.5 h-4 w-4 accent-primary shrink-0" />
-              <span class="space-y-0.5">
-                <span class="block text-label-lg font-semibold text-muted-foreground uppercase">Darken behind title</span>
-                <span class="block text-caption text-muted-foreground italic">Adds a soft gradient under the title for legibility. Turn off if your art already leaves room for it.</span>
-              </span>
-            </label>
+              :model-value="local.titleScrim ?? false"
+              label-role="label-lg"
+              @update:model-value="local.titleScrim = $event"
+              label-class="uppercase"
+              label="Darken behind title"
+              hint="Adds a soft gradient under the title for legibility. Turn off if your art already leaves room for it."
+            />
           </template>
 
           <!-- Part divider -->
@@ -208,6 +207,7 @@ import type { CoverPageAttrs, CoverPageVariant } from "@/lib/tiptap/coverPage";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import ArtPickerModal from "@/components/common/ArtPickerModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 
 const props = defineProps<{

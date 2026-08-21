@@ -4,20 +4,16 @@
     Saving Throw Proficiencies
   </p>
   <div class="grid grid-cols-3 gap-2">
-    <label
+    <AppCheckbox
       v-for="save in SAVE_STATS"
       :key="save.key"
-      class="flex items-center gap-2 cursor-pointer"
+      :model-value="form.saving_throw_proficiencies.includes(save.key)"
+      label-layout="row"
+      @update:model-value="toggleSave(save.key)"
     >
-      <input
-        type="checkbox"
-        :checked="form.saving_throw_proficiencies.includes(save.key)"
-        class="rounded"
-        @change="toggleSave(save.key)"
-      />
-      <span class="font-cinzel text-xs text-foreground">{{ save.label }}</span>
+      <span>{{ save.label }}</span>
       <span class="font-cinzel text-2xs text-muted-foreground">{{ saveBonus(save.key) }}</span>
-    </label>
+    </AppCheckbox>
   </div>
 
   <!-- Skills -->
@@ -75,6 +71,7 @@
 
 <script setup lang="ts">
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { SKILLS } from "@/types/party.types";
 import { TOOL_PROFICIENCY_GROUPS, LANGUAGE_GROUPS } from "@/lib/proficiency-lists";
 import type { ProficienciesFormSlice } from "./partyMemberForm.types";

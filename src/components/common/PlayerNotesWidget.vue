@@ -10,15 +10,14 @@
             {{ sharedWithDm ? 'Shared with your DM' : 'Only you can see this' }}
           </span>
         </div>
-        <label class="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
-          <input
-            type="checkbox"
-            class="rounded border-border accent-primary h-3 w-3"
-            :checked="sharedWithDm"
-            @change="toggleSharedWithDm"
-          />
-          <span class="text-label text-muted-foreground">Share with DM</span>
-        </label>
+        <AppCheckbox
+          :model-value="sharedWithDm"
+          size="sm"
+          label-role="label"
+          label="Share with DM"
+          class="gap-1.5 select-none shrink-0"
+          @update:model-value="toggleSharedWithDm"
+        />
       </div>
       <RichTextEditor v-model="privateContent" :placeholder="placeholder" size="sm" :sticky-toolbar="false">
         <template #toolbar-end>
@@ -133,6 +132,7 @@
 import { ref, computed, watch } from "vue";
 import { IconFaction, IconLock } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useAuthStore } from "@/stores/auth";
 import { useMemberByUserId } from "@/composables/useCampaignMembers";
 import {
@@ -191,8 +191,8 @@ watch(myPrivateNote, (note) => {
 }, { immediate: true });
 watch(privateContent, () => { privateSaved.value = false; });
 
-function toggleSharedWithDm(e: Event) {
-  sharedWithDm.value = (e.target as HTMLInputElement).checked;
+function toggleSharedWithDm(checked: boolean) {
+  sharedWithDm.value = checked;
   privateSaved.value = false;
 }
 

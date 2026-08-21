@@ -103,19 +103,12 @@
             v-if="showClaimOption"
             class="rounded-md border border-border bg-muted/50 px-3 py-2.5"
           >
-            <label class="flex items-start gap-2.5 cursor-pointer">
-              <input
-                v-model="claimExisting"
-                type="checkbox"
-                class="mt-0.5 w-4 h-4 rounded border-border accent-primary shrink-0"
-              />
-              <div>
-                <span class="text-body text-foreground">Import existing data</span>
-                <p class="text-caption text-muted-foreground italic mt-0.5">
-                  Assign your existing notes, NPCs, party members, calendar events, and encounters to this campaign.
-                </p>
-              </div>
-            </label>
+            <AppCheckbox
+              v-model="claimExisting"
+              label="Import existing data"
+              hint="Assign your existing notes, NPCs, party members, calendar events, and encounters to this campaign."
+              class="gap-2.5"
+            />
           </div>
 
           <div class="flex justify-end gap-2 pt-1">
@@ -139,6 +132,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { IconClose } from "@/lib/icons";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";

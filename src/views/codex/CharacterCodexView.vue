@@ -55,15 +55,17 @@
                 <IconLoading class="size-4 animate-spin text-muted-foreground" />
               </div>
               <div v-else class="p-2 flex flex-col gap-0.5">
-                <label
+                <AppCheckbox
                   v-for="doc in open5eDocs"
                   :key="doc.slug"
-                  class="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-accent transition-colors"
+                  v-model="selectedSources"
+                  :value="doc.slug"
+                  class="px-2 py-1.5 rounded hover:bg-accent transition-colors"
+                  label-layout="row"
                 >
-                  <input v-model="selectedSources" type="checkbox" :value="doc.slug" class="accent-primary" />
-                  <span class="text-body text-foreground">{{ doc.title }}</span>
+                  <span>{{ doc.title }}</span>
                   <span class="text-caption text-muted-foreground ml-auto">{{ doc.slug }}</span>
-                </label>
+                </AppCheckbox>
               </div>
               <div v-if="selectedSources.length > 0" class="p-2 border-t border-border">
                 <AppButton variant="ghost" size="sm" block label="Clear selection" @click="selectedSources = []" />
@@ -221,6 +223,7 @@ import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";

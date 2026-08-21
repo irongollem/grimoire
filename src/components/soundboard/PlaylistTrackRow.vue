@@ -149,7 +149,6 @@
               class="flex-1"
               wide
               compact
-              accent="gold"
               :model-value="layer.min_gain"
               @update:model-value="patchGain('min', $event)"
             />
@@ -158,7 +157,6 @@
               class="flex-1"
               wide
               compact
-              accent="gold"
               :model-value="layer.max_gain"
               @update:model-value="patchGain('max', $event)"
             />
@@ -173,7 +171,6 @@
               class="flex-1"
               wide
               compact
-              accent="gold"
               :model-value="layer.pan_spread"
               @update:model-value="patch({ pan_spread: $event })"
             />

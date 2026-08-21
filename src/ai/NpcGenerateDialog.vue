@@ -45,10 +45,14 @@
 
       <!-- Alter ego toggle -->
       <div class="rounded-md border border-border bg-muted/30 px-3 py-2.5 flex flex-col gap-1.5">
-        <label class="flex items-center gap-2.5 cursor-pointer">
-          <input type="checkbox" v-model="generateAlterEgo" :disabled="isGenerating || !generateImage" class="rounded accent-primary" />
-          <span class="text-label-lg font-semibold text-foreground">Generate Alter Ego</span>
-        </label>
+        <AppCheckbox
+          v-model="generateAlterEgo"
+          :disabled="isGenerating || !generateImage"
+          label-role="label-lg"
+          label="Generate Alter Ego"
+          label-tone="foreground"
+          class="gap-2.5"
+        />
         <p v-if="generateAlterEgo" class="text-caption text-amber-500 italic">
           ⚠ Uses 2× generation credits — a true-form portrait is generated first, then used as seed for the disguise portrait.
         </p>
@@ -95,6 +99,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import { AI_PROMPT_LIMIT } from "./utils";

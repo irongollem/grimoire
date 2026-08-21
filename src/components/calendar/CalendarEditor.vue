@@ -157,14 +157,15 @@
                 <option v-for="(m, mi) in def.months" :key="mi" :value="mi + 1">{{ mi + 1 }}. {{ m.name }}</option>
               </AppSelect>
             </div>
-            <label class="col-span-2 flex items-center gap-1.5 cursor-pointer">
-              <input
-                v-model="d.isLeapOnly"
-                type="checkbox"
-                class="w-3.5 h-3.5 rounded border-border accent-primary"
-              />
-              <span class="text-eyebrow text-muted-foreground">LEAP</span>
-            </label>
+            <AppCheckbox
+              :model-value="d.isLeapOnly ?? false"
+              size="sm"
+              label-role="label"
+              label="LEAP"
+              label-class="uppercase"
+              class="col-span-2 gap-1.5"
+              @update:model-value="d.isLeapOnly = $event"
+            />
             <AppButton
               variant="ghost"
               tone="danger"
@@ -192,6 +193,7 @@
 import { computed } from "vue";
 import { IconDelete } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import {

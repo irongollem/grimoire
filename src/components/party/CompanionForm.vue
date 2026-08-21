@@ -139,10 +139,7 @@
 
       <!-- Stat block toggle -->
       <div class="border-t border-border pt-3">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input v-model="hasStatBlock" type="checkbox" class="w-4 h-4 rounded border-border accent-primary" />
-          <span class="text-label-lg font-semibold text-muted-foreground">INCLUDE STAT BLOCK</span>
-        </label>
+        <AppCheckbox v-model="hasStatBlock" label-role="label-lg" label="INCLUDE STAT BLOCK" />
       </div>
 
       <template v-if="hasStatBlock">
@@ -240,6 +237,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { IconAddImage, IconClose } from '@/lib/icons';
 import { useCreateCompanion, useUpdateCompanion } from "@/composables/useCompanions";
 import { useAllMonsters } from "@/composables/useMonsters";

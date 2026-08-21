@@ -341,6 +341,60 @@
     </CatalogueSection>
 
     <CatalogueSection
+      title="AppCheckbox"
+      note="size × labelRole from checkboxVariants. One box recipe — the 100 raw checkboxes it replaced had drifted into twelve visual states (#751). Two accents only: `amber` is semantic (DM-private, like the amber DM Notes panel). There is no `gold` — gold-500 is a fixed literal that happens to equal the default theme's primary, so five soundboard checkboxes had silently opted out of theming; switch this page to ?theme=tome to see what that would have looked like. labelWeight/labelTone are opt-out axes: omit them and the role's own bundle stands. Bound to a string[] it behaves as Vue's checkbox group."
+    >
+      <div class="flex flex-col gap-3">
+        <div v-for="size in CHECKBOX_SIZES" :key="size" class="flex flex-wrap items-center gap-4">
+          <span class="text-label text-muted-foreground w-16 shrink-0">{{ size }}</span>
+          <AppCheckbox
+            v-for="role in CHECKBOX_LABEL_ROLES"
+            :key="role"
+            v-model="checkboxValue"
+            :size="size"
+            :label-role="role"
+            :label="role"
+          />
+          <AppCheckbox v-model="checkboxValue" :size="size" label="disabled" disabled />
+        </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <AppCheckbox
+            v-for="accent in CHECKBOX_ACCENTS"
+            :key="accent"
+            v-model="checkboxValue"
+            :accent="accent"
+            :label="accent"
+          />
+        </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <AppCheckbox v-model="checkboxValue" label-role="label-lg" label="label-lg (role default)" />
+          <AppCheckbox v-model="checkboxValue" label-role="label-lg" label-weight="normal" label="…label-weight" />
+          <AppCheckbox v-model="checkboxValue" label-role="label-lg" label-tone="foreground" label="…label-tone" />
+        </div>
+        <AppCheckbox
+          v-model="checkboxValue"
+          label="With a hint line"
+          hint="A hint forces start alignment, so the box sits on the first line."
+          class="max-w-64"
+        />
+        <AppCheckbox v-model="checkboxValue" label-layout="row" class="max-w-64 rounded px-2 py-1 hover:bg-accent">
+          <span class="min-w-0 flex-1 truncate">label-layout="row" — slot with trailing meta</span>
+          <span class="font-cinzel text-2xs text-muted-foreground shrink-0">42</span>
+        </AppCheckbox>
+        <div class="flex flex-wrap items-center gap-4">
+          <AppCheckbox
+            v-for="entry in ['dawn', 'dusk', 'midnight']"
+            :key="entry"
+            v-model="checkboxGroup"
+            :value="entry"
+            :label="entry"
+          />
+          <span class="text-caption text-muted-foreground">array model: [{{ checkboxGroup.join(", ") }}]</span>
+        </div>
+      </div>
+    </CatalogueSection>
+
+    <CatalogueSection
       title="AppModal — sizes"
       note="Open one and check the backdrop tint against this theme, that Escape and a backdrop click both close it, and that Tab cycles inside the panel rather than escaping into the page behind."
     >
@@ -395,6 +449,8 @@ import type { LocationQueryValue } from "vue-router";
 import { IconWand, IconChevronRight, IconDelete, IconClose, IconStar } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import { CHECKBOX_SIZES, CHECKBOX_LABEL_ROLES, CHECKBOX_ACCENTS } from "@/components/common/checkboxVariants";
 import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -452,6 +508,8 @@ const openModal = ref<(typeof MODAL_SIZES)[number] | null>(null);
 const segment = ref<string>("url");
 const emptyable = ref<string>("campaign");
 const selectValue = ref<string>("a");
+const checkboxValue = ref(true);
+const checkboxGroup = ref<string[]>(["dawn"]);
 const inputValue = ref<string | number | null>("Ancient Red Dragon");
 const numberValue = ref<string | number | null>(12);
 

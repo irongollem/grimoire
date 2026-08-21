@@ -7,15 +7,14 @@
           Lair actions fire at initiative 20 each round. Legendary actions auto-enable on any combatant whose stat block has them.
         </p>
       </div>
-      <label class="flex items-center gap-2 cursor-pointer shrink-0">
-        <input
-          type="checkbox"
-          :checked="lairEnabled"
-          class="h-4 w-4 rounded border-border bg-muted"
-          @change="$emit('update:lair-enabled', ($event.target as HTMLInputElement).checked)"
-        />
-        <span class="font-cinzel text-xs font-semibold text-foreground tracking-wide">Lair Actions</span>
-      </label>
+      <AppCheckbox
+        :model-value="lairEnabled"
+        label="Lair Actions"
+        label-role="label-lg"
+        label-tone="foreground"
+        class="shrink-0"
+        @update:model-value="$emit('update:lair-enabled', $event)"
+      />
     </div>
     <div v-if="lairEnabled" class="flex flex-col gap-2">
       <label class="text-label font-semibold text-muted-foreground">LAIR OWNER</label>
@@ -33,6 +32,7 @@
 </template>
 
 <script setup lang="ts">
+import AppCheckbox from '@/components/common/AppCheckbox.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
 
 const {

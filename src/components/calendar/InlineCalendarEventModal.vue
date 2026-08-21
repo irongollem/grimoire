@@ -89,14 +89,11 @@
           </div>
 
           <!-- Player visibility toggle -->
-          <label class="flex items-center gap-2.5 cursor-pointer select-none">
-            <input
-              v-model="form.player_visible"
-              type="checkbox"
-              class="rounded border-border w-4 h-4 accent-primary"
-            />
-            <span class="text-body text-foreground">Visible to players</span>
-          </label>
+          <AppCheckbox
+            v-model="form.player_visible"
+            label="Visible to players"
+            class="gap-2.5 select-none"
+          />
 
           <!-- Actions -->
           <div class="flex justify-end gap-2 pt-1">
@@ -119,6 +116,7 @@
 import { ref, computed, watch } from "vue";
 import { IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";

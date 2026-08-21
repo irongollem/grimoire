@@ -80,10 +80,7 @@
         size="body"
         placeholder="Name (e.g. Companion Bite)"
       />
-      <label class="flex items-center gap-2 text-caption text-muted-foreground">
-        <input v-model="formAutoHit" type="checkbox" class="accent-primary">
-        Auto-hit / no attack roll
-      </label>
+      <AppCheckbox v-model="formAutoHit" label-role="caption" label="Auto-hit / no attack roll" />
       <AppInput
         v-if="!formAutoHit"
         v-model="formAttackBonus"
@@ -130,6 +127,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconDelete, IconEdit, IconLightning, IconSword } from "@/lib/icons";
 import { rollParsed, combineModes } from "@/lib/dice/roller";

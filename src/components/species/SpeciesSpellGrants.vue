@@ -25,10 +25,12 @@
     <!-- Add grant form -->
     <div v-if="adding" class="rounded-md border border-border bg-muted/10 p-3 space-y-3 mb-3">
       <!-- Free pick toggle -->
-      <label class="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" v-model="grantForm.isFreePick" class="rounded" />
-        <span class="text-label font-semibold text-muted-foreground">PLAYER CHOOSES SPELL (e.g. High Elf cantrip)</span>
-      </label>
+      <AppCheckbox
+        v-model="grantForm.isFreePick"
+        label="PLAYER CHOOSES SPELL (e.g. High Elf cantrip)"
+        label-role="label"
+        label-weight="semibold"
+      />
 
       <!-- Spell search (hidden for free pick) -->
       <div v-if="!grantForm.isFreePick" class="space-y-1">
@@ -171,6 +173,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";

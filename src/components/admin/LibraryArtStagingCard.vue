@@ -6,6 +6,7 @@ import {
   Trash2Icon,
 } from "@lucide/vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { ButtonTone } from "@/components/common/appButtonVariants";
 
@@ -109,11 +110,11 @@ function assignTone(): ButtonTone {
               : 'text-foreground'
           "
         >
-          <input
-            type="checkbox"
-            class="h-3 w-3 accent-primary shrink-0"
-            :checked="selected.includes(opt.id)"
-            @change="emit('toggle-selection', opt.id)"
+          <AppCheckbox
+            size="sm"
+            :model-value="selected.includes(opt.id)"
+            :aria-label="opt.name"
+            @update:model-value="emit('toggle-selection', opt.id)"
           />
           <button
             type="button"
