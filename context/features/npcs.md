@@ -81,6 +81,8 @@ Route: `/npcs/:id` (also `/npcs/new`)
 
 The shell is generic — `AppModal` (backdrop, blur, focus trap, Escape via the `overlay` hotkey layer, the open animation) and `EntityDetailModal` (name, identity line, actions row, scrolling body). `EntityGridCard` records the clicked card's rect via `lib/modalOrigin`, so the panel grows out of that card; a deep link finds no origin and fades in instead. Adopting all of this for monsters is a route change and a different body slot.
 
+`AppModal` is no longer NPC-specific: #746 moved twelve of the app's hand-rolled dialogs onto it, including the app-wide `ConfirmDialog`. Two knobs came out of that. `dismissable` is the master switch, and `backdropDismiss` narrows it to the keyboard — Escape still closes, a click beside the panel does not. That second one exists because dismissal is the right answer for a panel you are _reading_ and the wrong one for a dialog that asked a **question**: `ConfirmDialog` and `ManualRollPrompt` both set it false, while keeping Escape, which is the only keyboard way out of a dialog. Escape is also registered per _open_ rather than per mount, so of two modals mounted side by side the one opened last is the one Escape reaches.
+
 Toggling between modes does not lose unsaved work because edit mode is URL-driven (the form re-mounts on the keyed `:id`).
 
 ### Header Actions (edit mode)

@@ -1,171 +1,167 @@
 <template>
-  <Teleport to="body">
-    <Transition name="dialog-fade">
+  <AppModal
+    :open="mode !== null"
+    size="sm"
+    labelled-by="rest-dialog-title"
+    @close="$emit('close')"
+  >
+    <!-- Header -->
+    <div
+      class="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-border"
+    >
       <div
-        v-if="mode"
-        class="fixed inset-0 z-200 flex items-center justify-center p-4"
-        @mousedown.self="$emit('close')"
+        class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-primary/15 text-primary"
       >
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <IconMoon v-if="mode === 'short'" class="h-4.5 w-4.5" />
+        <IconSun v-else class="h-4.5 w-4.5" />
+      </div>
+      <h2
+        id="rest-dialog-title"
+        class="font-cinzel text-sm font-bold text-foreground tracking-wide"
+      >
+        {{ mode === "short" ? "Short Rest" : "Long Rest" }}
+      </h2>
+    </div>
 
-        <div
-          class="relative w-full max-w-sm rounded-xl border border-border bg-card shadow-2xl"
-        >
-          <!-- Header -->
-          <div
-            class="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-border"
+    <!-- Body -->
+    <!-- Scrolls because the shell caps the panel at the viewport where the old
+         hand-rolled panel overflowed it: a long rest lists every resource it
+         restores, so the Sleep button must stay reachable on a short screen. -->
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
+      <!-- HP bar -->
+      <div class="space-y-1">
+        <div class="flex items-baseline justify-between">
+          <span
+            class="text-label-lg text-muted-foreground"
+            >HP</span
           >
-            <div
-              class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-primary/15 text-primary"
+          <span class="font-cinzel text-sm font-bold" :class="hpColor">
+            {{ previewHp }}
+            <span
+              class="text-caption text-muted-foreground font-normal"
+              >/ {{ member.max_hp }}</span
             >
-              <IconMoon v-if="mode === 'short'" class="h-4.5 w-4.5" />
-              <IconSun v-else class="h-4.5 w-4.5" />
-            </div>
-            <h2
-              class="font-cinzel text-sm font-bold text-foreground tracking-wide"
-            >
-              {{ mode === "short" ? "Short Rest" : "Long Rest" }}
-            </h2>
-          </div>
-
-          <!-- Body -->
-          <div class="px-5 py-4 space-y-4">
-            <!-- HP bar -->
-            <div class="space-y-1">
-              <div class="flex items-baseline justify-between">
-                <span
-                  class="text-label-lg text-muted-foreground"
-                  >HP</span
-                >
-                <span class="font-cinzel text-sm font-bold" :class="hpColor">
-                  {{ previewHp }}
-                  <span
-                    class="text-caption text-muted-foreground font-normal"
-                    >/ {{ member.max_hp }}</span
-                  >
-                </span>
-              </div>
-              <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  class="h-full rounded-full transition-all"
-                  :class="hpBarColor"
-                  :style="{ width: `${previewHpPct}%` }"
-                />
-              </div>
-            </div>
-
-            <!-- Hit dice section -->
-            <div
-              class="rounded-lg border border-border bg-muted/20 p-3 space-y-2"
-            >
-              <div class="flex items-center justify-between">
-                <span
-                  class="text-label-lg font-semibold text-muted-foreground"
-                  >HIT DICE</span
-                >
-                <span class="font-cinzel text-xs text-foreground">
-                  {{ remainingAfterSpend }} / {{ member.level }}
-                  <span class="text-muted-foreground">(d{{ hitDie }})</span>
-                </span>
-              </div>
-
-              <!-- Short rest: spend dice -->
-              <template v-if="mode === 'short'">
-                <div class="flex items-center gap-2">
-                  <AppButton
-                    variant="tinted"
-                    tone="primary"
-                    emphasis="soft"
-                    size="sm"
-                    class="flex-1"
-                    :disabled="
-                      remainingAfterSpend <= 0 || previewHp >= member.max_hp
-                    "
-                    :label="`Roll d${hitDie} (${abilityModifier(props.member.con)})`"
-                    @click="rollHitDie"
-                  />
-                </div>
-
-                <!-- Roll history -->
-                <div v-if="rolls.length" class="flex flex-wrap gap-1">
-                  <span
-                    v-for="(roll, i) in rolls"
-                    :key="i"
-                    class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green border border-elven-green/30"
-                    >+{{ roll }}</span
-                  >
-                  <span
-                    class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-elven-green/10 text-elven-green/80 border border-elven-green/20"
-                  >
-                    = {{ totalHealing }} hp healed
-                  </span>
-                </div>
-              </template>
-
-              <!-- Long rest: show dice recovery -->
-              <template v-else>
-                <p class="text-caption text-muted-foreground italic">
-                  You regain {{ diceRecovered }} expended hit
-                  {{ diceRecovered === 1 ? "die" : "dice" }} after sleeping.
-                </p>
-              </template>
-            </div>
-
-            <!-- Long rest summary -->
-            <div
-              v-if="mode === 'long'"
-              class="space-y-1 text-caption text-muted-foreground"
-            >
-              <p class="flex items-center gap-1.5">
-                <span class="text-elven-green">✓</span> Full HP restored
-              </p>
-              <p
-                v-if="hasShortRestResources || hasLongRestResources"
-                class="flex items-center gap-1.5"
-              >
-                <span class="text-elven-green">✓</span> All class resources
-                restored
-              </p>
-              <p v-if="hasSpellSlots" class="flex items-center gap-1.5">
-                <span class="text-elven-green">✓</span> All spell slots restored
-              </p>
-              <p class="flex items-center gap-1.5">
-                <span class="text-elven-green">✓</span> Innate spell uses restored
-              </p>
-              <p v-if="(member.wildshapes_used ?? 0) > 0 || member.wildshape_state" class="flex items-center gap-1.5">
-                <span class="text-elven-green">✓</span> Wild Shape uses restored
-              </p>
-              <p class="flex items-center gap-1.5">
-                <span class="text-elven-green">✓</span> Death saves cleared
-              </p>
-            </div>
-          </div>
-
-          <!-- Footer -->
-          <div class="flex justify-end gap-2 px-5 pb-5">
-            <AppButton
-              variant="subtle"
-              size="sm"
-              label="Cancel"
-              @click="$emit('close')"
-            />
-            <AppButton
-              variant="primary"
-              size="sm"
-              :label="mode === 'short' ? 'Finish Rest' : 'Sleep'"
-              @click="confirm"
-            />
-          </div>
+          </span>
+        </div>
+        <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+          <div
+            class="h-full rounded-full transition-all"
+            :class="hpBarColor"
+            :style="{ width: `${previewHpPct}%` }"
+          />
         </div>
       </div>
-    </Transition>
-  </Teleport>
+
+      <!-- Hit dice section -->
+      <div
+        class="rounded-lg border border-border bg-muted/20 p-3 space-y-2"
+      >
+        <div class="flex items-center justify-between">
+          <span
+            class="text-label-lg font-semibold text-muted-foreground"
+            >HIT DICE</span
+          >
+          <span class="font-cinzel text-xs text-foreground">
+            {{ remainingAfterSpend }} / {{ member.level }}
+            <span class="text-muted-foreground">(d{{ hitDie }})</span>
+          </span>
+        </div>
+
+        <!-- Short rest: spend dice -->
+        <template v-if="mode === 'short'">
+          <div class="flex items-center gap-2">
+            <AppButton
+              variant="tinted"
+              tone="primary"
+              emphasis="soft"
+              size="sm"
+              class="flex-1"
+              :disabled="
+                remainingAfterSpend <= 0 || previewHp >= member.max_hp
+              "
+              :label="`Roll d${hitDie} (${abilityModifier(props.member.con)})`"
+              @click="rollHitDie"
+            />
+          </div>
+
+          <!-- Roll history -->
+          <div v-if="rolls.length" class="flex flex-wrap gap-1">
+            <span
+              v-for="(roll, i) in rolls"
+              :key="i"
+              class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-elven-green/15 text-elven-green border border-elven-green/30"
+              >+{{ roll }}</span
+            >
+            <span
+              class="font-cinzel text-2xs px-1.5 py-0.5 rounded bg-elven-green/10 text-elven-green/80 border border-elven-green/20"
+            >
+              = {{ totalHealing }} hp healed
+            </span>
+          </div>
+        </template>
+
+        <!-- Long rest: show dice recovery -->
+        <template v-else>
+          <p class="text-caption text-muted-foreground italic">
+            You regain {{ diceRecovered }} expended hit
+            {{ diceRecovered === 1 ? "die" : "dice" }} after sleeping.
+          </p>
+        </template>
+      </div>
+
+      <!-- Long rest summary -->
+      <div
+        v-if="mode === 'long'"
+        class="space-y-1 text-caption text-muted-foreground"
+      >
+        <p class="flex items-center gap-1.5">
+          <span class="text-elven-green">✓</span> Full HP restored
+        </p>
+        <p
+          v-if="hasShortRestResources || hasLongRestResources"
+          class="flex items-center gap-1.5"
+        >
+          <span class="text-elven-green">✓</span> All class resources
+          restored
+        </p>
+        <p v-if="hasSpellSlots" class="flex items-center gap-1.5">
+          <span class="text-elven-green">✓</span> All spell slots restored
+        </p>
+        <p class="flex items-center gap-1.5">
+          <span class="text-elven-green">✓</span> Innate spell uses restored
+        </p>
+        <p v-if="(member.wildshapes_used ?? 0) > 0 || member.wildshape_state" class="flex items-center gap-1.5">
+          <span class="text-elven-green">✓</span> Wild Shape uses restored
+        </p>
+        <p class="flex items-center gap-1.5">
+          <span class="text-elven-green">✓</span> Death saves cleared
+        </p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex shrink-0 justify-end gap-2 px-5 pb-5">
+      <AppButton
+        variant="subtle"
+        size="sm"
+        label="Cancel"
+        @click="$emit('close')"
+      />
+      <AppButton
+        variant="primary"
+        size="sm"
+        :label="mode === 'short' ? 'Finish Rest' : 'Sleep'"
+        @click="confirm"
+      />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { getHitDie } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";
@@ -320,25 +316,3 @@ function confirm() {
   emit("confirm", update);
 }
 </script>
-
-<style scoped>
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-.dialog-fade-enter-active .relative,
-.dialog-fade-leave-active .relative {
-  transition:
-    transform 0.15s ease,
-    opacity 0.15s ease;
-}
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-  opacity: 0;
-}
-.dialog-fade-enter-from .relative,
-.dialog-fade-leave-to .relative {
-  transform: scale(0.95);
-  opacity: 0;
-}
-</style>

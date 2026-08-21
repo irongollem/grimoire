@@ -94,6 +94,70 @@ describe("AppModal", () => {
     wrapper.unmount();
   });
 
+  // The registry resolves a same-layer collision by registration order, and
+  // both shells here are mounted before either opens — a picker sitting beside
+  // its host dialog is the everyday case. Opening must be what registers, or
+  // Escape on the stack would close the host underneath the picker.
+  it("routes Escape to the most recently opened modal, not the most recently mounted", async () => {
+    const opts = {
+      slots: { default: "<button>Inside</button>" },
+      attachTo: document.body,
+      global: { stubs: { transition: false } },
+    };
+    const mountedFirst = mount(AppModal, { props: { open: false }, ...opts });
+    const mountedSecond = mount(AppModal, { props: { open: false }, ...opts });
+
+    await mountedSecond.setProps({ open: true });
+    await mountedFirst.setProps({ open: true }); // opened last → on top
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await nextTick();
+
+    expect(mountedFirst.emitted("close")).toHaveLength(1);
+    expect(mountedSecond.emitted("close")).toBeUndefined();
+    mountedFirst.unmount();
+    mountedSecond.unmount();
+  });
+
+  // Escape on a modal stack means "dismiss the top thing". When the top thing
+  // refuses, the answer is nothing — not the dialog beneath it closing unseen.
+  it("swallows Escape on a non-dismissable modal instead of passing it beneath", async () => {
+    const opts = {
+      slots: { default: "<button>Inside</button>" },
+      attachTo: document.body,
+      global: { stubs: { transition: false } },
+    };
+    const below = mount(AppModal, { props: { open: false }, ...opts });
+    const top = mount(AppModal, { props: { open: false, dismissable: false }, ...opts });
+
+    await below.setProps({ open: true });
+    await top.setProps({ open: true });
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await nextTick();
+
+    expect(top.emitted("close")).toBeUndefined();
+    expect(below.emitted("close")).toBeUndefined();
+    below.unmount();
+    top.unmount();
+  });
+
+  // A confirm wants an answer. A stray click beside the panel is not one —
+  // but Escape still is, so the two dismissal routes part company here.
+  it("can refuse a backdrop click while still closing on Escape", async () => {
+    const wrapper = open({ backdropDismiss: false });
+    const container = document.body.querySelector<HTMLElement>("[data-modal-backdrop]")!.parentElement!;
+
+    container.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    await nextTick();
+    expect(wrapper.emitted("close")).toBeUndefined();
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await nextTick();
+    expect(wrapper.emitted("close")).toHaveLength(1);
+    wrapper.unmount();
+  });
+
   it("leaves Escape alone once closed, so the page keeps its own shortcuts", async () => {
     const wrapper = mount(AppModal, {
       props: { open: false },

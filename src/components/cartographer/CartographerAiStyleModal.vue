@@ -1,148 +1,138 @@
 <template>
   <!-- AI Style — Preset Picker modal -->
-  <Teleport to="body">
-    <Transition name="dialog-fade">
-      <div
-        v-if="showPicker"
-        class="fixed inset-0 z-9999 flex items-center justify-center p-4"
-        @mousedown.self="$emit('closePicker')"
-      >
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-        <div
-          class="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl"
-          role="dialog"
-          aria-modal="true"
+  <AppModal
+    :open="showPicker"
+    size="md"
+    labelled-by="ai-style-picker-title"
+    @close="$emit('closePicker')"
+  >
+    <!-- Scrolls for the same reason as the result panel below: the preset grid
+         plus the freeform field outgrows a short viewport, and the shell caps
+         the panel at the screen rather than letting it run off. -->
+    <div class="overflow-y-auto px-5 pt-5 pb-3">
+      <h2 id="ai-style-picker-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">✦ AI Map Style</h2>
+      <p class="text-body text-muted-foreground mb-4">
+        Re-render this map in an artistic style. The result is a new image — your tile map is unchanged.
+      </p>
+      <!-- Preset grid -->
+      <!-- LEFT: no matching AppButton variant — a vertical tile (icon over
+           label over description) rather than the primitive's horizontal
+           icon+label row, and its selected state (border-amber-500/60
+           bg-amber-500/10 text-amber-400) uses the documented-unsupported
+           amber "coin gold" tone. -->
+      <div class="grid grid-cols-3 gap-2 mb-4">
+        <button
+          v-for="preset in presets"
+          :key="preset.id"
+          type="button"
+          :title="preset.description"
+          :class="[
+            'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
+            selectedPresetId === preset.id
+              ? 'border-amber-500/60 bg-amber-500/10 text-amber-400'
+              : 'border-border bg-background text-muted-foreground hover:border-amber-500/30 hover:text-foreground',
+          ]"
+          @click="$emit('update:selectedPresetId', preset.id)"
         >
-          <div class="px-5 pt-5 pb-3">
-            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-1">✦ AI Map Style</h2>
-            <p class="text-body text-muted-foreground mb-4">
-              Re-render this map in an artistic style. The result is a new image — your tile map is unchanged.
-            </p>
-            <!-- Preset grid -->
-            <!-- LEFT: no matching AppButton variant — a vertical tile (icon over
-                 label over description) rather than the primitive's horizontal
-                 icon+label row, and its selected state (border-amber-500/60
-                 bg-amber-500/10 text-amber-400) uses the documented-unsupported
-                 amber "coin gold" tone. -->
-            <div class="grid grid-cols-3 gap-2 mb-4">
-              <button
-                v-for="preset in presets"
-                :key="preset.id"
-                type="button"
-                :title="preset.description"
-                :class="[
-                  'flex flex-col items-center gap-1 rounded-lg border p-3 text-center transition-colors',
-                  selectedPresetId === preset.id
-                    ? 'border-amber-500/60 bg-amber-500/10 text-amber-400'
-                    : 'border-border bg-background text-muted-foreground hover:border-amber-500/30 hover:text-foreground',
-                ]"
-                @click="$emit('update:selectedPresetId', preset.id)"
-              >
-                <span class="text-lg leading-none">{{ preset.icon }}</span>
-                <span class="text-label font-semibold leading-tight">{{ preset.label }}</span>
-                <span class="text-caption-sm leading-tight opacity-70">{{ preset.description }}</span>
-              </button>
-            </div>
-            <!-- Freeform suffix -->
-            <label class="block text-eyebrow text-muted-foreground mb-1">
-              Additional details <span class="normal-case">(optional)</span>
-            </label>
-            <textarea
-              :value="promptSuffix"
-              rows="2"
-              maxlength="300"
-              placeholder="e.g. 'flooded corridors, green bioluminescent fungus, caved-in east wing'"
-              class="w-full bg-background border border-border rounded-md px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-              @input="$emit('update:promptSuffix', ($event.target as HTMLTextAreaElement).value)"
-            />
-            <p v-if="error" class="mt-2 text-caption text-destructive">{{ error }}</p>
-          </div>
-          <div class="flex justify-end items-center gap-2 px-5 pb-5 pt-2">
-            <GenerationCostBadge :credits="credits" :byok="byok" class="mr-auto" />
-            <AppButton
-              variant="subtle"
-              size="sm"
-              class="px-4"
-              label="Cancel"
-              @click="$emit('closePicker')"
-            />
-            <!-- LEFT: solid-fill non-gold CTA (bg-amber-500 text-black) — documented
-                 gap, no matching AppButton variant. -->
-            <button
-              type="button"
-              :disabled="generating || !canAfford"
-              class="px-4 py-1.5 rounded-md text-label-lg font-semibold bg-amber-500 text-black hover:bg-amber-400 transition-colors disabled:opacity-50"
-              @click="$emit('generate')"
-            >{{ generating ? "Generating…" : "Generate" }}</button>
-          </div>
-        </div>
+          <span class="text-lg leading-none">{{ preset.icon }}</span>
+          <span class="text-label font-semibold leading-tight">{{ preset.label }}</span>
+          <span class="text-caption-sm leading-tight opacity-70">{{ preset.description }}</span>
+        </button>
       </div>
-    </Transition>
-  </Teleport>
+      <!-- Freeform suffix -->
+      <label class="block text-eyebrow text-muted-foreground mb-1">
+        Additional details <span class="normal-case">(optional)</span>
+      </label>
+      <textarea
+        :value="promptSuffix"
+        rows="2"
+        maxlength="300"
+        placeholder="e.g. 'flooded corridors, green bioluminescent fungus, caved-in east wing'"
+        class="w-full bg-background border border-border rounded-md px-2 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+        @input="$emit('update:promptSuffix', ($event.target as HTMLTextAreaElement).value)"
+      />
+      <p v-if="error" class="mt-2 text-caption text-destructive">{{ error }}</p>
+    </div>
+    <div class="flex shrink-0 justify-end items-center gap-2 px-5 pb-5 pt-2">
+      <GenerationCostBadge :credits="credits" :byok="byok" class="mr-auto" />
+      <AppButton
+        variant="subtle"
+        size="sm"
+        class="px-4"
+        label="Cancel"
+        @click="$emit('closePicker')"
+      />
+      <!-- LEFT: solid-fill non-gold CTA (bg-amber-500 text-black) — documented
+           gap, no matching AppButton variant. Tracked in #752. -->
+      <button
+        type="button"
+        :disabled="generating || !canAfford"
+        class="px-4 py-1.5 rounded-md text-label-lg font-semibold bg-amber-500 text-black hover:bg-amber-400 transition-colors disabled:opacity-50"
+        @click="$emit('generate')"
+      >{{ generating ? "Generating…" : "Generate" }}</button>
+    </div>
+  </AppModal>
 
   <!-- AI Style — Result preview modal -->
-  <Teleport to="body">
-    <Transition name="dialog-fade">
-      <div
-        v-if="showResult"
-        class="fixed inset-0 z-9999 flex items-center justify-center p-4"
-        @mousedown.self="$emit('closeResult')"
-      >
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-        <div
-          class="relative w-full max-w-xl rounded-xl border border-border bg-card shadow-2xl"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div class="px-5 pt-5 pb-3">
-            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-3">✦ Styled Result</h2>
-            <!-- Preview image -->
-            <div class="mb-4 rounded-lg overflow-hidden border border-border bg-black aspect-square">
-              <img
-                v-if="resultUrl"
-                :src="resultUrl"
-                alt="AI-styled map"
-                class="w-full h-full object-contain"
-              />
-            </div>
-            <!-- Save to Atlas inline -->
-            <label class="block text-eyebrow text-muted-foreground mb-1">
-              Save to location
-            </label>
-            <EntityCombobox
-              v-model="atlasLocationId"
-              :options="locationOptions"
-              placeholder="Search locations…"
-            />
-            <p v-if="atlasTargetHasMap" class="mt-2 text-caption text-amber-500">This location already has a map — saving will replace it.</p>
-            <p v-if="atlasError" class="mt-2 text-caption text-destructive">{{ atlasError }}</p>
-          </div>
-          <div class="flex flex-wrap justify-between gap-2 px-5 pb-5 pt-2">
-            <div class="flex gap-2">
-              <AppButton variant="subtle" size="sm" label="Retry" @click="$emit('retry')" />
-              <AppButton variant="subtle" size="sm" label="Back" @click="$emit('backToPicker')" />
-            </div>
-            <div class="flex gap-2">
-              <AppButton variant="subtle" size="sm" label="↓ Download" @click="$emit('downloadStyled')" />
-              <AppButton
-                variant="primary"
-                size="sm"
-                class="px-4"
-                :disabled="!atlasLocationId || atlasSaving"
-                :label="atlasSaving ? 'Saving…' : 'Save to Atlas'"
-                @click="$emit('saveToAtlas', atlasLocationId)"
-              />
-            </div>
-          </div>
-        </div>
+  <AppModal
+    :open="showResult"
+    size="md"
+    labelled-by="ai-style-result-title"
+    @close="$emit('closeResult')"
+  >
+    <!--
+      The body scrolls, which the hand-rolled panel never did: a square preview
+      plus header and footer is taller than a laptop viewport, and the shell
+      caps the panel at the screen. Without a scroller here that cap would clip
+      the footer off instead of letting the reader reach it.
+    -->
+    <div class="overflow-y-auto px-5 pt-5 pb-3">
+      <h2 id="ai-style-result-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide mb-3">✦ Styled Result</h2>
+      <!-- Preview image -->
+      <div class="mb-4 rounded-lg overflow-hidden border border-border bg-black aspect-square">
+        <img
+          v-if="resultUrl"
+          :src="resultUrl"
+          alt="AI-styled map"
+          class="w-full h-full object-contain"
+        />
       </div>
-    </Transition>
-  </Teleport>
+      <!-- Save to Atlas inline -->
+      <label class="block text-eyebrow text-muted-foreground mb-1">
+        Save to location
+      </label>
+      <EntityCombobox
+        v-model="atlasLocationId"
+        :options="locationOptions"
+        placeholder="Search locations…"
+      />
+      <p v-if="atlasTargetHasMap" class="mt-2 text-caption text-amber-500">This location already has a map — saving will replace it.</p>
+      <p v-if="atlasError" class="mt-2 text-caption text-destructive">{{ atlasError }}</p>
+    </div>
+    <div class="flex shrink-0 flex-wrap justify-between gap-2 px-5 pb-5 pt-2">
+      <div class="flex gap-2">
+        <AppButton variant="subtle" size="sm" label="Retry" @click="$emit('retry')" />
+        <AppButton variant="subtle" size="sm" label="Back" @click="$emit('backToPicker')" />
+      </div>
+      <div class="flex gap-2">
+        <AppButton variant="subtle" size="sm" label="↓ Download" @click="$emit('downloadStyled')" />
+        <AppButton
+          variant="primary"
+          size="sm"
+          class="px-4"
+          :disabled="!atlasLocationId || atlasSaving"
+          :label="atlasSaving ? 'Saving…' : 'Save to Atlas'"
+          @click="$emit('saveToAtlas', atlasLocationId)"
+        />
+      </div>
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/useAiCredits";
@@ -209,13 +199,3 @@ const canAfford = computed(() => affordable(credits, byok));
 const atlasLocationId = defineModel<string>("atlasLocationId", { default: "" });
 </script>
 
-<style scoped>
-.dialog-fade-enter-active,
-.dialog-fade-leave-active { transition: opacity 0.15s ease; }
-.dialog-fade-enter-active .relative,
-.dialog-fade-leave-active .relative { transition: transform 0.15s ease, opacity 0.15s ease; }
-.dialog-fade-enter-from,
-.dialog-fade-leave-to { opacity: 0; }
-.dialog-fade-enter-from .relative,
-.dialog-fade-leave-to .relative { transform: scale(0.95); opacity: 0; }
-</style>

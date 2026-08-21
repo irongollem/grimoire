@@ -67,7 +67,7 @@
  * fire (see the note on the backdrop above). A sixth copy was not worth
  * writing.
  */
-import { ref } from "vue";
+import { effectScope, ref, watch } from "vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { cn } from "@/lib/utils";
 import { takeModalOrigin } from "@/lib/modalOrigin";
@@ -89,6 +89,7 @@ const {
   label,
   originKey,
   dismissable = true,
+  backdropDismiss = true,
 } = defineProps<{
   open: boolean;
   /** Panel width. Height and anything else comes in through `panelClass`. */
@@ -104,8 +105,25 @@ const {
    * instead of fading in.
    */
   originKey?: string;
-  /** Escape and backdrop click close the modal. Default true. */
+  /** Escape closes the modal, and by default so does a backdrop click. Default true. */
   dismissable?: boolean;
+  /**
+   * Narrows `dismissable` to the keyboard: Escape still closes, a click beside
+   * the panel no longer does. (`dismissable` is the master switch — turning it
+   * off closes both routes regardless of this.)
+   *
+   * For a dialog that wants an *answer* rather than a dismissal — a confirm, or
+   * a roll the app is waiting on. A stray click beside the panel is not an
+   * answer, but Escape still is: turning off `dismissable` instead would take
+   * away the only keyboard way out, which for a keyboard user is a trap rather
+   * than a safeguard.
+   *
+   * A plain `boolean` rather than a nullable "inherit from `dismissable`",
+   * because Vue casts an absent boolean prop to `false` rather than leaving it
+   * undefined — so a `??` fallback here would read as "off" on every caller
+   * that never mentions it.
+   */
+  backdropDismiss?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -127,22 +145,49 @@ const panelRef = ref<HTMLElement | null>(null);
  * inside this modal closes itself first, and only a second Escape closes the
  * modal. `allowInTextEntry` because a dialog containing a search field still
  * has to close from inside that field.
+ *
+ * Two details here are load-bearing:
+ *
+ * - The registry resolves a same-layer collision by "most recently registered
+ *   wins", and this shell is mounted long before it opens (the `v-if` sits
+ *   inside the Teleport) — often beside the very dialog that will open it. So
+ *   the binding is registered per *open* rather than per mount: the most
+ *   recently opened modal is the one on top, and the one Escape should reach.
+ *
+ * - A non-dismissable modal still registers, and swallows the key. Escape on a
+ *   modal stack means "dismiss the top thing"; when the top thing refuses, the
+ *   answer is nothing — not the dialog beneath it closing sight unseen. This
+ *   also keeps the page's own shortcuts suppressed while the modal is up,
+ *   which is what the backdrop already does to the mouse.
  */
-useHotkeys(
-  () => [
-    {
-      combo: "escape",
-      description: "Close dialog",
-      hidden: true,
-      allowInTextEntry: true,
-      handler: () => emit("close"),
-    },
-  ],
-  { layer: "overlay", enabled: () => open && dismissable },
+watch(
+  () => open,
+  (isOpen, _wasOpen, onCleanup) => {
+    if (!isOpen) return;
+    const scope = effectScope();
+    scope.run(() => {
+      useHotkeys(
+        () => [
+          {
+            combo: "escape",
+            description: "Close dialog",
+            hidden: true,
+            allowInTextEntry: true,
+            handler: () => {
+              if (dismissable) emit("close");
+            },
+          },
+        ],
+        { layer: "overlay" },
+      );
+    });
+    onCleanup(() => scope.stop());
+  },
+  { immediate: true },
 );
 
 function onBackdropClick() {
-  if (dismissable) emit("close");
+  if (dismissable && backdropDismiss) emit("close");
 }
 
 // ── Focus ────────────────────────────────────────────────────────────────────
