@@ -1,32 +1,12 @@
 <template>
-  <Teleport to="body">
-    <Transition name="advisor-modal">
-      <div
-        v-if="open"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
-        @keydown.esc="emit('skip')"
-      >
-        <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/70" @click="emit('skip')" />
+  <AppModal :open="open" size="md" @close="emit('skip')">
+    <ModalHeader title="Spell Level Advisor" :icon="IconTip" tone="primary">
+      <template #actions>
+        <AppButton variant="ghost" size="inline" label="Skip →" @click="emit('skip')" />
+      </template>
+    </ModalHeader>
 
-        <!-- Card -->
-        <div
-          class="relative z-10 w-full max-w-lg rounded-xl border border-primary/40 bg-card shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
-        >
-          <!-- Header -->
-          <div
-            class="flex items-center justify-between gap-3 px-6 pt-6 pb-4 border-b border-border shrink-0"
-          >
-            <h2
-              class="font-cinzel text-sm font-bold tracking-wider text-foreground flex items-center gap-2"
-            >
-              <IconTip class="h-4 w-4 text-primary" />
-              Spell Level Advisor
-            </h2>
-            <AppButton variant="ghost" size="inline" label="Skip →" @click="emit('skip')" />
-          </div>
-
-          <div class="overflow-y-auto px-6 py-4 flex flex-col gap-4">
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4 flex flex-col gap-4">
             <p class="text-body text-muted-foreground italic">
               Answer a few questions to pre-fill your spell's mechanics and suggest a balanced
               level.
@@ -237,28 +217,23 @@
             </div>
           </div>
 
-          <!-- Footer actions -->
-          <div
-            class="flex items-center justify-between gap-3 px-6 py-4 border-t border-border shrink-0"
-          >
-            <AppButton
-              variant="ghost"
-              size="inline"
-              label="Skip, I'll fill it in manually"
-              @click="emit('skip')"
-            />
-            <AppButton variant="primary" size="md" @click="emit('apply')">
-              Apply to Spell (Level
-              {{
-                advResult.suggestedMin +
-                Math.floor((advResult.suggestedMax - advResult.suggestedMin) / 2)
-              }}) →
-            </AppButton>
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+    <!-- Footer actions -->
+    <div class="flex shrink-0 items-center justify-between gap-3 px-6 py-4 border-t border-border">
+      <AppButton
+        variant="ghost"
+        size="inline"
+        label="Skip, I'll fill it in manually"
+        @click="emit('skip')"
+      />
+      <AppButton variant="primary" size="md" @click="emit('apply')">
+        Apply to Spell (Level
+        {{
+          advResult.suggestedMin +
+          Math.floor((advResult.suggestedMax - advResult.suggestedMin) / 2)
+        }}) →
+      </AppButton>
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -266,8 +241,10 @@ import { computed } from "vue";
 import { IconTip } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import DiceInput from "@/components/common/DiceInput.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import { SPELL_SCHOOLS } from "@/types/spell.types";
 import type { SpellSchool } from "@/types/spell.types";
 import { parseDiceAvg } from "@/lib/spellAdvisor";
@@ -296,21 +273,3 @@ const schoolModel = computed<SpellSchool>({
   set: (value) => emit("update:school", value),
 });
 </script>
-
-<style>
-.advisor-modal-enter-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-}
-.advisor-modal-leave-active {
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease;
-}
-.advisor-modal-enter-from,
-.advisor-modal-leave-to {
-  opacity: 0;
-  transform: scale(0.96) translateY(-0.375rem);
-}
-</style>

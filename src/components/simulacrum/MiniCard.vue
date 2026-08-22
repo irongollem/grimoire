@@ -91,22 +91,17 @@
       </div>
     </div>
 
-    <!-- Preview modal -->
-    <Teleport to="body">
-      <div
-        v-if="previewOpen"
-        class="fixed inset-0 z-200 flex items-center justify-center bg-black/85 p-4"
-        @click="previewOpen = false"
-      >
-        <div class="relative w-full max-w-md" @click.stop>
-          <MiniModelViewer
-            v-if="glbUrl"
-            :src="glbUrl"
-            :poster="thumbSrc ?? undefined"
-            :alt="mini.label ?? 'Mini'"
-          />
-          <AiGeneratedBadge variant="chip" :provenance="{ provider: mini.provider, generatedAt: mini.created_at }" />
-        </div>
+    <!-- Preview modal. No `ModalHeader` — a chrome-less floating viewer, not a
+         titled panel, so the dialog is named via `label` instead. -->
+    <AppModal :open="previewOpen" size="md" :label="`${mini.label ?? 'Mini'} preview`" @close="previewOpen = false">
+      <div class="relative w-full">
+        <MiniModelViewer
+          v-if="glbUrl"
+          :src="glbUrl"
+          :poster="thumbSrc ?? undefined"
+          :alt="mini.label ?? 'Mini'"
+        />
+        <AiGeneratedBadge variant="chip" :provenance="{ provider: mini.provider, generatedAt: mini.created_at }" />
         <AppButton
           variant="ghost"
           shape="pill"
@@ -118,7 +113,7 @@
           @click="previewOpen = false"
         />
       </div>
-    </Teleport>
+    </AppModal>
   </div>
 </template>
 
@@ -127,6 +122,7 @@ import { computed, ref } from "vue";
 import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
 import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { IconClose, IconDelete, IconDownload, IconRefresh, IconReveal } from "@/lib/icons";

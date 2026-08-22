@@ -30,25 +30,20 @@
         />
       </div>
 
-      <Teleport to="body">
-        <Transition name="modal-fade">
-          <div
-            v-if="selectedSpecies"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            @click.self="selectedSpecies = null"
-          >
-            <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-              <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
-                <div class="flex-1 min-w-0">
-                  <h2 class="text-heading font-bold text-foreground">{{ selectedSpecies.name }}</h2>
-                  <div class="flex flex-wrap gap-1.5 mt-1">
-                    <span v-if="selectedSpecies.size" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground capitalize">{{ selectedSpecies.size }}</span>
-                    <span v-if="selectedSpecies.subraces?.length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</span>
-                  </div>
-                </div>
-                <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedSpecies = null" />
-              </div>
-              <div class="flex-1 overflow-y-auto">
+      <AppModal :open="!!selectedSpecies" size="lg" :labelled-by="speciesHeadingId" @close="selectedSpecies = null">
+        <!-- Header. Hand-rolled rather than `ModalHeader`: the size/variant-count
+             row is a set of pill badges, not a single subtitle string. -->
+        <div v-if="selectedSpecies" class="flex shrink-0 items-start gap-3 px-5 py-4 border-b border-border">
+          <div class="flex-1 min-w-0">
+            <h2 :id="speciesHeadingId" class="text-heading font-bold text-foreground">{{ selectedSpecies.name }}</h2>
+            <div class="flex flex-wrap gap-1.5 mt-1">
+              <span v-if="selectedSpecies.size" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground capitalize">{{ selectedSpecies.size }}</span>
+              <span v-if="selectedSpecies.subraces?.length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground/60">{{ selectedSpecies.subraces.length }} variant{{ selectedSpecies.subraces.length > 1 ? "s" : "" }}</span>
+            </div>
+          </div>
+          <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedSpecies = null" />
+        </div>
+        <div v-if="selectedSpecies" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <div class="flex flex-col gap-4 p-5">
                     <div v-if="selectedSpecies.image_url" class="rounded-lg overflow-hidden bg-muted">
@@ -136,10 +131,7 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
+      </AppModal>
     </div>
 
     <!-- ── Backgrounds ── -->
@@ -160,22 +152,18 @@
         />
       </div>
 
-      <Teleport to="body">
-        <Transition name="modal-fade">
-          <div
-            v-if="selectedBackground"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            @click.self="selectedBackground = null"
-          >
-            <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-              <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
-                <div class="flex-1 min-w-0">
-                  <h2 class="text-heading font-bold text-foreground">{{ selectedBackground.name }}</h2>
-                  <span v-if="selectedBackground.source_title" class="text-label text-muted-foreground">{{ selectedBackground.source_title }}</span>
-                </div>
-                <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedBackground = null" />
-              </div>
-              <div class="flex-1 overflow-y-auto">
+      <AppModal :open="!!selectedBackground" size="lg" :labelled-by="backgroundHeadingId" @close="selectedBackground = null">
+        <!-- Header. Hand-rolled rather than `ModalHeader` for consistency with
+             the other three Codex dialogs in this file (species/classes/deities),
+             whose header rows carry badges `ModalHeader`'s subtitle cannot. -->
+        <div v-if="selectedBackground" class="flex shrink-0 items-start gap-3 px-5 py-4 border-b border-border">
+          <div class="flex-1 min-w-0">
+            <h2 :id="backgroundHeadingId" class="text-heading font-bold text-foreground">{{ selectedBackground.name }}</h2>
+            <span v-if="selectedBackground.source_title" class="text-label text-muted-foreground">{{ selectedBackground.source_title }}</span>
+          </div>
+          <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedBackground = null" />
+        </div>
+        <div v-if="selectedBackground" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <div class="flex flex-col gap-4 p-5">
                     <div v-if="selectedBackground.image_url" class="rounded-lg overflow-hidden bg-muted">
@@ -243,11 +231,8 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
+        </div>
+      </AppModal>
     </div>
 
     <!-- ── Classes ── -->
@@ -267,27 +252,23 @@
         />
       </div>
 
-      <Teleport to="body">
-        <Transition name="modal-fade">
-          <div
-            v-if="selectedClass"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            @click.self="selectedClass = null"
-          >
-            <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-              <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
-                <div class="flex-1 min-w-0">
-                  <h2 class="text-heading font-bold text-foreground">{{ selectedClass.class_name }}</h2>
-                  <div class="flex flex-wrap gap-1.5 mt-1">
-                    <span class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">d{{ selectedClass.hit_die }}</span>
-                    <span v-if="subclassesFor(selectedClass.class_name).length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground/60">
-                      {{ subclassesFor(selectedClass.class_name).length }} subclass{{ subclassesFor(selectedClass.class_name).length > 1 ? "es" : "" }}
-                    </span>
-                  </div>
-                </div>
-                <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedClass = null" />
-              </div>
-              <div class="flex-1 overflow-y-auto">
+      <AppModal :open="!!selectedClass" size="lg" :labelled-by="classHeadingId" @close="selectedClass = null">
+        <!-- Header. Hand-rolled rather than `ModalHeader` for consistency with
+             the other three Codex dialogs in this file — see the species header
+             above. -->
+        <div v-if="selectedClass" class="flex shrink-0 items-start gap-3 px-5 py-4 border-b border-border">
+          <div class="flex-1 min-w-0">
+            <h2 :id="classHeadingId" class="text-heading font-bold text-foreground">{{ selectedClass.class_name }}</h2>
+            <div class="flex flex-wrap gap-1.5 mt-1">
+              <span class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground">d{{ selectedClass.hit_die }}</span>
+              <span v-if="subclassesFor(selectedClass.class_name).length" class="px-1.5 py-0.5 rounded bg-muted font-cinzel text-2xs text-muted-foreground/60">
+                {{ subclassesFor(selectedClass.class_name).length }} subclass{{ subclassesFor(selectedClass.class_name).length > 1 ? "es" : "" }}
+              </span>
+            </div>
+          </div>
+          <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedClass = null" />
+        </div>
+        <div v-if="selectedClass" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <!-- Left: quick stats + subclasses -->
                   <div class="flex flex-col gap-4 p-5">
@@ -352,11 +333,8 @@
                     <p v-else class="text-body text-muted-foreground italic">No class features defined.</p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
+        </div>
+      </AppModal>
     </div>
 
     <!-- ── Deities ── -->
@@ -394,25 +372,21 @@
         </div>
       </template>
 
-      <Teleport to="body">
-        <Transition name="modal-fade">
-          <div
-            v-if="selectedDeity"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            @click.self="selectedDeity = null"
-          >
-            <div class="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-              <div class="flex items-start gap-3 px-5 py-4 border-b border-border shrink-0">
-                <div class="flex-1 min-w-0">
-                  <h2 class="text-heading font-bold text-foreground">{{ selectedDeity.name }}</h2>
-                  <div class="flex flex-wrap items-center gap-2 mt-1">
-                    <span v-if="selectedDeity.titles" class="text-caption text-muted-foreground italic">{{ selectedDeity.titles }}</span>
-                    <span v-if="selectedDeity.pantheon?.name" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">{{ selectedDeity.pantheon.name }}</span>
-                  </div>
-                </div>
-                <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedDeity = null" />
-              </div>
-              <div class="flex-1 overflow-y-auto">
+      <AppModal :open="!!selectedDeity" size="lg" :labelled-by="deityHeadingId" @close="selectedDeity = null">
+        <!-- Header. Hand-rolled rather than `ModalHeader` for consistency with
+             the other three Codex dialogs in this file — see the species header
+             above. -->
+        <div v-if="selectedDeity" class="flex shrink-0 items-start gap-3 px-5 py-4 border-b border-border">
+          <div class="flex-1 min-w-0">
+            <h2 :id="deityHeadingId" class="text-heading font-bold text-foreground">{{ selectedDeity.name }}</h2>
+            <div class="flex flex-wrap items-center gap-2 mt-1">
+              <span v-if="selectedDeity.titles" class="text-caption text-muted-foreground italic">{{ selectedDeity.titles }}</span>
+              <span v-if="selectedDeity.pantheon?.name" class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground">{{ selectedDeity.pantheon.name }}</span>
+            </div>
+          </div>
+          <AppButton variant="ghost" fill="muted" size="icon-sm" class="shrink-0" aria-label="Close" :icon="IconClose" icon-size="md" @click="selectedDeity = null" />
+        </div>
+        <div v-if="selectedDeity" class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-border">
                   <!-- Left: portrait + symbol + domains -->
                   <div class="flex flex-col gap-4 p-5">
@@ -453,17 +427,14 @@
                     <p v-else-if="selectedDeity.description" class="text-body text-muted-foreground">{{ selectedDeity.description }}</p>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </Transition>
-      </Teleport>
+        </div>
+      </AppModal>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef } from "vue";
+import { ref, computed, shallowRef, useId } from "vue";
 import { IconChevronRight, IconClose, IconParty, IconPopulate, IconQuest, IconSun } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -471,6 +442,7 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import CodexCard from "./CodexCard.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
@@ -496,11 +468,13 @@ const codexSection = ref<CodexSection>("species");
 // ── Species ──
 const { data: allSpecies } = useAllSpecies();
 const selectedSpecies = ref<Species | null>(null);
+const speciesHeadingId = useId();
 
 // ── Backgrounds ──
 const { data: allBackgrounds } = useBackgrounds();
 type BackgroundItem = NonNullable<typeof allBackgrounds.value>[number];
 const selectedBackground = ref<BackgroundItem | null>(null);
+const backgroundHeadingId = useId();
 
 // ── Classes ──
 const { data: systemClasses } = useAllSystemClasses();
@@ -519,6 +493,7 @@ type ClassItem = {
   features: CustomFeatures;
 };
 const selectedClass = ref<ClassItem | null>(null);
+const classHeadingId = useId();
 
 const mergedClasses = computed((): ClassItem[] => {
   const byName = new Map<string, ClassItem>();
@@ -555,6 +530,7 @@ const auth = useAuthStore();
 const { data: allDeities, isLoading: deitiesLoading } = useAllDeities();
 const deitySearch = ref("");
 const selectedDeity = ref<(Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null }) | null>(null);
+const deityHeadingId = useId();
 const myMemberId = computed(() => auth.linkedPartyMemberId ?? "");
 const visibleDeities = computed(() =>
   (allDeities.value ?? []).filter((d) =>
@@ -584,14 +560,3 @@ function toggle(key: string) {
   open.value = next;
 }
 </script>
-
-<style scoped>
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
-}
-</style>

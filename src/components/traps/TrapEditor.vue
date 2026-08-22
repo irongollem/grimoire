@@ -207,19 +207,9 @@
     </div>
 
     <!-- CR Advisor Modal -->
-    <Teleport to="body">
-      <div
-        v-if="showAdvisor"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        @click.self="showAdvisor = false"
-        @keydown.escape="showAdvisor = false"
-      >
-        <div class="w-full max-w-lg bg-card border border-border rounded-xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
-          <div class="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wider">CR Advisor</h2>
-            <AppButton variant="ghost" size="icon-sm" :icon="IconClose" tooltip="Close" aria-label="Close" @click="showAdvisor = false" />
-          </div>
-          <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+    <AppModal :open="showAdvisor" size="md" @close="showAdvisor = false">
+      <ModalHeader title="CR Advisor" closeable @close="showAdvisor = false" />
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 flex flex-col gap-4">
             <div>
               <label class="block text-label-lg font-semibold text-muted-foreground mb-2">Primary Effect</label>
               <div class="grid grid-cols-5 gap-1.5">
@@ -322,20 +312,18 @@
               </div>
             </div>
           </div>
-          <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-            <AppButton variant="ghost" size="md" label="Cancel" @click="showAdvisor = false" />
-            <AppButton
-              v-if="advisorResult"
-              variant="primary"
-              size="md"
-              :icon="IconCheck"
-              :label="`Use CR ${advisorResult.suggestedCr}`"
-              @click="applyCr"
-            />
-          </div>
-        </div>
+      <div class="flex shrink-0 items-center justify-end gap-2 px-5 py-4 border-t border-border">
+        <AppButton variant="ghost" size="md" label="Cancel" @click="showAdvisor = false" />
+        <AppButton
+          v-if="advisorResult"
+          variant="primary"
+          size="md"
+          :icon="IconCheck"
+          :label="`Use CR ${advisorResult.suggestedCr}`"
+          @click="applyCr"
+        />
       </div>
-    </Teleport>
+    </AppModal>
   </div>
 </template>
 
@@ -374,7 +362,9 @@ import DiceExprInput from "@/components/common/DiceExprInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 
 const props = defineProps<{ trap: Trap | null; isNew: boolean }>();
 

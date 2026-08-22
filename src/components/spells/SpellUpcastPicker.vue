@@ -1,61 +1,59 @@
 <template>
-  <Teleport to="body">
-    <div v-if="entry" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60" @click="emit('cancel')" />
-      <div class="relative z-10 w-full max-w-sm rounded-xl border border-border bg-background shadow-2xl p-5 space-y-4">
-        <!-- Header -->
-        <div class="flex items-center gap-2">
-          <div
-            class="h-2.5 w-2.5 shrink-0 rounded-full"
-            :class="SCHOOL_BG[entry.spell.school]"
-          />
-          <h2 class="text-heading-sm font-bold text-foreground">{{ entry.spell.name }}</h2>
-        </div>
+  <AppModal :open="!!entry" size="sm" align="sheet" :labelled-by="headingId" @close="emit('cancel')">
+    <!-- Header. Hand-rolled rather than `ModalHeader`: the school marker is a
+         colour swatch, not an icon in a tone circle, which is the one thing
+         `ModalHeader` cannot express. -->
+    <header v-if="entry" class="flex shrink-0 items-center gap-2 px-5 pt-5 pb-4">
+      <div
+        class="h-2.5 w-2.5 shrink-0 rounded-full"
+        :class="SCHOOL_BG[entry.spell.school]"
+      />
+      <h2 :id="headingId" class="text-heading-sm font-bold text-foreground">{{ entry.spell.name }}</h2>
+    </header>
 
-        <!-- Slot level picker -->
-        <div>
-          <p class="text-eyebrow font-semibold text-muted-foreground mb-2">CAST AT LEVEL</p>
-          <div class="flex flex-wrap gap-2">
-            <AppButton
-              v-for="slot in upcastSlots"
-              :key="spellSlotKey(slot)"
-              variant="subtle"
-              surface="muted"
-              size="md"
-              :active="selectedKey === spellSlotKey(slot)"
-              @click="selectedKey = spellSlotKey(slot)"
-            >
-              <div class="flex flex-col items-center">
-                <span>{{ SLOT_LEVEL_LABELS[slot.level - 1] }}</span>
-                <span class="text-caption-sm font-normal opacity-70">{{ poolLabel(slot) }}</span>
-                <span v-if="scaledDiceLabel(slot.level)" class="text-caption-sm font-normal mt-0.5 opacity-80">
-                  {{ scaledDiceLabel(slot.level) }}
-                </span>
-              </div>
-            </AppButton>
+    <!-- Slot level picker -->
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4">
+      <p class="text-eyebrow font-semibold text-muted-foreground mb-2">CAST AT LEVEL</p>
+      <div class="flex flex-wrap gap-2">
+        <AppButton
+          v-for="slot in upcastSlots"
+          :key="spellSlotKey(slot)"
+          variant="subtle"
+          surface="muted"
+          size="md"
+          :active="selectedKey === spellSlotKey(slot)"
+          @click="selectedKey = spellSlotKey(slot)"
+        >
+          <div class="flex flex-col items-center">
+            <span>{{ SLOT_LEVEL_LABELS[slot.level - 1] }}</span>
+            <span class="text-caption-sm font-normal opacity-70">{{ poolLabel(slot) }}</span>
+            <span v-if="scaledDiceLabel(slot.level)" class="text-caption-sm font-normal mt-0.5 opacity-80">
+              {{ scaledDiceLabel(slot.level) }}
+            </span>
           </div>
-        </div>
-
-        <!-- Action buttons -->
-        <div class="flex gap-3 pt-1">
-          <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="emit('cancel')" />
-          <AppButton
-            variant="primary"
-            size="md"
-            class="flex-1"
-            :disabled="isCasting"
-            :label="isCasting ? 'Casting…' : 'Cast'"
-            @click="selectedSlot && emit('cast', selectedSlot)"
-          />
-        </div>
+        </AppButton>
       </div>
     </div>
-  </Teleport>
+
+    <!-- Action buttons -->
+    <div class="flex shrink-0 gap-3 px-5 pb-5">
+      <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="emit('cancel')" />
+      <AppButton
+        variant="primary"
+        size="md"
+        class="flex-1"
+        :disabled="isCasting"
+        :label="isCasting ? 'Casting…' : 'Cast'"
+        @click="selectedSlot && emit('cast', selectedSlot)"
+      />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect } from "vue";
+import { ref, computed, useId, watchEffect } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import { SCHOOL_BG } from "@/types/spell.types";
 import { scaleExpression } from "@/lib/dice/dice";
 import { spellSlotKey, slotPool } from "@/rules/spellSlots";
@@ -75,6 +73,7 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
+const headingId = useId();
 const selectedKey = ref("");
 
 const upcastSlots = computed(() => {
