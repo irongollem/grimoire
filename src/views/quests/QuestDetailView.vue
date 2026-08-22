@@ -63,7 +63,21 @@ const route     = useRoute();
 const router    = useRouter();
 const ui        = useUiStore();
 const isNew     = computed(() => route.name === "quest-new");
-const isRunning = computed(() => !isNew.value && ui.dmMode === "play");
+
+/**
+ * The cockpit is showing — either because the link asked for it, or because a
+ * session is running and the cockpit is the session's default surface.
+ *
+ * `?mode=run` is *not* a legacy bookmark: `QuestChainRow` and
+ * `QuestRunOpenChains` generate it every time a DM opens a chain. It used to be
+ * honoured by writing `ui.dmMode = "play"` and then stripping itself from the
+ * query — so opening a chain from the dashboard silently switched broadcasting
+ * on, and every NPC revealed afterwards announced itself to the players with
+ * nothing to connect the two. A link that says "run this quest" may choose the
+ * surface; it may not start broadcasting to the table. See #758.
+ */
+const runRequested = computed(() => route.query.mode === "run");
+const isRunning = computed(() => !isNew.value && (runRequested.value || ui.dmMode === "play"));
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId  = computed(() => (route.query.parent as string | undefined));
 
@@ -93,8 +107,13 @@ function selectView(next: QuestDetailSurface) {
 const { data: quest, isLoading: questLoading } = useQuest(id);
 const isLoading = computed(() => !isNew.value && questLoading.value);
 
-// Build/Run used to be encoded in the URL. Honour old bookmarks once, then
-// leave the persisted global Prep/Play toggle as the only mode source.
+// The surfaces the retired drawer left behind, in bookmarks, attachment
+// adapters and return-to paths. Each names a surface, so each translates to
+// one — none of them touches the global mode.
+//
+// `?mode=run` is deliberately absent here: it is still generated, so it stays
+// in the query and drives `runRequested` for as long as the DM is on that
+// surface. `selectView` clears it when they leave.
 watch(
   () => [route.query.mode, route.query.edit] as const,
   ([mode, edit]) => {
@@ -103,10 +122,13 @@ watch(
       void router.replace({ query: { ...query, view: "overview" } });
       return;
     }
-    if (mode !== "build" && mode !== "run") return;
-    ui.dmMode = mode === "run" ? "play" : "prep";
+    // `?mode=build` predates the story-flow rescope and nothing emits it now.
+    // It used to write `dmMode = "prep"` and lean on prep's default landing,
+    // which put a link labelled Build on the *overview*; naming the working
+    // surface outright is both the honest translation and the one it meant.
+    if (mode !== "build") return;
     const { mode: _mode, ...query } = route.query;
-    void router.replace({ query });
+    void router.replace({ query: { ...query, view: "work" } });
   },
   { immediate: true },
 );

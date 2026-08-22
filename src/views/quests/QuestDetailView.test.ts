@@ -86,12 +86,28 @@ describe("QuestDetailView", () => {
     expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "beat-1", view: "work" } });
   });
 
-  it("normalizes a legacy run URL into the global mode", () => {
+  // `?mode=run` is live, not a leftover: QuestChainRow and QuestRunOpenChains
+  // emit it on every "open this chain" link. It used to be honoured by writing
+  // `dmMode = "play"`, so opening a chain from the dashboard silently started
+  // broadcasting every NPC reveal to the players. See #758.
+  it("opens the cockpit from a run link without starting a broadcast", () => {
     mocks.route.query = { mode: "run", beat: "beat-1" };
+    const wrapper = mountView();
+
+    expect(wrapper.findComponent(QuestRunCockpit).exists()).toBe(true);
+    expect(ui.dmMode).toBe("prep");
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  // `?mode=build` predates the story-flow rescope and nothing emits it now. It
+  // used to land on the *overview*, because it wrote `dmMode = "prep"` and let
+  // prep's default decide — so a link labelled Build never reached the builder.
+  it("carries a legacy build link onto the working surface", () => {
+    mocks.route.query = { mode: "build", beat: "beat-1" };
     mountView();
 
-    expect(ui.dmMode).toBe("play");
-    expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "beat-1" } });
+    expect(ui.dmMode).toBe("prep");
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "beat-1", view: "work" } });
   });
 
   // `?overview=true` and `?mode=details` are what the drawer left behind, in
