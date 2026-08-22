@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { convexHull, hullPath, padOutward } from "./hull";
+import { clusterByProximity, convexHull, hullPath, padOutward } from "./hull";
 
 describe("convexHull", () => {
   it("drops points that sit inside the boundary", () => {
@@ -82,5 +82,48 @@ describe("hullPath", () => {
 
   it("is empty for no points", () => {
     expect(hullPath([])).toBe("");
+  });
+});
+
+describe("clusterByProximity", () => {
+  it("keeps members who sit together in one shape", () => {
+    const clusters = clusterByProximity(
+      [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 0, y: 50 }],
+      240,
+    );
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]).toHaveLength(3);
+  });
+
+  // The case measured on a real campaign: a faction spread across the map drew
+  // one sliver spanning everything between its members.
+  it("splits members who are nowhere near each other", () => {
+    const clusters = clusterByProximity(
+      [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 5000, y: 0 }, { x: 5040, y: 0 }],
+      240,
+    );
+    expect(clusters).toHaveLength(2);
+    expect(clusters.map((c) => c.length).sort()).toEqual([2, 2]);
+  });
+
+  // Single-linkage: a chain of neighbours stays one shape even though its ends
+  // are far apart, because breaking it would mean choosing an arbitrary point.
+  it("follows a chain of neighbours rather than fragmenting it", () => {
+    const chain = [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 400, y: 0 }, { x: 600, y: 0 }];
+    expect(clusterByProximity(chain, 240)).toHaveLength(1);
+  });
+
+  it("gives a lone member its own cluster", () => {
+    expect(clusterByProximity([{ x: 1, y: 1 }], 240)).toEqual([[{ x: 1, y: 1 }]]);
+  });
+
+  it("loses nobody", () => {
+    const points = Array.from({ length: 12 }, (_, i) => ({ x: i * 500, y: i * 13 }));
+    const total = clusterByProximity(points, 240).reduce((n, c) => n + c.length, 0);
+    expect(total).toBe(points.length);
+  });
+
+  it("handles no members", () => {
+    expect(clusterByProximity([], 240)).toEqual([]);
   });
 });

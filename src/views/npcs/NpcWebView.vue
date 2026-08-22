@@ -49,8 +49,9 @@
         -->
         <template #factionHull="{ scale }">
           <path
-            v-if="focusHullPath"
-            :d="focusHullPath"
+            v-for="(d, i) in focusHullPaths"
+            :key="i"
+            :d="d"
             class="fill-primary/10 stroke-primary/25"
             :stroke-width="28 * scale"
             stroke-linejoin="round"
@@ -292,7 +293,7 @@ import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "
 import { useNpcWebGraph, resolveVar } from "@/composables/useNpcWebGraph";
 import { useAllFactionNpcs, useAllFactionPartyMembers } from "@/composables/useFactions";
 import { factionBadgesByNode, membershipCaption, pipOffsets, type FactionPip } from "@/lib/npcWeb/factions";
-import { convexHull, hullPath, padOutward, type Point } from "@/lib/npcWeb/hull";
+import { clusterByProximity, convexHull, hullPath, padOutward, type Point } from "@/lib/npcWeb/hull";
 import { useAllFactions } from "@/composables/useFactions";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { useIsTouch } from "@/composables/useBreakpoint";
@@ -377,7 +378,6 @@ const { graphNodes, graphEdges, graphConfigs, nodeCount } = useNpcWebGraph({
   pinnedKeys: () => pinnedKeys.value,
   getDescendantIds,
   focusedKeys: () => focusedKeys.value,
-  factionGroups: () => factionGroups.value,
 });
 
 // ── Faction focus ─────────────────────────────────────────────────────────────
@@ -389,8 +389,8 @@ const factionOptions = computed(() =>
 );
 
 /**
- * Every faction's members as node keys — what the layout's clustering force
- * pulls together, and what the focused hull is drawn around.
+ * Every faction's members as node keys — what the focused fence is drawn around
+ * and what the member captions are looked up from.
  *
  * Former members are included. They are drawn faded on the badge but they are
  * still *in* the shape: an expelled officer standing just outside the boundary
@@ -433,14 +433,31 @@ const focusedFactionName = computed(
  */
 const HULL_PADDING = 34;
 
-const focusHullPath = computed(() => {
+/**
+ * One shape per group of members who actually sit together, not one shape round
+ * the whole roster.
+ *
+ * A single convex hull is only honest when a faction is in one place. When it is
+ * not, two members on opposite sides stretch the shape across everything between
+ * them — on a real campaign a four-member faction drew a sliver spanning most of
+ * the graph, swallowing dozens of non-members and saying nothing beyond "this
+ * faction exists somewhere".
+ *
+ * Letting the faction be in two places is usually the truth anyway, and it beats
+ * the alternative of pulling members together in the layout: that works, and it
+ * rearranges the graph under the reader every time they focus, taking their
+ * sense of where everyone is with it.
+ */
+const focusHullPaths = computed(() => {
   const points: Point[] = [];
   for (const key of focusedKeys.value) {
     const pos = layouts.value.nodes[key];
     if (pos) points.push({ x: pos.x, y: pos.y });
   }
-  if (!points.length) return "";
-  return hullPath(padOutward(convexHull(points), HULL_PADDING));
+  if (!points.length) return [];
+  return clusterByProximity(points).map((cluster) =>
+    hullPath(padOutward(convexHull(cluster), HULL_PADDING)),
+  );
 });
 
 /**

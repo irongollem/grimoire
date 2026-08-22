@@ -28,7 +28,7 @@
 import { describe, it, expect } from "vitest";
 import { parse } from "@vue/compiler-sfc";
 import { NodeTypes, type TemplateChildNode } from "@vue/compiler-core";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
@@ -64,7 +64,13 @@ function trackedFiles(...globs: string[]): string[] {
     // looks for it — `<ManualHelpLink page="literal" />`, `{ tab: "page-id" }`.
     // Those examples are byte-for-byte indistinguishable from real call sites,
     // so scanning ourselves reports our own documentation as dangling refs.
-    .filter((f) => f !== SELF);
+    .filter((f) => f !== SELF)
+    // Tracked but gone from disk: a file deleted in the working tree is still
+    // listed by `git ls-files` until the deletion is staged. Every check below
+    // reads its files, so without this a plain `rm` mid-refactor fails five
+    // unrelated invariants with an ENOENT thrown from a shared helper — which
+    // reads as five broken checks rather than one unstaged deletion.
+    .filter((f) => existsSync(path.join(REPO_ROOT, f)));
 }
 
 function read(relativePath: string): string {

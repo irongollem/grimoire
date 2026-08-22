@@ -5,10 +5,12 @@
  * "these people are inside this thing" without adding a node that would
  * out-compete the relationships for the layout's attention.
  *
- * Only ever one hull at a time, and that is the design rather than a limitation:
- * NPCs sit in several factions at once, so drawing every faction's boundary at
- * once produces overlapping blobs that are harder to read than no boundary at
- * all. Focus one, and containment becomes unambiguous.
+ * Only ever one faction at a time, and that is the design rather than a
+ * limitation: NPCs sit in several factions at once, so drawing every faction's
+ * boundary at once produces overlapping blobs that are harder to read than no
+ * boundary at all. Focus one, and containment becomes unambiguous.
+ *
+ * That faction may still get *several* shapes. See `clusterByProximity`.
  */
 
 export interface Point {
@@ -81,4 +83,62 @@ export function hullPath(points: readonly Point[]): string {
   const [first, ...rest] = points;
   if (!rest.length) return `M ${first.x} ${first.y} L ${first.x} ${first.y}`;
   return `M ${first.x} ${first.y} ${rest.map((p) => `L ${p.x} ${p.y}`).join(" ")} Z`;
+}
+
+/**
+ * How far apart two members can be and still share a shape.
+ *
+ * Graph units, in a layout whose link distance is 100 — so this is "about two
+ * relationships away". Members further apart than that are not in the same part
+ * of the story, whatever the roster says.
+ */
+export const CLUSTER_DISTANCE = 240;
+
+/**
+ * Split members into groups that are actually near each other.
+ *
+ * One convex hull around every member of a faction is only honest when they sit
+ * together. When they do not, two members on opposite sides of the map stretch
+ * the shape across everything in between — it swallows dozens of non-members and
+ * says nothing except "this faction exists somewhere". Measured on a real
+ * campaign, a four-member faction produced a sliver spanning most of the graph.
+ *
+ * The alternative was to make the layout pull members together first, which
+ * works and costs too much: the graph rearranges under the reader every time
+ * they focus, and the spatial memory they had built up of where people are is
+ * gone. Better to leave people where they are and let the faction be in two
+ * places, which is usually the truth anyway.
+ *
+ * Single-linkage: near-enough to *any* member of a group joins that group, so a
+ * chain of neighbours stays one shape rather than fragmenting at arbitrary
+ * points. O(n²) over the members of one faction, which is tens at the most.
+ */
+export function clusterByProximity(points: readonly Point[], threshold = CLUSTER_DISTANCE): Point[][] {
+  const unvisited = new Set(points.map((_, i) => i));
+  const clusters: Point[][] = [];
+  const withinReach = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y) <= threshold;
+
+  while (unvisited.size) {
+    const seed: number = unvisited.values().next().value!;
+    unvisited.delete(seed);
+
+    const cluster = [points[seed]];
+    const queue = [points[seed]];
+    // Breadth-first through the proximity graph: everything transitively close
+    // to the seed lands in one cluster.
+    while (queue.length) {
+      const current = queue.pop()!;
+      // Iterating the live set is safe here: the only element removed is the
+      // one currently in hand, which Set iteration is defined to tolerate.
+      for (const i of unvisited) {
+        if (!withinReach(current, points[i])) continue;
+        unvisited.delete(i);
+        cluster.push(points[i]);
+        queue.push(points[i]);
+      }
+    }
+    clusters.push(cluster);
+  }
+
+  return clusters;
 }
