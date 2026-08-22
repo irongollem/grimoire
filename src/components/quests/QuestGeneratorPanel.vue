@@ -395,8 +395,10 @@ function buildCreated(index: number) {
   const id = createdQuestIds.value[index];
   if (id) {
     ui.questGeneratorOpen = false;
-    ui.dmMode = "prep";
-    router.push(`/quests/${id}`);
+    // The overview named outright, rather than forced by writing `dmMode = "prep"`
+    // and leaning on prep's default landing — which ended a running session as a
+    // side effect of building a generated quest. See #758.
+    router.push({ path: `/quests/${id}`, query: { view: "overview" } });
   }
 }
 

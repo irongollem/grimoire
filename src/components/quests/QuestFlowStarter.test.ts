@@ -42,9 +42,24 @@ describe("QuestFlowStarter", () => {
       summary: "Follow the bells below the lake.",
       status: "undiscovered",
     }));
-    expect(mocks.ui.dmMode).toBe("prep");
-    // Prep's default surface is the overview, so the bare path lands there.
-    expect(mocks.push).toHaveBeenCalledWith("/quests/quest-new");
+    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: { view: "overview" } });
+  });
+
+  // The regression this guards: creating a flow used to write `dmMode = "prep"`,
+  // so a DM improvising a quest mid-session silently stopped broadcasting and the
+  // next NPC reveal went out unannounced. The overview is now named in the URL,
+  // so the landing surface no longer costs the session. See #758.
+  it("leaves a running session alone", async () => {
+    mocks.create.mockResolvedValue({ id: "quest-new" });
+    const wrapper = mount(QuestFlowStarter, {
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    });
+
+    await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
+    await wrapper.get('button[aria-label="Create quest"]').trigger("click");
+    await flushPromises();
+
+    expect(mocks.ui.dmMode).toBe("play");
   });
 
   it("keeps creation failures in context", async () => {

@@ -36,7 +36,6 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useCreateQuest } from "@/composables/useQuests";
-import { useUiStore } from "@/stores/ui";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type QuestStatus } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -44,7 +43,6 @@ import AppSelect from "@/components/common/AppSelect.vue";
 
 const { parentId = null } = defineProps<{ parentId?: string | null }>();
 const router = useRouter();
-const ui = useUiStore();
 const createQuest = useCreateQuest();
 const title = ref("");
 const summary = ref("");
@@ -79,9 +77,11 @@ async function createFlow() {
       started_at: null,
       resolved_at: null,
     });
-    ui.dmMode = "prep";
-    // Prep's default surface is the overview, so a bare detail path lands there.
-    await router.push(`/quests/${created.id}`);
+    // Name the surface, never the global mode. This used to set `dmMode = "prep"`
+    // and rely on prep's default landing — which meant improvising a quest at the
+    // table silently ended the DM's broadcast, and the next NPC reveal went out
+    // unannounced with nothing to connect it to. See #758.
+    await router.push({ path: `/quests/${created.id}`, query: { view: "overview" } });
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "The quest flow could not be created";
   } finally {
