@@ -297,7 +297,21 @@ const graphConfigs = defineConfigs({
     label: {
       visible: true,
       fontSize: 11,
-      color: "#e2d9c8",
+      /**
+       * A function, not a value: `graphConfigs` is built once at setup, so a
+       * literal here is frozen at whatever the theme was then. Read at draw
+       * time it follows the theme on the next redraw — the same caveat
+       * `npcRelationshipCanvasColor` states for the node fills, and the reason
+       * this file resolves colours through `cssValue` rather than storing them.
+       *
+       * It was the literal `#e2d9c8` — Grimoire's parchment `--foreground`,
+       * hard-coded in the one field of this file that skipped the `cssValue`
+       * helper the rest of it uses. On Tome that is cream on near-white:
+       * rgb(226,217,200) on rgb(246,244,238), a contrast ratio of 1.27:1. Every
+       * NPC name on the web was invisible on the default theme, and the nodes
+       * still worked — you could click a label you could not read.
+       */
+      color: () => cssValue("--foreground", "#e2d9c8"),
     },
     focusring: { visible: false },
     selectable: false,

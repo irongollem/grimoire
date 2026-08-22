@@ -244,7 +244,7 @@ A full-viewport force-directed graph rendered with `v-network-graph` (VNetworkGr
 
 ### Edges
 
-- **NPC–NPC**: solid line, coloured by the relationship type from the full 13-type taxonomy (ally, family, friend, rival, enemy, mentor, apprentice, lover, subordinate, superior, contact, former_ally, former_enemy). Each type has a distinct colour.
+- **NPC–NPC**: solid line, coloured by the relationship type from the full 15-type taxonomy (`NPC_RELATIONSHIP_TYPE_LABELS`): family, sibling, chosen_family, friend, ally, rival, enemy, mentor, apprentice, lover, subordinate, superior, contact, former_ally, former_enemy. Each type has its own `--relation-*` token. `sibling` and `chosen_family` are deliberately distinct from `family` — see the enum comments — and were the two this list had been missing.
 - **NPC–PC**: dashed line, coloured by the note's relationship type.
 
 Only one edge is drawn per pair regardless of directionality (the inverse type is computed on read).
