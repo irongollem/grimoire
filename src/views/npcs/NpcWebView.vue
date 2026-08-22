@@ -378,6 +378,7 @@ const { graphNodes, graphEdges, graphConfigs, nodeCount } = useNpcWebGraph({
   pinnedKeys: () => pinnedKeys.value,
   getDescendantIds,
   focusedKeys: () => focusedKeys.value,
+  factionGroups: () => factionGroups.value,
 });
 
 // ── Faction focus ─────────────────────────────────────────────────────────────
@@ -389,8 +390,9 @@ const factionOptions = computed(() =>
 );
 
 /**
- * Every faction's members as node keys — what the focused fence is drawn around
- * and what the member captions are looked up from.
+ * Every faction's members as node keys — what the layout's clustering force pulls
+ * together, what the focused fence is drawn around, and what the member captions
+ * are looked up from.
  *
  * Former members are included. They are drawn faded on the badge but they are
  * still *in* the shape: an expelled officer standing just outside the boundary

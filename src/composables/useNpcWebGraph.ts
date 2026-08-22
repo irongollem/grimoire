@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { defineConfigs } from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
 
+import { factionClusteringForce } from "@/lib/npcWeb/factionClustering";
 import { dimNonMembers } from "@/lib/npcWeb/focus";
 import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
 import { useUiStore } from "@/stores/ui";
@@ -38,6 +39,12 @@ export interface NpcWebGraphInput {
   pcNotes: () => NpcWebPcNote[] | undefined;
   /** Nodes that must render regardless of the search box — see above. */
   pinnedKeys: () => ReadonlySet<string>;
+  /**
+   * Same-faction groupings, read live by the layout's clustering force. Safe to
+   * take from the view: unlike `focusedKeys` this is built from query data alone
+   * and never reads `graphNodes` back.
+   */
+  factionGroups: () => ReadonlyMap<string, ReadonlySet<string>>;
   getDescendantIds: (rootId: string) => Set<string>;
   /**
    * When a faction is focused, the node keys that belong to it. Empty means no
@@ -228,22 +235,30 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
   const graphConfigs = defineConfigs({
     view: {
       autoPanAndZoomOnLoad: "fit-content",
-      /**
-       * The library's own defaults, unmodified.
-       *
-       * A weak same-faction attraction lived here, meant to gather a faction
-       * before a boundary was drawn round it. Measured on a real campaign it did
-       * not: it pulled *every* faction at once, and since NPCs sit in several,
-       * the pulls pointed in conflicting directions and largely cancelled. What
-       * it did reliably do was perturb the relationship layout, which is the
-       * actual subject of this view, in exchange for nothing.
-       *
-       * The fence handles spread instead, by drawing one shape per group of
-       * members who are already near each other — geometry rather than physics,
-       * and it moves nobody. See `clusterByProximity`.
-       */
       layoutHandler: new ForceLayout({
         positionFixedByDrag: true,
+        /**
+         * The library's own four forces, plus one of ours.
+         *
+         * Replacing `createSimulation` means restating the defaults — there is no
+         * "extend" hook — so `edge`, `charge`, `collide` and `center` below are
+         * v-network-graph's own, copied deliberately rather than tuned.
+         *
+         * `faction` is the addition: people under the same banner pull together,
+         * so membership has some bearing on where someone ends up. Without it the
+         * graph listens only to NPC-to-NPC edges and a faction's members can sit
+         * in opposite corners for ever — which is a fact the data already knows
+         * and the picture was throwing away.
+         */
+        createSimulation: (d3, nodes, edges) =>
+          d3
+            .forceSimulation(nodes)
+            .force("edge", d3.forceLink(edges).id((d: { id: string }) => d.id).distance(100))
+            .force("charge", d3.forceManyBody())
+            .force("collide", d3.forceCollide(50).strength(0.2))
+            .force("center", d3.forceCenter().strength(0.05))
+            .force("faction", factionClusteringForce(input.factionGroups))
+            .alphaMin(0.001),
       }),
     },
     node: {

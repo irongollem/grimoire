@@ -292,12 +292,27 @@ So membership appears two ways instead:
   plain member gets no caption: everyone inside the fence is a member, and it is
   the unremarkable ones staying quiet that lets "Leader" and "Expelled" carry.
 
-`ForceLayout` gets a weak same-faction pull (`lib/npcWeb/factionClustering.ts`,
-strength 0.06) so a faction is loosely together before a boundary is drawn round
-it. Deliberately weak: a strong one would rearrange the graph around org charts,
-which is the same mistake as making factions nodes, reached through physics. It
-reads its groups through a getter on every tick, because `createSimulation` runs
-once at activation and membership arrives from its own query after that.
+`ForceLayout` gets a same-faction pull (`lib/npcWeb/factionClustering.ts`) so
+membership has some bearing on where someone ends up — without it the graph
+listens only to NPC-to-NPC edges, and a faction's members can sit in opposite
+corners for ever, which is a fact the data already knows and the picture throws
+away. It reads its groups through a getter on every tick, because
+`createSimulation` runs once at activation and membership arrives from its own
+query after that.
+
+**It pulls to a neighbourhood, not to a point.** Only members further than
+`FACTION_GATHER_RADIUS` (190) from their faction's centre are pulled, and only
+by the excess. That rest distance is the design: without one the force is a
+spring with zero rest length, and it collapses members onto each other until
+`forceCollide` physically stops it. Measured, that put co-members *closer* than
+people with an actual relationship (118 vs 147) — a shared banner reading as a
+stronger tie than knowing someone. Lowering the strength did not help and could
+not, since strength changes how fast a spring closes, not where it stops.
+
+The ordering it has to produce, and does (measured on the fixture at 137 / 166 /
+175):
+
+    people who know each other  <  same faction  <  unrelated
 
 Faction-to-faction relations are **not** shown here. That is a subject in its own
 right and belongs on the Factions screen; this view's subject is people.
