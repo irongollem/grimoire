@@ -58,6 +58,9 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
   const seed = (table: string, statement: string) =>
     seedIfEmpty(dbUrl, table, campaignId, statement);
 
+  const seedMembership = (table: string, statement: string) =>
+    seedMembershipIfEmpty(dbUrl, table, campaignId, statement);
+
   return {
     notes: seed(
       "notes",
@@ -92,6 +95,117 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
          (${owner}, ${campaign}, 'The Frostbloom Syndicate', 'Criminal', '{"thieves guild",easthaven}', ${some}),
          (${owner}, ${campaign}, 'Reghed: Elk Tribe', 'Tribe', '{nomads,tundra}', ${some}),
          (${owner}, ${campaign}, 'Knights of the Black Sword', 'Cult', '{levistus,secretive}', ${hidden});`,
+    ),
+
+    /**
+     * The relationship web's actual subject: ties between the people.
+     *
+     * Without these the fixture's eight NPCs are eight unconnected nodes, and a
+     * force layout with nothing to pull on spreads them past the edges of the
+     * viewport — so `/npcs/web` reviewed on the mandated account showed an empty
+     * canvas and read as broken when it was merely empty. Every edge-coloured
+     * thing on that screen (the 15-type taxonomy, the inverse-type filter, the
+     * dashed PC links) was unreachable.
+     *
+     * Paired by row number for the same reason the memberships below are: the
+     * NPCs are cloned from whichever campaign is richest on this machine, so
+     * their names cannot be known here.
+     *
+     * The types are spread across the taxonomy's families — blood, affinity,
+     * hierarchy, hostility — rather than repeating one, because they map to
+     * distinct `--relation-*` colours and a single-type web cannot show whether
+     * those colours are distinguishable from each other.
+     */
+    "npc relationships": seed(
+      "npc_relationships",
+      `with n as (
+         select id, row_number() over (order by name) rn
+           from public.npcs where campaign_id = ${campaign}
+       ), m(a, b, type) as (
+         values (1, 2, 'sibling'), (1, 3, 'rival'), (2, 4, 'mentor'),
+                (4, 5, 'apprentice'), (3, 6, 'enemy'), (5, 6, 'ally'),
+                (6, 7, 'contact'), (7, 8, 'former_ally'), (2, 8, 'lover')
+       )
+       insert into public.npc_relationships
+         (user_id, campaign_id, npc_id, related_npc_id, relationship_type)
+       select ${owner}, ${campaign}, a.id, b.id, m.type
+         from m join n a on a.rn = m.a join n b on b.rn = m.b;`,
+    ),
+
+    /** The dashed half of the web — what the party has to do with any of them. */
+    "npc-pc ties": seed(
+      "npc_pc_notes",
+      `with n as (
+         select id, row_number() over (order by name) rn
+           from public.npcs where campaign_id = ${campaign}
+       ), p as (
+         select id, row_number() over (order by sort_order) rn
+           from public.party_members where campaign_id = ${campaign}
+       ), m(nrn, prn, type, note) as (
+         values (1, 1, 'ally', 'Vouched for us at the gate.'),
+                (3, 2, 'enemy', 'Blames her for the fire, and is not wrong.'),
+                (5, 3, 'contact', 'Sells information, and to whoever asks.')
+       )
+       insert into public.npc_pc_notes
+         (user_id, campaign_id, npc_id, party_member_id, relationship_type, notes)
+       select ${owner}, ${campaign}, n.id, p.id, m.type, m.note
+         from m join n on n.rn = m.nrn join p on p.rn = m.prn;`,
+    ),
+
+    /**
+     * Who belongs to what. Without these the four factions above are empty
+     * shells: the relationship web's membership badges, every faction sheet's
+     * Members section and the NPC sheet's Factions section all render their
+     * empty state on the one account we are told to use for anything
+     * RLS-scoped.
+     *
+     * Joined by row number rather than by name, because the NPCs are *cloned*
+     * from whichever campaign happens to be richest on this machine — their
+     * names are not knowable here, and hardcoding any would seed nothing on
+     * someone else's dump.
+     *
+     * The mapping is shaped to put every display state on screen at once, which
+     * a realistic-looking one would not: NPC 1 is in all four factions, so the
+     * badge cap and its "+N" overflow both render; and the statuses spread
+     * across Active / Retired / Expelled so a former tie — drawn faded, not
+     * dropped — is visible beside a current one.
+     */
+    "faction memberships": seedMembership(
+      "faction_npcs",
+      `with f as (
+         select id, row_number() over (order by name) rn
+           from public.factions where campaign_id = ${campaign}
+       ), n as (
+         select id, row_number() over (order by name) rn
+           from public.npcs where campaign_id = ${campaign}
+       ), m(frn, nrn, role, status) as (
+         values (1, 1, 'Leader', 'Active'), (1, 2, 'Officer', 'Active'),
+                (1, 3, 'Member', 'Active'),
+                (2, 1, 'Agent', 'Expelled'), (2, 4, 'Initiate', 'Active'),
+                (3, 1, 'Associate', 'Retired'), (3, 5, 'Member', 'Active'),
+                (4, 1, 'Informant', 'Active'), (4, 6, 'Enforcer', 'Active')
+       )
+       insert into public.faction_npcs (user_id, faction_id, npc_id, role, status)
+       select ${owner}, f.id, n.id, m.role, m.status
+         from m join f on f.rn = m.frn join n on n.rn = m.nrn;`,
+    ),
+
+    /** The party's own ties, so PC nodes carry badges too. */
+    "party faction ties": seedMembership(
+      "faction_party_members",
+      `with f as (
+         select id, row_number() over (order by name) rn
+           from public.factions where campaign_id = ${campaign}
+       ), p as (
+         select id, row_number() over (order by sort_order) rn
+           from public.party_members where campaign_id = ${campaign}
+       ), m(frn, prn, role, status) as (
+         values (1, 1, 'Associate', 'Active'), (3, 2, 'Member', 'Active'),
+                (4, 2, 'Informant', 'Defected')
+       )
+       insert into public.faction_party_members (user_id, faction_id, party_member_id, role, status)
+       select ${owner}, f.id, p.id, m.role, m.status
+         from m join f on f.rn = m.frn join p on p.rn = m.prn;`,
     ),
 
     pantheons: seed(
@@ -151,6 +265,34 @@ export function ensureFixtureContent(dbUrl: string, ownerId: string): FixtureCon
  * addition only ever reaches a fixture created after it was written, which is
  * precisely the fixture nobody has.
  */
+/**
+ * The join-table variant.
+ *
+ * `faction_npcs` and `faction_party_members` carry no `campaign_id` of their
+ * own — a membership is scoped by the faction it points at — so the emptiness
+ * guard has to reach through that FK. Passing them to `seedIfEmpty` does not
+ * fail loudly either; it fails with "column campaign_id does not exist", which
+ * reads like a schema problem rather than the wrong guard.
+ */
+function seedMembershipIfEmpty(
+  dbUrl: string,
+  table: string,
+  campaignId: string,
+  insertStatement: string,
+): number {
+  const count = () =>
+    Number(
+      sql(
+        dbUrl,
+        `select count(*) from public.${table} t
+           join public.factions f on f.id = t.faction_id
+          where f.campaign_id = ${quote(campaignId)}`,
+      ),
+    );
+  if (count() === 0) sql(dbUrl, insertStatement);
+  return count();
+}
+
 function seedIfEmpty(
   dbUrl: string,
   table: string,
