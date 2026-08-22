@@ -38,97 +38,94 @@
       @select="onSelect"
     />
 
-    <!-- Confirmation panel (bottom sheet) -->
-    <Teleport to="body">
-      <div v-if="pendingSpecies" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/60" @click="cancel" />
-        <div class="relative z-10 w-full max-w-md rounded-xl border border-border bg-background shadow-2xl p-6 space-y-4">
-          <div>
-            <h2 class="text-heading font-bold text-foreground">{{ pendingSpecies.name }}</h2>
-            <p class="text-body italic text-muted-foreground mt-0.5">
-              {{ [pendingSpecies.size, pendingSpecies.speed?.walk ? `${pendingSpecies.speed.walk} ft` : null].filter(Boolean).join(" · ") || "—" }}
-            </p>
-          </div>
+    <!-- Confirmation panel -->
+    <AppModal :open="!!pendingSpecies" size="md" align="sheet" @close="cancel">
+      <ModalHeader
+        :title="pendingSpecies?.name ?? ''"
+        :subtitle="[pendingSpecies?.size, pendingSpecies?.speed?.walk ? `${pendingSpecies.speed.walk} ft` : null].filter(Boolean).join(' · ') || '—'"
+      />
 
-          <!-- Subrace picker (when species has subraces) -->
-          <div v-if="pendingSpecies.subraces?.length">
-            <p class="text-eyebrow font-semibold text-muted-foreground mb-2">VARIANT</p>
-            <AppSelect
-              v-model="selectedSubrace"
-              tone="filled"
-              size="body"
-              weight="normal"
-              block
+      <!-- Scrolls because the shell caps the panel at the viewport, where the old
+           hand-rolled panel simply overflowed it. -->
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
+        <!-- Subrace picker (when species has subraces) -->
+        <div v-if="pendingSpecies?.subraces?.length">
+          <p class="text-eyebrow font-semibold text-muted-foreground mb-2">VARIANT</p>
+          <AppSelect
+            v-model="selectedSubrace"
+            tone="filled"
+            size="body"
+            weight="normal"
+            block
+          >
+            <option value="">— None —</option>
+            <option v-for="sr in pendingSpecies.subraces" :key="sr.name" :value="sr.name">
+              {{ sr.name }}
+            </option>
+          </AppSelect>
+        </div>
+
+        <!-- Languages to be added -->
+        <div v-if="languagesToAdd.length > 0">
+          <p class="text-eyebrow font-semibold text-muted-foreground mb-2">
+            LANGUAGES GRANTED
+          </p>
+          <div class="flex flex-wrap gap-1.5">
+            <span
+              v-for="l in languagesToAdd"
+              :key="l"
+              class="px-2 py-0.5 rounded-full bg-primary/10 font-cinzel text-xs text-primary"
             >
-              <option value="">— None —</option>
-              <option v-for="sr in pendingSpecies.subraces" :key="sr.name" :value="sr.name">
-                {{ sr.name }}
-              </option>
-            </AppSelect>
+              {{ l }}
+            </span>
           </div>
+        </div>
 
-          <!-- Languages to be added -->
-          <div v-if="languagesToAdd.length > 0">
-            <p class="text-eyebrow font-semibold text-muted-foreground mb-2">
-              LANGUAGES GRANTED
-            </p>
-            <div class="flex flex-wrap gap-1.5">
-              <span
-                v-for="l in languagesToAdd"
-                :key="l"
-                class="px-2 py-0.5 rounded-full bg-primary/10 font-cinzel text-xs text-primary"
-              >
-                {{ l }}
+        <!-- Speed note -->
+        <p
+          v-if="pendingSpecies?.speed?.walk && pendingSpecies.speed.walk !== me?.speed"
+          class="text-caption text-muted-foreground italic"
+        >
+          Walk speed will be updated to {{ pendingSpecies.speed.walk }} ft.
+        </p>
+
+        <!-- Free-pick spell grants -->
+        <div v-if="freePickGrants.length > 0">
+          <p class="text-eyebrow font-semibold text-muted-foreground mb-2">
+            SPELLS REQUIRING YOUR CHOICE
+          </p>
+          <div class="space-y-1">
+            <div
+              v-for="grant in freePickGrants"
+              :key="grant.spell_name"
+              class="flex items-center gap-2 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20"
+            >
+              <div class="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+              <span class="text-body text-foreground flex-1">{{ grant.spell_name }}</span>
+              <span class="font-cinzel text-2xs text-amber-500">
+                {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
               </span>
             </div>
           </div>
-
-          <!-- Speed note -->
-          <p
-            v-if="pendingSpecies.speed?.walk && pendingSpecies.speed.walk !== me?.speed"
-            class="text-caption text-muted-foreground italic"
-          >
-            Walk speed will be updated to {{ pendingSpecies.speed.walk }} ft.
+          <p class="text-caption text-muted-foreground italic mt-1.5">
+            You'll be taken to your Innate Spells to add these manually.
           </p>
-
-          <!-- Free-pick spell grants -->
-          <div v-if="freePickGrants.length > 0">
-            <p class="text-eyebrow font-semibold text-muted-foreground mb-2">
-              SPELLS REQUIRING YOUR CHOICE
-            </p>
-            <div class="space-y-1">
-              <div
-                v-for="grant in freePickGrants"
-                :key="grant.spell_name"
-                class="flex items-center gap-2 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20"
-              >
-                <div class="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
-                <span class="text-body text-foreground flex-1">{{ grant.spell_name }}</span>
-                <span class="font-cinzel text-2xs text-amber-500">
-                  {{ grant.uses_per_day === null ? "At will" : `${grant.uses_per_day}/day` }}
-                </span>
-              </div>
-            </div>
-            <p class="text-caption text-muted-foreground italic mt-1.5">
-              You'll be taken to your Innate Spells to add these manually.
-            </p>
-          </div>
-
-          <!-- Action buttons -->
-          <div class="flex gap-3 pt-2">
-            <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="cancel" />
-            <AppButton
-              variant="primary"
-              size="md"
-              class="flex-1"
-              :disabled="saving"
-              :label="saving ? 'Saving…' : 'Confirm & Apply'"
-              @click="confirm"
-            />
-          </div>
         </div>
       </div>
-    </Teleport>
+
+      <!-- Action buttons -->
+      <div class="shrink-0 flex gap-3 px-5 pb-5">
+        <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="cancel" />
+        <AppButton
+          variant="primary"
+          size="md"
+          class="flex-1"
+          :disabled="saving"
+          :label="saving ? 'Saving…' : 'Confirm & Apply'"
+          @click="confirm"
+        />
+      </div>
+    </AppModal>
   </div>
 </template>
 
@@ -143,6 +140,8 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { Species } from "@/types/species.types";
 import { applySpeciesSpellGrants, removeSpeciesSpellGrants } from "@/composables/useCharacterSpells";

@@ -116,82 +116,50 @@
   </div>
 
   <!-- Image lightbox -->
-  <Teleport to="body">
-    <div
-      v-if="lightboxSrc"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out"
-      @click="lightboxSrc = null"
-      @keydown.escape="lightboxSrc = null"
-    >
-      <img :src="lightboxSrc" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl" />
-    </div>
-  </Teleport>
+  <ImageLightbox :src="lightboxSrc" alt="Location image" @close="lightboxSrc = null" />
 
   <!-- NPC lightbox — shared component (badges, connection note, rating) -->
   <PlayerNpcLightbox :npc="selectedNpc" @close="selectedNpc = null" />
 
   <!-- Watch panel — art + player summary + notes for a pinned sub-location -->
-  <Teleport to="body">
-    <div
-      v-if="watchingLocation"
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
-      @click.self="watchingLocation = null"
-      @keydown.escape="watchingLocation = null"
-    >
-      <div class="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden">
-        <div class="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
-          <span
-            class="h-2 w-2 rounded-full shrink-0"
-            :style="{ backgroundColor: LOCATION_TYPE_COLORS[watchingLocation.location_type] }"
-          />
-          <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
-            {{ watchingLocation.name }}
-          </h2>
-          <span class="text-label text-muted-foreground shrink-0">
-            {{ LOCATION_TYPE_LABELS[watchingLocation.location_type] }}
-          </span>
-          <AppButton
-            variant="ghost"
-            size="inline-xs"
-            icon-size="md"
-            :icon="IconClose"
-            aria-label="Close"
-            class="ml-1 shrink-0"
-            @click="watchingLocation = null"
-          />
-        </div>
-        <div class="flex-1 overflow-y-auto">
-          <div v-if="watchingLocation.image_url" class="w-full aspect-video">
-            <FocalImage
-              :src="watchingLocation.image_url"
-              :alt="watchingLocation.name"
-              format="landscape"
-              class="w-full h-full"
-            />
-          </div>
-          <div class="px-4 py-4 flex flex-col gap-4">
-            <p v-if="watchingLocation.player_summary" class="text-body text-foreground italic">
-              {{ watchingLocation.player_summary }}
-            </p>
-            <p v-else class="text-caption text-muted-foreground italic">
-              No description shared yet.
-            </p>
-            <PlayerNotesWidget
-              entity-type="location"
-              :entity-id="watchingLocation.id"
-              placeholder="Notes about this place…"
-            />
-          </div>
-        </div>
+  <AppModal :open="!!watchingLocation" size="md" align="sheet" @close="watchingLocation = null">
+    <ModalHeader
+      :title="watchingLocation?.name ?? ''"
+      :subtitle="watchingLocation ? LOCATION_TYPE_LABELS[watchingLocation.location_type] : undefined"
+      closeable
+      @close="watchingLocation = null"
+    />
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div v-if="watchingLocation?.image_url" class="w-full aspect-video">
+        <FocalImage
+          :src="watchingLocation.image_url"
+          :alt="watchingLocation.name"
+          format="landscape"
+          class="w-full h-full"
+        />
+      </div>
+      <div class="px-4 py-4 flex flex-col gap-4">
+        <p v-if="watchingLocation?.player_summary" class="text-body text-foreground italic">
+          {{ watchingLocation.player_summary }}
+        </p>
+        <p v-else class="text-caption text-muted-foreground italic">
+          No description shared yet.
+        </p>
+        <PlayerNotesWidget
+          v-if="watchingLocation"
+          entity-type="location"
+          :entity-id="watchingLocation.id"
+          placeholder="Notes about this place…"
+        />
       </div>
     </div>
-  </Teleport>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconClose, IconNavAtlas } from '@/lib/icons';
+import { IconNavAtlas } from '@/lib/icons';
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import { useSharedLocations } from "@/composables/useLocations";
 import { usePlayerFavourites } from "@/composables/usePlayerFavourites";
@@ -203,13 +171,16 @@ import { isLocationOutOfEra } from "@/lib/locations/era";
 import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import type { PlayerNpc } from "@/types/npc.types";
 import { extractTiptapText } from "@/lib/utils";
-import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
+import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { Location, LocationType } from "@/types/location.types";
 
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import PlayerLocationFiltersBar from "@/components/play/PlayerLocationFiltersBar.vue";
 import PlayerLocationCard from "@/components/play/PlayerLocationCard.vue";

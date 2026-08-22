@@ -27,112 +27,111 @@
     <!-- Background grid -->
     <BackgroundList :select-mode="true" :readonly="true" :selected-id="currentBgId || undefined" @select="onSelect" />
 
-    <!-- Confirmation panel (bottom sheet) -->
-    <Teleport to="body">
-      <div v-if="pendingBg" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/60" @click="cancel" />
-        <div class="relative z-10 w-full max-w-md rounded-xl border border-border bg-background shadow-2xl p-6 space-y-4">
-          <div>
-            <h2 class="text-heading font-bold text-foreground">{{ pendingBg.name }}</h2>
-            <p v-if="pendingBg.feature_name" class="text-body italic text-muted-foreground mt-0.5">
-              {{ pendingBg.feature_name }}
+    <!-- Confirmation panel -->
+    <AppModal :open="!!pendingBg" size="md" align="sheet" @close="cancel">
+      <ModalHeader
+        :title="pendingBg?.name ?? ''"
+        :subtitle="pendingBg?.feature_name ?? undefined"
+      />
+
+      <!-- Scrolls because the shell caps the panel at the viewport, where the old
+           hand-rolled panel simply overflowed it. -->
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
+        <!-- Ability score increase (2024 PHB) -->
+        <BackgroundAsiPicker
+          v-if="is2024 && pendingBg?.asi_ability_trio"
+          v-model="pendingAsiChoice"
+          :trio="pendingBg.asi_ability_trio"
+        />
+
+        <!-- Origin feat grant (2024 PHB) -->
+        <BackgroundOriginFeatBadge
+          v-if="is2024 && pendingBg?.origin_feat"
+          :origin-feat="pendingBg.origin_feat"
+        />
+
+        <!-- Feat grant (legacy free-text display, kept for backgrounds without a structured origin_feat) -->
+        <div v-else-if="pendingBg?.feat_grant_name"
+          class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
+          <div class="flex items-center gap-2">
+            <p class="text-eyebrow font-semibold text-amber-600 dark:text-amber-400">
+              FEAT GRANT
             </p>
+            <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
           </div>
+          <p class="font-cinzel text-sm font-bold text-foreground">{{ pendingBg.feat_grant_name }}</p>
+        </div>
 
-          <!-- Ability score increase (2024 PHB) -->
-          <BackgroundAsiPicker
-            v-if="is2024 && pendingBg.asi_ability_trio"
-            v-model="pendingAsiChoice"
-            :trio="pendingBg.asi_ability_trio"
-          />
-
-          <!-- Origin feat grant (2024 PHB) -->
-          <BackgroundOriginFeatBadge
-            v-if="is2024 && pendingBg.origin_feat"
-            :origin-feat="pendingBg.origin_feat"
-          />
-
-          <!-- Feat grant (legacy free-text display, kept for backgrounds without a structured origin_feat) -->
-          <div v-else-if="pendingBg.feat_grant_name"
-            class="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 space-y-1">
-            <div class="flex items-center gap-2">
-              <p class="text-eyebrow font-semibold text-amber-600 dark:text-amber-400">
-                FEAT GRANT
-              </p>
-              <span class="text-eyebrow text-amber-600/60 dark:text-amber-400/60">2024 PHB</span>
-            </div>
-            <p class="font-cinzel text-sm font-bold text-foreground">{{ pendingBg.feat_grant_name }}</p>
-          </div>
-
-          <!-- Proficiencies granted by the new background -->
-          <div v-if="propsToApply.length > 0">
-            <p class="text-eyebrow font-semibold text-muted-foreground mb-2">
-              PROFICIENCIES GRANTED
-            </p>
-            <div class="flex flex-wrap gap-1.5">
-              <span
-                v-for="p in propsToApply"
-                :key="p"
-                class="px-2 py-0.5 rounded-full bg-primary/10 font-cinzel text-xs text-primary"
-              >
-                {{ p }}
-              </span>
-            </div>
-          </div>
-          <p v-else class="text-body text-muted-foreground italic">
-            Your character already has all proficiencies from this background.
+        <!-- Proficiencies granted by the new background -->
+        <div v-if="propsToApply.length > 0">
+          <p class="text-eyebrow font-semibold text-muted-foreground mb-2">
+            PROFICIENCIES GRANTED
           </p>
-
-          <!-- Removal offer when swapping from an existing background -->
-          <div
-            v-if="pendingRemovals"
-            class="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 space-y-2"
-          >
-            <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400">
-              Remove {{ pendingRemovals.prevBgName }}'s proficiencies that don't carry over?
-            </p>
-            <ul class="text-caption text-muted-foreground list-disc pl-4 space-y-0.5">
-              <li v-for="s in pendingRemovals.skillLabels" :key="s">{{ s }}</li>
-              <li v-for="t in pendingRemovals.tools" :key="t">{{ t }}</li>
-              <li v-for="l in pendingRemovals.languages" :key="l">{{ l }}</li>
-            </ul>
-            <div class="flex gap-2 pt-1">
-              <AppButton
-                variant="subtle"
-                size="sm"
-                :active="removeOld"
-                label="Yes, remove them"
-                :class="removeOld ? 'border-amber-600 bg-amber-600 text-white hover:bg-amber-600 hover:text-white' : ''"
-                @click="removeOld = true"
-              />
-              <AppButton
-                variant="subtle"
-                size="sm"
-                :active="!removeOld"
-                label="Keep all"
-                @click="removeOld = false"
-              />
-            </div>
+          <div class="flex flex-wrap gap-1.5">
+            <span
+              v-for="p in propsToApply"
+              :key="p"
+              class="px-2 py-0.5 rounded-full bg-primary/10 font-cinzel text-xs text-primary"
+            >
+              {{ p }}
+            </span>
           </div>
+        </div>
+        <p v-else class="text-body text-muted-foreground italic">
+          Your character already has all proficiencies from this background.
+        </p>
 
-          <!-- Action buttons -->
-          <p v-if="asiChoiceIncomplete" class="text-caption text-amber-600 dark:text-amber-400 italic">
-            Finish the ability score choice above, or clear it, before confirming.
+        <!-- Removal offer when swapping from an existing background -->
+        <div
+          v-if="pendingRemovals"
+          class="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 space-y-2"
+        >
+          <p class="font-cinzel text-xs font-semibold text-amber-600 dark:text-amber-400">
+            Remove {{ pendingRemovals.prevBgName }}'s proficiencies that don't carry over?
           </p>
-          <div class="flex gap-3 pt-2">
-            <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="cancel" />
+          <ul class="text-caption text-muted-foreground list-disc pl-4 space-y-0.5">
+            <li v-for="s in pendingRemovals.skillLabels" :key="s">{{ s }}</li>
+            <li v-for="t in pendingRemovals.tools" :key="t">{{ t }}</li>
+            <li v-for="l in pendingRemovals.languages" :key="l">{{ l }}</li>
+          </ul>
+          <div class="flex gap-2 pt-1">
             <AppButton
-              variant="primary"
-              size="md"
-              class="flex-1"
-              :label="saving ? 'Saving…' : 'Confirm & Apply'"
-              :disabled="saving || asiChoiceIncomplete"
-              @click="confirm"
+              variant="subtle"
+              size="sm"
+              :active="removeOld"
+              label="Yes, remove them"
+              :class="removeOld ? 'border-amber-600 bg-amber-600 text-white hover:bg-amber-600 hover:text-white' : ''"
+              @click="removeOld = true"
+            />
+            <AppButton
+              variant="subtle"
+              size="sm"
+              :active="!removeOld"
+              label="Keep all"
+              @click="removeOld = false"
             />
           </div>
         </div>
       </div>
-    </Teleport>
+
+      <!-- Action buttons -->
+      <div class="shrink-0 px-5 pb-5">
+        <p v-if="asiChoiceIncomplete" class="text-caption text-amber-600 dark:text-amber-400 italic mb-2">
+          Finish the ability score choice above, or clear it, before confirming.
+        </p>
+        <div class="flex gap-3">
+          <AppButton variant="subtle" size="md" class="flex-1" label="Cancel" @click="cancel" />
+          <AppButton
+            variant="primary"
+            size="md"
+            class="flex-1"
+            :label="saving ? 'Saving…' : 'Confirm & Apply'"
+            :disabled="saving || asiChoiceIncomplete"
+            @click="confirm"
+          />
+        </div>
+      </div>
+    </AppModal>
   </div>
 </template>
 
@@ -150,6 +149,8 @@ import BackgroundList from "@/components/backgrounds/BackgroundList.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ListFilterGroup from "@/components/common/ListFilterGroup.vue";

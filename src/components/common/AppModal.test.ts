@@ -216,6 +216,35 @@ describe("AppModal", () => {
     wrapper.unmount();
   });
 
+  /**
+   * The player portal is held in one hand at the table, and its dialogs rose
+   * from the bottom edge before they moved onto the shell. Losing that on the
+   * way in would have been a downgrade on the surface that needs it most.
+   */
+  it("rises from the bottom edge on a phone and centres from sm up, as a sheet", () => {
+    const wrapper = open({ align: "sheet" });
+
+    const c = container().className;
+    expect(c).toContain("items-end");
+    expect(c).toContain("sm:items-center");
+    // Edge to edge on a phone: a sheet with a gutter around it is just a card.
+    expect(c).toContain("p-0");
+    expect(c).toContain("sm:p-4");
+    wrapper.unmount();
+  });
+
+  // `rounded-xl` used to sit in the static class attribute, where tailwind-merge
+  // could not see it — the same trap `max-h-full` fell into, and what made the
+  // sheet's square bottom edge impossible to express.
+  it("lets the sheet square off its bottom corners", () => {
+    const wrapper = open({ align: "sheet" });
+
+    const classes = panel()!.className;
+    expect(classes).toContain("rounded-t-2xl");
+    expect(classes).not.toContain("rounded-xl ");
+    wrapper.unmount();
+  });
+
   it("leaves Escape alone once closed, so the page keeps its own shortcuts", async () => {
     const wrapper = mount(AppModal, {
       props: { open: false },

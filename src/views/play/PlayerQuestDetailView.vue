@@ -257,53 +257,50 @@
   </div>
 
   <!-- NPC lightbox -->
-  <Teleport to="body">
-    <div
-      v-if="selectedNpc"
-      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-      @click.self="selectedNpc = null"
-    >
-      <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        <div class="relative shrink-0">
-          <div v-if="selectedNpc.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="w-full h-72 overflow-hidden">
-            <FocalImage
-              :src="getNpcDisplayPortrait(selectedNpc)!"
-              :alt="getNpcDisplayName(selectedNpc) ?? '???'"
-              format="portrait"
-              :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
-              :lightbox="true"
-            />
-          </div>
-          <button
-            class="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
-            @click="selectedNpc = null"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
-        </div>
-        <div class="p-4 overflow-y-auto space-y-4">
-          <div>
-            <h2 class="text-heading font-bold text-foreground">
-              {{ selectedNpc.player_visible_fields?.includes('name') ? getNpcDisplayName(selectedNpc) : '???' }}
-            </h2>
-            <p v-if="selectedNpc.player_visible_fields?.includes('race') && selectedNpc.race"
-              class="mt-1 text-body text-muted-foreground italic">{{ selectedNpc.race }}</p>
-            <p v-if="selectedNpc.player_visible_fields?.includes('occupation') && selectedNpc.occupation"
-              class="text-body text-muted-foreground">{{ selectedNpc.occupation }}</p>
-          </div>
-          <PlayerNotesWidget entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
-        </div>
+  <AppModal :open="!!selectedNpc" size="md" :labelled-by="npcHeadingId" @close="selectedNpc = null">
+    <div class="relative shrink-0">
+      <div v-if="selectedNpc?.player_visible_fields?.includes('portrait') && getNpcDisplayPortrait(selectedNpc)" class="w-full h-72 overflow-hidden">
+        <FocalImage
+          :src="getNpcDisplayPortrait(selectedNpc)!"
+          :alt="getNpcDisplayName(selectedNpc) ?? '???'"
+          format="portrait"
+          :focal-point="getNpcDisplayFocalPoint(selectedNpc)"
+          :lightbox="true"
+        />
       </div>
+      <AppButton
+        variant="ghost"
+        size="icon-sm"
+        :class="[CARD_OVERLAY_SCRIM, 'absolute top-2 right-2 rounded-full text-white']"
+        :icon="IconClose"
+        icon-size="md"
+        aria-label="Close"
+        @click="selectedNpc = null"
+      />
     </div>
-  </Teleport>
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
+      <div>
+        <h2 :id="npcHeadingId" class="text-heading font-bold text-foreground">
+          {{ selectedNpc?.player_visible_fields?.includes('name') ? getNpcDisplayName(selectedNpc) : '???' }}
+        </h2>
+        <p v-if="selectedNpc?.player_visible_fields?.includes('race') && selectedNpc.race"
+          class="mt-1 text-body text-muted-foreground italic">{{ selectedNpc.race }}</p>
+        <p v-if="selectedNpc?.player_visible_fields?.includes('occupation') && selectedNpc.occupation"
+          class="text-body text-muted-foreground">{{ selectedNpc.occupation }}</p>
+      </div>
+      <PlayerNotesWidget v-if="selectedNpc" entity-type="npc" :entity-id="selectedNpc.id" placeholder="Your observations about this character…" />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, useId, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconChevronLeft, IconClose, IconLocation, IconMonster, IconScrollText, IconUser } from '@/lib/icons';
 import { countObjectivesComplete } from "@/lib/quests/objectives";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import QuestObjectiveStatusMark from "@/components/quests/QuestObjectiveStatusMark.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -348,6 +345,7 @@ const { data: allItems } = usePlayerVisibleItems();
 
 // NPC lightbox
 const selectedNpc = ref<PlayerNpc | null>(null);
+const npcHeadingId = useId();
 
 function openNpc(npcId: string) {
   const npc = (npcs.value ?? []).find((n) => n.id === npcId);

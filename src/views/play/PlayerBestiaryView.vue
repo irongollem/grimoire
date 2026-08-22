@@ -158,123 +158,123 @@
     </template>
 
     <!-- ── LIGHTBOX ──────────────────────────────────────────────── -->
-    <Teleport to="body">
-      <div
-        v-if="lightbox"
-        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        @click.self="lightbox = null"
-      >
-        <div class="relative bg-card border border-border rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-          <!-- z-40 keeps this above the mini viewer's z-30 backdrop. -->
-          <AppButton
-            variant="ghost"
-            size="inline-xs"
-            class="absolute top-3 right-3 z-40"
-            aria-label="Close"
-            :icon="IconClose"
-            icon-size="md"
-            @click="lightbox = null"
-          />
+    <AppModal :open="!!lightbox" size="md" align="sheet" :labelled-by="lightboxHeadingId" @close="lightbox = null">
+      <!--
+        The image and stat block scroll together, same as the pre-shell design.
+        The close button shares this scrolling div as its positioned ancestor
+        (rather than a wrapper outside it), which is why it stays pinned to the
+        corner instead of scrolling away with the content.
+      -->
+      <div class="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <!-- z-40 keeps this above the mini viewer's z-30 backdrop. -->
+        <AppButton
+          variant="ghost"
+          size="inline-xs"
+          class="absolute top-3 right-3 z-40"
+          aria-label="Close"
+          :icon="IconClose"
+          icon-size="md"
+          @click="lightbox = null"
+        />
 
-          <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
-            <MiniPortraitOverlay :source="{ table: 'monsters', id: lightboxMiniSourceId }" badge-position="bottom-right">
-              <FocalImage
-                :src="lightbox.imageUrl"
-                :alt="lightbox.name"
-                format="landscape"
-                :focal-point="lightbox.monster?.portrait_focal_point"
-                placeholder="/assets/placeholders/monster.webp"
-              />
-              <!-- Left, not right: the mini badge owns bottom-right here. -->
-              <span
-                v-if="lightbox.monster"
-                class="absolute bottom-2 left-2 px-2 py-0.5 rounded font-cinzel text-2xs font-bold text-white"
-                :class="crBg(lightbox.monster.stat_block.challenge_rating)"
-              >CR {{ crText(lightbox.monster.stat_block.challenge_rating) }}</span>
-            </MiniPortraitOverlay>
+        <div class="relative h-48 bg-muted overflow-hidden rounded-t-xl">
+          <MiniPortraitOverlay :source="{ table: 'monsters', id: lightboxMiniSourceId }" badge-position="bottom-right">
+            <FocalImage
+              :src="lightbox?.imageUrl"
+              :alt="lightbox?.name"
+              format="landscape"
+              :focal-point="lightbox?.monster?.portrait_focal_point"
+              placeholder="/assets/placeholders/monster.webp"
+            />
+            <!-- Left, not right: the mini badge owns bottom-right here. -->
+            <span
+              v-if="lightbox?.monster"
+              class="absolute bottom-2 left-2 px-2 py-0.5 rounded font-cinzel text-2xs font-bold text-white"
+              :class="crBg(lightbox.monster.stat_block.challenge_rating)"
+            >CR {{ crText(lightbox.monster.stat_block.challenge_rating) }}</span>
+          </MiniPortraitOverlay>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <div>
+            <h2 :id="lightboxHeadingId" class="text-heading-lg font-bold text-foreground">{{ lightbox?.name }}</h2>
+            <p v-if="lightbox?.monster" class="text-body text-muted-foreground italic capitalize">
+              {{ lightbox.monster.size }} {{ lightbox.monster.monster_type }}<span v-if="lightbox.monster.alignment && (lightbox.revealStats ?? activeTab === 'forms')"> · {{ lightbox.monster.alignment }}</span>
+            </p>
           </div>
 
-          <div class="p-4 space-y-4">
-            <div>
-              <h2 class="text-heading-lg font-bold text-foreground">{{ lightbox.name }}</h2>
-              <p v-if="lightbox.monster" class="text-body text-muted-foreground italic capitalize">
-                {{ lightbox.monster.size }} {{ lightbox.monster.monster_type }}<span v-if="lightbox.monster.alignment && (lightbox.revealStats ?? activeTab === 'forms')"> · {{ lightbox.monster.alignment }}</span>
-              </p>
-            </div>
-
-            <template v-if="lightbox.monster && (lightbox.revealStats ?? activeTab === 'forms')">
-              <div class="flex gap-4 font-cinzel text-sm">
-                <div class="text-center">
-                  <p class="text-2xs text-muted-foreground tracking-wider">AC</p>
-                  <p class="font-bold">{{ lightbox.monster.stat_block.armor_class }}</p>
-                </div>
-                <div class="text-center">
-                  <p class="text-2xs text-muted-foreground tracking-wider">HP</p>
-                  <p class="font-bold">{{ formatHitPoints(lightbox.monster.stat_block.hit_points) }}</p>
-                </div>
-                <div class="text-center">
-                  <p class="text-2xs text-muted-foreground tracking-wider">SPD</p>
-                  <p class="font-bold">{{ lightbox.monster.stat_block.speed }}</p>
-                </div>
+          <template v-if="lightbox?.monster && (lightbox.revealStats ?? activeTab === 'forms')">
+            <div class="flex gap-4 font-cinzel text-sm">
+              <div class="text-center">
+                <p class="text-2xs text-muted-foreground tracking-wider">AC</p>
+                <p class="font-bold">{{ lightbox.monster.stat_block.armor_class }}</p>
               </div>
-              <AbilityScoreTable
-                :scores="lightboxScores"
-                :rounded="false"
-                :roll-mode-picker="true"
-                @roll-ability="(_k, label, modifier, m) => rollCheck(modifier, `${label} Check`, m)"
-                @roll-save="(_k, label, bonus, m) => rollCheck(bonus, `${label} Save`, m)"
-              />
-              <template v-for="section in lightboxTraitSections" :key="section.label">
-                <div class="border-t border-border pt-3">
-                  <p class="text-label text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
-                  <div v-for="t in section.traits" :key="t.name" class="mb-3 last:mb-0">
-                    <div class="flex items-start gap-2 flex-wrap">
-                      <p class="font-cinzel text-xs font-semibold text-foreground shrink-0">{{ t.name }}.</p>
-                      <div class="flex gap-1.5 flex-wrap">
-                        <AppButton
-                          v-if="parseAttackBonus(t.description) !== null"
-                          v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollAttack(parseAttackBonus(t.description) ?? 0, t.name, m); } }"
-                          variant="tinted"
-                          size="xs"
-                          tone="caution"
-                          emphasis="outline"
-                          :label="`⚔ ${(parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : ''}${parseAttackBonus(t.description) ?? 0}`"
-                        />
-                        <AppButton
-                          v-if="hasRollableDice(t.description)"
-                          variant="tinted"
-                          size="xs"
-                          tone="danger"
-                          emphasis="outline"
-                          :label="`🎲 ${actionDiceLabel(t.description)}`"
-                          @click.stop="rollActionDamage(t.description, t.name)"
-                        />
-                      </div>
+              <div class="text-center">
+                <p class="text-2xs text-muted-foreground tracking-wider">HP</p>
+                <p class="font-bold">{{ formatHitPoints(lightbox.monster.stat_block.hit_points) }}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-2xs text-muted-foreground tracking-wider">SPD</p>
+                <p class="font-bold">{{ lightbox.monster.stat_block.speed }}</p>
+              </div>
+            </div>
+            <AbilityScoreTable
+              :scores="lightboxScores"
+              :rounded="false"
+              :roll-mode-picker="true"
+              @roll-ability="(_k, label, modifier, m) => rollCheck(modifier, `${label} Check`, m)"
+              @roll-save="(_k, label, bonus, m) => rollCheck(bonus, `${label} Save`, m)"
+            />
+            <template v-for="section in lightboxTraitSections" :key="section.label">
+              <div class="border-t border-border pt-3">
+                <p class="text-label text-muted-foreground mb-2">{{ section.label.toUpperCase() }}</p>
+                <div v-for="t in section.traits" :key="t.name" class="mb-3 last:mb-0">
+                  <div class="flex items-start gap-2 flex-wrap">
+                    <p class="font-cinzel text-xs font-semibold text-foreground shrink-0">{{ t.name }}.</p>
+                    <div class="flex gap-1.5 flex-wrap">
+                      <AppButton
+                        v-if="parseAttackBonus(t.description) !== null"
+                        v-roll-mode="{ enabled: true, on: (m: RollMode | null, ev: Event) => { ev.stopPropagation(); rollAttack(parseAttackBonus(t.description) ?? 0, t.name, m); } }"
+                        variant="tinted"
+                        size="xs"
+                        tone="caution"
+                        emphasis="outline"
+                        :label="`⚔ ${(parseAttackBonus(t.description) ?? 0) >= 0 ? '+' : ''}${parseAttackBonus(t.description) ?? 0}`"
+                      />
+                      <AppButton
+                        v-if="hasRollableDice(t.description)"
+                        variant="tinted"
+                        size="xs"
+                        tone="danger"
+                        emphasis="outline"
+                        :label="`🎲 ${actionDiceLabel(t.description)}`"
+                        @click.stop="rollActionDamage(t.description, t.name)"
+                      />
                     </div>
-                    <p class="text-caption text-muted-foreground leading-relaxed mt-0.5">{{ t.description }}</p>
                   </div>
+                  <p class="text-caption text-muted-foreground leading-relaxed mt-0.5">{{ t.description }}</p>
                 </div>
-              </template>
-              <div v-if="lastRoll" class="border-t border-border pt-3 flex items-center justify-between">
-                <span class="text-caption text-muted-foreground italic">{{ lastRoll.label }}</span>
-                <span class="text-heading font-bold text-foreground">{{ lastRoll.total }}</span>
               </div>
             </template>
+            <div v-if="lastRoll" class="border-t border-border pt-3 flex items-center justify-between">
+              <span class="text-caption text-muted-foreground italic">{{ lastRoll.label }}</span>
+              <span class="text-heading font-bold text-foreground">{{ lastRoll.total }}</span>
+            </div>
+          </template>
 
-            <PlayerNotesWidget
-              v-if="lightbox.monster"
-              entity-type="monster"
-              :entity-id="lightbox.entityId"
-            />
-          </div>
+          <PlayerNotesWidget
+            v-if="lightbox?.monster"
+            entity-type="monster"
+            :entity-id="lightbox.entityId"
+          />
         </div>
       </div>
-    </Teleport>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, useId } from "vue";
 import { refDebounced } from "@vueuse/core";
 import { IconClose, IconPin, IconSearch } from '@/lib/icons';
 import { usePlayerDiscoveries, useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
@@ -295,6 +295,7 @@ import type { RollMode } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
 import type { DiscoveredMonster, Monster } from "@/types/monster.types";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -469,6 +470,7 @@ interface LightboxState {
   entityId: string;
 }
 const lightbox = ref<LightboxState | null>(null);
+const lightboxHeadingId = useId();
 
 // Shared library monsters carry text ids (`srd_owlbear`) while `minis.source_id`
 // is a uuid, so only a campaign-owned monster can ever have a mini. An empty id

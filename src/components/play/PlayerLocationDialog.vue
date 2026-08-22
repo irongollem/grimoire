@@ -1,73 +1,47 @@
 <template>
   <!-- Location quick-view — opened from @location chips in rich text -->
-  <Teleport to="body">
-    <Transition name="fade">
-      <div
-        v-if="open"
-        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
-        @click.self="close"
-        @keydown.escape="close"
-      >
-        <div class="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden">
-          <div class="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
-            <span
-              class="h-2 w-2 rounded-full shrink-0"
-              :style="{ backgroundColor: loc ? LOCATION_TYPE_COLORS[loc.location_type] : 'transparent' }"
-            />
-            <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
-              {{ loc?.name ?? 'Location' }}
-            </h2>
-            <span v-if="loc" class="text-label text-muted-foreground shrink-0">
-              {{ LOCATION_TYPE_LABELS[loc.location_type] }}
-            </span>
-            <AppButton
-              variant="ghost"
-              size="icon-xs"
-              icon-size="md"
-              class="ml-1 shrink-0"
-              :icon="IconClose"
-              aria-label="Close"
-              @click="close"
-            />
-          </div>
+  <AppModal :open="open" size="md" align="sheet" @close="close">
+    <ModalHeader
+      :title="loc?.name ?? 'Location'"
+      :subtitle="loc ? LOCATION_TYPE_LABELS[loc.location_type] : undefined"
+      closeable
+      @close="close"
+    />
 
-          <div class="flex-1 overflow-y-auto">
-            <div v-if="isLoading" class="flex justify-center py-16">
-              <LoadingSpinner />
-            </div>
-
-            <p v-else-if="!loc" class="text-body text-muted-foreground italic px-4 py-10 text-center">
-              This place hasn't been shared with you yet.
-            </p>
-
-            <template v-else>
-              <PlayerLocationDetailPanel
-                :loc="loc"
-                :npcs="npcs"
-                :shared-child-ids="sharedChildIds"
-                :shared-children="sharedChildren"
-                :is-full-size="isFullSize"
-                @lightbox="lightboxSrc = $event"
-                @toggle-map-size="isFullSize = !isFullSize"
-                @pin-click="goToChild"
-                @pin-go="goToChild"
-                @pin-watch="goToChild"
-                @open-npc="selectedNpc = $event"
-              />
-              <div class="px-4 pb-4">
-                <AppButton
-                  variant="link"
-                  size="inline-xs"
-                  label="View in Atlas →"
-                  @click="viewInAtlas"
-                />
-              </div>
-            </template>
-          </div>
-        </div>
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div v-if="isLoading" class="flex justify-center py-16">
+        <LoadingSpinner />
       </div>
-    </Transition>
-  </Teleport>
+
+      <p v-else-if="!loc" class="text-body text-muted-foreground italic px-4 py-10 text-center">
+        This place hasn't been shared with you yet.
+      </p>
+
+      <template v-else>
+        <PlayerLocationDetailPanel
+          :loc="loc"
+          :npcs="npcs"
+          :shared-child-ids="sharedChildIds"
+          :shared-children="sharedChildren"
+          :is-full-size="isFullSize"
+          @lightbox="lightboxSrc = $event"
+          @toggle-map-size="isFullSize = !isFullSize"
+          @pin-click="goToChild"
+          @pin-go="goToChild"
+          @pin-watch="goToChild"
+          @open-npc="selectedNpc = $event"
+        />
+        <div class="px-4 pb-4">
+          <AppButton
+            variant="link"
+            size="inline-xs"
+            label="View in Atlas →"
+            @click="viewInAtlas"
+          />
+        </div>
+      </template>
+    </div>
+  </AppModal>
 
   <!-- Nested NPC quick-view (from the "People in the Area" list) -->
   <Teleport to="body">
@@ -75,31 +49,25 @@
   </Teleport>
 
   <!-- Image lightbox -->
-  <Teleport to="body">
-    <div
-      v-if="lightboxSrc"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out"
-      @click="lightboxSrc = null"
-    >
-      <img :src="lightboxSrc" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl" />
-    </div>
-  </Teleport>
+  <ImageLightbox :src="lightboxSrc" alt="Location image" @close="lightboxSrc = null" />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
-import { IconClose } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useSharedLocations } from "@/composables/useLocations";
 import { useSharedNpcsByLocations } from "@/composables/useNpcs";
 import { useMarkRead } from "@/composables/useReadItems";
-import { LOCATION_TYPE_COLORS, LOCATION_TYPE_LABELS } from "@/types/location.types";
+import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PlayerLocationDetailPanel from "@/components/play/PlayerLocationDetailPanel.vue";
 import PlayerNpcLightbox from "@/components/play/PlayerNpcLightbox.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
+import ImageLightbox from "@/components/common/ImageLightbox.vue";
 
 const ui = useUiStore();
 const router = useRouter();
@@ -159,14 +127,3 @@ function close() {
   selectedNpc.value = null;
 }
 </script>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

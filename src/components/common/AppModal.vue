@@ -10,8 +10,7 @@
     <Transition :css="false" @enter="onEnter" @leave="onLeave" @after-leave="emit('afterLeave')">
       <div
         v-if="open"
-        class="fixed inset-0 flex justify-center p-4"
-        :class="ALIGN[align]"
+        :class="cn('fixed inset-0 flex justify-center', ALIGN[align].container)"
         :style="{ zIndex: zIndex ?? undefined }"
         @mousedown.self="onBackdropClick"
       >
@@ -38,8 +37,8 @@
         <div
           ref="panelRef"
           data-modal-panel
-          class="relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl focus:outline-none"
-          :class="cn('w-full max-h-full', SIZES[size], panelClass)"
+          class="relative flex flex-col overflow-hidden border border-border bg-card shadow-2xl focus:outline-none"
+          :class="cn('w-full max-h-full', SIZES[size], ALIGN[align].panel, panelClass)"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="namedBy"
@@ -79,14 +78,24 @@ import { provideModalAria } from "./modalAria";
 import { useModalStack } from "./modalStack";
 
 /**
- * Where the panel sits in the viewport. `center` for a dialog; `top` for a
- * command palette, which belongs under the reader's eye rather than in the
- * middle of the screen — and which is the only reason this is a prop rather
- * than a constant.
+ * Where the panel sits in the viewport.
+ *
+ * `center` for a dialog. `top` for a command palette, which belongs under the
+ * reader's eye rather than in the middle of the screen. `sheet` rises from the
+ * bottom edge on a phone and becomes an ordinary centred dialog from `sm` up —
+ * the pattern the player-portal dialogs already used, and worth keeping,
+ * because that portal is something people hold in one hand at the table.
+ *
+ * The corner radius belongs to this map rather than to the panel's static
+ * class. It has to: a sheet squares off its bottom edge, and a `rounded-xl`
+ * left in the static attribute is invisible to tailwind-merge — the same trap
+ * `max-h-full` fell into. Naming the radius per alignment also means no rule
+ * has to out-order another to win.
  */
 const ALIGN = {
-  center: "items-center",
-  top: "items-start pt-[12vh]",
+  center: { container: "items-center p-4", panel: "rounded-xl" },
+  top: { container: "items-start p-4 pt-[12vh]", panel: "rounded-xl" },
+  sheet: { container: "items-end p-0 sm:items-center sm:p-4", panel: "rounded-t-2xl rounded-b-none sm:rounded-xl" },
 } as const;
 
 const SIZES = {

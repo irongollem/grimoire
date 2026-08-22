@@ -1,77 +1,62 @@
 <template>
-  <Teleport to="body">
-    <div
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
-      @click.self="emit('close')"
-      @keydown.escape="emit('close')"
-    >
-      <div class="w-full sm:max-w-lg bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden">
-        <!-- Header -->
-        <div class="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
-          <IconScrollText class="h-4 w-4 text-amber-500/80 shrink-0" />
-          <div class="flex-1 min-w-0">
-            <p class="font-cinzel text-sm font-semibold text-foreground truncate">{{ playerName }}</p>
-            <p class="text-caption text-muted-foreground italic">Shared with you privately</p>
-          </div>
-          <button
-            type="button"
-            class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            @click="emit('close')"
-          >
-            <IconClose class="h-4 w-4" />
-          </button>
-        </div>
+  <AppModal :open="open" size="md" align="sheet" @close="dismiss" @after-leave="emit('close')">
+    <ModalHeader
+      :title="playerName"
+      subtitle="Shared with you privately"
+      :icon="IconScrollText"
+      tone="caution"
+      closeable
+      @close="dismiss"
+    />
 
-        <!-- Feed -->
-        <div class="flex-1 overflow-y-auto">
-          <div v-if="!entries.length" class="flex flex-col items-center justify-center py-16 gap-2">
-            <IconScrollText class="h-8 w-8 text-muted-foreground/30" />
-            <p class="text-body text-muted-foreground italic">No entries shared yet.</p>
-          </div>
+    <!-- Feed -->
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div v-if="!entries.length" class="flex flex-col items-center justify-center py-16 gap-2">
+        <IconScrollText class="h-8 w-8 text-muted-foreground/30" />
+        <p class="text-body text-muted-foreground italic">No entries shared yet.</p>
+      </div>
 
-          <div v-else class="flex flex-col gap-2 p-3">
-            <JournalCard
-              v-for="entry in entries"
-              :key="entry.id"
-              :color="categoryColor(entry.category)"
-              :icon="categoryIcon(entry.category)"
-              :category-label="categoryLabel(entry.category)"
-              :title="entry.title || contentPreview(entry.content)"
-              :preview="entry.title ? contentPreview(entry.content) : undefined"
-              :date="formatDate(entry.created_at)"
-              :expanded="expanded === entry.id"
-              @toggle="toggleExpand(entry.id)"
-            >
-              <template #meta>
-                <span
-                  v-if="isNew(entry.id, entry.updated_at)"
-                  class="h-2 w-2 rounded-full bg-destructive shrink-0"
-                  title="New"
-                />
-              </template>
-              <div class="px-4 py-4">
-                <RichTextViewer :content="entry.content" />
-                <div v-if="entry.tags?.length" class="flex flex-wrap gap-1 mt-3">
-                  <span
-                    v-for="tag in entry.tags"
-                    :key="tag"
-                    class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
-                  >{{ tag }}</span>
-                </div>
-              </div>
-            </JournalCard>
+      <div v-else class="flex flex-col gap-2 p-3">
+        <JournalCard
+          v-for="entry in entries"
+          :key="entry.id"
+          :color="categoryColor(entry.category)"
+          :icon="categoryIcon(entry.category)"
+          :category-label="categoryLabel(entry.category)"
+          :title="entry.title || contentPreview(entry.content)"
+          :preview="entry.title ? contentPreview(entry.content) : undefined"
+          :date="formatDate(entry.created_at)"
+          :expanded="expanded === entry.id"
+          @toggle="toggleExpand(entry.id)"
+        >
+          <template #meta>
+            <span
+              v-if="isNew(entry.id, entry.updated_at)"
+              class="h-2 w-2 rounded-full bg-destructive shrink-0"
+              title="New"
+            />
+          </template>
+          <div class="px-4 py-4">
+            <RichTextViewer :content="entry.content" />
+            <div v-if="entry.tags?.length" class="flex flex-wrap gap-1 mt-3">
+              <span
+                v-for="tag in entry.tags"
+                :key="tag"
+                class="text-label px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+              >{{ tag }}</span>
+            </div>
           </div>
-        </div>
+        </JournalCard>
       </div>
     </div>
-  </Teleport>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { nextTick, onMounted, ref, watch } from "vue";
 import type { Component } from "vue";
 import {
-  IconCalendarDays, IconClose, IconFeather, IconMessage,
+  IconCalendarDays, IconFeather, IconMessage,
   IconScrollText, IconSearch, IconStar,
 } from "@/lib/icons";
 import { JOURNAL_CATEGORIES } from "@/composables/usePlayerJournal";
@@ -79,6 +64,8 @@ import type { PlayerJournalEntry, JournalCategory } from "@/composables/usePlaye
 import { useReadItems, useMarkRead } from "@/composables/useReadItems";
 import JournalCard from "@/components/player/JournalCard.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 
 const { playerName, entries } = defineProps<{
   playerName: string;
@@ -86,6 +73,18 @@ const { playerName, entries } = defineProps<{
 }>();
 
 const emit = defineEmits<{ close: [] }>();
+
+// No `open` prop — the parent mounts this modal with `v-if`, so "mounted" is
+// "open" (see EntityDetailModal for the same pattern). The local flag exists
+// only to give AppModal's <Transition> something to animate: raised a tick
+// after mount so the panel appears as a change rather than the initial render,
+// and lowered on dismiss so the close animation plays before the parent's
+// `v-if` tears the component down.
+const open = ref(false);
+onMounted(() => void nextTick(() => { open.value = true; }));
+function dismiss() {
+  open.value = false;
+}
 
 // ── Read tracking ─────────────────────────────────────────────────────────────
 const { isNew } = useReadItems("player_journal");
