@@ -92,7 +92,7 @@ select lives_ok($$
 $$, 'cycles are valid authored structure');
 
 select lives_ok($$
-  insert into public.quest_runtime_state (campaign_id, current_quest_id, current_beat_id)
+  insert into public.quest_runtime_state (campaign_id, quest_id, current_beat_id)
   values ('65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000040');
   insert into public.quest_beat_transitions (
     campaign_id, from_quest_id, from_beat_id, to_quest_id, to_beat_id, transition_kind
@@ -102,7 +102,7 @@ select lives_ok($$
     '65800000-0000-4000-8000-000000000031', '65800000-0000-4000-8000-000000000043',
     'jump'
   )
-$$, 'runtime history can record a cross-quest jump within the campaign');
+$$, 'history retains the cross-quest jumps recorded before cursors were per-quest');
 
 insert into public.npcs (id, user_id, campaign_id, name) values
   ('65800000-0000-4000-8000-000000000050', '65800000-0000-4000-8000-000000000001', '65800000-0000-4000-8000-000000000010', 'Shared guide'),

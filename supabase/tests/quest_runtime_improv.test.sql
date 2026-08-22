@@ -5,7 +5,7 @@ select plan(15);
 
 select has_function(
   'public', 'improvise_quest_runtime',
-  array['uuid', 'bigint', 'text', 'text', 'text', 'text', 'text', 'boolean', 'boolean', 'text'],
+  array['uuid', 'uuid', 'bigint', 'text', 'text', 'text', 'text', 'text', 'boolean', 'boolean', 'text'],
   'five-second improv has one atomic RPC'
 );
 
@@ -23,14 +23,14 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select lives_ok($$
   select public.transition_quest_runtime(
-    '67100000-0000-4000-8000-000000000010', 'start', 0,
-    '67100000-0000-4000-8000-000000000020', '67100000-0000-4000-8000-000000000030'
+    '67100000-0000-4000-8000-000000000010', '67100000-0000-4000-8000-000000000020', 'start', 0,
+    '67100000-0000-4000-8000-000000000030'
   )
 $$, 'prepared run starts');
 
 create temporary table improv_result(payload jsonb);
 insert into improv_result select public.improvise_quest_runtime(
-  '67100000-0000-4000-8000-000000000010', 1, 'The chandelier falls', 'explore',
+  '67100000-0000-4000-8000-000000000010', '67100000-0000-4000-8000-000000000020', 1, 'The chandelier falls', 'explore',
   'Keep the crowd moving', 'The hall erupts in chaos', 'A player cut the rope', true, false
 );
 
@@ -39,20 +39,20 @@ select is((select payload -> 'beat' ->> 'is_improvised' from improv_result), 'tr
 select is((select payload -> 'context' -> 'current' ->> 'title' from improv_result), 'The chandelier falls', 'created beat becomes current in the same commit');
 select is((select transition_kind from public.quest_beat_transitions where runtime_version = 2), 'improv', 'runtime history records the improv transition');
 select is((select count(*)::integer from public.quest_beat_edges where campaign_id = '67100000-0000-4000-8000-000000000010'), 0, 'history-only improv does not alter the authored graph');
-select is((select return_stack -> 0 ->> 'beat_id' from public.quest_runtime_state where campaign_id = '67100000-0000-4000-8000-000000000010'), '67100000-0000-4000-8000-000000000030', 'improv can retain the prepared return point');
+select is((select return_stack -> 0 ->> 'beat_id' from public.quest_runtime_state where campaign_id = '67100000-0000-4000-8000-000000000010' and quest_id = '67100000-0000-4000-8000-000000000020'), '67100000-0000-4000-8000-000000000030', 'improv can retain the prepared return point');
 select is((select improv_reviewed_at from public.quest_beats where is_improvised), null::timestamptz, 'new improv remains flagged for post-session review');
 
-select lives_ok($$ select public.transition_quest_runtime('67100000-0000-4000-8000-000000000010', 'return', 2) $$, 'DM can return to prepared play');
+select lives_ok($$ select public.transition_quest_runtime('67100000-0000-4000-8000-000000000010', '67100000-0000-4000-8000-000000000020', 'return', 2) $$, 'DM can return to prepared play');
 select lives_ok($$
   select public.improvise_quest_runtime(
-    '67100000-0000-4000-8000-000000000010', 3, 'Kept detour', 'social', null, null,
+    '67100000-0000-4000-8000-000000000010', '67100000-0000-4000-8000-000000000020', 3, 'Kept detour', 'social', null, null,
     'The table made it canon', false, true, 'Follow the new ally'
   )
 $$, 'DM can keep the improvised route in the authored graph');
 select is((select label from public.quest_beat_edges where campaign_id = '67100000-0000-4000-8000-000000000010'), 'Follow the new ally', 'kept improv edge has explicit authored meaning');
 select throws_ok($$
   select public.improvise_quest_runtime(
-    '67100000-0000-4000-8000-000000000010', 3, 'Stale attempt', 'neutral', null, null,
+    '67100000-0000-4000-8000-000000000010', '67100000-0000-4000-8000-000000000020', 3, 'Stale attempt', 'neutral', null, null,
     'Lost race', false, false
   )
 $$, '40001', 'Quest runtime changed; expected version 3, current version 4', 'stale co-DM improv fails atomically');
@@ -61,7 +61,7 @@ select is((select count(*)::integer from public.quest_beats where is_improvised)
 select set_config('request.jwt.claim.sub', '67100000-0000-4000-8000-000000000002', true);
 select throws_ok($$
   select public.improvise_quest_runtime(
-    '67100000-0000-4000-8000-000000000010', 4, 'Intrusion', 'neutral', null, null, 'No', false, false
+    '67100000-0000-4000-8000-000000000010', '67100000-0000-4000-8000-000000000020', 4, 'Intrusion', 'neutral', null, null, 'No', false, false
   )
 $$, 'P0001', 'Not authorized', 'outsider cannot create or enter an improvised beat');
 

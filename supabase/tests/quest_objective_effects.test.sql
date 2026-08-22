@@ -54,8 +54,8 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 set local role authenticated;
 
 select lives_ok($$select public.transition_quest_runtime(
-  '66000000-0000-4000-8000-000000000010', 'start', 0,
-  '66000000-0000-4000-8000-000000000030', '66000000-0000-4000-8000-000000000041')$$,
+  '66000000-0000-4000-8000-000000000010', '66000000-0000-4000-8000-000000000030', 'start', 0,
+  '66000000-0000-4000-8000-000000000041')$$,
   'entering the fork runs its beat effects');
 
 select is(
@@ -72,7 +72,7 @@ select is(
 );
 
 select lives_ok($$select public.transition_quest_runtime(
-  '66000000-0000-4000-8000-000000000010', 'advance', 1, null, null,
+  '66000000-0000-4000-8000-000000000010', '66000000-0000-4000-8000-000000000030', 'advance', 1, null,
   '66000000-0000-4000-8000-000000000062')$$,
   'taking the branch runs its edge effects');
 
@@ -85,7 +85,7 @@ select is(
 -- Stepping back at a table is a correction, so what the step forward decided
 -- must come undone with it, not linger as a state the DM cannot see.
 select lives_ok($$select public.transition_quest_runtime(
-  '66000000-0000-4000-8000-000000000010', 'previous', 2)$$,
+  '66000000-0000-4000-8000-000000000010', '66000000-0000-4000-8000-000000000030', 'previous', 2)$$,
   'stepping back is allowed after an effect fired');
 
 select is(
