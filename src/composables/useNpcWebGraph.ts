@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { defineConfigs } from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
 
+import { dimNonMembers } from "@/lib/npcWeb/focus";
 import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
 import { useUiStore } from "@/stores/ui";
 import { NPC_RELATIONSHIP_INVERSE, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
@@ -139,14 +140,12 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       // Attitude, set by clicking the legend. PCs are exempt below: they have no
       // attitude toward the party, being the party.
       if (ui.npcWebFilterRelationship && npc.relationship !== ui.npcWebFilterRelationship) continue;
-      const color = npcRelationshipCanvasColor(npc.relationship);
-      const dimmed = focused.size > 0 && !focused.has(key);
       nodes[key] = {
         name: npc.name,
         nodeType: "npc",
-        nodeColor: dimmed ? dim(color) : color,
+        nodeColor: npcRelationshipCanvasColor(npc.relationship),
         nodeSize: 18,
-        dimmed,
+        dimmed: false,
       };
     }
 
@@ -154,30 +153,33 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       for (const pc of input.partyMembers() ?? []) {
         const key = `pc:${pc.id}`;
         if (q && !pc.name.toLowerCase().includes(q.toLowerCase()) && !pinned.has(key)) continue;
-        // Party members are the theme accent, not a relationship step.
-        const color = cssValue("--primary", "#d97706");
-        const dimmed = focused.size > 0 && !focused.has(key);
         nodes[key] = {
           name: pc.name,
           nodeType: "pc",
-          nodeColor: dimmed ? dim(color) : color,
+          // Party members are the theme accent, not a relationship step.
+          nodeColor: cssValue("--primary", "#d97706"),
           nodeSize: 22,
-          dimmed,
+          dimmed: false,
         };
       }
     }
 
-    return nodes;
+    // A second pass, gated on the faction having anyone here — see `dimNonMembers`.
+    return dimNonMembers(nodes, focused, dim);
   });
 
   const graphEdges = computed<Record<string, NpcWebEdge>>(() => {
     const edges: Record<string, NpcWebEdge> = {};
     const focused = input.focusedKeys();
+    // Follows the nodes: same "is anyone here" gate, read off the built map
+    // rather than recomputed, so an edge can never fade while both its ends stay
+    // lit. Safe to read `graphNodes` from here — it does not read this back.
+    const dimming = focused.size > 0 && Object.values(graphNodes.value).some((n) => n.dimmed);
     // Lit only when the tie is *within* the faction. An edge with one end
     // outside is the faction's reach into the rest of the web, and drawing it at
     // full strength would say the outsider belongs too.
     const edgeColor = (color: string, a: string, b: string) =>
-      focused.size && !(focused.has(a) && focused.has(b)) ? dim(color) : color;
+      dimming && !(focused.has(a) && focused.has(b)) ? dim(color) : color;
 
     for (const rel of input.relations() ?? []) {
       const rawType = rel.relationship_type as NpcRelationshipType;

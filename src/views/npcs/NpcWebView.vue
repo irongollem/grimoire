@@ -411,13 +411,28 @@ const factionGroups = computed(() => {
   return groups;
 });
 
-/** Members of the focused faction that are actually on screen. */
+/**
+ * Every member of the focused faction, as node keys.
+ *
+ * Deliberately NOT narrowed to the nodes currently on screen, however much that
+ * reads like the useful version. `graphNodes` asks for this set in order to
+ * decide what to dim, so reading `graphNodes` back from here is a cycle: on the
+ * first evaluation the computed is still running and its value is `undefined`,
+ * and `key in undefined` throws.
+ *
+ * It hid because the cycle only closes when a focus is already set as the view
+ * mounts — the early return above short-circuits it otherwise. Focus a faction,
+ * navigate away, come back, and the store hands the focus straight into that
+ * first evaluation. Reported exactly that way.
+ *
+ * Consumers narrow to what is on screen themselves, and have to anyway: the
+ * fence and the captions both need a *position*, which absent nodes have no
+ * more than they have a presence.
+ */
 const focusedKeys = computed(() => {
   const id = ui.npcWebFocusFaction;
   if (!id) return new Set<string>();
-  const members = factionGroups.value.get(id);
-  if (!members) return new Set<string>();
-  return new Set([...members].filter((key) => key in graphNodes.value));
+  return new Set(factionGroups.value.get(id) ?? []);
 });
 
 const focusedFactionName = computed(
