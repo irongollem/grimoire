@@ -455,9 +455,15 @@ const focusHullPaths = computed(() => {
     if (pos) points.push({ x: pos.x, y: pos.y });
   }
   if (!points.length) return [];
-  return clusterByProximity(points).map((cluster) =>
-    hullPath(padOutward(convexHull(cluster), HULL_PADDING)),
-  );
+  return clusterByProximity(points)
+    // A lone member gets no shape. A fence is a containment statement — "these
+    // people are together" — and there is nothing to contain around one person,
+    // so a disc drawn round a single node asserts a group that is not there and
+    // reads as a glitch. What finds an outlier in a graph of five hundred is the
+    // node staying lit while everything else dims, and its role caption; both
+    // survive without the shape.
+    .filter((cluster) => cluster.length > 1)
+    .map((cluster) => hullPath(padOutward(convexHull(cluster), HULL_PADDING)));
 });
 
 /**

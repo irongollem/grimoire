@@ -75,8 +75,13 @@ export function padOutward(hull: readonly Point[], padding: number): Point[] {
  * An SVG path for the hull.
  *
  * A lone point still emits a zero-length line, because a round line cap turns
- * that into a disc — which is what a one-member faction should look like. Drop it
- * and the single most common small-faction case renders nothing at all.
+ * that into a disc. Chrome does paint one — checked, since `getBBox` reports 0x0
+ * for it and that looks like it does not.
+ *
+ * The fence no longer asks for that case: it filters clusters of one out before
+ * calling here, because a boundary round a single node asserts a group that is
+ * not there. This stays correct for any caller that does want it rather than
+ * being made to return "" and quietly swallow a point.
  */
 export function hullPath(points: readonly Point[]): string {
   if (!points.length) return "";
