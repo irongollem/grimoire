@@ -27,6 +27,12 @@ export interface FactionPip {
   factionId: string;
   factionName: string;
   emblemUrl: string | null;
+  /** "Leader", "Informant"… Shown in the badge's tooltip, which is the only
+   *  place the graph can say *how* someone belongs rather than just that they do. */
+  role: string | null;
+  /** The raw membership status, so the tooltip can name a former tie rather
+   *  than leaving the reader to infer it from the fade. */
+  status: string;
   /** First letter, for the fallback when a faction has no emblem uploaded. */
   initial: string;
   /**
@@ -46,6 +52,7 @@ export interface NodeFactionBadges {
 
 interface MembershipRow {
   faction_id: string;
+  role: string | null;
   status: string;
   faction: { id: string; name: string; emblem_url: string | null };
 }
@@ -56,6 +63,8 @@ function toPip(row: MembershipRow): FactionPip {
     factionName: row.faction.name,
     emblemUrl: row.faction.emblem_url,
     initial: row.faction.name.trim().charAt(0).toUpperCase() || "?",
+    role: row.role,
+    status: row.status,
     active: row.status === ACTIVE_STATUS,
   };
 }
@@ -104,7 +113,10 @@ export function factionBadgesByNode<T extends MembershipRow>(
  */
 export function pipOffsets(count: number, nodeRadius: number, pipRadius: number): { x: number; y: number }[] {
   const step = pipRadius * 2 + 1;
-  const startX = nodeRadius * 0.7;
-  const y = -nodeRadius * 0.7;
+  // Hugs the rim rather than standing off it. The badges grew by half to be
+  // identifiable at all, and at the old 0.7 stand-off a row of three reached
+  // far enough from its node to sit closer to a neighbour than to its owner.
+  const startX = nodeRadius * 0.5;
+  const y = -nodeRadius * 0.62;
   return Array.from({ length: count }, (_, i) => ({ x: startX + i * step, y }));
 }

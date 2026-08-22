@@ -44,7 +44,7 @@
         <template #factionPips="{ scale }">
           <defs>
             <clipPath id="npcweb-pip-clip">
-              <circle cx="0" cy="0" :r="PIP_RADIUS * scale" />
+              <circle cx="0" cy="0" :r="PIP_RADIUS" />
             </clipPath>
           </defs>
           <g v-for="badge in nodeBadges" :key="badge.nodeKey">
@@ -52,27 +52,44 @@
               v-for="pip in badge.pips"
               :key="pip.factionId"
               :transform="`translate(${badge.cx + pip.dx * scale}, ${badge.cy + pip.dy * scale})`"
-              :opacity="pip.active ? 1 : 0.45"
+              class="cursor-pointer"
+              @pointerenter="onPipEnter($event, pip)"
+              @pointerleave="onPipLeave"
+              @click.stop="onPipClick(pip)"
             >
-              <title>{{ pip.factionName }}{{ pip.active ? '' : ' (former)' }}</title>
-              <circle :r="PIP_RADIUS * scale" class="fill-card stroke-border" :stroke-width="scale" />
-              <image
-                v-if="pip.emblemUrl"
-                :href="pip.emblemUrl"
-                :x="-PIP_RADIUS * scale"
-                :y="-PIP_RADIUS * scale"
-                :width="PIP_RADIUS * 2 * scale"
-                :height="PIP_RADIUS * 2 * scale"
-                preserveAspectRatio="xMidYMid slice"
-                clip-path="url(#npcweb-pip-clip)"
-              />
-              <text
-                v-else
-                text-anchor="middle"
-                dominant-baseline="central"
-                :font-size="PIP_RADIUS * scale"
-                class="fill-muted-foreground font-semibold"
-              >{{ pip.initial }}</text>
+              <!--
+                Two nested transforms on purpose. The outer one is an attribute,
+                placing the badge in graph space; this inner one is a *style*, so
+                the browser can transition it — an attribute cannot be animated by
+                CSS. Content is centred on the origin, so scaling about it needs
+                no transform-origin.
+              -->
+              <g
+                :style="{
+                  transform: `scale(${scale * (isPipOpen(pip) ? badge.openScale : 1)})`,
+                  transition: pipTransition,
+                }"
+                :opacity="pip.active ? 1 : 0.45"
+              >
+                <circle :r="PIP_RADIUS" class="fill-card stroke-border" stroke-width="1" />
+                <image
+                  v-if="pip.emblemUrl"
+                  :href="pip.emblemUrl"
+                  :x="-PIP_RADIUS"
+                  :y="-PIP_RADIUS"
+                  :width="PIP_RADIUS * 2"
+                  :height="PIP_RADIUS * 2"
+                  preserveAspectRatio="xMidYMid slice"
+                  clip-path="url(#npcweb-pip-clip)"
+                />
+                <text
+                  v-else
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                  :font-size="PIP_RADIUS"
+                  class="fill-muted-foreground font-semibold"
+                >{{ pip.initial }}</text>
+              </g>
             </g>
             <text
               v-if="badge.overflow"
@@ -86,6 +103,25 @@
           </g>
         </template>
       </VNetworkGraph>
+
+      <!--
+        Teleported to <body> because the graph area is `overflow-hidden`: a
+        tooltip drawn inside it is clipped the moment a badge sits near an edge,
+        which is exactly where a force layout likes to put things.
+      -->
+      <Teleport to="body">
+        <div
+          v-if="hoveredPip"
+          ref="pipTooltipRef"
+          :style="pipTooltipStyle"
+          class="z-50 pointer-events-none rounded-md border border-border bg-popover px-2 py-1 shadow-lg"
+        >
+          <p class="text-label-lg font-semibold text-foreground">{{ hoveredPip.pip.factionName }}</p>
+          <p class="text-caption text-muted-foreground">
+            {{ pipTooltipDetail }}
+          </p>
+        </div>
+      </Teleport>
 
       <!-- Link mode hint -->
       <transition name="fade">
@@ -152,6 +188,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useDebounceFn } from "@vueuse/core";
+import { useRouter } from "vue-router";
 import { IconNetwork } from '@/lib/icons';
 import { npcRelationshipVar } from "@/lib/npcDisplay";
 import { VNetworkGraph, type EventHandlers, type Layers, type Layouts } from "v-network-graph";
@@ -168,7 +205,10 @@ import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDele
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
 import { useNpcWebGraph, resolveVar } from "@/composables/useNpcWebGraph";
 import { useAllFactionNpcs, useAllFactionPartyMembers } from "@/composables/useFactions";
-import { factionBadgesByNode, pipOffsets } from "@/lib/npcWeb/factions";
+import { factionBadgesByNode, pipOffsets, type FactionPip } from "@/lib/npcWeb/factions";
+import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
+import { useIsTouch } from "@/composables/useBreakpoint";
+import { prefersReducedMotion } from "@/lib/motion";
 import { useUiStore } from "@/stores/ui";
 import {
   NPC_RELATIONSHIP_LABELS,
@@ -183,6 +223,8 @@ import type { NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 // coming back does not drop the query and the location/type narrowing.
 
 const ui = useUiStore();
+const router = useRouter();
+const isTouch = useIsTouch();
 
 const typeOptions = Object.entries(NPC_RELATIONSHIP_TYPE_LABELS) as [NpcRelationshipType, string][];
 const { locationOptions, getDescendantIds } = useLocationTree();
@@ -312,8 +354,13 @@ const GRAPH_LAYERS: Layers = { factionPips: "node-labels" };
  * by `scale` at the point of use. Skip that and the emblems balloon with the
  * zoom: at the fit-content zoom of a two-node graph they render five times the
  * width of the node they belong to.
+ *
+ * 9 rather than 6, because constant-size nodes make zooming useless as a way to
+ * read a badge — whatever it is at rest is all it will ever be. Half again is
+ * the most it can take without the row of three reaching over a neighbouring
+ * node; the rest of the legibility comes from opening it on hover.
  */
-const PIP_RADIUS = 6;
+const PIP_RADIUS = 9;
 
 const badgesByNode = computed(() => {
   const merged = new Map<string, ReturnType<typeof factionBadgesByNode>>();
@@ -329,15 +376,78 @@ const badgesByNode = computed(() => {
  * does not leave its emblems floating at a stale position — and off `layouts`,
  * so they follow the force simulation while it settles.
  */
+/**
+ * A badge is 18px across and a faction emblem is detailed art, so at rest it can
+ * only ever say "there is an allegiance here" — not which. Pointing at one
+ * blows it up to the size of the node it hangs off, which is the largest it can
+ * be without covering its neighbour, and names it.
+ *
+ * The native `title` this replaces did technically work, but a tooltip that
+ * arrives after the browser's two-to-three second delay is not an affordance:
+ * the badge read as an unexplained blip, which is how it was reported.
+ */
+const hoveredPip = ref<{ pip: FactionPip; el: Element } | null>(null);
+const pipTooltipRef = ref<HTMLElement | null>(null);
+const pipTriggerRef = computed(() => hoveredPip.value?.el ?? null);
+const pipTooltipOpen = computed(() => !!hoveredPip.value);
+
+const { floatingRef: pipFloatingRef, floatingStyle: pipTooltipStyle } = useAnchoredPopover(
+  pipTriggerRef,
+  pipTooltipOpen,
+  () => { hoveredPip.value = null; },
+);
+watch(pipTooltipRef, (el) => { pipFloatingRef.value = el; });
+
+/** Web Animations is absent in the test DOM, and a reader may have asked for stillness. */
+const pipTransition = computed(() => (prefersReducedMotion() ? "none" : "transform 120ms ease-out"));
+
+const pipTooltipDetail = computed(() => {
+  const pip = hoveredPip.value?.pip;
+  if (!pip) return "";
+  // Status earns a mention only when it is not the unremarkable case; role is
+  // dropped when it says nothing the badge did not already ("Member").
+  const parts = [pip.role && pip.role !== "Member" ? pip.role : null, pip.active ? null : pip.status];
+  const said = parts.filter(Boolean).join(" · ");
+  return said || (pip.active ? "Member" : pip.status);
+});
+
+function isPipOpen(pip: FactionPip): boolean {
+  return hoveredPip.value?.pip.factionId === pip.factionId;
+}
+
+function onPipEnter(event: PointerEvent, pip: FactionPip) {
+  hoveredPip.value = { pip, el: event.currentTarget as Element };
+}
+
+function onPipLeave() {
+  hoveredPip.value = null;
+}
+
+/**
+ * The badge is a way into the faction, not just a label — "no clue what the blip
+ * means" and "not a clickable link" were the same report.
+ *
+ * On touch the first tap is the hover: `pointerenter` fires alongside the tap, so
+ * navigating on that same tap would send you to a faction you never got to see
+ * named. So the first tap opens the badge and the second follows it.
+ */
+function onPipClick(pip: FactionPip) {
+  if (isTouch.value && hoveredPip.value?.pip.factionId !== pip.factionId) return;
+  router.push({ name: "faction-detail", params: { id: pip.factionId } });
+}
+
 const nodeBadges = computed(() => {
   const out: {
     nodeKey: string;
     cx: number;
     cy: number;
+    openScale: number;
     overflow: number;
     overflowDx: number;
     overflowDy: number;
-    pips: { factionId: string; factionName: string; emblemUrl: string | null; initial: string; active: boolean; dx: number; dy: number }[];
+    // Derived from FactionPip rather than restated: the hand-written copy this
+    // replaces silently stopped matching the moment role and status were added.
+    pips: (FactionPip & { dx: number; dy: number })[];
   }[] = [];
 
   for (const [nodeKey, node] of Object.entries(graphNodes.value)) {
@@ -351,6 +461,9 @@ const nodeBadges = computed(() => {
       nodeKey,
       cx: pos.x,
       cy: pos.y,
+      // Opened, a badge matches the node it hangs off — the largest it can be
+      // without reaching over a neighbour.
+      openScale: node.nodeSize / PIP_RADIUS,
       overflow: badges.overflow,
       overflowDx: offsets[badges.pips.length]?.x ?? 0,
       overflowDy: offsets[badges.pips.length]?.y ?? 0,

@@ -6,6 +6,7 @@ function row(npcId: string, factionName: string, status = "Active", emblem: stri
   return {
     npc_id: npcId,
     faction_id: `f-${factionName}`,
+    role: "Member",
     status,
     faction: { id: `f-${factionName}`, name: factionName, emblem_url: emblem },
   };
@@ -63,6 +64,18 @@ describe("factionBadgesByNode", () => {
     expect(badges.get("npc:a")!.pips[0].active).toBe(false);
   });
 
+  // The tooltip is the only place the graph can say *how* someone belongs, so
+  // role and status have to survive the grouping rather than being derived back
+  // from the `active` flag — "Retired" and "Expelled" are both inactive and mean
+  // very different things.
+  it("carries role and status through for the tooltip", () => {
+    const badges = factionBadgesByNode([row("a", "Harpers", "Expelled")], byNpc);
+    const pip = badges.get("npc:a")!.pips[0];
+    expect(pip.role).toBe("Member");
+    expect(pip.status).toBe("Expelled");
+    expect(pip.active).toBe(false);
+  });
+
   it("falls back to an initial when a faction has no emblem", () => {
     const withEmblem = factionBadgesByNode([row("a", "Harpers", "Active", "https://x/y.webp")], byNpc);
     const without = factionBadgesByNode([row("b", "zhentarim")], byNpc);
@@ -72,7 +85,7 @@ describe("factionBadgesByNode", () => {
   });
 
   it("survives a membership whose faction embed came back empty", () => {
-    const orphan = { npc_id: "a", faction_id: "f", status: "Active", faction: null as never };
+    const orphan = { npc_id: "a", faction_id: "f", role: null, status: "Active", faction: null as never };
     expect(() => factionBadgesByNode([orphan], byNpc)).not.toThrow();
     expect(factionBadgesByNode([orphan], byNpc).size).toBe(0);
   });
