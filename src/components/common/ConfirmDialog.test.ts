@@ -90,6 +90,29 @@ describe("ConfirmDialog", () => {
     wrapper.unmount();
   });
 
+  /**
+   * `alertdialog` is defined for a dialog whose message needs immediate
+   * attention, and it expects a description — which the question supplies. It
+   * is reserved for the destructive branch: a role that always shouts stops
+   * being heard.
+   */
+  it("announces a destructive confirm as an alertdialog, and a plain one as a dialog", async () => {
+    const wrapper = mountDialog();
+    const { confirm } = useConfirm();
+
+    const danger = confirm("Delete the owlbear?");
+    await flushPromises();
+    expect(panel()!.getAttribute("role")).toBe("alertdialog");
+    expect(panel()!.getAttribute("aria-describedby")).toBeTruthy();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await danger;
+
+    void confirm("Publish this?", { danger: false });
+    await flushPromises();
+    expect(panel()!.getAttribute("role")).toBe("dialog");
+    wrapper.unmount();
+  });
+
   it("gives an alert a single button and no Cancel", async () => {
     const wrapper = mountDialog();
     const { notify } = useConfirm();

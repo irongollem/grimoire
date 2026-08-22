@@ -1,7 +1,15 @@
 <template>
+  <!--
+    `alertdialog` when the answer destroys something. The role is defined for a
+    dialog carrying a message that needs immediate attention, and it expects an
+    accessible description — which the question now supplies. A plain confirm
+    ("Publish this?") stays a `dialog`: a role that always shouts stops being
+    heard, so it is reserved for the branch that already draws a red button.
+  -->
   <AppModal
     :open="dialog !== null"
     size="sm"
+    :role="dialog?.danger ? 'alertdialog' : 'dialog'"
     :backdrop-dismiss="false"
     @close="cancel"
   >

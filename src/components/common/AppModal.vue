@@ -39,7 +39,7 @@
           data-modal-panel
           class="relative flex flex-col overflow-hidden border border-border bg-card shadow-2xl focus:outline-none"
           :class="cn('w-full max-h-full', SIZES[size], ALIGN[align].panel, panelClass)"
-          role="dialog"
+          :role="role"
           aria-modal="true"
           :aria-labelledby="namedBy"
           :aria-describedby="describes"
@@ -110,6 +110,7 @@ const {
   open,
   size = "md",
   align = "center",
+  role = "dialog",
   panelClass,
   labelledBy,
   describedBy,
@@ -123,6 +124,16 @@ const {
   size?: keyof typeof SIZES;
   /** Vertical placement. `top` is for palettes; everything else wants `center`. */
   align?: keyof typeof ALIGN;
+  /**
+   * `alertdialog` for a modal that interrupts with something urgent — a
+   * destructive confirmation, or a failure the reader has to acknowledge.
+   * Screen readers treat it more insistently than a plain dialog, and it is
+   * defined to carry a description, which `ModalHeader`'s subtitle supplies.
+   *
+   * Not the default: applied to an ordinary dialog it cries wolf, and a role
+   * that always shouts stops being heard.
+   */
+  role?: "dialog" | "alertdialog";
   panelClass?: string;
   /**
    * Id of the element naming this dialog — usually the panel's own heading.
