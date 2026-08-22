@@ -220,6 +220,67 @@ export function usePlayerFactionNpcs(factionId: Ref<string>, enabled: Ref<boolea
   });
 }
 
+/**
+ * Every faction membership in the campaign, in one query per side.
+ *
+ * The per-entity `useFactionNpcs` / `useNpcFactions` above answer "who is in
+ * this faction" and "what is this NPC in"; the relationship web needs the whole
+ * grid at once to badge every node, and doing that through the per-entity hooks
+ * would be one request per NPC.
+ *
+ * `faction_npcs` carries no `campaign_id` of its own — membership is scoped by
+ * the faction it points at — so the campaign filter goes through an `!inner`
+ * embed rather than a column on the join table.
+ */
+export interface FactionMembership {
+  faction_id: string;
+  role: string | null;
+  status: string;
+  faction: Pick<Faction, "id" | "name" | "emblem_url">;
+}
+
+export interface NpcFactionMembership extends FactionMembership {
+  npc_id: string;
+}
+
+export interface PartyMemberFactionMembership extends FactionMembership {
+  party_member_id: string;
+}
+
+export function useAllFactionNpcs() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => ["faction-npcs", "all", campaignId.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("faction_npcs")
+        .select("npc_id, faction_id, role, status, faction:factions!inner(id, name, emblem_url, campaign_id)")
+        .eq("faction.campaign_id", campaignId.value!);
+      if (error) throw error;
+      return data as unknown as NpcFactionMembership[];
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
+export function useAllFactionPartyMembers() {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  return useQuery({
+    queryKey: computed(() => ["faction-party-members", "all", campaignId.value]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("faction_party_members")
+        .select("party_member_id, faction_id, role, status, faction:factions!inner(id, name, emblem_url, campaign_id)")
+        .eq("faction.campaign_id", campaignId.value!);
+      if (error) throw error;
+      return data as unknown as PartyMemberFactionMembership[];
+    },
+    enabled: () => !!campaignId.value,
+  });
+}
+
 export function useNpcFactions(npcId: string) {
   return useQuery({
     queryKey: ["npc-factions", npcId],

@@ -25,12 +25,64 @@
       </div>
       <VNetworkGraph
         v-else
+        v-model:layouts="layouts"
         :nodes="graphNodes"
         :edges="graphEdges"
         :configs="graphConfigs"
         :event-handlers="eventHandlers"
+        :layers="GRAPH_LAYERS"
         class="w-full h-full select-none touch-none"
-      />
+      >
+        <!--
+          Faction membership, drawn on the node rather than as nodes of its own.
+          `node-labels` puts this above the nodes in the layer stack; positions
+          come from `layouts`, which the force layout writes as it settles.
+        -->
+        <template #factionPips="{ scale }">
+          <defs>
+            <clipPath id="npcweb-pip-clip">
+              <circle cx="0" cy="0" :r="PIP_RADIUS * scale" />
+            </clipPath>
+          </defs>
+          <g v-for="badge in nodeBadges" :key="badge.nodeKey">
+            <g
+              v-for="pip in badge.pips"
+              :key="pip.factionId"
+              :transform="`translate(${badge.cx + pip.dx * scale}, ${badge.cy + pip.dy * scale})`"
+              :opacity="pip.active ? 1 : 0.45"
+            >
+              <title>{{ pip.factionName }}{{ pip.active ? '' : ' (former)' }}</title>
+              <circle :r="PIP_RADIUS * scale" class="fill-card stroke-border" :stroke-width="scale" />
+              <image
+                v-if="pip.emblemUrl"
+                :href="pip.emblemUrl"
+                :x="-PIP_RADIUS * scale"
+                :y="-PIP_RADIUS * scale"
+                :width="PIP_RADIUS * 2 * scale"
+                :height="PIP_RADIUS * 2 * scale"
+                preserveAspectRatio="xMidYMid slice"
+                clip-path="url(#npcweb-pip-clip)"
+              />
+              <text
+                v-else
+                text-anchor="middle"
+                dominant-baseline="central"
+                :font-size="PIP_RADIUS * scale"
+                class="fill-muted-foreground font-semibold"
+              >{{ pip.initial }}</text>
+            </g>
+            <text
+              v-if="badge.overflow"
+              :x="badge.cx + badge.overflowDx * scale"
+              :y="badge.cy + badge.overflowDy * scale"
+              text-anchor="middle"
+              dominant-baseline="central"
+              :font-size="PIP_RADIUS * scale"
+              class="fill-muted-foreground font-semibold"
+            >+{{ badge.overflow }}</text>
+          </g>
+        </template>
+      </VNetworkGraph>
 
       <!-- Link mode hint -->
       <transition name="fade">
@@ -98,7 +150,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { IconNetwork } from '@/lib/icons';
 import { npcRelationshipVar } from "@/lib/npcDisplay";
-import { VNetworkGraph, type EventHandlers } from "v-network-graph";
+import { VNetworkGraph, type EventHandlers, type Layers, type Layouts } from "v-network-graph";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NpcWebTopBar from "@/components/npcs/NpcWebTopBar.vue";
 import NpcWebLinkForm from "@/components/npcs/NpcWebLinkForm.vue";
@@ -111,6 +163,8 @@ import { useLocationTree } from "@/composables/useLocations";
 import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDeleteNpcRelation } from "@/composables/useNpcRelations";
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
 import { useNpcWebGraph, resolveVar } from "@/composables/useNpcWebGraph";
+import { useAllFactionNpcs, useAllFactionPartyMembers } from "@/composables/useFactions";
+import { factionBadgesByNode, pipOffsets } from "@/lib/npcWeb/factions";
 import { useUiStore } from "@/stores/ui";
 import {
   NPC_RELATIONSHIP_LABELS,
@@ -136,6 +190,11 @@ const { data: partyMembers, isLoading: partyLoading } = useParty();
 const speciesNameMap = useSpeciesNameMap();
 const { data: npcRelations, isLoading: relLoading } = useAllNpcRelations();
 const { data: pcNotes, isLoading: pcNotesLoading } = useAllNpcPcNotes();
+// Membership badges are additive — the graph draws without them, so they are
+// deliberately NOT part of `isLoading`. Blocking the whole web on a faction
+// query would make the common case (no factions yet) slower for nothing.
+const { data: factionNpcs } = useAllFactionNpcs();
+const { data: factionPartyMembers } = useAllFactionPartyMembers();
 const { mutateAsync: createRelation, isPending: isSavingNpcLink } = useCreateNpcRelation();
 const { mutateAsync: updateRelation } = useUpdateNpcRelation();
 const { mutateAsync: deleteRelation } = useDeleteNpcRelation();
@@ -159,6 +218,76 @@ const { graphNodes, graphEdges, graphConfigs, nodeCount } = useNpcWebGraph({
   pcNotes: () => pcNotes.value,
   pinnedKeys: () => pinnedKeys.value,
   getDescendantIds,
+});
+
+// ── Faction membership badges ─────────────────────────────────────────────────
+
+/** Node positions, written by the force layout and read by the badge layer. */
+const layouts = ref<Layouts>({ nodes: {} });
+
+/**
+ * `node-labels` sits above `nodes` in v-network-graph's stack, so the emblems
+ * draw over the circles rather than under them. The layer is inside the graph's
+ * own pan/zoom transform, so positions are plain graph coordinates and the
+ * badges zoom with everything else.
+ */
+const GRAPH_LAYERS: Layers = { factionPips: "node-labels" };
+
+/**
+ * Screen pixels, not graph units.
+ *
+ * `view.scalingObjects` is false — nodes hold a constant screen size however far
+ * you zoom — and the layer slot hands out `scale` (`1 / zoomLevel`) so custom
+ * drawing can do the same. Every size and offset below is therefore multiplied
+ * by `scale` at the point of use. Skip that and the emblems balloon with the
+ * zoom: at the fit-content zoom of a two-node graph they render five times the
+ * width of the node they belong to.
+ */
+const PIP_RADIUS = 6;
+
+const badgesByNode = computed(() => {
+  const merged = new Map<string, ReturnType<typeof factionBadgesByNode>>();
+  merged.set("npc", factionBadgesByNode(factionNpcs.value ?? [], (r) => `npc:${r.npc_id}`));
+  merged.set("pc", factionBadgesByNode(factionPartyMembers.value ?? [], (r) => `pc:${r.party_member_id}`));
+  return merged;
+});
+
+/**
+ * Badges positioned against the nodes that are actually on screen.
+ *
+ * Keyed off `graphNodes` rather than the membership rows, so a filtered-out NPC
+ * does not leave its emblems floating at a stale position — and off `layouts`,
+ * so they follow the force simulation while it settles.
+ */
+const nodeBadges = computed(() => {
+  const out: {
+    nodeKey: string;
+    cx: number;
+    cy: number;
+    overflow: number;
+    overflowDx: number;
+    overflowDy: number;
+    pips: { factionId: string; factionName: string; emblemUrl: string | null; initial: string; active: boolean; dx: number; dy: number }[];
+  }[] = [];
+
+  for (const [nodeKey, node] of Object.entries(graphNodes.value)) {
+    const badges = badgesByNode.value.get(nodeKey.startsWith("pc:") ? "pc" : "npc")?.get(nodeKey);
+    if (!badges?.pips.length) continue;
+    const pos = layouts.value.nodes[nodeKey];
+    if (!pos) continue;
+
+    const offsets = pipOffsets(badges.pips.length + (badges.overflow ? 1 : 0), node.nodeSize, PIP_RADIUS);
+    out.push({
+      nodeKey,
+      cx: pos.x,
+      cy: pos.y,
+      overflow: badges.overflow,
+      overflowDx: offsets[badges.pips.length]?.x ?? 0,
+      overflowDy: offsets[badges.pips.length]?.y ?? 0,
+      pips: badges.pips.map((pip, i) => ({ ...pip, dx: offsets[i].x, dy: offsets[i].y })),
+    });
+  }
+  return out;
 });
 
 // ── Shift-key tracking (more reliable than relying on event.shiftKey in v-network-graph) ──
