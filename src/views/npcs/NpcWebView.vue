@@ -25,7 +25,10 @@
       </div>
       <VNetworkGraph
         v-else
+        ref="graphRef"
         v-model:layouts="layouts"
+        @wheel="cameraTakenByUser = true"
+        @pointerdown="cameraTakenByUser = true"
         :nodes="graphNodes"
         :edges="graphEdges"
         :configs="graphConfigs"
@@ -147,7 +150,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useDebounceFn } from "@vueuse/core";
 import { IconNetwork } from '@/lib/icons';
 import { npcRelationshipVar } from "@/lib/npcDisplay";
 import { VNetworkGraph, type EventHandlers, type Layers, type Layouts } from "v-network-graph";
@@ -206,6 +210,30 @@ const isLoading = computed(
   () => npcsLoading.value || partyLoading.value || relLoading.value || pcNotesLoading.value,
 );
 
+// ── Selection & link state ───────────────────────────────────────────────────
+// Declared before the graph rather than beside the panels that use it, because
+// `useNpcWebGraph` reads `pinnedKeys` — and `const` is not hoisted. While
+// nothing evaluated the graph during setup this only looked like odd ordering;
+// the moment the auto-fit watcher below read `graphNodes` eagerly it became
+// "Cannot access 'pinnedKeys' before initialization" and the whole view failed
+// to mount. Definition order here is load-bearing.
+
+// First node selected (graph key, e.g. "npc:abc")
+const linkFromKey = ref<string | null>(null);
+// Second node (only set when shift-clicking an NPC while linkFromKey is an NPC)
+const linkToKey = ref<string | null>(null);
+
+// Single-node panel (regular click, no link mode)
+const singlePanelKey = ref<string | null>(null);
+
+// Keys that are pinned (selected) and must always show regardless of search
+const pinnedKeys = computed(() => {
+  const keys: string[] = [];
+  if (linkFromKey.value) keys.push(linkFromKey.value);
+  if (linkToKey.value) keys.push(linkToKey.value);
+  return new Set(keys);
+});
+
 // ── Graph data ────────────────────────────────────────────────────────────────
 // Nodes, edges, colours and layout live in `useNpcWebGraph`; what stays here is
 // interaction — selection, link building, panels. `pinnedKeys` is the one thing
@@ -224,6 +252,48 @@ const { graphNodes, graphEdges, graphConfigs, nodeCount } = useNpcWebGraph({
 
 /** Node positions, written by the force layout and read by the badge layer. */
 const layouts = ref<Layouts>({ nodes: {} });
+
+/**
+ * Frame the graph on what is actually in it.
+ *
+ * `autoPanAndZoomOnLoad: "fit-content"` fits once, at load — which is before the
+ * force simulation has run, so it frames every node stacked at the origin and
+ * then the simulation spreads them straight out of shot. On a sparse web the
+ * result is an empty canvas at 7x zoom that reads as a broken view rather than a
+ * settling one; reviewing anything here meant spinning the mouse wheel first.
+ *
+ * So: refit once the positions stop moving. Debounced on `layouts` rather than
+ * hooked to a "simulation ended" event, because ForceLayout does not expose one
+ * and positions going quiet is the same fact observed from outside.
+ *
+ * Two rules keep it from fighting the user. It never refits after they have
+ * touched the camera — a view that re-centres itself while you are reading it is
+ * worse than one badly framed. And changing *what is shown* clears that, because
+ * filtering down to one NPC while the camera sits over where the others used to
+ * be is the same empty canvas by another route.
+ */
+const graphRef = ref<InstanceType<typeof VNetworkGraph> | null>(null);
+const cameraTakenByUser = ref(false);
+const framed = ref(false);
+
+const frameWhenSettled = useDebounceFn(() => {
+  if (framed.value || cameraTakenByUser.value) return;
+  framed.value = true;
+  graphRef.value?.fitToContents();
+}, 400);
+
+watch(layouts, () => { if (!framed.value) void frameWhenSettled(); }, { deep: true });
+
+// Which nodes are on screen, not where they are: a filter change re-frames, a
+// simulation tick does not.
+watch(
+  () => Object.keys(graphNodes.value).sort().join(","),
+  () => {
+    framed.value = false;
+    cameraTakenByUser.value = false;
+    void frameWhenSettled();
+  },
+);
 
 /**
  * `node-labels` sits above `nodes` in v-network-graph's stack, so the emblems
@@ -306,22 +376,6 @@ onMounted(() => {
 });
 
 // ── Selection & link state ────────────────────────────────────────────────────
-
-// First node selected (graph key, e.g. "npc:abc")
-const linkFromKey = ref<string | null>(null);
-// Second node (only set when shift-clicking an NPC while linkFromKey is an NPC)
-const linkToKey = ref<string | null>(null);
-
-// Single-node panel (regular click, no link mode)
-const singlePanelKey = ref<string | null>(null);
-
-// Keys that are pinned (selected) and must always show regardless of search
-const pinnedKeys = computed(() => {
-  const keys: string[] = [];
-  if (linkFromKey.value) keys.push(linkFromKey.value);
-  if (linkToKey.value) keys.push(linkToKey.value);
-  return new Set(keys);
-});
 
 const npcById = computed(() =>
   Object.fromEntries((allNpcs.value ?? []).map((n) => [n.id, n])),
