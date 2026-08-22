@@ -7,18 +7,22 @@ Primary play-time screen. Layout (top → bottom):
 1. **Encounter banner** — live green bar when a run is active; links to runner.
 2. **Party grid** — full-width, responsive `grid-cols-1 md:grid-cols-2 xl:grid-cols-3`. Each card: `FocalImage format="token"` portrait (placeholder `/assets/placeholders/character.webp`), HP bar, AC/PP/PI badges, conditions/curses, DM tracker buttons. Online dot via `useCampaignPresence`.
 3. **3-col row**:
-   - *Active Quests* — compact list (title + giver, max 6), no tags/summary.
+   - *In progress* (`components/dashboard/DashboardInProgressQuests.vue`) — every chain the party has open, from `get_campaign_live_quests`, each row linking straight into Run. Running and paused are **separated, not merged**: after `end_campaign_quest_session` every chain is paused at its beat, so the paused set is the normal between-sessions view and a panel calling all of it live would claim the party is mid-scene in six quests on a Sunday afternoon. Rows are `components/quests/QuestChainRow.vue`, shared with the cockpit's "Also open" rail. Distinct from *Active Quests* below: that is the kanban lane, this is where the party actually is.
+   - *Active Quests* — compact list (title + giver, max 6), no tags/summary. Reads `quests.status`, which a runtime cursor now promotes on arrival (`20260822232041`, one-way: never demotes, never reopens a completed or failed verdict), so a quest being played can no longer be missing from this list.
    - *Session panel* — Game Day inline editor (`useSetCampaignToday` — `± Day` buttons + arbitrary date form using `calendarStore.adapter.months`); Current Location `EntityCombobox` (`useSetCampaignLocation` → `campaigns.current_location_id`); DM-only "Sync to party →" button (`useSyncPartyLocation` — batch updates all `party_members.current_location_id`).
    - *DM tools* — Unidentified items (amber, always open) + Rumour quests (chip strip).
 4. **Recent NPCs strip** — horizontal scrollable row of up to 10 NPCs in visit order. Driven by `useRecentNpcs` composable (localStorage key `grimoire_recent_npcs_<campaignId>`, cap 10, per-campaign). Visit recorded in `NpcDetailView` via `watch(id)`.
 5. **Pinned Notes** — only `is_pinned` notes, max 4, hidden when none.
 6. **Stats strip** — slim 4-item row (Active Quests / NPCs / Encounters / Locations) linking to each list view.
 
+> **Pending refactor.** [#759](https://github.com/irongollem/grimoire/issues/759) splits this page into a session view and a prep view, keyed on the campaign session from [#758](https://github.com/irongollem/grimoire/issues/758). *In progress* belongs to the session half and the paused chains it lists belong to the prep half. The file is at 597 lines against a 600 soft max, so new cards go in `components/dashboard/` — do not add inline markup here.
+
 ### Key composables used
 
 - `useRecentNpcs` — `src/composables/useRecentNpcs.ts` — module-level singleton, localStorage-backed.
 - `useSetCampaignToday` / `useSetCampaignLocation` — `src/composables/useCampaigns.ts`.
 - `useSyncPartyLocation` — `src/composables/useParty.ts` — batch `UPDATE party_members SET current_location_id WHERE id IN (...)`.
+- `useCampaignLiveQuests` — `src/composables/useQuestFlow.ts` — the open-chain set. Shared with the Run cockpit and, per [session-mode.md](../../docs/session-mode.md), the planned `LiveRail`; add consumers to it rather than re-querying `get_campaign_live_quests`.
 
 ### campaigns table additions (migration `20260508000008`)
 
