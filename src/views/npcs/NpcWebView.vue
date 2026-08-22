@@ -97,9 +97,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { IconNetwork } from '@/lib/icons';
-import { npcRelationshipCanvasColor, npcRelationshipVar } from "@/lib/npcDisplay";
-import { VNetworkGraph, defineConfigs, type EventHandlers } from "v-network-graph";
-import { ForceLayout } from "v-network-graph/lib/force-layout";
+import { npcRelationshipVar } from "@/lib/npcDisplay";
+import { VNetworkGraph, type EventHandlers } from "v-network-graph";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NpcWebTopBar from "@/components/npcs/NpcWebTopBar.vue";
 import NpcWebLinkForm from "@/components/npcs/NpcWebLinkForm.vue";
@@ -111,6 +110,7 @@ import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useLocationTree } from "@/composables/useLocations";
 import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDeleteNpcRelation } from "@/composables/useNpcRelations";
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
+import { useNpcWebGraph, resolveVar } from "@/composables/useNpcWebGraph";
 import { useUiStore } from "@/stores/ui";
 import {
   NPC_RELATIONSHIP_LABELS,
@@ -148,189 +148,17 @@ const isLoading = computed(
 );
 
 // ── Graph data ────────────────────────────────────────────────────────────────
+// Nodes, edges, colours and layout live in `useNpcWebGraph`; what stays here is
+// interaction — selection, link building, panels. `pinnedKeys` is the one thing
+// that crosses: a node being linked must survive the search filter.
 
-/**
- * A theme custom property as a concrete value.
- *
- * The graph config takes colours as *values* — they end up on SVG presentation
- * attributes and in the layout engine, neither of which resolves `var()` or
- * knows what a utility class is. So the ramps are read out of the document here
- * rather than the graph keeping its own palette, which is what let its previous
- * private copy rot (#742/#744).
- *
- * Resolved at build time of the graph data, so a rebuild after a theme switch
- * picks up the new palette.
- */
-function cssValue(token: string, fallback: string): string {
-  if (typeof document === "undefined") return fallback;
-  return getComputedStyle(document.documentElement).getPropertyValue(token).trim() || fallback;
-}
-
-/** `var(--x)` from a ramp map, resolved to a value the graph can paint with. */
-function resolveVar(varExpr: string | undefined, fallback: string): string {
-  const token = varExpr?.match(/^var\((--[^)]+)\)$/)?.[1];
-  return token ? cssValue(token, fallback) : fallback;
-}
-
-// Node colours come from the shared relationship ramp, resolved to concrete
-// values because force-graph paints to a canvas (#742).
-//
-// This file used to keep its own copy of the map, still keyed on the *old*
-// relationship values — `ally`/`neutral`/`enemy`, replaced by the 5e reaction
-// scale in `20260519000001_npc_relationship_5e_scale`. That migration remapped
-// the rows and updated the AI prompt, but a duplicated lookup in an unrelated
-// view is invisible to a schema change: it kept compiling, kept matching
-// nothing, and every NPC node fell through to the default grey. The graph had
-// carried no relationship information since.
-
-// Keys that are pinned (selected) and must always show regardless of search
-const pinnedKeys = computed(() => {
-  const keys: string[] = [];
-  if (linkFromKey.value) keys.push(linkFromKey.value);
-  if (linkToKey.value) keys.push(linkToKey.value);
-  return new Set(keys);
-});
-
-function npcMatchesSearch(npc: { name: string; disguise_name?: string | null }, q: string): boolean {
-  const lower = q.toLowerCase();
-  return npc.name.toLowerCase().includes(lower) || (npc.disguise_name ?? "").toLowerCase().includes(lower);
-}
-
-const graphNodes = computed(() => {
-  const nodes: Record<string, { name: string; nodeType: "npc" | "pc"; nodeColor: string; nodeSize: number }> = {};
-  const q = ui.npcWebSearch.trim();
-
-  const locationDescendants = ui.npcWebFilterLocation ? getDescendantIds(ui.npcWebFilterLocation) : null;
-
-  for (const npc of allNpcs.value ?? []) {
-    const key = `npc:${npc.id}`;
-    if (q && !npcMatchesSearch(npc, q) && !pinnedKeys.value.has(key)) continue;
-    if (locationDescendants && !locationDescendants.has(npc.location_id ?? "")) continue;
-    nodes[key] = {
-      name: npc.name,
-      nodeType: "npc",
-      nodeColor: npcRelationshipCanvasColor(npc.relationship),
-      nodeSize: 18,
-    };
-  }
-
-  if (ui.npcWebShowPcs) {
-    for (const pc of partyMembers.value ?? []) {
-      const key = `pc:${pc.id}`;
-      if (q && !pc.name.toLowerCase().includes(q.toLowerCase()) && !pinnedKeys.value.has(key)) continue;
-      nodes[key] = {
-        name: pc.name,
-        nodeType: "pc",
-        // Party members are the theme accent, not a relationship step.
-        nodeColor: cssValue("--primary", "#d97706"),
-        nodeSize: 22,
-      };
-    }
-  }
-
-  return nodes;
-});
-
-const graphEdges = computed(() => {
-  const edges: Record<string, { source: string; target: string; edgeColor: string; dashed: boolean }> = {};
-
-  for (const rel of npcRelations.value ?? []) {
-    const rawType = rel.relationship_type as NpcRelationshipType;
-    if (ui.npcWebFilterType && rawType !== ui.npcWebFilterType && NPC_RELATIONSHIP_INVERSE[rawType] !== ui.npcWebFilterType) {
-      continue;
-    }
-    const a = `npc:${rel.npc_id}`;
-    const b = `npc:${rel.related_npc_id}`;
-    const key = a < b ? `${a}--${b}` : `${b}--${a}`;
-    if (!edges[key]) {
-      edges[key] = {
-        source: a,
-        target: b,
-        edgeColor: resolveVar(NPC_RELATIONSHIP_TYPE_VAR[rawType], "#6b7280"),
-        dashed: false,
-      };
-    }
-  }
-
-  if (ui.npcWebShowPcs) {
-    for (const note of pcNotes.value ?? []) {
-      if (ui.npcWebFilterType && note.relationship_type !== ui.npcWebFilterType) continue;
-      const npcKey = `npc:${note.npc_id}`;
-      const pcKey = `pc:${note.party_member_id}`;
-      const key = `${npcKey}--${pcKey}`;
-      if (!edges[key]) {
-        edges[key] = {
-          source: npcKey,
-          target: pcKey,
-          edgeColor: resolveVar(NPC_RELATIONSHIP_TYPE_VAR[note.relationship_type], "#d97706"),
-          dashed: true,
-        };
-      }
-    }
-  }
-
-  return edges;
-});
-
-const nodeCount = computed(() => Object.keys(graphNodes.value).length);
-
-// ── Graph config ──────────────────────────────────────────────────────────────
-
-const graphConfigs = defineConfigs({
-  view: {
-    autoPanAndZoomOnLoad: "fit-content",
-    layoutHandler: new ForceLayout({
-      positionFixedByDrag: true,
-    }),
-  },
-  node: {
-    normal: {
-      color: (n) => (n as { nodeColor: string }).nodeColor,
-      radius: (n) => (n as { nodeSize: number }).nodeSize,
-      strokeWidth: 2,
-      strokeColor: "#00000040",
-    },
-    hover: {
-      color: (n) => (n as { nodeColor: string }).nodeColor,
-      radius: (n) => (n as { nodeSize: number }).nodeSize + 3,
-    },
-    label: {
-      visible: true,
-      fontSize: 11,
-      /**
-       * A function, not a value: `graphConfigs` is built once at setup, so a
-       * literal here is frozen at whatever the theme was then. Read at draw
-       * time it follows the theme on the next redraw — the same caveat
-       * `npcRelationshipCanvasColor` states for the node fills, and the reason
-       * this file resolves colours through `cssValue` rather than storing them.
-       *
-       * It was the literal `#e2d9c8` — Grimoire's parchment `--foreground`,
-       * hard-coded in the one field of this file that skipped the `cssValue`
-       * helper the rest of it uses. On Tome that is cream on near-white:
-       * rgb(226,217,200) on rgb(246,244,238), a contrast ratio of 1.27:1. Every
-       * NPC name on the web was invisible on the default theme, and the nodes
-       * still worked — you could click a label you could not read.
-       */
-      color: () => cssValue("--foreground", "#e2d9c8"),
-    },
-    focusring: { visible: false },
-    selectable: false,
-  },
-  edge: {
-    normal: {
-      color: (e) => (e as unknown as { edgeColor: string }).edgeColor,
-      width: 2,
-      dasharray: (e) => ((e as unknown as { dashed: boolean }).dashed ? "5,4" : "0"),
-    },
-    hover: {
-      color: (e) => (e as unknown as { edgeColor: string }).edgeColor,
-      width: 3,
-    },
-    marker: {
-      source: { type: "none" },
-      target: { type: "none" },
-    },
-  },
+const { graphNodes, graphEdges, graphConfigs, nodeCount } = useNpcWebGraph({
+  npcs: () => allNpcs.value,
+  partyMembers: () => partyMembers.value,
+  relations: () => npcRelations.value,
+  pcNotes: () => pcNotes.value,
+  pinnedKeys: () => pinnedKeys.value,
+  getDescendantIds,
 });
 
 // ── Shift-key tracking (more reliable than relying on event.shiftKey in v-network-graph) ──
@@ -357,6 +185,14 @@ const linkToKey = ref<string | null>(null);
 
 // Single-node panel (regular click, no link mode)
 const singlePanelKey = ref<string | null>(null);
+
+// Keys that are pinned (selected) and must always show regardless of search
+const pinnedKeys = computed(() => {
+  const keys: string[] = [];
+  if (linkFromKey.value) keys.push(linkFromKey.value);
+  if (linkToKey.value) keys.push(linkToKey.value);
+  return new Set(keys);
+});
 
 const npcById = computed(() =>
   Object.fromEntries((allNpcs.value ?? []).map((n) => [n.id, n])),
