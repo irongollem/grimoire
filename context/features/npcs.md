@@ -26,7 +26,7 @@ Route: `/npcs`
 NPCs render as a responsive card grid: 1 column on mobile, 2 on sm, 3 on lg, 4 on xl. Each card shows:
 
 - A landscape-format portrait thumbnail (`FocalImage`, 144 px tall) with a hover scale animation. Falls back to coloured initials (first two letters) in the relationship colour if no portrait.
-- A relationship badge overlaid top-right on the portrait (colour-coded: ally=blue, neutral=grey, enemy=red, unknown=purple).
+- A relationship badge overlaid top-right on the portrait, coloured from the `--relationship-*` ramp: hostile=red, unfriendly=orange, indifferent=grey, friendly=teal, helpful=green, unknown=purple.
 - NPC name (truncated), species + occupation line, location (with pin emoji if present), and up to 3 tag chips ("+N more" if overflow).
 - A status dot (top-right of name row): green=alive, red=dead, amber=missing, grey=unknown.
 - Two always-visible icon chips over the portrait's top-left corner, on the same scrim and at the same size: **Edit** (straight to `?edit=true`) and the **reveal** control. Clicking anywhere else on the card opens the sheet.
@@ -41,7 +41,7 @@ All filter state is stored in `useUiStore` and survives navigation within the se
 | ------------ | ------------ | ---------------------------------------------------------------------------- |
 | Search       | Full-text    | Name, disguise name, species, occupation, location name, tags                |
 | Status       | Toggle group | All / Alive / Dead / Missing / ?                                             |
-| Relationship | Toggle group | All / Ally / Neutral / Enemy                                                 |
+| Relationship | Toggle group | All / Helpful / Friendly / Indifferent / Unfriendly / Hostile / Unknown (warmest first) |
 | Location     | Combobox     | Hierarchical location tree; selecting a parent includes all descendants      |
 | Connected to | Combobox     | Any party member — shows only NPCs with a PC-connection note for that player |
 | Sort         | Toggle group | Name (alphabetical) / Location (tree order, then alphabetical)               |
@@ -101,7 +101,7 @@ Toggling between modes does not lose unsaved work because edit mode is URL-drive
 
 **Portrait tabs**: "True Form" and "Alter Ego" — each with a separate `ImageUpload` with focal-point setter. The alter-ego tab is pre-selected if the NPC already has `disguise_name` or `disguise_portrait_url`.
 
-**Party Stance** (relationship): four coloured toggle buttons — Ally (blue), Neutral (grey), Enemy (red), Unknown (purple).
+**Party Stance** (relationship): `RelationshipWheel` — the five 5e attitudes (Hostile, Unfriendly, Indifferent, Friendly, Helpful), each coloured from its `--relationship-*` token. `unknown` is the unset state rather than a sixth choice.
 
 **Status**: four coloured toggle buttons — Alive (green), Dead (red), Missing (amber), Unknown (grey).
 
@@ -239,7 +239,7 @@ A full-viewport force-directed graph rendered with `v-network-graph` (VNetworkGr
 
 ### Nodes
 
-- **NPC nodes**: coloured circles sized 18 px radius, colour = relationship colour (ally blue, neutral grey, enemy red, unknown purple). Labels shown.
+- **NPC nodes**: coloured circles sized 18 px radius, colour = relationship colour, resolved from the `--relationship-*` ramp by `npcRelationshipCanvasColor()` (hostile red, unfriendly orange, indifferent grey, friendly teal, helpful green, unknown purple). Labels shown.
 - **PC nodes** (togglable): larger circles (22 px radius), amber/gold colour, labelled with party member name.
 
 ### Edges
@@ -251,13 +251,19 @@ Only one edge is drawn per pair regardless of directionality (the inverse type i
 
 ### Filters and Controls
 
+The legend is **derived** from `NPC_RELATIONSHIP_LABELS` and the ramp tokens, never
+listed by hand. It used to be three literal pairs (Ally #2563eb / Neutral #6b7280 /
+Enemy #dc2626) — the pre-5e enum that `20260519000001` replaced. The graph moved with
+the migration and the key under it did not, so for every release since it named three
+groups that could no longer appear and coloured them with hexes nothing was painting.
+
 | Control                    | Behaviour                                                                            |
 | -------------------------- | ------------------------------------------------------------------------------------ |
 | Search input               | Filters nodes by NPC name or disguise name; selected/linked nodes are pinned visible |
 | Party Members toggle       | Shows/hides PC nodes and their edges                                                 |
 | Location dropdown          | Shows only NPCs at that location (including descendants)                             |
 | Relationship type dropdown | Shows only edges of that type (considering inverse)                                  |
-| Legend                     | Colour swatches for Ally/Neutral/Enemy + dashed line = PC link                       |
+| Legend                     | One swatch per relationship, built from `NPC_RELATIONSHIP_LABELS` + the ramp tokens, + dashed line = PC link |
 | Clear                      | Appears when any of the four is active; calls `resetNpcWebFilters()`                 |
 
 All four live in `useUiStore` (`npcWebSearch`, `npcWebShowPcs`, `npcWebFilterLocation`, `npcWebFilterType`) and survive navigating to an NPC sheet and back (#723). A graph is not a list, which is why the Filter State Pattern audit skipped it — but the filters are filters, so it gets the same treatment. `NpcWebTopBar` stays prop/emit-driven (the view owns where the state lives) and bridges to the `ListSearchInput` / `ListFilterSelect` v-models with local writable computeds.

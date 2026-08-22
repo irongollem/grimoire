@@ -97,7 +97,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { IconNetwork } from '@/lib/icons';
-import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
+import { npcRelationshipCanvasColor, npcRelationshipVar } from "@/lib/npcDisplay";
 import { VNetworkGraph, defineConfigs, type EventHandlers } from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -113,11 +113,12 @@ import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDele
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
 import { useUiStore } from "@/stores/ui";
 import {
+  NPC_RELATIONSHIP_LABELS,
   NPC_RELATIONSHIP_TYPE_LABELS,
   NPC_RELATIONSHIP_TYPE_VAR,
   NPC_RELATIONSHIP_INVERSE,
 } from "@/types/npc.types";
-import type { NpcRelationshipType } from "@/types/npc.types";
+import type { NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 // In useUiStore (Filter State Pattern), so opening an NPC from the web and
@@ -603,11 +604,33 @@ const eventHandlers: EventHandlers = {
 
 // ── Legend ────────────────────────────────────────────────────────────────────
 
-const legendItems: [string, string][] = [
-  ["Ally", "#2563eb"],
-  ["Neutral", "#6b7280"],
-  ["Enemy", "#dc2626"],
-];
+/**
+ * Derived from the same two maps the nodes are drawn from, never restated.
+ *
+ * It used to be three hand-written pairs — Ally #2563eb, Neutral #6b7280, Enemy
+ * #dc2626 — which is the pre-5e enum that `20260519000001` replaced with the
+ * six-step attitude scale. The graph itself moved with it (see
+ * `npcRelationshipCanvasColor`, whose own docstring records the same drift being
+ * fixed a layer down), so for every release since, the key under the graph named
+ * three groups that could no longer appear in it and gave them colours nothing
+ * on screen was painting.
+ *
+ * That is the failure mode a legend has and a chart does not: it is prose about
+ * a picture, so it stays green through every check while quietly describing a
+ * different picture. Building it from `NPC_RELATIONSHIP_LABELS` and the ramp
+ * tokens is what makes the next enum change reach it — and the hexes go with it,
+ * since a fixed literal cannot follow the theme the graph now follows.
+ *
+ * `unknown` is included: it is a real stored value, it is what an NPC with no
+ * attitude set renders as, and a grey node with no entry in the key is exactly
+ * the question this legend exists to answer.
+ */
+const legendItems = computed<[string, string][]>(() =>
+  (Object.keys(NPC_RELATIONSHIP_LABELS) as NpcRelationship[]).map((relationship) => [
+    NPC_RELATIONSHIP_LABELS[relationship],
+    npcRelationshipVar(relationship),
+  ]),
+);
 </script>
 
 <style scoped>
