@@ -1,137 +1,124 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      @click.self="close"
-    >
-      <div
-        class="bg-card border border-border rounded-lg w-full shadow-xl"
-        :class="form.calendar_id === 'custom' ? 'max-w-3xl' : 'max-w-md'"
-      >
-        <div class="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 class="text-heading font-bold text-foreground">New Campaign</h2>
-          <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="close" />
+  <AppModal :open="open" :size="form.calendar_id === 'custom' ? 'lg' : 'md'" @close="close">
+    <ModalHeader title="New Campaign" closeable @close="close" />
+
+    <form class="min-h-0 flex-1 flex flex-col overflow-hidden" @submit.prevent="submit">
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
+        <div>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1">NAME</label>
+          <AppInput
+            v-model="form.name"
+            required
+            tone="filled"
+            size="heading"
+            placeholder="The Lost Mine of Phandelver…"
+          />
         </div>
 
-        <form class="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto" @submit.prevent="submit">
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">NAME</label>
-            <AppInput
-              v-model="form.name"
-              required
-              tone="filled"
-              size="heading"
-              placeholder="The Lost Mine of Phandelver…"
-            />
-          </div>
+        <div>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1">WORLD</label>
+          <AppInput
+            v-model="form.setting"
+            list="new-campaign-settings-list"
+            tone="filled"
+            size="body"
+            placeholder="Forgotten Realms, Eberron, Homebrew…"
+          />
+          <datalist id="new-campaign-settings-list">
+            <option value="Forgotten Realms" />
+            <option value="Eberron" />
+            <option value="Ravenloft" />
+            <option value="Dragonlance" />
+            <option value="Greyhawk" />
+            <option value="Planescape" />
+            <option value="Spelljammer" />
+            <option value="Dark Sun" />
+            <option value="Mystara" />
+            <option value="Homebrew" />
+          </datalist>
+        </div>
 
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">WORLD</label>
-            <AppInput
-              v-model="form.setting"
-              list="new-campaign-settings-list"
-              tone="filled"
-              size="body"
-              placeholder="Forgotten Realms, Eberron, Homebrew…"
-            />
-            <datalist id="new-campaign-settings-list">
-              <option value="Forgotten Realms" />
-              <option value="Eberron" />
-              <option value="Ravenloft" />
-              <option value="Dragonlance" />
-              <option value="Greyhawk" />
-              <option value="Planescape" />
-              <option value="Spelljammer" />
-              <option value="Dark Sun" />
-              <option value="Mystara" />
-              <option value="Homebrew" />
-            </datalist>
-          </div>
+        <div>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1">RULESET</label>
+          <AppSelect
+            v-model="form.ruleset"
+            tone="filled"
+            weight="normal"
+            size="body"
+            block
+          >
+            <option v-for="option in RULESET_OPTIONS" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </AppSelect>
+          <p class="text-caption text-muted-foreground mt-1">
+            Applies to character options, spells, creatures, items, rests, and encounter rules.
+          </p>
+        </div>
 
+        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">RULESET</label>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CALENDAR</label>
             <AppSelect
-              v-model="form.ruleset"
+              v-model="form.calendar_id"
               tone="filled"
               weight="normal"
               size="body"
               block
+              @change="onCalendarChange"
             >
-              <option v-for="option in RULESET_OPTIONS" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
+              <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
+              <option value="custom">— Custom calendar…</option>
             </AppSelect>
-            <p class="text-caption text-muted-foreground mt-1">
-              Applies to character options, spells, creatures, items, rests, and encounter rules.
-            </p>
           </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CALENDAR</label>
-              <AppSelect
-                v-model="form.calendar_id"
-                tone="filled"
-                weight="normal"
-                size="body"
-                block
-                @change="onCalendarChange"
-              >
-                <option v-for="cal in availableCalendars" :key="cal.id" :value="cal.id">{{ cal.name }}</option>
-                <option value="custom">— Custom calendar…</option>
-              </AppSelect>
-            </div>
-            <div>
-              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CURRENT YEAR</label>
-              <AppInput
-                v-model.number="form.current_year"
-                type="number"
-                min="1"
-                tone="filled"
-                size="body"
-              />
-            </div>
+          <div>
+            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">CURRENT YEAR</label>
+            <AppInput
+              v-model.number="form.current_year"
+              type="number"
+              min="1"
+              tone="filled"
+              size="body"
+            />
           </div>
+        </div>
 
-          <CalendarEditor
-            v-if="form.calendar_id === 'custom' && customCalendarDef"
-            v-model="customCalendarDef"
+        <CalendarEditor
+          v-if="form.calendar_id === 'custom' && customCalendarDef"
+          v-model="customCalendarDef"
+        />
+
+        <div
+          v-if="showClaimOption"
+          class="rounded-md border border-border bg-muted/50 px-3 py-2.5"
+        >
+          <AppCheckbox
+            v-model="claimExisting"
+            label="Import existing data"
+            hint="Assign your existing notes, NPCs, party members, calendar events, and encounters to this campaign."
+            class="gap-2.5"
           />
-
-          <div
-            v-if="showClaimOption"
-            class="rounded-md border border-border bg-muted/50 px-3 py-2.5"
-          >
-            <AppCheckbox
-              v-model="claimExisting"
-              label="Import existing data"
-              hint="Assign your existing notes, NPCs, party members, calendar events, and encounters to this campaign."
-              class="gap-2.5"
-            />
-          </div>
-
-          <div class="flex justify-end gap-2 pt-1">
-            <AppButton variant="subtle" size="md" label="Cancel" @click="close" />
-            <AppButton
-              type="submit"
-              variant="primary"
-              size="md"
-              :disabled="isSaving"
-              :label="isSaving ? 'Saving…' : 'Create Campaign'"
-            />
-          </div>
-        </form>
+        </div>
       </div>
-    </div>
-  </Teleport>
+
+      <div class="shrink-0 flex justify-end gap-2 px-5 py-3">
+        <AppButton variant="subtle" size="md" label="Cancel" @click="close" />
+        <AppButton
+          type="submit"
+          variant="primary"
+          size="md"
+          :disabled="isSaving"
+          :label="isSaving ? 'Saving…' : 'Create Campaign'"
+        />
+      </div>
+    </form>
+  </AppModal>
 
   <PaywallModal v-model="showPaywall" resource="campaigns" />
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { IconClose } from "@/lib/icons";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
@@ -141,7 +128,9 @@ import { isQuotaExceeded } from "@/lib/quotaError";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import CalendarEditor from "@/components/calendar/CalendarEditor.vue";
 import type { Campaign } from "@/types/campaign.types";
 import { DEFAULT_RULESET, RULESET_OPTIONS } from "@/types/ruleset.types";

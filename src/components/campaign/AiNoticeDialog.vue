@@ -1,74 +1,56 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      @click.self="cancel"
-    >
-      <div class="bg-card border border-border rounded-lg w-full max-w-md shadow-xl">
-        <div class="flex items-start gap-3 px-5 pt-5 pb-3">
-          <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-primary/15 text-primary">
-            <IconInfo class="h-4.5 w-4.5" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <h2 class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-              {{ copy.title }}
-            </h2>
-          </div>
-          <AppButton
-            variant="ghost"
-            size="icon-xs"
-            icon-size="md"
-            :icon="IconClose"
-            class="shrink-0"
-            aria-label="Close"
-            @click="cancel"
-          />
-        </div>
+  <AppModal :open="open" size="md" @close="cancel">
+    <ModalHeader
+      :title="copy.title"
+      :icon="IconInfo"
+      tone="primary"
+      closeable
+      @close="cancel"
+    />
 
-        <div class="px-5 pb-4 flex flex-col gap-3">
-          <p class="text-body text-foreground">{{ copy.intro }}</p>
-          <ul class="flex flex-col gap-2">
-            <li
-              v-for="bullet in copy.bullets"
-              :key="bullet"
-              class="flex items-start gap-2 text-body text-muted-foreground"
-            >
-              <span class="mt-2 h-1.5 w-1.5 rounded-full bg-muted-foreground shrink-0" />
-              <span>{{ bullet }}</span>
-            </li>
-          </ul>
-          <RouterLink
-            v-if="kind === 'ai_use' && mode !== 'choose'"
-            :to="{ name: 'campaign-settings', query: { tab: 'ai' } }"
-            class="inline-flex items-center gap-1 text-caption text-primary hover:underline self-start"
-            @click="cancel"
-          >
-            Review this campaign's AI settings
-            <IconExternalLink class="h-3 w-3" />
-          </RouterLink>
-          <p
-            v-if="saveError"
-            role="alert"
-            class="text-caption text-destructive"
-          >
-            {{ saveError }}
-          </p>
-        </div>
-
-        <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
-          <AppButton variant="subtle" size="sm" :label="cancelLabel" @click="cancel" />
-          <AppButton variant="primary" size="sm" :disabled="isSaving" :label="confirmLabel" @click="confirm" />
-        </div>
-      </div>
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 flex flex-col gap-3">
+      <p class="text-body text-foreground">{{ copy.intro }}</p>
+      <ul class="flex flex-col gap-2">
+        <li
+          v-for="bullet in copy.bullets"
+          :key="bullet"
+          class="flex items-start gap-2 text-body text-muted-foreground"
+        >
+          <span class="mt-2 h-1.5 w-1.5 rounded-full bg-muted-foreground shrink-0" />
+          <span>{{ bullet }}</span>
+        </li>
+      </ul>
+      <RouterLink
+        v-if="kind === 'ai_use' && mode !== 'choose'"
+        :to="{ name: 'campaign-settings', query: { tab: 'ai' } }"
+        class="inline-flex items-center gap-1 text-caption text-primary hover:underline self-start"
+        @click="cancel"
+      >
+        Review this campaign's AI settings
+        <IconExternalLink class="h-3 w-3" />
+      </RouterLink>
+      <p
+        v-if="saveError"
+        role="alert"
+        class="text-caption text-destructive"
+      >
+        {{ saveError }}
+      </p>
     </div>
-  </Teleport>
+
+    <div class="shrink-0 flex justify-end gap-2 px-5 pb-5 pt-2">
+      <AppButton variant="subtle" size="sm" :label="cancelLabel" @click="cancel" />
+      <AppButton variant="primary" size="sm" :disabled="isSaving" :label="confirmLabel" @click="confirm" />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { IconInfo, IconClose, IconExternalLink } from "@/lib/icons";
+import { IconInfo, IconExternalLink } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import { useAiAcknowledgements, type AiAcknowledgementKind } from "@/composables/useAiAcknowledgements";
 import { AI_USE_NOTICE_VERSION, AI_LIKENESS_NOTICE_VERSION, AI_PRO_REOFFER_NOTICE_VERSION } from "@/lib/legal";
 

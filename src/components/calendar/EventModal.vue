@@ -1,194 +1,187 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      @click.self="close"
-    >
-      <div
-        class="bg-card border border-border rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl"
-      >
-        <!-- Header -->
-        <div
-          class="flex items-center justify-between px-5 py-4 border-b border-border"
-        >
-          <div class="flex items-center gap-2">
-            <div class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: editEvent ? eventColor(editEvent) : EVENT_TYPE_COLORS['campaign'] }" />
-            <h2 class="text-heading font-bold text-foreground">
-              {{ isSessionNote ? (linkedNote?.title ?? 'Session Note') : (editEvent ? "Edit Event" : "New Event") }}
-            </h2>
-          </div>
-          <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="close" />
-        </div>
-
-        <!-- Session note read-only view -->
-        <div v-if="isSessionNote" class="px-5 py-4 space-y-4">
-          <div v-if="linkedNoteLoading" class="flex justify-center py-8">
-            <LoadingSpinner />
-          </div>
-          <template v-else-if="linkedNote">
-            <!-- Meta badges -->
-            <div class="flex flex-wrap gap-1.5">
-              <span v-if="linkedNote.session_num" class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
-                Session {{ linkedNote.session_num }}
-              </span>
-              <span v-if="linkedNote.session_real_date" class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5">
-                {{ linkedNote.session_real_date }}
-              </span>
-              <span v-for="tag in linkedNote.tags" :key="tag" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
-                {{ tag }}
-              </span>
-            </div>
-            <!-- Content -->
-            <RichTextViewer :content="linkedNote.content" />
-          </template>
-          <p v-else class="text-body text-muted-foreground italic">Note not found.</p>
-          <!-- Footer -->
-          <div class="flex items-center justify-between pt-2 border-t border-border">
-            <AppButton variant="subtle" size="md" label="Close" @click="close" />
-            <AppButton
-              v-if="linkedNote"
-              :to="`/notes/${linkedNote.id}`"
-              variant="primary"
-              size="md"
-              label="Open in Notes →"
-              @click="close"
-            />
-          </div>
-        </div>
-
-        <!-- Form -->
-        <form v-else class="px-5 py-4 space-y-4" @submit.prevent="submit">
-          <!-- Title -->
-          <div>
-            <label
-              class="block text-label-lg font-semibold text-muted-foreground mb-1"
-            >
-              TITLE
-            </label>
-            <AppInput
-              v-model="form.title"
-              required
-              type="text"
-              tone="muted"
-              size="body"
-              placeholder="Event name…"
-            />
-          </div>
-
-          <!-- Event type picker -->
-          <EventModalTypePicker
-            :event-type="form.event_type"
-            :color="form.color"
-            @update:event-type="form.event_type = $event"
-            @close="close"
-          />
-
-          <!-- Date picker -->
-          <EventModalDatePicker
-            :date-type="dateType"
-            :harptos-year="form.harptos_year"
-            :harptos-month="form.harptos_month"
-            :harptos-day="form.harptos_day"
-            :festival-day="form.festival_day"
-            :is-multi-day="form.is_multi_day"
-            :end-year="form.end_year"
-            :end-month="form.end_month"
-            :end-day="form.end_day"
-            :months="adapter.months"
-            :available-festivals="availableFestivals"
-            @update:date-type="dateType = $event"
-            @update:harptos-year="form.harptos_year = $event"
-            @update:harptos-month="form.harptos_month = $event"
-            @update:harptos-day="form.harptos_day = $event"
-            @update:festival-day="form.festival_day = $event"
-            @update:is-multi-day="form.is_multi_day = $event"
-            @update:end-year="form.end_year = $event"
-            @update:end-month="form.end_month = $event"
-            @update:end-day="form.end_day = $event"
-          />
-
-          <!-- Description -->
-          <div>
-            <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
-              DESCRIPTION
-              <span class="text-muted-foreground font-fell normal-case tracking-normal">(optional)</span>
-            </label>
-            <RichTextEditor
-              v-model="form.description"
-              placeholder="What happened…"
-              size="md"
-            />
-          </div>
-
-          <!-- Travel fields: location + party members -->
-          <template v-if="form.event_type === 'travel'">
-            <EventModalTravelFields
-              :linked-location-id="linkedLocationId"
-              :travel-party-member-ids="form.travel_party_member_ids"
-              :locations="locations ?? []"
-              :party="party ?? []"
-              @update:linked-location-id="linkedLocationId = $event"
-              @update:travel-party-member-ids="form.travel_party_member_ids = $event"
-            />
-          </template>
-
-          <!-- Entity link (read-only when editing a non-travel pinned event) -->
-          <div v-if="entityRoute && form.event_type !== 'travel'" class="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
-            <component :is="entityIconComponent" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span class="text-body text-muted-foreground flex-1 capitalize">
-              Pinned {{ editEvent?.event_type }}
-            </span>
-            <AppButton
-              :to="entityRoute"
-              variant="link"
-              size="inline"
-              label="Open →"
-              @click="close"
-            />
-          </div>
-
-          <!-- Player visibility toggle -->
-          <AppCheckbox
-            v-model="form.player_visible"
-            label="Visible to players"
-            class="gap-2.5 select-none"
-          />
-
-          <!-- Actions -->
-          <div class="flex items-center justify-between gap-2 pt-1">
-            <AppButton
-              v-if="editEvent"
-              variant="destructive"
-              size="md"
-              :label="isDeleting ? 'Deleting…' : 'Delete'"
-              :disabled="isPending || isDeleting"
-              @click="deleteAndClose"
-            />
-            <div v-else />
-            <div class="flex gap-2">
-              <AppButton variant="subtle" size="md" label="Cancel" @click="close" />
-              <AppButton
-                type="submit"
-                variant="primary"
-                size="md"
-                :label="isPending ? 'Saving…' : editEvent ? 'Save Changes' : 'Create Event'"
-                :disabled="isPending"
-              />
-            </div>
-          </div>
-        </form>
+  <AppModal :open="open" size="md" :labelled-by="headingId" @close="close">
+    <!-- Header -->
+    <header class="flex shrink-0 items-center justify-between px-5 py-4 border-b border-border">
+      <div class="flex items-center gap-2">
+        <div class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: editEvent ? eventColor(editEvent) : EVENT_TYPE_COLORS['campaign'] }" />
+        <h2 :id="headingId" class="text-heading font-bold text-foreground">
+          {{ isSessionNote ? (linkedNote?.title ?? 'Session Note') : (editEvent ? "Edit Event" : "New Event") }}
+        </h2>
       </div>
-    </div>
-  </Teleport>
+      <AppButton variant="ghost" size="icon-xs" icon-size="md" :icon="IconClose" aria-label="Close" @click="close" />
+    </header>
+
+    <!-- Session note read-only view -->
+    <template v-if="isSessionNote">
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
+        <div v-if="linkedNoteLoading" class="flex justify-center py-8">
+          <LoadingSpinner />
+        </div>
+        <template v-else-if="linkedNote">
+          <!-- Meta badges -->
+          <div class="flex flex-wrap gap-1.5">
+            <span v-if="linkedNote.session_num" class="text-label bg-primary/10 text-primary rounded px-2 py-0.5">
+              Session {{ linkedNote.session_num }}
+            </span>
+            <span v-if="linkedNote.session_real_date" class="text-label bg-muted text-muted-foreground rounded px-2 py-0.5">
+              {{ linkedNote.session_real_date }}
+            </span>
+            <span v-for="tag in linkedNote.tags" :key="tag" class="text-label bg-muted/40 text-muted-foreground rounded px-2 py-0.5">
+              {{ tag }}
+            </span>
+          </div>
+          <!-- Content -->
+          <RichTextViewer :content="linkedNote.content" />
+        </template>
+        <p v-else class="text-body text-muted-foreground italic">Note not found.</p>
+      </div>
+      <!-- Footer -->
+      <div class="shrink-0 flex items-center justify-between border-t border-border px-5 py-4">
+        <AppButton variant="subtle" size="md" label="Close" @click="close" />
+        <AppButton
+          v-if="linkedNote"
+          :to="`/notes/${linkedNote.id}`"
+          variant="primary"
+          size="md"
+          label="Open in Notes →"
+          @click="close"
+        />
+      </div>
+    </template>
+
+    <!-- Form -->
+    <form v-else class="min-h-0 flex-1 flex flex-col overflow-hidden" @submit.prevent="submit">
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
+        <!-- Title -->
+        <div>
+          <label
+            class="block text-label-lg font-semibold text-muted-foreground mb-1"
+          >
+            TITLE
+          </label>
+          <AppInput
+            v-model="form.title"
+            required
+            type="text"
+            tone="muted"
+            size="body"
+            placeholder="Event name…"
+          />
+        </div>
+
+        <!-- Event type picker -->
+        <EventModalTypePicker
+          :event-type="form.event_type"
+          :color="form.color"
+          @update:event-type="form.event_type = $event"
+          @close="close"
+        />
+
+        <!-- Date picker -->
+        <EventModalDatePicker
+          :date-type="dateType"
+          :harptos-year="form.harptos_year"
+          :harptos-month="form.harptos_month"
+          :harptos-day="form.harptos_day"
+          :festival-day="form.festival_day"
+          :is-multi-day="form.is_multi_day"
+          :end-year="form.end_year"
+          :end-month="form.end_month"
+          :end-day="form.end_day"
+          :months="adapter.months"
+          :available-festivals="availableFestivals"
+          @update:date-type="dateType = $event"
+          @update:harptos-year="form.harptos_year = $event"
+          @update:harptos-month="form.harptos_month = $event"
+          @update:harptos-day="form.harptos_day = $event"
+          @update:festival-day="form.festival_day = $event"
+          @update:is-multi-day="form.is_multi_day = $event"
+          @update:end-year="form.end_year = $event"
+          @update:end-month="form.end_month = $event"
+          @update:end-day="form.end_day = $event"
+        />
+
+        <!-- Description -->
+        <div>
+          <label class="block text-label-lg font-semibold text-muted-foreground mb-1">
+            DESCRIPTION
+            <span class="text-muted-foreground font-fell normal-case tracking-normal">(optional)</span>
+          </label>
+          <RichTextEditor
+            v-model="form.description"
+            placeholder="What happened…"
+            size="md"
+          />
+        </div>
+
+        <!-- Travel fields: location + party members -->
+        <template v-if="form.event_type === 'travel'">
+          <EventModalTravelFields
+            :linked-location-id="linkedLocationId"
+            :travel-party-member-ids="form.travel_party_member_ids"
+            :locations="locations ?? []"
+            :party="party ?? []"
+            @update:linked-location-id="linkedLocationId = $event"
+            @update:travel-party-member-ids="form.travel_party_member_ids = $event"
+          />
+        </template>
+
+        <!-- Entity link (read-only when editing a non-travel pinned event) -->
+        <div v-if="entityRoute && form.event_type !== 'travel'" class="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-2">
+          <component :is="entityIconComponent" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span class="text-body text-muted-foreground flex-1 capitalize">
+            Pinned {{ editEvent?.event_type }}
+          </span>
+          <AppButton
+            :to="entityRoute"
+            variant="link"
+            size="inline"
+            label="Open →"
+            @click="close"
+          />
+        </div>
+
+        <!-- Player visibility toggle -->
+        <AppCheckbox
+          v-model="form.player_visible"
+          label="Visible to players"
+          class="gap-2.5 select-none"
+        />
+      </div>
+
+      <!-- Actions -->
+      <div class="shrink-0 flex items-center justify-between gap-2 px-5 py-3">
+        <AppButton
+          v-if="editEvent"
+          variant="destructive"
+          size="md"
+          :label="isDeleting ? 'Deleting…' : 'Delete'"
+          :disabled="isPending || isDeleting"
+          @click="deleteAndClose"
+        />
+        <div v-else />
+        <div class="flex gap-2">
+          <AppButton variant="subtle" size="md" label="Cancel" @click="close" />
+          <AppButton
+            type="submit"
+            variant="primary"
+            size="md"
+            :label="isPending ? 'Saving…' : editEvent ? 'Save Changes' : 'Create Event'"
+            :disabled="isPending"
+          />
+        </div>
+      </div>
+    </form>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, useId } from "vue";
 import { IconClose, IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -243,6 +236,8 @@ const isSessionNote = computed(() =>
 );
 const linkedNoteId = computed(() => props.editEvent?.linked_note_id ?? "");
 const { data: linkedNote, isLoading: linkedNoteLoading } = useNote(linkedNoteId);
+
+const headingId = useId();
 
 type DateType = "regular" | "festival";
 const dateType = ref<DateType>("regular");

@@ -1,136 +1,115 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="show"
-      class="fixed inset-0 z-9999 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      @click.self="$emit('close')"
-      @keydown.esc="$emit('close')"
-    >
-      <div
-        class="flex flex-col w-[min(42.5rem,94vw)] h-[min(37.5rem,90vh)] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
+  <AppModal :open="show" size="lg" panel-class="h-[min(37.5rem,90vh)]" @close="$emit('close')">
+    <ModalHeader title="Insert Asset" closeable @close="$emit('close')" />
+
+    <!-- Tabs -->
+    <div class="flex shrink-0 border-b border-border px-4 gap-1 pt-2">
+      <button
+        v-for="tab in tabsWithCount"
+        :key="tab.key"
+        type="button"
+        class="px-3 py-1.5 text-label-lg font-semibold rounded-t transition-colors"
+        :class="
+          activeTab === tab.key
+            ? 'border-b-2 border-primary text-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        "
+        @click="activeTab = tab.key"
       >
-        <!-- Header -->
-        <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <h2 class="font-cinzel font-bold text-sm tracking-wide text-foreground">Insert Asset</h2>
-          <AppButton
-            variant="ghost"
-            fill="muted"
-            size="icon-xs"
-            icon-size="md"
-            :icon="IconClose"
-            aria-label="Close"
-            @click="$emit('close')"
-          />
-        </div>
+        <component :is="tab.icon" class="inline h-3.5 w-3.5 mr-1.5 -mt-0.5" />
+        {{ tab.label }}
+        <span v-if="tab.count !== null" class="ml-1 font-fell text-muted-foreground"
+          >({{ tab.count }})</span
+        >
+      </button>
+    </div>
 
-        <!-- Tabs -->
-        <div class="flex shrink-0 border-b border-border px-4 gap-1 pt-2">
-          <button
-            v-for="tab in tabsWithCount"
-            :key="tab.key"
-            type="button"
-            class="px-3 py-1.5 text-label-lg font-semibold rounded-t transition-colors"
-            :class="
-              activeTab === tab.key
-                ? 'border-b-2 border-primary text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            "
-            @click="activeTab = tab.key"
-          >
-            <component :is="tab.icon" class="inline h-3.5 w-3.5 mr-1.5 -mt-0.5" />
-            {{ tab.label }}
-            <span v-if="tab.count !== null" class="ml-1 font-fell text-muted-foreground"
-              >({{ tab.count }})</span
+    <!-- Search -->
+    <div class="px-4 pt-3 pb-2 shrink-0">
+      <AppInput
+        v-model="search"
+        type="search"
+        tone="filled"
+        size="body"
+        placeholder="Filter by name…"
+      />
+    </div>
+
+    <!-- List -->
+    <div class="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+      <div
+        v-if="isLoading"
+        class="flex items-center justify-center py-12 text-muted-foreground text-body italic"
+      >
+        Loading…
+      </div>
+
+      <div
+        v-else-if="filteredItems.length === 0"
+        class="flex items-center justify-center py-12 text-muted-foreground text-body italic"
+      >
+        {{ search ? "No matches found." : "No assets yet." }}
+      </div>
+
+      <div v-else class="space-y-1.5 pt-1">
+        <AppButton
+          v-for="item in filteredItems"
+          :key="item.id"
+          variant="subtle"
+          fill="muted"
+          block
+          class="group justify-between gap-3 py-2.5 rounded-lg text-left"
+          @click="insertItem(item)"
+        >
+          <div class="min-w-0">
+            <p class="font-cinzel text-sm font-semibold text-foreground truncate">
+              {{ item.name }}
+            </p>
+            <p
+              v-if="item.subtitle"
+              class="text-caption text-muted-foreground italic truncate"
             >
-          </button>
-        </div>
-
-        <!-- Search -->
-        <div class="px-4 pt-3 pb-2 shrink-0">
-          <AppInput
-            v-model="search"
-            type="search"
-            tone="filled"
-            size="body"
-            placeholder="Filter by name…"
-          />
-        </div>
-
-        <!-- List -->
-        <div class="flex-1 overflow-y-auto px-4 pb-4">
-          <div
-            v-if="isLoading"
-            class="flex items-center justify-center py-12 text-muted-foreground text-body italic"
-          >
-            Loading…
+              {{ item.subtitle }}
+            </p>
           </div>
-
-          <div
-            v-else-if="filteredItems.length === 0"
-            class="flex items-center justify-center py-12 text-muted-foreground text-body italic"
-          >
-            {{ search ? "No matches found." : "No assets yet." }}
-          </div>
-
-          <div v-else class="space-y-1.5 pt-1">
-            <AppButton
-              v-for="item in filteredItems"
-              :key="item.id"
-              variant="subtle"
-              fill="muted"
-              block
-              class="group justify-between gap-3 py-2.5 rounded-lg text-left"
-              @click="insertItem(item)"
+          <div class="flex items-center gap-2 shrink-0">
+            <span
+              v-if="item.badge"
+              class="px-2 py-0.5 rounded text-label font-bold capitalize"
+              :style="{
+                backgroundColor: `color-mix(in oklab, ${item.badgeColor} 13%, transparent)`,
+                color: item.badgeColor,
+                border: `1px solid color-mix(in oklab, ${item.badgeColor} 27%, transparent)`,
+              }"
             >
-              <div class="min-w-0">
-                <p class="font-cinzel text-sm font-semibold text-foreground truncate">
-                  {{ item.name }}
-                </p>
-                <p
-                  v-if="item.subtitle"
-                  class="text-caption text-muted-foreground italic truncate"
-                >
-                  {{ item.subtitle }}
-                </p>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <span
-                  v-if="item.badge"
-                  class="px-2 py-0.5 rounded text-label font-bold capitalize"
-                  :style="{
-                    backgroundColor: `color-mix(in oklab, ${item.badgeColor} 13%, transparent)`,
-                    color: item.badgeColor,
-                    border: `1px solid color-mix(in oklab, ${item.badgeColor} 27%, transparent)`,
-                  }"
-                >
-                  {{ item.badge }}
-                </span>
-                <span
-                  class="text-label text-muted-foreground group-hover:text-primary transition-colors"
-                >
-                  Insert →
-                </span>
-              </div>
-            </AppButton>
+              {{ item.badge }}
+            </span>
+            <span
+              class="text-label text-muted-foreground group-hover:text-primary transition-colors"
+            >
+              Insert →
+            </span>
           </div>
-        </div>
-
-        <!-- Footer hint -->
-        <div class="px-4 py-2.5 border-t border-border shrink-0 bg-muted/30">
-          <p class="text-caption text-muted-foreground italic">
-            Assets are appended as a new page at the end of your document.
-          </p>
-        </div>
+        </AppButton>
       </div>
     </div>
-  </Teleport>
+
+    <!-- Footer hint -->
+    <div class="px-4 py-2.5 border-t border-border shrink-0 bg-muted/30">
+      <p class="text-caption text-muted-foreground italic">
+        Assets are appended as a new page at the end of your document.
+      </p>
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import { IconClose, IconGenerate, IconLocation, IconMonster, IconParty } from '@/lib/icons';
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
+import { IconGenerate, IconLocation, IconMonster, IconParty } from '@/lib/icons';
 import type { Editor } from "@tiptap/core";
 import { useNpcs } from "@/composables/useNpcs";
 import { useMonsters } from "@/composables/useMonsters";

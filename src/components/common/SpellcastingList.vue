@@ -40,38 +40,24 @@
   </div>
 
   <!-- Spell detail modal -->
-  <Teleport to="body">
-    <Transition name="fade">
-      <div
-        v-if="modalSpell"
-        class="fixed inset-0 z-60 bg-black/70 flex items-center justify-center p-4"
-        @click.self="modalSpell = null"
-      >
-        <div class="bg-card rounded-xl border border-border w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-          <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-            <h2 class="text-heading-sm font-bold text-foreground">{{ modalSpell.name }}</h2>
-            <AppButton
-              variant="ghost"
-              size="icon-xs"
-              icon-size="md"
-              :icon="IconClose"
-              aria-label="Close"
-              @click="modalSpell = null"
-            />
-          </div>
-          <div class="overflow-y-auto p-4">
-            <SpellSheet :spell="modalSpell" />
-          </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+  <AppModal
+    :open="modalSpell !== null"
+    size="lg"
+    panel-class="max-h-[90vh]"
+    @close="modalSpell = null"
+  >
+    <ModalHeader :title="modalSpell?.name ?? ''" closeable @close="modalSpell = null" />
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+      <SpellSheet v-if="modalSpell" :spell="modalSpell" />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { IconChevronRight, IconClose } from '@/lib/icons';
-import AppButton from "@/components/common/AppButton.vue";
+import { IconChevronRight } from '@/lib/icons';
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import { useSpells } from "@/composables/useSpells";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
 import type { SpellcastingBlock } from "@/types/npc.types";
@@ -136,13 +122,3 @@ function openModal(spell: Spell) {
 }
 </script>
 
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

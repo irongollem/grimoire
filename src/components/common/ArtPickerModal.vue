@@ -1,117 +1,93 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="show"
-      class="fixed inset-0 z-10000 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-      @click.self="$emit('close')"
-      @keydown.esc="$emit('close')"
-    >
-      <div
-        class="flex flex-col w-[min(51.25rem,95vw)] h-[min(36.25rem,90vh)] bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
-      >
-        <!-- Header -->
-        <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <div class="flex items-center gap-2">
-            <IconLibrary class="h-4 w-4 text-muted-foreground" />
-            <h2 class="font-cinzel font-bold text-sm tracking-wide text-foreground">Art Library</h2>
-          </div>
-          <AppButton
-            variant="ghost"
-            fill="muted"
-            size="icon-xs"
-            icon-size="md"
-            :icon="IconClose"
-            aria-label="Close"
-            @click="$emit('close')"
+  <AppModal :open="show" size="lg" panel-class="h-[min(36.25rem,90vh)]" @close="$emit('close')">
+    <ModalHeader title="Art Library" :icon="IconLibrary" tone="neutral" closeable @close="$emit('close')" />
+
+    <!-- Body: sidebar + grid -->
+    <div class="flex flex-1 min-h-0">
+      <!-- Category sidebar -->
+      <aside class="w-44 shrink-0 border-r border-border overflow-y-auto py-2">
+        <AppButton
+          v-for="cat in CATEGORIES"
+          :key="cat.bucketKey"
+          variant="menu"
+          size="sm"
+          block
+          :active="activeCategory?.bucketKey === cat.bucketKey"
+          :icon="cat.icon"
+          :label="cat.label"
+          :class="activeCategory?.bucketKey === cat.bucketKey ? 'font-semibold' : 'text-muted-foreground'"
+          @click="selectCategory(cat)"
+        />
+      </aside>
+
+      <!-- Image grid panel -->
+      <div class="flex-1 overflow-y-auto p-3">
+        <!-- No category selected yet -->
+        <div
+          v-if="!activeCategory"
+          class="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground"
+        >
+          <IconLibrary class="h-8 w-8 opacity-30" />
+          <p class="text-body italic">Pick a category on the left.</p>
+        </div>
+
+        <!-- Loading skeleton -->
+        <div v-else-if="isLoading" class="grid grid-cols-4 gap-2">
+          <div
+            v-for="n in 12"
+            :key="n"
+            class="aspect-square rounded-md bg-muted animate-pulse"
           />
         </div>
 
-        <!-- Body: sidebar + grid -->
-        <div class="flex flex-1 min-h-0">
-          <!-- Category sidebar -->
-          <aside class="w-44 shrink-0 border-r border-border overflow-y-auto py-2">
-            <AppButton
-              v-for="cat in CATEGORIES"
-              :key="cat.bucketKey"
-              variant="menu"
-              size="sm"
-              block
-              :active="activeCategory?.bucketKey === cat.bucketKey"
-              :icon="cat.icon"
-              :label="cat.label"
-              :class="activeCategory?.bucketKey === cat.bucketKey ? 'font-semibold' : 'text-muted-foreground'"
-              @click="selectCategory(cat)"
+        <!-- Error -->
+        <div
+          v-else-if="loadError"
+          class="flex items-center justify-center h-full text-destructive text-body italic"
+        >
+          {{ loadError }}
+        </div>
+
+        <!-- Empty state -->
+        <div
+          v-else-if="images.length === 0"
+          class="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground"
+        >
+          <component :is="activeCategory.icon" class="h-8 w-8 opacity-30" />
+          <p class="text-body italic">No images uploaded here yet.</p>
+        </div>
+
+        <!-- Thumbnail grid -->
+        <div v-else class="grid grid-cols-4 gap-2">
+          <button
+            v-for="img in images"
+            :key="img.url"
+            type="button"
+            class="aspect-square rounded-md overflow-hidden border-2 border-transparent hover:border-primary focus:border-primary focus:outline-none transition-colors bg-muted"
+            :title="img.name"
+            @click="pick(img.url)"
+          >
+            <img
+              :src="img.thumbUrl"
+              :alt="img.name"
+              class="w-full h-full object-cover"
+              loading="lazy"
+              @error="($event.target as HTMLImageElement).src = img.url"
             />
-          </aside>
-
-          <!-- Image grid panel -->
-          <div class="flex-1 overflow-y-auto p-3">
-            <!-- No category selected yet -->
-            <div
-              v-if="!activeCategory"
-              class="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground"
-            >
-              <IconLibrary class="h-8 w-8 opacity-30" />
-              <p class="text-body italic">Pick a category on the left.</p>
-            </div>
-
-            <!-- Loading skeleton -->
-            <div v-else-if="isLoading" class="grid grid-cols-4 gap-2">
-              <div
-                v-for="n in 12"
-                :key="n"
-                class="aspect-square rounded-md bg-muted animate-pulse"
-              />
-            </div>
-
-            <!-- Error -->
-            <div
-              v-else-if="loadError"
-              class="flex items-center justify-center h-full text-destructive text-body italic"
-            >
-              {{ loadError }}
-            </div>
-
-            <!-- Empty state -->
-            <div
-              v-else-if="images.length === 0"
-              class="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground"
-            >
-              <component :is="activeCategory.icon" class="h-8 w-8 opacity-30" />
-              <p class="text-body italic">No images uploaded here yet.</p>
-            </div>
-
-            <!-- Thumbnail grid -->
-            <div v-else class="grid grid-cols-4 gap-2">
-              <button
-                v-for="img in images"
-                :key="img.url"
-                type="button"
-                class="aspect-square rounded-md overflow-hidden border-2 border-transparent hover:border-primary focus:border-primary focus:outline-none transition-colors bg-muted"
-                :title="img.name"
-                @click="pick(img.url)"
-              >
-                <img
-                  :src="img.thumbUrl"
-                  :alt="img.name"
-                  class="w-full h-full object-cover"
-                  loading="lazy"
-                  @error="($event.target as HTMLImageElement).src = img.url"
-                />
-              </button>
-            </div>
-          </div>
+          </button>
         </div>
       </div>
     </div>
-  </Teleport>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, type Component } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import {
-  IconClose, IconLibrary,
+  IconLibrary,
   IconUserRound, IconMonster, IconGem, IconGenerate,
   IconLocation, IconFaction, IconTrap, IconPuzzle,
   IconNote, IconScriptorium, IconStar, IconLoot,

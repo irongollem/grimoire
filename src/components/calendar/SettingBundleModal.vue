@@ -1,115 +1,97 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      @click.self="close"
-    >
-      <div class="bg-card border border-border rounded-lg w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-xl flex flex-col">
-        <!-- Header -->
-        <div class="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <div>
-            <h2 class="text-heading font-bold text-foreground">Setting Events</h2>
-            <p class="text-body text-muted-foreground italic mt-0.5">
-              Import pre-authored historical events for your campaign setting.
-            </p>
-          </div>
-          <AppButton
-            variant="ghost"
-            size="icon-xs"
-            icon-size="md"
-            :icon="IconClose"
-            aria-label="Close"
-            @click="close"
-          />
-        </div>
+  <AppModal :open="open" size="lg" @close="close">
+    <ModalHeader
+      title="Setting Events"
+      subtitle="Import pre-authored historical events for your campaign setting."
+      subtitle-role="body"
+      closeable
+      @close="close"
+    />
 
-        <!-- Content -->
-        <div class="px-5 py-4 flex flex-col gap-6 flex-1">
-          <!-- No bundle for this calendar -->
-          <div v-if="!bundle" class="py-8 text-center">
-            <p class="font-fell text-muted-foreground italic">
-              No setting bundle available for the current calendar.
-            </p>
-          </div>
-
-          <template v-else>
-            <!-- Bundle info -->
-            <div class="rounded-lg border border-border bg-muted/30 px-4 py-3 flex flex-col gap-1.5">
-              <div class="flex items-center justify-between">
-                <span class="font-cinzel text-sm font-bold text-foreground">{{ bundle.name }}</span>
-                <span class="font-cinzel text-xs text-muted-foreground">{{ bundle.events.length }} events</span>
-              </div>
-              <p class="text-body text-muted-foreground">{{ bundle.description }}</p>
-            </div>
-
-            <!-- Import progress / result -->
-            <div v-if="importing || result" class="rounded-lg border border-border px-4 py-3">
-              <div v-if="importing" class="flex items-center gap-3">
-                <div class="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
-                <span class="text-body text-foreground">
-                  Importing {{ imported }} / {{ bundle.events.length }} events…
-                </span>
-              </div>
-              <div v-else-if="result === 'success'" class="flex items-center gap-2 text-green-500">
-                <span class="font-cinzel text-sm font-semibold">✓ {{ imported }} events imported</span>
-              </div>
-              <div v-else-if="result === 'error'" class="text-destructive">
-                <span class="font-cinzel text-sm font-semibold">Import failed — check console for details.</span>
-              </div>
-            </div>
-
-            <!-- Duplicate warning -->
-            <p class="text-caption text-muted-foreground italic -mt-2">
-              Note: re-importing will create duplicate events. Delete existing setting events before re-importing if needed.
-            </p>
-
-            <!-- Event preview list -->
-            <div class="flex flex-col gap-1">
-              <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-1">EVENTS INCLUDED</p>
-              <div
-                v-for="(event, i) in bundle.events"
-                :key="i"
-                class="flex items-start gap-3 rounded-md border border-border bg-muted/20 px-3 py-2.5"
-              >
-                <span
-                  :style="{ backgroundColor: event.color }"
-                  class="w-2 h-2 rounded-full shrink-0 mt-1.5"
-                />
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="font-cinzel text-xs font-semibold text-foreground">{{ event.title }}</span>
-                    <span class="font-cinzel text-2xs text-muted-foreground">{{ event.harptos_year }} DR</span>
-                  </div>
-                  <p class="text-caption text-muted-foreground mt-0.5 line-clamp-2">
-                    {{ event.description }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </template>
-        </div>
-
-        <!-- Footer -->
-        <div v-if="bundle" class="flex justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
-          <AppButton
-            variant="subtle"
-            size="md"
-            :label="result === 'success' ? 'Close' : 'Cancel'"
-            @click="close"
-          />
-          <AppButton
-            v-if="result !== 'success'"
-            variant="primary"
-            size="md"
-            :disabled="importing"
-            :label="importing ? 'Importing…' : `Import All ${bundle.events.length} Events`"
-            @click="importAll"
-          />
-        </div>
+    <!-- Content -->
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 flex flex-col gap-6">
+      <!-- No bundle for this calendar -->
+      <div v-if="!bundle" class="py-8 text-center">
+        <p class="font-fell text-muted-foreground italic">
+          No setting bundle available for the current calendar.
+        </p>
       </div>
+
+      <template v-else>
+        <!-- Bundle info -->
+        <div class="rounded-lg border border-border bg-muted/30 px-4 py-3 flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <span class="font-cinzel text-sm font-bold text-foreground">{{ bundle.name }}</span>
+            <span class="font-cinzel text-xs text-muted-foreground">{{ bundle.events.length }} events</span>
+          </div>
+          <p class="text-body text-muted-foreground">{{ bundle.description }}</p>
+        </div>
+
+        <!-- Import progress / result -->
+        <div v-if="importing || result" class="rounded-lg border border-border px-4 py-3">
+          <div v-if="importing" class="flex items-center gap-3">
+            <div class="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin shrink-0" />
+            <span class="text-body text-foreground">
+              Importing {{ imported }} / {{ bundle.events.length }} events…
+            </span>
+          </div>
+          <div v-else-if="result === 'success'" class="flex items-center gap-2 text-green-500">
+            <span class="font-cinzel text-sm font-semibold">✓ {{ imported }} events imported</span>
+          </div>
+          <div v-else-if="result === 'error'" class="text-destructive">
+            <span class="font-cinzel text-sm font-semibold">Import failed — check console for details.</span>
+          </div>
+        </div>
+
+        <!-- Duplicate warning -->
+        <p class="text-caption text-muted-foreground italic -mt-2">
+          Note: re-importing will create duplicate events. Delete existing setting events before re-importing if needed.
+        </p>
+
+        <!-- Event preview list -->
+        <div class="flex flex-col gap-1">
+          <p class="font-cinzel text-xs font-semibold tracking-widest text-muted-foreground mb-1">EVENTS INCLUDED</p>
+          <div
+            v-for="(event, i) in bundle.events"
+            :key="i"
+            class="flex items-start gap-3 rounded-md border border-border bg-muted/20 px-3 py-2.5"
+          >
+            <span
+              :style="{ backgroundColor: event.color }"
+              class="w-2 h-2 rounded-full shrink-0 mt-1.5"
+            />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-cinzel text-xs font-semibold text-foreground">{{ event.title }}</span>
+                <span class="font-cinzel text-2xs text-muted-foreground">{{ event.harptos_year }} DR</span>
+              </div>
+              <p class="text-caption text-muted-foreground mt-0.5 line-clamp-2">
+                {{ event.description }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
-  </Teleport>
+
+    <!-- Footer -->
+    <div v-if="bundle" class="shrink-0 flex justify-end gap-2 px-5 py-4 border-t border-border">
+      <AppButton
+        variant="subtle"
+        size="md"
+        :label="result === 'success' ? 'Close' : 'Cancel'"
+        @click="close"
+      />
+      <AppButton
+        v-if="result !== 'success'"
+        variant="primary"
+        size="md"
+        :disabled="importing"
+        :label="importing ? 'Importing…' : `Import All ${bundle.events.length} Events`"
+        @click="importAll"
+      />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -119,7 +101,8 @@ import { useCreateCalendarEvent } from "@/composables/useCalendarEvents";
 import { SETTING_BUNDLES } from "@/data/bundles/index";
 import type { BundleEvent } from "@/data/bundles/index";
 import AppButton from "@/components/common/AppButton.vue";
-import { IconClose } from "@/lib/icons";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 
 const open = defineModel<boolean>({ required: true });
 
