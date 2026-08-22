@@ -10,7 +10,9 @@
     <Transition :css="false" @enter="onEnter" @leave="onLeave" @after-leave="emit('afterLeave')">
       <div
         v-if="open"
-        class="fixed inset-0 z-200 flex items-center justify-center p-4"
+        class="fixed inset-0 flex justify-center p-4"
+        :class="ALIGN[align]"
+        :style="{ zIndex: zIndex ?? undefined }"
         @mousedown.self="onBackdropClick"
       >
         <!--
@@ -74,6 +76,18 @@ import { cn } from "@/lib/utils";
 import { takeModalOrigin } from "@/lib/modalOrigin";
 import { canAnimate, originTransform, REST_TRANSFORM, whenSettled } from "@/lib/motion";
 import { provideModalAria } from "./modalAria";
+import { useModalStack } from "./modalStack";
+
+/**
+ * Where the panel sits in the viewport. `center` for a dialog; `top` for a
+ * command palette, which belongs under the reader's eye rather than in the
+ * middle of the screen — and which is the only reason this is a prop rather
+ * than a constant.
+ */
+const ALIGN = {
+  center: "items-center",
+  top: "items-start pt-[12vh]",
+} as const;
 
 const SIZES = {
   sm: "max-w-sm",
@@ -86,6 +100,7 @@ const SIZES = {
 const {
   open,
   size = "md",
+  align = "center",
   panelClass,
   labelledBy,
   describedBy,
@@ -97,6 +112,8 @@ const {
   open: boolean;
   /** Panel width. Height and anything else comes in through `panelClass`. */
   size?: keyof typeof SIZES;
+  /** Vertical placement. `top` is for palettes; everything else wants `center`. */
+  align?: keyof typeof ALIGN;
   panelClass?: string;
   /**
    * Id of the element naming this dialog — usually the panel's own heading.
@@ -156,6 +173,12 @@ const panelRef = ref<HTMLElement | null>(null);
  * explicit prop still wins, for a modal named after something other than its
  * own header.
  */
+/**
+ * Painted above whatever it was opened over, by claim order rather than by the
+ * order the modals appear in a template — see `modalStack`.
+ */
+const zIndex = useModalStack(() => open);
+
 const registered = provideModalAria();
 const namedBy = computed(() => labelledBy ?? registered.labelledBy.value ?? undefined);
 const describes = computed(() => describedBy ?? registered.describedBy.value ?? undefined);

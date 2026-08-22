@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { nextTick } from "vue";
 import AppModal from "./AppModal.vue";
 import { clearModalOrigin } from "@/lib/modalOrigin";
+import { _resetModalStack } from "./modalStack";
 
 /**
  * happy-dom has no Web Animations, so `canAnimate` is false throughout and every
@@ -24,8 +25,13 @@ function panel() {
 
 afterEach(() => {
   clearModalOrigin();
+  _resetModalStack();
   document.body.innerHTML = "";
 });
+
+function container() {
+  return document.body.querySelector<HTMLElement>("[data-modal-backdrop]")!.parentElement!;
+}
 
 describe("AppModal", () => {
   it("teleports a labelled dialog to the body", () => {
@@ -155,6 +161,58 @@ describe("AppModal", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await nextTick();
     expect(wrapper.emitted("close")).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  /**
+   * A picker opened from inside a dialog is usually declared *before* it in the
+   * same template, and a Teleport's anchor is placed at component mount — so a
+   * flat z-index would paint the picker behind the thing that opened it. Levels
+   * are claimed on open instead, which also makes stacking agree with the
+   * hotkey layer's "most recently opened wins".
+   */
+  it("paints the modal opened last on top, whatever order they were declared in", async () => {
+    const opts = {
+      slots: { default: "<button>Inside</button>" },
+      attachTo: document.body,
+      global: { stubs: { transition: false } },
+    };
+    const declaredFirst = mount(AppModal, { props: { open: false }, ...opts });
+    const declaredSecond = mount(AppModal, { props: { open: false }, ...opts });
+
+    // Open them against declaration order: the second one first.
+    await declaredSecond.setProps({ open: true });
+    await declaredFirst.setProps({ open: true });
+
+    const [a, b] = document.body.querySelectorAll<HTMLElement>("[data-modal-backdrop]");
+    const zOf = (el: HTMLElement) => Number(el.parentElement!.style.zIndex);
+    // `a` is the first-declared container, which was opened last → higher.
+    expect(zOf(a)).toBeGreaterThan(zOf(b));
+    declaredFirst.unmount();
+    declaredSecond.unmount();
+  });
+
+  it("gives its level back on close, so levels do not creep upward", async () => {
+    const opts = {
+      slots: { default: "<button>Inside</button>" },
+      attachTo: document.body,
+      global: { stubs: { transition: false } },
+    };
+    const first = mount(AppModal, { props: { open: true }, ...opts });
+    const firstZ = Number(container().style.zIndex);
+    await first.setProps({ open: false });
+    first.unmount();
+
+    const second = mount(AppModal, { props: { open: true }, ...opts });
+    expect(Number(container().style.zIndex)).toBe(firstZ);
+    second.unmount();
+  });
+
+  it("sits under the reader's eye when aligned to the top, for a palette", () => {
+    const wrapper = open({ align: "top" });
+
+    expect(container().className).toContain("items-start");
+    expect(container().className).not.toContain("items-center");
     wrapper.unmount();
   });
 

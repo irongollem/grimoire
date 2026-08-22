@@ -1,87 +1,77 @@
 <template>
-  <Teleport to="body">
-    <Transition name="palette-fade">
-      <div
-        v-if="open"
-        class="fixed inset-0 z-200 flex items-start justify-center p-4 pt-[12vh]"
-        @mousedown.self="$emit('close')"
+  <AppModal
+    :open="open"
+    align="top"
+    size="lg"
+    label="Fire a sound"
+    panel-class="max-w-xl"
+    @close="$emit('close')"
+  >
+    <!-- Query -->
+    <div class="flex items-center gap-2 border-b border-border px-4 py-3">
+      <IconSearch class="h-4 w-4 shrink-0 text-muted-foreground" />
+      <input
+        ref="inputRef"
+        v-model="query"
+        type="text"
+        placeholder="Fire a sound or scene…"
+        class="min-w-0 flex-1 bg-transparent text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+      />
+      <span class="shrink-0 text-caption-sm text-muted-foreground/60">
+        {{ rows.length }}
+      </span>
+    </div>
+
+    <!-- Results -->
+    <div ref="listRef" class="max-h-[50vh] overflow-y-auto">
+      <p v-if="isPending" class="px-4 py-6 text-center text-caption text-muted-foreground">
+        Loading the board…
+      </p>
+
+      <p
+        v-else-if="rows.length === 0"
+        class="px-4 py-6 text-center text-caption text-muted-foreground"
       >
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        {{ query.trim() === "" ? "This campaign has no sounds yet." : `Nothing matches “${query.trim()}”.` }}
+      </p>
 
-        <div
-          class="relative flex w-full max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Fire a sound"
-        >
-          <!-- Query -->
-          <div class="flex items-center gap-2 border-b border-border px-4 py-3">
-            <IconSearch class="h-4 w-4 shrink-0 text-muted-foreground" />
-            <input
-              ref="inputRef"
-              v-model="query"
-              type="text"
-              placeholder="Fire a sound or scene…"
-              class="min-w-0 flex-1 bg-transparent text-body text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-            />
-            <span class="shrink-0 text-caption-sm text-muted-foreground/60">
-              {{ rows.length }}
-            </span>
-          </div>
-
-          <!-- Results -->
-          <div ref="listRef" class="max-h-[50vh] overflow-y-auto">
-            <p v-if="isPending" class="px-4 py-6 text-center text-caption text-muted-foreground">
-              Loading the board…
-            </p>
-
-            <p
-              v-else-if="rows.length === 0"
-              class="px-4 py-6 text-center text-caption text-muted-foreground"
-            >
-              {{ query.trim() === "" ? "This campaign has no sounds yet." : `Nothing matches “${query.trim()}”.` }}
-            </p>
-
-            <template v-else>
-              <template v-for="(row, index) in rows" :key="row.key">
-                <div
-                  v-if="index === 0 || rows[index - 1].kind !== row.kind"
-                  class="border-b border-border/50 bg-secondary/30 px-4 py-1.5 font-cinzel text-2xs uppercase tracking-widest text-muted-foreground/60"
-                >
-                  {{ row.kind === "playlist" ? "Playlists & scenes" : "Sounds" }}
-                </div>
-
-                <SoundPaletteRow
-                  :data-row="index"
-                  :name="row.name"
-                  :chip="row.chip"
-                  :hint="row.hint"
-                  :icon="row.icon"
-                  :active="row.active"
-                  :focused="index === focusedIndex"
-                  :action-label="row.actionLabel"
-                  :blocked-reason="row.blockedReason"
-                  @focus="focusedIndex = index"
-                  @fire="fireRow(row)"
-                />
-              </template>
-            </template>
-          </div>
-
-          <!-- Key hints. A palette whose keys you have to guess is a slower
-               mouse target, not a faster keyboard one. -->
+      <template v-else>
+        <template v-for="(row, index) in rows" :key="row.key">
           <div
-            class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-4 py-2 text-caption-sm text-muted-foreground/70"
+            v-if="index === 0 || rows[index - 1].kind !== row.kind"
+            class="border-b border-border/50 bg-secondary/30 px-4 py-1.5 font-cinzel text-2xs uppercase tracking-widest text-muted-foreground/60"
           >
-            <span><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd> move</span>
-            <span><kbd class="kbd">⏎</kbd> fire</span>
-            <span><kbd class="kbd">Esc</kbd> close</span>
-            <span class="ml-auto">Stays open — fire several in a row</span>
+            {{ row.kind === "playlist" ? "Playlists & scenes" : "Sounds" }}
           </div>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
+
+          <SoundPaletteRow
+            :data-row="index"
+            :name="row.name"
+            :chip="row.chip"
+            :hint="row.hint"
+            :icon="row.icon"
+            :active="row.active"
+            :focused="index === focusedIndex"
+            :action-label="row.actionLabel"
+            :blocked-reason="row.blockedReason"
+            @focus="focusedIndex = index"
+            @fire="fireRow(row)"
+          />
+        </template>
+      </template>
+    </div>
+
+    <!-- Key hints. A palette whose keys you have to guess is a slower
+         mouse target, not a faster keyboard one. -->
+    <div
+      class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-4 py-2 text-caption-sm text-muted-foreground/70"
+    >
+      <span><kbd class="kbd">↑</kbd><kbd class="kbd">↓</kbd> move</span>
+      <span><kbd class="kbd">⏎</kbd> fire</span>
+      <span><kbd class="kbd">Esc</kbd> close</span>
+      <span class="ml-auto">Stays open — fire several in a row</span>
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -95,6 +85,7 @@
 import { computed, nextTick, ref, watch, type Component } from "vue";
 import { IconSearch, IconMusicNote, IconWind, IconLightning, IconMusic, IconListOrdered } from "@/lib/icons";
 import SoundPaletteRow from "./SoundPaletteRow.vue";
+import AppModal from "@/components/common/AppModal.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSounds } from "@/composables/useSounds";
 import { usePlaylists, useFetchPlaylistTracks } from "@/composables/useSoundboardPlaylists";
@@ -104,7 +95,7 @@ import { rankEntries } from "@/lib/audio/soundSearch";
 import type { Sound, SoundboardPlaylist } from "@/types/sound.types";
 
 const { open } = defineProps<{ open: boolean }>();
-const emit = defineEmits<{ close: [] }>();
+defineEmits<{ close: [] }>();
 
 const store = useSoundboardStore();
 const { data: sounds, isPending: soundsPending } = useSounds();
@@ -231,13 +222,13 @@ function fireFocused(): void {
 }
 
 // Overlay layer: while this is open, nothing on the page behind it responds to
-// a keypress — 1-9 must not fire board sounds through the palette.
+// a keypress — 1-9 must not fire board sounds through the palette. Escape is
+// not listed because `AppModal` registers it on this same layer.
 useHotkeys(
   [
     { combo: "arrowdown", description: "Next result", handler: () => move(1), allowInTextEntry: true, hidden: true },
     { combo: "arrowup", description: "Previous result", handler: () => move(-1), allowInTextEntry: true, hidden: true },
     { combo: "enter", description: "Fire the focused result", handler: fireFocused, allowInTextEntry: true, hidden: true },
-    { combo: "escape", description: "Close the palette", handler: () => emit("close"), allowInTextEntry: true, hidden: true },
   ],
   { layer: "overlay", enabled: () => open },
 );
@@ -252,6 +243,9 @@ watch(
     if (!isOpen) return;
     query.value = "";
     focusedIndex.value = 0;
+    // After `AppModal`'s own `panel.focus()`, which runs in its enter hook:
+    // the palette is a search box, so the caret belongs in the field rather
+    // than on the panel a screen reader was just announced from.
     void nextTick(() => inputRef.value?.focus());
   },
 );
@@ -266,21 +260,4 @@ watch(
   font-size: 0.625rem;
 }
 
-.palette-fade-enter-active,
-.palette-fade-leave-active {
-  transition: opacity 0.12s ease;
-}
-.palette-fade-enter-active .relative,
-.palette-fade-leave-active .relative {
-  transition: transform 0.12s ease, opacity 0.12s ease;
-}
-.palette-fade-enter-from,
-.palette-fade-leave-to {
-  opacity: 0;
-}
-.palette-fade-enter-from .relative,
-.palette-fade-leave-to .relative {
-  transform: translateY(-0.5rem);
-  opacity: 0;
-}
 </style>
