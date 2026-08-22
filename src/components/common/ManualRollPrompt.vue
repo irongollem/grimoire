@@ -6,7 +6,7 @@
     :backdrop-dismiss="false"
     @close="cancel"
   >
-    <div class="px-5 pt-5 pb-3">
+    <div class="shrink-0 px-5 pt-5 pb-3">
       <h2
         id="manual-roll-title"
         class="font-cinzel text-sm font-bold text-foreground tracking-wide"
@@ -20,7 +20,10 @@
       </p>
     </div>
 
-    <div class="px-5 pb-3 space-y-3">
+    <!-- Scrolls: a big damage roll is one row per die size, each wrapping to as
+         many inputs as there are dice, so 20d6 is far taller than a phone. The
+         Submit button below must stay reachable. -->
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-3 space-y-3">
       <div
         v-for="row in rows"
         :key="row.sides"
@@ -66,7 +69,7 @@
       </div>
     </div>
 
-    <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
+    <div class="flex shrink-0 justify-end gap-2 px-5 pb-5 pt-2">
       <AppButton variant="subtle" size="sm" label="Cancel" @click="cancel" />
       <AppButton
         variant="primary"

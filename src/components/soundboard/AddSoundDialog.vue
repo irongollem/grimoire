@@ -8,8 +8,10 @@
       @close="$emit('close')"
     />
 
-    <!-- Body -->
-    <div class="px-5 py-4">
+    <!-- Body. `SoundForm` is the largest form in the app — name, file, category,
+         tags, trim, provider — so this scrolls or the shell's viewport cap
+         swallows its Save button. -->
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
       <SoundForm
         :page-id="pageId"
         :gemini-api-key="geminiApiKey"
