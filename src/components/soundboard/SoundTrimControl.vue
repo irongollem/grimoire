@@ -29,7 +29,7 @@
       :min="MIN_TRIM"
       :max="MAX_TRIM"
       step="0.05"
-      class="h-1 min-w-0 flex-1 accent-gold-500"
+      class="h-1 min-w-0 flex-1 accent-primary"
       :value="draftTrim"
       aria-label="Trim level"
       @input="onInput"

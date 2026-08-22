@@ -50,9 +50,11 @@ export const checkboxBoxVariants = cva(
        * quietly opting out of theming. These now use `primary` and follow the
        * theme like every other control.
        *
-       * The same literal still accents two soundboard RANGE sliders
-       * (VolumeSlider, SoundTrimControl) — same drift, different control, out
-       * of this change's blast radius. Tracked separately.
+       * The same literal accented two soundboard RANGE sliders (VolumeSlider,
+       * SoundTrimControl), left out of this change's blast radius at the time
+       * and converted in #754. Gold survives in the soundboard only as the
+       * `music` category hue and as decorative chrome, where a fixed literal
+       * is what is wanted — never again as a control accent.
        */
       accent: {
         primary: "accent-primary",

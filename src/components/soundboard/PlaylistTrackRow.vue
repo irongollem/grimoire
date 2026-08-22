@@ -109,7 +109,7 @@
         label="Level"
         wide
         show-percent
-        :accent="layer.is_generator ? 'gold' : 'green'"
+        :accent="layer.is_generator ? 'primary' : 'green'"
         :model-value="layer.layer_volume"
         @update:model-value="patch({ layer_volume: $event })"
       />

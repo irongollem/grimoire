@@ -12,13 +12,11 @@
 
 import type { SoundCategory } from "@/types/sound.types";
 
-/** Fader accent, matching `VolumeSlider`'s `accent` prop. */
-export const CATEGORY_ACCENT = {
-  music: "gold",
-  ambient: "green",
-  effects: "blue",
-  misc: "purple",
-} as const satisfies Record<SoundCategory, string>;
+// There is deliberately no CATEGORY_ACCENT. One lived here, mapping each
+// category to a `VolumeSlider` accent, and never gained a consumer — a fader
+// belongs to a bus, a layer or a master level, none of which has a category.
+// Its existence was the stated reason `VolumeSlider` carried four accents; it
+// went with them in #754. A fader takes the themed `primary`.
 
 /** Text colour. */
 export const CATEGORY_TEXT: Record<SoundCategory, string> = {

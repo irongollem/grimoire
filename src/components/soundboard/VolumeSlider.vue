@@ -38,18 +38,23 @@
 // Written out in full so Tailwind's scanner can see every class name — an
 // interpolated `accent-${x}-500` would compile to nothing.
 //
-// Four accents rather than two because category colour is load-bearing across
-// the soundboard, and effects and misc had no colour of their own before.
+// Two accents, and the shrink is the point (#754). This map opened with
+// `gold: "accent-gold-500"`, which read as the soundboard's house colour and
+// was not one: `--color-gold-500` is the fixed literal #c9920a, `--primary` is
+// themed, and they differ by (2,0,1)/255 in the grimoire theme — invisible —
+// while diverging visibly in tome. Every session that reached for gold here
+// was working where no difference could be seen, so the faders quietly stopped
+// following the theme. `primary` follows it, as every other control does.
+//
+// `blue` and `purple` went with it: they existed for a per-category fader that
+// was never built, and neither colour ever reached a call site.
+//
+// `green` earns its place twice — Spotify's own branding, and the
+// generator-vs-file distinction in `SceneMixer` / `PlaylistTrackRow`.
 const ACCENT_CLASS = {
-  gold: "accent-gold-500",
+  primary: "accent-primary",
   green: "accent-green-500",
-  blue: "accent-blue-500",
-  purple: "accent-arcane-purple-light",
 } as const;
-
-// Per-category accents are mapped in `src/lib/audio/soundCategories.ts` — kept out of
-// here because `<script setup>` cannot export, and several other surfaces need
-// the same mapping.
 
 const {
   modelValue,
@@ -58,7 +63,7 @@ const {
   wide = false,
   compact = false,
   muted = false,
-  accent = "gold",
+  accent = "primary",
   disabledReason = null,
 } = defineProps<{
   modelValue: number;
@@ -72,7 +77,7 @@ const {
   compact?: boolean;
   /** Dim the label — used when the level is inaudible because a parent is at zero. */
   muted?: boolean;
-  /** Category colour, or green for Spotify's own branding. */
+  /** `green` for Spotify's branding and for file layers sitting beside a generator's; otherwise the themed default. */
   accent?: keyof typeof ACCENT_CLASS;
   /**
    * Why this level cannot be changed right now, or null when it can.
