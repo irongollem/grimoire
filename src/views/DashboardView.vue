@@ -90,6 +90,12 @@
       <!-- ── Main 3-col row ─────────────────────────────────────────────── -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
+        <!-- Where the party actually is. Distinct from Active Quests below,
+             which is the kanban lane: a quest can sit in Active with nobody
+             walking it, and (before #756) could be walked while sitting in
+             Rumor. #759 moves this card to the session half of the split. -->
+        <DashboardInProgressQuests :chains="liveChains" :is-loading="liveChainsLoading" />
+
         <!-- Active Quests (compact) -->
         <div data-tour="dm-quests" class="rounded-lg border border-border bg-card overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20">
@@ -348,6 +354,7 @@ import {
 } from "@/lib/icons";
 import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { useAllQuests } from "@/composables/useQuests";
+import { useCampaignLiveQuests } from "@/composables/useQuestFlow";
 import { useParty } from "@/composables/useParty";
 import { useSpeciesNameMap } from "@/composables/useSpecies";
 import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
@@ -368,6 +375,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import DashboardInProgressQuests from "@/components/dashboard/DashboardInProgressQuests.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import DmTrackerButtons from "@/components/rules/DmTrackerButtons.vue";
@@ -384,6 +392,7 @@ const campaignStore = useCampaignStore();
 const calendarStore = useCalendarStore();
 
 const { data: allQuests,  isLoading: questsLoading } = useAllQuests();
+const { data: liveQuestChains, isLoading: liveChainsLoading } = useCampaignLiveQuests();
 const { data: party,      isLoading: partyLoading }  = useParty();
 const { data: notes }      = useNotes();
 const { data: npcs }       = useNpcs();
@@ -474,6 +483,7 @@ const { anyRunning, firstRunning } = useRunningEncounters();
 
 // ── Quests ────────────────────────────────────────────────────────────────────
 
+const liveChains = computed(() => liveQuestChains.value ?? []);
 const activeQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "active"));
 const onHoldQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "rumor"));
 
