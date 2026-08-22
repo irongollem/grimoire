@@ -43,23 +43,12 @@
         label="Cancel"
         @click="cancel"
       />
-      <!-- Stays native: `tinted`+`danger`+`solid` is close but paints
-           `--tone-danger` (hsl 0 84% 60%), a lighter red than the
-           `--destructive` (hsl 0 72% 45%) this has always used. Reconciling the
-           two is a design call across every destructive confirm in the app —
-           tracked in #752, deliberately not folded into the #746 shell move. -->
-      <button
-        type="button"
-        class="px-4 py-1.5 rounded-md text-label-lg font-semibold transition-colors"
-        :class="
-          dialog?.danger
-            ? 'bg-destructive text-destructive-foreground hover:opacity-90'
-            : 'bg-primary text-primary-foreground hover:opacity-90'
-        "
+      <AppButton
+        v-bind="confirmStyle"
+        size="sm"
+        :label="dialog?.confirmLabel"
         @click="ok"
-      >
-        {{ dialog?.confirmLabel }}
-      </button>
+      />
     </div>
   </AppModal>
 </template>
@@ -79,12 +68,34 @@
  * out of an app-wide dialog. Both routes resolve `false` — the safe direction —
  * so nothing destructive can happen by dismissal either way.
  */
+import { computed } from "vue";
 import { IconInfo, IconWarning } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import type { ButtonVariants } from "@/components/common/appButtonVariants";
 
 const { dialog, _resolve } = useConfirm();
+
+/**
+ * The two solid CTAs the app has, chosen per dialog: red when the answer deletes
+ * something, the theme's gold otherwise.
+ *
+ * Bound as an object rather than three conditional props because the branches do
+ * not line up — `primary` is gold *by definition* and ignores `tone`, so writing
+ * `:variant`, `:tone` and `:emphasis` separately means a `tone="danger"` sitting
+ * on every harmless confirm in the app, doing nothing and claiming otherwise.
+ *
+ * This was a hand-rolled `<button>` until #752, on the correct observation that
+ * `tinted`+`danger`+`solid` painted a lighter red than the `--destructive` it
+ * used. That is fixed at the token now — the two reds are one — so the primitive
+ * renders exactly what this drew before.
+ */
+const confirmStyle = computed<Pick<ButtonVariants, "variant" | "tone" | "emphasis">>(() =>
+  dialog.value?.danger
+    ? { variant: "tinted", tone: "danger", emphasis: "solid" }
+    : { variant: "primary" },
+);
 
 function ok() {
   _resolve(true);

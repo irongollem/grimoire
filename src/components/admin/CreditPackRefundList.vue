@@ -49,16 +49,19 @@
             :disabled="refundPack.isPending.value"
             @click="startConfirm(lot)"
           />
-          <!-- Ineligible refund stays native: a solid non-gold (amber) CTA has no
-               AppButton equivalent yet — see #648 sweep VARIANT-GAP notes. -->
-          <button
+          <!-- Amber rather than the gold above: the two share a slot, so the colour
+               is the only thing saying this pack is not actually eligible. -->
+          <AppButton
             v-else-if="!lot.alreadyRefunded && confirmingPi !== lot.paymentIntentId"
-            class="px-3 py-1 text-label font-semibold rounded-md shrink-0 transition-opacity hover:opacity-90 disabled:opacity-50 bg-amber-600/80 text-white"
+            variant="tinted"
+            tone="caution"
+            emphasis="solid"
+            size="sm"
+            class="shrink-0"
+            label="Refund (override)"
             :disabled="refundPack.isPending.value"
             @click="startConfirm(lot)"
-          >
-            Refund (override)
-          </button>
+          />
         </div>
 
         <!-- Inline confirm / override -->
@@ -75,15 +78,15 @@
           />
           <p v-if="errorMsg" class="text-caption-sm text-destructive">{{ errorMsg }}</p>
           <div class="flex items-center gap-2">
-            <!-- Stays native: no AppButton variant renders a solid destructive
-                 fill — `destructive` is outline-only. See #648 sweep VARIANT-GAP. -->
-            <button
-              class="px-3 py-1 text-label font-semibold bg-destructive text-white rounded-md hover:opacity-90 disabled:opacity-50"
+            <AppButton
+              variant="tinted"
+              tone="danger"
+              emphasis="solid"
+              size="sm"
               :disabled="refundPack.isPending.value || (!lot.eligible && !reason.trim())"
+              :label="refundPack.isPending.value ? 'Refunding…' : `Confirm refund (−${clawbackPreview(lot)} credits)`"
               @click="doRefund(lot)"
-            >
-              {{ refundPack.isPending.value ? 'Refunding…' : `Confirm refund (−${clawbackPreview(lot)} credits)` }}
-            </button>
+            />
             <AppButton
               variant="ghost"
               size="xs"

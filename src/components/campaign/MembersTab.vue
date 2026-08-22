@@ -200,16 +200,15 @@
             label="Cancel"
             @click="memberToRemove = null"
           />
-          <!-- Solid bg-destructive CTA has no matching variant: `destructive` is
-               outlined (border + bg-destructive/10), not a solid fill. Left
-               native — see #648 sweep brief, "solid-fill non-gold CTA". -->
-          <button
-            class="px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground text-body hover:opacity-90 transition-opacity"
+          <AppButton
+            variant="tinted"
+            tone="danger"
+            emphasis="solid"
+            size="body"
+            label="Remove"
             :disabled="removeMember.isPending.value"
             @click="doRemove"
-          >
-            Remove
-          </button>
+          />
         </div>
       </div>
     </div>

@@ -33,6 +33,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 
 import { manualSections } from "@/lib/manualLoader";
+import { THEMES } from "@/lib/themes";
 
 // Not `import.meta.url` — under Vitest's module runner that is an http:// URL,
 // not a file:// one, so fileURLToPath rejects it. Vitest runs with cwd at the
@@ -393,5 +394,137 @@ describe("RichTextEditor is sized by name, not by a CSS length", () => {
     }
 
     expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});
+
+describe("control accents follow the theme", () => {
+  // `accent-gold-500` reached five checkboxes (#751) and two range sliders
+  // (#754) without anyone ever deciding it should. `--color-gold-500` is the
+  // fixed literal #c9920a; `--primary` is themed — hsl(42 90% 42%) ≈
+  // rgb(203,146,11) in grimoire, hsl(42 90% 35%) ≈ rgb(170,121,9) in tome. In
+  // grimoire the two differ by (2,0,1)/255, which is invisible, so a control
+  // accented gold looks right to whoever wrote it and breaks only in the theme
+  // they did not have open. Several sessions each reached for it independently:
+  // prevalence was convergence, not agreement.
+  //
+  // Gold itself stays, and is not what this guards. It is the `music` category
+  // hue (`CATEGORY_SPINE`, `CATEGORY_TEXT`) and the soundboard's decorative
+  // chrome, where a literal fixed across themes is exactly what is wanted. What
+  // must not come back is gold as the accent of an interactive control — the
+  // one use where it is impersonating `--primary` rather than being itself.
+  //
+  // Nothing else can see this. The class is valid Tailwind, the component
+  // renders, and typecheck, lint, the suite and the build all stay green.
+  it("no control is accented with a gold palette literal", () => {
+    const offenders: string[] = [];
+
+    for (const file of trackedFiles("src/**/*.vue", "src/**/*.ts")) {
+      read(file)
+        .split("\n")
+        .forEach((line, i) => {
+          // Comment lines are skipped because the files that retired this
+          // pattern name it in full to record why — `VolumeSlider.vue` and
+          // `checkboxVariants.ts` both quote `accent-gold-500` in prose.
+          const trimmed = line.trimStart();
+          if (trimmed.startsWith("//") || trimmed.startsWith("*")) return;
+          if (/\baccent-gold-/.test(line)) {
+            offenders.push(`${file}:${i + 1}  ${trimmed.slice(0, 100)}`);
+          }
+        });
+    }
+
+    expect(offenders, offenders.join("\n")).toEqual([]);
+  });
+});
+
+describe("solid CTA fills come from the primitive", () => {
+  // `--tone-danger` was its own hsl(0 84% 60%) while `--destructive` was
+  // hsl(0 72% 45%), so `tinted`+`danger`+`solid` and a raw `bg-destructive`
+  // drew visibly different reds. Nothing could see it: both are valid tokens,
+  // both render, and a class list is what every component test asserts — never
+  // the colour it resolves to. The cost was eight CTAs that could not adopt the
+  // primitive without changing shade, so each stayed a hand-rolled <button>,
+  // six of them carrying a comment saying no variant existed (#752).
+  //
+  // Aliasing is also what makes the tone theme-aware, which a literal cannot
+  // be: `--destructive` is lighter on grimoire and darker on tome, so red text
+  // clears 4.5:1 on the default theme where the fixed red managed 3.4:1.
+  it("resolves the danger tone to --destructive rather than a red of its own", () => {
+    const css = read("src/assets/theme.css");
+    expect(css).toMatch(/--tone-danger:\s*var\(--destructive\);/);
+    // The regression is a *reintroduced* literal, which still satisfies a naive
+    // "is the token declared" check.
+    expect(css).not.toMatch(/--tone-danger:\s*(?:hsl|rgb|oklch|#)/);
+  });
+
+  // The alias only buys a theme-aware red while every theme still sets the
+  // property it points at; one that omitted it would fall through to the :root
+  // default and pin the danger tone to tome's red on a dark background.
+  it("keeps --destructive defined by every theme", () => {
+    for (const theme of THEMES) {
+      expect(theme.vars["--destructive"], theme.id).toBeTruthy();
+      expect(theme.vars["--destructive-foreground"], theme.id).toBeTruthy();
+    }
+  });
+
+  // The other half of #752: eight controls across seven files had each written
+  // the same `px-4 py-2 rounded-md bg-<solid> text-<fixed>` by hand. Like the
+  // gold accents above, prevalence was convergence rather than agreement — the
+  // token divergence made the primitive genuinely wrong for them, so every
+  // author independently reached the same correct-at-the-time conclusion and
+  // wrote it down as a permanent one.
+  //
+  // Padding is what separates a CTA from the cases that stay native on purpose:
+  // the exhaustion and death-save pips are `h-2.5 w-2.5 rounded-full` swatches
+  // where the fill IS the state, and TabBar's count is a <span>, not a control.
+  it("no native control hand-rolls a solid destructive or amber fill", () => {
+    const SOLID_FILL = /\bbg-(?:destructive|amber-\d{3})\b(?!\/)/;
+    const HAS_PADDING = /\bpx-\d/;
+    const CONTROLS = new Set(["button", "a", "RouterLink", "router-link"]);
+
+    const violations: string[] = [];
+    let checked = 0;
+
+    for (const file of trackedFiles("src/**/*.vue")) {
+      const { descriptor } = parse(read(file), { filename: file });
+      if (!descriptor.template) continue;
+
+      const walk = (nodes: TemplateChildNode[]): void => {
+        for (const node of nodes) {
+          if (node.type === NodeTypes.ELEMENT && CONTROLS.has(node.tag)) {
+            checked++;
+            // Both halves of the recipe: a static `class` and a `:class` that
+            // toggles the fill are the same mistake, and ConfirmDialog used one
+            // of each on the same button.
+            const classText = node.props
+              .map((prop) => {
+                if (prop.type === NodeTypes.ATTRIBUTE) {
+                  return prop.name === "class" ? (prop.value?.content ?? "") : "";
+                }
+                const isClassBind =
+                  prop.name === "bind" &&
+                  prop.arg?.type === NodeTypes.SIMPLE_EXPRESSION &&
+                  prop.arg.content === "class";
+                return isClassBind ? (prop.exp?.loc.source ?? "") : "";
+              })
+              .join(" ");
+
+            if (SOLID_FILL.test(classText) && HAS_PADDING.test(classText)) {
+              violations.push(
+                `${file} — <${node.tag}> paints a solid fill by hand; use AppButton ` +
+                  `variant="tinted" tone="danger|caution" emphasis="solid"`,
+              );
+            }
+          }
+          if ("children" in node && Array.isArray(node.children)) {
+            walk(node.children as TemplateChildNode[]);
+          }
+        }
+      };
+      walk(descriptor.template.ast?.children ?? []);
+    }
+
+    expect(checked).toBeGreaterThan(0);
+    expect(violations, violations.join("\n")).toEqual([]);
   });
 });

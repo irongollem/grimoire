@@ -70,15 +70,18 @@
 
     <!-- Actions -->
     <div class="flex shrink-0 items-center gap-3 px-5 pb-5">
-      <!-- Solid-fill non-gold CTA (`bg-amber-500 text-black`) — no AppButton
-           variant draws this fill/text pair, so it stays native. See #648. -->
-      <button
-        type="button"
-        class="flex-1 px-4 py-2 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2"
+      <!-- The same control as BillingView's upgrade CTA, and deliberately the same
+           recipe: Pro's amber is `tone="caution"` (`--tone-caution` IS amber-500),
+           and black text on it is the compound's doing rather than each site's. -->
+      <AppButton
+        variant="tinted"
+        tone="caution"
+        emphasis="solid"
+        size="md"
+        class="flex-1"
+        label="Upgrade to Pro"
         @click="upgrade"
-      >
-        Upgrade to Pro
-      </button>
+      />
       <AppButton variant="subtle" size="md" label="Maybe later" @click="close" />
     </div>
   </AppModal>
@@ -147,7 +150,10 @@ const limitText = computed(() => {
   if (!props.resource) return ''
   const label = QUOTA_RESOURCE_LABELS[props.resource].toLowerCase()
   const limit = quota.value?.limit ?? null
-  return limit !== null && limit >= 0 ? `${limit} ${label}` : label
+  if (limit === null || limit < 0) return label
+  // Every label in QUOTA_RESOURCE_LABELS is plural, and the free campaign limit
+  // is 1 — so the most-seen paywall in the app read "up to 1 campaigns".
+  return `${limit} ${limit === 1 ? label.replace(/s$/, '') : label}`
 })
 
 const BENEFITS = computed(() => [

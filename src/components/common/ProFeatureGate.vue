@@ -7,19 +7,22 @@
     <p class="text-body text-muted-foreground leading-relaxed">
       {{ message }}
     </p>
-    <button
-      type="button"
-      class="self-start px-4 py-2 rounded-md bg-amber-500 text-black text-label-lg font-semibold hover:bg-amber-400 transition-colors"
+    <AppButton
+      variant="tinted"
+      tone="caution"
+      emphasis="solid"
+      size="md"
+      class="self-start"
+      label="Upgrade to Pro"
       @click="upgrade"
-    >
-      Upgrade to Pro
-    </button>
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import { IconDM } from "@/lib/icons";
+import AppButton from "@/components/common/AppButton.vue";
 
 const { message } = defineProps<{
   message: string;

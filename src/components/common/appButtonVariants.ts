@@ -315,6 +315,15 @@ export const buttonVariants = cva(
        *             had no home at all: `primary` is gold by definition and
        *             `destructive` is outline-only, so 14 sites across 14 files stayed
        *             hand-rolled on raw `bg-destructive` / `bg-amber-500`.
+       *
+       * `solid` did not finish that job on its own. Eight of those buttons were still
+       * native at #752 — not because the emphasis was missing but because
+       * `--tone-danger` was a lighter red than `--destructive`, so converting one
+       * repainted it. Six carried a comment saying no variant existed, which by then
+       * was false. Reconciling the token (one red, aliased in theme.css) is what
+       * actually converted them; there is no `destructive`+`solid` compound and none
+       * is needed — a solid red CTA is `tinted`+`danger`+`solid`, a solid amber one
+       * `tinted`+`caution`+`solid`, and every call site in the app now agrees.
        */
       emphasis: { soft: "", strong: "", outline: "", solid: "" },
     },
@@ -412,9 +421,16 @@ export const buttonVariants = cva(
        * point at it ("Drop to chat" going coin-gold, a heal action going green).
        *
        * `danger` above resolves to `text-destructive` rather than `text-tone-danger`
-       * on purpose: it predates these and is what the 58 converted remove-row crosses
-       * already render, and the two are separate custom properties that a theme could
-       * legitimately diverge. Changing it now would repaint those sites for tidiness.
+       * only because it predates these and is what the 58 converted remove-row
+       * crosses already render. The two names now paint the same colour by
+       * construction — `--tone-danger` is `var(--destructive)` since #752, because
+       * "this deletes something" and "danger" were never two statements — so the
+       * pair is interchangeable and renaming either way is churn.
+       *
+       * What is NOT optional is that they stay one colour. They diverged once
+       * (hsl 0 84% 60% vs 0 72% 45%) and the cost was six solid-fill CTAs that
+       * could not adopt the primitive without visibly changing shade, so they
+       * stayed hand-rolled for five waves. `theme.test.ts` pins the alias.
        */
       /**
        * `subtle` gets the same ladder, recolouring its border alongside its text —

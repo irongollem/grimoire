@@ -267,7 +267,16 @@
      `var(--color-dragon-red)`, `success` to `--color-elven-green` and `arcane` to
      `--color-arcane-purple-light` is now a one-line change per tone. */
   --tone-primary: var(--primary);
-  --tone-danger: hsl(0 84% 60%);
+  /* ONE red (#752). `danger` and `destructive` make the same statement — clicking
+     this is dangerous — so they are one colour, aliased here rather than kept in
+     step by eye. This was its own hsl(0 84% 60%), which is why "Delete Campaign"
+     and the delete confirm that follows it were visibly different reds.
+
+     Aliasing also makes the tone theme-aware, which a fixed value cannot be:
+     `--destructive` is lighter on Grimoire (dark) and darker on Tome (light), so
+     red text now clears 4.5:1 on the default theme where the fixed red managed
+     3.4:1. Point this back at a literal and both halves regress at once. */
+  --tone-danger: var(--destructive);
   --tone-success: hsl(142 71% 45%);
   --tone-info: hsl(217 91% 60%);
   --tone-arcane: hsl(258 90% 66%);

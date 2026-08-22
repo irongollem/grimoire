@@ -25,18 +25,22 @@
       {{ [pc.class, speciesName].filter(Boolean).join(' · ') }}
     </div>
     <div class="font-cinzel text-xs text-foreground">Level {{ pc.level }}</div>
-    <RouterLink
+    <AppButton
       :to="`/party/${pc.id}`"
-      class="block mt-2 text-center px-3 py-1.5 rounded-md bg-amber-600 text-white font-cinzel text-xs font-semibold hover:opacity-90 transition-opacity"
-    >
-      Open Sheet
-    </RouterLink>
+      variant="tinted"
+      tone="caution"
+      emphasis="solid"
+      size="sm"
+      block
+      class="mt-2"
+      label="Open Sheet"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from 'vue-router';
 import { IconClose, IconShield } from '@/lib/icons';
+import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
 
 interface PcPanelData {

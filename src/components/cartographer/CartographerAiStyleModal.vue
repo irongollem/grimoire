@@ -62,14 +62,16 @@
         label="Cancel"
         @click="$emit('closePicker')"
       />
-      <!-- LEFT: solid-fill non-gold CTA (bg-amber-500 text-black) — documented
-           gap, no matching AppButton variant. Tracked in #752. -->
-      <button
-        type="button"
+      <AppButton
+        variant="tinted"
+        tone="caution"
+        emphasis="solid"
+        size="sm"
+        class="px-4"
         :disabled="generating || !canAfford"
-        class="px-4 py-1.5 rounded-md text-label-lg font-semibold bg-amber-500 text-black hover:bg-amber-400 transition-colors disabled:opacity-50"
+        :label="generating ? 'Generating…' : 'Generate'"
         @click="$emit('generate')"
-      >{{ generating ? "Generating…" : "Generate" }}</button>
+      />
     </div>
   </AppModal>
 
