@@ -170,7 +170,7 @@ const beatsQuery = useQuestBeats(questIdRef);
 const edgesQuery = useQuestBeatEdges(questIdRef);
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questIdRef);
 const lootQuery = useQuestBeatLoot(questIdRef);
-const runtimeQuery = useQuestRuntimeState();
+const runtimeQuery = useQuestRuntimeState(questId);
 const transitionsQuery = useQuestBeatTransitionsForQuest(questIdRef);
 const updateBeat = useUpdateQuestBeat();
 const createBeatWithRoute = useCreateQuestBeatWithRoute();
@@ -194,9 +194,11 @@ const lootByBeat = computed(() => summarizeQuestBeatLoot(lootQuery.data.value ??
 const selectedBeat = computed(() => beats.value.find((beat) => beat.id === selectedBeatId.value) ?? null);
 const selectedAttachments = computed(() => attachments.value.filter((attachment) => attachment.beat_id === selectedBeatId.value));
 const selectedLoot = computed(() => (lootQuery.data.value ?? []).filter((entry) => entry.beat_id === selectedBeatId.value));
-const currentBeatId = computed(() => runtimeQuery.data.value?.current_quest_id === questId ? runtimeQuery.data.value.current_beat_id : null);
+// The cursor row is this quest's own, so there is no cross-quest check left
+// to make: another chain being live cannot show up on this canvas.
+const currentBeatId = computed(() => runtimeQuery.data.value?.current_beat_id ?? null);
 const reachTally = computed(() => tallyQuestReach(presentations.value));
-const presentations = computed(() => deriveQuestBeatPresentations({ beats: beats.value, edges: edges.value, attachments: attachments.value, runtime: runtimeQuery.data.value, transitions: transitions.value, lootByBeat: lootByBeat.value }));
+const presentations = computed(() => deriveQuestBeatPresentations({ beats: beats.value, edges: edges.value, attachments: attachments.value, runtime: runtimeQuery.data.value ? [runtimeQuery.data.value] : [], transitions: transitions.value, lootByBeat: lootByBeat.value }));
 const visitedEdgeIds = computed(() => visitedRouteEdgeIds(edges.value, transitions.value));
 const isLoading = computed(() => beatsQuery.isLoading.value || edgesQuery.isLoading.value || attachmentsQuery.isLoading.value || lootQuery.isLoading.value);
 const selectedEdge = computed(() => edges.value.find((edge) => edge.id === selectedEdgeId.value) ?? null);

@@ -2,19 +2,29 @@ import { describe, expect, it } from "vitest";
 import { rankQuestJumpTargets } from "./run";
 import type { QuestRuntimeJumpTarget } from "@/types/quest.types";
 
-const target = (beat_id: string, quest_id: string, quest_title: string): QuestRuntimeJumpTarget => ({
-  beat_id, quest_id, quest_title, beat_title: beat_id, beat_kind: "neutral", is_improvised: false,
+const target = (beat_id: string, beat_title = beat_id): QuestRuntimeJumpTarget => ({
+  beat_id, quest_id: "q1", quest_title: "Main", beat_title, beat_kind: "neutral", is_improvised: false,
 });
 
 describe("run-mode jump ranking", () => {
-  it("ranks recent visits first, then current, side, and campaign quests", () => {
+  it("ranks recently visited beats ahead of the rest", () => {
     const ranked = rankQuestJumpTargets(
-      [target("campaign", "q3", "Elsewhere"), target("side", "q2", "Side"), target("current", "q1", "Main"), target("recent", "q3", "Elsewhere")],
-      [{ id: "q1", parent_quest_id: null }, { id: "q2", parent_quest_id: "q1" }, { id: "q3", parent_quest_id: null }],
-      "q1", "q1", ["recent"],
+      [target("cellar"), target("attic"), target("hall")],
+      ["hall"],
     );
-    expect(ranked.map((row) => [row.beat_id, row.group])).toEqual([
-      ["recent", "campaign"], ["current", "current"], ["side", "side"], ["campaign", "campaign"],
-    ]);
+    expect(ranked.map((row) => row.beat_id)).toEqual(["hall", "attic", "cellar"]);
+  });
+
+  it("falls back to beat title so the order never depends on fetch order", () => {
+    const ranked = rankQuestJumpTargets([target("b", "Beta"), target("a", "Alpha")], []);
+    expect(ranked.map((row) => row.beat_title)).toEqual(["Alpha", "Beta"]);
+  });
+
+  it("preserves the order recent beats were visited in", () => {
+    const ranked = rankQuestJumpTargets(
+      [target("first"), target("second"), target("cold")],
+      ["second", "first"],
+    );
+    expect(ranked.map((row) => row.beat_id)).toEqual(["second", "first", "cold"]);
   });
 });

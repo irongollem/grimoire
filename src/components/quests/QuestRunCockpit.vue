@@ -31,7 +31,10 @@
           @edit-beat="beatEditorOpen = true"
           @reveal="revealBeat(currentBeat.id)"
         />
-        <QuestRunPath :path="context.path_so_far" />
+        <div class="space-y-3">
+          <QuestRunPath :path="context.path_so_far" />
+          <QuestRunOpenChains :chains="otherOpenChains" />
+        </div>
       </div>
 
       <QuestRunJumpPanel v-if="jumpOpen" v-model="jumpSearch" :targets="rankedJumpTargets" @close="jumpOpen = false" @jump="jump" />
@@ -78,6 +81,7 @@
         <AppButton label="Start run" variant="primary" :disabled="!startBeatId || transitioning" @click="start" />
       </div>
       <QuestRunPath v-if="context?.path_so_far.length" :path="context.path_so_far" />
+      <QuestRunOpenChains :chains="otherOpenChains" />
     </div>
 
     <p v-if="error" role="alert" class="rounded-md border border-destructive/40 p-2 text-caption text-destructive">{{ error }}</p>
@@ -91,6 +95,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
 import { useHotkeys } from "@/composables/useHotkeys";
 import {
+  useCampaignLiveQuests,
   useQuestBeatAttachmentSummaries,
   useQuestBeatLoot,
   useQuestBeats,
@@ -110,6 +115,7 @@ import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestRunControls from "./QuestRunControls.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunImprovPanel from "./QuestRunImprovPanel.vue";
+import QuestRunOpenChains from "./QuestRunOpenChains.vue";
 import QuestRunPath from "./QuestRunPath.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 import QuestRunToolLoadError from "./QuestRunToolLoadError.vue";
@@ -125,17 +131,21 @@ const { anchorQuestId, visibleTo = [] } = defineProps<{ anchorQuestId: string; v
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
-const contextQuery = useQuestRuntimeContext();
+// Every query keys off the quest in the route. Before per-quest cursors these
+// followed the campaign cursor instead, so opening Run on quest A while the
+// cursor sat in quest B rendered B's beat, branches, attachments and loot under
+// A's URL. The anchor and the cursor are now the same quest by construction.
+const questId = computed(() => anchorQuestId);
+const contextQuery = useQuestRuntimeContext(questId);
 const runtimeCommand = useQuestRuntimeCommand();
-const beatsQuery = useQuestBeats(computed(() => anchorQuestId));
+const beatsQuery = useQuestBeats(questId);
 const questsQuery = useQuests();
-const currentQuestId = computed(() => contextQuery.data.value?.current?.quest_id ?? "");
-const runBeatsQuery = useQuestBeats(currentQuestId);
-const attachmentsQuery = useQuestBeatAttachmentSummaries(currentQuestId);
-const lootQuery = useQuestBeatLoot(currentQuestId);
+const liveQuestsQuery = useCampaignLiveQuests();
+const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
+const lootQuery = useQuestBeatLoot(questId);
 const jumpSearch = ref("");
 const debouncedJumpSearch = refDebounced(jumpSearch, 250);
-const jumpTargetsQuery = useQuestRuntimeJumpTargets(debouncedJumpSearch);
+const jumpTargetsQuery = useQuestRuntimeJumpTargets(questId, debouncedJumpSearch);
 const jumpOpen = ref(false);
 const improvOpen = ref(false);
 const startBeatId = ref("");
@@ -153,26 +163,30 @@ const context = computed(() => contextQuery.data.value ?? null);
 const currentBeat = computed(() => {
   const snapshot = context.value?.current;
   if (!snapshot) return null;
-  return (runBeatsQuery.data.value ?? []).find((beat) => beat.id === snapshot.id) ?? snapshot;
+  return (beatsQuery.data.value ?? []).find((beat) => beat.id === snapshot.id) ?? snapshot;
 });
 const runReturn = computed(() => `/quests/${anchorQuestId}?beat=${context.value?.current?.id ?? ""}`);
 const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const currentLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
-const previewBeat = computed(() => (runBeatsQuery.data.value ?? []).find((beat) => beat.id === previewBeatId.value) ?? context.value?.current ?? null);
-const previewQuestId = computed(() => previewBeat.value?.quest_id ?? anchorQuestId);
+const previewBeat = computed(() => (beatsQuery.data.value ?? []).find((beat) => beat.id === previewBeatId.value) ?? context.value?.current ?? null);
+// The previewed beat always belongs to this quest now, so there is no other
+// quest whose audience could be the right one. The prop is the fallback for the
+// window before the quest list resolves.
+const previewQuestId = computed(() => anchorQuestId);
 const previewVisibleTo = computed(() => {
-  const quest = questsQuery.data.value?.find((row) => row.id === previewQuestId.value);
-  if (quest) return quest.player_visible_to ?? [];
-  return previewQuestId.value === anchorQuestId ? visibleTo : [];
+  const quest = questsQuery.data.value?.find((row) => row.id === anchorQuestId);
+  return quest?.player_visible_to ?? visibleTo;
 });
+const otherOpenChains = computed(() => (liveQuestsQuery.data.value ?? [])
+  .filter((chain) => chain.quest_id !== anchorQuestId));
 const recentBeatIds = computed(() => {
   const ids = (context.value?.path_so_far ?? []).map((row) => String(row.to_beat_id ?? "")).filter(Boolean).reverse();
   return [...new Set(ids)];
 });
 const branchChoices = computed(() => {
   const visited = new Set(recentBeatIds.value);
-  const beats = new Map((runBeatsQuery.data.value ?? []).map((beat) => [beat.id, beat]));
+  const beats = new Map((beatsQuery.data.value ?? []).map((beat) => [beat.id, beat]));
   return (context.value?.outgoing ?? []).map((choice) => {
     const beat = beats.get(choice.beat_id);
     return {
@@ -185,8 +199,8 @@ const branchChoices = computed(() => {
   });
 });
 const rankedJumpTargets = computed(() => rankQuestJumpTargets(
-  (jumpTargetsQuery.data.value ?? []).filter((target) => target.beat_id !== context.value?.current?.id), questsQuery.data.value ?? [], context.value?.current?.quest_id ?? null,
-  anchorQuestId, recentBeatIds.value,
+  (jumpTargetsQuery.data.value ?? []).filter((target) => target.beat_id !== context.value?.current?.id),
+  recentBeatIds.value,
 ));
 
 watch(() => context.value?.current?.id, (beatId) => {
@@ -216,22 +230,22 @@ async function command(kind: QuestRuntimeCommand, extra: { edgeId?: string } = {
   const state = context.value?.state;
   if (!state) return;
   if (["previous", "advance", "end"].includes(kind) && !(await confirmLeavingDraft())) return;
-  await run({ campaignId: state.campaign_id, command: kind, expectedVersion: state.version, ...extra });
+  await run({ campaignId: state.campaign_id, questId: anchorQuestId, command: kind, expectedVersion: state.version, ...extra });
 }
 
 async function start() {
   const beat = beatsQuery.data.value?.find((row) => row.id === startBeatId.value);
   const state = context.value?.state;
   if (!beat) return;
-  await run({ campaignId: beat.campaign_id, command: "start", expectedVersion: state?.version ?? 0, targetQuestId: beat.quest_id, targetBeatId: beat.id });
+  await run({ campaignId: beat.campaign_id, questId: anchorQuestId, command: "start", expectedVersion: state?.version ?? 0, targetBeatId: beat.id });
 }
 
 async function jump(target: RankedQuestJumpTarget, reason: string, pushReturn: boolean) {
   const state = context.value?.state;
   if (!state || !(await confirmLeavingDraft())) return;
   await run({
-    campaignId: state.campaign_id, command: "jump", expectedVersion: state.version,
-    targetQuestId: target.quest_id, targetBeatId: target.beat_id, reason, pushReturn,
+    campaignId: state.campaign_id, questId: anchorQuestId, command: "jump", expectedVersion: state.version,
+    targetBeatId: target.beat_id, reason, pushReturn,
     provenance: { surface: "quest-run-jump" },
   });
 }
@@ -242,7 +256,7 @@ async function improvise(value: { title: string; kind: string; reason: string; d
   transitioning.value = true;
   error.value = "";
   try {
-    await improviseRuntime.mutateAsync({ campaignId: state.campaign_id, expectedVersion: state.version, ...value });
+    await improviseRuntime.mutateAsync({ campaignId: state.campaign_id, questId: anchorQuestId, expectedVersion: state.version, ...value });
     improvOpen.value = false;
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "The improvised beat could not be created";
@@ -251,12 +265,12 @@ async function improvise(value: { title: string; kind: string; reason: string; d
 }
 
 async function endSession() {
-  if (!(await confirm("End this quest session? The visit history will remain available."))) return;
+  if (!(await confirm("End this quest\u2019s run? Other open chains keep their place, and the visit history remains available."))) return;
   await command("end");
 }
 
 async function revealBeat(beatId: string) {
-  const beat = runBeatsQuery.data.value?.find((row) => row.id === beatId);
+  const beat = beatsQuery.data.value?.find((row) => row.id === beatId);
   if (!beat || !(await confirm(`Reveal “${beat.title}” to players? Advancing alone leaves it ${beat.visibility}.`))) return;
   error.value = "";
   try {

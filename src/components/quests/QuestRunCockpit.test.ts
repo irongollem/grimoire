@@ -5,12 +5,14 @@ import QuestRunControls from "./QuestRunControls.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
+import QuestRunOpenChains from "./QuestRunOpenChains.vue";
 
 const mocks = vi.hoisted(() => ({
   context: { value: null as Record<string, unknown> | null },
   beats: { value: [] as Array<Record<string, unknown>> },
   targets: { value: [] as Array<Record<string, unknown>> },
   quests: { value: [] as Array<Record<string, unknown>> },
+  liveQuests: { value: [] as Array<Record<string, unknown>> },
   mutateAsync: vi.fn(),
   updateBeat: vi.fn(),
   improvise: vi.fn(),
@@ -31,15 +33,16 @@ vi.mock("@/composables/useQuestFlow", () => ({
   useQuestBeatAttachmentSummaries: () => ({ data: { value: [] } }),
   useQuestBeatLoot: () => ({ data: { value: [] } }),
   useQuestRuntimeJumpTargets: () => ({ data: mocks.targets }),
+  useCampaignLiveQuests: () => ({ data: mocks.liveQuests }),
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.updateBeat }),
   useQuestRuntimeImprovise: () => ({ mutateAsync: mocks.improvise }),
 }));
 
 const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Opening", kind: "social" };
 const runningContext = () => ({
-  state: { campaign_id: "c1", current_quest_id: "q1", current_beat_id: "b1", status: "running", version: 4 },
+  state: { campaign_id: "c1", quest_id: "q1", current_beat_id: "b1", status: "running", version: 4 },
   current: beat,
-  previous: { quest_id: "q1", beat_id: "b0" },
+  previous: { beat_id: "b0" },
   outgoing: [{ edge_id: "e1", quest_id: "q1", beat_id: "b2", label: "Continue", beat_title: "Next", beat_kind: "neutral" }],
   return_target: null,
   path_so_far: [],
@@ -51,6 +54,7 @@ describe("QuestRunCockpit", () => {
     mocks.beats.value = [beat];
     mocks.targets.value = [];
     mocks.quests.value = [];
+    mocks.liveQuests.value = [];
     mocks.route.query = {};
     mocks.mutateAsync.mockReset();
     mocks.mutateAsync.mockImplementation(async () => mocks.context.value);
@@ -83,9 +87,10 @@ describe("QuestRunCockpit", () => {
 
     controls.vm.$emit("jump");
     await wrapper.vm.$nextTick();
-    wrapper.findComponent(QuestRunJumpPanel).vm.$emit("jump", { quest_id: "q2", beat_id: "b9" }, "A detour", true);
+    wrapper.findComponent(QuestRunJumpPanel).vm.$emit("jump", { quest_id: "q1", beat_id: "b9" }, "A detour", true);
     await wrapper.vm.$nextTick();
-    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "jump", targetQuestId: "q2", targetBeatId: "b9", pushReturn: true }));
+    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "jump", questId: "q1", targetBeatId: "b9", pushReturn: true }));
+    expect(mocks.mutateAsync).not.toHaveBeenCalledWith(expect.objectContaining({ targetQuestId: expect.anything() }));
 
     mocks.context.value = { ...runningContext(), state: { ...runningContext().state, status: "paused" } };
     const paused = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
@@ -113,26 +118,22 @@ describe("QuestRunCockpit", () => {
     expect((wrapper.vm as unknown as { selectedAttachment: { id: string } | null }).selectedAttachment?.id).toBe("a1");
   });
 
-  it("uses the current side quest's sharing audience for player preview", async () => {
-    const sideBeat = { ...beat, id: "side-beat", quest_id: "q2", title: "Side road" };
-    mocks.context.value = {
-      ...runningContext(),
-      state: { ...runningContext().state, current_quest_id: "q2", current_beat_id: "side-beat" },
-      current: sideBeat,
-    };
-    mocks.beats.value = [sideBeat];
+  it("previews this quest's own audience, never another chain's", async () => {
+    mocks.context.value = runningContext();
     mocks.quests.value = [
       { id: "q1", player_visible_to: ["anchor-player"] },
       { id: "q2", player_visible_to: ["side-player"] },
     ];
     const wrapper = shallowMount(QuestRunCockpit, {
-      props: { anchorQuestId: "q1", visibleTo: ["anchor-player"] },
+      props: { anchorQuestId: "q1", visibleTo: [] },
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Preview as players")!.trigger("click");
     await wrapper.vm.$nextTick();
     const preview = wrapper.findComponent(QuestPlayerPreviewDrawer);
-    expect(preview.props("questId")).toBe("q2");
-    expect(preview.props("visibleTo")).toEqual(["side-player"]);
+    // The cockpit used to follow a campaign-wide cursor, so a beat from q2 could
+    // be current here and the preview would silently switch audience with it.
+    expect(preview.props("questId")).toBe("q1");
+    expect(preview.props("visibleTo")).toEqual(["anchor-player"]);
   });
 
   it("renders the current beat from the live beat row after an in-place save", () => {
@@ -158,16 +159,27 @@ describe("QuestRunCockpit", () => {
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });
 
-  it("offers no audience when the previewed side quest no longer resolves", async () => {
-    const missingBeat = { ...beat, id: "missing-beat", quest_id: "missing-quest" };
-    mocks.context.value = { ...runningContext(), current: missingBeat };
-    mocks.beats.value = [missingBeat];
-    mocks.quests.value = [{ id: "q1", player_visible_to: ["anchor-player"] }];
+  it("falls back to the passed audience while the quest list is still loading", async () => {
+    mocks.context.value = runningContext();
+    mocks.quests.value = [];
     const wrapper = shallowMount(QuestRunCockpit, {
       props: { anchorQuestId: "q1", visibleTo: ["anchor-player"] },
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Preview as players")!.trigger("click");
     await wrapper.vm.$nextTick();
-    expect(wrapper.findComponent(QuestPlayerPreviewDrawer).props("visibleTo")).toEqual([]);
+    expect(wrapper.findComponent(QuestPlayerPreviewDrawer).props("visibleTo")).toEqual(["anchor-player"]);
   });
+
+  it("lists the other chains the party has open, and never this one", () => {
+    mocks.context.value = runningContext();
+    mocks.liveQuests.value = [
+      { quest_id: "q1", quest_title: "This chain", beat_title: "Opening", runtime_status: "running" },
+      { quest_id: "q2", quest_title: "Murder mystery", beat_title: "Who is the killer", runtime_status: "paused" },
+    ];
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    expect(wrapper.findComponent(QuestRunOpenChains).props("chains")).toEqual([
+      expect.objectContaining({ quest_id: "q2", runtime_status: "paused" }),
+    ]);
+  });
+
 });

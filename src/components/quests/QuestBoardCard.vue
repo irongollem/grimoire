@@ -16,12 +16,24 @@
       >
         {{ quest.title || "Untitled Quest" }}
       </RouterLink>
+      <!-- Same words and same glyph as the graph node and the outline: one
+           vocabulary for one fact, so a DM never has to learn that "Live" here
+           and "Party is here" there mean the same thing. -->
       <span
         v-if="summary?.isLive"
         class="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-label font-bold uppercase tracking-wider text-primary-foreground"
       >
-        <span class="h-1.5 w-1.5 rounded-full bg-current motion-safe:animate-pulse" aria-hidden="true" />
-        Live
+        <IconParty class="h-3 w-3" aria-hidden="true" />
+        Party is here
+      </span>
+      <!-- A suspended chain still holds its place; it just is not where the
+           table is right now. -->
+      <span
+        v-else-if="summary?.runtimeStatus === 'paused'"
+        class="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-label font-semibold uppercase tracking-wider text-muted-foreground"
+      >
+        <IconParty class="h-3 w-3" aria-hidden="true" />
+        Paused here
       </span>
     </div>
 
@@ -158,6 +170,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconLoot,
+  IconParty,
   IconWarning,
 } from "@/lib/icons";
 import { timeAgo } from "@/lib/utils";
@@ -214,7 +227,7 @@ function initials(name: string) {
 function segmentClass(segment: QuestBeatSegment) {
   return {
     done: "bg-tone-success",
-    live: "bg-primary",
+    here: "bg-primary",
     gap: "quest-board-segment-gap",
     upcoming: "bg-muted",
   }[segment];

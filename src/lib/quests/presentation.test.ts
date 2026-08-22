@@ -19,7 +19,7 @@ describe("quest beat presentation", () => {
       beats: [beat("a", "revealed"), beat("b", "rumored"), beat("staging")],
       edges: [edge("ab", "a", "b"), edge("ba", "b", "a")],
       attachments: [attachment],
-      runtime: { current_beat_id: "b" } as never,
+      runtime: [{ quest_id: "q", current_beat_id: "b" }] as never[],
       transitions: [transition(null, "a"), transition("a", "b")],
     });
 
@@ -71,7 +71,7 @@ describe("quest beat presentation", () => {
       beats: [beat("a"), beat("b"), beat("c"), beat("d"), beat("e")],
       edges: [edge("ab", "a", "b"), edge("bc", "b", "c"), edge("bd", "b", "d"), edge("ce", "c", "e")],
       attachments: [],
-      runtime: { current_beat_id: "c", current_quest_id: "q" } as never,
+      runtime: [{ quest_id: "q", current_beat_id: "c" }] as never[],
       transitions: [transition(null, "a"), transition("a", "b"), transition("b", "c")],
     });
 
@@ -83,12 +83,47 @@ describe("quest beat presentation", () => {
     expect(tallyQuestReach(result)).toEqual({ visited: 3, ahead: 1, stranded: 1 });
   });
 
+  // The case a single campaign-wide cursor could not express: two givers send the
+  // party to the same cave, so both chains are genuinely being advanced at once.
+  it("marks a beat current in every chain that is live, not just one", () => {
+    const other = (id: string) => ({ ...beat(id), quest_id: "relic-hunt" }) as QuestBeat;
+    const result = deriveQuestBeatPresentations({
+      beats: [beat("boss-door"), beat("boss"), other("side-chamber"), other("relic")],
+      edges: [edge("bd", "boss-door", "boss"), edge("sr", "side-chamber", "relic")],
+      attachments: [],
+      runtime: [
+        { quest_id: "q", current_beat_id: "boss-door" },
+        { quest_id: "relic-hunt", current_beat_id: "side-chamber" },
+      ] as never[],
+      transitions: [],
+    });
+
+    expect(result["boss-door"].isCurrent).toBe(true);
+    expect(result["side-chamber"].isCurrent).toBe(true);
+    // Each live chain contributes its own forward reach, so neither quest's
+    // upcoming beats read as cut off just because the other one is on screen.
+    expect(result.boss.reach).toBe("ahead");
+    expect(result.relic.reach).toBe("ahead");
+  });
+
+  it("leaves a chain with no cursor entirely out of the run", () => {
+    const result = deriveQuestBeatPresentations({
+      beats: [beat("a"), beat("b"), { ...beat("untouched"), quest_id: "dormant" } as QuestBeat],
+      edges: [edge("ab", "a", "b")],
+      attachments: [],
+      runtime: [{ quest_id: "q", current_beat_id: "a" }] as never[],
+      transitions: [transition(null, "a")],
+    });
+    expect(result.untouched.reach).toBe("unplayed");
+    expect(result.b.reach).toBe("ahead");
+  });
+
   it("re-opens a branch the party can loop back to, and stays quiet outside the run", () => {
     const looping = deriveQuestBeatPresentations({
       beats: [beat("a"), beat("b"), beat("side")],
       edges: [edge("ab", "a", "b"), edge("ba", "b", "a"), edge("aside", "a", "side")],
       attachments: [],
-      runtime: { current_beat_id: "b", current_quest_id: "q" } as never,
+      runtime: [{ quest_id: "q", current_beat_id: "b" }] as never[],
       transitions: [transition(null, "a"), transition("a", "b")],
     });
     // b -> a -> side is still walkable, so the untaken branch is not cut off.
@@ -99,7 +134,7 @@ describe("quest beat presentation", () => {
       beats: [overview, beat("a"), beat("b"), { ...beat("other"), quest_id: "other-quest" } as QuestBeat],
       edges: [edge("ab", "a", "b")],
       attachments: [],
-      runtime: { current_beat_id: "a", current_quest_id: "q" } as never,
+      runtime: [{ quest_id: "q", current_beat_id: "a" }] as never[],
       transitions: [transition(null, "a")],
     });
     // The quest-level overview and another quest's beats are not "cut off".

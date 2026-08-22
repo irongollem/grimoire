@@ -3,11 +3,11 @@
     <div class="flex items-center gap-2">
       <div class="flex-1">
         <h2 class="font-cinzel text-sm font-bold text-foreground">Jump story</h2>
-        <p class="text-caption text-muted-foreground">The authored graph stays untouched. Choose whether this detour needs a return point.</p>
+        <p class="text-caption text-muted-foreground">Moves this quest only. The authored graph stays untouched; choose whether the detour needs a return point.</p>
       </div>
       <AppButton label="Close" size="xs" variant="subtle" @click="emit('close')" />
     </div>
-    <AppInput v-model="search" placeholder="Search quest or beat…" autofocus />
+    <AppInput v-model="search" placeholder="Search this quest’s beats…" autofocus />
     <div class="max-h-80 space-y-1 overflow-y-auto">
       <AppButton
         v-for="target in targets"
@@ -17,10 +17,8 @@
         block
         @click="selected = target"
       >
-        <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ groupLabel(target.group) }}</span>
         <span class="min-w-0 flex-1">
           <span class="block truncate text-body font-semibold text-foreground">{{ target.beat_title }}</span>
-          <span class="block truncate text-caption text-muted-foreground">{{ target.quest_title }}</span>
         </span>
         <span v-if="target.recentRank < 999" class="text-label text-primary">Recent</span>
       </AppButton>
@@ -40,7 +38,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import type { RankedQuestJumpTarget, QuestJumpGroup } from "@/lib/quests/run";
+import type { RankedQuestJumpTarget } from "@/lib/quests/run";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -54,10 +52,6 @@ const emit = defineEmits<{
 const selected = ref<RankedQuestJumpTarget | null>(null);
 const reason = ref("");
 const pushReturn = ref(true);
-
-function groupLabel(group: QuestJumpGroup) {
-  return { current: "Current quest", side: "Side quest", campaign: "Campaign" }[group];
-}
 
 function submit() {
   if (!selected.value || !reason.value.trim()) return;

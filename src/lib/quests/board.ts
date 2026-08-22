@@ -7,16 +7,20 @@ import type {
   QuestBeatTransition,
   QuestRef,
   QuestRuntimeState,
+  QuestRuntimeStatus,
 } from "@/types/quest.types";
 import { summarizeQuestLootByQuest } from "./loot";
 import { deriveQuestBeatPresentations } from "./presentation";
 
 /** Optional summaries keep quests valid while graph data loads: they render without invented
  * beat-only data while flow-enabled quests use one batched campaign query. */
-export type QuestBeatSegment = "done" | "live" | "gap" | "upcoming";
+export type QuestBeatSegment = "done" | "here" | "gap" | "upcoming";
 
 export interface QuestBoardSummary {
+  /** The party is in this chain right now. Several quests can be live at once —
+   * a paused chain still holds its cursor but is not where the table is. */
   isLive: boolean;
+  runtimeStatus: QuestRuntimeStatus | null;
   currentBeatTitle: string | null;
   beatSegments: QuestBeatSegment[];
   prepGapCount: number;
@@ -54,27 +58,33 @@ export function deriveQuestBoardSummaries(input: {
   edges: QuestBeatEdge[];
   attachments: QuestBeatAttachmentSummary[];
   loot: QuestBeatLoot[];
-  runtime?: QuestRuntimeState | null;
+  runtime?: QuestRuntimeState[];
   transitions?: QuestBeatTransition[];
 }) {
   const lootByQuest = summarizeQuestLootByQuest(input.loot);
   const presentations = deriveQuestBeatPresentations(input);
+  const cursorByQuest = new Map<string, QuestRuntimeState>();
+  for (const row of input.runtime ?? []) {
+    if (row.current_beat_id) cursorByQuest.set(row.quest_id, row);
+  }
   const questIds = new Set(input.beats.map((beat) => beat.quest_id));
   for (const row of input.loot) questIds.add(row.quest_id);
   const result: Record<string, QuestBoardSummary> = {};
 
   for (const questId of questIds) {
     const beats = input.beats.filter((beat) => beat.quest_id === questId);
-    const current = input.runtime?.current_quest_id === questId
-      ? beats.find((beat) => beat.id === input.runtime?.current_beat_id) ?? null
+    const cursor = cursorByQuest.get(questId) ?? null;
+    const current = cursor
+      ? beats.find((beat) => beat.id === cursor.current_beat_id) ?? null
       : null;
     const loot = lootByQuest[questId] ?? { undispatched: 0, unclaimed: 0 };
     result[questId] = {
-      isLive: current !== null,
+      isLive: current !== null && cursor?.status === "running",
+      runtimeStatus: cursor?.status ?? null,
       currentBeatTitle: current?.title ?? null,
       beatSegments: beats.map((beat) => {
         const presentation = presentations[beat.id];
-        if (presentation?.isCurrent) return "live";
+        if (presentation?.isCurrent) return "here";
         if (presentation?.isVisited) return "done";
         if (presentation && !presentation.isReady) return "gap";
         return "upcoming";

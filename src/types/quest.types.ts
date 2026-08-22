@@ -169,9 +169,15 @@ export interface QuestBeatEdge {
 
 export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at">;
 
+/**
+ * One quest's live cursor. Keyed `(campaign_id, quest_id)`: a party is routinely
+ * mid-progress on several chains at once — a main quest suspended while a side
+ * chain runs, or two quests converging on the same cave — so "where the party
+ * is" is a set of positions, not one.
+ */
 export interface QuestRuntimeState {
   campaign_id: string;
-  current_quest_id: string | null;
+  quest_id: string;
   current_beat_id: string | null;
   return_stack: QuestRuntimePosition[];
   visit_stack: QuestRuntimePosition[];
@@ -187,23 +193,41 @@ export type QuestRuntimeStatus = "idle" | "running" | "paused" | "ended";
 export type QuestRuntimeCommand = "start" | "advance" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
 export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
 
+/** A place in one chain. The quest is the cursor row's own key, so an entry
+ * carries only the beat — a quest_id inside it could only ever disagree. */
 export interface QuestRuntimePosition {
-  quest_id: string;
   beat_id: string;
 }
 
-export interface QuestRuntimeChoice extends QuestRuntimePosition {
+export interface QuestRuntimeChoice {
   edge_id: string;
   label: string;
+  quest_id: string;
+  beat_id: string;
   beat_title: string;
   beat_kind: string;
 }
 
-export interface QuestRuntimeJumpTarget extends QuestRuntimePosition {
+export interface QuestRuntimeJumpTarget {
+  quest_id: string;
+  beat_id: string;
   quest_title: string;
   beat_title: string;
   beat_kind: string;
   is_improvised: boolean;
+}
+
+/** A chain the party currently has open. Running first, then paused. */
+export interface CampaignLiveQuest {
+  quest_id: string;
+  quest_title: string;
+  quest_status: QuestStatus;
+  beat_id: string;
+  beat_title: string;
+  beat_kind: string;
+  runtime_status: QuestRuntimeStatus;
+  version: number;
+  updated_at: string;
 }
 
 export interface QuestRuntimeContext {

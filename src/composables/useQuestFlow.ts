@@ -22,6 +22,7 @@ import type {
   QuestBeatAttachmentSummary,
   QuestBeatLoot,
   QuestBeatLootInsert,
+  CampaignLiveQuest,
   QuestRuntimeContext,
   QuestRuntimeJumpTarget,
   QuestObjectiveEffect,
@@ -266,7 +267,7 @@ export function useQuestBoardSummaries() {
         supabase.from("quest_beats").select("*").eq("campaign_id", campaignId).neq("kind", "archived").order("created_at"),
         supabase.from("quest_beat_edges").select("*").eq("campaign_id", campaignId).order("created_at"),
         supabase.from("quest_beat_attachments").select("*").eq("campaign_id", campaignId).order("sort_order").order("created_at"),
-        supabase.from("quest_runtime_state").select("*").eq("campaign_id", campaignId).maybeSingle(),
+        supabase.from("quest_runtime_state").select("*").eq("campaign_id", campaignId),
         supabase.from("quest_beat_transitions").select("*").eq("campaign_id", campaignId).order("created_at"),
         supabase.rpc("get_quest_beat_loot", { p_campaign_id: campaignId, p_quest_id: null }),
       ]);
@@ -284,7 +285,7 @@ export function useQuestBoardSummaries() {
         beats: (beatsResult.data ?? []) as QuestBeat[],
         edges: (edgesResult.data ?? []) as QuestBeatEdge[],
         attachments,
-        runtime: runtimeResult.data as QuestRuntimeState | null,
+        runtime: (runtimeResult.data ?? []) as QuestRuntimeState[],
         transitions: (transitionsResult.data ?? []) as QuestBeatTransition[],
         loot: (lootResult.data ?? []) as QuestBeatLoot[],
       });
@@ -524,56 +525,101 @@ export function useUpdateQuestBeatEdge() {
   });
 }
 
-export function useQuestRuntimeState() {
+export function useQuestRuntimeState(questId: string | Ref<string>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_KEY, campaignId.value]),
+    queryKey: computed(() => [RUNTIME_KEY, campaignId.value, id.value]),
     queryFn: async (): Promise<QuestRuntimeState | null> => {
       const { data, error } = await supabase
         .from("quest_runtime_state")
         .select("*")
         .eq("campaign_id", campaignId.value!)
+        .eq("quest_id", id.value)
         .maybeSingle();
       if (error) throw error;
       return data as QuestRuntimeState | null;
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && !!id.value,
     refetchInterval: 5_000,
   });
 }
 
-export function useQuestRuntimeContext() {
+export function useQuestRuntimeContext(questId: string | Ref<string>) {
+  const campaign = useCampaignStore();
+  const campaignId = computed(() => campaign.activeCampaignId);
+  const id = asRef(questId);
+  return useQuery({
+    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value, id.value]),
+    queryFn: async (): Promise<QuestRuntimeContext> => {
+      const { data, error } = await supabase.rpc("get_quest_runtime_context", {
+        p_campaign_id: campaignId.value!,
+        p_quest_id: id.value,
+      });
+      if (error) throw error;
+      return data as QuestRuntimeContext;
+    },
+    enabled: () => !!campaignId.value && !!id.value,
+    refetchInterval: 5_000,
+  });
+}
+
+/** Every chain the party currently has open. This is the query the single
+ * campaign cursor made unaskable: "live" is a set, not a row. */
+export function useCampaignLiveQuests() {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value]),
-    queryFn: async (): Promise<QuestRuntimeContext> => {
-      const { data, error } = await supabase.rpc("get_quest_runtime_context", { p_campaign_id: campaignId.value! });
+    queryKey: computed(() => [RUNTIME_KEY, "live", campaignId.value]),
+    queryFn: async (): Promise<CampaignLiveQuest[]> => {
+      const { data, error } = await supabase.rpc("get_campaign_live_quests", { p_campaign_id: campaignId.value! });
       if (error) throw error;
-      return data as QuestRuntimeContext;
+      return (data ?? []) as CampaignLiveQuest[];
     },
     enabled: () => !!campaignId.value,
     refetchInterval: 5_000,
   });
 }
 
-export function useQuestRuntimeJumpTargets(search: string | Ref<string>) {
+/** Jump moves *this* chain's cursor, so the picker offers only this chain's
+ * beats. Another quest is reached by navigating to its own Run surface. */
+export function useQuestRuntimeJumpTargets(questId: string | Ref<string>, search: string | Ref<string>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const id = asRef(questId);
   const query = asRef(search);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, "jump-targets", campaignId.value, query.value]),
+    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, "jump-targets", campaignId.value, id.value, query.value]),
     queryFn: async (): Promise<QuestRuntimeJumpTarget[]> => {
       const { data, error } = await supabase.rpc("search_quest_runtime_jump_targets", {
         p_campaign_id: campaignId.value!,
+        p_quest_id: id.value,
         p_search: query.value,
         p_limit: 30,
       });
       if (error) throw error;
       return (data ?? []) as QuestRuntimeJumpTarget[];
     },
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && !!id.value,
+  });
+}
+
+/** Closing the table for the night: every running chain pauses where it stands.
+ * The old campaign-wide `end` nulled the cursor, discarding suspended quests. */
+export function useEndCampaignQuestSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (campaignId: string): Promise<number> => {
+      const { data, error } = await supabase.rpc("end_campaign_quest_session", { p_campaign_id: campaignId });
+      if (error) throw error;
+      return (data ?? 0) as number;
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
+    },
   });
 }
 
@@ -586,8 +632,8 @@ export function useQuestRuntimeCommand() {
       return data as QuestRuntimeContext;
     },
     onSuccess: (context, input) => {
-      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId], context);
-      queryClient.setQueryData([RUNTIME_KEY, input.campaignId], context.state);
+      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId, input.questId], context);
+      queryClient.setQueryData([RUNTIME_KEY, input.campaignId, input.questId], context.state);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
@@ -599,6 +645,7 @@ export function useQuestRuntimeCommand() {
 
 export interface QuestRuntimeImprovInput {
   campaignId: string;
+  questId: string;
   expectedVersion: number;
   title: string;
   kind: string;
@@ -615,6 +662,7 @@ export function useQuestRuntimeImprovise() {
     mutationFn: async (input: QuestRuntimeImprovInput): Promise<{ context: QuestRuntimeContext; beat: QuestBeat }> => {
       const { data, error } = await supabase.rpc("improvise_quest_runtime", {
         p_campaign_id: input.campaignId,
+        p_quest_id: input.questId,
         p_expected_version: input.expectedVersion,
         p_title: input.title,
         p_kind: input.kind,
@@ -629,7 +677,7 @@ export function useQuestRuntimeImprovise() {
       return data as { context: QuestRuntimeContext; beat: QuestBeat };
     },
     onSuccess: ({ context }, input) => {
-      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId], context);
+      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId, input.questId], context);
       queryClient.setQueryData([RUNTIME_KEY, input.campaignId], context.state);
     },
     onSettled: () => {

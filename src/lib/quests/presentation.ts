@@ -110,7 +110,8 @@ export interface QuestBeatPresentationInput {
   beats: QuestBeat[];
   edges: QuestBeatEdge[];
   attachments: QuestBeatAttachmentSummary[];
-  runtime?: QuestRuntimeState | null;
+  /** One cursor per quest the party has open — several chains run at once. */
+  runtime?: QuestRuntimeState[];
   transitions?: QuestBeatTransition[];
   lootByBeat?: Record<string, QuestBeatLootSummary>;
 }
@@ -137,12 +138,22 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
     if (beat.is_overview) continue;
     flowBeatsPerQuest.set(beat.quest_id, (flowBeatsPerQuest.get(beat.quest_id) ?? 0) + 1);
   }
-  // Reach is only a question once a run is under way, and only for the quest the
-  // party is actually in — the board hands this campaign-wide beats, so without
-  // the quest check every other quest's beats would read as cut off.
-  const currentBeatId = input.runtime?.current_beat_id ?? null;
-  const runningQuestId = currentBeatId ? input.runtime?.current_quest_id ?? null : null;
-  const reachableAhead = currentBeatId ? forwardReachableBeatIds(currentBeatId, input.edges) : new Set<string>();
+  // Reach is only a question once a run is under way, and only for the quests
+  // the party is actually in — the board hands this campaign-wide beats, so
+  // without the quest check every other quest's beats would read as cut off.
+  //
+  // Several chains can be live at once (a suspended main quest beside the side
+  // quest being walked, or two quests converging on one cave), so this is a
+  // cursor *per quest* and each one contributes its own forward reach.
+  const cursorByQuest = new Map<string, string>();
+  for (const row of input.runtime ?? []) {
+    if (row.current_beat_id) cursorByQuest.set(row.quest_id, row.current_beat_id);
+  }
+  const currentBeatIds = new Set(cursorByQuest.values());
+  const reachableAhead = new Set<string>();
+  for (const beatId of cursorByQuest.values()) {
+    for (const id of forwardReachableBeatIds(beatId, input.edges)) reachableAhead.add(id);
+  }
   const result: Record<string, QuestBeatPresentation> = {};
 
   for (const beat of input.beats) {
@@ -152,13 +163,12 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       && !connected.has(beat.id);
     const prepGaps = deriveQuestBeatPrepGaps(beat, placed, { isDisconnected });
     const loot = input.lootByBeat?.[beat.id] ?? { total: 0, undispatched: 0, unclaimed: 0 };
-    const isCurrent = currentBeatId === beat.id;
+    const isCurrent = currentBeatIds.has(beat.id);
     const isVisited = visited.has(beat.id);
     // A staging beat is unwired rather than cut off, and the overview beat is
     // quest-level and deliberately outside the graph: calling either "stranded"
     // would report the same fact twice under a scarier name.
-    const outsideTheRun = runningQuestId === null
-      || beat.quest_id !== runningQuestId
+    const outsideTheRun = !cursorByQuest.has(beat.quest_id)
       || beat.is_overview
       || isDisconnected;
     const reach: QuestBeatReach = isCurrent ? "current"

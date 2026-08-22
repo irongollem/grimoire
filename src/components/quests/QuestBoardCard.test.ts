@@ -42,8 +42,9 @@ function partyMember(id: string, name: string): PartyMember {
 
 const summary: QuestBoardSummary = {
   isLive: true,
+  runtimeStatus: "running",
   currentBeatTitle: "Bell-wardens rise from the silt",
-  beatSegments: ["done", "live", "gap", "upcoming"],
+  beatSegments: ["done", "here", "gap", "upcoming"],
   prepGapCount: 1,
   undispatchedLootCount: 3,
   unclaimedLootCount: 0,
@@ -69,7 +70,7 @@ describe("QuestBoardCard", () => {
       global,
     });
 
-    expect(wrapper.text()).toContain("Live");
+    expect(wrapper.text()).toContain("Party is here");
     expect(wrapper.text()).toContain("Bell-wardens rise from the silt");
     expect(wrapper.text()).toContain("1 prep gap");
     expect(wrapper.text()).toContain("3 loot to drop");

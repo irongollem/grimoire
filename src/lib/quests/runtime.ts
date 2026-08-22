@@ -1,10 +1,16 @@
 import type { QuestRuntimeCommand } from "@/types/quest.types";
 
+/**
+ * A command against one quest's cursor. There is no target quest: a command
+ * moves the chain named by `questId` and nothing else. Reaching another quest is
+ * navigation to its own Run surface, which writes no runtime state and needs no
+ * reason — only moving a cursor within a chain does.
+ */
 export interface QuestRuntimeCommandInput {
   campaignId: string;
+  questId: string;
   command: QuestRuntimeCommand;
   expectedVersion: number;
-  targetQuestId?: string;
   targetBeatId?: string;
   edgeId?: string;
   reason?: string;
@@ -17,9 +23,9 @@ export interface QuestRuntimeCommandInput {
 export function toQuestRuntimeRpcArgs(input: QuestRuntimeCommandInput) {
   return {
     p_campaign_id: input.campaignId,
+    p_quest_id: input.questId,
     p_command: input.command,
     p_expected_version: input.expectedVersion,
-    p_target_quest_id: input.targetQuestId ?? null,
     p_target_beat_id: input.targetBeatId ?? null,
     p_edge_id: input.edgeId ?? null,
     p_reason: input.reason ?? null,

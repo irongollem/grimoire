@@ -47,6 +47,7 @@ const emptyFilters: QuestBoardFilters = {
 
 const ready: QuestBoardSummary = {
   isLive: false,
+  runtimeStatus: null,
   currentBeatTitle: null,
   beatSegments: [],
   prepGapCount: 0,
@@ -161,13 +162,14 @@ describe("deriveQuestBoardSummaries", () => {
       edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }] as never[],
       attachments: [{ beat_id: "beat-b", attachment_type: "handout", prep_gap: true }] as never[],
       loot: [{ beat_id: "beat-b", quest_id: "quest-a", delivery_state: "held" }] as never[],
-      runtime: { current_quest_id: "quest-a", current_beat_id: "beat-a" } as never,
+      runtime: [{ quest_id: "quest-a", current_beat_id: "beat-a", status: "running" }] as never[],
       transitions: [{ to_beat_id: "beat-a" }] as never[],
     });
     expect(summaries["quest-a"]).toMatchObject({
       isLive: true,
+      runtimeStatus: "running",
       currentBeatTitle: "Arrival",
-      beatSegments: ["live", "gap"],
+      beatSegments: ["here", "gap"],
       prepGapCount: 1,
       undispatchedLootCount: 1,
     });
