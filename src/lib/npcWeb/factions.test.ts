@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_PIPS, factionBadgesByNode, pipOffsets } from "./factions";
+import { MAX_PIPS, factionBadgesByNode, membershipCaption, pipOffsets } from "./factions";
 
 function row(npcId: string, factionName: string, status = "Active", emblem: string | null = null) {
   return {
@@ -111,5 +111,28 @@ describe("pipOffsets", () => {
 
   it("scales its start with the node it hangs off", () => {
     expect(pipOffsets(1, 22, 6)[0].x).toBeGreaterThan(pipOffsets(1, 18, 6)[0].x);
+  });
+});
+
+describe("membershipCaption", () => {
+  // A badge already says "belongs", so repeating it spends a line on nothing.
+  it("says nothing beyond Member when there is nothing to say", () => {
+    expect(membershipCaption({ role: "Member", status: "Active", active: true })).toBe("Member");
+  });
+
+  it("leads with the role when there is one", () => {
+    expect(membershipCaption({ role: "Leader", status: "Active", active: true })).toBe("Leader");
+  });
+
+  // Retired and Expelled are both inactive and mean very different things, which
+  // is the whole reason status is carried separately from the `active` flag.
+  it("names a former tie's status", () => {
+    expect(membershipCaption({ role: "Agent", status: "Expelled", active: false })).toBe("Agent · Expelled");
+    expect(membershipCaption({ role: "Member", status: "Retired", active: false })).toBe("Retired");
+  });
+
+  it("copes with no role recorded", () => {
+    expect(membershipCaption({ role: null, status: "Active", active: true })).toBe("Member");
+    expect(membershipCaption({ role: null, status: "Defected", active: false })).toBe("Defected");
   });
 });

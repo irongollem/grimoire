@@ -242,7 +242,7 @@ A full-viewport force-directed graph rendered with `v-network-graph` (VNetworkGr
 ### Nodes
 
 - **NPC nodes**: coloured circles sized 18 px radius, colour = relationship colour, resolved from the `--relationship-*` ramp by `npcRelationshipCanvasColor()` (hostile red, unfriendly orange, indifferent grey, friendly teal, helpful green, unknown purple). Labels shown.
-- **PC nodes** (togglable): larger circles (22 px radius), amber/gold colour, labelled with party member name.
+- **PC nodes** (togglable): larger circles (22 px radius), amber/gold, labelled with the party member's name — and wearing their portrait when they have one, cropped round on the focal point via `FocalImage` in a `foreignObject`. Party only: a campaign holds a handful of PCs and several hundred NPCs, and fetching every NPC portrait to draw it at 36px is a lot of network for very little picture. The gold shows through while the image loads or when a member has no portrait.
 
 ### Edges
 
@@ -286,6 +286,12 @@ So membership appears two ways instead:
   dimming is what disambiguates that, and it is why the fade has to reach the
   labels and badges too rather than just the circles.
 
+  While a faction is focused each member is captioned with how they belong —
+  "Leader", "Agent · Expelled" — from `membershipCaption`, shared with the badge
+  tooltip so one membership cannot describe itself two ways on one screen. A
+  plain member gets no caption: everyone inside the fence is a member, and it is
+  the unremarkable ones staying quiet that lets "Leader" and "Expelled" carry.
+
 `ForceLayout` gets a weak same-faction pull (`lib/npcWeb/factionClustering.ts`,
 strength 0.06) so a faction is loosely together before a boundary is drawn round
 it. Deliberately weak: a strong one would rearrange the graph around org charts,
@@ -308,9 +314,9 @@ groups that could no longer appear and coloured them with hexes nothing was pain
 | -------------------------- | ------------------------------------------------------------------------------------ |
 | Search input               | Filters nodes by NPC name or disguise name; selected/linked nodes are pinned visible |
 | Party Members toggle       | Shows/hides PC nodes and their edges                                                 |
-| Location dropdown          | Shows only NPCs at that location (including descendants)                             |
-| Relationship type dropdown | Shows only edges of that type (considering inverse)                                  |
-| Legend                     | One swatch per relationship, built from `NPC_RELATIONSHIP_LABELS` + the ramp tokens, + dashed line = PC link |
+| Location dropdown          | `EntityCombobox`, not a select — a campaign carries hundreds of locations. Shows only NPCs there (including descendants) |
+| Relationship type dropdown | Shows only edges of that type (considering inverse). Distinct from the legend: this narrows the *edges* by what two people are to each other, the legend narrows the *people* by how they regard the party |
+| Legend                     | One swatch per relationship, built from `NPC_RELATIONSHIP_LABELS` + the ramp tokens. **Clickable**: shows only NPCs of that attitude, click again to release. Unselected swatches fade, the same grammar the faction focus uses |
 | Clear                      | Appears when any of the four is active; calls `resetNpcWebFilters()`                 |
 
 All four live in `useUiStore` (`npcWebSearch`, `npcWebShowPcs`, `npcWebFilterLocation`, `npcWebFilterType`) and survive navigating to an NPC sheet and back (#723). A graph is not a list, which is why the Filter State Pattern audit skipped it — but the filters are filters, so it gets the same treatment. `NpcWebTopBar` stays prop/emit-driven (the view owns where the state lives) and bridges to the `ListSearchInput` / `ListFilterSelect` v-models with local writable computeds.

@@ -86,13 +86,20 @@ export const useUiStore = defineStore("ui", () => {
    * boundary drawn at once is overlapping blobs that read worse than none.
    */
   const npcWebFocusFaction = ref("");
+  /**
+   * Attitude-to-party, set by clicking the legend. Distinct from
+   * `npcWebFilterType`, which narrows the *edges* by what two people are to each
+   * other — this narrows the *people* by how they regard the party.
+   */
+  const npcWebFilterRelationship = ref<NpcRelationship | "">("");
 
   const npcWebHasActiveFilters = computed(() =>
     npcWebSearch.value !== "" ||
     !npcWebShowPcs.value ||
     npcWebFilterLocation.value !== "" ||
     npcWebFilterType.value !== "" ||
-    npcWebFocusFaction.value !== "",
+    npcWebFocusFaction.value !== "" ||
+    npcWebFilterRelationship.value !== "",
   );
 
   function resetNpcWebFilters() {
@@ -101,6 +108,7 @@ export const useUiStore = defineStore("ui", () => {
     npcWebFilterLocation.value = "";
     npcWebFilterType.value = "";
     npcWebFocusFaction.value = "";
+    npcWebFilterRelationship.value = "";
   }
 
   // Monster UI state
@@ -919,6 +927,7 @@ export const useUiStore = defineStore("ui", () => {
     npcWebFilterLocation,
     npcWebFilterType,
     npcWebFocusFaction,
+    npcWebFilterRelationship,
     npcWebHasActiveFilters,
     resetNpcWebFilters,
 

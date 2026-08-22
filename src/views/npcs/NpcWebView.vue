@@ -7,6 +7,7 @@
       v-model:location-filter="ui.npcWebFilterLocation"
       v-model:type-filter="ui.npcWebFilterType"
       v-model:focus-faction="ui.npcWebFocusFaction"
+      v-model:relationship-filter="ui.npcWebFilterRelationship"
       :location-options="locationOptions"
       :type-options="typeOptions"
       :faction-options="factionOptions"
@@ -62,7 +63,58 @@
           `node-labels` puts this above the nodes in the layer stack; positions
           come from `layouts`, which the force layout writes as it settles.
         -->
-        <template #factionPips="{ scale }">
+        <template #nodeOverlay="{ scale }">
+          <!--
+            Party portraits, laid over the gold circle that stands in for them.
+            PCs only, deliberately: there are a handful of them and several
+            hundred NPCs, and a graph that fetches every portrait at once to
+            render each at 36px is a lot of network for very little picture.
+
+            `foreignObject` rather than an SVG `<image>` because the crop has to
+            honour the focal point the DM already set on the face, and SVG's
+            `preserveAspectRatio` only offers nine fixed alignments. Inside it
+            `FocalImage` does what it does everywhere else, including choosing a
+            crop by smartcrop when no focal point was set.
+          -->
+          <foreignObject
+            v-for="pc in pcPortraits"
+            :key="pc.nodeKey"
+            :x="pc.cx - pc.radius * scale"
+            :y="pc.cy - pc.radius * scale"
+            :width="pc.radius * 2 * scale"
+            :height="pc.radius * 2 * scale"
+            class="pointer-events-none"
+            :opacity="pc.dimmed ? 0.22 : 1"
+          >
+            <div class="h-full w-full overflow-hidden rounded-full">
+              <FocalImage
+                :src="pc.portraitUrl"
+                :focal-point="pc.focalPoint"
+                format="token"
+                :alt="pc.name"
+              />
+            </div>
+          </foreignObject>
+
+          <!--
+            Painted with a background-coloured stroke under the fill
+            (`paint-order`), which haloes the text: these sit inside the fence
+            where relationship edges cross, and unhaloed 9px type over a line is
+            unreadable.
+          -->
+          <text
+            v-for="member in memberCaptions"
+            :key="`caption-${member.nodeKey}`"
+            :x="member.cx"
+            :y="member.cy + member.dy * scale"
+            text-anchor="middle"
+            dominant-baseline="central"
+            :font-size="10 * scale"
+            :stroke-width="3 * scale"
+            paint-order="stroke fill"
+            class="fill-primary stroke-background font-semibold pointer-events-none"
+          >{{ member.caption }}</text>
+
           <defs>
             <clipPath id="npcweb-pip-clip">
               <circle cx="0" cy="0" :r="PIP_RADIUS" />
@@ -225,6 +277,7 @@ import { useRouter } from "vue-router";
 import { IconNetwork } from '@/lib/icons';
 import { npcRelationshipVar } from "@/lib/npcDisplay";
 import { VNetworkGraph, type EventHandlers, type Layers, type Layouts } from "v-network-graph";
+import FocalImage from "@/components/common/FocalImage.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NpcWebTopBar from "@/components/npcs/NpcWebTopBar.vue";
 import NpcWebLinkForm from "@/components/npcs/NpcWebLinkForm.vue";
@@ -238,7 +291,7 @@ import { useAllNpcRelations, useCreateNpcRelation, useUpdateNpcRelation, useDele
 import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
 import { useNpcWebGraph, resolveVar } from "@/composables/useNpcWebGraph";
 import { useAllFactionNpcs, useAllFactionPartyMembers } from "@/composables/useFactions";
-import { factionBadgesByNode, pipOffsets, type FactionPip } from "@/lib/npcWeb/factions";
+import { factionBadgesByNode, membershipCaption, pipOffsets, type FactionPip } from "@/lib/npcWeb/factions";
 import { convexHull, hullPath, padOutward, type Point } from "@/lib/npcWeb/hull";
 import { useAllFactions } from "@/composables/useFactions";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
@@ -390,6 +443,95 @@ const focusHullPath = computed(() => {
   return hullPath(padOutward(convexHull(points), HULL_PADDING));
 });
 
+/**
+ * How each member of the focused faction belongs — "Leader", "Agent · Expelled".
+ *
+ * Only while a faction is focused, and that restraint is the point: inside the
+ * fence a Leader and an Informant otherwise look identical, and everywhere else
+ * on this graph the same text would be noise on every node at once.
+ */
+const focusedMemberships = computed(() => {
+  const id = ui.npcWebFocusFaction;
+  const out = new Map<string, string>();
+  if (!id) return out;
+
+  const record = (nodeKey: string, row: { role: string | null; status: string }) => {
+    if (!focusedKeys.value.has(nodeKey)) return;
+    const caption = membershipCaption({ ...row, active: row.status === "Active" });
+    // A plain member gets no caption. Everyone inside the fence is a member, so
+    // printing it is a word that says what the shape already said — and it is
+    // the *un*remarkable ones being quiet that lets "Leader" and "Expelled"
+    // carry. The tooltip still says "Member", because a tooltip that opens onto
+    // nothing is a different kind of wrong.
+    if (caption === "Member") return;
+    out.set(nodeKey, caption);
+  };
+  for (const row of factionNpcs.value ?? []) {
+    if (row.faction_id === id) record(`npc:${row.npc_id}`, row);
+  }
+  for (const row of factionPartyMembers.value ?? []) {
+    if (row.faction_id === id) record(`pc:${row.party_member_id}`, row);
+  }
+  return out;
+});
+
+const memberCaptions = computed(() => {
+  const out: { nodeKey: string; caption: string; cx: number; cy: number; dy: number }[] = [];
+  for (const [nodeKey, caption] of focusedMemberships.value) {
+    const pos = layouts.value.nodes[nodeKey];
+    const node = graphNodes.value[nodeKey];
+    if (!pos || !node) continue;
+    // Below the name, which the graph draws below the node.
+    out.push({ nodeKey, caption, cx: pos.x, cy: pos.y, dy: node.nodeSize + 26 });
+  }
+  return out;
+});
+
+// ── Party portraits ───────────────────────────────────────────────────────────
+
+/**
+ * A party member's node wears their face.
+ *
+ * Only the party: a campaign holds a handful of PCs and several hundred NPCs,
+ * and fetching every NPC portrait to draw each one at 36px is a great deal of
+ * network for very little picture. The gold circle underneath still carries the
+ * "this is a PC" signal, and shows through while the image loads or when a
+ * member has no portrait at all.
+ */
+const pcPortraits = computed(() => {
+  const out: {
+    nodeKey: string;
+    name: string;
+    portraitUrl: string;
+    focalPoint: { x: number; y: number } | null;
+    cx: number;
+    cy: number;
+    radius: number;
+    dimmed: boolean;
+  }[] = [];
+
+  if (!ui.npcWebShowPcs) return out;
+
+  for (const pc of partyMembers.value ?? []) {
+    if (!pc.portrait_url) continue;
+    const nodeKey = `pc:${pc.id}`;
+    const node = graphNodes.value[nodeKey];
+    const pos = layouts.value.nodes[nodeKey];
+    if (!node || !pos) continue;
+    out.push({
+      nodeKey,
+      name: pc.name,
+      portraitUrl: pc.portrait_url,
+      focalPoint: pc.portrait_focal_point ?? null,
+      cx: pos.x,
+      cy: pos.y,
+      radius: node.nodeSize,
+      dimmed: node.dimmed,
+    });
+  }
+  return out;
+});
+
 // ── Faction membership badges ─────────────────────────────────────────────────
 
 /** Node positions, written by the force layout and read by the badge layer. */
@@ -443,7 +585,7 @@ watch(
  * own pan/zoom transform, so positions are plain graph coordinates and the
  * badges zoom with everything else.
  */
-const GRAPH_LAYERS: Layers = { factionHull: "base", factionPips: "node-labels" };
+const GRAPH_LAYERS: Layers = { factionHull: "base", nodeOverlay: "node-labels" };
 
 /**
  * Screen pixels, not graph units.
@@ -501,15 +643,9 @@ watch(pipTooltipRef, (el) => { pipFloatingRef.value = el; });
 /** Web Animations is absent in the test DOM, and a reader may have asked for stillness. */
 const pipTransition = computed(() => (prefersReducedMotion() ? "none" : "transform 120ms ease-out"));
 
-const pipTooltipDetail = computed(() => {
-  const pip = hoveredPip.value?.pip;
-  if (!pip) return "";
-  // Status earns a mention only when it is not the unremarkable case; role is
-  // dropped when it says nothing the badge did not already ("Member").
-  const parts = [pip.role && pip.role !== "Member" ? pip.role : null, pip.active ? null : pip.status];
-  const said = parts.filter(Boolean).join(" · ");
-  return said || (pip.active ? "Member" : pip.status);
-});
+const pipTooltipDetail = computed(() =>
+  hoveredPip.value ? membershipCaption(hoveredPip.value.pip) : "",
+);
 
 function isPipOpen(pip: FactionPip): boolean {
   return hoveredPip.value?.pip.factionId === pip.factionId;
@@ -873,11 +1009,12 @@ const eventHandlers: EventHandlers = {
  * attitude set renders as, and a grey node with no entry in the key is exactly
  * the question this legend exists to answer.
  */
-const legendItems = computed<[string, string][]>(() =>
-  (Object.keys(NPC_RELATIONSHIP_LABELS) as NpcRelationship[]).map((relationship) => [
-    NPC_RELATIONSHIP_LABELS[relationship],
-    npcRelationshipVar(relationship),
-  ]),
+const legendItems = computed(() =>
+  (Object.keys(NPC_RELATIONSHIP_LABELS) as NpcRelationship[]).map((relationship) => ({
+    value: relationship,
+    label: NPC_RELATIONSHIP_LABELS[relationship],
+    color: npcRelationshipVar(relationship),
+  })),
 );
 </script>
 

@@ -120,3 +120,23 @@ export function pipOffsets(count: number, nodeRadius: number, pipRadius: number)
   const y = -nodeRadius * 0.62;
   return Array.from({ length: count }, (_, i) => ({ x: startX + i * step, y }));
 }
+
+/**
+ * How someone belongs, in as few words as carry information.
+ *
+ * "Member" is dropped when it is the whole story, because a badge already says
+ * membership and repeating it costs a line that could have been blank. An
+ * unremarkable status is dropped for the same reason. What survives is what a DM
+ * would actually say out loud: "Leader", "Informant", "Agent · Expelled".
+ *
+ * Shared by the badge tooltip and the caption drawn under a focused member, so
+ * the same membership cannot describe itself two ways on one screen.
+ */
+export function membershipCaption(
+  membership: Pick<FactionPip, "role" | "status" | "active">,
+): string {
+  const role = membership.role && membership.role !== "Member" ? membership.role : null;
+  const status = membership.active ? null : membership.status;
+  const said = [role, status].filter(Boolean).join(" · ");
+  return said || (membership.active ? "Member" : membership.status);
+}

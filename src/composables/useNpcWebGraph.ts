@@ -139,6 +139,9 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       const key = `npc:${npc.id}`;
       if (q && !npcMatchesSearch(npc, q) && !pinned.has(key)) continue;
       if (locationDescendants && !locationDescendants.has(npc.location_id ?? "")) continue;
+      // Attitude, set by clicking the legend. PCs are exempt below: they have no
+      // attitude toward the party, being the party.
+      if (ui.npcWebFilterRelationship && npc.relationship !== ui.npcWebFilterRelationship) continue;
       const color = npcRelationshipCanvasColor(npc.relationship);
       const dimmed = focused.size > 0 && !focused.has(key);
       nodes[key] = {

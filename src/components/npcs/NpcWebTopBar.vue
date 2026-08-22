@@ -39,12 +39,24 @@
           @click="$emit('update:showPcs', !showPcs)"
         />
 
-        <ListFilterSelect v-model="locationModel" aria-label="Location filter">
-          <option value="">All Locations</option>
-          <option v-for="loc in locationOptions" :key="loc.id" :value="loc.id">
-            {{ '  '.repeat(loc.depth) }}{{ loc.name }}
-          </option>
-        </ListFilterSelect>
+        <!--
+          Combobox rather than a select for both of these: a campaign carries
+          hundreds of locations and can carry dozens of factions, which is the
+          dynamic-and-numerous case the native control is explicitly not for.
+          Relationship type stays a select — fifteen fixed values that change
+          only when the enum does.
+        -->
+        <EntityCombobox
+          :model-value="locationFilter"
+          :options="locationOptions"
+          placeholder="All locations"
+          class="min-w-40"
+          @update:model-value="emit('update:locationFilter', $event)"
+        >
+          <template #option="{ opt }">
+            <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 12}px` }">{{ opt.name }}</span>
+          </template>
+        </EntityCombobox>
 
         <ListFilterSelect v-model="typeModel" aria-label="Relationship type filter">
           <option value="">All Relationships</option>
@@ -56,19 +68,42 @@
           boundary round one faction's members and dims everyone else, so you can
           still see the guild's reach into the rest of the web.
         -->
-        <ListFilterSelect v-model="factionModel" aria-label="Faction focus">
-          <option value="">No faction focus</option>
-          <option v-for="f in factionOptions" :key="f.id" :value="f.id">{{ f.name }}</option>
-        </ListFilterSelect>
+        <EntityCombobox
+          :model-value="focusFaction"
+          :options="factionOptions"
+          placeholder="Focus a faction…"
+          class="min-w-40"
+          @update:model-value="emit('update:focusFaction', $event)"
+        />
       </ListFilterBar>
 
-      <!-- Legend -->
-      <div class="flex items-center gap-3 pl-2 border-l border-border">
-        <span v-for="[type, color] in legendItems" :key="type" class="flex items-center gap-1.5 text-label text-muted-foreground">
-          <span class="inline-block h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: color }" />
-          {{ type }}
-        </span>
-        <span class="flex items-center gap-1.5 text-label text-muted-foreground">
+      <!--
+        The legend doubles as the attitude filter. It was already a row of
+        labelled swatches sitting next to a filter bar, so making it inert was
+        the odd choice: clicking Hostile shows only the hostile, clicking it
+        again puts everyone back.
+
+        Selected entries stay full strength and the rest fade, which is the same
+        grammar the faction focus uses — the swatch you chose is the one thing
+        still lit.
+      -->
+      <div class="flex items-center gap-1 pl-2 border-l border-border">
+        <button
+          v-for="item in legendItems"
+          :key="item.value"
+          type="button"
+          class="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-label transition-opacity hover:bg-muted"
+          :class="relationshipFilter && relationshipFilter !== item.value
+            ? 'opacity-40 text-muted-foreground'
+            : 'text-muted-foreground'"
+          :aria-pressed="relationshipFilter === item.value"
+          :title="`Show only ${item.label.toLowerCase()} NPCs`"
+          @click="emit('update:relationshipFilter', relationshipFilter === item.value ? '' : item.value)"
+        >
+          <span class="inline-block h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: item.color }" />
+          {{ item.label }}
+        </button>
+        <span class="flex items-center gap-1.5 pl-1.5 text-label text-muted-foreground">
           <span class="inline-block w-5 border-t-2 border-dashed border-muted-foreground/70" />
           PC link
         </span>
@@ -83,10 +118,11 @@ import { RouterLink } from 'vue-router';
 import { IconChevronLeft, IconShield } from '@/lib/icons';
 import AppButton from '@/components/common/AppButton.vue';
 import ListFilterBar from '@/components/common/ListFilterBar.vue';
+import EntityCombobox from '@/components/common/EntityCombobox.vue';
 import ListFilterSelect from '@/components/common/ListFilterSelect.vue';
 import ListSearchInput from '@/components/common/ListSearchInput.vue';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
-import type { NpcRelationshipType } from '@/types/npc.types';
+import type { NpcRelationship, NpcRelationshipType } from '@/types/npc.types';
 
 interface LocationOption {
   id: string;
@@ -100,6 +136,7 @@ const {
   locationFilter,
   typeFilter,
   focusFaction,
+  relationshipFilter,
   locationOptions,
   typeOptions,
   factionOptions,
@@ -110,10 +147,11 @@ const {
   locationFilter: string;
   typeFilter: NpcRelationshipType | '';
   focusFaction: string;
+  relationshipFilter: NpcRelationship | '';
   locationOptions: LocationOption[];
   typeOptions: [NpcRelationshipType, string][];
   factionOptions: { id: string; name: string }[];
-  legendItems: [string, string][];
+  legendItems: { value: NpcRelationship; label: string; color: string }[];
   /** Drives the Clear button in the filter bar. */
   hasActiveFilters?: boolean;
 }>();
@@ -124,6 +162,7 @@ const emit = defineEmits<{
   'update:locationFilter': [value: string];
   'update:typeFilter': [value: NpcRelationshipType | ''];
   'update:focusFaction': [value: string];
+  'update:relationshipFilter': [value: NpcRelationship | ''];
   clear: [];
 }>();
 
@@ -133,16 +172,8 @@ const searchModel = computed({
   get: () => searchQuery,
   set: (v) => emit('update:searchQuery', v),
 });
-const locationModel = computed({
-  get: () => locationFilter,
-  set: (v) => emit('update:locationFilter', v),
-});
 const typeModel = computed({
   get: () => typeFilter as string,
   set: (v) => emit('update:typeFilter', v as NpcRelationshipType | ''),
-});
-const factionModel = computed({
-  get: () => focusFaction,
-  set: (v) => emit('update:focusFaction', v),
 });
 </script>
