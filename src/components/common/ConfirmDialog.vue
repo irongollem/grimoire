@@ -2,37 +2,24 @@
   <AppModal
     :open="dialog !== null"
     size="sm"
-    labelled-by="dialog-title"
     :backdrop-dismiss="false"
     @close="cancel"
   >
-    <!-- Header -->
-    <div class="flex items-start gap-3 px-5 pt-5 pb-3">
-      <div
-        class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full"
-        :class="
-          dialog?.danger
-            ? 'bg-destructive/15 text-destructive'
-            : 'bg-primary/15 text-primary'
-        "
-      >
-        <IconWarning v-if="dialog?.danger" class="h-4.5 w-4.5" />
-        <IconInfo v-else class="h-4.5 w-4.5" />
-      </div>
-      <div class="flex-1 min-w-0">
-        <h2
-          id="dialog-title"
-          class="font-cinzel text-sm font-bold text-foreground tracking-wide"
-        >
-          {{ dialog?.title }}
-        </h2>
-        <p
-          class="mt-1 text-body text-muted-foreground leading-snug"
-        >
-          {{ dialog?.message }}
-        </p>
-      </div>
-    </div>
+    <!--
+      The question is the subtitle, which makes it the dialog's
+      `aria-describedby` — a confirm that announces its title and then leaves
+      the actual question unread is the one thing this dialog must not do.
+      `border-none` because there is no body below it to divide from: the
+      header *is* the dialog, and the buttons answer it.
+    -->
+    <ModalHeader
+      :title="dialog?.title ?? ''"
+      :subtitle="dialog?.message"
+      subtitle-role="body"
+      :icon="dialog?.danger ? IconWarning : IconInfo"
+      :tone="dialog?.danger ? 'danger' : 'primary'"
+      header-class="border-none pb-3"
+    />
 
     <!-- Footer -->
     <div class="flex justify-end gap-2 px-5 pb-5 pt-2">
@@ -73,6 +60,7 @@ import { IconInfo, IconWarning } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import type { ButtonVariants } from "@/components/common/appButtonVariants";
 
 const { dialog, _resolve } = useConfirm();

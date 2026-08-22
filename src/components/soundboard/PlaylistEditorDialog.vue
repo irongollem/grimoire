@@ -2,26 +2,15 @@
   <AppModal
     :open="open"
     :size="localType === 'ambient' ? 'lg' : 'md'"
-    :labelled-by="dialogTitleId"
     @close="$emit('close')"
   >
-    <!-- Header -->
-    <div class="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border shrink-0">
-      <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-gold-500/15 text-gold-400">
-        <component :is="noun.icon" class="h-4.5 w-4.5" />
-      </div>
-      <h2 :id="dialogTitleId" class="font-cinzel text-sm font-bold text-foreground tracking-wide flex-1">
-        {{ playlist ? `Edit ${noun.singular}` : `New ${noun.singular}` }}
-      </h2>
-      <AppButton
-        variant="ghost"
-        size="icon-xs"
-        icon-size="md"
-        :icon="IconClose"
-        aria-label="Close"
-        @click="$emit('close')"
-      />
-    </div>
+    <ModalHeader
+      :title="playlist ? `Edit ${noun.singular}` : `New ${noun.singular}`"
+      :icon="noun.icon"
+      tone="gold"
+      closeable
+      @close="$emit('close')"
+    />
 
     <!-- Body (scrollable) -->
     <div class="overflow-y-auto flex-1 px-5 py-4 space-y-4">
@@ -152,7 +141,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
-import { IconClose } from "@/lib/icons";
 import { PLAYLIST_NOUNS } from "@/lib/audio/playlistPeers";
 import { useSounds } from "@/composables/useSounds";
 import { usePlaylistTracks, useCreatePlaylist, useUpdatePlaylist, useReplacePlaylistTracks } from "@/composables/useSoundboardPlaylists";
@@ -163,6 +151,7 @@ import { DEFAULT_LAYER } from "@/types/sound.types";
 import type { SoundboardPlaylist, PlaylistType, Sound, PlaylistTrackLayer } from "@/types/sound.types";
 import PlaylistTrackRow from "./PlaylistTrackRow.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -213,8 +202,6 @@ const addSoundId = ref("");
 const saving = ref(false);
 
 const noun = computed(() => PLAYLIST_NOUNS[localType.value]);
-
-const dialogTitleId = computed(() => playlist ? `edit-playlist-${playlist.id}` : "create-playlist");
 
 // Populate form when opening for edit
 watch(

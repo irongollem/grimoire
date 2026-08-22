@@ -1,22 +1,12 @@
 <template>
-  <AppModal :open="open" size="md" labelled-by="hotkey-sheet-title" @close="$emit('close')">
-    <div class="flex items-center gap-3 border-b border-border px-5 py-4">
-      <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-500/15 text-gold-400">
-        <IconKeyboard class="h-4.5 w-4.5" />
-      </div>
-      <h2 id="hotkey-sheet-title" class="font-cinzel text-sm font-bold tracking-wide text-foreground">
-        Keyboard shortcuts
-      </h2>
-      <AppButton
-        variant="ghost"
-        size="icon-xs"
-        icon-size="md"
-        class="ml-auto"
-        :icon="IconClose"
-        aria-label="Close"
-        @click="$emit('close')"
-      />
-    </div>
+  <AppModal :open="open" size="md" @close="$emit('close')">
+    <ModalHeader
+      title="Keyboard shortcuts"
+      :icon="IconKeyboard"
+      tone="gold"
+      closeable
+      @close="$emit('close')"
+    />
 
     <div class="max-h-[60vh] overflow-y-auto px-5 py-4">
       <p v-if="groups.length === 0" class="text-caption text-muted-foreground">
@@ -49,10 +39,10 @@
 // and forgets this file, which is the failure mode that made shortcuts
 // undiscoverable in the first place — so it is not hand-maintained.
 import { computed } from "vue";
-import { IconClose, IconKeyboard } from "@/lib/icons";
+import { IconKeyboard } from "@/lib/icons";
 import { useActiveHotkeys, type HotkeyLayer } from "@/composables/useHotkeys";
-import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 
 const { open } = defineProps<{ open: boolean }>();
 defineEmits<{ close: [] }>();

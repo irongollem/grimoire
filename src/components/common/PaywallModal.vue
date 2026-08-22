@@ -1,15 +1,20 @@
 <template>
-  <AppModal :open="open" size="md" labelled-by="paywall-title" @close="close">
-    <!-- Header -->
-    <div class="flex shrink-0 items-start gap-3 px-5 pt-5 pb-4">
-      <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-amber-500/15 text-amber-400">
-        <IconDM class="h-4.5 w-4.5" />
-      </div>
-      <div class="flex-1 min-w-0">
-        <h2 id="paywall-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">
-          {{ props.message ? 'Pro feature' : 'You\'ve reached your free limit' }}
-        </h2>
-        <p class="mt-1 text-body text-muted-foreground leading-snug">
+  <AppModal :open="open" size="md" @close="close">
+    <ModalHeader
+      :title="props.message ? 'Pro feature' : 'You\'ve reached your free limit'"
+      :icon="IconDM"
+      tone="caution"
+      closeable
+      @close="close"
+    />
+
+    <!-- The sell scrolls; the title and the buttons do not. The shell caps the
+         panel at the viewport where the old hand-rolled panel overflowed it, so
+         without this a short screen would cut off "Upgrade to Pro" — the one
+         control this dialog exists for. -->
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div class="px-5 pt-4">
+        <p class="text-body text-muted-foreground leading-snug">
           <template v-if="props.message">{{ props.message }}</template>
           <template v-else>
             Free DMs can create up to
@@ -18,53 +23,37 @@
           </template>
         </p>
       </div>
-      <AppButton
-        variant="ghost"
-        size="icon-xs"
-        icon-size="md"
-        :icon="IconClose"
-        class="shrink-0 mt-0.5"
-        aria-label="Close"
-        @click="close"
-      />
-    </div>
+      <!-- Pro benefits -->
+      <div class="px-5 pb-4 border-t border-border/50 pt-4">
+        <p class="font-cinzel text-xs font-semibold text-foreground tracking-wide mb-3">
+          Pro DM unlocks
+        </p>
+        <ul class="space-y-2">
+          <li
+            v-for="benefit in BENEFITS"
+            :key="benefit"
+            class="flex items-start gap-2 text-body text-muted-foreground leading-snug"
+          >
+            <span class="text-amber-400 shrink-0 mt-0.5">✦</span>
+            <span>{{ benefit }}</span>
+          </li>
+        </ul>
+      </div>
 
-    <!-- The sell scrolls; the title and the buttons do not. The shell caps the
-         panel at the viewport where the old hand-rolled panel overflowed it, so
-         without this a short screen would cut off "Upgrade to Pro" — the one
-         control this dialog exists for. -->
-    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-    <!-- Pro benefits -->
-    <div class="px-5 pb-4 border-t border-border/50 pt-4">
-      <p class="font-cinzel text-xs font-semibold text-foreground tracking-wide mb-3">
-        Pro DM unlocks
-      </p>
-      <ul class="space-y-2">
-        <li
-          v-for="benefit in BENEFITS"
-          :key="benefit"
-          class="flex items-start gap-2 text-body text-muted-foreground leading-snug"
-        >
-          <span class="text-amber-400 shrink-0 mt-0.5">✦</span>
-          <span>{{ benefit }}</span>
-        </li>
-      </ul>
-    </div>
-
-    <!-- Price -->
-    <div class="px-5 pb-4">
-      <div class="rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 flex items-center justify-between gap-4">
-        <div>
-          <p class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro DM</p>
-          <p v-if="yearlyLabel" class="text-caption text-muted-foreground mt-0.5">
-            or {{ yearlyLabel }} / year<span v-if="savedMonths > 0"> — save {{ savedMonths }} month{{ savedMonths > 1 ? 's' : '' }}</span>
+      <!-- Price -->
+      <div class="px-5 pb-4">
+        <div class="rounded-lg border border-amber-500/25 bg-amber-500/5 px-4 py-3 flex items-center justify-between gap-4">
+          <div>
+            <p class="font-cinzel text-sm font-bold text-foreground tracking-wide">Pro DM</p>
+            <p v-if="yearlyLabel" class="text-caption text-muted-foreground mt-0.5">
+              or {{ yearlyLabel }} / year<span v-if="savedMonths > 0"> — save {{ savedMonths }} month{{ savedMonths > 1 ? 's' : '' }}</span>
+            </p>
+          </div>
+          <p v-if="monthlyLabel" class="text-heading font-bold text-amber-400 shrink-0">
+            {{ monthlyLabel }}<span class="text-xs text-muted-foreground font-normal">/mo</span>
           </p>
         </div>
-        <p v-if="monthlyLabel" class="text-heading font-bold text-amber-400 shrink-0">
-          {{ monthlyLabel }}<span class="text-xs text-muted-foreground font-normal">/mo</span>
-        </p>
       </div>
-    </div>
 
     </div>
 
@@ -90,9 +79,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRouter } from "vue-router";
-import { IconClose, IconDM } from '@/lib/icons';
+import { IconDM } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import { useQuota } from "@/composables/useQuota";
 import { usePlan } from "@/composables/usePlan";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";

@@ -2,16 +2,9 @@
   <AppModal
     :open="open"
     size="sm"
-    labelled-by="add-innate-spell-title"
     @close="$emit('close')"
   >
-    <!-- Header -->
-    <div class="flex shrink-0 items-center gap-3 px-5 pt-5 pb-3 border-b border-border">
-      <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-violet-500/15 text-violet-400">
-        <IconGenerate class="h-4.5 w-4.5" />
-      </div>
-      <h2 id="add-innate-spell-title" class="font-cinzel text-sm font-bold text-foreground tracking-wide">Add Innate Spell</h2>
-    </div>
+    <ModalHeader title="Add Innate Spell" :icon="IconGenerate" tone="arcane" />
 
     <!-- Body. Scrolls because the shell caps the panel at the viewport where the
          old hand-rolled panel overflowed it: six fields plus a live search
@@ -172,6 +165,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 
 const SOURCE_TYPES = [

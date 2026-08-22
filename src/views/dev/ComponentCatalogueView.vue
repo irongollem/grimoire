@@ -428,6 +428,44 @@
         </div>
       </AppModal>
     </CatalogueSection>
+
+    <CatalogueSection
+      title="ModalHeader — tones"
+      note="Each opens a modal headed by ModalHeader. Two things are worth checking here that a screenshot cannot show: inspect the panel and confirm aria-labelledby points at the heading's id with no call site passing it, and that the tinted circle is aria-hidden. The 'danger, asks a question' one also carries aria-describedby and refuses a backdrop click — Escape still closes it."
+    >
+      <div class="flex flex-wrap items-center gap-2">
+        <AppButton
+          v-for="tone in HEADER_TONES"
+          :key="tone"
+          variant="outline"
+          size="sm"
+          :label="tone"
+          @click="openHeader = tone"
+        />
+      </div>
+
+      <AppModal
+        :open="activeHeaderDemo !== null"
+        size="md"
+        :backdrop-dismiss="activeHeaderDemo?.tone !== 'danger'"
+        @close="openHeader = null"
+      >
+        <ModalHeader
+          v-if="activeHeaderDemo"
+          :title="activeHeaderDemo.title"
+          :subtitle="activeHeaderDemo.subtitle"
+          :subtitle-role="activeHeaderDemo.tone === 'danger' ? 'body' : 'caption'"
+          :icon="activeHeaderDemo.icon"
+          :tone="activeHeaderDemo.tone"
+          :closeable="activeHeaderDemo.tone !== 'danger'"
+          @close="openHeader = null"
+        />
+        <div class="flex justify-end gap-2 px-5 py-4">
+          <AppButton variant="subtle" size="sm" label="Cancel" @click="openHeader = null" />
+          <AppButton variant="primary" size="sm" label="Confirm" @click="openHeader = null" />
+        </div>
+      </AppModal>
+    </CatalogueSection>
   </div>
 </template>
 
@@ -443,16 +481,18 @@
  * Dev-only and unauthenticated, matching SheetCalibrationView, so a headless
  * browser can screenshot it per theme via `?theme=<id>` without a login.
  */
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref, type Component } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { LocationQueryValue } from "vue-router";
-import { IconWand, IconChevronRight, IconDelete, IconClose, IconStar } from "@/lib/icons";
+import { IconWand, IconChevronRight, IconDelete, IconClose, IconStar, IconWarning, IconInfo, IconGenerate, IconDM, IconSettings } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { CHECKBOX_SIZES, CHECKBOX_LABEL_ROLES, CHECKBOX_ACCENTS } from "@/components/common/checkboxVariants";
 import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
+import { HEADER_TONES, type HeaderTone } from "@/components/common/modalHeaderVariants";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -504,6 +544,30 @@ const isIconSize = (size: ButtonSize) => size.startsWith("icon-");
 /** Every width the shell offers. A size missing here is a size nobody ever looks at. */
 const MODAL_SIZES = ["sm", "md", "lg", "xl", "full"] as const;
 const openModal = ref<(typeof MODAL_SIZES)[number] | null>(null);
+
+/**
+ * Copy per tone. The row itself iterates `HEADER_TONES`, so this is a lookup
+ * rather than the list — a tone added to the component without being listed in
+ * the enumeration is a compile error, and one added there without copy here is
+ * a type error. Neither can end up as a tint nobody looks at.
+ *
+ * Titles name the real dialog a tone is used by, where there is one.
+ */
+const HEADER_DEMO_COPY: Record<HeaderTone, { title: string; subtitle?: string; icon: Component }> = {
+  neutral: { title: "Neutral", icon: IconInfo },
+  primary: { title: "Long Rest", icon: IconInfo },
+  danger: { title: "Are you sure?", subtitle: "Delete the owlbear? This cannot be undone.", icon: IconWarning },
+  success: { title: "Success", icon: IconInfo },
+  info: { title: "Info", icon: IconInfo },
+  arcane: { title: "Add Innate Spell", icon: IconGenerate },
+  caution: { title: "Pro feature", subtitle: "Upgrade to keep building.", icon: IconDM },
+  gold: { title: "Board settings", subtitle: "Preferences for this soundboard.", icon: IconSettings },
+};
+
+const openHeader = ref<HeaderTone | null>(null);
+const activeHeaderDemo = computed(() =>
+  openHeader.value ? { tone: openHeader.value, ...HEADER_DEMO_COPY[openHeader.value] } : null,
+);
 
 const segment = ref<string>("url");
 const emptyable = ref<string>("campaign");

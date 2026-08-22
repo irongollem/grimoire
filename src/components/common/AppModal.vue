@@ -40,8 +40,9 @@
           :class="cn('w-full max-h-full', SIZES[size], panelClass)"
           role="dialog"
           aria-modal="true"
-          :aria-labelledby="labelledBy"
-          :aria-label="labelledBy ? undefined : label"
+          :aria-labelledby="namedBy"
+          :aria-describedby="describes"
+          :aria-label="namedBy ? undefined : label"
           tabindex="-1"
           @keydown.tab="onTab"
         >
@@ -67,11 +68,12 @@
  * fire (see the note on the backdrop above). A sixth copy was not worth
  * writing.
  */
-import { effectScope, ref, watch } from "vue";
+import { computed, effectScope, ref, watch } from "vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { cn } from "@/lib/utils";
 import { takeModalOrigin } from "@/lib/modalOrigin";
 import { canAnimate, originTransform, REST_TRANSFORM, whenSettled } from "@/lib/motion";
+import { provideModalAria } from "./modalAria";
 
 const SIZES = {
   sm: "max-w-sm",
@@ -86,6 +88,7 @@ const {
   size = "md",
   panelClass,
   labelledBy,
+  describedBy,
   label,
   originKey,
   dismissable = true,
@@ -95,8 +98,16 @@ const {
   /** Panel width. Height and anything else comes in through `panelClass`. */
   size?: keyof typeof SIZES;
   panelClass?: string;
-  /** Id of the element naming this dialog — usually the panel's own heading. */
+  /**
+   * Id of the element naming this dialog — usually the panel's own heading.
+   *
+   * Optional because a `ModalHeader` in the slot registers its heading's id
+   * automatically (see `modalAria`). Pass it only to name the dialog after
+   * something else, or when there is no `ModalHeader`.
+   */
   labelledBy?: string;
+  /** Id of the element describing this dialog. Also auto-registered by `ModalHeader`. */
+  describedBy?: string;
   /** Fallback name, for a panel with no visible heading to point at. */
   label?: string;
   /**
@@ -138,6 +149,16 @@ const emit = defineEmits<{
 }>();
 
 const panelRef = ref<HTMLElement | null>(null);
+
+/**
+ * A `ModalHeader` in the slot registers its heading and subtitle ids here, so a
+ * dialog is named and described without the call site wiring anything. An
+ * explicit prop still wins, for a modal named after something other than its
+ * own header.
+ */
+const registered = provideModalAria();
+const namedBy = computed(() => labelledBy ?? registered.labelledBy.value ?? undefined);
+const describes = computed(() => describedBy ?? registered.describedBy.value ?? undefined);
 
 /**
  * Escape goes through the hotkey registry rather than a `document` listener, so

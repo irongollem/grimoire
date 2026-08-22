@@ -2,26 +2,13 @@
   <AppModal
     :open="mode !== null"
     size="sm"
-    labelled-by="rest-dialog-title"
     @close="$emit('close')"
   >
-    <!-- Header -->
-    <div
-      class="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-border"
-    >
-      <div
-        class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-primary/15 text-primary"
-      >
-        <IconMoon v-if="mode === 'short'" class="h-4.5 w-4.5" />
-        <IconSun v-else class="h-4.5 w-4.5" />
-      </div>
-      <h2
-        id="rest-dialog-title"
-        class="font-cinzel text-sm font-bold text-foreground tracking-wide"
-      >
-        {{ mode === "short" ? "Short Rest" : "Long Rest" }}
-      </h2>
-    </div>
+    <ModalHeader
+      :title="mode === 'short' ? 'Short Rest' : 'Long Rest'"
+      :icon="mode === 'short' ? IconMoon : IconSun"
+      tone="primary"
+    />
 
     <!-- Body -->
     <!-- Scrolls because the shell caps the panel at the viewport where the old
@@ -162,6 +149,7 @@ import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { getHitDie } from "@/types/spell.types";
 import { useClassByName } from "@/composables/useCustomClasses";

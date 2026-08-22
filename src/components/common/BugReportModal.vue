@@ -1,41 +1,13 @@
 <template>
-  <AppModal :open="open" size="md" labelled-by="bug-report-title" @close="close" @after-leave="reset">
-    <!-- Header -->
-    <div
-      class="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0"
-    >
-      <div
-        class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
-        :class="
-          isBug
-            ? 'bg-destructive/15 text-destructive'
-            : 'bg-gold-500/15 text-gold-400'
-        "
-      >
-        <IconBug v-if="isBug" class="h-4 w-4" />
-        <IconLightbulb v-else class="h-4 w-4" />
-      </div>
-      <div class="flex-1 min-w-0">
-        <h2
-          id="bug-report-title"
-          class="font-cinzel text-sm font-bold text-foreground tracking-wide"
-        >
-          {{ isBug ? "Report a Bug" : "Request a Feature" }}
-        </h2>
-        <p class="text-caption text-muted-foreground mt-0.5">
-          Your report opens a GitHub issue for the development team.
-        </p>
-      </div>
-      <AppButton
-        variant="ghost"
-        size="icon-xs"
-        icon-size="md"
-        class="shrink-0"
-        :icon="IconClose"
-        aria-label="Close"
-        @click="close"
-      />
-    </div>
+  <AppModal :open="open" size="md" @close="close" @after-leave="reset">
+    <ModalHeader
+      :title="isBug ? 'Report a Bug' : 'Request a Feature'"
+      subtitle="Your report opens a GitHub issue for the development team."
+      :icon="isBug ? IconBug : IconLightbulb"
+      :tone="isBug ? 'danger' : 'gold'"
+      closeable
+      @close="close"
+    />
 
     <!-- Success state -->
     <div
@@ -287,6 +259,7 @@ import {
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import { supabase } from "@/lib/supabase";
 
 type ReportKind = "bug" | "feature";

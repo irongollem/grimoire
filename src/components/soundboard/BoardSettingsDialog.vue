@@ -2,26 +2,15 @@
   <AppModal
     :open="open"
     size="md"
-    labelled-by="board-settings-title"
     @close="emit('close')"
   >
-    <div class="flex shrink-0 items-center gap-3 border-b border-border px-5 pt-5 pb-4">
-      <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-500/15 text-gold-400">
-        <IconSettings class="h-4.5 w-4.5" />
-      </div>
-      <h2 id="board-settings-title" class="font-cinzel text-sm font-bold tracking-wide text-foreground">
-        Board settings
-      </h2>
-      <AppButton
-        variant="ghost"
-        size="icon-xs"
-        icon-size="md"
-        class="ml-auto"
-        :icon="IconClose"
-        aria-label="Close"
-        @click="emit('close')"
-      />
-    </div>
+    <ModalHeader
+      title="Board settings"
+      :icon="IconSettings"
+      tone="gold"
+      closeable
+      @close="emit('close')"
+    />
 
     <!--
       Both of these were checkboxes wedged in among the mixer's faders.
@@ -102,12 +91,13 @@
 </template>
 
 <script setup lang="ts">
-import { IconClose, IconSettings } from "@/lib/icons";
+import { IconSettings } from "@/lib/icons";
 import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
 import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
 import { useSoundboardStore } from "@/stores/soundboard";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import type { PadSize } from "@/types/sound.types";
