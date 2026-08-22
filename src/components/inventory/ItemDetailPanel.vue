@@ -1,30 +1,21 @@
 <template>
-  <Teleport to="body">
-    <Transition name="fade">
-      <div
-        v-if="inv"
-        class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-        @click.self="$emit('close')"
-      >
-        <div class="bg-card rounded-xl border border-border w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-          <!-- Header -->
-          <div class="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-            <h2 class="text-heading-sm font-semibold text-foreground truncate pr-2">{{ inv.name }}</h2>
-            <div class="flex items-center gap-2 shrink-0">
-              <AppButton
-                v-if="inv.location === 'equipped'"
-                variant="link"
-                tone="danger"
-                size="inline-xs"
-                label="Unequip"
-                @click="emit('unequip')"
-              />
-              <AppButton variant="ghost" size="inline" ariaLabel="Close" :icon="IconClose" icon-size="lg" @click="$emit('close')" />
-            </div>
-          </div>
+  <AppModal :open="!!inv" size="md" @close="emit('close')">
+    <template v-if="inv">
+      <ModalHeader :title="inv.name" closeable @close="emit('close')">
+        <template #actions>
+          <AppButton
+            v-if="inv.location === 'equipped'"
+            variant="link"
+            tone="danger"
+            size="inline-xs"
+            label="Unequip"
+            @click="emit('unequip')"
+          />
+        </template>
+      </ModalHeader>
 
-          <!-- Body -->
-          <div class="flex-1 overflow-y-auto p-5 space-y-4">
+      <!-- Body -->
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 space-y-4">
 
         <!-- Art: mundane art when unidentified (if present), else identified art -->
         <div
@@ -179,15 +170,26 @@
             <span class="text-label-lg font-semibold text-muted-foreground uppercase">Attunement</span>
             <span v-if="vaultItem.attunement_requirements" class="text-caption text-muted-foreground italic">{{ vaultItem.attunement_requirements }}</span>
           </div>
-          <button
-            class="shrink-0 px-3 py-1 rounded-md text-label transition-colors cursor-pointer disabled:cursor-not-allowed"
-            :class="localAttuned
-              ? 'bg-primary/20 text-primary border border-primary/40 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40'
-              : 'border border-border text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40'"
+          <!--
+            The attuned state hovers red, because pressing it *removes* the
+            attunement — the label reads "Attuned ✓", so without that the
+            control looks like a status chip rather than the thing that undoes
+            it. Overriding the hover tokens on top of the variant, rather than
+            re-declaring the box; there is no destructive-on-hover emphasis and
+            one state of one button does not warrant inventing one.
+          -->
+          <AppButton
+            :variant="localAttuned ? 'tinted' : 'subtle'"
+            :tone="localAttuned ? 'primary' : 'neutral'"
+            emphasis="soft"
+            size="xs"
+            class="shrink-0"
+            :class="localAttuned && 'hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40'"
             :disabled="!localAttuned && attunedCount >= 3"
-            :title="!localAttuned && attunedCount >= 3 ? 'Maximum 3 attuned items' : undefined"
+            :tooltip="!localAttuned && attunedCount >= 3 ? 'Maximum 3 attuned items' : undefined"
+            :label="localAttuned ? 'Attuned ✓' : (attunedCount >= 3 ? 'Slots Full' : 'Attune')"
             @click="toggleAttunement"
-          >{{ localAttuned ? 'Attuned ✓' : attunedCount >= 3 ? 'Slots Full' : 'Attune' }}</button>
+          />
         </div>
 
         <!-- Bundle contents (packs only) -->
@@ -298,21 +300,21 @@
           </div>
         </div>
 
-          </div>
-        </div>
       </div>
-    </Transition>
-  </Teleport>
+    </template>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, reactive, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { IconAdd, IconClose, IconHide, IconMinus, IconReveal, IconShop, IconWand } from '@/lib/icons';
+import { IconAdd, IconHide, IconMinus, IconReveal, IconShop, IconWand } from '@/lib/icons';
 import { useQuery } from "@tanstack/vue-query";
 import { COINS, type CoinKey, parseCoinText } from "@/rules/currency";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";
@@ -589,8 +591,3 @@ async function castFromItem(spell: Spell) {
 
 defineExpose({ openSell });
 </script>
-
-<style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-</style>

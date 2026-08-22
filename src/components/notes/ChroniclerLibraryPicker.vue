@@ -1,49 +1,34 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="visible"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-      @click.self="emit('close')"
-    >
-      <div class="bg-card rounded-lg border border-border p-4 w-72 flex flex-col gap-3">
-        <div class="flex items-center justify-between">
-          <span class="text-label-lg font-bold">Scene Library</span>
-          <AppButton
-            variant="ghost"
-            size="icon-xs"
-            icon-size="md"
-            :icon="IconClose"
-            aria-label="Close"
-            @click="emit('close')"
-          />
-        </div>
+  <AppModal :open="visible" size="sm" @close="emit('close')">
+    <ModalHeader title="Scene Library" closeable @close="emit('close')" />
 
-        <p v-if="!images?.length" class="text-caption text-muted-foreground italic text-center py-4">
-          No scene illustrations yet. Generate one from a note.
-        </p>
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+      <p v-if="!images?.length" class="text-caption text-muted-foreground italic text-center py-4">
+        No scene illustrations yet. Generate one from a note.
+      </p>
 
-        <div v-else class="grid grid-cols-4 gap-1.5">
-          <button
-            v-for="img in images"
-            v-show="img.image_url"
-            :key="img.id"
-            type="button"
-            class="relative w-14 h-14 rounded overflow-hidden border border-border hover:border-primary transition-colors group"
-            :title="img.prompt"
-            @click="img.image_url && select(img.image_url)"
-          >
-            <img :src="img.image_url ?? ''" :alt="img.prompt" class="w-full h-full object-cover" />
-            <div class="absolute inset-0 bg-primary/20 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity" />
-          </button>
-        </div>
+      <div v-else class="grid grid-cols-4 gap-1.5">
+        <AppButton
+          v-for="img in images"
+          v-show="img.image_url"
+          :key="img.id"
+          variant="ghost"
+          :tooltip="img.prompt"
+          class="relative w-14 h-14 p-0 rounded overflow-hidden border border-border hover:border-primary transition-colors group"
+          @click="img.image_url && select(img.image_url)"
+        >
+          <img :src="img.image_url ?? ''" :alt="img.prompt" class="w-full h-full object-cover" />
+          <div class="absolute inset-0 bg-primary/20 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity" />
+        </AppButton>
       </div>
     </div>
-  </Teleport>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
-import { IconClose } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import { useChroniclerImages } from "@/composables/useChroniclerImages";
 
 defineProps<{ visible: boolean }>();

@@ -1,191 +1,172 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-      @click.self="cancel"
-    >
+  <AppModal :open="open" size="lg" @close="cancel">
+    <ModalHeader title="Calibrate Battle Map Grid" closeable @close="cancel" />
+
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
+      <p class="text-body text-muted-foreground leading-relaxed">
+        Drag the two handles to span a known distance on the map — usually one side of a single
+        5-ft square, or end-to-end of a known-length hallway. Then enter how many 5-ft squares
+        that line covers. The VTT will use this scale to overlay a grid and snap tokens.
+      </p>
+
       <div
-        class="bg-card border border-border rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-xl"
+        ref="canvas"
+        class="relative w-full bg-muted rounded-md overflow-hidden select-none"
+        :style="{ aspectRatio: aspectRatio || undefined }"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointerleave="onPointerUp"
       >
-        <div class="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 class="text-heading font-bold text-foreground">Calibrate Battle Map Grid</h2>
-          <AppButton
-            variant="ghost"
-            size="icon-xs"
-            icon-size="md"
-            :icon="IconClose"
-            aria-label="Close"
-            @click="cancel"
+        <img
+          v-if="mapUrl"
+          ref="img"
+          :src="mapUrl"
+          class="block w-full h-auto pointer-events-none"
+          draggable="false"
+          @load="onImageLoad"
+        />
+
+        <svg
+          v-if="imageReady"
+          class="absolute inset-0 w-full h-full pointer-events-none"
+          :viewBox="`0 0 ${canvasW} ${canvasH}`"
+          preserveAspectRatio="none"
+        >
+          <!-- Live grid preview — vertical -->
+          <line
+            v-for="(x, i) in gridPreviewVerticals"
+            :key="`gv-${i}`"
+            :x1="x"
+            :y1="0"
+            :x2="x"
+            :y2="canvasH"
+            stroke="#fbbf24"
+            stroke-width="1"
+            :stroke-opacity="gridOpacity"
+            vector-effect="non-scaling-stroke"
           />
-        </div>
-
-        <div class="px-5 py-4 space-y-4">
-          <p class="text-body text-muted-foreground leading-relaxed">
-            Drag the two handles to span a known distance on the map — usually one side of a single
-            5-ft square, or end-to-end of a known-length hallway. Then enter how many 5-ft squares
-            that line covers. The VTT will use this scale to overlay a grid and snap tokens.
-          </p>
-
-          <div
-            ref="canvas"
-            class="relative w-full bg-muted rounded-md overflow-hidden select-none"
-            :style="{ aspectRatio: aspectRatio || undefined }"
-            @pointermove="onPointerMove"
-            @pointerup="onPointerUp"
-            @pointerleave="onPointerUp"
-          >
-            <img
-              v-if="mapUrl"
-              ref="img"
-              :src="mapUrl"
-              class="block w-full h-auto pointer-events-none"
-              draggable="false"
-              @load="onImageLoad"
-            />
-
-            <svg
-              v-if="imageReady"
-              class="absolute inset-0 w-full h-full pointer-events-none"
-              :viewBox="`0 0 ${canvasW} ${canvasH}`"
-              preserveAspectRatio="none"
-            >
-              <!-- Live grid preview — vertical -->
-              <line
-                v-for="(x, i) in gridPreviewVerticals"
-                :key="`gv-${i}`"
-                :x1="x"
-                :y1="0"
-                :x2="x"
-                :y2="canvasH"
-                stroke="#fbbf24"
-                stroke-width="1"
-                :stroke-opacity="gridOpacity"
-                vector-effect="non-scaling-stroke"
-              />
-              <!-- Live grid preview — horizontal -->
-              <line
-                v-for="(y, i) in gridPreviewHorizontals"
-                :key="`gh-${i}`"
-                :x1="0"
-                :y1="y"
-                :x2="canvasW"
-                :y2="y"
-                stroke="#fbbf24"
-                stroke-width="1"
-                :stroke-opacity="gridOpacity"
-                vector-effect="non-scaling-stroke"
-              />
-              <!-- Calibration line between the two handles -->
-              <line
-                :x1="pointA.x * canvasW"
-                :y1="pointA.y * canvasH"
-                :x2="pointB.x * canvasW"
-                :y2="pointB.y * canvasH"
-                stroke="#fbbf24"
-                stroke-width="2"
-                stroke-dasharray="6 4"
-                vector-effect="non-scaling-stroke"
-              />
-            </svg>
-
-            <button
-              v-if="imageReady"
-              type="button"
-              class="calib-handle handle-a"
-              :class="{ 'is-dragging': dragging === 'A' }"
-              :style="{ left: `${pointA.x * 100}%`, top: `${pointA.y * 100}%` }"
-              :aria-label="'Handle A'"
-              @pointerdown.prevent="startDrag('A', $event)"
-            >
-              <span class="arm arm-h" />
-              <span class="arm arm-v" />
-              <span class="ring" />
-              <span class="dot" />
-            </button>
-            <button
-              v-if="imageReady"
-              type="button"
-              class="calib-handle handle-b"
-              :class="{ 'is-dragging': dragging === 'B' }"
-              :style="{ left: `${pointB.x * 100}%`, top: `${pointB.y * 100}%` }"
-              :aria-label="'Handle B'"
-              @pointerdown.prevent="startDrag('B', $event)"
-            >
-              <span class="arm arm-h" />
-              <span class="arm arm-v" />
-              <span class="ring" />
-              <span class="dot" />
-            </button>
-          </div>
-
-          <div class="flex flex-wrap items-end gap-4">
-            <label class="flex flex-col gap-1">
-              <span class="text-label-lg font-semibold text-muted-foreground">
-                5-FT SQUARES BETWEEN HANDLES
-              </span>
-              <AppInput
-                v-model.number="cellsBetween"
-                type="number"
-                min="1"
-                step="1"
-                tone="filled"
-                size="body"
-                :block="false"
-                class="w-32"
-              />
-            </label>
-            <label class="flex flex-col gap-1 min-w-48">
-              <span class="text-label-lg font-semibold text-muted-foreground">
-                GRID OPACITY · {{ Math.round(gridOpacity * 100) }}%
-              </span>
-              <input
-                v-model.number="gridOpacity"
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                class="w-48"
-              />
-              <span class="text-caption text-muted-foreground/70 italic">
-                Lower if the map already has its own gridlines.
-              </span>
-            </label>
-            <p v-if="preview" class="text-body text-muted-foreground">
-              ≈ <span class="text-foreground font-semibold">{{ preview.cells_per_image_width.toFixed(1) }}</span>
-              squares across the image width.
-            </p>
-            <p v-else-if="errorMessage" class="text-body text-destructive">
-              {{ errorMessage }}
-            </p>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <AppButton
-            variant="subtle"
-            size="md"
-            label="Cancel"
-            @click="cancel"
+          <!-- Live grid preview — horizontal -->
+          <line
+            v-for="(y, i) in gridPreviewHorizontals"
+            :key="`gh-${i}`"
+            :x1="0"
+            :y1="y"
+            :x2="canvasW"
+            :y2="y"
+            stroke="#fbbf24"
+            stroke-width="1"
+            :stroke-opacity="gridOpacity"
+            vector-effect="non-scaling-stroke"
           />
-          <AppButton
-            variant="primary"
-            size="md"
-            :disabled="!preview || saving"
-            :label="saving ? 'Saving…' : 'Save Calibration'"
-            @click="save"
+          <!-- Calibration line between the two handles -->
+          <line
+            :x1="pointA.x * canvasW"
+            :y1="pointA.y * canvasH"
+            :x2="pointB.x * canvasW"
+            :y2="pointB.y * canvasH"
+            stroke="#fbbf24"
+            stroke-width="2"
+            stroke-dasharray="6 4"
+            vector-effect="non-scaling-stroke"
           />
-        </div>
+        </svg>
+
+        <button
+          v-if="imageReady"
+          type="button"
+          class="calib-handle handle-a"
+          :class="{ 'is-dragging': dragging === 'A' }"
+          :style="{ left: `${pointA.x * 100}%`, top: `${pointA.y * 100}%` }"
+          :aria-label="'Handle A'"
+          @pointerdown.prevent="startDrag('A', $event)"
+        >
+          <span class="arm arm-h" />
+          <span class="arm arm-v" />
+          <span class="ring" />
+          <span class="dot" />
+        </button>
+        <button
+          v-if="imageReady"
+          type="button"
+          class="calib-handle handle-b"
+          :class="{ 'is-dragging': dragging === 'B' }"
+          :style="{ left: `${pointB.x * 100}%`, top: `${pointB.y * 100}%` }"
+          :aria-label="'Handle B'"
+          @pointerdown.prevent="startDrag('B', $event)"
+        >
+          <span class="arm arm-h" />
+          <span class="arm arm-v" />
+          <span class="ring" />
+          <span class="dot" />
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-end gap-4">
+        <label class="flex flex-col gap-1">
+          <span class="text-label-lg font-semibold text-muted-foreground">
+            5-FT SQUARES BETWEEN HANDLES
+          </span>
+          <AppInput
+            v-model.number="cellsBetween"
+            type="number"
+            min="1"
+            step="1"
+            tone="filled"
+            size="body"
+            :block="false"
+            class="w-32"
+          />
+        </label>
+        <label class="flex flex-col gap-1 min-w-48">
+          <span class="text-label-lg font-semibold text-muted-foreground">
+            GRID OPACITY · {{ Math.round(gridOpacity * 100) }}%
+          </span>
+          <input
+            v-model.number="gridOpacity"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            class="w-48"
+          />
+          <span class="text-caption text-muted-foreground/70 italic">
+            Lower if the map already has its own gridlines.
+          </span>
+        </label>
+        <p v-if="preview" class="text-body text-muted-foreground">
+          ≈ <span class="text-foreground font-semibold">{{ preview.cells_per_image_width.toFixed(1) }}</span>
+          squares across the image width.
+        </p>
+        <p v-else-if="errorMessage" class="text-body text-destructive">
+          {{ errorMessage }}
+        </p>
       </div>
     </div>
-  </Teleport>
+
+    <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+      <AppButton
+        variant="subtle"
+        size="md"
+        label="Cancel"
+        @click="cancel"
+      />
+      <AppButton
+        variant="primary"
+        size="md"
+        :disabled="!preview || saving"
+        :label="saving ? 'Saving…' : 'Save Calibration'"
+        @click="save"
+      />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import { IconClose } from "@/lib/icons";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import { calibrateGrid } from "@/lib/battlemap/gridCalibration";
 import { gridLinePositions } from "@/lib/battlemap/battleMapGeometry";
 import { DEFAULT_GRID_OPACITY, type GridCalibration } from "@/types/location.types";

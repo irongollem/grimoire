@@ -201,36 +201,20 @@
   </div>
 
   <!-- Item detail modal -->
-  <Teleport to="body">
-    <div
-      v-if="selected"
-      class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
-      @click.self="selected = null"
-      @keydown.escape="selected = null"
-    >
-      <div class="w-full sm:max-w-2xl bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden">
-        <div class="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
-          <h2 class="font-cinzel text-sm font-semibold text-foreground flex-1 truncate">
-            {{ selected.item.name }}
-          </h2>
+  <AppModal :open="!!selected" size="lg" align="sheet" @close="selected = null">
+    <template v-if="selected">
+      <ModalHeader :title="selected.item.name" closeable @close="selected = null">
+        <template #actions>
           <span class="text-caption text-muted-foreground shrink-0">
             {{ selected.price_override ?? selected.item.cost ?? '—' }}
           </span>
-          <AppButton
-            variant="ghost"
-            size="icon-xs"
-            class="ml-1 shrink-0"
-            :icon="IconClose"
-            icon-size="md"
-            @click="selected = null"
-          />
-        </div>
-        <div class="flex-1 overflow-y-auto px-4 py-4">
-          <ItemSheet :item="selected.item" :price-override="selected.price_override" />
-        </div>
+        </template>
+      </ModalHeader>
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+        <ItemSheet :item="selected.item" :price-override="selected.price_override" />
       </div>
-    </div>
-  </Teleport>
+    </template>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
@@ -238,6 +222,8 @@ import { ref, computed, reactive } from "vue";
 import { IconAdd, IconClose, IconHide, IconReveal, IconShop, IconShuffle } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
 import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
