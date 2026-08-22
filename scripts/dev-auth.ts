@@ -403,19 +403,65 @@ function ensureFixtureParty(dbUrl: string, ownerId: string): number {
   const already = Number(
     sql(dbUrl, `select count(*) from public.party_members where campaign_id = ${quote(campaignId)}`),
   );
-  if (already > 0) return already;
 
-  sql(
-    dbUrl,
-    `insert into public.party_members (user_id, campaign_id, name, player_name, class, level, sort_order)
-     values
-       (${quote(ownerId)}, ${quote(campaignId)}, 'Brakka Ironvow', 'Sam',  'Fighter', 4, 0),
-       (${quote(ownerId)}, ${quote(campaignId)}, 'Nessa Quill',    'Alex', 'Rogue',   4, 1),
-       (${quote(ownerId)}, ${quote(campaignId)}, 'Orin Vale',      'Jo',   'Cleric',  4, 2);`,
-  );
+  if (already === 0) {
+    sql(
+      dbUrl,
+      `insert into public.party_members (user_id, campaign_id, name, player_name, class, level, sort_order)
+       values
+         (${quote(ownerId)}, ${quote(campaignId)}, 'Brakka Ironvow', 'Sam',  'Fighter', 4, 0),
+         (${quote(ownerId)}, ${quote(campaignId)}, 'Nessa Quill',    'Alex', 'Rogue',   4, 1),
+         (${quote(ownerId)}, ${quote(campaignId)}, 'Orin Vale',      'Jo',   'Cleric',  4, 2);`,
+    );
+  }
+
+  // Outside the "party is empty" guard on purpose. Behind the early return this
+  // replaced, portraits would only ever reach a fixture created after this was
+  // written — which is precisely the fixture nobody has. It guards itself, on
+  // the narrower question of whether a member still lacks a face.
+  giveThePartyFaces(dbUrl, campaignId);
 
   return Number(
     sql(dbUrl, `select count(*) from public.party_members where campaign_id = ${quote(campaignId)}`),
+  );
+}
+
+/**
+ * Borrows a portrait for each party member from the NPCs cloned alongside them.
+ *
+ * The party is synthetic — three names typed into an insert — so it has no art,
+ * and every surface that draws a character's face falls back to initials on the
+ * one account we are told to use: the party tracker, the player portal, and the
+ * relationship web, which puts a PC's portrait on their node.
+ *
+ * Borrowed rather than shipped, because a fixture cannot carry image files and a
+ * hardcoded URL would be a guess about a bucket this machine may not have. The
+ * cloned NPCs already hold portrait URLs that resolve on whatever seed.sql is
+ * here, and their focal points come along, which is the point — the crop these
+ * surfaces do is exactly what needs looking at.
+ *
+ * Idempotent by the same "only if empty" rule as its caller: it never overwrites
+ * a portrait somebody set by hand.
+ */
+function giveThePartyFaces(dbUrl: string, campaignId: string): void {
+  sql(
+    dbUrl,
+    `with faces as (
+       select portrait_url, portrait_focal_point,
+              row_number() over (order by name) rn
+         from public.npcs
+        where campaign_id = ${quote(campaignId)} and portrait_url is not null
+     ), members as (
+       select id, row_number() over (order by sort_order) rn
+         from public.party_members
+        where campaign_id = ${quote(campaignId)} and portrait_url is null
+     )
+     update public.party_members pm
+        set portrait_url = f.portrait_url,
+            portrait_focal_point = f.portrait_focal_point
+       from members m
+       join faces f on f.rn = ((m.rn - 1) % (select greatest(count(*), 1) from faces)) + 1
+      where pm.id = m.id;`,
   );
 }
 
