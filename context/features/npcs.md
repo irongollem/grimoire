@@ -251,6 +251,51 @@ A full-viewport force-directed graph rendered with `v-network-graph` (VNetworkGr
 
 Only one edge is drawn per pair regardless of directionality (the inverse type is computed on read).
 
+### Factions on the web
+
+Factions are **not nodes**, and that is a decision rather than an omission. A
+twelve-member guild drawn as a hub is a twelve-spoke star, and force layouts give
+hubs enormous influence — the stars dominate the layout and push the NPC-to-NPC
+edges, the actual subject of the view, out to the rim. Multi-membership
+multiplies it. It is also a category error: "Froya and Grynsk are rivals" is a
+relation, "Froya is in the Harbormasters" is an attribute, and drawing both as
+lines makes them look like the same kind of fact.
+
+So membership appears two ways instead:
+
+- **Badges on the node** (`lib/npcWeb/factions.ts`). Up to three faction emblems
+  upper-right of each node, then `+N`. The emblem carries membership rather than
+  a colour, because fill already means attitude-to-party and a campaign can hold
+  twenty factions against roughly seven distinguishable hues; a faction with no
+  `emblem_url` falls back to its initial. Active memberships sort ahead of former
+  ones so the three that survive the cap describe the NPC now; Retired/Defected/
+  Expelled render faded rather than dropped. Pointing at a badge opens it to the
+  size of the node and names the faction and role — nodes hold a constant screen
+  size, so zooming can never make a badge bigger, and at rest it can only say
+  "there is an allegiance here". Clicking one opens the faction; on touch the
+  first tap opens the badge and the second follows it.
+- **A focused hull** (`lib/npcWeb/hull.ts`). The faction picker draws a boundary
+  around one faction's members and dims everyone else — node, label and badges
+  together. One faction at a time on purpose: NPCs sit in several at once, so
+  every boundary at once is overlapping blobs that read worse than none. Drawn
+  under the edges so it reads as ground; fill plus a thick round-joined stroke,
+  which rounds the corners and makes the degenerate cases work without special
+  casing — two members become a capsule, one becomes a disc.
+
+  A convex hull can enclose a non-member who happens to stand among members. The
+  dimming is what disambiguates that, and it is why the fade has to reach the
+  labels and badges too rather than just the circles.
+
+`ForceLayout` gets a weak same-faction pull (`lib/npcWeb/factionClustering.ts`,
+strength 0.06) so a faction is loosely together before a boundary is drawn round
+it. Deliberately weak: a strong one would rearrange the graph around org charts,
+which is the same mistake as making factions nodes, reached through physics. It
+reads its groups through a getter on every tick, because `createSimulation` runs
+once at activation and membership arrives from its own query after that.
+
+Faction-to-faction relations are **not** shown here. That is a subject in its own
+right and belongs on the Factions screen; this view's subject is people.
+
 ### Filters and Controls
 
 The legend is **derived** from `NPC_RELATIONSHIP_LABELS` and the ramp tokens, never

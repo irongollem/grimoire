@@ -50,6 +50,16 @@
           <option value="">All Relationships</option>
           <option v-for="[k, label] in typeOptions" :key="k" :value="k">{{ label }}</option>
         </ListFilterSelect>
+
+        <!--
+          Focus, not a filter: unlike the others this hides nothing. It draws a
+          boundary round one faction's members and dims everyone else, so you can
+          still see the guild's reach into the rest of the web.
+        -->
+        <ListFilterSelect v-model="factionModel" aria-label="Faction focus">
+          <option value="">No faction focus</option>
+          <option v-for="f in factionOptions" :key="f.id" :value="f.id">{{ f.name }}</option>
+        </ListFilterSelect>
       </ListFilterBar>
 
       <!-- Legend -->
@@ -89,16 +99,20 @@ const {
   showPcs,
   locationFilter,
   typeFilter,
+  focusFaction,
   locationOptions,
   typeOptions,
+  factionOptions,
   legendItems,
 } = defineProps<{
   searchQuery: string;
   showPcs: boolean;
   locationFilter: string;
   typeFilter: NpcRelationshipType | '';
+  focusFaction: string;
   locationOptions: LocationOption[];
   typeOptions: [NpcRelationshipType, string][];
+  factionOptions: { id: string; name: string }[];
   legendItems: [string, string][];
   /** Drives the Clear button in the filter bar. */
   hasActiveFilters?: boolean;
@@ -109,6 +123,7 @@ const emit = defineEmits<{
   'update:showPcs': [value: boolean];
   'update:locationFilter': [value: string];
   'update:typeFilter': [value: NpcRelationshipType | ''];
+  'update:focusFaction': [value: string];
   clear: [];
 }>();
 
@@ -125,5 +140,9 @@ const locationModel = computed({
 const typeModel = computed({
   get: () => typeFilter as string,
   set: (v) => emit('update:typeFilter', v as NpcRelationshipType | ''),
+});
+const factionModel = computed({
+  get: () => focusFaction,
+  set: (v) => emit('update:focusFaction', v),
 });
 </script>

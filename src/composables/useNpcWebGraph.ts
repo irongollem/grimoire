@@ -2,6 +2,7 @@ import { computed } from "vue";
 import { defineConfigs } from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
 
+import { factionClusteringForce } from "@/lib/npcWeb/factionClustering";
 import { npcRelationshipCanvasColor } from "@/lib/npcDisplay";
 import { useUiStore } from "@/stores/ui";
 import { NPC_RELATIONSHIP_INVERSE, NPC_RELATIONSHIP_TYPE_VAR } from "@/types/npc.types";
@@ -38,6 +39,16 @@ export interface NpcWebGraphInput {
   /** Nodes that must render regardless of the search box — see above. */
   pinnedKeys: () => ReadonlySet<string>;
   getDescendantIds: (rootId: string) => Set<string>;
+  /**
+   * When a faction is focused, the node keys that belong to it. Empty means no
+   * focus and nothing is dimmed.
+   *
+   * Dimming has to go through `color`, because v-network-graph's node and edge
+   * styles carry no opacity of their own — see `dim()`.
+   */
+  focusedKeys: () => ReadonlySet<string>;
+  /** Same-faction groupings, read live by the layout's clustering force. */
+  factionGroups: () => ReadonlyMap<string, ReadonlySet<string>>;
 }
 
 export interface NpcWebNode {
@@ -45,6 +56,13 @@ export interface NpcWebNode {
   nodeType: "npc" | "pc";
   nodeColor: string;
   nodeSize: number;
+  /**
+   * Outside the focused faction. Carried on the node rather than recomputed by
+   * each consumer, because the fade has to reach three separately-drawn things —
+   * the circle, its label, and its faction badges — and a node lit in one of
+   * them and faded in the other two is worse than no focus at all.
+   */
+  dimmed: boolean;
 }
 
 export interface NpcWebEdge {
@@ -77,6 +95,18 @@ export function resolveVar(varExpr: string | undefined, fallback: string): strin
   return token ? cssValue(token, fallback) : fallback;
 }
 
+/**
+ * Fade a resolved colour.
+ *
+ * `color-mix` rather than a parsed rgba because these arrive as whatever the
+ * custom property holds — `hsl(0 72% 51%)` today, anything tomorrow — and
+ * re-parsing every colour syntax to reach its alpha is the kind of thing that
+ * works until a theme is written in oklch.
+ */
+function dim(color: string): string {
+  return `color-mix(in srgb, ${color} 22%, transparent)`;
+}
+
 function npcMatchesSearch(npc: { name: string; disguise_name?: string | null }, q: string): boolean {
   const lower = q.toLowerCase();
   return npc.name.toLowerCase().includes(lower) || (npc.disguise_name ?? "").toLowerCase().includes(lower);
@@ -99,6 +129,7 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
     const nodes: Record<string, NpcWebNode> = {};
     const q = ui.npcWebSearch.trim();
     const pinned = input.pinnedKeys();
+    const focused = input.focusedKeys();
 
     const locationDescendants = ui.npcWebFilterLocation
       ? input.getDescendantIds(ui.npcWebFilterLocation)
@@ -108,11 +139,14 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       const key = `npc:${npc.id}`;
       if (q && !npcMatchesSearch(npc, q) && !pinned.has(key)) continue;
       if (locationDescendants && !locationDescendants.has(npc.location_id ?? "")) continue;
+      const color = npcRelationshipCanvasColor(npc.relationship);
+      const dimmed = focused.size > 0 && !focused.has(key);
       nodes[key] = {
         name: npc.name,
         nodeType: "npc",
-        nodeColor: npcRelationshipCanvasColor(npc.relationship),
+        nodeColor: dimmed ? dim(color) : color,
         nodeSize: 18,
+        dimmed,
       };
     }
 
@@ -120,12 +154,15 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       for (const pc of input.partyMembers() ?? []) {
         const key = `pc:${pc.id}`;
         if (q && !pc.name.toLowerCase().includes(q.toLowerCase()) && !pinned.has(key)) continue;
+        // Party members are the theme accent, not a relationship step.
+        const color = cssValue("--primary", "#d97706");
+        const dimmed = focused.size > 0 && !focused.has(key);
         nodes[key] = {
           name: pc.name,
           nodeType: "pc",
-          // Party members are the theme accent, not a relationship step.
-          nodeColor: cssValue("--primary", "#d97706"),
+          nodeColor: dimmed ? dim(color) : color,
           nodeSize: 22,
+          dimmed,
         };
       }
     }
@@ -135,6 +172,12 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
 
   const graphEdges = computed<Record<string, NpcWebEdge>>(() => {
     const edges: Record<string, NpcWebEdge> = {};
+    const focused = input.focusedKeys();
+    // Lit only when the tie is *within* the faction. An edge with one end
+    // outside is the faction's reach into the rest of the web, and drawing it at
+    // full strength would say the outsider belongs too.
+    const edgeColor = (color: string, a: string, b: string) =>
+      focused.size && !(focused.has(a) && focused.has(b)) ? dim(color) : color;
 
     for (const rel of input.relations() ?? []) {
       const rawType = rel.relationship_type as NpcRelationshipType;
@@ -152,7 +195,7 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
         edges[key] = {
           source: a,
           target: b,
-          edgeColor: resolveVar(NPC_RELATIONSHIP_TYPE_VAR[rawType], "#6b7280"),
+          edgeColor: edgeColor(resolveVar(NPC_RELATIONSHIP_TYPE_VAR[rawType], "#6b7280"), a, b),
           dashed: false,
         };
       }
@@ -168,7 +211,7 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
           edges[key] = {
             source: npcKey,
             target: pcKey,
-            edgeColor: resolveVar(NPC_RELATIONSHIP_TYPE_VAR[note.relationship_type], "#d97706"),
+            edgeColor: edgeColor(resolveVar(NPC_RELATIONSHIP_TYPE_VAR[note.relationship_type], "#d97706"), npcKey, pcKey),
             dashed: true,
           };
         }
@@ -185,6 +228,22 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
       autoPanAndZoomOnLoad: "fit-content",
       layoutHandler: new ForceLayout({
         positionFixedByDrag: true,
+        /**
+         * The library's own defaults, plus a weak pull between co-members so a
+         * faction is already loosely together before a boundary is drawn round
+         * it. Replacing `createSimulation` means restating the defaults — there
+         * is no "extend" hook — so these four forces are v-network-graph's,
+         * copied deliberately rather than tuned.
+         */
+        createSimulation: (d3, nodes, edges) =>
+          d3
+            .forceSimulation(nodes)
+            .force("edge", d3.forceLink(edges).id((d: { id: string }) => d.id).distance(100))
+            .force("charge", d3.forceManyBody())
+            .force("collide", d3.forceCollide(50).strength(0.2))
+            .force("center", d3.forceCenter().strength(0.05))
+            .force("faction", factionClusteringForce(input.factionGroups))
+            .alphaMin(0.001),
       }),
     },
     node: {
@@ -215,7 +274,10 @@ export function useNpcWebGraph(input: NpcWebGraphInput) {
          * was invisible on the default theme, and the nodes still worked, so you
          * could click a label you could not see.
          */
-        color: () => cssValue("--foreground", "#e2d9c8"),
+        color: (n) => {
+          const fg = cssValue("--foreground", "#e2d9c8");
+          return (n as { dimmed?: boolean }).dimmed ? dim(fg) : fg;
+        },
       },
       focusring: { visible: false },
       selectable: false,

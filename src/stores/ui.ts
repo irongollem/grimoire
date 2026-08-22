@@ -77,12 +77,22 @@ export const useUiStore = defineStore("ui", () => {
   const npcWebShowPcs = ref(true);
   const npcWebFilterLocation = ref("");
   const npcWebFilterType = ref<NpcRelationshipType | "">("");
+  /**
+   * The faction whose members are drawn inside a boundary, with everyone else
+   * dimmed. Lives here rather than in the view for the usual reason — opening an
+   * NPC from the web and coming back should not drop it.
+   *
+   * One at a time on purpose: NPCs sit in several factions at once, so every
+   * boundary drawn at once is overlapping blobs that read worse than none.
+   */
+  const npcWebFocusFaction = ref("");
 
   const npcWebHasActiveFilters = computed(() =>
     npcWebSearch.value !== "" ||
     !npcWebShowPcs.value ||
     npcWebFilterLocation.value !== "" ||
-    npcWebFilterType.value !== "",
+    npcWebFilterType.value !== "" ||
+    npcWebFocusFaction.value !== "",
   );
 
   function resetNpcWebFilters() {
@@ -90,6 +100,7 @@ export const useUiStore = defineStore("ui", () => {
     npcWebShowPcs.value = true;
     npcWebFilterLocation.value = "";
     npcWebFilterType.value = "";
+    npcWebFocusFaction.value = "";
   }
 
   // Monster UI state
@@ -907,6 +918,7 @@ export const useUiStore = defineStore("ui", () => {
     npcWebShowPcs,
     npcWebFilterLocation,
     npcWebFilterType,
+    npcWebFocusFaction,
     npcWebHasActiveFilters,
     resetNpcWebFilters,
 

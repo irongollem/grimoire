@@ -6,8 +6,10 @@
       v-model:show-pcs="ui.npcWebShowPcs"
       v-model:location-filter="ui.npcWebFilterLocation"
       v-model:type-filter="ui.npcWebFilterType"
+      v-model:focus-faction="ui.npcWebFocusFaction"
       :location-options="locationOptions"
       :type-options="typeOptions"
+      :faction-options="factionOptions"
       :legend-items="legendItems"
       :has-active-filters="ui.npcWebHasActiveFilters"
       @clear="ui.resetNpcWebFilters()"
@@ -36,6 +38,25 @@
         :layers="GRAPH_LAYERS"
         class="w-full h-full select-none touch-none"
       >
+        <!--
+          The focused faction's boundary, under the edges and nodes so it reads
+          as ground rather than as another thing on the graph.
+
+          Fill plus a thick round-joined stroke of the same colour, which is what
+          rounds the corners — and what makes the degenerate cases work: two
+          members become a capsule and one becomes a disc, with no special casing.
+        -->
+        <template #factionHull="{ scale }">
+          <path
+            v-if="focusHullPath"
+            :d="focusHullPath"
+            class="fill-primary/10 stroke-primary/25"
+            :stroke-width="28 * scale"
+            stroke-linejoin="round"
+            stroke-linecap="round"
+          />
+        </template>
+
         <!--
           Faction membership, drawn on the node rather than as nodes of its own.
           `node-labels` puts this above the nodes in the layer stack; positions
@@ -69,7 +90,7 @@
                   transform: `scale(${scale * (isPipOpen(pip) ? badge.openScale : 1)})`,
                   transition: pipTransition,
                 }"
-                :opacity="pip.active ? 1 : 0.45"
+                :opacity="(pip.active ? 1 : 0.45) * (badge.dimmed ? 0.3 : 1)"
               >
                 <circle :r="PIP_RADIUS" class="fill-card stroke-border" stroke-width="1" />
                 <image
@@ -98,11 +119,23 @@
               text-anchor="middle"
               dominant-baseline="central"
               :font-size="PIP_RADIUS * scale"
+              :opacity="badge.dimmed ? 0.3 : 1"
               class="fill-muted-foreground font-semibold"
             >+{{ badge.overflow }}</text>
           </g>
         </template>
       </VNetworkGraph>
+
+      <!--
+        Names the shape. A tinted region with no caption is a mystery, and the
+        picker that set it is at the other end of the bar.
+      -->
+      <div
+        v-if="focusedFactionName"
+        class="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-label-lg font-semibold text-foreground"
+      >
+        {{ focusedFactionName }}
+      </div>
 
       <!--
         Teleported to <body> because the graph area is `overflow-hidden`: a
@@ -206,6 +239,8 @@ import { useAllNpcPcNotes, useUpsertNpcPcNoteDirect, useDeleteNpcPcNote } from "
 import { useNpcWebGraph, resolveVar } from "@/composables/useNpcWebGraph";
 import { useAllFactionNpcs, useAllFactionPartyMembers } from "@/composables/useFactions";
 import { factionBadgesByNode, pipOffsets, type FactionPip } from "@/lib/npcWeb/factions";
+import { convexHull, hullPath, padOutward, type Point } from "@/lib/npcWeb/hull";
+import { useAllFactions } from "@/composables/useFactions";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { useIsTouch } from "@/composables/useBreakpoint";
 import { prefersReducedMotion } from "@/lib/motion";
@@ -288,6 +323,71 @@ const { graphNodes, graphEdges, graphConfigs, nodeCount } = useNpcWebGraph({
   pcNotes: () => pcNotes.value,
   pinnedKeys: () => pinnedKeys.value,
   getDescendantIds,
+  focusedKeys: () => focusedKeys.value,
+  factionGroups: () => factionGroups.value,
+});
+
+// ── Faction focus ─────────────────────────────────────────────────────────────
+
+const { data: allFactions } = useAllFactions();
+
+const factionOptions = computed(() =>
+  (allFactions.value ?? []).map((f) => ({ id: f.id, name: f.name })),
+);
+
+/**
+ * Every faction's members as node keys — what the layout's clustering force
+ * pulls together, and what the focused hull is drawn around.
+ *
+ * Former members are included. They are drawn faded on the badge but they are
+ * still *in* the shape: an expelled officer standing just outside the boundary
+ * would be a nice picture and a false one, since the graph has no idea where
+ * "just outside" is.
+ */
+const factionGroups = computed(() => {
+  const groups = new Map<string, Set<string>>();
+  const add = (factionId: string, nodeKey: string) => {
+    const set = groups.get(factionId);
+    if (set) set.add(nodeKey);
+    else groups.set(factionId, new Set([nodeKey]));
+  };
+  for (const row of factionNpcs.value ?? []) add(row.faction_id, `npc:${row.npc_id}`);
+  if (ui.npcWebShowPcs) {
+    for (const row of factionPartyMembers.value ?? []) add(row.faction_id, `pc:${row.party_member_id}`);
+  }
+  return groups;
+});
+
+/** Members of the focused faction that are actually on screen. */
+const focusedKeys = computed(() => {
+  const id = ui.npcWebFocusFaction;
+  if (!id) return new Set<string>();
+  const members = factionGroups.value.get(id);
+  if (!members) return new Set<string>();
+  return new Set([...members].filter((key) => key in graphNodes.value));
+});
+
+const focusedFactionName = computed(
+  () => factionOptions.value.find((f) => f.id === ui.npcWebFocusFaction)?.name ?? "",
+);
+
+/**
+ * The boundary itself, in graph coordinates.
+ *
+ * Padded by a node radius and a bit so members sit inside it rather than on it,
+ * and rebuilt from `layouts` on every tick so it follows the simulation while it
+ * settles instead of snapping into place at the end.
+ */
+const HULL_PADDING = 34;
+
+const focusHullPath = computed(() => {
+  const points: Point[] = [];
+  for (const key of focusedKeys.value) {
+    const pos = layouts.value.nodes[key];
+    if (pos) points.push({ x: pos.x, y: pos.y });
+  }
+  if (!points.length) return "";
+  return hullPath(padOutward(convexHull(points), HULL_PADDING));
 });
 
 // ── Faction membership badges ─────────────────────────────────────────────────
@@ -343,7 +443,7 @@ watch(
  * own pan/zoom transform, so positions are plain graph coordinates and the
  * badges zoom with everything else.
  */
-const GRAPH_LAYERS: Layers = { factionPips: "node-labels" };
+const GRAPH_LAYERS: Layers = { factionHull: "base", factionPips: "node-labels" };
 
 /**
  * Screen pixels, not graph units.
@@ -441,6 +541,7 @@ const nodeBadges = computed(() => {
     nodeKey: string;
     cx: number;
     cy: number;
+    dimmed: boolean;
     openScale: number;
     overflow: number;
     overflowDx: number;
@@ -461,6 +562,7 @@ const nodeBadges = computed(() => {
       nodeKey,
       cx: pos.x,
       cy: pos.y,
+      dimmed: node.dimmed,
       // Opened, a badge matches the node it hangs off — the largest it can be
       // without reaching over a neighbour.
       openScale: node.nodeSize / PIP_RADIUS,
