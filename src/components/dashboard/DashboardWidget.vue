@@ -4,6 +4,7 @@
     :class="
       cn(
         'flex flex-col rounded-lg border bg-card overflow-hidden',
+        MAX_HEIGHTS[maxHeight],
         TONES[tone].card,
       )
     "
@@ -61,19 +62,22 @@
     </div>
 
     <!--
-      The cap lives here rather than on each widget, which is the whole point of
-      the component: a party that has hoarded a dozen unknown wands, or a
-      campaign with thirty rumors, must not decide how tall its neighbours are.
+      The cap is on the card, and the body simply fills whatever is left after
+      the header. It was the other way round at first, and the two maxima did
+      not agree: the grid stretches every card to the tallest in its row, while
+      the body stopped at a fixed 24rem — so a full widget showed a row sliced
+      in half and then a band of dead card beneath it. One height, set in one
+      place, and the scroll region ends exactly where the card does.
+
       Widgets that are genuinely their own size — a responsive party grid — pass
-      `max-height="none"`.
+      `max-height="none"` and never scroll.
     -->
     <div
       v-else
       :class="
         cn(
           'min-h-0 flex-1',
-          MAX_HEIGHTS[maxHeight],
-          maxHeight !== 'none' && 'overflow-y-auto overscroll-contain',
+          maxHeight !== 'none' && 'widget-scroll overflow-y-auto overscroll-contain',
         )
       "
     >
@@ -150,3 +154,24 @@ const MAX_HEIGHTS = {
   lg: "max-h-76",
 } as const;
 </script>
+
+<style scoped>
+/*
+  Scroll shadows, so a row cut by the scroll edge reads as "there is more"
+  rather than as a rendering fault. The `local` layers are the card's own
+  background scrolling with the content; the `scroll` layers are the shadows,
+  fixed to the container — so each shadow is covered exactly when that end is
+  reached, and appears when it is not. No JS, no scroll listener.
+*/
+.widget-scroll {
+  /* Derived from the text colour, not a fixed black: on the dark theme a black
+     shadow over a near-black card is invisible, and the edge would read as a
+     clean cut again — which is the whole thing this exists to prevent. */
+  --widget-scroll-shadow: color-mix(in srgb, var(--foreground) 16%, transparent);
+  background:
+    linear-gradient(var(--card) 30%, transparent) top    / 100% 1.25rem no-repeat local,
+    linear-gradient(transparent, var(--card) 70%) bottom / 100% 1.25rem no-repeat local,
+    radial-gradient(farthest-side at 50% 0,    var(--widget-scroll-shadow), transparent) top    / 100% 0.4rem no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, var(--widget-scroll-shadow), transparent) bottom / 100% 0.4rem no-repeat scroll;
+}
+</style>
