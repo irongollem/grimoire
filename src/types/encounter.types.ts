@@ -353,6 +353,9 @@ export interface EncounterState {
   encounter_id: string;
   campaign_id: string;
   user_id: string;
+  /** The session this combat ran inside (#758). Null for rows that predate it,
+   *  or where the session could not be started. */
+  session_id?: string | null;
   is_running: boolean;
   current_round: number;
   active_combatant_index: number;

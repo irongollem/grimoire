@@ -45,7 +45,7 @@
           class="go-live-btn"
           :class="isLive ? 'live-active' : ''"
           :disabled="goingLive"
-          :title="isLive ? 'Live' : 'Go Live'"
+          :title="isLive ? 'Live' : ui.sessionRunning ? 'Go Live' : 'Go Live — also starts the session'"
           @click="handleGoLive"
         >
           <IconLive class="h-3.5 w-3.5" />
@@ -150,7 +150,9 @@ import { useCompanions, useUpdateCompanion } from "@/composables/useCompanions";
 import { useUpdateNpc } from "@/composables/useNpcs";
 import { buildNpcSyncUpdate } from "@/lib/npcEncounterSync";
 import { useEncounterLive } from "@/composables/useEncounterLive";
+import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { useAutoDiscoverMonsters } from "@/composables/useDiscoveredMonsters";
 import { useCampaignMessages } from "@/composables/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/usePromptedRoll";
@@ -171,6 +173,8 @@ const router = useRouter();
 const route = useRoute();
 const encounterId = computed(() => route.params.id as string);
 const campaign = useCampaignStore();
+const ui = useUiStore();
+const toast = useToast();
 const { isLive, goLive, schedulePush, endLive } = useEncounterLive(encounterId.value);
 const goingLive = ref(false);
 const { sendSystemMessages } = useCampaignMessages();
@@ -330,7 +334,12 @@ async function handleGoLive() {
   }
   goingLive.value = true;
   try {
-    await goLive({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants });
+    const { startedSession } = await goLive({ round: store.round, activeIndex: store.activeIndex, combatants: store.combatants });
+    // Going live starts the session when there isn't one, because a DM hitting
+    // Run is at the table. Said out loud rather than done quietly: the session
+    // is what makes NPC reveals announce themselves to players, and that is not
+    // a thing to switch on behind someone's back. See #758.
+    if (startedSession) toast.info("Session started — reveals now announce to your players.");
 
     // Auto-discover only revealed monsters when going live — hidden/unseen
     // combatants haven't been seen by players yet.

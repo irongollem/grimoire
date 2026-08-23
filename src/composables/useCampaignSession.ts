@@ -150,6 +150,40 @@ export function useCampaignSession() {
 }
 
 /**
+ * Make sure a session is running, and say whether this call is what started it.
+ *
+ * A DM who hits **Run** on an encounter is unambiguously at the table, so
+ * requiring them to have started a session first would be pure bookkeeping —
+ * exactly the kind that makes people resent a modal app. Going live starts the
+ * session instead, and the caller reports it rather than letting the change
+ * happen silently.
+ *
+ * Deliberately a plain function, not part of `useCampaignSession()`: callers
+ * are inside an event handler, not a component setup, and must not take out a
+ * subscription they never release.
+ */
+export async function ensureCampaignSession(
+  campaignId: string,
+): Promise<{ id: string | null; started: boolean }> {
+  if (session.value?.is_running && session.value.campaign_id === campaignId) {
+    return { id: session.value.id, started: false };
+  }
+  const { data, error } = await supabase.rpc("start_campaign_session", {
+    p_campaign_id: campaignId,
+  });
+  if (error) {
+    // Never fail the thing the DM actually asked for. Combat going live matters
+    // more than the session bookkeeping around it; the session can be started
+    // from the chrome afterwards.
+    console.error("Failed to start the campaign session", error);
+    return { id: null, started: false };
+  }
+  const row = data as CampaignSessionState;
+  adopt(row);
+  return { id: row.id, started: true };
+}
+
+/**
  * Whether a running session has been running longer than anyone plays.
  *
  * Deliberately a pure function of the row and a clock rather than a timer: the

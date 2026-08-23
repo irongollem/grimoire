@@ -40,6 +40,10 @@
 
     <CampaignChat />
 
+    <!-- Asked once per load, and only of a DM: a session left running for days
+         is still broadcasting reveals at players who are not at the table. -->
+    <StaleSessionPrompt v-if="isDm" />
+
     <!--
       Generator panels are always mounted (see AiGeneratorPanels.vue) so that
       background generation (started when the panel is open then dismissed)
@@ -81,6 +85,7 @@ import { useMediaQuery } from "@vueuse/core";
 import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppTopBar from "@/components/layout/AppTopBar.vue";
 import DmBottomNav from "@/components/layout/DmBottomNav.vue";
+import StaleSessionPrompt from "@/components/layout/StaleSessionPrompt.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
@@ -90,6 +95,7 @@ import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";
 import AiUseNoticeGate from "@/components/campaign/AiUseNoticeGate.vue";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
 import { useAudioThemeTriggers } from "@/composables/useAudioThemeTriggers";
+import { useAuthStore } from "@/stores/auth";
 import { useCampaignPresence } from "@/composables/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/useCampaignLiveSync";
 import { usePartyLive } from "@/composables/useParty";
@@ -123,6 +129,8 @@ void initPlaceholderFocalPoints();
 // This is deliberately phone-width-only regardless of pointer type: tablets
 // get desktop-style detail views plus the bar, never the full-screen takeover.
 const route = useRoute();
+const auth = useAuthStore();
+const isDm = computed(() => auth.currentRole === "dm");
 const isMobile = useMediaQuery("(max-width: 767px)");
 const fullscreenMobile = computed(() => isMobile.value && !!route.meta.fullscreenMobile);
 const returnTo = computed(() => typeof route.query.returnTo === "string"

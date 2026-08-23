@@ -2,6 +2,7 @@ import { ref, computed, watch, onUnmounted, toValue, type MaybeRefOrGetter } fro
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
+import { ensureCampaignSession } from "@/composables/useCampaignSession";
 import type { EncounterState, RunCombatant } from "@/types/encounter.types";
 
 // ── Module-level singleton for running encounters ──────────────────────────────
@@ -111,13 +112,18 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string>) {
     round: number;
     activeIndex: number;
     combatants: RunCombatant[];
-  }) {
-    if (!campaign.activeCampaignId) return;
+  }): Promise<{ startedSession: boolean }> {
+    if (!campaign.activeCampaignId) return { startedSession: false };
     const user = getCurrentUser();
+    // Combat runs *inside* a session, so going live starts one if the DM has
+    // not. `session_id` records which — that is what makes "what did we play on
+    // Thursday" answerable from one column. See #758.
+    const session = await ensureCampaignSession(campaign.activeCampaignId);
     const payload = {
       encounter_id: toValue(encounterId),
       campaign_id: campaign.activeCampaignId,
       user_id: user!.id,
+      session_id: session.id,
       is_running: true,
       current_round: state.round,
       active_combatant_index: state.activeIndex,
@@ -140,6 +146,7 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string>) {
       .eq("is_running", true)
       .neq("encounter_id", toValue(encounterId));
     liveState.value = data as EncounterState;
+    return { startedSession: session.started };
   }
 
   interface PushableState {
