@@ -564,16 +564,28 @@ export const useUiStore = defineStore("ui", () => {
   // this ref directly — the switch also swaps the per-mode active campaign.
   const userMode = useLocalStorage<"dm" | "player" | "">("grimoire:user-mode", "");
 
-  // DM Prep/Play mode (issue #133) — `play` triggers auto-broadcast of
-  // entity visibility changes into campaign chat; `prep` is silent. Mode
-  // persists in localStorage so a mid-session reload doesn't silently drop
-  // a DM back into prep and swallow the next reveal. This is Phase 1
-  // (local only) per the issue — a future Phase 2 persists to
-  // `campaigns.dm_mode` for cross-device consistency.
-  const dmMode = useLocalStorage<"prep" | "play">("grimoire:dm-mode", "prep");
-  function toggleDmMode() {
-    dmMode.value = dmMode.value === "prep" ? "play" : "prep";
-  }
+  // Whether the campaign's session is live (#758). A *mirror* of
+  // `campaign_session_state.is_running`, owned by `useCampaignSession()` and
+  // written by nothing else — the row is the authority, this is the cheap
+  // synchronous read the surfaces below already expect.
+  //
+  // It used to be `useLocalStorage("grimoire:dm-mode")`: per browser, no start
+  // time, no end. That is where every complaint about the Prep/Play switch came
+  // from — a session ended on Thursday was still broadcasting on Sunday, a
+  // co-DM could not see it, and a second device stayed in prep. #133 named the
+  // fix as a Phase 2 against `campaigns.dm_mode`; the row it became is a better
+  // shape, because a session has a span and a preference does not.
+  const sessionRunning = ref(false);
+
+  /**
+   * Prep or play, derived. Read-only on purpose: the five consumers
+   * (NPC reveal broadcast, bottom-bar tab pool, centre FAB, quest landing
+   * surface, soundboard Arrange/Perform) keep reading exactly what they read
+   * before, while the only way to *change* it is starting or ending a session
+   * through `useCampaignSession()`. A writable mode is what let quest creation
+   * end a DM's session as a side effect.
+   */
+  const dmMode = computed<"prep" | "play">(() => (sessionRunning.value ? "play" : "prep"));
 
   /**
    * Perform = fire targets only, for running a session. Arrange = the same pads
@@ -1046,10 +1058,10 @@ export const useUiStore = defineStore("ui", () => {
     enterDmPreview,
     exitDmPreview,
 
-    // DM Prep/Play mode (#133)
+    // DM/Player lens (#729) and the campaign session (#758)
     userMode,
     dmMode,
-    toggleDmMode,
+    sessionRunning,
 
     // Hall of Heroes
     hallOfHeroesSearch,

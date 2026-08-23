@@ -20,8 +20,8 @@
       @click="onCreate"
     />
 
-    <!-- Prep / Play mode toggle -->
-    <DmModeToggle size="md" :labels="['Prep mode', 'Play mode']" class="mb-4" />
+    <!-- The campaign session -->
+    <SessionControl size="md" class="mb-4" />
 
     <!-- All sections as icon tiles, grouped by area -->
     <div class="flex flex-col gap-4">
@@ -59,7 +59,7 @@
     </div>
 
     <p class="mt-4 px-1 text-center text-caption-sm text-muted-foreground/60">
-      Dot = currently pinned to the {{ ui.dmMode }} bar.
+      Dot = currently pinned to the {{ ui.dmMode === "play" ? "session" : "prep" }} bar.
     </p>
 
     <AppButton
@@ -95,7 +95,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
-import DmModeToggle from "./DmModeToggle.vue";
+import SessionControl from "./SessionControl.vue";
 import { IconAdd, IconBug, IconRefresh } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";

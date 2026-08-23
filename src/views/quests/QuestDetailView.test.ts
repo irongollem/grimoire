@@ -41,7 +41,7 @@ describe("QuestDetailView", () => {
     mocks.route.name = "quest-detail";
     mocks.route.params = { id: "quest-1" };
     mocks.route.query = {};
-    ui.dmMode = "prep";
+    ui.sessionRunning = false;
     mocks.replace.mockReset();
   });
 
@@ -53,7 +53,7 @@ describe("QuestDetailView", () => {
     expect(wrapper.findComponent(QuestOverviewPanel).exists()).toBe(true);
     expect(wrapper.findComponent(QuestGraphDesigner).exists()).toBe(false);
 
-    ui.dmMode = "play";
+    ui.sessionRunning = true;
     await wrapper.vm.$nextTick();
 
     expect(wrapper.findComponent(QuestRunCockpit).exists()).toBe(true);
@@ -65,7 +65,7 @@ describe("QuestDetailView", () => {
     const prep = mountView();
     expect(prep.findComponent(QuestGraphDesigner).exists()).toBe(true);
 
-    ui.dmMode = "play";
+    ui.sessionRunning = true;
     await prep.vm.$nextTick();
     expect(prep.findComponent(QuestRunCockpit).exists()).toBe(true);
 
@@ -95,7 +95,7 @@ describe("QuestDetailView", () => {
     const wrapper = mountView();
 
     expect(wrapper.findComponent(QuestRunCockpit).exists()).toBe(true);
-    expect(ui.dmMode).toBe("prep");
+    expect(ui.sessionRunning).toBe(false);
     expect(mocks.replace).not.toHaveBeenCalled();
   });
 
@@ -106,7 +106,7 @@ describe("QuestDetailView", () => {
     mocks.route.query = { mode: "build", beat: "beat-1" };
     mountView();
 
-    expect(ui.dmMode).toBe("prep");
+    expect(ui.sessionRunning).toBe(false);
     expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "beat-1", view: "work" } });
   });
 
@@ -126,7 +126,7 @@ describe("QuestDetailView", () => {
     expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "beat-1", view: "overview" } });
 
     mocks.route.query = { overview: "true" };
-    ui.dmMode = "play";
+    ui.sessionRunning = true;
     const bookmarked = mountView();
     expect(bookmarked.findComponent(QuestOverviewPanel).exists()).toBe(true);
     expect(bookmarked.findComponent(QuestRunCockpit).exists()).toBe(false);

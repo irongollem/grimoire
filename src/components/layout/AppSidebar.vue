@@ -49,8 +49,8 @@
         </div>
       </div>
 
-      <!-- DM Prep/Play segmented control — DM-only, full-width below the brand. -->
-      <DmModeToggle v-if="isDm" />
+      <!-- The campaign session — DM-only, full-width below the brand. -->
+      <SessionControl v-if="isDm" />
     </div>
 
     <!-- Campaign switcher -->
@@ -244,7 +244,7 @@ import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
-import DmModeToggle from "./DmModeToggle.vue";
+import SessionControl from "./SessionControl.vue";
 import ModeToggle from "./ModeToggle.vue";
 
 const auth = useAuthStore();

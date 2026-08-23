@@ -26,25 +26,14 @@
       @click="searchOpen = true"
     />
 
-    <!-- At md+ within bar mode (a tablet), the top bar carries the full
-         Prep/Play toggle, freeing the bottom bar's width for more nav tabs. -->
-    <div v-if="isDm" class="hidden w-40 md:block">
-      <DmModeToggle />
+    <!-- The session control. One implementation at both widths now: it used to
+         be a segmented pair at md+ and a separate single-word pill on phones,
+         which meant two components rendering the same state and drifting. The
+         control is already compact at rest ("Start session") and becomes a
+         status once running, so the phone case needed nothing of its own. -->
+    <div v-if="isDm" class="w-32 shrink-0 md:w-44">
+      <SessionControl />
     </div>
-
-    <!-- DM Prep/Play toggle — compact single-word pill showing current state.
-         Phones only: at md+ within bar mode (a tablet), the toggle above
-         replaces this pill. -->
-    <AppButton
-      v-if="isDm"
-      variant="subtle"
-      size="xs"
-      :active="ui.dmMode === 'play'"
-      class="md:hidden shrink-0 font-bold"
-      :tooltip="ui.dmMode === 'play' ? 'Play mode — click to stop broadcasting' : 'Prep mode — click to broadcast'"
-      :label="ui.dmMode === 'play' ? 'PLAY' : 'PREP'"
-      @click="ui.toggleDmMode()"
-    />
 
     <SoundboardWidgetToggle icon-only size="xs" class="shrink-0" />
 
@@ -120,17 +109,15 @@ import { ref, computed, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { IconClose, IconLoading, IconSearch } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import SoundboardWidgetToggle from "@/components/soundboard/SoundboardWidgetToggle.vue";
 import GlobalSearch from "./GlobalSearch.vue";
-import DmModeToggle from "./DmModeToggle.vue";
+import SessionControl from "./SessionControl.vue";
 import { useGlobalSearch } from "@/composables/useGlobalSearch";
 
 const route = useRoute();
-const ui = useUiStore();
 const auth = useAuthStore();
 const isDm = computed(() => auth.currentRole === "dm");
 
