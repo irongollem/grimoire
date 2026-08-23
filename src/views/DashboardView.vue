@@ -10,8 +10,13 @@
       preparing without ending the table. Same shape as `QuestDetailView`:
       derived default, explicit escape hatch.
 
-      Composition only. Every widget owns its queries and its body, and
-      `DashboardWidget` owns the card and its height cap.
+      Composition only — but the composition now comes from data, not markup.
+      `DEFAULT_LAYOUTS` (src/lib/dashboard/defaultLayouts.ts) says which
+      widgets appear, in what order, at what width; `WIDGET_COMPONENTS`
+      (components/dashboard/widgetComponents.ts) maps each widget id to its
+      component. Every widget still owns its own queries and its own body,
+      and `DashboardWidget` still owns the card and its height cap — this
+      view only arranges opaque components on a grid.
     -->
     <template #actions>
       <SegmentedControl
@@ -22,33 +27,13 @@
       />
     </template>
 
-    <div class="flex flex-col gap-4">
-      <template v-if="view === 'session'">
-        <LiveEncounterBanner />
-        <PartyWidget />
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <QuestsWidget />
-          <SessionWidget />
-          <UnidentifiedWidget />
-        </div>
-        <RecentNpcsWidget />
-        <PinnedNotesWidget />
-      </template>
-
-      <template v-else>
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <PrepGapsWidget />
-          <QuestsWidget />
-          <div class="flex flex-col gap-4">
-            <NextSessionWidget />
-            <UnidentifiedWidget />
-          </div>
-        </div>
-        <PartyWidget />
-        <PinnedNotesWidget />
-      </template>
-
-      <DashboardStats />
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <component
+        :is="WIDGET_COMPONENTS[entry.id]"
+        v-for="entry in layout.widgets"
+        :key="entry.key"
+        :class="WIDTH_CLASSES[entry.width]"
+      />
     </div>
   </PageHeader>
 </template>
@@ -59,18 +44,15 @@ import { useRoute, useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import LiveEncounterBanner from "@/components/dashboard/widgets/LiveEncounterBanner.vue";
-import PartyWidget from "@/components/dashboard/widgets/PartyWidget.vue";
-import QuestsWidget from "@/components/dashboard/widgets/QuestsWidget.vue";
-import SessionWidget from "@/components/dashboard/widgets/SessionWidget.vue";
-import UnidentifiedWidget from "@/components/dashboard/widgets/UnidentifiedWidget.vue";
-import RecentNpcsWidget from "@/components/dashboard/widgets/RecentNpcsWidget.vue";
-import PinnedNotesWidget from "@/components/dashboard/widgets/PinnedNotesWidget.vue";
-import PrepGapsWidget from "@/components/dashboard/widgets/PrepGapsWidget.vue";
-import NextSessionWidget from "@/components/dashboard/widgets/NextSessionWidget.vue";
-import DashboardStats from "@/components/dashboard/widgets/DashboardStats.vue";
+import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
+import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
+import type { DashboardSurface, WidgetWidth } from "@/lib/dashboard/widgetCatalog";
 
-type DashboardSurface = "session" | "prep";
+const WIDTH_CLASSES: Record<WidgetWidth, string> = {
+  cell: "",
+  wide: "lg:col-span-2",
+  full: "lg:col-span-3",
+};
 
 const route = useRoute();
 const router = useRouter();
@@ -86,6 +68,8 @@ const view = computed<DashboardSurface>(() => {
   if (route.query.view === "session") return "session";
   return ui.sessionRunning ? "session" : "prep";
 });
+
+const layout = computed(() => DEFAULT_LAYOUTS[view.value]);
 
 const title = computed(() => (view.value === "session" ? "At the Table" : "Campaign Dashboard"));
 const description = computed(() =>

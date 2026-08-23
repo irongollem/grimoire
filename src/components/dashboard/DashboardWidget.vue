@@ -125,7 +125,8 @@ const {
   loading?: boolean;
   empty?: boolean;
   emptyText?: string;
-  /** `none` for content that is its own size — a responsive grid, not a list. */
+  /** `none` for content that is its own size — a responsive grid, not a list.
+   *  `md` (the default) caps everything else at a fixed scroll height. */
   maxHeight?: keyof typeof MAX_HEIGHTS;
   /** Product-tour anchor, where the widget has one. */
   tour?: string;
@@ -149,9 +150,7 @@ const TONES = {
 
 const MAX_HEIGHTS = {
   none: "",
-  sm: "max-h-56",
   md: "max-h-76",
-  lg: "max-h-76",
 } as const;
 </script>
 

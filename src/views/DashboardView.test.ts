@@ -8,6 +8,8 @@ import SessionWidget from "@/components/dashboard/widgets/SessionWidget.vue";
 import NextSessionWidget from "@/components/dashboard/widgets/NextSessionWidget.vue";
 import LiveEncounterBanner from "@/components/dashboard/widgets/LiveEncounterBanner.vue";
 import { useUiStore } from "@/stores/ui";
+import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
+import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
 
 const mocks = vi.hoisted(() => ({
   route: { query: {} as Record<string, string> },
@@ -80,5 +82,22 @@ describe("DashboardView", () => {
     const wrapper = mountView();
     wrapper.findComponent({ name: "SegmentedControl" }).vm.$emit("update:modelValue", "session");
     expect(mocks.replace).toHaveBeenCalledWith({ query: { foo: "bar" } });
+  });
+
+  // The view renders whatever DEFAULT_LAYOUTS says, in that order — this is
+  // the registry doing the composing, not hand-written markup.
+  it("renders each surface's default layout, in the registry's order", () => {
+    const prepWrapper = mountView();
+    const grid = prepWrapper.find(".grid");
+    const renderedOrder = Array.from(grid.element.children);
+    const expectedOrder = DEFAULT_LAYOUTS.prep.widgets.map(
+      (entry) => prepWrapper.findComponent(WIDGET_COMPONENTS[entry.id]).element,
+    );
+    expect(renderedOrder).toEqual(expectedOrder);
+
+    ui.sessionRunning = true;
+    const sessionWrapper = mountView();
+    expect(sessionWrapper.findComponent(WIDGET_COMPONENTS["live-encounter"]).exists()).toBe(true);
+    expect(sessionWrapper.findComponent(WIDGET_COMPONENTS["recent-npcs"]).exists()).toBe(true);
   });
 });
