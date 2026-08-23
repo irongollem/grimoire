@@ -1,4 +1,4 @@
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, effectScope } from "vue";
 import { supabase } from "@/lib/supabase";
 import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
@@ -217,11 +217,27 @@ function subscribe(campaignId: string, clearMessages = false) {
   });
 }
 
-// Boot the subscription once when the campaign changes (shared watcher)
+// Boot the subscription once when the campaign changes (shared watcher).
+//
+// The scope is the whole point. `watch()` called during a component's setup
+// belongs to that component and is disposed when it unmounts — but the guard
+// below is module-level and never resets, so once the first component to call
+// `useCampaignMessages()` went away, the watcher was gone and nothing ever
+// recreated it. Chat then stopped syncing for the life of the page.
+//
+// It showed up as an empty chat after signing in: the first caller mounts while
+// `activeCampaignId` is still null, the watcher clears and waits, that component
+// unmounts on the redirect into the portal, and the campaign resolves with no
+// listener left. Zero requests to `campaign_messages`, no error, no history —
+// and a reload "fixed" it because then the id is already set at first call.
+//
+// `effectScope(true)` detaches it, so the watcher outlives every component
+// exactly as its module-level guard already assumed it did.
 let watcherStarted = false;
 function ensureWatcher() {
   if (watcherStarted) return;
   watcherStarted = true;
+  effectScope(true).run(() => {
   const campaign = useCampaignStore();
   watch(
     () => campaign.activeCampaignId,
@@ -246,6 +262,7 @@ function ensureWatcher() {
     },
     { immediate: true },
   );
+  });
 }
 
 // ── Public composable ──────────────────────────────────────────────────────────
