@@ -25,6 +25,25 @@ Same rule forward in time: no "we'll refactor later", no "we'll extract this whe
 
 "I noticed it and left it" is never an option. If you are unsure which exit applies, fix it.
 
+## The Overseer Pattern — the default for any significant story
+
+**Any significant story — an issue-sized feature, a multi-file refactor, anything with more than one natural work package — is executed as overseer + executors by default.** The session's model orchestrates and reviews; cheaper subagents type. This is not an optimization to reach for when asked; it is how work runs here unless one of the two exits below applies.
+
+**The overseer (the session's model) keeps:** recon and audits, architecture and scoping decisions, writing each executor's spec, reviewing every diff, running the gates, migrations and DB writes, git commits, GitHub issue lifecycle, and user communication.
+
+**Executors (`model: "sonnet"`; haiku for pure lookups):** one well-specified story each. Every spec includes: the verified facts they should trust (schema locations, API quirks — with file:line), an explicit list of files they own, the conventions that apply, and hard boundaries — no commits, no pushes, no migrations (report needed SQL instead), no GitHub writes, and no touching files another agent or the user has in flight (name those files in the prompt).
+
+**Waves by file overlap:** stories with disjoint files run in parallel in the shared checkout; stories sharing a file run in sequence. Structure work so shared code stabilizes first, then fan out dependents.
+
+**The integration gate is typecheck + full vitest + `npm run build`** — vue-tsc and vitest have both missed a malformed .vue SFC that only the vite build caught. Never accept agent-written .vue files without a build run. The overseer re-runs the gates itself; an executor's green report is a claim, not a verification.
+
+**The two exits**, both said out loud in one line when taken:
+
+1. The user explicitly says to work solo on this one.
+2. The overseer judges delegation inefficient — the change is small enough that writing the spec costs more than the work (a config line, a one-file fix, a doc edit). State the judgment; don't silently default to solo.
+
+Model choice for the *overseer* follows the judgment load, not habit: a spec-executable story (the ticket already contains the decisions) runs fine with Opus at the helm; judgment-heavy work — UX design, security-sensitive review, architecture — warrants the top model. Session model is the user's call; this paragraph is for recommending one when asked.
+
 ## Supabase Migration Rules
 
 **CRITICAL — updated_at trigger pattern:**
