@@ -1,5 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
-import { drawerTransition, railTransition, revealKeyframes, originTransform, REST_TRANSFORM } from "./motion";
+import {
+  drawerTransition,
+  railTransition,
+  revealKeyframes,
+  originTransform,
+  REST_TRANSFORM,
+  flipDelta,
+  captureFlipPositions,
+  playFlipTransition,
+  FLIP_MOVE_THRESHOLD_PX,
+  type FlipSnapshot,
+} from "./motion";
 
 const PANEL = { top: 100, left: 200, width: 400, height: 300 };
 
@@ -76,6 +87,114 @@ describe("revealKeyframes", () => {
     expect(shut.paddingTop).toBe("0px");
     expect(shut.paddingBottom).toBe("0px");
     expect(shut.borderTopWidth).toBe("0px");
+  });
+});
+
+describe("flipDelta", () => {
+  it("reports rightward and downward movement as positive dx/dy", () => {
+    // A card that moved to a later column/row in the grid. If the sign
+    // flipped here, every reorder would visibly slide the wrong direction.
+    const { dx, dy } = flipDelta({ left: 0, top: 0 }, { left: 100, top: 50 });
+    expect(dx).toBe(100);
+    expect(dy).toBe(50);
+  });
+
+  it("reports leftward and upward movement as negative dx/dy", () => {
+    const { dx, dy } = flipDelta({ left: 200, top: 150 }, { left: 80, top: 20 });
+    expect(dx).toBe(-120);
+    expect(dy).toBe(-130);
+  });
+
+  it("reports zero movement for a rect that stayed put", () => {
+    const rect = { left: 40, top: 40 };
+    expect(flipDelta(rect, rect)).toEqual({ dx: 0, dy: 0 });
+  });
+
+  it("treats a sub-threshold delta as unmoved so layout rounding never animates", () => {
+    // Below FLIP_MOVE_THRESHOLD_PX this must read as a no-op — otherwise
+    // every grid render plays a barely-visible twitch on cards that never
+    // actually reordered.
+    const justUnder = FLIP_MOVE_THRESHOLD_PX - 0.1;
+    const { dx, dy } = flipDelta({ left: 0, top: 0 }, { left: justUnder, top: -justUnder });
+    expect(dx).toBe(0);
+    expect(dy).toBe(0);
+  });
+
+  it("still reports a delta right at the threshold", () => {
+    const { dx } = flipDelta({ left: 0, top: 0 }, { left: FLIP_MOVE_THRESHOLD_PX, top: 0 });
+    expect(dx).toBe(FLIP_MOVE_THRESHOLD_PX);
+  });
+});
+
+describe("captureFlipPositions", () => {
+  it("is a safe no-op over an empty iterable", () => {
+    // A reorder helper wired up before the grid has any cards should not
+    // throw on its first render.
+    expect(captureFlipPositions([]).size).toBe(0);
+  });
+
+  it("keys the snapshot by element so playFlipTransition can look each one up again", () => {
+    const el = document.createElement("div");
+    document.body.append(el);
+    Object.defineProperty(el, "getBoundingClientRect", {
+      value: () => ({ left: 10, top: 20, right: 0, bottom: 0, width: 0, height: 0, x: 10, y: 20, toJSON() {} }),
+    });
+    const snapshot = captureFlipPositions([el]);
+    expect(snapshot.get(el)).toMatchObject({ left: 10, top: 20 });
+    el.remove();
+  });
+});
+
+describe("playFlipTransition", () => {
+  it("does not throw when Web Animations is unavailable", () => {
+    // happy-dom has no `animate`, same as the real test DOM the rest of the
+    // app relies on `canAnimate` to detect. If this threw, every component
+    // that fires a reorder in a test would fail for reasons unrelated to
+    // what it is testing.
+    const el = document.createElement("div");
+    document.body.append(el);
+    const snapshot: FlipSnapshot = new Map([[el, { left: 0, top: 0 }]]);
+    expect(() => playFlipTransition(snapshot)).not.toThrow();
+    el.remove();
+  });
+
+  it("is a no-op under prefers-reduced-motion, without touching the DOM at all", () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: true,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList) as typeof window.matchMedia;
+    try {
+      const el = document.createElement("div");
+      document.body.append(el);
+      const getRect = vi.fn(() => ({ left: 0, top: 0 }) as DOMRect);
+      Object.defineProperty(el, "getBoundingClientRect", { value: getRect });
+      const snapshot: FlipSnapshot = new Map([[el, { left: 999, top: 999 }]]);
+      playFlipTransition(snapshot);
+      // Reduced motion bails before it re-measures anything, so a user who
+      // asked the OS for no motion never pays for the layout read either.
+      expect(getRect).not.toHaveBeenCalled();
+      el.remove();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it("is a safe no-op when a captured element has since left the document", () => {
+    // A reorder can be followed immediately by a delete — the FLIP snapshot
+    // captured before both mutations may point at an element the delete
+    // just removed. That must not throw or animate a detached node.
+    const el = document.createElement("div");
+    // Deliberately never appended to document.body.
+    const snapshot: FlipSnapshot = new Map([[el, { left: 0, top: 0 }]]);
+    expect(() => playFlipTransition(snapshot)).not.toThrow();
   });
 });
 

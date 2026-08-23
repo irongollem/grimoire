@@ -1,0 +1,234 @@
+import {
+  DASHBOARD_WIDGETS,
+  widgetById,
+  type DashboardSurface,
+  type DashboardWidgetDef,
+} from "./widgetCatalog";
+import { DEFAULT_LAYOUTS, type DashboardLayoutEntry } from "./defaultLayouts";
+
+/**
+ * The five edits Arrange mode (#763) can make to a layout, as pure functions.
+ *
+ * Every one takes the current entries and returns new entries — no mutation,
+ * no Vue, no Supabase.
+ *
+ * Note what is *not* here: continuous pointer-drag reordering. Sortable splices
+ * `draft` itself through `v-model`, and the view only saves afterwards. That is
+ * not an oversight to tidy up — a drag relocates a widget by however many
+ * places the gesture crossed, which `moveEntry`'s deliberate ±1 step cannot
+ * express. `moveEntry` is the *keyboard* move, and clamping is what makes it
+ * safe for someone who cannot see the whole grid at once.
+ *
+ * It also keeps the hard part out of the component. Reordering, width cycling
+ * and shelf membership are list arithmetic with awkward edges (the ends of the
+ * list, a widget offered on one surface but not another, `maxInstances`), and
+ * that arithmetic is far cheaper to get right against unit tests than against
+ * a rendered grid.
+ */
+
+/** Announcement text for the `aria-live` region, so the keyboard path says
+ *  what happened rather than leaving a screen-reader user to infer it. */
+export interface ArrangeOutcome {
+  entries: DashboardLayoutEntry[];
+  announcement: string;
+}
+
+function titleOf(entry: DashboardLayoutEntry): string {
+  const widget = widgetById(entry.id);
+  // A layout only ever holds ids the merge already validated, so this is
+  // unreachable in practice — but falling back to the raw id keeps the
+  // announcement honest instead of saying "undefined moved to position 3".
+  return widget === undefined ? entry.id : widget.title;
+}
+
+/** Never mutate the caller's array: Arrange mode holds the previous layout as
+ *  its undo snapshot, and an in-place edit would quietly rewrite that too. */
+const clone = (entries: readonly DashboardLayoutEntry[]): DashboardLayoutEntry[] =>
+  entries.map((entry) => ({ ...entry }));
+
+/**
+ * Move one widget one position, by instance key.
+ *
+ * Deliberately clamps rather than wrapping. An Arrow-Up on the first widget
+ * that teleported it to the bottom would be a keyboard user's worst surprise —
+ * they cannot see the whole grid at once to notice where it went.
+ */
+export function moveEntry(
+  entries: readonly DashboardLayoutEntry[],
+  key: string,
+  direction: -1 | 1,
+): ArrangeOutcome {
+  const from = entries.findIndex((entry) => entry.key === key);
+  const moved = entries[from];
+  if (from === -1 || moved === undefined) {
+    return { entries: clone(entries), announcement: "" };
+  }
+
+  const to = from + direction;
+  if (to < 0 || to >= entries.length) {
+    return {
+      entries: clone(entries),
+      announcement: `${titleOf(moved)} is already ${direction === -1 ? "first" : "last"}.`,
+    };
+  }
+
+  const next = clone(entries);
+  const [lifted] = next.splice(from, 1);
+  if (lifted !== undefined) next.splice(to, 0, lifted);
+  return {
+    entries: next,
+    announcement: `${titleOf(moved)} moved to position ${to + 1} of ${next.length}.`,
+  };
+}
+
+/**
+ * Advance a widget to its next supported width, wrapping at the end.
+ *
+ * Wrapping is right here and clamping was right above, because the two
+ * controls answer different questions: a width cycle is one button the DM
+ * presses until the widget looks right, and a dead end would just make it feel
+ * broken. There is also no hidden state to lose — every width is visible.
+ */
+export function cycleWidth(
+  entries: readonly DashboardLayoutEntry[],
+  key: string,
+): ArrangeOutcome {
+  const index = entries.findIndex((entry) => entry.key === key);
+  const entry = entries[index];
+  if (index === -1 || entry === undefined) {
+    return { entries: clone(entries), announcement: "" };
+  }
+
+  const widget = widgetById(entry.id);
+  // A widget with a single supported width has no cycle to offer. Saying so is
+  // better than a control that visibly does nothing.
+  if (widget === undefined || widget.widths.length < 2) {
+    return { entries: clone(entries), announcement: `${titleOf(entry)} has one size.` };
+  }
+
+  const at = widget.widths.indexOf(entry.width);
+  const nextWidth = widget.widths[(at + 1) % widget.widths.length];
+  if (nextWidth === undefined) return { entries: clone(entries), announcement: "" };
+
+  const next = clone(entries);
+  next[index] = { ...entry, width: nextWidth };
+  return { entries: next, announcement: `${titleOf(entry)} set to ${nextWidth} width.` };
+}
+
+/**
+ * Take a widget off the screen. Nothing is deleted — it returns to the shelf,
+ * which is why the announcement says so: a control labelled "remove" that
+ * silently destroyed a configured widget would be unforgivable once
+ * per-instance settings (#764) are real.
+ */
+export function removeEntry(
+  entries: readonly DashboardLayoutEntry[],
+  key: string,
+): ArrangeOutcome {
+  const entry = entries.find((candidate) => candidate.key === key);
+  if (entry === undefined) return { entries: clone(entries), announcement: "" };
+  return {
+    entries: clone(entries).filter((candidate) => candidate.key !== key),
+    announcement: `${titleOf(entry)} removed to the shelf.`,
+  };
+}
+
+/**
+ * Put a shelf widget on the screen, at the end where the DM is looking.
+ *
+ * Appended rather than anchored to its default position — the opposite of what
+ * the #762 merge does with a newly shipped widget, and deliberately so. There
+ * the app is introducing something unasked, so it goes where it will be seen;
+ * here the DM just clicked it, so it goes where they can act on it next.
+ */
+export function addWidget(
+  entries: readonly DashboardLayoutEntry[],
+  id: string,
+  surface: DashboardSurface,
+): ArrangeOutcome {
+  const widget = widgetById(id);
+  if (widget === undefined || !widget.surfaces.includes(surface)) {
+    return { entries: clone(entries), announcement: "" };
+  }
+
+  const placed = entries.filter((entry) => entry.id === widget.id).length;
+  if (placed >= widget.maxInstances) {
+    return {
+      entries: clone(entries),
+      announcement: `${widget.title} is already on this dashboard.`,
+    };
+  }
+
+  const next = clone(entries);
+  next.push({ key: instanceKey(entries, widget.id), id: widget.id, width: widget.defaultWidth });
+  return { entries: next, announcement: `${widget.title} added at position ${next.length}.` };
+}
+
+/**
+ * A key no entry is using.
+ *
+ * Equal to the widget id for the singleton case, which every widget is today —
+ * so layouts stay readable and match what `DEFAULT_LAYOUTS` writes. Only a
+ * second instance needs a suffix, and #764's DM-screen quick card is the first
+ * thing that will take one.
+ *
+ * Exported because `addWidget` cannot reach the suffix branch while every
+ * widget is `maxInstances: 1`, and an untestable branch is one that will be
+ * wrong on the day #764 first needs it.
+ */
+export function instanceKey(entries: readonly DashboardLayoutEntry[], id: string): string {
+  const taken = new Set(entries.map((entry) => entry.key));
+  if (!taken.has(id)) return id;
+  for (let n = 2; ; n++) {
+    const candidate = `${id}-${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+/**
+ * What the shelf offers: every widget this surface allows that the layout has
+ * no room for, in catalogue order.
+ *
+ * Driven by `maxInstances` rather than mere presence, so a future
+ * multi-instance widget stays on the shelf until its last slot is used instead
+ * of vanishing the moment one is placed.
+ */
+export function shelfWidgets(
+  entries: readonly DashboardLayoutEntry[],
+  surface: DashboardSurface,
+): DashboardWidgetDef[] {
+  const placed = new Map<string, number>();
+  for (const entry of entries) {
+    placed.set(entry.id, (placed.get(entry.id) ?? 0) + 1);
+  }
+  return DASHBOARD_WIDGETS.filter(
+    (widget) =>
+      widget.surfaces.includes(surface) && (placed.get(widget.id) ?? 0) < widget.maxInstances,
+  );
+}
+
+/**
+ * Whether this layout is already the surface's default.
+ *
+ * Compares the whole arrangement — order and widths, not just membership —
+ * because a DM who only reordered the stock widgets has still customized their
+ * screen, and offering them "Reset to default" as a no-op would be a lie.
+ * Widths are compared as saved; `settings` is not, since no widget writes it
+ * yet and an empty object must not read as a difference.
+ */
+export function isDefaultLayout(
+  entries: readonly DashboardLayoutEntry[],
+  surface: DashboardSurface,
+): boolean {
+  const defaults = DEFAULT_LAYOUTS[surface].widgets;
+  if (entries.length !== defaults.length) return false;
+  return entries.every((entry, index) => {
+    const expected = defaults[index];
+    return (
+      expected !== undefined &&
+      entry.key === expected.key &&
+      entry.id === expected.id &&
+      entry.width === expected.width
+    );
+  });
+}

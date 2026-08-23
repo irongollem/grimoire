@@ -12,6 +12,15 @@
         >
           <component :is="icon(t.type)" class="mt-0.5 h-4 w-4 shrink-0" :class="iconClass(t.type)" />
           <p class="flex-1 text-body leading-snug text-foreground">{{ t.message }}</p>
+          <AppButton
+            v-if="t.action"
+            variant="link"
+            size="inline-body"
+            class="shrink-0"
+            :label="t.action.label"
+            :aria-label="`${t.action.label}: ${t.message}`"
+            @click="t.action.run()"
+          />
           <button
             type="button"
             class="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
@@ -28,6 +37,7 @@
 
 <script setup lang="ts">
 import { watch } from "vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconClose, IconCloseCircle, IconCheckCircle, IconInfo } from "@/lib/icons";
 import { useToast, type ToastType } from "@/composables/useToast";
 

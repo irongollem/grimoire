@@ -1,4 +1,4 @@
-import { reactive } from "vue";
+import { nextTick, reactive } from "vue";
 import { shallowMount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
@@ -9,6 +9,8 @@ import NextSessionWidget from "@/components/dashboard/widgets/NextSessionWidget.
 import LiveEncounterBanner from "@/components/dashboard/widgets/LiveEncounterBanner.vue";
 import { useUiStore } from "@/stores/ui";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
+import DashboardArrangeFrame from "@/components/dashboard/DashboardArrangeFrame.vue";
+import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
 import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardSurface } from "@/lib/dashboard/widgetCatalog";
@@ -17,6 +19,9 @@ const mocks = vi.hoisted(() => ({
   route: { query: {} as Record<string, string> },
   replace: vi.fn(),
   widgetsFor: (_surface: string): DashboardLayoutEntry[] => [],
+  saveLayout: vi.fn(),
+  resetLayout: vi.fn(),
+  toastInfo: vi.fn(),
 }));
 
 vi.mock("vue-router", () => ({
@@ -33,15 +38,43 @@ vi.mock("@/composables/useDashboardLayout", async () => {
   return {
     useDashboardLayout: (surface: unknown) => ({
       widgets: computed(() => mocks.widgetsFor(toValue(surface as never))),
+      newWidgetIds: computed(() => []),
+      isCustomized: computed(() => false),
+      isSaving: computed(() => false),
+      saveLayout: mocks.saveLayout,
+      resetLayout: mocks.resetLayout,
     }),
   };
 });
 
+// The undo toast is the reset's only safety net, so the test asserts the view
+// hands one over — not that the toast system works, which useToast covers.
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({
+    info: mocks.toastInfo,
+    error: vi.fn(),
+    success: vi.fn(),
+    fromError: (e: unknown) => String(e),
+  }),
+}));
+
 let ui: ReturnType<typeof useUiStore>;
+
+/** The Arrange / Done toggle in the header's action slot. */
+const arrangeButton = (wrapper: ReturnType<typeof mountView>) =>
+  wrapper.findAllComponents({ name: "AppButton" })[0];
 
 const mountView = () =>
   shallowMount(DashboardView, {
-    global: { stubs: { PageHeader: { template: "<div><slot name='actions' /><slot /></div>" } } },
+    global: {
+      stubs: {
+        PageHeader: { template: "<div><slot name='actions' /><slot /></div>" },
+        // shallowMount stubs VueDraggable too, and a stub renders no slot — so
+        // without this the arrange grid mounts zero widgets and every arrange
+        // test passes against an empty page.
+        VueDraggable: { template: "<div><slot /></div>" },
+      },
+    },
   });
 
 describe("DashboardView", () => {
@@ -51,6 +84,9 @@ describe("DashboardView", () => {
     mocks.route.query = {};
     mocks.replace.mockReset();
     mocks.widgetsFor = (surface) => DEFAULT_LAYOUTS[surface as DashboardSurface].widgets;
+    mocks.saveLayout.mockReset();
+    mocks.resetLayout.mockReset();
+    mocks.toastInfo.mockReset();
   });
 
   // The composition follows the session, which is what finally makes starting
@@ -145,5 +181,90 @@ describe("DashboardView", () => {
     // "next-session" is part of the default prep layout but absent from the
     // saved one — a removed widget must not sneak back in.
     expect(wrapper.findComponent(WIDGET_COMPONENTS["next-session"]).exists()).toBe(false);
+  });
+
+  // #763's headline acceptance: enter arrange → move → exit → the new order is
+  // what renders. If the draft did not survive leaving the mode, a DM would
+  // watch their rearrangement snap back the moment they pressed Done.
+  it("enters arrange mode, moves a widget, and keeps the new order on exit", async () => {
+    const wrapper = mountView();
+    const frames = () => wrapper.findAllComponents(DashboardArrangeFrame);
+    expect(frames()).toHaveLength(0);
+
+    await arrangeButton(wrapper).trigger("click");
+    expect(frames()).toHaveLength(DEFAULT_LAYOUTS.prep.widgets.length);
+
+    const first = frames()[0];
+    expect(first).toBeDefined();
+    first?.vm.$emit("move", "prep-gaps", 1);
+    await nextTick();
+
+    const keys = frames().map((frame) => frame.props("entry").key);
+    expect(keys.slice(0, 2)).toEqual(["quests", "prep-gaps"]);
+
+    await arrangeButton(wrapper).trigger("click");
+    expect(frames()).toHaveLength(0);
+    // Saved on the way out rather than lost with the pending debounce.
+    expect(mocks.saveLayout).toHaveBeenCalled();
+    const saved = mocks.saveLayout.mock.calls.at(-1)?.[0] as DashboardLayoutEntry[];
+    expect(saved.map((entry) => entry.key).slice(0, 2)).toEqual(["quests", "prep-gaps"]);
+  });
+
+  // The aria-live region is the only feedback a screen-reader user gets, and
+  // the wording comes from arrangeOps so the pointer and keyboard paths cannot
+  // describe the same change differently.
+  it("announces a move through the live region", async () => {
+    const wrapper = mountView();
+    await arrangeButton(wrapper).trigger("click");
+    wrapper.findAllComponents(DashboardArrangeFrame)[0]?.vm.$emit("move", "prep-gaps", 1);
+    await nextTick();
+    expect(wrapper.find("[aria-live]").text()).toBe("Needs prep moved to position 2 of 7.");
+  });
+
+  // Removing takes the widget off the grid; nothing is deleted, so it has to
+  // come back on the shelf or the DM cannot undo their own click.
+  it("removes a widget to the shelf", async () => {
+    const wrapper = mountView();
+    await arrangeButton(wrapper).trigger("click");
+    wrapper.findAllComponents(DashboardArrangeFrame)[0]?.vm.$emit("remove", "prep-gaps");
+    await nextTick();
+
+    const keys = wrapper.findAllComponents(DashboardArrangeFrame).map((f) => f.props("entry").key);
+    expect(keys).not.toContain("prep-gaps");
+    const shelf = wrapper.findComponent(DashboardShelf);
+    expect(shelf.props("entries").map((e: DashboardLayoutEntry) => e.key)).toEqual(keys);
+  });
+
+  // Reset is destructive and answers with an undo toast rather than a confirm
+  // dialog — and the undo can only work from a snapshot the view took first,
+  // because resetLayout deletes the row outright.
+  it("resets with an undo that restores the previous arrangement", async () => {
+    const wrapper = mountView();
+    await arrangeButton(wrapper).trigger("click");
+    wrapper.findAllComponents(DashboardArrangeFrame)[0]?.vm.$emit("remove", "prep-gaps");
+    await nextTick();
+
+    wrapper.findComponent(DashboardShelf).vm.$emit("reset");
+    await nextTick();
+    expect(mocks.resetLayout).toHaveBeenCalled();
+
+    // The grid must visibly return to the defaults straight away. Re-seeding it
+    // from `widgets` instead read the layout being reset away from, because the
+    // optimistic cache write lands a microtask later — the grid did not change
+    // at all until a live check caught it.
+    const afterReset = wrapper
+      .findAllComponents(DashboardArrangeFrame)
+      .map((frame) => frame.props("entry").key);
+    expect(afterReset).toEqual(DEFAULT_LAYOUTS.prep.widgets.map((entry) => entry.key));
+
+    const [, , options] = mocks.toastInfo.mock.calls.at(-1) ?? [];
+    const action = (options as { action?: { label: string; run: () => void } } | undefined)?.action;
+    expect(action?.label).toBe("Undo");
+
+    action?.run();
+    await nextTick();
+    const restored = mocks.saveLayout.mock.calls.at(-1)?.[0] as DashboardLayoutEntry[];
+    expect(restored.map((entry) => entry.key)).not.toContain("prep-gaps");
+    expect(restored).toHaveLength(DEFAULT_LAYOUTS.prep.widgets.length - 1);
   });
 });

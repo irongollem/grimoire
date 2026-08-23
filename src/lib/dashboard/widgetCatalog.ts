@@ -147,3 +147,21 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     maxInstances: 1,
   },
 ];
+
+const BY_ID: ReadonlyMap<string, DashboardWidgetDef> = new Map(
+  DASHBOARD_WIDGETS.map((widget) => [String(widget.id), widget]),
+);
+
+/**
+ * The catalogue entry for an id, or `undefined` for one this build has never
+ * heard of — which is an ordinary outcome, not an error: a saved layout can
+ * name a widget a later deploy removed.
+ *
+ * Lives here because three modules had each built this same Map privately
+ * (`savedLayout`, `arrangeOps`, `DashboardView`), and three copies of a lookup
+ * over one registry is three places for a normalization step to land in only
+ * two of them.
+ */
+export function widgetById(id: string): DashboardWidgetDef | undefined {
+  return BY_ID.get(id);
+}

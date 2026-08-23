@@ -207,3 +207,114 @@ export function drawerTransition(duration = REVEAL_MS) {
 export function railTransition(duration = REVEAL_MS) {
   return revealTransition("inline", duration);
 }
+
+/**
+ * FLIP for a grid reorder: the elements are already in the DOM on both sides
+ * of a list mutation, and this makes the jump from "before" to "after"
+ * legible instead of a hard cut.
+ *
+ * Vue applies a reactive mutation asynchronously — a `nextTick` away — so
+ * this cannot be a single call. The site has to bracket the mutation itself,
+ * in this exact order:
+ *
+ * ```ts
+ * const snapshot = captureFlipPositions(cardEls.values());
+ * items.value = reordered;       // the mutation
+ * await nextTick();              // let Vue apply it to the DOM
+ * playFlipTransition(snapshot);  // then animate from old rects to new ones
+ * ```
+ *
+ * Only position moves. Opacity and scale are left alone — a reorder is not
+ * an appearance or a resize, and animating either would say something the
+ * interaction does not mean.
+ */
+
+/**
+ * The minimum shape `flipDelta` needs from a rect. A real `DOMRect`
+ * satisfies this structurally, but the pure function does not require one,
+ * so it stays testable with plain objects and no DOM.
+ */
+export interface FlipRect {
+  left: number;
+  top: number;
+}
+
+/**
+ * Rects captured before a mutation, keyed by the element itself so
+ * `playFlipTransition` can look each one up again once the DOM has moved.
+ */
+export type FlipSnapshot = Map<Element, FlipRect>;
+
+/**
+ * A grid reorder is a short hop between adjacent cells — less travel than
+ * AppModal's flight from a click to the centre of the screen (260ms), so a
+ * touch quicker reads as responsive rather than sluggish without becoming a
+ * flicker.
+ */
+export const FLIP_MS = 220;
+
+/**
+ * Below this, a "move" is layout rounding, not a reorder — subpixel drift
+ * that turns up even on an element whose grid position did not change.
+ * Without a floor, every mutation would play a barely-visible twitch on
+ * elements that never actually moved.
+ */
+export const FLIP_MOVE_THRESHOLD_PX = 1;
+
+/**
+ * How far an element travelled between two rects, in DOM/screen coordinates
+ * — positive `dx` is rightward, positive `dy` is downward. Both collapse to
+ * zero under `FLIP_MOVE_THRESHOLD_PX`, so an element that did not visibly
+ * move is reported as unmoved rather than animated in place.
+ *
+ * This is the raw movement, not yet a transform: `playFlipTransition`
+ * negates it to paint the element back at its `before` position before
+ * animating it to `REST_TRANSFORM`.
+ */
+export function flipDelta(before: FlipRect, after: FlipRect): { dx: number; dy: number } {
+  const dx = after.left - before.left;
+  const dy = after.top - before.top;
+  return {
+    dx: Math.abs(dx) < FLIP_MOVE_THRESHOLD_PX ? 0 : dx,
+    dy: Math.abs(dy) < FLIP_MOVE_THRESHOLD_PX ? 0 : dy,
+  };
+}
+
+/**
+ * Records where each element sits *before* the mutation that is about to
+ * move it. Call this first — a rect read after the mutation is just the
+ * "after" half of FLIP with no "before" left to animate from.
+ */
+export function captureFlipPositions(elements: Iterable<Element>): FlipSnapshot {
+  const snapshot: FlipSnapshot = new Map();
+  for (const el of elements) {
+    snapshot.set(el, el.getBoundingClientRect());
+  }
+  return snapshot;
+}
+
+/**
+ * Plays each element from its captured position to wherever it now sits.
+ * Call once the DOM reflects the mutation `captureFlipPositions` was taken
+ * before.
+ *
+ * Skips entirely under reduced motion, and per element when Web Animations
+ * is unavailable (the test DOM), the element has since left the document, or
+ * it did not move past `FLIP_MOVE_THRESHOLD_PX` — all silent no-ops rather
+ * than a thrown error, the same contract `canAnimate` gives every other
+ * animation in this module.
+ */
+export function playFlipTransition(snapshot: FlipSnapshot, duration = FLIP_MS): void {
+  if (prefersReducedMotion()) return;
+  for (const [el, before] of snapshot) {
+    if (!el.isConnected || !canAnimate(el)) continue;
+    const { dx, dy } = flipDelta(before, el.getBoundingClientRect());
+    if (dx === 0 && dy === 0) continue;
+    // Invert: paint the element where it used to be, then let it travel to
+    // REST_TRANSFORM — the only motion visible is the slide into place.
+    (el as HTMLElement).animate(
+      [{ transform: `translate(${-dx}px, ${-dy}px)` }, { transform: REST_TRANSFORM }],
+      { duration, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+    );
+  }
+}

@@ -1,5 +1,6 @@
 import {
   DASHBOARD_WIDGETS,
+  widgetById,
   type DashboardSurface,
   type DashboardWidgetDef,
   type DashboardWidgetId,
@@ -25,10 +26,6 @@ import {
 /** What a save stamps into `known`: every widget id the registry offers today. */
 export const KNOWN_WIDGET_IDS: readonly DashboardWidgetId[] = DASHBOARD_WIDGETS.map((w) => w.id);
 
-const WIDGETS_BY_ID: ReadonlyMap<string, DashboardWidgetDef> = new Map(
-  DASHBOARD_WIDGETS.map((widget) => [String(widget.id), widget]),
-);
-
 export interface MergedDashboardLayout {
   /** Render order, ready for `v-for`. Always a fresh array of fresh entries. */
   widgets: DashboardLayoutEntry[];
@@ -45,7 +42,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isWidgetId(value: string): value is DashboardWidgetId {
-  return WIDGETS_BY_ID.has(value);
+  return widgetById(value) !== undefined;
 }
 
 /** A width the widget actually supports, or the one it prefers. */
@@ -97,7 +94,7 @@ export function parseDashboardLayout(value: unknown): DashboardLayout | null {
     // one deploy wide, and the cost is one widget's position.
     if (!isWidgetId(id)) continue;
 
-    const widget = WIDGETS_BY_ID.get(id);
+    const widget = widgetById(id);
     if (widget === undefined) continue;
 
     const entry: DashboardLayoutEntry = { key, id, width: snapWidth(raw.width, widget) };
@@ -172,7 +169,7 @@ export function mergeDashboardLayout(
   const placedPerWidget = new Map<DashboardWidgetId, number>();
 
   for (const entry of saved.widgets) {
-    const widget = WIDGETS_BY_ID.get(entry.id);
+    const widget = widgetById(entry.id);
     if (widget === undefined) continue; // case 1: gone from the registry
     if (!widget.surfaces.includes(surface)) continue; // case 1: not offered here
     if (placedKeys.has(entry.key)) continue; // a duplicated key is one widget
