@@ -7,7 +7,7 @@ import {
 import { DEFAULT_LAYOUTS, type DashboardLayoutEntry } from "./defaultLayouts";
 
 /**
- * The five edits Arrange mode (#763) can make to a layout, as pure functions.
+ * The five edits Customize mode (#763) can make to a layout, as pure functions.
  *
  * Every one takes the current entries and returns new entries — no mutation,
  * no Vue, no Supabase.
@@ -41,7 +41,7 @@ function titleOf(entry: DashboardLayoutEntry): string {
   return widget === undefined ? entry.id : widget.title;
 }
 
-/** Never mutate the caller's array: Arrange mode holds the previous layout as
+/** Never mutate the caller's array: Customize mode holds the previous layout as
  *  its undo snapshot, and an in-place edit would quietly rewrite that too. */
 const clone = (entries: readonly DashboardLayoutEntry[]): DashboardLayoutEntry[] =>
   entries.map((entry) => ({ ...entry }));

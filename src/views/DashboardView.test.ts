@@ -9,8 +9,9 @@ import NextSessionWidget from "@/components/dashboard/widgets/NextSessionWidget.
 import LiveEncounterBanner from "@/components/dashboard/widgets/LiveEncounterBanner.vue";
 import { useUiStore } from "@/stores/ui";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
-import DashboardArrangeFrame from "@/components/dashboard/DashboardArrangeFrame.vue";
+import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFrame.vue";
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
+import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardSurface } from "@/lib/dashboard/widgetCatalog";
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   route: { query: {} as Record<string, string> },
   replace: vi.fn(),
   widgetsFor: (_surface: string): DashboardLayoutEntry[] => [],
+  newWidgetIds: [] as string[],
   saveLayout: vi.fn(),
   resetLayout: vi.fn(),
   toastInfo: vi.fn(),
@@ -38,7 +40,7 @@ vi.mock("@/composables/useDashboardLayout", async () => {
   return {
     useDashboardLayout: (surface: unknown) => ({
       widgets: computed(() => mocks.widgetsFor(toValue(surface as never))),
-      newWidgetIds: computed(() => []),
+      newWidgetIds: computed(() => mocks.newWidgetIds),
       isCustomized: computed(() => false),
       isSaving: computed(() => false),
       saveLayout: mocks.saveLayout,
@@ -60,8 +62,8 @@ vi.mock("@/composables/useToast", () => ({
 
 let ui: ReturnType<typeof useUiStore>;
 
-/** The Arrange / Done toggle in the header's action slot. */
-const arrangeButton = (wrapper: ReturnType<typeof mountView>) =>
+/** The Customize / Done toggle in the header's action slot. */
+const customizeButton = (wrapper: ReturnType<typeof mountView>) =>
   wrapper.findAllComponents({ name: "AppButton" })[0];
 
 const mountView = () =>
@@ -70,7 +72,7 @@ const mountView = () =>
       stubs: {
         PageHeader: { template: "<div><slot name='actions' /><slot /></div>" },
         // shallowMount stubs VueDraggable too, and a stub renders no slot — so
-        // without this the arrange grid mounts zero widgets and every arrange
+        // without this the customize grid mounts zero widgets and every customize
         // test passes against an empty page.
         VueDraggable: { template: "<div><slot /></div>" },
       },
@@ -87,6 +89,7 @@ describe("DashboardView", () => {
     mocks.saveLayout.mockReset();
     mocks.resetLayout.mockReset();
     mocks.toastInfo.mockReset();
+    mocks.newWidgetIds = [];
   });
 
   // The composition follows the session, which is what finally makes starting
@@ -186,12 +189,12 @@ describe("DashboardView", () => {
   // #763's headline acceptance: enter arrange → move → exit → the new order is
   // what renders. If the draft did not survive leaving the mode, a DM would
   // watch their rearrangement snap back the moment they pressed Done.
-  it("enters arrange mode, moves a widget, and keeps the new order on exit", async () => {
+  it("enters customize mode, moves a widget, and keeps the new order on exit", async () => {
     const wrapper = mountView();
-    const frames = () => wrapper.findAllComponents(DashboardArrangeFrame);
+    const frames = () => wrapper.findAllComponents(DashboardCustomizeFrame);
     expect(frames()).toHaveLength(0);
 
-    await arrangeButton(wrapper).trigger("click");
+    await customizeButton(wrapper).trigger("click");
     expect(frames()).toHaveLength(DEFAULT_LAYOUTS.prep.widgets.length);
 
     const first = frames()[0];
@@ -202,7 +205,7 @@ describe("DashboardView", () => {
     const keys = frames().map((frame) => frame.props("entry").key);
     expect(keys.slice(0, 2)).toEqual(["quests", "prep-gaps"]);
 
-    await arrangeButton(wrapper).trigger("click");
+    await customizeButton(wrapper).trigger("click");
     expect(frames()).toHaveLength(0);
     // Saved on the way out rather than lost with the pending debounce.
     expect(mocks.saveLayout).toHaveBeenCalled();
@@ -215,8 +218,8 @@ describe("DashboardView", () => {
   // describe the same change differently.
   it("announces a move through the live region", async () => {
     const wrapper = mountView();
-    await arrangeButton(wrapper).trigger("click");
-    wrapper.findAllComponents(DashboardArrangeFrame)[0]?.vm.$emit("move", "prep-gaps", 1);
+    await customizeButton(wrapper).trigger("click");
+    wrapper.findAllComponents(DashboardCustomizeFrame)[0]?.vm.$emit("move", "prep-gaps", 1);
     await nextTick();
     expect(wrapper.find("[aria-live]").text()).toBe("Needs prep moved to position 2 of 7.");
   });
@@ -225,11 +228,11 @@ describe("DashboardView", () => {
   // come back on the shelf or the DM cannot undo their own click.
   it("removes a widget to the shelf", async () => {
     const wrapper = mountView();
-    await arrangeButton(wrapper).trigger("click");
-    wrapper.findAllComponents(DashboardArrangeFrame)[0]?.vm.$emit("remove", "prep-gaps");
+    await customizeButton(wrapper).trigger("click");
+    wrapper.findAllComponents(DashboardCustomizeFrame)[0]?.vm.$emit("remove", "prep-gaps");
     await nextTick();
 
-    const keys = wrapper.findAllComponents(DashboardArrangeFrame).map((f) => f.props("entry").key);
+    const keys = wrapper.findAllComponents(DashboardCustomizeFrame).map((f) => f.props("entry").key);
     expect(keys).not.toContain("prep-gaps");
     const shelf = wrapper.findComponent(DashboardShelf);
     expect(shelf.props("entries").map((e: DashboardLayoutEntry) => e.key)).toEqual(keys);
@@ -240,8 +243,8 @@ describe("DashboardView", () => {
   // because resetLayout deletes the row outright.
   it("resets with an undo that restores the previous arrangement", async () => {
     const wrapper = mountView();
-    await arrangeButton(wrapper).trigger("click");
-    wrapper.findAllComponents(DashboardArrangeFrame)[0]?.vm.$emit("remove", "prep-gaps");
+    await customizeButton(wrapper).trigger("click");
+    wrapper.findAllComponents(DashboardCustomizeFrame)[0]?.vm.$emit("remove", "prep-gaps");
     await nextTick();
 
     wrapper.findComponent(DashboardShelf).vm.$emit("reset");
@@ -253,7 +256,7 @@ describe("DashboardView", () => {
     // optimistic cache write lands a microtask later — the grid did not change
     // at all until a live check caught it.
     const afterReset = wrapper
-      .findAllComponents(DashboardArrangeFrame)
+      .findAllComponents(DashboardCustomizeFrame)
       .map((frame) => frame.props("entry").key);
     expect(afterReset).toEqual(DEFAULT_LAYOUTS.prep.widgets.map((entry) => entry.key));
 
@@ -266,5 +269,21 @@ describe("DashboardView", () => {
     const restored = mocks.saveLayout.mock.calls.at(-1)?.[0] as DashboardLayoutEntry[];
     expect(restored.map((entry) => entry.key)).not.toContain("prep-gaps");
     expect(restored).toHaveLength(DEFAULT_LAYOUTS.prep.widgets.length - 1);
+  });
+
+  // A widget the surface's defaults leave off never reaches the board on its
+  // own, so without this dot it waits inside a mode the DM had no reason to
+  // open — and #762's promise that a new widget is discoverable goes unmet.
+  it("marks the Customize button when the picker holds an unseen widget", async () => {
+    expect(mountView().findComponent(EntityNewDot).props("isNew")).toBe(false);
+
+    mocks.newWidgetIds = ["session"];
+    const wrapper = mountView();
+    expect(wrapper.findComponent(EntityNewDot).props("isNew")).toBe(true);
+
+    // Inside the mode the options carry their own "New" badges, so a dot on
+    // the Done button would be pointing at nothing.
+    await customizeButton(wrapper).trigger("click");
+    expect(wrapper.findComponent(EntityNewDot).props("isNew")).toBe(false);
   });
 });

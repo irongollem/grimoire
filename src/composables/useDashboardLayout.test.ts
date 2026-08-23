@@ -203,7 +203,7 @@ describe("useDashboardLayout", () => {
     });
   });
 
-  // Arrange mode (#763) saves through on every reorder. If the grid waited for
+  // Customize mode (#763) saves through on every reorder. If the grid waited for
   // the round trip it would snap back mid-drag, which is the whole reason this
   // path is optimistic.
   it("shows the new arrangement before the write resolves", async () => {

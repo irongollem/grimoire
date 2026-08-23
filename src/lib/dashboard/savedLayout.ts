@@ -52,7 +52,7 @@ function snapWidth(width: unknown, widget: DashboardWidgetDef): WidgetWidth {
 }
 
 /**
- * Entries are handed to callers that mutate them — Arrange mode drags them
+ * Entries are handed to callers that mutate them — Customize mode drags them
  * around and cycles their width — so nothing may share structure with
  * `DEFAULT_LAYOUTS` or with the query cache's copy of the saved row.
  */
@@ -152,7 +152,7 @@ function anchorIndex(
  *    because a `wide` entry for a full-only widget renders as a broken cell.
  *
  * Case 2 turns on `known`, and that is the whole reason the field exists.
- * Arrange mode can *remove* a widget, so "absent from `widgets`" alone cannot
+ * Customize mode can *remove* a widget, so "absent from `widgets`" alone cannot
  * distinguish a deliberate removal from a widget that shipped later. Re-adding
  * the first would make removal impossible; hiding the second would make every
  * future widget undiscoverable. `known` says which of the two it is.

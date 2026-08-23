@@ -2,11 +2,11 @@
   Documentation lives in <script setup>, not here (same reason as AppButton):
   any comment at the template root becomes a sibling of the `template v-if` /
   `div v-else` pair below, which is one more root node than this component
-  actually has and would leak an HTML comment into the "not arranging" output
+  actually has and would leak an HTML comment into the "not customizing" output
   that the story requires to be byte-identical to the slot alone.
 -->
 <template>
-  <template v-if="!arranging">
+  <template v-if="!customizing">
     <slot />
   </template>
   <div v-else :class="['relative', $attrs.class]">
@@ -30,7 +30,7 @@
         variant="ghost"
         size="icon-xs"
         :icon="IconDrag"
-        :class="['dashboard-arrange-grip cursor-grab active:cursor-grabbing', ICON_TOUCH_TARGET]"
+        :class="['dashboard-customize-grip cursor-grab active:cursor-grabbing', ICON_TOUCH_TARGET]"
         aria-label="Drag to reorder"
         tooltip="Drag to reorder — arrow keys also move this widget"
         @keydown="onGripKeydown"
@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 /**
- * The per-widget overlay Arrange mode (#763) puts around every widget on the
+ * The per-widget overlay Customize mode (#763) puts around every widget on the
  * dashboard. It owns no layout arithmetic at all — `move`, `cycle-width` and
  * `remove` are emitted as intent, and `src/lib/dashboard/arrangeOps.ts`
  * (already finished, already tested) is what turns them into a new layout.
@@ -68,9 +68,9 @@
  * neither one computes a position, they both just say what happened.
  *
  * The widget itself is rendered untouched — no border, no strip, no reskin.
- * Arrange mode adds controls and nothing else, because judging a layout means
+ * Customize mode adds controls and nothing else, because judging a layout means
  * seeing the board you actually have; a frame drawn around every card makes
- * arranging look like a different page from the one being arranged.
+ * customizing look like a different page from the one being arranged.
  * The pill is anchored by its own bottom edge (`bottom-full`) rather than by a
  * fixed offset, because it is not a fixed height: `ICON_TOUCH_TARGET` grows the
  * grip to 44px below `md`, so a hard `-top-7` put it 16px *inside* the card on
@@ -79,11 +79,11 @@
  * controls float in the row gap *above* each widget rather than over it: an
  * overlay on the card covered real content (`DashboardWidget` puts its own
  * "View all →" link top-right, and `DashboardStats` is a bare row of links),
- * and the view opens the grid's row gap while arranging to make room.
+ * and the view opens the grid's row gap while customizing to make room.
  *
- * `$attrs.class` is forwarded onto the arranging root by hand, because
+ * `$attrs.class` is forwarded onto the customizing root by hand, because
  * `inheritAttrs` is off below. Without it the view's WIDTH_CLASSES never reach
- * the grid item while arranging: every widget rendered one column wide
+ * the grid item while customizing: every widget rendered one column wide
  * whatever its real width, and the width control announced a change that
  * nothing on screen made. A full-width Party widget looking identical to a
  * single cell is what makes that misleading rather than merely wrong.
@@ -100,18 +100,18 @@ import { IconClose, IconDrag, IconMoveH } from "@/lib/icons";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardWidgetDef } from "@/lib/dashboard/widgetCatalog";
 
-const { entry, widget, arranging = false } = defineProps<{
+const { entry, widget, customizing = false } = defineProps<{
   /** The layout row this frame wraps — carries the instance `key` every emit reports. */
   entry: DashboardLayoutEntry;
   /** The catalogue definition for `entry.id` — titles the placeholder, gates the width control. */
   widget: DashboardWidgetDef;
-  /** Whether Arrange mode is active. False renders only the slot — see the template. */
-  arranging?: boolean;
+  /** Whether Customize mode is active. False renders only the slot — see the template. */
+  customizing?: boolean;
 }>();
 
-// Never forwarded anywhere: the non-arranging branch has no single root for
+// Never forwarded anywhere: the non-customizing branch has no single root for
 // Vue to inherit attrs onto (it is whatever the slot itself renders), so
-// leaving inheritance on would make the *arranging* branch's wrapper div the
+// leaving inheritance on would make the *customizing* branch's wrapper div the
 // only one that ever receives a stray attribute — a difference in behaviour
 // between the two states that nothing here should depend on.
 defineOptions({ inheritAttrs: false });

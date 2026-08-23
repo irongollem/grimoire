@@ -29,8 +29,8 @@ export interface DashboardLayout {
   /**
    * Every widget id the registry offered at the moment this layout was
    * saved. Without it, a widget id missing from `widgets` is ambiguous: it
-   * could be one the DM deliberately removed in Arrange mode (#763 gives
-   * Arrange a remove control), or one that shipped after they last saved.
+   * could be one the DM deliberately removed in Customize mode (#763 gives
+   * every widget a remove control), or one that shipped after they last saved.
    * Treating the first case like the second would make removal impossible;
    * treating the second like the first would make every future widget
    * undiscoverable. `known` is what lets `mergeDashboardLayout` tell them

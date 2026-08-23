@@ -17,9 +17,9 @@ const prep = (): DashboardLayoutEntry[] =>
 const keys = (entries: readonly DashboardLayoutEntry[]) => entries.map((entry) => entry.key);
 
 describe("moveEntry", () => {
-  // The pointer path and the keyboard path must produce identical layouts, so
-  // both go through this one function; a drag that disagreed with an Arrow key
-  // would mean only one of the two routes was ever really tested.
+  // The keyboard move, and the only one that exists as a function: a pointer
+  // drag is spliced by Sortable and crosses arbitrary distance, which this
+  // deliberate single step cannot express.
   it("moves a widget one place in each direction", () => {
     const before = prep();
     const down = moveEntry(before, "quests", 1);
@@ -60,7 +60,7 @@ describe("moveEntry", () => {
     expect(result.announcement).toBe("");
   });
 
-  // Arrange mode keeps the previous layout as its undo snapshot; an in-place
+  // Customize mode keeps the previous layout as its undo snapshot; an in-place
   // edit would quietly rewrite that too and undo would restore the new state.
   it("never mutates the array it was given", () => {
     const before = prep();

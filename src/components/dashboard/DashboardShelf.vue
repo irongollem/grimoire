@@ -2,9 +2,9 @@
   <!--
     Sized to sit in `PageHeader`'s `#actions` row beside the surface toggle,
     not as a band of its own above the grid. A row above the grid pushed the
-    board down on entering Arrange mode, which is the one thing a layout editor
+    board down on entering Customize mode, which is the one thing a layout editor
     must not do: you cannot judge an arrangement that moves when you start
-    arranging it.
+    customizing it.
   -->
   <div class="flex min-w-0 items-center gap-2">
     <div class="w-44 min-w-0 sm:w-56">
@@ -51,13 +51,13 @@
 
 <script setup lang="ts">
 /**
- * Adding a widget back, in Arrange mode (#763).
+ * Adding a widget back, in Customize mode (#763).
  *
  * A picker rather than the drawer the issue described. Two reasons, both of
  * which showed up the moment it was on screen:
  *
  * 1. **A drawer changes the shape of the page.** It pushed the grid down by a
- *    couple of hundred pixels, so arrange mode and normal mode did not look
+ *    couple of hundred pixels, so customize mode and normal mode did not look
  *    like the same dashboard — which is precisely the thing a layout editor
  *    must not do, since judging a layout means seeing it where it will live.
  * 2. **The catalogue is about to get big.** #764 lists 25-plus candidate

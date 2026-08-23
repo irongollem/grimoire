@@ -126,7 +126,7 @@ export function useDashboardLayout(surface: MaybeRefOrGetter<DashboardSurface>):
     },
     onMutate: (widgets: DashboardLayoutEntry[]) => beginOptimistic(stamp(widgets)),
     onError: (cause, _widgets, context) => rollback(context, cause),
-    // Deliberately no `invalidateQueries`: Arrange mode (#763) saves through on
+    // Deliberately no `invalidateQueries`: Customize mode (#763) saves through on
     // every reorder, so a refetch per drag is exactly the flicker the optimistic
     // path exists to prevent. The server's own answer is written back instead.
     onSuccess: (row, _widgets, context) => queryClient.setQueryData(context.key, row),
@@ -171,7 +171,7 @@ export function useDashboardLayout(surface: MaybeRefOrGetter<DashboardSurface>):
  * Stamped here rather than by the caller on purpose: `known` is what lets the
  * merge tell a widget the DM removed from one that shipped afterwards, and a
  * save that forgot it would make every widget look new on the next load.
- * Arrange mode should not have to remember a field it never reads.
+ * Customize mode should not have to remember a field it never reads.
  */
 function stamp(widgets: DashboardLayoutEntry[]): DashboardLayout {
   return { widgets, known: [...KNOWN_WIDGET_IDS] };

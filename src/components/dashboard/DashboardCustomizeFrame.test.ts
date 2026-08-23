@@ -1,7 +1,7 @@
 import { defineComponent, h, nextTick } from "vue";
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
-import DashboardArrangeFrame from "./DashboardArrangeFrame.vue";
+import DashboardCustomizeFrame from "./DashboardCustomizeFrame.vue";
 import { DASHBOARD_WIDGETS } from "@/lib/dashboard/widgetCatalog";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardWidgetDef } from "@/lib/dashboard/widgetCatalog";
@@ -35,51 +35,51 @@ const CONTENT_SLOT = "<div>Widget body</div>";
 // slot actually leaves behind.
 const EMPTY_SLOT = '<div v-if="false">Widget body</div>';
 
-describe("not arranging", () => {
+describe("not customizing", () => {
   // If this regresses, every ordinary dashboard render (i.e. every DM who
-  // never opens Arrange mode) gains an extra wrapping <div> around each
+  // never opens Customize mode) gains an extra wrapping <div> around each
   // widget — invisible in a screenshot, but it changes flex/grid sizing and
   // breaks the "byte-identical to today" guarantee the story requires.
   it("renders only the slot, with no wrapper element and no controls", () => {
-    const wrapper = mount(DashboardArrangeFrame, {
+    const wrapper = mount(DashboardCustomizeFrame, {
       props: { entry: entryFor(QUESTS), widget: QUESTS },
       slots: { default: CONTENT_SLOT },
     });
     expect(wrapper.html()).toBe("<div>Widget body</div>");
-    expect(wrapper.find(".dashboard-arrange-grip").exists()).toBe(false);
+    expect(wrapper.find(".dashboard-customize-grip").exists()).toBe(false);
     expect(wrapper.findAll("button")).toHaveLength(0);
   });
 
-  // `arranging` defaults to false — a caller that forgets to pass it must not
+  // `customizing` defaults to false — a caller that forgets to pass it must not
   // accidentally leave the DM stuck in an overlay they cannot see was optional.
-  it("defaults to not arranging when the prop is omitted", () => {
-    const wrapper = mount(DashboardArrangeFrame, {
+  it("defaults to not customizing when the prop is omitted", () => {
+    const wrapper = mount(DashboardCustomizeFrame, {
       props: { entry: entryFor(QUESTS), widget: QUESTS },
       slots: { default: CONTENT_SLOT },
     });
-    expect(wrapper.find(".dashboard-arrange-grip").exists()).toBe(false);
+    expect(wrapper.find(".dashboard-customize-grip").exists()).toBe(false);
   });
 });
 
-describe("arranging — controls", () => {
+describe("customizing — controls", () => {
   // The grip is the one control every widget must get, and it is what the
   // drag container's Sortable `handle` option selects by class — if this
   // class disappears, dragging silently stops working app-wide even though
   // nothing throws.
   it("always renders a focusable grip carrying the sortable handle class", () => {
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(QUESTS), widget: QUESTS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
-    const grip = wrapper.get(".dashboard-arrange-grip");
+    const grip = wrapper.get(".dashboard-customize-grip");
     expect(grip.element.tagName).toBe("BUTTON");
   });
 
   // A widget offered at three widths gets a control that names the width it
   // is at right now, so pressing it is not a guess.
   it("shows a width control labelled with the current width for a multi-width widget", () => {
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(QUESTS), widget: QUESTS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
     expect(wrapper.text()).toContain("Cell");
@@ -89,8 +89,8 @@ describe("arranging — controls", () => {
   // rendering the control anyway would be a button that visibly does nothing,
   // which the story calls out as worse than no button at all.
   it("omits the width control entirely for a single-width widget", () => {
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(PARTY), widget: PARTY, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(PARTY), widget: PARTY, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
     expect(wrapper.findAll("button")).toHaveLength(2); // grip + remove only
@@ -100,8 +100,8 @@ describe("arranging — controls", () => {
   // "delete"-flavoured name would train the DM to expect data loss on every
   // click, which is not what this control does.
   it("gives the remove control an accessible name that does not say delete", () => {
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(QUESTS), widget: QUESTS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
     const remove = wrapper.get('[aria-label="Remove from dashboard"]');
@@ -109,11 +109,11 @@ describe("arranging — controls", () => {
   });
 });
 
-describe("arranging — emitted intent", () => {
+describe("customizing — emitted intent", () => {
   it("emits cycle-width with the entry's key, and nothing else, on click", async () => {
     const entry = entryFor(QUESTS);
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry, widget: QUESTS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry, widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
     await wrapper.get('[aria-label^="Change width"]').trigger("click");
@@ -124,8 +124,8 @@ describe("arranging — emitted intent", () => {
 
   it("emits remove with the entry's key, and nothing else, on click", async () => {
     const entry = entryFor(QUESTS);
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry, widget: QUESTS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry, widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
     await wrapper.get('[aria-label="Remove from dashboard"]').trigger("click");
@@ -139,11 +139,11 @@ describe("arranging — emitted intent", () => {
   // has to map to the correct sign.
   it("moves left/up by -1 and right/down by 1 from the focused grip", async () => {
     const entry = entryFor(QUESTS);
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry, widget: QUESTS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry, widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
-    const grip = wrapper.get(".dashboard-arrange-grip");
+    const grip = wrapper.get(".dashboard-customize-grip");
     await grip.trigger("keydown", { key: "ArrowUp" });
     await grip.trigger("keydown", { key: "ArrowLeft" });
     await grip.trigger("keydown", { key: "ArrowDown" });
@@ -161,11 +161,11 @@ describe("arranging — emitted intent", () => {
   // a widget back to the shelf at all.
   it("emits remove on Delete or Backspace from the focused grip", async () => {
     const entry = entryFor(QUESTS);
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry, widget: QUESTS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry, widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
-    const grip = wrapper.get(".dashboard-arrange-grip");
+    const grip = wrapper.get(".dashboard-customize-grip");
     await grip.trigger("keydown", { key: "Delete" });
     await grip.trigger("keydown", { key: "Backspace" });
     expect(wrapper.emitted("remove")).toEqual([[entry.key], [entry.key]]);
@@ -175,11 +175,11 @@ describe("arranging — emitted intent", () => {
   // untouched — preventDefault-ing every keystroke on the grip would trap
   // keyboard focus inside the overlay.
   it("ignores keys it does not own", async () => {
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(QUESTS), widget: QUESTS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
-    const grip = wrapper.get(".dashboard-arrange-grip");
+    const grip = wrapper.get(".dashboard-customize-grip");
     await grip.trigger("keydown", { key: "Tab" });
     expect(wrapper.emitted("move")).toBeUndefined();
     expect(wrapper.emitted("remove")).toBeUndefined();
@@ -187,17 +187,17 @@ describe("arranging — emitted intent", () => {
   });
 });
 
-describe("arranging — self-hiding widgets", () => {
+describe("customizing — self-hiding widgets", () => {
   // This is the case the whole placeholder exists for: without it, a DM who
-  // opens Arrange mode while no encounter is running sees nothing where
+  // opens Customize mode while no encounter is running sees nothing where
   // LiveEncounterBanner/RecentNpcsWidget/PinnedNotesWidget sit and has no way
   // to grab or resize them.
   // Awaited because emptiness is measured from the rendered DOM after mount,
   // not guessed from the slot's vnodes — see the component for why vnodes
   // cannot answer this question.
   it("shows a placeholder naming the widget when the slot renders nothing", async () => {
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(RECENT_NPCS), widget: RECENT_NPCS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(RECENT_NPCS), widget: RECENT_NPCS, customizing: true },
       slots: { default: EMPTY_SLOT },
     });
     await nextTick();
@@ -207,12 +207,12 @@ describe("arranging — self-hiding widgets", () => {
   });
 
   // A self-hiding widget that currently *does* have data must keep showing
-  // it while arranging — gating the placeholder on `selfHiding` instead of on
+  // it while customizing — gating the placeholder on `selfHiding` instead of on
   // the slot's real output would hide live content the DM needs to see the
   // true size of.
   it("renders the real content instead of the placeholder when the slot is not empty", () => {
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(RECENT_NPCS), widget: RECENT_NPCS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(RECENT_NPCS), widget: RECENT_NPCS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
     expect(wrapper.text()).toContain("Widget body");
@@ -231,8 +231,8 @@ describe("arranging — self-hiding widgets", () => {
       name: "SelfHidingWidget",
       setup: () => () => null,
     });
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(RECENT_NPCS), widget: RECENT_NPCS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(RECENT_NPCS), widget: RECENT_NPCS, customizing: true },
       slots: { default: () => h(SelfHidingWidget) },
     });
     await nextTick();
@@ -240,10 +240,10 @@ describe("arranging — self-hiding widgets", () => {
   });
 
   // A widget that never hides (quests always renders its DashboardWidget
-  // shell) must never show the placeholder just because arranging is on.
+  // shell) must never show the placeholder just because customizing is on.
   it("never shows the placeholder for a widget whose slot has content", () => {
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(QUESTS), widget: QUESTS, arranging: true },
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
     expect(wrapper.text()).not.toContain(QUESTS.description);
@@ -252,9 +252,9 @@ describe("arranging — self-hiding widgets", () => {
   // `inheritAttrs` is off for the fragment branch, which also silences the
   // class the view uses to set a widget's grid span. Forwarding it by hand is
   // the only thing making the width control visibly do anything.
-  it("forwards the grid-span class onto the arranging root", () => {
-    const wrapper = mount(DashboardArrangeFrame, {
-      props: { entry: entryFor(QUESTS), widget: QUESTS, arranging: true },
+  it("forwards the grid-span class onto the customizing root", () => {
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
       attrs: { class: "lg:col-span-2" },
       slots: { default: CONTENT_SLOT },
     });

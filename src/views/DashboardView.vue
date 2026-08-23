@@ -28,7 +28,7 @@
     -->
     <template #actions>
       <DashboardShelf
-        v-if="arranging"
+        v-if="customizing"
         :entries="draft"
         :surface="view"
         :new-widget-ids="newWidgetIds"
@@ -41,21 +41,35 @@
         size="sm"
         @update:model-value="(value) => selectView(value as DashboardSurface)"
       />
-      <AppButton
-        :variant="arranging ? 'primary' : 'outline'"
-        size="sm"
-        :icon="arranging ? IconCheck : IconGridView"
-        :label="arranging ? 'Done' : 'Arrange'"
-        :aria-pressed="arranging"
-        @click="toggleArranging"
-      />
+      <!--
+        The dot is the only thing that tells a DM a widget they have never seen
+        exists. A widget the surface's defaults leave off never lands on the
+        board by itself (#762's merge only re-inserts what the defaults ship
+        visible), so without this it waits inside a mode nobody had a reason to
+        open. Same idiom as the player portal's unread markers.
+      -->
+      <span class="relative inline-flex">
+        <AppButton
+          :variant="customizing ? 'primary' : 'outline'"
+          size="sm"
+          :icon="customizing ? IconCheck : IconGridView"
+          :label="customizing ? 'Done' : 'Customize'"
+          :aria-pressed="customizing"
+          @click="toggleCustomizing"
+        />
+        <EntityNewDot
+          :is-new="hasUndiscoveredWidgets"
+          class="pointer-events-none absolute -right-1 -top-1"
+          :title="`${newWidgetIds.length} new widget${newWidgetIds.length === 1 ? '' : 's'} to add`"
+        />
+      </span>
     </template>
 
     <!--
-      One grid, two behaviours. Arranging swaps the plain container for a
+      One grid, two behaviours. Customizing swaps the plain container for a
       Sortable one; the widgets themselves render identically in both, because
       judging a layout means seeing the board you actually have. `handle`
-      scopes dragging to the grip the arrange frame renders; without it the
+      scopes dragging to the grip the customize frame renders; without it the
       whole card would be a drag target and a DM could not click a link inside
       a widget.
 
@@ -75,28 +89,28 @@
       shipped unverified.
     -->
     <VueDraggable
-      v-if="arranging"
+      v-if="customizing"
       ref="gridEl"
       v-model="draft"
       class="grid grid-cols-1 lg:grid-cols-3 gap-x-4 gap-y-12 pt-12 md:gap-y-8 md:pt-8"
-      handle=".dashboard-arrange-grip"
+      handle=".dashboard-customize-grip"
       :animation="180"
       ghost-class="opacity-40"
       @end="onDragEnd"
     >
-      <DashboardArrangeFrame
+      <DashboardCustomizeFrame
         v-for="entry in draft"
         :key="entry.key"
         :entry="entry"
         :widget="widgetFor(entry)"
-        arranging
+        customizing
         :class="WIDTH_CLASSES[entry.width]"
         @move="onMove"
         @cycle-width="onCycleWidth"
         @remove="onRemove"
       >
         <component :is="WIDGET_COMPONENTS[entry.id]" />
-      </DashboardArrangeFrame>
+      </DashboardCustomizeFrame>
     </VueDraggable>
 
     <div v-else ref="gridEl" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -125,7 +139,8 @@ import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import DashboardArrangeFrame from "@/components/dashboard/DashboardArrangeFrame.vue";
+import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFrame.vue";
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import { useDashboardLayout } from "@/composables/useDashboardLayout";
@@ -173,7 +188,18 @@ const view = computed<DashboardSurface>(() => {
 
 const { widgets, newWidgetIds, saveLayout, resetLayout } = useDashboardLayout(view);
 
-const arranging = ref(false);
+const customizing = ref(false);
+
+/**
+ * Whether the picker is holding something the DM has not seen.
+ *
+ * Only while the mode is closed: once they are inside it, the "New" badges on
+ * the options themselves say which, and a dot on the Done button would be
+ * pointing at nothing.
+ */
+const hasUndiscoveredWidgets = computed(
+  () => !customizing.value && newWidgetIds.value.length > 0,
+);
 const announcement = ref("");
 const gridEl = useTemplateRef<HTMLElement | { $el: HTMLElement }>("gridEl");
 
@@ -188,13 +214,13 @@ const gridEl = useTemplateRef<HTMLElement | { $el: HTMLElement }>("gridEl");
  */
 const draft = ref<DashboardLayoutEntry[]>([]);
 
-// Leaving Arrange mode, switching surface or switching campaign all mean the
+// Leaving Customize mode, switching surface or switching campaign all mean the
 // draft is describing a layout nobody is looking at any more. Re-seed from the
 // merged layout rather than trying to carry edits across.
 watch(
-  [widgets, view, arranging],
+  [widgets, view, customizing],
   () => {
-    if (!arranging.value) draft.value = widgets.value.map((entry) => ({ ...entry }));
+    if (!customizing.value) draft.value = widgets.value.map((entry) => ({ ...entry }));
   },
   { immediate: true },
 );
@@ -220,17 +246,17 @@ function selectView(next: DashboardSurface) {
   void router.replace({ query: next === derived ? query : { ...query, view: next } });
 }
 
-function toggleArranging() {
-  arranging.value = !arranging.value;
-  if (arranging.value) {
+function toggleCustomizing() {
+  customizing.value = !customizing.value;
+  if (customizing.value) {
     draft.value = widgets.value.map((entry) => ({ ...entry }));
-    announcement.value = "Arrange mode on. Focus a widget's grip to move it with the arrow keys.";
+    announcement.value = "Customize mode on. Focus a widget's grip to move it with the arrow keys.";
     return;
   }
   // Leaving flushes rather than discards: every edit was already saved, and a
   // pending debounce that died with the mode would lose the last one silently.
   flushSave();
-  announcement.value = "Arrange mode off.";
+  announcement.value = "Customize mode off.";
 }
 
 // ── Saving ──────────────────────────────────────────────────────────────────
