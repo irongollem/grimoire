@@ -10,47 +10,17 @@
           <h1 class="font-cinzel text-xl font-bold text-gold-500 tracking-widest leading-none">Grimoire</h1>
           <p class="text-caption text-muted-foreground italic mt-1">Campaign Companion</p>
         </RouterLink>
+        <!-- The dice roller stays: it is a tool the DM reaches for, not a thing
+             that is running. The AI spinner and the green Live pill that used to
+             sit beside it have moved into the rail below, where they read as
+             what they are — things happening inside the session. -->
         <div class="flex items-center gap-1 shrink-0 pt-0.5">
           <DiceRoller />
-          <!-- AI generation in-progress spinner -->
-          <AppButton
-            v-if="isAnyAiGenerating && activeGenerator"
-            variant="tinted"
-            tone="primary"
-            emphasis="soft"
-            size="xs"
-            class="px-1.5"
-            aria-label="AI generation in progress"
-            :tooltip="currentLoadingQuote"
-            @click="activeGenerator.openPanel()"
-          >
-            <template #icon>
-              <IconLoading class="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
-            </template>
-            AI
-          </AppButton>
-          <!-- Live encounter indicator -->
-          <AppButton
-            v-if="anyRunning && firstRunning"
-            :to="`/encounters/${firstRunning.encounter_id}/run`"
-            variant="tinted"
-            tone="success"
-            emphasis="soft"
-            size="xs"
-            class="px-1.5"
-            aria-label="Live"
-            tooltip="Encounter in progress"
-          >
-            <template #icon>
-              <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-current animate-pulse" />
-            </template>
-            Live
-          </AppButton>
         </div>
       </div>
 
-      <!-- The campaign session — DM-only, full-width below the brand. -->
-      <SessionControl v-if="isDm" />
+      <!-- The campaign session and everything running inside it — DM-only. -->
+      <SessionRail v-if="isDm" />
     </div>
 
     <!-- Campaign switcher -->
@@ -222,16 +192,13 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent } from "vue";
 import { useRouter } from "vue-router";
-import { IconBilling, IconBug, IconCheck, IconClose, IconDownload, IconEdit, IconLoading, IconLogOut, IconShieldCheck, IconSort, IconUserCircle } from '@/lib/icons';
+import { IconBilling, IconBug, IconCheck, IconClose, IconDownload, IconEdit, IconLogOut, IconShieldCheck, IconSort, IconUserCircle } from '@/lib/icons';
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { onClickOutside } from "@vueuse/core";
-import { isAnyAiGenerating, getAiGeneratorRegistry } from "@/ai/aiGeneratorRegistry";
-import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAuthStore } from "@/stores/auth";
 import { useUpdateCampaignMember } from "@/composables/useCampaignMembers";
 import LegalFooterLinks from "@/components/common/LegalFooterLinks.vue";
 import { NAV_GROUPS, navItemHiddenByFlag } from "@/lib/nav";
-import { useRunningEncounters } from "@/composables/useEncounterLive";
 import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
 import { useSubscription } from "@/composables/useSubscription";
 import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
@@ -244,7 +211,7 @@ import CampaignSwitcher from "./CampaignSwitcher.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
-import SessionControl from "./SessionControl.vue";
+import SessionRail from "./SessionRail.vue";
 import ModeToggle from "./ModeToggle.vue";
 
 const auth = useAuthStore();
@@ -264,7 +231,6 @@ const userMenuRef = ref<HTMLElement | null>(null);
 
 const isDm = computed(() => auth.currentRole === "dm");
 const { isPro } = useSubscription();
-const { anyRunning, firstRunning } = useRunningEncounters();
 
 onClickOutside(userMenuRef, (e) => {
   // Ignore clicks inside a teleported modal (fixed inset-0 backdrop)
@@ -282,9 +248,6 @@ const visibleNavGroups = computed(() =>
       !navItemHiddenByFlag(item, simulacrumMode.value === "hidden"),
     ),
   })).filter((group) => group.items.length > 0),
-);
-const activeGenerator = computed(() =>
-  getAiGeneratorRegistry().find((e) => e.isGenerating.value) ?? null,
 );
 const { mutateAsync: updateMember } = useUpdateCampaignMember();
 

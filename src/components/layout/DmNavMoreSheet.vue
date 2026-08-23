@@ -21,7 +21,7 @@
     />
 
     <!-- The campaign session -->
-    <SessionControl size="md" class="mb-4" />
+    <SessionRail size="md" class="mb-4" />
 
     <!-- All sections as icon tiles, grouped by area -->
     <div class="flex flex-col gap-4">
@@ -95,7 +95,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import CampaignSwitcher from "@/components/layout/CampaignSwitcher.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
-import SessionControl from "./SessionControl.vue";
+import SessionRail from "./SessionRail.vue";
 import { IconAdd, IconBug, IconRefresh } from "@/lib/icons";
 import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
