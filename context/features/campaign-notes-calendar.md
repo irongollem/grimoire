@@ -2,16 +2,25 @@
 
 ## Dashboard (`src/views/DashboardView.vue`)
 
-Primary play-time screen. `DashboardView.vue` is **composition only** (41 lines): every widget owns its own queries and its own body, and `components/dashboard/DashboardWidget.vue` owns the card shell, the semantic tone and the height cap. Add a widget by writing it under `components/dashboard/widgets/` and dropping it into the view — never inline markup here.
+Two compositions on one route, chosen by whether a session is running (#758). `DashboardView.vue` is **composition only**: every widget owns its own queries and its own body, and `components/dashboard/DashboardWidget.vue` owns the card shell, the semantic tone and the height cap. Add a widget by writing it under `components/dashboard/widgets/` and dropping it into the view — never inline markup here.
 
-Layout (top → bottom):
+`?view=prep` / `?view=session` overrides the derived default, so a DM mid-session can check what still needs preparing without ending the table. Choosing the side the session would have picked anyway **clears** the override rather than pinning it — otherwise one toggle would freeze the page on that side for the evening. Same shape as `QuestDetailView`: derived default, explicit escape hatch.
 
-1. **`LiveEncounterBanner`** — live bar when a run is active; links to the runner. Kept alongside the sidebar's session rail because at `barnav` widths there is no sidebar, so this is the dashboard's only "combat is live".
-2. **`PartyWidget`** — full-width responsive grid. Each card: `FocalImage format="token"` portrait, HP bar, AC/PP/PI badges, conditions/curses, DM tracker buttons. Online dot via `useCampaignPresence`. `max-height="none"` — a responsive grid is its own size.
-3. **3-col row**: `QuestsWidget`, `SessionWidget`, `UnidentifiedWidget`.
-4. **`RecentNpcsWidget`** — up to 10 NPCs in visit order (`useRecentNpcs`, localStorage `grimoire_recent_npcs_<campaignId>`, cap 10, per-campaign). Visit recorded in `NpcDetailView` via `watch(id)`.
-5. **`PinnedNotesWidget`** — `is_pinned` notes, max 4, hidden when none.
-6. **`DashboardStats`** — slim 4-item strip. Deliberately not a `DashboardWidget`: it is a row of links that happen to carry a number, with no card chrome.
+That the composition follows the session is the point, not a convenience: [#758](https://github.com/irongollem/grimoire/issues/758)'s worst finding was that starting a session changed nothing visible on a laptop. It changes the page now.
+
+**At the table** — `LiveEncounterBanner`, `PartyWidget`, then `QuestsWidget` / `SessionWidget` / `UnidentifiedWidget`, then `RecentNpcsWidget` and `PinnedNotesWidget`.
+
+**Prep** — `PrepGapsWidget` / `QuestsWidget` / (`NextSessionWidget` + `UnidentifiedWidget`), then `PartyWidget` and `PinnedNotesWidget`. `LiveEncounterBanner` and `SessionWidget` are absent: in-world time and live combat are table concerns.
+
+`DashboardStats` sits under both. Deliberately not a `DashboardWidget` — it is a row of links that happen to carry a number, with no card chrome.
+
+Widget notes:
+
+- **`PartyWidget`** — `max-height="none"`; a responsive grid is its own size. Online dot via `useCampaignPresence`.
+- **`PrepGapsWidget`** — `prepGapCount` and `undispatchedLootCount` from `useQuestBoardSummaries`, neither previously visible outside the quest board. A prep gap is `deriveQuestBeatPrepGaps`, which is **broader than a deleted attachment**: missing DM guidance, missing rumor/reveal copy, an unreviewed improvised beat, a disconnected staging beat. The count cannot say which, so the copy says "not ready to run" rather than naming a cause it does not know. Gaps sort above loot — a beat that cannot run blocks the evening; an undelivered reward only disappoints afterwards.
+- **`NextSessionWidget`** — nearest non-cancelled `session_proposals` row, shown as a countdown. The deadline is the point: gaps matter *because* Thursday is coming.
+- **`RecentNpcsWidget`** — up to 10 NPCs in visit order (`useRecentNpcs`, localStorage `grimoire_recent_npcs_<campaignId>`, per-campaign). Visit recorded in `NpcDetailView` via `watch(id)`.
+- **`PinnedNotesWidget`** — `is_pinned` notes, max 4, hidden when none.
 
 ### The quests widget is one list, on purpose
 
