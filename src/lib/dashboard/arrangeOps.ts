@@ -7,7 +7,7 @@ import {
 import { DEFAULT_LAYOUTS, type DashboardLayoutEntry } from "./defaultLayouts";
 
 /**
- * The five edits Customize mode (#763) can make to a layout, as pure functions.
+ * The six edits Customize mode (#763, #764) can make to a layout, as pure functions.
  *
  * Every one takes the current entries and returns new entries — no mutation,
  * no Vue, no Supabase.
@@ -118,8 +118,10 @@ export function cycleWidth(
 /**
  * Take a widget off the screen. Nothing is deleted — it returns to the shelf,
  * which is why the announcement says so: a control labelled "remove" that
- * silently destroyed a configured widget would be unforgivable once
- * per-instance settings (#764) are real.
+ * silently destroyed a configured widget would be unforgivable, and since
+ * #764 that is no longer hypothetical — a removed DM screen card is a table
+ * the DM chose. Re-adding it from the shelf does start it fresh, though: the
+ * entry is gone, and with it its `settings`.
  */
 export function removeEntry(
   entries: readonly DashboardLayoutEntry[],
@@ -131,6 +133,35 @@ export function removeEntry(
     entries: clone(entries).filter((candidate) => candidate.key !== key),
     announcement: `${titleOf(entry)} removed to the shelf.`,
   };
+}
+
+/**
+ * Replace one instance's per-widget settings (#764).
+ *
+ * Whole-blob replacement rather than a merge, because the editor for a widget
+ * always emits the complete shape it owns. Merging would make a setting
+ * impossible to *unset*, which is exactly the bug a settings dialog grows on
+ * its second field.
+ *
+ * The announcement stays generic on purpose. Only the editor knows that
+ * `{ tableId: "cover" }` means "Cover", and threading a per-widget describer
+ * through here to say so would put widget vocabulary into the layout
+ * arithmetic — the one thing this module has stayed free of.
+ */
+export function configureEntry(
+  entries: readonly DashboardLayoutEntry[],
+  key: string,
+  settings: Record<string, unknown>,
+): ArrangeOutcome {
+  const index = entries.findIndex((entry) => entry.key === key);
+  const entry = entries[index];
+  if (index === -1 || entry === undefined) {
+    return { entries: clone(entries), announcement: "" };
+  }
+
+  const next = clone(entries);
+  next[index] = { ...entry, settings: { ...settings } };
+  return { entries: next, announcement: `${titleOf(entry)} settings updated.` };
 }
 
 /**
@@ -167,14 +198,16 @@ export function addWidget(
 /**
  * A key no entry is using.
  *
- * Equal to the widget id for the singleton case, which every widget is today —
- * so layouts stay readable and match what `DEFAULT_LAYOUTS` writes. Only a
- * second instance needs a suffix, and #764's DM-screen quick card is the first
- * thing that will take one.
+ * Equal to the widget id for the singleton case, which most widgets are — so
+ * layouts stay readable and match what `DEFAULT_LAYOUTS` writes. Only a second
+ * instance needs a suffix, and #764's DM-screen quick card is the first widget
+ * that takes one: it is `maxInstances: 6`, because a screen with one table on
+ * it is not a screen.
  *
- * Exported because `addWidget` cannot reach the suffix branch while every
- * widget is `maxInstances: 1`, and an untestable branch is one that will be
- * wrong on the day #764 first needs it.
+ * Still exported, and still tested directly. `addWidget` now does reach the
+ * suffix branch, but only through the one widget that allows a second
+ * instance — a test that went through `addWidget` would be testing the quick
+ * card's registry entry as much as this function.
  */
 export function instanceKey(entries: readonly DashboardLayoutEntry[], id: string): string {
   const taken = new Set(entries.map((entry) => entry.key));
@@ -208,13 +241,47 @@ export function shelfWidgets(
 }
 
 /**
+ * The keys a settings blob actually carries. An explicitly-`undefined` value is
+ * not a setting — it is what `JSON.stringify` would drop on the way to jsonb,
+ * so treating it as one would make a layout differ from its own round trip.
+ */
+function settingKeys(settings: Record<string, unknown> | undefined): string[] {
+  if (settings === undefined) return [];
+  return Object.keys(settings)
+    .filter((key) => settings[key] !== undefined)
+    .sort();
+}
+
+/** Whether two instances are configured the same way. Absent and `{}` agree. */
+function sameSettings(
+  a: Record<string, unknown> | undefined,
+  b: Record<string, unknown> | undefined,
+): boolean {
+  const aKeys = settingKeys(a);
+  const bKeys = settingKeys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every(
+    (key, index) =>
+      bKeys[index] === key &&
+      JSON.stringify(a === undefined ? undefined : a[key]) ===
+        JSON.stringify(b === undefined ? undefined : b[key]),
+  );
+}
+
+/**
  * Whether this layout is already the surface's default.
  *
- * Compares the whole arrangement — order and widths, not just membership —
- * because a DM who only reordered the stock widgets has still customized their
- * screen, and offering them "Reset to default" as a no-op would be a lie.
- * Widths are compared as saved; `settings` is not, since no widget writes it
- * yet and an empty object must not read as a difference.
+ * Compares the whole arrangement — order, widths and per-instance settings,
+ * not just membership — because a DM who only reordered the stock widgets has
+ * still customized their screen, and offering them "Reset to default" as a
+ * no-op would be a lie.
+ *
+ * Settings are compared as configuration rather than as objects: absent and
+ * `{}` are the same thing, and so are two blobs whose keys were written in a
+ * different order. No default layout ships a configurable widget today, so
+ * this cannot currently fire — which is precisely why it is written now, while
+ * the reasoning is in front of someone, rather than the first time a default
+ * layout gains a DM screen card and Reset silently stops offering itself.
  */
 export function isDefaultLayout(
   entries: readonly DashboardLayoutEntry[],
@@ -228,7 +295,8 @@ export function isDefaultLayout(
       expected !== undefined &&
       entry.key === expected.key &&
       entry.id === expected.id &&
-      entry.width === expected.width
+      entry.width === expected.width &&
+      sameSettings(entry.settings, expected.settings)
     );
   });
 }

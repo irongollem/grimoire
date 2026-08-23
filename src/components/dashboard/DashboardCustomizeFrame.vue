@@ -45,6 +45,17 @@
         tooltip="Cycle this widget's width"
         @click="emit('cycle-width', entry.key)"
       />
+      <!-- Only for widgets that carry per-instance settings (#764). Sits
+           before Remove so the destructive control stays last in the pill. -->
+      <AppButton
+        v-if="widget.configurable"
+        variant="ghost"
+        size="icon-xs"
+        :icon="IconSettings"
+        :aria-label="`Configure ${widget.title}`"
+        tooltip="Choose what this card shows"
+        @click="emit('configure', entry.key)"
+      />
       <AppButton
         variant="ghost"
         size="icon-xs"
@@ -60,8 +71,8 @@
 <script setup lang="ts">
 /**
  * The per-widget overlay Customize mode (#763) puts around every widget on the
- * dashboard. It owns no layout arithmetic at all — `move`, `cycle-width` and
- * `remove` are emitted as intent, and `src/lib/dashboard/arrangeOps.ts`
+ * dashboard. It owns no layout arithmetic at all — `move`, `cycle-width`,
+ * `remove` and `configure` are emitted as intent, and `src/lib/dashboard/arrangeOps.ts`
  * (already finished, already tested) is what turns them into a new layout.
  * That split is what lets the pointer-drag path (owned by the drag
  * container, a separate story) and this keyboard path agree on every edit:
@@ -96,7 +107,7 @@
 import { computed, onMounted, onUpdated, ref, useTemplateRef } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
-import { IconClose, IconDrag, IconMoveH } from "@/lib/icons";
+import { IconClose, IconDrag, IconMoveH, IconSettings } from "@/lib/icons";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import type { DashboardWidgetDef } from "@/lib/dashboard/widgetCatalog";
 
@@ -123,6 +134,9 @@ const emit = defineEmits<{
   "cycle-width": [key: string];
   /** Off the dashboard and onto the shelf — never a delete. */
   remove: [key: string];
+  /** Open this instance's settings dialog. Only ever emitted for a
+   *  `configurable` widget, since nothing else renders the control. */
+  configure: [key: string];
 }>();
 
 const slotHost = useTemplateRef<HTMLElement>("slotHost");

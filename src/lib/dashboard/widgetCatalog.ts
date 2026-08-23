@@ -25,7 +25,8 @@ export type DashboardWidgetId =
   | "recent-npcs"
   | "pinned-notes"
   | "live-encounter"
-  | "stats";
+  | "stats"
+  | "dm-screen-card";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -37,15 +38,30 @@ export interface DashboardWidgetDef {
   defaultWidth: WidgetWidth;
   /**
    * Every widget is offered on both surfaces — the prep dashboard offers the
-   * same ten widgets as the session dashboard. The prep/session split that
+   * same catalogue as the session dashboard. The prep/session split that
    * exists today lives only in which widgets `DEFAULT_LAYOUTS` happens to
    * include, not in a widget's own eligibility.
    */
   surfaces: readonly DashboardSurface[];
-  /** 1 for all ten existing widgets. */
+  /**
+   * How many copies of this widget one surface may hold. 1 for everything the
+   * dashboard shipped with; `dm-screen-card` is the first to want more, since
+   * a DM screen is several reference tables at once by definition.
+   */
   maxInstances: number;
   /** Renders nothing when its data is empty — the shelf should say so. */
   selfHiding?: true;
+  /**
+   * The instance carries per-instance `settings` (#764), so Customize mode
+   * offers it a gear and `WIDGET_SETTINGS_COMPONENTS`
+   * (components/dashboard/widgetComponents.ts) must hold an editor for it —
+   * `widgetComponents.test.ts` asserts both halves of that, in both directions.
+   *
+   * A flag rather than "does an editor exist", because this file is
+   * deliberately free of component imports: the registry has to be able to say
+   * a widget is configurable without being able to see the editor.
+   */
+  configurable?: true;
 }
 
 const BOTH_SURFACES: readonly DashboardSurface[] = ["prep", "session"];
@@ -145,6 +161,19 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "full",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "dm-screen-card",
+    title: "DM screen card",
+    description: "One reference table from the DM screen — pick which, add as many as you like.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    // Six, because that is roughly what a physical four-panel screen holds
+    // before it stops being scannable. Not a technical limit — a cap on how
+    // far a DM can bury the rest of the dashboard under reference tables.
+    maxInstances: 6,
+    configurable: true,
   },
 ];
 

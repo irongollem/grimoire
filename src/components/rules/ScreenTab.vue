@@ -26,40 +26,9 @@
           <div class="bg-muted/40 px-4 py-2.5 border-b border-border">
             <h3 class="font-cinzel text-sm font-bold text-foreground tracking-wider">{{ table.title }}</h3>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-border bg-muted/20">
-                  <th
-                    v-for="col in table.columns"
-                    :key="col"
-                    class="px-4 py-2 text-left text-label-lg font-semibold text-muted-foreground whitespace-nowrap"
-                  >
-                    {{ col }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(row, i) in table.rows"
-                  :key="i"
-                  class="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors"
-                >
-                  <td
-                    v-for="(cell, j) in row"
-                    :key="j"
-                    class="px-4 py-2.5 font-fell text-foreground align-top"
-                    :class="j === 0 ? 'font-semibold whitespace-nowrap' : ''"
-                  >
-                    {{ cell }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p v-if="table.note" class="px-4 py-2.5 text-caption text-muted-foreground italic border-t border-border/50">
-            {{ table.note }}
-          </p>
+          <!-- The table itself is shared with the dashboard's DM-screen quick
+               card (#764); only this panel's chrome is local. -->
+          <ScreenReferenceTable :table="table" />
         </div>
       </div>
     </div>
@@ -69,6 +38,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { DM_SCREEN_SECTIONS } from "@/data/dmScreen";
+import ScreenReferenceTable from "./ScreenReferenceTable.vue";
 
 const sections = DM_SCREEN_SECTIONS;
 const activeSection = ref(sections[0]?.id ?? "");

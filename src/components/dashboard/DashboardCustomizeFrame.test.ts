@@ -22,6 +22,10 @@ if (!PARTY) throw new Error("fixture widget 'party' missing from DASHBOARD_WIDGE
 const RECENT_NPCS = widgetById.get("recent-npcs");
 if (!RECENT_NPCS) throw new Error("fixture widget 'recent-npcs' missing from DASHBOARD_WIDGETS");
 
+// `dm-screen-card` is the first widget with per-instance settings (#764).
+const DM_SCREEN = widgetById.get("dm-screen-card");
+if (!DM_SCREEN) throw new Error("fixture widget 'dm-screen-card' missing from DASHBOARD_WIDGETS");
+
 const entryFor = (widget: DashboardWidgetDef): DashboardLayoutEntry => ({
   key: widget.id,
   id: widget.id,
@@ -184,6 +188,45 @@ describe("customizing — emitted intent", () => {
     expect(wrapper.emitted("move")).toBeUndefined();
     expect(wrapper.emitted("remove")).toBeUndefined();
     expect(wrapper.emitted("cycle-width")).toBeUndefined();
+  });
+});
+
+describe("customizing — configurable widgets", () => {
+  // The gear is the only route to a widget's settings, and it exists solely
+  // for widgets that declare `configurable`. On anything else it would open a
+  // dialog with nothing in it.
+  it("offers a gear only for a configurable widget", () => {
+    const configurable = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(DM_SCREEN), widget: DM_SCREEN, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    expect(configurable.find('[aria-label^="Configure"]').exists()).toBe(true);
+
+    const plain = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    expect(plain.find('[aria-label^="Configure"]').exists()).toBe(false);
+  });
+
+  it("emits the instance key, not the widget id", async () => {
+    const entry: DashboardLayoutEntry = { key: "dm-screen-card-3", id: "dm-screen-card", width: "cell" };
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry, widget: DM_SCREEN, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    await wrapper.get('[aria-label^="Configure"]').trigger("click");
+    expect(wrapper.emitted("configure")).toEqual([["dm-screen-card-3"]]);
+  });
+
+  // Remove is destructive and must stay last, whatever else joins the pill.
+  it("keeps the remove control last in the pill", () => {
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(DM_SCREEN), widget: DM_SCREEN, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    const labels = wrapper.findAll("button").map((b) => b.attributes("aria-label"));
+    expect(labels.at(-1)).toBe("Remove from dashboard");
   });
 });
 

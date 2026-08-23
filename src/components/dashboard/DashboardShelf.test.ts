@@ -92,8 +92,15 @@ describe("DashboardShelf", () => {
 
   // Says so rather than offering an empty picker, which reads as broken.
   it("says everything is placed when nothing is left to add", () => {
-    const everything = DASHBOARD_WIDGETS.filter((widget) => widget.surfaces.includes("prep")).map(
-      (widget) => ({ key: widget.id, id: widget.id, width: widget.defaultWidth }),
+    // Every instance *slot*, not one per widget: `dm-screen-card` allows six.
+    const everything = DASHBOARD_WIDGETS.filter((widget) =>
+      widget.surfaces.includes("prep"),
+    ).flatMap((widget) =>
+      Array.from({ length: widget.maxInstances }, (_unused, n) => ({
+        key: n === 0 ? widget.id : `${widget.id}-${n + 1}`,
+        id: widget.id,
+        width: widget.defaultWidth,
+      })),
     );
     const wrapper = open(everything);
     expect(optionsOf(wrapper)).toEqual([]);

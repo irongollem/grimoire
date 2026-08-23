@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addWidget,
+  configureEntry,
   cycleWidth,
   instanceKey,
   isDefaultLayout,
@@ -176,6 +177,17 @@ describe("instanceKey", () => {
   });
 });
 
+/** One entry per instance slot on a surface, keyed the way `instanceKey` keys them. */
+function everySlotFilled(surface: "prep" | "session"): DashboardLayoutEntry[] {
+  return DASHBOARD_WIDGETS.filter((w) => w.surfaces.includes(surface)).flatMap((w) =>
+    Array.from({ length: w.maxInstances }, (_unused, n) => ({
+      key: n === 0 ? w.id : `${w.id}-${n + 1}`,
+      id: w.id,
+      width: w.defaultWidth,
+    })),
+  );
+}
+
 describe("shelfWidgets", () => {
   it("offers exactly what the layout has no room for", () => {
     const onShelf = shelfWidgets(prep(), "prep").map((w) => w.id);
@@ -191,13 +203,65 @@ describe("shelfWidgets", () => {
     expect(shelfWidgets([], "session").map((w) => w.id)).toEqual(offered);
   });
 
-  it("is empty once every widget is placed", () => {
-    const everything = DASHBOARD_WIDGETS.filter((w) => w.surfaces.includes("prep")).map((w) => ({
-      key: w.id,
-      id: w.id,
-      width: w.defaultWidth,
-    }));
-    expect(shelfWidgets(everything, "prep")).toEqual([]);
+  // Every *slot* filled, not every widget placed once — `dm-screen-card` allows
+  // six, and a shelf that dropped it after the first would make the other five
+  // unreachable.
+  it("is empty once every slot is filled", () => {
+    expect(shelfWidgets(everySlotFilled("prep"), "prep")).toEqual([]);
+  });
+
+  it("keeps offering a multi-instance widget while it is under its cap", () => {
+    const multi = DASHBOARD_WIDGETS.find((w) => w.maxInstances > 1);
+    expect(multi, "no multi-instance widget to exercise").toBeDefined();
+    if (multi === undefined) return;
+    const oneShort = everySlotFilled("prep").slice(0, -1);
+    expect(shelfWidgets(oneShort, "prep").map((w) => w.id)).toEqual([multi.id]);
+  });
+});
+
+describe("configureEntry", () => {
+  it("stores a widget's settings on its own instance", () => {
+    const before = addWidget(prep(), "dm-screen-card", "prep").entries;
+    const after = configureEntry(before, "dm-screen-card", { tableId: "cover" });
+    expect(after.entries.find((e) => e.key === "dm-screen-card")?.settings).toEqual({
+      tableId: "cover",
+    });
+    expect(after.announcement).toBe("DM screen card settings updated.");
+  });
+
+  // The point of per-instance settings: two cards of the same widget, each
+  // showing something different.
+  it("leaves a sibling instance alone", () => {
+    let entries = addWidget(prep(), "dm-screen-card", "prep").entries;
+    entries = addWidget(entries, "dm-screen-card", "prep").entries;
+    entries = configureEntry(entries, "dm-screen-card", { tableId: "cover" }).entries;
+    entries = configureEntry(entries, "dm-screen-card-2", { tableId: "falling" }).entries;
+    expect(entries.map((e) => e.settings?.tableId).filter(Boolean)).toEqual(["cover", "falling"]);
+  });
+
+  // Whole-blob, not a patch — otherwise a setting could never be unset.
+  it("replaces the blob rather than merging into it", () => {
+    const before = addWidget(prep(), "dm-screen-card", "prep").entries;
+    const once = configureEntry(before, "dm-screen-card", { tableId: "cover", stale: 1 }).entries;
+    const twice = configureEntry(once, "dm-screen-card", { tableId: "falling" }).entries;
+    expect(twice.find((e) => e.key === "dm-screen-card")?.settings).toEqual({
+      tableId: "falling",
+    });
+  });
+
+  it("does not copy the caller's object into the layout", () => {
+    const before = addWidget(prep(), "dm-screen-card", "prep").entries;
+    const settings: Record<string, unknown> = { tableId: "cover" };
+    const after = configureEntry(before, "dm-screen-card", settings).entries;
+    settings.tableId = "mutated";
+    expect(after.find((e) => e.key === "dm-screen-card")?.settings).toEqual({ tableId: "cover" });
+  });
+
+  it("is a no-op for a key that is not on the dashboard", () => {
+    const before = prep();
+    const after = configureEntry(before, "not-here", { tableId: "cover" });
+    expect(after.entries).toEqual(before);
+    expect(after.announcement).toBe("");
   });
 });
 
@@ -214,5 +278,22 @@ describe("isDefaultLayout", () => {
     expect(isDefaultLayout(moveEntry(prep(), "quests", 1).entries, "prep")).toBe(false);
     expect(isDefaultLayout(cycleWidth(prep(), "quests").entries, "prep")).toBe(false);
     expect(isDefaultLayout(removeEntry(prep(), "stats").entries, "prep")).toBe(false);
+  });
+
+  // No default layout ships a configurable widget, so this cannot fire today.
+  // It is here so that the day one does, Reset does not silently stop offering
+  // itself to a DM who only changed which table a card shows.
+  it("counts a settings change as customized", () => {
+    const configured = configureEntry(prep(), "quests", { tableId: "cover" }).entries;
+    expect(isDefaultLayout(configured, "prep")).toBe(false);
+  });
+
+  // Absent, empty and explicitly-undefined all mean "not configured"; a layout
+  // must not differ from its own jsonb round trip.
+  it("reads an empty settings blob as no settings at all", () => {
+    const empty = prep().map((entry) => ({ ...entry, settings: {} }));
+    expect(isDefaultLayout(empty, "prep")).toBe(true);
+    const undef = prep().map((entry) => ({ ...entry, settings: { tableId: undefined } }));
+    expect(isDefaultLayout(undef, "prep")).toBe(true);
   });
 });

@@ -108,8 +108,9 @@
         @move="onMove"
         @cycle-width="onCycleWidth"
         @remove="onRemove"
+        @configure="onConfigure"
       >
-        <component :is="WIDGET_COMPONENTS[entry.id]" />
+        <component :is="WIDGET_COMPONENTS[entry.id]" v-bind="widgetProps(entry)" />
       </DashboardCustomizeFrame>
     </VueDraggable>
 
@@ -118,9 +119,21 @@
         :is="WIDGET_COMPONENTS[entry.id]"
         v-for="entry in widgets"
         :key="entry.key"
+        v-bind="widgetProps(entry)"
         :class="WIDTH_CLASSES[entry.width]"
       />
     </div>
+
+    <!--
+      Per-instance settings (#764). Always mounted, driven by which key is being
+      configured, so `AppModal` still gets to animate its own open — a `v-if`
+      here would mount the dialog already open and skip the transition.
+    -->
+    <DashboardWidgetSettingsModal
+      :entry="configuringEntry"
+      @save="onSaveSettings"
+      @close="configuringKey = null"
+    />
 
     <!--
       The only feedback a screen-reader user gets that anything moved. Every
@@ -142,11 +155,18 @@ import AppButton from "@/components/common/AppButton.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFrame.vue";
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
+import DashboardWidgetSettingsModal from "@/components/dashboard/DashboardWidgetSettingsModal.vue";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import { useDashboardLayout } from "@/composables/useDashboardLayout";
 import { useToast } from "@/composables/useToast";
 import { IconCheck, IconGridView } from "@/lib/icons";
-import { addWidget, cycleWidth, moveEntry, removeEntry } from "@/lib/dashboard/arrangeOps";
+import {
+  addWidget,
+  configureEntry,
+  cycleWidth,
+  moveEntry,
+  removeEntry,
+} from "@/lib/dashboard/arrangeOps";
 import { captureFlipPositions, playFlipTransition } from "@/lib/motion";
 import {
   widgetById,
@@ -204,6 +224,18 @@ const announcement = ref("");
 const gridEl = useTemplateRef<HTMLElement | { $el: HTMLElement }>("gridEl");
 
 /**
+ * Which instance's settings dialog is open (#764), or `null` for none.
+ *
+ * A key rather than an entry, because `apply` replaces the whole draft array
+ * on every edit — a held entry object would be a stale copy the moment the DM
+ * changed anything.
+ */
+const configuringKey = ref<string | null>(null);
+const configuringEntry = computed(() =>
+  draft.value.find((entry) => entry.key === configuringKey.value),
+);
+
+/**
  * The layout being edited.
  *
  * A working copy rather than writing straight through, because the save is
@@ -225,12 +257,32 @@ watch(
   { immediate: true },
 );
 
+// The dialog belongs to a widget on a board being edited. Leaving the mode or
+// switching surface means neither is on screen any more.
+watch([view, customizing], () => {
+  configuringKey.value = null;
+});
+
 function widgetFor(entry: DashboardLayoutEntry): DashboardWidgetDef {
   const widget = widgetById(entry.id);
   // Unreachable: the merge drops any entry the registry does not know before
   // it ever reaches a draft. Throwing beats rendering a frame with no title.
   if (widget === undefined) throw new Error(`No widget registered for "${entry.id}"`);
   return widget;
+}
+
+/**
+ * What a widget component is handed. Still nothing for all but the
+ * configurable ones (#764) — the view passes the layout entry's `settings`
+ * blob and knows nothing about what is in it.
+ *
+ * Bound conditionally rather than always: a widget that declares no `settings`
+ * prop would take it as a fallthrough attribute and stamp `settings="[object
+ * Object]"` onto its own root element.
+ */
+function widgetProps(entry: DashboardLayoutEntry): Record<string, unknown> {
+  if (widgetById(entry.id)?.configurable !== true) return {};
+  return { settings: entry.settings };
 }
 
 const title = computed(() => (view.value === "session" ? "At the Table" : "Campaign Dashboard"));
@@ -317,11 +369,28 @@ function onCycleWidth(key: string) {
 }
 
 function onRemove(key: string) {
+  // Cleared, not left to the computed: re-adding the same widget from the
+  // shelf mints the same instance key, and a stale one would spring its
+  // settings dialog open on a card the DM had just placed.
+  if (configuringKey.value === key) configuringKey.value = null;
   void apply(removeEntry(draft.value, key));
 }
 
 function onAdd(id: DashboardWidgetId) {
   void apply(addWidget(draft.value, id, view.value));
+}
+
+function onConfigure(key: string) {
+  configuringKey.value = key;
+}
+
+/**
+ * Applied straight to the draft, exactly like a width cycle — the dialog's
+ * "Done" closes it and does not commit. Nothing in Customize mode is
+ * provisional, and one dialog that was would be the surprise.
+ */
+function onSaveSettings(key: string, settings: Record<string, unknown>) {
+  void apply(configureEntry(draft.value, key, settings));
 }
 
 /** Sortable already mutated `draft` through `v-model`; only the write is left. */
