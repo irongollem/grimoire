@@ -1,7 +1,6 @@
 import { computed, ref, watch, onUnmounted } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/useQuestFlow";
@@ -18,7 +17,6 @@ import type { CampaignSessionState, CampaignSessionEnded } from "@/types/session
  * so `ui.dmMode` stays the cheap synchronous read the five existing consumers
  * already use. Nothing else may write that mirror — see the store.
  */
-let realtime: RealtimeChannelHandle | null = null;
 let refCount = 0;
 let stopWatcher: (() => void) | null = null;
 
@@ -32,10 +30,23 @@ const pending = ref(false);
  *  keeps broadcasting reveals at players who are not at the table. */
 export const STALE_SESSION_HOURS = 6;
 
+/**
+ * Take a row as the truth. Exported because the campaign realtime channel
+ * carries this table's events — see `useCampaignLiveSync`, which owns one
+ * subscription for every campaign-scoped table rather than one each.
+ */
+export function adoptCampaignSession(row: CampaignSessionState | null) {
+  adopt(row);
+}
+
 function adopt(row: CampaignSessionState | null) {
   session.value = row;
   loaded.value = true;
   useUiStore().sessionRunning = row?.is_running === true;
+}
+
+export async function refetchCampaignSession(campaignId: string) {
+  return fetchSession(campaignId);
 }
 
 async function fetchSession(campaignId: string) {
@@ -59,42 +70,18 @@ export function useCampaignSession() {
   const campaign = useCampaignStore();
   const queryClient = useQueryClient();
 
-  function subscribe(campaignId: string) {
-    realtime?.stop();
-    void fetchSession(campaignId);
-    realtime = createRealtimeChannel({
-      topic: `campaign_session:${campaignId}`,
-      reconcile: () => void fetchSession(campaignId),
-      bind: (channel) =>
-        channel.on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "campaign_session_state",
-            filter: `campaign_id=eq.${campaignId}`,
-          },
-          (payload) => {
-            if (campaign.activeCampaignId !== campaignId) return;
-            // DELETE arrives trimmed to the primary key under RLS, and only
-            // ever via a campaign being removed — treat it as "no session".
-            if (payload.eventType === "DELETE") return adopt(null);
-            adopt(payload.new as CampaignSessionState);
-          },
-        ),
-    });
-  }
-
+  // No channel of its own: `campaign_session_state` rides the one campaign
+  // subscription in `useCampaignLiveSync`, the way every other campaign-scoped
+  // table does. This composable owns the first read and the commands; the
+  // channel keeps the row fresh.
   refCount++;
   if (refCount === 1) {
     stopWatcher = watch(
       () => campaign.activeCampaignId,
       (campaignId) => {
-        realtime?.stop();
-        realtime = null;
         adopt(null);
         loaded.value = false;
-        if (campaignId) subscribe(campaignId);
+        if (campaignId) void fetchSession(campaignId);
       },
       { immediate: true },
     );
@@ -105,8 +92,6 @@ export function useCampaignSession() {
     if (refCount === 0) {
       stopWatcher?.();
       stopWatcher = null;
-      realtime?.stop();
-      realtime = null;
     }
   });
 

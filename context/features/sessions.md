@@ -23,7 +23,7 @@ Say **session** for the first. Do not say "play mode" — `/play` belongs to the
 
 DM-only, matching `quest_runtime_state`. Telling players the table is live would be a separate deliberate projection, not a widening of this policy — it does not exist yet.
 
-- **Composable**: `useCampaignSession()` — module-level singleton with its own realtime channel, like `useRunningEncounters`. Deliberately *not* in `useCampaignLiveSync`'s `SYNC_TABLES`: that registry maps a table to a TanStack query key for cache invalidation, and this is a plain ref with no query behind it.
+- **Composable**: `useCampaignSession()` — module-level singleton owning the first read and the commands. It has **no channel of its own**: `campaign_session_state` rides the one campaign subscription in `useCampaignLiveSync`, which calls `adoptCampaignSession()` on each event and `refetchCampaignSession()` on reconnect. It is a hand-written handler rather than a `SYNC_TABLES` entry because it feeds a store ref, not a list query — the same shape, and the same treatment, as the `campaigns` handler beside it.
 - **Store mirror**: `useUiStore().sessionRunning`, written only by the composable. `ui.dmMode` is a **read-only computed** over it, so the five consumers below keep the cheap synchronous read they always had while the only way to change it is starting or ending a session.
 - **Helpers**: `formatSessionElapsed`, `isSessionStale` (six hours), `ensureCampaignSession` (plain function — callers are event handlers, not component setups, and must not take a subscription they never release).
 

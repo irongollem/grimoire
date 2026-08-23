@@ -1,8 +1,8 @@
 # Session mode
 
-Design for [#758](https://github.com/irongollem/grimoire/issues/758). Describes
-the target model, not what ships today — today's behaviour is
-`useUiStore().dmMode`, a `localStorage` string.
+The design behind [#758](https://github.com/irongollem/grimoire/issues/758),
+shipped. `useUiStore().dmMode` survives as a **read-only computed** over the
+row below, so the five surfaces that read it never had to change.
 
 A **session** is the stretch of real time in which a DM is running the game for
 players who are present. It starts, it runs, it ends. Prep is not its opposite
@@ -26,6 +26,9 @@ Prep/Play switch traces to a cell in its column.
 
 `campaign_session_state` mirrors `encounter_state`: `campaign_id` unique,
 `user_id`, `is_running`, `started_at`, `ended_at`, one live row per campaign.
+Its events ride the shared campaign channel in `useCampaignLiveSync`, beside
+the `campaigns` handler it most resembles — one row per campaign feeding a
+store rather than a list query.
 Everything else in this document falls out of that choice — the elapsed clock,
 the cross-device consistency, the stale-session reaper, and the ability to tell
 players the table is live are all properties of the row, not features built on
@@ -37,14 +40,16 @@ separate, deliberate projection (see below) — not a widening of this policy.
 
 ## The boundary already exists on one side
 
-Issue #755 shipped `end_campaign_quest_session`, which pauses every running chain at
-its current beat and logs each pause with reason `'Session ended'` and
-provenance `'campaign-session-end'`. Its wrapper, `useEndCampaignQuestSession()`
-in `useQuestFlow.ts`, is documented as *"Closing the table for the night."*
+Issue #755 shipped `end_campaign_quest_session`, which pauses every running chain
+at its current beat and logs each pause with reason `'Session ended'` and
+provenance `'campaign-session-end'`. Its client wrapper was documented as
+*"Closing the table for the night"* and never had a caller.
 
-Nothing imports it. That is not an oversight — it is a correct implementation of
-a boundary the app does not have yet. The quest runtime already knows sessions
-end; there is nowhere to hang the control. **End session** is that call site.
+That was not an oversight — it was a correct implementation of a boundary the
+app did not have. `end_campaign_session` is that caller, and it calls the RPC
+directly rather than through the wrapper, so the cascade is atomic with the
+session ending. The wrapper is gone; only its cache invalidation survives, as
+`QUEST_RUNTIME_QUERY_KEYS`.
 
 ## The nesting
 
@@ -59,10 +64,11 @@ session                     the table is sitting there
 └── AI generation           a draft in flight
 ```
 
-One `LiveRail` renders this, showing the container and its children. It replaces
-four indicators that grew separately: `DiceRoller`, the AI-generating pill and
-the encounter `Live` pill all sit in `AppSidebar`'s brand row today, with
-`SoundboardWidgetToggle`'s active count in the top bar.
+`SessionRail` renders this, showing the container and its children. It replaced
+three indicators that had grown separately in `AppSidebar`'s brand row — the
+AI-generating pill, the encounter `Live` pill, and the soundboard's count badge
+in the top bar. `DiceRoller` stayed put: it is a tool the DM reaches for, not a
+thing that is running.
 
 `useRunningEncounters()` keeps its `anyRunning` / `firstRunning` signatures.
 Only the consumer changes.
@@ -109,11 +115,12 @@ Chat is NPCs only. Locations, items, quests and encounters have never announced;
 that was deliberate in #133 and is worth revisiting now that they are the odd
 ones out.
 
-Nothing else may write the session as a side effect. `QuestFlowStarter` and
-`QuestGeneratorPanel` do today — they force `dmMode = "prep"` so a freshly
-created flow lands on its overview — and it means improvising a quest at the
-table silently stops the broadcast. The landing surface is named directly with
-`?view=overview` instead.
+Nothing else may write the session as a side effect, and two paths used to.
+`QuestFlowStarter` and `QuestGeneratorPanel` forced `dmMode = "prep"` so a
+freshly created flow landed on its overview — so improvising a quest at the
+table stopped the broadcast. `?mode=run` forced `dmMode = "play"`, so opening a
+chain from the dashboard *started* one. Both name a surface now (`?view=` and
+`runRequested`), and `dmMode` is read-only, so neither can recur.
 
 ## Telling the DM
 
@@ -133,17 +140,18 @@ lands, which makes it the strongest available confirmation that broadcasting is
 on — and it closes the loop with the dates players confirm in
 `session_proposals`.
 
-The player portal reads the session through a player-safe projection, the way
-combat is read through `get_player_encounter_state`.
+**Not built.** A session-start announcement and a player-safe projection are
+both still open — the players learn a session is running only from the reveals
+that arrive in their chat.
 
 ## Naming
 
 Say **session**. Do not say "play mode".
 
 `/play/*` is the player portal and `userMode: "player"` is the DM/Player lens,
-whose control is `ModeToggle.vue` — one letter from `DmModeToggle.vue`, in the
-same sidebar. Three switches and two meanings of "play" is what the current
-naming produces. A DM starts a *session*; players *play*.
+whose control is `ModeToggle.vue` — which used to sit one letter from
+`DmModeToggle.vue` in the same sidebar. That second toggle is gone. A DM starts
+a *session*; players *play*.
 
 ## Related
 

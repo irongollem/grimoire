@@ -147,6 +147,6 @@ const MAX_HEIGHTS = {
   none: "",
   sm: "max-h-56",
   md: "max-h-76",
-  lg: "max-h-[32rem]",
+  lg: "max-h-76",
 } as const;
 </script>

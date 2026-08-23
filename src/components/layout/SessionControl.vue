@@ -43,7 +43,7 @@
         variant="ghost"
         size="inline"
         class="shrink-0"
-        tooltip="End session — stops any running encounter and pauses every open chain"
+        tooltip="End session"
         aria-label="End session"
         :disabled="pending"
         @click="onEnd"

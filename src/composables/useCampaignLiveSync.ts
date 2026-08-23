@@ -10,6 +10,8 @@ import {
   type RealtimeChannelHandle,
 } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
+import { adoptCampaignSession, refetchCampaignSession } from "@/composables/useCampaignSession";
+import type { CampaignSessionState } from "@/types/session.types";
 import { useAuthStore } from "@/stores/auth";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Campaign } from "@/types/campaign.types";
@@ -149,6 +151,8 @@ export function useCampaignLiveSync() {
           topic: `campaign_live_sync:${campaignId}`,
           reconcile: () => {
             for (const k of RECONCILE_KEYS) void qc.invalidateQueries({ queryKey: [k] });
+            // Not a query, so invalidation cannot reach it — re-read the row.
+            void refetchCampaignSession(campaignId);
           },
           bind: (initialChannel) => {
             let channel = initialChannel;
@@ -200,6 +204,18 @@ export function useCampaignLiveSync() {
           // and never refetches on its own — so refresh it on any inventory INSERT,
           // otherwise the item shows no weight/name/stat-block until a full reload.
               .on("postgres_changes", { event: "INSERT", schema: "public", table: "party_inventory", filter: f }, invalidate("items"))
+          // The live session (#758). Like `campaigns` below it is one row per
+          // campaign feeding a store rather than a list query, so it gets its
+          // own handler instead of a SYNC_TABLES entry — but it rides this same
+          // subscription, because a second channel per campaign buys nothing.
+              .on("postgres_changes", { event: "*", schema: "public", table: "campaign_session_state", filter: f }, (payload) => {
+                if (campaign.activeCampaignId !== campaignId) return;
+                // DELETE arrives trimmed to the primary key under RLS, and only
+                // ever when a campaign is removed — treat it as "no session".
+                adoptCampaignSession(
+                  payload.eventType === "DELETE" ? null : (payload.new as CampaignSessionState),
+                );
+              })
           // campaigns table uses `id` as the campaign identifier (not campaign_id)
               .on("postgres_changes", { event: "UPDATE", schema: "public", table: "campaigns", filter: `id=eq.${campaignId}` }, (payload) => {
                 if (campaign.activeCampaignId !== campaignId) return;
