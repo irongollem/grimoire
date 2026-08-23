@@ -140,9 +140,28 @@ lands, which makes it the strongest available confirmation that broadcasting is
 on — and it closes the loop with the dates players confirm in
 `session_proposals`.
 
-**Not built.** A session-start announcement and a player-safe projection are
-both still open — the players learn a session is running only from the reveals
-that arrive in their chat.
+Two ways, and they answer different questions.
+
+`sendCampaignAnnouncement` posts **"⚔️ The session begins."** on start — from
+the chrome control or from `goLive()`, since both begin a session. It lands
+where the consequence lands: every NPC revealed from then on posts into the
+same chat, so the message explaining the evening sits directly above them. It
+is also the strongest confirmation the DM gets that broadcasting is on, because
+it is visible to the people it affects. Re-starting an already-running session
+does not repeat it, and a failure to announce never fails the start.
+
+A message scrolls away, though, so it cannot answer *"is the DM running the
+game right now, or prepping?"* for a player who joined late or reopened the
+app. `get_player_session_state` does: a `SECURITY DEFINER` reader gated on
+`private.is_campaign_member`, returning **strictly less than the row** —
+`is_running` and `started_at`, never `user_id` or `ended_at` — and nothing at
+all once the session ends. The DM-only policy on the table is unchanged; this
+is a projection beside it, the way `get_player_encounter_state` is.
+
+The portal shows it as a quiet "Session live" in the header, deliberately not a
+control: a player can do nothing with it except know it. It yields to the
+live-encounter pill, because combat is the more urgent thing and two lit
+indicators in one corner is the mistake the DM side already made once.
 
 ## Naming
 

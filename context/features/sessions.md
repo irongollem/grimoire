@@ -61,7 +61,14 @@ The dice roller stayed in the brand row. It is a tool the DM reaches for, not a 
 
 ## Player-facing
 
-Nothing. Players see the consequence — reveals arriving in chat — never a control.
+Two signals, no controls.
+
+- **"⚔️ The session begins."** — posted by `announceSessionStart` on start, from the chrome control or from `goLive()`. Not repeated when an already-running session is re-started, and never allowed to fail the start.
+- **`get_player_session_state(uuid)`** — `SECURITY DEFINER`, gated on `private.is_campaign_member`, returning `is_running` + `started_at` only. Never `user_id` (which DM started it is not a player's business, and it is a join key into `auth.users`) and never `ended_at` (a closed session projects nothing at all — a player asks one question). The DM-only policy on the table is unchanged; this sits beside it, as `get_player_encounter_state` does for combat.
+
+Read by `usePlayerSessionState`, which **polls** at 60s rather than subscribing: the campaign channel carries this table's events only for readers RLS lets through, and a player is not one, so a subscription would deliver nothing. A session begins and ends about twice an evening.
+
+`PlayerLayout` renders it as a quiet "Session live" in the header. It yields to the live-encounter pill — combat is the more urgent thing, and two lit indicators in one corner is the mistake the DM side already made.
 
 ## DM Manual
 

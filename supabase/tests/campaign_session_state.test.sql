@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(33);
 
 -- ── Shape ────────────────────────────────────────────────────────────────────
 
@@ -13,6 +13,7 @@ select col_is_unique('public', 'campaign_session_state', array['campaign_id'],
 select has_column('public', 'campaign_session_state', 'started_at',
   'a session describes a span, which is what makes a stale one visible');
 select has_column('public', 'encounter_state', 'session_id', 'an encounter records the session it ran in');
+select has_function('public', 'get_player_session_state', array['uuid'], 'players read the session through a projection, never the row');
 
 -- ── Fixture ──────────────────────────────────────────────────────────────────
 
@@ -133,6 +134,50 @@ select isnt((select started_at from public.campaign_session_state
 select is((select ended_at from public.campaign_session_state
   where campaign_id = '75800000-0000-4000-8000-000000000010'), null,
   'restarting clears the previous end');
+
+-- ── The player projection ────────────────────────────────────────────────────
+
+-- Players cannot see `campaign_session_state` at all — the policy is DM-only,
+-- and this projection is what tells them the table is sitting. It must hand
+-- back strictly less than the row.
+
+select public.start_campaign_session('75800000-0000-4000-8000-000000000010');
+
+select set_config('request.jwt.claim.sub', '75800000-0000-4000-8000-000000000002', true);
+
+select is((select count(*)::integer from public.campaign_session_state), 0,
+  'a player still cannot read the session row itself');
+select is((select is_running from public.get_player_session_state('75800000-0000-4000-8000-000000000010')),
+  true, 'a player can learn that the table is sitting');
+select isnt((select started_at from public.get_player_session_state('75800000-0000-4000-8000-000000000010')),
+  null, 'a player learns since when, so the portal can say how long');
+select is(
+  (select count(*)::integer
+   from information_schema.columns
+   where table_name = 'campaign_session_state' and column_name in ('user_id', 'ended_at')),
+  2, 'the row carries user_id and ended_at…');
+select ok(
+  not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'get_player_session_state'
+      and (pg_get_function_result(p.oid) like '%user_id%' or pg_get_function_result(p.oid) like '%ended_at%')
+  ),
+  '…and the projection hands back neither');
+
+-- An ended session is not a running one, and the projection says nothing rather
+-- than returning a row with is_running false — a player asks one question.
+select set_config('request.jwt.claim.sub', '75800000-0000-4000-8000-000000000001', true);
+select public.end_campaign_session('75800000-0000-4000-8000-000000000010');
+select set_config('request.jwt.claim.sub', '75800000-0000-4000-8000-000000000002', true);
+select is((select count(*)::integer from public.get_player_session_state('75800000-0000-4000-8000-000000000010')),
+  0, 'a closed session projects nothing at all');
+
+-- Membership is the gate, not DM-ness — but a stranger is still a stranger.
+select set_config('request.jwt.claim.sub', '75800000-0000-4000-8000-000000000003', true);
+select throws_ok(
+  $$ select * from public.get_player_session_state('75800000-0000-4000-8000-000000000010') $$,
+  'Not authorized', 'a non-member cannot ask whether someone else''s table is sitting');
 
 -- ── Authorization ────────────────────────────────────────────────────────────
 

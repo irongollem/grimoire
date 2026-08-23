@@ -1,9 +1,10 @@
-import { computed, ref, watch, onUnmounted } from "vue";
-import { useQueryClient } from "@tanstack/vue-query";
+import { computed, ref, watch, onUnmounted, toValue, type MaybeRefOrGetter } from "vue";
+import { useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/useQuestFlow";
+import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import type { CampaignSessionState, CampaignSessionEnded } from "@/types/session.types";
 
 /**
@@ -98,13 +99,21 @@ export function useCampaignSession() {
   async function start(): Promise<void> {
     const campaignId = campaign.activeCampaignId;
     if (!campaignId || pending.value) return;
+    // Re-starting an already-running session preserves its `started_at`, so it
+    // is a no-op the DM cannot see — and announcing it again would tell the
+    // table the session began twice.
+    const wasRunning = session.value?.is_running === true
+      && session.value.campaign_id === campaignId;
     pending.value = true;
     try {
       const { data, error } = await supabase.rpc("start_campaign_session", {
         p_campaign_id: campaignId,
       });
       if (error) throw error;
-      adopt(data as CampaignSessionState);
+      const row = data as CampaignSessionState;
+      const resumed = wasRunning;
+      adopt(row);
+      if (!resumed) void announceSessionStart(campaignId);
     } finally {
       pending.value = false;
     }
@@ -144,6 +153,28 @@ export function useCampaignSession() {
 }
 
 /**
+ * Tell the table the session has begun.
+ *
+ * The announcement lands where the consequence lands: from this point every NPC
+ * the DM reveals posts itself into this same chat, so the one message that
+ * explains the rest of the evening sits directly above them. It is also the
+ * strongest confirmation the DM gets that broadcasting is on — stronger than
+ * any indicator in their own chrome, because it is visible to the people it
+ * affects.
+ *
+ * Never allowed to fail the start. A session that began without its
+ * announcement is a session; a start that failed because chat was unreachable
+ * is a DM standing at a table that will not begin.
+ */
+async function announceSessionStart(campaignId: string): Promise<void> {
+  try {
+    await sendCampaignAnnouncement(campaignId, "⚔️ The session begins.");
+  } catch (cause) {
+    console.error("The session started but could not be announced", cause);
+  }
+}
+
+/**
  * Make sure a session is running, and say whether this call is what started it.
  *
  * A DM who hits **Run** on an encounter is unambiguously at the table, so
@@ -174,6 +205,9 @@ export async function ensureCampaignSession(
   }
   const row = data as CampaignSessionState;
   adopt(row);
+  // Going live on an encounter starts the session, so the table hears about it
+  // the same way it would have from the chrome control.
+  void announceSessionStart(campaignId);
   return { id: row.id, started: true };
 }
 
@@ -209,4 +243,30 @@ export function formatSessionElapsed(
   if (Number.isNaN(started)) return "";
   const minutes = Math.max(0, Math.floor((now - started) / 60000));
   return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+/**
+ * What a player is allowed to know: whether the table is sitting, and since
+ * when. Read through `get_player_session_state`, which hands back strictly less
+ * than the row — the DM-only policy on `campaign_session_state` is unchanged.
+ *
+ * Polled rather than subscribed. The campaign realtime channel carries this
+ * table's events, but only for readers RLS lets through, and a player is not
+ * one — so a subscription would deliver nothing. A session begins and ends
+ * roughly twice an evening, so a slow poll is the honest shape.
+ */
+export function usePlayerSessionState(campaignId: MaybeRefOrGetter<string>) {
+  return useQuery({
+    queryKey: computed(() => ["player-session-state", toValue(campaignId)]),
+    queryFn: async (): Promise<{ isRunning: boolean; startedAt: string | null }> => {
+      const { data, error } = await supabase.rpc("get_player_session_state", {
+        p_campaign_id: toValue(campaignId),
+      });
+      if (error) throw error;
+      const row = (data as { is_running: boolean; started_at: string | null }[] | null)?.[0];
+      return { isRunning: row?.is_running === true, startedAt: row?.started_at ?? null };
+    },
+    enabled: () => !!toValue(campaignId),
+    refetchInterval: 60_000,
+  });
 }

@@ -21,6 +21,24 @@
         {{ characterName }}
       </span>
 
+      <!--
+        The table is sitting. Deliberately quiet and not a control: a player can
+        do nothing with this except know it, and it answers the question a
+        single chat message cannot for someone who joined late or reopened the
+        app — "is the DM running the game right now, or prepping?"
+
+        Yields to the live-encounter pill: combat is the more urgent thing, and
+        two green lights in one corner is the mistake the DM side already made.
+      -->
+      <span
+        v-if="sessionLive && !anyRunning"
+        class="hidden items-center gap-1.5 text-caption text-primary sm:inline-flex shrink-0"
+        :title="sessionSince"
+      >
+        <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" :class="{ 'animate-pulse': !reducedMotion }" />
+        Session live
+      </span>
+
       <!-- Live encounter — mobile: navigate to encounter view -->
       <AppButton
         v-if="anyRunning"
@@ -346,6 +364,8 @@ import { useCalendarStore } from "@/stores/calendar";
 import AppButton from "@/components/common/AppButton.vue";
 import DiceRoller from "@/components/common/DiceRoller.vue";
 import { usePlayerEncounterLive } from "@/composables/useEncounterLive";
+import { usePlayerSessionState, formatSessionElapsed } from "@/composables/useCampaignSession";
+import { prefersReducedMotion } from "@/lib/motion";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -418,6 +438,14 @@ const isMobile = useIsMobile();
 // stays in sync even when the player navigates away from the encounter page.
 const { liveState: playerLiveState, liveStateLoaded: runningLoaded } =
   usePlayerEncounterLive(() => campaign.activeCampaignId ?? "");
+
+const { data: playerSession } = usePlayerSessionState(() => campaign.activeCampaignId ?? "");
+const reducedMotion = prefersReducedMotion();
+const sessionLive = computed(() => playerSession.value?.isRunning === true);
+const sessionSince = computed(() => {
+  const elapsed = formatSessionElapsed(playerSession.value?.startedAt ?? null);
+  return elapsed ? `Running for ${elapsed}` : "The table is sitting";
+});
 const anyRunning = computed(() => playerLiveState.value?.is_running === true);
 const encounterLiveToast = ref(false);
 const showEncounterPanel = ref(false);
