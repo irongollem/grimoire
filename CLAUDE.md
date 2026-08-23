@@ -27,7 +27,7 @@ Same rule forward in time: no "we'll refactor later", no "we'll extract this whe
 
 ## The Overseer Pattern — the default for any significant story
 
-**Any significant story — an issue-sized feature, a multi-file refactor, anything with more than one natural work package — is executed as overseer + executors by default.** The session's model orchestrates and reviews; cheaper subagents type. This is not an optimization to reach for when asked; it is how work runs here unless one of the two exits below applies.
+**Any significant story — an issue-sized feature, a multi-file refactor, anything with more than one natural work package — is executed as overseer + executors by default.** The session's model orchestrates and reviews; cheaper subagents type. This is not an optimization to reach for when asked; it is how work runs here unless one of the two exits below applies. The full procedure (story slicing, spec template, waves, gates) is the **`/overseer` skill — invoke it when starting such a story.** Its inversion — a sonnet lead consulting Fable/Opus subagents at isolated judgment moments — is the *advisor pattern*, defined there too.
 
 **The overseer (the session's model) keeps:** recon and audits, architecture and scoping decisions, writing each executor's spec, reviewing every diff, running the gates, migrations and DB writes, git commits, GitHub issue lifecycle, and user communication.
 
