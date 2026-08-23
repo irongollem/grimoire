@@ -1,8 +1,10 @@
 import { computed, ref, watch, onUnmounted } from "vue";
+import { useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
+import { QUEST_RUNTIME_QUERY_KEYS } from "@/composables/useQuestFlow";
 import type { CampaignSessionState, CampaignSessionEnded } from "@/types/session.types";
 
 /**
@@ -55,6 +57,7 @@ async function fetchSession(campaignId: string) {
 
 export function useCampaignSession() {
   const campaign = useCampaignStore();
+  const queryClient = useQueryClient();
 
   function subscribe(campaignId: string) {
     realtime?.stop();
@@ -132,6 +135,12 @@ export function useCampaignSession() {
       });
       if (error) throw error;
       await fetchSession(campaignId);
+      // The RPC paused every open chain inside its own transaction, so every
+      // runtime view the client is holding is now stale. `useCampaignLiveQuests`
+      // would self-heal on its 5s poll; the cockpit's context would not.
+      for (const key of QUEST_RUNTIME_QUERY_KEYS) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
       return (data as CampaignSessionEnded | null) ?? { encounters_ended: 0, chains_paused: 0 };
     } finally {
       pending.value = false;

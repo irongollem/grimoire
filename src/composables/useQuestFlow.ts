@@ -35,6 +35,11 @@ const EDGES_KEY = "quest_beat_edges";
 const RUNTIME_KEY = "quest_runtime_state";
 const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
 const TRANSITIONS_KEY = "quest_beat_transitions";
+
+/** Every cache a runtime move invalidates. Exported because ending a *session*
+ *  moves the cursors too — `end_campaign_session` pauses every open chain
+ *  server-side, so the client has to be told its runtime views are stale. */
+export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY] as const;
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "quest_beat_loot";
 const OBJECTIVE_EFFECTS_KEY = "quest_objective_effects";
@@ -605,23 +610,12 @@ export function useQuestRuntimeJumpTargets(questId: string | Ref<string>, search
   });
 }
 
-/** Closing the table for the night: every running chain pauses where it stands.
- * The old campaign-wide `end` nulled the cursor, discarding suspended quests. */
-export function useEndCampaignQuestSession() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (campaignId: string): Promise<number> => {
-      const { data, error } = await supabase.rpc("end_campaign_quest_session", { p_campaign_id: campaignId });
-      if (error) throw error;
-      return (data ?? 0) as number;
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
-      queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
-      queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
-    },
-  });
-}
+// `useEndCampaignQuestSession` lived here and never had a caller. Ending the
+// table is a session boundary, not a quest one, and `end_campaign_session`
+// (#758) calls `end_campaign_quest_session` inside its own transaction — so a
+// client-side wrapper would either sit dead or double-log every pause. The
+// cache invalidation it did lives on in QUEST_RUNTIME_QUERY_KEYS above, which
+// `useCampaignSession.end()` uses.
 
 export function useQuestRuntimeCommand() {
   const queryClient = useQueryClient();
