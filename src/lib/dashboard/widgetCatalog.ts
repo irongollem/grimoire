@@ -26,7 +26,8 @@ export type DashboardWidgetId =
   | "pinned-notes"
   | "live-encounter"
   | "stats"
-  | "dm-screen-card";
+  | "dm-screen-card"
+  | "roll-table";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -173,6 +174,18 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     // before it stops being scannable. Not a technical limit — a cap on how
     // far a DM can bury the rest of the dashboard under reference tables.
     maxInstances: 6,
+    configurable: true,
+  },
+  {
+    id: "roll-table",
+    title: "Roll a table",
+    description: "Roll one of your saved tables without leaving the dashboard.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    // Fewer than the DM screen card: a roll table is a thing you reach for a
+    // few times a session, not a reference you read continuously.
+    maxInstances: 4,
     configurable: true,
   },
 ];

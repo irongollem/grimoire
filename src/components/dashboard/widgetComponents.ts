@@ -12,6 +12,8 @@ import NextSessionWidget from "@/components/dashboard/widgets/NextSessionWidget.
 import DashboardStats from "@/components/dashboard/widgets/DashboardStats.vue";
 import DmScreenCardWidget from "@/components/dashboard/widgets/DmScreenCardWidget.vue";
 import DmScreenCardSettings from "@/components/dashboard/settings/DmScreenCardSettings.vue";
+import RollTableWidget from "@/components/dashboard/widgets/RollTableWidget.vue";
+import RollTableCardSettings from "@/components/dashboard/settings/RollTableCardSettings.vue";
 
 /**
  * Maps every `DashboardWidgetId` to its component. Kept apart from
@@ -32,6 +34,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "live-encounter": LiveEncounterBanner,
   stats: DashboardStats,
   "dm-screen-card": DmScreenCardWidget,
+  "roll-table": RollTableWidget,
 };
 
 /**
@@ -50,4 +53,5 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
  */
 export const WIDGET_SETTINGS_COMPONENTS: Partial<Record<DashboardWidgetId, Component>> = {
   "dm-screen-card": DmScreenCardSettings,
+  "roll-table": RollTableCardSettings,
 };

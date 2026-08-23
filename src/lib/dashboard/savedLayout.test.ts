@@ -7,6 +7,17 @@ import {
 import { DEFAULT_LAYOUTS, type DashboardLayout, type DashboardLayoutEntry } from "./defaultLayouts";
 import { DASHBOARD_WIDGETS, type DashboardSurface, type DashboardWidgetId } from "./widgetCatalog";
 
+/**
+ * An id no catalogue issue will ever ship.
+ *
+ * These tests used to say `"roll-table"`, which read as safely fictional right
+ * up until #764 shipped a widget by that name and three assertions inverted
+ * silently. A stand-in for "the registry has dropped this" has to be something
+ * nobody would plausibly name a widget.
+ */
+const RETIRED_WIDGET_ID = "widget-retired-in-a-later-deploy";
+
+
 const SURFACES = ["prep", "session"] as const satisfies readonly DashboardSurface[];
 
 const keysOf = (widgets: readonly DashboardLayoutEntry[]) => widgets.map((entry) => entry.key);
@@ -64,7 +75,7 @@ describe("parseDashboardLayout", () => {
     const parsed = parseDashboardLayout({
       widgets: [
         { key: "quests", id: "quests", width: "cell" },
-        { key: "roll-table", id: "roll-table", width: "cell" },
+        { key: RETIRED_WIDGET_ID, id: RETIRED_WIDGET_ID, width: "cell" },
         { key: "party", id: "party", width: "full" },
       ],
     });
@@ -90,7 +101,7 @@ describe("parseDashboardLayout", () => {
 
   it("filters known down to ids the registry still has, and tolerates its absence", () => {
     expect(
-      parseDashboardLayout({ widgets: [], known: ["quests", "roll-table", 7] })?.known,
+      parseDashboardLayout({ widgets: [], known: ["quests", RETIRED_WIDGET_ID, 7] })?.known,
     ).toEqual(["quests"]);
     expect(parseDashboardLayout({ widgets: [] })?.known).toBeUndefined();
   });

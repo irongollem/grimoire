@@ -269,24 +269,8 @@
             @click="onRoll"
           />
 
-          <div v-if="lastRoll" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-1.5">
-            <div class="flex items-center justify-between">
-              <span class="text-eyebrow font-semibold text-muted-foreground">Result</span>
-              <span class="text-title font-bold text-primary">{{ lastRoll.rolled }}</span>
-            </div>
-            <template v-if="lastRoll.entry">
-              <div class="font-cinzel text-sm text-foreground font-bold">{{ lastRoll.entry.label }}</div>
-              <AppButton
-                v-if="lastRoll.entry.encounter_id"
-                variant="link"
-                size="inline"
-                label="Open encounter →"
-                :to="`/encounters/${lastRoll.entry.encounter_id}`"
-              />
-              <p v-if="lastRoll.entry.notes" class="text-caption text-muted-foreground italic mt-1">{{ lastRoll.entry.notes }}</p>
-            </template>
-            <p v-else class="text-caption text-muted-foreground italic">No entry covers this result.</p>
-          </div>
+          <!-- Shared with the dashboard's roll-table widget (#764). -->
+          <RollTableResult v-if="lastRoll" :result="lastRoll" />
 
           <p class="text-caption-sm text-muted-foreground italic">
             {{ rollableEntries.length }} entries · die range 1–{{ dieMax }}
@@ -318,6 +302,7 @@ import {
   type RollTableInsert,
 } from "@/types/rollTable.types";
 import { rollOnTable, type RollTableRollResult } from "@/lib/rollTableRoll";
+import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

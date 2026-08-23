@@ -12,6 +12,17 @@ import {
 import { DEFAULT_LAYOUTS, type DashboardLayoutEntry } from "./defaultLayouts";
 import { DASHBOARD_WIDGETS } from "./widgetCatalog";
 
+/**
+ * An id no catalogue issue will ever ship.
+ *
+ * These tests used to say `"roll-table"`, which read as safely fictional right
+ * up until #764 shipped a widget by that name and three assertions inverted
+ * silently. A stand-in for "the registry has dropped this" has to be something
+ * nobody would plausibly name a widget.
+ */
+const RETIRED_WIDGET_ID = "widget-retired-in-a-later-deploy";
+
+
 const prep = (): DashboardLayoutEntry[] =>
   DEFAULT_LAYOUTS.prep.widgets.map((entry) => ({ ...entry }));
 
@@ -132,7 +143,7 @@ describe("addWidget", () => {
   });
 
   it("refuses an unknown widget id", () => {
-    expect(keys(addWidget(prep(), "roll-table", "prep").entries)).toEqual(keys(prep()));
+    expect(keys(addWidget(prep(), RETIRED_WIDGET_ID, "prep").entries)).toEqual(keys(prep()));
   });
 
   // Derived from the registry rather than hard-coded, so it starts
@@ -211,11 +222,13 @@ describe("shelfWidgets", () => {
   });
 
   it("keeps offering a multi-instance widget while it is under its cap", () => {
-    const multi = DASHBOARD_WIDGETS.find((w) => w.maxInstances > 1);
-    expect(multi, "no multi-instance widget to exercise").toBeDefined();
-    if (multi === undefined) return;
-    const oneShort = everySlotFilled("prep").slice(0, -1);
-    expect(shelfWidgets(oneShort, "prep").map((w) => w.id)).toEqual([multi.id]);
+    const full = everySlotFilled("prep");
+    const dropped = full.at(-1);
+    expect(dropped, "no entries to drop").toBeDefined();
+    if (dropped === undefined) return;
+    // Freeing one slot of whichever widget owns the last one must put exactly
+    // that widget back on the shelf, and nothing else.
+    expect(shelfWidgets(full.slice(0, -1), "prep").map((w) => w.id)).toEqual([dropped.id]);
   });
 });
 
