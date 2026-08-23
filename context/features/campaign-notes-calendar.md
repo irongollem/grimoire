@@ -2,20 +2,31 @@
 
 ## Dashboard (`src/views/DashboardView.vue`)
 
-Primary play-time screen. Layout (top → bottom):
+Primary play-time screen. `DashboardView.vue` is **composition only** (41 lines): every widget owns its own queries and its own body, and `components/dashboard/DashboardWidget.vue` owns the card shell, the semantic tone and the height cap. Add a widget by writing it under `components/dashboard/widgets/` and dropping it into the view — never inline markup here.
 
-1. **Encounter banner** — live green bar when a run is active; links to runner.
-2. **Party grid** — full-width, responsive `grid-cols-1 md:grid-cols-2 xl:grid-cols-3`. Each card: `FocalImage format="token"` portrait (placeholder `/assets/placeholders/character.webp`), HP bar, AC/PP/PI badges, conditions/curses, DM tracker buttons. Online dot via `useCampaignPresence`.
-3. **3-col row**:
-   - *In progress* (`components/dashboard/DashboardInProgressQuests.vue`) — every chain the party has open, from `get_campaign_live_quests`, each row linking straight into Run. Running and paused are **separated, not merged**: after `end_campaign_quest_session` every chain is paused at its beat, so the paused set is the normal between-sessions view and a panel calling all of it live would claim the party is mid-scene in six quests on a Sunday afternoon. Rows are `components/quests/QuestChainRow.vue`, shared with the cockpit's "Also open" rail. Distinct from *Active Quests* below: that is the kanban lane, this is where the party actually is.
-   - *Active Quests* — compact list (title + giver, max 6), no tags/summary. Reads `quests.status`, which a runtime cursor now promotes on arrival (`20260822232041`, one-way: never demotes, never reopens a completed or failed verdict), so a quest being played can no longer be missing from this list.
-   - *Session panel* — Game Day inline editor (`useSetCampaignToday` — `± Day` buttons + arbitrary date form using `calendarStore.adapter.months`); Current Location `EntityCombobox` (`useSetCampaignLocation` → `campaigns.current_location_id`); DM-only "Sync to party →" button (`useSyncPartyLocation` — batch updates all `party_members.current_location_id`).
-   - *DM tools* — Unidentified items (amber, always open) + Rumour quests (chip strip).
-4. **Recent NPCs strip** — horizontal scrollable row of up to 10 NPCs in visit order. Driven by `useRecentNpcs` composable (localStorage key `grimoire_recent_npcs_<campaignId>`, cap 10, per-campaign). Visit recorded in `NpcDetailView` via `watch(id)`.
-5. **Pinned Notes** — only `is_pinned` notes, max 4, hidden when none.
-6. **Stats strip** — slim 4-item row (Active Quests / NPCs / Encounters / Locations) linking to each list view.
+Layout (top → bottom):
 
-> **Pending refactor.** [#759](https://github.com/irongollem/grimoire/issues/759) splits this page into a session view and a prep view, keyed on the campaign session from [#758](https://github.com/irongollem/grimoire/issues/758). *In progress* belongs to the session half and the paused chains it lists belong to the prep half. The file is at 597 lines against a 600 soft max, so new cards go in `components/dashboard/` — do not add inline markup here.
+1. **`LiveEncounterBanner`** — live bar when a run is active; links to the runner. Kept alongside the sidebar's session rail because at `barnav` widths there is no sidebar, so this is the dashboard's only "combat is live".
+2. **`PartyWidget`** — full-width responsive grid. Each card: `FocalImage format="token"` portrait, HP bar, AC/PP/PI badges, conditions/curses, DM tracker buttons. Online dot via `useCampaignPresence`. `max-height="none"` — a responsive grid is its own size.
+3. **3-col row**: `QuestsWidget`, `SessionWidget`, `UnidentifiedWidget`.
+4. **`RecentNpcsWidget`** — up to 10 NPCs in visit order (`useRecentNpcs`, localStorage `grimoire_recent_npcs_<campaignId>`, cap 10, per-campaign). Visit recorded in `NpcDetailView` via `watch(id)`.
+5. **`PinnedNotesWidget`** — `is_pinned` notes, max 4, hidden when none.
+6. **`DashboardStats`** — slim 4-item strip. Deliberately not a `DashboardWidget`: it is a row of links that happen to carry a number, with no card chrome.
+
+### The quests widget is one list, on purpose
+
+`QuestsWidget` had three predecessors — *In progress* (chains with a live cursor), *Active Quests* (the kanban lane) and *Rumors*. All three read the same data, each stood mostly empty, and a quest being played appeared in two at once.
+
+Two wrong answers were tried before the right one, and both are worth not repeating:
+
+- **Stacking** them as three sections of one card only moved the duplicate next to its twin.
+- **Grouping** by stage under headings looks right until quests are properly built out — at which point every active quest holds a cursor, so *Party is here* and *Active* list the same quests under two headings, and the heading repeats what the row's own badge says.
+
+So `lib/dashboard/questRows.ts` merges every reading into **one row per quest**, sorted `here → paused → active → rumor`, and the widget renders a flat list. A cursor always wins over the lane: where the party is standing is the strongest thing you can say about a quest, and it carries the beat, which beats the giver at a glance. `DashboardQuestRow` never changes shape between stages — a rumor and an active quest are one thing at two points of its life, so only the dot and the trailing label differ.
+
+Guarantee held in `questRows.test.ts`: `end_campaign_quest_session` pauses every open chain when a session ends, so "has a cursor" must never render as "the party is here".
+
+`SessionWidget` is in-world time and place (Game Day via `useSetCampaignToday`; Current Location via `useSetCampaignLocation`; DM-only "Sync to party →" via `useSyncPartyLocation`). It is **not** the live session of [#758](https://github.com/irongollem/grimoire/issues/758) — game-world time advances whether or not the table is sitting.
 
 ### Key composables used
 

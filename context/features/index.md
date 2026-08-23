@@ -27,6 +27,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | [publishing-tools.md](publishing-tools.md)               | Scriptorium (document publisher), Card Forge (MTG/Tarot print), The Mint (tokens+coins), Illuminator, Reliquary                                  |
 | [player-portal.md](player-portal.md)                     | The full player experience: all /play/\* views, layout, nav, live encounter panel, DM Preview Mode                                               |
 | [collaboration.md](collaboration.md)                     | Multi-user invite system, campaign members, DM/player roles, live sync, RLS security model                                                       |
+| [sessions.md](sessions.md)                               | The campaign session: starting and ending the table, what changes while it runs, the live rail, and how encounters and quest chains nest inside |
 | [soundboard.md](soundboard.md)                           | Soundboard: HTML/Web Audio engine, pages/playlists, five sound sources, Spotify/Cast/Media Session, free-tier quotas — DM-only, no player access |
 | [notifications.md](notifications.md)                     | Player email notifications (note shared, session date proposed), per-user opt-out, send-notification-email edge function + Resend setup          |
 
@@ -171,7 +172,7 @@ a heading never appears over an empty grid.
 - **Puzzles** — DM controls hint reveals per-hint; `read_aloud` field; player portal receives realtime updates via Supabase Realtime; `shared_hints[]` array with per-hint Eye toggle
 - **Roll Tables** — range-based entries; overlap validation; optional Encounter entity link
 - **Loot Tables** — 3 entry types (specific item, currency pool, random-by-rarity); drop chance per entry; "Drop chest in chat" posts claimable loot atoms with claims cap; AI generator grounded in the DM's own vault with a tier-derived rarity band (#602)
-- **Cartographer** _(spec, not yet built)_ — tile-based battle map editor on an infinite canvas; versioned WebP tile packs with schema-validated category slots; per-brush theme switching; **edge-based walls** (thin partitions) coexisting with a **`solidBlock` layer** (thick masonry) so the builder controls wall thickness; cell-level entity links (traps, encounters, NPCs); bakes to Atlas location maps; data preserved for a future in-app VTT
+- **Cartographer** *(spec, not yet built)* — tile-based battle map editor on an infinite canvas; versioned WebP tile packs with schema-validated category slots; per-brush theme switching; **edge-based walls** (thin partitions) coexisting with a **`solidBlock` layer** (thick masonry) so the builder controls wall thickness; cell-level entity links (traps, encounters, NPCs); bakes to Atlas location maps; data preserved for a future in-app VTT
 
 ### Publishing & Output Tools (desktop-only)
 
@@ -229,7 +230,7 @@ When working on any feature:
 
 Any composable merging `library_*` rows with a user's own must take its source slugs from **`useLibrarySourceSlugs()`** (`useEnabledSources.ts`). Do not write `enabledQuery.data.value?.map(e => e.source_slug) ?? null` again.
 
-That line looks self-evidently correct and is wrong in one case. `useEnabledSources` is _disabled_ when there is no active campaign, so its data never arrives, the slug list sits at `null` forever, and the library query — gated on `!== null` — never runs. Every shared-content surface is then silently empty for a user who belongs to no campaign, which standalone play (#730) made an ordinary state rather than an edge case.
+That line looks self-evidently correct and is wrong in one case. `useEnabledSources` is *disabled* when there is no active campaign, so its data never arrives, the slug list sits at `null` forever, and the library query — gated on `!== null` — never runs. Every shared-content surface is then silently empty for a user who belongs to no campaign, which standalone play (#730) made an ordinary state rather than an edge case.
 
 Six call sites had written that computed by hand and exactly one remembered the standalone case. The other five were empty for campaign-less users: no spells, items, monsters or species. It stayed invisible because nothing errors — the query simply never fires — and because the account you would naturally test on always has a campaign. It surfaced only when it collided with the level-up wizard's mandatory spell picks and produced a level-up that could never be confirmed (#736), which a real user reported (#737).
 

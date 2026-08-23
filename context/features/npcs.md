@@ -56,7 +56,7 @@ Every card has an eye/eye-off button that opens an inline popover (Teleported to
 - Toggle visibility per individual party member.
 - Remove from all players ("Hide from all players").
 
-When an NPC becomes visible to a player for the first time while the DM is in **Play mode**, a narrative event fires to the campaign chat: _"The party encounters [name]."_ or _"[Player] encounters [name]."_
+When an NPC becomes visible to a player for the first time while a **session is running** (#758), a narrative event fires to the campaign chat: _"The party encounters [name]."_ or _"[Player] encounters [name]."_
 
 ### Header Actions
 
@@ -217,7 +217,7 @@ When an NPC is shared with at least one player, a panel appears at the top of th
 
 The read-only sheet uses a two-column layout (portrait column fixed 208 px, content column scrolls).
 
-Left column: portrait (portrait format), status + relationship badges, tags, faction links (clickable), alter-ego section with a quick Reveal/Conceal toggle (saves immediately, no edit-mode required; fires a chat event on reveal in Play mode).
+Left column: portrait (portrait format), status + relationship badges, tags, faction links (clickable), alter-ego section with a quick Reveal/Conceal toggle (saves immediately, no edit-mode required; fires a chat event on reveal while a session is running).
 
 Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / Inventory / Relations / Combat / Voice tabs. The Relations tab embeds both `NpcRelationsSection` (NPC↔NPC) and `NpcPcNotesSection` (NPC↔party-member connections) so both are visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
 
@@ -304,7 +304,7 @@ query after that.
 `FACTION_GATHER_RADIUS` (190) from their faction's centre are pulled, and only
 by the excess. That rest distance is the design: without one the force is a
 spring with zero rest length, and it collapses members onto each other until
-`forceCollide` physically stops it. Measured, that put co-members *closer* than
+`forceCollide` physically stops it. Measured, that put co-members _closer_ than
 people with an actual relationship (118 vs 147) — a shared banner reading as a
 stronger tie than knowing someone. Lowering the strength did not help and could
 not, since strength changes how fast a spring closes, not where it stops.
@@ -330,7 +330,7 @@ groups that could no longer appear and coloured them with hexes nothing was pain
 | Search input               | Filters nodes by NPC name or disguise name; selected/linked nodes are pinned visible |
 | Party Members toggle       | Shows/hides PC nodes and their edges                                                 |
 | Location dropdown          | `EntityCombobox`, not a select — a campaign carries hundreds of locations. Shows only NPCs there (including descendants) |
-| Relationship type dropdown | Shows only edges of that type (considering inverse). Distinct from the legend: this narrows the *edges* by what two people are to each other, the legend narrows the *people* by how they regard the party |
+| Relationship type dropdown | Shows only edges of that type (considering inverse). Distinct from the legend: this narrows the _edges_ by what two people are to each other, the legend narrows the _people_ by how they regard the party |
 | Legend                     | One swatch per relationship, built from `NPC_RELATIONSHIP_LABELS` + the ramp tokens. **Clickable**: shows only NPCs of that attitude, click again to release. Unselected swatches fade, the same grammar the faction focus uses |
 | Clear                      | Appears when any of the four is active; calls `resetNpcWebFilters()`                 |
 
@@ -443,7 +443,7 @@ Clicking a card opens a modal with:
 ## Key Capabilities / USPs
 
 - **Field-level player visibility**: rather than showing all-or-nothing, the DM controls exactly which of 7 fields are visible per NPC (portrait, name, status, species, occupation, relationship, location). This allows mysteries — an NPC can be "known" (portrait shown, location shown) but still anonymous (name hidden).
-- **Alter-ego / disguise system**: NPCs can have a parallel identity (separate name, portrait, focal point). The DM toggles `is_revealed` at any time from the sheet header or the list; a chat event fires automatically in Play mode when the reveal happens.
+- **Alter-ego / disguise system**: NPCs can have a parallel identity (separate name, portrait, focal point). The DM toggles `is_revealed` at any time from the sheet header or the list; a chat event fires automatically when the reveal happens during a session.
 - **Per-PC connection notes**: the DM can write individual notes for each party member's relationship with an NPC. Each player sees only their own note in the portal lightbox, creating personalised backstory.
 - **Relationship Web with inline editing**: a force-directed graph of all NPC connections. Edges are clickable to edit/delete. Shift+click creates new connections directly on the graph without leaving the view.
 - **13-type directional relationship taxonomy** with automatic inverse type: storing "Mentor" from NPC A's side automatically reads as "Apprentice" from NPC B's side.

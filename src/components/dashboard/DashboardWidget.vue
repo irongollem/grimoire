@@ -1,27 +1,58 @@
 <template>
   <section
     :data-tour="tour"
-    :class="cn('flex flex-col rounded-lg border bg-card overflow-hidden', TONES[tone].card)"
+    :class="
+      cn(
+        'flex flex-col rounded-lg border bg-card overflow-hidden',
+        TONES[tone].card,
+      )
+    "
   >
     <div
       v-if="title"
-      :class="cn('flex items-center justify-between gap-2 px-4 py-2.5 border-b', TONES[tone].header)"
+      :class="
+        cn(
+          'flex items-center justify-between gap-2 px-4 py-2.5 border-b',
+          TONES[tone].header,
+        )
+      "
     >
-      <h2 :class="cn('flex items-center gap-2 font-cinzel text-sm font-bold tracking-wide', TONES[tone].title)">
+      <h2
+        :class="
+          cn(
+            'flex items-center gap-2 font-cinzel text-sm font-bold tracking-wide',
+            TONES[tone].title,
+          )
+        "
+      >
         {{ title }}
         <span
           v-if="count !== undefined && count !== null"
-          :class="cn('rounded border px-1.5 py-0.5 font-cinzel text-2xs', TONES[tone].count)"
-        >{{ count }}</span>
+          :class="
+            cn(
+              'rounded border px-1.5 py-0.5 font-cinzel text-2xs',
+              TONES[tone].count,
+            )
+          "
+          >{{ count }}</span
+        >
       </h2>
       <!-- Most widgets want one link out to their full view; anything richer
            passes its own controls. -->
       <slot name="action">
-        <AppButton v-if="to" :to="to" variant="link" size="inline-xs" :label="actionLabel" />
+        <AppButton
+          v-if="to"
+          :to="to"
+          variant="link"
+          size="inline-xs"
+          :label="actionLabel"
+        />
       </slot>
     </div>
 
-    <div v-if="loading" class="flex justify-center py-6"><LoadingSpinner /></div>
+    <div v-if="loading" class="flex justify-center py-6">
+      <LoadingSpinner />
+    </div>
 
     <div v-else-if="empty" class="px-4 py-6 text-center">
       <slot name="empty">
@@ -38,7 +69,13 @@
     -->
     <div
       v-else
-      :class="cn('min-h-0 flex-1', MAX_HEIGHTS[maxHeight], maxHeight !== 'none' && 'overflow-y-auto overscroll-contain')"
+      :class="
+        cn(
+          'min-h-0 flex-1',
+          MAX_HEIGHTS[maxHeight],
+          maxHeight !== 'none' && 'overflow-y-auto overscroll-contain',
+        )
+      "
     >
       <slot />
     </div>
@@ -109,7 +146,7 @@ const TONES = {
 const MAX_HEIGHTS = {
   none: "",
   sm: "max-h-56",
-  md: "max-h-96",
+  md: "max-h-76",
   lg: "max-h-[32rem]",
 } as const;
 </script>
