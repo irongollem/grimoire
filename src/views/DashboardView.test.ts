@@ -10,16 +10,32 @@ import LiveEncounterBanner from "@/components/dashboard/widgets/LiveEncounterBan
 import { useUiStore } from "@/stores/ui";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
+import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
+import type { DashboardSurface } from "@/lib/dashboard/widgetCatalog";
 
 const mocks = vi.hoisted(() => ({
   route: { query: {} as Record<string, string> },
   replace: vi.fn(),
+  widgetsFor: (_surface: string): DashboardLayoutEntry[] => [],
 }));
 
 vi.mock("vue-router", () => ({
   useRoute: () => reactive(mocks.route),
   useRouter: () => ({ replace: mocks.replace }),
 }));
+
+// The view only knows the composable's contract, not how a layout is
+// fetched or saved — so the mock reproduces the contract (widgets, driven by
+// surface) rather than stubbing it out to nothing, which would let the view
+// ignore the composable entirely without a single test noticing.
+vi.mock("@/composables/useDashboardLayout", async () => {
+  const { computed, toValue } = await import("vue");
+  return {
+    useDashboardLayout: (surface: unknown) => ({
+      widgets: computed(() => mocks.widgetsFor(toValue(surface as never))),
+    }),
+  };
+});
 
 let ui: ReturnType<typeof useUiStore>;
 
@@ -34,6 +50,7 @@ describe("DashboardView", () => {
     ui = useUiStore();
     mocks.route.query = {};
     mocks.replace.mockReset();
+    mocks.widgetsFor = (surface) => DEFAULT_LAYOUTS[surface as DashboardSurface].widgets;
   });
 
   // The composition follows the session, which is what finally makes starting
@@ -99,5 +116,34 @@ describe("DashboardView", () => {
     const sessionWrapper = mountView();
     expect(sessionWrapper.findComponent(WIDGET_COMPONENTS["live-encounter"]).exists()).toBe(true);
     expect(sessionWrapper.findComponent(WIDGET_COMPONENTS["recent-npcs"]).exists()).toBe(true);
+  });
+
+  // If the view read DEFAULT_LAYOUTS directly instead of the composable's
+  // `widgets`, a DM's saved arrangement would never reach the screen — they
+  // would rearrange the dashboard, save, and see the stock layout again on
+  // every visit. This is the one behaviour the other five tests, which all
+  // drive the mock with DEFAULT_LAYOUTS, would not catch.
+  it("renders the DM's saved arrangement — reordered, with a widget removed and a width changed", () => {
+    const saved: DashboardLayoutEntry[] = [
+      { key: "quests", id: "quests", width: "wide" },
+      { key: "prep-gaps", id: "prep-gaps", width: "cell" },
+      { key: "stats", id: "stats", width: "full" },
+    ];
+    mocks.widgetsFor = () => saved;
+
+    const wrapper = mountView();
+    const grid = wrapper.find(".grid");
+    const renderedOrder = Array.from(grid.element.children);
+    const expectedOrder = saved.map(
+      (entry) => wrapper.findComponent(WIDGET_COMPONENTS[entry.id]).element,
+    );
+    expect(renderedOrder).toEqual(expectedOrder);
+
+    // "quests" is "cell" width in DEFAULT_LAYOUTS.prep; the saved arrangement
+    // widened it to "wide".
+    expect(wrapper.findComponent(WIDGET_COMPONENTS.quests).classes()).toContain("lg:col-span-2");
+    // "next-session" is part of the default prep layout but absent from the
+    // saved one — a removed widget must not sneak back in.
+    expect(wrapper.findComponent(WIDGET_COMPONENTS["next-session"]).exists()).toBe(false);
   });
 });

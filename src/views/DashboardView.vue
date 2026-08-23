@@ -11,12 +11,20 @@
       derived default, explicit escape hatch.
 
       Composition only — but the composition now comes from data, not markup.
-      `DEFAULT_LAYOUTS` (src/lib/dashboard/defaultLayouts.ts) says which
-      widgets appear, in what order, at what width; `WIDGET_COMPONENTS`
+      `useDashboardLayout` (src/composables/useDashboardLayout.ts) resolves
+      which widgets appear, in what order, at what width: the DM's saved
+      arrangement for this surface when one exists, and `DEFAULT_LAYOUTS`
+      (src/lib/dashboard/defaultLayouts.ts) when it does not. There is no
+      loading state for that resolution, deliberately — an unloaded or
+      absent row merges to the surface's defaults, so a DM who never
+      customized sees exactly today's dashboard, with no flash of empty
+      grid while the saved layout is fetched. `WIDGET_COMPONENTS`
       (components/dashboard/widgetComponents.ts) maps each widget id to its
       component. Every widget still owns its own queries and its own body,
       and `DashboardWidget` still owns the card and its height cap — this
-      view only arranges opaque components on a grid.
+      view still only arranges opaque components on a grid and passes zero
+      props; persistence changed where the order comes from, not the
+      contract with the widgets.
     -->
     <template #actions>
       <SegmentedControl
@@ -30,7 +38,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <component
         :is="WIDGET_COMPONENTS[entry.id]"
-        v-for="entry in layout.widgets"
+        v-for="entry in widgets"
         :key="entry.key"
         :class="WIDTH_CLASSES[entry.width]"
       />
@@ -45,7 +53,7 @@ import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
-import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
+import { useDashboardLayout } from "@/composables/useDashboardLayout";
 import type { DashboardSurface, WidgetWidth } from "@/lib/dashboard/widgetCatalog";
 
 const WIDTH_CLASSES: Record<WidgetWidth, string> = {
@@ -69,7 +77,7 @@ const view = computed<DashboardSurface>(() => {
   return ui.sessionRunning ? "session" : "prep";
 });
 
-const layout = computed(() => DEFAULT_LAYOUTS[view.value]);
+const { widgets } = useDashboardLayout(view);
 
 const title = computed(() => (view.value === "session" ? "At the Table" : "Campaign Dashboard"));
 const description = computed(() =>

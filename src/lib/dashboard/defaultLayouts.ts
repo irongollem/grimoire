@@ -14,10 +14,32 @@ export interface DashboardLayoutEntry {
   key: string;
   id: DashboardWidgetId;
   width: WidgetWidth;
+  /**
+   * Reserved headroom for per-instance widget config — written as absent by
+   * every layout today. Exists so the first configurable widget (the
+   * DM-screen quick card, #764) needs no jsonb shape migration: it can start
+   * writing this field the day it ships, and `parseDashboardLayout` /
+   * `mergeDashboardLayout` (see `savedLayout.ts`) already round-trip it.
+   */
+  settings?: Record<string, unknown>;
 }
 
 export interface DashboardLayout {
   widgets: DashboardLayoutEntry[];
+  /**
+   * Every widget id the registry offered at the moment this layout was
+   * saved. Without it, a widget id missing from `widgets` is ambiguous: it
+   * could be one the DM deliberately removed in Arrange mode (#763 gives
+   * Arrange a remove control), or one that shipped after they last saved.
+   * Treating the first case like the second would make removal impossible;
+   * treating the second like the first would make every future widget
+   * undiscoverable. `known` is what lets `mergeDashboardLayout` tell them
+   * apart — see `savedLayout.ts`. Absent on `DEFAULT_LAYOUTS`, which needs no
+   * reconciling, and on any row written before the field existed; the merge
+   * reads that absence as "it knew about everything", so nothing is re-added
+   * and every gap is taken for a deliberate removal.
+   */
+  known?: DashboardWidgetId[];
 }
 
 const entry = (id: DashboardWidgetId, width: WidgetWidth): DashboardLayoutEntry => ({
