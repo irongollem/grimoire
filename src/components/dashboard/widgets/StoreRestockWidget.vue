@@ -7,7 +7,7 @@
     action-label="Atlas →"
     :loading="isLoading"
     :empty="!isLoading && rows.length === 0"
-    empty-text="Every shop has something on the shelves."
+    :empty-text="emptyText"
   >
     <div class="divide-y divide-border">
       <RouterLink
@@ -79,6 +79,18 @@ const { data: stock, isLoading: stockLoading } = useStoreStockCounts(shopIds);
  */
 const isLoading = computed(
   () => locationsLoading.value || (shopIds.value.length > 0 && stockLoading.value),
+);
+
+/**
+ * A campaign with no shops at all is not a campaign whose shops are stocked.
+ * Both produce zero rows, and saying "every shop has something on the shelves"
+ * for the first is vacuously true and actively misleading — it reads as a
+ * check that ran and passed, when nothing was checked.
+ */
+const emptyText = computed(() =>
+  shopIds.value.length === 0
+    ? "No shops in this campaign yet — add a store, tavern or inn to the atlas."
+    : "Every shop has something on the shelves.",
 );
 
 const rows = computed(() => {

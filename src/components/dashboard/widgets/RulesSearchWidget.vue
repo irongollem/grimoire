@@ -6,7 +6,7 @@
     :count="query.trim() ? results.length : undefined"
     :loading="isLoading"
     :empty="isLibraryEmpty"
-    empty-text="No rules loaded yet. The sync edge function may not have run."
+    empty-text="No compendium rules for this campaign's edition yet."
   >
     <div class="flex flex-col gap-2 p-3">
       <div class="relative">
@@ -116,6 +116,15 @@ import type { LibraryRule } from "@/types/rule.types";
 const router = useRouter();
 const ui = useUiStore();
 
+/**
+ * Edition-scoped: `useLibraryRules` filters `library_rules` on the campaign's
+ * ruleset, so "empty" here means "nothing for *this edition*", not "nothing at
+ * all". Worth saying in the empty text, because that is exactly what bites — a
+ * local stack whose `library_rules` were all tagged one edition shows an empty
+ * compendium for every 2014 campaign, and an earlier draft of that message
+ * blamed the sync edge function instead, which sent the reader looking in the
+ * wrong place.
+ */
 const { data: libraryRules, isLoading } = useLibraryRules();
 
 const query = ref("");
