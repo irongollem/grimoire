@@ -43,7 +43,11 @@ export type DashboardWidgetId =
   | "deity-lookup"
   | "rules-search"
   | "cursed-items"
-  | "soundboard-scenes";
+  | "soundboard-scenes"
+  | "initiative-mini"
+  | "encounter-gaps"
+  | "recent-monsters"
+  | "store-restock";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -212,6 +216,44 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "initiative-mini",
+    title: "Initiative",
+    description: "Whose turn, what round, and everyone's HP — only while a combat is running.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+    selfHiding: true,
+  },
+  {
+    id: "encounter-gaps",
+    title: "Encounters needing prep",
+    description: "Encounters missing combatants, a location or a reward.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "store-restock",
+    title: "Shops needing stock",
+    description: "Shops that are empty, or whose whole stock is hidden from the party.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "recent-monsters",
+    title: "Recently discovered monsters",
+    description: "Bestiary entries the party has met lately.",
+    widths: FULL_ONLY,
+    defaultWidth: "full",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+    selfHiding: true,
   },
   {
     id: "soundboard-scenes",
