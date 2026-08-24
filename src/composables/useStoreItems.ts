@@ -91,6 +91,46 @@ async function removeStoreItem(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Every store row in a set of locations, in one query (#764).
+ *
+ * `useStoreItems` is per-location, which is right for a shop's own page and
+ * useless for a dashboard card that has to say something about *all* of them —
+ * one query per store would be a request per shop in the campaign.
+ *
+ * `store_items` carries no `campaign_id`, only `location_id`, so the caller
+ * supplies the ids it cares about (the campaign's store-type locations) and
+ * this fetches their rows in a single `in` filter. RLS still scopes the read to
+ * the owner, so a bad id list leaks nothing — it just returns fewer rows.
+ *
+ * Deliberately selects no embedded `item`: the dashboard counts stock and asks
+ * whether any of it is visible, and joining the whole item row for a count is
+ * the kind of query that is invisible in a fixture campaign and expensive in a
+ * real one.
+ */
+export function useStoreStockCounts(locationIds: Ref<readonly string[]>) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "stock-counts", [...locationIds.value].sort()]),
+    queryFn: async (): Promise<StoreStockRow[]> => {
+      const ids = locationIds.value;
+      if (ids.length === 0) return [];
+      const { data, error } = await supabase
+        .from("store_items")
+        .select("location_id, visible")
+        .in("location_id", [...ids]);
+      if (error) throw error;
+      return data as StoreStockRow[];
+    },
+    enabled: () => locationIds.value.length > 0,
+  });
+}
+
+/** The two columns `useStoreStockCounts` actually reads. */
+export interface StoreStockRow {
+  location_id: string;
+  visible: boolean;
+}
+
 export function useStoreItems(locationId: Ref<string | undefined>) {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, locationId.value]),
