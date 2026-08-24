@@ -29,6 +29,10 @@ import type { CalendarToday } from "@/lib/calendar/upcoming";
  * `dmScreenCard.ts`, `downtimeQueue.ts`): the join, the due/horizon check and
  * the "gone" guards are cheap to test here and expensive to test through a
  * mounted card.
+  *
+ * The mirrored arithmetic is tracked as #766 — fixing it moves when triggers
+ * actually fire, so it is a decision of its own rather than something a
+ * dashboard card changes on the way past.
  */
 
 /**
