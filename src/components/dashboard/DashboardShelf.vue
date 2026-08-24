@@ -8,8 +8,16 @@
   -->
   <div class="flex min-w-0 items-center gap-2">
     <div class="w-44 min-w-0 sm:w-56">
+      <!--
+        `lg`, unlike every other combobox in the app: those pick a thing you
+        can already name, this one is *browsed*. Twenty-odd options at three
+        lines each show two at a time in the default 13rem box, which is the
+        real reason the catalogue feels undiscoverable — nothing is truncated
+        (the cap is 50 and there are 35 widgets at most).
+      -->
       <EntityCombobox
         v-model="picked"
+        dropdown-height="lg"
         :options="options"
         :placeholder="options.length === 0 ? 'Every widget is on your dashboard' : 'Add a widget…'"
       >

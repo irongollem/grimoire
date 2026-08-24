@@ -35,7 +35,10 @@
       <ul
         v-if="open && filtered.length"
         :style="dropdownStyle"
-        class="fixed z-9999 max-h-52 overflow-y-auto rounded-md border border-border bg-card shadow-lg"
+        :class="[
+          'fixed z-9999 overflow-y-auto rounded-md border border-border bg-card shadow-lg',
+          DROPDOWN_HEIGHTS[dropdownHeight].class,
+        ]"
       >
         <li
           v-for="opt in filtered"
@@ -64,10 +67,33 @@ import { fieldVariants } from "./fieldVariants";
 import { IconChevronDown } from '@/lib/icons';
 
 const selectedId = defineModel<string>({ required: true });
-const { options, placeholder = "Search…" } = defineProps<{
+const { options, placeholder = "Search…", dropdownHeight = "sm" } = defineProps<{
   options: T[];
   placeholder?: string;
+  /**
+   * How tall the dropdown may grow.
+   *
+   * `sm` (the default, and what every existing call site gets) suits picking a
+   * thing you can already name — an NPC, an item — where you type three
+   * letters and hit it. `lg` is for the case where the reader does not know
+   * what is in the list and is *browsing*: the dashboard shelf offers 20-odd
+   * widgets whose options are three lines each, and at `sm` you can see two of
+   * them at a time.
+   */
+  dropdownHeight?: keyof typeof DROPDOWN_HEIGHTS;
 }>();
+
+/**
+ * The class and the pixel figure must agree: `updatePosition` compares the
+ * space below the input against this number to decide whether to open upward,
+ * and a dropdown that is taller than the number thinks it fits when it does
+ * not. They live in one map so they cannot drift — which they could when the
+ * height was a bare class and a bare `const` twenty lines apart.
+ */
+const DROPDOWN_HEIGHTS = {
+  sm: { class: "max-h-52", px: 212 },
+  lg: { class: "max-h-96", px: 396 },
+} as const;
 
 const inputEl = ref<HTMLInputElement | null>(null);
 const query   = ref("");
@@ -84,14 +110,15 @@ const filtered = computed(() => {
   return options.filter(o => o.name.toLowerCase().includes(q)).slice(0, 50);
 });
 
-const DROPDOWN_MAX_H = 212; // matches max-h-52
+
 
 function updatePosition() {
   const el = inputEl.value;
   if (!el) return;
   const rect = el.getBoundingClientRect();
   const spaceBelow = window.innerHeight - rect.bottom;
-  const openUpward = spaceBelow < DROPDOWN_MAX_H && rect.top > spaceBelow;
+  const maxHeight = DROPDOWN_HEIGHTS[dropdownHeight].px;
+  const openUpward = spaceBelow < maxHeight && rect.top > spaceBelow;
   dropdownStyle.value = openUpward
     ? { bottom: `${window.innerHeight - rect.top + 4}px`, left: `${rect.left}px`, width: `${rect.width}px` }
     : { top: `${rect.bottom + 4}px`,                      left: `${rect.left}px`, width: `${rect.width}px` };
