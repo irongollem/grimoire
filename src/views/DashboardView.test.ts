@@ -147,7 +147,7 @@ describe("DashboardView", () => {
   // the registry doing the composing, not hand-written markup.
   it("renders each surface's default layout, in the registry's order", () => {
     const prepWrapper = mountView();
-    const grid = prepWrapper.find(".grid");
+    const grid = prepWrapper.find(".dashboard-grid");
     const renderedOrder = Array.from(grid.element.children);
     const expectedOrder = DEFAULT_LAYOUTS.prep.widgets.map(
       (entry) => prepWrapper.findComponent(WIDGET_COMPONENTS[entry.id]).element,
@@ -174,7 +174,7 @@ describe("DashboardView", () => {
     mocks.widgetsFor = () => saved;
 
     const wrapper = mountView();
-    const grid = wrapper.find(".grid");
+    const grid = wrapper.find(".dashboard-grid");
     const renderedOrder = Array.from(grid.element.children);
     const expectedOrder = saved.map(
       (entry) => wrapper.findComponent(WIDGET_COMPONENTS[entry.id]).element,

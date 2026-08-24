@@ -100,9 +100,11 @@ describe("customizing — controls", () => {
       props: { entry: entryFor(PARTY), widget: PARTY, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
-    expect(wrapper.find('[aria-label^="Change width"]').exists()).toBe(false);
-    // Still gets the height control, and still has its grip and remove.
-    expect(wrapper.find('[aria-label^="Change height"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label^="Wider"]').exists()).toBe(false);
+    expect(wrapper.find('[aria-label^="Narrower"]').exists()).toBe(false);
+    // Still gets the height stepper, and still has its grip and remove.
+    expect(wrapper.find('[aria-label^="Taller"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label^="Shorter"]').exists()).toBe(true);
     expect(wrapper.find(".dashboard-customize-grip").exists()).toBe(true);
     expect(wrapper.find('[aria-label="Remove from dashboard"]').exists()).toBe(true);
   });
@@ -127,10 +129,52 @@ describe("customizing — emitted intent", () => {
       props: { entry, widget: QUESTS, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
-    await wrapper.get('[aria-label^="Change width"]').trigger("click");
-    expect(wrapper.emitted("cycle-width")).toEqual([[entry.key]]);
+    await wrapper.get('[aria-label^="Wider"]').trigger("click");
+    expect(wrapper.emitted("cycle-width")).toEqual([[entry.key, 1]]);
     expect(wrapper.emitted("move")).toBeUndefined();
     expect(wrapper.emitted("remove")).toBeUndefined();
+  });
+
+  // Both directions, because a one-way cycle is what this replaced: returning
+  // from the last width used to mean walking the whole ring.
+  it("emits cycle-width backwards from the narrower control", async () => {
+    const entry = entryFor(QUESTS);
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry, widget: QUESTS, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    await wrapper.get('[aria-label^="Narrower"]').trigger("click");
+    expect(wrapper.emitted("cycle-width")).toEqual([[entry.key, -1]]);
+  });
+
+  it("emits cycle-height in both directions", async () => {
+    const entry = entryFor(QUESTS);
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry, widget: QUESTS, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    await wrapper.get('[aria-label^="Taller"]').trigger("click");
+    await wrapper.get('[aria-label^="Shorter"]').trigger("click");
+    expect(wrapper.emitted("cycle-height")).toEqual([
+      [entry.key, 1],
+      [entry.key, -1],
+    ]);
+  });
+
+  // The mode is for arranging, not navigating: a stray click on a widget's own
+  // link used to leave the dashboard in the middle of a rearrangement.
+  it("makes the widget itself inert while customizing", () => {
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    // The host that wraps the slot, not the frame root — assert it is the one
+    // holding the widget, or this passes on any element that happens to carry
+    // the class.
+    const inert = wrapper.get(".pointer-events-none");
+    expect(inert.text()).toContain("Widget body");
+    // The controls are siblings of it, so they keep their own pointer events.
+    expect(wrapper.get(".dashboard-customize-grip").element.closest(".pointer-events-none")).toBeNull();
   });
 
   it("emits remove with the entry's key, and nothing else, on click", async () => {

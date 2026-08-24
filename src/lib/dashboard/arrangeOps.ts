@@ -58,6 +58,17 @@ function titleOf(entry: DashboardLayoutEntry): string {
   return widget === undefined ? entry.id : widget.title;
 }
 
+/**
+ * The next index in a ring, in either direction.
+ *
+ * `%` alone is not enough: JavaScript's remainder keeps the sign, so stepping
+ * back from index 0 gives -1 rather than the last item, and the control would
+ * silently do nothing at exactly the place a DM is most likely to press it.
+ */
+function wrapIndex(at: number, direction: 1 | -1, length: number): number {
+  return (at + direction + length) % length;
+}
+
 /** Never mutate the caller's array: Customize mode holds the previous layout as
  *  its undo snapshot, and an in-place edit would quietly rewrite that too. */
 const clone = (entries: readonly DashboardLayoutEntry[]): DashboardLayoutEntry[] =>
@@ -100,16 +111,21 @@ export function moveEntry(
 }
 
 /**
- * Advance a widget to its next supported width, wrapping at the end.
+ * Step a widget to the next or previous supported width, wrapping either way.
  *
- * Wrapping is right here and clamping was right above, because the two
- * controls answer different questions: a width cycle is one button the DM
+ * Wrapping is right here and clamping was right for `moveEntry`, because the
+ * two controls answer different questions: a size step is a control the DM
  * presses until the widget looks right, and a dead end would just make it feel
  * broken. There is also no hidden state to lose — every width is visible.
+ *
+ * `direction` exists because a single forward-only cycle makes going back the
+ * long way round: three widths is two clicks to return, four heights is three,
+ * and the DM who overshot by one has to walk the whole ring to undo it.
  */
 export function cycleWidth(
   entries: readonly DashboardLayoutEntry[],
   key: string,
+  direction: 1 | -1 = 1,
 ): ArrangeOutcome {
   const index = entries.findIndex((entry) => entry.key === key);
   const entry = entries[index];
@@ -125,7 +141,7 @@ export function cycleWidth(
   }
 
   const at = widget.widths.indexOf(entry.width);
-  const nextWidth = widget.widths[(at + 1) % widget.widths.length];
+  const nextWidth = widget.widths[wrapIndex(at, direction, widget.widths.length)];
   if (nextWidth === undefined) return { entries: clone(entries), announcement: "" };
 
   const next = clone(entries);
@@ -138,15 +154,13 @@ export function cycleWidth(
 }
 
 /**
- * Advance a widget to its next supported height, wrapping (#768).
- *
- * Wraps for the same reason `cycleWidth` does: it is one button pressed until
- * the card looks right, with no hidden state, so a dead end would just feel
- * broken.
+ * Step a widget to the next or previous supported height, wrapping either way
+ * (#768). Same reasoning as `cycleWidth`, including why `direction` exists.
  */
 export function cycleHeight(
   entries: readonly DashboardLayoutEntry[],
   key: string,
+  direction: 1 | -1 = 1,
 ): ArrangeOutcome {
   const index = entries.findIndex((entry) => entry.key === key);
   const entry = entries[index];
@@ -166,8 +180,10 @@ export function cycleHeight(
   // range since the save) restarts from the widget's default rather than from
   // -1, which would land on the last height and read as random.
   const current = entry.height === undefined ? defaultHeightFor(widget) : entry.height;
-  const at = offered.indexOf(current);
-  const nextHeight = offered[(at === -1 ? offered.indexOf(defaultHeightFor(widget)) : at) + 1] ?? offered[0];
+  const found = offered.indexOf(current);
+  const at = found === -1 ? offered.indexOf(defaultHeightFor(widget)) : found;
+  const nextHeight = offered[wrapIndex(at, direction, offered.length)];
+  if (nextHeight === undefined) return { entries: clone(entries), announcement: "" };
 
   const next = clone(entries);
   next[index] = { ...entry, height: nextHeight };

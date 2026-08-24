@@ -12,9 +12,9 @@
   <div
     v-else
     :data-widget-key="entry.key"
-    :class="['relative scroll-mt-12 md:scroll-mt-8', $attrs.class]"
+    :class="['relative scroll-mt-4', $attrs.class]"
   >
-    <div ref="slotHost" v-show="!slotIsEmpty"><slot /></div>
+    <div ref="slotHost" v-show="!slotIsEmpty" class="pointer-events-none"><slot /></div>
 
     <div
       v-if="slotIsEmpty"
@@ -28,7 +28,7 @@
     </div>
 
     <div
-      class="absolute bottom-full right-0 z-10 mb-1 flex items-center gap-0.5 rounded-md border border-border bg-card/95 px-1 py-0.5 shadow-sm"
+      class="absolute right-1 top-1 z-20 flex items-center gap-0.5 rounded-md border border-border bg-card/95 px-1 py-0.5 shadow-md backdrop-blur-sm"
     >
       <AppButton
         variant="ghost"
@@ -39,26 +39,51 @@
         tooltip="Drag to reorder — arrow keys also move this widget"
         @keydown="onGripKeydown"
       />
-      <AppButton
-        v-if="widget.widths.length > 1"
-        variant="ghost"
-        size="xs"
-        :icon="IconMoveH"
-        :label="widthLabel"
-        :aria-label="`Change width — currently ${widthLabel}`"
-        tooltip="Cycle this widget's width"
-        @click="emit('cycle-width', entry.key)"
-      />
-      <AppButton
-        v-if="offeredHeights.length > 1"
-        variant="ghost"
-        size="xs"
-        :icon="IconMoveV"
-        :label="heightLabel"
-        :aria-label="`Change height — currently ${heightLabel} of 4`"
-        tooltip="Cycle this widget's height"
-        @click="emit('cycle-height', entry.key)"
-      />
+      <!--
+        Steppers, not one-way cycles. A single forward-only button makes going
+        back the long way round — three widths is two presses to return, four
+        heights is three — and overshooting by one is the commonest thing a DM
+        does with a size control.
+      -->
+      <span v-if="widget.widths.length > 1" class="flex items-center">
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconChevronLeft"
+          :aria-label="`Narrower — currently ${widthLabel}`"
+          tooltip="Narrower"
+          @click="emit('cycle-width', entry.key, -1)"
+        />
+        <span class="px-0.5 font-cinzel text-2xs text-muted-foreground">{{ widthLabel }}</span>
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconChevronRight"
+          :aria-label="`Wider — currently ${widthLabel}`"
+          tooltip="Wider"
+          @click="emit('cycle-width', entry.key, 1)"
+        />
+      </span>
+
+      <span v-if="offeredHeights.length > 1" class="flex items-center">
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconChevronDown"
+          :aria-label="`Shorter — currently ${heightLabel} of 4`"
+          tooltip="Shorter"
+          @click="emit('cycle-height', entry.key, -1)"
+        />
+        <span class="px-0.5 font-cinzel text-2xs text-muted-foreground">{{ heightLabel }}</span>
+        <AppButton
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconChevronUp"
+          :aria-label="`Taller — currently ${heightLabel} of 4`"
+          tooltip="Taller"
+          @click="emit('cycle-height', entry.key, 1)"
+        />
+      </span>
       <!-- Only for widgets that carry per-instance settings (#764). Sits
            before Remove so the destructive control stays last in the pill. -->
       <AppButton
@@ -96,24 +121,35 @@
  * Customize mode adds controls and nothing else, because judging a layout means
  * seeing the board you actually have; a frame drawn around every card makes
  * customizing look like a different page from the one being arranged.
- * The pill is anchored by its own bottom edge (`bottom-full`) rather than by a
- * fixed offset, because it is not a fixed height: `ICON_TOUCH_TARGET` grows the
- * grip to 44px below `md`, so a hard `-top-7` put it 16px *inside* the card on
- * a phone and covered the very header links this placement exists to protect.
  *
- * controls float in the row gap *above* each widget rather than over it: an
- * overlay on the card covered real content (`DashboardWidget` puts its own
- * "View all →" link top-right, and `DashboardStats` is a bare row of links),
- * and the view opens the grid's row gap while customizing to make room.
+ * **The pill overlays the card's top-right corner, and that is a reversal.**
+ * #763 floated it in the row gap *above* each widget, because an overlay
+ * covers real content — `DashboardWidget` puts its own "View all →" link in
+ * exactly that corner. But paying for that gap meant the grid had to open its
+ * row spacing while customizing, and once #768 gave widgets fixed row heights
+ * a wider gap stopped being whitespace and started changing the cards
+ * themselves: every spanned widget grew, and every column started somewhere
+ * else. You were arranging a board that was not the board you got.
+ *
+ * Covering a "View all →" link for as long as the mode is open is the smaller
+ * cost by a wide margin — you are arranging the board, not navigating off it —
+ * and it buys exact geometric parity between the two modes, with no gap or top
+ * padding to pay for at all.
+ *
+ * **The widget is also made inert while the mode is open** (`pointer-events-none`
+ * on the slot host, which the pill is a sibling of, so the controls keep
+ * theirs). It is rendered at full fidelity — you still judge the real board,
+ * which is the governing rule — you simply cannot click *into* it. That fixes
+ * a real trap as well as freeing the overlay: a stray click on a widget's own
+ * link used to navigate off the dashboard in the middle of arranging it.
  *
  * `data-widget-key` on the customizing root is how `DashboardView` finds this
  * instance in the DOM to scroll it back into view after an edit — a widget
  * added from the shelf lands at the end of a board that may be well below the
- * fold, and without that the click looks like it did nothing. `scroll-mt-*`
- * goes with it and matches the grid's own top padding: the control pill is
- * `absolute bottom-full`, so it sits *outside* the box `scrollIntoView`
- * measures, and an element scrolled flush to the top would take its own
- * controls off screen.
+ * fold, and without that the click looks like it did nothing. `scroll-mt-4` is
+ * only breathing room now that the pill lives inside the card; while it
+ * floated above, that margin had to clear the pill or a widget scrolled flush
+ * to the top took its own controls off screen.
  *
  * Both are set in the template rather than explained there, because a comment
  * at the template root becomes a sibling of the `template v-if` / `div v-else`
@@ -135,7 +171,15 @@
 import { computed, onMounted, onUpdated, ref, useTemplateRef } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
-import { IconClose, IconDrag, IconMoveH, IconMoveV, IconSettings } from "@/lib/icons";
+import {
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconChevronUp,
+  IconClose,
+  IconDrag,
+  IconSettings,
+} from "@/lib/icons";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import { defaultHeightFor, heightsFor, type DashboardWidgetDef } from "@/lib/dashboard/widgetCatalog";
 
@@ -158,10 +202,10 @@ defineOptions({ inheritAttrs: false });
 const emit = defineEmits<{
   /** One position toward the start (-1) or end (1) of the layout. */
   move: [key: string, direction: -1 | 1];
-  /** Advance to the next of `widget.widths`, wrapping. */
-  "cycle-width": [key: string];
-  /** Advance to the next of the widget's offered heights, wrapping (#768). */
-  "cycle-height": [key: string];
+  /** Step through `widget.widths`, wrapping in either direction. */
+  "cycle-width": [key: string, direction: 1 | -1];
+  /** Step through the widget's offered heights, wrapping either way (#768). */
+  "cycle-height": [key: string, direction: 1 | -1];
   /** Off the dashboard and onto the shelf — never a delete. */
   remove: [key: string];
   /** Open this instance's settings dialog. Only ever emitted for a

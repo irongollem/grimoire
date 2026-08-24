@@ -54,12 +54,18 @@
       trading order for density, deliberately and reversibly. That is also why
       it lives here beside Reset, with the other layout-wide controls, and not
       in the normal view: it is an arrangement decision, not a viewing one.
+
+      Labelled "Pack", not "Pack tightly": the longer label pushed the header
+      actions wide enough to wrap the page title onto two lines, so entering
+      Customize mode visibly moved the heading — a smaller cousin of the same
+      rule that the board must not shift when you arrange it. Both tooltips
+      carry the full meaning, and each says what it does rather than naming it.
     -->
     <AppButton
       variant="outline"
       size="sm"
       :icon="IconPack"
-      label="Pack tightly"
+      label="Pack"
       :active="dense"
       :aria-pressed="dense"
       :tooltip="

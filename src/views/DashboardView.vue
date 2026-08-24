@@ -94,14 +94,16 @@
       v-if="customizing"
       ref="gridEl"
       v-model="draft"
-      class="grid grid-cols-1 lg:grid-cols-3 gap-x-4 gap-y-12 pt-12 md:gap-y-8 md:pt-8"
-      :style="gridStyle"
+      :class="[
+        'dashboard-grid',
+        packed && 'dashboard-grid--dense',
+        dragging && 'dashboard-dragging',
+      ]"
       handle=".dashboard-customize-grip"
       :animation="180"
       ghost-class="dashboard-drop-slot"
       chosen-class="dashboard-drag-chosen"
       drag-class="dashboard-drag-flying"
-      :class="dragging && 'dashboard-dragging'"
       :scroll="true"
       :bubble-scroll="true"
       :force-auto-scroll-fallback="true"
@@ -135,8 +137,7 @@
     <div
       v-else
       ref="gridEl"
-      class="grid grid-cols-1 lg:grid-cols-3 gap-4"
-      :style="gridStyle"
+      :class="['dashboard-grid', packed && 'dashboard-grid--dense']"
     >
       <component
         :is="WIDGET_COMPONENTS[entry.id]"
@@ -224,14 +225,6 @@ const HEIGHT_CLASSES: Record<WidgetHeight, string> = {
   3: "lg:row-span-3",
   4: "lg:row-span-4",
 };
-
-/**
- * Half a card. A normal widget is two of these plus the row gap between them,
- * which lands within a hair of the `max-h-76` (19rem) every card used to cap
- * itself at — so a default board is the same size it was before heights
- * existed, and only a DM who changes a height sees a difference.
- */
-const HALF_ROW = "9rem";
 
 function heightClass(entry: DashboardLayoutEntry): string {
   // An entry from a layout saved before #768 has no height until the merge
@@ -460,25 +453,17 @@ function onMove(key: string, direction: -1 | 1) {
   void apply(moveEntry(draft.value, key, direction));
 }
 
-function onCycleWidth(key: string) {
-  void apply(cycleWidth(draft.value, key));
+function onCycleWidth(key: string, direction: 1 | -1) {
+  void apply(cycleWidth(draft.value, key, direction));
 }
 
-function onCycleHeight(key: string) {
-  void apply(cycleHeight(draft.value, key));
+function onCycleHeight(key: string, direction: 1 | -1) {
+  void apply(cycleHeight(draft.value, key, direction));
 }
 
-/**
- * `grid-auto-rows` is what makes a row span mean a predictable height, and
- * `dense` is the DM's own choice (#768). Bound as a style rather than a class
- * because the row height is a single measured value, not one of a set — a
- * `grid-rows-[9rem]` arbitrary utility would put the same number in a class
- * string where nothing can read it.
- */
-const gridStyle = computed(() => ({
-  gridAutoRows: HALF_ROW,
-  gridAutoFlow: (customizing.value ? draftDense.value : dense.value) ? "row dense" : "row",
-}));
+/** Whichever packing setting is live: the draft while customizing, the saved
+ *  one otherwise. */
+const packed = computed(() => (customizing.value ? draftDense.value : dense.value));
 
 function onRemove(key: string) {
   // Cleared, not left to the computed: re-adding the same widget from the
@@ -593,6 +578,51 @@ function onReset() {
   view's Sortable options.
 -->
 <style>
+/*
+  The dashboard grid, in CSS rather than utilities, for one reason: **both
+  modes must be geometrically identical**.
+
+  Customize mode used to open the row gap (`gap-y-12`, `md:gap-y-8`) to make
+  room for each widget's control pill. With content-sized cards that only added
+  whitespace. With #768's fixed row heights it changes the cards themselves — a
+  two-row card is `2 * 9rem + gap`, so a bigger gap makes every spanned widget
+  taller and shifts where every column starts. You end up arranging a board
+  that is not the board you get, which is the one thing this mode must never
+  do.
+
+  The fix is not a bigger gap in both modes — that only spread the cost around,
+  and made the default board airier to pay for a control it does not have. The
+  pill moved *inside* the card instead (see `DashboardCustomizeFrame`), so
+  there is no gap to buy: this grid is now byte-identical in both modes, and
+  the row gap is the 1rem it always was.
+*/
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-gap: 1rem;
+  row-gap: 1rem;
+}
+
+@media (min-width: 64rem) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    /*
+      Half a card (#768). Only from `lg`, where the row spans apply: below it
+      the grid is a single column, cards are content-sized, and a fixed row
+      would squash them against a height nobody chose.
+    */
+    grid-auto-rows: 9rem;
+    /* Two rows plus this gap is 19rem — exactly the cap every card used to set
+       itself, so a default board is the size it always was. */
+    row-gap: 1rem;
+  }
+}
+
+/* Opt-in packing (#768) — see `DashboardLayout.dense`. */
+.dashboard-grid--dense {
+  grid-auto-flow: row dense;
+}
+
 /*
   Drag feedback, and it only ever appears *during* a drag.
   Customize mode itself still changes the widgets not at all — that is the

@@ -319,6 +319,45 @@ describe("cycleHeight", () => {
   });
 });
 
+describe("stepping both ways", () => {
+  // A forward-only cycle makes going back the long way round, which is the
+  // commonest thing a DM wants after overshooting by one.
+  it("steps width backwards, wrapping past the first", () => {
+    // `quests` is cell -> wide -> full; stepping back from cell wraps to full.
+    const back = cycleWidth(prep(), "quests", -1);
+    expect(back.entries.find((e) => e.key === "quests")?.width).toBe("full");
+  });
+
+  it("steps height backwards, wrapping past the first", () => {
+    // Default is 2, so one back is 1 and two back wraps to 4.
+    let entries = cycleHeight(prep(), "quests", -1).entries;
+    expect(entries.find((e) => e.key === "quests")?.height).toBe(1);
+    entries = cycleHeight(entries, "quests", -1).entries;
+    expect(entries.find((e) => e.key === "quests")?.height).toBe(4);
+  });
+
+  // The bug this guards: `%` keeps the sign in JS, so a bare `(at - 1) % len`
+  // yields -1 at index 0 and the control silently does nothing at exactly the
+  // place a DM is most likely to press it.
+  it("does not stall at index zero in either direction", () => {
+    const width = cycleWidth(prep(), "quests", -1);
+    expect(width.entries.find((e) => e.key === "quests")?.width).not.toBe("cell");
+    const height = cycleHeight(prep(), "quests", -1);
+    expect(height.entries.find((e) => e.key === "quests")?.height).not.toBe(2);
+  });
+
+  it("still steps forward by default", () => {
+    expect(cycleWidth(prep(), "quests").entries.find((e) => e.key === "quests")?.width).toBe("wide");
+    expect(cycleHeight(prep(), "quests").entries.find((e) => e.key === "quests")?.height).toBe(3);
+  });
+
+  it("round-trips: forward then back returns the original", () => {
+    const forward = cycleWidth(prep(), "quests", 1).entries;
+    const back = cycleWidth(forward, "quests", -1).entries;
+    expect(back.find((e) => e.key === "quests")?.width).toBe("cell");
+  });
+});
+
 describe("configureEntry", () => {
   it("stores a widget's settings on its own instance", () => {
     const before = addWidget(prep(), "dm-screen-card", "prep").entries;
