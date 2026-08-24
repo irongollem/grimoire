@@ -95,7 +95,16 @@
       class="grid grid-cols-1 lg:grid-cols-3 gap-x-4 gap-y-12 pt-12 md:gap-y-8 md:pt-8"
       handle=".dashboard-customize-grip"
       :animation="180"
-      ghost-class="opacity-40"
+      ghost-class="dashboard-drop-slot"
+      chosen-class="dashboard-drag-chosen"
+      drag-class="dashboard-drag-flying"
+      :class="dragging && 'dashboard-dragging'"
+      :scroll="true"
+      :bubble-scroll="true"
+      :force-auto-scroll-fallback="true"
+      :scroll-sensitivity="96"
+      :scroll-speed="14"
+      @start="dragging = true"
       @end="onDragEnd"
     >
       <DashboardCustomizeFrame
@@ -239,6 +248,13 @@ const configuringKey = ref<string | null>(null);
 
 /** The instance added a moment ago, ringed so it is findable after the scroll. */
 const justAddedKey = ref<string | null>(null);
+
+/**
+ * Whether a pointer drag is in flight, so the board can show where the widget
+ * will land. Only during the drag — entering Customize mode still changes the
+ * widgets not at all, which is the governing rule of the mode.
+ */
+const dragging = ref(false);
 const configuringEntry = computed(() =>
   draft.value.find((entry) => entry.key === configuringKey.value),
 );
@@ -444,6 +460,7 @@ function onSaveSettings(key: string, settings: Record<string, unknown>) {
 
 /** Sortable already mutated `draft` through `v-model`; only the write is left. */
 function onDragEnd() {
+  dragging.value = false;
   announcement.value = "Widget moved.";
   queueSave();
 }
@@ -480,3 +497,69 @@ function onReset() {
   });
 }
 </script>
+
+<!--
+  Deliberately NOT `scoped`, which is the whole trick and cost an attempt to
+  learn: Sortable moves the flying clone to `document.body` while a drag is in
+  flight, so it is no longer inside this component and no scoped selector can
+  reach it. The drop slot stays in the list and *would* work scoped; splitting
+  the two across a scoped and an unscoped block would be worse than namespacing
+  both. Every class here is `dashboard-`-prefixed and applied only by this
+  view's Sortable options.
+-->
+<style>
+/*
+  Drag feedback, and it only ever appears *during* a drag.
+  Customize mode itself still changes the widgets not at all — that is the
+  governing rule of the mode, and permanent slot outlines would break it. What
+  was missing is narrower: while a widget is in flight there was nothing on
+  screen saying where it would land, so a drop that missed read as the app
+  losing the gesture rather than as the DM missing a target.
+
+  Sortable hands us three hooks and they are easy to confuse:
+    ghostClass  — the placeholder left *in the list*. This is the drop slot.
+    chosenClass — the source element, from mousedown until drop.
+    dragClass   — the clone that follows the cursor, parented to <body>.
+*/
+
+/*
+  The drop slot. Previously `opacity-40`, which faded the card into a ghost of
+  itself and read as "this is the thing I am dragging" — the one thing it is
+  not. It is where the thing will go, so it is drawn as an empty outlined slot
+  and the widget's own content is hidden so nothing competes with it.
+*/
+.dashboard-drop-slot {
+  border-radius: var(--radius-lg);
+  border: 2px dashed color-mix(in srgb, var(--primary) 55%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.dashboard-drop-slot > * {
+  visibility: hidden;
+}
+
+/* The clone under the cursor: lifted, so it reads as picked up rather than
+   merely selected. Kept subtle — a big tilt is a toy, and this is a tool. */
+.dashboard-drag-flying {
+  opacity: 0.95;
+  box-shadow: 0 1.25rem 2.5rem -0.5rem rgb(0 0 0 / 35%);
+}
+
+/*
+  Everything that is not the slot dims a little while a drag is in flight, so
+  the outlined slot is the brightest thing on the board. Excluding the slot is
+  what makes it work — dimming the target too would hide the one thing the DM
+  is aiming at. The flying clone needs no exclusion: it is not a child of the
+  grid any more.
+*/
+.dashboard-dragging > *:not(.dashboard-drop-slot) {
+  opacity: 0.55;
+  transition: opacity 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-dragging > * {
+    transition: none;
+  }
+}
+</style>
