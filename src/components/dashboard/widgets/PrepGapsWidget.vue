@@ -22,15 +22,22 @@
           </p>
           <p class="text-caption text-muted-foreground italic">{{ row.reason }}</p>
         </div>
-        <span class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/15 px-1.5 py-0.5 font-cinzel text-2xs text-tone-caution">
-          {{ row.count }}
-        </span>
+        <AppButton
+          as="span"
+          variant="tinted"
+          tone="caution"
+          emphasis="soft"
+          size="xs"
+          class="shrink-0"
+          :label="String(row.count)"
+        />
       </RouterLink>
     </div>
   </DashboardWidget>
 </template>
 
 <script setup lang="ts">
+import AppButton from "@/components/common/AppButton.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useAllQuests } from "@/composables/useQuests";

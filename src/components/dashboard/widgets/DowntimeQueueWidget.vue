@@ -25,9 +25,15 @@
           </p>
           <p class="text-caption text-muted-foreground italic">Drew {{ row.activityTitle }}</p>
         </div>
-        <span class="shrink-0 rounded border border-tone-caution/30 bg-tone-caution/15 px-1.5 py-0.5 font-cinzel text-2xs text-tone-caution">
-          {{ timeAgo(row.drawnAt) }}
-        </span>
+        <AppButton
+          as="span"
+          variant="tinted"
+          tone="caution"
+          emphasis="soft"
+          size="xs"
+          class="shrink-0"
+          :label="timeAgo(row.drawnAt)"
+        />
       </RouterLink>
     </div>
   </DashboardWidget>
@@ -36,6 +42,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
+import AppButton from "@/components/common/AppButton.vue";
 import { useDowntimeDraws } from "@/composables/useDowntime";
 import { useParty } from "@/composables/useParty";
 import { buildDowntimeQueue } from "@/lib/dashboard/downtimeQueue";
