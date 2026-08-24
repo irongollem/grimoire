@@ -30,6 +30,18 @@ const TEST_ADAPTER: CalendarAdapter = {
     festivalDay ? `${festivalDay} ${year}` : `${month}/${day}/${year}`,
 };
 
+/**
+ * The same calendar with a Gregorian-style month that grows in a leap year —
+ * the only shape `CalendarAdapter.daysInMonth` exists for. Everything else in
+ * the registry keeps months fixed and puts its leap day in an intercalary day.
+ */
+const GROWING_MONTH_ADAPTER: CalendarAdapter = {
+  ...TEST_ADAPTER,
+  intercalaryDays: [],
+  daysInMonth: (year, month) =>
+    month === 2 && year % 4 === 0 ? 31 : (TEST_ADAPTER.months[month - 1]?.days ?? 30),
+};
+
 function today(year: number, month: number, day: number): CalendarToday {
   return { year, month, day };
 }
@@ -161,5 +173,46 @@ describe("formatDaysUntil", () => {
     [30, "In 30 days"],
   ])("formats %i days as %s", (daysUntil, expected) => {
     expect(formatDaysUntil(daysUntil)).toBe(expected);
+  });
+});
+
+describe("adapter-supplied month lengths", () => {
+  // `CalendarGrid` used to answer this itself with a hardcoded Gregorian rule
+  // applied to every adapter, which shortened Harptos's 30-day Ches to 29 in
+  // every leap year. The length of a month belongs to the calendar, and this
+  // module has to ask for it or a countdown drifts from the grid.
+  it("counts a month that lengthens in a leap year", () => {
+    const event = makeEvent({ harptos_year: 2000, harptos_month: 3, harptos_day: 1 });
+    const leap = nextUpcomingEvents(
+      [event],
+      GROWING_MONTH_ADAPTER,
+      today(2000, 2, 1),
+      { limit: 5 },
+    );
+    // Month 2 runs 31 days in a leap year here, so 1/2 → 1/3 is 31 days.
+    expect(leap[0]?.daysUntil).toBe(31);
+  });
+
+  it("counts the ordinary length in a non-leap year", () => {
+    const event = makeEvent({ harptos_year: 2001, harptos_month: 3, harptos_day: 1 });
+    const plain = nextUpcomingEvents(
+      [event],
+      GROWING_MONTH_ADAPTER,
+      today(2001, 2, 1),
+      { limit: 5 },
+    );
+    expect(plain[0]?.daysUntil).toBe(30);
+  });
+
+  // An adapter with no `daysInMonth` must behave exactly as before.
+  it("falls back to the month's fixed length when the adapter has no rule", () => {
+    const event = makeEvent({ harptos_year: 2000, harptos_month: 3, harptos_day: 1 });
+    const fixed = nextUpcomingEvents(
+      [event],
+      { ...TEST_ADAPTER, intercalaryDays: [] },
+      today(2000, 2, 1),
+      { limit: 5 },
+    );
+    expect(fixed[0]?.daysUntil).toBe(30);
   });
 });

@@ -268,11 +268,15 @@ const gridColsStyle = computed(() =>
 const gridRows = computed(() => {
   const weekSize = calendar.adapter.weekSize;
   const monthDays = currentMonth.value.days;
-  // For Gregorian, February has 29 days in leap years
+  // Ask the calendar, never decide for it. This used to read
+  // `currentMonth === 2 && adapter.isLeapYear(year) ? 29 : monthDays` for
+  // *every* adapter — a Gregorian rule applied to all of them. Harptos has an
+  // `every4` leap rule and a 30-day second month (Ches), so every year
+  // divisible by four rendered Ches with 29 cells and the 30th could not be
+  // reached. Only Gregorian implements `daysInMonth`; everyone else keeps
+  // their fixed month length and puts the leap day in an intercalary day.
   const actualDays =
-    calendar.currentMonth === 2 && calendar.adapter.isLeapYear(calendar.currentYear)
-      ? 29
-      : monthDays;
+    calendar.adapter.daysInMonth?.(calendar.currentYear, calendar.currentMonth) ?? monthDays;
   const offset = calendar.adapter.weekdayOffset?.(calendar.currentYear, calendar.currentMonth) ?? 0;
   const totalCells = Math.ceil((offset + actualDays) / weekSize) * weekSize;
 

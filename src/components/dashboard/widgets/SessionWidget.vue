@@ -136,7 +136,22 @@ const todayFormatted = computed(() => {
 
 const editingDate = ref(false);
 const dateForm = reactive({ year: 1495, month: 1, day: 1 });
-const maxDayInSelectedMonth = computed(() => calendarMonths.value[dateForm.month - 1]?.days ?? 30);
+/**
+ * Asked of the adapter, not read off the month, so a Gregorian campaign can
+ * actually set 29 February in a leap year. Every fantasy calendar here keeps
+ * its months fixed and answers with the same `.days`; only Gregorian folds a
+ * leap day into a month. See `CalendarAdapter.daysInMonth`.
+ */
+function daysIn(year: number, month: number): number {
+  const fixed = calendarMonths.value[month - 1]?.days;
+  const fromAdapter = calendarStore.adapter.daysInMonth?.(year, month);
+  if (fromAdapter !== undefined) return fromAdapter;
+  // A month index the adapter does not have is a corrupt stored date, not a
+  // real month; 30 is the same last-resort the rest of this control uses.
+  return fixed === undefined ? 30 : fixed;
+}
+
+const maxDayInSelectedMonth = computed(() => daysIn(dateForm.year, dateForm.month));
 
 function openDateEdit() {
   dateForm.year  = campaign.todayYear;
@@ -151,15 +166,14 @@ function advanceDay(delta: 1 | -1) {
   let year  = campaign.todayYear;
   let month = campaign.todayMonth;
   let day   = campaign.todayDay + delta;
-  const daysInMonth = months[month - 1]?.days ?? 30;
-  if (day > daysInMonth) {
+  if (day > daysIn(year, month)) {
     day = 1;
     month++;
     if (month > months.length) { month = 1; year++; }
   } else if (day < 1) {
     month--;
     if (month < 1) { month = months.length; year--; }
-    day = months[month - 1]?.days ?? 30;
+    day = daysIn(year, month);
   }
   setToday.mutate({ id: campaign.activeCampaignId, year, month, day });
 }

@@ -118,6 +118,23 @@ export interface CalendarAdapter {
   weekRowNames?: string[];
   /** For Gregorian-style grids: returns how many empty cells to show before day 1 (0-based weekday). */
   weekdayOffset?: (year: number, monthNum: number) => number;
+  /**
+   * How many days a month actually has in a given year, when that is not
+   * simply `months[n-1].days`.
+   *
+   * Only Gregorian needs it: it folds its leap day into February. Every
+   * fantasy calendar here puts its leap day in an **intercalary** day instead
+   * — Harptos's Shieldmeet sits after month 7 — so their months are fixed and
+   * they omit this.
+   *
+   * It exists because `CalendarGrid` used to answer the question itself with
+   * `month === 2 && adapter.isLeapYear(year) ? 29 : month.days`, applied to
+   * *every* adapter. On Harptos, whose leap rule is `every4`, that silently
+   * rendered Ches with 29 cells in every year divisible by four — including
+   * 1492 DR, the default — and the 30th of Ches could not be reached in the
+   * grid at all. A calendar-specific rule belongs to the calendar.
+   */
+  daysInMonth?: (year: number, monthNum: number) => number;
   isLeapYear: (year: number) => boolean;
   formatDate: (
     year: number,

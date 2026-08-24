@@ -53,17 +53,22 @@ export interface UpcomingEventsOptions {
  * `isLeapOnly` day (Shieldmeet) is included only when `adapter.isLeapYear` says
  * this particular year actually has it.
  *
- * Every adapter currently in the registry keeps a month's length fixed
- * regardless of year — Harptos leap years add a day via Shieldmeet, an
- * intercalary day, rather than lengthening a month. Gregorian's February is
- * the one real-world exception, and nothing that already tracks a campaign's
- * "today" accounts for it either: `SessionWidget.vue`'s day-advance control
- * (`src/components/dashboard/widgets/SessionWidget.vue` L139, L154) reads the
- * same fixed `.days` value with no leap adjustment. Matching that here — not
- * inventing a more "correct" rule this module alone would follow — keeps this
- * module's arithmetic agreeing with the one control that actually moves the
- * campaign's calendar forward.
+ * Almost every adapter in the registry keeps a month's length fixed regardless
+ * of year — Harptos leap years add a day via Shieldmeet, an *intercalary* day,
+ * rather than lengthening a month. Gregorian's February is the one exception,
+ * and it answers for itself through `CalendarAdapter.daysInMonth`.
+ *
+ * Asking the adapter is what keeps this module agreeing with `SessionWidget`'s
+ * day-advance control, which is what actually moves a campaign's calendar
+ * forward. The two must not disagree about how long a month is, or a countdown
+ * drifts from the date the DM is looking at.
  */
+/** The adapter's own month length, falling back to its fixed `.days`. */
+function daysInMonth(adapter: CalendarAdapter, year: number, month: number): number {
+  const fromAdapter = adapter.daysInMonth?.(year, month);
+  return fromAdapter === undefined ? adapter.months[month - 1].days : fromAdapter;
+}
+
 function buildYearIndex(
   adapter: CalendarAdapter,
   year: number,
@@ -73,7 +78,7 @@ function buildYearIndex(
   let cursor = 0;
   for (let month = 1; month <= adapter.months.length; month++) {
     monthStartOrdinal[month - 1] = cursor;
-    cursor += adapter.months[month - 1].days;
+    cursor += daysInMonth(adapter, year, month);
     for (const intercalary of adapter.intercalaryDays) {
       if (intercalary.afterMonth !== month) continue;
       if (intercalary.isLeapOnly && !adapter.isLeapYear(year)) continue;

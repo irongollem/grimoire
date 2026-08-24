@@ -42,6 +42,10 @@ export const gregorianAdapter: CalendarAdapter = {
 
   weekdayOffset: mondayFirstOffset,
 
+  // The one calendar here that folds its leap day into a month rather than
+  // into an intercalary day, and therefore the only one that implements this.
+  daysInMonth,
+
   isLeapYear: isLeap,
 
   formatDate: (year, month, day, festivalDay) => {
@@ -54,5 +58,8 @@ export const gregorianAdapter: CalendarAdapter = {
   },
 };
 
-// Export helper so CalendarGrid can use the real days-in-month count per year
+// Still exported for direct use, but the adapter now carries it as
+// `daysInMonth` so callers ask the calendar rather than special-casing
+// Gregorian themselves — which is what CalendarGrid used to do, to Harptos's
+// cost. See the note on `CalendarAdapter.daysInMonth`.
 export { daysInMonth };
