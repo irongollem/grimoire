@@ -135,6 +135,18 @@ Nothing in the app turned a transition into a sentence, so `questActivity.ts`'s 
 
 It **groups by pantheon only when the deities span more than one bucket**, counting "no pantheon" as a bucket. A Faerûn campaign with thirteen pantheons is a wall without headers; a homebrew campaign with six unaffiliated gods would get a repeated "Unaffiliated" header on every row. The case that decides the rule is one real pantheon plus a few strays: that still groups, because folding the strays under the pantheon's header would misattribute them. `useAllDeities()` already joins the pantheon, so there is no second query.
 
+**Rules search (`RulesSearchWidget.vue`)** — the compendium, searchable from the board. `rulesSearch.ts` lifts `CompendiumTab.vue:119-125`'s matcher unchanged (`name` or `content`, lowercased `includes`) and adds only ranking — title matches before body-only ones, stable, no double-listing — plus a limit. `CompendiumTab` could now call it with a high limit instead of keeping its own copy; that swap was left for whoever next touches that file.
+
+**No mechanism exists to focus one rule in the compendium**: `CompendiumTab`'s `selected` is a plain local `ref`, wired to neither URL nor store. What *is* store-backed is `ui.compendiumSearch`, the tab's own filter. So a result sets that to the rule's name and pushes `/rules?tab=compendium` — it does not select the rule, but it narrows the destination to (usually) just that entry. A real deep link would need `CompendiumTab` to read a query param.
+
+The result rows are `AppButton variant="menu" size="body" block` using its default slot, not the raw-`<button>` exception `ConditionsWidget` takes — the rows carry two lines of content and the same primitive `CompendiumTab` already uses for its own results. The repo's `convention-guard.sh` hook flagged the first draft, which is the hook doing its job.
+
+**Cursed items (`CursedItemsWidget.vue`)** — cursed loot whose `curse_revealed` is still false. `selfHiding: true`, for the death-saves reason rather than the deities reason: an unrevealed curse is a rare narrative device, and many campaigns sit at zero for months.
+
+**Cursedness is not on the inventory row.** `PartyInventoryItem` has no `is_cursed`; it lives on the linked `items` row as a non-null `curse_description`, joined by `item_id` — so an inventory entry with no `item_id` (a custom-named line) can never be cursed. The filter is "linked item has a curse description AND `curse_revealed === false`".
+
+This is DM-private by construction: it reads `usePartyInventory()`/`useItems()` (the owner-scoped DM reads), never `get_player_visible_items`, and the dashboard sits outside the `/play` router fence. `ItemDetailPanel` — the only place `curse_revealed` is toggled — already gates its curse block on `canIdentify || inv?.curse_revealed`.
+
 `CalendarGrid.vue` used to answer the question itself: `currentMonth === 2 && adapter.isLeapYear(year) ? 29 : month.days`, applied to *every* adapter. Faerûn's leap rule is `every4` and Ches is 30 days, so in any year divisible by four — including 1492 DR, the default — the grid rendered Ches with 29 cells and **the 30th of Ches could not be reached at all**. `SessionWidget`'s day-advance and `lib/calendar/upcoming.ts` now ask the adapter too, so the grid, the date control and the countdown cannot disagree about how long a month is. Regression cover in `upcoming.test.ts`.
 
 **Keyboard**: the grip is focusable; Arrow keys move one position, `Delete`/`Backspace` removes, and the width control is an ordinary button in the tab order. No document-level listener — these are handlers on the focused element, so `useHotkeys` (for global shortcuts) does not apply.

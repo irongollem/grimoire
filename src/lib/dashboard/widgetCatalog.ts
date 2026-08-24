@@ -40,7 +40,9 @@ export type DashboardWidgetId =
   | "quick-create"
   | "rule-tracker"
   | "quest-activity"
-  | "deity-lookup";
+  | "deity-lookup"
+  | "rules-search"
+  | "cursed-items";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -209,6 +211,28 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "rules-search",
+    title: "Rules search",
+    description: "Search the compendium without leaving the dashboard.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "cursed-items",
+    title: "Cursed items",
+    description: "Cursed loot the party does not know about yet.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+    // An unrevealed curse is a rare narrative device — many campaigns sit at
+    // zero for months or never trip it at all. That is closer to the death-
+    // saves alert than to the downtime queue, whose empty state is the news.
+    selfHiding: true,
   },
   {
     id: "quest-activity",

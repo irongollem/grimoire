@@ -27,6 +27,8 @@ import QuickCreateWidget from "@/components/dashboard/widgets/QuickCreateWidget.
 import RuleTrackerWidget from "@/components/dashboard/widgets/RuleTrackerWidget.vue";
 import QuestActivityWidget from "@/components/dashboard/widgets/QuestActivityWidget.vue";
 import DeityLookupWidget from "@/components/dashboard/widgets/DeityLookupWidget.vue";
+import RulesSearchWidget from "@/components/dashboard/widgets/RulesSearchWidget.vue";
+import CursedItemsWidget from "@/components/dashboard/widgets/CursedItemsWidget.vue";
 import RuleTrackerCardSettings from "@/components/dashboard/settings/RuleTrackerCardSettings.vue";
 
 /**
@@ -62,6 +64,8 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "rule-tracker": RuleTrackerWidget,
   "quest-activity": QuestActivityWidget,
   "deity-lookup": DeityLookupWidget,
+  "rules-search": RulesSearchWidget,
+  "cursed-items": CursedItemsWidget,
 };
 
 /**
