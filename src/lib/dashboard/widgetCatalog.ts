@@ -30,7 +30,8 @@ export type DashboardWidgetId =
   | "roll-table"
   | "conditions"
   | "latest-session-note"
-  | "quick-dice";
+  | "quick-dice"
+  | "death-saves";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -199,6 +200,20 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "death-saves",
+    title: "Death saves",
+    description: "Appears only while someone is dying — successes, failures, how close to either end.",
+    // All three widths, though the card is never more than a few rows. The
+    // executor argued `full` was pointless for so little content; the DM can
+    // still want this one shouting across the board, and a width they cannot
+    // choose is a width the widget decided for them.
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+    selfHiding: true,
   },
   {
     id: "quick-dice",
