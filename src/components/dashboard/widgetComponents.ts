@@ -29,6 +29,7 @@ import QuestActivityWidget from "@/components/dashboard/widgets/QuestActivityWid
 import DeityLookupWidget from "@/components/dashboard/widgets/DeityLookupWidget.vue";
 import RulesSearchWidget from "@/components/dashboard/widgets/RulesSearchWidget.vue";
 import CursedItemsWidget from "@/components/dashboard/widgets/CursedItemsWidget.vue";
+import SoundboardScenesWidget from "@/components/dashboard/widgets/SoundboardScenesWidget.vue";
 import RuleTrackerCardSettings from "@/components/dashboard/settings/RuleTrackerCardSettings.vue";
 
 /**
@@ -66,6 +67,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "deity-lookup": DeityLookupWidget,
   "rules-search": RulesSearchWidget,
   "cursed-items": CursedItemsWidget,
+  "soundboard-scenes": SoundboardScenesWidget,
 };
 
 /**

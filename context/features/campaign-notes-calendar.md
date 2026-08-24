@@ -147,6 +147,10 @@ The result rows are `AppButton variant="menu" size="body" block` using its defau
 
 This is DM-private by construction: it reads `usePartyInventory()`/`useItems()` (the owner-scoped DM reads), never `get_player_visible_items`, and the dashboard sits outside the `/play` router fence. `ItemDetailPanel` — the only place `curse_revealed` is toggled — already gates its curse block on `canIdentify || inv?.curse_revealed`.
 
+**Ambience (`SoundboardScenesWidget.vue`)** — jumps to a named soundboard page. `selfHiding: true`; a campaign with no named pages has nothing to jump to and the soundboard already opens on "All".
+
+**#764 said to include this "only with a shared component", and the answer turned out to be that it needs none — because it carries no control.** The two-surfaces rule governs a *control* that appears both on `/soundboard` and in the floating `SoundboardWidget`; this widget only navigates, so there is no second copy of anything to drift. Choosing a page is one piece of state — `ui.soundboardActivePage`, which `SoundboardPageTabs` binds with `v-model` — and the widget sets that same field before routing to the page the tabs live on. The tabs remain the only thing that renders a page control. If this ever grows transport buttons, that reasoning expires and the rule bites.
+
 `CalendarGrid.vue` used to answer the question itself: `currentMonth === 2 && adapter.isLeapYear(year) ? 29 : month.days`, applied to *every* adapter. Faerûn's leap rule is `every4` and Ches is 30 days, so in any year divisible by four — including 1492 DR, the default — the grid rendered Ches with 29 cells and **the 30th of Ches could not be reached at all**. `SessionWidget`'s day-advance and `lib/calendar/upcoming.ts` now ask the adapter too, so the grid, the date control and the countdown cannot disagree about how long a month is. Regression cover in `upcoming.test.ts`.
 
 **Keyboard**: the grip is focusable; Arrow keys move one position, `Delete`/`Backspace` removes, and the width control is an ordinary button in the tab order. No document-level listener — these are handlers on the focused element, so `useHotkeys` (for global shortcuts) does not apply.

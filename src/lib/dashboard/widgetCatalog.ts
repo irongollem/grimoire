@@ -42,7 +42,8 @@ export type DashboardWidgetId =
   | "quest-activity"
   | "deity-lookup"
   | "rules-search"
-  | "cursed-items";
+  | "cursed-items"
+  | "soundboard-scenes";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -211,6 +212,18 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "soundboard-scenes",
+    title: "Ambience",
+    description: "Jump to a named soundboard page.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+    // Nothing to jump to until the campaign has named pages, and the
+    // soundboard already opens on "All".
+    selfHiding: true,
   },
   {
     id: "rules-search",
