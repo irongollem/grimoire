@@ -16,6 +16,7 @@ import RollTableWidget from "@/components/dashboard/widgets/RollTableWidget.vue"
 import RollTableCardSettings from "@/components/dashboard/settings/RollTableCardSettings.vue";
 import ConditionsWidget from "@/components/dashboard/widgets/ConditionsWidget.vue";
 import LatestSessionNoteWidget from "@/components/dashboard/widgets/LatestSessionNoteWidget.vue";
+import QuickDiceWidget from "@/components/dashboard/widgets/QuickDiceWidget.vue";
 
 /**
  * Maps every `DashboardWidgetId` to its component. Kept apart from
@@ -39,6 +40,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "roll-table": RollTableWidget,
   conditions: ConditionsWidget,
   "latest-session-note": LatestSessionNoteWidget,
+  "quick-dice": QuickDiceWidget,
 };
 
 /**

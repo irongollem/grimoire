@@ -29,7 +29,8 @@ export type DashboardWidgetId =
   | "dm-screen-card"
   | "roll-table"
   | "conditions"
-  | "latest-session-note";
+  | "latest-session-note"
+  | "quick-dice";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -194,6 +195,15 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     id: "conditions",
     title: "Conditions",
     description: "All sixteen conditions, with the rules text one tap away.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "quick-dice",
+    title: "Dice roller",
+    description: "Standard dice or a typed expression, rolled on the spot.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
