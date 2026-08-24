@@ -32,7 +32,8 @@ export type DashboardWidgetId =
   | "latest-session-note"
   | "quick-dice"
   | "death-saves"
-  | "table-vitals";
+  | "table-vitals"
+  | "downtime-queue";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -201,6 +202,19 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "downtime-queue",
+    title: "Downtime queue",
+    description: "Player downtime draws waiting on you to resolve.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+    // Not self-hiding, unlike Table Vitals: an empty downtime queue is the
+    // *good* state and worth saying out loud. "Every draw has been resolved"
+    // is information; a card that vanished would leave the DM wondering
+    // whether they had checked.
   },
   {
     id: "table-vitals",
