@@ -28,7 +28,8 @@ export type DashboardWidgetId =
   | "stats"
   | "dm-screen-card"
   | "roll-table"
-  | "conditions";
+  | "conditions"
+  | "latest-session-note";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -193,6 +194,15 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     id: "conditions",
     title: "Conditions",
     description: "All sixteen conditions, with the rules text one tap away.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "latest-session-note",
+    title: "Last session",
+    description: "The most recent session recap, one tap from the board.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
