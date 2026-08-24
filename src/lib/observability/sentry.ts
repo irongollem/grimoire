@@ -35,6 +35,12 @@ const IGNORED: (string | RegExp)[] = [
   /Load failed/,
   // Autofill/translate extensions injecting into the page.
   /^Non-Error promise rejection captured/,
+  // A read refused because the session was not usable yet (authAwareFetch). By
+  // design this fires once per query in a mobile wake-up burst — dozens at a
+  // time — and resolves itself when auth-js lands the refresh. It is the
+  // handled path, not the fault; the fault would be the 200 [] it replaced.
+  /AnonymousReadError/,
+  "Request blocked: the session is not usable yet",
 ];
 
 const DENY_URLS: RegExp[] = [

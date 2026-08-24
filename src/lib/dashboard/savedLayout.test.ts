@@ -5,7 +5,14 @@ import {
   parseDashboardLayout,
 } from "./savedLayout";
 import { DEFAULT_LAYOUTS, type DashboardLayout, type DashboardLayoutEntry } from "./defaultLayouts";
-import { DASHBOARD_WIDGETS, type DashboardSurface, type DashboardWidgetId } from "./widgetCatalog";
+import {
+  DASHBOARD_WIDGETS,
+  defaultHeightFor,
+  widgetById,
+  type DashboardSurface,
+  type DashboardWidgetId,
+  type WidgetHeight,
+} from "./widgetCatalog";
 
 /**
  * An id no catalogue issue will ever ship.
@@ -31,6 +38,13 @@ function savedWithout(surface: DashboardSurface, ...dropped: DashboardWidgetId[]
       .map((entry) => ({ ...entry })),
     known: [...KNOWN_WIDGET_IDS],
   };
+}
+
+/** The height a widget resolves to when a saved blob does not name one. */
+function heightOf(id: string): WidgetHeight {
+  const widget = widgetById(id);
+  if (widget === undefined) throw new Error(`fixture widget "${id}" is not registered`);
+  return defaultHeightFor(widget);
 }
 
 describe("parseDashboardLayout", () => {
@@ -60,10 +74,13 @@ describe("parseDashboardLayout", () => {
         ],
         known: ["quests", "party"],
       }),
+      // A blob with no `height` is every layout saved before #768, and it
+      // resolves to each widget's own default rather than staying absent —
+      // which is why heights needed no migration.
     ).toEqual({
       widgets: [
-        { key: "quests", id: "quests", width: "wide" },
-        { key: "party", id: "party", width: "full" },
+        { key: "quests", id: "quests", width: "wide", height: heightOf("quests") },
+        { key: "party", id: "party", width: "full", height: heightOf("party") },
       ],
       known: ["quests", "party"],
     });
@@ -164,7 +181,7 @@ describe("mergeDashboardLayout case 1 — widgets the registry no longer offers"
       known: [...KNOWN_WIDGET_IDS],
     };
     expect(mergeDashboardLayout(saved, "prep").widgets).toEqual([
-      { key: "quests", id: "quests", width: "cell" },
+      { key: "quests", id: "quests", width: "cell", height: heightOf("quests") },
     ]);
   });
 

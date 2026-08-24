@@ -18,6 +18,7 @@ import {
   Hammer, Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
   Cloud,
   Keyboard, KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
+  Shrink,
   Leaf, Library, LibraryBig, Lightbulb, Link, Link2, List, ListOrdered, ListTodo,
   Loader2, LoaderCircle, Lock, LogOut,
   Map, MapPin, Maximize2, Megaphone, Menu, MessageCircle, MessageSquare, Minus, Monitor, MoreHorizontal,
@@ -117,6 +118,8 @@ export { Home as IconHome }
 export { LayoutDashboard as IconDashboard }
 export { LayoutList as IconListView }
 export { LayoutGrid as IconGridView }
+/** Dense grid packing — the Customize-mode "Pack tightly" toggle (#768). */
+export { Shrink as IconPack }
 export { Columns2 as IconColumns }
 export { ChevronDown as IconChevronDown }
 export { ChevronUp as IconChevronUp }

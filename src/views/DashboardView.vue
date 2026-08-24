@@ -32,8 +32,10 @@
         :entries="draft"
         :surface="view"
         :new-widget-ids="newWidgetIds"
+        :dense="draftDense"
         @add="onAdd"
         @reset="onReset"
+        @update:dense="onToggleDense"
       />
       <SegmentedControl
         :model-value="view"
@@ -93,6 +95,7 @@
       ref="gridEl"
       v-model="draft"
       class="grid grid-cols-1 lg:grid-cols-3 gap-x-4 gap-y-12 pt-12 md:gap-y-8 md:pt-8"
+      :style="gridStyle"
       handle=".dashboard-customize-grip"
       :animation="180"
       ghost-class="dashboard-drop-slot"
@@ -115,11 +118,13 @@
         customizing
         :class="[
           WIDTH_CLASSES[entry.width],
+          heightClass(entry),
           entry.key === justAddedKey && 'rounded-lg ring-2 ring-primary/60',
           'transition-shadow duration-500',
         ]"
         @move="onMove"
         @cycle-width="onCycleWidth"
+        @cycle-height="onCycleHeight"
         @remove="onRemove"
         @configure="onConfigure"
       >
@@ -127,13 +132,18 @@
       </DashboardCustomizeFrame>
     </VueDraggable>
 
-    <div v-else ref="gridEl" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div
+      v-else
+      ref="gridEl"
+      class="grid grid-cols-1 lg:grid-cols-3 gap-4"
+      :style="gridStyle"
+    >
       <component
         :is="WIDGET_COMPONENTS[entry.id]"
         v-for="entry in widgets"
         :key="entry.key"
         v-bind="widgetProps(entry)"
-        :class="WIDTH_CLASSES[entry.width]"
+        :class="[WIDTH_CLASSES[entry.width], heightClass(entry)]"
       />
     </div>
 
@@ -176,6 +186,7 @@ import { IconCheck, IconGridView } from "@/lib/icons";
 import {
   addWidget,
   configureEntry,
+  cycleHeight,
   cycleWidth,
   moveEntry,
   removeEntry,
@@ -185,8 +196,10 @@ import { captureFlipPositions, playFlipTransition, revealInScrollParent } from "
 import {
   widgetById,
   type DashboardSurface,
+  DEFAULT_WIDGET_HEIGHT,
   type DashboardWidgetDef,
   type DashboardWidgetId,
+  type WidgetHeight,
   type WidgetWidth,
 } from "@/lib/dashboard/widgetCatalog";
 import { DEFAULT_LAYOUTS, type DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
@@ -196,6 +209,35 @@ const WIDTH_CLASSES: Record<WidgetWidth, string> = {
   wide: "lg:col-span-2",
   full: "lg:col-span-3",
 };
+
+/**
+ * Row spans for the half-widget height model (#768).
+ *
+ * Only from `lg` up, exactly like the widths: below that the grid is a single
+ * column and a row span would squash a card against a fixed row height on the
+ * narrowest screen, where vertical space is the one thing there is plenty of.
+ * A phone scrolls; it does not tessellate.
+ */
+const HEIGHT_CLASSES: Record<WidgetHeight, string> = {
+  1: "lg:row-span-1",
+  2: "lg:row-span-2",
+  3: "lg:row-span-3",
+  4: "lg:row-span-4",
+};
+
+/**
+ * Half a card. A normal widget is two of these plus the row gap between them,
+ * which lands within a hair of the `max-h-76` (19rem) every card used to cap
+ * itself at — so a default board is the same size it was before heights
+ * existed, and only a DM who changes a height sees a difference.
+ */
+const HALF_ROW = "9rem";
+
+function heightClass(entry: DashboardLayoutEntry): string {
+  // An entry from a layout saved before #768 has no height until the merge
+  // resolves one; falling back keeps it a normal card rather than one row.
+  return HEIGHT_CLASSES[entry.height ?? DEFAULT_WIDGET_HEIGHT];
+}
 
 /**
  * Long enough that a burst of Arrow-key presses is one write, short enough
@@ -220,7 +262,7 @@ const view = computed<DashboardSurface>(() => {
   return ui.sessionRunning ? "session" : "prep";
 });
 
-const { widgets, newWidgetIds, saveLayout, resetLayout } = useDashboardLayout(view);
+const { widgets, newWidgetIds, dense, saveLayout, resetLayout } = useDashboardLayout(view);
 
 const customizing = ref(false);
 
@@ -270,13 +312,21 @@ const configuringEntry = computed(() =>
  */
 const draft = ref<DashboardLayoutEntry[]>([]);
 
+/**
+ * The packing setting being edited, alongside `draft` and for the same reason:
+ * it is saved on the same debounce and has to show its new state instantly.
+ */
+const draftDense = ref(false);
+
 // Leaving Customize mode, switching surface or switching campaign all mean the
 // draft is describing a layout nobody is looking at any more. Re-seed from the
 // merged layout rather than trying to carry edits across.
 watch(
   [widgets, view, customizing],
   () => {
-    if (!customizing.value) draft.value = widgets.value.map((entry) => ({ ...entry }));
+    if (customizing.value) return;
+    draft.value = widgets.value.map((entry) => ({ ...entry }));
+    draftDense.value = dense.value;
   },
   { immediate: true },
 );
@@ -326,6 +376,7 @@ function toggleCustomizing() {
   customizing.value = !customizing.value;
   if (customizing.value) {
     draft.value = widgets.value.map((entry) => ({ ...entry }));
+    draftDense.value = dense.value;
     announcement.value = "Customize mode on. Focus a widget's grip to move it with the arrow keys.";
     return;
   }
@@ -349,7 +400,7 @@ function flushSave() {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
-  void saveLayout(draft.value.map((entry) => ({ ...entry })));
+  void saveLayout(draft.value.map((entry) => ({ ...entry })), draftDense.value);
 }
 
 // A DM who arranges and then navigates away must not lose the last edit to a
@@ -413,6 +464,22 @@ function onCycleWidth(key: string) {
   void apply(cycleWidth(draft.value, key));
 }
 
+function onCycleHeight(key: string) {
+  void apply(cycleHeight(draft.value, key));
+}
+
+/**
+ * `grid-auto-rows` is what makes a row span mean a predictable height, and
+ * `dense` is the DM's own choice (#768). Bound as a style rather than a class
+ * because the row height is a single measured value, not one of a set — a
+ * `grid-rows-[9rem]` arbitrary utility would put the same number in a class
+ * string where nothing can read it.
+ */
+const gridStyle = computed(() => ({
+  gridAutoRows: HALF_ROW,
+  gridAutoFlow: (customizing.value ? draftDense.value : dense.value) ? "row dense" : "row",
+}));
+
 function onRemove(key: string) {
   // Cleared, not left to the computed: re-adding the same widget from the
   // shelf mints the same instance key, and a stale one would spring its
@@ -445,6 +512,19 @@ function flashAdded(key: string) {
   }, ADDED_FLASH_MS);
 }
 
+/**
+ * Packing is a layout-wide setting rather than an entry edit, so it does not
+ * go through `apply` — there is no `focusKey`, no FLIP, and nothing to scroll
+ * to. It still saves on the same debounce as everything else.
+ */
+function onToggleDense(next: boolean) {
+  draftDense.value = next;
+  announcement.value = next
+    ? "Widgets now fill gaps. Some may appear before others in your order."
+    : "Widgets now follow your order exactly.";
+  queueSave();
+}
+
 function onConfigure(key: string) {
   configuringKey.value = key;
 }
@@ -472,6 +552,7 @@ function onReset() {
   // removes the row outright, and the merge then answers with the defaults. An
   // undo that had to reconstruct the previous arrangement could not.
   const previous = draft.value.map((entry) => ({ ...entry }));
+  const previousDense = draftDense.value;
   if (saveTimer !== null) {
     clearTimeout(saveTimer);
     saveTimer = null;
@@ -484,12 +565,16 @@ function onReset() {
   // caught it. The defaults are what a deleted row renders anyway, so this is
   // the same answer arrived at without racing the cache.
   draft.value = DEFAULT_LAYOUTS[view.value].widgets.map((entry) => ({ ...entry }));
+  // Reset clears packing with everything else: it is part of the arrangement,
+  // and a "default layout" that kept a setting the DM turned on is not one.
+  draftDense.value = false;
   announcement.value = "Dashboard reset to the default layout.";
   toast.info("Dashboard reset to the default layout.", undefined, {
     action: {
       label: "Undo",
       run: () => {
         draft.value = previous.map((entry) => ({ ...entry }));
+        draftDense.value = previousDense;
         flushSave();
         announcement.value = "Reset undone.";
       },

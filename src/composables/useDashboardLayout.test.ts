@@ -111,7 +111,13 @@ vi.mock("@/composables/useToast", () => ({
 
 import { useDashboardLayout } from "./useDashboardLayout";
 import { DEFAULT_LAYOUTS } from "@/lib/dashboard/defaultLayouts";
-import { DASHBOARD_WIDGETS, type DashboardSurface } from "@/lib/dashboard/widgetCatalog";
+import {
+  DASHBOARD_WIDGETS,
+  defaultHeightFor,
+  widgetById,
+  type DashboardSurface,
+  type WidgetHeight,
+} from "@/lib/dashboard/widgetCatalog";
 
 function open(surface: Ref<DashboardSurface>) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -141,6 +147,13 @@ beforeEach(() => {
   mocks.pendingWrite = null;
   mocks.errors.length = 0;
 });
+
+/** The height a widget resolves to when a saved blob does not name one. */
+function heightOf(id: string): WidgetHeight {
+  const widget = widgetById(id);
+  if (widget === undefined) throw new Error(`fixture widget "${id}" is not registered`);
+  return defaultHeightFor(widget);
+}
 
 describe("useDashboardLayout", () => {
   // The dashboard has no loading state on purpose: an absent row merges to the
@@ -176,11 +189,15 @@ describe("useDashboardLayout", () => {
     });
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
+    // Heights are resolved on read (#768): a blob saved before heights existed
+    // carries none, and each entry comes back with its widget's own default
+    // rather than absent — which is why the feature needed no migration.
     expect(api().widgets.value).toEqual([
-      { key: "party", id: "party", width: "full" },
-      { key: "quests", id: "quests", width: "wide" },
+      { key: "party", id: "party", width: "full", height: heightOf("party") },
+      { key: "quests", id: "quests", width: "wide", height: heightOf("quests") },
     ]);
     expect(api().isCustomized.value).toBe(true);
+    expect(api().dense.value).toBe(false);
   });
 
   // `known` is what lets the merge tell a widget the DM removed from one that
@@ -189,7 +206,7 @@ describe("useDashboardLayout", () => {
   it("stamps every registry id into known on save", async () => {
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
-    await api().saveLayout([{ key: "party", id: "party", width: "full" }]);
+    await api().saveLayout([{ key: "party", id: "party", width: "full" }], false);
 
     const written = mocks.upserts[0];
     expect(written).toMatchObject({
@@ -213,7 +230,7 @@ describe("useDashboardLayout", () => {
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
 
-    const saving = api().saveLayout([{ key: "quests", id: "quests", width: "cell" }]);
+    const saving = api().saveLayout([{ key: "quests", id: "quests", width: "cell" }], false);
     await flushPromises();
     expect(api().widgets.value.map((e) => e.key)).toEqual(["quests"]);
     expect(api().isSaving.value).toBe(true);
@@ -234,7 +251,7 @@ describe("useDashboardLayout", () => {
     const { api } = open(ref<DashboardSurface>("prep"));
     await flushPromises();
 
-    const saving = api().saveLayout([{ key: "quests", id: "quests", width: "cell" }]);
+    const saving = api().saveLayout([{ key: "quests", id: "quests", width: "cell" }], false);
     await flushPromises();
     expect(api().widgets.value.map((e) => e.key)).toEqual(["quests"]);
 

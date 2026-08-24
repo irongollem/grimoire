@@ -41,6 +41,23 @@ const singleTabLock = <R>(name: string, _timeout: number, fn: () => Promise<R>):
 // before there is anything to recover into.
 let sessionLostHandler: (() => void) | null = null;
 
+/** Whether any read has been refused for want of a usable session. */
+let refusedReadSinceRefresh = false;
+
+/**
+ * Reports — and clears — whether reads were refused since the last check.
+ *
+ * TOKEN_REFRESHED fires on every routine hourly refresh, so refetching the whole
+ * cache on it unconditionally would trade a wake-up bug for an hourly refetch
+ * burst. This narrows it to the case worth paying for: a refresh that lands
+ * after `authAwareFetch` has actually starved some queries.
+ */
+export function consumeRefusedRead(): boolean {
+  const refused = refusedReadSinceRefresh;
+  refusedReadSinceRefresh = false;
+  return refused;
+}
+
 /**
  * Registers what to do when a PostgREST request comes back unauthenticated —
  * see `authAwareFetch` for why that is detectable and `sessionRecovery` for why
@@ -53,6 +70,15 @@ export function onSessionLost(handler: () => void): void {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
+    // Proactive refresh is the SDK's job and must stay that way. Never call
+    // `refreshSession()` alongside this timer: a refresh token is single-use, so
+    // two senders trip reuse detection and kill the session we were trying to
+    // save. `getSession()` is the safe door — it refreshes only when actually
+    // expired, and concurrent callers share one in-flight attempt
+    // (`refreshingDeferred` in auth-js), which is what a manual page reload was
+    // doing all along. `stores/auth.ts` used to carry an `ensureFreshSession()`
+    // recording this; it had decayed to an empty function the router guard still
+    // awaited, so the rule now lives next to the setting it constrains.
     autoRefreshToken: true,
     lock: singleTabLock,
   },
@@ -60,6 +86,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     fetch: createAuthAwareFetch(
       (input, init) => globalThis.fetch(input, init),
       () => sessionLostHandler?.(),
+      {
+        anonKey: supabaseAnonKey,
+        // The cache below, not `auth.getSession()`: this runs on every request
+        // and must stay synchronous and lock-free. It is also exactly the right
+        // question — "does the app believe it is signed in" — since that belief
+        // is what makes an anon-key read a lie rather than a legitimate
+        // logged-out call.
+        believesSignedIn: () => getCurrentUser() !== null,
+        onRefused: () => {
+          refusedReadSinceRefresh = true;
+        },
+      },
     ),
   },
 });

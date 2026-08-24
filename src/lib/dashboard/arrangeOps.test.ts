@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addWidget,
   configureEntry,
+  cycleHeight,
   cycleWidth,
   instanceKey,
   isDefaultLayout,
@@ -269,6 +270,52 @@ describe("focusKey", () => {
     const clamped = moveEntry(prep(), "prep-gaps", -1);
     expect(clamped.announcement).toContain("already first");
     expect(clamped.focusKey).toBeUndefined();
+  });
+});
+
+describe("cycleHeight", () => {
+  it("advances to the widget's next offered height and wraps", () => {
+    // `quests` has no opinion, so it offers all four.
+    let entries = prep();
+    const heights: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const out = cycleHeight(entries, "quests");
+      entries = out.entries;
+      const height = entries.find((e) => e.key === "quests")?.height;
+      if (height !== undefined) heights.push(height);
+    }
+    // Started at 2 (the default), so: 3, 4, 1, 2, 3 — wrapping, not clamping.
+    expect(heights).toEqual([3, 4, 1, 2, 3]);
+  });
+
+  // No widget restricts its heights today (see `heights` in widgetCatalog), so
+  // the restriction logic itself is unit-tested on `heightsFor` /
+  // `defaultHeightFor` in widgetCatalog.test.ts rather than through a registry
+  // entry that may never exist. What is worth testing *here* is the entry
+  // whose stored height is out of range, which a real deploy can produce.
+  it("restarts from the widget's default when the stored height is not on offer", () => {
+    const entries: DashboardLayoutEntry[] = [
+      // 7 is not a WidgetHeight; a hand-edited row or a widget that narrowed
+      // its range can still hand one over.
+      { key: "quests", id: "quests", width: "cell", height: 7 as never },
+    ];
+    const out = cycleHeight(entries, "quests");
+    // Default is 2, so the next one along is 3 — not the last height, which is
+    // where a bare `indexOf` returning -1 would have landed.
+    expect(out.entries[0]?.height).toBe(3);
+  });
+
+  it("announces the new height and asks to be kept in view", () => {
+    const out = cycleHeight(prep(), "quests");
+    expect(out.announcement).toBe("Quests set to 3 of 4 height.");
+    expect(out.focusKey).toBe("quests");
+  });
+
+  it("is a no-op for a key that is not on the dashboard", () => {
+    const before = prep();
+    const after = cycleHeight(before, "not-here");
+    expect(after.entries).toEqual(before);
+    expect(after.announcement).toBe("");
   });
 });
 

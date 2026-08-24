@@ -41,6 +41,9 @@ vi.mock("@/composables/useDashboardLayout", async () => {
     useDashboardLayout: (surface: unknown) => ({
       widgets: computed(() => mocks.widgetsFor(toValue(surface as never))),
       newWidgetIds: computed(() => mocks.newWidgetIds),
+      // #768: the view binds packing off this, so a mock without it throws
+      // before a single assertion runs.
+      dense: computed(() => false),
       isCustomized: computed(() => false),
       isSaving: computed(() => false),
       saveLayout: mocks.saveLayout,

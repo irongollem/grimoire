@@ -45,6 +45,31 @@
       </EntityCombobox>
     </div>
 
+    <!--
+      Opt-in packing (#768). `grid-auto-flow: dense` fills the holes that
+      heights leave, but only by letting a later small widget slide up past an
+      earlier one — so the rendered order stops matching the arranged order,
+      which is the one thing #760 promised not to do. As a control the DM
+      turns on it stops being the engine overriding them and becomes them
+      trading order for density, deliberately and reversibly. That is also why
+      it lives here beside Reset, with the other layout-wide controls, and not
+      in the normal view: it is an arrangement decision, not a viewing one.
+    -->
+    <AppButton
+      variant="outline"
+      size="sm"
+      :icon="IconPack"
+      label="Pack tightly"
+      :active="dense"
+      :aria-pressed="dense"
+      :tooltip="
+        dense
+          ? 'Widgets fill gaps, so some may sit before others in your order'
+          : 'Let short widgets fill the gaps left above them'
+      "
+      @click="emit('update:dense', !dense)"
+    />
+
     <AppButton
       variant="outline"
       size="sm"
@@ -86,7 +111,7 @@
 import { computed, ref, watch } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { IconReset } from "@/lib/icons";
+import { IconPack, IconReset } from "@/lib/icons";
 import { isDefaultLayout, shelfWidgets } from "@/lib/dashboard/arrangeOps";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
 import type {
@@ -104,13 +129,15 @@ interface WidgetOption {
   selfHidingNote: string;
 }
 
-const { entries, surface, newWidgetIds } = defineProps<{
+const { entries, surface, newWidgetIds, dense = false } = defineProps<{
   /** The layout currently on screen — what `shelfWidgets`/`isDefaultLayout` compare against. */
   entries: readonly DashboardLayoutEntry[];
   /** Which dashboard this serves; a widget's eligibility is surface-scoped. */
   surface: DashboardSurface;
   /** Ids the registry gained since this DM last saved (`useDashboardLayout.newWidgetIds`). */
   newWidgetIds: readonly DashboardWidgetId[];
+  /** Whether this surface packs its grid densely (#768). */
+  dense?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -118,6 +145,8 @@ const emit = defineEmits<{
   add: [id: DashboardWidgetId];
   /** "Reset to default" was clicked. No confirm here: the view answers with an undo toast. */
   reset: [];
+  /** Dense packing was toggled (#768). */
+  "update:dense": [dense: boolean];
 }>();
 
 // A Set so the "New" lookup is O(1) per option rather than an `includes` scan

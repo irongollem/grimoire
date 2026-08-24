@@ -1,5 +1,7 @@
 import {
   DASHBOARD_WIDGETS,
+  defaultHeightFor,
+  heightsFor,
   widgetById,
   type DashboardSurface,
   type DashboardWidgetDef,
@@ -7,7 +9,8 @@ import {
 import { DEFAULT_LAYOUTS, type DashboardLayoutEntry } from "./defaultLayouts";
 
 /**
- * The six edits Customize mode (#763, #764) can make to a layout, as pure functions.
+ * The seven edits Customize mode (#763, #764, #768) can make to a layout, as
+ * pure functions.
  *
  * Every one takes the current entries and returns new entries — no mutation,
  * no Vue, no Supabase.
@@ -130,6 +133,47 @@ export function cycleWidth(
   return {
     entries: next,
     announcement: `${titleOf(entry)} set to ${nextWidth} width.`,
+    focusKey: key,
+  };
+}
+
+/**
+ * Advance a widget to its next supported height, wrapping (#768).
+ *
+ * Wraps for the same reason `cycleWidth` does: it is one button pressed until
+ * the card looks right, with no hidden state, so a dead end would just feel
+ * broken.
+ */
+export function cycleHeight(
+  entries: readonly DashboardLayoutEntry[],
+  key: string,
+): ArrangeOutcome {
+  const index = entries.findIndex((entry) => entry.key === key);
+  const entry = entries[index];
+  if (index === -1 || entry === undefined) {
+    return { entries: clone(entries), announcement: "" };
+  }
+
+  const widget = widgetById(entry.id);
+  if (widget === undefined) return { entries: clone(entries), announcement: "" };
+
+  const offered = heightsFor(widget);
+  if (offered.length < 2) {
+    return { entries: clone(entries), announcement: `${titleOf(entry)} has one height.` };
+  }
+
+  // An entry whose stored height is not on offer (a widget that narrowed its
+  // range since the save) restarts from the widget's default rather than from
+  // -1, which would land on the last height and read as random.
+  const current = entry.height === undefined ? defaultHeightFor(widget) : entry.height;
+  const at = offered.indexOf(current);
+  const nextHeight = offered[(at === -1 ? offered.indexOf(defaultHeightFor(widget)) : at) + 1] ?? offered[0];
+
+  const next = clone(entries);
+  next[index] = { ...entry, height: nextHeight };
+  return {
+    entries: next,
+    announcement: `${titleOf(entry)} set to ${nextHeight} of 4 height.`,
     focusKey: key,
   };
 }
@@ -309,7 +353,7 @@ function sameSettings(
 /**
  * Whether this layout is already the surface's default.
  *
- * Compares the whole arrangement — order, widths and per-instance settings,
+ * Compares the whole arrangement — order, widths, heights and per-instance settings,
  * not just membership — because a DM who only reordered the stock widgets has
  * still customized their screen, and offering them "Reset to default" as a
  * no-op would be a lie.
@@ -334,6 +378,7 @@ export function isDefaultLayout(
       entry.key === expected.key &&
       entry.id === expected.id &&
       entry.width === expected.width &&
+      entry.height === expected.height &&
       sameSettings(entry.settings, expected.settings)
     );
   });

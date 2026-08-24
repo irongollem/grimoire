@@ -92,12 +92,19 @@ describe("customizing — controls", () => {
   // A single-width widget (party is full-width only) has no cycle to offer —
   // rendering the control anyway would be a button that visibly does nothing,
   // which the story calls out as worse than no button at all.
+  // Asserts the *width* control specifically, not a button count: since #768
+  // a single-width widget still gets a height control, and counting buttons
+  // would have made this test fail for the right behaviour.
   it("omits the width control entirely for a single-width widget", () => {
     const wrapper = mount(DashboardCustomizeFrame, {
       props: { entry: entryFor(PARTY), widget: PARTY, customizing: true },
       slots: { default: CONTENT_SLOT },
     });
-    expect(wrapper.findAll("button")).toHaveLength(2); // grip + remove only
+    expect(wrapper.find('[aria-label^="Change width"]').exists()).toBe(false);
+    // Still gets the height control, and still has its grip and remove.
+    expect(wrapper.find('[aria-label^="Change height"]').exists()).toBe(true);
+    expect(wrapper.find(".dashboard-customize-grip").exists()).toBe(true);
+    expect(wrapper.find('[aria-label="Remove from dashboard"]').exists()).toBe(true);
   });
 
   // Wording matters here specifically because nothing is destroyed — a

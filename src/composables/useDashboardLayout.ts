@@ -32,10 +32,12 @@ interface DashboardLayoutApi {
   widgets: ComputedRef<DashboardLayoutEntry[]>;
   /** Widget ids that entered the registry after the save — #763 badges these "New". */
   newWidgetIds: ComputedRef<DashboardWidgetId[]>;
+  /** Whether this surface packs its grid densely (#768). */
+  dense: ComputedRef<boolean>;
   /** Whether a saved row exists — #763 enables "Reset to default" from it. */
   isCustomized: ComputedRef<boolean>;
   isSaving: ComputedRef<boolean>;
-  saveLayout: (widgets: DashboardLayoutEntry[]) => Promise<void>;
+  saveLayout: (widgets: DashboardLayoutEntry[], dense: boolean) => Promise<void>;
   resetLayout: () => Promise<void>;
 }
 
@@ -104,7 +106,13 @@ export function useDashboardLayout(surface: MaybeRefOrGetter<DashboardSurface>):
   }
 
   const saveMutation = useMutation({
-    mutationFn: async (widgets: DashboardLayoutEntry[]): Promise<DashboardLayout | null> => {
+    mutationFn: async ({
+      widgets,
+      dense,
+    }: {
+      widgets: DashboardLayoutEntry[];
+      dense: boolean;
+    }): Promise<DashboardLayout | null> => {
       const user = getCurrentUser();
       const campaignId = campaign.activeCampaignId;
       if (!user || !campaignId) throw new Error("No campaign is open.");
@@ -115,7 +123,7 @@ export function useDashboardLayout(surface: MaybeRefOrGetter<DashboardSurface>):
             user_id: user.id,
             campaign_id: campaignId,
             surface: toValue(surface),
-            layout: stamp(widgets),
+            layout: stamp(widgets, dense),
           },
           { onConflict: "user_id,campaign_id,surface" },
         )
@@ -124,7 +132,8 @@ export function useDashboardLayout(surface: MaybeRefOrGetter<DashboardSurface>):
       if (error) throw error;
       return parseDashboardLayout(data.layout);
     },
-    onMutate: (widgets: DashboardLayoutEntry[]) => beginOptimistic(stamp(widgets)),
+    onMutate: ({ widgets, dense }: { widgets: DashboardLayoutEntry[]; dense: boolean }) =>
+      beginOptimistic(stamp(widgets, dense)),
     onError: (cause, _widgets, context) => rollback(context, cause),
     // Deliberately no `invalidateQueries`: Customize mode (#763) saves through on
     // every reorder, so a refetch per drag is exactly the flicker the optimistic
@@ -154,10 +163,11 @@ export function useDashboardLayout(surface: MaybeRefOrGetter<DashboardSurface>):
   return {
     widgets: computed(() => merged.value.widgets),
     newWidgetIds: computed(() => merged.value.newWidgetIds),
+    dense: computed(() => merged.value.dense),
     isCustomized: computed(() => query.data.value != null),
     isSaving: computed(() => saveMutation.isPending.value || resetMutation.isPending.value),
-    saveLayout: async (widgets) => {
-      await saveMutation.mutateAsync(widgets);
+    saveLayout: async (widgets, dense) => {
+      await saveMutation.mutateAsync({ widgets, dense });
     },
     resetLayout: async () => {
       await resetMutation.mutateAsync();
@@ -173,6 +183,10 @@ export function useDashboardLayout(surface: MaybeRefOrGetter<DashboardSurface>):
  * save that forgot it would make every widget look new on the next load.
  * Customize mode should not have to remember a field it never reads.
  */
-function stamp(widgets: DashboardLayoutEntry[]): DashboardLayout {
-  return { widgets, known: [...KNOWN_WIDGET_IDS] };
+function stamp(widgets: DashboardLayoutEntry[], dense: boolean): DashboardLayout {
+  // `dense` is written only when on, so a layout that never opted in stays
+  // byte-identical to one saved before #768 — and reads back the same way.
+  const layout: DashboardLayout = { widgets, known: [...KNOWN_WIDGET_IDS] };
+  if (dense) layout.dense = true;
+  return layout;
 }

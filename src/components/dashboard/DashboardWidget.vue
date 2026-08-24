@@ -4,6 +4,11 @@
     :class="
       cn(
         'flex flex-col rounded-lg border bg-card overflow-hidden',
+        // Fills the row span the layout gave it (#768). `min-h-0` so the body
+        // below can actually shrink inside it — without it a long list pushes
+        // the card past its span and the tessellation the heights bought is
+        // gone again.
+        'h-full min-h-0',
         MAX_HEIGHTS[maxHeight],
         TONES[tone].card,
       )
@@ -70,14 +75,24 @@
       place, and the scroll region ends exactly where the card does.
 
       Widgets that are genuinely their own size — a responsive party grid — pass
-      `max-height="none"` and never scroll.
+      `max-height="none"` and never scroll *below* `lg`. From `lg` up the grid
+      hands every card a row span (#768) and the cap comes from there instead,
+      so the body scrolls inside whatever height the DM chose.
     -->
     <div
       v-else
       :class="
         cn(
           'min-h-0 flex-1',
-          maxHeight !== 'none' && 'widget-scroll overflow-y-auto overscroll-contain',
+          // `widget-scroll` is scoped CSS, not a utility, so it cannot take an
+          // `lg:` prefix — and it does not need one: its shadows are covered by
+          // its own background layers unless the element actually scrolls.
+          'widget-scroll overscroll-contain',
+          // Scrollable from `lg` up whatever the widget asked for, because the
+          // grid decides the height there (#768) and even a self-sizing card
+          // can be handed less room than its content wants.
+          'lg:overflow-y-auto',
+          maxHeight !== 'none' && 'overflow-y-auto',
         )
       "
     >
@@ -148,9 +163,16 @@ const TONES = {
   },
 } as const;
 
+/**
+ * Since #768 the grid gives every card a height, so this is a *ceiling on top
+ * of that*, not the card's size. `md` still caps a card that is allowed to
+ * grow past its span (below `lg`, where row spans do not apply and the grid is
+ * one column); `none` is for content that is genuinely its own size there — a
+ * responsive party grid, an avatar strip.
+ */
 const MAX_HEIGHTS = {
   none: "",
-  md: "max-h-76",
+  md: "lg:max-h-none max-h-76",
 } as const;
 </script>
 

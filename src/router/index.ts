@@ -11,7 +11,6 @@ export function setupRouterGuard(router: Router) {
 
     const auth = useAuthStore();
     await auth.initialize();
-    await auth.ensureFreshSession();
 
     if (to.meta.requiresAuth && !auth.isAuthenticated) {
       return { name: "login", query: { redirect: to.fullPath } };

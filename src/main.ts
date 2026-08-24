@@ -5,7 +5,7 @@ import { VueQueryPlugin, QueryClient } from "@tanstack/vue-query";
 import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
-import { supabase, onSessionLost } from "./lib/supabase";
+import { supabase, onSessionLost, consumeRefusedRead } from "./lib/supabase";
 import { createSessionRecovery } from "./lib/sessionRecovery";
 import { track } from "./lib/analytics";
 import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
@@ -87,6 +87,23 @@ onSessionLost(
     },
   }),
 );
+
+// The other half of the wake-up fix (#731). A refresh that fails while the radio
+// is still coming up leaves auth-js holding a valid refresh token, a preserved
+// session, and a 60s cooldown during which every read goes out as `anon` — and
+// `authAwareFetch` now refuses those rather than letting RLS answer `200 []`, so
+// the affected queries sit in an error state instead of a wrong one. auth-js
+// keeps ticking while the tab is visible; when it finally succeeds this is the
+// event that says so, and those queries need re-running.
+//
+// Deferred by a tick because this callback is invoked *inside* the exclusive auth
+// lock — refetching from here would re-enter it and deadlock every query in the
+// app. Same hazard, and same remedy, as the note in `stores/auth.ts`.
+supabase.auth.onAuthStateChange((event) => {
+  if (event !== "TOKEN_REFRESHED") return;
+  if (!consumeRefusedRead()) return;
+  setTimeout(() => void queryClient.invalidateQueries(), 0);
+});
 
 // Every AI generator registers itself so the badge can discover it without
 // being updated (see ai/aiGenerationState.ts), which makes the registry the one

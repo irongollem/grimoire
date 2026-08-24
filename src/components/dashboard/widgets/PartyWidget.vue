@@ -1,17 +1,26 @@
 <template>
-  <DashboardWidget tour="dm-party" title="Party" max-height="none" :loading="partyLoading">
+  <DashboardWidget tour="dm-party" title="Party" max-height="none" :loading="partyLoading" :empty="partyEmpty">
     <template #action>
       <div class="flex items-center gap-3">
         <AppButton to="/downtime" variant="link" size="inline-xs" label="Grant downtime →" />
         <AppButton to="/party" variant="link" size="inline-xs" label="Full tracker →" />
       </div>
     </template>
-    <div v-if="!party?.length" class="px-4 py-6 text-center">
-      <IconNavParty class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
-      <p class="text-body text-muted-foreground italic">No party members yet.</p>
-      <AppButton to="/party" variant="link" size="inline" class="mt-2" label="+ Add Members" />
-    </div>
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-border">
+    <template #empty>
+      <!-- A session-layer 401 surfaces here as isError, not as an empty roster —
+           conflating the two is the bug this widget used to have (RLS returning
+           `200 []` unauthenticated read as "no party members yet"). -->
+      <div v-if="partyIsError" class="px-4 py-6 text-center">
+        <p class="text-body text-destructive">Party could not be loaded.</p>
+        <AppButton class="mt-2" label="Retry" size="sm" variant="destructive" @click="refetchParty()" />
+      </div>
+      <div v-else class="px-4 py-6 text-center">
+        <IconNavParty class="h-6 w-6 mx-auto mb-2 text-muted-foreground/30" />
+        <p class="text-body text-muted-foreground italic">No party members yet.</p>
+        <AppButton to="/party" variant="link" size="inline" class="mt-2" label="+ Add Members" />
+      </div>
+    </template>
+    <div v-if="party?.length" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-px bg-border">
       <div v-for="member in party" :key="member.id" class="bg-card px-3 py-2.5 flex flex-col gap-1.5">
         <!-- Name row -->
         <div class="flex items-center gap-2">
@@ -90,7 +99,13 @@ import type { PartyMember } from "@/types/party.types";
  *  who is actually at the table, from campaign presence. */
 const auth = useAuthStore();
 const campaign = useCampaignStore();
-const { data: party, isLoading: partyLoading } = useParty();
+const { data: party, isError: partyIsError, refetch: refetchParty } = useParty();
+// `isLoading` (isPending && isFetching) reports false while disabled or between
+// fetches, so a query with no active campaign yet reads as "not loading" with
+// undefined data — the trap behind the original bug. `!data` is the honest
+// "no answer yet" check; it is true for both the disabled and in-flight cases.
+const partyLoading = computed(() => !partyIsError.value && !party.value);
+const partyEmpty = computed(() => partyIsError.value || party.value?.length === 0);
 const { data: campaignMembers } = useCampaignMembers();
 const { isOnline } = useCampaignPresence();
 const speciesNameMap = useSpeciesNameMap();

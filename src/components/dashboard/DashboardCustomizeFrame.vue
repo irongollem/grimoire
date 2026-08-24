@@ -49,6 +49,16 @@
         tooltip="Cycle this widget's width"
         @click="emit('cycle-width', entry.key)"
       />
+      <AppButton
+        v-if="offeredHeights.length > 1"
+        variant="ghost"
+        size="xs"
+        :icon="IconMoveV"
+        :label="heightLabel"
+        :aria-label="`Change height — currently ${heightLabel} of 4`"
+        tooltip="Cycle this widget's height"
+        @click="emit('cycle-height', entry.key)"
+      />
       <!-- Only for widgets that carry per-instance settings (#764). Sits
            before Remove so the destructive control stays last in the pill. -->
       <AppButton
@@ -125,9 +135,9 @@
 import { computed, onMounted, onUpdated, ref, useTemplateRef } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
-import { IconClose, IconDrag, IconMoveH, IconSettings } from "@/lib/icons";
+import { IconClose, IconDrag, IconMoveH, IconMoveV, IconSettings } from "@/lib/icons";
 import type { DashboardLayoutEntry } from "@/lib/dashboard/defaultLayouts";
-import type { DashboardWidgetDef } from "@/lib/dashboard/widgetCatalog";
+import { defaultHeightFor, heightsFor, type DashboardWidgetDef } from "@/lib/dashboard/widgetCatalog";
 
 const { entry, widget, customizing = false } = defineProps<{
   /** The layout row this frame wraps — carries the instance `key` every emit reports. */
@@ -150,6 +160,8 @@ const emit = defineEmits<{
   move: [key: string, direction: -1 | 1];
   /** Advance to the next of `widget.widths`, wrapping. */
   "cycle-width": [key: string];
+  /** Advance to the next of the widget's offered heights, wrapping (#768). */
+  "cycle-height": [key: string];
   /** Off the dashboard and onto the shelf — never a delete. */
   remove: [key: string];
   /** Open this instance's settings dialog. Only ever emitted for a
@@ -191,6 +203,18 @@ onMounted(measureSlot);
 onUpdated(measureSlot);
 
 const widthLabel = computed(() => entry.width.charAt(0).toUpperCase() + entry.width.slice(1));
+
+const offeredHeights = computed(() => heightsFor(widget));
+
+/**
+ * Shown as a bare number rather than a word, because unlike widths there is no
+ * vocabulary for these — "Cell/Wide/Full" name shapes a DM can picture, while
+ * heights are a count of half-cards and "2" says that better than "Medium".
+ * The aria-label supplies the "of 4" that the pill has no room for.
+ */
+const heightLabel = computed(() =>
+  String(entry.height === undefined ? defaultHeightFor(widget) : entry.height),
+);
 
 function onGripKeydown(event: KeyboardEvent): void {
   switch (event.key) {

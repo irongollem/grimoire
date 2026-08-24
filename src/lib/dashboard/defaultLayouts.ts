@@ -1,4 +1,12 @@
-import type { DashboardSurface, DashboardWidgetId, WidgetWidth } from "./widgetCatalog";
+import {
+  DEFAULT_WIDGET_HEIGHT,
+  defaultHeightFor,
+  widgetById,
+  type DashboardSurface,
+  type DashboardWidgetId,
+  type WidgetHeight,
+  type WidgetWidth,
+} from "./widgetCatalog";
 
 /**
  * Default layouts — today's two hand-written compositions, expressed as data.
@@ -15,6 +23,12 @@ export interface DashboardLayoutEntry {
   id: DashboardWidgetId;
   width: WidgetWidth;
   /**
+   * How many half-widget rows this instance spans (#768). Absent means the
+   * widget's own `defaultHeight` — so every layout written before heights
+   * existed keeps rendering exactly as it did, without a migration.
+   */
+  height?: WidgetHeight;
+  /**
    * Reserved headroom for per-instance widget config — written as absent by
    * every layout today. Exists so the first configurable widget (the
    * DM-screen quick card, #764) needs no jsonb shape migration: it can start
@@ -26,6 +40,22 @@ export interface DashboardLayoutEntry {
 
 export interface DashboardLayout {
   widgets: DashboardLayoutEntry[];
+  /**
+   * Whether this surface packs its grid densely (#768).
+   *
+   * Off by default and opt-in per surface, which is the whole point. CSS
+   * `grid-auto-flow: dense` fills the holes that heights leave behind, but it
+   * does so by letting a later small widget slide up past an earlier one — so
+   * the rendered order stops matching the order the DM arranged, which is the
+   * one thing #760 promised not to do. As something the DM *turns on* it stops
+   * being the engine overriding them and becomes them trading order for
+   * density, deliberately and reversibly.
+   *
+   * Lives on the layout rather than in `useUiStore` because it is part of the
+   * arrangement: it persists per user × campaign × surface with everything
+   * else, and Reset clears it along with the rest.
+   */
+  dense?: boolean;
   /**
    * Every widget id the registry offered at the moment this layout was
    * saved. Without it, a widget id missing from `widgets` is ambiguous: it
@@ -42,11 +72,24 @@ export interface DashboardLayout {
   known?: DashboardWidgetId[];
 }
 
-const entry = (id: DashboardWidgetId, width: WidgetWidth): DashboardLayoutEntry => ({
-  key: id,
-  id,
-  width,
-});
+/**
+ * Heights are resolved here rather than left absent, so every entry the view
+ * ever sees carries a concrete one exactly as it carries a concrete width.
+ * `DashboardView` reads `DEFAULT_LAYOUTS` directly on Reset, so "the merge
+ * will fill it in" would not have covered that path.
+ */
+const entry = (id: DashboardWidgetId, width: WidgetWidth): DashboardLayoutEntry => {
+  const widget = widgetById(id);
+  return {
+    key: id,
+    id,
+    width,
+    // Unreachable — every id here is a literal from the registry's own union —
+    // but a default layout silently missing a height would be a bad way to
+    // find out otherwise.
+    height: widget === undefined ? DEFAULT_WIDGET_HEIGHT : defaultHeightFor(widget),
+  };
+};
 
 export const DEFAULT_LAYOUTS: Record<DashboardSurface, DashboardLayout> = {
   // The one sanctioned visual diff from today: the third cell used to stack

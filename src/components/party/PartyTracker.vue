@@ -1,12 +1,20 @@
 <template>
   <div>
-    <!-- Loading / Empty -->
-    <div v-if="isLoading" class="flex justify-center py-16">
+    <!-- Error / Loading / Empty -->
+    <!-- isError comes first: a session-layer failure must read as "could not load",
+         never as an empty roster — that conflation was the original bug, an
+         unauthenticated `200 []` rendering as a confident "no party members". -->
+    <div v-if="isError" class="rounded-xl border border-destructive/40 p-4 text-center">
+      <p class="text-body text-destructive">The party could not be loaded.</p>
+      <AppButton class="mt-2" label="Retry" size="sm" variant="destructive" @click="refetch()" />
+    </div>
+
+    <div v-else-if="!party" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
 
     <EmptyState
-      v-else-if="!party?.length"
+      v-else-if="party.length === 0"
       title="No heroes in your party"
       description="Add your players' characters to track their HP, initiative, and passive skills."
     >
@@ -96,6 +104,7 @@ import { useAllMonsters } from "@/composables/useMonsters";
 import { useNpcs } from "@/composables/useNpcs";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import { IconNavParty } from "@/lib/icons";
 import CompanionCard from "./CompanionCard.vue";
 import CompanionForm from "./CompanionForm.vue";
@@ -104,7 +113,7 @@ import PartyInventoryInline from "./PartyInventoryInline.vue";
 import PartyXpAward from "./PartyXpAward.vue";
 import { useIsRuleEnabled } from "@/composables/useOptionalRules";
 import type { Companion } from "@/types/companion.types";
-const { data: party, isLoading } = useParty();
+const { data: party, isError, refetch } = useParty();
 const xpLevellingEnabled = useIsRuleEnabled("xp_levelling");
 const { data: allLocations } = useAllLocations();
 const locationNameMap = computed(() => {

@@ -280,14 +280,6 @@ export const useAuthStore = defineStore("auth", () => {
     membership.value = null;
   }
 
-  // No-op: autoRefreshToken:true handles all proactive refresh internally, and
-  // every supabase.from() call refreshes the token if needed via _getAccessToken().
-  // The old getSession() call here was racing with the SDK's own refresh timer —
-  // both would send the same (single-use) refresh token, triggering reuse detection
-  // and killing the session. The SIGNED_OUT handler above redirects to /login if
-  // a refresh ever fails. Kept as a function so the router guard call site is unchanged.
-  async function ensureFreshSession(): Promise<void> {}
-
   return {
     user,
     session,
@@ -304,7 +296,6 @@ export const useAuthStore = defineStore("auth", () => {
     isPlayer,
     linkedPartyMemberId,
     initialize,
-    ensureFreshSession,
     signIn,
     signUp,
     signOut,

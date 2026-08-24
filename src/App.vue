@@ -53,6 +53,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCampaignById } from "@/composables/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
 import { createRealtimeHeal } from "@/lib/realtimeHeal";
+import { supabase } from "@/lib/supabase";
 
 const auth = useAuthStore();
 
@@ -154,15 +155,34 @@ watch(
 // from reintroducing the very refetch burst refetchOnWindowFocus was turned off
 // to prevent. No channel status is fed in — the wake signals are the whole input.
 //
-// singleTabLock (supabase.ts) queues auth and DB operations in order without a
-// timeout, so autoRefreshToken finishes before queries run — no AbortError
-// storms, no explicit session warm-up needed here.
+// The wake-up must not race the token refresh (#731). auth-js registers its own
+// `visibilitychange` listener at client construction and does the right thing on
+// it — `_startAutoRefresh()` plus `_recoverAndRefresh()` — but that work is
+// asynchronous, while an `invalidateQueries()` fired from this listener is not.
+// Invalidating straight away therefore lost the race every time on a phone: the
+// burst went out on an access token that expired while the tab was frozen,
+// `_callRefreshToken()` failed against a radio that was not up yet, and because
+// that failure is a *retryable fetch* error auth-js kept the session and stayed
+// silent — no SIGNED_OUT — while returning `session: null` and caching it under
+// REFRESH_FAILURE_COOLDOWN_MS. Every query then resolved with the anon key, RLS
+// answered `200 []`, and TanStack cached the emptiness as an answer for exactly
+// as long as auth-js refused to retry: both windows are 60s.
+//
+// So: ask for the session first and only invalidate once it is usable.
+// `getSession()`, never `refreshSession()` — see the `autoRefreshToken` note in
+// `lib/supabase.ts`. If it is not usable yet there is nothing useful to do here;
+// auth-js's ticker keeps trying while the tab is visible, and `main.ts` refetches
+// on the TOKEN_REFRESHED that eventually lands.
 const queryClient = useQueryClient();
 
 const queryHeal = createRealtimeHeal(
   () => {
     if (!auth.isAuthenticated) return;
-    void queryClient.invalidateQueries();
+    void (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) return;
+      await queryClient.invalidateQueries();
+    })();
   },
   { hiddenReconcileMs: 60_000 },
 );

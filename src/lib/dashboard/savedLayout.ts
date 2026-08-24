@@ -1,9 +1,12 @@
 import {
   DASHBOARD_WIDGETS,
+  defaultHeightFor,
+  heightsFor,
   widgetById,
   type DashboardSurface,
   type DashboardWidgetDef,
   type DashboardWidgetId,
+  type WidgetHeight,
   type WidgetWidth,
 } from "./widgetCatalog";
 import {
@@ -35,6 +38,9 @@ export interface MergedDashboardLayout {
    * and the ones that only reached the shelf.
    */
   newWidgetIds: DashboardWidgetId[];
+  /** Whether this surface packs densely (#768). Never `undefined` here — the
+   *  view needs a boolean to bind, and "no saved row" means off. */
+  dense: boolean;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -52,12 +58,33 @@ function snapWidth(width: unknown, widget: DashboardWidgetDef): WidgetWidth {
 }
 
 /**
+ * A height the widget actually supports, or the one it prefers (#768).
+ *
+ * Absent is the common case and not an error: every layout saved before
+ * heights existed has no `height` at all, and resolves to the widget's default
+ * — which is why heights needed no migration.
+ */
+function snapHeight(height: unknown, widget: DashboardWidgetDef): WidgetHeight {
+  const supported = heightsFor(widget).find((candidate) => candidate === height);
+  return supported === undefined ? defaultHeightFor(widget) : supported;
+}
+
+/**
  * Entries are handed to callers that mutate them — Customize mode drags them
  * around and cycles their width — so nothing may share structure with
  * `DEFAULT_LAYOUTS` or with the query cache's copy of the saved row.
  */
 function cloneEntry(entry: DashboardLayoutEntry): DashboardLayoutEntry {
-  const copy: DashboardLayoutEntry = { key: entry.key, id: entry.id, width: entry.width };
+  const widget = widgetById(entry.id);
+  const copy: DashboardLayoutEntry = {
+    key: entry.key,
+    id: entry.id,
+    width: entry.width,
+    // Always resolved, never left absent: the view binds a row span off this
+    // and a missing height would silently render as one row.
+    height:
+      entry.height ?? (widget === undefined ? undefined : defaultHeightFor(widget)),
+  };
   if (entry.settings !== undefined) copy.settings = { ...entry.settings };
   return copy;
 }
@@ -97,12 +124,20 @@ export function parseDashboardLayout(value: unknown): DashboardLayout | null {
     const widget = widgetById(id);
     if (widget === undefined) continue;
 
-    const entry: DashboardLayoutEntry = { key, id, width: snapWidth(raw.width, widget) };
+    const entry: DashboardLayoutEntry = {
+      key,
+      id,
+      width: snapWidth(raw.width, widget),
+      height: snapHeight(raw.height, widget),
+    };
     if (isPlainObject(raw.settings)) entry.settings = raw.settings;
     widgets.push(entry);
   }
 
   const layout: DashboardLayout = { widgets };
+  // Only a real `true` turns packing on; anything else — absent, null, a
+  // string — is a layout that never opted in.
+  if (value.dense === true) layout.dense = true;
   if (Array.isArray(value.known)) {
     // Ids the registry has since dropped are filtered out, which costs nothing:
     // `known` is only ever asked whether it contains an id that exists today.
@@ -162,7 +197,9 @@ export function mergeDashboardLayout(
   surface: DashboardSurface,
 ): MergedDashboardLayout {
   const defaults = DEFAULT_LAYOUTS[surface].widgets;
-  if (saved === null) return { widgets: defaults.map(cloneEntry), newWidgetIds: [] };
+  if (saved === null) {
+    return { widgets: defaults.map(cloneEntry), newWidgetIds: [], dense: false };
+  }
 
   const widgets: DashboardLayoutEntry[] = [];
   const placedKeys = new Set<string>();
@@ -181,7 +218,12 @@ export function mergeDashboardLayout(
 
     placedKeys.add(entry.key);
     placedPerWidget.set(widget.id, placed + 1);
-    widgets.push({ ...cloneEntry(entry), width: snapWidth(entry.width, widget) }); // case 3
+    // case 3 — width and height alike are snapped to what the widget supports
+    widgets.push({
+      ...cloneEntry(entry),
+      width: snapWidth(entry.width, widget),
+      height: snapHeight(entry.height, widget),
+    });
   }
 
   // A layout that does not say what the registry offered is read as having
@@ -208,5 +250,5 @@ export function mergeDashboardLayout(
     widgets.splice(anchorIndex(defaults, index, widgets), 0, cloneEntry(candidate));
   }
 
-  return { widgets, newWidgetIds };
+  return { widgets, newWidgetIds, dense: saved.dense === true };
 }

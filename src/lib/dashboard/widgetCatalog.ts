@@ -15,6 +15,28 @@
 export type DashboardSurface = "prep" | "session";
 export type WidgetWidth = "cell" | "wide" | "full";
 
+/**
+ * A widget's height, in half-widget units (#768).
+ *
+ * `2` is "a normal card" — what every widget was before heights existed — so
+ * `1` is half of one and `4` is double. Expressed in halves rather than in
+ * rows because that is how a DM thinks about it: *Next session* is one line of
+ * text and wants half a card, not "two grid rows of 9rem".
+ *
+ * The grid gets a fixed `grid-auto-rows` and each widget spans `height` of
+ * them. Fixed, not `minmax(…, auto)`: a row that can grow is a row that
+ * un-tessellates the moment one widget has more content than another, which
+ * is exactly the ragged-rows problem heights exist to solve.
+ */
+export type WidgetHeight = 1 | 2 | 3 | 4;
+
+/** Every height, for a widget with no opinion. */
+export const ANY_HEIGHT: readonly WidgetHeight[] = [1, 2, 3, 4];
+
+/** What a widget gets when its registry entry says nothing — one normal card,
+ *  which is what every widget was before #768. */
+export const DEFAULT_WIDGET_HEIGHT: WidgetHeight = 2;
+
 export type DashboardWidgetId =
   | "party"
   | "quests"
@@ -73,6 +95,24 @@ export interface DashboardWidgetDef {
    * a DM screen is several reference tables at once by definition.
    */
   maxInstances: number;
+  /**
+   * Heights this widget can render in, and the one it prefers (#768).
+   *
+   * Both optional, unlike `widths`, and that asymmetry is deliberate. A width
+   * changes how many columns a card occupies, and most widgets genuinely have
+   * an opinion about that. A height is just how much of the content you want
+   * on screen — every widget scrolls inside whatever it is given, so none of
+   * them *break* at any height, and the premise of this epic is that the DM
+   * arranges their own screen.
+   *
+   * So `heights` stays empty in practice: it exists for a widget that would
+   * genuinely render wrong at some height, and nothing does yet. What the
+   * registry *does* set is `defaultHeight` — a starting guess, so a fresh
+   * board tessellates without anyone tuning it. A one-line countdown starts at
+   * half a card; that is a default, not a cap.
+   */
+  heights?: readonly WidgetHeight[];
+  defaultHeight?: WidgetHeight;
   /** Renders nothing when its data is empty — the shelf should say so. */
   selfHiding?: true;
   /**
@@ -135,6 +175,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     description: "Countdown to the next scheduled game.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
+    defaultHeight: 1,
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
   },
@@ -173,6 +214,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     description: "Live encounter banner — shows only while a combat is running.",
     widths: FULL_ONLY,
     defaultWidth: "full",
+    defaultHeight: 1,
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
     selfHiding: true,
@@ -183,6 +225,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     description: "Counts of quests, NPCs, encounters and locations.",
     widths: FULL_ONLY,
     defaultWidth: "full",
+    defaultHeight: 1,
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
   },
@@ -373,6 +416,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     description: "Start a new NPC, quest, note, encounter or location.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
+    defaultHeight: 1,
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
   },
@@ -457,6 +501,26 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     maxInstances: 1,
   },
 ];
+
+/** The heights a widget offers, defaulting to all of them. */
+export function heightsFor(widget: DashboardWidgetDef): readonly WidgetHeight[] {
+  return widget.heights === undefined || widget.heights.length === 0 ? ANY_HEIGHT : widget.heights;
+}
+
+/**
+ * The height a widget prefers.
+ *
+ * Falls back to the widget's first offered height rather than blindly to `2`,
+ * because a widget that declares `heights: [1]` and forgets `defaultHeight`
+ * would otherwise default to a height it just said it does not support.
+ */
+export function defaultHeightFor(widget: DashboardWidgetDef): WidgetHeight {
+  const offered = heightsFor(widget);
+  if (widget.defaultHeight !== undefined && offered.includes(widget.defaultHeight)) {
+    return widget.defaultHeight;
+  }
+  return offered.includes(DEFAULT_WIDGET_HEIGHT) ? DEFAULT_WIDGET_HEIGHT : offered[0];
+}
 
 const BY_ID: ReadonlyMap<string, DashboardWidgetDef> = new Map(
   DASHBOARD_WIDGETS.map((widget) => [String(widget.id), widget]),

@@ -13,7 +13,7 @@
  *
  * So the ladder is: re-read the session first, and only give up if there truly
  * isn't one. Recovery deliberately goes through `getSession()` rather than
- * `refreshSession()` — see the `ensureFreshSession` note in `stores/auth.ts`:
+ * `refreshSession()` — see the `autoRefreshToken` note in `lib/supabase.ts`:
  * calling refresh in parallel with the SDK's own timer sends the same
  * single-use refresh token twice, trips reuse detection, and kills the very
  * session we are trying to save. `getSession()` refreshes only when actually
