@@ -34,7 +34,8 @@ export type DashboardWidgetId =
   | "death-saves"
   | "table-vitals"
   | "downtime-queue"
-  | "quest-loot";
+  | "quest-loot"
+  | "upcoming-events";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -199,6 +200,15 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     id: "conditions",
     title: "Conditions",
     description: "All sixteen conditions, with the rules text one tap away.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "upcoming-events",
+    title: "Upcoming events",
+    description: "What is coming up on the in-world calendar, with a countdown to deadlines.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,

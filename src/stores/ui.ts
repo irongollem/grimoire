@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import { useLocalStorage } from "@vueuse/core";
 import type { NoteCategory } from "@/types/notes.types";
+import type { CalendarEventType } from "@/types/calendar.types";
 import type { BoardMode, PadSize } from "@/types/sound.types";
 import type { JournalCategory } from "@/composables/usePlayerJournal";
 import type { SortField, SortDir } from "@/lib/noteSort";
@@ -245,6 +246,20 @@ export const useUiStore = defineStore("ui", () => {
     questsEntityFilter.value = "";
     questsPrepGapsFilter.value = false;
     questsLootFilter.value = false;
+  }
+
+  // Dashboard "Upcoming events" widget (#764). A filter over the list already
+  // on the card, so it belongs here rather than in a local ref — the Filter
+  // State Pattern's own test. Survives navigating away from the dashboard and
+  // back without permanently pinning itself into localStorage.
+  const upcomingEventsFilterType = ref<CalendarEventType | "all">("all");
+
+  const upcomingEventsHasActiveFilters = computed(
+    () => upcomingEventsFilterType.value !== "all",
+  );
+
+  function resetUpcomingEventsFilters() {
+    upcomingEventsFilterType.value = "all";
   }
 
   // Faction UI state
@@ -1009,6 +1024,9 @@ export const useUiStore = defineStore("ui", () => {
     deitiesFilterPantheon,
     deitiesHasActiveFilters,
     resetDeitiesFilters,
+    upcomingEventsFilterType,
+    upcomingEventsHasActiveFilters,
+    resetUpcomingEventsFilters,
 
     // Player People (NPCs)
     playerPeopleSearch,

@@ -21,6 +21,7 @@ import DeathSavesWidget from "@/components/dashboard/widgets/DeathSavesWidget.vu
 import TableVitalsWidget from "@/components/dashboard/widgets/TableVitalsWidget.vue";
 import DowntimeQueueWidget from "@/components/dashboard/widgets/DowntimeQueueWidget.vue";
 import QuestLootWidget from "@/components/dashboard/widgets/QuestLootWidget.vue";
+import UpcomingEventsWidget from "@/components/dashboard/widgets/UpcomingEventsWidget.vue";
 
 /**
  * Maps every `DashboardWidgetId` to its component. Kept apart from
@@ -49,6 +50,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "table-vitals": TableVitalsWidget,
   "downtime-queue": DowntimeQueueWidget,
   "quest-loot": QuestLootWidget,
+  "upcoming-events": UpcomingEventsWidget,
 };
 
 /**
