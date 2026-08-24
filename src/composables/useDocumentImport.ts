@@ -119,9 +119,25 @@ async function removeImportObjects(paths: string[]): Promise<void> {
 
 // ── Query key ─────────────────────────────────────────────────────────────────
 
-/** Statuses that mean "the wizard has something to resume" — mirrors the
- *  partial index `document_imports_user_campaign_idx` (migration 20260824204224). */
-const ACTIVE_STATUSES: DocumentImportStatus[] = ["pending", "extracting", "review"];
+/**
+ * Statuses the tab still has something to say about — mirrors the partial index
+ * `document_imports_user_campaign_idx` (20260824204224, widened by
+ * 20260824224729). Keep the two in step: the index exists to serve exactly this
+ * query.
+ *
+ * `failed` is in the list, and deliberately so. Leaving it out is the obvious
+ * reading of "unfinished import" and it silently swallows the failure: the row
+ * stops being returned, the tab falls back to a blank upload form, and a DM who
+ * just spent ~121 credits on a ten-page chapter (or ~601 on a fifty-page one)
+ * and lost their uploaded document to the extractor's cleanup is shown nothing
+ * at all on the next page load. `document_imports.error` is written for this
+ * case; something has to read it.
+ *
+ * `complete` is out: a finished import has nothing to resume and nothing to
+ * explain, and including it would let a successful import block the next one
+ * until it was dismissed by hand.
+ */
+const ACTIVE_STATUSES: DocumentImportStatus[] = ["pending", "extracting", "review", "failed"];
 
 function activeImportKey(campaignId: string | null) {
   return ["document-imports", "active", campaignId] as const;

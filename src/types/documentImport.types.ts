@@ -44,19 +44,37 @@ import type { MonsterStatBlock } from "@/types/monster.types";
 // ── Entity kinds ─────────────────────────────────────────────────────────────
 
 /**
- * The seven kinds, in wizard order. Ordered by how much the rest depends on
- * them, not alphabetically: monsters and NPCs are what a DM actually opens a
- * setting book for, and locations precede quests because a quest's `location_id`
- * can only resolve against locations the same import already created.
+ * The seven kinds, in wizard order — which is a **dependency order**, not a
+ * presentation preference. Each kind is imported in turn, and a cross-entity
+ * link can only resolve against rows that already exist, so a kind must come
+ * after everything it points at:
+ *
+ *   factions  ← nothing
+ *   monsters  ← nothing
+ *   npcs      ← factions          (`faction_name`)
+ *   locations ← locations         (`parent_name`, resolved within the step)
+ *   items     ← nothing
+ *   spells    ← nothing
+ *   quests    ← npcs, locations   (`giver_npc_name`, `location_name`)
+ *
+ * `factions` leads for that reason alone. An earlier revision of this list put
+ * it last — which reads more naturally, since monsters and NPCs are what a DM
+ * opens a setting book for — and the consequence was that an NPC's faction link
+ * could never resolve: by the time factions existed, the NPC step was long past.
+ * Nothing failed, nothing errored; the link was simply always dropped, and it
+ * took importing a real document to notice.
+ *
+ * `document_import_dependency_order.test.ts` pins this against the link fields
+ * declared below, so adding a link to a payload without reordering fails.
  */
 export const IMPORT_ENTITY_KINDS = [
+  "factions",
   "monsters",
   "npcs",
   "locations",
   "items",
   "spells",
   "quests",
-  "factions",
 ] as const;
 
 export type ImportEntityKind = (typeof IMPORT_ENTITY_KINDS)[number];

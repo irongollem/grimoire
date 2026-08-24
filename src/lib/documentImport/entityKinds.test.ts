@@ -72,9 +72,18 @@ describe("listEntityKindsInWizardOrder", () => {
     expect(ordered.map((entry) => entry.kind)).toEqual([...IMPORT_ENTITY_KINDS]);
   });
 
-  it("starts with monsters and ends with factions", () => {
+  // Deliberately NOT asserting which kind is first or last. An earlier version
+  // of this test pinned "starts with monsters, ends with factions", which read
+  // as a harmless description of the list and was in fact encoding a bug:
+  // factions last meant an NPC's `faction_name` link could never resolve,
+  // because factions did not exist yet when the NPC step ran. A test that
+  // restates the array teaches nothing and defends the wrong thing.
+  //
+  // The property that actually matters — every kind imported after the kinds
+  // its links point at — is asserted in `dependencyOrder.test.ts`.
+  it("exposes the registry in exactly the order the wizard will walk", () => {
     const ordered = listEntityKindsInWizardOrder();
-    expect(ordered[0]?.kind).toBe("monsters");
-    expect(ordered[ordered.length - 1]?.kind).toBe("factions");
+    expect(ordered).toHaveLength(IMPORT_ENTITY_KINDS.length);
+    expect(new Set(ordered.map((entry) => entry.kind))).toEqual(new Set(IMPORT_ENTITY_KINDS));
   });
 });

@@ -81,6 +81,9 @@
         <div v-else-if="activeTab === 'bundle'" class="max-w-lg">
           <WorldBundleTab />
         </div>
+        <div v-else-if="activeTab === 'import'" class="max-w-3xl">
+          <DocumentImportTab />
+        </div>
         <DangerZoneTab v-else-if="activeTab === 'danger'" />
       </main>
     </div>
@@ -116,6 +119,7 @@ import AiConnectionTab from "@/components/campaign/AiConnectionTab.vue";
 import SpotifyTab from "@/components/campaign/SpotifyTab.vue";
 import BackupTab from "@/components/campaign/BackupTab.vue";
 import WorldBundleTab from "@/components/campaign/WorldBundleTab.vue";
+import DocumentImportTab from "@/components/campaign/DocumentImportTab.vue";
 
 type SettingsTab =
   | "details"
@@ -129,11 +133,12 @@ type SettingsTab =
   | "spotify"
   | "backup"
   | "bundle"
+  | "import"
   | "danger";
 
 const VALID_TABS = new Set<SettingsTab>([
   "details", "members", "scheduling", "rules", "classes", "species",
-  "ai", "connections", "spotify", "backup", "bundle", "danger",
+  "ai", "connections", "spotify", "backup", "bundle", "import", "danger",
 ]);
 
 const tabs: { id: SettingsTab; label: string }[] = [
@@ -148,6 +153,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "spotify", label: "Spotify" },
   { id: "backup", label: "Backup" },
   { id: "bundle", label: "World Bundle" },
+  { id: "import", label: "Import Document" },
   { id: "danger", label: "Danger Zone" },
 ];
 
