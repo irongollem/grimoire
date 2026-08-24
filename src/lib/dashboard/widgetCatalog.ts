@@ -37,7 +37,8 @@ export type DashboardWidgetId =
   | "quest-loot"
   | "upcoming-events"
   | "jump-to"
-  | "quick-create";
+  | "quick-create"
+  | "rule-tracker";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -206,6 +207,18 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "rule-tracker",
+    title: "Rule tracker",
+    description: "A homebrew rule's tracker, live for the whole party, with its DM buttons.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    // Four, like the roll table: a campaign running Sanity plausibly also
+    // runs Corruption and Exposure, and one card each is the honest shape.
+    maxInstances: 4,
+    configurable: true,
   },
   {
     id: "jump-to",

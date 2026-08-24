@@ -24,6 +24,8 @@ import QuestLootWidget from "@/components/dashboard/widgets/QuestLootWidget.vue"
 import UpcomingEventsWidget from "@/components/dashboard/widgets/UpcomingEventsWidget.vue";
 import JumpToWidget from "@/components/dashboard/widgets/JumpToWidget.vue";
 import QuickCreateWidget from "@/components/dashboard/widgets/QuickCreateWidget.vue";
+import RuleTrackerWidget from "@/components/dashboard/widgets/RuleTrackerWidget.vue";
+import RuleTrackerCardSettings from "@/components/dashboard/settings/RuleTrackerCardSettings.vue";
 
 /**
  * Maps every `DashboardWidgetId` to its component. Kept apart from
@@ -55,6 +57,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "upcoming-events": UpcomingEventsWidget,
   "jump-to": JumpToWidget,
   "quick-create": QuickCreateWidget,
+  "rule-tracker": RuleTrackerWidget,
 };
 
 /**
@@ -74,4 +77,5 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
 export const WIDGET_SETTINGS_COMPONENTS: Partial<Record<DashboardWidgetId, Component>> = {
   "dm-screen-card": DmScreenCardSettings,
   "roll-table": RollTableCardSettings,
+  "rule-tracker": RuleTrackerCardSettings,
 };
