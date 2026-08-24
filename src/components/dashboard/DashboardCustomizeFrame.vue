@@ -14,7 +14,9 @@
     :data-widget-key="entry.key"
     :class="['relative scroll-mt-4', $attrs.class]"
   >
-    <div ref="slotHost" v-show="!slotIsEmpty" class="pointer-events-none"><slot /></div>
+    <div ref="slotHost" v-show="!slotIsEmpty" class="pointer-events-none h-full min-h-0">
+      <slot />
+    </div>
 
     <div
       v-if="slotIsEmpty"
@@ -142,6 +144,13 @@
  * which is the governing rule — you simply cannot click *into* it. That fixes
  * a real trap as well as freeing the overlay: a stray click on a widget's own
  * link used to navigate off the dashboard in the middle of arranging it.
+ *
+ * `h-full min-h-0` on that host is load-bearing and easy to lose. Outside this
+ * mode the widget *is* the grid item, so `DashboardWidget`'s own `h-full`
+ * resolves against the row span #768 gave it. In here it sits one div deeper,
+ * and a host with no height of its own makes `h-full` mean "as tall as the
+ * content" — so every card grew straight out of its allotted rows, in the one
+ * mode whose entire job is showing what the board will look like.
  *
  * `data-widget-key` on the customizing root is how `DashboardView` finds this
  * instance in the DOM to scroll it back into view after an edit — a widget

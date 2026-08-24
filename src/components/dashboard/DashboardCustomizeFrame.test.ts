@@ -161,6 +161,21 @@ describe("customizing — emitted intent", () => {
     ]);
   });
 
+  // Outside this mode the widget *is* the grid item, so its own `h-full`
+  // resolves against the row span. In here it sits one div deeper, and a host
+  // without a height makes `h-full` mean "as tall as the content" — every card
+  // grew straight out of its allotted rows, in the one mode whose whole job is
+  // showing what the board will look like.
+  it("gives the slot host a height, so a widget cannot outgrow its row span", () => {
+    const wrapper = mount(DashboardCustomizeFrame, {
+      props: { entry: entryFor(QUESTS), widget: QUESTS, customizing: true },
+      slots: { default: CONTENT_SLOT },
+    });
+    const host = wrapper.get(".pointer-events-none");
+    expect(host.classes()).toContain("h-full");
+    expect(host.classes()).toContain("min-h-0");
+  });
+
   // The mode is for arranging, not navigating: a stray click on a widget's own
   // link used to leave the dashboard in the middle of a rearrangement.
   it("makes the widget itself inert while customizing", () => {
