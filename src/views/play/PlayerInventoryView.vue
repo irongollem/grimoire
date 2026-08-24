@@ -118,6 +118,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, nextTick } from "vue";
+import { useRoute } from "vue-router";
 import { COINS, type CoinKey } from "@/rules/currency";
 import {
   parseWeightLb,
@@ -154,9 +155,31 @@ const { data: allItems } = usePlayerVisibleItems();
 const { mutateAsync: updatePartyMember } = useUpdatePartyMember();
 const { sendCurrencyDrop } = useCampaignMessages();
 
-const resolvedMemberId = computed(() =>
-  ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId,
-);
+/**
+ * Whose inventory this page is showing.
+ *
+ * `?memberId=` first, because that is how a DM opens one character's
+ * inventory from a DM surface — the router guard admits them on exactly that
+ * basis (`dmManagingMember` in `src/router/index.ts:52`), and
+ * `PlayerLevelUpView.vue:36` and `useCharacterCreationForm.ts:205` already
+ * read it the same way.
+ *
+ * This view did not, which made the guard's exception a door onto the wrong
+ * room: a DM following `/play/inventory?memberId=…` passed the check and then
+ * saw their own (empty) player context instead of that character's bag. Found
+ * while wiring #764's cursed-items widget, which needs exactly that link,
+ * since this page is the only place `curse_revealed` can be toggled.
+ *
+ * Gated on `auth.isDM` deliberately: the param must not let a *player* read
+ * another character's inventory by editing the URL. Every read here is still
+ * RLS-scoped, so this is defence in depth rather than the only lock.
+ */
+const route = useRoute();
+const resolvedMemberId = computed(() => {
+  const requested = route.query.memberId;
+  if (auth.isDM && typeof requested === "string" && requested !== "") return requested;
+  return ui.dmPreviewMode ? ui.dmPreviewPartyMemberId : auth.linkedPartyMemberId;
+});
 
 const member = computed<PartyMember | null>(
   () =>

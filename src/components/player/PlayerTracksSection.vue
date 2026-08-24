@@ -61,11 +61,26 @@ const enabledBuiltInTrackers = computed(() =>
     .map((def) => ({ ruleKey: def.key, def: def.tracker! as TrackerDef })),
 );
 
-function stateValue(rows: TrackerState[], ruleKey: string | null, ruleId: string | null): number {
+/**
+ * A member with no state row has never touched this tracker, and that reads as
+ * the tracker's **floor**, not as zero.
+ *
+ * It used to read as zero, which was invisible for every tracker whose `min`
+ * happens to be 0 and wrong for the rest — `DmTrackerButtons.vue` has always
+ * used `rule.tracker.min` here, so a Sanity track running 1–10 showed the DM a
+ * fresh character at 1 and the player the same character at 0. Two readings of
+ * one untouched tracker, in two views of the same table.
+ */
+function stateValue(
+  rows: TrackerState[],
+  ruleKey: string | null,
+  ruleId: string | null,
+  floor: number,
+): number {
   const row = ruleKey
     ? rows.find((r) => r.party_member_id === props.memberId && r.rule_key === ruleKey)
     : rows.find((r) => r.party_member_id === props.memberId && r.rule_id === ruleId);
-  return row?.value ?? 0;
+  return row === undefined ? floor : row.value;
 }
 
 interface TrackerEntry {
@@ -81,10 +96,10 @@ const activeTrackers = computed<TrackerEntry[]>(() => {
   const items: TrackerEntry[] = [];
 
   for (const t of enabledBuiltInTrackers.value) {
-    items.push({ key: `builtin:${t.ruleKey}`, def: t.def, value: stateValue(rows, t.ruleKey, null), ruleKey: t.ruleKey });
+    items.push({ key: `builtin:${t.ruleKey}`, def: t.def, value: stateValue(rows, t.ruleKey, null, t.def.min), ruleKey: t.ruleKey });
   }
   for (const t of props.customTrackers) {
-    items.push({ key: `custom:${t.ruleId}`, def: t.def, value: stateValue(rows, null, t.ruleId), ruleId: t.ruleId });
+    items.push({ key: `custom:${t.ruleId}`, def: t.def, value: stateValue(rows, null, t.ruleId, t.def.min), ruleId: t.ruleId });
   }
   return items;
 });
