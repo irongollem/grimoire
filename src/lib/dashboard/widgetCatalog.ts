@@ -35,7 +35,9 @@ export type DashboardWidgetId =
   | "table-vitals"
   | "downtime-queue"
   | "quest-loot"
-  | "upcoming-events";
+  | "upcoming-events"
+  | "jump-to"
+  | "quick-create";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -200,6 +202,24 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     id: "conditions",
     title: "Conditions",
     description: "All sixteen conditions, with the rules text one tap away.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "jump-to",
+    title: "Jump to…",
+    description: "Search notes, NPCs, monsters, spells and items without leaving the board.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "quick-create",
+    title: "Quick create",
+    description: "Start a new NPC, quest, note, encounter or location.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,

@@ -22,6 +22,8 @@ import TableVitalsWidget from "@/components/dashboard/widgets/TableVitalsWidget.
 import DowntimeQueueWidget from "@/components/dashboard/widgets/DowntimeQueueWidget.vue";
 import QuestLootWidget from "@/components/dashboard/widgets/QuestLootWidget.vue";
 import UpcomingEventsWidget from "@/components/dashboard/widgets/UpcomingEventsWidget.vue";
+import JumpToWidget from "@/components/dashboard/widgets/JumpToWidget.vue";
+import QuickCreateWidget from "@/components/dashboard/widgets/QuickCreateWidget.vue";
 
 /**
  * Maps every `DashboardWidgetId` to its component. Kept apart from
@@ -51,6 +53,8 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "downtime-queue": DowntimeQueueWidget,
   "quest-loot": QuestLootWidget,
   "upcoming-events": UpcomingEventsWidget,
+  "jump-to": JumpToWidget,
+  "quick-create": QuickCreateWidget,
 };
 
 /**
