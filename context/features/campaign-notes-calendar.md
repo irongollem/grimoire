@@ -183,6 +183,19 @@ Unread re-triggers on edit (`isNew` takes `updated_at`), so an entry the DM read
 
 `CalendarGrid.vue` used to answer the question itself: `currentMonth === 2 && adapter.isLeapYear(year) ? 29 : month.days`, applied to *every* adapter. Faerûn's leap rule is `every4` and Ches is 30 days, so in any year divisible by four — including 1492 DR, the default — the grid rendered Ches with 29 cells and **the 30th of Ches could not be reached at all**. `SessionWidget`'s day-advance and `lib/calendar/upcoming.ts` now ask the adapter too, so the grid, the date control and the countdown cannot disagree about how long a month is. Regression cover in `upcoming.test.ts`.
 
+**In-world day arithmetic lives in `src/lib/calendar/dayMath.ts` (#766).** `buildYearIndex`, `ordinalWithinYear`, `daysBetween`, `daysFromTo`, `isOnOrBefore`, `addDays`. Everything walks whole years, because adjacent years are not the same length — a Harptos leap year carries Shieldmeet.
+
+It exists because four places did this arithmetic and all four did it differently: `CalendarTimeline`'s `eventToFrac` (nominal 30-day months, fine for a ruler), `CalendarGrid` (a Gregorian February rule applied to every adapter — the Ches bug above), `upcoming.ts` (correct, but private), and `useQuests.ts`, which **scheduled and fired every quest trigger** on twelve exactly-30-day months with intercalary days ignored. A Harptos year is 365 or 366 days, so triggers drifted 5–6 days per in-world year against the calendar the DM reads.
+
+**That one hid because both halves used the same wrong helper.** `scheduleQuestTriggers` stamped a fire date with it and `fireDueTriggers` compared against it with the same function, so they agreed with each other perfectly and nothing looked broken. It only surfaced when the #764 dashboard card computed the same date correctly and disagreed — which is why that widget originally *mirrored* the wrong formula on purpose.
+
+Two decisions worth keeping:
+
+- **`addDays` never returns an intercalary day.** `quest_trigger_scheduled` stores three integer columns and has nowhere to put "Shieldmeet", so an offset landing on a festival rolls forward to the next dated day. Intercalary days still *count* as elapsed — ignoring them is the bug.
+- **Rows scheduled before the fix keep their stored dates.** Recomputing on read would move deadlines a DM has already been told about, mid-campaign. A handful of legacy rows a few days out is the better trade, and `fireDueTriggers` says so at the point of the comparison.
+
+`useQuests.ts` reads the adapter from the store rather than taking it as a parameter: four call sites across three components is four chances to pass the wrong calendar, and a trigger belongs to a campaign, which has exactly one.
+
 **Keyboard**: the grip is focusable; Arrow keys move one position, `Delete`/`Backspace` removes, and the width control is an ordinary button in the tab order. No document-level listener — these are handlers on the focused element, so `useHotkeys` (for global shortcuts) does not apply.
 
 **Motion**: reordering animates through `captureFlipPositions` / `playFlipTransition` in `src/lib/motion.ts` (`FLIP_MS` 220 — a shorter hop than `AppModal`'s 260ms click-to-centre flight; position only, since a reorder is not an appearance change). The FLIP bracket wraps the keyboard and button paths only: a pointer drag is already animated by Sortable, and playing both would fight.

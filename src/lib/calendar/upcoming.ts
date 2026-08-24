@@ -1,4 +1,5 @@
 import type { CalendarAdapter, CalendarEvent, CalendarEventType } from "@/types/calendar.types";
+import { daysBetween, ordinalWithinYear } from "./dayMath";
 
 /**
  * "Next N upcoming events" for the DM dashboard (#764) — and, per the module
@@ -42,97 +43,6 @@ export interface UpcomingEventsOptions {
   eventTypes?: readonly CalendarEventType[];
   /** How many events to return, earliest first. */
   limit: number;
-}
-
-/**
- * One calendar year's days, in true calendrical order: each month's declared
- * length (`adapter.months[i].days`), plus each adapter-defined intercalary day
- * slotted in immediately after the month it names (`afterMonth`), in the order
- * the adapter lists them — which is how two festivals sharing an `afterMonth`
- * (Midsummer then Shieldmeet in Harptos) get a stable relative order. An
- * `isLeapOnly` day (Shieldmeet) is included only when `adapter.isLeapYear` says
- * this particular year actually has it.
- *
- * Almost every adapter in the registry keeps a month's length fixed regardless
- * of year — Harptos leap years add a day via Shieldmeet, an *intercalary* day,
- * rather than lengthening a month. Gregorian's February is the one exception,
- * and it answers for itself through `CalendarAdapter.daysInMonth`.
- *
- * Asking the adapter is what keeps this module agreeing with `SessionWidget`'s
- * day-advance control, which is what actually moves a campaign's calendar
- * forward. The two must not disagree about how long a month is, or a countdown
- * drifts from the date the DM is looking at.
- */
-/** The adapter's own month length, falling back to its fixed `.days`. */
-function daysInMonth(adapter: CalendarAdapter, year: number, month: number): number {
-  const fromAdapter = adapter.daysInMonth?.(year, month);
-  return fromAdapter === undefined ? adapter.months[month - 1].days : fromAdapter;
-}
-
-function buildYearIndex(
-  adapter: CalendarAdapter,
-  year: number,
-): { monthStartOrdinal: number[]; festivalOrdinals: Map<string, number>; totalDays: number } {
-  const monthStartOrdinal: number[] = [];
-  const festivalOrdinals = new Map<string, number>();
-  let cursor = 0;
-  for (let month = 1; month <= adapter.months.length; month++) {
-    monthStartOrdinal[month - 1] = cursor;
-    cursor += daysInMonth(adapter, year, month);
-    for (const intercalary of adapter.intercalaryDays) {
-      if (intercalary.afterMonth !== month) continue;
-      if (intercalary.isLeapOnly && !adapter.isLeapYear(year)) continue;
-      cursor += 1;
-      festivalOrdinals.set(intercalary.name, cursor);
-    }
-  }
-  return { monthStartOrdinal, festivalOrdinals, totalDays: cursor };
-}
-
-/**
- * A date's 1-based position within its own year, per `buildYearIndex`.
- * `undefined` for a date `buildYearIndex` has no slot for: a festival name the
- * adapter doesn't declare (a leap-only day in a non-leap year, or a festival
- * left over from a calendar the campaign has since switched away from), a
- * month outside the adapter's range, or a row with neither a dated day nor a
- * festival name. Every case is real, corrupted-by-migration data rather than
- * a bug to throw on — mirrors `dmScreenCard.ts`'s `parseDmScreenCardSettings`,
- * which resolves an unrecognisable stored value instead of crashing the widget.
- */
-function ordinalWithinYear(
-  adapter: CalendarAdapter,
-  year: number,
-  month: number | null,
-  day: number | null,
-  festivalDay: string | null,
-): number | undefined {
-  if (festivalDay !== null) return buildYearIndex(adapter, year).festivalOrdinals.get(festivalDay);
-  if (month === null || day === null) return undefined;
-  if (month < 1 || month > adapter.months.length) return undefined;
-  return buildYearIndex(adapter, year).monthStartOrdinal[month - 1] + day;
-}
-
-/**
- * Whole days from one (year, ordinal-within-year) position to another. Walks
- * whole years rather than a flat `year * 365 + ordinal` formula, because
- * adjacent years are not the same length here (a leap year carries an extra
- * intercalary day) — the flat formula is exactly the bug this module exists to
- * avoid, just moved one level up.
- */
-function daysBetween(
-  adapter: CalendarAdapter,
-  fromYear: number,
-  fromOrdinal: number,
-  toYear: number,
-  toOrdinal: number,
-): number {
-  if (fromYear === toYear) return toOrdinal - fromOrdinal;
-  if (toYear < fromYear) return -daysBetween(adapter, toYear, toOrdinal, fromYear, fromOrdinal);
-  let days = buildYearIndex(adapter, fromYear).totalDays - fromOrdinal;
-  for (let year = fromYear + 1; year < toYear; year++) {
-    days += buildYearIndex(adapter, year).totalDays;
-  }
-  return days + toOrdinal;
 }
 
 /**

@@ -1,3 +1,4 @@
+import type { CalendarAdapter } from "@/types/calendar.types";
 import { describe, it, expect } from "vitest";
 import type { CalendarToday } from "@/lib/calendar/upcoming";
 import { deriveQuestTriggerDueRows, TRIGGER_HORIZON_DAYS, type ScheduledTriggerRow } from "./questTriggers";
@@ -18,14 +19,35 @@ function scheduled(overrides: Partial<ScheduledTriggerRow> & { id: string }): Sc
   };
 }
 
+/**
+ * Harptos in miniature — twelve 30-day months plus a festival after month 6,
+ * so a span that crosses it is one day longer than the old 12x30 arithmetic
+ * would have said. That difference is #766 in a fixture.
+ */
+const TEST_ADAPTER: CalendarAdapter = {
+  id: "test",
+  name: "Test",
+  epochName: "TE",
+  defaultYear: 1490,
+  months: Array.from({ length: 12 }, (_unused, i) => ({
+    num: i + 1,
+    name: `Month ${i + 1}`,
+    days: 30,
+  })),
+  intercalaryDays: [{ name: "Midsummer", afterMonth: 6, description: "" }],
+  weekSize: 10,
+  isLeapYear: () => false,
+  formatDate: () => "",
+};
+
 describe("deriveQuestTriggerDueRows", () => {
   it("returns nothing for no triggers", () => {
-    expect(deriveQuestTriggerDueRows([], TODAY)).toEqual([]);
+    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, [], TODAY)).toEqual([]);
   });
 
   it("excludes a trigger that already fired", () => {
     const rows = [scheduled({ id: "s1", fired_at: "2026-08-01T00:00:00Z" })];
-    expect(deriveQuestTriggerDueRows(rows, TODAY)).toEqual([]);
+    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
   it("excludes a time trigger whose fire date is beyond the horizon", () => {
@@ -36,7 +58,7 @@ describe("deriveQuestTriggerDueRows", () => {
         trigger: { trigger_type: "quest_complete", offset_days: TRIGGER_HORIZON_DAYS + 1, objective: null },
       }),
     ];
-    expect(deriveQuestTriggerDueRows(rows, TODAY)).toEqual([]);
+    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
   it("includes a time trigger inside the horizon, with the right countdown", () => {
@@ -47,7 +69,7 @@ describe("deriveQuestTriggerDueRows", () => {
         trigger: { trigger_type: "quest_complete", offset_days: 5, objective: null },
       }),
     ];
-    const result = deriveQuestTriggerDueRows(rows, TODAY);
+    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
     expect(result).toEqual([
       {
         scheduledId: "s1",
@@ -71,7 +93,7 @@ describe("deriveQuestTriggerDueRows", () => {
         },
       }),
     ];
-    const result = deriveQuestTriggerDueRows(rows, TODAY);
+    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
     expect(result).toEqual([
       {
         scheduledId: "s1",
@@ -96,19 +118,19 @@ describe("deriveQuestTriggerDueRows", () => {
         trigger: { trigger_type: "quest_complete", offset_days: 0, objective: null },
       }),
     ];
-    const result = deriveQuestTriggerDueRows(rows, TODAY);
+    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
     expect(result).toHaveLength(1);
     expect(result[0].kind).toBe("event");
   });
 
   it("drops a scheduled trigger whose quest is gone, rather than rendering it nameless", () => {
     const rows = [scheduled({ id: "s1", quest: null })];
-    expect(deriveQuestTriggerDueRows(rows, TODAY)).toEqual([]);
+    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
   it("drops a dangling scheduled row whose trigger was deleted", () => {
     const rows = [scheduled({ id: "s1", trigger: null })];
-    expect(deriveQuestTriggerDueRows(rows, TODAY)).toEqual([]);
+    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
   it("falls back to a marker for an objective_done trigger with no objective description", () => {
@@ -118,13 +140,13 @@ describe("deriveQuestTriggerDueRows", () => {
         trigger: { trigger_type: "objective_done", offset_days: 0, objective: null },
       }),
     ];
-    const result = deriveQuestTriggerDueRows(rows, TODAY);
+    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
     expect(result[0].waitingFor).toBe("Objective done: ??? (removed)");
   });
 
   it("falls back to a title marker for a quest with an empty title", () => {
     const rows = [scheduled({ id: "s1", quest: { id: "quest-1", title: "" } })];
-    const result = deriveQuestTriggerDueRows(rows, TODAY);
+    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
     expect(result[0].questTitle).toBe("Untitled Quest");
   });
 
@@ -149,7 +171,7 @@ describe("deriveQuestTriggerDueRows", () => {
         trigger: { trigger_type: "quest_complete", offset_days: 3, objective: null },
       }),
     ];
-    const result = deriveQuestTriggerDueRows(rows, TODAY);
+    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
     expect(result.map((r) => r.scheduledId)).toEqual(["tie-a", "tie-b", "later"]);
   });
 });

@@ -4,9 +4,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
+import { useCalendarStore } from "@/stores/calendar";
+import { addDays, isOnOrBefore } from "@/lib/calendar/dayMath";
 import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
 import { useToast } from "@/composables/useToast";
 import { EVENT_TYPE_COLORS } from "@/types/calendar.types";
+import type { CalendarAdapter } from "@/types/calendar.types";
 import type {
   Quest,
   QuestInsert,
@@ -37,17 +40,25 @@ export interface QuestFilterEntityOption {
   name: string;
 }
 
-// All Harptos months have 30 days; intercalary days are ignored for offset math
-function addHarptoDays(year: number, month: number, day: number, offsetDays: number) {
-  let d = day + offsetDays;
-  let m = month;
-  let y = year;
-  while (d > 30) { d -= 30; m++; if (m > 12) { m = 1; y++; } }
-  return { year: y, month: m, day: Math.max(1, d) };
-}
-
-function harptosAbsDays(year: number, month: number, day: number) {
-  return year * 12 * 30 + (month - 1) * 30 + day;
+/**
+ * The campaign's own calendar, for trigger date arithmetic (#766).
+ *
+ * Read from the store rather than taken as a parameter, deliberately. These
+ * are module-level functions with four call sites across three components, and
+ * an explicit `adapter` argument is one more thing each of them could pass
+ * wrongly — while the answer is never in doubt: a trigger belongs to a
+ * campaign, and a campaign has exactly one calendar. Reading `supabase` and
+ * `getCurrentUser()` as globals here is the same shape, and the same reason.
+ *
+ * Until #766 this file did its own arithmetic: twelve months of exactly thirty
+ * days, intercalary days ignored. Harptos years are 365 or 366 days (five
+ * festivals, plus Shieldmeet in leap years), so every scheduled trigger drifted
+ * 5-6 days per in-world year against the calendar the DM is actually looking
+ * at. It hid because *both* halves used the same wrong helper and therefore
+ * agreed with each other perfectly.
+ */
+function campaignCalendar(): CalendarAdapter {
+  return useCalendarStore().adapter;
 }
 
 // ── Quest fetchers ─────────────────────────────────────────────────────────────
@@ -561,7 +572,7 @@ export async function scheduleQuestTriggers(
   if (!matching.length) return;
 
   const rows = matching.map((t) => {
-    const fireDate = addHarptoDays(today.year, today.month, today.day, (t as QuestTrigger).offset_days);
+    const fireDate = addDays(campaignCalendar(), today, (t as QuestTrigger).offset_days);
     return {
       user_id: user.id,
       campaign_id: campaignId,
@@ -670,9 +681,17 @@ export async function fireDueTriggers(
     .is("fired_at", null);
   if (error || !pending?.length) return 0;
 
-  const todayAbs = harptosAbsDays(today.year, today.month, today.day);
+  // Rows scheduled before #766 keep the fire dates they were stamped with and
+  // go off on those dates. Recomputing them on read would move deadlines a DM
+  // has already been told about, mid-campaign, which is a worse trade than a
+  // handful of legacy rows being a few days out.
+  const calendar = campaignCalendar();
   const due = pending.filter((s: QuestTriggerScheduled & { trigger: QuestTrigger | null }) =>
-    harptosAbsDays(s.fire_year, s.fire_month, s.fire_day) <= todayAbs,
+    isOnOrBefore(
+      calendar,
+      { year: s.fire_year, month: s.fire_month, day: s.fire_day },
+      today,
+    ),
   ) as (QuestTriggerScheduled & { trigger: QuestTrigger | null })[];
 
   if (!due.length) return 0;

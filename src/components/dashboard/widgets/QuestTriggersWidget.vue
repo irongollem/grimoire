@@ -48,6 +48,7 @@ import { RouterLink } from "vue-router";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
+import { useCalendarStore } from "@/stores/calendar";
 import { formatDaysUntil, type CalendarToday } from "@/lib/calendar/upcoming";
 import { deriveQuestTriggerDueRows, type ScheduledTriggerRow } from "@/lib/dashboard/questTriggers";
 import AppButton from "@/components/common/AppButton.vue";
@@ -74,6 +75,9 @@ import DashboardWidget from "../DashboardWidget.vue";
 const SCHEDULED_KEY = "quest_trigger_scheduled";
 
 const campaign = useCampaignStore();
+// The campaign's own calendar, so the countdown agrees with the scheduler
+// and with `fireDueTriggers` — all three go through `dayMath` since #766.
+const calendarStore = useCalendarStore();
 const campaignId = computed(() => campaign.activeCampaignId);
 
 // The query key's first element matches the literal string CalendarView.vue
@@ -113,6 +117,6 @@ const today = computed<CalendarToday>(() => ({
 // itself for that distinction.
 const rows = computed(() => {
   if (rawRows.value === undefined) return [];
-  return deriveQuestTriggerDueRows(rawRows.value, today.value);
+  return deriveQuestTriggerDueRows(calendarStore.adapter, rawRows.value, today.value);
 });
 </script>

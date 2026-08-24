@@ -1,5 +1,7 @@
 import type { TriggerType } from "@/types/quest.types";
 import type { CalendarToday } from "@/lib/calendar/upcoming";
+import { daysFromTo } from "@/lib/calendar/dayMath";
+import type { CalendarAdapter } from "@/types/calendar.types";
 
 /**
  * The "about to fire" join for the "Quest triggers due" widget (#764).
@@ -29,11 +31,7 @@ import type { CalendarToday } from "@/lib/calendar/upcoming";
  * `dmScreenCard.ts`, `downtimeQueue.ts`): the join, the due/horizon check and
  * the "gone" guards are cheap to test here and expensive to test through a
  * mounted card.
-  *
- * The mirrored arithmetic is tracked as #766 — fixing it moves when triggers
- * actually fire, so it is a decision of its own rather than something a
- * dashboard card changes on the way past.
- */
+  */
 
 /**
  * One `quest_trigger_scheduled` row as the widget fetches it: the scheduled
@@ -92,24 +90,6 @@ export interface QuestTriggerDueRow {
  */
 export const TRIGGER_HORIZON_DAYS = 14;
 
-/**
- * Mirrors `harptosAbsDays` in `src/composables/useQuests.ts` (L44-47)
- * exactly: a fixed 12-month, 30-day-per-month count, intercalary days
- * ignored. That is not a simplification made here — it is the literal
- * arithmetic `fireDueTriggers` (useQuests.ts:672-676) evaluates a scheduled
- * row's fire date against to decide whether it is due, so this widget has to
- * use the same formula or its "about to fire" verdict would silently
- * disagree with when the trigger actually fires. `lib/calendar/upcoming.ts`'s
- * day math is adapter-aware (leap years, intercalary festivals) and is the
- * *more correct* general calendar tool, but reusing it here would compute a
- * different day count than the system that actually fires the trigger —
- * agreeing with `fireDueTriggers` matters more than being more accurate than
- * it is. `formatDaysUntil` from that module is reused below for display,
- * since formatting a day count into words does not carry this same risk.
- */
-function harptosAbsDays(year: number, month: number, day: number): number {
-  return year * 12 * 30 + (month - 1) * 30 + day;
-}
 
 /**
  * Every unfired scheduled trigger that is due now or within the horizon,
@@ -119,11 +99,11 @@ function harptosAbsDays(year: number, month: number, day: number): number {
  * day, since `daysUntil` for an `event` row is never positive.
  */
 export function deriveQuestTriggerDueRows(
+  adapter: CalendarAdapter,
   rows: readonly ScheduledTriggerRow[],
   today: CalendarToday,
   horizonDays: number = TRIGGER_HORIZON_DAYS,
 ): QuestTriggerDueRow[] {
-  const todayAbs = harptosAbsDays(today.year, today.month, today.day);
   const due: QuestTriggerDueRow[] = [];
 
   for (const row of rows) {
@@ -133,7 +113,19 @@ export function deriveQuestTriggerDueRows(
     const quest = row.quest;
     if (!quest) continue;
 
-    const daysUntil = harptosAbsDays(row.fire_year, row.fire_month, row.fire_day) - todayAbs;
+    // The same `dayMath` the scheduler and `fireDueTriggers` now use (#766).
+    // This module used to reproduce their old 12x30-day formula on purpose,
+    // so the card could not disagree with the code that actually fires the
+    // trigger. Now that they ask the campaign's calendar, so does this — and
+    // the reason for agreeing has not changed, only what they agree on.
+    const daysUntil = daysFromTo(
+      adapter,
+      today,
+      { year: row.fire_year, month: row.fire_month, day: row.fire_day },
+    );
+    // A fire date the calendar cannot place is one nobody can act on, and
+    // `fireDueTriggers` will not fire it either.
+    if (daysUntil === undefined) continue;
     const kind: QuestTriggerDueRow["kind"] = trigger.offset_days === 0 ? "event" : "time";
     if (kind === "time" && daysUntil > horizonDays) continue;
 
