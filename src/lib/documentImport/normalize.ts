@@ -185,6 +185,46 @@ const BLANK_MONSTER_STAT_BLOCK: MonsterStatBlock = {
   challenge_rating: "0",
 };
 
+/**
+ * Widens the extractor's partial stat block into a complete one, and repairs the
+ * one field whose wire shape differs from the app's.
+ *
+ * `MonsterStatBlock.skills` is `Record<string, string>` — a free-form key map,
+ * which structured outputs cannot express, because it requires
+ * `additionalProperties: false` on every object. So the extraction schema asks
+ * the model for an array of `{ skill, modifier }` pairs instead, and something
+ * has to fold that back.
+ *
+ * The edge function already does, before it writes `extracted`. This does it
+ * again, deliberately: `normalize.ts` is the single place a `MonsterInsert` is
+ * constructed, so the guarantee that `stat_block` matches its declared type
+ * belongs here rather than depending on an earlier step in a different runtime
+ * having run. The two cannot share a module — one is Deno, one is Vite — so the
+ * choice is between duplicating six lines and trusting a remote invariant. A row
+ * that reaches `monsters.stat_block` with an array where the app expects a map
+ * renders wrong everywhere and fails nothing.
+ *
+ * Already-correct map form passes through untouched, so running twice is safe.
+ */
+function coerceStatBlock(partial: Partial<MonsterStatBlock> | undefined): MonsterStatBlock {
+  const merged = { ...BLANK_MONSTER_STAT_BLOCK, ...partial };
+  const skills: unknown = merged.skills;
+  if (Array.isArray(skills)) {
+    const record: Record<string, string> = {};
+    for (const entry of skills) {
+      if (
+        typeof entry === "object" && entry !== null &&
+        typeof (entry as { skill?: unknown }).skill === "string" &&
+        typeof (entry as { modifier?: unknown }).modifier === "string"
+      ) {
+        record[(entry as { skill: string }).skill] = (entry as { modifier: string }).modifier;
+      }
+    }
+    merged.skills = record;
+  }
+  return merged;
+}
+
 // ── Monsters ─────────────────────────────────────────────────────────────────
 
 export function mapExtractedMonster(
@@ -201,7 +241,7 @@ export function mapExtractedMonster(
     habitat: payload.habitat ?? null,
     source: null, // not an Open5e import
     tags: [], // schema default '{}'; not extracted
-    stat_block: { ...BLANK_MONSTER_STAT_BLOCK, ...payload.stat_block },
+    stat_block: coerceStatBlock(payload.stat_block),
     description: capProse(payload.description),
     notes: null, // no corresponding field in ExtractedMonster
     image_url: null,

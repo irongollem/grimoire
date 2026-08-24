@@ -11,6 +11,7 @@ import {
 } from "@/lib/documentImport/normalize";
 import { IMPORT_ENTITY_KINDS, PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
 import type { AiProvenance } from "@/ai/provenance";
+import type { MonsterStatBlock } from "@/types/monster.types";
 
 const CAMPAIGN_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -536,3 +537,53 @@ describe("ENTITY_MAPPERS", () => {
   });
 });
 
+
+describe("mapExtractedMonster — stat_block skills shape", () => {
+  // The extraction schema asks for an array of {skill, modifier} pairs because
+  // structured outputs cannot express Record<string,string> (it needs
+  // additionalProperties:false on every object). The edge function folds it back
+  // before writing `extracted`; this asserts the mapper does too, so a row that
+  // reaches monsters.stat_block always matches MonsterStatBlock regardless of
+  // which path produced it. Trialled against a real printed statblock whose
+  // skills line reads "Acrobatics +5, Perception +3, Stealth +5".
+  it("folds an array of skill pairs into the Record the app expects", () => {
+    const { row } = mapExtractedMonster(
+      {
+        name: "Candy Archer",
+        stat_block: {
+          skills: [
+            { skill: "Acrobatics", modifier: "+5" },
+            { skill: "Perception", modifier: "+3" },
+            { skill: "Stealth", modifier: "+5" },
+          ],
+        } as unknown as Partial<MonsterStatBlock>,
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(row.stat_block.skills).toEqual({ Acrobatics: "+5", Perception: "+3", Stealth: "+5" });
+  });
+
+  it("leaves an already-correct Record untouched, so running twice is safe", () => {
+    const { row } = mapExtractedMonster(
+      { name: "Caramel Crusher", stat_block: { skills: { Athletics: "+5", Perception: "+2" } } },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(row.stat_block.skills).toEqual({ Athletics: "+5", Perception: "+2" });
+  });
+
+  it("drops malformed pairs rather than writing junk keys", () => {
+    const { row } = mapExtractedMonster(
+      {
+        name: "Half-read Card",
+        stat_block: {
+          skills: [{ skill: "Stealth", modifier: "+5" }, { skill: 7 }, null, "Perception +3"],
+        } as unknown as Partial<MonsterStatBlock>,
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(row.stat_block.skills).toEqual({ Stealth: "+5" });
+  });
+});
