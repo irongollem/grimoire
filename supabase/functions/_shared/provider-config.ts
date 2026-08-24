@@ -10,6 +10,15 @@ export interface ProviderRow {
   text_model: string | null;
   image_model: string | null;
   image_quality: string | null;
+  /**
+   * Model for document/image extraction (#353). Separate from `text_model`
+   * because reading a document is a distinct capability: the configured
+   * Anthropic text model (`claude-haiku-3-20240307`) cannot read PDFs at all.
+   * NULL means this provider is not available for document extraction — treat
+   * it as unsupported rather than falling back to `text_model`, which is the
+   * exact mistake the column exists to prevent.
+   */
+  document_model: string | null;
   text_multiplier: number | null;
   image_multiplier: number | null;
 }
@@ -25,7 +34,7 @@ export async function fetchProviderConfigs(
   if (!providerCache || Date.now() >= providerCacheExpiry) {
     const { data } = await admin
       .from("provider_config")
-      .select("provider, text_model, image_model, image_quality, text_multiplier, image_multiplier");
+      .select("provider, text_model, image_model, image_quality, document_model, text_multiplier, image_multiplier");
     providerCache = Object.fromEntries(
       (data ?? []).map((row: { provider: string } & ProviderRow) => [row.provider, row]),
     ) as Partial<Record<Provider, ProviderRow>>;
