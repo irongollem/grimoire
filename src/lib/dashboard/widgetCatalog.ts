@@ -47,7 +47,10 @@ export type DashboardWidgetId =
   | "initiative-mini"
   | "encounter-gaps"
   | "recent-monsters"
-  | "store-restock";
+  | "store-restock"
+  | "monster-pull"
+  | "quest-triggers"
+  | "shared-journal";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -216,6 +219,37 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "monster-pull",
+    title: "Monster quick-pull",
+    description: "A random monster for an improvised encounter, filtered by CR and type.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "quest-triggers",
+    title: "Quest triggers due",
+    description: "Scheduled consequences about to fire, time-delayed and immediate.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "shared-journal",
+    title: "Players wrote",
+    description: "Shared player journal entries you have not read yet.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+    // Opening an entry marks it read, so the card empties itself as the DM
+    // works through it — it can hide without ever going quiet on something
+    // still unread.
+    selfHiding: true,
   },
   {
     id: "initiative-mini",

@@ -31,6 +31,9 @@ import RulesSearchWidget from "@/components/dashboard/widgets/RulesSearchWidget.
 import CursedItemsWidget from "@/components/dashboard/widgets/CursedItemsWidget.vue";
 import SoundboardScenesWidget from "@/components/dashboard/widgets/SoundboardScenesWidget.vue";
 import InitiativeMiniWidget from "@/components/dashboard/widgets/InitiativeMiniWidget.vue";
+import MonsterPullWidget from "@/components/dashboard/widgets/MonsterPullWidget.vue";
+import QuestTriggersWidget from "@/components/dashboard/widgets/QuestTriggersWidget.vue";
+import SharedJournalWidget from "@/components/dashboard/widgets/SharedJournalWidget.vue";
 import EncounterGapsWidget from "@/components/dashboard/widgets/EncounterGapsWidget.vue";
 import StoreRestockWidget from "@/components/dashboard/widgets/StoreRestockWidget.vue";
 import RecentMonstersWidget from "@/components/dashboard/widgets/RecentMonstersWidget.vue";
@@ -73,6 +76,9 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "cursed-items": CursedItemsWidget,
   "soundboard-scenes": SoundboardScenesWidget,
   "initiative-mini": InitiativeMiniWidget,
+  "monster-pull": MonsterPullWidget,
+  "quest-triggers": QuestTriggersWidget,
+  "shared-journal": SharedJournalWidget,
   "encounter-gaps": EncounterGapsWidget,
   "store-restock": StoreRestockWidget,
   "recent-monsters": RecentMonstersWidget,
