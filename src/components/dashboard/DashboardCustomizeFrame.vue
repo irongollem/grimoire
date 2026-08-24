@@ -9,7 +9,11 @@
   <template v-if="!customizing">
     <slot />
   </template>
-  <div v-else :class="['relative', $attrs.class]">
+  <div
+    v-else
+    :data-widget-key="entry.key"
+    :class="['relative scroll-mt-12 md:scroll-mt-8', $attrs.class]"
+  >
     <div ref="slotHost" v-show="!slotIsEmpty"><slot /></div>
 
     <div
@@ -91,6 +95,20 @@
  * overlay on the card covered real content (`DashboardWidget` puts its own
  * "View all →" link top-right, and `DashboardStats` is a bare row of links),
  * and the view opens the grid's row gap while customizing to make room.
+ *
+ * `data-widget-key` on the customizing root is how `DashboardView` finds this
+ * instance in the DOM to scroll it back into view after an edit — a widget
+ * added from the shelf lands at the end of a board that may be well below the
+ * fold, and without that the click looks like it did nothing. `scroll-mt-*`
+ * goes with it and matches the grid's own top padding: the control pill is
+ * `absolute bottom-full`, so it sits *outside* the box `scrollIntoView`
+ * measures, and an element scrolled flush to the top would take its own
+ * controls off screen.
+ *
+ * Both are set in the template rather than explained there, because a comment
+ * at the template root becomes a sibling of the `template v-if` / `div v-else`
+ * pair — see the note at the top of this file. Adding one broke
+ * `wrapper.classes()` in this component's own test on the first attempt.
  *
  * `$attrs.class` is forwarded onto the customizing root by hand, because
  * `inheritAttrs` is off below. Without it the view's WIDTH_CLASSES never reach

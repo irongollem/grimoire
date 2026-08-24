@@ -31,6 +31,20 @@ import { DEFAULT_LAYOUTS, type DashboardLayoutEntry } from "./defaultLayouts";
 export interface ArrangeOutcome {
   entries: DashboardLayoutEntry[];
   announcement: string;
+  /**
+   * The instance this edit was *about*, for the view to keep on screen.
+   *
+   * The sighted counterpart to `announcement`. A screen-reader user is told
+   * "Roll a table added at position 24"; everyone else got nothing at all, and
+   * on a board long enough to scroll, adding a widget looked exactly like
+   * clicking a button that did nothing — the widget was appended twenty rows
+   * below the fold. Arrow-key moves have the same problem in the other
+   * direction.
+   *
+   * Absent for `removeEntry`, which is the one edit with nothing left to look
+   * at.
+   */
+  focusKey?: string;
 }
 
 function titleOf(entry: DashboardLayoutEntry): string {
@@ -78,6 +92,7 @@ export function moveEntry(
   return {
     entries: next,
     announcement: `${titleOf(moved)} moved to position ${to + 1} of ${next.length}.`,
+    focusKey: key,
   };
 }
 
@@ -112,7 +127,11 @@ export function cycleWidth(
 
   const next = clone(entries);
   next[index] = { ...entry, width: nextWidth };
-  return { entries: next, announcement: `${titleOf(entry)} set to ${nextWidth} width.` };
+  return {
+    entries: next,
+    announcement: `${titleOf(entry)} set to ${nextWidth} width.`,
+    focusKey: key,
+  };
 }
 
 /**
@@ -161,7 +180,11 @@ export function configureEntry(
 
   const next = clone(entries);
   next[index] = { ...entry, settings: { ...settings } };
-  return { entries: next, announcement: `${titleOf(entry)} settings updated.` };
+  return {
+    entries: next,
+    announcement: `${titleOf(entry)} settings updated.`,
+    focusKey: key,
+  };
 }
 
 /**
@@ -170,7 +193,17 @@ export function configureEntry(
  * Appended rather than anchored to its default position — the opposite of what
  * the #762 merge does with a newly shipped widget, and deliberately so. There
  * the app is introducing something unasked, so it goes where it will be seen;
- * here the DM just clicked it, so it goes where they can act on it next.
+ * here the DM asked for it, and putting it anywhere else would silently
+ * reorder a board they arranged. Prepending is the tempting fix for "I can't
+ * see it" and it is the wrong one: it demotes whatever the DM deliberately
+ * put first, every single time, and adding three widgets stacks them at the
+ * top in reverse.
+ *
+ * The visibility problem is real, though — on a long board the new widget
+ * lands below the fold and adding it looks like nothing happened. That is
+ * answered by `focusKey`, which the view scrolls to. Position is the model;
+ * being seen is feedback; they are different problems and only one of them is
+ * this function's.
  */
 export function addWidget(
   entries: readonly DashboardLayoutEntry[],
@@ -191,8 +224,13 @@ export function addWidget(
   }
 
   const next = clone(entries);
-  next.push({ key: instanceKey(entries, widget.id), id: widget.id, width: widget.defaultWidth });
-  return { entries: next, announcement: `${widget.title} added at position ${next.length}.` };
+  const key = instanceKey(entries, widget.id);
+  next.push({ key, id: widget.id, width: widget.defaultWidth });
+  return {
+    entries: next,
+    announcement: `${widget.title} added at position ${next.length}.`,
+    focusKey: key,
+  };
 }
 
 /**

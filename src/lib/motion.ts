@@ -23,6 +23,36 @@ export function prefersReducedMotion(): boolean {
 }
 
 /**
+ * Bring an element into view inside whatever actually scrolls it, and do
+ * nothing at all when it is already visible.
+ *
+ * `block: "nearest"` is doing the work: the spec defines it as "scroll the
+ * minimum amount", which means an element already on screen is left exactly
+ * where it is. That matters more than it sounds — the alternative, centring
+ * unconditionally, moves the board under a DM who could already see the thing
+ * that moved, and this module exists partly because a dashboard that shifts
+ * when you touch it is unjudgeable.
+ *
+ * Pair it with a `scroll-mt-*` class on the target when something is anchored
+ * *above* the element's border box. Customize mode's control pill is
+ * `absolute bottom-full`, so it sits outside the box `scrollIntoView`
+ * measures, and without a scroll margin an element scrolled flush to the top
+ * takes its own controls off screen.
+ *
+ * Guarded like `canAnimate`: `scrollIntoView` is not implemented in the test
+ * DOM, and an unguarded call makes a component untestable rather than merely
+ * unscrolled.
+ */
+export function revealInScrollParent(el: Element): void {
+  if (typeof el.scrollIntoView !== "function") return;
+  el.scrollIntoView({
+    block: "nearest",
+    inline: "nearest",
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+  });
+}
+
+/**
  * Whether to animate at all. Web Animations is absent in the test DOM, so there
  * every panel opens instantly — as it does for anyone who asked it to.
  */

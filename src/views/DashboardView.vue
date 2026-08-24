@@ -104,7 +104,11 @@
         :entry="entry"
         :widget="widgetFor(entry)"
         customizing
-        :class="WIDTH_CLASSES[entry.width]"
+        :class="[
+          WIDTH_CLASSES[entry.width],
+          entry.key === justAddedKey && 'rounded-lg ring-2 ring-primary/60',
+          'transition-shadow duration-500',
+        ]"
         @move="onMove"
         @cycle-width="onCycleWidth"
         @remove="onRemove"
@@ -166,8 +170,9 @@ import {
   cycleWidth,
   moveEntry,
   removeEntry,
+  type ArrangeOutcome,
 } from "@/lib/dashboard/arrangeOps";
-import { captureFlipPositions, playFlipTransition } from "@/lib/motion";
+import { captureFlipPositions, playFlipTransition, revealInScrollParent } from "@/lib/motion";
 import {
   widgetById,
   type DashboardSurface,
@@ -231,6 +236,9 @@ const gridEl = useTemplateRef<HTMLElement | { $el: HTMLElement }>("gridEl");
  * changed anything.
  */
 const configuringKey = ref<string | null>(null);
+
+/** The instance added a moment ago, ringed so it is findable after the scroll. */
+const justAddedKey = ref<string | null>(null);
 const configuringEntry = computed(() =>
   draft.value.find((entry) => entry.key === configuringKey.value),
 );
@@ -332,6 +340,7 @@ function flushSave() {
 // timer that unmounted with the page.
 onBeforeUnmount(() => {
   if (saveTimer !== null) flushSave();
+  if (flashTimer !== null) clearTimeout(flashTimer);
 });
 
 // ── Edits ───────────────────────────────────────────────────────────────────
@@ -343,7 +352,7 @@ onBeforeUnmount(() => {
  * pointer drag is already animated by Sortable itself, and playing both would
  * fight. Hence `onDragEnd` saving without going through here.
  */
-async function apply(outcome: { entries: DashboardLayoutEntry[]; announcement: string }) {
+async function apply(outcome: ArrangeOutcome) {
   const host = resolveGrid();
   const snapshot = host === null ? null : captureFlipPositions(host.children);
   draft.value = outcome.entries;
@@ -351,6 +360,26 @@ async function apply(outcome: { entries: DashboardLayoutEntry[]; announcement: s
   queueSave();
   await nextTick();
   if (snapshot !== null) playFlipTransition(snapshot);
+  // After the FLIP, not before: the widgets are in their new places by now, so
+  // the scroll targets where the thing actually ended up rather than where it
+  // was a frame ago.
+  if (outcome.focusKey !== undefined) reveal(outcome.focusKey);
+}
+
+/**
+ * Scroll the instance an edit was about back into view.
+ *
+ * The sighted half of `announcement`. On a board long enough to scroll, a
+ * widget added from the shelf lands below the fold and the click looks like it
+ * did nothing — which is exactly what it looked like while this was being
+ * built. `revealInScrollParent` does nothing when the widget is already
+ * visible, so a short board never moves.
+ */
+function reveal(key: string) {
+  const host = resolveGrid();
+  if (host === null) return;
+  const el = host.querySelector(`[data-widget-key="${CSS.escape(key)}"]`);
+  if (el !== null) revealInScrollParent(el);
 }
 
 /** `VueDraggable` exposes the element as `$el`; a plain div is the element. */
@@ -377,7 +406,27 @@ function onRemove(key: string) {
 }
 
 function onAdd(id: DashboardWidgetId) {
-  void apply(addWidget(draft.value, id, view.value));
+  const outcome = addWidget(draft.value, id, view.value);
+  void apply(outcome);
+  // Scrolling answers "where did it go"; the ring answers "which one", which
+  // the scroll alone does not once a DM adds three in a row. Only `add` gets
+  // it — flashing on every arrow-key move would strobe the board.
+  if (outcome.focusKey !== undefined) flashAdded(outcome.focusKey);
+}
+
+/** How long the just-added ring stays up. Long enough to find the card after
+ *  a smooth scroll has finished, short enough not to become chrome. */
+const ADDED_FLASH_MS = 1600;
+
+let flashTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flashAdded(key: string) {
+  if (flashTimer !== null) clearTimeout(flashTimer);
+  justAddedKey.value = key;
+  flashTimer = setTimeout(() => {
+    justAddedKey.value = null;
+    flashTimer = null;
+  }, ADDED_FLASH_MS);
 }
 
 function onConfigure(key: string) {

@@ -232,6 +232,46 @@ describe("shelfWidgets", () => {
   });
 });
 
+describe("focusKey", () => {
+  // The sighted counterpart to `announcement`. Without it, adding a widget to
+  // a board long enough to scroll appended it below the fold and looked
+  // exactly like a button that did nothing.
+  it("names the widget an add created, including a second instance", () => {
+    const first = addWidget(prep(), "dm-screen-card", "prep");
+    expect(first.focusKey).toBe("dm-screen-card");
+    const second = addWidget(first.entries, "dm-screen-card", "prep");
+    expect(second.focusKey).toBe("dm-screen-card-2");
+  });
+
+  it("names the widget a move, resize or configure acted on", () => {
+    expect(moveEntry(prep(), "quests", 1).focusKey).toBe("quests");
+    expect(cycleWidth(prep(), "quests").focusKey).toBe("quests");
+    expect(configureEntry(prep(), "quests", { tableId: "cover" }).focusKey).toBe("quests");
+  });
+
+  // Nothing left to look at, so nothing to scroll to.
+  it("is absent for a removal", () => {
+    expect(removeEntry(prep(), "quests").focusKey).toBeUndefined();
+  });
+
+  // A no-op must not scroll the board to a widget that did not move.
+  it("is absent when the operation did nothing", () => {
+    expect(addWidget(prep(), RETIRED_WIDGET_ID, "prep").focusKey).toBeUndefined();
+    expect(moveEntry(prep(), "not-here", 1).focusKey).toBeUndefined();
+    expect(configureEntry(prep(), "not-here", {}).focusKey).toBeUndefined();
+  });
+
+  // A clamped move is a no-op like any other, so it does not scroll either.
+  // The announcement still says "already first" — that is the feedback for a
+  // move that could not happen — and the grip holds focus, so the browser is
+  // already keeping that widget on screen without our help.
+  it("is absent when a move is clamped at an end", () => {
+    const clamped = moveEntry(prep(), "prep-gaps", -1);
+    expect(clamped.announcement).toContain("already first");
+    expect(clamped.focusKey).toBeUndefined();
+  });
+});
+
 describe("configureEntry", () => {
   it("stores a widget's settings on its own instance", () => {
     const before = addWidget(prep(), "dm-screen-card", "prep").entries;
