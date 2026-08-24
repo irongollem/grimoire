@@ -401,8 +401,20 @@ serve(withCors(async (req: Request) => {
   }
   const textIsByok = !!campaignKeyFor[textProvider];
 
-  const baseCost = await fetchCreditCost(admin, "document_import_extraction");
-  const cost = applyMultiplier(baseCost, providerConfig?.text_multiplier);
+  // Priced per page, not flat (migration 20260824220715). Every other generator
+  // here charges a flat fee because its input is a sentence the DM typed; this
+  // one's input is a document, and Anthropic's PDF support rasterises *every
+  // page to an image* as well as extracting its text — so both the token count
+  // and the bill scale with page count. A flat fee would overcharge a two-photo
+  // batch and undercharge a fifty-page chapter by orders of magnitude.
+  const [baseCost, perPageCost] = await Promise.all([
+    fetchCreditCost(admin, "document_import_extraction"),
+    fetchCreditCost(admin, "document_import_page"),
+  ]);
+  const cost = applyMultiplier(
+    baseCost + perPageCost * importRow.page_count,
+    providerConfig?.text_multiplier,
+  );
 
   if (!(await checkRateLimit(admin, userId, "ai_generation"))) {
     return new Response(JSON.stringify({ error: "rate_limited" }), {
