@@ -38,7 +38,9 @@ export type DashboardWidgetId =
   | "upcoming-events"
   | "jump-to"
   | "quick-create"
-  | "rule-tracker";
+  | "rule-tracker"
+  | "quest-activity"
+  | "deity-lookup";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -207,6 +209,29 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "quest-activity",
+    title: "Recent quest activity",
+    description: "Beat-to-beat feed of what moved in each quest, newest first.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "deity-lookup",
+    title: "Deities",
+    description: "Domains, alignment and symbol for every deity in play.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+    // An empty pantheon is "not set up yet" rather than news, so the card
+    // stays off the board until the campaign has deities — same reading as
+    // recent-npcs, and the opposite of downtime-queue, whose empty state is
+    // the reassurance.
+    selfHiding: true,
   },
   {
     id: "rule-tracker",

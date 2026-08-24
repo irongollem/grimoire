@@ -127,6 +127,14 @@ Its four states are spelled out rather than derived from `groups.length`, becaus
 
 The `?? []` inside `memberEntries` is unreachable in the render path: `loading` explicitly requires both the roster and the tracker states to have arrived, and the body is not rendered until it is false. Rendering early would flash "No party members to track yet" at a table that has one, and show everybody at the tracker's floor before their real values load.
 
+**Recent quest activity (`QuestActivityWidget.vue`)** — the beat-to-beat feed out of `quest_beat_transitions`, a complete audit trail that nothing read. Not self-hiding: "no beats played yet" is informative for a fresh campaign.
+
+Nothing in the app turned a transition into a sentence, so `questActivity.ts`'s phrasing is new rather than a duplicate — `QuestRunPath.vue` renders a destination beat plus a raw uppercase kind badge and reads a different, narrower shape (`QuestRuntimeContext.path_so_far`). The table denormalises `from_quest_title` / `from_beat_title` / `to_*` at write time (`20260810000007_atomic_quest_runtime_navigation.sql:34-53`), so no beat fetch is needed. The null pairs are not defensive padding: only `start` leaves the `from_*` columns null (kind `enter`) and only `end` leaves the `to_*` null, and table check constraints guarantee each pair is null-null or both-present.
+
+**Deities (`DeityLookupWidget.vue`)** — domains, alignment and symbol, in `ConditionsWidget`'s accordion. `selfHiding: true`: an empty pantheon is "not set up yet" rather than news, and most campaigns never record one.
+
+It **groups by pantheon only when the deities span more than one bucket**, counting "no pantheon" as a bucket. A Faerûn campaign with thirteen pantheons is a wall without headers; a homebrew campaign with six unaffiliated gods would get a repeated "Unaffiliated" header on every row. The case that decides the rule is one real pantheon plus a few strays: that still groups, because folding the strays under the pantheon's header would misattribute them. `useAllDeities()` already joins the pantheon, so there is no second query.
+
 `CalendarGrid.vue` used to answer the question itself: `currentMonth === 2 && adapter.isLeapYear(year) ? 29 : month.days`, applied to *every* adapter. Faerûn's leap rule is `every4` and Ches is 30 days, so in any year divisible by four — including 1492 DR, the default — the grid rendered Ches with 29 cells and **the 30th of Ches could not be reached at all**. `SessionWidget`'s day-advance and `lib/calendar/upcoming.ts` now ask the adapter too, so the grid, the date control and the countdown cannot disagree about how long a month is. Regression cover in `upcoming.test.ts`.
 
 **Keyboard**: the grip is focusable; Arrow keys move one position, `Delete`/`Backspace` removes, and the width control is an ordinary button in the tab order. No document-level listener — these are handlers on the focused element, so `useHotkeys` (for global shortcuts) does not apply.

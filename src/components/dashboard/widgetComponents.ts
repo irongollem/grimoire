@@ -25,6 +25,8 @@ import UpcomingEventsWidget from "@/components/dashboard/widgets/UpcomingEventsW
 import JumpToWidget from "@/components/dashboard/widgets/JumpToWidget.vue";
 import QuickCreateWidget from "@/components/dashboard/widgets/QuickCreateWidget.vue";
 import RuleTrackerWidget from "@/components/dashboard/widgets/RuleTrackerWidget.vue";
+import QuestActivityWidget from "@/components/dashboard/widgets/QuestActivityWidget.vue";
+import DeityLookupWidget from "@/components/dashboard/widgets/DeityLookupWidget.vue";
 import RuleTrackerCardSettings from "@/components/dashboard/settings/RuleTrackerCardSettings.vue";
 
 /**
@@ -58,6 +60,8 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "jump-to": JumpToWidget,
   "quick-create": QuickCreateWidget,
   "rule-tracker": RuleTrackerWidget,
+  "quest-activity": QuestActivityWidget,
+  "deity-lookup": DeityLookupWidget,
 };
 
 /**
