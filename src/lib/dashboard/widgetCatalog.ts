@@ -27,7 +27,8 @@ export type DashboardWidgetId =
   | "live-encounter"
   | "stats"
   | "dm-screen-card"
-  | "roll-table";
+  | "roll-table"
+  | "conditions";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -187,6 +188,15 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     // few times a session, not a reference you read continuously.
     maxInstances: 4,
     configurable: true,
+  },
+  {
+    id: "conditions",
+    title: "Conditions",
+    description: "All sixteen conditions, with the rules text one tap away.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
   },
 ];
 

@@ -14,6 +14,7 @@ import DmScreenCardWidget from "@/components/dashboard/widgets/DmScreenCardWidge
 import DmScreenCardSettings from "@/components/dashboard/settings/DmScreenCardSettings.vue";
 import RollTableWidget from "@/components/dashboard/widgets/RollTableWidget.vue";
 import RollTableCardSettings from "@/components/dashboard/settings/RollTableCardSettings.vue";
+import ConditionsWidget from "@/components/dashboard/widgets/ConditionsWidget.vue";
 
 /**
  * Maps every `DashboardWidgetId` to its component. Kept apart from
@@ -35,6 +36,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   stats: DashboardStats,
   "dm-screen-card": DmScreenCardWidget,
   "roll-table": RollTableWidget,
+  conditions: ConditionsWidget,
 };
 
 /**
