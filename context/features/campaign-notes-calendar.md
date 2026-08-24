@@ -85,6 +85,14 @@ Three decisions in `src/lib/dashboard/deathSaves.ts` that will look arbitrary an
 
 This is also the one widget in the folder where `party.value ?? []` is correct: an unloaded roster and a roster with nobody dying both render nothing, so no distinction is lost. Every non-self-hiding widget must keep them apart — see `RollTableWidget` — because there the collapse shows an empty state before the query has looked.
 
+**Table vitals (`TableVitalsWidget.vue`)** — remaining spell slots, class-resource pools and who is concentrating on what: the three `PartyMember` columns `PartyWidget` does not surface (it owns HP, AC, conditions and passive scores). Picker-only, `defaultWidth: "wide"` because a row carries a name, a concentration badge and several pills at once, and `selfHiding: true` because the only party it is empty for — no casters, no class resources, nobody concentrating — is empty for that party *permanently*, so the card would otherwise sit there forever.
+
+Read-only by design: this is a scan-during-combat card, and every control that changes one of these numbers already lives on the party tracker.
+
+`src/lib/dashboard/tableVitals.ts` treats all three columns as `unknown` and validates structurally, even though `PartyMember` declares narrower types — they are jsonb, and a hand-edited row or a pre-migration character can hand back anything. It reuses `slotPool()` from `src/rules/spellSlots.ts` rather than re-deriving the "legacy rows omit `pool`, default to `spellcasting`" rule, which already lives in one place that every other slot-consuming component reads.
+
+**The pills are `AppButton variant="tinted"`, and the conversion reached into the player portal.** A coloured pill whose colour means something is what that variant is for, and `tone-caution`/`tone-info` land within a hair of the raw `amber-500`/`blue-500` pair `PlayerResourcePools.vue` had spelled out by hand — so both call sites now go through the primitive rather than becoming two copies free to drift. While in that file, a hand-rolled `<button>` carrying the full chrome recipe (sitting directly beside the `AppButton` that answered it) became an `AppButton` too.
+
 **Keyboard**: the grip is focusable; Arrow keys move one position, `Delete`/`Backspace` removes, and the width control is an ordinary button in the tab order. No document-level listener — these are handlers on the focused element, so `useHotkeys` (for global shortcuts) does not apply.
 
 **Motion**: reordering animates through `captureFlipPositions` / `playFlipTransition` in `src/lib/motion.ts` (`FLIP_MS` 220 — a shorter hop than `AppModal`'s 260ms click-to-centre flight; position only, since a reorder is not an appearance change). The FLIP bracket wraps the keyboard and button paths only: a pointer drag is already animated by Sortable, and playing both would fight.

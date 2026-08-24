@@ -31,7 +31,8 @@ export type DashboardWidgetId =
   | "conditions"
   | "latest-session-note"
   | "quick-dice"
-  | "death-saves";
+  | "death-saves"
+  | "table-vitals";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -200,6 +201,23 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,
     maxInstances: 1,
+  },
+  {
+    id: "table-vitals",
+    title: "Table vitals",
+    description: "Remaining spell slots, class resources and concentration, at a glance.",
+    widths: LIST_WIDTHS,
+    // Wider than the other list widgets by default: a row can carry a name, a
+    // concentration badge, several slot pills and several resource pills at
+    // once, and at one column those wrap into a paragraph.
+    defaultWidth: "wide",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+    // Only ever empty for a party with no casters, no class resources and
+    // nobody concentrating — a stable fact about that party rather than a
+    // passing one, so the card would sit there empty forever. The shelf says
+    // it "appears on its own once it has something to show".
+    selfHiding: true,
   },
   {
     id: "death-saves",

@@ -18,6 +18,7 @@ import ConditionsWidget from "@/components/dashboard/widgets/ConditionsWidget.vu
 import LatestSessionNoteWidget from "@/components/dashboard/widgets/LatestSessionNoteWidget.vue";
 import QuickDiceWidget from "@/components/dashboard/widgets/QuickDiceWidget.vue";
 import DeathSavesWidget from "@/components/dashboard/widgets/DeathSavesWidget.vue";
+import TableVitalsWidget from "@/components/dashboard/widgets/TableVitalsWidget.vue";
 
 /**
  * Maps every `DashboardWidgetId` to its component. Kept apart from
@@ -43,6 +44,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "latest-session-note": LatestSessionNoteWidget,
   "quick-dice": QuickDiceWidget,
   "death-saves": DeathSavesWidget,
+  "table-vitals": TableVitalsWidget,
 };
 
 /**

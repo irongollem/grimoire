@@ -10,12 +10,20 @@
         class="flex items-center gap-2 px-4 py-2.5 flex-wrap"
       >
         <span class="text-body text-foreground flex-1">{{ res.label }}</span>
-        <span
-          class="text-label rounded px-1.5 py-0.5 shrink-0"
-          :class="res.rest === 'short'
-            ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
-            : 'bg-blue-500/10 text-blue-600 border border-blue-500/20'"
-        >{{ res.rest === "short" ? "Short" : "Long" }}</span>
+        <!-- A coloured pill whose colour means something is `AppButton
+             variant="tinted"`, not a hand-spelled amber/blue pair. The tone
+             tokens land within a hair of what this used to write out, and the
+             dashboard's Table Vitals card (#764) needed the same pill — a
+             second hand-rolled copy is how a recipe starts drifting. -->
+        <AppButton
+          as="span"
+          variant="tinted"
+          :tone="res.rest === 'short' ? 'caution' : 'info'"
+          emphasis="soft"
+          size="xs"
+          class="shrink-0"
+          :label="res.rest === 'short' ? 'Short' : 'Long'"
+        />
 
         <!-- Variable-spend: Lay on Hands -->
         <template v-if="res.key === 'lay_on_hands'">
@@ -32,11 +40,16 @@
               class="w-14"
             />
             <span class="text-caption text-muted-foreground shrink-0">HP</span>
-            <button
-              class="h-6 px-2 rounded border border-border font-cinzel text-xs text-primary hover:border-primary/40 disabled:opacity-30 transition-colors"
+            <!-- Was a hand-rolled `<button>` carrying the full chrome recipe,
+                 sitting directly beside the `AppButton` that answers it — the
+                 exact drift CLAUDE.md's primitive rule exists to stop. -->
+            <AppButton
+              variant="subtle"
+              size="sm"
+              label="✓"
               :disabled="pendingSpendAmount < 1 || pendingSpendAmount > res.current"
               @click="confirmSpend(res.key)"
-            >✓</button>
+            />
             <AppButton variant="subtle" size="sm" label="✗" @click="cancelSpend" />
           </template>
           <template v-else>
