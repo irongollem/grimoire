@@ -98,6 +98,20 @@ export interface Faction {
   updated_at: string;
 }
 
+/**
+ * Matches the `<Entity>Insert` convention every other content type follows
+ * (`MonsterInsert`, `NpcInsert`, `ItemInsert`, …): the row minus the columns the
+ * database fills in.
+ *
+ * Note that `useCreateFaction` (useFactions.ts) deliberately takes a *narrower*
+ * payload that also omits `campaign_id`, because that mutation injects the
+ * active campaign itself. That is a different type for a different job, not a
+ * duplicate of this one — a caller that already knows which campaign a faction
+ * belongs to (the document importer, which stamps every imported row with the
+ * campaign it was imported into) needs the field present.
+ */
+export type FactionInsert = Omit<Faction, "id" | "user_id" | "created_at" | "updated_at">;
+
 export interface FactionNpc {
   id: string;
   faction_id: string;
