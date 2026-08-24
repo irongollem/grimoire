@@ -33,7 +33,8 @@ export type DashboardWidgetId =
   | "quick-dice"
   | "death-saves"
   | "table-vitals"
-  | "downtime-queue";
+  | "downtime-queue"
+  | "quest-loot";
 
 export interface DashboardWidgetDef {
   id: DashboardWidgetId;
@@ -198,6 +199,15 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     id: "conditions",
     title: "Conditions",
     description: "All sixteen conditions, with the rules text one tap away.",
+    widths: LIST_WIDTHS,
+    defaultWidth: "cell",
+    surfaces: BOTH_SURFACES,
+    maxInstances: 1,
+  },
+  {
+    id: "quest-loot",
+    title: "Unclaimed loot",
+    description: "Quest rewards computed but never handed out.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,

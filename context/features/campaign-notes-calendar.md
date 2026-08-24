@@ -99,6 +99,12 @@ There is no per-draw deep link — `/downtime` ("The Interlude") is a single boa
 
 The `?? []` in that widget is load-bearing on `isLoading`: while either query is unloaded `DashboardWidget` renders its spinner and never reaches the body. Without that gate it would tell the DM every draw was resolved before it had looked — which is exactly the failure the loading/empty split exists to prevent, and why the collapse is only safe where something else keeps the two apart.
 
+**Unclaimed loot (`QuestLootWidget.vue`)** — the missing reader for `undispatchedLootCount` and `unclaimedLootCount`, which `QuestBoardSummary` (`src/lib/quests/board.ts:27-28`) has computed for every quest since the board shipped and which nothing outside the board ever read.
+
+**The two counts are different states and are never summed.** `undispatchedLootCount` is loot in `delivery_state: "held"` — the DM prepared a reward and never dropped it into chat, so nobody at the table knows it exists; that is the DM's own action item and takes the caution tint. `unclaimedLootCount` is `"chat"` or `"partially_claimed"` — already dropped, the party just has not taken it; the DM's part is done, so it reads quieter. (Semantics from `src/lib/quests/loot.ts:9-10`, confirmed against `QuestBeatLootPanel.vue:93-97`.) Adding them would ask the DM to act on a number describing nothing real, so the row shows two badges or one, never a total.
+
+`isLoading` comes from the queries' own flags rather than `data === undefined`: a query that errored also leaves `data` undefined but is no longer loading, and this card has no error state of its own, so it should stop spinning rather than spin forever.
+
 **Keyboard**: the grip is focusable; Arrow keys move one position, `Delete`/`Backspace` removes, and the width control is an ordinary button in the tab order. No document-level listener — these are handlers on the focused element, so `useHotkeys` (for global shortcuts) does not apply.
 
 **Motion**: reordering animates through `captureFlipPositions` / `playFlipTransition` in `src/lib/motion.ts` (`FLIP_MS` 220 — a shorter hop than `AppModal`'s 260ms click-to-centre flight; position only, since a reorder is not an appearance change). The FLIP bracket wraps the keyboard and button paths only: a pointer drag is already animated by Sortable, and playing both would fight.
