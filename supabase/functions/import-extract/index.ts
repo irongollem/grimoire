@@ -63,7 +63,7 @@ import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
 import {
-  extractFromDocument,
+  callDocument,
   UnsupportedDocumentProviderError,
   type DocumentPart,
   type DocumentUsage,
@@ -248,7 +248,30 @@ async function downloadPart(path: string): Promise<DocumentPart> {
   return { mimeType: data.type || mimeFromPath(path), data: toBase64(bytes) };
 }
 
-/** Best-effort — the transient object existing past settlement is a UX/cost nit backstopped by `expires_at`, never a reason to fail an otherwise-settled extraction. */
+/**
+ * Deletes the uploaded source document. Best-effort: an object outliving
+ * settlement is a cost nit backstopped by `expires_at`, never a reason to fail
+ * an otherwise-settled extraction.
+ *
+ * ── Called on `review`, never on `failed` ───────────────────────────────────
+ *
+ * The document is transient by design (migration 20260824204224) — we process
+ * someone else's file rather than host it — so it goes as soon as it has been
+ * consumed into something the DM can review. That is the `review` branches:
+ * a full extraction, and a truncated one that still recovered entries.
+ *
+ * It is deliberately kept when the row lands in `failed`. An extraction can
+ * fail for reasons that have nothing to do with the document — a provider 500
+ * (OpenAI's own message on one says "You can retry your request"), a storage
+ * blip, a malformed response — and deleting the upload turns a retry into a
+ * re-upload *and a second charge* for work that never happened. That is not a
+ * hypothetical: it happened during the first real run of this function on
+ * 24 Aug 2026, where a transient provider error destroyed the upload and the
+ * retry could not proceed without re-uploading the same file.
+ *
+ * The `expires_at` sweep (#769) is what collects a `failed` row's objects, and
+ * it must therefore cover terminal-but-expired rows, not just abandoned ones.
+ */
 async function deleteSourceObjects(paths: string[], userId: string): Promise<void> {
   // Guarded on the delete path too, not just the read: an unguarded delete is
   // the more destructive of the two, and this runs on every settled branch.
@@ -450,21 +473,21 @@ serve(withCors(async (req: Request) => {
     await releaseCredits(admin, reservation.ids);
     await admin.from("document_imports").update({ status: "failed", error: message })
       .eq("id", claimedRow.id).eq("user_id", userId);
-    await deleteSourceObjects(claimedRow.source_paths, userId);
+    // The source is deliberately NOT deleted here. See `deleteSourceObjects`.
     return new Response(JSON.stringify({ error: message }), {
       status: 502, headers: { "Content-Type": "application/json" },
     });
   }
 
   let parts: DocumentPart[];
-  let outcome: Awaited<ReturnType<typeof extractFromDocument>>;
+  let outcome: Awaited<ReturnType<typeof callDocument>>;
   try {
     // Before a single byte is opened. Inside the try so a violation settles the
     // claimed row as `failed` through the normal path rather than escaping as an
     // unhandled throw that would strand it in `extracting` forever.
     assertOwnedPaths(importRow.source_paths, userId);
     parts = await Promise.all(importRow.source_paths.map(downloadPart));
-    outcome = await extractFromDocument({
+    outcome = await callDocument({
       provider: textProvider, apiKey, model: documentModel,
       system: promptRow.content + DOCUMENT_INJECTION_GUARD,
       instruction:
@@ -514,7 +537,8 @@ serve(withCors(async (req: Request) => {
       await admin.from("document_imports")
         .update({ status: "failed", error: "The model's response was not valid JSON." })
         .eq("id", importRow.id).eq("user_id", userId);
-      await deleteSourceObjects(importRow.source_paths, userId);
+      // Source kept — see `deleteSourceObjects`. A malformed response is very
+      // often a one-off, and re-running costs the DM nothing but the credits.
       return new Response(JSON.stringify({ error: "invalid_response" }), {
         status: 502, headers: { "Content-Type": "application/json" },
       });
@@ -554,7 +578,9 @@ serve(withCors(async (req: Request) => {
   await settle(outcome.usage);
   await admin.from("document_imports").update({ status: "failed", error })
     .eq("id", importRow.id).eq("user_id", userId);
-  await deleteSourceObjects(importRow.source_paths, userId);
+  // Source kept — see `deleteSourceObjects`. A refusal is likely to repeat on
+  // the same document, but that is the DM's call to make, not ours to force by
+  // destroying their upload.
   return new Response(JSON.stringify({ status: "failed", error }), {
     status: 422, headers: { "Content-Type": "application/json" },
   });
