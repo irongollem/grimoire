@@ -42,7 +42,8 @@
     "seed-library-species": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-species.ts",
     "seed-library-items": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-items.ts",
     "seed-content-sources": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-content-sources.ts",
-    "dev:auth": "tsx --tsconfig tsconfig.node.json scripts/dev-auth.ts"
+    "dev:auth": "tsx --tsconfig tsconfig.node.json scripts/dev-auth.ts",
+    "cartographer:pack": "tsx --tsconfig tsconfig.node.json scripts/cartographer-pack.ts"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",
@@ -105,6 +106,7 @@
     "oxlint": "^1.79.0",
     "portless": "^0.15.5",
     "puppeteer-core": "^25.8.0",
+    "sharp": "^0.35.3",
     "stripe": "^22.1.0",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.22.1",

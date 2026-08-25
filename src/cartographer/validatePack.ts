@@ -34,30 +34,51 @@ export function validatePack(manifest: TilePackManifest): ValidationResult {
     );
   }
 
-  // Walk the schema and check every required slot is present.
-  for (const cat of REQUIRED_CATEGORIES) {
+  const requiredCategories = new Set<PackCategory>(REQUIRED_CATEGORIES);
+
+  // Walk the entire schema so optional assets receive the same format and
+  // identity checks; only required categories contribute missing slots.
+  for (const cat of Object.keys(TILE_PACK_SCHEMA.categories) as PackCategory[]) {
     const def = categoryDef(cat);
     const provided = (manifest.assets[cat] ?? []) as AssetSlot[];
+    const required = requiredCategories.has(cat);
 
     if (def.kind === "random") {
-      if (provided.length < def.min) {
-        for (let v = provided.length; v < def.min; v++) {
-          missing.push({ category: cat, variant: v, reason: `random category needs at least ${def.min} variants` });
+      if (required) {
+        const variants = new Set(provided.map((slot) => slot.variant));
+        for (let v = 0; v < def.min; v++) {
+          if (!variants.has(v)) {
+            missing.push({ category: cat, variant: v, reason: `random category needs at least ${def.min} variants` });
+          }
         }
       }
       if (provided.length > def.max) {
         warnings.push(`${cat}: pack provides ${provided.length} variants, schema max is ${def.max}`);
       }
     } else if (def.kind === "directional") {
-      const perSide = def.variantsPerSide ?? 1;
-      for (const side of def.sides) {
-        const sideSlots = provided.filter((s) => s.side === side);
-        if (sideSlots.length < perSide) {
-          for (let v = sideSlots.length; v < perSide; v++) {
-            missing.push({ category: cat, side, variant: v, reason: `directional category ${cat}/${side} needs ${perSide} variant(s)` });
+      if (required) {
+        const perSide = def.variantsPerSide ?? 1;
+        for (const side of def.sides) {
+          const sideSlots = provided.filter((s) => s.side === side);
+          const variants = new Set(sideSlots.map((slot) => slot.variant));
+          for (let v = 0; v < perSide; v++) {
+            if (!variants.has(v)) {
+              missing.push({ category: cat, side, variant: v, reason: `directional category ${cat}/${side} needs ${perSide} variant(s)` });
+            }
           }
         }
       }
+    } else if (provided.length > def.max) {
+      warnings.push(`${cat}: pack provides ${provided.length} variants, schema max is ${def.max}`);
+    }
+
+    const seenSlots = new Set<string>();
+    for (const slot of provided) {
+      const identity = `${slot.side ?? ""}/${slot.variant}`;
+      if (seenSlots.has(identity)) {
+        warnings.push(`${cat}${slot.side ? `/${slot.side}` : ""}/${slot.variant}: duplicate asset slot`);
+      }
+      seenSlots.add(identity);
     }
 
     // WebP-only enforcement on provided URLs.

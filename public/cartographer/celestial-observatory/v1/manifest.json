@@ -1,0 +1,228 @@
+{
+  "pack_id": "celestial-observatory",
+  "name": "Celestial Observatory",
+  "description": "A celestial observatory built from midnight-blue stone, aged brass constellations, and cold starlight.",
+  "pack_version": 1,
+  "schema_version": 2,
+  "base_tile_size": 128,
+  "assets": {
+    "floor": [
+      {
+        "variant": 0,
+        "url": "floor/0.webp",
+        "byteSize": 2826
+      },
+      {
+        "variant": 1,
+        "url": "floor/1.webp",
+        "byteSize": 1764
+      },
+      {
+        "variant": 2,
+        "url": "floor/2.webp",
+        "byteSize": 1704
+      },
+      {
+        "variant": 3,
+        "url": "floor/3.webp",
+        "byteSize": 1796
+      },
+      {
+        "variant": 4,
+        "url": "floor/4.webp",
+        "byteSize": 1864
+      },
+      {
+        "variant": 5,
+        "url": "floor/5.webp",
+        "byteSize": 1550
+      },
+      {
+        "variant": 6,
+        "url": "floor/6.webp",
+        "byteSize": 2024
+      },
+      {
+        "variant": 7,
+        "url": "floor/7.webp",
+        "byteSize": 2140
+      }
+    ],
+    "wallSegmentH": [
+      {
+        "variant": 0,
+        "url": "wallSegmentH/0.webp",
+        "byteSize": 4486
+      },
+      {
+        "variant": 1,
+        "url": "wallSegmentH/1.webp",
+        "byteSize": 3936
+      }
+    ],
+    "solidBlock": [
+      {
+        "variant": 0,
+        "url": "solidBlock/0.webp",
+        "byteSize": 3950
+      },
+      {
+        "variant": 1,
+        "url": "solidBlock/1.webp",
+        "byteSize": 2970
+      },
+      {
+        "variant": 2,
+        "url": "solidBlock/2.webp",
+        "byteSize": 1954
+      },
+      {
+        "variant": 3,
+        "url": "solidBlock/3.webp",
+        "byteSize": 1160
+      }
+    ],
+    "doorClosedH": [
+      {
+        "variant": 0,
+        "url": "doorClosedH/0.webp",
+        "byteSize": 5006
+      }
+    ],
+    "wallSegmentV": [
+      {
+        "variant": 0,
+        "url": "wallSegmentV/0.webp",
+        "byteSize": 3822
+      },
+      {
+        "variant": 1,
+        "url": "wallSegmentV/1.webp",
+        "byteSize": 5732
+      }
+    ],
+    "doorOpenH": [
+      {
+        "variant": 0,
+        "url": "doorOpenH/0.webp",
+        "byteSize": 1172
+      }
+    ],
+    "doorOpenV": [
+      {
+        "variant": 0,
+        "url": "doorOpenV/0.webp",
+        "byteSize": 950
+      }
+    ],
+    "doorClosedV": [
+      {
+        "variant": 0,
+        "url": "doorClosedV/0.webp",
+        "byteSize": 6220
+      }
+    ],
+    "wallRoundJoint": [
+      {
+        "side": "L_NE",
+        "variant": 0,
+        "url": "wallRoundJoint/L_NE/0.webp",
+        "byteSize": 17484
+      },
+      {
+        "side": "L_NW",
+        "variant": 0,
+        "url": "wallRoundJoint/L_NW/0.webp",
+        "byteSize": 14040
+      },
+      {
+        "side": "L_SE",
+        "variant": 0,
+        "url": "wallRoundJoint/L_SE/0.webp",
+        "byteSize": 16158
+      },
+      {
+        "side": "L_SW",
+        "variant": 0,
+        "url": "wallRoundJoint/L_SW/0.webp",
+        "byteSize": 15848
+      }
+    ],
+    "stairsUp": [
+      {
+        "side": "E",
+        "variant": 0,
+        "url": "stairsUp/E/0.webp",
+        "byteSize": 2492
+      },
+      {
+        "side": "N",
+        "variant": 0,
+        "url": "stairsUp/N/0.webp",
+        "byteSize": 2630
+      },
+      {
+        "side": "S",
+        "variant": 0,
+        "url": "stairsUp/S/0.webp",
+        "byteSize": 2678
+      },
+      {
+        "side": "W",
+        "variant": 0,
+        "url": "stairsUp/W/0.webp",
+        "byteSize": 2844
+      }
+    ],
+    "wallJoint": [
+      {
+        "side": "CROSS",
+        "variant": 0,
+        "url": "wallJoint/CROSS/0.webp",
+        "byteSize": 5866
+      }
+    ]
+  },
+  "palette": {
+    "floor": [
+      20,
+      35,
+      59
+    ],
+    "wallSegmentH": [
+      23,
+      36,
+      58
+    ],
+    "wallSegmentV": [
+      23,
+      36,
+      58
+    ],
+    "doorClosedH": [
+      139,
+      106,
+      50
+    ],
+    "doorClosedV": [
+      139,
+      106,
+      50
+    ],
+    "doorOpenH": [
+      166,
+      134,
+      72
+    ],
+    "doorOpenV": [
+      166,
+      134,
+      72
+    ],
+    "solidBlock": [
+      13,
+      23,
+      40
+    ]
+  }
+}

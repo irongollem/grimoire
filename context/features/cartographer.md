@@ -209,6 +209,104 @@ Directional categories (`wallJoint`, `stairsUp`, `stairsDown`) keep the `<side>/
 
 The starter Stone pack mirrors this under `public/cartographer/stone-dungeon/v1/`.
 
+### Maintainer tile-pack authoring (`#772`)
+
+The maintainer pipeline is a schema consumer, not another pack schema. Its entry point is:
+
+```bash
+npm run cartographer:pack -- <command>
+```
+
+`init` creates a resumable workspace from the current `TILE_PACK_SCHEMA` and the missing slots reported by `validatePack()`. The minimum loop is:
+
+```bash
+npm run cartographer:pack -- init \
+  --id celestial-observatory \
+  --name "Celestial Observatory" \
+  --theme "Midnight-blue stone, aged brass constellations, and cold starlight" \
+  --material-note "aged brass constellation inlay" \
+  --palette-note "midnight blue and cold starlight"
+
+npm run cartographer:pack -- status --workspace art-src/cartographer/celestial-observatory/v1
+npm run cartographer:pack -- import --workspace art-src/cartographer/celestial-observatory/v1 \
+  --slot floor:0 --source /path/to/accepted-image.png \
+  --provider openai --model gpt-image-2 --quality low
+npm run cartographer:pack -- qa --workspace art-src/cartographer/celestial-observatory/v1
+```
+
+The workspace contains an editable `art-bible.json`, `generation-plan.json`, code-generated geometry templates, one prompt per slot, accepted high-resolution sources, retry history, and QA output. `art-src/` is deliberately outside the deployed bundle and ignored by default; archive or force-add a completed workspace when its high-resolution source provenance must travel with a release. Only normalized 128×128 WebPs and `manifest.json` are written under `public/cartographer/<pack-id>/v<version>/`.
+
+The compiled art bible follows this precedence:
+
+1. mechanical category and tile geometry;
+2. explicit pack-local theme;
+3. campaign-consistency mode (`adaptive`, `match-campaign`, or `independent`);
+4. compatible campaign medium, motifs, and tone;
+5. biome/environment defaults only in `match-campaign` mode;
+6. per-slot variation.
+
+Raw campaign context is provenance only. It is never appended wholesale to every prompt, so a tropical pack in a winter campaign does not silently acquire snow. Editing the art bible and rerunning `plan` recompiles prompt/mechanics fields while retaining each job's accepted paths, status, and attempt history.
+
+Each generation job is self-contained and provider-neutral: slot identity, canvas and footprint, alpha/tileable-edge contract, final prompt, references, canonical paths, status, and attempts are data. The authoring block declares `interactive-imagegen` as the default, `requires_openai_api_key: false`, and `performs_metered_api_calls: false`. Maintainers invoke built-in Codex/ChatGPT `$imagegen` and import chosen files. The execution block records `gpt-image-2` at `low` quality as the production hint, declares a QA-passed candidate final, and makes any quality escalation an explicit manual exception. These are executor hints, not additions to the tile-pack schema, so #384 can later consume the same logical jobs through a server-side provider.
+
+An import may record provider, model, quality, provider request id, duration, token usage, and estimated cost on its accepted attempt. Interactive imports can omit unknown fields; an automated #384 executor should populate everything its provider reports. Rebuilding a plan preserves this provenance with the retry history.
+
+`import` rejects undecodable, undersized, or extreme-aspect-ratio sources, retains the accepted high-resolution file, then deterministically crops/fits, reconstructs required alpha, resizes, converts, writes the canonical WebP, and updates the draft/runtime manifests. `reject` records a reason without disturbing other slots; `plan --slot <category:side?:variant>` adds or refreshes an individual schema slot.
+
+`validate` checks schema completeness plus deployed file existence, format, exact dimensions, alpha, and open-door clearance. `qa` additionally produces:
+
+- a labelled contact sheet;
+- repeated floor seam strips;
+- a seeded 20×20 floor field with no immediate orthogonal repeats when alternatives exist;
+- wall/door alignment;
+- a procedurally assembled sample map;
+- a machine-readable validation report.
+
+The checked vertical slice is `celestial-observatory/v1`: all 20 schema-required slots plus directional rounded-corner, staircase, and cross-junction proofs. It demonstrates a non-standard theme with real interactively generated artwork; optional prop categories remain intentionally ungenerated.
+
+This tooling is maintainer-only. It does not implement #384's customer UI, uploads/storage, RLS, campaign sharing, PRO gates, credit reservations, cancellation/refunds, or direct Images API execution.
+
+#### Feasibility result for a future asynchronous generator
+
+The #772 vertical slice supports a qualified **yes**: a user can eventually choose a theme and receive a complete generated pack asynchronously, provided "complete" means mechanically valid and review-ready—not guaranteed artistically perfect in one model pass.
+
+The experiment established a useful boundary:
+
+- Code can guarantee schema coverage, slot identity, paths, dimensions, WebP encoding, alpha masks, open-door gaps, rounded-corner silhouettes, stable variation selection, retry isolation, and reproducible QA.
+- Image generation can produce a coherent non-standard visual family and genuinely distinct variants when every job shares an approved art bible and representative visual references.
+- Image generation does not reliably guarantee exact geometry, transparency, seamlessness, orientation, or absence of white/checkerboard residue. Those failures occurred even with explicit prompts and templates; deterministic normalization and QA caught or repaired them.
+- Global quality cannot be judged slot-by-slot. Contact sheets, tiled fields, seams, and assembled-map previews are necessary to expose repetition and cross-category drift.
+
+A production implementation in #384 should therefore be a durable staged job, not one large prompt or a blind batch:
+
+1. compile an editable art bible and explicit consistency mode;
+2. generate a small floor/wall/block/object style proof and get approval;
+3. fan out schema-derived slot jobs with those approved images as references;
+4. normalize and run hard mechanical gates per candidate;
+5. score geometry, distinctness, seams, and family coherence, retrying only failed slots within a bounded attempt/cost policy;
+6. assemble global QA sheets and retry the weakest outliers;
+7. publish only after hard validation passes, while presenting the result as review-ready and allowing individual user replacement/regeneration.
+
+Use `gpt-image-2` low for every normal production candidate. A bounded
+`gpt-image-1-mini` low-quality experiment found the cheaper model promising for
+a full-cell floor after 128×128 reduction, but unreliable for open-door alpha
+and rounded-junction coverage even with geometry and style references. At the
+time of the experiment, a matched two-prompt comparison put Image 2 at roughly
+30% above mini after estimated text input. Image 2 produced a usable normalized
+open door where mini collapsed to black and improved rounded-mask IoU from
+`0.537` to `0.638`. More importantly, the Image 2 low results were already good
+enough at the runtime tile size: passing normalization and QA makes them final,
+not drafts awaiting an automatic medium/high upgrade.
+
+Retry failed slots at low quality within the bounded attempt policy. Medium or
+high quality is a manual escape hatch for a persistent artistic failure, not a
+routine pipeline stage. This avoids paying twice for every successful tile and
+keeps one predictable baseline across simple floors, transparent doors, rounded
+corners, stairs, and other complex slots. Keep the routing policy out of the
+tile-pack schema and record provider/model/quality on each attempt.
+
+The generation plan in this ticket is the provider-neutral input to that flow. #384 must add durable queues, provider request ids, cancellation, storage/RLS, credit reservation/finalization/refunds, progress UI, and recovery for interrupted jobs. It should not promise "perfected" output: the defensible product promise is a **complete, validated, coherently generated tileset with bounded automated refinement and user-controlled final review**.
+
 ### Pack versioning & the Update Tileset button
 
 Every map cell stores `pack_id` **and** `pack_version`. The editor scans the set of distinct `(pack_id, pack_version)` pairs on load; if a newer version of any used pack exists, an **Update Tileset** affordance appears.
@@ -820,8 +918,8 @@ This is the exact asset list to hand to AI generation for the starter pack. All 
 
 **Wall segment design notes:**
 
-- `wallSegmentH` is painted in the **top ~15%** of a 128×128 transparent tile, designed to terminate cleanly at the left and right edges so two H segments along the same row abut seamlessly.
-- `wallSegmentV` is painted in the **left ~15%** of the tile, terminating cleanly at top and bottom edges.
+- `wallSegmentH` is painted in a **centered ~18% horizontal band** (approximately y=53…75), designed to terminate cleanly at the left and right edges so two H segments along the same row abut seamlessly.
+- `wallSegmentV` is painted in a **centered ~18% vertical band** (approximately x=53…75), terminating cleanly at top and bottom edges.
 - Both must render correctly when overlaid on any floor tile — the rest of the 128×128 area is transparent.
 - Optional categories deferred to v2: `wallJoint` (corner art), `stairsUp`, `stairsDown`, `debris`.
 
