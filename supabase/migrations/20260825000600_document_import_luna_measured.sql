@@ -1,0 +1,76 @@
+-- Migration: document_import_luna_measured
+--
+-- Sets the document importer's model and price from a measured run instead of
+-- from a price list. Supersedes the estimates in 20260824220715 (12 credits per
+-- page) and 20260824232822 (`gpt-4o-mini`), both of which were reasoned from
+-- published per-token rates and both of which measurement overturned.
+--
+-- ── The measurement ──────────────────────────────────────────────────────────
+--
+-- One real four-page PDF — a printable card deck, two creatures, each split
+-- across a card front (art, name, type line, AC/HP/speed, ability scores drawn
+-- as graphics) and a card back (saves, resistances, senses, challenge, traits,
+-- actions) — run through `import-extract` on 24 Aug 2026 against both models:
+--
+--                     input tokens   output tokens   cost
+--   gpt-4o-mini             59,436           1,003   $0.0095
+--   gpt-5.6-luna             4,307           2,068   $0.0033
+--
+-- Luna uses **14x fewer input tokens** on the same document. That is the whole
+-- story, and it inverts the price comparison: luna costs more per token
+-- ($0.20/$1.20 against $0.15/$0.60) and still comes out ~3x cheaper per import,
+-- because gpt-4o-mini rasterises every page at `detail: "high"` — roughly 14,900
+-- tokens per page against luna's ~1,080.
+--
+-- No amount of reading price tables would have produced that. The per-token rate
+-- is the input to the calculation; the token *count* is what actually varies,
+-- and it varies by an order of magnitude between models on identical input.
+--
+-- ── Accuracy went the same way ───────────────────────────────────────────────
+--
+-- Against the source cards, luna was correct on everything: all twelve ability
+-- scores read off box-and-circle graphics, both AC/HP/speed triplets out of
+-- unlabelled boxes, saving throws, skills, challenge with XP, traits, actions,
+-- and both card fronts merged with their backs into single complete creatures.
+--
+-- gpt-4o-mini got one field pair wrong on the second creature — it recorded
+-- `Damage Resistances. fire` as an *immunity* and dropped `Damage Immunities.
+-- poison` entirely — plus a garbled action name and a wrong page attribution.
+-- That error is exactly the kind the review wizard exists to catch, which is a
+-- reason to keep the wizard, not a reason to accept the model producing it.
+--
+-- ── What this unblocks ───────────────────────────────────────────────────────
+--
+-- The page caps in `src/lib/documentImport/limits.ts` (10 free, 50 Pro) were
+-- about to be a real bug. At mini's ~14,900 tokens per page its 128k context
+-- holds roughly eight pages, so a ten-page import — the *free* cap — would have
+-- failed outright. At luna's ~1,080 the same 1.05M context holds several hundred
+-- pages, so both caps are comfortable and remain what they were set for: cost,
+-- and the sui generis database-right concern documented in that file.
+update provider_config set document_model = 'gpt-5.6-luna' where provider = 'openai';
+
+-- ── Repricing ────────────────────────────────────────────────────────────────
+--
+-- 12 credits per page was derived, in 20260824220715, from claude-opus-5's rate
+-- via the app's image-generation anchor. Measured against luna it is roughly an
+-- order of magnitude too high.
+--
+-- A four-page import costs $0.0033 to serve. The rest of this table runs about
+-- 14x over raw provider spend (a 1-credit text generation costs well under a
+-- tenth of a cent), and a credit sells for roughly €0.01. Holding that ratio:
+--
+--   $0.0033 x 14 ≈ $0.046 ≈ 4 credits for four pages
+--
+-- So one credit per page, on top of the one-credit base for the fixed overhead
+-- of a job. A four-page card deck is 5 credits; a ten-page chapter 11; a
+-- fifty-page one 51 — which puts document import back among ordinary features
+-- rather than beside `mini_sculpt` at 500, where the opus-5 estimate had it.
+--
+-- This is the fourth value this row has held (5, then 20, then 12, now 1) and
+-- the first taken from a measurement rather than an estimate. Later corrections
+-- should come from `get_credit_calibration_hints` against accumulated real
+-- imports — a different document shape (dense text, more pages, photographs
+-- rather than a PDF) may well move the token count again.
+update ai_generation_credit_costs
+   set credit_cost = 1
+ where generation_type = 'document_import_page';
