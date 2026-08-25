@@ -32,10 +32,15 @@ jobs:
           fetch-depth: 0
       # Cheap, and it runs BEFORE the database starts: both failures it catches
       # are filename arithmetic, and there is no reason to spend two minutes on
-      # Postgres to find out a version number collides. See the script for the
-      # two production incidents that justify it.
+      # Postgres to find out a version number collides. See the tool for the
+      # production incidents that justify it.
+      #
+      # Bare `node`, no setup-node and no `npm ci`: the tool has no dependencies
+      # precisely so it can run here, before anything is installed, and in a
+      # pre-push hook. Adding an install step to this job would cost more than
+      # the check it guards.
       - name: Migration versions are unique and land after main
-        run: sh scripts/check-migration-versions.sh
+        run: node scripts/migration-rebase/cli.mjs --check
       # setup-cli v3 installs the CLI from the npm `supabase` package rather
       # than a GitHub release, so a version pinned here must exist on npm — the
       # two publication streams are not guaranteed to carry the same tags. It

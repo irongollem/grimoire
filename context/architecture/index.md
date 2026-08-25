@@ -99,7 +99,7 @@ from the symptom:
 | Images broken site-wide | CDN / storage | `VITE_ASSET_CDN_URL` set? → CDN worker (`infra/`) → R2 → Supabase Storage fallback |
 | New UI errors on missing column/RPC | Deploy skew | Vercel deploy time vs `production-release` run — skew window 1 in [release-pipeline.md](release-pipeline.md) |
 | Edge fn errors on missing column | Deploy skew | Skew window 2: `db push` landed, `functions deploy` failed — re-run the job |
-| Release red on migration push | Version arithmetic | `scripts/check-migration-versions.sh`; rename the migration forward |
+| Release red on migration push | Version arithmetic | `npm run migrations:check`; `npm run migrations:rebase` renames it forward |
 | "Unknown creature" / dangling refs | Content identity | `supabase/checks/content_integrity.sql` gate output |
 | User stuck on old build after deploy | SW update deferral | [internal.md](internal.md) § Service worker — deferred reload, not a deploy failure |
 | Import wizard empty/hanging | Open5e | api.open5e.com availability |

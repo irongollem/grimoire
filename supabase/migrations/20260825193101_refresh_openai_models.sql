@@ -19,7 +19,7 @@
 --
 -- The rule this is the reminder for: a migration that has sat on a branch or in
 -- a worktree while other work merged must be renamed forward *before* it merges.
--- Run `scripts/check-migration-versions.sh` before opening the PR — it catches
+-- Run `npm run migrations:check` before opening the PR — it catches
 -- exactly this, in a second, against origin/main.
 
 -- Refresh the platform OpenAI defaults after access to the 5.6 line and

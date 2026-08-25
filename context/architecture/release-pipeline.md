@@ -60,7 +60,7 @@ Full detail in CLAUDE.md § Supabase Migration Rules; the pipeline-relevant
 core:
 
 - Versions come from `/new-migration` / `supabase migration new` — never
-  hand-picked (`scripts/check-migration-versions.sh` enforces uniqueness and
+  hand-picked (`scripts/migration-rebase` enforces uniqueness and
   lands-after-main in CI).
 - A migration that sat on a branch while others merged must be **renamed
   forward before merge** — otherwise mode 2 above.

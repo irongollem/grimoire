@@ -57,6 +57,10 @@ export default defineConfig({
     include: [
       "src/**/*.{test,spec}.ts",
       "scripts/**/*.{test,spec}.ts",
+      // `.mjs` as well, for tooling that must run on bare `node` with no
+      // install step — `scripts/migration-rebase` runs in CI before setup-node
+      // and inside a git hook, so it cannot be TypeScript needing a loader.
+      "scripts/**/*.{test,spec}.mjs",
       "supabase/functions/**/*.{test,spec}.ts",
       "infra/**/*.{test,spec}.js",
     ],

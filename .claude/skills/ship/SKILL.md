@@ -62,7 +62,7 @@ the steps you skipped.
 ## Step 3 — Migration versions, if migrations changed
 
 ```bash
-sh scripts/check-migration-versions.sh
+node scripts/migration-rebase/cli.mjs --check
 ```
 
 Two failure modes, both filename arithmetic, both catastrophic and both silent

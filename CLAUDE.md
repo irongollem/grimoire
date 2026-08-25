@@ -101,7 +101,7 @@ NEVER use `mcp__supabase__apply_migration` for schema changes. It auto-generates
 
 Use `/new-migration <name>`, or `supabase migration new <name>` directly. Both stamp a UTC `YYYYMMDDHHMMSS`. A timestamp to the second is not *chosen*, so two sessions cannot land on the same one — which a hand-picked counter did twice in a week, because choosing it means reading the state of a repo that several sessions are writing to at once.
 
-Two things go wrong with versions, and CI now catches both (`scripts/check-migration-versions.sh`, run in the `spell-database` job):
+Two things go wrong with versions, and CI now catches both (`node scripts/migration-rebase/cli.mjs --check`, run in the `spell-database` job):
 
 1. **Two files, one version** → `duplicate key value violates unique constraint "schema_migrations_pkey"`, and every migration queued behind it is stranded.
 2. **A version at or below the newest already applied** → `db push` refuses it: *"Found local migration files to be inserted before the last migration on remote database."* This is the nastier one, because Vercel deploys the frontend off the same push through a different pipeline, so the app ships against a schema that never got the change. It killed the #649 release on 9 Aug 2026.

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Refuse to push a migration that will be refused on the other end.
+#
+# This is the cheapest place to catch it. The same check runs in CI, but by then
+# the version has already been shared, and if it merges before anyone reads the
+# red build the frontend deploys against a schema that never got the migration.
+#
+# Bare `node`, no install step, so this stays fast enough to run on every push.
+#
+# Enable with: npm run hooks:install   (sets core.hooksPath, per clone)
+exec node scripts/migration-rebase/cli.mjs --check

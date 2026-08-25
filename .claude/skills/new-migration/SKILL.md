@@ -49,7 +49,7 @@ That is not a theoretical failure: it killed the #649 release on 9 Aug 2026. The
 So a migration that has sat on a branch for a while must be **renamed forward before merging**, not merged and hoped for. Verify with:
 
 ```bash
-sh scripts/check-migration-versions.sh
+node scripts/migration-rebase/cli.mjs --check
 ```
 
 It checks both failure modes — duplicate versions, and versions at or below the newest on `origin/main` — and runs in CI's `spell-database` job, so a mistake fails the PR rather than the release. Run it yourself before opening the PR; it is instant.
