@@ -68,6 +68,10 @@ export interface Mini {
   credits_spent: number;
   reservation_ids: string[] | null;
   error: string | null;
+  // Last time poll-meshy-jobs claimed this mini. Written only by the poller;
+  // private.sweep_stranded_minis() reads its staleness as "no poller is
+  // running" (#771) and never writes it. null until first claimed.
+  polled_at: string | null;
   created_at: string;
   updated_at: string;
 }

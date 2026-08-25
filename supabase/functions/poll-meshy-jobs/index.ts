@@ -373,6 +373,7 @@ serve(withCors(async (req: Request) => {
           poll_lease_id: null,
           poll_lease_until: null,
           poll_last_error: "Meshy platform key unavailable",
+          polled_at: nowIso,
         })
         .eq("id", mini.id)
         .in("status", ["sculpting", "downloading"])
@@ -396,7 +397,11 @@ serve(withCors(async (req: Request) => {
     // the atomic claim that makes concurrent cron HTTP calls safe.
     const { data: claimed } = await admin
       .from("minis")
-      .update({ poll_lease_id: leaseId, poll_lease_until: leaseUntil, poll_last_error: null })
+      // `polled_at` is the liveness signal private.sweep_stranded_minis() reads
+      // (#771). It must be written here and nowhere else: the sweep never touches
+      // it, so its staleness means "no poller looked at this row", which is exactly
+      // what `updated_at` cannot say once the sweep starts writing to the row too.
+      .update({ poll_lease_id: leaseId, poll_lease_until: leaseUntil, poll_last_error: null, polled_at: nowIso })
       .eq("id", candidate.id)
       .in("status", ["sculpting", "downloading"])
       .or(`poll_lease_until.is.null,poll_lease_until.lt.${nowIso}`)

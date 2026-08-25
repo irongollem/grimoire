@@ -69,6 +69,66 @@ The loop:
 - **Player-facing reveal**: `MiniPortraitOverlay.vue` + `useMiniForSource` — a Vitruvian badge appears over a portrait when a ready mini the viewer may see exists; clicking swaps the portrait for the 3D preview + GLB/STL downloads. Wired in `PlayerCharacterHeader`, `PlayerPartyMemberCard`, `PlayerNpcCard` (badge bottom-right there to dodge the relationship pill) and the `PlayerBestiaryView` lightbox hero (bottom-right; the CR pill moved to bottom-left, and the lightbox close button is `z-40` to stay above the viewer). Visibility is entirely the RPC's — see the table above. The bestiary passes an empty `id` for shared library monsters, whose text ids can never match a uuid `source_id`; that leaves the query disabled and renders the portrait untouched.
 - **No realtime for players**: `campaignRealtimeSystems` invalidates `["minis","for",…]`, but postgres_changes on `minis` respects the DM-only table RLS, so a player's badge appears on the next refetch (60 s stale time) rather than the instant the DM's sculpt lands. Fixing that means a broadcast from `forge-mini`, not a policy change.
 
+## The poller is not its own watchdog (#771)
+
+`minis` is its own job table, and until 25 Aug 2026 the only thing that could
+advance or fail a row was `poll-meshy-jobs`. Staleness was evaluated *inside*
+the poller (`isStale`, `sculptPhaseStartedAt`), so the worker was also its own
+watchdog: stop it and a mini sits in `sculpting` or `downloading` forever, with
+the UI showing progress that will never arrive. Not hypothetical — the poller
+was scheduled, `active` and polled nothing at all from 18 July to 25 Aug 2026
+because two Vault secrets were never provisioned (`20260825073922`).
+
+`sweep-stranded-minis` (every 5 min, `private.sweep_stranded_minis()`) is the
+SQL-only backstop, on the same pattern as `fail-stale-image-jobs`,
+`fail-stale-ai-generation-jobs` and `sweep-stranded-document-imports`. Three
+things that are easy to get wrong, all decided deliberately:
+
+- **`polled_at` is written by the poller and by nothing else.** #771 proposed
+  measuring liveness from `updated_at`, which is what the #769 sweep does. It
+  cannot work here: this sweep writes *repeatedly*, so `updated_at` would be
+  measuring the sweep; and a poller that is alive and retrying a failing
+  download looks identical in `updated_at` to one that is gone, while the two
+  need opposite treatment — the live one has to keep its right to give up at
+  `STALE_SCULPT_MS`. A pgTAP assertion on the function body fails if the sweep
+  ever writes that column.
+- **`sculpting` is never nudged; `downloading` always is.** Sculpt time is
+  *provider* time and elapses whether or not we are watching, and nothing is
+  lost by leaving it — `resolveSculptOutcome` returns "complete" for SUCCEEDED
+  before it consults `stale`, so a returning poller still collects a task that
+  finished during the outage. Download time is *ours* and only elapses while we
+  are trying; letting it accrue means the poller's first act on recovery is to
+  fail a paid, SUCCEEDED sculpt with "Model download failed repeatedly", which
+  by then is a lie. Not nudging `sculpt_started_at` is also what keeps it
+  usable as the retention anchor below.
+- **Terminal failure only past Meshy's 3-day asset retention**, anchored on the
+  immutable `sculpt_started_at`. Past that there is nothing left to collect, so
+  failing destroys nothing. A first sculpt fails with `credits_spent` 0 and its
+  hold released; a re-sculpt falls back to `ready` on the model it already had,
+  charge intact and `sculpt_count` untouched, so our downtime never eats a free
+  re-sculpt. Credits were never the real exposure here
+  (`release-stale-credit-holds` reclaims at 2 h regardless) — a row whose status
+  is a lie was.
+
+**This shipped before the Meshy subscription, which #771 said it could not.**
+The blocker was real for the sweep #771 imagined — "`sculpting` > N hours →
+`failed`" needs a measured p99 and destroys paid work when N is wrong. Nothing
+above asks how long a sculpt takes, whether an unpolled Meshy task is still
+queryable, or whether `cancel` refunds; the last two remain Phase 4 questions.
+The two clocks it does use were already known: poller liveness from *our* cron
+cadence and lease (15 min), asset retention from Meshy's published non-Enterprise
+lifetime (3 days).
+
+`stylizing` is deliberately outside all of this — that render is an
+`image_generation_jobs` row swept by `fail-stale-image-jobs`, and
+`sync_failed_mini_style_job` (`20260730000001`) drags the mini along with it.
+
+The sweep also `raise warning`s while any in-flight mini has gone unpolled,
+staying silent when nothing is waiting so it cannot become spam. It is
+deliberately broader than `20260825073922`'s two Vault checks, which cannot see
+a missing `SIMULACRUM_POLLER_TOKEN` on the function (pg_net reports the POST as
+sent; the function 503s) or a function that was never deployed.
+
 ## Files
 
 ### DB (migrations)
@@ -83,6 +143,8 @@ The loop:
 | `20260718000007_security_audit_hardening.sql`                   | `minis` becomes read-only + DM-only select; all mutation goes through `forge-mini`                                                                |
 | `20260730000001_harden_mini_generation_lifecycle.sql`           | Resumable stylize job, poller lease so overlapping invocations can't double-charge, separate phase timestamps                                     |
 | `20260805000001_player_visible_minis.sql`                       | `get_player_visible_mini` RPC — the player reveal, re-gated per source type (#612)                                                                |
+| `20260825073922_loud_poller_provisioning_gap.sql`               | The cron warns which Vault secret is missing instead of returning silently, but only while minis are actually waiting                             |
+| `20260825200052_sweep_stranded_minis.sql`                       | `minis.polled_at` + `sweep-stranded-minis` cron — the SQL-only backstop for an absent poller (#771)                                               |
 
 ### Backend (edge)
 
@@ -91,7 +153,7 @@ The loop:
 | `supabase/functions/_shared/simulacrum.ts`          | Pure state machine + Meshy params (`canStylize/canSculpt/canResculpt/resolveSculptOutcome/meshyParamsForFormat/isStale`). Vitest: `simulacrum.test.ts` (39)                         |
 | `supabase/functions/_shared/mesh3d.ts`              | Meshy image-to-3D client + `MESHY_MOCK=1` mock (valid embedded GLB/STL data URLs). Vitest: `mesh3d.test.ts` (18)                                                                    |
 | `supabase/functions/forge-mini/index.ts`            | Actions: `stylize` (async image job, platform keys, entity_image cost) / `sculpt` (reserve 500, create Meshy task) / `resculpt` (free) / `cancel` / `delete` (storage folder + row) |
-| `supabase/functions/poll-meshy-jobs/index.ts`       | Cron poller: poll → download all formats → settle credits → `ready`. Token-gated (`SIMULACRUM_POLLER_TOKEN`), `verify_jwt=false`                                                    |
+| `supabase/functions/poll-meshy-jobs/index.ts`       | Cron poller: poll → download all formats → settle credits → `ready`. Token-gated (`SIMULACRUM_POLLER_TOKEN`), `verify_jwt=false`. Stamps `polled_at` on every claim — the liveness signal `sweep-stranded-minis` reads (#771) |
 | `_shared/image-prompt.ts` / `src/ai/imagePrompt.ts` | `buildMiniStylizePrompt(format, name, instructions?)` — print: grey resin, blank eyes, clumped hair, integral base; VTT: colored, clean silhouette, base. Mirrored pair             |
 | `_shared/platform-keys.ts`                          | `Provider` union + `"meshy"` (row added at go-live)                                                                                                                                 |
 | `_shared/imageJob.ts`                               | `+ "mini_style"` kind, `+ "minis:stylized_image_url"` target                                                                                                                        |
@@ -146,7 +208,11 @@ MESHY_MOCK`** (set during pre-sub testing) and clear any "mock" placeholder
    and `succeeded` whether or not these secrets exist, which is how it sat
    unprovisioned from July to 25 Aug 2026. `20260825073922` now raises a warning
    naming the missing secret whenever minis are actually waiting, so
-   `query_logs` will tell you which step was missed.
+   `query_logs` will tell you which step was missed. It only sees the two
+   Vault values, though — a missing **edge secret** leaves the cron posting
+   happily to a function that 503s. `sweep-stranded-minis` (#771) is what
+   catches that third case: any in-flight mini unpolled for 15 minutes warns,
+   whatever the reason, and keeps the mini collectable in the meantime.
 3. Deploy `forge-mini` + `poll-meshy-jobs` (config.toml already declares the poller's `verify_jwt=false`).
 4. One real end-to-end smoke per format; tune VTT polycount (plan §8.2). Also
    test whether Meshy refunds a canceled/deleted task — if yes, switch `cancel`
