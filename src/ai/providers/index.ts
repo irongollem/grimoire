@@ -50,7 +50,7 @@ export function getImageProvider(options: {
     case "gemini":       return createGeminiImageProvider(key);
     case "openai-mini":  return createOpenAiImageProvider(key, "gpt-image-1-mini");
     default: {
-      const model = options.imageModel ?? (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-1.5";
+      const model = options.imageModel ?? (typeof localStorage !== "undefined" ? localStorage.getItem(OPENAI_IMAGE_MODEL_KEY) : null) ?? "gpt-image-2";
       return createOpenAiImageProvider(key, model as "gpt-image-2" | "gpt-image-1.5");
     }
   }

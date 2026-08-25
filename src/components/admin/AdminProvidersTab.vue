@@ -95,7 +95,7 @@
             :provider="row.provider"
             capability="text"
             :known-models="providerModelOptions[row.provider]"
-            placeholder="e.g. gpt-4o-mini"
+            placeholder="e.g. gpt-5.6-luna"
           />
 
           <!-- Image generation -->
@@ -107,7 +107,7 @@
             :provider="row.provider"
             capability="image"
             :known-models="providerModelOptions[row.provider]"
-            placeholder="e.g. gpt-image-1.5"
+            placeholder="e.g. gpt-image-2"
           >
             <template #extra>
               <div v-if="IMAGE_QUALITY_OPTIONS[row.provider]" class="space-y-1">

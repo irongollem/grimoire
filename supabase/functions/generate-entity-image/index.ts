@@ -19,6 +19,7 @@ import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { callText, type TextResult } from "../_shared/textGen.ts";
 
 // Entity portraits always render portrait-orientation.
 const ENTITY_IMAGE_SIZE = "1024x1536";
@@ -32,76 +33,6 @@ function buildCampaignContext(setting: string | null | undefined): string {
   const s = setting?.trim();
   if (!s) return "";
   return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
-
-// ── Text providers (plain-text output — the model authors a visual prompt) ──────
-
-interface TextUsage { input_tokens: number; output_tokens: number; model: string; provider: string }
-interface TextResult { content: string; usage: TextUsage }
-
-async function openaiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `OpenAI text error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    content: data.choices[0].message.content as string,
-    usage: { input_tokens: data.usage?.prompt_tokens ?? 0, output_tokens: data.usage?.completion_tokens ?? 0, model, provider: "openai" },
-  };
-}
-
-async function anthropicText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
-      model, max_tokens: 1024,
-      system,
-      messages: [{ role: "user", content: user }],
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `Anthropic error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    content: data.content[0].text as string,
-    usage: { input_tokens: data.usage?.input_tokens ?? 0, output_tokens: data.usage?.output_tokens ?? 0, model, provider: "anthropic" },
-  };
-}
-
-async function geminiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: user }] }],
-      }),
-    },
-  );
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `Gemini error ${res.status}`);
-  }
-  const data = await res.json();
-  const meta = data.usageMetadata ?? {};
-  return {
-    content: data.candidates[0].content.parts[0].text as string,
-    usage: { input_tokens: meta.promptTokenCount ?? 0, output_tokens: meta.candidatesTokenCount ?? 0, model, provider: "google" },
-  };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -222,20 +153,15 @@ serve(withCors(async (req: Request) => {
 
   let textResult: TextResult;
   try {
-    if (textProvider === "anthropic" && anthropicKey) {
-      textResult = await anthropicText(anthropicKey, textModel ?? "claude-haiku-3-20240307", systemContent, userContent);
-    } else if (textProvider === "gemini" && geminiKey) {
-      textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, userContent);
-    } else {
-      // Fallback path, also taken when the chosen provider has no usable key.
-      // Fail loudly rather than calling OpenAI with a null Authorization header.
-      if (!openaiKey) {
-        throw new Error(
-          "No OpenAI API key available: set one on the campaign, or configure a platform key.",
-        );
-      }
-      textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
-    }
+    textResult = await callText({
+      provider: textProvider,
+      keys: { openai: openaiKey, anthropic: anthropicKey, gemini: geminiKey },
+      model: textModel,
+      system: systemContent,
+      user: userContent,
+      maxTokens: textProvider === "anthropic" && anthropicKey ? 1024 : undefined,
+      outputFormat: "text",
+    });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
     console.error("Entity image prompt authoring failed:", e);

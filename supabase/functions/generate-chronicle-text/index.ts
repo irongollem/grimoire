@@ -30,6 +30,7 @@ import {
 } from "../_shared/embeddings.ts";
 import { retrieveCampaignEntities, formatEntityBlock } from "../_shared/campaignEntityRetrieval.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
 
 /**
  * Retrieval-grounded Chronicler recap generator (#600, third grounded
@@ -41,106 +42,15 @@ import type { AiProvenance } from "../_shared/provenance/types.ts";
  * back to earlier sessions by name instead of treating every session as
  * the campaign's first.
  *
- * DELIBERATE DEVIATION from the other grounded generators' transport: this
- * function keeps its own local openaiText/anthropicText/geminiText below
- * rather than routing through `_shared/textGen.ts`'s `callText`. That
- * dispatcher unconditionally forces JSON-object output on every provider
- * (OpenAI `response_format: json_object`, an appended "respond with valid
- * JSON" instruction for Anthropic, Gemini's `responseMimeType: json`), which
- * is exactly what commit 97261fe1 ("fix(ai): chronicle truncation — drop the
- * JSON wrapper around the narrative") deliberately removed from THIS
- * function 11 days before this story: JSON mode's constrained decoding let
- * an unescaped quote inside the narrative (an NPC nickname) legally
- * terminate the JSON string, silently truncating the chronicle mid-sentence
- * with a clean `finish_reason: "stop"` — no error anywhere to catch it. The
- * live `chronicle_text` system-prompt row (ai_system_prompts, updated the
- * same day as that fix) asks for plain Markdown, not JSON, so forcing JSON
- * mode back on would both contradict the prompt and very likely trip
- * OpenAI's own 400 ("messages must contain the word 'json'..." — the prompt
- * no longer does). Routing through callText here would reintroduce an
- * 11-day-old, deliberately-fixed production bug under the banner of
- * "consolidation." The transport stays local until textGen.ts grows a
- * plain-text opt-out.
+ * This uses `_shared/textGen.ts`'s explicit plain-text output mode. Do not
+ * switch it back to JSON: JSON mode previously truncated narratives when an
+ * unescaped quote appeared in prose (commit 97261fe1).
  */
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
-
-// ── Text providers ────────────────────────────────────────────────────────────
-
-interface TextUsage { input_tokens: number; output_tokens: number; model: string; provider: string }
-interface TextResult { content: string; usage: TextUsage }
-
-async function openaiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    // Plain text out — NO response_format json_object. JSON mode's constrained
-    // decoding lets an unescaped quote inside the narrative (a nickname like
-    // "B.B.") legally terminate the JSON string, silently truncating the
-    // chronicle mid-sentence with finish_reason "stop".
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `OpenAI text error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    content: data.choices[0].message.content as string,
-    usage: { input_tokens: data.usage?.prompt_tokens ?? 0, output_tokens: data.usage?.completion_tokens ?? 0, model, provider: "openai" },
-  };
-}
-
-async function anthropicText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
-      model, max_tokens: 8192,
-      system,
-      messages: [{ role: "user", content: user }],
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `Anthropic error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    content: data.content[0].text as string,
-    usage: { input_tokens: data.usage?.input_tokens ?? 0, output_tokens: data.usage?.output_tokens ?? 0, model, provider: "anthropic" },
-  };
-}
-
-async function geminiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: user }] }],
-      }),
-    },
-  );
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `Gemini error ${res.status}`);
-  }
-  const data = await res.json();
-  const meta = data.usageMetadata ?? {};
-  return {
-    content: data.candidates[0].content.parts[0].text as string,
-    usage: { input_tokens: meta.promptTokenCount ?? 0, output_tokens: meta.candidatesTokenCount ?? 0, model, provider: "google" },
-  };
-}
 
 // ── Prior-chronicles retrieval (#600) ────────────────────────────────────────
 
@@ -458,19 +368,20 @@ serve(withCors(async (req: Request) => {
   let textResult: TextResult;
 
   try {
-    if (textProvider === "anthropic" && anthropicKey) {
-      textResult = await anthropicText(anthropicKey, textModel ?? "claude-haiku-3-20240307", systemContent, userContent);
-    } else if (textProvider === "gemini" && geminiKey) {
-      textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, userContent);
-    } else {
-      if (!openaiKey) {
-        await releaseCredits(admin, reservation.ids);
-        return new Response("No OpenAI API key configured", { status: 422 });
-      }
-      textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
-    }
+    textResult = await callText({
+      provider: textProvider,
+      keys: { openai: openaiKey, anthropic: anthropicKey, gemini: geminiKey },
+      model: textModel,
+      system: systemContent,
+      user: userContent,
+      maxTokens: textProvider === "anthropic" && anthropicKey ? 8192 : undefined,
+      outputFormat: "text",
+    });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
+    if (e instanceof MissingTextKeyError) {
+      return new Response(e.message, { status: 422 });
+    }
     console.error("Chronicle text generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),

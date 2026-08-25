@@ -335,10 +335,8 @@ async function anthropicDocument(opts: ProviderCallArgs): Promise<DocumentExtrac
  * — per OpenAI's PDF-files guide, "for GPT-5.6 and later models, `auto` uses
  * `high`; for earlier models, it uses `low`." That matters more here than it
  * would elsewhere: `provider_config.document_model`'s seeded default (see
- * migration 20260824232822) is `gpt-4o-mini` — a *pre*-5.6 model, chosen
- * because every credit price in `ai_generation_credit_costs` is calibrated
- * against its rate — so `auto` on the platform's own starting config already
- * means `low`, not a hypothetical an admin might one day cause. This
+ * migration 20260825000600) is `gpt-5.6-luna`, but admins can configure an
+ * earlier model whose `auto` setting silently resolves to `low`. This
  * extractor's whole job is reading dense statblock art — an ability score
  * drawn as a number in a box with the modifier in a circle beneath,
  * unlabelled stat boxes, small print — and low detail there doesn't fail
@@ -403,6 +401,9 @@ async function openaiDocument(opts: ProviderCallArgs): Promise<DocumentExtractio
       model,
       instructions: system,
       max_output_tokens: maxTokens,
+      ...(model === "gpt-5.6" || model.startsWith("gpt-5.6-")
+        ? { reasoning: { effort: "low" } }
+        : {}),
       input: [{ role: "user", content: buildOpenAiContentBlocks(parts, instruction) }],
       // Verified against OpenAI's structured-outputs guide (developers.
       // openai.com/api/docs/guides/structured-outputs): the Responses API
@@ -578,26 +579,13 @@ const DOCUMENT_PROVIDERS = new Set(["openai", "anthropic", "gemini"]);
  * does, since document_model is the one thing it looks up (and gates on)
  * before calling this dispatcher at all.
  *
- * openai is `gpt-4o-mini` — the model this platform already runs for text —
- * because every credit price in `ai_generation_credit_costs` is calibrated
- * against its rate ($0.75 per 1M input + 1M output). The upgrade ladder, if it
- * cannot read graphical statblock art, is `gpt-5.6-luna` ($1.40) and then
- * `gpt-5.6-terra` ($14.00); `gpt-4o` is dominated by terra and is not on it.
- * See migration 20260824232822 for the full arithmetic.
- *
- * openai is `gpt-4o-mini` — the same model this platform already runs for
- * text, deliberately not a vision flagship. Every credit price in
- * `ai_generation_credit_costs` is calibrated against mini's rate ($0.75 per
- * 1M input + 1M output combined). If mini turns out unable to read graphical
- * ability scores or unlabelled stat boxes, the documented upgrade path is
- * `gpt-5.6-luna` ($1.40) first and `gpt-5.6-terra` ($14.00) above that —
- * `gpt-4o` ($12.50) is deliberately not on the ladder, since it sits within
- * 12% of terra's price while being a generation behind terra on vision. See
- * migration 20260824232822 for the full comparison against claude-opus-5's
- * $30.00.
+ * OpenAI document extraction moved to `gpt-5.6-luna` after the measured
+ * four-page comparison recorded in migration 20260825000600. It remains a
+ * distinct setting from the platform text model even though both currently
+ * resolve to Luna.
  */
 export const DEFAULT_DOCUMENT_MODELS = {
-  openai: "gpt-4o-mini",
+  openai: "gpt-5.6-luna",
   anthropic: "claude-opus-5",
   gemini: "gemini-2.5-flash",
 } as const;

@@ -20,6 +20,7 @@ import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts"
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import type { AiProvenance } from "../_shared/provenance/types.ts";
+import { callText, MissingTextKeyError, type TextResult } from "../_shared/textGen.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -33,77 +34,6 @@ function buildCampaignContext(setting: string | null | undefined): string {
   const s = setting?.trim();
   if (!s) return "";
   return `\n\nCampaign context provided by the DM (use it to ground tone, names, factions, and themes — but do not invent new facts that contradict it):\n\n## Setting\n${s}`;
-}
-
-// ── Text providers ────────────────────────────────────────────────────────────
-
-interface TextUsage { input_tokens: number; output_tokens: number; model: string; provider: string }
-interface TextResult { content: string; usage: TextUsage }
-
-async function openaiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model, response_format: { type: "json_object" },
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `OpenAI text error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    content: data.choices[0].message.content as string,
-    usage: { input_tokens: data.usage?.prompt_tokens ?? 0, output_tokens: data.usage?.completion_tokens ?? 0, model, provider: "openai" },
-  };
-}
-
-async function anthropicText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
-      model, max_tokens: 4096,
-      system: system + "\n\nRespond with a valid JSON object only, no markdown fencing.",
-      messages: [{ role: "user", content: user }],
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `Anthropic error ${res.status}`);
-  }
-  const data = await res.json();
-  return {
-    content: data.content[0].text as string,
-    usage: { input_tokens: data.usage?.input_tokens ?? 0, output_tokens: data.usage?.output_tokens ?? 0, model, provider: "anthropic" },
-  };
-}
-
-async function geminiText(apiKey: string, model: string, system: string, user: string): Promise<TextResult> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: user }] }],
-        generationConfig: { responseMimeType: "application/json" },
-      }),
-    },
-  );
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body?.error?.message ?? `Gemini error ${res.status}`);
-  }
-  const data = await res.json();
-  const meta = data.usageMetadata ?? {};
-  return {
-    content: data.candidates[0].content.parts[0].text as string,
-    usage: { input_tokens: meta.promptTokenCount ?? 0, output_tokens: meta.candidatesTokenCount ?? 0, model, provider: "google" },
-  };
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -246,19 +176,18 @@ serve(withCors(async (req: Request) => {
   let textResult: TextResult;
 
   try {
-    if (textProvider === "anthropic" && anthropicKey) {
-      textResult = await anthropicText(anthropicKey, textModel ?? "claude-haiku-3-20240307", systemContent, userContent);
-    } else if (textProvider === "gemini" && geminiKey) {
-      textResult = await geminiText(geminiKey, textModel ?? "gemini-2.5-flash", systemContent, userContent);
-    } else {
-      if (!openaiKey) {
-        await releaseCredits(admin, reservation.ids);
-        return new Response("No OpenAI API key configured", { status: 422 });
-      }
-      textResult = await openaiText(openaiKey, textModel ?? "gpt-4o-mini", systemContent, userContent);
-    }
+    textResult = await callText({
+      provider: textProvider,
+      keys: { openai: openaiKey, anthropic: anthropicKey, gemini: geminiKey },
+      model: textModel,
+      system: systemContent,
+      user: userContent,
+    });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
+    if (e instanceof MissingTextKeyError) {
+      return new Response(e.message, { status: 422 });
+    }
     console.error("Trap text generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Text generation failed" }),

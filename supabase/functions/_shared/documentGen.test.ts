@@ -237,7 +237,7 @@ describe("callDocument — provider dispatch", () => {
       return new Response(JSON.stringify({ error: { message: "stop here" } }), { status: 400 });
     }));
 
-    for (const [provider, model] of [["openai", "gpt-4o-mini"], ["gemini", "gemini-2.5-flash"], ["anthropic", "claude-opus-5"]]) {
+    for (const [provider, model] of [["openai", "gpt-5.6-luna"], ["gemini", "gemini-2.5-flash"], ["anthropic", "claude-opus-5"]]) {
       await callDocument({ ...BASE_OPTS, provider, model, parts: [PDF_PART] }).catch(() => {});
     }
 
@@ -248,7 +248,7 @@ describe("callDocument — provider dispatch", () => {
 });
 
 describe("callDocument (openai) — the platform's primary path", () => {
-  const OPENAI_OPTS = { ...BASE_OPTS, provider: "openai", model: "gpt-4o-mini", apiKey: "sk-test" };
+  const OPENAI_OPTS = { ...BASE_OPTS, provider: "openai", model: "gpt-5.6-luna", apiKey: "sk-test" };
 
   function stubOpenAi(body: unknown, status = 200) {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(body), { status }));
@@ -275,8 +275,8 @@ describe("callDocument (openai) — the platform's primary path", () => {
   it("forces detail:high on every file and image block", async () => {
     // The reason this is asserted rather than left to `auto`: OpenAI resolves
     // `auto` to `high` only on 5.6-and-later models and to `low` on everything
-    // earlier — and this platform's configured model, gpt-4o-mini, is earlier.
-    // Low detail on graphical ability scores does not fail, it returns
+    // earlier. Admins can still select those models, so low detail on
+    // graphical ability scores does not fail, it returns
     // plausible wrong numbers. See issue #770.
     const { requestBody } = stubOpenAi(okBody("{}"));
     await callDocument({ ...OPENAI_OPTS, parts: [PDF_PART, IMAGE_PART] });
@@ -284,6 +284,13 @@ describe("callDocument (openai) — the platform's primary path", () => {
     const blocks = requestBody().input[0].content.filter((b: { type: string }) => b.type !== "input_text");
     expect(blocks).toHaveLength(2);
     for (const block of blocks) expect(block.detail).toBe("high");
+  });
+
+  it("uses low reasoning for Luna document extraction", async () => {
+    const { requestBody } = stubOpenAi(okBody("{}"));
+    await callDocument({ ...OPENAI_OPTS, parts: [PDF_PART] });
+
+    expect(requestBody().reasoning).toEqual({ effort: "low" });
   });
 
   it("constrains the response with a json_schema rather than asking for JSON politely", async () => {
@@ -307,7 +314,7 @@ describe("callDocument (openai) — the platform's primary path", () => {
       expect(outcome.usage.input_tokens).toBe(4200);
       expect(outcome.usage.output_tokens).toBe(800);
       expect(outcome.usage.provider).toBe("openai");
-      expect(outcome.usage.model).toBe("gpt-4o-mini");
+      expect(outcome.usage.model).toBe("gpt-5.6-luna");
     }
   });
 

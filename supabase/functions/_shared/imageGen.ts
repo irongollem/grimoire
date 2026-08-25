@@ -230,7 +230,7 @@ export function resolveImageProvider(args: {
   campaignKeys: Partial<Record<"openai" | "gemini", string | null>>;
   platformKeys: Partial<Record<"openai" | "gemini", string | null>>;
   providerConfigs: Partial<Record<string, { image_model?: string | null; image_multiplier?: number | null; image_quality?: string | null } | undefined>>;
-  /** Client-requested OpenAI sub-model (gpt-image-1.5/2). Honored only for plain "openai". */
+  /** Client-requested OpenAI sub-model (gpt-image-2/1.5). Honored only for plain "openai". */
   requestedModel?: string | null;
 }): ResolvedImageProvider | null {
   const choice = (args.imageProvider ?? "openai") as ImageProviderKey;

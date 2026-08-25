@@ -4,7 +4,7 @@ const CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const IMAGE_URL = "https://api.openai.com/v1/images/generations";
 const EDIT_URL = "https://api.openai.com/v1/images/edits";
 
-const MODEL = "gpt-4o-mini";
+const MODEL = "gpt-5.6-luna";
 
 export function createOpenAiTextProvider(apiKey: string): TextProvider {
   return {
@@ -17,6 +17,7 @@ export function createOpenAiTextProvider(apiKey: string): TextProvider {
         },
         body: JSON.stringify({
           model: MODEL,
+          reasoning_effort: "low",
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: systemPrompt },
