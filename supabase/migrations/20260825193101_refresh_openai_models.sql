@@ -1,3 +1,27 @@
+-- Migration: refresh_openai_models
+--
+-- Renamed forward from `20260825005907` on 25 Aug 2026. Nothing in the SQL
+-- changed; only the version did.
+--
+-- It was stamped at 00:59 in a worktree for #770 and merged after three other
+-- migrations had already been applied to production, the newest being
+-- `20260825073922`. `supabase db push` then refused it — "Found local migration
+-- files to be inserted before the last migration on remote database" — and the
+-- whole production-release job failed with it, so the edge-function deploy that
+-- runs afterwards never happened either.
+--
+-- This is failure mode 2 in CLAUDE.md's migration-version rules, and it is the
+-- one with teeth: Vercel ships the frontend off the same push through a separate
+-- pipeline, so for the time between that push and this one the app was live
+-- against a database that never got the change. Harmless here only because this
+-- migration is data-only — no DDL, so nothing referenced a column that did not
+-- exist; production simply stayed on gpt-4o-mini / gpt-image-1.5.
+--
+-- The rule this is the reminder for: a migration that has sat on a branch or in
+-- a worktree while other work merged must be renamed forward *before* it merges.
+-- Run `scripts/check-migration-versions.sh` before opening the PR — it catches
+-- exactly this, in a second, against origin/main.
+
 -- Refresh the platform OpenAI defaults after access to the 5.6 line and
 -- gpt-image-2 was enabled. Keep document_model independent: the importer has
 -- its own measured Luna configuration from 20260825000600.
