@@ -24,7 +24,7 @@ The loop:
 | Re-sculpts are **free, capped at 2** (`sculpt_count <= 3`)                    | Charging to fix a bad roll punishes the user for the model's failure. Cap is ours — Meshy's API has no free retries; we absorb ~$0.60/retry.                                                                                                                                                          |
 | `sculpt_count` counts **completed** sculpts only                              | A failed attempt never consumes the cap; a failed _first_ sculpt releases its credit hold entirely (reserve-then-settle, net zero).                                                                                                                                                                   |
 | The `minis` row **is** the job                                                | Status machine (`stylizing → image_ready → sculpting → downloading → ready \| failed`) + Realtime, same trick as `image_generation_jobs`. No separate jobs table.                                                                                                                                     |
-| Sculpt completion is driven by a **pg_cron poller**, not `waitUntil`          | Meshy tasks run multi-minute — longer than an edge isolate lives. Cron (`poll-meshy-jobs`, every minute) is a guarded no-op until a `simulacrum_poller_url` Vault secret exists.                                                                                                                      |
+| Sculpt completion is driven by a **pg_cron poller**, not `waitUntil`          | Meshy tasks run multi-minute — longer than an edge isolate lives. Cron (`poll-meshy-jobs`, every minute) is a guarded no-op until **both** the `simulacrum_poller_url` and `simulacrum_poller_token` Vault secrets exist — see the go-live checklist, which described only the first one until 25 Aug 2026.                                                                                                                      |
 | Models are **downloaded into our bucket immediately** on SUCCEEDED            | Meshy deletes API assets after 3 days (non-Enterprise). `mini-models` bucket, path `{userId}/{miniId}/model.*`.                                                                                                                                                                                       |
 | `mini-models` bucket has **no client write/delete policies**                  | Generated models only — no user-uploaded 3D hosting. All writes/deletes go through the service-role pipeline (`forge-mini` delete action cleans the folder).                                                                                                                                          |
 | `minis` RLS is **DM-only**; players read a projection RPC                      | A campaign-member select branch leaked secret NPC/monster sculpts (`20260718000007`), but removing it killed the player reveal (#612). `get_player_visible_mini(source_table, source_id)` re-gates per source — party open to the party, NPC needs a shared portrait + no live disguise, monster needs a discovery — and drops the job/credit columns. In `useCampaignLiveSync`. |
@@ -118,8 +118,35 @@ The loop:
    this is what unlocks the "Live" mode option. **Also `supabase secrets unset
 MESHY_MOCK`** (set during pre-sub testing) and clear any "mock" placeholder
    key, or real sculpts will keep returning the fixture triangle.
-2. Set `SIMULACRUM_POLLER_TOKEN` edge secret; add Vault secret
-   `simulacrum_poller_url` = `https://<proj>.supabase.co/functions/v1/poll-meshy-jobs?token=<same>`.
+2. Provision the poller. **Three values, and all three are required** — the
+   cron returns early if any is missing, so getting two of them right produces a
+   job that still never polls:
+
+   | Where | Name | Value |
+   | --- | --- | --- |
+   | Vault | `simulacrum_poller_url` | `https://<proj>.supabase.co/functions/v1/poll-meshy-jobs` |
+   | Vault | `simulacrum_poller_token` | a fresh high-entropy string |
+   | Edge secret | `SIMULACRUM_POLLER_TOKEN` | the **same** string |
+
+   ```sql
+   select vault.create_secret('https://<proj>.supabase.co/functions/v1/poll-meshy-jobs', 'simulacrum_poller_url');
+   select vault.create_secret('<token>', 'simulacrum_poller_token');
+   ```
+   ```bash
+   supabase secrets set SIMULACRUM_POLLER_TOKEN=<token> --project-ref <proj>
+   ```
+
+   **No `?token=` in the URL.** An earlier revision of this step said to put it
+   there, and that is exactly what `20260718000007` removed — pg_net, proxies
+   and access logs all retain URLs, so a credential in one is a credential in
+   the logs. The cron sends it as an `Authorization: Bearer` header instead.
+
+   Verify before moving on: start a sculpt and confirm it leaves `sculpting` on
+   its own. Do not verify by looking at `cron.job` — the job reports `active`
+   and `succeeded` whether or not these secrets exist, which is how it sat
+   unprovisioned from July to 25 Aug 2026. `20260825073922` now raises a warning
+   naming the missing secret whenever minis are actually waiting, so
+   `query_logs` will tell you which step was missed.
 3. Deploy `forge-mini` + `poll-meshy-jobs` (config.toml already declares the poller's `verify_jwt=false`).
 4. One real end-to-end smoke per format; tune VTT polycount (plan §8.2). Also
    test whether Meshy refunds a canceled/deleted task — if yes, switch `cancel`

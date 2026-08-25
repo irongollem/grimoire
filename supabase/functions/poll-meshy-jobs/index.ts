@@ -331,10 +331,14 @@ serve(withCors(async (req: Request) => {
   const mockMode = isLocal && Deno.env.get("MESHY_MOCK") === "1";
 
   if (!mockMode) {
-    // The token is provisioned together with the Vault `simulacrum_poller_url`
-    // secret at go-live (SIMULACRUM_PLAN.md §7 Phase 4) — until then this
-    // function 503s, so it's safe to have deployed years before the Meshy
-    // subscription exists.
+    // Provisioned at go-live alongside the two Vault secrets the cron reads —
+    // the full three-value procedure is in `context/features/simulacrum.md`,
+    // "Go-live checklist (Phase 4)", not in SIMULACRUM_PLAN.md §7, which an
+    // earlier version of this comment pointed at and which says nothing about
+    // it. Until then this function 503s, so it is safe to have deployed years
+    // before the Meshy subscription exists — but note that the cron never even
+    // reaches it while its own secrets are missing, which is why that checklist
+    // says to verify with a real sculpt rather than by reading `cron.job`.
     if (!expected) return new Response("Poller not configured", { status: 503 });
     if (!timingSafeEqual(token, expected)) return new Response("Unauthorized", { status: 401 });
   }
