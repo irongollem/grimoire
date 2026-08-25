@@ -15,7 +15,23 @@
       </p>
 
       <!-- Result banner — only shown when the import needs the DM's attention -->
-      <div v-if="phase === 'result' && lastReport" class="space-y-3 rounded-lg border border-border bg-card p-4">
+      <div v-if="pendingProgress" class="space-y-3 rounded-lg border border-destructive/40 bg-card p-4">
+        <p class="text-body text-foreground">This step finished, but its progress was not saved.</p>
+        <p class="text-caption text-muted-foreground">
+          Retry saving before continuing. This does not import the rows again.
+        </p>
+        <div class="flex justify-end">
+          <AppButton
+            variant="primary"
+            size="md"
+            label="Retry saving progress"
+            :loading="isImporting"
+            @click="retryPendingProgress"
+          />
+        </div>
+      </div>
+
+      <div v-else-if="phase === 'result' && lastReport" class="space-y-3 rounded-lg border border-border bg-card p-4">
         <div class="flex items-center gap-2">
           <IconWarning v-if="lastReport.stoppedAtQuota" class="h-4 w-4 shrink-0 text-tone-caution" />
           <IconCircleCheck v-else class="h-4 w-4 shrink-0 text-tone-success" />
@@ -253,6 +269,15 @@ const unresolvedLinkNames = ref<string[]>([]);
 const isImporting = ref(false);
 const errorMessage = ref<string | null>(null);
 
+interface PendingProgress {
+  kind: ImportEntityKind;
+  count: number;
+  report: ImportRunReport | null;
+  unresolved: string[];
+}
+
+const pendingProgress = ref<PendingProgress | null>(null);
+
 /**
  * `importRow.extracted` is untrusted model output (documentImport.types.ts
  * header) — a missing kind, a non-array value, or an entity missing its
@@ -295,6 +320,7 @@ watch(
     phase.value = "review";
     lastReport.value = null;
     unresolvedLinkNames.value = [];
+    pendingProgress.value = null;
     errorMessage.value = null;
     if (!kind) {
       usableEntities.value = [];
@@ -353,11 +379,40 @@ async function persistCount(kind: ImportEntityKind, count: number): Promise<void
   };
   if (allDone) updates.status = "complete";
   const { error } = await supabase.from("document_imports").update(updates).eq("id", importRow.id);
-  // Progress advances locally either way — the DM shouldn't get stuck on a
-  // write hiccup — but they're told a refresh might not honour it.
-  localCounts.value = nextCounts;
   if (error) {
-    errorMessage.value = "Progress couldn't be saved. If you leave now, this step may run again next time.";
+    throw new Error("Progress couldn't be saved. Retry saving before continuing.");
+  }
+  localCounts.value = nextCounts;
+}
+
+function finishPersistedStep(progress: PendingProgress): void {
+  pendingProgress.value = null;
+  errorMessage.value = null;
+  if (!progress.report) {
+    advanceDisplayedStep();
+    return;
+  }
+  const noteworthy = progress.report.imported < progress.report.planned || progress.unresolved.length > 0;
+  if (noteworthy) {
+    lastReport.value = progress.report;
+    unresolvedLinkNames.value = progress.unresolved;
+    phase.value = "result";
+  } else {
+    advanceDisplayedStep();
+  }
+}
+
+async function retryPendingProgress(): Promise<void> {
+  const progress = pendingProgress.value;
+  if (!progress || isImporting.value) return;
+  isImporting.value = true;
+  try {
+    await persistCount(progress.kind, progress.count);
+    finishPersistedStep(progress);
+  } catch (e) {
+    errorMessage.value = e instanceof Error ? e.message : "Progress couldn't be saved.";
+  } finally {
+    isImporting.value = false;
   }
 }
 
@@ -366,8 +421,12 @@ async function skipStep(): Promise<void> {
   if (!kind || isImporting.value) return;
   isImporting.value = true;
   try {
+    const progress: PendingProgress = { kind, count: 0, report: null, unresolved: [] };
+    pendingProgress.value = progress;
     await persistCount(kind, 0);
-    advanceDisplayedStep();
+    finishPersistedStep(progress);
+  } catch (e) {
+    errorMessage.value = e instanceof Error ? e.message : "Progress couldn't be saved.";
   } finally {
     isImporting.value = false;
   }
@@ -507,17 +566,10 @@ async function runImport(): Promise<void> {
       }
       await applyLinkResolution(resolution);
     }
-    unresolvedLinkNames.value = unresolved;
-
+    const progress: PendingProgress = { kind, count: report.imported, report, unresolved };
+    pendingProgress.value = progress;
     await persistCount(kind, report.imported);
-
-    const noteworthy = report.imported < report.planned || unresolved.length > 0;
-    if (noteworthy) {
-      lastReport.value = report;
-      phase.value = "result";
-    } else {
-      advanceDisplayedStep();
-    }
+    finishPersistedStep(progress);
   } catch (e) {
     errorMessage.value = e instanceof Error ? e.message : "Something went wrong while importing this batch.";
   } finally {

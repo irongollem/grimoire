@@ -6,7 +6,7 @@ content table. **DM-only** — there is no player-facing surface at all.
 
 Lives at **Campaign Settings → Import Document** (`/campaign/settings?tab=import`).
 
-Issue #353. Open follow-up: #769 (sweep for stranded rows).
+Issues #353 and #769.
 
 ---
 
@@ -33,7 +33,8 @@ Seven kinds, in **dependency order** (`IMPORT_ENTITY_KINDS`):
 | --- | --- |
 | `documentImport.types.ts` | The extraction contract — seven narrow payloads, review envelope, `ExtractionResult`, `DocumentImport` row type |
 | `entityKinds.ts` | Per-kind registry: target table, labels, `displayField`, `quotaResource` |
-| `limits.ts` | Page caps (10 free / 50 Pro), MIME allowlist, byte cap, `validateUpload` |
+| `limits.ts` | Page caps (10 free / 50 Pro), MIME allowlist, per-object and per-import byte caps |
+| `downscale.ts` | Reduces page photos before upload — pure sizing arithmetic plus a browser-only re-encode |
 | `pageCount.ts` | PDF page counting via `pdf-lib`; rejects mixed PDF+image and multi-PDF selections |
 | `normalize.ts` | The **one** place an extracted payload becomes an `<Entity>Insert` |
 | `importPlan.ts` | Selection → ordered inserts, partial-failure accounting, link resolution |
@@ -47,7 +48,8 @@ driven by field shape, not seven per-kind templates).
 
 **Data** — table `document_imports`, bucket `import-documents`,
 `provider_config.document_model`, `ai_system_prompts` row `document_import`,
-credit rows `document_import_extraction` (base) + `document_import_page`.
+credit rows `document_import_extraction` (base) + `document_import_page`,
+cron job `sweep-stranded-document-imports`.
 
 ---
 
@@ -100,6 +102,56 @@ kept on `failed`. An extraction fails for reasons that have nothing to do with t
 document — a provider 500, a storage blip, a malformed response — and deleting the
 upload turns a retry into a re-upload **and a second charge**. Observed for real
 during the first live run.
+
+That retained upload is what the tab's **Retry extraction** button spends, which
+is why the button disappears once `expires_at` has passed: the source has been
+collected by then and a retry would fail on a missing object.
+
+### Cleanup runs on two clocks, and neither is the obvious one (#769)
+
+| Failure | Signal | Who fixes it |
+| --- | --- | --- |
+| The worker died mid-extraction | `extracting` for >15 min, from `updated_at` | `sweep-stranded-document-imports` cron |
+| Nobody is coming back | past `expires_at` (24h) | `collectExpiredImports` in `import-extract` |
+
+#769 proposed one sweep over `expires_at`. Built that way it would not fix the
+complaint it opens with — a DM whose extraction crashed after four seconds would
+still watch a spinner for the rest of the day. Liveness is a foreground concern
+and wants minutes; retention is a background one and wants a day.
+
+**The cron deliberately deletes no storage object.** Supabase's guidance is
+explicit that removing a `storage.objects` row in SQL orphans the bytes in S3 —
+strictly worse than leaving them, because `source_paths` still points at the blob
+and the owner, the extractor and the erasure path can all reach it. Collection
+needs a Storage API client, so it lives in the edge function.
+
+**The collector is opportunistic, not scheduled**, and that is the deliberate
+part. The repo's cron→edge shape (`poll-meshy-jobs`) needs a URL and a token in
+`vault` plus an env var on the function; this database holds one vault row, so
+that job has been scheduled, active and doing nothing since July. Piggybacking on
+the only code path that creates these objects needs no provisioning. The cost:
+a quiet month leaves an expired upload in the bucket until the next import.
+
+`review` and `extracting` are excluded from collection — the first has no objects
+left and holds paid-for work, the second may be running right now.
+
+Returning a row to `pending` pushes `expires_at` forward, in a **trigger** rather
+than in whichever client issues the retry. Without it a document retried on day
+two is already expired the moment it restarts.
+
+### Page photos are downscaled before upload
+
+`downscale.ts` caps the long edge at 1600px and re-encodes at JPEG q0.82. Three
+limits make it necessary rather than tidy: Storage's size limit is per object so a
+batch is otherwise unbounded; every part is base64'd into one provider request;
+and at `detail: "high"` the model tiles at 512px and charges per tile, so cost
+scales with *dimensions*, not file size.
+
+The per-object cap (25 MB, `MAX_UPLOAD_BYTES`) mirrors the bucket and is a real
+database constraint. The per-import cap (40 MB, `MAX_IMPORT_BYTES`) is a different
+question and deliberately a different number — reusing the 25 MB figure for both
+made the page caps unreachable, since at 2–5 MB a raw photo even ten of them blew
+past it and the free tier could not fill its own page allowance.
 
 ### `source_paths` is constrained in RLS, and that is a security fix
 

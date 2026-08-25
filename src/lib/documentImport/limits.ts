@@ -42,11 +42,53 @@ export function pageLimitFor(isPro: boolean): number {
 }
 
 /**
- * Mirrors the `import-documents` bucket's `file_size_limit`
- * (migration 20260824204224): 25 MB, enough for a chapter-sized PDF or a
- * batch of phone photos.
+ * Mirrors the `import-documents` bucket's per-object `file_size_limit`
+ * (migration 20260824204224): 25 MB, enough for a chapter-sized PDF or any
+ * single page photo. This one is a real database constraint — the upload is
+ * rejected by Storage itself, not merely by this file — so it moves only in
+ * step with a migration.
  */
 export const MAX_UPLOAD_BYTES = 26214400;
+
+/**
+ * Cap on the *combined* size of one import, which is a different question from
+ * the per-object limit above and deliberately a different number.
+ *
+ * Storage's limit is per object, so without this a batch of page photos is
+ * unbounded — the extractor base64s every part into a single provider request,
+ * and 50 untouched camera originals is a few hundred megabytes of it.
+ *
+ * 40 MB is sized against what actually gets uploaded, which is the *downscaled*
+ * batch (`downscale.ts`): a page photo lands at roughly 250–500 KB, so the free
+ * tier's 10 pages is about 5 MB and Pro's 50 is about 25 MB. The headroom above
+ * that covers denser scans without letting an untouched batch through.
+ *
+ * Reusing the 25 MB per-object figure here — the obvious move, since both are
+ * "the upload limit" — quietly made the page caps unreachable: at 2–5 MB a raw
+ * photo, even ten of them blew past it, so the free tier could not fill its own
+ * page allowance. Keep the two numbers separate.
+ *
+ * `MAX_IMPORT_BYTES` in `supabase/functions/import-extract/index.ts` is the
+ * server-side half of this and must hold the same value; the client cannot be
+ * trusted with a bound on what the server downloads.
+ */
+export const MAX_IMPORT_BYTES = 41943040;
+
+/**
+ * Validates the combined size of every object in one import. Called *after*
+ * downscaling, in `useCreateDocumentImport` — run against camera originals it
+ * rejects batches that fit comfortably once reduced.
+ */
+export function validateTotalUploadBytes(byteSize: number): UploadValidationResult {
+  if (byteSize > MAX_IMPORT_BYTES) {
+    return {
+      ok: false,
+      reason: "too_large",
+      message: `The combined upload is ${(byteSize / 1024 / 1024).toFixed(1)} MB — the limit is ${MAX_IMPORT_BYTES / (1024 * 1024)} MB per import.`,
+    };
+  }
+  return { ok: true };
+}
 
 /** Mirrors the `import-documents` bucket's `allowed_mime_types`. */
 export const ACCEPTED_MIME_TYPES = [

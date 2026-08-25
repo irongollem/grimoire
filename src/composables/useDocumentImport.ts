@@ -43,6 +43,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { edgeErrorMessage } from "@/lib/edgeError";
+import { MAX_UPLOAD_BYTES, validateTotalUploadBytes } from "@/lib/documentImport/limits";
+import { downscalePagePhoto } from "@/lib/documentImport/downscale";
 import { useGenerationCreditCosts } from "@/composables/useCreditConfig";
 import type {
   DocumentImport,
@@ -59,7 +61,6 @@ const IMPORT_DOCUMENTS_BUCKET = "import-documents";
 // The point is the same one `upload.ts`'s `validate()` makes for every other
 // bucket — fail fast with a clear message instead of bouncing off storage with
 // a generic 400.
-const IMPORT_DOCUMENTS_MAX_BYTES = 26_214_400; // 25 MB
 const IMPORT_DOCUMENTS_MIME_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -71,7 +72,7 @@ function validateImportFile(file: File): void {
   if (file.size === 0) {
     throw new Error(`"${file.name}" is empty (0 bytes) — nothing to upload.`);
   }
-  if (file.size > IMPORT_DOCUMENTS_MAX_BYTES) {
+  if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error(`"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB — the limit is 25 MB per file.`);
   }
   if (!(IMPORT_DOCUMENTS_MIME_TYPES as readonly string[]).includes(file.type)) {
@@ -226,7 +227,15 @@ export function useCreateDocumentImport() {
       if (input.pageCount <= 0) {
         throw new Error("Could not determine a page count for this document.");
       }
-      for (const file of input.files) validateImportFile(file);
+      // Downscale first, then validate: the aggregate cap is a bound on what we
+      // upload and send to the provider, so measuring the camera originals would
+      // reject batches that are perfectly fine once reduced — at 2–5 MB a photo
+      // that is every batch past three or four pages, including ones well inside
+      // the free tier's own page limit. PDFs come back untouched.
+      const files = await Promise.all(input.files.map(downscalePagePhoto));
+      for (const file of files) validateImportFile(file);
+      const aggregate = validateTotalUploadBytes(files.reduce((sum, file) => sum + file.size, 0));
+      if (!aggregate.ok) throw new Error(aggregate.message);
 
       const user = getCurrentUser();
       if (!user) throw new Error("You must be signed in to start an import.");
@@ -235,7 +244,7 @@ export function useCreateDocumentImport() {
 
       const uploadedPaths: string[] = [];
       try {
-        for (const file of input.files) {
+        for (const file of files) {
           const path = `${user.id}/${crypto.randomUUID()}.${extensionFor(file)}`;
           // Deliberately not `uploadToBucket` — see file header.
           const { error: uploadError } = await supabase.storage
@@ -336,6 +345,26 @@ export function useStartExtraction() {
   });
 }
 
+/** Restores a retained failed upload to the only state the extractor claims. */
+export function useRetryDocumentImport() {
+  const qc = useQueryClient();
+  const campaign = useCampaignStore();
+  return useMutation({
+    mutationFn: async (documentImportId: string): Promise<DocumentImport> => {
+      const { data, error } = await supabase
+        .from("document_imports")
+        .update({ status: "pending", error: null })
+        .eq("id", documentImportId)
+        .eq("status", "failed")
+        .select()
+        .single();
+      if (error) throw error;
+      return data as DocumentImport;
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: activeImportKey(campaign.activeCampaignId) }),
+  });
+}
+
 // ── Cost preview ──────────────────────────────────────────────────────────────
 
 const IMPORT_BASE_TYPE = "document_import_extraction";
@@ -390,8 +419,8 @@ export function useImportCost(pageCount: MaybeRefOrGetter<number>) {
  * the DM's point of view), so it's checked; the storage cleanup that follows
  * is fire-and-forget, matching `removeImportObjects`'s reasoning. In practice
  * the objects are usually already gone by the time this is reachable in the
- * UI — `import-extract` deletes them on every settle path — so this mainly
- * covers abandoning a `pending` import that never started extracting.
+ * UI — `import-extract` deletes them on review but retains them on failure — so
+ * this also backs the explicit discard action for a failed import.
  */
 export function useAbandonDocumentImport() {
   const qc = useQueryClient();

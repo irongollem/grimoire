@@ -47,6 +47,7 @@
  */
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
+import { PDFDocument } from "pdf-lib";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
@@ -85,6 +86,12 @@ const BUCKET = "import-documents";
 // actually happens.
 const FREE_PAGE_LIMIT = 10;
 const PRO_PAGE_LIMIT = 50;
+// Aggregate cap across one complete import, mirroring `MAX_IMPORT_BYTES` in
+// `src/lib/documentImport/limits.ts` — see that file for why it is 40 MB and
+// not the bucket's 25 MB per-object limit. Restated here rather than imported
+// because an edge function cannot reach `src/`, and because a client-side bound
+// on what the server downloads is not a bound at all.
+const MAX_IMPORT_BYTES = 41_943_040; // 40 MB
 
 // Document-reading pipelines are a live indirect-prompt-injection surface: the
 // "user input" here is arbitrary text on a page the DM photographed, not a
@@ -232,20 +239,71 @@ function toBase64(bytes: Uint8Array): string {
  * to skip past, it is a request that should never have been constructed, and
  * continuing with the remainder would quietly half-run it.
  */
-function assertOwnedPaths(paths: string[], userId: string): void {
+function pathsAreOwned(paths: string[], userId: string): boolean {
   const prefix = `${userId}/`;
-  for (const path of paths) {
-    if (!path.startsWith(prefix) || path.includes("..")) {
-      throw new Error("Import references a file outside the caller's own storage folder");
-    }
+  return paths.every((path) => path.startsWith(prefix) && !path.includes(".."));
+}
+
+function assertOwnedPaths(paths: string[], userId: string): void {
+  if (!pathsAreOwned(paths, userId)) {
+    throw new Error("Import references a file outside the caller's own storage folder");
   }
 }
 
-async function downloadPart(path: string): Promise<DocumentPart> {
-  const { data, error } = await admin.storage.from(BUCKET).download(path);
-  if (error || !data) throw new Error(`Failed to read uploaded file "${path}": ${error?.message ?? "not found"}`);
-  const bytes = new Uint8Array(await data.arrayBuffer());
-  return { mimeType: data.type || mimeFromPath(path), data: toBase64(bytes) };
+class SourceValidationError extends Error {}
+
+interface DownloadedSource {
+  parts: DocumentPart[];
+  pageCount: number;
+}
+
+/**
+ * Downloads sequentially and enforces an aggregate cap before constructing the
+ * provider payload. The storage bucket's 25 MB limit is per object and cannot
+ * protect a multi-image import from growing without bound.
+ */
+async function downloadSource(sourceKind: string, paths: string[]): Promise<DownloadedSource> {
+  if (sourceKind === "pdf" && paths.length !== 1) {
+    throw new SourceValidationError("A PDF import must contain exactly one file.");
+  }
+  if (sourceKind !== "pdf" && sourceKind !== "images") {
+    throw new SourceValidationError("Unsupported import source type.");
+  }
+
+  const parts: DocumentPart[] = [];
+  let totalBytes = 0;
+  let pdfPageCount = 0;
+  for (const path of paths) {
+    const { data, error } = await admin.storage.from(BUCKET).download(path);
+    if (error || !data) throw new Error(`Failed to read uploaded file "${path}": ${error?.message ?? "not found"}`);
+    totalBytes += data.size;
+    if (totalBytes > MAX_IMPORT_BYTES) {
+      throw new SourceValidationError("The combined upload is larger than the 40 MB import limit.");
+    }
+
+    const mimeType = data.type || mimeFromPath(path);
+    if (sourceKind === "pdf" && mimeType !== "application/pdf") {
+      throw new SourceValidationError("The staged PDF is not a PDF file.");
+    }
+    if (sourceKind === "images" && !["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
+      throw new SourceValidationError("An image import contains an unsupported file type.");
+    }
+
+    const bytes = new Uint8Array(await data.arrayBuffer());
+    if (bytes.byteLength === 0) throw new SourceValidationError("The upload contains an empty file.");
+    if (sourceKind === "pdf") {
+      try {
+        const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+        pdfPageCount = pdf.getPageCount();
+      } catch (cause) {
+        console.error("Failed to count staged PDF pages:", cause);
+        throw new SourceValidationError("The uploaded PDF could not be read.");
+      }
+    }
+    parts.push({ mimeType, data: toBase64(bytes) });
+  }
+
+  return { parts, pageCount: sourceKind === "pdf" ? pdfPageCount : paths.length };
 }
 
 /**
@@ -280,6 +338,89 @@ async function deleteSourceObjects(paths: string[], userId: string): Promise<voi
   if (error) console.error(`Failed to delete import-documents objects (will expire via sweep):`, error.message);
 }
 
+/**
+ * The expiry sweep (#769): deletes the source objects of imports nobody is
+ * coming back to, then the rows that pointed at them.
+ *
+ * It lives here, at the head of the one function that ever creates these
+ * objects, rather than in the `sweep-stranded-document-imports` cron that
+ * handles the other half of #769. That split is not arbitrary — deleting a
+ * `storage.objects` row from SQL removes the metadata and strands the bytes in
+ * S3, reachable by nothing (Supabase's own guidance, and 20260809000002 records
+ * the same trap for buckets). Collection therefore has to go through the
+ * Storage API, which means code holding a Storage client.
+ *
+ * Opportunistic rather than scheduled, and deliberately so: a pg_net cron into
+ * a dedicated edge function needs a URL and a bearer token in `vault` plus an
+ * env var on the function, and `poll-meshy-jobs` — the one job in this repo
+ * built that way — has been scheduled, active and silently doing nothing since
+ * July because those secrets were never provisioned. Piggybacking on the write
+ * path needs no provisioning and scales with the activity that creates the
+ * garbage: if nobody imports, nothing new is stranded either. The cost is that
+ * a quiet month leaves an expired upload in the bucket until the next import.
+ *
+ * Objects first, row second. The row's `source_paths` is the only handle on
+ * those objects, so deleting it before the bytes are gone is precisely how they
+ * become unreachable.
+ *
+ * Two statuses are excluded, for different reasons.
+ *
+ * `review` because its objects were already deleted at the review transition,
+ * so there is nothing to collect, and `extracted` is work the DM paid for and
+ * may come back to. `expires_at` governs how long we hold someone else's
+ * *document*, which by then we no longer hold at all.
+ *
+ * `extracting` because it may be running right now. A row created 24 hours ago
+ * whose extraction starts one minute before expiry is `extracting` while its
+ * expiry passes, and collecting it would delete the row out from under the
+ * worker — the settle write would match nothing and the DM would lose both the
+ * result and the credits it cost. Nothing is stranded by skipping it: the
+ * `sweep-stranded-document-imports` cron turns a genuinely dead `extracting`
+ * row into `failed` within fifteen minutes, and the next sweep collects it.
+ */
+const EXPIRY_SWEEP_BATCH = 25;
+
+async function collectExpiredImports(): Promise<void> {
+  const { data, error } = await admin
+    .from("document_imports")
+    .select("id, user_id, source_paths")
+    .lt("expires_at", new Date().toISOString())
+    .not("status", "in", "(review,extracting)")
+    .limit(EXPIRY_SWEEP_BATCH);
+  if (error) {
+    console.error("Expired-import sweep could not list rows:", error.message);
+    return;
+  }
+
+  for (const row of (data ?? []) as { id: string; user_id: string; source_paths: string[] }[]) {
+    // Re-checked here even though `document_imports_source_paths` (migration
+    // 20260824214506) constrains every write to the owner's own prefix. This
+    // runs with the service role, which bypasses storage RLS, so it is the one
+    // caller for which a stale row written before that migration would be a
+    // delete of somebody else's object rather than a rejected statement.
+    if (!pathsAreOwned(row.source_paths, row.user_id)) {
+      console.error(`Expired import ${row.id} names a path outside its owner's folder — left alone.`);
+      continue;
+    }
+    const { error: removeError } = await admin.storage.from(BUCKET).remove(row.source_paths);
+    if (removeError) {
+      console.error(`Expired import ${row.id}: source objects not deleted, row kept:`, removeError.message);
+      continue;
+    }
+    const { error: rowError } = await admin.from("document_imports").delete().eq("id", row.id);
+    if (rowError) {
+      console.error(`Expired import ${row.id}: objects deleted but the row remains:`, rowError.message);
+    }
+  }
+}
+
+/** Runs the sweep past the response where the platform supports it, so cleanup never delays an extraction. */
+function startExpirySweep(): void {
+  const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  const sweep = collectExpiredImports().catch((e) => console.error("Expired-import sweep failed:", e));
+  runtime?.waitUntil?.(sweep);
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(withCors(async (req: Request) => {
@@ -303,6 +444,11 @@ serve(withCors(async (req: Request) => {
   const userId = user.id;
 
   if (await isAccountSuspended(admin, userId)) return suspendedResponse();
+
+  // Fire-and-forget, after authentication so it is not reachable by an
+  // unauthenticated caller, and before the body is parsed so a malformed
+  // request still contributes a sweep.
+  startExpirySweep();
 
   let documentImportId: string;
   try {
@@ -361,17 +507,6 @@ serve(withCors(async (req: Request) => {
   // doubles as the page-cap lookup — both key off the campaign owner's plan.
   const ownerIsPro = await isUserPro(admin, campaign.user_id);
   const pageLimit = ownerIsPro ? PRO_PAGE_LIMIT : FREE_PAGE_LIMIT;
-  if (importRow.page_count > pageLimit) {
-    return new Response(
-      JSON.stringify({
-        error: "too_many_pages",
-        message: ownerIsPro
-          ? `This document has ${importRow.page_count} pages. The limit is ${pageLimit} pages per import.`
-          : `This document has ${importRow.page_count} pages. Free accounts are limited to ${pageLimit} pages per import — upgrade to Pro for up to ${PRO_PAGE_LIMIT}.`,
-      }),
-      { status: 422, headers: { "Content-Type": "application/json" } },
-    );
-  }
 
   const { data: promptRow } = await admin
     .from("ai_system_prompts").select("content")
@@ -424,6 +559,45 @@ serve(withCors(async (req: Request) => {
   }
   const textIsByok = !!campaignKeyFor[textProvider];
 
+  // Bound source downloads as well as provider calls. Without this check a
+  // caller with an invalid staged document could repeatedly make the function
+  // download and parse it without ever reaching the paid-call limiter.
+  if (!(await checkRateLimit(admin, userId, "ai_generation"))) {
+    return new Response(JSON.stringify({ error: "rate_limited" }), {
+      status: 429, headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  let source: DownloadedSource;
+  try {
+    assertOwnedPaths(importRow.source_paths, userId);
+    source = await downloadSource(importRow.source_kind, importRow.source_paths);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "The uploaded document could not be read.";
+    return new Response(JSON.stringify({ error: "invalid_source", message }), {
+      status: e instanceof SourceValidationError ? 422 : 502,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const actualPageCount = source.pageCount;
+  if (actualPageCount !== importRow.page_count) {
+    return new Response(JSON.stringify({
+      error: "page_count_mismatch",
+      message: `The upload contains ${actualPageCount} pages, but the staged import claimed ${importRow.page_count}. Upload it again.`,
+    }), { status: 422, headers: { "Content-Type": "application/json" } });
+  }
+  if (actualPageCount > pageLimit) {
+    return new Response(
+      JSON.stringify({
+        error: "too_many_pages",
+        message: ownerIsPro
+          ? `This document has ${actualPageCount} pages. The limit is ${pageLimit} pages per import.`
+          : `This document has ${actualPageCount} pages. Free accounts are limited to ${pageLimit} pages per import — upgrade to Pro for up to ${PRO_PAGE_LIMIT}.`,
+      }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   // Priced per page, not flat (migration 20260824220715). Every other generator
   // here charges a flat fee because its input is a sentence the DM typed; this
   // one's input is a document, and Anthropic's PDF support rasterises *every
@@ -435,15 +609,9 @@ serve(withCors(async (req: Request) => {
     fetchCreditCost(admin, "document_import_page"),
   ]);
   const cost = applyMultiplier(
-    baseCost + perPageCost * importRow.page_count,
+    baseCost + perPageCost * actualPageCount,
     providerConfig?.text_multiplier,
   );
-
-  if (!(await checkRateLimit(admin, userId, "ai_generation"))) {
-    return new Response(JSON.stringify({ error: "rate_limited" }), {
-      status: 429, headers: { "Content-Type": "application/json" },
-    });
-  }
 
   const reservation = await reserveCredits(admin, userId, cost, "document_import_extraction");
   if (!reservation.ok) return reservationFailureResponse(reservation);
@@ -479,21 +647,15 @@ serve(withCors(async (req: Request) => {
     });
   }
 
-  let parts: DocumentPart[];
   let outcome: Awaited<ReturnType<typeof callDocument>>;
   try {
-    // Before a single byte is opened. Inside the try so a violation settles the
-    // claimed row as `failed` through the normal path rather than escaping as an
-    // unhandled throw that would strand it in `extracting` forever.
-    assertOwnedPaths(importRow.source_paths, userId);
-    parts = await Promise.all(importRow.source_paths.map(downloadPart));
     outcome = await callDocument({
       provider: textProvider, apiKey, model: documentModel,
       system: promptRow.content + DOCUMENT_INJECTION_GUARD,
       instruction:
         `Extract every entity you can find from the attached ${importRow.source_kind === "pdf" ? "PDF document" : "page photographs"} ` +
-        `and return them as JSON matching the provided schema. There ${importRow.page_count === 1 ? "is 1 page" : `are ${importRow.page_count} pages`}.`,
-      parts,
+        `and return them as JSON matching the provided schema. There ${actualPageCount === 1 ? "is 1 page" : `are ${actualPageCount} pages`}.`,
+      parts: source.parts,
       schema: EXTRACTION_SCHEMA,
     });
   } catch (e) {
@@ -564,6 +726,14 @@ serve(withCors(async (req: Request) => {
       : "The extraction was truncated before any entries could be recovered. Try a smaller document.";
     const ai_provenance = provenanceFor(outcome.usage);
     await settle(outcome.usage);
+    if (!hasAny) {
+      await admin.from("document_imports")
+        .update({ status: "failed", extracted, ai_provenance, error })
+        .eq("id", importRow.id).eq("user_id", userId);
+      return new Response(JSON.stringify({ status: "failed", error }), {
+        status: 502, headers: { "Content-Type": "application/json" },
+      });
+    }
     await admin.from("document_imports")
       .update({ status: "review", extracted, ai_provenance, error })
       .eq("id", importRow.id).eq("user_id", userId);

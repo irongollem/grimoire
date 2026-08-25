@@ -81,15 +81,28 @@
         </p>
       </div>
       <p class="text-caption text-destructive">{{ failedView.error }}</p>
-      <p v-if="abandonError" class="text-caption text-destructive">{{ abandonError }}</p>
-      <div class="flex justify-end pt-2">
+      <p v-if="failedActionError" class="text-caption text-destructive">{{ failedActionError }}</p>
+      <p v-if="!canRetryFailed" class="text-caption text-muted-foreground">
+        This import has expired, so the uploaded document is no longer stored. Upload it again to retry.
+      </p>
+      <div class="flex justify-end gap-2 pt-2">
         <AppButton
           variant="destructive"
           size="md"
-          label="Discard and retry"
+          label="Discard"
           :icon="IconDelete"
-          :disabled="abandonImport.isPending.value"
+          :disabled="abandonImport.isPending.value || retryImport.isPending.value || startExtraction.isPending.value"
           @click="discardFailedImport(failedView)"
+        />
+        <AppButton
+          v-if="canRetryFailed"
+          variant="primary"
+          size="md"
+          label="Retry extraction"
+          :icon="IconRefresh"
+          :loading="retryImport.isPending.value || startExtraction.isPending.value"
+          :disabled="abandonImport.isPending.value"
+          @click="retryFailedImport(failedView)"
         />
       </div>
     </template>
@@ -234,20 +247,19 @@
  * `failed` is read off the row. `useActiveDocumentImport()` includes it in
  * `ACTIVE_STATUSES` (widened by migration 20260824224729) specifically so this
  * component can explain a failure that outlives the session: an extraction that
- * fails has already spent the credits and the extractor has already deleted the
- * uploaded document, so a DM returning to this tab must find out what happened
- * rather than a blank upload form. `document_imports.error` carries the reason.
+ * fails may already have spent credits, but the extractor retains the uploaded
+ * document so the DM can retry without uploading it again. A returning DM must
+ * therefore see the failed row and its `document_imports.error`, not a blank
+ * upload form.
  *
  * `complete` is NOT in that list, on purpose — a finished import has nothing to
  * resume and nothing to explain, and including it would let a success block the
  * next import until it was dismissed by hand. So the row does stop being
  * returned once it completes.
  *
- * `localOutcome` therefore covers two narrower cases: the completion the wizard
- * reports via `@finished` (where the row is deliberately gone), and an error
- * thrown by `useStartExtraction()`'s own mutation before any row status
- * changed. The `failedView` / `completeView` computeds check the live row
- * first and fall back to it.
+ * `localOutcome` therefore covers completion reported by the wizard and the
+ * defensive case where a row disappears while extraction is in flight. The
+ * `failedView` / `completeView` computeds check the live row first.
  */
 import { computed, ref, watch } from "vue";
 import {
@@ -274,6 +286,7 @@ import {
   useActiveDocumentImport,
   useCreateDocumentImport,
   useStartExtraction,
+  useRetryDocumentImport,
   useImportCost,
   useAbandonDocumentImport,
 } from "@/composables/useDocumentImport";
@@ -341,6 +354,23 @@ const failedView = computed(() => {
     };
   }
   return localOutcome.value?.kind === "failed" ? localOutcome.value : null;
+});
+
+/**
+ * A failed import keeps its uploaded document precisely so the DM can retry
+ * without paying to upload it again — but only until it expires, when the
+ * sweep in `import-extract` (#769) collects the source. Past that the row is
+ * still here to explain what happened; the document behind it may not be, so
+ * offering Retry would fail on a missing object.
+ *
+ * The local fallback has no row to read an expiry from, and it describes a
+ * failure that happened seconds ago, so its source is by definition still
+ * there — hence the default of true rather than false.
+ */
+const canRetryFailed = computed(() => {
+  const row = activeImport.value;
+  if (row?.status !== "failed") return true;
+  return new Date(row.expires_at).getTime() > Date.now();
 });
 
 const completeView = computed(() => {
@@ -438,6 +468,10 @@ watch(selectedFiles, async (files) => {
 const perFileValidation = computed<UploadValidationResult | null>(() => {
   if (!countResult.value?.ok) return null;
   const pageCount = countResult.value.pageCount;
+  // Deliberately per file only. The aggregate cap is checked in
+  // `useCreateDocumentImport`, *after* `downscalePagePhoto` has run — measuring
+  // the camera originals here would reject batches that fit comfortably once
+  // reduced, which at 2–5 MB a photo is most of them.
   for (const file of selectedFiles.value) {
     const result = validateUpload({ pageCount, byteSize: file.size, mimeType: file.type, isPro: isPro.value });
     if (!result.ok) return result;
@@ -466,6 +500,7 @@ const canSubmitUpload = computed(
 
 const createImport = useCreateDocumentImport();
 const startExtraction = useStartExtraction();
+const retryImport = useRetryDocumentImport();
 const abandonImport = useAbandonDocumentImport();
 
 function resetUploadForm() {
@@ -522,6 +557,21 @@ async function abandonPending(row: DocumentImport) {
 }
 
 const abandonError = ref<string | null>(null);
+const failedActionError = ref<string | null>(null);
+
+async function retryFailedImport(view: { id: string }) {
+  failedActionError.value = null;
+  pendingStartError.value = null;
+  try {
+    const row = await retryImport.mutateAsync(view.id);
+    const outcome = await startExtraction.mutateAsync(row.id);
+    if (outcome.warning) toast.info(outcome.warning, 8000);
+  } catch (err) {
+    const message = toast.fromError(err, "Could not retry the extraction.");
+    failedActionError.value = message;
+    pendingStartError.value = message;
+  }
+}
 
 async function discardFailedImport(view: { id: string; sourcePaths: string[] }) {
   const ok = await confirm("Discard this failed import? You'll need to upload the document again.", {
@@ -530,12 +580,12 @@ async function discardFailedImport(view: { id: string; sourcePaths: string[] }) 
     danger: true,
   });
   if (!ok) return;
-  abandonError.value = null;
+  failedActionError.value = null;
   try {
     await abandonImport.mutateAsync({ id: view.id, source_paths: view.sourcePaths });
     localOutcome.value = null;
   } catch (err) {
-    abandonError.value = toast.fromError(err, "Could not discard the import.");
+    failedActionError.value = toast.fromError(err, "Could not discard the import.");
   }
 }
 

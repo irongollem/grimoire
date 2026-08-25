@@ -3,6 +3,8 @@ import {
   ACCEPTED_MIME_TYPES,
   FREE_PAGE_LIMIT,
   MAX_UPLOAD_BYTES,
+  validateTotalUploadBytes,
+  MAX_IMPORT_BYTES,
   PRO_PAGE_LIMIT,
   pageLimitFor,
   validateUpload,
@@ -84,6 +86,31 @@ describe("validateUpload — byte cap", () => {
     if (!result.ok) {
       expect(result.reason).toBe("too_large");
     }
+  });
+});
+
+describe("validateTotalUploadBytes — aggregate byte cap", () => {
+  it("passes a combined upload exactly at the limit", () => {
+    expect(validateTotalUploadBytes(MAX_IMPORT_BYTES)).toEqual({ ok: true });
+  });
+
+  it("rejects a batch whose individual files fit but combined size does not", () => {
+    const result = validateTotalUploadBytes(MAX_IMPORT_BYTES + 1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe("too_large");
+  });
+
+  // The regression this constant exists for: reusing the 25 MB per-object cap
+  // as the aggregate made the page limits unreachable, because a batch at the
+  // free tier's own 10-page allowance already exceeded it.
+  it("admits a full free-tier batch of downscaled page photos", () => {
+    const tenPagesAtHalfAMegabyte = 10 * 512 * 1024;
+    expect(validateTotalUploadBytes(tenPagesAtHalfAMegabyte)).toEqual({ ok: true });
+  });
+
+  it("admits a full Pro batch of downscaled page photos", () => {
+    const fiftyPagesAtHalfAMegabyte = 50 * 512 * 1024;
+    expect(validateTotalUploadBytes(fiftyPagesAtHalfAMegabyte)).toEqual({ ok: true });
   });
 });
 

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(14);
 
 -- Regression cover for the storage-path escape found reviewing #353 chunk 2 and
 -- fixed in 20260824214506.
@@ -120,6 +120,32 @@ select ok(
     where polrelid = 'public.document_imports'::regclass
       and polname = 'document_imports_update') like '%paths_under_caller_prefix%',
   'UPDATE policy constrains source_paths (it had no WITH CHECK before the fix)'
+);
+
+-- ── Staged source shape ──────────────────────────────────────────────────────
+-- The extractor parses PDF bytes itself, but image page count can and should be
+-- made authoritative at the client-write boundary: one path is one page.
+select ok(
+  exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.document_imports'::regclass
+      and conname = 'document_imports_source_shape_check'
+  ),
+  'document imports carry a source-shape constraint'
+);
+
+select ok(
+  (select pg_get_constraintdef(oid) from pg_constraint
+    where conrelid = 'public.document_imports'::regclass
+      and conname = 'document_imports_source_shape_check') like '%cardinality(source_paths) = page_count%',
+  'image page count is tied to the number of staged image paths'
+);
+
+select ok(
+  (select pg_get_constraintdef(oid) from pg_constraint
+    where conrelid = 'public.document_imports'::regclass
+      and conname = 'document_imports_page_count_ceiling_check') like '%page_count <= 50%',
+  'the absolute page ceiling is enforced in the database'
 );
 
 select * from finish();

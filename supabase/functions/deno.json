@@ -4,6 +4,7 @@
     "stripe": "npm:stripe@22.4.0",
     "@gltf-transform/core": "npm:@gltf-transform/core@4.4.1",
     "@gltf-transform/extensions": "npm:@gltf-transform/extensions@4.4.1",
+    "pdf-lib": "npm:pdf-lib@1.17.1",
     "std/": "https://deno.land/std@0.208.0/"
   },
   "exclude": ["**/*.test.ts"]
