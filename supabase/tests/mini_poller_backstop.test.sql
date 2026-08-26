@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(22);
 
 -- Cover for the #771 backstop (20260825200052). Three properties are pinned,
 -- and only the first is the obvious one:
@@ -14,7 +14,8 @@ select plan(19);
 --      treatment: the poller deliberately does not re-stamp `download_started_at`
 --      on retry ticks so it can give up at 30 minutes (STALE_SCULPT_MS), and a
 --      sweep that nudged that row would make the download immortal instead.
---   3. The sweep never writes `polled_at`. Asserted against the function body,
+--   3. The terminal write cannot undo a poller that came back mid-loop.
+--   4. The sweep never writes `polled_at`. Asserted against the function body,
 --      because an outcome test cannot see a statement nobody has written yet —
 --      and the moment the sweep writes that column it is measuring itself, and
 --      every liveness answer below silently becomes true forever.
@@ -187,6 +188,79 @@ select is(
   (select status from public.minis where id = '77100000-0000-4000-8000-000000000010'),
   'ready',
   'a finished mini is never swept');
+
+-- ── The mid-loop race ───────────────────────────────────────────────────────
+--
+-- The loop's cursor is a snapshot and each iteration costs a `release_credits`
+-- round-trip, so under READ COMMITTED a poller returning after three days can
+-- claim a row and complete it while the sweep is still working through earlier
+-- ones. Keyed on `id` alone the terminal write would then apply the stale
+-- snapshot over a finished, paid sculpt — `failed`, credits_spent 0, the fresh
+-- glb_path orphaned — which is the one outcome this backstop exists to prevent.
+--
+-- Reproduced deterministically with a trigger that fires on the sweep's first
+-- terminal write and completes every other row the loop had already snapshotted.
+-- Whichever row goes first, exactly three must survive untouched.
+
+insert into public.minis
+  (id, user_id, source_table, source_id, format, status, meshy_task_id,
+   glb_path, credits_spent, reservation_ids, sculpt_count,
+   polled_at, sculpt_started_at, download_started_at)
+select
+  ('77100000-0000-4000-8000-00000000002' || n)::uuid,
+  '77100000-0000-4000-8000-000000000001',
+  'npcs', '77100000-0000-4000-8000-0000000000ff', 'print', 'downloading', 'task-race-' || n,
+  null, 500, jsonb_build_array('77100000-0000-4000-8000-00000000003' || n), 0,
+  now() - interval '4 days', now() - interval '4 days', now() - interval '4 days'
+from generate_series(1, 4) as n;
+
+insert into public.ai_credit_ledger (id, user_id, delta, reason, pending)
+select ('77100000-0000-4000-8000-00000000003' || n)::uuid,
+       '77100000-0000-4000-8000-000000000001', -500, 'mini_sculpt', true
+from generate_series(1, 4) as n;
+
+create function pg_temp.simulate_returning_poller() returns trigger
+language plpgsql as $fn$
+begin
+  -- Once only: the update below re-enters this trigger for every row it touches.
+  if current_setting('test.poller_returned', true) is not null then return new; end if;
+  perform set_config('test.poller_returned', '1', true);
+  update public.minis
+     set status = 'ready', glb_path = 'u/recovered/model.glb'
+   where id <> new.id
+     and status in ('sculpting', 'downloading')
+     and coalesce(sculpt_started_at, created_at) < now() - interval '3 days';
+  return new;
+end;
+$fn$;
+
+create trigger zz_simulate_returning_poller
+  before update on public.minis
+  for each row execute procedure pg_temp.simulate_returning_poller();
+
+select private.sweep_stranded_minis();
+
+drop trigger zz_simulate_returning_poller on public.minis;
+
+select is(
+  (select count(*)::integer from public.minis
+    where glb_path = 'u/recovered/model.glb' and status <> 'ready'),
+  0,
+  'a mini a returning poller completed mid-sweep keeps its status — the stale snapshot never lands on it');
+
+select is(
+  (select count(*)::integer from public.minis
+    where glb_path = 'u/recovered/model.glb' and credits_spent <> 500),
+  0,
+  'and keeps the charge for the sculpt the DM actually received');
+
+select is(
+  (select count(*)::integer from public.ai_credit_ledger
+    where pending
+      and id in (select (reservation_ids ->> 0)::uuid from public.minis
+                  where glb_path = 'u/recovered/model.glb')),
+  3,
+  'the holds of a row the poller won are left for the poller to settle, not released underneath it');
 
 -- ── Structural ──────────────────────────────────────────────────────────────
 

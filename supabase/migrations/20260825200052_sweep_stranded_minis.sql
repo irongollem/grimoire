@@ -146,14 +146,20 @@ begin
            poll_lease_id   = null,
            poll_lease_until = null,
            poll_last_error = 'Stranded: no poller claimed this mini before Meshy dropped the asset'
-     where id = v_mini.id;
+     where id = v_mini.id
+       -- Re-check the status in the UPDATE, as every other writer to this table
+       -- does. The cursor is a snapshot and each iteration costs a release_credits
+       -- round-trip, so a poller returning mid-loop can claim a row and set it
+       -- `ready`; keyed on id alone this would overwrite a completed, paid sculpt
+       -- with `failed` and credits_spent 0.
+       and status in ('sculpting', 'downloading');
 
     -- After the conditional write, never before: releasing first could drop a
-    -- reservation a live worker still owns. Re-releasing already-swept ids is a
-    -- safe no-op (release_credits deletes only `pending = true` rows), which
-    -- matters because release-stale-credit-holds has cleared these at 2 hours
-    -- long before three days — credits were never the exposure here.
-    if cardinality(v_reservations) > 0 then
+    -- reservation a live worker still owns. `found` for the same reason as the
+    -- predicate above — a poller that won the row is mid-settlement on its holds.
+    -- Re-releasing already-swept ids is otherwise a safe no-op (release_credits
+    -- deletes only `pending = true` rows).
+    if found and cardinality(v_reservations) > 0 then
       perform public.release_credits(v_reservations);
     end if;
   end loop;
