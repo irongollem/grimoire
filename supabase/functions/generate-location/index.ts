@@ -268,7 +268,8 @@ serve(withCors(async (req: Request) => {
   // Charge each image as its own entity_image row (or delta=0 on BYOK).
   if (sceneImgResult) {
     await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
-      model: img!.model, provider: sceneImgResult.usage.provider, image_count: 1,
+      model: img!.model, quality: img!.imageQuality, size: "1024x1024",
+      provider: sceneImgResult.usage.provider, image_count: 1,
       input_tokens:       sceneImgResult.usage.input_tokens       || undefined,
       input_image_tokens: sceneImgResult.usage.input_image_tokens || undefined,
       output_tokens:      sceneImgResult.usage.output_tokens      || undefined,
@@ -276,7 +277,8 @@ serve(withCors(async (req: Request) => {
   }
   if (mapImgResult) {
     await recordGeneration(admin, user.id, "entity_image", imageIsByok, perImageCost, {
-      model: img!.model, provider: mapImgResult.usage.provider, image_count: 1,
+      model: img!.model, quality: img!.imageQuality, size: "1024x1024",
+      provider: mapImgResult.usage.provider, image_count: 1,
       input_tokens:       mapImgResult.usage.input_tokens       || undefined,
       input_image_tokens: mapImgResult.usage.input_image_tokens || undefined,
       output_tokens:      mapImgResult.usage.output_tokens      || undefined,

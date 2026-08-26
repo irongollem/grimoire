@@ -48,6 +48,9 @@ export interface TilePackGenerationJob {
   /** Provider calls charged or covered for this slot. First is billed, next
    *  three are free retries; see MAX_GENERATION_ATTEMPTS. */
   generation_attempts: number;
+  /** 256px reduction of an accepted proof tile, sent as a style reference for
+   *  pack-phase generations. Proof slots only. */
+  style_ref_path: string | null;
   raw_path: string | null;
   normalized_path: string | null;
   error: string | null;

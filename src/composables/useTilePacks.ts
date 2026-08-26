@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import { normalizeGeneratedTile } from "@/cartographer/normalizeGeneratedTile";
+import { styleReferenceFrom } from "@/cartographer/styleReference";
 import { preparePackUpload } from "@/cartographer/packUpload";
 import type { TilePackGenerationJob, TilePackGenerationRun, UserTilePack } from "@/cartographer/userPack.types";
 import type { TilePackManifest } from "@/cartographer/packSchema";
@@ -141,6 +142,13 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
     ]),
   });
 
+  async function toBase64(blob: Blob): Promise<string> {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+  }
+
   async function runJob(run: TilePackGenerationRun, job: TilePackGenerationJob): Promise<void> {
     const generated = await invoke<{ image_b64: string; content_type: string }>({ action: "generate", run_id: run.id, job_id: job.id });
     const normalized = await normalizeGeneratedTile({
@@ -149,10 +157,20 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
       mechanics: job.job.mechanics,
       slot: job.job.slot,
     });
-    const bytes = new Uint8Array(await normalized.arrayBuffer());
-    let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    await invoke({ action: "complete", run_id: run.id, job_id: job.id, image_b64: btoa(binary) });
+    // Proof slots become the style references for every pack-phase call, so the
+    // 256px reduction is built here while the raw is already decoded — the edge
+    // runtime has no image library, and at full resolution those references cost
+    // several times the tile they help produce.
+    const styleRef = job.phase === "proof"
+      ? await styleReferenceFrom(generated.image_b64, generated.content_type)
+      : null;
+    await invoke({
+      action: "complete",
+      run_id: run.id,
+      job_id: job.id,
+      image_b64: await toBase64(normalized),
+      ...(styleRef ? { style_ref_b64: await toBase64(styleRef) } : {}),
+    });
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [PACKS_KEY] }),
       queryClient.invalidateQueries({ queryKey: [RUNS_KEY] }),

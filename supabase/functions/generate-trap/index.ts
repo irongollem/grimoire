@@ -256,7 +256,8 @@ serve(withCors(async (req: Request) => {
   // Charge the illustration as its own entity_image row (or delta=0 on BYOK).
   if (imgResult) {
     await recordGeneration(admin, user.id, "entity_image", imageIsByok, trapImageCost, {
-      model: img!.model, provider: imgResult.usage.provider, image_count: 1,
+      model: img!.model, quality: img!.imageQuality, size: "1024x1536",
+      provider: imgResult.usage.provider, image_count: 1,
       input_tokens:       imgResult.usage.input_tokens       || undefined,
       input_image_tokens: imgResult.usage.input_image_tokens || undefined,
       output_tokens:      imgResult.usage.output_tokens      || undefined,

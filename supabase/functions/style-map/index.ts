@@ -177,7 +177,7 @@ serve(withCors(async (req: Request) => {
 
   await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "map_style_generation", isByok, cost, {
-    model: img.model,
+    model: img.model, quality: img.imageQuality, size: "1024x1024",
     provider: imgResult.usage.provider,
     image_count: 1,
     input_tokens:       imgResult.usage.input_tokens       || undefined,

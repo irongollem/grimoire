@@ -207,7 +207,8 @@ serve(withCors(async (req: Request) => {
   // Release the hold and charge once for the image (delta = -cost, or 0 on BYOK).
   await releaseCredits(admin, reservation.ids);
   await recordGeneration(admin, user.id, "entity_image", isByok, cost, {
-    model: img.model, provider: imgResult.usage.provider, image_count: 1,
+    model: img.model, quality: img.imageQuality, size: ENTITY_IMAGE_SIZE,
+    provider: imgResult.usage.provider, image_count: 1,
     input_tokens:       imgResult.usage.input_tokens       || undefined,
     input_image_tokens: imgResult.usage.input_image_tokens || undefined,
     output_tokens:      imgResult.usage.output_tokens      || undefined,

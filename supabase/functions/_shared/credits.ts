@@ -13,6 +13,12 @@ import { sizeMultiplier as sizeMultiplierMath } from "./credit-math.ts";
 export interface CreditLogFields {
   model?: string;
   provider?: string;
+  /** Provider quality tier. One model bills an order of magnitude apart across
+   *  tiers — gpt-image-2 low is ~196 output tokens, high is thousands — so cost
+   *  reporting has to group by model AND quality or the average means nothing. */
+  quality?: string | null;
+  /** Requested render size, e.g. "1024x1536". Output tokens scale with area. */
+  size?: string | null;
   input_tokens?: number;
   input_image_tokens?: number;
   output_tokens?: number;

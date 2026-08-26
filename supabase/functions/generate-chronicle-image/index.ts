@@ -174,6 +174,8 @@ async function runGeneration(args: {
     await releaseCredits(admin, reservationIds);
     await recordGeneration(admin, userId, PURPOSE_CONFIG[purpose].creditType, isByok, cost, {
       model,
+      quality,
+      size,
       provider: usage.provider,
       image_count: 1,
       input_tokens: usage.input_tokens,

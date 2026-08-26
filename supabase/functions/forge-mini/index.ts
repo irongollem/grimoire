@@ -205,6 +205,8 @@ async function runStylize(args: {
     await releaseCredits(admin, reservationIds);
     await recordGeneration(admin, userId, "entity_image", isByok, cost, {
       model,
+      quality,
+      size: "1024x1024",
       provider: usage.provider,
       image_count: 1,
       input_tokens: usage.input_tokens,

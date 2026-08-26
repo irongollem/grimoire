@@ -7,7 +7,7 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { generateImage } from "../_shared/imageGen.ts";
-import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
+import { fetchCreditCost, recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
@@ -238,13 +238,23 @@ async function deletePack(userId: string, body: Record<string, unknown>): Promis
   return json({ deleted: true });
 }
 
+/**
+ * The approved proof tiles, as image-input style references.
+ *
+ * `style_ref_path` is a 256x256 reduction and is what should be sent: measured
+ * at ~1500 input tokens per 1024x1024 reference, three full-resolution raws cost
+ * about five times the tile they help produce, on every call and every retry.
+ * `raw_path` remains the fallback so a run started before 20260826215832 still
+ * completes — correctly, just expensively.
+ */
 async function styleReferences(runId: string): Promise<Blob[]> {
-  const { data } = await admin.from("tile_pack_generation_jobs").select("raw_path")
+  const { data } = await admin.from("tile_pack_generation_jobs").select("style_ref_path, raw_path")
     .eq("run_id", runId).eq("phase", "proof").eq("status", "normalized")
     .not("raw_path", "is", null).order("ordinal").limit(3);
   const blobs: Blob[] = [];
   for (const row of data ?? []) {
-    const { data: file } = await admin.storage.from("tile-packs").download(row.raw_path as string);
+    const path = (row.style_ref_path as string | null) ?? (row.raw_path as string);
+    const { data: file } = await admin.storage.from("tile-packs").download(path);
     if (file) blobs.push(file);
   }
   return blobs;
@@ -345,14 +355,24 @@ async function generateSlot(userId: string, body: Record<string, unknown>): Prom
     if (uploadError) throw uploadError;
 
     await releaseCredits(admin, reservation.ids);
-    await recordGeneration(admin, userId, "tile_pack_generation", isByok, cost, {
+    const usage = {
       model: MODEL,
+      quality: QUALITY,
+      size: job.execution.requested_size,
       provider: result.usage.provider,
       image_count: 1,
       input_tokens: result.usage.input_tokens,
       input_image_tokens: result.usage.input_image_tokens,
       output_tokens: result.usage.output_tokens,
-    });
+    };
+    // A free retry is still provider spend, and `recordGeneration` writes
+    // nothing at cost 0 — spendCredits short-circuits. Left that way, three of
+    // every four calls would be invisible to cost reporting AND to
+    // get_credit_calibration_hints, which averages what it can see and would
+    // therefore recommend cutting a price it had only ever seen a quarter of.
+    // recordFreeGeneration exists for exactly this: delta 0, is_byok false.
+    if (!isByok && cost === 0) await recordFreeGeneration(admin, userId, "tile_pack_generation", usage);
+    else await recordGeneration(admin, userId, "tile_pack_generation", isByok, cost, usage);
     const attempt: GenerationAttempt = {
       at: new Date().toISOString(),
       action: "generated",
@@ -387,6 +407,7 @@ async function completeSlot(userId: string, body: Record<string, unknown>): Prom
   const runId = typeof body.run_id === "string" ? body.run_id : "";
   const jobId = typeof body.job_id === "string" ? body.job_id : "";
   const imageB64 = typeof body.image_b64 === "string" ? body.image_b64 : "";
+  const styleRefB64 = typeof body.style_ref_b64 === "string" ? body.style_ref_b64 : "";
   const run = await requireOwnedRun(runId, userId);
   if (!run || !jobId) return json({ error: "run_not_found" }, 404);
   if (!imageB64 || imageB64.length > MAX_NORMALIZED_B64) return json({ error: "invalid_normalized_image" }, 400);
@@ -418,12 +439,24 @@ async function completeSlot(userId: string, body: Record<string, unknown>): Prom
     byteSize: bytes.byteLength,
   });
   manifest.assets[job.slot.category] = slots;
+  // Proof slots only: these are the three that become style references.
+  let styleRefPath: string | null = null;
+  if (styleRefB64 && styleRefB64.length <= MAX_NORMALIZED_B64 * 4 && row.phase === "proof") {
+    const candidate = `${run.user_tile_packs.user_id}/${run.user_tile_packs.pack_id}/v${run.user_tile_packs.pack_version}/style-ref/${job.id.replaceAll(":", "-")}.webp`;
+    const { error: refError } = await admin.storage.from("tile-packs")
+      .upload(candidate, decodeBase64(styleRefB64), { contentType: "image/webp", upsert: true });
+    // Non-fatal: styleReferences falls back to the raw, which costs more but
+    // works. Losing the proof over a reference upload would be worse.
+    if (!refError) styleRefPath = candidate;
+  }
+
   const normalizedAttempt: GenerationAttempt = {
     at: new Date().toISOString(), action: "normalized", source_path: normalizedPath,
   };
   await admin.from("tile_pack_generation_jobs").update({
     status: "normalized",
     normalized_path: normalizedPath,
+    ...(styleRefPath ? { style_ref_path: styleRefPath } : {}),
     attempts: [...((row.attempts as unknown[] | null) ?? []), normalizedAttempt],
   }).eq("id", jobId);
   await admin.from("user_tile_packs").update({ manifest }).eq("id", run.tile_pack_id);
