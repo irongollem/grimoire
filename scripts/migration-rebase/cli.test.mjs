@@ -162,6 +162,23 @@ describe("migration-rebase CLI", () => {
     expect(write.out).toMatch(/collide|claimed by/i);
   });
 
+  // A value-less option flag used to resolve back to the default, so this run
+  // reported "newer than origin/main" while the operator believed otherwise.
+  it("refuses an option flag with no value instead of falling back to the default", () => {
+    const root = makeRepo({ base: BASE, local: {} });
+    const { code, out } = run(root, "--check", "--base");
+    expect(code).toBe(2);
+    expect(out).toMatch(/--base needs a value/);
+  });
+
+  // A stray dotfile must not block the push hook or disable --write.
+  it("ignores a stray file in the migrations directory", () => {
+    const root = makeRepo({ base: BASE, local: { "20260825005907_stale.sql": "-- stale\n" } });
+    writeFileSync(join(root, "supabase/migrations/.DS_Store"), "\0junk");
+    expect(run(root, "--write").code).toBe(0);
+    expect(run(root, "--check").code).toBe(0);
+  });
+
   it("changes nothing on a dry run", () => {
     const root = makeRepo({ base: BASE, local: { "20260825005907_stale.sql": "-- stale\n" } });
     const { code, out } = run(root, "--write", "--dry-run");

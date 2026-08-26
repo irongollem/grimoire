@@ -166,6 +166,36 @@ describe("planRebase — the other ways a version space breaks", () => {
     expect(plan.line).toBe("1_3");
     expect(plan.offenders.map((o) => o.version)).toEqual(["1_1", "1_2"]);
   });
+
+  // Detection is scheme-agnostic; renaming is not, because a timestamp is the
+  // only version this can mint. Reporting the offenders and refusing to move
+  // them beats renaming V1_1__init.sql to V20260825193101__init.sql.
+  it("refuses to mint a timestamp into a scheme that does not use one", () => {
+    const plan = planRebase({
+      localFilenames: ["V1_1__init.sql"],
+      baseFilenames: ["V1_3__add_index.sql"],
+      pattern: /^V(?<version>[\d_]+)__.+\.sql$/,
+      now: NOW,
+    });
+    expect(plan.offenders).toHaveLength(1);
+    expect(plan.moves).toEqual([]);
+    expect(plan.renameBlocked).toMatch(/only version this tool can mint/);
+  });
+
+  // The shell script this replaced globbed *.sql and could not see a stray. This
+  // reads the directory, so an ignored stray must not become a malformed
+  // migration — that blocks the pre-push hook and disables --write entirely.
+  it("ignores strays in the migrations directory but still reports a misnamed .sql", () => {
+    const plan = planRebase({
+      localFilenames: [".DS_Store", "20260825120000_a.sql.orig", "notes.md", "add_widgets.sql", "20260826010000_ok.sql"],
+      baseFilenames: ["20260825073922_poller.sql"],
+      pattern: PATTERN,
+      now: NOW,
+    });
+    expect(plan.ignored).toEqual([".DS_Store", "20260825120000_a.sql.orig", "notes.md"]);
+    expect(plan.malformed).toEqual(["add_widgets.sql"]);
+    expect(plan.offenders).toEqual([]);
+  });
 });
 
 describe("citations", () => {

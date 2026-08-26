@@ -65,6 +65,9 @@ export function dateFromVersion(version) {
   return versionFromDate(date) === version ? date : null;
 }
 
+/** The only shape this tool can mint: a 14-digit UTC timestamp. */
+const TIMESTAMP_SHAPE = /^\d{14}$/;
+
 /**
  * The first version strictly greater than `after`, at or past `now`.
  *
@@ -72,12 +75,24 @@ export function dateFromVersion(version) {
  * something. Falls back to one second past `after` only when the clock is
  * behind it — which happens when two rebases land in the same second, and when
  * someone's machine has a skewed clock.
+ *
+ * Checking is scheme-agnostic; minting is not. The clock only produces a
+ * 14-digit timestamp, so on any other scheme `fromClock > after` compares two
+ * alphabets and answers by accident — against Flyway's `1_3`, "2…" beats "1…"
+ * and `V1_1__init.sql` becomes `V20260825193101__init.sql`.
  * @param {string} after highest version that must be beaten
  * @param {Date} now
  * @returns {string}
  */
 export function nextVersionAfter(after, now) {
   const fromClock = versionFromDate(now);
+  if (!TIMESTAMP_SHAPE.test(after)) {
+    throw new Error(
+      `Cannot compute a version after "${after}": it is not a 14-digit UTC timestamp, and a ` +
+        `timestamp is the only version this tool can mint. Renaming forward would move the ` +
+        `file into a different version scheme. Rename it by hand.`,
+    );
+  }
   if (fromClock > after) return fromClock;
 
   const date = dateFromVersion(after);
@@ -88,6 +103,36 @@ export function nextVersionAfter(after, now) {
     );
   }
   return versionFromDate(new Date(date.getTime() + 1000));
+}
+
+/**
+ * The literal file extension a pattern insists on, or null when it insists on
+ * none. Read off the pattern's own source, so no list of the host project's
+ * file types has to be maintained anywhere.
+ * @param {RegExp} pattern
+ * @returns {string | null} lowercased, with the dot
+ */
+export function patternExtension(pattern) {
+  const match = /\\\.([A-Za-z0-9]+)\$?$/.exec(pattern.source);
+  return match ? `.${match[1].toLowerCase()}` : null;
+}
+
+/**
+ * Whether a directory entry is a stray rather than a migration. The shell script
+ * this replaced globbed `*.sql` and could not see these; reading the directory
+ * sees everything, so a `.DS_Store` or a `.sql.orig` from a merge conflict would
+ * otherwise count as malformed — which blocks the pre-push hook and stops
+ * `--write` rebasing anything at all.
+ *
+ * A file carrying the migration extension that still does not match is a real
+ * misnaming and stays malformed. That distinction is the point.
+ * @param {string} filename
+ * @param {string | null} extension
+ */
+export function isStrayFile(filename, extension) {
+  if (filename.startsWith(".")) return true;
+  if (extension === null) return false;
+  return !filename.toLowerCase().endsWith(extension);
 }
 
 /**
@@ -116,18 +161,23 @@ export function parseMigrationName(filename, pattern) {
  * @returns {{
  *   line: string | null,
  *   malformed: string[],
+ *   ignored: string[],
  *   duplicates: Array<{ version: string, filenames: string[] }>,
  *   offenders: Array<{ version: string, filename: string }>,
  *   moves: Array<{ from: string, to: string, oldVersion: string, newVersion: string }>,
+ *   renameBlocked: string | null,
  * }}
  */
 export function planRebase({ localFilenames, baseFilenames, pattern, now }) {
+  const extension = patternExtension(pattern);
   const malformed = [];
+  const ignored = [];
   const local = [];
   for (const filename of localFilenames) {
     const parsed = parseMigrationName(filename, pattern);
-    if (parsed === null) malformed.push(filename);
-    else local.push(parsed);
+    if (parsed !== null) local.push(parsed);
+    else if (isStrayFile(filename, extension)) ignored.push(filename);
+    else malformed.push(filename);
   }
   local.sort((a, b) => (a.version < b.version ? -1 : a.version > b.version ? 1 : 0));
 
@@ -171,22 +221,30 @@ export function planRebase({ localFilenames, baseFilenames, pattern, now }) {
   // that actually matters. It is also what `git rebase` does with commits, and
   // in the common case — one unmerged migration — it moves exactly one file.
   const moves = [];
+  // Reported rather than thrown: `--check` must still name the offenders on a
+  // scheme this tool cannot mint into. Only `--write` has nothing to offer.
+  let renameBlocked = null;
   if (offenders.length > 0) {
     let previous = line;
     for (const version of byVersion.keys()) if (version > previous) previous = version;
-    for (const entry of localOnly) {
-      const newVersion = nextVersionAfter(previous, now);
-      moves.push({
-        from: entry.filename,
-        to: entry.filename.replace(entry.version, newVersion),
-        oldVersion: entry.version,
-        newVersion,
-      });
-      previous = newVersion;
+    try {
+      for (const entry of localOnly) {
+        const newVersion = nextVersionAfter(previous, now);
+        moves.push({
+          from: entry.filename,
+          to: entry.filename.replace(entry.version, newVersion),
+          oldVersion: entry.version,
+          newVersion,
+        });
+        previous = newVersion;
+      }
+    } catch (error) {
+      moves.length = 0;
+      renameBlocked = error instanceof Error ? error.message : String(error);
     }
   }
 
-  return { line, malformed, duplicates, offenders, moves };
+  return { line, malformed, ignored, duplicates, offenders, moves, renameBlocked };
 }
 
 /**

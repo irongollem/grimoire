@@ -43,6 +43,13 @@ Point it at another layout with `--dir` / `--pattern`, or a `migration-rebase.js
 { "dir": "db/migrate", "pattern": "^(?<version>\\d{14})_.+\\.rb$", "baseRef": "origin/main" }
 ```
 
+**`--check` is scheme-agnostic, `--write` is not.** Renaming forward means
+minting a version and the only one it can mint is a 14-digit UTC timestamp, so
+on Flyway's `V1_2__x.sql` or a plain counter `--check` still names the offenders
+while `--write` says why it will not touch them. Files in the directory that do
+not carry the pattern's extension (`.DS_Store`, a `.sql.orig`) are ignored; one
+that carries it and still does not match is a real misnaming and is reported.
+
 ## Two decisions worth knowing before you change it
 
 **When anything is stale, every local-only migration moves — not just the stale

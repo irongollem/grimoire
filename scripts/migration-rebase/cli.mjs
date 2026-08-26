@@ -33,7 +33,11 @@
  * anything but filenames and text. A "version" is whatever the configured
  * pattern captures; the base ref comes from git. Point it at Rails'
  * `db/migrate`, Flyway's `V1_2__x.sql` or Supabase's `supabase/migrations` and
- * it behaves identically.
+ * `--check` behaves identically.
+ *
+ * `--write` is the exception: renaming forward means minting a version, and the
+ * only one it can mint is a UTC timestamp. On another scheme it reports the
+ * offenders and declines to rename them.
  *
  * ── Usage ───────────────────────────────────────────────────────────────────
  *
@@ -70,14 +74,25 @@ const KNOWN_LAYOUTS = [
 
 function parseArgs(argv) {
   const args = { mode: null, base: null, dir: null, pattern: null, dryRun: false };
+  // A bare `argv[++i]` yields undefined for a value-less flag, which resolves
+  // back through `?? config ?? default` — so `--check --base` reports "newer than
+  // origin/main" while the operator believes they checked another branch.
+  const takeValue = (index, flag) => {
+    const value = argv[index];
+    if (value === undefined || value.startsWith("--")) {
+      console.error(`${flag} needs a value.`);
+      process.exit(2);
+    }
+    return value;
+  };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--check") args.mode = "check";
     else if (arg === "--write") args.mode = "write";
     else if (arg === "--dry-run") args.dryRun = true;
-    else if (arg === "--base") args.base = argv[++i];
-    else if (arg === "--dir") args.dir = argv[++i];
-    else if (arg === "--pattern") args.pattern = argv[++i];
+    else if (arg === "--base") args.base = takeValue(++i, "--base");
+    else if (arg === "--dir") args.dir = takeValue(++i, "--dir");
+    else if (arg === "--pattern") args.pattern = takeValue(++i, "--pattern");
     else if (arg === "--help" || arg === "-h") args.mode = "help";
     else {
       console.error(`Unknown argument: ${arg}`);
@@ -118,7 +133,8 @@ function resolveSettings(args, config, root) {
 }
 
 /**
- * Every file citing `version` as a standalone token, with its occurrence count.
+ * Every file citing any of `versions` as a standalone token, with its occurrence
+ * count, keyed by version.
  *
  * Nothing is excluded, deliberately. An earlier revision skipped the migrations
  * being renamed, on the theory that a file's own header should not be rewritten
@@ -127,14 +143,23 @@ function resolveSettings(args, config, root) {
  * single most likely place for that string to appear, and leaving it stale
  * points a reader at a file that no longer exists. A file's own self-reference
  * should be updated too, for exactly the same reason.
+ *
+ * All versions in one sweep: `planRebase` moves *every* local-only migration
+ * when any one is stale, so a per-version sweep cost N full passes over the repo
+ * for what is advertised as an instant pre-push check.
+ * @param {string[]} versions
+ * @param {string} root
+ * @returns {Map<string, Array<{ path: string, count: number }>>}
  */
-function findCitations(version, root) {
-  const hits = [];
+function findCitations(versions, root) {
+  const hits = new Map(versions.map((version) => [version, []]));
   for (const path of candidateTextFiles(root)) {
     const text = readTextFile(path, root);
     if (text === null) continue;
-    const count = countVersionCitations(text, version);
-    if (count > 0) hits.push({ path, count });
+    for (const version of versions) {
+      const count = countVersionCitations(text, version);
+      if (count > 0) hits.get(version).push({ path, count });
+    }
   }
   return hits;
 }
@@ -185,10 +210,9 @@ function main() {
       failed = true;
     }
     if (failed) {
-      if (plan.moves.length > 0) {
-        console.error("");
-        console.error("Fix with: node scripts/migration-rebase/cli.mjs --write");
-      }
+      console.error("");
+      if (plan.moves.length > 0) console.error("Fix with: node scripts/migration-rebase/cli.mjs --write");
+      else if (plan.renameBlocked) console.error(`Cannot fix this automatically: ${plan.renameBlocked}`);
       process.exit(1);
     }
     console.log(`Migration versions OK: unique, well-formed, and newer than ${base}.`);
@@ -206,6 +230,12 @@ function main() {
     console.error("both need a human decision about which file keeps which version.");
     process.exit(1);
   }
+  if (plan.renameBlocked) {
+    console.error(`ERROR: ${plan.renameBlocked}`);
+    console.error("");
+    console.error(`${plan.offenders.length} migration(s) do sort at or before ${plan.line} and still need moving.`);
+    process.exit(1);
+  }
   if (plan.moves.length === 0) {
     console.log(`Nothing to rebase: every local migration already lands after ${base}.`);
     return;
@@ -218,7 +248,8 @@ function main() {
   // collected, so a migration's own body would silently miss its rewrite —
   // `readTextFile` returns null for a path that no longer exists, and a skipped
   // rewrite looks identical to a file with nothing to rewrite.
-  const planned = plan.moves.map((move) => ({ move, citations: findCitations(move.oldVersion, root) }));
+  const citations = findCitations(plan.moves.map((move) => move.oldVersion), root);
+  const planned = plan.moves.map((move) => ({ move, citations: citations.get(move.oldVersion) ?? [] }));
 
   for (const { move, citations } of planned) {
     console.log(`${move.from}\n  -> ${move.to}`);
