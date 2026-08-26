@@ -45,6 +45,9 @@ export interface TilePackGenerationJob {
   job: GenerationJob;
   status: "pending" | "generating" | "generated" | "normalized" | "rejected" | "failed" | "cancelled";
   attempts: unknown[];
+  /** Provider calls charged or covered for this slot. First is billed, next
+   *  three are free retries; see MAX_GENERATION_ATTEMPTS. */
+  generation_attempts: number;
   raw_path: string | null;
   normalized_path: string | null;
   error: string | null;

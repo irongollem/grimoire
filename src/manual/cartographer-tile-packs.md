@@ -12,10 +12,12 @@ Deleting an owned pack removes its manifest, generated candidates, and normalize
 
 ## Generate a pack
 
-Enter a concept name and a concise description of materials, motifs, palette, and mood. Generation uses GPT Image 2 at low quality and spends credits one retained tile at a time.
+Enter a concept name and a concise description of materials, motifs, palette, and mood. Generation uses GPT Image 2 at low quality and spends credits one tile at a time.
+
+**Each tile costs 12 credits, and that includes up to three retries.** You are charged once when a tile first generates; regenerating it costs nothing until the four attempts are used up, after which the button reads *No retries left* and you either keep the tile or start a new pack. A complete required set is 20 tiles, so a pack is 240 credits whether you accept every tile first time or retry your way through all of them.
 
 The first run creates three style proofs: a floor, wall, and solid block. Inspect them at their actual tile scale. Regenerate an outlier, or approve the visual family to continue the complete required set. Failed slots can be retried independently, and reloading the page does not lose progress.
 
-Cancelling prevents new tile calls. A provider failure or result that cannot be retained releases its credit reservation. If a call finishes and its candidate is safely retained before cancellation arrives, that completed asset remains charged and reusable.
+Cancelling prevents new tile calls. A provider failure or result that cannot be retained releases its credit reservation and does not consume one of your retries. If a call finishes and its candidate is safely retained before cancellation arrives, that completed asset remains charged and reusable.
 
 Generated packs appear in the normal Cartographer tile-pack picker once every required slot passes normalization and schema validation.

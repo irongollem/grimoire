@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(17);
 
 select has_table('public', 'user_tile_packs', 'custom pack registry exists');
 select has_table('public', 'campaign_tile_packs', 'campaign sharing join exists');
@@ -63,6 +63,35 @@ select is(
   false,
   'anonymous callers cannot execute the private storage predicate'
 );
+
+-- ── Price and attempt budget (20260826213049) ───────────────────────────────
+--
+-- Both halves of one decision: retries are inside the tile price, so the price
+-- is meaningless without the ceiling and the ceiling is unaffordable without
+-- the price. Asserted here because the credit cost is a data row an admin can
+-- edit, and the column it pays for is a schema object — neither shows up in the
+-- edge function's own tests.
+
+select is(
+  (select credit_cost from public.ai_generation_credit_costs where generation_type = 'tile_pack_generation'),
+  12::numeric,
+  'a generated tile is priced at 12 credits — see 20260826213049 before moving it');
+
+select has_column('public', 'tile_pack_generation_jobs', 'generation_attempts',
+  'a slot records how much of its attempt budget it has spent');
+
+select col_default_is('public', 'tile_pack_generation_jobs', 'generation_attempts', '0',
+  'a fresh slot starts with its whole budget');
+
+-- The price is set so four attempts still clear cost on the thinnest credit
+-- pack. A slot that could exceed four would break that arithmetic silently.
+select is(
+  (select count(*)::int from pg_constraint
+    where conrelid = 'public.tile_pack_generation_jobs'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%generation_attempts%'),
+  1,
+  'the attempt counter is constrained rather than free-running');
 
 select * from finish();
 rollback;

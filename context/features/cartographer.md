@@ -848,6 +848,10 @@ The old M7 assumptions—32 hard-coded outputs, prompts that ask the model for f
 
 Runs and per-slot jobs are durable database rows. Reloading the page resumes from the next pending slot. Failed slots retry independently. Rejecting a style proof removes its normalized manifest slot and regenerates only that candidate. Cancellation marks pending work cancelled and prevents another provider call. An in-flight call is charged only if its result completed and was retained; failed or unretained calls release their credit reservation. BYOK remains Pro-only and records zero-credit provider usage.
 
+**Pricing: 12 credits per tile, covering up to four attempts** (one plus three retries) — `tile_pack_generation` in `ai_generation_credit_costs`, capped by `src/cartographer/generationBudget.ts` and enforced in `tile-pack-generator` at both `generate` and the two retry actions. A 20-slot required pack is 240 credits regardless of how many retries are used.
+
+Retries are inside the price rather than metered because a DM cannot judge a tile until they see it, and charging for that judgement makes them keep work they do not want. The cap is what makes that affordable: worst case is four calls per slot, and 12 credits still clears cost at that worst case on the thinnest credit pack we sell (+15%, the binding case). Migration `20260826213049` carries the full derivation — including the one figure it could not measure, the image-input tokens for the three 1024×1024 style references attached to every pack-phase call. `recordGeneration` stores `input_image_tokens`, so the first production run settles it; re-read that migration before moving the number.
+
 The user-facing promise remains **complete, validated, and coherently generated with bounded refinement and final review**, not mathematically perfect seams from a single pass.
 
 ### M8 — AI Map Styler ✅ shipped

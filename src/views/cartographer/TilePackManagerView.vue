@@ -127,7 +127,15 @@
                       alt="Generated tile-pack style proof"
                       class="aspect-square w-full rounded-md border border-border bg-black/20 object-contain [image-rendering:pixelated]"
                     />
-                    <AppButton variant="ghost" size="caption" block label="Regenerate" @click="regenerateProof(run.id, proof.jobId)" />
+                    <AppButton
+                      v-if="attemptsLeft(proofJob(run, proof.jobId))"
+                      variant="ghost"
+                      size="caption"
+                      block
+                      :label="`Regenerate (${attemptsLeft(proofJob(run, proof.jobId))} left)`"
+                      @click="regenerateProof(run.id, proof.jobId)"
+                    />
+                    <p v-else class="text-center text-caption text-muted-foreground">No retries left</p>
                   </div>
                 </div>
                 <p class="text-body-xs text-muted-foreground">The floor, wall, and solid-block proofs passed normalization. Approve this visual family before spending credits on the rest.</p>
@@ -145,7 +153,14 @@
               <div v-if="failedJobs(run).length" class="mt-3 space-y-1">
                 <div v-for="job in failedJobs(run)" :key="job.id" class="flex items-center justify-between gap-2 text-caption">
                   <span class="truncate text-red-500">{{ job.slot_id }}: {{ job.error }}</span>
-                  <AppButton variant="ghost" size="caption" label="Retry" @click="retryJob(run.id, job.id)" />
+                  <AppButton
+                    v-if="attemptsLeft(job)"
+                    variant="ghost"
+                    size="caption"
+                    :label="`Retry (${attemptsLeft(job)} left)`"
+                    @click="retryJob(run.id, job.id)"
+                  />
+                  <span v-else class="shrink-0 text-muted-foreground">No retries left</span>
                 </div>
               </div>
             </article>
@@ -166,6 +181,7 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import { useSubscription } from "@/composables/useSubscription";
 import { useTilePacks } from "@/composables/useTilePacks";
+import { attemptsRemaining } from "@/cartographer/generationBudget";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useConfirm } from "@/composables/useConfirm";
@@ -268,6 +284,16 @@ async function regenerateProof(runId: string, jobId: string): Promise<void> {
   proofUrls[runId] = [];
   await action(runId, "regenerate_job", jobId);
   await continueRun(runId);
+}
+
+// Retries are inside the tile's price, so what the button owes the user is the
+// budget left — not a control that queues a call the server will refuse.
+function attemptsLeft(job: TilePackGenerationJob | undefined): number {
+  return job ? attemptsRemaining(job.generation_attempts) : 0;
+}
+
+function proofJob(run: RunWithJobs, jobId: string): TilePackGenerationJob | undefined {
+  return run.tile_pack_generation_jobs.find((job) => job.id === jobId);
 }
 
 function failedJobs(run: RunWithJobs): TilePackGenerationJob[] {

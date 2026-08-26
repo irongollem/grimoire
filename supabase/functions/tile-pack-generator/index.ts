@@ -12,6 +12,7 @@ import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { tilePackSlug, webpDimensions } from "../_shared/tilePackGeneration.ts";
+import { attemptCharge, attemptsRemaining, canAttempt } from "../../../src/cartographer/generationBudget.ts";
 import { chunk, listAllFilePaths, type StorageEntry } from "../_shared/storage-purge.ts";
 
 const MODEL = "gpt-image-2";
@@ -288,6 +289,15 @@ async function generateSlot(userId: string, body: Record<string, unknown>): Prom
     .select().maybeSingle();
   if (!claimed) return json({ error: "job_not_pending" }, 409);
   const job = claimed.job as GenerationJob;
+  const attemptsSoFar = (claimed.generation_attempts as number | null) ?? 0;
+  // The slot was paid for once; this is what that bought. Checked after the
+  // claim so a capped slot cannot be raced back into `generating` and left there.
+  if (!canAttempt(attemptsSoFar)) {
+    await admin.from("tile_pack_generation_jobs")
+      .update({ status: "failed", error: "No retries left for this tile — accept it, or start a new pack." })
+      .eq("id", jobId);
+    return json({ error: "attempt_limit_reached" }, 409);
+  }
 
   const [platformKeys, baseCost] = await Promise.all([
     fetchPlatformKeys(admin, ["openai"]),
@@ -303,7 +313,10 @@ async function generateSlot(userId: string, body: Record<string, unknown>): Prom
     return json({ error: "no_openai_key" }, 422);
   }
   const isByok = !!campaignKey;
-  const cost = isByok ? 0 : baseCost;
+  // Retries are inside the price: the first attempt on a slot is charged, the
+  // three after it are not. A provider error never reaches the increment below,
+  // so our own failures do not eat the budget the user paid for.
+  const cost = isByok ? 0 : attemptCharge(baseCost, attemptsSoFar);
   const reservation = await reserveCredits(admin, userId, cost, "tile_pack_generation");
   if (!reservation.ok) {
     await admin.from("tile_pack_generation_jobs").update({ status: "pending" }).eq("id", jobId);
@@ -354,6 +367,7 @@ async function generateSlot(userId: string, body: Record<string, unknown>): Prom
       },
     };
     await admin.from("tile_pack_generation_jobs").update({
+      generation_attempts: attemptsSoFar + 1,
       status: "generated",
       raw_path: rawPath,
       attempts: [...((claimed.attempts as unknown[] | null) ?? []), attempt],
@@ -457,15 +471,27 @@ async function updateRun(userId: string, body: Record<string, unknown>): Promise
   }
   if (action === "retry_job") {
     const jobId = typeof body.job_id === "string" ? body.job_id : "";
+    const { data: row } = await admin.from("tile_pack_generation_jobs")
+      .select("generation_attempts").eq("id", jobId).eq("run_id", runId)
+      .in("status", ["failed", "rejected"]).maybeSingle();
+    if (!row) return json({ error: "job_not_retryable" }, 409);
+    // Told here as well as in `generate`, so the button reports the budget
+    // rather than queueing a call that will be refused a moment later.
+    if (!canAttempt(row.generation_attempts as number)) {
+      return json({ error: "attempt_limit_reached", attempts_remaining: 0 }, 409);
+    }
     await admin.from("tile_pack_generation_jobs").update({ status: "pending", error: null })
       .eq("id", jobId).eq("run_id", runId).in("status", ["failed", "rejected"]);
-    return json({ status: run.status });
+    return json({ status: run.status, attempts_remaining: attemptsRemaining(row.generation_attempts as number) });
   }
   if (action === "regenerate_job" && run.status === "awaiting_approval") {
     const jobId = typeof body.job_id === "string" ? body.job_id : "";
     const { data: row } = await admin.from("tile_pack_generation_jobs").select("*")
       .eq("id", jobId).eq("run_id", runId).eq("phase", "proof").eq("status", "normalized").maybeSingle();
     if (!row) return json({ error: "proof_job_not_found" }, 404);
+    if (!canAttempt(row.generation_attempts as number)) {
+      return json({ error: "attempt_limit_reached", attempts_remaining: 0 }, 409);
+    }
     const job = row.job as GenerationJob;
     if (row.normalized_path) await admin.storage.from("tile-packs").remove([row.normalized_path as string]);
     const manifest = structuredClone(run.user_tile_packs.manifest);
