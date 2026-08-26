@@ -163,24 +163,24 @@
                 v-else-if="calibrationHints[gen.generation_type].suggested_cost === null"
                 class="font-cinzel text-2xs text-muted-foreground/50 tracking-wide whitespace-nowrap"
                 :title="`${calibrationHints[gen.generation_type].sample_size} samples (need 20 for suggestion)`"
-              >~${{ (calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4) }}</span>
+              >~${{ (calibrationHints[gen.generation_type].avg_baseline_usd_cents / 100).toFixed(4) }}</span>
               <!-- Well calibrated — green -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'ok'"
                 class="font-cinzel text-2xs text-green-500 tracking-wide"
-                :title="`avg actual: $${(calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
+                :title="`cost per 1024² render: $${(calibrationHints[gen.generation_type].avg_baseline_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
               >✓</span>
               <!-- Under-charging: current cost < API cost — red, raise price -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'under'"
                 class="font-cinzel text-2xs text-red-500 tracking-wide whitespace-nowrap font-semibold"
-                :title="`Under-charging — avg actual: $${(calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
+                :title="`Under-charging — cost per 1024² render: $${(calibrationHints[gen.generation_type].avg_baseline_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
               >↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
               <!-- Over-charging: steep margin — blue -->
               <span
                 v-else
                 class="font-cinzel text-2xs text-sky-400 tracking-wide whitespace-nowrap"
-                :title="`Steep margin — avg actual: $${(calibrationHints[gen.generation_type].avg_actual_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
+                :title="`Steep margin — cost per 1024² render: $${(calibrationHints[gen.generation_type].avg_baseline_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
               >↓ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
             </td>
             <td class="py-2 pl-2 text-right">
