@@ -35,11 +35,11 @@
         </div>
         <div
           v-for="stat in displayStats"
-          :key="stat.model"
+          :key="stat.label"
           class="flex items-center gap-2 rounded-md bg-muted/20 px-2.5 py-1.5"
         >
           <div class="flex-1 min-w-0">
-            <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.model }}</span>
+            <span class="font-cinzel text-xs font-semibold text-foreground">{{ stat.label }}</span>
             <span class="text-caption text-muted-foreground italic ml-1">· {{ stat.provider }}</span>
           </div>
           <span class="text-caption text-muted-foreground shrink-0 w-10 text-right">{{ currency === 'credits' ? stat.charged_count : stat.count }}×</span>

@@ -298,7 +298,6 @@ import type { ProviderConfig } from "@/composables/useAdminProviders";
 import { useAdminModelPricing } from "@/composables/useAdminModelPricing";
 import { useProviderModels } from "@/composables/useProviderModels";
 import { useAiUsageStats } from "@/composables/useAiUsageStats";
-import type { ModelStat } from "@/composables/useAiUsageStats";
 import SimulacrumConfig from "@/components/admin/SimulacrumConfig.vue";
 import GithubIntegrationConfig from "@/components/admin/GithubIntegrationConfig.vue";
 import EmbeddingVendorControl from "@/components/admin/EmbeddingVendorControl.vue";
@@ -551,11 +550,8 @@ async function saveModelPricing(model: string, provider: string, model_type: "te
 // ── Usage stats (for model cost rows) ─────────────────────────────────────
 const usageStats = useAiUsageStats();
 
-const modelStatsByModel = computed(() => {
-  const map: Record<string, ModelStat> = {};
-  for (const s of usageStats.modelStats.value) {
-    map[s.model] = s;
-  }
-  return map;
-});
+// Totals, not the per-variant rows: this panel answers "what has this
+// configured model cost us", and a sum stays meaningful across quality tiers
+// where a mean does not.
+const modelStatsByModel = computed(() => Object.fromEntries(usageStats.modelTotals.value));
 </script>
