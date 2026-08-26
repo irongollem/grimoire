@@ -253,7 +253,7 @@ An import may record provider, model, quality, provider request id, duration, to
 
 `import` rejects undecodable, undersized, or extreme-aspect-ratio sources, retains the accepted high-resolution file, then deterministically crops/fits, reconstructs required alpha, resizes, converts, writes the canonical WebP, and updates the draft/runtime manifests. `reject` records a reason without disturbing other slots; `plan --slot <category:side?:variant>` adds or refreshes an individual schema slot.
 
-`validate` checks schema completeness plus deployed file existence, format, exact dimensions, alpha, and open-door clearance. `qa` additionally produces:
+`validate` checks schema completeness plus deployed file existence, format, exact dimensions, alpha, and open-door clearance. It also fails on any `validatePack` warning (duplicate slot claim, non-WebP asset, a category over its schema max) and on a floor or solidBlock whose opposite edges differ by more than `MAX_EDGE_DELTA` — 40, set at roughly twice the worst of the twelve accepted `celestial-observatory/v1` tiles. `qa` additionally produces:
 
 - a labelled contact sheet;
 - repeated floor seam strips;

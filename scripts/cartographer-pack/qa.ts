@@ -15,9 +15,18 @@ export interface AssetCheck {
   height?: number;
   has_alpha?: boolean;
   alpha_min?: number;
+  /** Mean absolute difference between opposite edges, 0-255. See MAX_EDGE_DELTA. */
   edge_delta?: number;
   issues: string[];
 }
+
+/**
+ * Seam budget for a tiling category, in mean absolute 8-bit edge difference.
+ * Measured, not chosen: celestial-observatory/v1's twelve accepted tiles span
+ * 6.67–20.88, so 40 is ~2x the worst approved tile. Generated art is never
+ * perfectly seamless; a non-tiling generation lands far above.
+ */
+const MAX_EDGE_DELTA = 40;
 
 export interface AuthoringValidationReport {
   generated_at: string;
@@ -58,7 +67,9 @@ async function edgeDelta(file: string): Promise<number> {
 }
 
 async function lightBoundaryRatio(file: string): Promise<number> {
-  const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  // srgb first: on greyscale, ensureAlpha alone yields 2 channels, so the g/b
+  // reads below would land in the next pixel and the tests evaluate garbage.
+  const { data, info } = await sharp(file).toColourspace("srgb").ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const pixels = new Set<number>();
   for (let x = 0; x < info.width; x++) {
     pixels.add(x);
@@ -132,7 +143,12 @@ async function checkAsset(packRoot: string, category: PackCategory, slot: AssetS
       const gapAlpha = gapStats.channels.at(-1);
       if ((gapAlpha?.mean ?? 255) > 32) check.issues.push(`open-door crossing is not transparently clear (mean alpha ${gapAlpha?.mean ?? 255})`);
     }
-    if (category === "floor" || category === "solidBlock") check.edge_delta = await edgeDelta(file);
+    if (category === "floor" || category === "solidBlock") {
+      check.edge_delta = await edgeDelta(file);
+      if (check.edge_delta > MAX_EDGE_DELTA) {
+        check.issues.push(`opposite edges differ by ${check.edge_delta} (max ${MAX_EDGE_DELTA}) — this tile will show a seam when repeated`);
+      }
+    }
   } catch (error) {
     check.issues.push(`decode failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -158,7 +174,15 @@ export async function validateAuthoredPack(input: {
     schema,
     assets,
     failed_jobs: failedJobs,
-    valid: schema.valid && schema.extras.length === 0 && assets.every((asset) => asset.issues.length === 0) && failedJobs.length === 0,
+    // `schema.warnings` counts: `schema.valid` covers only missing *required*
+    // slots, so without this the duplicate-slot and WebP-only checks are
+    // unreachable for every optional category.
+    valid:
+      schema.valid &&
+      schema.extras.length === 0 &&
+      schema.warnings.length === 0 &&
+      assets.every((asset) => asset.issues.length === 0) &&
+      failedJobs.length === 0,
   };
 }
 
@@ -254,12 +278,14 @@ async function seamPreview(output: string, floorFiles: string[]): Promise<void> 
   await sharp({ create: { width, height: tile * 2, channels: 3, background: "#000000" } }).composite(composites).png().toFile(output);
 }
 
-async function alignmentPreview(output: string, manifest: TilePackManifest, repoRoot: string): Promise<void> {
-  const root = path.join(repoRoot, "public", "cartographer", manifest.pack_id, `v${manifest.pack_version}`);
-  const first = (category: PackCategory): string | undefined => {
-    const slot = manifest.assets[category]?.[0];
-    return slot ? path.join(root, slot.url) : undefined;
-  };
+/**
+ * Both previews below take the existence-checked `slots`, never the manifest: a
+ * slot the manifest names but the disk lacks would otherwise reach sharp and
+ * kill `qa` with `Input file is missing` instead of producing its exit-1 report.
+ */
+async function alignmentPreview(output: string, slots: LocatedSlot[]): Promise<void> {
+  const first = (category: PackCategory): string | undefined =>
+    slots.find((located) => located.category === category)?.file;
   const floor = first("floor");
   if (!floor) throw new Error("Cannot make alignment QA without a floor tile");
   const size = 5 * BASE_TILE_SIZE;
@@ -282,15 +308,15 @@ async function alignmentPreview(output: string, manifest: TilePackManifest, repo
   await sharp({ create: { width: size, height: size, channels: 3, background: "#000000" } }).composite(composites).png().toFile(output);
 }
 
-async function sampleMap(output: string, manifest: TilePackManifest, repoRoot: string): Promise<void> {
-  const root = path.join(repoRoot, "public", "cartographer", manifest.pack_id, `v${manifest.pack_version}`);
-  const files = (category: PackCategory) => (manifest.assets[category] ?? []).map((slot) => path.join(root, slot.url));
+async function sampleMap(output: string, slots: LocatedSlot[], seed: string): Promise<void> {
+  const files = (category: PackCategory): string[] =>
+    slots.filter((located) => located.category === category).map((located) => located.file);
   const floors = files("floor");
   const solids = files("solidBlock");
   if (!floors.length || !solids.length) throw new Error("Cannot make sample map without floor and solidBlock assets");
   const width = 10;
   const height = 8;
-  const grid = seededVariantGrid(width, height, floors.length, `${manifest.pack_id}:sample`);
+  const grid = seededVariantGrid(width, height, floors.length, `${seed}:sample`);
   const composites: OverlayOptions[] = [];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -299,8 +325,8 @@ async function sampleMap(output: string, manifest: TilePackManifest, repoRoot: s
       composites.push({ input: file, left: x * BASE_TILE_SIZE, top: y * BASE_TILE_SIZE });
     }
   }
-  const door = manifest.assets.doorClosedH?.[0];
-  if (door) composites.push({ input: path.join(root, door.url), left: 4 * BASE_TILE_SIZE, top: BASE_TILE_SIZE / 2 });
+  const door = files("doorClosedH")[0];
+  if (door) composites.push({ input: door, left: 4 * BASE_TILE_SIZE, top: BASE_TILE_SIZE / 2 });
   await sharp({ create: { width: width * BASE_TILE_SIZE, height: height * BASE_TILE_SIZE, channels: 3, background: "#020617" } })
     .composite(composites)
     .png()
@@ -317,16 +343,16 @@ export async function generateQa(input: {
   await mkdir(qaRoot, { recursive: true });
   const report = await validateAuthoredPack(input);
   await writeFile(path.join(qaRoot, "validation-report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  // One existence-checked list, used by every artifact below.
   const slots = locatedSlots(input.repoRoot, input.manifest).filter((slot) => report.assets.some((asset) => asset.path === slot.file && asset.exists));
   const floors = slots.filter((slot) => slot.category === "floor").map((slot) => slot.file);
+  const solids = slots.filter((slot) => slot.category === "solidBlock");
   if (slots.length) await contactSheet(path.join(qaRoot, "contact-sheet.png"), slots);
   if (floors.length) {
     await seamPreview(path.join(qaRoot, "floor-seams.png"), floors);
     await tiledFloorPreview(path.join(qaRoot, "floor-variation-20x20.png"), floors, `${input.manifest.pack_id}:variation`);
-  }
-  if (floors.length) await alignmentPreview(path.join(qaRoot, "wall-door-alignment.png"), input.manifest, input.repoRoot);
-  if (floors.length && input.manifest.assets.solidBlock?.length) {
-    await sampleMap(path.join(qaRoot, "sample-map.png"), input.manifest, input.repoRoot);
+    await alignmentPreview(path.join(qaRoot, "wall-door-alignment.png"), slots);
+    if (solids.length) await sampleMap(path.join(qaRoot, "sample-map.png"), slots, input.manifest.pack_id);
   }
   return report;
 }

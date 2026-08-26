@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDraftManifest, createGenerationPlan, slotMechanics, upsertManifestSlot, type PackArtBible } from "./authoringPlan";
+import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, slotMechanics, upsertManifestSlot, type PackArtBible } from "./authoringPlan";
 
 const bible: PackArtBible = {
   visual_medium: "painterly fantasy game art",
@@ -97,6 +97,20 @@ describe("createGenerationPlan", () => {
     expect(rebuilt.jobs[0]!.attempts).toEqual(first.jobs[0]!.attempts);
   });
 
+  // The schema allows 8-16 floors and 1-3 doors; bounding the addressable set by
+  // `min` made every variant above the minimum impossible to author.
+  it("can target any variant the schema allows, not only the required minimum", () => {
+    const plan = createGenerationPlan({
+      manifest: manifest(),
+      artBible: bible,
+      selectedSlotIds: ["floor:15", "doorClosedH:2"],
+    });
+
+    expect(plan.jobs.map((job) => job.id)).toEqual(["floor:15", "doorClosedH:2"]);
+    expect(enumerateSchemaSlots(false).filter((slot) => slot.category === "floor")).toHaveLength(8);
+    expect(enumerateSchemaSlots(true).filter((slot) => slot.category === "floor")).toHaveLength(16);
+  });
+
   it("can target one optional or existing schema slot explicitly", () => {
     const plan = createGenerationPlan({
       manifest: manifest(),
@@ -130,6 +144,23 @@ it("encodes rounded joint orientation in mechanics and prompt", () => {
   });
   expect(plan.jobs[0]!.prompt.category_request).toContain("L_NE");
   expect(plan.jobs[0]!.prompt.category_request).toContain("N and E");
+});
+
+// wallJoint is full-cell and opaque, and the renderer draws it as a small square
+// on the grid intersection. Asking for arms reaching the declared edges put that
+// request in the same prompt as "fill the complete square canvas".
+it("asks for a filled canvas on wallJoint, matching its own mechanics", () => {
+  const plan = createGenerationPlan({
+    manifest: manifest(),
+    artBible: bible,
+    selectedSlotIds: ["wallJoint:CROSS:0"],
+  });
+  const job = plan.jobs[0]!;
+
+  expect(job.mechanics).toMatchObject({ footprint: "full-cell", alpha: "opaque" });
+  expect(job.prompt.category_request).toContain("fills the entire canvas");
+  expect(job.prompt.category_request).not.toContain("only the declared");
+  expect(job.prompt.constraints).toContain("fill the complete square canvas and tile continuously on every declared tileable edge");
 });
 
 it("adds a normalized slot at its canonical manifest URL", () => {

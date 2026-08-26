@@ -208,25 +208,33 @@ export function slotMechanics(slot: SlotIdentity): SlotMechanics {
   };
 }
 
-export function enumerateSchemaSlots(includeOptional = false): SlotIdentity[] {
+/**
+ * @param everyAllowedSlot false — the minimum complete pack (`min` variants, no
+ *   optional categories). true — every slot the schema permits (`max` variants,
+ *   optional included). `createGenerationPlan` resolves `--slot` against the
+ *   latter, so bounding random categories by `min` there made every legal
+ *   variant above the minimum unauthorable.
+ */
+export function enumerateSchemaSlots(everyAllowedSlot = false): SlotIdentity[] {
   const slots: SlotIdentity[] = [];
   for (const category of Object.keys(TILE_PACK_SCHEMA.categories) as PackCategory[]) {
     const def = categoryDef(category);
     if (def.kind === "optional") {
-      if (includeOptional) {
+      if (everyAllowedSlot) {
         for (let variant = 0; variant < def.max; variant++) slots.push({ category, variant });
       }
       continue;
     }
     if (def.kind === "directional") {
-      if (def.optional && !includeOptional) continue;
+      if (def.optional && !everyAllowedSlot) continue;
       const variants = def.variantsPerSide ?? 1;
       for (const side of def.sides) {
         for (let variant = 0; variant < variants; variant++) slots.push({ category, side, variant });
       }
       continue;
     }
-    for (let variant = 0; variant < def.min; variant++) slots.push({ category, variant });
+    const count = everyAllowedSlot ? def.max : def.min;
+    for (let variant = 0; variant < count; variant++) slots.push({ category, variant });
   }
   return slots;
 }
@@ -261,7 +269,11 @@ function categoryRequest(slot: SlotIdentity, mechanics: SlotMechanics): string {
     case "wallRoundJoint":
       return `A broad, smooth 90-degree wall corner for the exact ${slot.side} connection: wall mass reaches the ${jointEdges(slot.side).join(" and ")} canvas edges, with the opposite interior quadrant carved into one clean quarter-circle.`;
     case "wallJoint":
-      return `A wall junction for the exact ${slot.side} connection, with wall mass reaching only the declared ${jointEdges(slot.side).join(", ")} canvas edges from the centre.`;
+      // Full-cell and opaque per slotMechanics, and the renderer draws a joint as
+      // one small square on the intersection — so the request must ask for a
+      // filled canvas. Asking for arms reaching declared edges contradicted the
+      // "fill the complete square canvas" constraint in the same prompt.
+      return `A solid wall junction block for the exact ${slot.side} connection: wall mass fills the entire canvas edge to edge, reading as the same material as the ${jointEdges(slot.side).join(", ")} walls that meet here, with no floor, gap or background anywhere in frame.`;
     default:
       return `A top-down ${slot.category} overlay centred in one tile. ${variation}`;
   }

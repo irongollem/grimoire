@@ -3,7 +3,7 @@
 import { parseArgs } from "node:util";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { PackCategory, TilePackManifest } from "../src/cartographer/packSchema.ts";
+import { TILE_PACK_SCHEMA, type PackCategory, type TilePackManifest } from "../src/cartographer/packSchema.ts";
 import type { GenerationAttempt, ImageGenerationQuality } from "../src/cartographer/authoringPlan.ts";
 import {
   defaultArtBible,
@@ -106,7 +106,14 @@ function parsePalette(entries: string[]): TilePackManifest["palette"] | undefine
   for (const entry of entries) {
     const match = /^([^=]+)=#?([0-9a-f]{6})$/i.exec(entry);
     if (!match) throw new Error(`Invalid --palette ${entry}; expected category=#rrggbb`);
-    const category = match[1] as PackCategory;
+    const name = match[1]!;
+    // `as PackCategory` launders a typo past the type system, and validatePack's
+    // `extras` scan reads `manifest.assets`, never `palette` — so a misspelt key
+    // shipped dead in the manifest with the intended entry silently absent.
+    if (!(name in TILE_PACK_SCHEMA.categories)) {
+      throw new Error(`Invalid --palette ${entry}; "${name}" is not a pack category. Known: ${Object.keys(TILE_PACK_SCHEMA.categories).join(", ")}`);
+    }
+    const category = name as PackCategory;
     const hex = match[2]!;
     palette[category] = [Number.parseInt(hex.slice(0, 2), 16), Number.parseInt(hex.slice(2, 4), 16), Number.parseInt(hex.slice(4, 6), 16)];
   }

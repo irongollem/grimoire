@@ -183,25 +183,30 @@ function findJob(plan: GenerationPlan, id: string): GenerationJob {
   return job;
 }
 
+/** sharp pads a `contain` resize with opaque BLACK by default, which letterboxes
+ *  these tiles with plugs that nothing downstream detects. */
+const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 } as const;
+
 function paletteBackground(manifest: TilePackManifest, category: PackCategory): { r: number; g: number; b: number; alpha: number } {
   const [r, g, b] = manifest.palette?.[category] ?? [24, 31, 46];
   return { r, g, b, alpha: 1 };
 }
 
 async function normalizeFullCell(source: string, destination: string, job: GenerationJob, manifest: TilePackManifest): Promise<void> {
-  const image = job.slot.category === "wallJoint"
-    ? sharp(source)
-        .resize(BASE_TILE_SIZE * 3, BASE_TILE_SIZE * 3, { fit: "cover", position: "centre" })
-        .extract({ left: BASE_TILE_SIZE, top: BASE_TILE_SIZE, width: BASE_TILE_SIZE, height: BASE_TILE_SIZE })
-    : sharp(source).resize(BASE_TILE_SIZE, BASE_TILE_SIZE, { fit: "cover", position: "centre" });
-  await image
+  // wallJoint included: the renderer draws a joint as one small square (35/128 of
+  // a tile) on the intersection, so its whole canvas must be wall mass. Cropping
+  // to the centre ninth here discarded most of an approved image.
+  await sharp(source)
+    .resize(BASE_TILE_SIZE, BASE_TILE_SIZE, { fit: "cover", position: "centre" })
     .flatten({ background: paletteBackground(manifest, job.slot.category) })
     .webp({ quality: 90, effort: 6 })
     .toFile(destination);
 }
 
 async function stripBoundaryLightBackground(input: Buffer): Promise<Buffer> {
-  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  // srgb first: on greyscale, ensureAlpha alone yields 2 channels and every offset
+  // below assumes 4. The guard underneath is a backstop, not the handling.
+  const { data, info } = await sharp(input).toColourspace("srgb").ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const { width, height, channels } = info;
   if (channels !== 4) return input;
   const visited = new Uint8Array(width * height);
@@ -255,7 +260,7 @@ async function normalizeTransparent(source: string, destination: string, job: Ge
   if (metadata.hasAlpha && (horizontal || vertical)) {
     const trimmed = sharp(source).trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } });
     artwork = await trimmed
-      .resize(horizontal ? BASE_TILE_SIZE : band, horizontal ? band : BASE_TILE_SIZE, { fit: "contain" })
+      .resize(horizontal ? BASE_TILE_SIZE : band, horizontal ? band : BASE_TILE_SIZE, { fit: "contain", background: TRANSPARENT })
       .png()
       .toBuffer();
   } else if (horizontal || vertical) {
@@ -273,7 +278,7 @@ async function normalizeTransparent(source: string, destination: string, job: Ge
       .toBuffer();
   } else {
     artwork = await sharp(source)
-      .resize(Math.round(BASE_TILE_SIZE * 0.8), Math.round(BASE_TILE_SIZE * 0.8), { fit: "contain" })
+      .resize(Math.round(BASE_TILE_SIZE * 0.8), Math.round(BASE_TILE_SIZE * 0.8), { fit: "contain", background: TRANSPARENT })
       .png()
       .toBuffer();
   }
