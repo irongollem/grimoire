@@ -14,6 +14,10 @@
         @click="ui.resetCartographerFilters"
       />
       <ListActionButton
+        label="Tile Packs"
+        @click="router.push('/cartographer/packs')"
+      />
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Map"

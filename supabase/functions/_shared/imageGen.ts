@@ -91,7 +91,15 @@ function openaiUsage(data: {
   };
 }
 
-async function openaiGenerate(apiKey: string, model: string, prompt: string, size: string, quality?: string | null, sources?: Blob[]): Promise<ImageGenResult> {
+async function openaiGenerate(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  size: string,
+  quality?: string | null,
+  sources?: Blob[],
+  background?: "transparent" | "opaque" | "auto",
+): Promise<ImageGenResult> {
   const q = quality && OPENAI_QUALITIES.has(quality) ? quality : null;
   if (sources && sources.length > 0) {
     const form = new FormData();
@@ -99,6 +107,7 @@ async function openaiGenerate(apiKey: string, model: string, prompt: string, siz
     form.append("prompt", prompt);
     form.append("size", size);
     if (q) form.append("quality", q);
+    if (background) form.append("background", background);
     form.append("output_format", "webp");
     form.append("n", "1");
     sources.forEach((b, i) => form.append("image[]", new File([b], `ref_${i}.webp`, { type: "image/webp" })));
@@ -114,7 +123,14 @@ async function openaiGenerate(apiKey: string, model: string, prompt: string, siz
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, prompt, size, output_format: "webp", ...(q ? { quality: q } : {}) }),
+    body: JSON.stringify({
+      model,
+      prompt,
+      size,
+      output_format: "webp",
+      ...(q ? { quality: q } : {}),
+      ...(background ? { background } : {}),
+    }),
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `OpenAI image error ${res.status}`);
   const data = await res.json();
@@ -189,14 +205,16 @@ export async function generateImage(opts: {
    */
   boostStyle?: boolean;
   sourceImages?: Blob[];
+  /** OpenAI output background. Ignored by providers that do not expose it. */
+  background?: "transparent" | "opaque" | "auto";
 }): Promise<ImageGenResult> {
-  const { provider, model, apiKey, prompt, size, quality, boostStyle, sourceImages } = opts;
+  const { provider, model, apiKey, prompt, size, quality, boostStyle, sourceImages, background } = opts;
   switch (provider) {
     case "gemini": {
       const geminiPrompt = boostStyle ? `${prompt} — ${GEMINI_STYLE_BOOSTER}` : prompt;
       return geminiGenerate(apiKey, model, geminiPrompt, size, quality, sourceImages);
     }
-    default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages); // openai + openai-mini
+    default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages, background); // openai + openai-mini
   }
 }
 

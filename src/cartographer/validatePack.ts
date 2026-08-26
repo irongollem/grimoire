@@ -7,7 +7,7 @@ import {
   type PackCategory,
   type TilePackManifest,
   type AssetSlot,
-} from "./packSchema";
+} from "./packSchema.ts";
 
 export interface MissingSlot {
   category: PackCategory;

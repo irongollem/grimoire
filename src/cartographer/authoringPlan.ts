@@ -5,8 +5,8 @@ import {
   type AssetSlot,
   type PackCategory,
   type TilePackManifest,
-} from "./packSchema";
-import { validatePack } from "./validatePack";
+} from "./packSchema.ts";
+import { validatePack } from "./validatePack.ts";
 
 export const GENERATION_PLAN_VERSION = 1;
 

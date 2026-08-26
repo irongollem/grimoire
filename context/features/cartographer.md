@@ -1,6 +1,6 @@
 # Cartographer — Tile-Based Battle Map Builder
 
-> **Status:** M1–M6 + M8 implemented; **M7 deferred** (see below). Epic #377 closed 2 Aug 2026. The spec below is the source of truth for design intent. The "As-built" appendix at the bottom records actual file paths per milestone.
+> **Status:** M1–M8 implemented. M7 was resumed after #772 established a reliable schema-derived generation and QA contract. The spec below is the source of truth for design intent. The "As-built" appendix at the bottom records actual file paths per milestone.
 
 ## Overview
 
@@ -42,18 +42,18 @@ These decisions are locked. The reasoning is preserved here so future agents und
 - **WebGL / Pixi.js** — overkill for static tile painting. Kept as a future escape hatch if perf on huge maps demands it.
 - **WebAssembly** — painting is GPU/draw-bound, not CPU-bound. WASM adds complexity with no win. Reserve for future pathfinding / fog-of-war / line-of-sight calc.
 
-### Storage: Supabase Storage bucket + small bundled starter pack
+### Storage: private Supabase Storage bucket + bundled starter packs
 
 **Chosen:**
 
-- Tile packs live in a public Supabase Storage bucket `tile-packs/` (CDN-cached).
+- User tile packs live in the private Supabase Storage bucket `tile-packs/` under `<user_id>/<pack_id>/v<version>/`. Owners and members of campaigns to which a pack is shared receive signed URLs.
 - The **Stone Dungeon** starter pack ships in `public/cartographer/stone/` so the editor never shows a "loading theme" spinner on first open.
-- All other packs are lazy-loaded from the bucket as the user picks them. Cached in memory + IndexedDB across sessions.
+- Bundled packs remain under `public/cartographer/`; custom packs are lazy-loaded from signed Storage URLs as the user picks them.
 
 **Rejected:**
 
 - Bundling everything in `public/` — bloats deploys past one starter pack.
-- Per-user uploads — deferred to a later PRO feature for custom packs.
+- Public object URLs for private packs — a guessable URL must not bypass ownership or campaign membership.
 
 The project is on **Supabase Pro tier** (250 GB egress/mo); tile-pack bandwidth is a non-issue.
 
@@ -810,12 +810,12 @@ Pure functions, fully unit-tested:
 
 #### Open items
 
-- Real WebP art for `wallRoundJoint` on Stone Dungeon and other packs — falls back to placeholder. This was to come from the M7 AI generation pipeline, which is now deferred, so the placeholder is the indefinite steady state rather than a temporary one. See "M7 — deferred" below.
+- Real bundled WebP art for `wallRoundJoint` on Stone Dungeon and other packs — existing bundled manifests still fall back to the placeholder. M7 now provides the production generation and QA loop; regenerating the fundamental bundled catalogue is a separate content-production pass after the customer workflow is proven.
 - Other bundled packs still ship `schema_version: 1` and lack `wallRoundJoint` slots; corners on those packs render as before (sharp wallJoint).
 
-### M7 — Community / custom packs (PRO) — ⏸ deferred
+### M7 — Community / custom packs (PRO) — ✅ shipped
 
-> **Source:** GitHub issue #384 — kept open, labelled `deferred`. Epic #377 was closed without it.
+> **Source:** GitHub issue #384. Implemented after #772 replaced the unreliable one-pass assumptions with a tested generation-plan, normalization, retry, and QA foundation.
 
 - User-uploaded packs (private bucket, validated against schema).
 - Pack sharing within a campaign (DM uploads → campaign members see it).
@@ -824,16 +824,31 @@ Pure functions, fully unit-tested:
 
 Done = users own their aesthetic.
 
-**Why it is deferred, and what that means for anyone reading this later:**
+#### As-built upload and sharing
 
-The milestone bundles two halves with very different cost and risk, and only one of them is actually blocked:
+- `/cartographer/packs` accepts either a zip or a selected folder.
+- The browser requires `manifest.json`, current schema v2, complete required slots, canonical WebP-only assets, and exact 128×128 decoded dimensions before any upload begins. Missing slots are displayed with `formatMissingForDisplay()`.
+- The server re-runs authoritative manifest validation and Pro enforcement before registering a pack. Storage writes remain owner-prefixed and RLS-protected.
+- `user_tile_packs` is the registry. `campaign_tile_packs` shares a pack read-only with campaign members; only the owning DM can toggle sharing.
+- The bucket is private. Ownership/campaign membership is checked before signed URLs are issued. A non-Pro member can consume a shared pack but cannot upload, generate, or share one.
+- Owners can delete packs after cancelling active work; deletion recursively purges raw candidates, normalized assets, manifests, shares, and durable run records, including after a Pro downgrade.
+- Custom `pack_id`s are globally namespaced (`custom-<slug>-<owner-prefix>`) because map cells store `pack_id + pack_version`, not an owner id. This preserves the existing map and tile-pack schemas.
 
-- **Upload + campaign sharing** is unblocked. `validatePack()` already exists and already produces the missing-slot list the uploader needs. This half waits on *demand*, not on a technical problem — no user has asked to bring their own pack.
-- **The AI pack generator** is the blocked half. Generating 32 seamless, style-consistent slots per pack proved unreliable in practice — image generation failed often enough that per-tile generation was not a dependable pipeline. That is the concrete reason this milestone stalled.
+#### As-built production generator
 
-**Consequence — bundled packs render procedural placeholders, and this is deliberate.** Ten of the eleven packs under `public/cartographer/` ship a `manifest.json` and no WebP files at all; only `wood-interior` has partial real art (24 files). `packLoader.ts` falls back to `getPlaceholderTile()` per slot, so every pack is fully usable and palette-correct without a single asset. **Do not read the empty pack folders as a bug or a broken deploy.** Real per-tile art was always going to come from the M7 generator, and M8 largely removed the need for it: the DM bakes a geometrically-correct map with placeholder tiles and passes the whole image through the AI Map Styler, which reads layout rather than tile art quality. One styled image beats 32 individually-generated tiles that must also tile seamlessly against each other.
+The old M7 assumptions—32 hard-coded outputs, prompts that ask the model for final 128×128 files, and a single blind batch—are obsolete. Production consumes the #772 `GenerationPlan` directly:
 
-**If this is picked up again:** ship the uploader alone first. It is the cheap half, it is independent of image generation, and it lets a DM supply art the generator could not.
+1. create the current draft manifest and schema-derived required jobs;
+2. generate `floor:0`, `wallSegmentH:0`, and `solidBlock:0` as production candidates and pause for visual approval;
+3. after approval, fan out the remaining jobs one at a time, reusing accepted proof images as style references;
+4. call `gpt-image-2` at low quality and 1024×1024, requesting transparent output for footprint-constrained slots;
+5. deterministically strip boundary-connected white, impose edge/door/rounded-corner alpha geometry, resize, and encode an exact 128×128 WebP in the browser;
+6. retain raw and normalized assets in private Storage, update attempt provenance, and re-run `validatePack()` before marking the pack ready;
+7. load ready packs into the ordinary Cartographer picker through signed URLs.
+
+Runs and per-slot jobs are durable database rows. Reloading the page resumes from the next pending slot. Failed slots retry independently. Rejecting a style proof removes its normalized manifest slot and regenerates only that candidate. Cancellation marks pending work cancelled and prevents another provider call. An in-flight call is charged only if its result completed and was retained; failed or unretained calls release their credit reservation. BYOK remains Pro-only and records zero-credit provider usage.
+
+The user-facing promise remains **complete, validated, and coherently generated with bounded refinement and final review**, not mathematically perfect seams from a single pass.
 
 ### M8 — AI Map Styler ✅ shipped
 
@@ -927,9 +942,9 @@ Plus `manifest.json` describing the pack (the `TilePackManifest` serialised).
 
 ### Generation prompt template (per category)
 
-The agentic generator should produce prompts like:
+Historical prompt example (the #772 compiler now produces the authoritative per-slot prompt):
 
-> *"Top-down view of a stone dungeon floor tile, 128×128 pixels, seamless tileable on all four edges, perpendicular grid alignment, no light source bias, subtle wear and cracks, dark grey weathered flagstones, no characters, no text, no shadows extending past the tile bounds. Variant 3 of 10 — vary crack patterns from previous variants."*
+> *"Top-down view of a stone dungeon floor tile, seamless tileable on all four edges, perpendicular grid alignment, no light source bias, subtle wear and cracks, dark grey weathered flagstones, no characters, no text, no shadows extending past the tile bounds. Preserve clear shapes when reduced to 128×128. Variant 3 — vary crack patterns from previous variants."*
 
 The shared style guide:
 
@@ -937,7 +952,8 @@ The shared style guide:
 - Lighting: even, no directional bias.
 - Edges: **seamless** for floor; **clean perpendicular cuts** for walls.
 - Style: matches Dungeon Grimoire's **2024 OneDnD aesthetic** (clean, modern — not crusty parchment).
-- Format: 128×128 WebP, q=0.85.
+- Generation candidate: 1024×1024 WebP from `gpt-image-2` low.
+- Runtime format: deterministic 128×128 WebP normalization; transparent-footprint categories receive mechanical alpha masks.
 
 ---
 

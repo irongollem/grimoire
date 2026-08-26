@@ -182,7 +182,7 @@
         ref="inspectorPanelRef"
         :name="name"
         :current-pack-id="currentPackId"
-        :bundled-packs="BUNDLED_PACKS"
+        :bundled-packs="selectablePacks"
         :loaded-pack-ids="loadedPackIds"
         :pack-validation-missing="packRuntime?.validation.missing.length ?? 0"
         :active-tool="activeTool"
@@ -261,6 +261,7 @@ import { useEncounters } from "@/composables/useEncounters";
 import { useAiCredits } from "@/composables/useAiCredits";
 import { useProviderConfig } from "@/composables/useProviderConfig";
 import { useImageGenerationLog } from "@/composables/useImageGenerationLog";
+import { loadUserPack, useTilePacks } from "@/composables/useTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations, useUpdateLocationMapUrl, useUpdateLocationGridCalibration } from "@/composables/useLocations";
 import { bakeMap, bakeMapAsPng, bakeMapForAI, computeBakedDimensions } from "@/cartographer/bake";
@@ -302,6 +303,17 @@ const BUNDLED_PACKS = [
   { pack_id: "marble-palace", pack_version: 1, name: "Marble Palace",  manifestUrl: "/cartographer/marble-palace/v1/manifest.json" },
 ] as const;
 const DEFAULT_PACK_ID = "stone-dungeon";
+const mapStyleCampaign = useCampaignStore();
+const activeCampaignId = computed(() => mapStyleCampaign.activeCampaignId);
+const { campaignPacks } = useTilePacks(activeCampaignId, false);
+const selectablePacks = computed(() => [
+  ...BUNDLED_PACKS,
+  ...campaignPacks.value.filter((pack) => pack.status === "ready").map((pack) => ({
+    pack_id: pack.pack_id,
+    pack_version: pack.pack_version,
+    name: pack.name,
+  })),
+]);
 
 const mapId = computed(() => {
   const p = route.params.id;
@@ -349,7 +361,6 @@ const updateLocationGridCalibration = useUpdateLocationGridCalibration();
 
 // M8 — AI Map Styler
 // Map restyle renders square (1024×1024) via OpenAI → flat cost, no size scaling.
-const mapStyleCampaign = useCampaignStore();
 const { costOf: costOfCredits } = useAiCredits();
 const { imageMultiplierFor: mapImageMultiplierFor } = useProviderConfig();
 const styleByok = computed(() => !!mapStyleCampaign.decryptedOpenAiKey);
@@ -548,7 +559,21 @@ async function ensurePackLoaded(): Promise<void> {
       }
     }),
   );
+  const customToLoad = campaignPacks.value.filter((pack) =>
+    pack.status === "ready" && !loadedRuntimes.value.has(pack.pack_id)
+  );
+  await Promise.all(customToLoad.map(async (pack) => {
+    try {
+      loadedRuntimes.value.set(pack.pack_id, await loadUserPack(pack));
+    } catch (error) {
+      if (pack.pack_id === currentPackId.value) {
+        packLoadError.value = error instanceof Error ? error.message : String(error);
+      }
+    }
+  }));
 }
+
+watch(campaignPacks, () => { void ensurePackLoaded(); });
 
 // ── Map load ───────────────────────────────────────────────────────────────
 
@@ -609,7 +634,9 @@ function pickDoorVariant(x: number, y: number, category: PackCategory): number {
 }
 
 function activePackVersion(): number {
-  return BUNDLED_PACKS.find((p) => p.pack_id === currentPackId.value)?.pack_version ?? 1;
+  return packRuntime.value?.manifest.pack_version
+    ?? selectablePacks.value.find((pack) => pack.pack_id === currentPackId.value)?.pack_version
+    ?? 1;
 }
 
 // ── Undo/redo helpers ──────────────────────────────────────────────────────

@@ -493,6 +493,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: "New Map" },
   },
   {
+    path: "/cartographer/packs",
+    name: "cartographer-packs",
+    component: () => import("@/views/cartographer/TilePackManagerView.vue"),
+    meta: { requiresAuth: true, title: "Tile Packs" },
+  },
+  {
     path: "/cartographer/:id",
     name: "cartographer-editor",
     component: () => import("@/views/cartographer/CartographerEditorView.vue"),
