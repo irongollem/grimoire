@@ -158,29 +158,35 @@
             <td class="py-2 pl-4 text-right">
               <span v-if="calibrationQuery.isPending.value" class="text-caption-sm text-muted-foreground/40">…</span>
               <span v-else-if="!calibrationHints[gen.generation_type]" class="text-caption-sm text-muted-foreground/30">—</span>
-              <!-- No suggestion yet (< 20 samples) — show raw cost as informational -->
+              <!-- No suggestion yet (< 20 charges) — show raw cost as informational -->
               <span
                 v-else-if="calibrationHints[gen.generation_type].suggested_cost === null"
                 class="font-cinzel text-2xs text-muted-foreground/50 tracking-wide whitespace-nowrap"
-                :title="`${calibrationHints[gen.generation_type].sample_size} samples (need 20 for suggestion)`"
-              >~${{ (calibrationHints[gen.generation_type].avg_baseline_usd_cents / 100).toFixed(4) }}</span>
-              <!-- Well calibrated — green -->
+                :title="`${calibrationHints[gen.generation_type].sample_size} charges (need 20 for a suggestion)`"
+              >~${{ (calibrationHints[gen.generation_type].cost_per_charge_usd_cents / 100).toFixed(4) }}</span>
+              <!-- Below cost — every call loses money. Its own case, not a matter of degree. -->
+              <span
+                v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'loss'"
+                class="font-cinzel text-2xs text-red-500 tracking-wide whitespace-nowrap font-semibold"
+                :title="calibrationTitle(calibrationHints[gen.generation_type], 'Below cost — every call loses money')"
+              >⚠ ↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
+              <!-- Fair — within the threshold of the target margin. -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'ok'"
                 class="font-cinzel text-2xs text-green-500 tracking-wide"
-                :title="`cost per 1024² render: $${(calibrationHints[gen.generation_type].avg_baseline_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
+                :title="calibrationTitle(calibrationHints[gen.generation_type], 'On target')"
               >✓</span>
-              <!-- Under-charging: current cost < API cost — red, raise price -->
+              <!-- Thinner than intended, but still above cost. -->
               <span
                 v-else-if="calibrationStatus(calibrationHints[gen.generation_type]) === 'under'"
-                class="font-cinzel text-2xs text-red-500 tracking-wide whitespace-nowrap font-semibold"
-                :title="`Under-charging — cost per 1024² render: $${(calibrationHints[gen.generation_type].avg_baseline_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
+                class="font-cinzel text-2xs text-amber-500 tracking-wide whitespace-nowrap"
+                :title="calibrationTitle(calibrationHints[gen.generation_type], 'Under target margin')"
               >↑ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
-              <!-- Over-charging: steep margin — blue -->
+              <!-- Above the target margin — the fairness half of the warning. -->
               <span
                 v-else
                 class="font-cinzel text-2xs text-sky-400 tracking-wide whitespace-nowrap"
-                :title="`Steep margin — cost per 1024² render: $${(calibrationHints[gen.generation_type].avg_baseline_usd_cents / 100).toFixed(4)} (${calibrationHints[gen.generation_type].sample_size} samples)`"
+                :title="calibrationTitle(calibrationHints[gen.generation_type], 'Above target margin')"
               >↓ {{ calibrationHints[gen.generation_type].suggested_cost }}</span>
             </td>
             <td class="py-2 pl-2 text-right">
@@ -225,12 +231,27 @@ const calibrationHints = computed(() => {
   return map;
 });
 
-type CalibrationStatus = "ok" | "under" | "over";
+// Four, because "thinner than we intend" and "actually losing money" want
+// different urgency. The middle two are the fun-and-fair band the tool exists
+// for; `loss` is the one that cannot be a judgement call.
+type CalibrationStatus = "ok" | "under" | "over" | "loss";
+
+// Every state shows the same three facts, so a colour is never the only thing
+// telling an operator what is going on.
+function calibrationTitle(hint: CalibrationHint, lead: string): string {
+  const cost = (hint.cost_per_charge_usd_cents / 100).toFixed(4);
+  return `${lead} — costs $${cost} per charge, break-even ${hint.breakeven_cost} credits, `
+    + `target ${hint.suggested_cost} (${hint.sample_size} charges)`;
+}
 
 function calibrationStatus(hint: CalibrationHint): CalibrationStatus {
   if (hint.suggested_cost === null) return "ok";
+  // Measured against the fair price, not against cost. Anchoring on break-even
+  // was what made every healthy margin read as "steep" and invited pricing at
+  // cost — see #773.
+  if (hint.breakeven_cost !== null && hint.current_cost < hint.breakeven_cost) return "loss";
   const deviation = (hint.current_cost - hint.suggested_cost) / hint.suggested_cost;
-  if (deviation < 0) return "under";
+  if (deviation < -CALIBRATION_THRESHOLD) return "under";
   if (deviation > CALIBRATION_THRESHOLD) return "over";
   return "ok";
 }

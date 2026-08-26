@@ -24,6 +24,36 @@
 -- costs. Nothing was mispriced by it — every live price was set by hand — but a
 -- number that reads authoritative and is 3x out is a trap left for later.
 --
+-- ── Keeping the two-sided warning honest ────────────────────────────────────
+--
+-- The panel already warns both ways — red up-arrow when a price is too low, blue
+-- down-arrow when the margin is steep, green tick when it is right — and that is
+-- the point of the tool: keep pricing fun and fair rather than merely solvent.
+-- What it lacked was a fair reference point. `suggested_cost` was BREAK-EVEN, so
+-- "well calibrated" meant "priced at cost" and every healthy margin was flagged
+-- as steep. Following the panel would have taken entity_image from a 2.09x
+-- margin to exactly zero.
+--
+-- So break-even and the suggestion are now separate. `breakeven_cost` is the
+-- floor: below it we lose money on every call. `suggested_cost` is that floor
+-- times `target_margin` — the price we actually think is fair. The panel warns
+-- against the suggestion in both directions, and calls out dropping below the
+-- floor as its own, louder case.
+--
+-- ── Cost per CHARGE, not per call ───────────────────────────────────────────
+--
+-- Averaging the cost of ledger rows answers the wrong question wherever one
+-- payment buys more than one provider call. A tile-pack slot is bought once and
+-- may generate four times; averaging rows divides our spend by four and reports
+-- a tile costing 1.4 credits when the slot costs 5.5. The panel would then have
+-- called 12 credits a 4x overcharge and invited us to cut it to 3 — below cost.
+--
+-- Total spend divided by the number of times we CHARGED is the unit the price
+-- actually has to cover, and it needs no per-feature special case: a free retry
+-- contributes to spend (delta 0, is_byok false — which is why recordFreeGeneration
+-- exists) and not to the count. BYOK rows are excluded from both: the user paid
+-- that provider bill, so it is neither our cost nor our revenue.
+--
 -- ── The economics are configuration, not constants ──────────────────────────
 --
 -- FX moves, VAT depends on registration, and Stripe's rate is negotiable. They
@@ -44,7 +74,11 @@ values ('credit_calibration', jsonb_build_object(
   'usd_per_eur',           1.08,
   'vat_rate',              0.21,
   'payment_fee_rate',      0.015,
-  'payment_fee_fixed_eur', 0.25
+  'payment_fee_fixed_eur', 0.25,
+  -- The margin a price is measured against, not a floor. 2.0 is where
+  -- entity_image already sits, so it describes existing practice rather than
+  -- imposing a new one.
+  'target_margin',         2.0
 ))
 on conflict (key) do nothing;
 
@@ -56,13 +90,18 @@ create function public.get_credit_calibration_hints()
 returns table(
   generation_type        text,
   current_cost           int,
-  -- What a render of this type actually cost, at whatever size it was made.
+  -- What one render of this type actually cost, at whatever size it was made.
   avg_actual_usd_cents   numeric,
-  -- The same, normalised to a 1024-square render: the only figure comparable
-  -- to `credit_cost`, and what `suggested_cost` is derived from.
-  avg_baseline_usd_cents numeric,
-  sample_size            bigint,
-  suggested_cost         int
+  -- Total spend per time we charged, normalised to a 1024-square render. This is
+  -- the unit `credit_cost` has to cover, and it differs from the average above
+  -- wherever one payment buys several calls.
+  cost_per_charge_usd_cents numeric,
+  -- Credits that exactly cover that. The floor: below it we lose money.
+  breakeven_cost         int,
+  -- The floor times `target_margin` — the price we think is fair.
+  suggested_cost         int,
+  -- Times we charged, not rows recorded.
+  sample_size            bigint
 )
 language plpgsql
 security definer
@@ -75,6 +114,7 @@ declare
   v_vat_rate         numeric;
   v_fee_rate         numeric;
   v_fee_fixed        numeric;
+  v_target_margin    numeric;
   v_cents_per_credit numeric;
 begin
   if not private.is_app_admin() then
@@ -86,6 +126,7 @@ begin
   v_vat_rate    := coalesce((v_config ->> 'vat_rate')::numeric, 0.21);
   v_fee_rate    := coalesce((v_config ->> 'payment_fee_rate')::numeric, 0.015);
   v_fee_fixed   := coalesce((v_config ->> 'payment_fee_fixed_eur')::numeric, 0.25);
+  v_target_margin := greatest(1.0, coalesce((v_config ->> 'target_margin')::numeric, 2.0));
 
   -- Net EUR cents a credit earns us, from the pack where it earns least. VAT is
   -- remitted and the processor's cut never arrives, so neither is revenue.
@@ -107,49 +148,64 @@ begin
   end if;
 
   return query
-  select
-    agg.generation_type,
-    cc.credit_cost::int  as current_cost,
-    round(agg.avg_cents, 4)          as avg_actual_usd_cents,
-    round(agg.avg_baseline_cents, 4) as avg_baseline_usd_cents,
-    agg.sample_size,
-    case
-      when v_cents_per_credit is not null and agg.sample_size >= v_min_samples then
-        greatest(1, round((agg.avg_baseline_cents / v_usd_per_eur) / v_cents_per_credit))::int
-      else null
-    end as suggested_cost
-  from (
+  with priced as (
     select
-      l.reason                        as generation_type,
-      avg(g.estimated_cost_usd_cents) as avg_cents,
-      -- Each row divided by its OWN area, so a type rendered at several sizes
-      -- averages comparably instead of tracking its traffic mix.
-      avg(g.estimated_cost_usd_cents / case
-            when g.size ~ '^[0-9]+x[0-9]+$'
-             and split_part(g.size, 'x', 1)::numeric * split_part(g.size, 'x', 2)::numeric > 0
-              then (split_part(g.size, 'x', 1)::numeric * split_part(g.size, 'x', 2)::numeric)
-                   / (1024.0 * 1024.0)
-            else 1.0
-          end)                        as avg_baseline_cents,
-      count(*)                        as sample_size
+      l.reason,
+      l.is_byok,
+      l.delta,
+      g.estimated_cost_usd_cents as cents,
+      -- Each row against its OWN area, so a type rendered at several sizes
+      -- normalises comparably instead of tracking its traffic mix.
+      g.estimated_cost_usd_cents / case
+        when g.size ~ '^[0-9]+x[0-9]+$'
+         and split_part(g.size, 'x', 1)::numeric * split_part(g.size, 'x', 2)::numeric > 0
+          then (split_part(g.size, 'x', 1)::numeric * split_part(g.size, 'x', 2)::numeric)
+               / (1024.0 * 1024.0)
+        else 1.0
+      end as baseline_cents
     from ai_credit_ledger l
     join ai_generation_costs g on g.id = l.id
     where
       l.created_at >= now() - interval '30 days'
       and g.estimated_cost_usd_cents is not null
-      and exists (
-        select 1 from ai_generation_credit_costs cc2
-        where cc2.generation_type = l.reason
-      )
-    group by l.reason
-  ) agg
-  join ai_generation_credit_costs cc on cc.generation_type = agg.generation_type
-  order by agg.generation_type;
+      and exists (select 1 from ai_generation_credit_costs cc2 where cc2.generation_type = l.reason)
+  ),
+  agg as (
+    select
+      reason as generation_type,
+      avg(cents) filter (where not is_byok)                       as avg_cents,
+      sum(baseline_cents) filter (where not is_byok)              as spend_cents,
+      count(*) filter (where not is_byok and delta < 0)           as charges
+    from priced
+    group by reason
+  ),
+  derived as (
+    select
+      agg.*,
+      case when agg.charges > 0 then agg.spend_cents / agg.charges end as per_charge,
+      case when agg.charges > 0 and v_cents_per_credit is not null
+           then (agg.spend_cents / agg.charges / v_usd_per_eur) / v_cents_per_credit
+      end as breakeven_raw
+    from agg
+  )
+  select
+    d.generation_type,
+    cc.credit_cost::int             as current_cost,
+    round(d.avg_cents, 4)           as avg_actual_usd_cents,
+    round(d.per_charge, 4)          as cost_per_charge_usd_cents,
+    case when d.breakeven_raw is not null and d.charges >= v_min_samples
+         then greatest(1, round(d.breakeven_raw))::int end as breakeven_cost,
+    case when d.breakeven_raw is not null and d.charges >= v_min_samples
+         then greatest(1, round(d.breakeven_raw * v_target_margin))::int end as suggested_cost,
+    d.charges                       as sample_size
+  from derived d
+  join ai_generation_credit_costs cc on cc.generation_type = d.generation_type
+  order by d.generation_type;
 end;
 $$;
 
 comment on function public.get_credit_calibration_hints() is
-  'Admin-only. Suggests a credit_cost from measured provider spend over 30 days. Normalises each render by its own area so the suggestion is a 1024-square BASE cost comparable to credit_cost, converts USD to EUR, and values a credit at what it nets us in the cheapest pack after VAT and processing. Economics live in app_settings.credit_calibration. See #773.';
+  'Admin-only. From 30 days of measured spend: `breakeven_cost` is the credit price that exactly covers provider cost, `suggested_cost` is that times target_margin. Spend is divided by the number of times we CHARGED, not by rows, so a free retry counts as cost and not as a sale; BYOK is excluded from both. Each render is normalised by its own area, so both figures are 1024-square BASE costs comparable to credit_cost. Economics live in app_settings.credit_calibration. See #773.';
 
 revoke execute on function public.get_credit_calibration_hints() from public, anon;
 grant execute on function public.get_credit_calibration_hints() to authenticated, service_role;
