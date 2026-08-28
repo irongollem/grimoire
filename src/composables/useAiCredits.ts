@@ -138,15 +138,6 @@ export function useAiCredits() {
     return byok || isLoading.value || (balance.value ?? 0) >= credits
   }
 
-  async function deductCredit(reason: string, amount = 1): Promise<boolean> {
-    const { data, error } = await supabase.functions.invoke('deduct-ai-credit', {
-      body: { reason, amount },
-    })
-    if (error || data?.error) return false
-    await refetch()
-    return true
-  }
-
   async function purchasePack(packId: string, withdrawalConsent = false): Promise<void> {
     purchaseLoading.value = true
     purchaseError.value = null
@@ -178,7 +169,6 @@ export function useAiCredits() {
     canGenerate,
     affordable,
     costOf,
-    deductCredit,
     logUsage: logUsage,
     purchasePack,
     purchaseLoading,
