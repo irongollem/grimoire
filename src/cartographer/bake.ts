@@ -10,6 +10,7 @@
 import { BASE_TILE_SIZE, type PackCategory } from "./packSchema";
 import type { TilePackRuntime } from "./packLoader";
 import type { DungeonMap } from "@/types/dungeonMap.types";
+import { classifyJoint } from "./edges";
 
 export interface BakeOptions {
   /** Cells of black padding around the painted extent. Default: 3. */
@@ -51,26 +52,6 @@ export function computeBakedDimensions(
 }
 
 // ── Internal helpers ───────────────────────────────────────────────────────
-
-function classifyJoint(
-  wH: boolean, eH: boolean, nV: boolean, sV: boolean,
-): string | null {
-  const count = [wH, eH, nV, sV].filter(Boolean).length;
-  if (count === 4) return "CROSS";
-  if (count === 3) {
-    if (!nV) return "T_N";
-    if (!eH) return "T_E";
-    if (!sV) return "T_S";
-    if (!wH) return "T_W";
-  }
-  if (count === 2) {
-    if (nV && eH) return "L_NE";
-    if (sV && eH) return "L_SE";
-    if (sV && wH) return "L_SW";
-    if (nV && wH) return "L_NW";
-  }
-  return null;
-}
 
 function renderToCanvas(
   map: DungeonMap,
