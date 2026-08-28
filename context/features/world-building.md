@@ -541,6 +541,29 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 | `role`   | string | Leader, Officer, Enforcer, Member, Initiate, Associate, Agent, Informant, Unknown |
 | `status` | string | Active, Retired, Defected, Expelled, Deceased                                     |
 
+**Only the faction's DM may write a junction row** — `private.can_edit_faction(faction_id)`
+on INSERT and UPDATE across `faction_party_members`, `faction_npcs`, `faction_items`,
+`faction_locations` and `faction_relations` (`20260828211656`). The helper resolves the
+campaign through the parent faction and mirrors the predicate `factions_update` already
+uses: campaign DM, or owner of a global (`campaign_id is null`) faction.
+
+This is a security boundary, not bookkeeping. `faction_party_members` is what *grants*
+faction read access — `factions_member_select`, `faction_npcs_shared_faction_member_select`
+and `private.is_faction_pc_member` all admit rows on the strength of "a junction row links
+this faction to a campaign_members row that is mine". While writes were gated on row
+ownership alone, that made the read predicate satisfiable by a row the reader could write:
+any player could enrol their own character into any faction in any campaign and read the
+faction, its NPCs and its whole PC roster, bypassing `player_visible_to` entirely.
+
+These five tables carry no `campaign_id` of their own — they resolve it through
+`faction_id` — which is why the campaign-scoped write sweep of `20260828201935` did not
+reach them. `faction_deities` is the exception that shows the intended shape: it has a real
+`campaign_id` and has been gated on `private.is_campaign_dm` since it was created.
+
+Regression cover: `supabase/tests/faction_link_boundary.test.sql`, ending in a structural
+assertion over every `faction_*` junction write policy — so a sixth junction table cannot
+ship with the loose shape.
+
 ### FactionRelation (`faction_relations` table)
 
 | Field               | Type                              | Notes                                                                            |
