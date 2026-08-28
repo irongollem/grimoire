@@ -146,6 +146,29 @@ GitHub issues on `irongollem/grimoire` are the single source of truth for open w
 
 There is no change log to update. The record of what shipped is the git history, and the record of *why* is a comment at the point of the decision — put it in the code, the migration, or the relevant `context/features/` doc, where the next person to touch that line will actually be standing.
 
+## The Knowledge Graph — query it before you grep for structure
+
+There is a graphify knowledge graph of this repo. **When `graphify-out/graph.json` exists, reach for it before ripgrep for any question about structure or consequence** — "what depends on X", "what breaks if I change Y", "how does the level-up flow hang together", "what connects the encounter runner to the quest runtime". One traversal beats a dozen greps across 2,500 files, and it answers the question greps cannot: *why*. The doc extraction stores design rationale as node attributes, so the graph remembers things like why `guard_item_entry_anchors` exists (a `WITH CHECK` policy cannot see `OLD`) or why the disguise rule withholds the true name from the model rather than instructing it to hide one.
+
+```bash
+graphify query "how does a player claim a character?"   # BFS traversal, broad context
+graphify query "..." --dfs                              # trace one specific path
+graphify affected "useCampaignLiveSync"                 # reverse traversal: what breaks if I change this
+graphify path "EncounterRunner" "quest_runtime"         # shortest path between two things
+graphify explain "useCampaignLiveSync"                  # plain-language node explanation
+graphify god-nodes                                      # the architectural hubs, most-connected first
+```
+
+`affected` is the one to reach for before a refactor — it walks edges backwards, so it answers "who depends on me", which is the question a forward search keeps failing to answer.
+
+Ripgrep is still right for a literal string, a single known symbol, or anything where you already know the file. The graph is for breadth and for consequence.
+
+**It does not know the database.** This is the limit that matters here, and it is not a small one. The graph contains the `.sql` *files*; production runs the *applied* schema, and those diverge — see the schema-drift rule in the migration section. Every bug found in the 28 Aug 2026 security pass lived in `pg_policies`, `pg_proc` and `reloptions`: a policy whose `WITH CHECK` never consulted `campaign_id`, a view that lost `security_invoker` because a later `create or replace view` silently reset it. No source-level tool can see any of that. **For RLS, grants, policies and function bodies, query the live database, not the graph.** Treating the graph as authoritative there is how you conclude a boundary is sound when it is not.
+
+**Rebuild it, don't trust it blindly.** `graphify-out/` is gitignored — derived, per-machine, and full of absolute paths that have no business in a public repo. It also starts drifting the moment anyone commits. `/graphify .` rebuilds; `/graphify . --update` re-extracts only what changed. If `graph.json` is absent, the graph simply does not exist yet — build it or use ripgrep, but never answer from an imagined one.
+
+**One trap when rebuilding: install the SQL parser.** Without `tree_sitter_sql`, graphify skips every `.sql` file and mentions it once in a warning you will scroll past — 448 files, the entire `supabase/` layer, silently absent from a graph that otherwise looks complete. `uv tool install --upgrade "graphifyy[sql]"`. Adding it took this repo from 18,839 to 20,713 nodes.
+
 ## Seeing the App — local sign-in
 
 You can look at the running app. Do it before reporting UI work as done; a green build says nothing about layout, density, or whether a control reads as chrome.
