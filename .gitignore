@@ -63,3 +63,11 @@ art-src/
 .env*
 # Vite's isolated localdb env contains only the Supabase CLI's public defaults.
 !config/env/localdb/.env
+
+# graphify knowledge-graph output. Not committed, for two reasons beyond size:
+# every node carries a `source_location` and the manifest a `scan_root`, so the
+# files are full of absolute local paths (/Users/<name>/...) — and this repo is
+# public. The graph is also a derived artifact: `/graphify .` rebuilds it, and a
+# committed copy would silently rot against the code it describes. Includes the
+# extraction cache and cost.json (token spend), which are per-machine anyway.
+graphify-out/
