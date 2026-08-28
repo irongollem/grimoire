@@ -58,7 +58,7 @@ import { IconAdd, IconChevronRight } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { useUiStore } from "@/stores/ui";
-import { useAllFeatures } from "@/composables/useFeatures";
+import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { FEATURE_TYPE_LABELS } from "@/types/feature.types";
 
 const ui = useUiStore();

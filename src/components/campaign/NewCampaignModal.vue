@@ -123,7 +123,7 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { listCalendarAdapters, getCalendarAdapter, createDefaultCustomCalendarDef } from "@/calendars/index";
 import { getSetting, listSettings } from "@/settings/index";
 import type { SettingCalendarDef } from "@/settings/types";
-import { useCreateCampaign, useClaimOrphanedData } from "@/composables/useCampaigns";
+import { useCreateCampaign, useClaimOrphanedData } from "@/composables/campaign/useCampaigns";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";

@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useDebounceFn } from "@vueuse/core";
-import { useUpdateQuestBeat } from "@/composables/useQuestFlow";
+import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
 import { QUEST_BEAT_KINDS, QUEST_BEAT_KIND_LABELS, type QuestBeat } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";

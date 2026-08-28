@@ -137,7 +137,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import { useAiCredits } from "@/composables/useAiCredits";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
 
 interface Preset {
   id: string;

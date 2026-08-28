@@ -196,12 +196,12 @@ import { IconBilling, IconBug, IconCheck, IconClose, IconDownload, IconEdit, Ico
 import { usePwaInstall } from "@/composables/usePwaInstall";
 import { onClickOutside } from "@vueuse/core";
 import { useAuthStore } from "@/stores/auth";
-import { useUpdateCampaignMember } from "@/composables/useCampaignMembers";
+import { useUpdateCampaignMember } from "@/composables/campaign/useCampaignMembers";
 import LegalFooterLinks from "@/components/common/LegalFooterLinks.vue";
 import { NAV_GROUPS, navItemHiddenByFlag } from "@/lib/nav";
-import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
-import { useSubscription } from "@/composables/useSubscription";
-import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
+import { useSubscription } from "@/composables/billing/useSubscription";
+import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { cn } from "@/lib/utils";

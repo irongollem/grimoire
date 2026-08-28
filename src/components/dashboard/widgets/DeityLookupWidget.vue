@@ -119,7 +119,7 @@
 import { computed, ref } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { useAllDeities } from "@/composables/useDeities";
+import { useAllDeities } from "@/composables/deities/useDeities";
 import { buildDeityLookupGroups } from "@/lib/dashboard/deityLookup";
 import { IconChevronDown } from "@/lib/icons";
 import { drawerTransition } from "@/lib/motion";

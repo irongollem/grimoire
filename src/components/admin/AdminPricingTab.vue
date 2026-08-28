@@ -207,12 +207,12 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from "vue";
-import { sizeMultiplier } from "@/composables/useAiCredits";
-import { useAdminPricing } from "@/composables/useAdminPricing";
-import type { CreditPackConfig, GenerationCreditCost } from "@/composables/useAdminPricing";
-import { useCheckoutConfig } from "@/composables/useCheckoutConfig";
-import { useAdminCalibration } from "@/composables/useAdminCalibration";
-import type { CalibrationHint } from "@/composables/useAdminCalibration";
+import { sizeMultiplier } from "@/composables/ai/useAiCredits";
+import { useAdminPricing } from "@/composables/admin/useAdminPricing";
+import type { CreditPackConfig, GenerationCreditCost } from "@/composables/admin/useAdminPricing";
+import { useCheckoutConfig } from "@/composables/billing/useCheckoutConfig";
+import { useAdminCalibration } from "@/composables/admin/useAdminCalibration";
+import type { CalibrationHint } from "@/composables/admin/useAdminCalibration";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";

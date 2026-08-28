@@ -204,15 +204,15 @@
 import { ref, computed, nextTick } from "vue";
 import { IconStar } from '@/lib/icons';
 import { useAuthStore } from "@/stores/auth";
-import { useUpdatePartyMember } from "@/composables/useParty";
-import { useClassByName } from "@/composables/useCustomClasses";
-import { useCharacterClasses } from "@/composables/useCharacterClasses";
-import { useShieldAcBonus } from "@/composables/useShieldAc";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useClassByName } from "@/composables/rules/useCustomClasses";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
+import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
-import { useConcentration } from "@/composables/useConcentration";
+import { useConcentration } from "@/composables/party/useConcentration";
 import { applyDamage as damagePools, applyHealing as healPools, betterTempHp } from "@/rules/hitPoints";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,
@@ -225,8 +225,8 @@ import {
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { xpForNextLevel, xpForLevel, levelForXp } from "@/types/party.types";
 import type { WildshapeState } from "@/types/encounter.types";
-import { useAllSpecies } from "@/composables/useSpecies";
-import { useIsRuleEnabled } from "@/composables/useOptionalRules";
+import { useAllSpecies } from "@/composables/rules/useSpecies";
+import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RestButtons from "@/components/player/RestButtons.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";

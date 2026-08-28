@@ -226,18 +226,18 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
-import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import {
   useStoreItems,
   useAddStoreItem,
   useAddStoreItems,
   useUpdateStoreItem,
   useRemoveStoreItem,
-} from "@/composables/useStoreItems";
-import type { StoreItem } from "@/composables/useStoreItems";
+} from "@/composables/items/useStoreItems";
+import type { StoreItem } from "@/composables/items/useStoreItems";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES, RARITY_PRICE_HINTS } from "@/types/item.types";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { COINS, type CoinKey, parseCoinText } from "@/rules/currency";
 
 const props = defineProps<{ locationId: string; ownerNpcName?: string | null }>();

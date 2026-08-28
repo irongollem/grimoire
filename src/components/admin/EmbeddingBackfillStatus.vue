@@ -24,7 +24,7 @@
 // progress renders identically -- and is literally the SAME run -- no matter
 // which component started it.
 import { Loader2Icon } from "@lucide/vue";
-import { useEmbeddingBackfill, EMBED_TARGET_LABELS } from "@/composables/useEmbeddingBackfill";
+import { useEmbeddingBackfill, EMBED_TARGET_LABELS } from "@/composables/admin/useEmbeddingBackfill";
 
 const { isRunning, currentTarget, processedThisTarget, remainingThisTarget, totalProcessed, errorMsg, resultMessage } =
   useEmbeddingBackfill();

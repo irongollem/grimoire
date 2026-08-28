@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useCardForgeStore } from "@/stores/cardForge";
-import { useCardForgeData } from "@/composables/useCardForgeData";
+import { useCardForgeData } from "@/composables/cardforge/useCardForgeData";
 import { cardSubjectId } from "@/types/card.types";
 
 const store = useCardForgeStore();

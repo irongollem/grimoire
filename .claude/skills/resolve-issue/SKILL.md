@@ -65,7 +65,7 @@ Based on the issue description, identify the relevant files. Use Glob and Grep t
 Useful search patterns:
 
 - Component names are PascalCase in `src/components/` or `src/views/`
-- Composables are in `src/composables/use*.ts`
+- Composables are in `src/composables/<domain>/use*.ts` (a handful of UI/platform primitives with no domain stay at the `src/composables/` root)
 - Types are in `src/types/*.types.ts`
 - DB migrations are in `supabase/migrations/`
 

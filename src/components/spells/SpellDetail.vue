@@ -255,9 +255,9 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { SPELL_SCHOOLS, spellSourceLabel } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";
-import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/useSpells";
-import { useUpsertLibrarySpellArt } from "@/composables/useLibrarySpellArt";
-import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
+import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/spells/useSpells";
+import { useUpsertLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
+import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { formatSpellForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import {
   adviseLevelRange,

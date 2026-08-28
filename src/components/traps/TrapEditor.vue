@@ -332,7 +332,7 @@ import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { IconCheck, IconClose, IconDelete, IconGenerate, IconSave } from '@/lib/icons';
-import { useCreateTrap, useUpdateTrap, useDeleteTrap } from "@/composables/useTraps";
+import { useCreateTrap, useUpdateTrap, useDeleteTrap } from "@/composables/dungeon-features/useTraps";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import {

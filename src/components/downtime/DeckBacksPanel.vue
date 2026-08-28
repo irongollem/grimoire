@@ -4,10 +4,10 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { useNpcs } from "@/composables/useNpcs";
-import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
-import { useNotes } from "@/composables/useNotes";
-import { useDeckBacks, useCreateDeckBack, useDeleteDeckBack } from "@/composables/useDowntime";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useNotes } from "@/composables/notes/useNotes";
+import { useDeckBacks, useCreateDeckBack, useDeleteDeckBack } from "@/composables/downtime/useDowntime";
 import { DOWNTIME_ACTIVITIES, getDowntimeActivity } from "@/data/downtimeActivities";
 import type { DowntimeDeckBack, DowntimeRewardType } from "@/types/downtime.types";
 

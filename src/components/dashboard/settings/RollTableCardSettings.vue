@@ -28,7 +28,7 @@
  */
 import { computed } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { useRollTables } from "@/composables/useRollTables";
+import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { parseRollTableCardSettings } from "@/lib/dashboard/rollTableCard";
 
 const { modelValue } = defineProps<{

@@ -180,15 +180,15 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { IconAdd, IconDelete, IconSave } from '@/lib/icons';
-import { useCustomClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/useCustomClasses";
+import { useCustomClass, useCreateCustomClass, useUpdateCustomClass, useDeleteCustomClass } from "@/composables/rules/useCustomClasses";
 import CustomClassSheet from "@/components/levelup/CustomClassSheet.vue";
 import CustomClassProficienciesPanel from "@/components/levelup/CustomClassProficienciesPanel.vue";
 import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeaturesPerLevel.vue";
 import CustomClassSpellSlots from "@/components/levelup/CustomClassSpellSlots.vue";
 import CustomClassStepsEditor from "@/components/levelup/CustomClassStepsEditor.vue";
 import CustomClassResources from "@/components/levelup/CustomClassResources.vue";
-import { useAllFeatures } from "@/composables/useFeatures";
-import { useCampaigns } from "@/composables/useCampaigns";
+import { useAllFeatures } from "@/composables/rules/useFeatures";
+import { useCampaigns } from "@/composables/campaign/useCampaigns";
 import type { CustomStep, CustomResource, HitDie, CasterType, PreparedAbility } from "@/levelup/customTypes";
 
 const route = useRoute();

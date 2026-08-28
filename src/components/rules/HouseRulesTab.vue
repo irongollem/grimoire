@@ -140,8 +140,8 @@ import { IconChevronRight } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import { usePlayerVisibleRules } from "@/composables/useRules";
-import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+import { usePlayerVisibleRules } from "@/composables/rules/useRules";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { listOptionalRules } from "@/rules/optionalRules";
 
 const { data: customRules, isLoading } = usePlayerVisibleRules();

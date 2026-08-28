@@ -40,7 +40,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import { useEncounters } from "@/composables/useEncounters";
+import { useEncounters } from "@/composables/encounters/useEncounters";
 import { deriveEncounterGapRows, ENCOUNTER_GAP_LABELS, type EncounterGapKind } from "@/lib/dashboard/encounterGaps";
 import DashboardWidget from "../DashboardWidget.vue";
 

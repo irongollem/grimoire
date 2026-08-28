@@ -179,8 +179,8 @@
 import { computed } from "vue";
 import { IconAddBook, IconCheck, IconClose, IconEdit, IconNavSpellbook } from '@/lib/icons';
 import { refDebounced } from "@vueuse/core";
-import { useAllSpells } from "@/composables/useSpells";
-import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/useCharacterSpells";
+import { useAllSpells } from "@/composables/spells/useSpells";
+import { useAddCharacterSpell, useChangePreparedSpell, useRemoveCharacterSpell } from "@/composables/party/useCharacterSpells";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { SCHOOL_BG, spellLevelLabel } from "@/types/spell.types";
@@ -188,8 +188,8 @@ import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { isSharedContent } from "@/lib/library/contentIdentity";
-import { useSpellReplacement } from "@/composables/useSpellReplacement";
-import { useRuleset } from "@/composables/useRuleset";
+import { useSpellReplacement } from "@/composables/party/useSpellReplacement";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
 import { useToast } from "@/composables/useToast";
 

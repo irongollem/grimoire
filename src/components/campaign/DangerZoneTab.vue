@@ -71,7 +71,7 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
-import { useDeleteCampaign, useCampaigns, useCampaignScopedHomebrewCounts } from "@/composables/useCampaigns";
+import { useDeleteCampaign, useCampaigns, useCampaignScopedHomebrewCounts } from "@/composables/campaign/useCampaigns";
 import TransferOwnershipPanel from "@/components/campaign/TransferOwnershipPanel.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
 import AppButton from "@/components/common/AppButton.vue";

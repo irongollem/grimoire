@@ -9,12 +9,12 @@ const mocks = vi.hoisted(() => ({
   effects: [] as unknown[],
 }));
 
-vi.mock("@/composables/useQuestFlow", () => ({
+vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestObjectiveEffects: () => ({ data: { get value() { return mocks.effects; } } }),
   useCreateQuestObjectiveEffect: () => ({ mutateAsync: mocks.create }),
   useDeleteQuestObjectiveEffect: () => ({ mutateAsync: mocks.remove }),
 }));
-vi.mock("@/composables/useQuests", () => ({
+vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: { value: [
     { id: "obj-1", quest_id: "quest-1", description: "Keep the bridge standing", status: "pending", is_player_visible: true, sort_order: 1 },
   ] } }),

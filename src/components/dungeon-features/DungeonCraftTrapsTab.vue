@@ -54,7 +54,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { useTraps } from "@/composables/useTraps";
+import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppSelect from "@/components/common/AppSelect.vue";

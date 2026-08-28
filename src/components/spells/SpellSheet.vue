@@ -199,8 +199,8 @@ import { computed } from "vue";
 import { IconParty, IconUser } from '@/lib/icons';
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import { useSpellKnowers } from "@/composables/useCharacterSpells";
-import { useNpcSpellCasters } from "@/composables/useNpcs";
+import { useSpellKnowers } from "@/composables/party/useCharacterSpells";
+import { useNpcSpellCasters } from "@/composables/npcs/useNpcs";
 import { SCHOOL_TEXT, ATTACK_TYPES, spellSourceLabel } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
 

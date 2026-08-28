@@ -44,9 +44,9 @@ import AppButton from "@/components/common/AppButton.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 import DashboardQuestRow from "../DashboardQuestRow.vue";
 import { buildQuestRows } from "@/lib/dashboard/questRows";
-import { useAllQuests } from "@/composables/useQuests";
-import { useCampaignLiveQuests } from "@/composables/useQuestFlow";
-import { useNpcs } from "@/composables/useNpcs";
+import { useAllQuests } from "@/composables/quests/useQuests";
+import { useCampaignLiveQuests } from "@/composables/quests/useQuestFlow";
+import { useNpcs } from "@/composables/npcs/useNpcs";
 import type { Quest } from "@/types/quest.types";
 
 const { data: allQuests, isLoading: questsLoading } = useAllQuests();

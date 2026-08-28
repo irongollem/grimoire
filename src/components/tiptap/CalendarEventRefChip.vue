@@ -40,7 +40,7 @@ import { nodeViewProps, NodeViewWrapper } from "@tiptap/vue-3";
 import { IconCalendarDays, IconRemoveEvent } from '@/lib/icons';
 import { useRouter } from "vue-router";
 import { useCalendarStore } from "@/stores/calendar";
-import { useCalendarEventById } from "@/composables/useCalendarEvents";
+import { useCalendarEventById } from "@/composables/calendar/useCalendarEvents";
 
 const props = defineProps({ ...nodeViewProps });
 

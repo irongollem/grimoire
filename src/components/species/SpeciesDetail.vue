@@ -222,7 +222,7 @@
 import { ref, reactive, watch, computed } from "vue";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
-import { useCreateSpecies, useUpdateSpecies, useDeleteSpecies } from "@/composables/useSpecies";
+import { useCreateSpecies, useUpdateSpecies, useDeleteSpecies } from "@/composables/rules/useSpecies";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";

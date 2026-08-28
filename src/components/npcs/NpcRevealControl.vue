@@ -29,9 +29,9 @@
 import { ref, watch } from "vue";
 import RevealControl from "@/components/common/RevealControl.vue";
 import RevealedFieldsPanel from "@/components/common/RevealedFieldsPanel.vue";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { useParty } from "@/composables/useParty";
-import { useUpdateNpc } from "@/composables/useNpcs";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useParty } from "@/composables/party/useParty";
+import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { fieldsForFirstReveal, NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
 import type { RevealAdapter, RevealForm } from "@/lib/reveal";
 import { useUiStore } from "@/stores/ui";

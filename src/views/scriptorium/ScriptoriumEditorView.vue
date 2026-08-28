@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
-import { useScriptoriumDocument } from "@/composables/useScriptorium";
+import { useScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ScriptoriumEditor from "@/components/scriptorium/ScriptoriumEditor.vue";

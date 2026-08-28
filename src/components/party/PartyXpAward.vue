@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useUpdatePartyMember } from "@/composables/useParty";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { useToast } from "@/composables/useToast";
 import { levelForXp } from "@/types/party.types";
 import type { PartyMember } from "@/types/party.types";

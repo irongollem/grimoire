@@ -239,26 +239,26 @@ import {
   useCreateJournalEntry, useUpdateJournalEntry, useDeleteJournalEntry,
   useReorderJournalEntries,
   JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST,
-} from "@/composables/usePlayerJournal";
+} from "@/composables/notes/usePlayerJournal";
 import { useUiStore } from "@/stores/ui";
 import { storeToRefs } from "pinia";
 import { sortEntities, type SortField } from "@/lib/noteSort";
-import { useReadItems, useMarkRead } from "@/composables/useReadItems";
-import type { JournalCategory, PlayerJournalEntry, JournalRefType } from "@/composables/usePlayerJournal";
-import { usePlayerVisibleQuests } from "@/composables/useQuests";
+import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
+import type { JournalCategory, PlayerJournalEntry, JournalRefType } from "@/composables/notes/usePlayerJournal";
+import { usePlayerVisibleQuests } from "@/composables/quests/useQuests";
 import type { Quest } from "@/types/quest.types";
-import { usePlayerVisiblePuzzles } from "@/composables/usePuzzles";
-import { useSharedNpcs } from "@/composables/useNpcs";
-import { useSharedLocations } from "@/composables/useLocations";
-import { usePartyInventory } from "@/composables/usePartyInventory";
-import { usePlayerVisibleItems } from "@/composables/useItems";
-import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
-import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
-import { useNotes } from "@/composables/useNotes";
-import { usePlayerEntityMentionItems } from "@/composables/usePlayerEntityMentionItems";
+import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzles";
+import { useSharedNpcs } from "@/composables/npcs/useNpcs";
+import { useSharedLocations } from "@/composables/locations/useLocations";
+import { usePartyInventory } from "@/composables/items/usePartyInventory";
+import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
+import { useNotes } from "@/composables/notes/useNotes";
+import { usePlayerEntityMentionItems } from "@/composables/play/usePlayerEntityMentionItems";
 import type { NoteCategory } from "@/types/notes.types";
 import { useAuthStore } from "@/stores/auth";
-import { useMemberByUserId } from "@/composables/useCampaignMembers";
+import { useMemberByUserId } from "@/composables/campaign/useCampaignMembers";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { removeRichTextImages, cleanupRemovedRichTextImages } from "@/composables/useImageUpload";
 

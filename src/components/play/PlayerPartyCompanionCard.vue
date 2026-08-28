@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import { IconShield } from "@/lib/icons";
 import FocalImage from "@/components/common/FocalImage.vue";
-import { useHpDisplay } from "@/composables/useHpDisplay";
+import { useHpDisplay } from "@/composables/play/useHpDisplay";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
 

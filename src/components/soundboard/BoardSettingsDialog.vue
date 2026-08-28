@@ -92,8 +92,8 @@
 
 <script setup lang="ts">
 import { IconSettings } from "@/lib/icons";
-import { useAudioTriggerPrefs } from "@/composables/useAudioThemeTriggers";
-import { useSoundboardBroadcast } from "@/composables/useSoundboardBroadcast";
+import { useAudioTriggerPrefs } from "@/composables/soundboard/useAudioThemeTriggers";
+import { useSoundboardBroadcast } from "@/composables/soundboard/useSoundboardBroadcast";
 import { useSoundboardStore } from "@/stores/soundboard";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";

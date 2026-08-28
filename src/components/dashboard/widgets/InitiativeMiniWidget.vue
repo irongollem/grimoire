@@ -98,7 +98,7 @@
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { useRunningEncounters } from "@/composables/useEncounterLive";
+import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
 import { deriveInitiativeMiniState, type CombatantHpState } from "@/lib/dashboard/initiativeMini";
 import type { ButtonTone } from "@/components/common/appButtonVariants";
 import DashboardWidget from "../DashboardWidget.vue";

@@ -53,9 +53,9 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconHide } from "@/lib/icons";
-import { useParty } from "@/composables/useParty";
-import { usePartyInventory } from "@/composables/usePartyInventory";
-import { useItems } from "@/composables/useItems";
+import { useParty } from "@/composables/party/useParty";
+import { usePartyInventory } from "@/composables/items/usePartyInventory";
+import { useItems } from "@/composables/items/useItems";
 import { buildCursedItems } from "@/lib/dashboard/cursedItems";
 import AppButton from "@/components/common/AppButton.vue";
 import DashboardWidget from "../DashboardWidget.vue";

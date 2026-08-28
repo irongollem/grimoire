@@ -95,7 +95,7 @@ import { ref, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { IconClose, IconDownload, IconSearch } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
-import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables/useSpecies";
+import { useCreateSpecies, useUpdateSpecies, useAllSpecies } from "@/composables/rules/useSpecies";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

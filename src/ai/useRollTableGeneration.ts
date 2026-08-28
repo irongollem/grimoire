@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@/lib/edgeError";
 import { wrapUserInput, buildCampaignContext } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import type { RollTableAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -14,7 +14,7 @@ import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
-import { logUsage } from "@/composables/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import { ROLL_TABLE_DIE_MAX, validateEntryRanges } from "@/types/rollTable.types";
 import type { RollTableDie, RollTableEntry } from "@/types/rollTable.types";
 import { buildAiProvenance } from "@/ai/provenance";

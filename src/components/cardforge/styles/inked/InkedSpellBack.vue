@@ -43,7 +43,7 @@ import { extractTiptapText } from "@/lib/utils";
 import InkedShell from "./InkedShell.vue";
 import DamageIcon from "@/components/common/DamageIcon.vue";
 import { accentForSpell } from "../tokens.shared";
-import { useSpellCardData } from "@/composables/useSpellCardData";
+import { useSpellCardData } from "@/composables/cardforge/useSpellCardData";
 
 const { data } = defineProps<{ data: Spell; tarot?: boolean }>();
 

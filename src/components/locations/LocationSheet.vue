@@ -126,7 +126,7 @@ import {
   useAllLocations,
   useDeleteLocation,
   getPinnableDescendants,
-} from "@/composables/useLocations";
+} from "@/composables/locations/useLocations";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import { visibleTags } from "@/lib/locations/tags";
 import type { Location } from "@/types/location.types";

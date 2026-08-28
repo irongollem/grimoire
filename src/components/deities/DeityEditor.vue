@@ -197,7 +197,7 @@ import { useRouter } from "vue-router";
 import { IconSun } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
-import { useCreateDeity, useUpdateDeity, useDeleteDeity, useAllPantheons } from "@/composables/useDeities";
+import { useCreateDeity, useUpdateDeity, useDeleteDeity, useAllPantheons } from "@/composables/deities/useDeities";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS, type Deity } from "@/types/deity.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";

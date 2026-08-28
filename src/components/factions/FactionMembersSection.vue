@@ -104,8 +104,8 @@ import {
   useUpdateFactionNpcStatus,
   useRemoveFactionNpc,
   type FactionNpcWithNpc,
-} from "@/composables/useFactions";
-import { useNpcs } from "@/composables/useNpcs";
+} from "@/composables/factions/useFactions";
+import { useNpcs } from "@/composables/npcs/useNpcs";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import FactionMemberRow from "@/components/factions/FactionMemberRow.vue";
 import AppButton from "@/components/common/AppButton.vue";

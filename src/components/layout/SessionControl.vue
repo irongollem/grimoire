@@ -63,7 +63,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaignSession, formatSessionElapsed } from "@/composables/useCampaignSession";
+import { useCampaignSession, formatSessionElapsed } from "@/composables/campaign/useCampaignSession";
 import { useToast } from "@/composables/useToast";
 import { prefersReducedMotion } from "@/lib/motion";
 import { IconClose } from "@/lib/icons";

@@ -132,8 +132,8 @@ import {
   useNpcRelations,
   useCreateNpcRelation,
   useDeleteNpcRelation,
-} from "@/composables/useNpcRelations";
-import { useNpcs } from "@/composables/useNpcs";
+} from "@/composables/factions/useNpcRelations";
+import { useNpcs } from "@/composables/npcs/useNpcs";
 import {
   NPC_RELATIONSHIP_TYPE_LABELS,
   NPC_RELATIONSHIP_TYPE_VAR,

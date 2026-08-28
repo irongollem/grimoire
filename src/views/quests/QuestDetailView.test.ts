@@ -21,7 +21,7 @@ vi.mock("vue-router", () => ({
   useRoute: () => reactive(mocks.route),
   useRouter: () => ({ replace: mocks.replace }),
 }));
-vi.mock("@/composables/useQuests", () => ({
+vi.mock("@/composables/quests/useQuests", () => ({
   useQuest: () => ({
     data: ref({ id: "quest-1", title: "The Unseen", status: "active", player_visible_to: [] }),
     isLoading: ref(false),

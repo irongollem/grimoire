@@ -303,17 +303,17 @@ import {
   useCreateProposal,
   useUpdateProposal,
   useDeleteProposal,
-} from "@/composables/useScheduling";
+} from "@/composables/calendar/useScheduling";
 import {
   useCampaignById,
   useRegenerateIcalToken,
-} from "@/composables/useCampaigns";
-import { useCampaignMembers } from "@/composables/useCampaignMembers";
+} from "@/composables/campaign/useCampaigns";
+import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
-import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
-import { notifyProposalCreated } from "@/composables/useEmailNotify";
-import { useLocalToday } from "@/composables/useLocalToday";
+import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
+import { notifyProposalCreated } from "@/composables/campaign/useEmailNotify";
+import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import type { SessionProposal } from "@/types/scheduling.types";
 
 const { activeThemeId } = useTheme();

@@ -157,10 +157,10 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { IconGenerate, IconSearch } from '@/lib/icons';
-import { useAddInnateSpell } from "@/composables/useCharacterSpells";
+import { useAddInnateSpell } from "@/composables/party/useCharacterSpells";
 import { SCHOOL_BG } from "@/types/spell.types";
 import type { Spell, InnateSourceType, InnateResetsOn } from "@/types/spell.types";
-import { useSpellSearch } from "@/composables/useSpellSearch";
+import { useSpellSearch } from "@/composables/spells/useSpellSearch";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";

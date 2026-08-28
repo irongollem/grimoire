@@ -37,7 +37,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { MAX_EXHAUSTION, getConditionDescription } from "@/rules/conditions";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { useIsTouch } from "@/composables/useBreakpoint";
 
 const isTouch = useIsTouch();

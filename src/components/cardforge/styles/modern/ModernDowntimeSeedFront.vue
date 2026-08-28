@@ -35,7 +35,7 @@ import type { DowntimeSeed } from "@/types/downtime.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import ModernShell from "./ModernShell.vue";
 import { accentForDowntimeSeed } from "../tokens.shared";
-import { useDowntimeSeedCardData } from "@/composables/useDowntimeSeedCardData";
+import { useDowntimeSeedCardData } from "@/composables/cardforge/useDowntimeSeedCardData";
 
 const { data } = defineProps<{ data: DowntimeSeed; tarot?: boolean }>();
 

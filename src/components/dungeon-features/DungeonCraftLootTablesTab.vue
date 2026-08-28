@@ -63,7 +63,7 @@
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
-import { useLootTables } from "@/composables/useLootTables";
+import { useLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useUiStore } from "@/stores/ui";
 import { LOOT_CR_TIERS, LOOT_CR_TIER_LABELS } from "@/types/lootTable.types";
 import AppButton from "@/components/common/AppButton.vue";

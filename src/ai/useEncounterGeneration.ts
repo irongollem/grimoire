@@ -12,9 +12,9 @@ import {
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider } from "./providers";
-import { logUsage } from "@/composables/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { useCampaignStore } from "@/stores/campaign";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 

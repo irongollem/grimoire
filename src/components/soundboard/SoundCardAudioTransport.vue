@@ -75,7 +75,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useSoundPlayback } from "@/composables/useSoundPlayback";
+import { useSoundPlayback } from "@/composables/soundboard/useSoundPlayback";
 import type { Sound } from "@/types/sound.types";
 
 const { sound } = defineProps<{

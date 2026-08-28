@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import type { WeaponMasteryProperty } from "@/types/item.types";
 
 /**

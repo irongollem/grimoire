@@ -345,7 +345,7 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { formatChatTimestamp } from "@/lib/utils";
 import { useLocalePrefs } from "@/composables/useLocalePrefs";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -372,7 +372,7 @@ import type {
 import type { CampaignMember } from "@/types/campaign.types";
 import type { PartyMember } from "@/types/party.types";
 import type { DieSize, RollMode, RollResult } from "@/lib/dice/dice";
-import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import { COINS, type CoinKey, toCP } from "@/rules/currency";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";

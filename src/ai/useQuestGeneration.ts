@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@/lib/edgeError";
 import { wrapUserInput, buildCampaignContext } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import type { QuestHookResult, QuestHooksAiResult } from "./types";
 import {
   createAiGenerationState,
@@ -14,7 +14,7 @@ import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
-import { logUsage } from "@/composables/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";

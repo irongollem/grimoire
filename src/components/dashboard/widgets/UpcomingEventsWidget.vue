@@ -76,7 +76,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { useCalendarEventsRange } from "@/composables/useCalendarEvents";
+import { useCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useCalendarStore } from "@/stores/calendar";

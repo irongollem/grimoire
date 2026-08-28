@@ -64,7 +64,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteFeature } from "@/composables/useFeatures";
+import { useDeleteFeature } from "@/composables/rules/useFeatures";
 import type { ClassFeature } from "@/types/feature.types";
 import { FEATURE_TYPE_LABELS } from "@/types/feature.types";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

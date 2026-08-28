@@ -112,10 +112,10 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
-import { useAiCredits } from "@/composables/useAiCredits";
-import { useProviderConfig } from "@/composables/useProviderConfig";
-import { useLikenessGate } from "@/composables/useLikenessGate";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 
 const props = defineProps<{ visible: boolean; initialPrompt?: string; noteId?: string }>();
 

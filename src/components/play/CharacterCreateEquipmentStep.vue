@@ -73,7 +73,7 @@
 
 <script setup lang="ts">
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
+import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 

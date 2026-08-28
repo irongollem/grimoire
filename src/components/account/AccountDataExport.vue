@@ -35,7 +35,7 @@
  */
 import SettingsSection from "@/components/common/SettingsSection.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { useDataExport } from "@/composables/useDataExport";
+import { useDataExport } from "@/composables/account/useDataExport";
 
 const { exporting, error, exportData } = useDataExport();
 </script>

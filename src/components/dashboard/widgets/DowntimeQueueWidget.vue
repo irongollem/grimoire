@@ -43,8 +43,8 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import { useDowntimeDraws } from "@/composables/useDowntime";
-import { useParty } from "@/composables/useParty";
+import { useDowntimeDraws } from "@/composables/downtime/useDowntime";
+import { useParty } from "@/composables/party/useParty";
 import { buildDowntimeQueue } from "@/lib/dashboard/downtimeQueue";
 import { timeAgo } from "@/lib/utils";
 import DashboardWidget from "../DashboardWidget.vue";

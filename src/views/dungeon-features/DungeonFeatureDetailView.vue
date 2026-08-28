@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { useDungeonFeature } from "@/composables/useDungeonFeatures";
+import { useDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DungeonFeatureEditor from "@/components/dungeon-features/DungeonFeatureEditor.vue";

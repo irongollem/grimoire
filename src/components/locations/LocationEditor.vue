@@ -267,9 +267,9 @@ import LocationResidents from "@/components/locations/LocationResidents.vue";
 import LocationMapEditor from "@/components/locations/LocationMapEditor.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import { useNpcs } from "@/composables/useNpcs";
-import { usePlaylists } from "@/composables/useSoundboardPlaylists";
-import { useSounds } from "@/composables/useSounds";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
+import { useSounds } from "@/composables/soundboard/useSounds";
 import { collectThemes } from "@/lib/audio/audioThemes";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import {
@@ -280,7 +280,7 @@ import {
   useUpdateLocationGridCalibration,
   useDeleteLocation,
   getPinnableDescendants,
-} from "@/composables/useLocations";
+} from "@/composables/locations/useLocations";
 import type { GridCalibration } from "@/types/location.types";
 import {
   LOCATION_TYPE_LABELS,

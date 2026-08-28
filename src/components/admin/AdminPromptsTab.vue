@@ -41,8 +41,8 @@
 
 <script setup lang="ts">
 import { reactive, watch } from "vue";
-import { useAdminPrompts } from "@/composables/useAdminPrompts";
-import type { AiSystemPrompt } from "@/composables/useAdminPrompts";
+import { useAdminPrompts } from "@/composables/admin/useAdminPrompts";
+import type { AiSystemPrompt } from "@/composables/admin/useAdminPrompts";
 
 const promptsQuery = useAdminPrompts();
 const draftPrompts = reactive<Record<string, string>>({});

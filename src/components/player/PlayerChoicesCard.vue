@@ -53,7 +53,7 @@
 import { computed } from "vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { isInternalChoiceKey } from "@/lib/classChoices";
-import { useAllFeatures } from "@/composables/useFeatures";
+import { useAllFeatures } from "@/composables/rules/useFeatures";
 import type { BackgroundOriginFeat } from "@/types/background.types";
 import type { SaveKey } from "@/types/party.types";
 

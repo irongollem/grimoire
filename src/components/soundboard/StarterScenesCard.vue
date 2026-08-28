@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useStarterScenes } from "@/composables/useStarterScenes";
+import { useStarterScenes } from "@/composables/soundboard/useStarterScenes";
 import { STARTER_SCENES } from "@/data/starterScenes";
 
 const STARTER_SCENE_TOTAL = STARTER_SCENES.length;

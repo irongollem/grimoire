@@ -171,11 +171,11 @@ import type { ButtonFill, ButtonTone, ButtonVariant } from "@/components/common/
 import {
   useCharacterSpellsWithDetails,
   useRemoveCharacterSpellById,
-} from "@/composables/useCharacterSpells";
-import { useCastCharacterSpell, useParty } from "@/composables/useParty";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { useConcentration } from "@/composables/useConcentration";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
+} from "@/composables/party/useCharacterSpells";
+import { useCastCharacterSpell, useParty } from "@/composables/party/useParty";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useConcentration } from "@/composables/party/useConcentration";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useUiStore } from "@/stores/ui";
 import { SCHOOL_BG } from "@/types/spell.types";
 import { parseExpression, parsedToCounts } from "@/lib/dice/dice";

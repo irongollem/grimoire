@@ -44,11 +44,11 @@ import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import { useParty } from "@/composables/useParty";
-import { usePartyInventory } from "@/composables/usePartyInventory";
-import { usePlayerVisibleItems } from "@/composables/useItems";
-import { useSpeciesNameMap } from "@/composables/useSpecies";
-import { useBackgroundNameMap } from "@/composables/useBackgrounds";
+import { useParty } from "@/composables/party/useParty";
+import { usePartyInventory } from "@/composables/items/usePartyInventory";
+import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 

@@ -106,8 +106,8 @@
 
 <script setup lang="ts">
 import { computed, watch } from "vue";
-import { useLocation } from "@/composables/useLocations";
-import { useMapCanvas } from "@/composables/useMapCanvas";
+import { useLocation } from "@/composables/locations/useLocations";
+import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import {

@@ -107,7 +107,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useAllCampaignCharacterClasses } from '@/composables/useCharacterClasses';
+import { useAllCampaignCharacterClasses } from '@/composables/party/useCharacterClasses';
 import { formatMulticlassLabel, totalLevel } from '@/types/multiclass.types';
 import type { CharacterClass } from '@/types/multiclass.types';
 import type { PartyMember } from '@/types/party.types';

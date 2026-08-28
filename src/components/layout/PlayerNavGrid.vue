@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { useRoute } from "vue-router";
 import { IconRefresh } from "@/lib/icons";
-import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
+import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 
 defineEmits<{

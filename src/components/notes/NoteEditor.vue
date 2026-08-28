@@ -266,13 +266,13 @@ import {
   useUpdateNote,
   useDeleteNote,
   useNotes,
-} from "@/composables/useNotes";
-import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
+} from "@/composables/notes/useNotes";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import {
   useCreateCalendarEvent,
   useUpdateCalendarEvent,
   useDeleteCalendarEvent,
-} from "@/composables/useCalendarEvents";
+} from "@/composables/calendar/useCalendarEvents";
 import {
   removeRichTextImages,
   cleanupRemovedRichTextImages,
@@ -282,13 +282,13 @@ import type { CalendarEvent } from "@/types/calendar.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
-import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
-import { notifyNoteShared } from "@/composables/useEmailNotify";
+import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
+import { notifyNoteShared } from "@/composables/campaign/useEmailNotify";
 import { getCurrentUser } from "@/lib/supabase";
 import { storeToRefs } from "pinia";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
-import { useSubscription } from "@/composables/useSubscription";
+import { useSubscription } from "@/composables/billing/useSubscription";
 
 const CATEGORIES: { value: NoteCategory; label: string }[] = [
   { value: "general", label: "General" },

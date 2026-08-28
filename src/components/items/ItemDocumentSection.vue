@@ -89,13 +89,13 @@
 import { computed, ref } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useConfirm } from "@/composables/useConfirm";
-import { useParty } from "@/composables/useParty";
+import { useParty } from "@/composables/party/useParty";
 import {
   useItemEntries,
   useAddItemEntry,
   useUpdateItemEntry,
   useDeleteItemEntry,
-} from "@/composables/useItemEntries";
+} from "@/composables/items/useItemEntries";
 import {
   cleanupRemovedRichTextImages,
   removeRichTextImages,

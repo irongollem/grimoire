@@ -1,6 +1,6 @@
 import type { Directive, DirectiveBinding } from "vue";
 import type { RollMode } from "@/lib/dice/roller";
-import { openRollModePicker } from "@/composables/useRollModePicker";
+import { openRollModePicker } from "@/composables/dice/useRollModePicker";
 
 /**
  * `v-roll-mode` — attach advantage/disadvantage selection to a roll trigger (#501).

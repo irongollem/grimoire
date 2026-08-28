@@ -94,7 +94,7 @@ import MonsterEmbeddingBackfill from "@/components/admin/MonsterEmbeddingBackfil
 import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue";
 import VariantSweepPanel from "@/components/admin/VariantSweepPanel.vue";
 import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
-import { useAdminPlaceholderFocalPoints } from "@/composables/useAdminPlaceholderFocalPoints";
+import { useAdminPlaceholderFocalPoints } from "@/composables/admin/useAdminPlaceholderFocalPoints";
 
 const PLACEHOLDER_ENTITIES = [
   { type: "background",     label: "Background",      aspect: "aspect-3/4" },

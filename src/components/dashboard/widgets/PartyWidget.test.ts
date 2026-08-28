@@ -35,7 +35,7 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
 }));
 
-vi.mock("@/composables/useParty", () => ({
+vi.mock("@/composables/party/useParty", () => ({
   // Real refs, not plain `{ value }` objects: PartyWidget's template reads
   // `party`/`partyIsError` directly, relying on <script setup>'s automatic
   // ref-unwrapping — a non-ref mock renders truthy-object nonsense instead.
@@ -45,12 +45,12 @@ vi.mock("@/composables/useParty", () => ({
     refetch: mocks.refetch,
   }),
 }));
-vi.mock("@/composables/useSpecies", () => ({ useSpeciesNameMap: () => ({ value: new Map() }) }));
-vi.mock("@/composables/useCharacterClasses", () => ({
+vi.mock("@/composables/rules/useSpecies", () => ({ useSpeciesNameMap: () => ({ value: new Map() }) }));
+vi.mock("@/composables/party/useCharacterClasses", () => ({
   useAllCampaignCharacterClasses: () => ({ data: { value: [] } }),
 }));
-vi.mock("@/composables/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/useCampaignPresence", () => ({ useCampaignPresence: () => ({ isOnline: () => false }) }));
+vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/campaign/useCampaignPresence", () => ({ useCampaignPresence: () => ({ isOnline: () => false }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ isDM: false }) }));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: null }) }));
 

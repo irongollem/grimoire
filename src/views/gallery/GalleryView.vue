@@ -134,8 +134,8 @@ import { IconNavGallery, IconSearch, IconExternalLink, IconDelete } from "@/lib/
 import { useUiStore } from "@/stores/ui";
 import { useConfirm } from "@/composables/useConfirm";
 import { timeAgo } from "@/lib/utils";
-import { useGalleryImages, useDeleteGalleryImage, type GalleryImage } from "@/composables/useGalleryImages";
-import { KIND_META, IMAGE_GEN_KINDS, type ImageGenKind } from "@/composables/useImageGenerationLog";
+import { useGalleryImages, useDeleteGalleryImage, type GalleryImage } from "@/composables/ai/useGalleryImages";
+import { KIND_META, IMAGE_GEN_KINDS, type ImageGenKind } from "@/composables/ai/useImageGenerationLog";
 
 const router = useRouter();
 const { confirm } = useConfirm();

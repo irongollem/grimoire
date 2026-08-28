@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import EmptyState from "@/components/common/EmptyState.vue";
 import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
-import { useMyFeatureInterest, useRegisterFeatureInterest } from "@/composables/useFeatureInterest";
+import { useMyFeatureInterest, useRegisterFeatureInterest } from "@/composables/simulacrum/useFeatureInterest";
 import { SIMULACRUM_FEATURE_KEY } from "@/types/mini.types";
 
 const interestQuery = useMyFeatureInterest(SIMULACRUM_FEATURE_KEY);

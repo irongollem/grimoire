@@ -25,8 +25,8 @@ import { computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useItemEntries } from "@/composables/useItemEntries";
-import { useMarkRead } from "@/composables/useReadItems";
+import { useItemEntries } from "@/composables/items/useItemEntries";
+import { useMarkRead } from "@/composables/play/useReadItems";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
 import type { Item } from "@/types/item.types";
 

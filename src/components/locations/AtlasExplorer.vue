@@ -78,7 +78,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AtlasPlacePane from "@/components/locations/AtlasPlacePane.vue";
 import AtlasTree from "@/components/locations/AtlasTree.vue";
-import { useAllLocations } from "@/composables/useLocations";
+import { useAllLocations } from "@/composables/locations/useLocations";
 import { IconChevronLeft, IconNavAtlas } from "@/lib/icons";
 import { ancestorIds, buildAtlasIndex } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";

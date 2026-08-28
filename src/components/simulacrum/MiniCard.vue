@@ -127,7 +127,7 @@ import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { IconClose, IconDelete, IconDownload, IconRefresh, IconReveal } from "@/lib/icons";
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteMini } from "@/composables/useMinis";
+import { useDeleteMini } from "@/composables/simulacrum/useMinis";
 import { getPublicUrl } from "@/lib/storage";
 import { MINI_FORMAT_LABELS, MINI_STATUS_LABELS } from "@/types/mini.types";
 import type { Mini } from "@/types/mini.types";

@@ -263,19 +263,19 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { IconAdd, IconCheckCircle, IconClose, IconCoins, IconGenerate, IconWarning } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
-import { useCreateLootTable } from "@/composables/useLootTables";
+import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useCreateLootTable } from "@/composables/dungeon-features/useLootTables";
 import { useLootGeneration } from "@/ai/useLootGeneration";
 import { resolveGeneratedLoot, type ResolvedLootEntry } from "@/ai/resolveGeneratedLoot";
-import { useSubscription } from "@/composables/useSubscription";
+import { useSubscription } from "@/composables/billing/useSubscription";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import { useAiCredits } from "@/composables/useAiCredits";
-import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import {
   LOOT_CR_TIERS,
   LOOT_CR_TIER_LABELS,

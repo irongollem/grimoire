@@ -211,7 +211,7 @@ import AppButton from '@/components/common/AppButton.vue';
 import AppInput from '@/components/common/AppInput.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
-import { useEnsureOwnedItem } from '@/composables/useItems';
+import { useEnsureOwnedItem } from '@/composables/items/useItems';
 import type { Item } from '@/types/item.types';
 
 const { entries, itemOptions, entriesError, randomPoolSizes, resolveItem } = defineProps<{

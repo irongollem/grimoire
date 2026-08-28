@@ -272,7 +272,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { useLocationTree } from "@/composables/useLocations";
+import { useLocationTree } from "@/composables/locations/useLocations";
 import type { Location } from "@/types/location.types";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
@@ -282,9 +282,9 @@ import {
   useUpdateMonster,
   useDeleteMonster,
   useCloneLibraryMonster,
-} from "@/composables/useMonsters";
-import { useUpsertLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
-import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
+} from "@/composables/monsters/useMonsters";
+import { useUpsertLibraryMonsterArt } from "@/composables/library/useLibraryMonsterArt";
+import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { formatMonsterForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type {

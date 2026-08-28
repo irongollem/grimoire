@@ -51,7 +51,7 @@ import { IconInfo, IconExternalLink } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
-import { useAiAcknowledgements, type AiAcknowledgementKind } from "@/composables/useAiAcknowledgements";
+import { useAiAcknowledgements, type AiAcknowledgementKind } from "@/composables/ai/useAiAcknowledgements";
 import { AI_USE_NOTICE_VERSION, AI_LIKENESS_NOTICE_VERSION, AI_PRO_REOFFER_NOTICE_VERSION } from "@/lib/legal";
 
 /**

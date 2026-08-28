@@ -149,9 +149,9 @@ import { ref, computed } from 'vue';
 import { IconChevronRight } from '@/lib/icons';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
 import AppButton from '@/components/common/AppButton.vue';
-import { useParty, useUpdatePartyMember } from '@/composables/useParty';
-import { useNpcsByLocations } from '@/composables/useNpcs';
-import { useEncountersByLocation } from '@/composables/useEncounters';
+import { useParty, useUpdatePartyMember } from '@/composables/party/useParty';
+import { useNpcsByLocations } from '@/composables/npcs/useNpcs';
+import { useEncountersByLocation } from '@/composables/encounters/useEncounters';
 import type { Location } from '@/types/location.types';
 
 const { locationId, npcLocationIds, allLocations } = defineProps<{

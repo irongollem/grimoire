@@ -47,7 +47,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import MovementIcon from "@/components/common/MovementIcon.vue";
 import InkedShell from "./InkedShell.vue";
 import { accentForMonster } from "../tokens.shared";
-import { useMonsterCardData } from "@/composables/useMonsterCardData";
+import { useMonsterCardData } from "@/composables/cardforge/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();
 

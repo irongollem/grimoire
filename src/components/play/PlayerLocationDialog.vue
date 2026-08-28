@@ -56,9 +56,9 @@
 import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
-import { useSharedLocations } from "@/composables/useLocations";
-import { useSharedNpcsByLocations } from "@/composables/useNpcs";
-import { useMarkRead } from "@/composables/useReadItems";
+import { useSharedLocations } from "@/composables/locations/useLocations";
+import { useSharedNpcsByLocations } from "@/composables/npcs/useNpcs";
+import { useMarkRead } from "@/composables/play/useReadItems";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

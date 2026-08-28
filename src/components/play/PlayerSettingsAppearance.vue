@@ -76,7 +76,7 @@ import { IconReset } from "@/lib/icons";
 import { useTheme } from "@/composables/useTheme";
 import type { ThemeOverride } from "@/composables/useTheme";
 import { useLocalePrefs } from "@/composables/useLocalePrefs";
-import { useWakeLock } from "@/composables/useWakeLock";
+import { useWakeLock } from "@/composables/play/useWakeLock";
 import { formatChatTimestamp } from "@/lib/utils";
 
 const { themeOverride, setOverride } = useTheme();

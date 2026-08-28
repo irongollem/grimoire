@@ -31,9 +31,9 @@
 import { computed, ref } from "vue";
 import RuleTrackerPanel from "@/components/rules/RuleTrackerPanel.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { useTrackerStates, useApplyTrackerDelta } from "@/composables/useTrackerState";
-import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
-import { useParty } from "@/composables/useParty";
+import { useTrackerStates, useApplyTrackerDelta } from "@/composables/dashboard/useTrackerState";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
+import { useParty } from "@/composables/party/useParty";
 import { listOptionalRules } from "@/rules/optionalRules";
 import type { TrackerDef, TrackerState, DmButton } from "@/types/rule.types";
 

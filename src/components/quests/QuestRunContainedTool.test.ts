@@ -29,34 +29,34 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
-vi.mock("@/composables/useLocations", () => ({ useAllLocations: () => ({ data: mocks.locations }) }));
-vi.mock("@/composables/useNpcs", () => ({ useNpc: () => ({ data: mocks.npc }) }));
-vi.mock("@/composables/useFactions", () => ({ useFaction: () => ({ data: mocks.faction }) }));
-vi.mock("@/composables/useItems", () => ({ useItems: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/useMonsters", () => ({ useResolvedMonster: (id: { value: string }) => {
+vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: mocks.locations }) }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpc: () => ({ data: mocks.npc }) }));
+vi.mock("@/composables/factions/useFactions", () => ({ useFaction: () => ({ data: mocks.faction }) }));
+vi.mock("@/composables/items/useItems", () => ({ useItems: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/monsters/useMonsters", () => ({ useResolvedMonster: (id: { value: string }) => {
   mocks.monsterId = id;
   return { data: mocks.monster };
 } }));
-vi.mock("@/composables/useNotes", () => ({ useNote: (id: { value: string }) => {
+vi.mock("@/composables/notes/useNotes", () => ({ useNote: (id: { value: string }) => {
   mocks.noteId = id;
   return { data: mocks.note, isLoading: { value: false } };
 } }));
-vi.mock("@/composables/useScriptorium", () => ({ useScriptoriumDocument: (id: { value: string }) => {
+vi.mock("@/composables/scriptorium/useScriptorium", () => ({ useScriptoriumDocument: (id: { value: string }) => {
   mocks.handoutId = id;
   return { data: mocks.handout, isLoading: { value: false } };
 } }));
-vi.mock("@/composables/useSounds", () => ({ useSounds: (enabled: () => boolean) => {
+vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: (enabled: () => boolean) => {
   mocks.soundEnabled = enabled;
   return { data: mocks.sounds };
 } }));
-vi.mock("@/composables/useSoundboardPlaylists", () => ({
+vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({
   usePlaylists: (enabled: () => boolean) => {
     mocks.playlistEnabled = enabled;
     return { data: mocks.playlists };
   },
   usePlaylistTracks: () => ({ data: mocks.tracks }),
 }));
-vi.mock("@/composables/useSoundPlayback", () => ({
+vi.mock("@/composables/soundboard/useSoundPlayback", () => ({
   useActionCheck: () => () => "play",
   useBlockedCheck: () => () => null,
   useSoundTrigger: () => mocks.trigger,
@@ -66,7 +66,7 @@ vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({
   playPlaylist: mocks.playPlaylist,
   stopPlaylist: mocks.stopPlaylist,
 }) }));
-vi.mock("@/composables/useQuests", () => ({
+vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: (questId: { value: string }) => {
     mocks.objectiveQuestId = questId;
     return { data: { value: [] } };

@@ -73,9 +73,9 @@ import { ref, computed } from "vue";
 import { IconAdd, IconDelete, IconLoot } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/useNpcInventory";
-import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/items/useNpcInventory";
+import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { NpcInventoryItem } from "@/types/npc-inventory.types";
 
 const props = defineProps<{ npcId: string; npcName?: string }>();

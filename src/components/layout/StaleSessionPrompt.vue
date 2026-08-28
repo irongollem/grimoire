@@ -38,7 +38,7 @@ import {
   useCampaignSession,
   isSessionStale,
   formatSessionElapsed,
-} from "@/composables/useCampaignSession";
+} from "@/composables/campaign/useCampaignSession";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";

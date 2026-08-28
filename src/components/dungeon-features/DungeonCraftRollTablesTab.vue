@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useRollTables } from "@/composables/useRollTables";
+import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { ROLL_TABLE_DICE } from "@/types/rollTable.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

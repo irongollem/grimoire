@@ -141,9 +141,9 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import StatBlockPanel from "@/components/common/StatBlockPanel.vue";
 import TraitList from "@/components/common/TraitList.vue";
 import SpellcastingList from "@/components/common/SpellcastingList.vue";
-import { useEncountersByMonster } from "@/composables/useEncounters";
-import { useMonsterLootTables } from "@/composables/useLootTables";
-import { useLocationTree } from "@/composables/useLocations";
+import { useEncountersByMonster } from "@/composables/encounters/useEncounters";
+import { useMonsterLootTables } from "@/composables/dungeon-features/useLootTables";
+import { useLocationTree } from "@/composables/locations/useLocations";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
 
 const props = defineProps<{ monster: Monster }>();

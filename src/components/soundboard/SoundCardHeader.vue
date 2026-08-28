@@ -172,7 +172,7 @@ import type { AppInputHandle, AppSelectHandle } from "@/components/common/fieldV
 import FocalImage from "@/components/common/FocalImage.vue";
 import SoundTrimControl from "./SoundTrimControl.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useUpdateSound, useSoundThumbnailUpload } from "@/composables/useSounds";
+import { useUpdateSound, useSoundThumbnailUpload } from "@/composables/soundboard/useSounds";
 import type { Sound, SoundCategory } from "@/types/sound.types";
 
 const { sound, showDelete } = defineProps<{

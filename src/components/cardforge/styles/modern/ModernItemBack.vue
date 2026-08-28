@@ -41,7 +41,7 @@ import { extractTiptapText } from "@/lib/utils";
 import ModernShell from "./ModernShell.vue";
 import DamageIcon from "@/components/common/DamageIcon.vue";
 import { accentForItem } from "../tokens.shared";
-import { useItemCardData } from "@/composables/useItemCardData";
+import { useItemCardData } from "@/composables/cardforge/useItemCardData";
 
 const { data } = defineProps<{ data: Item; tarot?: boolean }>();
 

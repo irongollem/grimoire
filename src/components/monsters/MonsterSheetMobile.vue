@@ -309,9 +309,9 @@ import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import { IconCopy, IconDelete, IconEdit, IconLocation, IconReveal, IconScrollText } from "@/lib/icons";
-import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/useMonsters";
-import { useLocationTree } from "@/composables/useLocations";
-import { useMonsterVisibility } from "@/composables/useMonsterVisibility";
+import { useCloneLibraryMonster, useDeleteMonster } from "@/composables/monsters/useMonsters";
+import { useLocationTree } from "@/composables/locations/useLocations";
+import { useMonsterVisibility } from "@/composables/monsters/useMonsterVisibility";
 import { crBg, crText } from "@/lib/monsterDisplay";
 import type { Monster } from "@/types/monster.types";
 

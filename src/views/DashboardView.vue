@@ -11,7 +11,7 @@
       derived default, explicit escape hatch.
 
       Composition only — but the composition now comes from data, not markup.
-      `useDashboardLayout` (src/composables/useDashboardLayout.ts) resolves
+      `useDashboardLayout` (src/composables/dashboard/useDashboardLayout.ts) resolves
       which widgets appear, in what order, at what width: the DM's saved
       arrangement for this surface when one exists, and `DEFAULT_LAYOUTS`
       (src/lib/dashboard/defaultLayouts.ts) when it does not. There is no
@@ -181,7 +181,7 @@ import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFr
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
 import DashboardWidgetSettingsModal from "@/components/dashboard/DashboardWidgetSettingsModal.vue";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
-import { useDashboardLayout } from "@/composables/useDashboardLayout";
+import { useDashboardLayout } from "@/composables/dashboard/useDashboardLayout";
 import { useToast } from "@/composables/useToast";
 import { IconCheck, IconGridView } from "@/lib/icons";
 import {

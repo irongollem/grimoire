@@ -70,7 +70,7 @@
  */
 import { computed, ref } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { getConditions } from "@/rules/conditions";
 import { IconChevronDown } from "@/lib/icons";
 import { drawerTransition } from "@/lib/motion";

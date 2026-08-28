@@ -47,7 +47,7 @@ Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7), `downtimeEffe
 
 ### Composable
 
-`src/composables/useDowntime.ts` — everything under a **single `"downtime"` query-key root**, so one `invalidate("downtime")` string in `useCampaignLiveSync` refreshes all four tables.
+`src/composables/downtime/useDowntime.ts` — everything under a **single `"downtime"` query-key root**, so one `invalidate("downtime")` string in `useCampaignLiveSync` refreshes all four tables.
 
 - Queries: `useDowntimeGrants`, `useDowntimeDraws`, `useDowntimeOutcomes`, `useDeckBacks`, `useDowntimeBalance`
 - Mutations: `useGrantDowntime`, `useSpendDraw`, `useCancelDraw`, `useResolveDraw`, `useApplyEffects`, `useCreateDeckBack`, `useDeleteDeckBack`

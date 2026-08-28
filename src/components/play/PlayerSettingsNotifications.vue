@@ -71,14 +71,14 @@ import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
 import SettingsToggleRow from "@/components/common/SettingsToggleRow.vue";
-import { usePlayerCombatPrefs } from "@/composables/usePlayerCombatPrefs";
-import { useDicePrefs } from "@/composables/useDicePrefs";
+import { usePlayerCombatPrefs } from "@/composables/play/usePlayerCombatPrefs";
+import { useDicePrefs } from "@/composables/dice/useDicePrefs";
 import {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
   NOTIFICATION_PREFERENCE_DEFAULTS,
   type NotificationPreferences,
-} from "@/composables/useNotificationPreferences";
+} from "@/composables/account/useNotificationPreferences";
 
 const { turnAudioEnabled, setTurnAudio } = usePlayerCombatPrefs();
 const { diceAudioEnabled, setDiceAudio, diceMode, setDiceMode } = useDicePrefs();

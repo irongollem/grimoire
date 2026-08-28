@@ -296,8 +296,8 @@ import {
   useEntityPickerItems,
   buildBundle,
   BUNDLE_ENTITY_TYPES,
-} from "@/composables/useWorldBundle";
-import type { BundleEntityKey } from "@/composables/useWorldBundle";
+} from "@/composables/campaign/useWorldBundle";
+import type { BundleEntityKey } from "@/composables/campaign/useWorldBundle";
 import ImportBundleModal from "@/components/campaign/ImportBundleModal.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";

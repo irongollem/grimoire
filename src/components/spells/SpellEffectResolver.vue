@@ -64,10 +64,10 @@ import type { Spell, SpellOutcome, StructuredSpellEffect } from "@/types/spell.t
 import { effectsForCast, resolveSpellEffects } from "@/rules/spellEffects";
 import { parseExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useToast } from "@/composables/useToast";
 import { metamagicReminders, metamagicTargetBonus } from "@/rules/metamagicPolicy";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";

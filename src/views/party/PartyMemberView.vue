@@ -41,7 +41,7 @@
 import { computed, ref, defineAsyncComponent } from "vue";
 import { useRoute, RouterLink } from "vue-router";
 import { IconEdit } from '@/lib/icons';
-import { useParty } from "@/composables/useParty";
+import { useParty } from "@/composables/party/useParty";
 import PlayerCharacterView from "@/views/play/PlayerCharacterView.vue";
 import AppButton from "@/components/common/AppButton.vue";
 

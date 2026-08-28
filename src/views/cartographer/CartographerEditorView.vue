@@ -254,16 +254,16 @@ import {
   useCreateDungeonMap,
   useUpdateDungeonMap,
   useDeleteDungeonMap,
-} from "@/composables/useDungeonMaps";
+} from "@/composables/cartographer/useDungeonMaps";
 import { useConfirm } from "@/composables/useConfirm";
-import { useNotes } from "@/composables/useNotes";
-import { useEncounters } from "@/composables/useEncounters";
-import { useAiCredits } from "@/composables/useAiCredits";
-import { useProviderConfig } from "@/composables/useProviderConfig";
-import { useImageGenerationLog } from "@/composables/useImageGenerationLog";
-import { loadUserPack, useTilePacks } from "@/composables/useTilePacks";
+import { useNotes } from "@/composables/notes/useNotes";
+import { useEncounters } from "@/composables/encounters/useEncounters";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
+import { loadUserPack, useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAllLocations, useUpdateLocationMapUrl, useUpdateLocationGridCalibration } from "@/composables/useLocations";
+import { useAllLocations, useUpdateLocationMapUrl, useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
 import { bakeMap, bakeMapAsPng, bakeMapForAI, computeBakedDimensions } from "@/cartographer/bake";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import { uploadToBucket } from "@/lib/storage";

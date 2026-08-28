@@ -78,7 +78,7 @@ import { useRouter } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
 import { IconNavNotes } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
-import { useNotes, useReorderNotes } from "@/composables/useNotes";
+import { useNotes, useReorderNotes } from "@/composables/notes/useNotes";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -90,7 +90,7 @@ import NoteCard from "@/components/notes/NoteCard.vue";
 import { sortEntities, type SortField } from "@/lib/noteSort";
 import type { Note, NoteCategory } from "@/types/notes.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useQuota } from "@/composables/useQuota";
+import { useQuota } from "@/composables/billing/useQuota";
 
 const router = useRouter();
 const { canCreate, quota: noteQuota } = useQuota("notes");

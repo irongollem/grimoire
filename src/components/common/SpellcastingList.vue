@@ -58,7 +58,7 @@ import { ref, computed } from "vue";
 import { IconChevronRight } from '@/lib/icons';
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
-import { useSpells } from "@/composables/useSpells";
+import { useSpells } from "@/composables/spells/useSpells";
 import SpellSheet from "@/components/spells/SpellSheet.vue";
 import type { SpellcastingBlock } from "@/types/npc.types";
 import type { Spell } from "@/types/spell.types";

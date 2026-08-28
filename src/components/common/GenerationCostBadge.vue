@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconCoins } from "@/lib/icons";
-import { useAiCredits } from "@/composables/useAiCredits";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
 
 /**
  * Transparent, standardized credit-cost chip shown next to any paid AI

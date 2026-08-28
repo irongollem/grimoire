@@ -126,7 +126,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useAllDeities } from "@/composables/useDeities";
+import { useAllDeities } from "@/composables/deities/useDeities";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import type { PersonaFormSlice } from "./partyMemberForm.types";
 

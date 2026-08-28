@@ -48,8 +48,8 @@ import { ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUpdateCampaign } from "@/composables/useCampaigns";
-import { useAllSystemClasses } from "@/composables/useCustomClasses";
+import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
+import { useAllSystemClasses } from "@/composables/rules/useCustomClasses";
 
 const campaign = useCampaignStore();
 const { mutate: updateCampaign } = useUpdateCampaign();

@@ -4,7 +4,7 @@ import { edgeErrorMessage } from "@/lib/edgeError";
 import { buildCampaignContext, wrapUserInput } from "./utils";
 import { getTextProvider } from "./providers";
 import { fetchSystemPrompt } from "./systemPrompts";
-import { logUsage } from "@/composables/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import { useCampaignStore } from "@/stores/campaign";
 import { buildNpcVoiceProfile } from "@/lib/npcs/buildNpcVoiceProfile";
 import type { Npc } from "@/types/npc.types";

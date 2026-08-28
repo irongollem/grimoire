@@ -59,11 +59,17 @@ Not in the table — check these before concluding there is no doc:
 - `admin/`, `billing/`, `dev/`, `spike/`, `common/`, `layout/`, `tiptap/` —
   usually no feature doc. `common/` and `tiptap/` are shared primitives; their
   rules live in `CLAUDE.md`, not a feature doc.
-- `src/lib/<feature>/`, `src/rules/`, `src/composables/` — map by **who imports
-  them**, not by name. `rg "lib/<name>\"" src/` answers it. CLAUDE.md lists
-  several modules that are misnamed relative to their owner (`edgeTreatment` is
-  photo edges, not map edges; `npcEncounterSync` is encounter state, not
-  realtime transport).
+- `src/lib/<feature>/`, `src/rules/` — map by **who imports them**, not by
+  name. `rg "lib/<name>\"" src/` answers it. CLAUDE.md lists several modules
+  that are misnamed relative to their owner (`edgeTreatment` is photo edges,
+  not map edges; `npcEncounterSync` is encounter state, not realtime
+  transport).
+- `src/composables/<domain>/` — usually matches the directory table above
+  (`campaign/`, `party/`, `soundboard/`, …), but not always: `composables/rules/`
+  holds general 5e rules data (species, classes, backgrounds), not the
+  `rules/` roll-and-loot-tables bucket that row maps to. When the folder name
+  is ambiguous, map by who imports it, same as `lib/`. A handful of UI/platform
+  primitives with no domain stay at the `src/composables/` root.
 - `supabase/migrations/`, `supabase/functions/` — map by the tables they touch.
 - Cross-feature or pointing outside the app → `context/architecture/index.md`,
   which also holds the outage triage table.

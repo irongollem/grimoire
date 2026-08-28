@@ -31,7 +31,7 @@
 import { computed, onMounted, onUnmounted } from "vue";
 import type { CSSProperties } from "vue";
 import type { RollMode } from "@/lib/dice/roller";
-import { rollModePickerState, resolveRollModePicker } from "@/composables/useRollModePicker";
+import { rollModePickerState, resolveRollModePicker } from "@/composables/dice/useRollModePicker";
 
 const state = rollModePickerState;
 

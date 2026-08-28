@@ -162,7 +162,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, nextTick } from "vue";
-import { useSpells } from "@/composables/useSpells";
+import { useSpells } from "@/composables/spells/useSpells";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";

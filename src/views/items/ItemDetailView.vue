@@ -89,7 +89,7 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy, IconDelete, IconDocument, IconEdit, IconSave, IconScrollText } from '@/lib/icons';
-import { useResolvedItem, useEnsureOwnedItem } from "@/composables/useItems";
+import { useResolvedItem, useEnsureOwnedItem } from "@/composables/items/useItems";
 import { useToast } from "@/composables/useToast";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import PageHeader from "@/components/common/PageHeader.vue";

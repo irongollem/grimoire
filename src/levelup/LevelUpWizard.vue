@@ -177,28 +177,28 @@ import LevelUpSpellPicker from "./LevelUpSpellPicker.vue";
 import LevelUpSpellsUnavailable from "./LevelUpSpellsUnavailable.vue";
 import LevelUpClassSteps from "./LevelUpClassSteps.vue";
 import { useLevelUpConfirm } from "./useLevelUpConfirm";
-import { useCampaignCustomSubclasses } from "@/composables/useCustomSubclasses";
-import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/useCustomClasses";
+import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
+import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/rules/useCustomClasses";
 import {
   useCharacterClasses,
   useMulticlassPrereqs,
-} from "@/composables/useCharacterClasses";
-import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+} from "@/composables/party/useCharacterClasses";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { meetsMulticlassPrereq } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import { getHitDie } from "@/types/spell.types";
 import { useLevelUpSpellSlots } from "./useLevelUpSpellSlots";
 import { useClassScopedReset } from "./useClassScopedReset";
 import type { DieSize } from "@/lib/dice/dice";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
-import { useAllFeatures } from "@/composables/useFeatures";
-import { useCharacterSpells } from "@/composables/useCharacterSpells";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
+import { useAllFeatures } from "@/composables/rules/useFeatures";
+import { useCharacterSpells } from "@/composables/party/useCharacterSpells";
 import { useLevelUpSpellCandidates } from "./useLevelUpSpellCandidates";
 import type { PartyMember } from "@/types/party.types";
 import type { AbilityKey, AsiMode, ClassStep, ClassResourceDef, FeatureEntry } from "./types";
 import { mapFeatureIds } from "./types";
 import type { CustomResource } from "@/levelup/customTypes";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 
 const props = defineProps<{
   member: PartyMember;

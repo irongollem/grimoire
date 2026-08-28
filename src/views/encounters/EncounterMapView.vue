@@ -165,13 +165,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute, RouterLink } from "vue-router";
-import { useEncounter } from "@/composables/useEncounters";
+import { useEncounter } from "@/composables/encounters/useEncounters";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import { useLocation } from "@/composables/useLocations";
+import { useLocation } from "@/composables/locations/useLocations";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useEncounterLive, liveState } from "@/composables/useEncounterLive";
-import { useMapCanvas } from "@/composables/useMapCanvas";
+import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
+import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import {

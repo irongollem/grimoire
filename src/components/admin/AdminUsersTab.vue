@@ -95,8 +95,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useAdminUsers, type AdminUser } from "@/composables/useAdminUsers";
-import { accountDeletionErrorMessage } from "@/composables/useAccountDeletion";
+import { useAdminUsers, type AdminUser } from "@/composables/admin/useAdminUsers";
+import { accountDeletionErrorMessage } from "@/composables/account/useAccountDeletion";
 import { useConfirm } from "@/composables/useConfirm";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";

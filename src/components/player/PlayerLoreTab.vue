@@ -266,9 +266,9 @@
 <script setup lang="ts">
 import { reactive, ref, computed, watch } from "vue";
 import { RouterLink } from "vue-router";
-import { useBackground } from "@/composables/useBackgrounds";
-import { useUpdatePartyMember } from "@/composables/useParty";
-import { useAllDeities } from "@/composables/useDeities";
+import { useBackground } from "@/composables/rules/useBackgrounds";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useAllDeities } from "@/composables/deities/useDeities";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import FocalImage from "@/components/common/FocalImage.vue";

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import type { PartyMember } from "@/types/party.types";
-import { useCampaignSpecies } from "@/composables/useSpecies";
-import { useSetShapeshifterAppearance, useClearShapeshifterAppearance } from "@/composables/useParty";
+import { useCampaignSpecies } from "@/composables/rules/useSpecies";
+import { useSetShapeshifterAppearance, useClearShapeshifterAppearance } from "@/composables/party/useParty";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 

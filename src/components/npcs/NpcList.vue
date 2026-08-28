@@ -102,9 +102,9 @@ import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { IconNavNpcs } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
-import { useNpcs } from "@/composables/useNpcs";
-import { useNpcPcNotesByPartyMember } from "@/composables/useNpcPcNotes";
-import { useAllLocations, useLocationTree } from "@/composables/useLocations";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useNpcPcNotesByPartyMember } from "@/composables/npcs/useNpcPcNotes";
+import { useAllLocations, useLocationTree } from "@/composables/locations/useLocations";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -120,7 +120,7 @@ import {
 } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useQuota } from "@/composables/useQuota";
+import { useQuota } from "@/composables/billing/useQuota";
 
 const router = useRouter();
 const { canCreate, quota: npcQuota } = useQuota("npcs");

@@ -117,7 +117,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconClose, IconLightning } from "@/lib/icons";
-import { useCreateQuestTrigger } from "@/composables/useQuests";
+import { useCreateQuestTrigger } from "@/composables/quests/useQuests";
 import type { QuestObjective } from "@/types/quest.types";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";

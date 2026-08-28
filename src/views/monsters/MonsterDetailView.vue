@@ -44,7 +44,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { IconDocument } from '@/lib/icons';
-import { useMonsterWithArt } from "@/composables/useMonsters";
+import { useMonsterWithArt } from "@/composables/monsters/useMonsters";
 import { useDetailModal } from "@/composables/useDetailModal";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";

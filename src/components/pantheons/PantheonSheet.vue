@@ -72,7 +72,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconFire, IconSun } from '@/lib/icons';
-import { useAllDeities } from "@/composables/useDeities";
+import { useAllDeities } from "@/composables/deities/useDeities";
 import type { Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

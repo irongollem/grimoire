@@ -183,9 +183,9 @@ import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import ConditionPicker from "@/components/encounters/ConditionPicker.vue";
 import RunnerInitiativeField from "@/components/encounters/RunnerInitiativeField.vue";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { getExhaustionLevel, getConditionDescription } from "@/rules/conditions";
-import { useRunnerCombatant } from "@/composables/useRunnerCombatant";
+import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
 import type { RunCombatant } from "@/types/encounter.types";
 
 const { combatant, selectedId } = defineProps<{

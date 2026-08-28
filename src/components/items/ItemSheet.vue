@@ -284,9 +284,9 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import WeaponMasteryBadge from "@/components/items/WeaponMasteryBadge.vue";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
-import { useLootTablesByItem } from "@/composables/useLootTables";
-import { useItemHolders } from "@/composables/useItemHolders";
-import { useCampaigns } from "@/composables/useCampaigns";
+import { useLootTablesByItem } from "@/composables/dungeon-features/useLootTables";
+import { useItemHolders } from "@/composables/items/useItemHolders";
+import { useCampaigns } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import {

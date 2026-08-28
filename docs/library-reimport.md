@@ -71,11 +71,11 @@ duplicating).
 | Classes (`custom_classes`) | Character Codex → Classes → **Import from Open5e** (`useImportOpen5eClasses`) | `class_name`, `source`, `hit_die`, `saving_throws`, `features`, ruleset/identity fields | `primary_ability`, `armor_proficiencies`, `weapon_proficiencies`, `subclass_level`, `asi_levels`, `spell_slots`, `spells_known`, `cantrips_known`, `slot_recovery`, `caster_type`, `prepared_ability`, `prepared_divisor`, `steps`, `resources`, `campaign_id` — Open5e's class API has no data for any of these; a DM fills them in by hand after the first import |
 | Subclasses (`custom_subclasses`) | Character Codex → Archetypes → **Import from Open5e** (`useImportOpen5eSubclasses`) | `class_name`, `subclass_name`, `source`, `description`, `features`, ruleset/identity fields | `granted_spells`, `steps`, `resources`, `hp_per_level`, `campaign_id` |
 | Species | Species list → **Import from Open5e** panel (`SpeciesOpen5ePanel.vue`) — search-and-pick flow only; the "Import / update core PHB species" bulk seed button was retired in #303 (core species now come from the shared `library_species` table, mapper extracted to `src/lib/library/open5eSpeciesImport.ts`) | `name`, `description`, `size`, `speed`, `ability_score_increases`, `traits`, `languages`, `tags`, `source`, ruleset/identity fields | `notes`, `subraces`, `image_url`, `focal_point`, `is_shapeshifter`, `avg_height`, `avg_weight`, `granted_spells` |
-| Monsters (`monsters`) | **No per-user import path** — the unwired `useImportSrdMonsters` composable is gone from `src/composables/useMonsters.ts`; the supported re-import for monsters is `npm run seed-library-monsters` into the shared `library_monsters` table (see above). | — | — |
-| Spells (`spells` table, legacy) | **No per-user import path** — the unwired `useImportSrdSpells` composable is gone from `src/composables/useSpells.ts`; the supported re-import for spells is `npm run seed-library-spells` into the shared `library_spells` table (see above). | — | — |
+| Monsters (`monsters`) | **No per-user import path** — the unwired `useImportSrdMonsters` composable is gone from `src/composables/monsters/useMonsters.ts`; the supported re-import for monsters is `npm run seed-library-monsters` into the shared `library_monsters` table (see above). | — | — |
+| Spells (`spells` table, legacy) | **No per-user import path** — the unwired `useImportSrdSpells` composable is gone from `src/composables/spells/useSpells.ts`; the supported re-import for spells is `npm run seed-library-spells` into the shared `library_spells` table (see above). | — | — |
 
 Backgrounds (`backgrounds` table, `src/lib/library/open5eBackgroundImport.ts` /
-`src/composables/useBackgrounds.ts`) are out of scope for this document —
+`src/composables/rules/useBackgrounds.ts`) are out of scope for this document —
 owned by a separate in-flight change.
 
 ## Known upstream records worth re-checking

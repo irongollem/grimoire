@@ -142,8 +142,8 @@
 import { ref, computed, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import { PLAYLIST_NOUNS } from "@/lib/audio/playlistPeers";
-import { useSounds } from "@/composables/useSounds";
-import { usePlaylistTracks, useCreatePlaylist, useUpdatePlaylist, useReplacePlaylistTracks } from "@/composables/useSoundboardPlaylists";
+import { useSounds } from "@/composables/soundboard/useSounds";
+import { usePlaylistTracks, useCreatePlaylist, useUpdatePlaylist, useReplacePlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { storeToRefs } from "pinia";

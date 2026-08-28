@@ -246,7 +246,7 @@ import {
   useCreateHero,
   useUpdateHero,
   useDeleteHero,
-} from "@/composables/useHallOfHeroes";
+} from "@/composables/party/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

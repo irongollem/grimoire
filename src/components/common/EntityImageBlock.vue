@@ -79,9 +79,9 @@ import { IconGenerate } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
 import { useEntityImageGeneration } from "@/ai/useEntityImageGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
-import { useAiCredits } from "@/composables/useAiCredits";
-import { useProviderConfig } from "@/composables/useProviderConfig";
-import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import type { MiniSourceTable } from "@/types/mini.types";
 
 export interface ImageVariant {

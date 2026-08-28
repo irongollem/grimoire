@@ -54,7 +54,7 @@
  * live on the dashboard with its DM buttons (#764).
  *
  * `RuleTrackerPanel` already draws a tracker bar and `useApplyTrackerDelta`
- * already owns the clamp-and-upsert mutation (`src/composables/useTrackerState.ts`)
+ * already owns the clamp-and-upsert mutation (`src/composables/dashboard/useTrackerState.ts`)
  * — both are reused as-is here, not reimplemented. `DmTrackerButtons` could
  * not be dropped in whole: it is scoped to a *party member* and renders every
  * tracker-bearing rule that member has, with no way to filter to the one rule
@@ -75,9 +75,9 @@ import { computed, ref } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import RuleTrackerPanel from "@/components/rules/RuleTrackerPanel.vue";
-import { useRules } from "@/composables/useRules";
-import { useParty } from "@/composables/useParty";
-import { useTrackerStates, useApplyTrackerDelta } from "@/composables/useTrackerState";
+import { useRules } from "@/composables/rules/useRules";
+import { useParty } from "@/composables/party/useParty";
+import { useTrackerStates, useApplyTrackerDelta } from "@/composables/dashboard/useTrackerState";
 import { resolveRuleTracker, type RuleTrackerResolution } from "@/lib/dashboard/ruleTrackerCard";
 import type { DmButton } from "@/types/rule.types";
 

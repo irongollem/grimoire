@@ -197,13 +197,13 @@ import RunnerPcPanel from "@/components/encounters/RunnerPcPanel.vue";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useCompanions } from "@/composables/useCompanions";
+import { useCompanions } from "@/composables/encounters/useCompanions";
 import { TRAP_TYPE_VAR } from "@/types/trap.types";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { parseExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
 import type { DieSize, RollResult } from "@/lib/dice/roller";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import type { Spell as SpellType } from "@/types/spell.types";
 import { renderTiptapHtml } from "@/lib/tiptap/renderTiptap";
 

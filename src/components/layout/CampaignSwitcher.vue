@@ -210,18 +210,18 @@
 import { ref, computed, defineAsyncComponent, watch } from "vue";
 import { IconAdd, IconArchive, IconChevronDown, IconDownload, IconNavCampaign, IconSettingsAlt, IconUploadCloud } from '@/lib/icons';
 import { useLazyMount } from "@/composables/useLazyMount";
-import { useCampaignPresence } from "@/composables/useCampaignPresence";
+import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useAuthStore } from "@/stores/auth";
 import {
   useCampaigns,
   useArchivedCampaigns,
   useClaimOrphanedData,
   useRestoreCampaign,
-} from "@/composables/useCampaigns";
+} from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { getCalendarAdapter } from "@/calendars/index";
 import type { Campaign } from "@/types/campaign.types";
-import { useQuota } from "@/composables/useQuota";
+import { useQuota } from "@/composables/billing/useQuota";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 

@@ -276,11 +276,11 @@ import ProBadge from "@/components/common/ProBadge.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
-import { useCreateSound, useSoundUpload } from "@/composables/useSounds";
+import { useCreateSound, useSoundUpload } from "@/composables/soundboard/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
-import { useSubscription } from "@/composables/useSubscription";
+import { useSubscription } from "@/composables/billing/useSubscription";
 import { generateMusicWithLyria, structureMusicPrompt, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/audio/aiMusic";
-import { logUsage, useAiCredits } from "@/composables/useAiCredits";
+import { logUsage, useAiCredits } from "@/composables/ai/useAiCredits";
 import { supabase } from "@/lib/supabase";
 import {
   acknowledgeAiGenerationJob,

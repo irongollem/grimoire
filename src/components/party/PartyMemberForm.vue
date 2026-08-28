@@ -112,20 +112,20 @@ import PartyMemberIdentityTab from "./PartyMemberIdentityTab.vue";
 import PartyMemberAbilitiesTab from "./PartyMemberAbilitiesTab.vue";
 import PartyMemberProficienciesTab from "./PartyMemberProficienciesTab.vue";
 import PartyMemberPersonaTab from "./PartyMemberPersonaTab.vue";
-import { useCampaignSpecies } from "@/composables/useSpecies";
+import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import {
   useCreatePartyMember,
   useUpdatePartyMember,
   useDeletePartyMember,
-} from "@/composables/useParty";
-import { useDetachCharacter } from "@/composables/useCharacterPool";
+} from "@/composables/party/useParty";
+import { useDetachCharacter } from "@/composables/party/useCharacterPool";
 import {
   useCampaignMembers,
   useUpdateCampaignMember,
-} from "@/composables/useCampaignMembers";
-import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/useCustomClasses";
-import { useCampaignCustomSubclasses } from "@/composables/useCustomSubclasses";
-import { useCharacterClasses } from "@/composables/useCharacterClasses";
+} from "@/composables/campaign/useCampaignMembers";
+import { useCampaignSystemClasses, useCampaignCustomClasses } from "@/composables/rules/useCustomClasses";
+import { useCampaignCustomSubclasses } from "@/composables/rules/useCustomSubclasses";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type {
   PartyMember,

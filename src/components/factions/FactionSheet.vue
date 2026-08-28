@@ -72,7 +72,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteFaction } from "@/composables/useFactions";
+import { useDeleteFaction } from "@/composables/factions/useFactions";
 import type { Faction } from "@/types/faction.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

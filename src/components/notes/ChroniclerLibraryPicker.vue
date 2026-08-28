@@ -29,7 +29,7 @@
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
-import { useChroniclerImages } from "@/composables/useChroniclerImages";
+import { useChroniclerImages } from "@/composables/notes/useChroniclerImages";
 
 defineProps<{ visible: boolean }>();
 

@@ -44,7 +44,7 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
-import { useRemoveWaitlistEmail } from "@/composables/useProWaitlist";
+import { useRemoveWaitlistEmail } from "@/composables/admin/useProWaitlist";
 
 const removeEmail = useRemoveWaitlistEmail();
 

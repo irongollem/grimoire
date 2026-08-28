@@ -312,12 +312,12 @@ import AppButton from "@/components/common/AppButton.vue";
 import { canAnimate, originTransform, REST_TRANSFORM, whenSettled } from "@/lib/motion";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSpotifyStore } from "@/stores/spotify";
-import { useSounds } from "@/composables/useSounds";
+import { useSounds } from "@/composables/soundboard/useSounds";
 import SoundEffectPicker from "./SoundEffectPicker.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import SoundboardMixer from "./SoundboardMixer.vue";
 import CausedByChip from "./CausedByChip.vue";
-import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
+import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import SpotifyErrorBanner from "./SpotifyErrorBanner.vue";
 
 import CastButton from "./CastButton.vue";

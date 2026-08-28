@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useFeature } from "@/composables/useFeatures";
+import { useFeature } from "@/composables/rules/useFeatures";
 import AppButton from "@/components/common/AppButton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

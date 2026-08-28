@@ -34,7 +34,7 @@ export interface DyingPartyMember {
  * `PartyMember`, matching the `NOT NULL DEFAULT 0` column
  * (`supabase/migrations/20260426000099_initial_schema_squashed.sql:1635-1636`).
  * But `useParty`'s `fetchParty` hands the query result straight through an
- * unchecked `data as PartyMember[]` cast (`src/composables/useParty.ts:23`) —
+ * unchecked `data as PartyMember[]` cast (`src/composables/party/useParty.ts:23`) —
  * nothing at the boundary actually verifies the column came back as a number
  * — and this app has already shipped once with production schema drifted
  * from its own migrations undetected. Reading `unknown` here, instead of

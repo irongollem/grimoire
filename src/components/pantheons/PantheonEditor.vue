@@ -96,7 +96,7 @@ import { useRouter } from "vue-router";
 import { IconFire } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
-import { useCreatePantheon, useUpdatePantheon, useDeletePantheon } from "@/composables/useDeities";
+import { useCreatePantheon, useUpdatePantheon, useDeletePantheon } from "@/composables/deities/useDeities";
 import type { Pantheon } from "@/types/deity.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";

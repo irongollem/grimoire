@@ -275,7 +275,7 @@ import StatBlockEditor from "@/components/common/StatBlockEditor.vue";
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
-import { useLocationTree } from "@/composables/useLocations";
+import { useLocationTree } from "@/composables/locations/useLocations";
 import type { Location } from "@/types/location.types";
 import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";

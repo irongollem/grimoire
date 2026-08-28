@@ -16,7 +16,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import RecipeEditor from "@/components/crafting/RecipeEditor.vue";
 import RecipeSheet from "@/components/crafting/RecipeSheet.vue";
-import { useCraftingRecipe } from "@/composables/useCrafting";
+import { useCraftingRecipe } from "@/composables/crafting/useCrafting";
 
 const route = useRoute();
 const router = useRouter();

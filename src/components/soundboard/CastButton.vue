@@ -34,7 +34,7 @@
 import { IconCast } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import type { ButtonSize, ButtonVariant } from "@/components/common/appButtonVariants";
-import { useCast } from "@/composables/useCast";
+import { useCast } from "@/composables/soundboard/useCast";
 
 const { variant = "ghost", size = "icon-2xs" } = defineProps<{
   variant?: ButtonVariant;

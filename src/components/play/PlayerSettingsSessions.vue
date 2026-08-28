@@ -70,8 +70,8 @@ import SettingsSection from "@/components/common/SettingsSection.vue";
 import { IconCalendarCheck, IconCheck, IconClose } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
-import { useSessionProposals, useAllSessionAvailability, useUpsertAvailability } from "@/composables/useScheduling";
-import { useLocalToday } from "@/composables/useLocalToday";
+import { useSessionProposals, useAllSessionAvailability, useUpsertAvailability } from "@/composables/calendar/useScheduling";
+import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import type { SessionProposal } from "@/types/scheduling.types";
 
 const auth = useAuthStore();

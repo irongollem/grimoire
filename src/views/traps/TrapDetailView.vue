@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { useTrap } from "@/composables/useTraps";
+import { useTrap } from "@/composables/dungeon-features/useTraps";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import TrapEditor from "@/components/traps/TrapEditor.vue";

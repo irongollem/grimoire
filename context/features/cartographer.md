@@ -1007,7 +1007,7 @@ This appendix tracks where the implementation actually lives so future agents do
 | [src/cartographer/packLoader.ts](../../src/cartographer/packLoader.ts) | `loadPack(manifestUrl)` → `TilePackRuntime` with `getTile(category, variant, side?)` |
 | [public/cartographer/stone-dungeon/v1/manifest.json](../../public/cartographer/stone-dungeon/v1/manifest.json) | Starter pack manifest (declares full M1+M2 slot list) |
 | [public/cartographer/stone-dungeon/v1/README.md](../../public/cartographer/stone-dungeon/v1/README.md) | Asset list + generation guidelines for the AI pipeline |
-| [src/composables/useDungeonMaps.ts](../../src/composables/useDungeonMaps.ts) | `useDungeonMaps`, `useDungeonMap`, `useCreate/Update/DeleteDungeonMap` |
+| [src/composables/cartographer/useDungeonMaps.ts](../../src/composables/cartographer/useDungeonMaps.ts) | `useDungeonMaps`, `useDungeonMap`, `useCreate/Update/DeleteDungeonMap` |
 | [src/views/cartographer/CartographerListView.vue](../../src/views/cartographer/CartographerListView.vue) | `/cartographer` list view with filter state |
 | [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue) | `/cartographer/new` + `/cartographer/:id` editor (canvas + toolbox + inspector) |
 
@@ -1142,7 +1142,7 @@ A second bundled pack, `wood-interior`, ships alongside `stone-dungeon`. Real We
 ### Modified in M5
 
 - [src/types/location.types.ts](../../src/types/location.types.ts) — `source_map_id: string | null` added to `Location`.
-- [src/composables/useLocations.ts](../../src/composables/useLocations.ts) — `useUpdateLocationMapUrl()` mutation.
+- [src/composables/locations/useLocations.ts](../../src/composables/locations/useLocations.ts) — `useUpdateLocationMapUrl()` mutation.
 - [src/lib/nav.ts](../../src/lib/nav.ts) — Cartographer entry in Publish nav group.
 - [src/views/cartographer/CartographerEditorView.vue](../../src/views/cartographer/CartographerEditorView.vue) — Save to Atlas button + modal + Download PNG button + bake/upload logic.
 - [src/components/locations/LocationEditor.vue](../../src/components/locations/LocationEditor.vue) — "Edit in Cartographer" link when `source_map_id` is set.

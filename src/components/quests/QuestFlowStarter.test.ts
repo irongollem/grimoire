@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   ui: { dmMode: "play" as "prep" | "play" },
 }));
 
-vi.mock("@/composables/useQuests", () => ({
+vi.mock("@/composables/quests/useQuests", () => ({
   useCreateQuest: () => ({ mutateAsync: mocks.create }),
 }));
 vi.mock("vue-router", async (importOriginal) => ({

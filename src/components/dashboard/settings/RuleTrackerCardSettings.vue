@@ -29,7 +29,7 @@
  */
 import { computed } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { useRules } from "@/composables/useRules";
+import { useRules } from "@/composables/rules/useRules";
 import { parseRuleTrackerCardSettings } from "@/lib/dashboard/ruleTrackerCard";
 
 const { modelValue } = defineProps<{

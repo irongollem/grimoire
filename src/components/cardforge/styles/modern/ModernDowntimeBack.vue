@@ -24,7 +24,7 @@
 import type { DowntimeActivity } from "@/types/downtime.types";
 import ModernShell from "./ModernShell.vue";
 import { accentForDowntime } from "../tokens.shared";
-import { useDowntimeCardData } from "@/composables/useDowntimeCardData";
+import { useDowntimeCardData } from "@/composables/cardforge/useDowntimeCardData";
 
 const { data } = defineProps<{ data: DowntimeActivity; tarot?: boolean }>();
 

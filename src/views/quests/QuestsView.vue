@@ -106,10 +106,10 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import QuestList from "@/components/quests/QuestList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useCreateGate } from "@/composables/useCreateGate";
+import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useUiStore } from "@/stores/ui";
-import { useAllQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/useQuests";
-import { useQuestBoardSummaries } from "@/composables/useQuestFlow";
+import { useAllQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
+import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { countQuestBoardFilters } from "@/lib/quests/board";
 
 const ui = useUiStore();

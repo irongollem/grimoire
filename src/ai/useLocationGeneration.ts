@@ -4,7 +4,7 @@ import {
   buildCampaignContext,
 } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import type { LocationAiResult, LocationAiGenerated } from "./types";
 import {
   createAiGenerationState,
@@ -15,7 +15,7 @@ import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider } from "./providers";
 import { wrapUserInput } from "./utils";
-import { logUsage } from "@/composables/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import {
   captureImageGenerationContext,
   generateImage,

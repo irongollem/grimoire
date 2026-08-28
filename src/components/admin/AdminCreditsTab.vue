@@ -146,8 +146,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useAdminUsers } from "@/composables/useAdminUsers";
-import { useUserLedger } from "@/composables/useUserLedger";
+import { useAdminUsers } from "@/composables/admin/useAdminUsers";
+import { useUserLedger } from "@/composables/admin/useUserLedger";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";

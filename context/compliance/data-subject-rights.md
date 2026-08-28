@@ -529,18 +529,18 @@ attributable, but the entry carries a count and the fixed reason
 | Export RPC — FK-graph walk, redaction (§4e) | `supabase/migrations/20260811130935_gdpr_data_export.sql` |
 | Export orchestration (JWT identity → rate limit → RPC → storage) | `supabase/functions/export-my-data/index.ts` |
 | The one listing both rights use to find a user's files | `supabase/functions/_shared/storage-inventory.ts` |
-| Export client call + error copy | `src/composables/useDataExport.ts` |
+| Export client call + error copy | `src/composables/account/useDataExport.ts` |
 | Self-serve export UI | `src/components/account/AccountDataExport.vue` (route `/account`) |
 | §4e invariant tests (coverage symmetry, gate, redaction) | `supabase/tests/data_export.test.sql` |
 | DSR request log — table, guard, writers, retention (§4f) | `supabase/migrations/20260811152817_dsr_request_log.sql` |
-| DSR client calls + the pinned request vocabulary | `src/composables/useDsrRequests.ts` |
+| DSR client calls + the pinned request vocabulary | `src/composables/admin/useDsrRequests.ts` |
 | DSR admin viewer + email-channel entry | `src/components/admin/AdminDsrTab.vue`, `DsrRequestRow.vue` |
 | §4f invariant tests (no FK, guard, erasure survival) | `supabase/tests/dsr_requests.test.sql` |
 | Waitlist withdrawal — token, both routes, why neither is logged (§4g) | `supabase/migrations/20260811221206_waitlist_withdrawal.sql` |
 | The unsubscribe endpoint, and the header pair a mailing must send | `supabase/functions/waitlist-unsubscribe/index.ts`, `page.ts` |
-| Operator route — client call and admin UI | `src/composables/useProWaitlist.ts`, `src/components/admin/WaitlistRemovalPanel.vue` |
+| Operator route — client call and admin UI | `src/composables/admin/useProWaitlist.ts`, `src/components/admin/WaitlistRemovalPanel.vue` |
 | §4g invariant tests (token uniqueness, both gates, no address in the audit entry) | `supabase/tests/waitlist_withdrawal.test.sql` |
-| Client call + error copy | `src/composables/useAccountDeletion.ts` |
+| Client call + error copy | `src/composables/account/useAccountDeletion.ts` |
 | Self-serve UI | `src/components/account/AccountSettings.vue` (route `/account`) |
 | Admin UI | `src/components/admin/AdminUsersTab.vue` |
 | Invariant tests | `supabase/tests/ai_compliance_regressions.test.sql` |
@@ -556,7 +556,7 @@ attributable, but the entry carries a count and the fixed reason
 | §4c unit tests | `scripts/anonymize-seed.test.ts` |
 | Audit-log writers + the policies they replace (§4d) | `supabase/migrations/20260809214703_admin_audit_log_writers.sql` |
 | Audit entries for actions outside Postgres (§4d) | `supabase/functions/_shared/adminAudit.ts` |
-| Admin viewer + the pinned action vocabulary | `src/components/admin/AdminAuditTab.vue`, `src/composables/useAdminAuditLog.ts` |
+| Admin viewer + the pinned action vocabulary | `src/components/admin/AdminAuditTab.vue`, `src/composables/admin/useAdminAuditLog.ts` |
 | §4d invariant tests | `supabase/tests/admin_audit_writers.test.sql` |
 | Retention periods — the register | `context/compliance/retention.md` |
 | Retention horizon, guard exceptions, the purge, the schedule | `supabase/migrations/20260810000004_retention_periods.sql` |

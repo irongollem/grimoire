@@ -28,8 +28,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useParty } from "@/composables/useParty";
-import { usePartyInventory, useUpdateInventoryItem } from "@/composables/usePartyInventory";
+import { useParty } from "@/composables/party/useParty";
+import { usePartyInventory, useUpdateInventoryItem } from "@/composables/items/usePartyInventory";
 import AppButton from "@/components/common/AppButton.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 

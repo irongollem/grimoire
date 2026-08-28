@@ -115,7 +115,7 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 - **Saving throw proficiencies** checkboxes (6 stats)
 - **Skill Proficiencies** grid: None / Proficient / Expertise per skill
 
-**Shield & armor AC** — the stored `party_members.ac` is the armor class WITHOUT shield. Display AC resolves through `useShieldAcBonus().acFor(member)` (`src/composables/useShieldAc.ts`, wrapped in `createSharedComposable` so N tracker/runner rows share one set of inventory-scanning computeds; pure logic + tests in `src/rules/shieldAc.ts` and `src/rules/armorAc.ts`): base AC comes from `resolveBaseAc(ac_formula, storedAc, equippedArmor, dex)` — `"armor"` live-derives from the equipped body armor (`parseArmorClass`, base anchored to a leading integer), `"unarmored:*"`/`"mage_armor"` are replaced by armor-derived AC while body armor is equipped (RAW: those calculations only function unarmored), `"natural:*"` (fixed `natural:<N>` or Dex-based `natural:<N>+dex` — Tortle vs. Lizardfolk/Draconic Resilience) takes the higher of shell vs. worn armor, and null/manual `ac` is never overridden — then any equipped (non-ruined) shield bonus stacks on top in every mode. Wired into: PlayerCharacterHeader, PlayerPartyMemberCard, PartyMemberLightbox, PartyTrackerRow, RunnerPcPanel, useRunnerCombatant, and CharacterSheetRenderer (via `acBonus` prop — the renderer is mounted with a bare `createApp` for PDF export, so it can't use query composables). Wildshaped characters show the beast AC with no shield bonus. Both AC edit fields (CharacterEditTabs, PartyMemberAbilitiesTab) carry a "without shield" hint.
+**Shield & armor AC** — the stored `party_members.ac` is the armor class WITHOUT shield. Display AC resolves through `useShieldAcBonus().acFor(member)` (`src/composables/party/useShieldAc.ts`, wrapped in `createSharedComposable` so N tracker/runner rows share one set of inventory-scanning computeds; pure logic + tests in `src/rules/shieldAc.ts` and `src/rules/armorAc.ts`): base AC comes from `resolveBaseAc(ac_formula, storedAc, equippedArmor, dex)` — `"armor"` live-derives from the equipped body armor (`parseArmorClass`, base anchored to a leading integer), `"unarmored:*"`/`"mage_armor"` are replaced by armor-derived AC while body armor is equipped (RAW: those calculations only function unarmored), `"natural:*"` (fixed `natural:<N>` or Dex-based `natural:<N>+dex` — Tortle vs. Lizardfolk/Draconic Resilience) takes the higher of shell vs. worn armor, and null/manual `ac` is never overridden — then any equipped (non-ruined) shield bonus stacks on top in every mode. Wired into: PlayerCharacterHeader, PlayerPartyMemberCard, PartyMemberLightbox, PartyTrackerRow, RunnerPcPanel, useRunnerCombatant, and CharacterSheetRenderer (via `acBonus` prop — the renderer is mounted with a bare `createApp` for PDF export, so it can't use query composables). Wildshaped characters show the beast AC with no shield bonus. Both AC edit fields (CharacterEditTabs, PartyMemberAbilitiesTab) carry a "without shield" hint.
 
 ### Equipment Tab
 
@@ -314,7 +314,7 @@ the equipment seeding (`party_inventory.campaign_id` is NOT NULL) and the
 membership link, and lands back on the pool; the species picker falls back to
 the `wotc-srd` baseline when no campaign is active (`useSpecies.ts`), since
 `campaign_enabled_sources` has no row to read. Data layer:
-`src/composables/useCharacterPool.ts` (query key `character-pool` — NOT
+`src/composables/party/useCharacterPool.ts` (query key `character-pool` — NOT
 `my-characters`, which useParty.ts owns for the campaign-scoped champions
 list).
 
@@ -511,7 +511,7 @@ The player can toggle their own disguise on/off using DB functions `set_shapeshi
 
 Both the DM (`/party/:partyMemberId/sheet` → `views/publishing/CharacterSheetView.vue`) and players (`/play` → `views/play/PlayerCharacterSheetView.vue`, own character only) can export a printable PDF. Both views are thin wrappers around the shared **`CharacterSheetExportPanel.vue`** (toolbar + live preview + export), which persists the export-screen prefs per character in `localStorage` (`cs-mode-*`, `cs-theme-*`, `cs-illus-theme-*`).
 
-The pipeline is `composables/useCharacterSheetPdf.ts` → off-screen `createApp()` → `html2canvas` → `jsPDF`. It iterates every `.cs-page` element the renderer emits, so adding pages requires no pipeline changes.
+The pipeline is `composables/party/useCharacterSheetPdf.ts` → off-screen `createApp()` → `html2canvas` → `jsPDF`. It iterates every `.cs-page` element the renderer emits, so adding pages requires no pipeline changes.
 
 **Two export modes:**
 

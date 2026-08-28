@@ -1,5 +1,5 @@
 import { STORE_LOCATION_TYPES, type Location } from "@/types/location.types";
-import type { StoreStockRow } from "@/composables/useStoreItems";
+import type { StoreStockRow } from "@/composables/items/useStoreItems";
 
 /**
  * Which of a campaign's shops are not ready for the party to walk into (#764).

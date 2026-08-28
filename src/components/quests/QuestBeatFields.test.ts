@@ -5,7 +5,7 @@ import QuestBeatFields from "./QuestBeatFields.vue";
 
 const mocks = vi.hoisted(() => ({ update: vi.fn() }));
 
-vi.mock("@/composables/useQuestFlow", () => ({
+vi.mock("@/composables/quests/useQuestFlow", () => ({
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.update }),
 }));
 

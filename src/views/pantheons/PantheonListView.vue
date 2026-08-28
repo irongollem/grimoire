@@ -79,7 +79,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconAdd, IconFire, IconNavPantheon, IconSun } from '@/lib/icons';
-import { useAllPantheons, useAllDeities, useUpdatePantheon } from "@/composables/useDeities";
+import { useAllPantheons, useAllDeities, useUpdatePantheon } from "@/composables/deities/useDeities";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
@@ -89,7 +89,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import EntityListRow from "@/components/common/EntityListRow.vue";
-import { useCreateGate } from "@/composables/useCreateGate";
+import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useUiStore } from "@/stores/ui";

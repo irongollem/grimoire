@@ -73,18 +73,18 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useCreateQuestBeatAttachment, useDeleteQuestBeatAttachment, useSetQuestBeatAttachmentRequired } from "@/composables/useQuestFlow";
-import { useCreateEncounter, useEncounters } from "@/composables/useEncounters";
-import { useAllFactions } from "@/composables/useFactions";
-import { useAllLocations } from "@/composables/useLocations";
-import { useNotes } from "@/composables/useNotes";
-import { useNpcs } from "@/composables/useNpcs";
-import { useItems } from "@/composables/useItems";
-import { useMonsters } from "@/composables/useMonsters";
-import { useQuestObjectives } from "@/composables/useQuests";
-import { useScriptoriumDocuments } from "@/composables/useScriptorium";
-import { usePlaylists } from "@/composables/useSoundboardPlaylists";
-import { useSounds } from "@/composables/useSounds";
+import { useCreateQuestBeatAttachment, useDeleteQuestBeatAttachment, useSetQuestBeatAttachmentRequired } from "@/composables/quests/useQuestFlow";
+import { useCreateEncounter, useEncounters } from "@/composables/encounters/useEncounters";
+import { useAllFactions } from "@/composables/factions/useFactions";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { useNotes } from "@/composables/notes/useNotes";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useItems } from "@/composables/items/useItems";
+import { useMonsters } from "@/composables/monsters/useMonsters";
+import { useQuestObjectives } from "@/composables/quests/useQuests";
+import { useScriptoriumDocuments } from "@/composables/scriptorium/useScriptorium";
+import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
+import { useSounds } from "@/composables/soundboard/useSounds";
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
 import { withQuestReturnTo } from "@/lib/quests/navigation";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";

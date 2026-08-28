@@ -182,8 +182,8 @@
 
 <script setup lang="ts">
 import { inject, computed, watch } from "vue";
-import { CHARACTER_FORM_KEY } from "@/composables/useCharacterCreationForm";
-import { useShieldAcBonus } from "@/composables/useShieldAc";
+import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
+import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import { armorAcFor } from "@/rules/armorAc";
 import type { PartyMember } from "@/types/party.types";
 import { EDIT_TABS, ABILITY_STATS, SAVE_STATS, PROF_LEVELS, SLOT_LEVEL_LABELS } from "@/rules/characterCreation";

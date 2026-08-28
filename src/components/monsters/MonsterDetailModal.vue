@@ -43,7 +43,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
 import MonsterRevealControl from "@/components/monsters/MonsterRevealControl.vue";
 import MonsterSheet from "@/components/monsters/MonsterSheet.vue";
-import { useMonsterWithArt } from "@/composables/useMonsters";
+import { useMonsterWithArt } from "@/composables/monsters/useMonsters";
 import { IconEdit } from "@/lib/icons";
 import { monsterIdentityLine } from "@/lib/monsterDisplay";
 

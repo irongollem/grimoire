@@ -51,7 +51,7 @@ import ModernShell from "./ModernShell.vue";
 import FitText, { type FitEntry } from "../../FitText.vue";
 import SenseIcon from "@/components/common/SenseIcon.vue";
 import { accentForNpc } from "../tokens.shared";
-import { useNpcCardData } from "@/composables/useNpcCardData";
+import { useNpcCardData } from "@/composables/cardforge/useNpcCardData";
 
 const { data, tarot } = defineProps<{ data: Npc; tarot?: boolean }>();
 

@@ -202,11 +202,11 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconCheck, IconCopy, IconDelete, IconShieldCheck } from '@/lib/icons';
-import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/useAppInvites";
-import type { AppInvite } from "@/composables/useAppInvites";
-import type { GrantedPlan } from "@/composables/useAppInvites";
+import { useAppInvites, useCreateAppInvite, useDeleteAppInvite } from "@/composables/admin/useAppInvites";
+import type { AppInvite } from "@/composables/admin/useAppInvites";
+import type { GrantedPlan } from "@/composables/admin/useAppInvites";
 import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
-import { useAiUsageStats } from "@/composables/useAiUsageStats";
+import { useAiUsageStats } from "@/composables/ai/useAiUsageStats";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";

@@ -72,8 +72,8 @@
 import { ref, computed, watch } from "vue";
 import { useCampaignStore } from "@/stores/campaign";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import { useUpdateCampaign } from "@/composables/useCampaigns";
-import { useAllSpecies } from "@/composables/useSpecies";
+import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
+import { useAllSpecies } from "@/composables/rules/useSpecies";
 
 const campaign = useCampaignStore();
 const { mutate: updateCampaign } = useUpdateCampaign();

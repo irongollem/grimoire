@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useSessionProposals } from "@/composables/useScheduling";
+import { useSessionProposals } from "@/composables/calendar/useScheduling";
 import DashboardWidget from "../DashboardWidget.vue";
 
 /** The nearest date the table has agreed on, from `session_proposals`. Distinct

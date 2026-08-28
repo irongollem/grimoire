@@ -239,9 +239,9 @@
 import { ref, reactive, computed } from "vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { IconAddImage, IconClose } from '@/lib/icons';
-import { useCreateCompanion, useUpdateCompanion } from "@/composables/useCompanions";
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useNpcs, useSharedNpcs } from "@/composables/useNpcs";
+import { useCreateCompanion, useUpdateCompanion } from "@/composables/encounters/useCompanions";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useNpcs, useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { getNpcDisplayName } from "@/lib/npcDisplay";

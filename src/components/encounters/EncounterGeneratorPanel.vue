@@ -255,9 +255,9 @@ import { useRouter } from "vue-router";
 import { IconAdd, IconCheckCircle, IconClose, IconGenerate, IconWarning } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCreateEncounter } from "@/composables/useEncounters";
+import { useCreateEncounter } from "@/composables/encounters/useEncounters";
 import { useEncounterGeneration } from "@/ai/useEncounterGeneration";
-import { useSubscription } from "@/composables/useSubscription";
+import { useSubscription } from "@/composables/billing/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import PaywallModal from "@/components/common/PaywallModal.vue";
@@ -265,11 +265,11 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import { useAiCredits } from "@/composables/useAiCredits";
-import { useProviderConfig } from "@/composables/useProviderConfig";
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useParty } from "@/composables/useParty";
-import { useCompanions } from "@/composables/useCompanions";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useParty } from "@/composables/party/useParty";
+import { useCompanions } from "@/composables/encounters/useCompanions";
 import {
   resolveGeneratedCombatants,
   swapCombatantVersion,

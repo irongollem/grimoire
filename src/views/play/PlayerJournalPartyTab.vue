@@ -81,8 +81,8 @@ import AppButton from '@/components/common/AppButton.vue';
 import JournalCard from '@/components/player/JournalCard.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import RichTextViewer from '@/components/common/RichTextViewer.vue';
-import { JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST } from '@/composables/usePlayerJournal';
-import type { JournalCategory, PlayerJournalEntry } from '@/composables/usePlayerJournal';
+import { JOURNAL_CATEGORIES, JOURNAL_CATEGORY_LIST } from '@/composables/notes/usePlayerJournal';
+import type { JournalCategory, PlayerJournalEntry } from '@/composables/notes/usePlayerJournal';
 import type { Component } from 'vue';
 
 const {

@@ -10,8 +10,8 @@ import LibraryArtListRow from "@/components/admin/LibraryArtListRow.vue";
 import LibraryArtPreviewModal from "@/components/admin/LibraryArtPreviewModal.vue";
 import LibraryArtTabBar from "@/components/admin/LibraryArtTabBar.vue";
 import LibraryArtPanelHeader from "@/components/admin/LibraryArtPanelHeader.vue";
-import { useLibraryMonster } from "@/composables/useMonsters";
-import { useLibrarySpell } from "@/composables/useSpells";
+import { useLibraryMonster } from "@/composables/monsters/useMonsters";
+import { useLibrarySpell } from "@/composables/spells/useSpells";
 import type { Monster } from "@/types/monster.types";
 import type { Spell } from "@/types/spell.types";
 

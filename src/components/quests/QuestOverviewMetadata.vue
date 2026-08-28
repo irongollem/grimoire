@@ -71,10 +71,10 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import TagInput from "@/components/common/TagInput.vue";
-import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
-import { useAllLocations } from "@/composables/useLocations";
-import { useNpcs } from "@/composables/useNpcs";
-import { scheduleQuestTriggers, useAllQuests, useUpdateQuest } from "@/composables/useQuests";
+import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { scheduleQuestTriggers, useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type Quest, type QuestStatus } from "@/types/quest.types";
 

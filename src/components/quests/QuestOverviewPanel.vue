@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useQuestBeatAttachmentSummaries, useQuestBeatLoot, useQuestBeats } from "@/composables/useQuestFlow";
+import { useQuestBeatAttachmentSummaries, useQuestBeatLoot, useQuestBeats } from "@/composables/quests/useQuestFlow";
 import type { Quest, QuestBeat } from "@/types/quest.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestBeatAttachmentsPanel from "./QuestBeatAttachmentsPanel.vue";

@@ -56,7 +56,7 @@ import { computed, ref, watch } from "vue";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
-import { useRollTables } from "@/composables/useRollTables";
+import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { IconDiceRoll } from "@/lib/icons";
 import { resolveRollTable, type RollTableResolution } from "@/lib/dashboard/rollTableCard";
 import { rollOnTable, type RollTableRollResult } from "@/lib/rollTableRoll";

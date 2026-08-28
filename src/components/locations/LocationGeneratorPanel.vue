@@ -154,9 +154,9 @@ import { useRouter } from "vue-router";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCreateLocation, useLocationTree } from "@/composables/useLocations";
-import { useImageGenerationLog } from "@/composables/useImageGenerationLog";
-import { useSubscription } from "@/composables/useSubscription";
+import { useCreateLocation, useLocationTree } from "@/composables/locations/useLocations";
+import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
+import { useSubscription } from "@/composables/billing/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -168,8 +168,8 @@ import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { LocationType } from "@/types/location.types";
-import { useAiCredits } from "@/composables/useAiCredits";
-import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 
 const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS) as [LocationType, string][];
 

@@ -4,13 +4,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Spell } from "@/types/spell.types";
 import SpellEffectResolver from "./SpellEffectResolver.vue";
 
-vi.mock("@/composables/useCampaignMessages", () => ({
+vi.mock("@/composables/campaign/useCampaignMessages", () => ({
   useCampaignMessages: () => ({ sendRoll: vi.fn(), sendFlavorMessage: vi.fn() }),
 }));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ info: vi.fn(), error: vi.fn(), fromError: (error: unknown) => String(error) }),
 }));
-vi.mock("@/composables/useRuleset", () => ({ useRuleset: () => ({ ruleset: ref("2024") }) }));
+vi.mock("@/composables/rules/useRuleset", () => ({ useRuleset: () => ({ ruleset: ref("2024") }) }));
 
 const reviewedSpell = {
   name: "Burning Test", level: 1, attack_type: "save", mechanics_reviewed: true,

@@ -31,8 +31,8 @@ import {
   useAddFactionItem,
   useRemoveFactionItem,
   type FactionItemWithItem,
-} from "@/composables/useFactions";
-import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
+} from "@/composables/factions/useFactions";
+import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
 
 const props = defineProps<{ factionId: string }>();

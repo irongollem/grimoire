@@ -183,8 +183,8 @@
 import { computed } from "vue";
 import { IconPlay, IconPause, IconStop, IconSkipBack, IconSkipForward, IconEdit, IconDelete, IconMusicNote, IconWind } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { usePlaylistTracks } from "@/composables/useSoundboardPlaylists";
-import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
+import { usePlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
+import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import type { SoundboardPlaylist } from "@/types/sound.types";
 import AppButton from "@/components/common/AppButton.vue";
 import CastButton from "./CastButton.vue";

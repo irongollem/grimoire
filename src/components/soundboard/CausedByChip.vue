@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { IconClose, IconFire } from "@/lib/icons";
 import { releaseAudioTheme } from "@/lib/audio/audioTriggers";
-import type { ActiveTrigger } from "@/composables/useAudioThemeTriggers";
+import type { ActiveTrigger } from "@/composables/soundboard/useAudioThemeTriggers";
 
 /**
  * "This is playing because something in the campaign asked for it."

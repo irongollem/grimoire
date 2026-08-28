@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Location, LocationType } from "@/types/location.types";
-import type { StoreStockRow } from "@/composables/useStoreItems";
+import type { StoreStockRow } from "@/composables/items/useStoreItems";
 import { buildStoreRestockRows, storeLocations } from "./storeRestock";
 
 function place(id: string, name: string, type: LocationType): Location {

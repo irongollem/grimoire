@@ -246,20 +246,20 @@ import { supabase } from "@/lib/supabase";
 import {
   useUpdateEncounter,
   useDeleteEncounter,
-} from "@/composables/useEncounters";
+} from "@/composables/encounters/useEncounters";
 import {
   useRunningEncounters,
   useEncounterLive,
-} from "@/composables/useEncounterLive";
-import { useQuestsForEncounter } from "@/composables/useQuests";
-import { useParty } from "@/composables/useParty";
-import { useCompanions } from "@/composables/useCompanions";
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useNpcs } from "@/composables/useNpcs";
-import { useItems } from "@/composables/useItems";
-import { useTraps } from "@/composables/useTraps";
-import { useAllLocations } from "@/composables/useLocations";
-import { useEncounterDifficulty } from "@/composables/useEncounterDifficulty";
+} from "@/composables/encounters/useEncounterLive";
+import { useQuestsForEncounter } from "@/composables/quests/useQuests";
+import { useParty } from "@/composables/party/useParty";
+import { useCompanions } from "@/composables/encounters/useCompanions";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useItems } from "@/composables/items/useItems";
+import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
 import { formatCoinParts } from "@/rules/currency";
 import { DIFFICULTY_COLORS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";

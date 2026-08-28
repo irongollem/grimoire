@@ -5,7 +5,7 @@
 
 <script setup lang="ts">
 import { provide } from "vue";
-import { useCharacterCreationForm, CHARACTER_FORM_KEY } from "@/composables/useCharacterCreationForm";
+import { useCharacterCreationForm, CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
 import CharacterEditTabs from "@/components/play/CharacterEditTabs.vue";
 import CharacterCreateWizard from "@/components/play/CharacterCreateWizard.vue";
 

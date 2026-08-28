@@ -20,7 +20,7 @@
  */
 import AiNoticeDialog from "@/components/campaign/AiNoticeDialog.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
-import { useLikenessGate } from "@/composables/useLikenessGate";
+import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 
 const { open, confirm, cancel } = useLikenessGate();
 const mounted = useLazyMount(open);

@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { edgeErrorMessage } from "@/lib/edgeError";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { waitForRow } from "@/ai/waitForRow";
-import { useLikenessGate } from "@/composables/useLikenessGate";
+import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 import type { Mini, MiniFormat, MiniSourceTable, MiniStatus } from "@/types/mini.types";
 
 export interface StylizeInput {

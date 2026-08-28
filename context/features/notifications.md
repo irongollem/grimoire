@@ -15,7 +15,7 @@ Email Notifications** (`PlayerSettingsNotifications.vue`).
 ## Architecture — why client-invoked, not a DB trigger
 
 The DM's action fires a **fire-and-forget** `supabase.functions.invoke` from
-the browser (`src/composables/useEmailNotify.ts`, same pattern as
+the browser (`src/composables/campaign/useEmailNotify.ts`, same pattern as
 `queueNoteEmbedding`):
 
 - `NoteEditor.vue` `save()` — diffs old vs new `player_visible_to` and sends

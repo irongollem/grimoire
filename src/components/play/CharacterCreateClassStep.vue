@@ -200,7 +200,7 @@ import type { SkillKey } from "@/data/classSkillChoices";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import TagPickerInput from "@/components/common/TagPickerInput.vue";
-import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
+import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 

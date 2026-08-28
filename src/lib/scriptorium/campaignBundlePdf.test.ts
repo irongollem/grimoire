@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { PDFDocument } from "pdf-lib";
 import { attachBundleToPdf, extractBundleFromPdf, isGrimoireBundle } from "./campaignBundlePdf";
-import type { GrimoireBundle } from "@/composables/useWorldBundle";
+import type { GrimoireBundle } from "@/composables/campaign/useWorldBundle";
 
 const bundle: GrimoireBundle = {
   version: "1",

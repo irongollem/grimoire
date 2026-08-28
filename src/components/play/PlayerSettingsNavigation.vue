@@ -53,7 +53,7 @@
 import { ref, computed, onBeforeUnmount } from "vue";
 import SettingsSection from "@/components/common/SettingsSection.vue";
 import { IconDrag } from "@/lib/icons";
-import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
+import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
 import { MOBILE_NAV_SLOTS } from "@/lib/playerNav";
 
 const { sortedNav, setNavOrder } = usePlayerNavPrefs();

@@ -165,7 +165,7 @@ import {
   useCreateBackground,
   useUpdateBackground,
   useDeleteBackground,
-} from "@/composables/useBackgrounds";
+} from "@/composables/rules/useBackgrounds";
 import type { AbilityScoreKey, Background, BackgroundInsert } from "@/types/background.types";
 import { ABILITY_SCORE_KEYS } from "@/types/background.types";
 import { parseOriginFeatText } from "@/rules/backgroundAsi";

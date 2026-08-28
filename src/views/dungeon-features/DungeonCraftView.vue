@@ -143,10 +143,10 @@ import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconGenerate, IconLoading, IconPopulate } from '@/lib/icons';
 
-import { usePopulateDungeonFeatures } from "@/composables/useDungeonFeatures";
-import { usePopulateTraps } from "@/composables/useTraps";
-import { usePopulatePuzzles } from "@/composables/usePuzzles";
-import { usePopulateRollTables } from "@/composables/useRollTables";
+import { usePopulateDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { usePopulateTraps } from "@/composables/dungeon-features/useTraps";
+import { usePopulatePuzzles } from "@/composables/dungeon-features/usePuzzles";
+import { usePopulateRollTables } from "@/composables/dungeon-features/useRollTables";
 
 import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";

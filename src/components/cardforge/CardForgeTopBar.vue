@@ -72,7 +72,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useCardForgeStore } from "@/stores/cardForge";
-import { useCardForgeData } from "@/composables/useCardForgeData";
+import { useCardForgeData } from "@/composables/cardforge/useCardForgeData";
 import { deckBackById } from "@/components/cardforge/styles/loot/deckBacks";
 import CardForgeDeckBackPicker from "./CardForgeDeckBackPicker.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";

@@ -117,7 +117,7 @@ import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { IconShuffle } from "@/lib/icons";
-import { useAllMonsters } from "@/composables/useMonsters";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { rollParsed } from "@/lib/dice/roller";
 import { capitalize } from "@/types/card.types";
 import { crBg, crLabel, monsterIdentityLine } from "@/lib/monsterDisplay";

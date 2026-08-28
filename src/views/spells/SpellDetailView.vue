@@ -30,8 +30,8 @@
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDocument, IconEdit } from '@/lib/icons';
-import { useResolvedSpell } from "@/composables/useSpells";
-import { useLibrarySpellArt } from "@/composables/useLibrarySpellArt";
+import { useResolvedSpell } from "@/composables/spells/useSpells";
+import { useLibrarySpellArt } from "@/composables/library/useLibrarySpellArt";
 import { spellLevelLabel } from "@/types/spell.types";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";

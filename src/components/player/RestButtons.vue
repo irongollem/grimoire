@@ -42,11 +42,11 @@ import { ref, computed } from "vue";
 import { IconMoon, IconSun } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import RestDialog from "@/components/player/RestDialog.vue";
-import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/useParty";
+import { useTakeSpellcastingRest, useUpdatePartyMember } from "@/composables/party/useParty";
 import { getCasterType, getDefaultSpellSlots } from "@/types/spell.types";
-import { useClassByName } from "@/composables/useCustomClasses";
+import { useClassByName } from "@/composables/rules/useCustomClasses";
 import type { SpellSlotEntry, PartyMember, PartyMemberUpdate } from "@/types/party.types";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 
 const props = defineProps<{ member: PartyMember }>();
 

@@ -45,8 +45,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useParty } from "@/composables/useParty";
-import { usePlayerQuestBeats } from "@/composables/useQuestFlow";
+import { useParty } from "@/composables/party/useParty";
+import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useUiStore } from "@/stores/ui";
 import type { QuestBeatVisibility } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";

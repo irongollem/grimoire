@@ -244,9 +244,9 @@
 import { reactive, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import { useAdminPlans } from "@/composables/useAdminPlans";
-import { useGenerationCreditCosts } from "@/composables/useCreditConfig";
-import { sizeMultiplier } from "@/composables/useAiCredits";
+import { useAdminPlans } from "@/composables/admin/useAdminPlans";
+import { useGenerationCreditCosts } from "@/composables/billing/useCreditConfig";
+import { sizeMultiplier } from "@/composables/ai/useAiCredits";
 import { QUOTA_RESOURCES } from "@/types/subscription.types";
 import type { Plan, QuotaResource } from "@/types/subscription.types";
 

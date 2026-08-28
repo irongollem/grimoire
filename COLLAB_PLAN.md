@@ -206,10 +206,10 @@ $$;
 
 ```
 src/composables/
-├── useRealtime.ts          # Low-level: wraps supabase.channel(), handles subscribe/cleanup
-├── useCampaignPresence.ts  # Who's online (Presence)
-├── useEncounterLive.ts     # Encounter runner real-time: Broadcast + Postgres Changes on encounter_state
-└── useCampaignBroadcast.ts # DM → players notifications
+├── useRealtime.ts                    # NEVER BUILT — the shared channel wrapper landed as lib/realtimeChannel.ts instead
+├── campaign/useCampaignPresence.ts   # Who's online (Presence)
+├── encounters/useEncounterLive.ts    # Encounter runner real-time: Broadcast + Postgres Changes on encounter_state
+└── campaign/useCampaignBroadcast.ts  # DM → players notifications
 ```
 
 ---
@@ -372,7 +372,7 @@ The `encounter:{id}` Broadcast channel and `encounter_state` table are already t
 | `src/types/`                                    | `campaign.types.ts` — add `CampaignMember`, `CampaignInvite`; `encounter.types.ts` — add `EncounterState`, `LiveCombatant`                    |
 | `src/stores/auth.ts`                            | Add membership state + role helpers                                                                                                           |
 | `src/router/index.ts`                           | Role-based guard, `/play/*` routes, `/join/:token`                                                                                            |
-| `src/composables/`                              | `useRealtime.ts`, `useCampaignPresence.ts`, `useEncounterLive.ts`, `useCampaignBroadcast.ts`, `useCampaignMembers.ts`, `usePartyInventory.ts` |
+| `src/composables/`                              | `useRealtime.ts` (never built — see above), `campaign/useCampaignPresence.ts`, `encounters/useEncounterLive.ts`, `campaign/useCampaignBroadcast.ts`, `campaign/useCampaignMembers.ts`, `items/usePartyInventory.ts` |
 | `src/views/play/`                               | 7 new player portal views                                                                                                                     |
 | `src/views/auth/JoinCampaign.vue`               | New invite landing                                                                                                                            |
 | `src/components/campaign/`                      | `CampaignSettings.vue`, `InviteManager.vue`, `MemberList.vue`                                                                                 |

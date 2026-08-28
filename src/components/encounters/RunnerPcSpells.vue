@@ -56,9 +56,9 @@ import { scaleExpression } from "@/lib/dice/dice";
 import { cantripDiceMultiplier } from "@/types/spell.types";
 import { availableSlotsForSpell, slotPool } from "@/rules/spellSlots";
 import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
-import { useCastCharacterSpell } from "@/composables/useParty";
-import { useConcentration } from "@/composables/useConcentration";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useCastCharacterSpell } from "@/composables/party/useParty";
+import { useConcentration } from "@/composables/party/useConcentration";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useToast } from "@/composables/useToast";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 

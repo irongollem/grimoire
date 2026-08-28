@@ -81,8 +81,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import { useNpcs } from "@/composables/useNpcs";
-import { useCreateNpcSet, useUpdateNpcSet } from "@/composables/useNpcSets";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useCreateNpcSet, useUpdateNpcSet } from "@/composables/npcs/useNpcSets";
 import { getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { Npc, NpcSet } from "@/types/npc.types";

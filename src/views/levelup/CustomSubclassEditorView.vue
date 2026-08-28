@@ -103,7 +103,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { IconDelete, IconSave } from '@/lib/icons';
-import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/useCustomSubclasses";
+import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/rules/useCustomSubclasses";
 import CustomSubclassSheet from "@/components/levelup/CustomSubclassSheet.vue";
 import CustomClassFeaturesPerLevel from "@/components/levelup/CustomClassFeaturesPerLevel.vue";
 import CustomSubclassGrantedSpells from "@/components/levelup/CustomSubclassGrantedSpells.vue";
@@ -111,10 +111,10 @@ import CustomClassStepsEditor from "@/components/levelup/CustomClassStepsEditor.
 import CustomClassResources from "@/components/levelup/CustomClassResources.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { toPlainText } from "@/ai/utils";
-import { useAllFeatures } from "@/composables/useFeatures";
-import { useAllSpells } from "@/composables/useSpells";
-import { useCampaigns } from "@/composables/useCampaigns";
-import { useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
+import { useAllFeatures } from "@/composables/rules/useFeatures";
+import { useAllSpells } from "@/composables/spells/useSpells";
+import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import type { CustomStep, CustomResource } from "@/levelup/customTypes";
 
 const route = useRoute();

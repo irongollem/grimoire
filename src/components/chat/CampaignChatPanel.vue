@@ -143,9 +143,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from "vue";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { useParty } from "@/composables/useParty";
-import { useCampaignMembers } from "@/composables/useCampaignMembers";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useParty } from "@/composables/party/useParty";
+import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useAuthStore } from "@/stores/auth";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";

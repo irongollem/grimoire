@@ -168,9 +168,9 @@
 import { ref, computed } from "vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { IconClose, IconShield } from '@/lib/icons';
-import { useSpeciesNameMap } from "@/composables/useSpecies";
-import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs, usePlayerFactionPartyMembers } from "@/composables/useFactions";
-import { useSharedNpcs } from "@/composables/useNpcs";
+import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { usePlayerVisibleFactions, usePartyMemberFactions, usePlayerFactionNpcs, usePlayerFactionPartyMembers } from "@/composables/factions/useFactions";
+import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import type { Faction } from "@/types/faction.types";

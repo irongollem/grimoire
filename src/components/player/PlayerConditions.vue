@@ -80,10 +80,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useUpdatePartyMember } from "@/composables/useParty";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
-import { useRuleset } from "@/composables/useRuleset";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import {
   getConditionDescription,
   getExhaustionLevel,

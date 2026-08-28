@@ -66,7 +66,7 @@ import SoundCardHeader from "./SoundCardHeader.vue";
 import SoundCardSpotifyTransport from "./SoundCardSpotifyTransport.vue";
 import SoundCardAudioTransport from "./SoundCardAudioTransport.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useSoundPlayback } from "@/composables/useSoundPlayback";
+import { useSoundPlayback } from "@/composables/soundboard/useSoundPlayback";
 import { CATEGORY_BORDER, CATEGORY_SPINE } from "@/lib/audio/soundCategories";
 import type { Sound, BoardMode, PadSize } from "@/types/sound.types";
 

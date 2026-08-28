@@ -49,7 +49,7 @@ import { computed } from "vue";
 import { IconCalendarDays } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
-import { usePlayerCalendarEventsRange } from "@/composables/useCalendarEvents";
+import { usePlayerCalendarEventsRange } from "@/composables/calendar/useCalendarEvents";
 import CalendarTimeline from "@/components/calendar/CalendarTimeline.vue";
 import CalendarGrid from "@/components/calendar/CalendarGrid.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

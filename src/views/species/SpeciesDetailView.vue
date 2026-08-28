@@ -32,7 +32,7 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCopy } from '@/lib/icons';
-import { useSpecies, useIsLibrarySpecies, useCloneLibrarySpecies } from "@/composables/useSpecies";
+import { useSpecies, useIsLibrarySpecies, useCloneLibrarySpecies } from "@/composables/rules/useSpecies";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import AppButton from "@/components/common/AppButton.vue";

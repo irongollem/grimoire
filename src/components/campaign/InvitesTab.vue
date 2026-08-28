@@ -128,7 +128,7 @@ import {
   useCampaignInvites,
   useCreateCampaignInvite,
   useRevokeInvite,
-} from "@/composables/useCampaignMembers";
+} from "@/composables/campaign/useCampaignMembers";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";

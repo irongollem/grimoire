@@ -82,7 +82,7 @@ import LootFront from "@/components/cardforge/styles/loot/LootFront.vue";
 import LootBack from "@/components/cardforge/styles/loot/LootBack.vue";
 import type { CardSubject } from "@/types/card.types";
 import { useCardForgeStore } from "@/stores/cardForge";
-import { useCardForgeData } from "@/composables/useCardForgeData";
+import { useCardForgeData } from "@/composables/cardforge/useCardForgeData";
 
 const store = useCardForgeStore();
 const { selectedSubjects } = useCardForgeData();

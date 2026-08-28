@@ -214,7 +214,7 @@ import {
   ABILITY_STATS, SCORE_MODES, POINT_BUY_COSTS, STANDARD_ARRAY, roll4d6DropLowest,
   type AbilityKey, type AsiMode,
 } from "@/rules/characterCreation";
-import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
+import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";

@@ -186,10 +186,10 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { IconAdd, IconDM } from '@/lib/icons';
-import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/useParty';
-import { useDetachCharacter, useCloneCharacter } from '@/composables/useCharacterPool';
+import { useMyCharacters, useSetActiveCharacter, useParty, useOfferedCharacters, useAssumeCharacter } from '@/composables/party/useParty';
+import { useDetachCharacter, useCloneCharacter } from '@/composables/party/useCharacterPool';
 import { useConfirm } from '@/composables/useConfirm';
-import { useSpeciesNameMap } from '@/composables/useSpecies';
+import { useSpeciesNameMap } from '@/composables/rules/useSpecies';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import AppButton from '@/components/common/AppButton.vue';

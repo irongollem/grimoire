@@ -280,8 +280,8 @@ import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
 import DocumentImportWizard from "@/components/campaign/DocumentImportWizard.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import { useSubscription } from "@/composables/useSubscription";
-import { useAiCredits } from "@/composables/useAiCredits";
+import { useSubscription } from "@/composables/billing/useSubscription";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
 import {
   useActiveDocumentImport,
   useCreateDocumentImport,
@@ -289,7 +289,7 @@ import {
   useRetryDocumentImport,
   useImportCost,
   useAbandonDocumentImport,
-} from "@/composables/useDocumentImport";
+} from "@/composables/campaign/useDocumentImport";
 import { countPages, type PageCountResult } from "@/lib/documentImport/pageCount";
 import {
   validateUpload,

@@ -52,7 +52,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
-import { useNotes } from "@/composables/useNotes";
+import { useNotes } from "@/composables/notes/useNotes";
 import { extractTiptapText } from "@/lib/utils";
 import { latestSessionNote } from "@/lib/dashboard/latestSessionNote";
 

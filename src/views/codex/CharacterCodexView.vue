@@ -239,11 +239,11 @@ import {
   useImportBackgrounds,
   useOpen5eBackgroundDocuments,
   type BackgroundImportResult,
-} from "@/composables/useBackgrounds";
-import { useImportOpen5eClasses, useAllSystemClasses, useAllCustomClasses } from "@/composables/useCustomClasses";
-import { useImportOpen5eSubclasses } from "@/composables/useCustomSubclasses";
-import { useImportOpen5eFeatures, useBackfillSystemFeatureDescriptions } from "@/composables/useFeatures";
-import type { ImportResult } from "@/composables/useFeatures";
+} from "@/composables/rules/useBackgrounds";
+import { useImportOpen5eClasses, useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
+import { useImportOpen5eSubclasses } from "@/composables/rules/useCustomSubclasses";
+import { useImportOpen5eFeatures, useBackfillSystemFeatureDescriptions } from "@/composables/rules/useFeatures";
+import type { ImportResult } from "@/composables/rules/useFeatures";
 import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
 
 type TabId = "species" | "backgrounds" | "classes" | "archetypes" | "abilities";

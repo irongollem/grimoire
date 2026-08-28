@@ -70,8 +70,8 @@ import { computed } from "vue";
 import { IconShield } from "@/lib/icons";
 import FocalImage from "@/components/common/FocalImage.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
-import { useHpDisplay } from "@/composables/useHpDisplay";
-import { useShieldAcBonus } from "@/composables/useShieldAc";
+import { useHpDisplay } from "@/composables/play/useHpDisplay";
+import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import type { PartyMember } from "@/types/party.types";
 
 const { member, isOwn, showNumericHp, subtitle } = defineProps<{

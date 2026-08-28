@@ -83,12 +83,12 @@ import { ref, computed } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
 import AppButton from '@/components/common/AppButton.vue';
 import { supabase } from '@/lib/supabase';
-import { useCustomClassByName, useAllSystemClasses } from '@/composables/useCustomClasses';
+import { useCustomClassByName, useAllSystemClasses } from '@/composables/rules/useCustomClasses';
 import { getMulticlassSpellSlots } from '@/types/spell.types';
 import type { PartyMember, LevelChoiceEntry, SpellSlotEntry } from '@/types/party.types';
 import type { CharacterClass } from '@/types/multiclass.types';
 import type { CustomResource } from '@/levelup/customTypes';
-import { useRuleset } from '@/composables/useRuleset';
+import { useRuleset } from '@/composables/rules/useRuleset';
 
 const props = defineProps<{
   member: PartyMember;

@@ -150,7 +150,7 @@ import {
   useCreateDungeonFeature,
   useUpdateDungeonFeature,
   useDeleteDungeonFeature,
-} from "@/composables/useDungeonFeatures";
+} from "@/composables/dungeon-features/useDungeonFeatures";
 import { useConfirm } from "@/composables/useConfirm";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TRIGGERS } from "@/types/dungeonFeature.types";
 import type { DungeonFeature, DungeonFeatureTrigger } from "@/types/dungeonFeature.types";

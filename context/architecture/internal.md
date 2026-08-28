@@ -28,7 +28,7 @@ flowchart TB
     end
 
     subgraph state ["State (two planes)"]
-        composables["src/composables/use*.ts<br/>SERVER state — TanStack Query,<br/>one composable per domain"]
+        composables["src/composables/&lt;domain&gt;/use*.ts<br/>SERVER state — TanStack Query,<br/>one composable per domain"]
         stores["src/stores/ (8 Pinia stores)<br/>UI state — filters, run state, playback"]
     end
 
@@ -74,7 +74,7 @@ Two deliberate separations that look mergeable but are not:
 
 | Plane | Lives in | Shape |
 | --- | --- | --- |
-| **Server state** | `src/composables/use*.ts` | `useQuery`/`useMutation` wrapping module-private `fetchX/createX/…` that call `supabase.from(...)`. Query keys are `[QUERY_KEY, activeCampaignId]`, gated on an active campaign. Global defaults in `src/main.ts`: `networkMode: "always"`, `staleTime: 60s`, no refetch-on-focus. |
+| **Server state** | `src/composables/<domain>/use*.ts` (a few UI/platform primitives stay at `src/composables/` root) | `useQuery`/`useMutation` wrapping module-private `fetchX/createX/…` that call `supabase.from(...)`. Query keys are `[QUERY_KEY, activeCampaignId]`, gated on an active campaign. Global defaults in `src/main.ts`: `networkMode: "always"`, `staleTime: 60s`, no refetch-on-focus. |
 | **UI state** | `src/stores/` (Pinia) | Filters/sort/search (**always** `ui.ts` — the Filter State Pattern), run state, playback state. |
 
 The 8 stores and their roles:

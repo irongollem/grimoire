@@ -127,22 +127,22 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { IconCheckDouble, IconLock, IconMonster, IconNavEncounters, IconParty } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
-import { useEncounters } from "@/composables/useEncounters";
-import { useRunningEncounters } from "@/composables/useEncounterLive";
+import { useEncounters } from "@/composables/encounters/useEncounters";
+import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
 import {
   DIFFICULTY_COLORS,
   calculateDifficulty,
   crToXp,
 } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useEncounterQuestLinks } from "@/composables/useQuests";
-import { useEncountersInRollTables } from "@/composables/useRollTables";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useEncounterQuestLinks } from "@/composables/quests/useQuests";
+import { useEncountersInRollTables } from "@/composables/dungeon-features/useRollTables";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useQuota } from "@/composables/useQuota";
+import { useQuota } from "@/composables/billing/useQuota";
 
 const router = useRouter();
 const { canCreate, quota: encounterQuota } = useQuota("encounters");

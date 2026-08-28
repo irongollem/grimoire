@@ -52,8 +52,8 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { useCreateQuestBeatLoot, useDeleteQuestBeatLoot, useDispatchQuestBeatLoot } from "@/composables/useQuestFlow";
-import { useItems } from "@/composables/useItems";
+import { useCreateQuestBeatLoot, useDeleteQuestBeatLoot, useDispatchQuestBeatLoot } from "@/composables/quests/useQuestFlow";
+import { useItems } from "@/composables/items/useItems";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import type { QuestBeat, QuestBeatLoot, QuestBeatLootDeliveryState, QuestBeatLootKind } from "@/types/quest.types";

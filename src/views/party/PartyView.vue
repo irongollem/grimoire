@@ -87,7 +87,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
-import { useGroupPortrait } from "@/composables/useGroupPortrait";
+import { useGroupPortrait } from "@/composables/party/useGroupPortrait";
 
 const tracker     = ref<InstanceType<typeof PartyTracker> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);

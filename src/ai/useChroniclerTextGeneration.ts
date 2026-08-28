@@ -8,9 +8,9 @@ import { parseSceneEntities, type ResolvedEntity } from "./useChroniclerImageGen
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
-import { logUsage } from "@/composables/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { buildAiProvenance, type AiProvenance } from "@/ai/provenance";
 
 export type ChroniclerTone = "dramatic" | "humorous" | "mysterious" | "epic";

@@ -30,7 +30,7 @@ The pill therefore **overlays the card's top-right corner**, and the grid keeps 
 
 **Size controls step both ways.** `cycleWidth`/`cycleHeight` take a `direction`, and the pill renders a stepper (`‹ Cell ›`, `⌄ 2 ⌃`) rather than a one-way cycle — returning from the last width used to mean walking the whole ring, and overshooting by one is the commonest thing a DM does with a size control. `wrapIndex` exists because JavaScript's `%` keeps the sign: a bare `(at - 1) % length` yields `-1` at index 0, so the control would silently do nothing at exactly the place it is most likely to be pressed.
 
-**Persistence (#762).** A layout the DM has rearranged lives in `dashboard_layouts` (migration `20260823214517`), keyed `(user_id, campaign_id, surface)` with the arrangement in a `layout` jsonb column. `DashboardView.vue` reads it through `useDashboardLayout(view)` (`src/composables/useDashboardLayout.ts`), which returns the *merged* layout — never a loading state, because an absent or still-loading row merges to `DEFAULT_LAYOUTS[surface]`, so a DM who never customized sees exactly the dashboard above with no flash of empty grid.
+**Persistence (#762).** A layout the DM has rearranged lives in `dashboard_layouts` (migration `20260823214517`), keyed `(user_id, campaign_id, surface)` with the arrangement in a `layout` jsonb column. `DashboardView.vue` reads it through `useDashboardLayout(view)` (`src/composables/dashboard/useDashboardLayout.ts`), which returns the *merged* layout — never a loading state, because an absent or still-loading row merges to `DEFAULT_LAYOUTS[surface]`, so a DM who never customized sees exactly the dashboard above with no flash of empty grid.
 
 Supabase and not `localStorage`, deliberately: `ui.sessionRunning` used to be a `useLocalStorage` value, and a DM who preps on a desktop and runs the table on a laptop never saw the same state twice — the bug #758 existed to kill. A rearranged screen is the same promise. `usePlayerNavPrefs` (nav order in `localStorage`) is the counter-example not being followed here.
 
@@ -261,10 +261,10 @@ Guarantee held in `questRows.test.ts`: `end_campaign_quest_session` pauses every
 
 ### Key composables used
 
-- `useRecentNpcs` — `src/composables/useRecentNpcs.ts` — module-level singleton, localStorage-backed.
-- `useSetCampaignToday` / `useSetCampaignLocation` — `src/composables/useCampaigns.ts`.
-- `useSyncPartyLocation` — `src/composables/useParty.ts` — batch `UPDATE party_members SET current_location_id WHERE id IN (...)`.
-- `useCampaignLiveQuests` — `src/composables/useQuestFlow.ts` — the open-chain set. Shared with the Run cockpit and, per [session-mode.md](../../docs/session-mode.md), the planned `LiveRail`; add consumers to it rather than re-querying `get_campaign_live_quests`.
+- `useRecentNpcs` — `src/composables/dashboard/useRecentNpcs.ts` — module-level singleton, localStorage-backed.
+- `useSetCampaignToday` / `useSetCampaignLocation` — `src/composables/campaign/useCampaigns.ts`.
+- `useSyncPartyLocation` — `src/composables/party/useParty.ts` — batch `UPDATE party_members SET current_location_id WHERE id IN (...)`.
+- `useCampaignLiveQuests` — `src/composables/quests/useQuestFlow.ts` — the open-chain set. Shared with the Run cockpit and, per [session-mode.md](../../docs/session-mode.md), the planned `LiveRail`; add consumers to it rather than re-querying `get_campaign_live_quests`.
 
 ### campaigns table additions (migration `20260508000008`)
 
@@ -279,8 +279,8 @@ Read these five files first — they cover the entire data and component surface
 
 1. `src/types/notes.types.ts` — `Note`, `NoteCategory`, `NoteInsert`, `NoteUpdate`
 2. `src/types/calendar.types.ts` — `CalendarEvent`, `CalendarEventType`, `HarptosDate`, `CalendarAdapter`, `CalendarEventInsert`, `CalendarEventUpdate`, `LinkedEntityType`
-3. `src/composables/useNotes.ts` — all note CRUD composables
-4. `src/composables/useCalendarEvents.ts` — all calendar event CRUD composables plus entity-pin helpers
+3. `src/composables/notes/useNotes.ts` — all note CRUD composables
+4. `src/composables/calendar/useCalendarEvents.ts` — all calendar event CRUD composables plus entity-pin helpers
 5. `src/components/notes/NoteEditor.vue` — the main editor; contains session calendar sync logic and all special integrations
 
 ---
@@ -347,7 +347,7 @@ type NoteInsert = Omit<Note, "id" | "user_id" | "created_at" | "updated_at">
 type NoteUpdate = Partial<NoteInsert>
 ```
 
-### Composables — `src/composables/useNotes.ts`
+### Composables — `src/composables/notes/useNotes.ts`
 
 TanStack Query key: `"notes"`.
 
@@ -398,7 +398,7 @@ All note creation and editing happens here. Key integrations:
 
 2. **`InlineCalendarEventModal`** (`src/components/calendar/InlineCalendarEventModal.vue`) — triggered by the calendar toolbar button; on `@event-created` calls `rteRef.value?.insertCalendarEventRef(...)` to embed a `CalendarEventRef` chip in the note body
 
-3. **`AudienceRevealControl`** (`src/components/common/AudienceRevealControl.vue`) — the app's one reveal control (#741), bound to the draft here because the editor owns its Save; `NoteSheet` and `NoteCard` mount the same control bound to the row, so a note can be revealed without opening the editor. Controls `player_visible_to: string[]` (party member IDs). When a note is newly shared on save, `sendCampaignAnnouncement` from `src/composables/useCampaignBroadcast.ts` broadcasts a message to players, and `notifyNoteShared` from `src/composables/useEmailNotify.ts` emails the newly added players (see [notifications.md](notifications.md))
+3. **`AudienceRevealControl`** (`src/components/common/AudienceRevealControl.vue`) — the app's one reveal control (#741), bound to the draft here because the editor owns its Save; `NoteSheet` and `NoteCard` mount the same control bound to the row, so a note can be revealed without opening the editor. Controls `player_visible_to: string[]` (party member IDs). When a note is newly shared on save, `sendCampaignAnnouncement` from `src/composables/campaign/useCampaignBroadcast.ts` broadcasts a message to players, and `notifyNoteShared` from `src/composables/campaign/useEmailNotify.ts` emails the newly added players (see [notifications.md](notifications.md))
 
 4. **Session date sync — `syncSessionCalendarEvent(noteId)`** — called after every save when `category === "session"`:
    - If start date is present: creates or updates a `session`-type calendar event (colour `#C9920A`) linked to the note via `linked_note_id`; patches note's `linked_calendar_event_id`
@@ -452,7 +452,7 @@ View: `src/views/play/PlayerJournalView.vue`
 
 Key columns: `id`, `user_id`, `campaign_id`, `title`, `content` (Tiptap JSON), `category`, `tags`, `is_private` (bool, default true), `ref_type`, `ref_id`, `ref_label`, `created_at`, `updated_at`.
 
-### TypeScript Types — `src/composables/usePlayerJournal.ts`
+### TypeScript Types — `src/composables/notes/usePlayerJournal.ts`
 
 Types are defined inline in the composable file (not a separate `.types.ts`):
 
@@ -488,7 +488,7 @@ interface PlayerJournalEntry {
 }
 ```
 
-### Composables — `src/composables/usePlayerJournal.ts`
+### Composables — `src/composables/notes/usePlayerJournal.ts`
 
 TanStack Query key: `"player_journal"`.
 
@@ -611,7 +611,7 @@ Helper functions (also in `calendar.types.ts`):
 - `linkedEntityType(event): LinkedEntityType | null` — returns which FK is set
 - `linkedEntityId(event): string | null` — returns the ID of the linked entity
 
-### Composables — `src/composables/useCalendarEvents.ts`
+### Composables — `src/composables/calendar/useCalendarEvents.ts`
 
 TanStack Query key: `"calendar-events"`.
 

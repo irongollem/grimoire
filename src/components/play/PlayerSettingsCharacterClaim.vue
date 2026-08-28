@@ -61,8 +61,8 @@ import SettingsSection from "@/components/common/SettingsSection.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconCheck, IconUser } from "@/lib/icons";
 import { useAuthStore } from "@/stores/auth";
-import { useParty } from "@/composables/useParty";
-import { useCampaignMembers } from "@/composables/useCampaignMembers";
+import { useParty } from "@/composables/party/useParty";
+import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { supabase } from "@/lib/supabase";
 
 const auth = useAuthStore();

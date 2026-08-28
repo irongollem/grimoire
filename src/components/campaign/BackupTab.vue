@@ -57,7 +57,7 @@
 import { ref } from "vue";
 import { IconDownload } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
-import { useExportCampaign } from "@/composables/useCampaignBackup";
+import { useExportCampaign } from "@/composables/campaign/useCampaignBackup";
 
 const campaignStore = useCampaignStore();
 const { mutateAsync: runExport, isPending: isExporting } = useExportCampaign();

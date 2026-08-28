@@ -225,19 +225,19 @@
 import { ref, computed } from "vue";
 import WildshapePreviewLightbox from "@/components/play/WildshapePreviewLightbox.vue";
 import type { WildshapeState } from "@/types/encounter.types";
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useUpdatePartyMember } from "@/composables/useParty";
-import { usePlayerDiscoveries } from "@/composables/useDiscoveredMonsters";
-import { usePinnedForms } from "@/composables/usePinnedForms";
-import { useCharacterClasses } from "@/composables/useCharacterClasses";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
+import { usePinnedForms } from "@/composables/play/usePinnedForms";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import type { Monster } from "@/types/monster.types";
 import type { RollMode } from "@/lib/dice/roller";
 import { combineModes } from "@/lib/dice/roller";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import { useParty } from "@/composables/useParty";
-import { useRuleset } from "@/composables/useRuleset";
+import { useParty } from "@/composables/party/useParty";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import {
   hasAttackDisadvantage,
   hasCheckDisadvantage,
@@ -248,7 +248,7 @@ import { parseCr } from "@/lib/utils";
 import { wildshapeMaxCr as calcWildshapeMaxCr, wildshapeCrDisplay as calcWildshapeCrDisplay, isEligibleWildshapeForm } from "@/rules/wildshape";
 import { hitPointsToMax } from "@/lib/dice/dice";
 import type { PartyMember } from "@/types/party.types";
-import { useRules, usePlayerVisibleRules } from "@/composables/useRules";
+import { useRules, usePlayerVisibleRules } from "@/composables/rules/useRules";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
@@ -262,7 +262,7 @@ import PlayerCombatTab from "@/components/player/PlayerCombatTab.vue";
 import PlayerFeaturesTab from "@/components/player/PlayerFeaturesTab.vue";
 import PlayerAppearanceSection from "@/components/player/PlayerAppearanceSection.vue";
 import PlayerLoreTab from "@/components/player/PlayerLoreTab.vue";
-import { useSpecies } from "@/composables/useSpecies";
+import { useSpecies } from "@/composables/rules/useSpecies";
 
 const props = defineProps<{ memberId?: string; hidePlayerActions?: boolean }>();
 const emit = defineEmits<{ (e: "level-up"): void }>();

@@ -33,8 +33,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { useQuest } from "@/composables/useQuests";
-import { useQuestBeat, useQuestBeatAttachmentSummaries, useQuestBeatEdges, useQuestBeatLoot, useQuestBeats } from "@/composables/useQuestFlow";
+import { useQuest } from "@/composables/quests/useQuests";
+import { useQuestBeat, useQuestBeatAttachmentSummaries, useQuestBeatEdges, useQuestBeatLoot, useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { safeQuestReturnTo } from "@/lib/quests/navigation";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

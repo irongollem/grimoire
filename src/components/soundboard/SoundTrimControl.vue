@@ -57,7 +57,7 @@
 import { computed, nextTick, ref } from "vue";
 import { IconReset } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useUpdateSound } from "@/composables/useSounds";
+import { useUpdateSound } from "@/composables/soundboard/useSounds";
 import type { Sound } from "@/types/sound.types";
 
 // Mirrors the `sounds.gain_trim > 0 and <= 4` DB constraint — 0.25 rather than

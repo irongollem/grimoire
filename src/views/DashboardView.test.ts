@@ -35,7 +35,7 @@ vi.mock("vue-router", () => ({
 // fetched or saved — so the mock reproduces the contract (widgets, driven by
 // surface) rather than stubbing it out to nothing, which would let the view
 // ignore the composable entirely without a single test noticing.
-vi.mock("@/composables/useDashboardLayout", async () => {
+vi.mock("@/composables/dashboard/useDashboardLayout", async () => {
   const { computed, toValue } = await import("vue");
   return {
     useDashboardLayout: (surface: unknown) => ({

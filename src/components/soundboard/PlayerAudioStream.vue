@@ -66,7 +66,7 @@ import { computed } from "vue";
 import { IconWind } from "@/lib/icons";
 import VolumeSlider from "./VolumeSlider.vue";
 import EqBars from "./EqBars.vue";
-import { usePlayerAudioStream } from "@/composables/usePlayerAudioStream";
+import { usePlayerAudioStream } from "@/composables/play/usePlayerAudioStream";
 
 const {
   isOffered, joined, blocked, volume, trackName, playlistName, artist,

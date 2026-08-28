@@ -42,7 +42,7 @@
 // useEmbeddingBackfill.ts (module-level singleton state) so this button and
 // EmbeddingVendorControl.vue's post-apply auto-backfill share ONE
 // implementation and ONE in-flight run instead of two copies of the same loop.
-import { useEmbeddingBackfill, BATCH_LIMIT } from "@/composables/useEmbeddingBackfill";
+import { useEmbeddingBackfill, BATCH_LIMIT } from "@/composables/admin/useEmbeddingBackfill";
 import EmbeddingBackfillStatus from "@/components/admin/EmbeddingBackfillStatus.vue";
 import AppButton from "@/components/common/AppButton.vue";
 

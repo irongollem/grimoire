@@ -7,14 +7,14 @@
 
 <script setup lang="ts">
 import { computed, watch } from "vue";
-import { useEncounter } from "@/composables/useEncounters";
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useParty } from "@/composables/useParty";
-import { useCompanions } from "@/composables/useCompanions";
-import { useNpcs } from "@/composables/useNpcs";
-import { useTraps } from "@/composables/useTraps";
+import { useEncounter } from "@/composables/encounters/useEncounters";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useParty } from "@/composables/party/useParty";
+import { useCompanions } from "@/composables/encounters/useCompanions";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useEncounterRunStore } from "@/stores/encounterRun";
-import { useEncounterLive } from "@/composables/useEncounterLive";
+import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { buildRunCombatants, legendaryActionCaps } from "@/lib/encounters/buildRunCombatants";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { Encounter } from "@/types/encounter.types";

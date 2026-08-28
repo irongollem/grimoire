@@ -4,7 +4,7 @@ import { useLocalStorage } from "@vueuse/core";
 import type { NoteCategory } from "@/types/notes.types";
 import type { CalendarEventType } from "@/types/calendar.types";
 import type { BoardMode, PadSize } from "@/types/sound.types";
-import type { JournalCategory } from "@/composables/usePlayerJournal";
+import type { JournalCategory } from "@/composables/notes/usePlayerJournal";
 import type { SortField, SortDir } from "@/lib/noteSort";
 import type { NpcStatus, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
@@ -13,7 +13,7 @@ import type { CraftingDiscipline } from "@/types/crafting.types";
 import type { SoundCategory } from "@/types/sound.types";
 import type { DowntimeDrawStatus } from "@/types/downtime.types";
 import type { MiniFormat, MiniStatus } from "@/types/mini.types";
-import type { AdminAuditAction } from "@/composables/useAdminAuditLog";
+import type { AdminAuditAction } from "@/composables/admin/useAdminAuditLog";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state

@@ -105,9 +105,9 @@ import {
   useCampaignQuestRefs,
   useUpdateQuest,
   scheduleQuestTriggers,
-} from "@/composables/useQuests";
-import { useParty } from "@/composables/useParty";
-import { useQuestBoardSummaries } from "@/composables/useQuestFlow";
+} from "@/composables/quests/useQuests";
+import { useParty } from "@/composables/party/useParty";
+import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

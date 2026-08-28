@@ -60,11 +60,11 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CharacterSheetExportPanel from "@/components/character-sheet/CharacterSheetExportPanel.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { useParty } from "@/composables/useParty";
-import { usePartyInventory } from "@/composables/usePartyInventory";
-import { useItems } from "@/composables/useItems";
-import { useSpeciesNameMap } from "@/composables/useSpecies";
-import { useBackgroundNameMap } from "@/composables/useBackgrounds";
+import { useParty } from "@/composables/party/useParty";
+import { usePartyInventory } from "@/composables/items/usePartyInventory";
+import { useItems } from "@/composables/items/useItems";
+import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useBackgroundNameMap } from "@/composables/rules/useBackgrounds";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();

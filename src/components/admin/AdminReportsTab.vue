@@ -112,8 +112,8 @@
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconBug, IconExternalLink, IconImage, IconLightbulb } from "@/lib/icons";
-import { useAdminBugReports, useAdminBugReportScreenshot } from "@/composables/useAdminBugReports";
-import { useAdminUsers } from "@/composables/useAdminUsers";
+import { useAdminBugReports, useAdminBugReportScreenshot } from "@/composables/admin/useAdminBugReports";
+import { useAdminUsers } from "@/composables/admin/useAdminUsers";
 
 const reportsQuery = useAdminBugReports();
 const usersQuery = useAdminUsers();

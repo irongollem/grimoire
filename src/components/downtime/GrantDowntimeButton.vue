@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import { useGrantDowntime } from "@/composables/useDowntime";
+import { useGrantDowntime } from "@/composables/downtime/useDowntime";
 
 const { partyMemberId, partyMemberName } = defineProps<{
   partyMemberId: string;

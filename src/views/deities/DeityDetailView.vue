@@ -73,7 +73,7 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconDocument, IconEdit } from '@/lib/icons';
-import { useDeity, useUpdateDeity } from "@/composables/useDeities";
+import { useDeity, useUpdateDeity } from "@/composables/deities/useDeities";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

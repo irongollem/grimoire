@@ -93,7 +93,7 @@ import {
   useEnableSource,
   useDisableSource,
   type AvailableLibrarySource,
-} from "@/composables/useEnabledSources";
+} from "@/composables/library/useEnabledSources";
 
 // Popover: desktop trigger button (parent-supplied via #trigger slot) + a
 // floating panel, self-contained click-outside-to-close.

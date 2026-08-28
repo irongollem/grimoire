@@ -80,7 +80,7 @@ import {
   daysUntilDue,
   type DsrOutcome,
   type DsrRequest,
-} from "@/composables/useDsrRequests";
+} from "@/composables/admin/useDsrRequests";
 
 const { request, subjectLabel, saving = false } = defineProps<{
   request: DsrRequest;

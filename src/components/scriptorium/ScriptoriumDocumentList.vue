@@ -158,7 +158,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import {
   useScriptoriumDocuments,
   useDeleteScriptoriumDocument,
-} from "@/composables/useScriptorium";
+} from "@/composables/scriptorium/useScriptorium";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -166,7 +166,7 @@ import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useQuota } from "@/composables/useQuota";
+import { useQuota } from "@/composables/billing/useQuota";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
 
 const router = useRouter();

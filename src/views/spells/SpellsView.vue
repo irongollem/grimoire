@@ -96,7 +96,7 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import SpellList from "@/components/spells/SpellList.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
-import { useEnabledSources, useAvailableLibrarySpellSources } from "@/composables/useEnabledSources";
+import { useEnabledSources, useAvailableLibrarySpellSources } from "@/composables/library/useEnabledSources";
 
 const ui = useUiStore();
 

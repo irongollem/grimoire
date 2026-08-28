@@ -24,8 +24,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("vue-router", () => ({ useRoute: () => mocks.route, useRouter: () => ({ replace: mocks.replace }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn(async () => true) }) }));
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
-vi.mock("@/composables/useQuests", () => ({ useQuests: () => ({ data: mocks.quests }) }));
-vi.mock("@/composables/useQuestFlow", () => ({
+vi.mock("@/composables/quests/useQuests", () => ({ useQuests: () => ({ data: mocks.quests }) }));
+vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestRuntimeContext: () => ({ data: mocks.context, isLoading: { value: false }, error: { value: null }, refetch: mocks.refetch }),
   useQuestRuntimeCommand: () => ({ mutateAsync: mocks.mutateAsync }),
   useQuestBeats: () => ({ data: mocks.beats }),

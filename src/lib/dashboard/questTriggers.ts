@@ -11,7 +11,7 @@ import type { CalendarAdapter } from "@/types/calendar.types";
  * broadcast]" (`QuestTriggersPanel.vue`, the "Consequences" list). It only
  * becomes a *scheduled* fire instance — a `quest_trigger_scheduled` row —
  * once its qualifying event has actually happened: `scheduleQuestTriggers`
- * (src/composables/useQuests.ts:541) is called from the three places a quest
+ * (src/composables/quests/useQuests.ts:541) is called from the three places a quest
  * completes or an objective is checked off, and stamps a `fire_year/month/day`
  * computed from the in-world day it fired on plus `offset_days`. So every row
  * this module ever sees already cleared its condition — "waiting for the

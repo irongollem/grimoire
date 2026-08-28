@@ -19,7 +19,7 @@ import {
   PDFRawStream,
   decodePDFRawStream,
 } from "pdf-lib";
-import type { GrimoireBundle } from "@/composables/useWorldBundle";
+import type { GrimoireBundle } from "@/composables/campaign/useWorldBundle";
 
 export const CAMPAIGN_ATTACHMENT_NAME = "grimoire-campaign.json";
 

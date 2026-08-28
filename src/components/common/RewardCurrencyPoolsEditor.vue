@@ -143,7 +143,7 @@
 import { IconAdd, IconClose, IconCoins } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 
 const model = defineModel<RewardCurrencyPool[]>({ required: true });

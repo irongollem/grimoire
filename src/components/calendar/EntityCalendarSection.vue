@@ -172,7 +172,7 @@ import {
   useEntityCalendarEvents,
   useCreateCalendarEvent,
   useDeleteCalendarEvent,
-} from "@/composables/useCalendarEvents";
+} from "@/composables/calendar/useCalendarEvents";
 import type { CalendarEvent, LinkedEntityType } from "@/types/calendar.types";
 
 const props = defineProps<{

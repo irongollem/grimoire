@@ -39,7 +39,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import EntityDetailModal from "@/components/common/EntityDetailModal.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcSheet from "@/components/npcs/NpcSheet.vue";
-import { useNpc } from "@/composables/useNpcs";
+import { useNpc } from "@/composables/npcs/useNpcs";
 import { IconEdit } from "@/lib/icons";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 

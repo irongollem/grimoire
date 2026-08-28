@@ -16,7 +16,7 @@ import { useRoute, useRouter } from "vue-router";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SimulacrumTeaser from "@/components/simulacrum/SimulacrumTeaser.vue";
 import SimulacrumWizard from "@/components/simulacrum/SimulacrumWizard.vue";
-import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
+import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import type { MiniSourceTable } from "@/types/mini.types";
 
 const MINI_SOURCE_TABLES: readonly MiniSourceTable[] = ["npcs", "monsters", "party_members"];

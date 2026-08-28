@@ -207,7 +207,7 @@ import { RouterLink } from "vue-router";
 import { IconEncounter, IconLocation, IconQuest } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCalendarEvents } from "@/composables/useCalendarEvents";
+import { useCalendarEvents } from "@/composables/calendar/useCalendarEvents";
 import { linkedEntityType, linkedEntityId, eventColor } from "@/types/calendar.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";

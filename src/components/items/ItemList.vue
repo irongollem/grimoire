@@ -156,7 +156,7 @@ function itemTypeIcon(type: ItemType): VueComponent {
 }
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
-import { useItems } from "@/composables/useItems";
+import { useItems } from "@/composables/items/useItems";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { ITEM_RARITY_LABELS, RARITY_BG } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";

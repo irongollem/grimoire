@@ -8,22 +8,22 @@ const helpers = vi.hoisted(() => ({
   mutation: () => ({ mutateAsync: vi.fn() }),
 }));
 
-vi.mock("@/composables/useQuestFlow", () => ({
+vi.mock("@/composables/quests/useQuestFlow", () => ({
   useCreateQuestBeatAttachment: helpers.mutation,
   useDeleteQuestBeatAttachment: helpers.mutation,
   useSetQuestBeatAttachmentRequired: helpers.mutation,
 }));
-vi.mock("@/composables/useEncounters", () => ({ useCreateEncounter: helpers.mutation, useEncounters: helpers.emptyQuery }));
-vi.mock("@/composables/useFactions", () => ({ useAllFactions: helpers.emptyQuery }));
-vi.mock("@/composables/useLocations", () => ({ useAllLocations: helpers.emptyQuery }));
-vi.mock("@/composables/useNotes", () => ({ useNotes: helpers.emptyQuery }));
-vi.mock("@/composables/useNpcs", () => ({ useNpcs: helpers.emptyQuery }));
-vi.mock("@/composables/useItems", () => ({ useItems: helpers.emptyQuery }));
-vi.mock("@/composables/useMonsters", () => ({ useMonsters: helpers.emptyQuery }));
-vi.mock("@/composables/useQuests", () => ({ useQuestObjectives: helpers.emptyQuery }));
-vi.mock("@/composables/useScriptorium", () => ({ useScriptoriumDocuments: helpers.emptyQuery }));
-vi.mock("@/composables/useSoundboardPlaylists", () => ({ usePlaylists: helpers.emptyQuery }));
-vi.mock("@/composables/useSounds", () => ({ useSounds: helpers.emptyQuery }));
+vi.mock("@/composables/encounters/useEncounters", () => ({ useCreateEncounter: helpers.mutation, useEncounters: helpers.emptyQuery }));
+vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: helpers.emptyQuery }));
+vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: helpers.emptyQuery }));
+vi.mock("@/composables/notes/useNotes", () => ({ useNotes: helpers.emptyQuery }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: helpers.emptyQuery }));
+vi.mock("@/composables/items/useItems", () => ({ useItems: helpers.emptyQuery }));
+vi.mock("@/composables/monsters/useMonsters", () => ({ useMonsters: helpers.emptyQuery }));
+vi.mock("@/composables/quests/useQuests", () => ({ useQuestObjectives: helpers.emptyQuery }));
+vi.mock("@/composables/scriptorium/useScriptorium", () => ({ useScriptoriumDocuments: helpers.emptyQuery }));
+vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({ usePlaylists: helpers.emptyQuery }));
+vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: helpers.emptyQuery }));
 
 const beat = {
   id: "beat-1",

@@ -51,7 +51,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { useFaction } from "@/composables/useFactions";
+import { useFaction } from "@/composables/factions/useFactions";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FactionEditor from "@/components/factions/FactionEditor.vue";

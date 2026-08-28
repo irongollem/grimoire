@@ -345,6 +345,36 @@ Existing folders: `lib/audio/` (+ `audio/providers/`), `lib/battlemap/`, `lib/ca
 
 **Root must not import from a feature folder.** `craftingGlyphs.generated` is owned by crafting but stayed in root, because it reaches crafting only via re-export through `icons.ts` — moving it would make a 378-consumer root module depend on `lib/crafting/` and pull that folder into every bundle touching icons. When ownership and dependency direction disagree, dependency direction wins.
 
+### Composables — the folder is the domain the composable is *about*
+
+`src/composables/` is subdivided the same way, into 30 domain folders mirroring the
+names already used by `src/components/`. But the placement test is **not** the one
+above, and reaching for the `lib/` rule here gives the wrong answer:
+
+> A composable lives in the folder of the **domain it is about**. If it is about no
+> domain — a UI or platform primitive — it stays at the root.
+
+The difference matters because most composables are entity data-access wrappers
+(113 of 196 wrap TanStack Query), and those are read by *everything*: `useParty` has
+79 references across 22 areas, `useNpcs` 53 across 16. "Name it after the consumer"
+therefore returns "the consumer is everyone" and pushes every entity composable back
+to the root — which is precisely the 225-file flat bucket this replaced. `useQuests`
+belongs in `quests/` because it is *about* quests, however many features read it.
+Popularity is not the test here either; it is just a different non-test.
+
+The 19 modules that stay at the root are the ones with genuinely no domain:
+`useConfirm`, `useToast`, `useBreakpoint`, `useHotkeys`, `useInfiniteScroll`,
+`useScrollRestore`, `useLazyMount`, `useDetailModal`, `useAnchoredPopover`,
+`useModeSwitch`, `useTheme`, `useGlobalSearch`, `useScreenShake`, `useLocalePrefs`,
+the PWA trio (`useAppUpdate`, `usePwaInstall`, `usePullToRefresh`) and the image pair
+(`useImageUpload`, `usePendingImageResolver`). Adding a 20th is a
+claim that the thing has no domain — check that claim before you make it.
+
+A small folder is fine. `locations/`, `deities/` and `crafting/` hold one module each,
+because a first-class domain having a home is worth more than the folder count; the
+next one that arrives has an obvious place to go. Do **not** add `index.ts` barrels —
+the repo has 8 of them on purpose and this directory has none.
+
 Tests are colocated next to the module they cover — never a `__tests__/` directory.
 
 ## Component Granularity

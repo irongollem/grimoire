@@ -340,17 +340,17 @@ import {
   useCharacterSpellsWithDetails,
   useRemoveCharacterSpellById,
   useTogglePrepared,
-} from "@/composables/useCharacterSpells";
-import { useUpdatePartyMember, useParty, useCastCharacterSpell } from "@/composables/useParty";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { useConcentration } from "@/composables/useConcentration";
+} from "@/composables/party/useCharacterSpells";
+import { useUpdatePartyMember, useParty, useCastCharacterSpell } from "@/composables/party/useParty";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useConcentration } from "@/composables/party/useConcentration";
 import { useUiStore } from "@/stores/ui";
 import { SCHOOL_BG } from "@/types/spell.types";
 import { parseExpression, parsedToCounts, scaleExpression } from "@/lib/dice/dice";
 import { rollParsed } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";
 import { signedNum } from "@/lib/utils";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { cantripDiceMultiplier } from "@/types/spell.types";
 import type { CasterType, CharacterSpellEntry, Spell } from "@/types/spell.types";
 import type { ConcentrationState, SpellSlotEntry } from "@/types/party.types";
@@ -363,14 +363,14 @@ import SpellUpcastPicker from "@/components/spells/SpellUpcastPicker.vue";
 import SpellEffectResolver from "@/components/spells/SpellEffectResolver.vue";
 import { availableSlotsForSpell, canCastWithSlot, spellSlotKey, slotPool, type SpellSlotPool } from "@/rules/spellSlots";
 import { useToast } from "@/composables/useToast";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { canAutoRollSpellEffect, canCastAsRitual } from "@/rules/spellcastingPolicy";
-import { useRitualStyles } from "@/composables/useRitualPolicies";
-import { useMetamagicOptions } from "@/composables/useMetamagic";
+import { useRitualStyles } from "@/composables/rules/useRitualPolicies";
+import { useMetamagicOptions } from "@/composables/party/useMetamagic";
 import type { MetamagicOption } from "@/rules/metamagic";
 import { getSpellPreparationPolicy } from "@/rules/spellPreparationPolicy";
 import { grantAttackBonus, grantSaveDc } from "@/rules/spellGrantStats";
-import { useSpellReplacement } from "@/composables/useSpellReplacement";
+import { useSpellReplacement } from "@/composables/party/useSpellReplacement";
 import { isInnateSorceryActive, metamagicLimit } from "@/rules/sorcererFeatures";
 import { isMetamagicEligible, TRANSMUTABLE_DAMAGE_TYPES } from "@/rules/metamagicPolicy";
 

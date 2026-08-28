@@ -87,9 +87,9 @@ import { IconSearch, IconMusicNote, IconWind, IconLightning, IconMusic, IconList
 import SoundPaletteRow from "./SoundPaletteRow.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useSounds } from "@/composables/useSounds";
-import { usePlaylists, useFetchPlaylistTracks } from "@/composables/useSoundboardPlaylists";
-import { useAudibleCheck, useBlockedCheck, useActionCheck, useSoundTrigger, ACTION_LABEL } from "@/composables/useSoundPlayback";
+import { useSounds } from "@/composables/soundboard/useSounds";
+import { usePlaylists, useFetchPlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
+import { useAudibleCheck, useBlockedCheck, useActionCheck, useSoundTrigger, ACTION_LABEL } from "@/composables/soundboard/useSoundPlayback";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { rankEntries } from "@/lib/audio/soundSearch";
 import type { Sound, SoundboardPlaylist } from "@/types/sound.types";

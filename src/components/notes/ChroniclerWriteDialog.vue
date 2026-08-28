@@ -97,11 +97,11 @@ import {
   type ChroniclerTone,
 } from "@/ai/useChroniclerTextGeneration";
 import type { AiProvenance } from "@/ai/provenance";
-import { useEntityMentionItems } from "@/composables/useEntityMentionItems";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAiCredits } from "@/composables/useAiCredits";
-import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";

@@ -242,31 +242,31 @@ const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconCheckDouble, IconChevronLeft, IconClose, IconPlay, IconReset, IconStop } from '@/lib/icons';
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useParty } from "@/composables/useParty";
-import { useSpeciesNameMap } from "@/composables/useSpecies";
-import { useCompanions } from "@/composables/useCompanions";
-import { useEncounterDifficulty } from "@/composables/useEncounterDifficulty";
-import { useNpcs } from "@/composables/useNpcs";
-import { useItems } from "@/composables/useItems";
-import { useTraps } from "@/composables/useTraps";
-import { useAllLocations } from "@/composables/useLocations";
-import { useSounds } from "@/composables/useSounds";
-import { usePlaylists } from "@/composables/useSoundboardPlaylists";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useParty } from "@/composables/party/useParty";
+import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useCompanions } from "@/composables/encounters/useCompanions";
+import { useEncounterDifficulty } from "@/composables/encounters/useEncounterDifficulty";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useItems } from "@/composables/items/useItems";
+import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { useSounds } from "@/composables/soundboard/useSounds";
+import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { collectThemes } from "@/lib/audio/audioThemes";
 import {
   useCreateEncounter,
   useUpdateEncounter,
   useDeleteEncounter,
-} from "@/composables/useEncounters";
+} from "@/composables/encounters/useEncounters";
 import {
   useRunningEncounters,
   useEncounterLive,
-} from "@/composables/useEncounterLive";
-import { useQuestsForEncounter } from "@/composables/useQuests";
-import { useUpdateCampaign } from "@/composables/useCampaigns";
+} from "@/composables/encounters/useEncounterLive";
+import { useQuestsForEncounter } from "@/composables/quests/useQuests";
+import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { supabase } from "@/lib/supabase";
 import {
   DEFAULT_FACTIONS,

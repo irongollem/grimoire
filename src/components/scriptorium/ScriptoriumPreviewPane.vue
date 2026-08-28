@@ -127,14 +127,14 @@ import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconClose, IconExport, IconInfo, IconLoading, IconZoomIn, IconZoomOut } from "@/lib/icons";
 import { docTypeLabel, docTypeColor } from "@/lib/scriptorium/editorConstants";
-import { useScriptoriumZoom } from "@/composables/useScriptoriumZoom";
-import { usePagedPreview } from "@/composables/usePagedPreview";
+import { useScriptoriumZoom } from "@/composables/scriptorium/useScriptoriumZoom";
+import { usePagedPreview } from "@/composables/scriptorium/usePagedPreview";
 import { buildPagedPreviewCss } from "@/lib/scriptorium/pagedPreviewCss";
 import { injectPagedFooters } from "@/lib/scriptorium/pagedFooters";
 import { expandTocPlaceholder, fillPagedTocPages } from "@/lib/scriptorium/pagedToc";
 import { stripTrailingEmptyParagraphs } from "@/lib/scriptorium/stripTrailingEmpty";
 import { renderFurniture } from "@/lib/scriptorium/furniture/renderFurniture";
-import { useFurnitureEditing } from "@/composables/useFurnitureEditing";
+import { useFurnitureEditing } from "@/composables/scriptorium/useFurnitureEditing";
 import type {
   ScriptoriumDocType,
   ScriptoriumTheme,

@@ -39,8 +39,8 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import { useQuests } from "@/composables/useQuests";
-import { useQuestBeatTransitions } from "@/composables/useQuestFlow";
+import { useQuests } from "@/composables/quests/useQuests";
+import { useQuestBeatTransitions } from "@/composables/quests/useQuestFlow";
 import { deriveQuestActivityRows } from "@/lib/dashboard/questActivity";
 import { timeAgo } from "@/lib/utils";
 import DashboardWidget from "../DashboardWidget.vue";

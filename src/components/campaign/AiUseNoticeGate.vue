@@ -63,11 +63,11 @@ import { ref, watch } from "vue";
 import AiNoticeDialog from "@/components/campaign/AiNoticeDialog.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
-import { useSubscription } from "@/composables/useSubscription";
-import { useAiAcknowledgements, type AiAcknowledgementKind } from "@/composables/useAiAcknowledgements";
-import { useAiUseNoticeDismissal, shouldOfferAiChoice, shouldOfferProReoffer } from "@/composables/useAiUseNoticeDismissal";
+import { useSubscription } from "@/composables/billing/useSubscription";
+import { useAiAcknowledgements, type AiAcknowledgementKind } from "@/composables/ai/useAiAcknowledgements";
+import { useAiUseNoticeDismissal, shouldOfferAiChoice, shouldOfferProReoffer } from "@/composables/ai/useAiUseNoticeDismissal";
 import { useLazyMount } from "@/composables/useLazyMount";
-import { useUpdateCampaign } from "@/composables/useCampaigns";
+import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { AI_USE_NOTICE_VERSION, AI_PRO_REOFFER_NOTICE_VERSION } from "@/lib/legal";
 
 const campaign = useCampaignStore();

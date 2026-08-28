@@ -102,10 +102,10 @@ import {
   useUpdateFactionPartyMemberStatus,
   useRemoveFactionPartyMember,
   type FactionPartyMemberWithMember,
-} from "@/composables/useFactions";
-import { useParty } from "@/composables/useParty";
-import { useSpeciesNameMap } from "@/composables/useSpecies";
-import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
+} from "@/composables/factions/useFactions";
+import { useParty } from "@/composables/party/useParty";
+import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";

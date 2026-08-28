@@ -136,7 +136,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SoundProviderRow from "./SoundProviderRow.vue";
-import { useProviderSearch } from "@/composables/useProviderSearch";
+import { useProviderSearch } from "@/composables/soundboard/useProviderSearch";
 import {
   SOUND_PROVIDERS,
   LIBRARY_PROVIDER_ID,
@@ -147,7 +147,7 @@ import {
   type ProviderFilters,
   type SoundProvider,
 } from "@/lib/audio/providers";
-import { useCreateSound } from "@/composables/useSounds";
+import { useCreateSound } from "@/composables/soundboard/useSounds";
 
 const { pageId = null } = defineProps<{
   pageId?: string | null;

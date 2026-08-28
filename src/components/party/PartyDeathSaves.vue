@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { useUpdatePartyMember } from "@/composables/useParty";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
 import type { PartyMember } from "@/types/party.types";
 
 const { member } = defineProps<{ member: PartyMember }>();

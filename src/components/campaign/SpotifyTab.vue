@@ -145,7 +145,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { IconCheck, IconCopy, IconHide, IconReveal } from '@/lib/icons';
 import { useCampaignStore } from "@/stores/campaign";
-import { useUpdateCampaign } from "@/composables/useCampaigns";
+import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { useSpotifyStore } from "@/stores/spotify";
 
 const campaign = useCampaignStore();

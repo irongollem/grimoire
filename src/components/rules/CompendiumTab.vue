@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
-import { useLibraryRules } from "@/composables/useRules";
+import { useLibraryRules } from "@/composables/rules/useRules";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";

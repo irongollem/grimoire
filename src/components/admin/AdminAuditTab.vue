@@ -98,7 +98,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useUiStore } from "@/stores/ui";
-import { useAdminUsers } from "@/composables/useAdminUsers";
+import { useAdminUsers } from "@/composables/admin/useAdminUsers";
 import {
   useAdminAuditLog,
   ADMIN_AUDIT_ACTIONS,
@@ -106,7 +106,7 @@ import {
   ADMIN_AUDIT_LIMIT,
   type AdminAuditAction,
   type AdminAuditEntry,
-} from "@/composables/useAdminAuditLog";
+} from "@/composables/admin/useAdminAuditLog";
 
 const ui = useUiStore();
 const { adminAuditSearch: search, adminAuditFilterAction: filterAction } = storeToRefs(ui);

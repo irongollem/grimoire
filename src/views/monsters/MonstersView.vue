@@ -281,9 +281,9 @@ import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { useUiStore } from "@/stores/ui";
 import { useRouter } from "vue-router";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useQuota } from "@/composables/useQuota";
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useEnabledSources, useAvailableLibrarySources } from "@/composables/useEnabledSources";
+import { useQuota } from "@/composables/billing/useQuota";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useEnabledSources, useAvailableLibrarySources } from "@/composables/library/useEnabledSources";
 
 // IconSettings (sliders) reads as "filters". The overflow ⋮ has no kebab glyph
 // in the icon set, so it is rendered as an inline SVG in the template.

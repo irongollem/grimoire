@@ -123,7 +123,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { ArtificerInfusion } from "@/data/artificerInfusions";
-import type { ArtificerInfusionView } from "@/composables/useArtificerState";
+import type { ArtificerInfusionView } from "@/composables/party/useArtificerState";
 
 interface InventoryItem {
   id: string;

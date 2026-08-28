@@ -93,9 +93,9 @@ import {
   useUpsertCampaignRule,
   isRuleEffectivelyEnabled,
   resolveRuleConfig,
-} from "@/composables/useOptionalRules";
+} from "@/composables/rules/useOptionalRules";
 import { useCampaignStore } from "@/stores/campaign";
-import { useUpdateCampaign } from "@/composables/useCampaigns";
+import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { DEFAULT_RULESET, RULESET_OPTIONS, type RulesetKey } from "@/types/ruleset.types";
 import type { RuleConfigField } from "@/types/rule.types";
 import AppInput from "@/components/common/AppInput.vue";

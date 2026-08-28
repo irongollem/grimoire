@@ -157,7 +157,7 @@ import { IconMusicNote, IconPause, IconPlay, IconRepeat, IconRepeatOne, IconShuf
 import AppButton from "@/components/common/AppButton.vue";
 import VolumeSlider from "./VolumeSlider.vue";
 import { useSpotifyStore } from "@/stores/spotify";
-import { useSoundPlayback } from "@/composables/useSoundPlayback";
+import { useSoundPlayback } from "@/composables/soundboard/useSoundPlayback";
 import type { Sound } from "@/types/sound.types";
 
 const { sound } = defineProps<{

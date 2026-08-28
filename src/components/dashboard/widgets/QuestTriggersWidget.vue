@@ -60,7 +60,7 @@ import DashboardWidget from "../DashboardWidget.vue";
  * means and why one widget covers both.
  *
  * No composable already returns the scheduled rows themselves --
- * `usePendingTriggerCount()` (src/composables/useQuests.ts:709) only counts
+ * `usePendingTriggerCount()` (src/composables/quests/useQuests.ts:709) only counts
  * them, for the calendar badge -- and `quest_triggers` carries no
  * `campaign_id` of its own to query by, so the fetch here mirrors
  * `fireDueTriggers`'s own query shape (useQuests.ts:667-668: `select("*,

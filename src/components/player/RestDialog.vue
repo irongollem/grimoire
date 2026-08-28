@@ -152,9 +152,9 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import type { PartyMember, PartyMemberUpdate } from "@/types/party.types";
 import { getHitDie } from "@/types/spell.types";
-import { useClassByName } from "@/composables/useCustomClasses";
+import { useClassByName } from "@/composables/rules/useCustomClasses";
 import { abilityModifier } from "@/lib/utils";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { getExhaustionLevel, setExhaustionLevel } from "@/rules/conditions";
 import type { DieSize } from "@/lib/dice/dice";
 

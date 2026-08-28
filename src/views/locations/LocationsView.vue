@@ -63,8 +63,8 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import AtlasExplorer from "@/components/locations/AtlasExplorer.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useCreateGate } from "@/composables/useCreateGate";
-import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/useLocations";
+import { useCreateGate } from "@/composables/billing/useCreateGate";
+import { usePopulateLocations, usePopulatePlanarLocations } from "@/composables/locations/useLocations";
 import { useUiStore } from "@/stores/ui";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 

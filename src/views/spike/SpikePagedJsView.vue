@@ -53,7 +53,7 @@ import {
   SPIKE_SCENARIOS,
   type SpikeScenario,
 } from "@/lib/scriptorium/spike/spikeContent";
-import { usePagedPreview } from "@/composables/usePagedPreview";
+import { usePagedPreview } from "@/composables/scriptorium/usePagedPreview";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 

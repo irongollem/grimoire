@@ -158,7 +158,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteTrap } from "@/composables/useTraps";
+import { useDeleteTrap } from "@/composables/dungeon-features/useTraps";
 import { CR_XP } from "@/types/encounter.types";
 import type { Trap } from "@/types/trap.types";
 import FocalImage from "@/components/common/FocalImage.vue";

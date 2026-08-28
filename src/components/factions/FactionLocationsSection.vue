@@ -28,8 +28,8 @@ import {
   useAddFactionLocation,
   useRemoveFactionLocation,
   type FactionLocationWithLocation,
-} from "@/composables/useFactions";
-import { useAllLocations } from "@/composables/useLocations";
+} from "@/composables/factions/useFactions";
+import { useAllLocations } from "@/composables/locations/useLocations";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
 

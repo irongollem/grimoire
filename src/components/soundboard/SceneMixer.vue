@@ -91,8 +91,8 @@
 import { computed, ref, watch } from "vue";
 import { IconChevronRight } from "@/lib/icons";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useSounds } from "@/composables/useSounds";
-import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
+import { useSounds } from "@/composables/soundboard/useSounds";
+import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import VolumeSlider from "./VolumeSlider.vue";
 import CausedByChip from "./CausedByChip.vue";
 

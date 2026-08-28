@@ -178,9 +178,9 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useImportWorldBundle, BUNDLE_ENTITY_TYPES } from "@/composables/useWorldBundle";
-import type { BundleEntityKey, BundlePreview } from "@/composables/useWorldBundle";
-import { pendingBundleFile } from "@/composables/usePendingBundle";
+import { useImportWorldBundle, BUNDLE_ENTITY_TYPES } from "@/composables/campaign/useWorldBundle";
+import type { BundleEntityKey, BundlePreview } from "@/composables/campaign/useWorldBundle";
+import { pendingBundleFile } from "@/composables/campaign/usePendingBundle";
 
 const open = defineModel<boolean>({ required: true });
 

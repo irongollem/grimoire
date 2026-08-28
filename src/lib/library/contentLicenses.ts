@@ -1,5 +1,5 @@
 // Pure grouping/formatting logic for the "Licenses & Attributions" surface
-// (issue #567). No Vue, no Supabase — see src/composables/useContentLicenses.ts
+// (issue #567). No Vue, no Supabase — see src/composables/library/useContentLicenses.ts
 // for the data-fetching side and src/components/rules/LicensesTab.vue for the
 // rendering side.
 import { LICENSES } from "@/data/licenses";

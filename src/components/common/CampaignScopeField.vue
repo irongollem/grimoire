@@ -22,7 +22,7 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaigns } from "@/composables/useCampaigns";
+import { useCampaigns } from "@/composables/campaign/useCampaigns";
 
 const campaignId = defineModel<string | null>({ required: true });
 

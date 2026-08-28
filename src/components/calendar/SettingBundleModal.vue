@@ -97,7 +97,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useCalendarStore } from "@/stores/calendar";
-import { useCreateCalendarEvent } from "@/composables/useCalendarEvents";
+import { useCreateCalendarEvent } from "@/composables/calendar/useCalendarEvents";
 import { SETTING_BUNDLES } from "@/data/bundles/index";
 import type { BundleEvent } from "@/data/bundles/index";
 import AppButton from "@/components/common/AppButton.vue";

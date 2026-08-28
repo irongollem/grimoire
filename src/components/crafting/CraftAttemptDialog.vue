@@ -189,8 +189,8 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import { IconCheckCircle, IconClose, IconCloseCircle, IconDiceRoll, IconWarning } from '@/lib/icons';
 import { getDiscipline } from "@/lib/crafting-disciplines";
-import { useAttemptCraft } from "@/composables/useCrafting";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useAttemptCraft } from "@/composables/crafting/useCrafting";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 
 import type { CraftingRecipe, CraftingOutput, CraftingModifier, CraftingAttemptResult } from "@/types/crafting.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";

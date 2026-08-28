@@ -80,11 +80,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconMind, IconNavParty, IconReveal } from "@/lib/icons";
-import { useParty } from "@/composables/useParty";
-import { useSpeciesNameMap } from "@/composables/useSpecies";
-import { useAllCampaignCharacterClasses } from "@/composables/useCharacterClasses";
-import { useCampaignMembers } from "@/composables/useCampaignMembers";
-import { useCampaignPresence } from "@/composables/useCampaignPresence";
+import { useParty } from "@/composables/party/useParty";
+import { useSpeciesNameMap } from "@/composables/rules/useSpecies";
+import { useAllCampaignCharacterClasses } from "@/composables/party/useCharacterClasses";
+import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
+import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { formatMulticlassLabel, totalLevel } from "@/types/multiclass.types";
 import type { CharacterClass } from "@/types/multiclass.types";
 import { useAuthStore } from "@/stores/auth";

@@ -13,16 +13,16 @@ import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
 import { getTextProvider } from "./providers";
 import { wrapUserInput } from "./utils";
-import { logUsage } from "@/composables/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import {
   captureImageGenerationContext,
   generateImage,
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
 import { buildAiProvenance } from "@/ai/provenance";
-import { useLikenessGate } from "@/composables/useLikenessGate";
+import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 
 const LOCAL_MODE_KEY = "grimoire_key_local_mode";
 // ── Module-level singleton state ────────────────────────────────────────────

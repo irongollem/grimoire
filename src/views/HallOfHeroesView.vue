@@ -160,7 +160,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import { IconAdd, IconDelete, IconEdit, IconGenerate } from '@/lib/icons';
-import { useHallOfHeroes, useDeleteHero, useImportHero, usePopulateAllSettingHeroes } from "@/composables/useHallOfHeroes";
+import { useHallOfHeroes, useDeleteHero, useImportHero, usePopulateAllSettingHeroes } from "@/composables/party/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";

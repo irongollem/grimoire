@@ -69,8 +69,8 @@ import {
   useUpsertFactionRelation,
   useDeleteFactionRelation,
   type FactionRelationWithFactions,
-} from "@/composables/useFactions";
-import { useAllFactions } from "@/composables/useFactions";
+} from "@/composables/factions/useFactions";
+import { useAllFactions } from "@/composables/factions/useFactions";
 import { RELATION_TYPES, relationMeta } from "@/types/faction.types";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";

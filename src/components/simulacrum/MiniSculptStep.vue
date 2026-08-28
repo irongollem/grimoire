@@ -140,7 +140,7 @@ import { IconLoading, IconWarning } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
-import { useAiCredits } from "@/composables/useAiCredits";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useMiniForge } from "@/ai/useMiniForge";
 import { legalUrl } from "@/lib/marketing";
 import { getPublicUrl } from "@/lib/storage";

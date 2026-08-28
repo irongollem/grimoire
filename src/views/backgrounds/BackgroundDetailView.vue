@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useBackground } from "@/composables/useBackgrounds";
+import { useBackground } from "@/composables/rules/useBackgrounds";
 import AppButton from "@/components/common/AppButton.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

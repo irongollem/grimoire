@@ -50,9 +50,9 @@ import { useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import { useConfirm } from "@/composables/useConfirm";
-import { useEntityNotes } from "@/composables/useEntityNotes";
-import { useAllLocations } from "@/composables/useLocations";
-import { useNpcs } from "@/composables/useNpcs";
+import { useEntityNotes } from "@/composables/notes/useEntityNotes";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { useNpcs } from "@/composables/npcs/useNpcs";
 import {
   scheduleQuestTriggers,
   useCreateObjective,
@@ -63,8 +63,8 @@ import {
   useQuestTriggers,
   useSubQuests,
   useUpdateObjective,
-} from "@/composables/useQuests";
-import { useCreateScriptoriumDocument } from "@/composables/useScriptorium";
+} from "@/composables/quests/useQuests";
+import { useCreateScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { nextObjectiveStatus } from "@/lib/quests/objectives";
 import { formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import { useCampaignStore } from "@/stores/campaign";

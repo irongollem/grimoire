@@ -80,9 +80,9 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
-import { useSubscription } from "@/composables/useSubscription";
+import { useSubscription } from "@/composables/billing/useSubscription";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAiCredits } from "@/composables/useAiCredits";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useMiniForge } from "@/ai/useMiniForge";
 import type { Mini, MiniFormat, MiniSourceTable } from "@/types/mini.types";
 

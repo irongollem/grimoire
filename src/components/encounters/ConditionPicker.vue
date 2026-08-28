@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { onClickOutside } from "@vueuse/core";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { CONDITIONS, getExhaustionLevel, getConditionShort } from "@/rules/conditions";
 import type { ConditionName } from "@/rules/conditions";
 

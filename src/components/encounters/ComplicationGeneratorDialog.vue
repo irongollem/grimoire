@@ -220,15 +220,15 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useComplicationGeneration, type ComplicationMode } from "@/ai/useComplicationGeneration";
 import { resolveGeneratedComplication, buildComplicationEvent } from "@/ai/resolveGeneratedComplication";
-import { useSubscription } from "@/composables/useSubscription";
+import { useSubscription } from "@/composables/billing/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import { useAiCredits } from "@/composables/useAiCredits";
-import { useProviderConfig } from "@/composables/useProviderConfig";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { supabase } from "@/lib/supabase";
 import type { EncounterEvent } from "@/types/encounter.types";
 

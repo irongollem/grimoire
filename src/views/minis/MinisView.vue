@@ -74,8 +74,8 @@ import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
 import MiniCard from "@/components/simulacrum/MiniCard.vue";
 import { IconSearch } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
-import { useMinis } from "@/composables/useMinis";
-import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
+import { useMinis } from "@/composables/simulacrum/useMinis";
+import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import { MINI_STATUSES } from "@/types/mini.types";
 
 const ui = useUiStore();

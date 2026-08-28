@@ -70,8 +70,8 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import EncounterList from "@/components/encounters/EncounterList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useUiStore } from "@/stores/ui";
-import { useAllQuests } from "@/composables/useQuests";
-import { useQuota } from "@/composables/useQuota";
+import { useAllQuests } from "@/composables/quests/useQuests";
+import { useQuota } from "@/composables/billing/useQuota";
 
 const router = useRouter();
 const ui = useUiStore();

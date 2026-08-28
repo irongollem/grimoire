@@ -42,8 +42,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useCreateQuestObjectiveEffect, useDeleteQuestObjectiveEffect, useQuestObjectiveEffects } from "@/composables/useQuestFlow";
-import { useQuestObjectives } from "@/composables/useQuests";
+import { useCreateQuestObjectiveEffect, useDeleteQuestObjectiveEffect, useQuestObjectiveEffects } from "@/composables/quests/useQuestFlow";
+import { useQuestObjectives } from "@/composables/quests/useQuests";
 import type { QuestBeat, QuestBeatEdge, QuestObjectiveEffect } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";

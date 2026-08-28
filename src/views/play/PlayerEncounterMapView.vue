@@ -101,10 +101,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useEncounter } from "@/composables/useEncounters";
-import { usePlayerVisibleLocation } from "@/composables/useLocations";
-import { liveState, updateOwnCombatantPosition } from "@/composables/useEncounterLive";
-import { useMapCanvas } from "@/composables/useMapCanvas";
+import { useEncounter } from "@/composables/encounters/useEncounters";
+import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
+import { liveState, updateOwnCombatantPosition } from "@/composables/encounters/useEncounterLive";
+import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";

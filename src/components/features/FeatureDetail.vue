@@ -77,8 +77,8 @@ import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import { useCreateFeature, useUpdateFeature, useDeleteFeature } from "@/composables/useFeatures";
-import { useCampaigns } from "@/composables/useCampaigns";
+import { useCreateFeature, useUpdateFeature, useDeleteFeature } from "@/composables/rules/useFeatures";
+import { useCampaigns } from "@/composables/campaign/useCampaigns";
 import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
 import type { ClassFeature } from "@/types/feature.types";
 

@@ -42,15 +42,15 @@ import ToastHost from "@/components/common/ToastHost.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
 import RollModePicker from "@/components/common/RollModePicker.vue";
 import FirstRunTour from "@/components/common/FirstRunTour.vue";
-import { pendingBundleFile } from "@/composables/usePendingBundle";
+import { pendingBundleFile } from "@/composables/campaign/usePendingBundle";
 import { useLazyMount } from "@/composables/useLazyMount";
 import LoadingScreen from "@/components/auth/LoadingScreen.vue";
 import { useTheme } from "@/composables/useTheme";
 import { useAuthStore } from "@/stores/auth";
 
-import { useMediaSession } from "@/composables/useMediaSession";
+import { useMediaSession } from "@/composables/soundboard/useMediaSession";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaignById } from "@/composables/useCampaigns";
+import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
 import { createRealtimeHeal } from "@/lib/realtimeHeal";
 import { supabase } from "@/lib/supabase";

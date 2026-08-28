@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useCardForgeStore } from "@/stores/cardForge";
-import { useCardForgeData } from "@/composables/useCardForgeData";
+import { useCardForgeData } from "@/composables/cardforge/useCardForgeData";
 import type { SourceId } from "@/stores/cardForge";
 
 const store = useCardForgeStore();

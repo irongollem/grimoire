@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useAiUsageStats } from "@/composables/useAiUsageStats";
+import { useAiUsageStats } from "@/composables/ai/useAiUsageStats";
 
 const { title = "AI Usage Stats", subtitle = "", currency = "usd" } = defineProps<{
   title?: string;

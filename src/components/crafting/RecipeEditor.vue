@@ -227,7 +227,7 @@ import {
   getDiscipline,
 } from "@/lib/crafting-disciplines";
 import { useUiStore } from "@/stores/ui";
-import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
+import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import {
   useCreateRecipe,
   useUpdateRecipe,
@@ -237,7 +237,7 @@ import {
   useRecipeIngredients,
   useRecipeModifiers,
   useRecipeOutputs,
-} from "@/composables/useCrafting";
+} from "@/composables/crafting/useCrafting";
 import type {
   CraftingRecipe,
   CraftingDiscipline,

@@ -32,7 +32,7 @@
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import { IconPin } from "@/lib/icons";
-import { useNotes } from "@/composables/useNotes";
+import { useNotes } from "@/composables/notes/useNotes";
 import { extractTiptapText } from "@/lib/utils";
 import DashboardWidget from "../DashboardWidget.vue";
 import type { Note } from "@/types/notes.types";

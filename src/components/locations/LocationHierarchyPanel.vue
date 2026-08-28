@@ -202,7 +202,7 @@ import { IconAdd, IconChevronUp, IconClose, IconLink, IconLocation } from '@/lib
 import AppButton from '@/components/common/AppButton.vue';
 import AppInput from '@/components/common/AppInput.vue';
 import EntityCombobox from '@/components/common/EntityCombobox.vue';
-import { useLocations, useUpdateLocation } from '@/composables/useLocations';
+import { useLocations, useUpdateLocation } from '@/composables/locations/useLocations';
 import {
   LOCATION_TYPE_LABELS,
   LOCATION_TYPE_COLORS,

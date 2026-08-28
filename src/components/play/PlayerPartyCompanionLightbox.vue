@@ -170,7 +170,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
-import { useUpdateCompanion, useDeleteCompanion } from "@/composables/useCompanions";
+import { useUpdateCompanion, useDeleteCompanion } from "@/composables/encounters/useCompanions";
 import { useConfirm } from "@/composables/useConfirm";
 import {
   CONDITIONS,

@@ -111,10 +111,10 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import { IconGenerate, IconLocation, IconMonster, IconParty } from '@/lib/icons';
 import type { Editor } from "@tiptap/core";
-import { useNpcs } from "@/composables/useNpcs";
-import { useMonsters } from "@/composables/useMonsters";
-import { useSpells } from "@/composables/useSpells";
-import { useAllLocations } from "@/composables/useLocations";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useMonsters } from "@/composables/monsters/useMonsters";
+import { useSpells } from "@/composables/spells/useSpells";
+import { useAllLocations } from "@/composables/locations/useLocations";
 import {
   formatNpcForScriptorium,
   formatMonsterForScriptorium,

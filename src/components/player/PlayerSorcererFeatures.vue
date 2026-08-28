@@ -59,7 +59,7 @@ import {
   useActivateInnateSorcery,
   useEndInnateSorcery,
   useRestoreSorceryPoints,
-} from "@/composables/useParty";
+} from "@/composables/party/useParty";
 import { isInnateSorceryActive, sorcerousRestorationAmount } from "@/rules/sorcererFeatures";
 import { useToast } from "@/composables/useToast";
 

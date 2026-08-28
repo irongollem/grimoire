@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { useLocation } from "@/composables/useLocations";
+import { useLocation } from "@/composables/locations/useLocations";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import LocationEditor from "@/components/locations/LocationEditor.vue";

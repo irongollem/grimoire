@@ -1,7 +1,7 @@
 /**
  * The join for the "Recently discovered monsters" widget (#764).
  *
- * `discovered_monsters` (src/composables/useDiscoveredMonsters.ts) rows carry
+ * `discovered_monsters` (src/composables/encounters/useDiscoveredMonsters.ts) rows carry
  * no monster name or art of their own — only a reference and a timestamp — so
  * the widget needs a join against the bestiary before there is anything to
  * render. A discovery's reference is one of two mutually-exclusive columns:

@@ -141,8 +141,8 @@ import {
   useUpdateSoundboardPage,
   useDeleteSoundboardPage,
   useReorderSoundboardPages,
-} from "@/composables/useSoundboardPages";
-import { useQuota } from "@/composables/useQuota";
+} from "@/composables/soundboard/useSoundboardPages";
+import { useQuota } from "@/composables/billing/useQuota";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import type { SoundboardPage } from "@/types/sound.types";
 

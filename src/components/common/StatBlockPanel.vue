@@ -70,7 +70,7 @@ import { skillsToString, formatHitPoints } from "@/lib/utils";
 import type { MonsterStatBlock } from "@/types/monster.types";
 import type { StatBlock } from "@/types/npc.types";
 import type { RollMode } from "@/lib/dice/roller";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import type { SaveEntry } from "@/components/common/AbilityScoreTable.vue";
 

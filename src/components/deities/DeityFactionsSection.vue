@@ -33,8 +33,8 @@ import {
   useDeityFactions,
   useAddFactionDeity,
   useRemoveFactionDeity,
-} from "@/composables/useFactions";
-import { useAllFactions } from "@/composables/useFactions";
+} from "@/composables/factions/useFactions";
+import { useAllFactions } from "@/composables/factions/useFactions";
 import type { FactionDeity } from "@/types/faction.types";
 import type { Faction } from "@/types/faction.types";
 import EntityLinkSection from "@/components/common/EntityLinkSection.vue";

@@ -91,7 +91,7 @@
  */
 import { computed, ref, watch } from "vue";
 import type { DieSize } from "@/lib/dice/dice";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";

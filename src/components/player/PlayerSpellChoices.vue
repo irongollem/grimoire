@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import { useUpdatePartyMember } from "@/composables/useParty";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
 import type { CustomStep } from "@/levelup/customTypes";
 import type { PartyMember } from "@/types/party.types";
 

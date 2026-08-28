@@ -40,8 +40,8 @@
 import AppButton from "@/components/common/AppButton.vue";
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { useAllQuests } from "@/composables/useQuests";
-import { useQuestBoardSummaries } from "@/composables/useQuestFlow";
+import { useAllQuests } from "@/composables/quests/useQuests";
+import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import DashboardWidget from "../DashboardWidget.vue";
 
 /**

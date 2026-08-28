@@ -1,6 +1,6 @@
 import { computed } from "vue";
 import type { ComputedRef, Ref } from "vue";
-import { useAllSpells } from "@/composables/useSpells";
+import { useAllSpells } from "@/composables/spells/useSpells";
 import type { Spell } from "@/types/spell.types";
 
 /**

@@ -8,10 +8,10 @@ const mocks = vi.hoisted(() => ({
   openChatAt: vi.fn(),
 }));
 
-vi.mock("@/composables/useItems", () => ({ useItems: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/items/useItems", () => ({ useItems: () => ({ data: { value: [] } }) }));
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "dm" } }) }));
 vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ openChatAt: mocks.openChatAt }) }));
-vi.mock("@/composables/useQuestFlow", () => ({
+vi.mock("@/composables/quests/useQuestFlow", () => ({
   useCreateQuestBeatLoot: () => ({ mutateAsync: vi.fn() }),
   useDeleteQuestBeatLoot: () => ({ mutateAsync: vi.fn() }),
   useDispatchQuestBeatLoot: () => ({ mutateAsync: mocks.dispatch }),

@@ -74,11 +74,11 @@ import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
-import { useUpdateNpc } from "@/composables/useNpcs";
-import { useNpcFactions } from "@/composables/useFactions";
+import { useUpdateNpc } from "@/composables/npcs/useNpcs";
+import { useNpcFactions } from "@/composables/factions/useFactions";
 import { getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { Npc } from "@/types/npc.types";
 
 const props = defineProps<{ npc: Npc }>();

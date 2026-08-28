@@ -179,7 +179,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SpeciesSpellGrant } from "@/types/species.types";
 import type { Spell, InnateResetsOn } from "@/types/spell.types";
-import { useSpellSearch } from "@/composables/useSpellSearch";
+import { useSpellSearch } from "@/composables/spells/useSpellSearch";
 
 const { grants, subraceNames } = defineProps<{
   grants: SpeciesSpellGrant[];

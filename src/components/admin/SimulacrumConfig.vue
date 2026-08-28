@@ -67,9 +67,9 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useSimulacrumConfig, useUpdateSimulacrumMode } from "@/composables/useSimulacrumConfig";
-import { useFeatureInterestCount } from "@/composables/useFeatureInterest";
-import { useAdminKeys } from "@/composables/useAdminKeys";
+import { useSimulacrumConfig, useUpdateSimulacrumMode } from "@/composables/simulacrum/useSimulacrumConfig";
+import { useFeatureInterestCount } from "@/composables/simulacrum/useFeatureInterest";
+import { useAdminKeys } from "@/composables/admin/useAdminKeys";
 import { SIMULACRUM_FEATURE_KEY, type SimulacrumMode } from "@/types/mini.types";
 import PlatformKeyField from "@/components/admin/PlatformKeyField.vue";
 import AppButton from "@/components/common/AppButton.vue";

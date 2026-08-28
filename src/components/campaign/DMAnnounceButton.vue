@@ -50,7 +50,7 @@ import { ref } from "vue";
 import { IconAnnounce, IconSend } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
+import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 
 const campaign = useCampaignStore();
 const open    = ref(false);

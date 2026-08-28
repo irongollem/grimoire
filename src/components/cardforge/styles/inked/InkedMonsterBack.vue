@@ -62,7 +62,7 @@ import FitText, { type FitEntry } from "../../FitText.vue";
 import DamageIcon from "@/components/common/DamageIcon.vue";
 import SenseIcon from "@/components/common/SenseIcon.vue";
 import { accentForMonster } from "../tokens.shared";
-import { useMonsterCardData } from "@/composables/useMonsterCardData";
+import { useMonsterCardData } from "@/composables/cardforge/useMonsterCardData";
 
 const { data, tarot } = defineProps<{ data: Monster; tarot?: boolean }>();
 

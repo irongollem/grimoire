@@ -47,7 +47,7 @@ import {
   useAddFactionNpc,
   useUpdateFactionNpcRole,
   useRemoveFactionNpc,
-} from "@/composables/useFactions";
+} from "@/composables/factions/useFactions";
 import { NPC_FACTION_ROLES, NPC_FACTION_STATUS_COLORS, type NpcFactionStatus } from "@/types/faction.types";
 import type { FactionNpc, Faction } from "@/types/faction.types";
 import EntityLinkSection from "@/components/common/EntityLinkSection.vue";

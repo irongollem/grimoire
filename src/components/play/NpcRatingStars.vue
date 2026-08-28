@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { usePlayerNpcRatings } from "@/composables/usePlayerNpcRatings";
+import { usePlayerNpcRatings } from "@/composables/play/usePlayerNpcRatings";
 
 const { npcId, size = "base" } = defineProps<{
   npcId: string;

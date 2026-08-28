@@ -21,7 +21,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { useEncounter } from "@/composables/useEncounters";
+import { useEncounter } from "@/composables/encounters/useEncounters";
 import EncounterDetail from "@/components/encounters/EncounterDetail.vue";
 import EncounterSheet from "@/components/encounters/EncounterSheet.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

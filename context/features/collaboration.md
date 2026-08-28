@@ -260,7 +260,7 @@ The `/join/:token` route has no `requiresAuth` guard — it is accessible before
 
 Real-time updates are handled by two complementary systems, both implemented as singleton composables with reference counting (safe to call from multiple layouts simultaneously).
 
-**`useCampaignLiveSync`** (`src/composables/useCampaignLiveSync.ts`)
+**`useCampaignLiveSync`** (`src/composables/campaign/useCampaignLiveSync.ts`)
 Subscribes to Supabase `postgres_changes` for these tables (filtered by `campaign_id`):
 
 - `notes`, `quests`, `locations`, `factions`, `puzzle_rooms`, `calendar_events`, `player_journal`
@@ -278,7 +278,7 @@ So a delete handler gets one id, possibly for a row in another campaign. Match o
 
 A table must also actually be in the `supabase_realtime` publication for any of this to fire; subscribing to an unpublished table is silent. Verify with `select tablename from pg_publication_tables where pubname = 'supabase_realtime'`.
 
-**`useCampaignPresence`** (`src/composables/useCampaignPresence.ts`)
+**`useCampaignPresence`** (`src/composables/campaign/useCampaignPresence.ts`)
 Uses Supabase Realtime Presence to track who is currently online. Each connected client broadcasts `{ user_id, display_name, online_at }`. The `MembersTab` uses `isOnline(userId)` to show a green/grey dot next to each member. This is the same channel referenced by the campaign chat system.
 
 ## Key Capabilities

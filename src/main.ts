@@ -16,7 +16,7 @@ import { initErrorTracking } from "./lib/observability/sentry";
 import { installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
-import { pendingBundleFile } from "./composables/usePendingBundle";
+import { pendingBundleFile } from "@/composables/campaign/usePendingBundle";
 import { useSoundboardStore } from "./stores/soundboard";
 import { useSpotifyStore } from "./stores/spotify";
 
@@ -130,7 +130,7 @@ app.directive("roll-mode", vRollMode);
 // Browser-only setup — directives, PWA install prompt, service worker, and a
 // couple of platform quirks. Loaded after the app is wired up.
 Promise.all([
-  import("./composables/useWakeLock"),
+  import("@/composables/play/useWakeLock"),
   import("./lib/tooltip"),
   import("./directives/tooltip"),
   import("./directives/noPwm"),

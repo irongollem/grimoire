@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { useAllFeatures } from "@/composables/useFeatures";
+import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { resolveOriginFeat } from "@/rules/backgroundAsi";
 import type { BackgroundOriginFeat } from "@/types/background.types";
 

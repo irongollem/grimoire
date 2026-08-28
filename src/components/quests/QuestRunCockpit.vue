@@ -104,8 +104,8 @@ import {
   useQuestRuntimeJumpTargets,
   useQuestRuntimeImprovise,
   useUpdateQuestBeat,
-} from "@/composables/useQuestFlow";
-import { useQuests } from "@/composables/useQuests";
+} from "@/composables/quests/useQuestFlow";
+import { useQuests } from "@/composables/quests/useQuests";
 import { rankQuestJumpTargets, type RankedQuestJumpTarget } from "@/lib/quests/run";
 import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";

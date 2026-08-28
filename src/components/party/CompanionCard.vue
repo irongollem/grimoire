@@ -196,8 +196,8 @@ import { IconClose, IconEdit } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import { useUpdateCompanion } from "@/composables/useCompanions";
-import { useRuleset } from "@/composables/useRuleset";
+import { useUpdateCompanion } from "@/composables/encounters/useCompanions";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,

@@ -88,8 +88,8 @@ import { IconAdd } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
-import { useUpdatePartyMember } from "@/composables/useParty";
-import { useRuleset } from "@/composables/useRuleset";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import {
   CONDITIONS,
   getConditionDescription,

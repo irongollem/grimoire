@@ -443,7 +443,7 @@ import { ref, computed, watch } from "vue";
 import { IconAdd, IconClose } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useRoute, useRouter } from "vue-router";
-import { useRule, useCreateRule, useUpdateRule, useDeleteRule } from "@/composables/useRules";
+import { useRule, useCreateRule, useUpdateRule, useDeleteRule } from "@/composables/rules/useRules";
 import RuleSheet from "@/components/rules/RuleSheet.vue";
 import { RULE_CATEGORIES } from "@/types/rule.types";
 import type { TrackerDef, TrackerLevel, DmButton, AbilityCode } from "@/types/rule.types";

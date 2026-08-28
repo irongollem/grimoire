@@ -56,7 +56,7 @@ import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import NpcRatingStars from "@/components/play/NpcRatingStars.vue";
-import { useMyNpcPcNote } from "@/composables/useNpcPcNotes";
+import { useMyNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { npcRelationshipBg, npcStatusBg } from "@/lib/npcDisplay";
 import type { PlayerNpc } from "@/types/npc.types";

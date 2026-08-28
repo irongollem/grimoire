@@ -108,7 +108,7 @@ import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconSearch } from "@/lib/icons";
-import { useLibraryRules } from "@/composables/useRules";
+import { useLibraryRules } from "@/composables/rules/useRules";
 import { useUiStore } from "@/stores/ui";
 import { searchLibraryRules } from "@/lib/dashboard/rulesSearch";
 import type { LibraryRule } from "@/types/rule.types";

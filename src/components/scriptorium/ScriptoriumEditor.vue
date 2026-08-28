@@ -174,18 +174,18 @@ import { useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import { BubbleMenu } from "@tiptap/vue-3/menus";
 import { createScriptoriumExtensions } from "@/lib/scriptorium/scriptoriumExtensions";
-import { useScriptoriumIlluminator } from "@/composables/useScriptoriumIlluminator";
+import { useScriptoriumIlluminator } from "@/composables/scriptorium/useScriptoriumIlluminator";
 import { IconLoadingAlt, IconWand } from "@/lib/icons";
 import {
   useCreateScriptoriumDocument,
   useUpdateScriptoriumDocument,
   useDeleteScriptoriumDocument,
-} from "@/composables/useScriptorium";
+} from "@/composables/scriptorium/useScriptorium";
 import {
   removeRichTextImages,
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
-import { useScriptoriumPrint } from "@/composables/useScriptoriumPrint";
+import { useScriptoriumPrint } from "@/composables/scriptorium/useScriptoriumPrint";
 import type {
   ScriptoriumDocument,
   ScriptoriumDocType,

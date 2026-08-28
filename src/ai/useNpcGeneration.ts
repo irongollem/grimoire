@@ -5,7 +5,7 @@ import {
   buildCampaignContext,
 } from "./utils";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 import { getTextProvider } from "./providers";
 import { wrapUserInput } from "./utils";
 import {
@@ -15,14 +15,14 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
-import { logUsage } from "@/composables/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import {
   captureImageGenerationContext,
   generateImage,
   type ImageGenerationContext,
 } from "@/ai/useImageGeneration";
 import { buildAiProvenance } from "@/ai/provenance";
-import { useLikenessGate } from "@/composables/useLikenessGate";
+import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();

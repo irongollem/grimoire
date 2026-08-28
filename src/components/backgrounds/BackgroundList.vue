@@ -159,7 +159,7 @@
 import { computed } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
-import { useBackgrounds } from "@/composables/useBackgrounds";
+import { useBackgrounds } from "@/composables/rules/useBackgrounds";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

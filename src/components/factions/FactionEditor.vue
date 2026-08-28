@@ -150,7 +150,7 @@ import {
   useCreateFaction,
   useUpdateFaction,
   useDeleteFaction,
-} from "@/composables/useFactions";
+} from "@/composables/factions/useFactions";
 import { FACTION_TYPES, FACTION_ALIGNMENTS, type Faction } from "@/types/faction.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";

@@ -109,9 +109,9 @@ import { IconAdd, IconChevronRight, IconPopulate } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { useUiStore } from "@/stores/ui";
-import { useAllCustomSubclasses, useCreateCustomSubclass, useImportOpen5eSubclasses } from "@/composables/useCustomSubclasses";
-import { useAllCustomClasses, useAllSystemClasses } from "@/composables/useCustomClasses";
-import { useCreateFeature } from "@/composables/useFeatures";
+import { useAllCustomSubclasses, useCreateCustomSubclass, useImportOpen5eSubclasses } from "@/composables/rules/useCustomSubclasses";
+import { useAllCustomClasses, useAllSystemClasses } from "@/composables/rules/useCustomClasses";
+import { useCreateFeature } from "@/composables/rules/useFeatures";
 import { toPlainText } from "@/ai/utils";
 import type { CustomSubclass } from "@/levelup/customTypes";
 

@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { useNote } from "@/composables/useNotes";
+import { useNote } from "@/composables/notes/useNotes";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import NoteEditor from "@/components/notes/NoteEditor.vue";

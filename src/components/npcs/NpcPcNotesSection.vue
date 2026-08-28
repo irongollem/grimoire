@@ -85,8 +85,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useParty } from "@/composables/useParty";
-import { useNpcPcNotes, useUpsertNpcPcNote, useDeleteNpcPcNote } from "@/composables/useNpcPcNotes";
+import { useParty } from "@/composables/party/useParty";
+import { useNpcPcNotes, useUpsertNpcPcNote, useDeleteNpcPcNote } from "@/composables/npcs/useNpcPcNotes";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";

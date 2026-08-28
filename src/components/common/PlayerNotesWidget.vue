@@ -134,13 +134,13 @@ import { IconFaction, IconLock } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { useAuthStore } from "@/stores/auth";
-import { useMemberByUserId } from "@/composables/useCampaignMembers";
+import { useMemberByUserId } from "@/composables/campaign/useCampaignMembers";
 import {
   useEntityNotes,
   useCreateEntityNote,
   useUpdateEntityNote,
   useDeleteEntityNote,
-} from "@/composables/useEntityNotes";
+} from "@/composables/notes/useEntityNotes";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 

@@ -58,8 +58,8 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import { IconPuzzle } from '@/lib/icons';
-import { usePlayerVisiblePuzzles } from "@/composables/usePuzzles";
-import { useReadItems } from "@/composables/useReadItems";
+import { usePlayerVisiblePuzzles } from "@/composables/dungeon-features/usePuzzles";
+import { useReadItems } from "@/composables/play/useReadItems";
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";

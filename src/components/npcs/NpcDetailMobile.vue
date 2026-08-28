@@ -309,9 +309,9 @@ import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import { IconDelete, IconEdit, IconGenerate, IconReveal, IconScrollText, IconTag } from "@/lib/icons";
-import { useDeleteNpc } from "@/composables/useNpcs";
-import { useNpcFactions } from "@/composables/useFactions";
-import { useAllLocations } from "@/composables/useLocations";
+import { useDeleteNpc } from "@/composables/npcs/useNpcs";
+import { useNpcFactions } from "@/composables/factions/useFactions";
+import { useAllLocations } from "@/composables/locations/useLocations";
 import {
   getNpcDisplayName,
   getNpcDisplayPortrait,

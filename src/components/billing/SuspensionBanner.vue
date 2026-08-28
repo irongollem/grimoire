@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { useSubscription } from "@/composables/useSubscription";
+import { useSubscription } from "@/composables/billing/useSubscription";
 
 const { isSuspended, suspensionReason } = useSubscription();
 </script>

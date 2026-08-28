@@ -29,7 +29,7 @@
 import { IconFeather } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
-import { useReadItems } from "@/composables/useReadItems";
+import { useReadItems } from "@/composables/play/useReadItems";
 import type { Item } from "@/types/item.types";
 
 defineProps<{

@@ -112,7 +112,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useCalendarStore } from "@/stores/calendar";
-import { useCreateCalendarEvent } from "@/composables/useCalendarEvents";
+import { useCreateCalendarEvent } from "@/composables/calendar/useCalendarEvents";
 import { useCampaignStore } from "@/stores/campaign";
 import { EVENT_TYPE_COLORS, eventColor } from "@/types/calendar.types";
 import type { CalendarEvent, CalendarEventInsert } from "@/types/calendar.types";

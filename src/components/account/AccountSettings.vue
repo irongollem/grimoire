@@ -38,7 +38,7 @@ import AccountSummarySection from "@/components/account/AccountSummarySection.vu
 import AccountDataExport from "@/components/account/AccountDataExport.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { useAccountDeletion } from "@/composables/useAccountDeletion";
+import { useAccountDeletion } from "@/composables/account/useAccountDeletion";
 
 const { deleting, error, deleteAccount } = useAccountDeletion();
 

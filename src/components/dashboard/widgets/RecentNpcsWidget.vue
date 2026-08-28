@@ -33,8 +33,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { useNpcs } from "@/composables/useNpcs";
-import { useRecentNpcs } from "@/composables/useRecentNpcs";
+import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useRecentNpcs } from "@/composables/dashboard/useRecentNpcs";
 import FocalImage from "@/components/common/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 

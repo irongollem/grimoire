@@ -109,7 +109,7 @@ import { computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { IconAdd, IconNavCartographer } from "@/lib/icons";
 
-import { useDungeonMaps } from "@/composables/useDungeonMaps";
+import { useDungeonMaps } from "@/composables/cartographer/useDungeonMaps";
 import { useUiStore } from "@/stores/ui";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 

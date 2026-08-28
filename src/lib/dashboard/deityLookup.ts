@@ -3,7 +3,7 @@ import type { Deity, Pantheon } from "@/types/deity.types";
 /**
  * The "Deity quick lookup" widget's join, ordering and formatting (#764).
  *
- * `useAllDeities()` (src/composables/useDeities.ts:98) already returns each
+ * `useAllDeities()` (src/composables/deities/useDeities.ts:98) already returns each
  * deity joined with just its pantheon's `{ id, name }` — this module takes
  * that shape directly rather than accepting a separate `Pantheon[]` and
  * re-deriving the join from `useAllDeities()`'s own `pantheon_id` column,

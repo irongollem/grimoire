@@ -38,9 +38,9 @@ import {
   useSyncLibraryItemArt,
   useSyncLibrarySpellArt,
   type LibraryArtDefaultStats,
-} from "@/composables/useLibraryArtDefaults";
-import { useBulkMarkLibraryMonsterArtAsCanonical, useSyncLibraryMonsterArt } from "@/composables/useLibraryMonsterArt";
-import { useBulkMarkLibrarySpellArtAsCanonical } from "@/composables/useLibrarySpellArt";
+} from "@/composables/library/useLibraryArtDefaults";
+import { useBulkMarkLibraryMonsterArtAsCanonical, useSyncLibraryMonsterArt } from "@/composables/library/useLibraryMonsterArt";
+import { useBulkMarkLibrarySpellArtAsCanonical } from "@/composables/library/useLibrarySpellArt";
 
 // "card" = standalone bordered card (AdminContentTab's admin panel context).
 // "inline" = embedded section inside a parent panel that already has its own

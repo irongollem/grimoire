@@ -95,7 +95,7 @@ import {
   useCreateEntityNote,
   useUpdateEntityNote,
   useDeleteEntityNote,
-} from "@/composables/useEntityNotes";
+} from "@/composables/notes/useEntityNotes";
 import type { EntityNote } from "@/types/faction.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";

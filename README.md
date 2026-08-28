@@ -207,7 +207,7 @@ src/
 ├── calendars/             # Calendar adapter pattern (registry + adapters)
 ├── cartographer/          # Tile-pack authoring engine
 ├── components/            # Feature components (npcs/, monsters/, encounters/, …)
-├── composables/           # TanStack Query hooks per feature domain
+├── composables/           # TanStack Query hooks, in per-domain subfolders (a few UI/platform primitives stay at the root)
 ├── data/                  # Static data tables (no logic)
 ├── directives/            # Vue directives (tooltip, roll mode, …)
 ├── layouts/               # DefaultLayout (DM), PlayerLayout, AuthLayout

@@ -68,7 +68,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useParty } from "@/composables/useParty";
+import { useParty } from "@/composables/party/useParty";
 import AppButton from "@/components/common/AppButton.vue";
 import {
   buildTableVitalsRows,

@@ -176,8 +176,8 @@ import {
   useCampaigns,
   useCampaignScopedHomebrewCounts,
   useTransferCampaignOwnership,
-} from "@/composables/useCampaigns";
-import { useCampaignMembers } from "@/composables/useCampaignMembers";
+} from "@/composables/campaign/useCampaigns";
+import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import {
   EMPTY_HOMEBREW_COUNTS,
   type TransferScopedDisposition,

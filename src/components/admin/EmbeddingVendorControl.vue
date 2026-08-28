@@ -77,9 +77,9 @@ import { ref, computed, watch } from "vue";
 import { Loader2Icon } from "@lucide/vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import { useAdminProviders, PROVIDER_LABELS } from "@/composables/useAdminProviders";
+import { useAdminProviders, PROVIDER_LABELS } from "@/composables/admin/useAdminProviders";
 import { useConfirm } from "@/composables/useConfirm";
-import { useEmbeddingBackfill } from "@/composables/useEmbeddingBackfill";
+import { useEmbeddingBackfill } from "@/composables/admin/useEmbeddingBackfill";
 import EmbeddingBackfillStatus from "@/components/admin/EmbeddingBackfillStatus.vue";
 
 interface Props {

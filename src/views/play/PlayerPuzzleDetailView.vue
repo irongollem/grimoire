@@ -107,8 +107,8 @@
 import { computed, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { IconChevronLeft, IconPuzzle } from '@/lib/icons';
-import { usePlayerVisiblePuzzle } from "@/composables/usePuzzles";
-import { useMarkRead } from "@/composables/useReadItems";
+import { usePlayerVisiblePuzzle } from "@/composables/dungeon-features/usePuzzles";
+import { useMarkRead } from "@/composables/play/useReadItems";
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";

@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
 }));
 
-vi.mock("@/composables/useParty", () => ({
+vi.mock("@/composables/party/useParty", () => ({
   // Real refs, not plain `{ value }` objects: PartyTracker's template reads
   // `party`/`isError` directly, relying on <script setup>'s automatic
   // ref-unwrapping — a non-ref mock renders truthy-object nonsense instead
@@ -37,22 +37,22 @@ vi.mock("@/composables/useParty", () => ({
     refetch: mocks.refetch,
   }),
 }));
-vi.mock("@/composables/useLocations", () => ({ useAllLocations: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/useCompanions", () => ({
+vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/encounters/useCompanions", () => ({
   useCompanions: () => ({ data: { value: [] } }),
   useDeleteCompanion: () => ({ mutateAsync: vi.fn() }),
 }));
-vi.mock("@/composables/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/usePlayerJournal", () => ({
+vi.mock("@/composables/campaign/useCampaignMembers", () => ({ useCampaignMembers: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/notes/usePlayerJournal", () => ({
   useDmAllSharedJournalEntries: () => ({ data: { value: [] } }),
 }));
-vi.mock("@/composables/useSpecies", () => ({ useAllSpecies: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/useCharacterClasses", () => ({
+vi.mock("@/composables/rules/useSpecies", () => ({ useAllSpecies: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/party/useCharacterClasses", () => ({
   useAllCampaignCharacterClasses: () => ({ data: { value: [] } }),
 }));
-vi.mock("@/composables/useMonsters", () => ({ useAllMonsters: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/useNpcs", () => ({ useNpcs: () => ({ data: { value: [] } }) }));
-vi.mock("@/composables/useOptionalRules", () => ({ useIsRuleEnabled: () => ({ value: false }) }));
+vi.mock("@/composables/monsters/useMonsters", () => ({ useAllMonsters: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: [] } }) }));
+vi.mock("@/composables/rules/useOptionalRules", () => ({ useIsRuleEnabled: () => ({ value: false }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 
 const globalStubs = {

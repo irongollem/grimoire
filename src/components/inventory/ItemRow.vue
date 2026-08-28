@@ -112,7 +112,7 @@
 import { computed } from "vue";
 import { IconAdd, IconArrowUp, IconDelete, IconDrag, IconFeather, IconMinus, IconScissors, IconShop } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
-import { usePlayerVisibleItems } from "@/composables/useItems";
+import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";
 

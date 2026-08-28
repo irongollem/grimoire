@@ -291,8 +291,8 @@ import {
   useCreateRollTable,
   useUpdateRollTable,
   useDeleteRollTable,
-} from "@/composables/useRollTables";
-import { useEncounters } from "@/composables/useEncounters";
+} from "@/composables/dungeon-features/useRollTables";
+import { useEncounters } from "@/composables/encounters/useEncounters";
 import {
   ROLL_TABLE_DICE,
   ROLL_TABLE_DIE_MAX,

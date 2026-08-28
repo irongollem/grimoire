@@ -167,7 +167,7 @@ import { IconDiceRoll, IconDie4, IconDie6, IconDie8, IconDie10, IconDie12, IconD
 import AppButton from "@/components/common/AppButton.vue";
 import DiceResult from "@/components/common/DiceResult.vue";
 import { primeDiceAudio } from "@/lib/dice/diceAudio";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import type { DieSize, RollMode, RollResult } from "@/lib/dice/roller";
 import type { ButtonTone } from "./appButtonVariants";
 

@@ -23,14 +23,14 @@ Two mechanics live outside it because neither is reactive state and both are unt
 
 | File                                        | Role                                                                                                                                                                                                            |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/composables/useSounds.ts`              | TanStack Query CRUD for the `sounds` table; `useSoundUpload` (converts uploads to Opus via `toOpus()`, then to the `sounds` storage bucket); `useSoundThumbnailUpload` (wraps `useImageUpload("sound-images")`) |
-| `src/composables/useSoundboardPages.ts`     | CRUD + `useReorderSoundboardPages` for `soundboard_pages`                                                                                                                                                       |
-| `src/composables/useSoundboardPlaylists.ts` | CRUD for `soundboard_playlists` + `soundboard_playlist_tracks`; `useReplacePlaylistTracks` deletes and re-inserts the whole track list on every save rather than diffing (flagged as tech debt in #572)         |
-| `src/composables/useFreesoundSearch.ts`     | TanStack Query wrapper around the `freesound-search` edge function, min 2-char query, 10 min `staleTime`                                                                                                        |
-| `src/composables/useMediaSession.ts`        | Wires the active **music** playlist to `navigator.mediaSession`; called once from `App.vue` (`if (!import.meta.env.SSR) useMediaSession();`) so it's live app-wide, not just on the Soundboard page             |
-| `src/composables/useCast.ts`                | Google Cast Sender SDK integration (see **Cast** below); singleton, lazily initialised only when a `CastButton` first mounts                                                                                    |
-| `src/composables/useSoundPlayback.ts`       | The one answer to "is this sound audible / is it blocked / what does the next press do", as list-friendly predicates plus a reactive facade. Both card transports and the palette use it, so a file one surface knows it cannot play is never offered as playable by another |
-| `src/composables/useSoundboardHotkeys.ts`   | The `page`-layer transport bindings for `/soundboard` (see **Keyboard** below)                                                                                                                                  |
+| `src/composables/soundboard/useSounds.ts`              | TanStack Query CRUD for the `sounds` table; `useSoundUpload` (converts uploads to Opus via `toOpus()`, then to the `sounds` storage bucket); `useSoundThumbnailUpload` (wraps `useImageUpload("sound-images")`) |
+| `src/composables/soundboard/useSoundboardPages.ts`     | CRUD + `useReorderSoundboardPages` for `soundboard_pages`                                                                                                                                                       |
+| `src/composables/soundboard/useSoundboardPlaylists.ts` | CRUD for `soundboard_playlists` + `soundboard_playlist_tracks`; `useReplacePlaylistTracks` deletes and re-inserts the whole track list on every save rather than diffing (flagged as tech debt in #572)         |
+| `src/composables/soundboard/useProviderSearch.ts`      | TanStack Query wrapper around whichever sound provider is currently selected (`src/lib/audio/providers`) — provider-agnostic, provider id + filters in the query key, min query length per-provider, 10 min `staleTime` |
+| `src/composables/soundboard/useMediaSession.ts`        | Wires the active **music** playlist to `navigator.mediaSession`; called once from `App.vue` (`if (!import.meta.env.SSR) useMediaSession();`) so it's live app-wide, not just on the Soundboard page             |
+| `src/composables/soundboard/useCast.ts`                | Google Cast Sender SDK integration (see **Cast** below); singleton, lazily initialised only when a `CastButton` first mounts                                                                                    |
+| `src/composables/soundboard/useSoundPlayback.ts`       | The one answer to "is this sound audible / is it blocked / what does the next press do", as list-friendly predicates plus a reactive facade. Both card transports and the palette use it, so a file one surface knows it cannot play is never offered as playable by another |
+| `src/composables/soundboard/useSoundboardHotkeys.ts`   | The `page`-layer transport bindings for `/soundboard` (see **Keyboard** below)                                                                                                                                  |
 
 ### Spotify
 
@@ -115,7 +115,7 @@ Audio binds to campaign events by **theme label**, never by a foreign key to one
 | ------------------------------------------ | --------------------------------------------------------------------------------------- |
 | `src/lib/audio/audioThemes.ts`                   | Pure resolution: `resolveAudioTheme`, `collectThemes`, `tagsIncludeTheme`               |
 | `src/lib/audio/audioTriggers.ts`                 | The bus: `requestAudioTheme` / `releaseAudioTheme` / `onAudioTrigger`                   |
-| `src/composables/useAudioThemeTriggers.ts` | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs` |
+| `src/composables/soundboard/useAudioThemeTriggers.ts` | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs` |
 | `src/lib/audio/audioTriggerPrefs.ts`             | The DM's on/off switch, localStorage, default on                                        |
 | `src/components/common/ThemeInput.vue`     | Free-text label with datalist suggestions, shared by the encounter and location editors |
 
@@ -209,7 +209,7 @@ The rule is no longer soundboard-only: `20260818081308` extended it to `factions
 | Audio                                                      | `sounds` bucket under `library/<collection>/<name>.ogg`, admin-write prefix |
 | Provider adapter (default browser tab)                     | `src/lib/audio/providers/library.ts`                                         |
 | Scene recipes                                              | `src/data/starterScenes.ts`                                                 |
-| Add-scenes planner (pure) + executor                       | `src/lib/audio/starterScenePlan.ts`, `src/composables/useStarterScenes.ts`        |
+| Add-scenes planner (pure) + executor                       | `src/lib/audio/starterScenePlan.ts`, `src/composables/soundboard/useStarterScenes.ts`        |
 | The offer (board empty state + Playlists panel, `compact`) | `src/components/soundboard/StarterScenesCard.vue`                           |
 | In-app credits                                             | `/soundboard/credits` → `src/views/soundboard/SoundLibraryCreditsView.vue`  |
 | Ingest (source folder is gitignored)                       | `scripts/ingest-sound-library.ts` + `scripts/lib/*`                         |
@@ -239,8 +239,8 @@ A DM can share **the music slot only** with players in the portal. `soundboard_b
 | Piece                                        | Role                                                        |
 | -------------------------------------------- | ------------------------------------------------------------ |
 | `src/lib/audio/broadcastOffset.ts`                 | Pure: anchor → current position, and the resync threshold      |
-| `src/composables/useSoundboardBroadcast.ts`  | DM side. Module-level `broadcasting` flag + the upsert         |
-| `src/composables/usePlayerAudioStream.ts`    | Player side. Realtime subscription and the element             |
+| `src/composables/soundboard/useSoundboardBroadcast.ts`  | DM side. Module-level `broadcasting` flag + the upsert         |
+| `src/composables/play/usePlayerAudioStream.ts`    | Player side. Realtime subscription and the element             |
 | `src/components/soundboard/PlayerAudioStream.vue` | Player UI, mounted in `PlayerLayout`                      |
 
 ### Four decisions worth not undoing

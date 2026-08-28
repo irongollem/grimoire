@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useItem, usePlayerVisibleItems } from "@/composables/useItems";
+import { useItem, usePlayerVisibleItems } from "@/composables/items/useItems";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {

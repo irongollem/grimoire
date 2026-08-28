@@ -134,7 +134,7 @@ import SettingsSection from "@/components/common/SettingsSection.vue";
 import DsrRequestRow from "@/components/admin/DsrRequestRow.vue";
 import WaitlistRemovalPanel from "@/components/admin/WaitlistRemovalPanel.vue";
 import { useUiStore } from "@/stores/ui";
-import { useAdminUsers } from "@/composables/useAdminUsers";
+import { useAdminUsers } from "@/composables/admin/useAdminUsers";
 import {
   DSR_DEADLINE_DAYS,
   DSR_REQUEST_LABELS,
@@ -146,7 +146,7 @@ import {
   type DsrOutcome,
   type DsrRequest,
   type DsrRequestType,
-} from "@/composables/useDsrRequests";
+} from "@/composables/admin/useDsrRequests";
 
 const ui = useUiStore();
 const { adminDsrSearch: search, adminDsrFilterStatus: filterStatus } = storeToRefs(ui);

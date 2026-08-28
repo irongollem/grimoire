@@ -308,13 +308,13 @@ import {
   usePlayerVisibleQuest,
   useQuestObjectives,
   useQuestRefs,
-} from "@/composables/useQuests";
-import { useMarkRead } from "@/composables/useReadItems";
-import { useSharedNpcs } from "@/composables/useNpcs";
-import { useSharedLocations } from "@/composables/useLocations";
-import { usePlayerVisibleMonsters } from "@/composables/useMonsters";
-import { usePlayerVisibleItems } from "@/composables/useItems";
-import { usePlayerQuestBeats } from "@/composables/useQuestFlow";
+} from "@/composables/quests/useQuests";
+import { useMarkRead } from "@/composables/play/useReadItems";
+import { useSharedNpcs } from "@/composables/npcs/useNpcs";
+import { useSharedLocations } from "@/composables/locations/useLocations";
+import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
+import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { PlayerNpc } from "@/types/npc.types";

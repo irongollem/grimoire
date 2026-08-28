@@ -169,7 +169,7 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconAdd, IconEdit } from '@/lib/icons';
-import { useHallOfHero, useImportHero } from "@/composables/useHallOfHeroes";
+import { useHallOfHero, useImportHero } from "@/composables/party/useHallOfHeroes";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/PageHeader.vue";

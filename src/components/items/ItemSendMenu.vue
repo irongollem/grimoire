@@ -100,10 +100,10 @@ import { ref } from "vue";
 import { IconArchive, IconChevronDown, IconChevronRight, IconComment, IconSend, IconUser } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
-import { useParty } from "@/composables/useParty";
-import { useAddInventoryItem } from "@/composables/usePartyInventory";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { useEnsureOwnedItem } from "@/composables/useItems";
+import { useParty } from "@/composables/party/useParty";
+import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useEnsureOwnedItem } from "@/composables/items/useItems";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
 

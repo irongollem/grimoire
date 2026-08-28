@@ -134,7 +134,7 @@ import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import SpeciesList from "@/components/species/SpeciesList.vue";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
@@ -144,8 +144,8 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { Species } from "@/types/species.types";
-import { applySpeciesSpellGrants, removeSpeciesSpellGrants } from "@/composables/useCharacterSpells";
-import { useAllSpecies } from "@/composables/useSpecies";
+import { applySpeciesSpellGrants, removeSpeciesSpellGrants } from "@/composables/party/useCharacterSpells";
+import { useAllSpecies } from "@/composables/rules/useSpecies";
 
 const SIZE_OPTIONS = [
   { value: "all", label: "All" },

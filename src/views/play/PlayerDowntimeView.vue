@@ -4,16 +4,16 @@ import { storeToRefs } from "pinia";
 import DowntimeActivityCard from "@/components/downtime/DowntimeActivityCard.vue";
 import DowntimeOutcomeVignette from "@/components/downtime/DowntimeOutcomeVignette.vue";
 import RuleDisabledNotice from "@/components/common/RuleDisabledNotice.vue";
-import { useIsRuleEnabled } from "@/composables/useOptionalRules";
+import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import { useAuthStore } from "@/stores/auth";
-import { useSharedNpcs } from "@/composables/useNpcs";
-import { useReadItems, useMarkRead } from "@/composables/useReadItems";
+import { useSharedNpcs } from "@/composables/npcs/useNpcs";
+import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
 import {
   useDowntimeBalance,
   useDowntimeDraws,
   useDowntimeOutcomes,
   useSpendDraw,
-} from "@/composables/useDowntime";
+} from "@/composables/downtime/useDowntime";
 import { DOWNTIME_ACTIVITIES } from "@/data/downtimeActivities";
 import { DOWNTIME_DRAW_STATUS_LABELS } from "@/types/downtime.types";
 import type { DowntimeActivity, DowntimeDraw, DowntimeOutcome } from "@/types/downtime.types";

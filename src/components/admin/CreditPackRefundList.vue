@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import { computed, ref, toRef } from 'vue'
-import { useAdminRefunds, type PackLot } from '@/composables/useAdminRefunds'
+import { useAdminRefunds, type PackLot } from '@/composables/admin/useAdminRefunds'
 import AppButton from '@/components/common/AppButton.vue'
 import AppInput from '@/components/common/AppInput.vue'
 import type { ButtonTone } from '@/components/common/appButtonVariants'

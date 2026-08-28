@@ -36,8 +36,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
-import { useAllMonsters } from "@/composables/useMonsters";
-import { useCampaignDiscoveries } from "@/composables/useDiscoveredMonsters";
+import { useAllMonsters } from "@/composables/monsters/useMonsters";
+import { useCampaignDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { deriveRecentMonsters } from "@/lib/dashboard/recentMonsters";
 import { timeAgo } from "@/lib/utils";
 import FocalImage from "@/components/common/FocalImage.vue";

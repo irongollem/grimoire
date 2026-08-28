@@ -48,7 +48,7 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { IconGridView } from '@/lib/icons';
-import { usePlayerNavPrefs } from "@/composables/usePlayerNavPrefs";
+import { usePlayerNavPrefs } from "@/composables/play/usePlayerNavPrefs";
 import { MOBILE_NAV_SLOTS, TABLET_NAV_SLOTS } from "@/lib/playerNav";
 
 const { showMore } = defineProps<{

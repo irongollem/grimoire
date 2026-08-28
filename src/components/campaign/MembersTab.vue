@@ -222,10 +222,10 @@ import {
   useCampaignMembers,
   useUpdateCampaignMember,
   useRemoveCampaignMember,
-} from "@/composables/useCampaignMembers";
-import { useParty, useDeletePartyMember } from "@/composables/useParty";
-import { useDetachCharacter } from "@/composables/useCharacterPool";
-import { useCampaignPresence } from "@/composables/useCampaignPresence";
+} from "@/composables/campaign/useCampaignMembers";
+import { useParty, useDeletePartyMember } from "@/composables/party/useParty";
+import { useDetachCharacter } from "@/composables/party/useCharacterPool";
+import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";

@@ -54,7 +54,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { useParty } from "@/composables/useParty";
+import { useParty } from "@/composables/party/useParty";
 import { deriveDyingPartyMembers } from "@/lib/dashboard/deathSaves";
 import FocalImage from "@/components/common/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";

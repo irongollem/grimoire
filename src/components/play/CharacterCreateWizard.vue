@@ -73,7 +73,7 @@
 
 <script setup lang="ts">
 import { inject, computed } from "vue";
-import { CHARACTER_FORM_KEY } from "@/composables/useCharacterCreationForm";
+import { CHARACTER_FORM_KEY } from "@/composables/party/useCharacterCreationForm";
 import { WIZARD_STEPS, WIZARD_STEPS_EDIT } from "@/rules/characterCreation";
 import AppButton from "@/components/common/AppButton.vue";
 import CharacterCreateBasicsStep from "@/components/play/CharacterCreateBasicsStep.vue";

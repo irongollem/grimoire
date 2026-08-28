@@ -91,10 +91,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { PLAYLIST_NOUNS } from "@/lib/audio/playlistPeers";
-import { usePlaylists, useDeletePlaylist } from "@/composables/useSoundboardPlaylists";
-import { useSounds } from "@/composables/useSounds";
+import { usePlaylists, useDeletePlaylist } from "@/composables/soundboard/useSoundboardPlaylists";
+import { useSounds } from "@/composables/soundboard/useSounds";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useQuota } from "@/composables/useQuota";
+import { useQuota } from "@/composables/billing/useQuota";
 import type { SoundboardPlaylist, PlaylistType } from "@/types/sound.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";

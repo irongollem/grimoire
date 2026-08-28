@@ -147,7 +147,7 @@ import { computed } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
 import { useUiStore } from "@/stores/ui";
-import { useCampaignSpecies } from "@/composables/useSpecies";
+import { useCampaignSpecies } from "@/composables/rules/useSpecies";
 import { isUuid } from "@/lib/library/contentIdentity";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";

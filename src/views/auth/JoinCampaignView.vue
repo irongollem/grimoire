@@ -167,10 +167,10 @@ import SegmentedControl, { type SegmentedOption } from "@/components/common/Segm
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useQueryClient } from "@tanstack/vue-query";
-import { joinCampaignViaInvite } from "@/composables/useCampaignMembers";
-import { useCharacterPool } from "@/composables/useCharacterPool";
+import { joinCampaignViaInvite } from "@/composables/campaign/useCampaignMembers";
+import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import { useModeSwitch } from "@/composables/useModeSwitch";
-import { useCampaigns } from "@/composables/useCampaigns";
+import { useCampaigns } from "@/composables/campaign/useCampaigns";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 

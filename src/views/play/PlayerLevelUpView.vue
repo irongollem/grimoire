@@ -23,8 +23,8 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import { useParty } from "@/composables/useParty";
-import { useCharacterClasses } from "@/composables/useCharacterClasses";
+import { useParty } from "@/composables/party/useParty";
+import { useCharacterClasses } from "@/composables/party/useCharacterClasses";
 import LevelUpWizard from "@/levelup/LevelUpWizard.vue";
 import DeLevelPanel from "@/components/levelup/DeLevelPanel.vue";
 

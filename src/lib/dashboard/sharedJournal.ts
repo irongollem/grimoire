@@ -1,4 +1,4 @@
-import type { PlayerJournalEntry } from "@/composables/usePlayerJournal";
+import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
 
 /**
  * Player journal entries the DM has not read yet (#764).

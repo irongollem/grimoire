@@ -101,8 +101,8 @@ import { NAV_GROUPS, navItemHiddenByFlag, type NavItem } from "@/lib/nav";
 import { updateAvailable, reloadApp } from "@/composables/useAppUpdate";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
-import { useSimulacrumConfig } from "@/composables/useSimulacrumConfig";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
+import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import { useAbove } from "@/composables/useBreakpoint";
 
 const { open = false, barRoutes = [], create = null } = defineProps<{

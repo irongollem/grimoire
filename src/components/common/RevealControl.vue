@@ -90,7 +90,7 @@ import { CARD_OVERLAY_ACTION, ICON_TOUCH_TARGET } from "@/components/common/appB
 import MobileSheet from "@/components/common/MobileSheet.vue";
 import RevealBody from "@/components/common/RevealBody.vue";
 import { useHotkeys } from "@/composables/useHotkeys";
-import { useParty } from "@/composables/useParty";
+import { useParty } from "@/composables/party/useParty";
 import { IconHide, IconReveal } from "@/lib/icons";
 import { revealLabel, revealState } from "@/lib/reveal";
 import type { RevealAdapter, RevealForm } from "@/lib/reveal";

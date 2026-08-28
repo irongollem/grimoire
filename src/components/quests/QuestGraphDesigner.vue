@@ -128,7 +128,7 @@ import {
   useQuestRuntimeState,
   useUpdateQuestBeatEdge,
   useUpdateQuestBeat,
-} from "@/composables/useQuestFlow";
+} from "@/composables/quests/useQuestFlow";
 import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds } from "@/lib/quests/presentation";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
 import { readQuestViewport, writeQuestViewport } from "@/lib/quests/viewport";

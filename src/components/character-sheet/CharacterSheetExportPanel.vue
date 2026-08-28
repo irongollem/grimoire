@@ -92,7 +92,7 @@ import IllustratedSheetDocument from "@/components/character-sheet/illustrated/I
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
-import { useShieldAcBonus } from "@/composables/useShieldAc";
+import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import {
   useCharacterSheetPdf,
   SHEET_THEMES,
@@ -101,7 +101,7 @@ import {
   type SheetMode,
   type SheetTheme,
   type IllustratedTheme,
-} from "@/composables/useCharacterSheetPdf";
+} from "@/composables/party/useCharacterSheetPdf";
 
 const { member, inventory, storageKey, speciesName = null, backgroundName = null, items = [] } = defineProps<{
   member: PartyMember;

@@ -302,7 +302,7 @@ import { SKILLS, type PartyMember, type SkillProficiencies } from "@/types/party
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import { getCastingAbility } from "@/types/spell.types";
 import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
-import type { SheetPageSize, SheetTheme } from "@/composables/useCharacterSheetPdf";
+import type { SheetPageSize, SheetTheme } from "@/composables/party/useCharacterSheetPdf";
 
 // acBonus is passed in (not derived here) because this component is also
 // mounted via a bare createApp for PDF export, where query composables

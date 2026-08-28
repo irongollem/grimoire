@@ -33,7 +33,7 @@ import type { Npc } from "@/types/npc.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import ModernShell from "./ModernShell.vue";
 import { accentForNpc } from "../tokens.shared";
-import { useNpcCardData } from "@/composables/useNpcCardData";
+import { useNpcCardData } from "@/composables/cardforge/useNpcCardData";
 
 const { data, tarot } = defineProps<{ data: Npc; tarot?: boolean }>();
 

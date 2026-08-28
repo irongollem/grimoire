@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { IconAdd, IconGenerate, IconLoading, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
-import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/useFactions";
+import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
@@ -109,7 +109,7 @@ import EntityListRow from "@/components/common/EntityListRow.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useCreateGate } from "@/composables/useCreateGate";
+import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
 

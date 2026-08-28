@@ -308,10 +308,10 @@ import {
   useCreateLootTable,
   useUpdateLootTable,
   useDeleteLootTable,
-} from "@/composables/useLootTables";
-import { useItems } from "@/composables/useItems";
-import { useMonsters } from "@/composables/useMonsters";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+} from "@/composables/dungeon-features/useLootTables";
+import { useItems } from "@/composables/items/useItems";
+import { useMonsters } from "@/composables/monsters/useMonsters";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import {
   LOOT_CR_TIERS,
   LOOT_CR_TIER_LABELS,

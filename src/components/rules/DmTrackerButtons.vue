@@ -34,8 +34,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { useTrackerStates, useApplyTrackerDelta } from "@/composables/useTrackerState";
-import { useRules } from "@/composables/useRules";
+import { useTrackerStates, useApplyTrackerDelta } from "@/composables/dashboard/useTrackerState";
+import { useRules } from "@/composables/rules/useRules";
 import AppButton from "@/components/common/AppButton.vue";
 import type { DmButton } from "@/types/rule.types";
 

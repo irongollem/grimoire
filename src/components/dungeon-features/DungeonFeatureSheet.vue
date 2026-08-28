@@ -122,7 +122,7 @@ import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconDelete, IconEdit } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteDungeonFeature } from "@/composables/useDungeonFeatures";
+import { useDeleteDungeonFeature } from "@/composables/dungeon-features/useDungeonFeatures";
 import type { DungeonFeature } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

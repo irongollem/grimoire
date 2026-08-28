@@ -103,9 +103,9 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
-import { useAllLocations } from "@/composables/useLocations";
-import { useSetCampaignToday, useSetCampaignLocation } from "@/composables/useCampaigns";
-import { useParty, useSyncPartyLocation } from "@/composables/useParty";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { useSetCampaignToday, useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
+import { useParty, useSyncPartyLocation } from "@/composables/party/useParty";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";

@@ -133,9 +133,9 @@ import { IconAdd, IconDelete, IconEdit, IconLightning, IconSword } from "@/lib/i
 import { rollParsed, combineModes } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";
 import { parsedToCounts } from "@/lib/dice/dice";
-import { usePromptedRoll } from "@/composables/usePromptedRoll";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
-import { useUpdatePartyMember } from "@/composables/useParty";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { validateCustomAttack, customAttackDamageExpression } from "@/rules/customAttack";
 import { signedNum } from "@/rules/weaponAttack";
 import type { PartyMember, CustomAttack } from "@/types/party.types";

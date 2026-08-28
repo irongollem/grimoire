@@ -112,14 +112,14 @@ import { computed } from "vue";
 import { IconRepeat, IconMusicNote, IconMusic, IconWind, IconLightning } from "@/lib/icons";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useSoundPlayback } from "@/composables/useSoundPlayback";
+import { useSoundPlayback } from "@/composables/soundboard/useSoundPlayback";
 import {
   CATEGORY_BORDER,
   CATEGORY_SPINE,
   CATEGORY_TEXT,
   CATEGORY_TINT,
 } from "@/lib/audio/soundCategories";
-import { useActiveAudioTriggers } from "@/composables/useAudioThemeTriggers";
+import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import CausedByChip from "./CausedByChip.vue";
 import EqBars from "./EqBars.vue";
 import type { Sound, SoundCategory, PadSize, BoardMode } from "@/types/sound.types";

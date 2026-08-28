@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import RevealControl from "@/components/common/RevealControl.vue";
-import { useParty } from "@/composables/useParty";
+import { useParty } from "@/composables/party/useParty";
 import { arrayRevealAdapter } from "@/lib/reveal";
 import type { RevealForm } from "@/lib/reveal";
 

@@ -156,7 +156,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconClose, IconCoins, IconLoot, IconMinus, IconPackage } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { useEnsureOwnedItem } from "@/composables/useItems";
+import { useEnsureOwnedItem } from "@/composables/items/useItems";
 import type { Item } from "@/types/item.types";
 import type { RewardCurrencyPool } from "@/types/quest.types";
 

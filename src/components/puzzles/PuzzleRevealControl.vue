@@ -41,8 +41,8 @@
 import { computed, ref, watch } from "vue";
 import RevealControl from "@/components/common/RevealControl.vue";
 import RevealOption from "@/components/common/RevealOption.vue";
-import { useParty } from "@/composables/useParty";
-import { useUpdatePuzzle } from "@/composables/usePuzzles";
+import { useParty } from "@/composables/party/useParty";
+import { useUpdatePuzzle } from "@/composables/dungeon-features/usePuzzles";
 import { arrayRevealAdapter } from "@/lib/reveal";
 import type { RevealForm } from "@/lib/reveal";
 import { useCampaignStore } from "@/stores/campaign";

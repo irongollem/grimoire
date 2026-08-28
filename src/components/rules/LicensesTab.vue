@@ -122,7 +122,7 @@ import { computed } from "vue";
 import { IconExternalLink } from "@/lib/icons";
 import { OGL_1_0A_TITLE, OGL_1_0A_PREAMBLE, OGL_1_0A_SECTIONS } from "@/data/ogl";
 import { groupSourcesByLicense, unlicensedSources, oglSection15Chain } from "@/lib/library/contentLicenses";
-import { useAudioLicenses, useContentLicenses } from "@/composables/useContentLicenses";
+import { useAudioLicenses, useContentLicenses } from "@/composables/library/useContentLicenses";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import LicenseSourceCard from "./LicenseSourceCard.vue";
 import AudioLicenseCard from "./AudioLicenseCard.vue";

@@ -13,7 +13,7 @@ import {
   buildSimpleImagePrompt,
 } from "@/ai/imagePrompt";
 import { getImageProvider, OPENAI_IMAGE_MODEL_KEY } from "@/ai/providers";
-import { logUsage } from "@/composables/useAiCredits";
+import { logUsage } from "@/composables/ai/useAiCredits";
 import { waitForImageJob } from "@/ai/useImageJob";
 import { buildAiProvenance } from "@/ai/provenance";
 import { markGeneratedImageB64 } from "@edge-shared/provenance/mark.ts";

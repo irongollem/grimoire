@@ -47,7 +47,7 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import DashboardWidget from "@/components/dashboard/DashboardWidget.vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { useSoundboardPages } from "@/composables/useSoundboardPages";
+import { useSoundboardPages } from "@/composables/soundboard/useSoundboardPages";
 import { useUiStore } from "@/stores/ui";
 import { IconNavSoundboard } from "@/lib/icons";
 

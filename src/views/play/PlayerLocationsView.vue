@@ -160,11 +160,11 @@
 import { ref, computed, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { IconNavAtlas } from '@/lib/icons';
-import { useReadItems, useMarkRead } from "@/composables/useReadItems";
-import { useSharedLocations } from "@/composables/useLocations";
-import { usePlayerFavourites } from "@/composables/usePlayerFavourites";
+import { useReadItems, useMarkRead } from "@/composables/play/useReadItems";
+import { useSharedLocations } from "@/composables/locations/useLocations";
+import { usePlayerFavourites } from "@/composables/play/usePlayerFavourites";
 import { useUiStore } from "@/stores/ui";
-import { useSharedNpcsByLocations } from "@/composables/useNpcs";
+import { useSharedNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useCampaignStore } from "@/stores/campaign";
 import { storeToRefs } from "pinia";
 import { isLocationOutOfEra } from "@/lib/locations/era";

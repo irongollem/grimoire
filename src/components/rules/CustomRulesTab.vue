@@ -118,9 +118,9 @@
 import { computed, shallowRef } from "vue";
 import { renderBasicMarkdown } from "@/lib/sanitizeHtml";
 import { IconChevronRight, IconReveal } from '@/lib/icons';
-import { useRules } from "@/composables/useRules";
+import { useRules } from "@/composables/rules/useRules";
 import { RULE_CATEGORIES } from "@/types/rule.types";
-import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/useOptionalRules";
+import { useOptionalRules, isRuleEffectivelyEnabled } from "@/composables/rules/useOptionalRules";
 import { listOptionalRules } from "@/rules/optionalRules";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

@@ -121,7 +121,7 @@ import { IconAdd, IconChevronRight, IconCopy } from '@/lib/icons';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import { useUiStore } from "@/stores/ui";
-import { useAllCustomClasses, useAllSystemClasses, useCreateCustomClass } from "@/composables/useCustomClasses";
+import { useAllCustomClasses, useAllSystemClasses, useCreateCustomClass } from "@/composables/rules/useCustomClasses";
 import type { CustomClass, SystemClass } from "@/levelup/customTypes";
 
 const ui = useUiStore();

@@ -64,7 +64,7 @@
 import { IconDelete, IconEdit, IconPin } from '@/lib/icons';
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
-import { useDeleteNote, useUpdateNote } from "@/composables/useNotes";
+import { useDeleteNote, useUpdateNote } from "@/composables/notes/useNotes";
 import { removeRichTextImages } from "@/composables/useImageUpload";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";

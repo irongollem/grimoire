@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 import { RouterLink, useRouter } from "vue-router";
-import { useDungeonMaps } from "@/composables/useDungeonMaps";
+import { useDungeonMaps } from "@/composables/cartographer/useDungeonMaps";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";

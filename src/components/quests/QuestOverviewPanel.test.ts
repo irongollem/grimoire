@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import QuestOverviewPanel from "./QuestOverviewPanel.vue";
 import type { Quest } from "@/types/quest.types";
 
-vi.mock("@/composables/useQuestFlow", () => ({
+vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestBeats: () => ({ data: { value: [] }, isLoading: { value: false } }),
   useQuestBeatAttachmentSummaries: () => ({ data: { value: [] } }),
   useQuestBeatLoot: () => ({ data: { value: [] } }),

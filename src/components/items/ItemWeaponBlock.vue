@@ -58,7 +58,7 @@ import { WEAPON_PROPERTIES, WEAPON_MASTERY_PROPERTIES } from "@/types/item.types
 import type { DamageRoll } from "@/lib/dice/dice";
 import type { WeaponMasteryProperty } from "@/types/item.types";
 import { WEAPON_MASTERY_DEFINITIONS } from "@/data/weaponMastery";
-import { useRuleset } from "@/composables/useRuleset";
+import { useRuleset } from "@/composables/rules/useRuleset";
 
 const {
   damageRolls = [],

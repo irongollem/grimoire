@@ -49,7 +49,7 @@ import VitruvianIcon from "@/components/common/VitruvianIcon.vue";
 import AiGeneratedBadge from "@/components/common/AiGeneratedBadge.vue";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { IconClose, IconDownload } from "@/lib/icons";
-import { useMiniForSource } from "@/composables/useMiniForSource";
+import { useMiniForSource } from "@/composables/simulacrum/useMiniForSource";
 import { getPublicUrl } from "@/lib/storage";
 import type { MiniSourceTable } from "@/types/mini.types";
 

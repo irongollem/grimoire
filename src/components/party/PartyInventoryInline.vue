@@ -184,13 +184,13 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
-import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/usePartyInventory";
-import { useItems, useEnsureOwnedItem } from "@/composables/useItems";
+import { usePartyInventory, useAddInventoryItem, useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/items/usePartyInventory";
+import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, RARITY_SURFACE_BG } from "@/types/item.types";
 import { useCampaignStore } from "@/stores/campaign";
-import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
-import { useCampaignMessages } from "@/composables/useCampaignMessages";
+import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
+import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { PartyMember } from "@/types/party.types";
 
 const { party } = defineProps<{ party: PartyMember[] }>();

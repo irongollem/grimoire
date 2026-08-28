@@ -230,9 +230,9 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import BackgroundAsiPicker from "@/components/backgrounds/BackgroundAsiPicker.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
 import { IconCheck } from "@/lib/icons";
-import { useAllDeities } from "@/composables/useDeities";
-import { useRuleset } from "@/composables/useRuleset";
-import type { CharacterCreationForm } from "@/composables/useCharacterCreationForm";
+import { useAllDeities } from "@/composables/deities/useDeities";
+import { useRuleset } from "@/composables/rules/useRuleset";
+import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 

@@ -167,11 +167,11 @@
 import { computed } from "vue";
 import type { PartyMember } from "@/types/party.types";
 import type { Item } from "@/types/item.types";
-import { usePartyInventory } from "@/composables/usePartyInventory";
-import { useItems } from "@/composables/useItems";
-import { useAmmoConsumption } from "@/composables/useAmmoConsumption";
-import { useThrownWeapon } from "@/composables/useThrownWeapon";
-import { useUpdatePartyMember } from "@/composables/useParty";
+import { usePartyInventory } from "@/composables/items/usePartyInventory";
+import { useItems } from "@/composables/items/useItems";
+import { useAmmoConsumption } from "@/composables/encounters/useAmmoConsumption";
+import { useThrownWeapon } from "@/composables/encounters/useThrownWeapon";
+import { useUpdatePartyMember } from "@/composables/party/useParty";
 import { weaponAmmoTag, weaponUsesChargesAsAmmo, type WeaponAmmoTag } from "@/rules/ammunition";
 import { isThrownWeapon } from "@/rules/thrownWeapon";
 import { weaponAttackMod, weaponAbilityMod } from "@/rules/weaponAttack";

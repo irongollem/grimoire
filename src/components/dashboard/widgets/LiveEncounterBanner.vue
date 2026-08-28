@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import { IconLive } from "@/lib/icons";
-import { useRunningEncounters } from "@/composables/useEncounterLive";
+import { useRunningEncounters } from "@/composables/encounters/useEncounterLive";
 
 const { anyRunning, firstRunning } = useRunningEncounters();
 </script>

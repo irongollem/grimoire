@@ -185,22 +185,22 @@ import AppModal from "@/components/common/AppModal.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import { useNote } from "@/composables/useNotes";
-import { sendCampaignAnnouncement } from "@/composables/useCampaignBroadcast";
+import { useNote } from "@/composables/notes/useNotes";
+import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useCalendarStore } from "@/stores/calendar";
 import {
   useCreateCalendarEvent,
   useUpdateCalendarEvent,
   useDeleteCalendarEvent,
-} from "@/composables/useCalendarEvents";
+} from "@/composables/calendar/useCalendarEvents";
 import { linkedEntityType, linkedEntityId, EVENT_TYPE_COLORS, eventColor } from "@/types/calendar.types";
 import type {
   CalendarEvent,
   CalendarEventInsert,
 } from "@/types/calendar.types";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAllLocations } from "@/composables/useLocations";
-import { useParty, useUpdatePartyMember } from "@/composables/useParty";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import EventModalTypePicker from "./EventModalTypePicker.vue";
 import EventModalDatePicker from "./EventModalDatePicker.vue";
 import EventModalTravelFields from "./EventModalTravelFields.vue";

@@ -332,15 +332,15 @@ import MobileSheet from "@/components/common/MobileSheet.vue";
 import NpcRelationshipFilter from "@/components/npcs/NpcRelationshipFilter.vue";
 import NpcList from "@/components/npcs/NpcList.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { useLocationTree } from "@/composables/useLocations";
-import { useParty } from "@/composables/useParty";
-import { useNpcs } from "@/composables/useNpcs";
+import { useLocationTree } from "@/composables/locations/useLocations";
+import { useParty } from "@/composables/party/useParty";
+import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
-import { usePopulateSettingNpcs } from "@/composables/useNpcs";
+import { usePopulateSettingNpcs } from "@/composables/npcs/useNpcs";
 import PaywallModal from "@/components/common/PaywallModal.vue";
-import { useCreateGate } from "@/composables/useCreateGate";
+import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useDetailModal } from "@/composables/useDetailModal";
 
 // IconSettings (sliders) reads as "filters". The overflow ⋮ has no kebab glyph

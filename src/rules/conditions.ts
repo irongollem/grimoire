@@ -119,7 +119,7 @@ function conditionsByName(ruleset: RulesetKey): Map<string, Condition> {
 /**
  * Returns the baked SRD reference entry for a condition name under the given
  * ruleset ('2014' default, matching the campaign-ruleset default elsewhere —
- * see `src/composables/useRuleset.ts`), handling Grimoire's Exhausted N
+ * see `src/composables/rules/useRuleset.ts`), handling Grimoire's Exhausted N
  * split by falling back to the single "Exhaustion" entry when the name
  * starts with "Exhaust".
  */

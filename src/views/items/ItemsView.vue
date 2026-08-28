@@ -84,10 +84,10 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ItemList from "@/components/items/ItemList.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
-import { useItemSources } from "@/composables/useItems";
+import { useItemSources } from "@/composables/items/useItems";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
 import { useUiStore } from "@/stores/ui";
-import { useAvailableLibraryItemSources } from "@/composables/useEnabledSources";
+import { useAvailableLibraryItemSources } from "@/composables/library/useEnabledSources";
 
 const ui = useUiStore();
 const search = computed({
