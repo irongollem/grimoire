@@ -1,4 +1,11 @@
-# Custom tile packs
+---
+title: Cartographer — Tile Packs
+section: Cartographer
+section_order: 9
+order: 2
+summary: Upload your own map art or generate a tile pack with AI, and share it with a campaign.
+keywords: cartographer, tile pack, custom tiles, upload, zip, manifest, webp, share pack, generate tiles, AI tiles, GPT Image, credits, retries, style proof, pro
+---
 
 Open **Cartographer → Tile Packs** to manage custom map art.
 
