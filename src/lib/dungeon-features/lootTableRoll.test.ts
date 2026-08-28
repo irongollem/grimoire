@@ -5,7 +5,7 @@ import {
   type RolledItemEntry,
   type RolledCurrencyEntry,
   type RolledUnresolvedEntry,
-} from "@/lib/lootTableRoll";
+} from "@/lib/dungeon-features/lootTableRoll";
 import type { Item } from "@/types/item.types";
 import type { LootEntry, LootTable } from "@/types/lootTable.types";
 

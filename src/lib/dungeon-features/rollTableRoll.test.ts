@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { rollOnTable } from "@/lib/rollTableRoll";
+import { rollOnTable } from "@/lib/dungeon-features/rollTableRoll";
 import { ROLL_TABLE_DICE, ROLL_TABLE_DIE_MAX, type RollTable, type RollTableEntry } from "@/types/rollTable.types";
 
 // ── Randomness control ──────────────────────────────────────────────────────

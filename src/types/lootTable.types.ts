@@ -7,7 +7,7 @@
 //                one claimable atom.
 //
 // All entries share drop_chance (1–100) and an optional DM note.
-// Rolling logic: src/lib/lootTableRoll.ts.
+// Rolling logic: src/lib/dungeon-features/lootTableRoll.ts.
 
 import { parseExpression, maxExpression } from "@/lib/dice/dice";
 import type { ItemRarity } from "@/types/item.types";

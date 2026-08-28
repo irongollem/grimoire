@@ -59,7 +59,7 @@ import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { useRollTables } from "@/composables/dungeon-features/useRollTables";
 import { IconDiceRoll } from "@/lib/icons";
 import { resolveRollTable, type RollTableResolution } from "@/lib/dashboard/rollTableCard";
-import { rollOnTable, type RollTableRollResult } from "@/lib/rollTableRoll";
+import { rollOnTable, type RollTableRollResult } from "@/lib/dungeon-features/rollTableRoll";
 
 const { settings } = defineProps<{
   settings?: Record<string, unknown>;

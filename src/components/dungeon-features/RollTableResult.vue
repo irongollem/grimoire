@@ -39,7 +39,7 @@
  * owns its trigger; this owns the answer.
  */
 import AppButton from "@/components/common/AppButton.vue";
-import type { RollTableRollResult } from "@/lib/rollTableRoll";
+import type { RollTableRollResult } from "@/lib/dungeon-features/rollTableRoll";
 
 defineProps<{ result: RollTableRollResult }>();
 </script>

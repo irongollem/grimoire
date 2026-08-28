@@ -8,7 +8,7 @@ import {
   remapKeep as r,
   remapKeepArr as rArr,
   type IdMap,
-} from "@/lib/campaignSerialization";
+} from "@/lib/campaign/campaignSerialization";
 import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCampaigns";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

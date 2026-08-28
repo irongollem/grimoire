@@ -116,7 +116,7 @@ import AppModal from '@/components/common/AppModal.vue';
 import ModalHeader from '@/components/common/ModalHeader.vue';
 import { CARD_OVERLAY_SCRIM } from '@/components/common/appButtonVariants';
 import type { LootChestAtom } from '@/types/chat.types';
-import { unresolvedReasonLabel, type RolledUnresolvedEntry } from '@/lib/lootTableRoll';
+import { unresolvedReasonLabel, type RolledUnresolvedEntry } from '@/lib/dungeon-features/lootTableRoll';
 
 const {
   open,

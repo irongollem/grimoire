@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeFit, type FitChild } from "@/lib/fitText";
+import { computeFit, type FitChild } from "@/lib/cardforge/fitText";
 
 const child = (top: number, height: number, lineHeight = 10): FitChild => ({
   top,

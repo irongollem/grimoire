@@ -9,7 +9,7 @@ import type {
   SaveType,
   DurationTier,
   AdvisorResult,
-} from "@/lib/spellAdvisor";
+} from "@/lib/spells/spellAdvisor";
 
 export type { AdvisorResult };
 

@@ -13,7 +13,7 @@ import {
   remapOrNull as rCamp,
   freshId,
   type IdMap,
-} from "@/lib/campaignSerialization";
+} from "@/lib/campaign/campaignSerialization";
 
 type Row = Record<string, unknown>;
 

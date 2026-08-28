@@ -301,7 +301,7 @@ import {
   type RollTableEntry,
   type RollTableInsert,
 } from "@/types/rollTable.types";
-import { rollOnTable, type RollTableRollResult } from "@/lib/rollTableRoll";
+import { rollOnTable, type RollTableRollResult } from "@/lib/dungeon-features/rollTableRoll";
 import RollTableResult from "@/components/dungeon-features/RollTableResult.vue";
 import { markEdited } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";

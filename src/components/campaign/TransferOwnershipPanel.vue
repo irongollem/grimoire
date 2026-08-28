@@ -181,7 +181,7 @@ import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import {
   EMPTY_HOMEBREW_COUNTS,
   type TransferScopedDisposition,
-} from "@/lib/campaignHomebrewDisposition";
+} from "@/lib/campaign/campaignHomebrewDisposition";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
 import AppButton from "@/components/common/AppButton.vue";

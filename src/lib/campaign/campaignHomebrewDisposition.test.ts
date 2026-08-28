@@ -7,7 +7,7 @@ import {
   HOMEBREW_TABLES,
   type HomebrewCounts,
   type HomebrewKind,
-} from "@/lib/campaignHomebrewDisposition";
+} from "@/lib/campaign/campaignHomebrewDisposition";
 
 /** Only the kinds a case cares about; the rest stay zero. Spelling out all six
  *  in every literal buries the one number under test. */

@@ -148,7 +148,7 @@ import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useCompanions";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
-import { buildNpcSyncUpdate } from "@/lib/npcEncounterSync";
+import { buildNpcSyncUpdate } from "@/lib/encounters/npcEncounterSync";
 import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";

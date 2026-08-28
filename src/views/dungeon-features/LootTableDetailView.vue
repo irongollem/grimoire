@@ -331,7 +331,7 @@ import {
   unresolvedReasonLabel,
   type RolledLootEntry,
   type RolledUnresolvedEntry,
-} from "@/lib/lootTableRoll";
+} from "@/lib/dungeon-features/lootTableRoll";
 import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";

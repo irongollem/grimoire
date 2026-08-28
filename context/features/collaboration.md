@@ -129,7 +129,7 @@ to confirm — the same gate the delete flow uses, shared via
 exclusively to the campaign, a radio group makes them choose what happens to their
 originals: keep globally, move to another campaign they own (a picker appears; the
 option is hidden when they own no other campaign), or delete. The choice is typed as
-`TransferScopedDisposition` (`src/lib/campaignHomebrewDisposition.ts`), kept separate
+`TransferScopedDisposition` (`src/lib/campaign/campaignHomebrewDisposition.ts`), kept separate
 from the deletion dialog's two-value `HomebrewDisposition` so `'reassign'` cannot leak
 into a flow that has no target campaign to offer.
 

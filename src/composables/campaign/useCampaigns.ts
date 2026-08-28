@@ -10,8 +10,8 @@ import type {
   HomebrewDisposition,
   HomebrewKind,
   TransferScopedDisposition,
-} from "@/lib/campaignHomebrewDisposition";
-import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaignHomebrewDisposition";
+} from "@/lib/campaign/campaignHomebrewDisposition";
+import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaign/campaignHomebrewDisposition";
 
 // All campaign-scoped tables whose orphaned rows (campaign_id IS NULL) can be claimed
 const CAMPAIGN_SCOPED_TABLES = [

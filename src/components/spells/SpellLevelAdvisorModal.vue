@@ -247,7 +247,7 @@ import DiceInput from "@/components/common/DiceInput.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import { SPELL_SCHOOLS } from "@/types/spell.types";
 import type { SpellSchool } from "@/types/spell.types";
-import { parseDiceAvg } from "@/lib/spellAdvisor";
+import { parseDiceAvg } from "@/lib/spells/spellAdvisor";
 import type { AdvisorState, AdvisorResult, SchoolTip, RefSpells } from "./spellAdvisorTypes";
 
 const { open, adv, school, advResult, schoolTip, refSpells } = defineProps<{

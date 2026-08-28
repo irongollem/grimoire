@@ -339,7 +339,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick, shallowRef, onMounted } from "vue";
-import { renderChatMessage } from "@/lib/chatMarkdown";
+import { renderChatMessage } from "@/lib/chat/chatMarkdown";
 import { IconClose, IconDelete, IconDiceRoll, IconMessage, IconSend, IconShop } from '@/lib/icons';
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";

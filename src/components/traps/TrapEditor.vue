@@ -347,13 +347,13 @@ import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import { DAMAGE_TYPES } from "@/types/damage.types";
 import { CR_XP } from "@/types/encounter.types";
-import { adviseCr, CR_TRAP_BENCHMARKS } from "@/lib/trapAdvisor";
+import { adviseCr, CR_TRAP_BENCHMARKS } from "@/lib/traps/trapAdvisor";
 import type {
   TrapEffectCategory,
   TrapTargeting,
   TrapDcTier,
   TrapSecondaryEffect,
-} from "@/lib/trapAdvisor";
+} from "@/lib/traps/trapAdvisor";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";

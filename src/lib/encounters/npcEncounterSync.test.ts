@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildNpcSyncUpdate, type NpcSyncState } from "@/lib/npcEncounterSync";
+import { buildNpcSyncUpdate, type NpcSyncState } from "@/lib/encounters/npcEncounterSync";
 import type { Npc } from "@/types/npc.types";
 
 type NpcRec = Pick<Npc, "id" | "name" | "status" | "player_visible_to" | "player_visible_fields">;

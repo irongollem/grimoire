@@ -274,7 +274,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import DiceInput from "@/components/common/DiceInput.vue";
-import { parseDiceAvg, DAMAGE_BENCHMARKS } from "@/lib/spellAdvisor";
+import { parseDiceAvg, DAMAGE_BENCHMARKS } from "@/lib/spells/spellAdvisor";
 import type { AdvisorState, AdvisorResult, SchoolTip, RefSpells } from "./spellAdvisorTypes";
 
 const { open, highlighted, isNew, adv, advResult, schoolTip, refSpells, showTable } =

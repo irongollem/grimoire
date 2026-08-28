@@ -80,7 +80,7 @@ import {
   summarizeHomebrewCounts,
   EMPTY_HOMEBREW_COUNTS,
   type HomebrewDisposition,
-} from "@/lib/campaignHomebrewDisposition";
+} from "@/lib/campaign/campaignHomebrewDisposition";
 
 const campaignStore = useCampaignStore();
 const { data: campaignList } = useCampaigns();

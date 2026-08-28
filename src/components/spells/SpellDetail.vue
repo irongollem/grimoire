@@ -263,14 +263,14 @@ import {
   adviseLevelRange,
   REFERENCE_SPELLS,
   SCHOOL_DESIGN_TIPS,
-} from "@/lib/spellAdvisor";
+} from "@/lib/spells/spellAdvisor";
 import type {
   EffectType,
   EffectIntensity,
   TargetingMode,
   SaveType,
   DurationTier,
-} from "@/lib/spellAdvisor";
+} from "@/lib/spells/spellAdvisor";
 import { parseDamageExpression, type DamageRoll } from "@/lib/dice/dice";
 
 const props = defineProps<{ spell: Spell | null; isShared?: boolean }>();
