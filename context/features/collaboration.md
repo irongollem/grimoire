@@ -312,11 +312,53 @@ All access control is enforced via PostgreSQL Row-Level Security — the client 
 
 **Campaign data tables:**
 
-- Notes, NPCs, monsters, encounters, etc. use `is_campaign_member(campaign_id)` or `is_campaign_dm(campaign_id)` in their RLS policies. Players can read data that is scoped to their campaign; only DMs can write most of it.
+- Notes, NPCs, monsters, encounters, etc. use `private.is_campaign_member(campaign_id)` or `private.is_campaign_dm(campaign_id)` in their RLS policies. Players can read data that is scoped to their campaign; only DMs can write most of it.
 - Specific player-writable tables (party member HP, conditions, inventory, journal) have additional policies permitting writes from the linked player.
+
+### Writing campaign content requires DM rights on that campaign
+
+Read scoping and *write* scoping are separate questions, and until `20260828201935`
+only the first was actually enforced. 51 policies across 27 tables gated their
+`with check` on nothing but `(select auth.uid()) = user_id` — row ownership was the
+whole test and `campaign_id` was never consulted — so any authenticated user could
+write a row stamped with their own id and **someone else's campaign_id**.
+
+That was reachable, not theoretical. `ImportBundleModal.vue` is mounted at
+`App.vue:12` with no role check and opens from the OS `.grimoire` file handler
+anywhere in the app, including `/play/*`; `useWorldBundle.executeImport()` then
+batch-inserts into `locations`, `npcs`, `npc_relationships`, `monsters` and `items`
+at `campaign_id = activeCampaignId` — for a player, the DM's campaign. And the
+injected rows were visible to others, because `npcs_player_select` keys on
+`player_visible_to` and `calendar_events_player_select` on
+`player_visible`/`event_type = 'session'` — all columns the inserting user controls.
+
+Every affected policy now carries:
+
+```sql
+and (campaign_id is null or private.is_campaign_dm(campaign_id))
+```
+
+One uniform predicate, including the `is null` arm on the seven tables where the
+column is `NOT NULL`, so there is a single shape to review rather than a per-table
+judgement. That arm is load-bearing rather than defensive: the personal library is
+exactly the `campaign_id is null` case, so a player may still fork an SRD class from
+`/codex` (`ClassList.vue` "Duplicate", `ArchetypeList.vue` "Load example" — both pass
+`campaign_id: null`) into their own library; they simply cannot staple it to a
+campaign they do not run.
+
+**The bundle importer deliberately keeps no UI role check.** A World Bundle is a
+*distribution* format — you export a campaign, sell it, and a buyer imports it — so
+a user with no membership yet must be able to import one to create a new campaign.
+RLS draws that line with the right granularity: a campaign you own is allowed,
+someone else's is denied. Gating the modal on `auth.isDM` would break the buyer.
+
+Regression cover: `supabase/tests/campaign_content_write_boundary.test.sql`, whose
+final assertion is structural — every write policy on those 27 tables must consult
+`campaign_id`, so a future migration that recreates one without the gate fails there
+and names the offending policy.
 
 **Helper functions:**
 
-- `is_campaign_member(cid uuid)` — returns true if `auth.uid()` has any row in `campaign_members` for that campaign.
-- `is_campaign_dm(cid uuid)` — returns true if `auth.uid()` has a `dm` row for that campaign.
-- Both are `security definer` with `stable` volatility and an explicit `search_path`, preventing privilege escalation or search-path injection.
+- `private.is_campaign_member(cid uuid)` — returns true if `auth.uid()` has any row in `campaign_members` for that campaign.
+- `private.is_campaign_dm(cid uuid)` — returns true if `auth.uid()` has a `dm` row for that campaign.
+- Both are `security definer` with `stable` volatility and an explicit `search_path`, preventing privilege escalation or search-path injection. They live in `private` rather than `public` so PostgREST cannot publish them as RPC endpoints — see the `SECURITY DEFINER` rules in CLAUDE.md.
