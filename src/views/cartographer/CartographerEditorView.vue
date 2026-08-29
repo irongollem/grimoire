@@ -258,17 +258,13 @@ import {
 import { useConfirm } from "@/composables/useConfirm";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useEncounters } from "@/composables/encounters/useEncounters";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
+import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { loadUserPack, useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAllLocations, useUpdateLocationMapUrl, useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
-import { bakeMap, bakeMapAsPng, bakeMapForAI, computeBakedDimensions } from "@/cartographer/bake";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { bakeMapAsPng } from "@/cartographer/bake";
 import type { Tool } from "@/cartographer/tools";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
-import { uploadToBucket } from "@/lib/storage";
-import { getCurrentUser, supabase } from "@/lib/supabase";
 import {
   emptyLayers,
   cellKey,
@@ -345,47 +341,43 @@ const loadedPackIds = computed(() => new Set(loadedRuntimes.value.keys()));
 const dirty = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
-const baking = ref(false);
 
-// M5 — Save to Atlas
-const showAtlasModal = ref(false);
-const atlasLocationId = ref("");
-const atlasError = ref<string | null>(null);
+// Location picker source for both the Atlas-save and AI-styler modals.
 const { data: allLocationsData } = useAllLocations();
 const locationOptions = computed(() =>
   (allLocationsData.value ?? []).map((l) => ({ id: l.id, name: l.name })),
 );
-const atlasTargetHasMap = computed(() =>
-  !!atlasLocationId.value &&
-  !!(allLocationsData.value ?? []).find((l) => l.id === atlasLocationId.value)?.map_url,
-);
-const updateLocationMapUrl = useUpdateLocationMapUrl();
-const updateLocationGridCalibration = useUpdateLocationGridCalibration();
 
-// M8 — AI Map Styler
-// Map restyle renders square (1024×1024) via OpenAI → flat cost, no size scaling.
-const { costOf: costOfCredits } = useAiCredits();
-const { imageMultiplierFor: mapImageMultiplierFor } = useProviderConfig();
-const styleByok = computed(() => !!mapStyleCampaign.decryptedOpenAiKey);
-const { logImageGeneration } = useImageGenerationLog();
-const styleCost = computed(
-  () => Math.round(costOfCredits("map_style_generation") * mapImageMultiplierFor("openai") * 100) / 100,
-);
-const showStylePicker = ref(false);
-const showStyleResult = ref(false);
-const selectedPresetId = ref("playable");
-const stylePromptSuffix = ref("");
-const styleGenerating = ref(false);
-const styleResultBlob = ref<Blob | null>(null);
-const styleResultUrl = ref<string | null>(null);
-const styleError = ref<string | null>(null);
-const styleAtlasLocationId = ref("");
-const styleAtlasError = ref<string | null>(null);
-const styleAtlasSaving = ref(false);
-const styleAtlasTargetHasMap = computed(() =>
-  !!styleAtlasLocationId.value &&
-  !!(allLocationsData.value ?? []).find((l) => l.id === styleAtlasLocationId.value)?.map_url,
-);
+// M5 (Save to Atlas) + M8 (AI Map Styler) — export cluster, see useMapExport.
+const {
+  baking,
+  showAtlasModal,
+  atlasLocationId,
+  atlasError,
+  atlasTargetHasMap,
+  showStylePicker,
+  showStyleResult,
+  selectedPresetId,
+  stylePromptSuffix,
+  styleGenerating,
+  styleResultUrl,
+  styleError,
+  styleAtlasLocationId,
+  styleAtlasError,
+  styleAtlasSaving,
+  styleAtlasTargetHasMap,
+  styleByok,
+  styleCost,
+  onSaveToAtlas,
+  onGenerateStyle,
+  onRetryStyle,
+  onDownloadStyled,
+  onSaveStyledToAtlas,
+} = useMapExport({
+  buildMap: () => (loadedMap.value ? { ...loadedMap.value, layers: layers.value, metadata: metadata.value } : null),
+  runtimes: () => loadedRuntimes.value,
+  mapName: () => name.value,
+});
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
@@ -1259,48 +1251,6 @@ function onDone(): void {
   router.push("/cartographer");
 }
 
-async function onSaveToAtlas(): Promise<void> {
-  if (baking.value || !atlasLocationId.value || !loadedMap.value) return;
-  atlasError.value = null;
-  baking.value = true;
-  try {
-    const map = { ...loadedMap.value, layers: layers.value, metadata: metadata.value };
-    const blob = await bakeMap(map, loadedRuntimes.value);
-    const user = getCurrentUser();
-    if (!user) throw new Error("Not authenticated");
-    const url = await uploadToBucket({
-      bucket: "locationImages",
-      blob,
-      userId: user.id,
-      contentType: "image/webp",
-    });
-    if (!url) throw new Error("Upload failed");
-    await updateLocationMapUrl.mutateAsync({
-      id: atlasLocationId.value,
-      mapUrl: url,
-      sourceMapId: loadedMap.value.id,
-    });
-    // Auto-populate VTT grid calibration: the bake produces an image where
-    // every column is one 5-ft cell at BASE_TILE_SIZE px and cell (0,0) sits
-    // at the image's top-left, so cells_per_image_width == cols.
-    const dims = computeBakedDimensions(map);
-    await updateLocationGridCalibration.mutateAsync({
-      id: atlasLocationId.value,
-      calibration: {
-        cells_per_image_width: dims.cols,
-        origin_x_pct: 0,
-        origin_y_pct: 0,
-      },
-    });
-    showAtlasModal.value = false;
-    atlasLocationId.value = "";
-  } catch (e) {
-    atlasError.value = e instanceof Error ? e.message : "Something went wrong";
-  } finally {
-    baking.value = false;
-  }
-}
-
 async function onDownloadPng(): Promise<void> {
   if (baking.value || !loadedMap.value) return;
   baking.value = true;
@@ -1315,96 +1265,6 @@ async function onDownloadPng(): Promise<void> {
     URL.revokeObjectURL(url);
   } finally {
     baking.value = false;
-  }
-}
-
-async function onGenerateStyle(): Promise<void> {
-  if (styleGenerating.value || !loadedMap.value) return;
-  styleError.value = null;
-  styleGenerating.value = true;
-  try {
-    const map = { ...loadedMap.value, layers: layers.value, metadata: metadata.value };
-    const pngBlob = await bakeMapForAI(map, loadedRuntimes.value);
-    // Convert PNG blob to base64
-    const ab = await pngBlob.arrayBuffer();
-    const bytes = new Uint8Array(ab);
-    let bin = "";
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    const image_b64 = btoa(bin);
-
-    const { data, error } = await supabase.functions.invoke("style-map", {
-      body: {
-        campaign_id: loadedMap.value.id, // placeholder — edge fn doesn't use it for map auth
-        image_b64,
-        preset_id: selectedPresetId.value,
-        map_name: name.value,
-        map_description: loadedMap.value.description,
-        prompt_suffix: stylePromptSuffix.value.trim() || null,
-      },
-    });
-    if (error || !data?.image_b64) throw new Error(error?.message ?? data?.error ?? "Generation failed");
-
-    const resultBytes = Uint8Array.from(atob(data.image_b64 as string), (c) => c.charCodeAt(0));
-    styleResultBlob.value = new Blob([resultBytes], { type: "image/webp" });
-    if (styleResultUrl.value) URL.revokeObjectURL(styleResultUrl.value);
-    styleResultUrl.value = URL.createObjectURL(styleResultBlob.value);
-    showStylePicker.value = false;
-    showStyleResult.value = true;
-  } catch (e) {
-    styleError.value = e instanceof Error ? e.message : "Something went wrong";
-  } finally {
-    styleGenerating.value = false;
-  }
-}
-
-async function onRetryStyle(): Promise<void> {
-  if (styleResultUrl.value) URL.revokeObjectURL(styleResultUrl.value);
-  styleResultBlob.value = null;
-  styleResultUrl.value = null;
-  showStyleResult.value = false;
-  await onGenerateStyle();
-}
-
-function onDownloadStyled(): void {
-  if (!styleResultBlob.value) return;
-  const url = URL.createObjectURL(styleResultBlob.value);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${name.value || "map"}-styled.webp`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-async function onSaveStyledToAtlas(): Promise<void> {
-  if (styleAtlasSaving.value || !styleAtlasLocationId.value || !styleResultBlob.value || !loadedMap.value) return;
-  styleAtlasError.value = null;
-  styleAtlasSaving.value = true;
-  try {
-    const user = getCurrentUser();
-    if (!user) throw new Error("Not authenticated");
-    const url = await uploadToBucket({
-      bucket: "locationImages",
-      blob: styleResultBlob.value,
-      userId: user.id,
-      contentType: "image/webp",
-    });
-    if (!url) throw new Error("Upload failed");
-    await updateLocationMapUrl.mutateAsync({
-      id: styleAtlasLocationId.value,
-      mapUrl: url,
-      sourceMapId: loadedMap.value.id,
-    });
-    // Log the restyled map to the Gallery, linked back to the location.
-    void logImageGeneration({
-      kind: "map", imageUrl: url, prompt: `${name.value || "Map"} — ${selectedPresetId.value} style`,
-      targetId: styleAtlasLocationId.value, targetColumn: "map_url",
-    });
-    showStyleResult.value = false;
-    styleAtlasLocationId.value = "";
-  } catch (e) {
-    styleAtlasError.value = e instanceof Error ? e.message : "Something went wrong";
-  } finally {
-    styleAtlasSaving.value = false;
   }
 }
 
