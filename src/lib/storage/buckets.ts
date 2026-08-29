@@ -1,10 +1,25 @@
 /**
  * The storage bucket registry.
  *
- * Every Supabase storage bucket the app uses is declared in `BUCKETS` below
- * with the same MIME / size / public-flag config that the matching SQL
- * migration enforces server-side. Routing all upload sites through this
- * module gives us:
+ * Every Supabase storage bucket the app uses is declared in `BUCKETS` below.
+ *
+ * This registry is the **source of truth**, not a copy of one. It used to say
+ * these values mirror "the matching SQL migration" — that was never wholly
+ * true and is now the wrong way round. Ten of the fifteen buckets were created
+ * by hand in the dashboard with no migration to mirror, and production has
+ * since drifted from what is declared here: `chronicle` has no size or MIME
+ * limit there, and `sounds` allows a different audio list. Nothing tests this
+ * file against production, so do not read it as describing it.
+ *
+ * What these values *do* govern is real: they are the client-side guard, and
+ * `STORAGE_WRITE_POLICY` (supabase/functions/_shared/storage-policy.ts) mirrors
+ * them to enforce the same limits on the R2 write path, which is where object
+ * writes actually go since #577. A test holds those two together. The Supabase
+ * bucket config now only binds the R2-unavailable fallback, on buckets slated
+ * for removal once R2 is proven — which is why the drift above is recorded
+ * rather than reconciled.
+ *
+ * Routing all upload sites through this module gives us:
  *
  *   1. One place to look for "what buckets exist and how are they configured"
  *   2. Compile-time guarantees that we don't typo a bucket id

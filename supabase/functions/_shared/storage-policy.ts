@@ -30,8 +30,16 @@
 // renamed here.
 //
 // MIME/size limits are mirrored from `BUCKETS` in src/lib/storage/buckets.ts,
-// which in turn mirrors the SQL. A test in src/lib/storage/buckets.test.ts fails
-// if the two drift.
+// and a test in src/lib/storage/buckets.test.ts fails if the two drift.
+//
+// `BUCKETS` does NOT mirror the SQL, despite what this comment used to claim.
+// Ten of the fifteen buckets were created by hand with no migration, and
+// production has drifted from the registry for two of them. Since #577 sends
+// writes to R2, the limits enforced on the live path are the ones in this file
+// — so the registry is the source of truth and the Supabase bucket config now
+// binds only the fallback. Do not "restore consistency" by copying production's
+// looser values into the registry; that would loosen R2 enforcement, which is
+// the only thing standing between a user and someone else's objects.
 
 export interface BucketWritePolicy {
   readonly id: string;
