@@ -43,6 +43,7 @@
     "seed-library-items": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-items.ts",
     "seed-content-sources": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-content-sources.ts",
     "dev:auth": "tsx --tsconfig tsconfig.node.json scripts/dev-auth.ts",
+    "dev:buckets": "tsx --tsconfig tsconfig.node.json scripts/dev-buckets.ts",
     "cartographer:pack": "tsx --tsconfig tsconfig.node.json scripts/cartographer-pack.ts"
   },
   "dependencies": {

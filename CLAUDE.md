@@ -176,8 +176,31 @@ You can look at the running app. Do it before reporting UI work as done; a green
 ```bash
 npm run db:start     # local Supabase (skip if already up)
 npm run dev:auth     # ensure local accounts + known password
+npm run dev:buckets  # create the storage buckets a fresh local stack lacks
 npm run dev          # already --mode localdb
 ```
+
+**Run `dev:buckets` before testing anything that uploads.** `src/lib/storage/buckets.ts`
+declares fifteen buckets; only five were ever created by a migration, and the rest were
+made by hand in the dashboard — so they exist in production and in nobody's local stack.
+Their RLS policies are present in the squashed schema, which is why this never failed in
+CI: a policy on a bucket that does not exist is inert. The symptom is an upload that dies
+at the storage call while every gate stays green, and it silently makes NPC portraits,
+monster and item art, location maps, spell/trap/puzzle images, soundboard audio and the
+Chronicle and Scriptorium embeds untestable locally.
+
+This is a script rather than a migration on purpose. Object writes now go to Cloudflare R2
+(#577); the Supabase buckets survive only while the stored bytes may still be needed and
+are slated for removal once R2 is proven. A migration runs everywhere, so provisioning
+this way would create buckets in production — adding to the set being torn down, including
+`puzzle-images`, which production does not have at all. Like `dev-auth.ts`, the script
+reads the running stack's own keys and refuses to address anything but loopback, so
+"cannot touch production" is a property rather than a promise.
+
+`scripts/dev-buckets.data.ts` restates the registry because a node script cannot import
+`buckets.ts` (it reads `import.meta.env` at module scope). `src/lib/storage/bucketRegistryMirror.test.ts`
+holds the two equal, so adding a bucket to the registry fails the suite until the script
+learns about it.
 
 `dev:auth` (`scripts/dev-auth.ts`) sets `grimoire-local-dev` as the password on three **local** accounts and prints them. It reads the running stack's own keys from `supabase status` and **refuses to run against anything but loopback**, so it cannot address the hosted project. Remote work still needs a real token, via the Supabase MCP as usual. Player-portal surfaces specifically need the player fixture: `/play` is lens- and role-guarded away from DM accounts, so no amount of DM-fixture testing reaches them.
 
