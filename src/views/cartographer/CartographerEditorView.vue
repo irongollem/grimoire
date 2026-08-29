@@ -264,6 +264,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { bakeMapAsPng } from "@/cartographer/bake";
 import type { Tool } from "@/cartographer/tools";
+import { zoomAtPoint } from "@/cartographer/viewport";
+import { resolveKeyAction } from "@/cartographer/keymap";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
 import {
   emptyLayers,
@@ -1171,28 +1173,16 @@ function onPointerUp(ev: PointerEvent): void {
 }
 
 function onWheel(ev: WheelEvent): void {
-  const factor = ev.deltaY < 0 ? 1.1 : 1 / 1.1;
-  // 5%–400% zoom range: small enough to scan an 80×80 dungeon at a glance,
-  // large enough to paint tile-by-tile.
-  const next = Math.max(0.05, Math.min(4, zoom.value * factor));
-  // Zoom around the cursor
   const rect = canvasEl.value!.getBoundingClientRect();
-  const cx = ev.clientX - rect.left;
-  const cy = ev.clientY - rect.top;
   const { dpr } = devicePixelDims();
-  const worldX = viewportOffset.value.x + cx * dpr;
-  const worldY = viewportOffset.value.y + cy * dpr;
-  const scale = next / zoom.value;
-  viewportOffset.value = {
-    x: worldX - (worldX - viewportOffset.value.x) * scale - cx * dpr + cx * dpr,
-    y: worldY - (worldY - viewportOffset.value.y) * scale - cy * dpr + cy * dpr,
-  };
-  // Simpler: keep cursor over same world point
-  viewportOffset.value = {
-    x: worldX * scale - cx * dpr,
-    y: worldY * scale - cy * dpr,
-  };
-  zoom.value = next;
+  const next = zoomAtPoint(
+    { zoom: zoom.value, offset: viewportOffset.value },
+    { x: ev.clientX - rect.left, y: ev.clientY - rect.top },
+    dpr,
+    ev.deltaY,
+  );
+  viewportOffset.value = next.offset;
+  zoom.value = next.zoom;
 }
 
 // ── Save / cancel ──────────────────────────────────────────────────────────
@@ -1298,55 +1288,28 @@ function onResize(): void {
 
 function onKeyDown(ev: KeyboardEvent): void {
   const target = ev.target as HTMLElement | null;
-  if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
-    return;
-  }
+  const action = resolveKeyAction(
+    {
+      key: ev.key,
+      ctrlKey: ev.ctrlKey,
+      metaKey: ev.metaKey,
+      altKey: ev.altKey,
+      shiftKey: ev.shiftKey,
+      targetIsTextEntry: !!target
+        && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable),
+    },
+    { activeTool: activeTool.value, tools: TOOLS },
+  );
+  if (!action) return;
 
-  // Undo / redo — must check before the blanket Ctrl guard below.
-  if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === "z") {
-    if (ev.shiftKey) redoEdit(); else undoEdit();
-    ev.preventDefault();
-    return;
+  switch (action.kind) {
+    case "undo": undoEdit(); break;
+    case "redo": redoEdit(); break;
+    case "center": centerMap(); break;
+    case "rotateStamp": stampRotation.value = (stampRotation.value + action.delta) % 360; break;
+    case "selectTool": activeTool.value = action.tool; break;
   }
-
-  // Leave all other OS shortcuts alone.
-  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-
-  const key = ev.key.toLowerCase();
-  if (key === "c") {
-    centerMap();
-    ev.preventDefault();
-    return;
-  }
-
-  // Q/E: rotate stamp by 90° CCW/CW. M6: [/] for ±1° fine rotation.
-  if (activeTool.value === "stamp") {
-    if (key === "q") {
-      stampRotation.value = (stampRotation.value + 270) % 360;
-      ev.preventDefault();
-      return;
-    }
-    if (key === "e") {
-      stampRotation.value = (stampRotation.value + 90) % 360;
-      ev.preventDefault();
-      return;
-    }
-    if (key === "[") {
-      stampRotation.value = (stampRotation.value + 359) % 360;
-      ev.preventDefault();
-      return;
-    }
-    if (key === "]") {
-      stampRotation.value = (stampRotation.value + 1) % 360;
-      ev.preventDefault();
-      return;
-    }
-  }
-  const tool = TOOLS.find((t) => t.shortcut === key);
-  if (tool && !tool.disabled) {
-    activeTool.value = tool.id;
-    ev.preventDefault();
-  }
+  ev.preventDefault();
 }
 
 onMounted(async () => {
