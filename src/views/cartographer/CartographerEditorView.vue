@@ -275,13 +275,14 @@ import {
   type CellKey,
   type DungeonMap,
   type DungeonMapLayers,
-  type EdgeSeg,
-  type EdgeSegType,
   type CellMetadata,
 } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory, OBJECT_CATEGORIES, type ObjectCategory } from "@/cartographer/packSchema";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import { renderMap } from "@/cartographer/renderMap";
+import { pickVariant } from "@/cartographer/tileVariants";
+import * as paintOps from "@/cartographer/paintOps";
+import type { PaintContext } from "@/cartographer/paintOps";
 import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill, boundaryEdges } from "@/cartographer/floodFill";
@@ -398,13 +399,9 @@ const hoveredEdge = ref<CellEdge | null>(null);
 const isPanning = ref(false);
 const isPainting = ref(false);
 let lastPointer: { x: number; y: number } | null = null;
-// Tracks edges already written during the current drag, so dragging over the
-// same edge doesn't re-randomise its variant.
-let edgesPaintedInStroke = new Set<string>();
-// Direction lock: once the first edge of a drag is placed, every subsequent
-// edge in the stroke must match the same direction. Prevents accidental
-// perpendicular walls when the cursor passes near a cell corner.
-let strokeDirection: "H" | "V" | null = null;
+// Mutable per-stroke state (edge dedup + direction lock) — see StrokeState in
+// src/cartographer/paintOps.ts for what each field replaces and why.
+let strokeState = paintOps.createStrokeState();
 
 // Tools
 interface ToolDef {
@@ -600,44 +597,41 @@ watch(loadedMap, (m) => {
 }, { immediate: true });
 
 // ── Deterministic variant picking ──────────────────────────────────────────
+// hash32/pickVariant live in src/cartographer/tileVariants.ts; see its
+// colocated test for why these seed strings must never change.
 
-function hash32(s: string): number {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
+const mapKey = computed(() => mapId.value || "new");
 
 function pickFloorVariant(x: number, y: number): number {
-  const count = floorVariantCount.value || 1;
-  return hash32(`${mapId.value || "new"}|floor|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, "floor", x, y, floorVariantCount.value);
 }
 
 function pickWallVariant(x: number, y: number, side: "N" | "W"): number {
   if (!packRuntime.value) return 0;
   const category = side === "N" ? "wallSegmentH" : "wallSegmentV";
-  const count = packRuntime.value.variantCount(category) || 1;
-  return hash32(`${mapId.value || "new"}|${category}|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, category, x, y, packRuntime.value.variantCount(category));
 }
 
 function pickSolidVariant(x: number, y: number): number {
   if (!packRuntime.value) return 0;
-  const count = packRuntime.value.variantCount("solidBlock") || 1;
-  return hash32(`${mapId.value || "new"}|solid|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, "solid", x, y, packRuntime.value.variantCount("solidBlock"));
 }
 
 function pickDoorVariant(x: number, y: number, category: PackCategory): number {
   if (!packRuntime.value) return 0;
-  const count = packRuntime.value.variantCount(category) || 1;
-  return hash32(`${mapId.value || "new"}|${category}|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, category, x, y, packRuntime.value.variantCount(category));
 }
 
 function activePackVersion(): number {
   return packRuntime.value?.manifest.pack_version
     ?? selectablePacks.value.find((pack) => pack.pack_id === currentPackId.value)?.pack_version
     ?? 1;
+}
+
+// Mutation context handed to paintOps functions — `layers` is the same
+// reactive object as layers.value, so writes through it stay reactive.
+function paintContext(): PaintContext {
+  return { layers: layers.value, packId: currentPackId.value, packVersion: activePackVersion() };
 }
 
 // ── Undo/redo helpers ──────────────────────────────────────────────────────
@@ -748,167 +742,64 @@ function centerMap(): void {
 
 function paintSolidAt(x: number, y: number): void {
   if (!packRuntime.value) return;
-  const k = cellKey(x, y);
   const variant = pickSolidVariant(x, y);
-  if (layers.value.solidBlock[k]?.variant === variant) return;
-  layers.value.solidBlock[k] = { pack_id: currentPackId.value, pack_version: activePackVersion(), variant };
-  dirty.value = true;
+  if (paintOps.paintSolidAt(paintContext(), x, y, variant)) dirty.value = true;
 }
 
 function eraseSolidAt(x: number, y: number): void {
-  const k = cellKey(x, y);
-  if (!layers.value.solidBlock[k]) return;
-  const next = { ...layers.value.solidBlock };
-  delete next[k];
-  layers.value.solidBlock = next;
-  dirty.value = true;
+  if (paintOps.eraseSolidAt(paintContext(), x, y)) dirty.value = true;
 }
 
 // ── Object stamp tool ─────────────────────────────────────────────────────
 
 function pickObjectVariant(cat: ObjectCategory, x: number, y: number): number {
   if (!packRuntime.value) return 0;
-  const count = packRuntime.value.variantCount(cat) || 1;
-  return hash32(`${mapId.value || "new"}|${cat}|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, cat, x, y, packRuntime.value.variantCount(cat));
 }
 
 function paintObjectAt(x: number, y: number): void {
-  const k = cellKey(x, y);
   const variant = pickObjectVariant(activeObjectCategory.value, x, y);
-  layers.value.object[k] = {
-    pack_id: currentPackId.value,
-    pack_version: activePackVersion(),
-    category: activeObjectCategory.value,
-    variant,
-    ...(stampRotation.value ? { rotation: stampRotation.value } : {}),
-  };
-  dirty.value = true;
+  const changed = paintOps.paintObjectAt(
+    paintContext(), x, y, activeObjectCategory.value, variant, stampRotation.value,
+  );
+  if (changed) dirty.value = true;
 }
 
 function eraseObjectAt(x: number, y: number): void {
-  const k = cellKey(x, y);
-  if (!layers.value.object[k]) return;
-  const next = { ...layers.value.object };
-  delete next[k];
-  layers.value.object = next;
-  dirty.value = true;
+  if (paintOps.eraseObjectAt(paintContext(), x, y)) dirty.value = true;
 }
 
 // ── Wall placement (edge-based, NW ownership) ──────────────────────────────
 
-function edgeDirection(side: "N" | "E" | "S" | "W"): "H" | "V" {
-  return side === "N" || side === "S" ? "H" : "V";
-}
-
 function paintWallAtCellEdge(edge: CellEdge): void {
-  const dir = edgeDirection(edge.side);
-  // Direction lock: first paint of a stroke commits H or V; later perpendicular
-  // edges are ignored. Single clicks (no later moves) are unaffected.
-  if (isPainting.value) {
-    if (strokeDirection === null) strokeDirection = dir;
-    else if (strokeDirection !== dir) return;
-  }
-
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const strokeKey = `${canon.x},${canon.y},${canon.side}`;
-  if (edgesPaintedInStroke.has(strokeKey)) return;
-
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey] ?? {};
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  // Preserve doors. For walls, skip only if same pack — different pack restyling the edge.
-  if (existing && (existing.type !== "wall" || existing.pack_id === currentPackId.value)) {
-    edgesPaintedInStroke.add(strokeKey);
-    return;
-  }
-
-  const seg: EdgeSeg = {
-    pack_id: currentPackId.value,
-    pack_version: activePackVersion(),
-    type: "wall",
-    variant: pickWallVariant(canon.x, canon.y, canon.side),
-  };
-
-  layers.value.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
-
-  edgesPaintedInStroke.add(strokeKey);
-  dirty.value = true;
+  const variant = pickWallVariant(canon.x, canon.y, canon.side);
+  strokeState.active = isPainting.value;
+  if (paintOps.paintWallAtCellEdge(paintContext(), edge, strokeState, variant)) dirty.value = true;
 }
 
 // Writes a wall edge directly, skipping stroke tracking. Used by wrap-walls,
 // rectangle perimeter, and shift+click — operations that aren't "strokes".
 function setWallEdgeIfEmpty(edge: CellEdge): void {
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey] ?? {};
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  if (existing) return; // preserve existing walls/doors
-  const seg: EdgeSeg = {
-    pack_id: currentPackId.value,
-    pack_version: activePackVersion(),
-    type: "wall",
-    variant: pickWallVariant(canon.x, canon.y, canon.side),
-  };
-  layers.value.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
-  dirty.value = true;
+  const variant = pickWallVariant(canon.x, canon.y, canon.side);
+  if (paintOps.setWallEdgeIfEmpty(paintContext(), edge, variant)) dirty.value = true;
 }
 
 // ── Door tool (edge-based) ─────────────────────────────────────────────────
 
 function paintDoorAtEdge(edge: CellEdge): void {
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const strokeKey = `${canon.x},${canon.y},${canon.side}`;
-  if (edgesPaintedInStroke.has(strokeKey)) return;
-
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey] ?? {};
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  const isH = canon.side === "N";
-
-  let newType: EdgeSegType;
-  let variant: number;
-  if (existing?.type === "doorClosed") {
-    newType = "doorOpen";
-    variant = existing.variant; // same door model, now open
-  } else if (existing?.type === "doorOpen") {
-    newType = "doorClosed";
-    variant = existing.variant;
-  } else {
-    newType = "doorClosed";
-    const cat: PackCategory = isH ? "doorClosedH" : "doorClosedV";
-    variant = pickDoorVariant(canon.x, canon.y, cat);
-  }
-
-  const seg: EdgeSeg = { pack_id: currentPackId.value, pack_version: activePackVersion(), type: newType, variant };
-  layers.value.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
-  edgesPaintedInStroke.add(strokeKey);
-  dirty.value = true;
+  const cat: PackCategory = canon.side === "N" ? "doorClosedH" : "doorClosedV";
+  const newDoorVariant = pickDoorVariant(canon.x, canon.y, cat);
+  if (paintOps.paintDoorAtEdge(paintContext(), edge, strokeState, newDoorVariant)) dirty.value = true;
 }
 
 // Right-click on door edge: revert to plain wall (preserves the edge, removes door).
 function removeDoorAtEdge(edge: CellEdge): void {
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey];
-  if (!ownerCell) return;
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  if (!existing || existing.type === "wall") return;
-  const seg: EdgeSeg = {
-    pack_id: currentPackId.value,
-    pack_version: activePackVersion(),
-    type: "wall",
-    variant: pickWallVariant(canon.x, canon.y, canon.side),
-  };
-  layers.value.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
-  dirty.value = true;
+  const wallVariant = pickWallVariant(canon.x, canon.y, canon.side);
+  if (paintOps.removeDoorAtEdge(paintContext(), edge, wallVariant)) dirty.value = true;
 }
 
 // ── One-shot actions ───────────────────────────────────────────────────────
@@ -972,30 +863,8 @@ function paintCaveAt(cx: number, cy: number): void {
 }
 
 function eraseWallAtCellEdge(edge: CellEdge): void {
-  const dir = edgeDirection(edge.side);
-  if (isPainting.value) {
-    if (strokeDirection === null) strokeDirection = dir;
-    else if (strokeDirection !== dir) return;
-  }
-
-  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey];
-  if (!ownerCell) return;
-  if (canon.side === "N" && !ownerCell.wallN) return;
-  if (canon.side === "W" && !ownerCell.wallW) return;
-  const next = { ...ownerCell };
-  if (canon.side === "N") delete next.wallN;
-  else delete next.wallW;
-  // If the cell is now empty (no floor, no walls), drop it from the map.
-  if (!next.floor && !next.wallN && !next.wallW) {
-    const newFloor = { ...layers.value.floor };
-    delete newFloor[ownerKey];
-    layers.value.floor = newFloor;
-  } else {
-    layers.value.floor[ownerKey] = next;
-  }
-  dirty.value = true;
+  strokeState.active = isPainting.value;
+  if (paintOps.eraseWallAtCellEdge(paintContext(), edge, strokeState)) dirty.value = true;
 }
 
 
@@ -1093,29 +962,12 @@ function getLocalPointer(ev: PointerEvent): { x: number; y: number } {
 
 function paintCell(x: number, y: number): void {
   if (!packRuntime.value) return;
-  const k = cellKey(x, y);
-  const existing = layers.value.floor[k];
   const variant = pickFloorVariant(x, y);
-  if (existing?.floor?.pack_id === currentPackId.value && existing?.floor?.variant === variant) return;
-  layers.value.floor[k] = {
-    ...existing,
-    floor: {
-      pack_id: currentPackId.value,
-      pack_version: activePackVersion(),
-      variant,
-    },
-  };
-  dirty.value = true;
+  if (paintOps.paintCell(paintContext(), x, y, variant)) dirty.value = true;
 }
 
 function eraseCell(x: number, y: number): void {
-  const k = cellKey(x, y);
-  if (layers.value.floor[k]) {
-    const next = { ...layers.value.floor };
-    delete next[k];
-    layers.value.floor = next;
-    dirty.value = true;
-  }
+  if (paintOps.eraseCell(paintContext(), x, y)) dirty.value = true;
 }
 
 function onPointerDown(ev: PointerEvent): void {
@@ -1162,8 +1014,7 @@ function onPointerDown(ev: PointerEvent): void {
   // Shift+click with the wall brush: wrap all 4 edges of the clicked cell.
   if (activeTool.value === "wall" && ev.shiftKey && ev.button === 0) {
     const before = snapshotStr();
-    edgesPaintedInStroke = new Set<string>();
-    strokeDirection = null;
+    strokeState = paintOps.createStrokeState();
     for (const side of ["N", "E", "S", "W"] as const)
       paintWallAtCellEdge({ x: cx, y: cy, side });
     const after = snapshotStr();
@@ -1198,8 +1049,7 @@ function onPointerDown(ev: PointerEvent): void {
   // Stroke-based tools.
   isPainting.value = true;
   canvasEl.value?.setPointerCapture(ev.pointerId);
-  edgesPaintedInStroke = new Set<string>();
-  strokeDirection = null;
+  strokeState = paintOps.createStrokeState();
   strokeSnapshot = snapshotStr();
 
   // Rect / line / template tools: record drag start; first cell is the preview seed.
@@ -1246,7 +1096,7 @@ function onPointerMove(ev: PointerEvent): void {
     let edge = detectHoveredEdge(world.x, world.y, tilePixelSize(), EDGE_HOVER_THRESHOLD);
     // If a stroke has locked its direction, suppress highlights for the
     // perpendicular axis — visual feedback matches what will actually paint.
-    if (edge && isPainting.value && strokeDirection !== null && edgeDirection(edge.side) !== strokeDirection) {
+    if (edge && isPainting.value && strokeState.direction !== null && paintOps.edgeDirection(edge.side) !== strokeState.direction) {
       edge = null;
     }
     hoveredEdge.value = edge;
