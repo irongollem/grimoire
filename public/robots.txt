@@ -3,3 +3,41 @@
 # dungeongrimoire.com) hosts the indexable pages + sitemap.
 User-agent: *
 Disallow: /
+
+# Link unfurlers are exempted deliberately. They are not search crawlers and
+# none of them feed a search index, so the rule above still keeps the app out
+# of search: Googlebot, Bingbot and the rest go on matching `*`.
+#
+# The reason to let them in: a DM invites players by pasting /join/<token>
+# into Discord, and these agents read robots.txt before building a preview
+# card, so under the blanket rule that invite expands to nothing at all.
+#
+# This exposes no invite token. The token is already in the message the bot is
+# reading, and fetching the page cannot spend it: joining runs in JS after
+# sign-in (see JoinCampaignView.vue), which is not something an unfurler does.
+User-agent: Discordbot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Slackbot-LinkExpanding
+Allow: /
+
+User-agent: Slackbot
+Allow: /
+
+User-agent: TelegramBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: redditbot
+Allow: /
