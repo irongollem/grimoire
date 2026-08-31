@@ -43,6 +43,24 @@ verify_jwt = false
 [functions.api-key-vault]
 verify_jwt = true
 
+# One-click RSVP for a suggested session date. The recipient is answering from
+# a link in an email and may not be signed in — often they are in a phone's mail
+# app, which is the whole point — so there is no JWT to check, exactly the
+# ical-feed / waitlist-unsubscribe situation. The capability is the random
+# per-invitation token in the URL (session_proposal_invites), and the function
+# can only record one player's availability for the one date that token names.
+# GET renders a confirmation form and POST acts, because link scanners prefetch.
+[functions.session-rsvp]
+verify_jwt = false
+
+# Inbound iMIP replies — the METHOD:REPLY a player's mail app sends when they
+# press Accept on the invitation. Delivered by an inbound-email provider, which
+# has no Supabase session, so the gateway check is off and the function checks
+# a shared secret (INBOUND_EMAIL_SECRET) itself, refusing everything with 503
+# until that secret exists. See session-rsvp-inbound/index.ts for the wiring.
+[functions.session-rsvp-inbound]
+verify_jwt = false
+
 # In-app bug reporter — called by the browser on behalf of any logged-in user.
 # The gateway check is off because we want anonymous reports too (e.g. users
 # who can't access their session). Security: the function only creates GitHub

@@ -374,7 +374,7 @@ Personal preferences for the player's session:
 - **My Character** — Link to an existing party member (claim picker) or create new. Showing the currently linked character with class/level.
 - **Upcoming Sessions** — Confirmed future session dates (read from DM's session proposals)
 - **Session Availability** — 3-way response (Yes/No/no answer) for each proposed session date
-- **Calendar Subscription** — iCal feed URL for the campaign schedule; one-click subscribe in calendar app
+- **Calendar Subscription** — iCal feed URL for the campaign schedule; one-click subscribe in calendar app. Carries **suggested dates as well as confirmed ones**: a suggestion arrives as a tentative, `TRANSP:TRANSPARENT` event prefixed "Proposed:" so it shows up without booking the evening out, and it becomes the real event in place when the DM confirms (same UID). See `supabase/functions/_shared/ics.ts`.
 - **Navigation** — Drag-to-reorder list of all nav items; first 4 (or 7 on tablet) appear in the quick bar
 - **Combat Notifications** — Toggle for turn audio cue (chime when your turn starts) and dice roll sounds (clack per roll; distinct crit/fumble sounds)
 - **Dice** — Tool mode (digital dice roller) vs Physical mode (prompts to enter your own roll result)
@@ -421,7 +421,7 @@ The encounter subscription stays active even when the player navigates away from
 
 7. **Private + shared journal** — Players write their own journal entries and can selectively share entries with the party, building a collective adventure log without the DM seeing any of it.
 
-8. **Scheduling integration** — Players respond to session proposals from Settings, and can subscribe to an iCal feed that updates automatically when the DM books or changes sessions.
+8. **Scheduling integration** — Players respond to session proposals from Settings, from the two one-click links in the proposal email, or by pressing Accept on the invitation their mail app draws (see `context/features/notifications.md`). They can subscribe to an iCal feed that updates automatically when the DM suggests, books or changes sessions.
 
 9. **Multi-character support** — Players can have multiple characters in a campaign (retired, dead, or alternate) and switch the active one without losing history.
 

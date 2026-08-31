@@ -87,15 +87,40 @@ export function noteSharedEmail(args: {
   };
 }
 
+/**
+ * The two one-click links, when the recipient has an RSVP token. They are the
+ * fallback for the invitation attachment: a mail app that draws Accept /
+ * Decline handles this without them, but plenty of clients — most webmail on a
+ * phone, every plain-text reader — draw nothing at all, and those readers are
+ * the ones this whole change exists for.
+ */
+export interface RsvpLinks {
+  yesUrl: string;
+  noUrl: string;
+}
+
+function rsvpButtons(rsvp: RsvpLinks): string {
+  return `<p style="margin: 1.25rem 0 0;">
+    <a href="${escapeHtml(rsvp.yesUrl)}" style="display: inline-block; background: #2f5d3a; color: #f5efe0; text-decoration: none; padding: 0.55rem 1.1rem; border-radius: 0.25rem; margin-right: 0.5rem;">I&#39;m in</a>
+    <a href="${escapeHtml(rsvp.noUrl)}" style="display: inline-block; background: #fffaf0; color: #6a6049; text-decoration: none; padding: 0.55rem 1.1rem; border: 1px solid #d9cdb4; border-radius: 0.25rem;">Can&#39;t make it</a>
+  </p>`;
+}
+
 export function proposalCreatedEmail(args: {
   campaignName: string;
   dmName: string;
   proposalTitle: string;
   proposedDate: string;
   proposedTime: string | null;
+  /** Omitted when no token could be issued — the email still ships, minus the buttons. */
+  rsvp?: RsvpLinks | null;
 }): EmailContent {
   const { campaignName, dmName, proposalTitle, proposedDate, proposedTime } = args;
+  const rsvp = args.rsvp ?? null;
   const when = formatProposalDate(proposedDate, proposedTime);
+  const ask = rsvp
+    ? "Answer straight from this email — or accept the invitation attached, and your calendar app will tell us for you."
+    : "Let your DM know whether you can make it.";
   return {
     subject: `New session date proposed — ${campaignName}`,
     html: layout(
@@ -105,12 +130,15 @@ export function proposalCreatedEmail(args: {
     <strong>${escapeHtml(proposalTitle)}</strong>:
   </p>
   <p style="font-size: 1.1rem; line-height: 1.6; margin: 0.75rem 0;">📅 <strong>${escapeHtml(when)}</strong></p>
-  <p style="font-size: 1rem; line-height: 1.6;">Let your DM know whether you can make it.</p>`,
-      "Respond with your availability",
+  <p style="font-size: 1rem; line-height: 1.6;">${ask}</p>${rsvp ? rsvpButtons(rsvp) : ""}`,
+      rsvp ? "Open Grimoire" : "Respond with your availability",
       "/play/settings",
     ),
     text:
       `${dmName} proposed a date for ${proposalTitle}: ${when}.\n\n` +
-      `Respond with your availability: ${APP_ORIGIN}/play/settings\n\n${OPT_OUT_TEXT}`,
+      (rsvp
+        ? `I'm in: ${rsvp.yesUrl}\nCan't make it: ${rsvp.noUrl}\n\n`
+        : "") +
+      `Or answer in Grimoire: ${APP_ORIGIN}/play/settings\n\n${OPT_OUT_TEXT}`,
   };
 }

@@ -48,8 +48,58 @@ the accepted cost — do not "fix" this by adding a trigger.
 6. Sends one email per recipient via Resend's REST API. Titles and names are
    HTML-escaped in `emails.ts` (pure module, vitest-covered).
 
+A proposal email is **composed per recipient**, not once for the party, because
+each carries that player's own RSVP token — see below. The note email is still
+one message repeated.
+
 Emails contain the note/session **title only**, never note content — no
 TipTap-JSON rendering server-side, and nothing sensitive in inboxes.
+
+## Answering a session proposal from the email itself
+
+The proposal email is the only place most of the party will see a suggested
+date in time to act on it: they open Grimoire on session day, and by then the
+DM has already had to pick. So the email carries two ways to answer, and both
+land in `session_availability` exactly as the in-app toggle does.
+
+**The token.** `issue_session_rsvp_invites(proposal_id, user_ids)` mints one
+row in `session_proposal_invites` per recipient — a uuid capability, the same
+shape as `campaigns.ical_token`. The table has RLS on and **no policies at
+all**: nothing in the browser may read it, DMs included, because holding the
+token is holding the right to answer in that player's name. Tokens are minted
+after the opt-out filter, so nothing is issued for someone who will not be
+mailed, and a failure to mint is non-fatal — the email still goes, minus the
+buttons.
+
+**Route 1 — two links** (`session-rsvp`, `verify_jwt = false`). "I'm in" and
+"Can't make it", each `?token=…&answer=…`. GET renders a confirmation form and
+only POST records, for the reason `waitlist-unsubscribe` spells out: mail
+gateways prefetch every URL in a message, and unlike an unsubscribe a spurious
+answer is *wrong* half the time — a phantom "I'm in" is how a DM books an
+evening nobody attends.
+
+**Route 2 — the invitation** (`session-rsvp-inbound`, `verify_jwt = false`).
+The message also carries a `METHOD:REQUEST` iCalendar part built by
+`_shared/ics.ts`, which is what makes Gmail, Apple Mail and Outlook draw
+Accept / Maybe / Decline on the message. Its `ORGANIZER` is
+`rsvp+<token>@<RSVP_INBOUND_DOMAIN>`, and every mail client copies `ORGANIZER`
+verbatim into the `METHOD:REPLY` it sends back — so the reply identifies itself
+by capability, never by a `From` header (forgeable, and rewritten by corporate
+relays anyway). An inbound-email provider posts that reply to
+`session-rsvp-inbound`, authenticated by `INBOUND_EMAIL_SECRET`.
+
+**"Maybe" records nothing, on purpose.** Grimoire's availability is a boolean;
+writing a tentative as a yes would tell the DM the player is coming, which is a
+wrong answer given in that player's name. `availabilityFromPartstat` returns
+null for `TENTATIVE`, `DELEGATED` and `NEEDS-ACTION`, and the endpoint answers
+200 with a reason so the provider stops redelivering.
+
+**Two secrets, and the graceful degradation between them.** Without
+`RSVP_INBOUND_DOMAIN` the invitation is omitted entirely rather than sent with
+an organizer address nobody reads — an invitation whose Accept goes nowhere is
+worse than none, because the player believes they have answered. Without
+`INBOUND_EMAIL_SECRET` the inbound function refuses everything with 503 rather
+than accepting unauthenticated mail. The one-click links work either way.
 
 Note emails **deep-link the exact note**:
 `/play/journal?tab=dm-notes&note=<id>`. `PlayerJournalView.vue` watches the
@@ -66,7 +116,20 @@ false }` — the poll-meshy-jobs precedent). To activate:
 ```
 supabase secrets set RESEND_API_KEY=re_...
 supabase secrets set NOTIFY_FROM_EMAIL="Grimoire <notifications@dungeongrimoire.com>"  # optional, this is the default
+
+# Optional — turns on the mail-app Accept/Decline route. Both or neither:
+# the domain puts the token in the invitation's ORGANIZER address, the secret
+# authenticates the provider webhook that brings the reply back.
+supabase secrets set RSVP_INBOUND_DOMAIN=dungeongrimoire.com
+supabase secrets set INBOUND_EMAIL_SECRET="$(openssl rand -hex 32)"
 ```
+
+Then point an inbound route for `rsvp+*@<RSVP_INBOUND_DOMAIN>` at
+`<project>/functions/v1/session-rsvp-inbound`, passing the secret as the
+`X-Grimoire-Inbound-Secret` header or a `?secret=` query parameter — whichever
+the provider can set. `session-rsvp-inbound/extract.ts` reads the webhook
+shapes of the common providers (an explicit `ics` field, base64 attachments,
+raw MIME) rather than binding to one.
 
 The sending domain (`dungeongrimoire.com`) must be verified in the Resend
 dashboard (DKIM + SPF DNS records) before Resend will accept the `from`.

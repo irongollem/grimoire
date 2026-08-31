@@ -151,13 +151,24 @@ All edge functions with `verify_jwt = false` and their real auth:
 | Stripe | `stripe-webhook` | `Stripe-Signature` vs `STRIPE_WEBHOOK_SECRET` |
 | pg_cron via pg_net (self) | `poll-meshy-jobs` | Bearer token vs `SIMULACRUM_POLLER_TOKEN` (Vault) |
 | Calendar apps | `ical-feed` | Per-campaign random `ical_token` in the URL |
+| A player answering from their email | `session-rsvp` | Per-invitation random token in the URL (`session_proposal_invites`); GET only renders a form, POST acts |
+| An inbound-email provider relaying an iTIP reply | `session-rsvp-inbound` | Shared secret vs `INBOUND_EMAIL_SECRET`; refuses everything with 503 until it is set |
 | MCP clients (claude.ai etc.) | `mcp` | Supabase OAuth 2.1 JWT (dynamic client registration on; consent at `/oauth/consent`), RLS-scoped |
 | Browser, may be anonymous | `create-bug-report` | Validated in code |
 | Browser, authenticated | `stripe-create-*` | JWT verified manually (so typed JSON errors can be returned) |
 
-No inbound webhooks exist from Meshy, Resend, Freesound, Open5e, Spotify or
-GitHub — those are all outbound-only or polled. If a request claims to be
-from one of them, it isn't.
+No inbound webhooks exist from Meshy, Freesound, Open5e, Spotify or GitHub —
+those are all outbound-only or polled. If a request claims to be from one of
+them, it isn't.
+
+**Resend is the one exception, and only if inbound mail is configured.** When
+`INBOUND_EMAIL_SECRET` and `RSVP_INBOUND_DOMAIN` are set, a mail provider
+delivers replies to `rsvp+<token>@<domain>` to `session-rsvp-inbound` — that is
+how pressing Accept in a mail app becomes availability in Grimoire. Nothing
+requires it to be Resend: the function reads several providers' webhook shapes
+and authenticates on its own shared secret, not on anything Resend-specific.
+Unset, the mailer omits the invitation entirely rather than sending one whose
+replies reach nobody, and the one-click links carry the feature alone.
 
 ## Monitoring — errors only, and that boundary is deliberate (#644)
 
@@ -184,12 +195,15 @@ Where it is wired:
 - **Frontend** — `src/lib/observability/sentry.ts`, called from `main.ts`
   before any plugin. Installs Vue's `errorHandler` plus the global handlers,
   and adds `router.onError` (router failures bypass `errorHandler`).
-- **Edge functions** — `_shared/observability/sentryEdge.ts`, called from the
-  `catch` in `withCors`. That is the single seam covering 41 of the 45
-  functions; the four that do not use `withCors` (`ical-feed`, `mcp`,
-  `sync-srd-rules`, `waitlist-unsubscribe`) are not reported. It is a
+- **Edge functions** — `_shared/observability/sentryEdge.ts`, reached two ways:
+  the `catch` in `withCors`, which covers the 40 functions that use it, and
+  `withErrorReporting` in `_shared/observability/report.ts` for the six that do
+  not (`ical-feed`, `mcp`, `session-rsvp`, `session-rsvp-inbound`,
+  `sync-srd-rules`, `waitlist-unsubscribe`) — all 46 are reported. An earlier
+  revision of this line said the non-`withCors` ones were not, which stopped
+  being true when `withErrorReporting` was introduced for exactly them. It is a
   hand-rolled envelope POST rather than `@sentry/deno` — see the file header
-  for why an npm dependency in all 45 bundles is the wrong trade against a
+  for why an npm dependency in all 46 bundles is the wrong trade against a
   deploy path that resolves dependencies over the network.
 - **Scrubbing** — `_shared/observability/scrub.ts`, shared verbatim by both
   through the `@edge-shared` alias. Read it before changing what is reported:

@@ -17,12 +17,26 @@
  * no-ops with { configured: false } — safe to deploy before the account
  * exists (the poll-meshy-jobs 503 precedent). Optional NOTIFY_FROM_EMAIL
  * overrides the sender ("Name <addr>" form).
+ *
+ * A proposal email is composed PER RECIPIENT rather than once for the party,
+ * because each carries that player's own RSVP token: two one-click links, and
+ * — when RSVP_INBOUND_DOMAIN is configured — a METHOD:REQUEST invitation their
+ * mail app turns into Accept / Decline. See session-rsvp, session-rsvp-inbound
+ * and _shared/ics.ts. Without that domain the invitation is deliberately
+ * omitted: an invitation whose replies reach nobody is worse than none, because
+ * the player believes they have answered.
  */
 import { serve } from "std/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 import { withCors } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
-import { noteSharedEmail, proposalCreatedEmail, type EmailContent } from "./emails.ts";
+import { buildSessionInvite, type IcsSessionEvent } from "../_shared/ics.ts";
+import {
+  noteSharedEmail,
+  proposalCreatedEmail,
+  type EmailContent,
+  type RsvpLinks,
+} from "./emails.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -36,6 +50,26 @@ interface MemberRow {
   party_member_id: string | null;
   display_name: string | null;
   role: "dm" | "player";
+}
+
+/** A resolved addressee: the user id is kept so per-player content can key on it. */
+interface Recipient {
+  userId: string;
+  email: string;
+  displayName: string | null;
+}
+
+interface Attachment {
+  filename: string;
+  content: string;
+  content_type: string;
+}
+
+interface OutgoingMail {
+  to: string;
+  content: EmailContent;
+  attachments?: Attachment[];
+  replyTo?: string;
 }
 
 async function fetchMembers(campaignId: string): Promise<MemberRow[]> {
@@ -72,7 +106,7 @@ async function filterByPreference(
   return userIds.filter((id) => !optedOut.has(id));
 }
 
-async function resolveEmails(userIds: string[]): Promise<string[]> {
+async function resolveRecipients(userIds: string[], members: MemberRow[]): Promise<Recipient[]> {
   const results = await Promise.all(
     userIds.map(async (id) => {
       const { data, error } = await admin.auth.admin.getUserById(id);
@@ -80,15 +114,21 @@ async function resolveEmails(userIds: string[]): Promise<string[]> {
         console.error(`send-notification-email: getUserById(${id}) failed`, error);
         return null;
       }
-      return data.user?.email ?? null;
+      const email = data.user?.email;
+      if (!email) return null;
+      return {
+        userId: id,
+        email,
+        displayName: members.find((m) => m.user_id === id)?.display_name ?? null,
+      };
     }),
   );
-  return results.filter((e): e is string => !!e);
+  return results.filter((r): r is Recipient => r !== null);
 }
 
-async function sendAll(recipients: string[], email: EmailContent, apiKey: string): Promise<number> {
+async function sendAll(mails: OutgoingMail[], apiKey: string): Promise<number> {
   let sent = 0;
-  for (const to of recipients) {
+  for (const mail of mails) {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -97,16 +137,26 @@ async function sendAll(recipients: string[], email: EmailContent, apiKey: string
       },
       body: JSON.stringify({
         from: Deno.env.get("NOTIFY_FROM_EMAIL") || DEFAULT_FROM,
-        to: [to],
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
+        to: [mail.to],
+        subject: mail.content.subject,
+        html: mail.content.html,
+        text: mail.content.text,
+        ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
+        ...(mail.attachments?.length ? { attachments: mail.attachments } : {}),
       }),
     });
     if (res.ok) sent++;
     else console.error(`send-notification-email: Resend ${res.status} for one recipient:`, await res.text());
   }
   return sent;
+}
+
+/** UTF-8 → base64, which is how Resend takes an attachment body. */
+function toBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
 }
 
 function json(body: Record<string, unknown>, status = 200): Response {
@@ -147,7 +197,16 @@ serve(withCors(async (req: Request) => {
   let members: MemberRow[];
   let recipientIds: string[];
   let prefColumn: "email_shared_notes" | "email_session_proposals";
-  let buildEmail: (campaign: string, dmName: string) => EmailContent;
+  // Per recipient rather than per campaign: a proposal email carries that one
+  // player's RSVP token, so no two are the same message.
+  let buildMail: (
+    campaign: string,
+    dmName: string,
+    recipient: Recipient,
+  ) => OutgoingMail;
+  // Runs once the opt-outs are known, so nothing is minted for someone who
+  // will never be mailed. Only the proposal branch has anything to prepare.
+  let prepare: (optedIn: string[]) => Promise<void> = async () => {};
 
   if (body.type === "note_shared") {
     if (!body.note_id || !Array.isArray(body.added_party_member_ids)) {
@@ -181,13 +240,15 @@ serve(withCors(async (req: Request) => {
     prefColumn = "email_shared_notes";
     const noteTitle = (note.title as string) || "Untitled Note";
     const noteId = note.id as string;
-    buildEmail = (campaign, dmName) =>
-      noteSharedEmail({ campaignName: campaign, dmName, noteTitle, noteId });
+    buildMail = (campaign, dmName, recipient) => ({
+      to: recipient.email,
+      content: noteSharedEmail({ campaignName: campaign, dmName, noteTitle, noteId }),
+    });
   } else if (body.type === "proposal_created") {
     if (!body.proposal_id) return json({ error: "proposal_created needs { proposal_id }" }, 400);
     const { data: proposal, error } = await admin
       .from("session_proposals")
-      .select("id, campaign_id, title, proposed_date, proposed_time, status")
+      .select("id, campaign_id, title, notes, proposed_date, proposed_time, duration_minutes, status")
       .eq("id", body.proposal_id)
       .maybeSingle();
     if (error) throw error;
@@ -204,14 +265,75 @@ serve(withCors(async (req: Request) => {
       .filter((m) => m.role === "player" && m.user_id !== user.id)
       .map((m) => m.user_id);
     prefColumn = "email_session_proposals";
-    buildEmail = (campaign, dmName) =>
-      proposalCreatedEmail({
-        campaignName: campaign,
-        dmName,
-        proposalTitle: (proposal.title as string) || "Session",
-        proposedDate: proposal.proposed_date as string,
-        proposedTime: proposal.proposed_time as string | null,
-      });
+
+    const proposalId = proposal.id as string;
+    const proposalTitle = (proposal.title as string) || "Session";
+    const proposedDate = proposal.proposed_date as string;
+    const proposedTime = proposal.proposed_time as string | null;
+
+    // Minted before the send loop, so a failure here degrades the whole
+    // mailing to link-free rather than half the party getting buttons.
+    const tokens = new Map<string, IssuedInvite>();
+    prepare = async (optedIn) => { await issueRsvpTokens(proposalId, optedIn, tokens); };
+
+    const inboundDomain = (Deno.env.get("RSVP_INBOUND_DOMAIN") ?? "").trim().toLowerCase();
+    const rsvpEndpoint = `${Deno.env.get("SUPABASE_URL")}/functions/v1/session-rsvp`;
+    const event: IcsSessionEvent = {
+      id: proposalId,
+      title: proposalTitle,
+      notes: (proposal.notes as string | null) ?? null,
+      date: proposedDate,
+      time: proposedTime,
+      durationMinutes: (proposal.duration_minutes as number | null) ?? null,
+      status: "proposed",
+    };
+
+    buildMail = (campaign, dmName, recipient) => {
+      const issued = tokens.get(recipient.userId);
+      const rsvp: RsvpLinks | null = issued
+        ? {
+            yesUrl: `${rsvpEndpoint}?token=${issued.token}&answer=yes`,
+            noUrl: `${rsvpEndpoint}?token=${issued.token}&answer=no`,
+          }
+        : null;
+      const organizerEmail = issued && inboundDomain ? `rsvp+${issued.token}@${inboundDomain}` : null;
+      return {
+        to: recipient.email,
+        content: proposalCreatedEmail({
+          campaignName: campaign,
+          dmName,
+          proposalTitle,
+          proposedDate,
+          proposedTime,
+          rsvp,
+        }),
+        // Reply-To as well as ORGANIZER: a few clients reply to the header
+        // rather than the calendar property, and both must reach the same
+        // mailbox for the answer to be recorded.
+        ...(organizerEmail ? { replyTo: organizerEmail } : {}),
+        ...(organizerEmail
+          ? {
+              attachments: [{
+                filename: "session.ics",
+                content: toBase64(buildSessionInvite({
+                  campaignName: campaign,
+                  event,
+                  now: new Date(),
+                  organizerEmail,
+                  organizerName: dmName,
+                  attendeeEmail: recipient.email,
+                  attendeeName: recipient.displayName,
+                  sequence: issued!.sequence,
+                  respondUrl: rsvp?.yesUrl ?? null,
+                })),
+                // The `method=REQUEST` parameter is what makes a mail client
+                // render Accept / Decline instead of a file to download.
+                content_type: "text/calendar; method=REQUEST; charset=utf-8",
+              }],
+            }
+          : {}),
+      };
+    };
   } else {
     return json({ error: "Unknown type" }, 400);
   }
@@ -227,9 +349,41 @@ serve(withCors(async (req: Request) => {
     return json({ error: "Rate limit exceeded" }, 429);
   }
 
+  await prepare(optedIn);
+
   const dmName = members.find((m) => m.user_id === user.id)?.display_name || "Your DM";
-  const email = buildEmail(await campaignName(campaignId), dmName);
-  const emails = await resolveEmails(optedIn);
-  const sent = await sendAll(emails, email, apiKey);
+  const campaign = await campaignName(campaignId);
+  const recipients = await resolveRecipients(optedIn, members);
+  const sent = await sendAll(recipients.map((r) => buildMail(campaign, dmName, r)), apiKey);
   return json({ sent });
 }));
+
+interface IssuedInvite {
+  token: string;
+  sequence: number;
+}
+
+/**
+ * Mints one RSVP token per recipient. Membership is re-derived inside the RPC,
+ * so the ids handed over are a hint, not a grant. A failure is non-fatal by
+ * design: the mailing still goes out, just without the one-click links and the
+ * invitation — the player answers in Grimoire as they always could.
+ */
+async function issueRsvpTokens(
+  proposalId: string,
+  recipientIds: string[],
+  into: Map<string, IssuedInvite>,
+): Promise<void> {
+  if (!recipientIds.length) return;
+  const { data, error } = await admin.rpc("issue_session_rsvp_invites", {
+    p_proposal_id: proposalId,
+    p_user_ids: recipientIds,
+  });
+  if (error) {
+    console.error("send-notification-email: issue_session_rsvp_invites failed", error);
+    return;
+  }
+  for (const row of (data ?? []) as { user_id: string; token: string; sequence: number }[]) {
+    into.set(row.user_id, { token: row.token, sequence: row.sequence });
+  }
+}
