@@ -14,8 +14,6 @@ select plan(26);
 -- ── Shape ────────────────────────────────────────────────────────────────────
 
 select has_table('public', 'session_proposal_invites', 'an invitation is a row, so it can be revoked with its proposal');
-select col_is_unique('public', 'session_proposal_invites', array['token'],
-  'a token names one invitation — two would answer for two people at once');
 select col_is_unique('public', 'session_proposal_invites', array['session_proposal_id', 'user_id'],
   'one invitation per player per date, so re-sending bumps a sequence instead of forking the token');
 select has_function('public', 'issue_session_rsvp_invites', array['uuid', 'uuid[]'], 'tokens are minted by an RPC');
@@ -135,6 +133,24 @@ select is(
 create temp table tok as
   select token from public.session_proposal_invites
   where session_proposal_id = '7a5a0000-0000-4000-8000-000000000020';
+
+-- Uniqueness of the token asserted behaviourally, following
+-- waitlist_withdrawal.test.sql: `col_is_unique` reads unique *constraints*, and
+-- this one is a standalone unique index (as `pro_waitlist.unsubscribe_token`
+-- and `campaigns.ical_token` both are), so the structural form silently checks
+-- the wrong index. What has to hold is that a token cannot name two
+-- invitations, because record_session_rsvp writes availability by token and
+-- would otherwise answer in a stranger's name alongside the person who clicked.
+-- The second row uses a different proposal so the (proposal, user) constraint
+-- cannot be the thing that fires.
+select throws_ok($$
+  insert into public.session_proposal_invites (campaign_id, session_proposal_id, user_id, token)
+  values ('7a5a0000-0000-4000-8000-000000000010',
+          '7a5a0000-0000-4000-8000-000000000021',
+          '7a5a0000-0000-4000-8000-000000000002',
+          (select token from public.session_proposal_invites
+            where session_proposal_id = '7a5a0000-0000-4000-8000-000000000020'))
+$$, '23505', null, 'a token names one invitation — two would answer for two people at once');
 
 select is(
   public.get_session_rsvp_invite((select token from tok)) ->> 'title',
