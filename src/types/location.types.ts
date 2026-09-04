@@ -174,6 +174,14 @@ export interface Location {
   related_location_ids: string[];
   source_map_id: string | null;
   /**
+   * A static reference image beneath a site's map — a scanned module page, a
+   * photo of a hand-drawn map. DM-only: `get_player_visible_locations` nulls
+   * this in the player projection (licensing posture, not a visibility
+   * toggle — see migration `20260904142401`). Distinct from `map_url`, which
+   * is the drawn map and may be shared; the two have different lifetimes.
+   */
+  underlay_url: string | null;
+  /**
    * Shipped source that seeded this row via Populate Setting — a setting key, or
    * `'planar'` for the standard planes; null when the user made it. Content we
    * ship does not count against free-tier quotas — see `check_quota` and
@@ -237,11 +245,13 @@ export const DEFAULT_GRID_OPACITY = 0.35;
 
 export type LocationInsert = Omit<
   Location,
-  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme" | "sort_order"
+  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme" | "sort_order" | "underlay_url"
 > & {
   /** Omit to take the column default of null — no audio is requested. */
   audio_theme?: string | null;
   /** Omit to take the column default of null — the DM hasn't arranged this yet. */
   sort_order?: number | null;
+  /** Omit to take the column default of null — a location is never created with an underlay already attached. */
+  underlay_url?: string | null;
 };
 export type LocationUpdate = Partial<LocationInsert>;

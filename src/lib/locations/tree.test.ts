@@ -28,6 +28,7 @@ function loc(
     tags: [],
     image_url: null,
     map_url: null,
+    underlay_url: null,
     map_pins: [],
     is_map_shared: false,
     player_visible_to: [],

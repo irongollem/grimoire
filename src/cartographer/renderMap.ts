@@ -39,6 +39,17 @@ export interface MapRenderScene {
   hoverCell: [number, number] | null;
   selectedCell: [number, number] | null;
   previewCells: Set<CellKey>;
+  /**
+   * Leave unpainted space transparent instead of filling it with the editor's
+   * dark ground (#784). The Atlas renders a site's map *over* an optional
+   * reference image — a scanned module page, a photo of a hand-drawn map — and
+   * an opaque fill would hide everything the map has not painted, which is
+   * most of the page while tracing.
+   *
+   * Defaults to false, so the Cartographer editor is unaffected: there, dark
+   * ground is the correct reading of "nothing here yet".
+   */
+  transparentBackground?: boolean;
 }
 
 // ── Geometry helpers ───────────────────────────────────────────────────────
@@ -68,8 +79,12 @@ export function renderMap(scene: MapRenderScene): void {
   const { minX, minY, maxX, maxY } = bounds;
 
   ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = "rgb(20, 18, 16)";
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  if (scene.transparentBackground === true) {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  } else {
+    ctx.fillStyle = "rgb(20, 18, 16)";
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  }
 
   const rt = (pid: string): TilePackRuntime | null =>
     runtimes.get(pid) ?? fallbackRuntime ?? null;

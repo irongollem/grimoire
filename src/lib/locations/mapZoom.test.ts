@@ -23,6 +23,7 @@ function place(over: Partial<Location> = {}): Location {
     tags: [],
     image_url: null,
     map_url: "/map.webp",
+    underlay_url: null,
     map_pins: [],
     is_map_shared: false,
     player_visible_to: [],
