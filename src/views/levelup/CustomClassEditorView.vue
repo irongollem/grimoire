@@ -188,7 +188,7 @@ import CustomClassSpellSlots from "@/components/levelup/CustomClassSpellSlots.vu
 import CustomClassStepsEditor from "@/components/levelup/CustomClassStepsEditor.vue";
 import CustomClassResources from "@/components/levelup/CustomClassResources.vue";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import type { CustomStep, CustomResource, HitDie, CasterType, PreparedAbility } from "@/levelup/customTypes";
 
 const route = useRoute();
@@ -205,7 +205,7 @@ function onCancel() {
 }
 
 const { data: existing } = useCustomClass(id);
-const { data: campaignList } = useCampaigns();
+const { data: campaignList } = useDmCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
 const { data: allFeatures } = useAllFeatures();
 

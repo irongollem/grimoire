@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { track } from "@/lib/analytics";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
-import type { Campaign, CampaignInsert, CampaignUpdate } from "@/types/campaign.types";
+import type { Campaign, CampaignInsert, CampaignRole, CampaignUpdate } from "@/types/campaign.types";
 import { useToast } from "@/composables/useToast";
 import type {
   HomebrewCounts,
@@ -26,33 +26,47 @@ const CAMPAIGN_SCOPED_TABLES = [
 
 const QUERY_KEY = "campaigns";
 
-async function fetchCampaigns(): Promise<Campaign[]> {
-  const { data, error } = await supabase
+/**
+ * The campaigns this account holds under one lens (#729).
+ *
+ * Every campaign query is role-scoped, because `campaigns_member_select` lets a
+ * *member* read the campaign row: an unscoped `select *` returns the campaigns
+ * the account DMs **and** the ones it merely plays in, with nothing to tell the
+ * two apart. The DM sidebar then auto-selected `list[0]` from that mixture, so a
+ * player who flipped to DM mode could land on the DM shell of somebody else's
+ * campaign — the same mixture also made a free account read as over its campaign
+ * quota for campaigns it had merely joined (`check_quota` counts owned rows).
+ *
+ * The lens is `campaign_members.role` — the column `private.is_campaign_dm()`
+ * reads — so this list cannot disagree with what RLS will actually permit.
+ * Exactly one `dm` row exists per campaign and it is always the owner
+ * (`create_dm_membership` on insert; `transfer_campaign_ownership` flips both
+ * sides atomically), so "campaigns I DM" and "campaigns.user_id = me" are the
+ * same set; the membership join is used because it is the one RLS keys off and
+ * it scopes the player lens with the same shape.
+ *
+ * `archived` narrows to `is_archived`; `null` means both, for the quota-facing
+ * callers that must count a campaign whether or not it is archived.
+ */
+export async function fetchCampaignsAs(
+  role: CampaignRole,
+  archived: boolean | null,
+): Promise<Campaign[]> {
+  const user = getCurrentUser();
+  if (!user) return [];
+  let query = supabase
     .from("campaigns")
-    .select("*")
-    .eq("is_archived", false)
+    .select("*, campaign_members!inner(user_id, role)")
+    .eq("campaign_members.user_id", user.id)
+    .eq("campaign_members.role", role)
     .order("updated_at", { ascending: false });
+  if (archived !== null) query = query.eq("is_archived", archived);
+  const { data, error } = await query;
   if (error) throw error;
-  return data as Campaign[];
-}
-
-async function fetchArchivedCampaigns(): Promise<Campaign[]> {
-  const { data, error } = await supabase
-    .from("campaigns")
-    .select("*")
-    .eq("is_archived", true)
-    .order("updated_at", { ascending: false });
-  if (error) throw error;
-  return data as Campaign[];
-}
-
-async function fetchAllCampaigns(): Promise<Campaign[]> {
-  const { data, error } = await supabase
-    .from("campaigns")
-    .select("*")
-    .order("updated_at", { ascending: false });
-  if (error) throw error;
-  return data as Campaign[];
+  // The embed is a filter, not a field. Strip it so no caller downstream —
+  // backup serialisation, `switchToCampaign`, a campaign update — carries a
+  // joined array that was never part of the row.
+  return (data ?? []).map(({ campaign_members: _join, ...campaign }) => campaign as Campaign);
 }
 
 async function createCampaign(campaign: CampaignInsert): Promise<Campaign> {
@@ -211,16 +225,36 @@ async function claimOrphanedData(campaignId: string): Promise<void> {
   );
 }
 
-export function useCampaigns() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchCampaigns });
+/** Active campaigns this account DMs — the list every DM surface works from. */
+export function useDmCampaigns() {
+  return useQuery({
+    queryKey: [QUERY_KEY, "as", "dm"] as const,
+    queryFn: () => fetchCampaignsAs("dm", false),
+  });
 }
 
-export function useArchivedCampaigns() {
-  return useQuery({ queryKey: [QUERY_KEY, "archived"], queryFn: fetchArchivedCampaigns });
+/** Archived campaigns this account DMs. */
+export function useDmArchivedCampaigns() {
+  return useQuery({
+    queryKey: [QUERY_KEY, "as", "dm", "archived"] as const,
+    queryFn: () => fetchCampaignsAs("dm", true),
+  });
 }
 
-export function useAllCampaigns() {
-  return useQuery({ queryKey: [QUERY_KEY, "all"], queryFn: fetchAllCampaigns });
+/** Every campaign this account DMs, archived or not — the quota-facing list. */
+export function useAllDmCampaigns() {
+  return useQuery({
+    queryKey: [QUERY_KEY, "as", "dm", "all"] as const,
+    queryFn: () => fetchCampaignsAs("dm", null),
+  });
+}
+
+/** Active campaigns this account plays in — never one it DMs. */
+export function usePlayerCampaigns() {
+  return useQuery({
+    queryKey: [QUERY_KEY, "as", "player"] as const,
+    queryFn: () => fetchCampaignsAs("player", false),
+  });
 }
 
 /** Fetch a single campaign by ID — usable by players after campaigns_member_select RLS is in place */

@@ -100,7 +100,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { usePartyLive } from "@/composables/party/useParty";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { usePlan } from "@/composables/billing/usePlan";
 import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
@@ -154,7 +154,7 @@ useAudioThemeTriggers();
 usePartyAmbience();
 
 const { isPro } = useSubscription();
-const { data: campaigns } = useCampaigns();
+const { data: campaigns } = useDmCampaigns();
 const { data: freePlan } = usePlan("free");
 
 const campaignLimit = computed(() => freePlan.value?.quotas.campaigns ?? 1);

@@ -170,7 +170,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { joinCampaignViaInvite } from "@/composables/campaign/useCampaignMembers";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import { useModeSwitch } from "@/composables/useModeSwitch";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 
@@ -180,7 +180,7 @@ const route = useRoute();
 const router = useRouter();
 const queryClient = useQueryClient();
 const { switchMode } = useModeSwitch();
-const { refetch: refetchCampaigns } = useCampaigns();
+const { refetch: refetchCampaigns } = usePlayerCampaigns();
 
 const token = route.params.token as string;
 const AUTH_TABS = [

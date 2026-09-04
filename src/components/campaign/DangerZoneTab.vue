@@ -71,7 +71,7 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
-import { useDeleteCampaign, useCampaigns, useCampaignScopedHomebrewCounts } from "@/composables/campaign/useCampaigns";
+import { useDeleteCampaign, useDmCampaigns, useCampaignScopedHomebrewCounts } from "@/composables/campaign/useCampaigns";
 import TransferOwnershipPanel from "@/components/campaign/TransferOwnershipPanel.vue";
 import ConfirmByNameInput from "@/components/common/ConfirmByNameInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -83,7 +83,7 @@ import {
 } from "@/lib/campaign/campaignHomebrewDisposition";
 
 const campaignStore = useCampaignStore();
-const { data: campaignList } = useCampaigns();
+const { data: campaignList } = useDmCampaigns();
 const { mutateAsync: deleteCampaign, isPending: isDeleting } = useDeleteCampaign();
 const router = useRouter();
 

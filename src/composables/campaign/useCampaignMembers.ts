@@ -41,20 +41,23 @@ async function removeMember(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export function useMyMemberships() {
-  return useQuery({
-    queryKey: ["my-memberships"] as const,
-    queryFn: async () => {
-      const user = getCurrentUser();
-      if (!user) return [] as Pick<CampaignMember, "campaign_id" | "role">[];
-      const { data, error } = await supabase
-        .from("campaign_members")
-        .select("campaign_id,role")
-        .eq("user_id", user.id);
-      if (error) throw error;
-      return (data ?? []) as Pick<CampaignMember, "campaign_id" | "role">[];
-    },
-  });
+export type MyMembership = Pick<CampaignMember, "campaign_id" | "role">;
+
+export const MY_MEMBERSHIPS_KEY = ["my-memberships"] as const;
+
+/** Which role this account holds in each of its campaigns. `useModeSwitch`
+ *  reads it to decide whether the campaign the target lens remembers is one
+ *  that lens actually holds; the campaign lists themselves scope server-side
+ *  (`fetchCampaignsAs`) rather than filtering against this. */
+export async function fetchMyMemberships(): Promise<MyMembership[]> {
+  const user = getCurrentUser();
+  if (!user) return [];
+  const { data, error } = await supabase
+    .from("campaign_members")
+    .select("campaign_id,role")
+    .eq("user_id", user.id);
+  if (error) throw error;
+  return (data ?? []) as MyMembership[];
 }
 
 /** `enabled` lets permanently-mounted callers defer the fetch until their panel

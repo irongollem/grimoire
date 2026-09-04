@@ -39,6 +39,12 @@ standalone-capable routes (`play-home`, character create/edit, the species and
 background pickers) carry `meta.playerStandalone` and work with no membership
 at all; everything else under `/play` redirects a role-less player to Home.
 
+Both player-shell campaign lists — Home's "Your Campaigns" and the hamburger's
+Campaigns sheet — read `usePlayerCampaigns()`, so they show only campaigns this
+account plays in. The sheet used to list every campaign RLS returned and badge
+each one DM or Player, which handed the player shell a sideways route into a
+campaign the other lens owns; see the lens section of `collaboration.md`.
+
 All nav items defined in `src/lib/playerNav.ts`:
 
 | Route             | Label     | Description                                                                     |

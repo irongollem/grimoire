@@ -213,8 +213,8 @@ import { useLazyMount } from "@/composables/useLazyMount";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useAuthStore } from "@/stores/auth";
 import {
-  useCampaigns,
-  useArchivedCampaigns,
+  useDmCampaigns,
+  useDmArchivedCampaigns,
   useClaimOrphanedData,
   useRestoreCampaign,
 } from "@/composables/campaign/useCampaigns";
@@ -234,8 +234,8 @@ const onlineCount = computed(() => {
   return new Set(others.map((u) => u.user_id)).size;
 });
 
-const { data: campaignList, isLoading: campaignsLoading } = useCampaigns();
-const { data: archivedList } = useArchivedCampaigns();
+const { data: campaignList, isLoading: campaignsLoading } = useDmCampaigns();
+const { data: archivedList } = useDmArchivedCampaigns();
 const { mutateAsync: claimOrphans, isPending: isClaiming } = useClaimOrphanedData();
 const { mutateAsync: restoreCampaign, isPending: isRestoring } = useRestoreCampaign();
 
@@ -266,14 +266,19 @@ const importMounted = useLazyMount(showImport);
 
 const { canCreate: canCreateCampaign } = useQuota("campaigns");
 
-// Auto-select first campaign on load if none is active
+// Auto-select the first campaign whenever none is active. `campaigns` is
+// DM-scoped, so `list[0]` is always a campaign this account actually DMs —
+// unscoped, it could be one the account merely plays in, which is how the DM
+// shell came up on somebody else's game. The active id is watched alongside the
+// list because App.vue's lens guard can clear it after the list has arrived; on
+// the list alone this would sit on "Select Campaign" until the next refetch.
 watch(
-  campaigns,
-  (list) => {
-    if (list.length > 0 && !campaignStore.activeCampaignId) {
+  [campaigns, () => campaignStore.activeCampaignId],
+  ([list, activeId]) => {
+    if (list.length > 0 && !activeId) {
       campaignStore.switchToCampaign(list[0]);
-    } else if (campaignStore.activeCampaignId && !campaignStore.activeCampaign) {
-      const found = list.find((c) => c.id === campaignStore.activeCampaignId);
+    } else if (activeId && !campaignStore.activeCampaign) {
+      const found = list.find((c) => c.id === activeId);
       if (found) campaignStore.switchToCampaign(found);
     }
   },

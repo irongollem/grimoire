@@ -82,6 +82,56 @@ routes additionally require a real membership; the `playerStandalone` routes
 (pool, character create/edit, pickers) exist precisely for the
 member-of-nothing player.
 
+**Which campaigns a lens may see — and the bug that came of leaving it
+implicit.** "Which of their campaigns are in view" was documented as a property
+of the mode long before anything enforced it. `campaigns_member_select` lets a
+member read the campaign row of every campaign they are in, so `select * from
+campaigns` returns the ones the account DMs *and* the ones it merely plays in,
+indistinguishable. The DM sidebar auto-selected `list[0]` from that mixture, so
+a player who flipped to DM mode could land on the DM shell of somebody else's
+game — and, once there, the id was written to the DM slot in localStorage and
+came back on every boot. RLS held: `npcs`, `quests`, `locations`, `encounters`
+and `monsters` are owner-only or player-visibility-gated, `campaigns` itself is
+owner-only for writes, and the BYOK vault refuses a blob the caller does not own
+(`callerOwnsBlob`), so the shell came up empty rather than leaking. What it cost
+was trust, plus a free account reading as over its campaign quota for campaigns
+it had only joined (`check_quota` counts owned rows).
+
+The lens is now enforced in the query, not at each call site. Every campaign
+list goes through `fetchCampaignsAs(role, archived)` in `useCampaigns.ts`, which
+inner-joins `campaign_members` on the caller's own row and filters by role:
+
+| Composable              | Lens   | Used by                                                     |
+| ----------------------- | ------ | ----------------------------------------------------------- |
+| `useDmCampaigns`        | DM     | sidebar switcher, scope fields, homebrew editors, transfer, danger zone, downgrade trigger |
+| `useDmArchivedCampaigns`| DM     | the switcher's Archived section                              |
+| `useAllDmCampaigns`     | DM     | the downgrade picker (archived included, matching the quota) |
+| `usePlayerCampaigns`    | Player | `PlayerHomeView`, the player shell's campaign sheet, post-join hydration |
+
+`campaign_members.role` is the scope because it is the column
+`private.is_campaign_dm()` reads, so the list cannot disagree with what RLS will
+permit. Exactly one `dm` row exists per campaign and it is always the owner
+(`create_dm_membership` on insert, flipped atomically by
+`transfer_campaign_ownership`), so "campaigns I DM" and `campaigns.user_id = me`
+are the same set — the membership join is used because it scopes both lenses
+with one shape.
+
+Two entry points sit outside the lists and are guarded separately.
+`switchUserMode()` takes `campaignsInTargetLens` and drops a remembered id the
+target lens does not hold, so a DM slot poisoned by an earlier build is
+discarded rather than restored; `useModeSwitch` resolves that set from
+`campaign_members` before the swap. And `App.vue` clears `activeCampaignId` when
+the membership loaded for it contradicts the mode — the boot path, for
+localStorage written before this was enforced. It acts only on a membership that
+is genuinely for the active campaign and genuinely disagrees: a null membership,
+a row for another campaign, or a mode not yet chosen all mean "don't know", and
+not knowing is never grounds to clear.
+
+Creating a campaign from the player shell is a lens change and goes through
+`switchMode("dm")` — pushing at `/dashboard` with the mode ref still on
+`"player"` only got the router guard to bounce it back to `/play/home` with a DM
+campaign active under the player lens.
+
 There are two roles:
 
 **DM (`role = 'dm'`)**

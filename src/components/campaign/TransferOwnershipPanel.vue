@@ -173,7 +173,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import {
-  useCampaigns,
+  useDmCampaigns,
   useCampaignScopedHomebrewCounts,
   useTransferCampaignOwnership,
 } from "@/composables/campaign/useCampaigns";
@@ -191,7 +191,7 @@ const auth = useAuthStore();
 const router = useRouter();
 const { switchMode } = useModeSwitch();
 
-const { data: campaignList, refetch: refetchCampaigns } = useCampaigns();
+const { data: campaignList, refetch: refetchCampaigns } = useDmCampaigns();
 const membersQuery = useCampaignMembers();
 const { mutateAsync: transferOwnership, isPending: isTransferring } =
   useTransferCampaignOwnership();

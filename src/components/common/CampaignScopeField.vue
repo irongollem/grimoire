@@ -22,13 +22,13 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 
 const campaignId = defineModel<string | null>({ required: true });
 
 const campaignStore = useCampaignStore();
 const { activeCampaign, activeCampaignId } = storeToRefs(campaignStore);
-const { data: allCampaigns } = useCampaigns();
+const { data: allCampaigns } = useDmCampaigns();
 
 const scopeCampaignName = computed(() => {
   if (!campaignId.value) return null;

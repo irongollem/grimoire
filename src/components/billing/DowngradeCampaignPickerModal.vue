@@ -72,7 +72,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { IconArchive } from '@/lib/icons'
-import { useAllCampaigns, useArchiveCampaign } from '@/composables/campaign/useCampaigns'
+import { useAllDmCampaigns, useArchiveCampaign } from '@/composables/campaign/useCampaigns'
 import { useCampaignStore } from '@/stores/campaign'
 import AppButton from '@/components/common/AppButton.vue'
 import AppModal from '@/components/common/AppModal.vue'
@@ -82,7 +82,7 @@ defineProps<{ show: boolean; campaignLimit: number }>()
 
 const router = useRouter()
 const campaignStore = useCampaignStore()
-const { data: campaignData } = useAllCampaigns()
+const { data: campaignData } = useAllDmCampaigns()
 const { mutateAsync: archiveCampaign, isPending: isArchiving } = useArchiveCampaign()
 
 const allCampaigns = computed(() => campaignData.value ?? [])

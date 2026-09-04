@@ -110,8 +110,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CharacterPoolCard from "@/components/play/CharacterPoolCard.vue";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
-import { useMyMemberships } from "@/composables/campaign/useCampaignMembers";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import type { Campaign } from "@/types/campaign.types";
@@ -121,28 +120,24 @@ const campaignStore = useCampaignStore();
 const auth = useAuthStore();
 
 const { data: characters, isPending: isPendingChars } = useCharacterPool();
-const { data: memberships } = useMyMemberships();
-const { data: allCampaigns } = useCampaigns();
+
+// Only campaigns where the caller's role is "player" — both the "Your
+// Campaigns" list and the per-card attach picker are scoped to these, never
+// to campaigns the account DMs. The role scope lives in the query now
+// (`usePlayerCampaigns`), so this view and the DM shell cannot answer
+// "whose campaign is this?" two different ways.
+const { data: playerCampaignData } = usePlayerCampaigns();
+const playerCampaigns = computed<Campaign[]>(() => playerCampaignData.value ?? []);
 
 const campaignById = computed(() => {
   const map = new Map<string, Campaign>();
-  for (const c of allCampaigns.value ?? []) map.set(c.id, c);
+  for (const c of playerCampaigns.value) map.set(c.id, c);
   return map;
 });
 
 function campaignFor(id: string | null): Campaign | null {
   return id ? (campaignById.value.get(id) ?? null) : null;
 }
-
-// Only campaigns where the caller's role is "player" — both the "Your
-// Campaigns" list and the per-card attach picker are scoped to these, never
-// to campaigns the account DMs.
-const playerCampaigns = computed<Campaign[]>(() => {
-  const playerCampaignIds = new Set(
-    (memberships.value ?? []).filter((m) => m.role === "player").map((m) => m.campaign_id),
-  );
-  return (allCampaigns.value ?? []).filter((c) => playerCampaignIds.has(c.id));
-});
 
 async function playCampaign(c: Campaign) {
   campaignStore.switchToCampaign(c);

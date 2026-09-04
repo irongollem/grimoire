@@ -50,6 +50,7 @@ import { useAuthStore } from "@/stores/auth";
 
 import { useMediaSession } from "@/composables/soundboard/useMediaSession";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
 import { createRealtimeHeal } from "@/lib/realtimeHeal";
@@ -68,6 +69,32 @@ const bundleImportOpen = ref(false);
 const bundleImportMounted = useLazyMount(bundleImportOpen);
 watch(pendingBundleFile, (f) => { if (f) bundleImportOpen.value = true; });
 const campaignStore = useCampaignStore();
+const ui = useUiStore();
+
+// A campaign the current lens does not hold must never become the active one
+// (#729). `campaigns_member_select` lets a player read the campaign row of
+// every campaign they are in, so before the campaign lists were role-scoped
+// the DM slot — and `grimoire_active_campaign` itself — could end up holding a
+// campaign this account only plays in, and the DM shell would come up on
+// somebody else's game. Fixing the lists stops that being written; this clears
+// what a previous build already wrote, on the boot after the update.
+//
+// `auth.initialize()` loads the membership for exactly the stored campaign id
+// before the app mounts, so this is a synchronous check that costs no request
+// and leaves no window in which the wrong campaign is briefly live. It acts
+// only when the loaded membership is genuinely the one for the active campaign
+// and genuinely contradicts the lens: a null membership, a row for some other
+// campaign (a `refreshMembership` still in flight) or a mode not yet chosen
+// all mean "don't know", and not knowing is never grounds to clear.
+watch(
+  [() => ui.userMode, () => auth.membership, () => campaignStore.activeCampaignId],
+  ([mode, membership, activeId]) => {
+    if (mode !== "dm" && mode !== "player") return;
+    if (!activeId || membership?.campaign_id !== activeId) return;
+    if (membership.role !== mode) campaignStore.clearActiveCampaign();
+  },
+  { immediate: true },
+);
 
 // Eagerly fetch the active campaign so it's hydrated before the app renders.
 // Without this, DefaultLayout mounts and CampaignSwitcher/nav queries fire
@@ -81,11 +108,15 @@ const campaignStore = useCampaignStore();
 // page before the login form appeared.
 const campaignIdToFetch = computed<string | null>(() => {
   if (!auth.initialized || !auth.isAuthenticated) return null;
-  return (
-    campaignStore.activeCampaignId ??
-    auth.membership?.campaign_id ??
-    null
-  );
+  if (campaignStore.activeCampaignId) return campaignStore.activeCampaignId;
+  // The fallback membership is whichever campaign was joined first, which is
+  // not necessarily one the current lens holds — hydrating it would put the DM
+  // shell on a campaign the account merely plays in, the same failure the
+  // watcher above undoes.
+  const fallback = auth.membership;
+  if (!fallback) return null;
+  if (ui.userMode && fallback.role !== ui.userMode) return null;
+  return fallback.campaign_id;
 });
 
 const { data: earlyCampaign, isError: campaignLoadError } = useCampaignById(

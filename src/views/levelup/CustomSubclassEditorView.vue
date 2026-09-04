@@ -113,7 +113,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { toPlainText } from "@/ai/utils";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { useAllSpells } from "@/composables/spells/useSpells";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import type { CustomStep, CustomResource } from "@/levelup/customTypes";
 
@@ -131,7 +131,7 @@ function onCancel() {
 }
 
 const { data: existing } = useCustomSubclass(id);
-const { data: campaignList } = useCampaigns();
+const { data: campaignList } = useDmCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
 const { data: allFeatures } = useAllFeatures();
 

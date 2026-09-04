@@ -153,11 +153,24 @@ export const useCampaignStore = defineStore("campaign", () => {
     player: "grimoire_active_campaign_player",
   };
 
+  /**
+   * `campaignsInTargetLens` is the set of campaign ids the account holds in the
+   * `to` role — the caller reads it from `campaign_members` and hands it in,
+   * because the store has no way to ask. A remembered id outside that set is
+   * dropped rather than restored: the DM slot could be holding a campaign this
+   * account only plays in, either written there by the unscoped campaign list
+   * this fix replaces, or by an earlier build. Restoring it put the DM shell on
+   * someone else's campaign, which is the bug. Omit the set to restore blindly.
+   */
   function switchUserMode(
     from: "dm" | "player" | "",
     to: "dm" | "player",
-    rememberCurrentCampaign = true,
+    options: {
+      rememberCurrentCampaign?: boolean;
+      campaignsInTargetLens?: ReadonlySet<string>;
+    } = {},
   ) {
+    const { rememberCurrentCampaign = true, campaignsInTargetLens } = options;
     if (from && activeCampaignId.value && rememberCurrentCampaign) {
       localStorage.setItem(MODE_STORAGE_KEY[from], activeCampaignId.value);
     }
@@ -166,7 +179,12 @@ export const useCampaignStore = defineStore("campaign", () => {
     }
     clearActiveCampaign();
     const remembered = localStorage.getItem(MODE_STORAGE_KEY[to]);
-    if (remembered) activeCampaignId.value = remembered;
+    if (!remembered) return;
+    if (campaignsInTargetLens && !campaignsInTargetLens.has(remembered)) {
+      localStorage.removeItem(MODE_STORAGE_KEY[to]);
+      return;
+    }
+    activeCampaignId.value = remembered;
   }
 
   // Tri-state: only an explicit `true` counts as on. `null` (never chosen)
