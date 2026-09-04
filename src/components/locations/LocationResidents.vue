@@ -111,13 +111,21 @@
         class="text-caption-sm text-muted-foreground italic"
         >{{ m.class }}</span
       >
+      <!-- A follower has nothing to clear — they're here only because the
+           party is. Only an explicit override gets the "rejoin" control. -->
+      <span
+        v-if="!hasOverrideHere(m)"
+        class="ml-1 text-caption-sm text-muted-foreground/60 italic"
+        >with the party</span
+      >
       <AppButton
+        v-else
         variant="ghost"
         tone="danger"
         size="inline-xs"
         class="ml-1"
         label="×"
-        tooltip="Remove from this location"
+        tooltip="Rejoin the party"
         @click="removeMember(m.id)"
       />
     </div>
@@ -152,7 +160,10 @@ import AppButton from '@/components/common/AppButton.vue';
 import { useParty, useUpdatePartyMember } from '@/composables/party/useParty';
 import { useNpcsByLocations } from '@/composables/npcs/useNpcs';
 import { useEncountersByLocation } from '@/composables/encounters/useEncounters';
+import { useCampaignStore } from '@/stores/campaign';
+import { effectiveLocationId } from '@/lib/partyPosition';
 import type { Location } from '@/types/location.types';
+import type { PartyMember } from '@/types/party.types';
 
 const { locationId, npcLocationIds, allLocations } = defineProps<{
   locationId: string;
@@ -174,15 +185,31 @@ const allLocationsMap = computed<Map<string, Location>>(() => {
 const npcsExpanded = ref(false);
 
 // ── Party members ─────────────────────────────────────────────────────────────
+// #786: current_location_id on a member is an override; a member with none
+// is wherever the party is. Both lists here read the derived position, not
+// the raw column — otherwise a follower would neither show as "currently
+// here" nor be excluded from "move here", inviting a redundant pin.
 const { data: allPartyMembers } = useParty();
+const campaign = useCampaignStore();
 const { mutateAsync: updatePartyMember, isPending: movingMember } = useUpdatePartyMember();
 
+function memberEffectiveLocationId(m: PartyMember): string | null {
+  return effectiveLocationId(m, campaign.activeCampaign?.current_location_id ?? null);
+}
+
+/** True only when this member is pinned here explicitly, as opposed to being
+ *  here because that's where the party is. Only the former has an override
+ *  to clear. */
+function hasOverrideHere(m: PartyMember): boolean {
+  return m.current_location_id === locationId;
+}
+
 const membersHere = computed(() =>
-  (allPartyMembers.value ?? []).filter((m) => m.current_location_id === locationId),
+  (allPartyMembers.value ?? []).filter((m) => memberEffectiveLocationId(m) === locationId),
 );
 
 const availableMembers = computed(() =>
-  (allPartyMembers.value ?? []).filter((m) => m.current_location_id !== locationId),
+  (allPartyMembers.value ?? []).filter((m) => memberEffectiveLocationId(m) !== locationId),
 );
 
 const newResidentId = ref('');

@@ -149,8 +149,9 @@
       </div>
     </section>
 
-    <!-- Currently Here — party members with current_location_id = this id.
-         Read-only; moving members happens in the editor. -->
+    <!-- Currently Here — party members whose effective position (their own
+         override, or the party's location) is this id. Read-only; moving
+         members happens in the editor. -->
     <section v-if="membersHere.length" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Currently Here
@@ -185,10 +186,12 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useEncountersByLocation } from "@/composables/encounters/useEncounters";
 import { useNpcs, useNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
+import { useCampaignStore } from "@/stores/campaign";
 import { IconChevronRight } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";
 import { buildAtlasIndex, descendantsOf } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";
+import { effectiveLocationId } from "@/lib/partyPosition";
 import { LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 
@@ -223,8 +226,14 @@ const visibleNpcs = computed(() =>
 );
 
 const { data: allPartyMembers } = useParty();
+const campaign = useCampaignStore();
+// #786: current_location_id on a member is an override; a member with none
+// is wherever the party is, so this reads the derived position, not the
+// raw column — otherwise a follower never shows up as "currently here".
 const membersHere = computed(() =>
-  (allPartyMembers.value ?? []).filter((m) => m.current_location_id === location.id),
+  (allPartyMembers.value ?? []).filter(
+    (m) => effectiveLocationId(m, campaign.activeCampaign?.current_location_id ?? null) === location.id,
+  ),
 );
 
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(location.location_type));

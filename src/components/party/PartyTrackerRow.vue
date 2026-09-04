@@ -67,13 +67,13 @@
             {{ member.player_name }}
           </p>
           <AppButton
-            v-if="member.current_location_id"
-            variant="ghost"
-            tone="primary"
+            v-if="effectiveLocationId"
+            :variant="hasLocationOverride ? 'tinted' : 'ghost'"
+            :tone="hasLocationOverride ? 'caution' : 'primary'"
             size="inline-xs"
-            :to="`/locations/${member.current_location_id}`"
+            :to="`/locations/${effectiveLocationId}`"
             :icon="IconLocation"
-            :label="locationNameMap.get(member.current_location_id) ?? '…'"
+            :label="locationLabel"
           />
           <span
             v-else
@@ -273,7 +273,9 @@ import type { PlayerJournalEntry } from "@/composables/notes/usePlayerJournal";
 import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useUiStore } from "@/stores/ui";
+import { useCampaignStore } from "@/stores/campaign";
 import { isInDisguise } from "@/lib/partyMemberDisplay";
+import { effectiveLocationId as deriveEffectiveLocationId } from "@/lib/partyPosition";
 import FocalImage from "@/components/common/FocalImage.vue";
 import CompanionCard from "./CompanionCard.vue";
 import PartyConditionsPanel from "./PartyConditionsPanel.vue";
@@ -309,7 +311,23 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const ui = useUiStore();
+const campaign = useCampaignStore();
 const { mutateAsync: updateMember } = useUpdatePartyMember();
+
+// #786: current_location_id on a member is an override — null means "with
+// the party". The effective position is derived here rather than read off
+// the raw column, so a follower shows the party's location instead of
+// "Location unknown".
+const hasLocationOverride = computed(() => member.current_location_id !== null);
+const effectiveLocationId = computed(() =>
+  deriveEffectiveLocationId(member, campaign.activeCampaign?.current_location_id ?? null),
+);
+const locationLabel = computed(() => {
+  const id = effectiveLocationId.value;
+  if (!id) return "…";
+  const name = locationNameMap.get(id) ?? "…";
+  return hasLocationOverride.value ? `${name} (away)` : name;
+});
 
 const showJournalModal = ref(false);
 const { isNew: isJournalNew } = useReadItems("player_journal");

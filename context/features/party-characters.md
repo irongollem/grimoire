@@ -82,7 +82,16 @@ When a party member with `disguise_species_id` set is in disguise, the DM sees a
 
 ### Member Locations
 
-Each member card shows their current location (linked to `/locations/:id`) or "Location unknown" if `current_location_id` is null. The `locationNameMap` is resolved from `useAllLocations`.
+Each member card shows their **effective** location, linked to `/locations/:id`.
+
+**Position is derived, not stored** ([#786](https://github.com/irongollem/grimoire/issues/786), migration `20260904133304`). `campaigns.current_location_id` is where the party is and is authoritative; `party_members.current_location_id` is an **override**, and **NULL means "with the party"** rather than "unknown". A member's position is `effectiveLocationId(member, campaignLocation)` — their override if they have one, otherwise the campaign's — exported from `src/lib/partyPosition.ts` and used by every reader.
+
+Consequences worth not undoing:
+
+- **Moving the party is one write** to the campaign, and everyone without an override comes along. Nothing propagates to member rows, so nothing can drift. The old "Sync to party" button on the dashboard's Session widget is gone: it existed only because nothing propagated, and a DM who forgot it left the whole party pinned to last session's location.
+- **An override is visually distinct at rest**, not on hover — a member who stayed behind or scouted ahead is the exception worth seeing at a glance.
+- **Clearing an override is "rejoin the party"**, not "clear location". That is what it means, and the wording matters because null is now a real state rather than missing data.
+- Backup, restore and world-bundle export carry the raw column through unchanged rather than deriving it — an override is data, and resolving it on export would lose it.
 
 ### DM Member Detail
 
@@ -123,7 +132,7 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 
 ### Location Tab
 
-- Sets `current_location_id` via entity combobox
+- Sets `current_location_id` via entity combobox — an **override**; empty means "with the party"
 
 ---
 
@@ -580,7 +589,7 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 | `portrait_focal_point`          | jsonb  | `{x,y}` 0–1 normalised                                 |
 | `carry_capacity_override`       | text   | Expression or fixed number                             |
 | `notes`                         | jsonb  | Tiptap rich text                                       |
-| `current_location_id`           | uuid   | FK → locations table                                   |
+| `current_location_id`           | uuid   | FK → locations. **Override**: NULL = with the party (#786) |
 | `disguise_species_id`           | uuid   | FK → species (shapeshifter disguise)                   |
 | `disguise_race`                 | text   | Display race string for disguise                       |
 | `disguise_subrace`              | text   | Display subrace string for disguise                    |
