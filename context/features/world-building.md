@@ -1,8 +1,8 @@
-# World-Building: Atlas, Quests, Factions & Pantheons
+# World-Building: Atlas, Factions & Pantheons
 
 ## Overview
 
-Three interconnected modules for tracking the physical and political geography of a campaign: **Atlas** manages the location hierarchy and maps, **Quest Log** tracks adventures and objectives, and **Factions** models the organisations that shape the world. All three support granular player visibility — the DM controls what each player sees in the `/play/*` portal.
+Two interconnected modules for tracking the physical and political geography of a campaign: **Atlas** manages the location hierarchy and maps, and **Factions** models the organisations that shape the world. Both support granular player visibility — the DM controls what each player sees in the `/play/*` portal. Quests used to live here too and now have their own doc: [quests.md](quests.md).
 
 ---
 
@@ -161,134 +161,14 @@ Collapse/detail open state is persisted in `useUiStore` (`atlasChildrenOpen`, `a
 
 ## Quest Log
 
-### DM View
+**Moved.** Quests are documented in [quests.md](quests.md) — the model (beats are
+events, objectives are state), the current two-generation schema, every DM and
+player surface, the runtime RPCs, and the redesign in flight under
+[#780](https://github.com/irongollem/grimoire/issues/780).
 
-Route: `/quests` (list), `/quests/new`, `/quests/:id`, `/quests/:id?edit=true`
-
-**List page** (`QuestsView.vue` + `QuestList.vue`)
-
-- Filter bar: text search (title, summary, tags), **Shared with party**, **Prep gaps**, and **Loot pending** toggles, plus a searchable NPC/location/faction facet. Filters compose with AND semantics and show result counts where the data is already available. State lives in session-scoped refs in `useUiStore`, so it survives navigation but not a reload — a DM returning weeks later must not meet a board silently emptied by a forgotten facet; **Clear** resets the entire composition. Entity matching includes primary giver/location and typed `quest_refs`, including user-owned global material, loaded once per campaign rather than once per card. Prep and loot facets consume the same batched board summaries as the cards and remain inert until that data has loaded.
-- **View toggle**: list view ↔ Kanban board (preference stored in `ui.questsIsKanban`, persists session)
-- **List view**: responsive card grid (1–4 columns), status colour bar at top of each card, summary excerpt, tags (up to 2), time-ago stamp
-- **Kanban board**: five horizontally scrollable status lanes (Undiscovered, Rumor, Active, Completed, Failed), implemented by `QuestKanbanBoard.vue`. Cards are draggable between lanes and carry compact previous/next-lane controls as the keyboard/touch alternative; either route updates `status` through `useUpdateQuest`, and moving to Completed still schedules quest-completion consequences. Empty lanes distinguish a truly empty status from quests hidden by the active filters, while empty non-terminal lanes retain a New Quest action. `QuestBoardCard.vue` is the atomic card boundary and renders title, hook, tags, explicitly labelled player-sharing overflow, last-touched time, current beat, graph progress, prep gaps, and pending loot from its optional batched `QuestBoardSummary`. The list view consumes the same filters; status remains the single canonical board grouping.
-
-**Beat graph foundation** (`quest_beats`, `quest_beat_edges`, `quest_runtime_state`, `quest_beat_transitions`; `useQuestFlow.ts`): a beat is a general narrative moment, not a renamed combat encounter. Authored content and directed routes live separately from the live cursors and append-only navigation history. Beat kinds are extensible presentation hints (initially Combat / Social / Explore / Discovery / Neutral), never attachment constraints. Cycles are valid and client traversal in `lib/quests/graph.ts` is cycle-safe. New and improvised beats default hidden; player access uses `get_player_visible_quest_beats`, which returns explicit rumor/reveal copy and exposes no DM title/content fallback. Prep readiness is deliberately not stored on a beat: later attachment work derives it from linked payload requirements.
-
-**Beat attachments** (`quest_beat_attachments`; `lib/quests/attachments.ts`): typed placements point at existing encounters, objectives, quest refs, Atlas location/room sets, NPCs, factions, individual sounds, ambient audio scenes, music playlists, notes, and Scriptorium handouts. Scenes and playlists reuse the same Soundboard records/playback engine but remain distinct preparation choices and are validated against their ambient/music subtype. The adapter contract supplies compact summary data and the route back to each full editor. Required links whose polymorphic target was deleted resolve as prep gaps instead of throwing; optional missing links remain informational. Summaries batch once per attachment type, never once per beat/card. Server validation rejects cross-quest objectives and cross-campaign material. Encounter/NPC/faction/location placements also create the normal quest-level ref, preserving existing filters and reverse lookups; changing or removing a beat placement never deletes the authoritative entity or broader quest ref.
-
-**Graph adapter** (`lib/quests/flow.ts`, `QuestFlowCanvas.vue`, `QuestGraphOutline.vue`): Build mode uses `@vue-flow/core` 1.48.2 (MIT, Vue 3.3+; no plugin packages) behind domain mapping and command types, so persistence never receives library nodes. Core provides pan/zoom, touch dragging, selection, connection ports, and fit-on-open; the custom beat node and edge styling use Grimoire tokens. Narrow screens default to the ordered outline, which exposes equivalent create/open/link/delete actions and remains the screen-reader/keyboard fallback. Canvas motion respects reduced-motion preferences. Dependency review on 2026-08-10: package last updated 2026-01-28, unpacked core size ~1.29 MB; it remains isolated to the lazy-loaded quest designer path.
-
-**Build graph state** (`QuestGraphDesigner.vue`, `lib/quests/presentation.ts`): `?mode=build` loads beats, edges, typed attachment summaries, the campaign cursor, and quest history in a bounded set of queries. One shared presentation selector derives readiness, visibility-adjacent display, visited/current emphasis, route history, and disconnected staging state for reuse by Build, board, and Run; it accepts beat-loot counts from #661 without inventing a second loot state machine. Node positions save to authoritative beat coordinates after a short debounce with optimistic query-cache rollback. Viewport is a per-browser, per-quest preference: first open fits the graph, later opens restore it, and `?focus=current` recenters when returning from Run.
-
-**Graph-first quest lifecycle** (`20260810202052`, `QuestFlowStarter.vue`): every quest now enters the story-flow model. The migration backfills a hidden overview from existing summary/description content and unconnected combat staging beats for encounter refs, while preserving objectives, triggers, rewards, refs, sharing, subquests, and all quest metadata. It never infers narrative edges. Board/list cards and direct quest URLs open Build mode; Details/Edit is the secondary surface for preserved quest-level fields, and Run is available from a prepared graph. New Quest creates a lightweight flow-enabled shell and immediately opens the designer.
-
-**Quest overview beat** (`20260810214210`, `20260810220934`, `20260810231919`, `QuestOverviewDrawer.vue`, `QuestOverviewMetadata.vue`): each quest owns exactly one `is_overview` beat, created by an `after insert on quests` trigger and pinned by a partial unique index. It is a beat-plus — it shares the beat fields, attachment adapters, and loot workflow while carrying whole-story context — so quest-wide material, objectives, and legacy rewards live on it as ordinary placements, and the quest row keeps only lifecycle metadata (status, hierarchy, sharing, tags). It is deliberately never wired into the edge graph, which is why `deriveQuestBeatPresentations` exempts it from the disconnected-staging prep gap and `search_quest_runtime_jump_targets` withholds it as a Run destination. Nothing recreates it — the trigger fires only on quest insert — so `private.protect_quest_overview_beat()` (`20260810231919`) refuses to archive, demote, or delete it for every caller including `archive_quest_beat`; a cascade from the quest or campaign still passes, because by then the parent row is already gone. Regression cover: `supabase/tests/quest_overview_beat.test.sql`.
-
-**Graph authoring** (`QuestBeatComposer.vue`, `lib/quests/mutations.ts`): Add-next, empty-canvas connection drops, and the ordered outline open a client-local composer; no row exists until a non-empty title is submitted. Beat creation followed by route creation uses visible compensating rollback if the route fails, avoiding a migration/RPC whose real UTC version would sort behind the earlier counter-named quest migrations. Branching, convergence, cycles, source/target reconnection, and DM-only route labels use existing edge constraints; self-links and exact duplicates fail predictably. Concurrent co-DM route/label/position writes are last-write-wins, while unique/FK constraints remain authoritative. Removing a beat is a history-preserving soft archive: its beat-owned routes and placements are detached, authoritative entities/chat/inventory remain, and current beats require a replacement or explicit runtime end before removal.
-
-**Run cockpit** (`QuestRunCockpit.vue`, `QuestRunContainedTool.vue`): the quest's runtime cursor supports history-based Previous, explicit branch choice, within-quest Jump/Return, and a Something else path that remains available beside authored branches. Improv atomically creates a hidden beat and visit event, with optional return point and authored edge. Runtime hardening lives in `20260810231919` rather than in the migrations it amends, so environments that already applied the quest-flow batch pick the fixes up instead of diverging from history: `search_quest_runtime_jump_targets` excludes each quest's overview beat (it sits outside the edge graph, so parking the cursor there would leave the cockpit with no outgoing branches), and `get_quest_runtime_context` returns the most recent 100 transitions rather than the whole campaign history, because the cockpit polls it every 5 seconds; the full log stays readable from `quest_beat_transitions` itself. Attachments open in a lazy contained overlay: encounters reuse the focused Encounter Runner, audio calls the Soundboard, objectives update in place, entity records provide compact context, notes and Scriptorium handouts render their authoritative bodies, and Atlas sets render the selected root/room prep. Only the selected attachment type is queried; full specialist routes remain an escape hatch carrying the exact Run return URL.
-
-**Per-quest runtime cursors** (`20260822224306`, #755): `quest_runtime_state` is keyed `(campaign_id, quest_id)` — one cursor per chain, not one per campaign. The cursor tracks *narrative position in a chain*, not where the party is standing, and a party is routinely mid-progress on several at once: a main quest suspended on "find out who the killer is" while a side chain runs end to end, or two givers whose quests converge on the same cave so both advance in the same scene. The single cursor could represent neither, and produced three bugs it closes: `previous` read `visit_stack[index-1]` and took whatever quest sat there, so stepping back inside a side quest silently returned to the main one; `end` nulled the cursor, discarding the suspended quest's position with the finished one's; and the cockpit, mounted per-quest from its route, read the campaign cursor, so opening Run on quest A while the cursor sat in quest B rendered B's beat, branches, attachments and loot under A's URL.
-
-This is a strict generalisation, not a mode. A dungeon crawl whose beats are rooms is nearly always one quest — the N=1 case, behaviourally identical to before minus the Previous bug — so there is no toggle. Consequences worth not re-litigating:
-
-- **Back is undo, truncation included.** Navigating forward from a rewound position drops the abandoned entries, so a party that played a 1→2→3→4 flow in the order 1-3-4-2 steps back 2-4-3-1, and a DM who rewinds to re-read a beat then advances loses the skipped entry from the *back path only*. That is intended: Back means "undo my last navigation", Jump means "take me there" and records why. `quest_beat_transitions` stays the authoritative log, so nothing is lost. Do **not** rebuild the back path from it — that makes the path un-rewindable.
-- **A command names exactly one chain.** `p_target_quest_id` is gone from `transition_quest_runtime`; `jump` moves the cursor within its quest, and reaching another quest is navigation to that quest's own Run URL — no runtime write, no reason prompt. `search_quest_runtime_jump_targets` is scoped to match, which is why `rankQuestJumpTargets` lost its current/side/campaign grouping.
-- **`return_stack` travelled onto the per-quest row.** Cross-quest return stopped needing a stack once each quest remembers itself; within-quest jump still needs one. There is deliberately no campaign-scoped focus pointer — the `/quests/:id?mode=run` route already *is* the focus.
-- **Ending is per chain**, with `end_campaign_quest_session` pausing every running chain at its beat rather than clearing it. `get_campaign_live_quests` returns the open set, feeding the cockpit's "Also open" rail (`QuestRunOpenChains.vue`) and, later, the dashboard (#756).
-- **Nesting stays a sort hint.** A parent's cursor never aggregates its children's progress, and sub-quests get an ordinary row like any other quest.
-
-Players are unaffected: `quest_runtime_state` has one RLS policy gated on `private.is_campaign_dm()`, and `get_player_visible_quest_beats` exposes no cursor field. The cursor was invisible to players before and remains so. Two indirect couplings predate this and are unchanged — entering a beat writes a transition that the player projection folds into `visits`, and a wired `quest_objective_effects` row can flip an objective to `is_player_visible` on arrival. Regression cover: `supabase/tests/quest_runtime_navigation.test.sql` (52 assertions, including that Back cannot leave its chain and that ending one chain preserves another's position).
-
-**Quest editor fields** (two-column layout on desktop):
-*Left column:*
-
-- **Title** (required), **Status** selector (Undiscovered / Active / On Hold / Completed / Failed, colour-coded), **Player visibility toggle**, Save/Cancel/Delete/Scriptorium buttons
-- **Summary** — plain text, short description
-- **Quest Giver** — NPC combobox
-- **Location** — Location combobox (primary location for this quest)
-- **Part of Quest** — parent quest combobox (supports sub-quest nesting)
-- **Reward Notes** — freetext (XP, reputation, favours…)
-- **Reward Currency** — five-coin grid (PP/GP/EP/SP/CP); "Drop to Chat" button sends the currency pool as a chat message; integrated with `EncounterLoot` component for full loot management (items + multiple currency pools + art objects)
-- **Tags** — `TagInput`
-- **Description** — `RichTextEditor` (full narrative/context)
-- **DM Notes** — separate `RichTextEditor` (session notes, reminders — never shown to players)
-
-*Right column:*
-
-- **Objectives panel** — inline add/remove; each objective has a checkbox (toggle `is_done`) and a visibility toggle (Eye/EyeOff, controls `is_player_visible`). Objectives can only be added after the quest is saved.
-- **Reward panel** — `EncounterLoot` component (items, currency pools, art objects, "Drop pool to chat" and "Drop item to chat" buttons)
-- **Linked Encounters** — combobox to attach encounters; each linked ref has its own `is_player_visible` toggle
-
-**Quest sheet (view mode) — read-only sections:**
-
-- Status badge (colour-coded), Edit/Delete action bar
-- Summary text
-- Meta row: quest giver (links to NPC), primary location (links to location), parent quest (links to quest), tags
-- Description (Tiptap, rendered via `RichTextViewer`)
-- DM Notes (dimmed heading, rendered via `RichTextViewer`)
-- Objectives with interactive check/uncheck and visibility toggle (no edit mode required for these)
-- Rewards — coin text + item chips (link to vault) + freetext rewards note
-- Linked Encounters (section + count)
-- Key NPCs (grid, links to NPC detail)
-- Key Locations (chip links to location detail)
-- Creatures / Monsters (chip links)
-- Sub-quests (list with status badge + link)
-- **Scriptorium export** button — creates a Scriptorium document from this quest's content
-
-**Quest nesting**: `parent_quest_id` supports one level of official nesting (sub-quests shown on parent sheet). No depth limit in the schema.
-
-**AI quest generator** (`QuestGeneratorPanel.vue`, `src/ai/useQuestGeneration.ts`, `supabase/functions/generate-quest/index.ts`):
-
-- Opened via the **Generate** button (`Wand2` icon) on the Quest Log list page
-- Always mounted in `DefaultLayout.vue` so background generation survives navigation
-- Inputs: party average level (auto-calculated from `useParty()`) + optional Quest Giver and Location comboboxes (passed to the model as constraints AND prefilled onto the created quest's `giver_npc_id`/`location_id`) + optional theme textarea
-- Campaign setting context is automatically injected (`buildCampaignContext()` client-side; the edge function builds the same block server-side)
-- Produces 3–5 quest hooks, each with: title, summary, full DM narrative description (stored as Tiptap JSON), objectives, tags — and, on the server path, `npcs`/`locations`/`factions` name arrays (see Retrieval grounding below)
-- User picks a hook → quest record + all objectives created immediately, plus `quest_refs` rows for every hook-referenced NPC/location that resolved to a real record (skipping the giver/location already stored as FK columns; `is_player_visible: false`). Factions resolve to chips only — `quest_refs.ref_type` has no `faction` member.
-- Pro feature (paywall-gated). Generation runs server-side (`generate-quest`) on platform credits or the campaign's BYOK-cloud key, mirroring `generate-encounter`'s split; only local-key mode still runs the old client-side path, ungrounded by policy (BYOK-local is a legacy tier, not a parity target — see the comment in `useQuestGeneration.ts`).
-
-**Retrieval grounding (#600).** The quest generator was the first generator after the #595 bestiary to be grounded in the DM's own content; the roll-table generator (dungeon-craft.md) was the second, consuming the same corpora through `supabase/functions/_shared/campaignEntityRetrieval.ts`; the Chronicler (campaign-notes-calendar.md) was the third, adding a fourth corpus — the DM's `notes` (`note_embeddings`, migration `20260804000001`, embed text = title, category/"Session N", tags, then content truncated at 4000 chars since a note's substance IS its content; only the DM-authored `notes` table, never the player-authored `entity_notes`/`player_journal_entries`/`npc_player_notes`, per #599's exclusion rule). All note categories are embedded, but `match_campaign_notes` takes a `p_categories` predicate and the Chronicler passes `['session']` only — spoiler containment for player-facing prose; see campaign-notes-calendar.md. The mechanism is a deliberate replay of combat-encounters.md's "Monster retrieval" section — read that for the full rationale (side tables not columns, one vendor platform-wide, `SECURITY INVOKER` + service-role-only RPCs, graceful degradation); this section is the canonical home for the campaign-entity specifics, and later grounded generators should point here rather than re-document them.
-
-- **Corpus**: three embedding side tables — `npc_embeddings`, `faction_embeddings`, `location_embeddings` (migration `20260803000004`), each `vector(1536)` + `embedding_model` + `source_hash`, HNSW cosine index, `on delete cascade`, RLS enabled with zero policies (service-role only). No `library_*` twin exists for these — they are entirely DM-authored.
-- **Embed text formats** (`supabase/functions/_shared/entityEmbedText.ts` — format changes invalidate every stored `source_hash` for that entity type and force a full re-embed): NPC = name, race/occupation/alignment, tags, then Tiptap-flattened appearance/personality/backstory each truncated at 500 chars (NPC `notes` deliberately excluded — session scratch, not identity). Faction = name, type/alignment, tags, description. Location = name, type, tags, `player_summary`, description (`notes` excluded — dead column). Shared string utilities live in `embedTextUtil.ts` and are frozen — changing them re-embeds every entity type at once.
-- **Embed-on-write**: `queueNpcEmbedding`/`queueFactionEmbedding`/`queueLocationEmbedding` fire-and-forget `embed-content` (`mode: "single"`) after every create/update in `useNpcs`/`useFactions`/`useLocations`, including the bulk populate paths that bypass the mutation hooks. Ownership is enforced server-side (`row.user_id === auth.uid()`); an unchanged source hash short-circuits with no provider call. The admin backfill (`useEmbeddingBackfill.ts`, five targets) covers pre-existing rows and vendor switches.
-- **Retrieval** (`generate-quest`): the composed prompt is embedded once (recorded delta-0 as `entity_embedding`, after the rate-limit gate — same spend-protection ordering as `generate-encounter`), then `match_campaign_npcs`/`_locations`/`_factions` return 12/10/8 candidates. Scope predicate, in the RPC `WHERE` before ranking: rows in the active campaign (any author, so co-DM content counts) plus the campaign OWNER's global (`campaign_id IS NULL`) rows — mirroring the list views' null-means-global semantics, and stable under #596's planned default flip. Unembedded rows are appended by recency (caps 8/6/4) so brand-new entities are never invisible during the embed window.
-- **Offer**: candidates enter the prompt as `npc|Name|occupation` / `location|Name|type` / `faction|Name|type` lines inside a `---BEGIN CAMPAIGN ENTITIES---` block — fixed ~30 lines regardless of corpus size, so prompt cost does not scale with DM engagement.
-- **Resolve** (`src/ai/resolveGeneratedEntities.ts` — moved out of `lib/quests/` when the roll-table generator became its second consumer): hook name arrays are matched trim/case-insensitively against the client's own entity pools. Matched names render as clickable chips (`GeneratedEntityChips` in `components/common/`, shared with the roll-table panel); unmatched names render as dashed "new" chips — surfaced, never silently dropped, per the #337/#595 resolution-guard principle.
-- **Fallback**: any retrieval failure (no vendor, provider down, RPC error, zero candidates) drops the entity block and generates exactly what the pre-#600 client path sent. Retrieval can cost grounding, never the feature.
-- **Not documented here**: the loot generator (#602, dungeon-craft.md) is a fourth consumer of this pattern but does NOT use `campaignEntityRetrieval.ts` — items span two corpora and need a rarity/attunement *constraint band* applied in the RPC `WHERE` before ranking, which the single-corpus entity RPCs have no parameter for. It has its own sibling module (`_shared/itemRetrieval.ts`); read dungeon-craft.md's "AI loot generator" section for the band rationale before adding a band to anything else.
-
-**Ref system** (`quest_refs` table): quests maintain a set of typed references (NPC / Location / Monster / Encounter), each with an `is_player_visible` flag that controls what the player portal shows. This is separate from the primary giver NPC and primary location fields.
-
-**Status lifecycle:** Undiscovered → Active → On Hold / Completed / Failed. Undiscovered quests exist in the DM's log but are excluded from the player portal query (`usePlayerVisibleQuests` filters on `player_visible_to IS NOT NULL`).
-
-**Consequences (quest triggers):** DM configures time-delayed consequences in the quest editor (right column, "Consequences" panel). Each trigger has a condition (`quest_complete` or `objective_done` + which objective), an `offset_days` delay, and an action (`create_calendar_event` with title + event_type, or `send_broadcast` with message). When the condition fires, a `quest_trigger_scheduled` entry is created with `fire_date = today + offset_days`. When the DM advances the in-game date to ≥ fire_date via the calendar "Today" button, pending triggers execute: calendar events are created at the fire date, broadcasts are sent to the campaign chat. Composable helpers: `scheduleQuestTriggers()`, `fireDueTriggers()` in `useQuests.ts`.
-
-**In-game "today" date:** Stored as `current_year`, `current_month`, `current_day` on the `campaigns` table. The DM sets it via the calendar page's "Today: [date]" button (top-right actions area). Changing the date posts a `📅 The date is now…` announcement to the campaign chat and fires any pending consequences. Players see the current date in the player portal top bar (read-only). Live-synced to all connected clients via `useCampaignLiveSync` (watches `campaigns` table for `UPDATE` events).
-
-### Player View
-
-Route: `/play/quests` (list), `/play/quests/:id` (detail)
-
-**Quest list** (`PlayerQuestsView.vue`)
-
-- Shows only quests where `player_visible_to` is non-null (the DM has explicitly shared the quest)
-- Grouped into four sections: Active, On Hold, Completed, Failed (Undiscovered never appears)
-- Each entry: title, status badge (colour-coded), summary excerpt, rewards hint (gold star icon + rewards text)
-- Clicking navigates to the detail view
-
-**Quest detail** (`PlayerQuestDetailView.vue`)
-
-- Title + colour-coded status badge
-- Meta row: quest giver name (clickable → NPC lightbox modal), primary location name
-- Summary text
-- **Objectives** — only objectives with `is_player_visible = true` are shown; checkboxes are read-only (state display only); progress counter (done/total)
-- **Rewards** — shown when quest has rewards text, items, or currency (freetext only in the current player view)
-- **Key NPCs** — only refs with `is_player_visible = true`; clicking opens an NPC lightbox modal (portrait shown if in `player_visible_fields`; name, race, occupation shown per field permissions; includes a personal notes widget)
-- **Key Locations** — only player-visible refs; display only (no click-through)
-- **Creatures** — only player-visible refs; display only
-- **Player notes widget** — personal notes for this quest
+What stays here: quests reference Atlas locations through `quests.location_id` and
+typed `quest_refs` rows, and the AI quest generator's retrieval grounding is
+described below because three other generators share it.
 
 ---
 
@@ -418,16 +298,27 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 
 ---
 
+## Retrieval Grounding for AI Generators (#600)
+
+**Retrieval grounding (#600).** The quest generator was the first generator after the #595 bestiary to be grounded in the DM's own content; the roll-table generator (dungeon-craft.md) was the second, consuming the same corpora through `supabase/functions/_shared/campaignEntityRetrieval.ts`; the Chronicler (campaign-notes-calendar.md) was the third, adding a fourth corpus — the DM's `notes` (`note_embeddings`, migration `20260804000001`, embed text = title, category/"Session N", tags, then content truncated at 4000 chars since a note's substance IS its content; only the DM-authored `notes` table, never the player-authored `entity_notes`/`player_journal_entries`/`npc_player_notes`, per #599's exclusion rule). All note categories are embedded, but `match_campaign_notes` takes a `p_categories` predicate and the Chronicler passes `['session']` only — spoiler containment for player-facing prose; see campaign-notes-calendar.md. The mechanism is a deliberate replay of combat-encounters.md's "Monster retrieval" section — read that for the full rationale (side tables not columns, one vendor platform-wide, `SECURITY INVOKER` + service-role-only RPCs, graceful degradation); this section is the canonical home for the campaign-entity specifics, and later grounded generators should point here rather than re-document them.
+
+- **Corpus**: three embedding side tables — `npc_embeddings`, `faction_embeddings`, `location_embeddings` (migration `20260803000004`), each `vector(1536)` + `embedding_model` + `source_hash`, HNSW cosine index, `on delete cascade`, RLS enabled with zero policies (service-role only). No `library_*` twin exists for these — they are entirely DM-authored.
+- **Embed text formats** (`supabase/functions/_shared/entityEmbedText.ts` — format changes invalidate every stored `source_hash` for that entity type and force a full re-embed): NPC = name, race/occupation/alignment, tags, then Tiptap-flattened appearance/personality/backstory each truncated at 500 chars (NPC `notes` deliberately excluded — session scratch, not identity). Faction = name, type/alignment, tags, description. Location = name, type, tags, `player_summary`, description (`notes` excluded — dead column). Shared string utilities live in `embedTextUtil.ts` and are frozen — changing them re-embeds every entity type at once.
+- **Embed-on-write**: `queueNpcEmbedding`/`queueFactionEmbedding`/`queueLocationEmbedding` fire-and-forget `embed-content` (`mode: "single"`) after every create/update in `useNpcs`/`useFactions`/`useLocations`, including the bulk populate paths that bypass the mutation hooks. Ownership is enforced server-side (`row.user_id === auth.uid()`); an unchanged source hash short-circuits with no provider call. The admin backfill (`useEmbeddingBackfill.ts`, five targets) covers pre-existing rows and vendor switches.
+- **Retrieval** (`generate-quest`): the composed prompt is embedded once (recorded delta-0 as `entity_embedding`, after the rate-limit gate — same spend-protection ordering as `generate-encounter`), then `match_campaign_npcs`/`_locations`/`_factions` return 12/10/8 candidates. Scope predicate, in the RPC `WHERE` before ranking: rows in the active campaign (any author, so co-DM content counts) plus the campaign OWNER's global (`campaign_id IS NULL`) rows — mirroring the list views' null-means-global semantics, and stable under #596's planned default flip. Unembedded rows are appended by recency (caps 8/6/4) so brand-new entities are never invisible during the embed window.
+- **Offer**: candidates enter the prompt as `npc|Name|occupation` / `location|Name|type` / `faction|Name|type` lines inside a `---BEGIN CAMPAIGN ENTITIES---` block — fixed ~30 lines regardless of corpus size, so prompt cost does not scale with DM engagement.
+- **Resolve** (`src/ai/resolveGeneratedEntities.ts` — moved out of `lib/quests/` when the roll-table generator became its second consumer): hook name arrays are matched trim/case-insensitively against the client's own entity pools. Matched names render as clickable chips (`GeneratedEntityChips` in `components/common/`, shared with the roll-table panel); unmatched names render as dashed "new" chips — surfaced, never silently dropped, per the #337/#595 resolution-guard principle.
+- **Fallback**: any retrieval failure (no vendor, provider down, RPC error, zero candidates) drops the entity block and generates exactly what the pre-#600 client path sent. Retrieval can cost grounding, never the feature.
+- **Not documented here**: the loot generator (#602, dungeon-craft.md) is a fourth consumer of this pattern but does NOT use `campaignEntityRetrieval.ts` — items span two corpora and need a rarity/attunement *constraint band* applied in the RPC `WHERE` before ranking, which the single-corpus entity RPCs have no parameter for. It has its own sibling module (`_shared/itemRetrieval.ts`); read dungeon-craft.md's "AI loot generator" section for the band rationale before adding a band to anything else.
+
+---
+
 ## Key Capabilities / USPs
 
 - **Unlimited location hierarchy** with breadcrumb navigation at every level; parent/child wiring can be done at creation or retroactively from any location's editor.
 - **Interactive map pinning**: DM drops pins onto uploaded map images and links each to a child location. The pin picker recurses through vague container types (regions/continents) to surface concrete towns without flattening the hierarchy.
 - **Granular per-player visibility**: all three modules use a `player_visible_to: string[]` array of party member UUIDs — the DM selects which specific players see each item (not just a global "visible" flag).
 - **Layered location sharing**: four independent toggles (summary, full description, linked NPCs, inventory/store wares) give the DM fine-grained control over what each revealed location exposes.
-- **Quest objective visibility**: each individual objective has its own `is_player_visible` toggle, so the DM can reveal objectives one at a time.
-- **Quest ref system**: a typed reference table (`quest_refs`) links quests to NPCs, locations, monsters, and encounters with individual player-visibility flags, separate from the primary giver NPC / location links.
-- **Quest Kanban board** with atomic cards, drag-and-drop status changes, persistent evidence-based filters, and a persisted List/Kanban view toggle.
-- **Sub-quests**: quests support `parent_quest_id` for nesting (displayed on parent's sheet as a sub-quest list).
 - **Faction relationship graph**: bidirectional inter-faction relations with 8 relation types (Allied → Secret Enemy), queried as outgoing + incoming so both sides see the link.
 - **Faction member roster** distinguishes NPC members (with role + lifecycle status) from PC members (party characters), and exposes them to players who belong to the faction.
 - **Setting seed data**: Atlas and Factions both ship "Populate Setting" buttons that bulk-seed campaign-appropriate locations/factions from static data keyed by `calendar_id`.
@@ -460,67 +351,6 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 | `is_inventory_shared`   | boolean          | Store/tavern/inn only                                                                                                                                                   |
 | `npc_owner_id`          | uuid FK          | Proprietor NPC                                                                                                                                                          |
 | `related_location_ids`  | uuid[]           | Non-hierarchical links to other locations (trade routes, tunnels, connected districts); shown in editor as inline chip picker and in sheet as "Related Locations" chips |
-
-### Quest (`quests` table)
-
-| Field                        | Type        | Notes                                                             |
-| ---------------------------- | ----------- | ----------------------------------------------------------------- |
-| `title`                      | string      | Required                                                          |
-| `status`                     | enum        | undiscovered, active, on_hold, completed, failed                  |
-| `summary`                    | string      | Short description                                                 |
-| `description`                | Tiptap JSON | Full narrative                                                    |
-| `notes`                      | Tiptap JSON | DM-only session notes                                             |
-| `giver_npc_id`               | uuid FK     | Primary quest giver NPC                                           |
-| `location_id`                | uuid FK     | Primary location                                                  |
-| `parent_quest_id`            | uuid FK     | For sub-quests                                                    |
-| `rewards`                    | string      | Freetext reward description                                       |
-| `reward_pp/gp/ep/sp/cp`      | integer     | Coin reward amounts                                               |
-| `reward_item_ids`            | uuid[]      | Item FK array                                                     |
-| `reward_currency_pools`      | JSONB       | Multiple named currency pools                                     |
-| `reward_art_objects`         | JSONB       | Art object rewards                                                |
-| `tags`                       | string[]    |                                                                   |
-| `player_visible_to`          | uuid[]      | Null = not yet shared; non-null = shared with those party members |
-| `started_at` / `resolved_at` | timestamp   |                                                                   |
-
-### QuestObjective (`quest_objectives` table)
-
-| Field               | Type    | Notes                                 |
-| ------------------- | ------- | ------------------------------------- |
-| `description`       | string  | Objective text                        |
-| `is_done`           | boolean | Togglable in both view and edit modes |
-| `is_player_visible` | boolean | Per-objective visibility toggle       |
-| `sort_order`        | integer | Display order                         |
-
-### QuestRef (`quest_refs` table)
-
-| Field               | Type    | Notes                             |
-| ------------------- | ------- | --------------------------------- |
-| `ref_type`          | enum    | npc, location, monster, encounter |
-| `ref_id`            | uuid    | ID of the referenced entity       |
-| `is_player_visible` | boolean | Individual ref visibility         |
-
-### QuestTrigger (`quest_triggers` table)
-
-| Field            | Type   | Notes                                                                   |
-| ---------------- | ------ | ----------------------------------------------------------------------- |
-| `quest_id`       | uuid   | Parent quest (cascade delete)                                           |
-| `objective_id`   | uuid?  | Set when `trigger_type = objective_done`                                |
-| `trigger_type`   | enum   | `quest_complete`, `objective_done`                                      |
-| `offset_days`    | int    | Days after condition fires before action executes                       |
-| `action_type`    | enum   | `create_calendar_event`, `send_broadcast`                               |
-| `action_payload` | JSONB  | `{title, event_type}` for calendar; `{message}` for broadcast           |
-
-### QuestTriggerScheduled (`quest_trigger_scheduled` table)
-
-| Field         | Type      | Notes                                           |
-| ------------- | --------- | ----------------------------------------------- |
-| `trigger_id`  | uuid      | FK → quest_triggers (cascade delete)            |
-| `quest_id`    | uuid      | Denormalised for fast lookup                    |
-| `campaign_id` | uuid      | For querying all pending triggers for a campaign|
-| `fire_year`   | int       | Computed fire date (today + offset_days)        |
-| `fire_month`  | int       |                                                 |
-| `fire_day`    | int       |                                                 |
-| `fired_at`    | timestamp | null = pending; set when fired                  |
 
 ### Faction (`factions` table)
 

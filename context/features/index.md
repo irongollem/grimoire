@@ -15,7 +15,8 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | File                                                     | What it covers                                                                                                                                   |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [campaign-notes-calendar.md](campaign-notes-calendar.md) | Dashboard, Session Notes, Player Journal, Faerûn Calendar, timeline, AI Chronicler image gen                                                     |
-| [world-building.md](world-building.md)                   | Atlas/Locations (17 types, hierarchical), Quest Log (kanban + status), Factions + relations, Pantheons & Deities                                 |
+| [world-building.md](world-building.md)                   | Atlas/Locations (17 types, hierarchical), Factions + relations, Pantheons & Deities, shared AI retrieval grounding                               |
+| [quests.md](quests.md)                                   | Quests: the beat/objective model, story-flow graph, run cockpit, runtime cursor + RPCs, player journal — and the redesign in flight (#780)      |
 | [npcs.md](npcs.md)                                       | NPC list, full detail sheet, force-directed Relationship Web, NPC Generator, player visibility                                                   |
 | [party-characters.md](party-characters.md)               | Party Tracker, full D&D 5e character sheet, Character Codex, Hall of Heroes, shapeshifter disguise                                               |
 | [combat-encounters.md](combat-encounters.md)             | Bestiary (monster builder + discovery), Encounter Builder, live Encounter Runner, player combat view                                             |
