@@ -32,7 +32,7 @@ Two panes from `lg` up, master/detail swap below it. This replaced a flat alphab
 
 It exists because the Atlas pane needed the same sections the sheet already had, and a second copy drifts within a release: the sheet's People card grid and the pane's People list were already two designs for one thing before the extraction. `LocationSheet` went 403 → 217 lines.
 
-`hasContent` is `defineExpose`d so a caller can tell "no sections rendered" from "no sub-places". The Atlas pane pairs it with its child-group count, because *Nothing inside X yet* is wrong above a tavern's stocked store — a venue has no sub-places by nature.
+`hasSubstance` is `defineExpose`d so a caller can tell "this place is genuinely empty" from "merely childless". It deliberately excludes the always-present editing panels (Rooms, Prepared Here) — those make the *body* unconditional, and folding them in would have retired that message everywhere. The Atlas pane pairs it with its child-group count, because *Nothing inside X yet* is wrong above a tavern's stocked store — a venue has no sub-places by nature.
 
 **Descending and rising between maps** (`AtlasMapZoom.vue`, `lib/locations/mapZoom.ts`). A pin's *watch* action, when this place and the child both have a non-battle map, moves between them as a continued zoom rather than a page change — the thing an atlas actually does. A matching **Up to `<parent>`** control sits on the map itself, because rising is the reverse of the gesture that got you there and belongs where that gesture happened. Both fall back to plain selection when either end has no map, and under `prefers-reduced-motion`.
 
