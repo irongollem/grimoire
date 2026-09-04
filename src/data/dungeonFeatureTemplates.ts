@@ -1,7 +1,9 @@
 import type { DungeonFeatureInsert } from "@/types/dungeonFeature.types";
 
-/** Classic dungeon feature presets inspired by DMG / SRD archetypes. */
-export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" | "image_focal_point">[] = [
+/** Classic dungeon feature presets inspired by DMG / SRD archetypes. Campaign
+ *  scope is not a property of a template — `usePopulateDungeonFeatures` seeds
+ *  them global. */
+export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" | "image_focal_point" | "campaign_id">[] = [
   // ── Secret Doors ────────────────────────────────────────────────────────────
   {
     name: "Sliding Stone Panel",

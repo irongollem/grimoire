@@ -38,6 +38,9 @@ export type DungeonFeatureTrigger = (typeof DUNGEON_FEATURE_TRIGGERS)[number];
 export interface DungeonFeature {
   id: string;
   user_id: string;
+  /** NULL = available in every campaign; set = only visible when that campaign
+   *  is active. The DM picks, per feature (#800) — existing rows stay null. */
+  campaign_id: string | null;
   name: string;
   feature_type: DungeonFeatureType;
   description: string | null;

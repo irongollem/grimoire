@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(15);
 
 -- Story #789 (epic #780). The column is the easy half. The half that breaks
 -- things silently is the disposition: NO ACTION on the FK means any delete path
@@ -135,6 +135,48 @@ select is(
   (select campaign_id from public.dungeon_maps where id = '78900000-0000-4000-8000-000000000023'),
   null::uuid,
   'the other user''s map is promoted to universal rather than stranded'
+);
+
+-- ── dungeon_features rides the same disposition (#800) ─────────────────────
+--
+-- Same mechanism, same trap: a campaign_id without a branch in
+-- delete_campaign_with_homebrew fails only months later, in front of a DM, as a
+-- constraint violation they cannot act on.
+
+reset role;
+insert into public.campaigns (id, user_id, name)
+values ('78900000-0000-4000-8000-000000000013', '78900000-0000-4000-8000-000000000001', 'Features');
+insert into public.dungeon_features (id, user_id, name, campaign_id) values
+  ('78900000-0000-4000-8000-000000000050', '78900000-0000-4000-8000-000000000001', 'Scoped collapsing floor', '78900000-0000-4000-8000-000000000013'),
+  ('78900000-0000-4000-8000-000000000051', '78900000-0000-4000-8000-000000000001', 'Universal secret door',   null);
+
+select throws_ok(
+  $$delete from public.campaigns where id = '78900000-0000-4000-8000-000000000013'$$,
+  '23503',
+  null,
+  'deleting a campaign out from under a scoped feature is refused'
+);
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"78900000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+
+select lives_ok(
+  $$select public.delete_campaign_with_homebrew('78900000-0000-4000-8000-000000000013', 'promote')$$,
+  'promoting disposes of the scoped feature and lets the campaign go'
+);
+
+reset role;
+select is(
+  (select campaign_id from public.dungeon_features where id = '78900000-0000-4000-8000-000000000050'),
+  null::uuid,
+  'a promoted feature survives the campaign and becomes universal'
+);
+
+select is(
+  (select count(*)::integer from public.dungeon_features where id = '78900000-0000-4000-8000-000000000051'),
+  1,
+  'a universal feature is untouched'
 );
 
 select * from finish();

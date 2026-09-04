@@ -252,7 +252,7 @@
                 <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Dungeon Feature</label>
                 <EntityCombobox
                   :model-value="form.dungeon_feature_id ?? ''"
-                  :options="dungeonFeatures ?? []"
+                  :options="pickableDungeonFeatures ?? []"
                   placeholder="— none —"
                   @update:model-value="form.dungeon_feature_id = $event || null"
                 />
@@ -438,7 +438,13 @@ const form = reactive({
 
 type LocationOption = Location & { depth: number };
 const { locationOptions } = useLocationTree();
-const { data: dungeonFeatures } = useDungeonFeatures();
+// Two lists, deliberately not one: `dungeonFeatures` resolves the anchor this
+// puzzle already stores, which must survive even after the DM rescopes the
+// feature to another campaign (#800) — so it stays unscoped.
+// `pickableDungeonFeatures` backs the combobox that sets a new anchor, which
+// should only ever offer this campaign's own features.
+const { data: dungeonFeatures } = useDungeonFeatures(() => ({ includeAllScopes: true }));
+const { data: pickableDungeonFeatures } = useDungeonFeatures();
 
 const anchorLocation = computed(() =>
   puzzle.value?.location_id

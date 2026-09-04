@@ -1,9 +1,10 @@
 /**
- * Seven tables hold DM-authored homebrew whose `campaign_id` FK to `campaigns`
+ * Eight tables hold DM-authored homebrew whose `campaign_id` FK to `campaigns`
  * is left as the default `NO ACTION` — deliberately, unlike every other
  * campaign-scoped table. Classes, subclasses and class features since #585;
  * monsters, traps and puzzles since #597, which gave the first two the column
- * and brought the third under the same rule; dungeon maps since #789.
+ * and brought the third under the same rule; dungeon maps since #789; dungeon
+ * features since #800.
  *
  * For these tables `campaign_id IS NULL` is *meaningful*: it means
  * "available in every campaign" (see `campaignContentGating.ts`'s
@@ -26,7 +27,8 @@ export type HomebrewKind =
   | "monsters"
   | "traps"
   | "puzzles"
-  | "maps";
+  | "maps"
+  | "dungeonFeatures";
 
 /** What happens to homebrew scoped exclusively to a campaign that's being
  *  deleted:
@@ -58,6 +60,7 @@ export const HOMEBREW_TABLES: Record<HomebrewKind, string> = {
   traps: "traps",
   puzzles: "puzzle_rooms",
   maps: "dungeon_maps",
+  dungeonFeatures: "dungeon_features",
 };
 
 export type HomebrewCounts = Record<HomebrewKind, number>;
@@ -70,6 +73,7 @@ export const EMPTY_HOMEBREW_COUNTS: HomebrewCounts = {
   traps: 0,
   puzzles: 0,
   maps: 0,
+  dungeonFeatures: 0,
 };
 
 const HOMEBREW_LABELS: Record<HomebrewKind, { singular: string; plural: string }> = {
@@ -80,6 +84,7 @@ const HOMEBREW_LABELS: Record<HomebrewKind, { singular: string; plural: string }
   traps: { singular: "trap", plural: "traps" },
   puzzles: { singular: "puzzle", plural: "puzzles" },
   maps: { singular: "map", plural: "maps" },
+  dungeonFeatures: { singular: "dungeon feature", plural: "dungeon features" },
 };
 
 const HOMEBREW_KINDS = Object.keys(HOMEBREW_TABLES) as HomebrewKind[];
