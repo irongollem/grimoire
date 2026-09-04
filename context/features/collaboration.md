@@ -311,18 +311,33 @@ The `/join/:token` route has no `requiresAuth` guard — it is accessible before
 Real-time updates are handled by two complementary systems, both implemented as singleton composables with reference counting (safe to call from multiple layouts simultaneously).
 
 **`useCampaignLiveSync`** (`src/composables/campaign/useCampaignLiveSync.ts`)
-Subscribes to Supabase `postgres_changes` for these tables (filtered by `campaign_id`):
+Subscribes to Supabase `postgres_changes`, filtered by `campaign_id`, for every table in its `SYNC_TABLES` registry — read the list there rather than restating it here; it has grown from 7 tables to 28 and a copy in this file goes stale silently.
 
-- `notes`, `quests`, `locations`, `factions`, `puzzle_rooms`, `calendar_events`, `player_journal`
+An insert or update on any of them triggers a TanStack Query cache invalidation (or an exact-row cache edit) for the matching query key. Both the DM's `DefaultLayout` and the player's `PlayerLayout` mount this composable, so both sides see updates without polling.
 
-Any insert/update/delete on these tables triggers a TanStack Query cache invalidation for the matching query key. Both the DM's `DefaultLayout` and the player's `PlayerLayout` mount this composable, so both sides see updates instantly without polling.
-
-**DELETE payloads carry only the primary key — never build on anything else.** Two Supabase constraints combine here, and both are easy to forget because a handler that violates them fails silently rather than erroring:
+**A filtered subscription never receives a DELETE at all.** Two Supabase constraints combine, and the second one used to be written down here backwards:
 
 1. RLS is enabled on every synced table, and *"when RLS is enabled and `replica identity` is set to `full` on a table, the `old` record contains only the primary key(s)"*. Raising `REPLICA IDENTITY` to `FULL` does **not** buy back the other columns — it only inflates the WAL. Migration `20260730000005` reverted all 25 tables that had tried this.
-2. *"Delete events are not filterable."* A `filter: campaign_id=eq.X` is honoured for INSERT/UPDATE but ignored for DELETE, so **every** subscriber receives **every** delete on that table, app-wide.
+2. The `filter: campaign_id=eq.X` is **not** ignored for DELETE. It is applied, to a payload that has been trimmed to the primary key — so it can never match, and the event is dropped.
 
-So a delete handler gets one id, possibly for a row in another campaign. Match on the primary key — which is inherently safe, since a foreign id simply isn't in the local cache — and if the handler needs to know anything else about the deleted row (who it belonged to, what it pointed at), it must either re-read authoritatively or invalidate broadly. `applyRealtimeRow` (`src/lib/campaignLiveSync/realtimeCache.ts`) already does this correctly: it keys on `change.old.id` and only consults `matches()` for non-deletes. Three hand-written handlers did not, and had never worked (#580).
+This section previously claimed the opposite of (2): that the filter was ignored and therefore *every* subscriber received *every* delete app-wide. Measured on the local stack, with a filtered and an unfiltered handler on the same channel, the delete arrived on exactly one of them — the unfiltered one. The consequence of the wrong version is worse than a doc error: every delete handler in `useCampaignLiveSync` was written to be careful about foreign ids, and none of them had ever run. Deleting a party-inventory item left it on screen for every other player until a page refresh, and the same was true of notes, quests, NPCs and locations.
+
+So: **do not write a DELETE handler on a campaign-filtered subscription.** It is unreachable code. Use the doorbell below. `applyRealtimeRow` (`src/lib/campaignLiveSync/realtimeCache.ts`) still keys deletes on `change.old.id` and only consults `matches()` for non-deletes, which remains the right shape for any *unfiltered* subscription — but nothing feeds it deletes today.
+
+### The `campaign_sync` doorbell
+
+Migration `20260904230420` adds one row per campaign — `campaign_id`, `changed_table`, `updated_at` — and a statement-level `AFTER DELETE` trigger on every table in `SYNC_TABLES` (plus `party_inventory`) that upserts into it. An UPDATE carries its full new record, so `campaign_id=eq.X` matches; the client reads `changed_table`, maps it through `SIGNAL_KEYS`, and invalidates that query key.
+
+It is a doorbell, not a log: one row per campaign, upserted in place, nothing to prune. And it is deliberately a signal rather than a copy of the row — the client already knows how to read its own data correctly (RLS, embeds, redacted projections), so telling it to read again is both smaller and impossible to get subtly wrong.
+
+Two things ride it beyond deletes:
+
+- **`store_items` for every event.** That table has no `campaign_id`, only `location_id`, so it could not join the campaign-filtered channel for inserts or updates either, and was absent from the registry entirely (#811). Its three triggers derive the campaign through `locations`.
+- **The player-visible item projection.** A store row and a party-inventory row each carry only an `item_id`; the name behind it comes from `get_player_visible_items`. So both map to `["items"]` as well as their own key — refresh one without the other and a newly stocked shop lists "Unknown item".
+
+`campaignSyncTables.test.ts` holds the trigger list in the migration and the two client registries to the same set of tables, so a table added to one and not the others fails the suite instead of going quietly un-synced.
+
+Ten of the triggered tables have a *nullable* `campaign_id` (general-scope rows owned by a user rather than a campaign). Deleting one of those signals nothing — there is no campaign to signal — which is why a general vault item deleted by the DM is the one case still needing a reload.
 
 **Realtime is the primary read path.** HTTP reads are deliberately confined to three cases: initial load, genuine gap recovery, and the query shapes explicitly derived for it. Anything else re-fetching over HTTP is a bug — it means a subscription that should have carried the change is either missing or not trusted, and adding a poll on top hides that rather than fixing it.
 

@@ -27,7 +27,9 @@ let clearPendingInvalidations: (() => void) | null = null;
 // One registry for every campaign-scoped table. Normal events go through typed
 // exact-row reducers; redacted projections, joins, and RLS-dependent shapes use
 // targeted invalidation in those reducers. The key is also the recovery root.
-const SYNC_TABLES = [
+// Exported for `campaignSyncTables.test.ts`, which holds this list and the
+// delete triggers in migration 20260904230420 to the same set of tables.
+export const SYNC_TABLES = [
   ["notes",                   "notes"],
   ["quests",                  "quests"],
   ["locations",               "locations"],
@@ -79,6 +81,28 @@ const SYNC_TABLES = [
   // everyone, not just refetch for whoever wrote it.
   ["item_entries",            "item-entries"],
 ] as const;
+
+/**
+ * Which query keys a `campaign_sync` doorbell refreshes, keyed by the table that
+ * rang it (migration `20260904230420`).
+ *
+ * The doorbell carries the *name* of what changed, not the row, so the response
+ * is always a refetch. That is the point: the client already knows how to read
+ * its own data correctly — RLS, embeds, redacted projections — and a signal
+ * cannot get any of that subtly wrong the way a hand-applied row can.
+ */
+export const SIGNAL_KEYS = new Map<string, readonly string[]>([
+  ...SYNC_TABLES.map(([table, key]) => [table, [key]] as [string, readonly string[]]),
+  // Not in SYNC_TABLES — it has exact-row handlers below instead of a registry
+  // entry. `items` as well: an item leaving the party's inventory leaves the
+  // player-visible projection with it.
+  ["party_inventory", ["party-inventory", "items"]],
+  // The reason the doorbell exists at all (#811). `store_items` has no
+  // campaign_id, so it is on no channel for any event; and its rows carry only
+  // an item_id, with the name behind it living in the player-visible
+  // projection — refresh both, or a shop stocked mid-session lists "Unknown item".
+  ["store_items", ["store-items", "items"]],
+]);
 
 // Deduped set of every key the sync owns, plus "campaigns" (handled specially
 // below). Reconciling these after a gap re-derives state from the DB.
@@ -176,6 +200,22 @@ export function useCampaignLiveSync() {
               });
             }
             return channel
+              // The doorbell (migration 20260904230420). Every subscription here
+              // is filtered on campaign_id, and Realtime matches that filter
+              // against the changed row — which, for a DELETE on an RLS table, is
+              // trimmed to the primary key before it is sent. No campaign_id in
+              // the payload means no match, so *no delete has ever arrived* on
+              // any of these tables; `replica identity full` cannot change it.
+              // A trigger writes the fact of the change to a row that can be
+              // filtered, and this refetches what it names.
+              .on("postgres_changes", { event: "*", schema: "public", table: "campaign_sync", filter: f }, (payload) => {
+                if (campaign.activeCampaignId !== campaignId) return;
+                // INSERT for a campaign's first-ever signal, UPDATE thereafter.
+                const changed = (payload.new as { changed_table?: string } | null)?.changed_table;
+                const keys = changed ? SIGNAL_KEYS.get(changed) : undefined;
+                if (!keys) return;
+                for (const key of keys) invalidate(key)();
+              })
               // Party-inventory events have the exact query shape, so apply every
               // normal change directly instead of making every player poll.
               .on("postgres_changes", { event: "INSERT", schema: "public", table: "party_inventory", filter: f }, (payload) => {
@@ -192,13 +232,9 @@ export function useCampaignLiveSync() {
                   return upsertPartyInventoryItem(old, updated);
                 });
               })
-              .on("postgres_changes", { event: "DELETE", schema: "public", table: "party_inventory", filter: f }, (payload) => {
-                if (campaign.activeCampaignId !== campaignId) return;
-                const deleted = payload.old as Pick<PartyInventoryItem, "id">;
-                qc.setQueryData<PartyInventoryItem[]>(["party-inventory", campaignId], (old) =>
-                  old ? old.filter((item) => item.id !== deleted.id) : old,
-                );
-              })
+              // No DELETE handler here on purpose. A filtered delete never
+              // arrives (see the doorbell above), and the doorbell names only the
+              // table, so a removed item is refetched rather than spliced out.
           // A newly-claimed/crafted item only becomes RLS-visible to a player once
           // its party_inventory row exists, but the ["items"] query is staleTime:Infinity
           // and never refetches on its own — so refresh it on any inventory INSERT,
@@ -210,8 +246,11 @@ export function useCampaignLiveSync() {
           // subscription, because a second channel per campaign buys nothing.
               .on("postgres_changes", { event: "*", schema: "public", table: "campaign_session_state", filter: f }, (payload) => {
                 if (campaign.activeCampaignId !== campaignId) return;
-                // DELETE arrives trimmed to the primary key under RLS, and only
-                // ever when a campaign is removed — treat it as "no session".
+                // DELETE cannot reach a campaign_id-filtered subscription at all
+                // (see the doorbell above), so this branch is unreachable today;
+                // it stays because the payload shape must still be handled if the
+                // row ever arrives by another route. A removed campaign takes its
+                // session with it, so the correct reading is "no session".
                 adoptCampaignSession(
                   payload.eventType === "DELETE" ? null : (payload.new as CampaignSessionState),
                 );
