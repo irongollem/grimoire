@@ -6,6 +6,7 @@ function emptyMap(): DungeonMap {
   return {
     id: "test",
     user_id: "u",
+    campaign_id: null,
     name: "Test",
     description: null,
     layers: { floor: {}, solidBlock: {}, object: {}, annotation: {} },

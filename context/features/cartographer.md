@@ -474,6 +474,23 @@ A cell whose `pack_id` is no longer available (pack deleted, never loaded) rende
 
 ---
 
+## Campaign scope (#789)
+
+`dungeon_maps` carries a nullable `campaign_id` with the dual-state semantics `monsters`, `traps` and `puzzles` already use since #597: **NULL means available in every campaign**, set means visible only when that campaign is active. The DM picks per map, via the shared `CampaignScopeField` in the inspector — the same control `TrapEditor` uses, not a second one. The list filters through `allowedCampaignScoped`, exactly as `useMonsters` and `useTraps` do.
+
+**Existing maps were not backfilled and must stay null.** Every map drawn before this existed was drawn without the choice available, so assigning one would invent an intent its author never expressed.
+
+Three things that are easy to get wrong here, all of which cost something real:
+
+- **The FK is `NO ACTION`, deliberately.** `CASCADE` destroys a map the DM spent an evening drawing as a side effect of deleting the campaign it happened to be scoped to; `SET NULL` silently promotes campaign-exclusive work to universal. So the app asks, and `NO ACTION` is what guarantees it asked — any delete path skipping `delete_campaign_with_homebrew` fails loudly instead of quietly picking one of the two wrong answers.
+- **That guarantee only holds while the counting layer knows the same table set as the function.** `campaignHomebrewDisposition.ts` must list `maps`, or a campaign whose only scoped content is maps reports "no homebrew", the picker never appears, and `DangerZoneTab` sends its default — which is `delete`. The FK cannot save that case, because the function *does* delete the rows.
+- **The query key is the table name verbatim** (`dungeon_maps`, not `dungeon-maps`). `useDeleteCampaign` invalidates generically over `Object.values(HOMEBREW_TABLES)`, so a hyphenated key invalidates a cache nothing reads and the map list goes stale after any disposition.
+
+**Transfer is a separate flow and deliberately excludes maps.** `TransferOwnershipPanel` hand-picks monsters and traps for its "what moves with the campaign" summary; its copy states that Cartographer maps stay with the outgoing DM. Adding `maps` to `HOMEBREW_TABLES` does not change that, and should not. Note the consequence tracked in #801: a scoped map whose campaign is transferred keeps pointing at a campaign its owner no longer owns.
+
+Cover: `supabase/tests/dungeon_maps_campaign_scope.test.sql`, which is also the repo's first regression test for `20260809000004`'s owner confinement.
+
+
 ## Editor UX (`src/views/cartographer/CartographerEditor.vue`)
 
 ### Layout

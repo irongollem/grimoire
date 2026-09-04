@@ -86,7 +86,7 @@ async function updateCampaign(id: string, update: CampaignUpdate): Promise<Campa
  * with `campaign_id IS NULL` (already universal, see `allowedCampaignScoped`)
  * and never another campaign's rows. Used to tell the DM what a campaign
  * delete would affect before they choose a disposition (#585, widened to
- * monsters/traps/puzzles by #597).
+ * monsters/traps/puzzles by #597, and to dungeon maps by #789).
  *
  * Driven off `HOMEBREW_TABLES` rather than a hand-written list: the count, the
  * RPC's disposition branches and the FK are three places that must agree, and
@@ -241,9 +241,10 @@ export function useCampaignById(id: () => string | null) {
   });
 }
 
-/** Homebrew (classes/subclasses/features) scoped exclusively to `id()` — the
+/** Homebrew (every `HOMEBREW_TABLES` kind) scoped exclusively to `id()` — the
  *  DangerZoneTab delete dialog uses this to decide whether the DM needs to
- *  choose a disposition before the campaign can be deleted (#585). */
+ *  choose a disposition before the campaign can be deleted (#585, widened by
+ *  #597 and #789). */
 export function useCampaignScopedHomebrewCounts(id: () => string | null) {
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, id(), "homebrew-counts"]),

@@ -181,6 +181,7 @@
         v-if="!viewMode"
         ref="inspectorPanelRef"
         :name="name"
+        :campaign-id="campaignId"
         :current-pack-id="currentPackId"
         :bundled-packs="selectablePacks"
         :loaded-pack-ids="loadedPackIds"
@@ -199,6 +200,7 @@
         :template-shapes="TEMPLATE_SHAPES"
         :cave-radius="caveRadius"
         @update:name="name = $event"
+        @update:campaign-id="campaignId = $event"
         @update:current-pack-id="currentPackId = $event"
         @update:active-object-category="activeObjectCategory = $event as ObjectCategory"
         @update:stamp-rotation="stampRotation = $event"
@@ -334,6 +336,10 @@ const deleteMutation = useDeleteDungeonMap();
 const { confirm } = useConfirm();
 
 const name = ref("Untitled Map");
+// NULL = available in every campaign; new maps default to the active
+// campaign, existing ones keep whatever scope they already have (#789) — the
+// watch below overwrites this from the loaded map's own campaign_id.
+const campaignId = ref<string | null>(activeCampaignId.value);
 const layers = ref<DungeonMapLayers>(emptyLayers());
 const currentPackId = ref(DEFAULT_PACK_ID);
 const packLoadError = ref<string | null>(null);
@@ -580,6 +586,7 @@ function cloneLayers(src: DungeonMapLayers | null | undefined): DungeonMapLayers
 watch(loadedMap, (m) => {
   if (m) {
     name.value = m.name;
+    campaignId.value = m.campaign_id;
     layers.value = cloneLayers(m.layers);
     metadata.value = JSON.parse(JSON.stringify(m.metadata ?? {})) as Record<CellKey, CellMetadata>;
     currentPackId.value = m.default_pack_id ?? DEFAULT_PACK_ID;
@@ -1199,6 +1206,7 @@ async function onSave(): Promise<void> {
       default_pack_id: currentPackId.value as string,
       tags: (loadedMap.value as DungeonMap | null)?.tags ?? [],
       notes: null as unknown,
+      campaign_id: campaignId.value,
     };
     if (isNew.value) {
       const result = await createMutation.mutateAsync(payload);

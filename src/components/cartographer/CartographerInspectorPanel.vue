@@ -11,6 +11,11 @@
       />
     </div>
 
+    <CampaignScopeField
+      :model-value="campaignId"
+      @update:model-value="$emit('update:campaignId', $event)"
+    />
+
     <div>
       <label class="block text-eyebrow text-muted-foreground mb-1">
         Tile Pack
@@ -195,6 +200,7 @@ import { ref } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 
@@ -219,6 +225,7 @@ interface EntityOption {
 
 defineProps<{
   name: string;
+  campaignId: string | null;
   currentPackId: string;
   bundledPacks: readonly BundledPack[];
   loadedPackIds: Set<string>;
@@ -240,6 +247,7 @@ defineProps<{
 
 defineEmits<{
   "update:name": [value: string];
+  "update:campaignId": [id: string | null];
   "update:currentPackId": [id: string];
   "update:activeObjectCategory": [cat: string];
   "update:stampRotation": [deg: number];
