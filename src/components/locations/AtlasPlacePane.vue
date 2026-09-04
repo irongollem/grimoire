@@ -203,7 +203,7 @@
         <LocationDetailSections ref="sectionsRef" :location="location" />
 
         <p
-          v-if="!groups.length && !sections?.hasContent"
+          v-if="!groups.length && !sections?.hasSubstance"
           class="py-6 text-center text-body text-muted-foreground italic"
         >
           Nothing inside {{ location.name }} yet.

@@ -16,6 +16,24 @@ Every tab has a **text search** field and at least one **type/filter** selector.
 
 ---
 
+## Anchoring material to a place
+
+Until [#788](https://github.com/irongollem/grimoire/issues/788) only puzzles could say where they were (`puzzle_rooms.location_id`, migration `20260720000002`). Traps, features, roll tables and loot tables carried no location at all — a trap reached play solely through `encounters.trap_ids`, which meant it needed a *fight* to exist, so a corridor could not have one.
+
+**`location_placements`** (migration `20260904054806`) fixes that, and is a **join table rather than a `location_id` column on each entry**. The reason is in the data: `encounters.trap_ids` is a `uuid[]`, so traps were already reusable across encounters, and `dungeon_features` has no `campaign_id` at all because it is a user-scoped catalogue of reusable fixtures. A column would force one placement per template and quietly turn a reusable thing single-use. Placing a catalogue entry somewhere is a many-to-many fact and needs a row.
+
+It is deliberately **not** a polymorphic `(kind, ref_id)` pair. That is the shape of `quest_beat_attachments`, whose text `ref_id` cannot carry a foreign key and therefore needs a trigger to validate what the database should have been enforcing — and which epic [#780](https://github.com/irongollem/grimoire/issues/780) is removing. Here each kind has a real column with a real FK and a real cascade, and a check constrains a row to exactly one of them (an *exclusive arc*). Adding a fifth kind later is a nullable column plus one name in the check.
+
+- `num_nonnulls(trap_id, dungeon_feature_id, roll_table_id, loot_table_id) = 1`.
+- **Per-kind partial uniques** on `(location_id, <kind>_id)`: the same entry twice in one room is a mistake every time, the same entry in two rooms is the point. A single composite unique would permit the first, because NULLs are distinct.
+- **No `campaign_id`.** `locations` already owns which campaign a place is in, and a second copy is the duplication #780 exists to remove; the insert policy joins for it. The other three policies are owner-scoped, exactly as `puzzle_rooms`' are.
+- `note` is what the entry is doing *here* — "pressure plate, triggers the portcullis at the far end". The catalogue entry says what the trap *is*.
+- Puzzles keep their existing `location_id` column and are **not** part of this table. A puzzle is an instance, not a template.
+
+Cover: `supabase/tests/location_placements.test.sql`.
+
+---
+
 ## Dungeon Features (Secret Doors, Hazards, Enigmas)
 
 ### What they are

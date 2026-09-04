@@ -13,7 +13,7 @@
     each caller, because that genuinely differs: the sheet is a page, the pane is
     one half of an explorer.
   -->
-  <div v-if="hasContent" class="flex flex-col gap-6">
+  <div class="flex flex-col gap-6">
     <section v-if="hasDescription" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Description</h2>
       <RichTextViewer :content="location.description" />
@@ -57,6 +57,15 @@
     <section v-if="isSite" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Rooms</h2>
       <SiteRoomsPanel :location-id="location.id" />
+    </section>
+
+    <!-- Prepared Here — traps, dungeon features, roll tables and loot
+         tables anchored to this room (#788). No location-type gate: a trap
+         in a tavern's back room is exactly as valid as one in a dungeon
+         corridor, unlike Store/Rooms above which apply to a subset of types. -->
+    <section class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Prepared Here</h2>
+      <LocationPlacements :location-id="location.id" />
     </section>
 
     <!-- People in the Area — NPCs whose location is this or any descendant. -->
@@ -143,6 +152,7 @@ import { computed, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import SiteRoomsPanel from "@/components/locations/SiteRoomsPanel.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
@@ -204,22 +214,34 @@ function locationNameOf(id: string): string {
 }
 
 /**
- * Whether any section rendered. Exposed so a caller can decide what to show in
- * its place — the Atlas pane pairs it with its own child-group count to know
- * that a location is genuinely empty rather than merely childless.
+ * Two different questions were being asked of one flag, and #788 made them
+ * disagree.
+ *
+ * The body used to be gated on "does any section render?". "Prepared Here"
+ * has no location-type gate — every place can hold a trap or a table, unlike
+ * Store (store types) or Rooms (site tier) — so from #788 that answer is always
+ * yes, and the gate went with it rather than being left as a condition that
+ * cannot be false. The body is always present on purpose: a DM opening a bare
+ * room has to be able to put something in it, and a panel you cannot reach
+ * until the location already has content is no use.
+ *
+ * `hasSubstance` answers the different question the Atlas pane actually asks —
+ * is there anything *here*, as opposed to an empty place with editing
+ * affordances on it? It deliberately excludes the always-available panels, so
+ * "Nothing inside X yet" keeps meaning what it meant before this section
+ * existed. Folding placements into the body gate alone would have silently
+ * retired that message for every location in the app.
  */
-const hasContent = computed(
+const hasSubstance = computed(
   () =>
     hasDescription.value ||
     relatedLocations.value.length > 0 ||
-    isStoreType.value ||
-    isSite.value ||
     (locationNpcs.value?.length ?? 0) > 0 ||
     (locationEncounters.value?.length ?? 0) > 0 ||
     membersHere.value.length > 0,
 );
 
-defineExpose({ hasContent });
+defineExpose({ hasSubstance });
 
 // An expanded roster belongs to the place it was expanded on; carrying it into
 // the next selection in the Atlas pane would be stale context, not a preference.
