@@ -14,7 +14,14 @@
     </template>
   </EmptyState>
 
-  <div v-else class="flex min-h-0 gap-4 lg:h-full">
+  <!--
+    No `gap` on this row, deliberately: the folded tree column stays mounted at
+    `max-w-0` so its width can animate, and a gap would still reserve a column's
+    worth of space beside something zero pixels wide. The 1rem either side of
+    the divider is carried by the columns themselves (`lg:pr-4` on the tree,
+    `lg:pl-4` on the pane), which collapse to nothing along with the column.
+  -->
+  <div v-else class="flex min-h-0 lg:h-full">
     <!--
       Master/detail. Side by side from lg; below that the panes swap, because a
       tree and a place sheet sharing a phone screen leaves neither usable.
@@ -26,9 +33,27 @@
       to scroll within. The tree then runs off the bottom of the page instead of
       scrolling — invisible until a branch is expanded far enough to overflow.
     -->
+    <!--
+      Folding the tree is a desktop-only affordance (the mobile tree/pane swap
+      above already gives the tree the full screen), so every collapse-related
+      class here carries an `lg:` prefix — below that breakpoint this column
+      renders exactly as it always has, driven only by `selectedId`.
+
+      It stays mounted rather than v-if'd on collapse: max-width can animate,
+      `display: none` cannot, so a JS-driven Transition (`railTransition` in
+      motion.ts) would need its own breakpoint tracking just to stay a no-op on
+      mobile — more machinery than the fix. Plain Tailwind covers it, and
+      `motion-reduce:` (not a hand-rolled matchMedia check) honours reduced
+      motion the same way `motion-safe:` already does on QuestBoardCard.
+    -->
     <div
-      class="min-h-0 min-w-0 flex-1 flex-col lg:max-w-md lg:shrink-0 lg:border-r lg:border-border lg:pr-4"
-      :class="selectedId ? 'hidden lg:flex' : 'flex'"
+      class="min-h-0 min-w-0 flex-1 flex-col lg:shrink-0 lg:overflow-hidden lg:transition-[max-width,padding-right,border-width] lg:duration-200 lg:ease-out motion-reduce:lg:transition-none"
+      :class="[
+        selectedId ? 'hidden lg:flex' : 'flex',
+        ui.locationsTreeCollapsed
+          ? 'lg:max-w-0 lg:border-r-0 lg:pr-0'
+          : 'lg:max-w-md lg:border-r lg:border-border lg:pr-4',
+      ]"
     >
       <AtlasTree
         :index="index"
@@ -41,11 +66,32 @@
         @select="select"
         @toggle="ui.toggleLocationExpanded"
         @collapse-all="ui.collapseAllLocations()"
+        @collapse-tree="ui.locationsTreeCollapsed = true"
+      />
+    </div>
+
+    <!--
+      The way back once the tree is folded — a GitHub/Atlassian-style rail
+      rather than relying on a page-level control, so it stays exactly where
+      the tree used to be. `hidden lg:flex` for the same reason as above: this
+      state has no business rendering below `lg`.
+    -->
+    <div
+      v-if="ui.locationsTreeCollapsed"
+      class="hidden min-h-0 lg:flex lg:w-8 lg:shrink-0 lg:flex-col lg:items-center lg:border-r lg:border-border lg:pt-1"
+    >
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        :icon="IconChevronRight"
+        tooltip="Expand location tree"
+        aria-label="Expand location tree"
+        @click="ui.locationsTreeCollapsed = false"
       />
     </div>
 
     <div
-      class="min-h-0 min-w-0 flex-1 flex-col"
+      class="min-h-0 min-w-0 flex-1 flex-col lg:pl-4"
       :class="selectedId ? 'flex' : 'hidden lg:flex'"
     >
       <AppButton
@@ -79,7 +125,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AtlasPlacePane from "@/components/locations/AtlasPlacePane.vue";
 import AtlasTree from "@/components/locations/AtlasTree.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
-import { IconChevronLeft, IconNavAtlas } from "@/lib/icons";
+import { IconChevronLeft, IconChevronRight, IconNavAtlas } from "@/lib/icons";
 import { ancestorIds, buildAtlasIndex } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";
 import { useCampaignStore } from "@/stores/campaign";

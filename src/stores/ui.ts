@@ -728,6 +728,15 @@ export const useUiStore = defineStore("ui", () => {
   const locationsSelectedId = ref<string | null>(null);
   const locationsPaneMode = ref<"places" | "map">("places");
 
+  // Whether the tree column is folded away, giving its width to the place
+  // pane. Desktop-only in effect (there is no tree/pane split below `lg` to
+  // fold — AtlasExplorer swaps the two panes instead), but the flag itself is
+  // stored unconditionally rather than as a derived value: it is a durable
+  // layout preference, the same idiom as `entityListLayout`/`questsIsKanban`,
+  // not a list filter, so `useLocalStorage` is the right call rather than a
+  // plain ref that resets on reload.
+  const locationsTreeCollapsed = useLocalStorage("grimoire:atlas:treeCollapsed", false);
+
   function rememberExpanded(ids: string[]) {
     locationsExpandedIds.value = ids.slice(-EXPANDED_CAP);
   }
@@ -1188,6 +1197,7 @@ export const useUiStore = defineStore("ui", () => {
     locationsExpanded,
     locationsSelectedId,
     locationsPaneMode,
+    locationsTreeCollapsed,
     toggleLocationExpanded,
     revealLocationPath,
     collapseAllLocations,

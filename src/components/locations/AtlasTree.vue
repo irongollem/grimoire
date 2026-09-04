@@ -4,13 +4,32 @@
       <p class="truncate text-caption text-muted-foreground italic">
         {{ countLabel }}
       </p>
-      <AppButton
-        v-if="!isFiltered && expanded.size > 0"
-        variant="link"
-        size="inline-xs"
-        label="Collapse all"
-        @click="$emit('collapse-all')"
-      />
+      <div class="flex items-center gap-2">
+        <AppButton
+          v-if="!isFiltered && expanded.size > 0"
+          variant="link"
+          size="inline-xs"
+          label="Collapse all"
+          @click="$emit('collapse-all')"
+        />
+        <!--
+          Folds the whole tree column away, desktop only — the tree/pane swap
+          below `lg` already gives the tree the full screen, so there is
+          nothing to fold there. Icon-only on purpose: "Collapse" is already
+          spoken for by "Collapse all" (which closes expanded branches, not
+          the sidebar itself), so this reaches for a chevron rather than a
+          second control that would read as the same word meaning two things.
+        -->
+        <AppButton
+          class="hidden lg:inline-flex"
+          variant="ghost"
+          size="icon-xs"
+          :icon="IconChevronLeft"
+          tooltip="Collapse location tree"
+          aria-label="Collapse location tree"
+          @click="$emit('collapse-tree')"
+        />
+      </div>
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto pr-1">
@@ -70,6 +89,7 @@ import { isLocationOutOfEra } from "@/lib/locations/era";
 import { visibleRows } from "@/lib/locations/tree";
 import type { AtlasIndex, AtlasRow } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
+import { IconChevronLeft } from "@/lib/icons";
 
 const { index, expanded, selectedId, matches, isFiltered, totalCount, todayYear } =
   defineProps<{
@@ -83,7 +103,12 @@ const { index, expanded, selectedId, matches, isFiltered, totalCount, todayYear 
     todayYear: number;
   }>();
 
-defineEmits<{ select: [id: string]; toggle: [id: string]; "collapse-all": [] }>();
+defineEmits<{
+  select: [id: string];
+  toggle: [id: string];
+  "collapse-all": [];
+  "collapse-tree": [];
+}>();
 
 const rows = computed(() => visibleRows(index, expanded));
 
