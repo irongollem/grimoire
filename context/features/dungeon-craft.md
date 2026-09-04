@@ -32,6 +32,17 @@ It is deliberately **not** a polymorphic `(kind, ref_id)` pair. That is the shap
 
 Cover: `supabase/tests/location_placements.test.sql`.
 
+**The reverse direction** (`EntityPlacements.vue`, `useEntityPlacements`, [#802](https://github.com/irongollem/grimoire/issues/802)). #788 built placement from the *location* only, so from a trap's own page there was no sign it was placed anywhere. A "Placed In" panel now sits on the trap and feature sheets and the roll- and loot-table detail views: every location the entity sits in, its placement note, inline remove, and a location picker so a DM authoring a trap can drop it into a room without navigating there first.
+
+Both directions invalidate each other's query key — a placement made from either side shows up on the other without a reload.
+
+**Puzzles are not part of this and must not be moved into it.** `puzzle_rooms` keeps its own `location_id` / `dungeon_feature_id` columns, surfaced as navigable links in `PuzzleDetailView` since `01f6ed72`. A puzzle is an *instance*, not a reusable template placed in several rooms, so the join table is the wrong shape for it.
+
+**What co-DMs actually get, stated plainly.** `location_placements` and `locations` are both owner-scoped on SELECT, and the insert policy requires the placed entity to be the caller's own. Follow that through and a cross-DM placement cannot exist at all: DM B cannot place DM A's trap (the entity check refuses it), and DM A cannot place their own trap into DM B's room (B's room is invisible to A's picker). So the reverse panel is not hiding real rows — there are none to hide.
+
+What it does mean is that in a co-DM campaign this whole mechanism behaves as **per-DM private prep layered over a nominally shared world**. Two DMs prepping the same dungeon each see only their own placements of their own catalogue entries, never a merged view. That is inherited from the same "authored possessions are owner-scoped" decision as `traps` and `puzzle_rooms`, and it is deliberate — but it is the kind of thing that would surprise a co-DM pair expecting one shared prep space, so it is written down rather than discovered.
+
+
 ---
 
 ## Dungeon Features (Secret Doors, Hazards, Enigmas)

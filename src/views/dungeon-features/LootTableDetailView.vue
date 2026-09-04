@@ -125,6 +125,12 @@
             </div>
           </div>
 
+          <!-- Placed In -->
+          <div class="flex flex-col gap-1.5">
+            <h3 class="text-eyebrow font-semibold text-muted-foreground">Placed In</h3>
+            <EntityPlacements kind="loot_table" :entity-id="table.id" />
+          </div>
+
           <!-- DM notes -->
           <p v-if="table.notes" class="text-body text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
         </template>
@@ -343,6 +349,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import LootTableEntryEditor from "@/components/dungeon-features/LootTableEntryEditor.vue";
 import LootTableDropDialog from "@/components/dungeon-features/LootTableDropDialog.vue";
+import EntityPlacements from "@/components/locations/EntityPlacements.vue";
 
 const route   = useRoute();
 const router  = useRouter();

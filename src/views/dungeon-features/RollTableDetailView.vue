@@ -113,6 +113,12 @@
             >{{ tag }}</span>
           </div>
 
+          <!-- Placed In -->
+          <div class="space-y-1.5">
+            <h3 class="font-cinzel text-sm font-bold text-foreground">Placed In</h3>
+            <EntityPlacements kind="roll_table" :entity-id="table.id" />
+          </div>
+
           <!-- DM Notes -->
           <p v-if="table.notes" class="text-body text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
         </template>
@@ -311,6 +317,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import EntityPlacements from "@/components/locations/EntityPlacements.vue";
 
 const props = defineProps<{
   /** ID of an existing table to edit. Omit for new-table mode. */

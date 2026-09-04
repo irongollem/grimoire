@@ -150,6 +150,16 @@
         <RichTextViewer :content="trap.notes" />
       </div>
     </div>
+
+    <!-- Placed In -->
+    <div class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-3 py-2 border-b border-border bg-muted/20">
+        <span class="text-label-lg font-semibold text-muted-foreground">Placed In</span>
+      </div>
+      <div class="p-4">
+        <EntityPlacements kind="trap" :entity-id="trap.id" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -164,6 +174,7 @@ import type { Trap } from "@/types/trap.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import EntityPlacements from "@/components/locations/EntityPlacements.vue";
 
 const props  = defineProps<{ trap: Trap }>();
 const route  = useRoute();
