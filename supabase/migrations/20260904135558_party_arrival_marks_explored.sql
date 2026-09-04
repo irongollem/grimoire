@@ -25,9 +25,23 @@ declare
   v_uid uuid := (select auth.uid());
 begin
   -- Fails safe rather than blocking the move. A path with no authenticated
-  -- user (none today) could not satisfy location_state_events' insert policy,
-  -- and a party that cannot move is a far worse outcome than a missing log row.
+  -- user could not satisfy location_state_events' insert policy, and a party
+  -- that cannot move is a far worse outcome than a missing log row.
   if v_uid is null or new.current_location_id is null then
+    return new;
+  end if;
+
+  -- Only a DM moving the party from the app should log an arrival.
+  --
+  -- `transfer_campaign_ownership` is SECURITY DEFINER owned by postgres and
+  -- remaps `campaigns.current_location_id` in an UPDATE of its own. This
+  -- trigger would fire there with RLS off and append a permanent "The party
+  -- arrived here" for a move that never happened, attributed to whoever ran the
+  -- transfer — and in an append-only log the only undo is another append.
+  -- `current_user` is `authenticated` for a real client write and `postgres`
+  -- inside that definer, which separates the two without reaching into a large
+  -- existing function to set a flag.
+  if current_user is distinct from 'authenticated' then
     return new;
   end if;
 
@@ -43,8 +57,24 @@ begin
     return new;
   end if;
 
-  insert into public.location_state_events (user_id, location_id, fact, value, note)
-  values (v_uid, new.current_location_id, 'explored', true, 'The party arrived here');
+  -- The header above says a party that cannot move is worse than a missing log
+  -- row. This is where that is actually implemented, and the original only
+  -- honoured it for the `v_uid is null` case.
+  --
+  -- The insert runs under `location_state_events`' policy, which requires the
+  -- mover to be able to SEE the destination via `public.locations` — and that
+  -- table's SELECT is owner-only. So a co-DM moving the party to a location a
+  -- different DM authored raised 42501, and the whole `update campaigns` rolled
+  -- back: an opaque failure, and the party simply could not move. A transfer can
+  -- leave a campaign pointing at a location its new owner does not own (#630),
+  -- so this is reachable rather than theoretical.
+  begin
+    insert into public.location_state_events (user_id, location_id, fact, value, note)
+    values (v_uid, new.current_location_id, 'explored', true, 'The party arrived here');
+  exception
+    when insufficient_privilege then
+      null;  -- the move is what matters; the log row is a courtesy
+  end;
 
   return new;
 end;

@@ -404,9 +404,17 @@ async function reorderLocations(orderedIds: string[]): Promise<void> {
 
 /**
  * Persist a drag-reordered sibling set (e.g. a site's rooms, in
- * `SiteRoomsPanel`) via the `reorder_locations` RPC. Every id in the array
- * must belong to the same `parent_id` — the RPC rejects a partial set, since
- * that is how two rows end up claiming the same position.
+ * `SiteRoomsPanel`) via the `reorder_locations` RPC.
+ *
+ * Every id must belong to the same `parent_id`, and the set must be COMPLETE —
+ * the RPC rejects a subset, because naming 2 of 3 siblings is how two rows end
+ * up claiming the same position. Top-level siblings (`parent_id` null) count as
+ * one set and are orderable like any other.
+ *
+ * This docstring previously claimed the RPC rejected partial sets when it did
+ * not: the check only proved every named id existed and was visible, which says
+ * nothing about completeness. Both the check and this sentence were wrong
+ * together, which is why neither caught the other.
  */
 export function useReorderLocations() {
   const queryClient = useQueryClient();

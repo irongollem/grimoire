@@ -124,8 +124,31 @@ create policy "location_doors_insert" on public.location_doors
     )
   );
 
+
+-- `with check` is not optional here, and its absence is the exact hole
+-- 20260828210805 exists to close. Without it Postgres reuses USING as the
+-- check, which pins `user_id` but leaves the location pointer free — so a user
+-- who cannot INSERT against someone else's site can still create a row on their
+-- own and then UPDATE it to point there. The tables this migration says it
+-- mirrors (`puzzle_rooms`, `traps`) both carry the check; they key it on their
+-- own `campaign_id` column, which these tables deliberately do not have, so it
+-- is restated here as the same join the INSERT policy uses.
+--
+-- Doors are protected in practice by `guard_location_door_endpoints`, which
+-- fires on `update of from_location_id, to_location_id` and fails closed on a
+-- row RLS cannot see. That is protection by accident of another feature, which
+-- is not a thing to rely on.
 create policy "location_doors_update" on public.location_doors
-  for update using ((select auth.uid()) = user_id);
+  for update
+  using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1 from public.locations l
+      where l.id = from_location_id
+        and (l.campaign_id is null or private.is_campaign_dm(l.campaign_id))
+    )
+  );
 
 create policy "location_doors_delete" on public.location_doors
   for delete using ((select auth.uid()) = user_id);

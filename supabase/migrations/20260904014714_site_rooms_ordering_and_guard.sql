@@ -45,19 +45,35 @@ comment on column public.locations.sort_order is
 -- permits are different questions and must not share one predicate.
 --
 -- What this does forbid is the genuinely broken: a room inside another room, a
--- room hanging off a world/plane/continent/region/country, and a top-level
--- room. Production satisfies that today, so the backfill is empty — which is
--- why this is the cheap moment to assert it.
+-- top-level room, and a room under any type not listed above — world, plane,
+-- continent, region, country, city, town, village and `other`. Note `other`
+-- specifically: it is the catch-all type, so a room may not sit under one, and
+-- an existing row in that shape would become uneditable rather than merely
+-- uncreatable. Production has none — 17 rooms, every one under a site — so
+-- nothing is stranded, which is why this is the cheap moment to assert it.
+--
+-- Deliberately no NOT VALID and no backfill: existing rows are tested on their
+-- next parent_id or location_type edit, which is the right trade when the table
+-- already satisfies the rule.
 create function private.location_can_hold_rooms(p_type public.location_type_enum)
 returns boolean
 language sql
 immutable
 set search_path = ''
 as $$
-  select p_type in (
+  -- coalesce at the SOURCE, not at each call site. `select x in (...)` returns
+  -- NULL for a NULL input, and this helper is consumed NEGATED below
+  -- (`and not private.location_can_hold_rooms(...)`): `not NULL` is NULL, the
+  -- `and` chain is NULL, the `if` never fires, and the guard is skipped. That
+  -- is exactly the `is_app_admin()` shape CLAUDE.md item 3 describes, and it
+  -- would be safe here only by accident, because `locations.location_type`
+  -- happens to be NOT NULL — a guarantee living in a different object. Note the
+  -- asymmetry that hides this class of bug: the affirmative call site inside
+  -- the EXISTS below is safe either way.
+  select coalesce(p_type in (
     'district', 'building', 'dungeon', 'wilderness',  -- site tier
     'store', 'tavern', 'inn'                          -- venue tier
-  );
+  ), false);
 $$;
 
 comment on function private.location_can_hold_rooms(public.location_type_enum) is
@@ -132,8 +148,9 @@ security invoker
 set search_path = public
 as $$
 declare
-  v_n    integer := coalesce(array_length(p_ids, 1), 0);
-  v_done integer;
+  v_n      integer := coalesce(array_length(p_ids, 1), 0);
+  v_done   integer;
+  v_parent uuid;
 begin
   if (select auth.uid()) is null then
     raise exception 'Not authenticated' using errcode = '42501';
@@ -145,12 +162,35 @@ begin
     raise exception 'reorder_locations: ids and orders must be the same length';
   end if;
 
-  -- One sibling set at a time, named in full. Partial reorders are how two
-  -- rows end up claiming the same position.
-  if (select count(distinct parent_id) from public.locations where id = any(p_ids)) <> 1
+  -- One sibling set at a time, named IN FULL. Both halves are load-bearing, and
+  -- the obvious spelling of each is wrong:
+  --
+  --   * `count(distinct parent_id) <> 1` ignores NULLs, so a set of top-level
+  --     locations yields 0 and the call is refused — the Atlas root would be
+  --     permanently unorderable. Hence the coalesce to a sentinel.
+  --   * `count(*) <> v_n` only proves every named id exists and is visible. It
+  --     says nothing about completeness, so naming 2 of 3 siblings passed both
+  --     checks and produced exactly the duplicate positions the old comment
+  --     claimed to prevent.
+  select coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid)
+    into v_parent
+    from public.locations where id = p_ids[1];
+
+  if v_parent is null then
+    raise exception 'reorder_locations: no such location, or it is not yours';
+  end if;
+
+  if (select count(distinct coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid))
+        from public.locations where id = any(p_ids)) <> 1
      or (select count(*) from public.locations where id = any(p_ids)) <> v_n
   then
-    raise exception 'reorder_locations: must name every id of exactly one sibling set';
+    raise exception 'reorder_locations: every id must belong to one sibling set';
+  end if;
+
+  if (select count(*) from public.locations
+       where coalesce(parent_id, '00000000-0000-0000-0000-000000000000'::uuid) = v_parent) <> v_n
+  then
+    raise exception 'reorder_locations: must name every sibling, not a subset';
   end if;
 
   update public.locations t

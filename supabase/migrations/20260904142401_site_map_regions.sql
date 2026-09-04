@@ -139,8 +139,26 @@ create policy "location_map_regions_insert" on public.location_map_regions
     )
   );
 
+
+-- `with check` is not optional here, and its absence is the exact hole
+-- 20260828210805 exists to close. Without it Postgres reuses USING as the
+-- check, which pins `user_id` but leaves the location pointer free — so a user
+-- who cannot INSERT against someone else's site can still create a row on their
+-- own and then UPDATE it to point there. The tables this migration says it
+-- mirrors (`puzzle_rooms`, `traps`) both carry the check; they key it on their
+-- own `campaign_id` column, which these tables deliberately do not have, so it
+-- is restated here as the same join the INSERT policy uses.
 create policy "location_map_regions_update" on public.location_map_regions
-  for update using ((select auth.uid()) = user_id);
+  for update
+  using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1 from public.locations l
+      where l.id = site_location_id
+        and (l.campaign_id is null or private.is_campaign_dm(l.campaign_id))
+    )
+  );
 
 create policy "location_map_regions_delete" on public.location_map_regions
   for delete using ((select auth.uid()) = user_id);

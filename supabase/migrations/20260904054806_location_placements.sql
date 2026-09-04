@@ -89,10 +89,52 @@ create policy "location_placements_insert" on public.location_placements
       where l.id = location_id
         and (l.campaign_id is null or private.is_campaign_dm(l.campaign_id))
     )
+    -- The placed entity must be the caller's too. FK checks bypass RLS, so
+    -- without this a user could reference another account's trap: no
+    -- disclosure (the join returns a null name), but the `on delete cascade`
+    -- means the victim silently deletes the attacker's row.
+    and (trap_id is null or exists (
+      select 1 from public.traps t where t.id = trap_id and t.user_id = (select auth.uid())))
+    and (dungeon_feature_id is null or exists (
+      select 1 from public.dungeon_features f where f.id = dungeon_feature_id and f.user_id = (select auth.uid())))
+    and (roll_table_id is null or exists (
+      select 1 from public.roll_tables r where r.id = roll_table_id and r.user_id = (select auth.uid())))
+    and (loot_table_id is null or exists (
+      select 1 from public.loot_tables lt where lt.id = loot_table_id and lt.user_id = (select auth.uid())))
   );
 
+
+-- `with check` is not optional here, and its absence is the exact hole
+-- 20260828210805 exists to close. Without it Postgres reuses USING as the
+-- check, which pins `user_id` but leaves the location pointer free — so a user
+-- who cannot INSERT against someone else's site can still create a row on their
+-- own and then UPDATE it to point there. The tables this migration says it
+-- mirrors (`puzzle_rooms`, `traps`) both carry the check; they key it on their
+-- own `campaign_id` column, which these tables deliberately do not have, so it
+-- is restated here as the same join the INSERT policy uses.
 create policy "location_placements_update" on public.location_placements
-  for update using ((select auth.uid()) = user_id);
+  for update
+  using ((select auth.uid()) = user_id)
+  with check (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1 from public.locations l
+      where l.id = location_id
+        and (l.campaign_id is null or private.is_campaign_dm(l.campaign_id))
+    )
+    -- The placed entity must be the caller's too. FK checks bypass RLS, so
+    -- without this a user could reference another account's trap: no
+    -- disclosure (the join returns a null name), but the `on delete cascade`
+    -- means the victim silently deletes the attacker's row.
+    and (trap_id is null or exists (
+      select 1 from public.traps t where t.id = trap_id and t.user_id = (select auth.uid())))
+    and (dungeon_feature_id is null or exists (
+      select 1 from public.dungeon_features f where f.id = dungeon_feature_id and f.user_id = (select auth.uid())))
+    and (roll_table_id is null or exists (
+      select 1 from public.roll_tables r where r.id = roll_table_id and r.user_id = (select auth.uid())))
+    and (loot_table_id is null or exists (
+      select 1 from public.loot_tables lt where lt.id = loot_table_id and lt.user_id = (select auth.uid())))
+  );
 
 create policy "location_placements_delete" on public.location_placements
   for delete using ((select auth.uid()) = user_id);
