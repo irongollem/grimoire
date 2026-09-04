@@ -250,7 +250,16 @@ Collapse/detail open state is persisted in `useUiStore` (`atlasChildrenOpen`, `a
   - Pin token images are **re-hydrated from live shared child data** (`PlayerLocationDetailPanel` `sharedChildren` map): the denormalised `child_image_url` snapshot in `map_pins` goes stale when a child's image is later replaced (its old storage file is deleted → 404), which players saw as broken pin images (#502). Shared children resolve their current image; unshared children fall back to the snapshot. `LocationMap` also hides any pin image that fails to load, falling back to the child's initial letter
   - Compact / Full-size toggle
 - Full description (only when `is_description_shared = true`)
-- **Wares** (store/tavern/inn with `is_inventory_shared = true`) — rendered via `PlayerStoreWares`
+- **Wares** (store/tavern/inn with `is_inventory_shared = true`) — rendered via `PlayerStoreWares`.
+  A store row carries only an `item_id`; the name behind it comes from the
+  `get_player_visible_items` projection, because players have no read path to `items`
+  (owner-only RLS since `20260711000014`). Those are two caches with different lifetimes —
+  the rows refetch on remount, the projection is `staleTime: Infinity` and, for a player,
+  is invalidated by nothing (`items` realtime events are owner-gated, and `store_items` is
+  not on the live-sync channel, #811). A shop revealed mid-session therefore listed its
+  whole stock as "Unknown item" until a hard reload. `useSharedStoreItems` now refetches
+  the projection once per unresolved `item_id`; the "not yet revealed" placeholder is the
+  in-flight state only, never a steady one.
 - **People in the Area** (when `is_npcs_shared = true`) — NPC cards showing display name, race, occupation (shapeshifter disguise respected via `getNpcDisplayName`)
 - **Player notes widget** — personal notes tied to this location entity
 

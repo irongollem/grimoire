@@ -238,6 +238,22 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
   );
 
+  /**
+   * Re-run the projection now, ignoring `staleTime: Infinity`.
+   *
+   * That staleTime makes the projection a snapshot taken when the page loaded,
+   * and for a *player* nothing else ever ends it: the only invalidation is the
+   * `items` realtime reducer, `items` is owner-only under RLS so a player's
+   * subscription never receives those events, and the tables that widen the
+   * projection from the outside (`store_items`) are not campaign-scoped and so
+   * are not on the live-sync channel at all. A caller that can tell the
+   * snapshot is behind — it holds a row whose item the projection does not
+   * know — has to be able to say so. See `useSharedStoreItems`.
+   */
+  async function refetch(): Promise<void> {
+    await (ui.dmPreviewMode ? baseQuery.refetch() : projectionQuery.refetch());
+  }
+
   const data = computed(() => {
     const items = rawItems.value;
     const defaults = artDefaults.data.value;
@@ -257,7 +273,7 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     });
   });
 
-  return { data, isLoading };
+  return { data, isLoading, refetch };
 }
 
 export function useItem(id: Ref<string> | ComputedRef<string> | string) {

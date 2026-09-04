@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import type { Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item } from "@/types/item.types";
@@ -148,10 +148,23 @@ export function useStoreItems(locationId: Ref<string | undefined>) {
  * `item_id` against {@link usePlayerVisibleItems} instead, which shares its
  * DM-preview branch (full owned catalog) and real-player projection.
  *
- * A row's item can still legitimately resolve to `null` — the projection
- * cache (`staleTime: Infinity`, invalidate-only) can lag a `store_items`
- * write that just made a row visible. Callers must render that as an
- * explicit "not resolved yet" state, never coerce it.
+ * A row's item can resolve to `null` only while the two caches disagree, and
+ * that gap has to be closed rather than merely rendered: the row list obeys the
+ * 60s default and refetches whenever the panel remounts, while the projection
+ * is `staleTime: Infinity` and, for a player, is never invalidated at all
+ * (`items` realtime events are owner-RLS-gated, and `store_items` carries no
+ * `campaign_id`, so it is not on the campaign live-sync channel). So a DM who
+ * reveals a shop mid-session hands every already-open player a full ware list
+ * resolved against a projection snapshot from page load: the rows appear, and
+ * every ware nobody in the party already owns reads "Unknown item" until a hard
+ * reload. That was the bug; the placeholder was covering it, not reporting it.
+ *
+ * `store_items` RLS and the projection's store branch are the same predicate
+ * (`private.can_see_shared_store` vs. the `exists` in `get_player_visible_items`
+ * — compare 20260612000001 and 20260819231506), so a row the player can read
+ * always *has* a resolvable item. An unresolved row therefore means the
+ * snapshot is behind, never that the item is withheld, and the honest response
+ * is to go and get it. The placeholder stays for the moment in flight.
  */
 export function useSharedStoreItems(locationId: Ref<string | undefined>) {
   const rowsQuery = useQuery({
@@ -159,7 +172,8 @@ export function useSharedStoreItems(locationId: Ref<string | undefined>) {
     queryFn: () => fetchStoreItemRows(locationId.value!),
     enabled: () => !!locationId.value,
   });
-  const { data: visibleItems, isLoading: itemsLoading } = usePlayerVisibleItems();
+  const { data: visibleItems, isLoading: itemsLoading, refetch: refetchVisibleItems } =
+    usePlayerVisibleItems();
 
   const data = computed<PlayerStoreItem[] | undefined>(() => {
     const rows = rowsQuery.data.value;
@@ -168,6 +182,28 @@ export function useSharedStoreItems(locationId: Ref<string | undefined>) {
     return rows.map((row) => ({ ...row, item: byId.get(row.item_id) ?? null }));
   });
   const isLoading = computed(() => rowsQuery.isLoading.value || itemsLoading.value);
+
+  const unresolved = computed(() =>
+    (data.value ?? []).filter((row) => !row.item).map((row) => row.item_id),
+  );
+
+  // Ask once per item id, not once per unresolved render. The refetch is not
+  // guaranteed to resolve a given id — the projection is filtered client-side
+  // by ruleset and campaign scope, so an item scoped to another campaign stays
+  // absent no matter how often it is fetched — and without this set that item
+  // would drive a refetch loop for as long as the panel is open.
+  const requested = new Set<string>();
+  watch(
+    [unresolved, itemsLoading],
+    ([ids, loading]) => {
+      if (loading) return;
+      const fresh = ids.filter((id) => !requested.has(id));
+      if (fresh.length === 0) return;
+      for (const id of fresh) requested.add(id);
+      void refetchVisibleItems();
+    },
+    { immediate: true },
+  );
 
   return { ...rowsQuery, data, isLoading };
 }
