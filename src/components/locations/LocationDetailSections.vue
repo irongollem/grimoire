@@ -19,12 +19,17 @@
       <RichTextViewer :content="location.description" />
     </section>
 
-    <!-- Site State — durable, provenance-tracked Explored/Cleared/Looted
-         facts (#787, epic #780). No location-type gate, same as Prepared
-         Here below: the migration is explicit that a district can be
-         cleared and a whole dungeon can be looted, not only a room. -->
+    <!-- Durable, provenance-tracked Explored/Cleared/Looted facts (#787,
+         epic #780). No location-type gate, same as Prepared Here below: the
+         migration is explicit that a district can be cleared and a whole
+         dungeon can be looted, not only a room.
+         Titled "Progress" rather than "Site State" precisely because there is
+         no gate — this renders on rooms, taverns and continents too, and a
+         room is not a site. "Site" is the tier above it (district, building,
+         dungeon, wilderness), so the word was actively wrong wherever this
+         panel is most used. -->
     <section class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Site State</h2>
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Progress</h2>
       <LocationStateControls :location-id="location.id" />
     </section>
 
@@ -273,10 +278,10 @@ function locationNameOf(id: string): string {
  * `hasSubstance` answers the different question the Atlas pane actually asks —
  * is there anything *here*, as opposed to an empty place with editing
  * affordances on it? It deliberately excludes the always-present editing
- * panels (Rooms, Prepared Here, Ways out, Site State), so "Nothing inside X
+ * panels (Rooms, Prepared Here, Ways out, Progress), so "Nothing inside X
  * yet" keeps meaning what it meant before those sections existed. Folding one
  * of them into the body gate alone would have silently retired that message
- * for every location in the app. Site State (#787) is the newest of the four:
+ * for every location in the app. Progress (#787) is the newest of the four:
  * every location gets the section whether or not a fact has ever been
  * asserted, so counting it toward substance would make a bare, freshly
  * created place register as non-empty the instant this section mounted.
