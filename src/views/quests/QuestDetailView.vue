@@ -2,7 +2,7 @@
   <PageHeader
     :title="quest?.title || (isNew ? 'New Quest' : 'Loading…')"
     :description="quest ? QUEST_STATUS_LABELS[quest.status] : undefined"
-    :contained="showsFlow"
+    :contained="showsGraph"
   >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -93,7 +93,16 @@ const view = computed<QuestDetailSurface>(() => {
   if (route.query.view === "work") return "work";
   return isRunning.value ? "work" : "overview";
 });
-const showsFlow = computed(() => !isNew.value && view.value === "work");
+/**
+ * Containment belongs to the *graph*, not to the work tab. The canvas is a
+ * fixed-viewport surface that manages its own scrolling, so `PageHeader` must
+ * stop scrolling around it; the cockpit is an ordinary long document and must
+ * not inherit that. Binding this to `view === "work"` gave the cockpit the
+ * canvas's contract, so at `lg` and wider its body became `overflow:hidden` —
+ * a scroll container that cannot be scrolled — and `QuestRunControls`'
+ * `sticky bottom-2` bar pinned over content nobody could reach past. See #776.
+ */
+const showsGraph = computed(() => !isNew.value && view.value === "work" && !isRunning.value);
 const viewOptions = computed(() => [
   { value: "overview" as const, label: "Overview" },
   { value: "work" as const, label: isRunning.value ? "Run session" : "Story flow" },
