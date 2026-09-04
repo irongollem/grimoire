@@ -95,6 +95,7 @@ import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";
 import AiUseNoticeGate from "@/components/campaign/AiUseNoticeGate.vue";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
 import { useAudioThemeTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
+import { usePartyAmbience } from "@/composables/campaign/usePartyAmbience";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
@@ -145,6 +146,12 @@ usePartyLive();
 // than on the soundboard page because the DM is looking at the encounter when
 // it fires, not at the board.
 useAudioThemeTriggers();
+
+// Keeps ambience following the party's actual position for the length of a
+// session (#790), rather than whatever the DM has open in the Atlas. App-level
+// like the listener above: the party's position is campaign-wide state, not a
+// per-route concern.
+usePartyAmbience();
 
 const { isPro } = useSubscription();
 const { data: campaigns } = useCampaigns();

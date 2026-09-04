@@ -171,6 +171,25 @@ Cover: `supabase/tests/location_state_events.test.sql`.
 
 **Client side** (`useLocationState.ts`, `LocationStateControls.vue`). Three toggles on any location; clicking appends the opposite of the current value, or `true` from unknown. The three states are visually distinct at rest rather than on hover, because "never said" and "said no" are different sentences: unknown is a neutral outline, explicit false a soft danger pill, explicit true a strong success pill. Provenance — who asserted it and when — is on the tooltip. `useLocationStateForRooms` batches the whole rooms panel into one `.in()` query rather than one per row, and `SiteRoomsPanel` shows read-only glyphs for explicit-true assertions only, so an unasserted room stays visually quiet.
 
+**Arrival** (`mark_arrival_explored`, migration `20260904135558`, [#790](https://github.com/irongollem/grimoire/issues/790)). Moving the party now fires something. A trigger on `campaigns.current_location_id` records the party's **first** arrival at a place as an `explored` assertion in the #787 log.
+
+It deliberately does **not** add an arrivals table. "The party has been here" and "this place is explored" are the same fact, and a second store for one fact is the shape [#780](https://github.com/irongollem/grimoire/issues/780) exists to remove.
+
+- **First arrival only.** The log answers *has* the party been here, not how many times, and a row per visit would bury a DM's own assertions under machine noise. Per-visit history is a different fact and would want its own row shape, not a flood of duplicates here.
+- **The guard reads the newest assertion, not mere existence.** A DM who explicitly marks a place un-explored has *said something*, so walking back in re-asserts it.
+- **`is distinct from`, not `<>`,** in the trigger's `WHEN`. The first move is from NULL, where `<>` evaluates to NULL — the trigger would have silently skipped the one arrival every fresh campaign is guaranteed to have.
+- **Fails safe.** With no authenticated user the trigger returns without writing, rather than failing the update: a party that cannot move is far worse than a missing log row.
+- `SECURITY INVOKER` and revoked from `public`, `anon` and `authenticated`, so it adds nothing to the advisor's definer count and stays off the PostgREST surface.
+
+Cover: `supabase/tests/party_arrival.test.sql`.
+
+**Ambience follows the party during a session** (`usePartyAmbience`, mounted once in `DefaultLayout`). `locations.audio_theme` had existed since July 2026 driven by exactly one thing: a location *sheet* being open. So during a live session, clicking any location in the Atlas hijacked the table's ambience — the music followed what the DM was browsing rather than where the party was.
+
+- **Gated on a running session.** Following the party is a *play* behaviour; a DM tidying the Atlas on a Tuesday must not start music by changing a dropdown. Outside a session, sheet-driven preview is unchanged and worth keeping.
+- **`sourceId` is `party:${locationId}`, not a constant.** `useAudioThemeTriggers` dedupes ambient owners by `sourceId` (`:193`), so a literal `"party"` would have been a no-op after the first move and the theme would silently stop changing. The per-location id is what makes the request-then-release crossfade work across moves, and it keeps a namespace distinct from the sheet's `location:${id}` so the two producers cannot steal the slot from each other.
+- **Request-then-release ordering is load-bearing** in both producers: releasing first hands the slot back to whatever preceded the old location and then immediately takes it again, which is audible as a stop-start between two rooms that should cross over.
+- Starting a session with a sheet open hands the slot over immediately rather than leaving a stray scene playing; ending one resumes the preview.
+
 Widening `locations` at all means recreating `get_player_visible_locations`, which `returns setof locations` and lists every column positionally; `20260818081308` learned that the hard way and says so in its header.
 
 **Bulk seeding**: `SETTING_LOCATIONS` data maps calendar IDs to preset location arrays (e.g. Faerûn towns). `PLANAR_LOCATIONS` covers the 21 cosmological planes. Both use a two-pass insert: all records first, then parent links resolved by name.

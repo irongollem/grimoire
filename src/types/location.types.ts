@@ -201,9 +201,10 @@ export interface Location {
   era_start: number | null;
   era_end: number | null;
   /**
-   * Theme label requested from the soundboard when this location is opened;
-   * resolves against ambient playlists tagged with it. Null = leave audio
-   * alone.
+   * Theme label requested from the soundboard when this location is opened
+   * for prep-time preview (`LocationSheet`), or when the party actually
+   * arrives here during a session (`usePartyAmbience`, #790); resolves
+   * against ambient playlists tagged with it. Null = leave audio alone.
    */
   audio_theme: string | null;
   /**
