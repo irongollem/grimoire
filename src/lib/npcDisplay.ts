@@ -174,3 +174,43 @@ export function getNpcDisplayFocalPoint(
     ? npc.disguise_portrait_focal_point
     : npc.portrait_focal_point;
 }
+
+/**
+ * The name the players may be told, for text the app writes into shared chat.
+ *
+ * This is the `name` column of `get_player_visible_npcs` (migration
+ * `20260711000021`), reproduced exactly:
+ *
+ *   name not in player_visible_fields → null   (the portal card shows "???")
+ *   concealed and a cover name exists → the cover name
+ *   otherwise                         → the true name
+ *
+ * `getNpcDisplayName` above is the *DM's* view and deliberately ignores the
+ * field gate — a DM always sees both identities. Use it for an attribution the
+ * DM chose to make (speaking as an NPC, dropping an item from their carry
+ * list): the choice is the disclosure, and only the unrevealed identity is the
+ * app's secret to keep. Use *this* for anything the app narrates on its own —
+ * a reveal announcement — where saying more than the portal card says is a
+ * spoiler the DM never asked for.
+ *
+ * The distinction matters because a chat message is plain prose in
+ * `campaign_messages.message`. No projection gates it after the fact, and the
+ * row is readable by the whole campaign forever, so the only place the rule can
+ * be applied is at write time.
+ *
+ * Returns null when no name has been shared. Pick wording for that case at the
+ * call site — never fall back to the true name.
+ */
+export function getNpcPlayerFacingName(npc: {
+  name: string | null;
+  disguise_name: string | null;
+  disguise_portrait_url: string | null;
+  is_revealed: boolean;
+  player_visible_fields: readonly string[];
+}): string | null {
+  if (!npc.player_visible_fields.includes("name")) return null;
+  return getNpcDisplayName(npc);
+}
+
+/** Stand-in for an NPC the players have not been told the name of, in chat prose. */
+export const NPC_UNNAMED_IN_PROSE = "someone";

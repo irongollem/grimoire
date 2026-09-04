@@ -76,7 +76,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { useNpcFactions } from "@/composables/factions/useFactions";
-import { getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import { getNpcDisplayPortrait, getNpcDisplayFocalPoint, getNpcPlayerFacingName } from "@/lib/npcDisplay";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { Npc } from "@/types/npc.types";
@@ -104,12 +104,19 @@ async function toggleReveal() {
   const revealing = !props.npc.is_revealed;
   try {
     await updateNpc({ id: props.npc.id, update: { is_revealed: revealing } });
-    // Announce reveal to players in play mode (fire-and-forget)
+    // Announce reveal to players in play mode (fire-and-forget).
+    //
+    // Both halves of the sentence come from the player projection's own rule,
+    // never from `npc.name`: the DM can reveal the alter ego while leaving the
+    // name field unticked, and the old wording posted the true name into chat
+    // regardless — a name the portal card still renders as "???".
     if (revealing && ui.dmMode === "play") {
-      const disguise = props.npc.disguise_name?.trim();
-      const msg = disguise
-        ? `${disguise} is revealed to be ${props.npc.name}.`
-        : `${props.npc.name} has been revealed.`;
+      const cover = getNpcPlayerFacingName({ ...props.npc, is_revealed: false });
+      const revealed = getNpcPlayerFacingName({ ...props.npc, is_revealed: true });
+      const msg =
+        revealed && cover && cover !== revealed ? `${cover} is revealed to be ${revealed}.`
+        : revealed ? `${revealed} has been revealed.`
+        : "A disguise falls away.";
       void sendNarrativeEvent(msg, props.npc.id);
     }
   } finally {

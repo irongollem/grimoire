@@ -56,7 +56,7 @@ Every card has an eye/eye-off button that opens an inline popover (Teleported to
 - Toggle visibility per individual party member.
 - Remove from all players ("Hide from all players").
 
-When an NPC becomes visible to a player for the first time while a **session is running** (#758), a narrative event fires to the campaign chat: _"The party encounters [name]."_ or _"[Player] encounters [name]."_
+When an NPC becomes visible to a player for the first time while a **session is running** (#758), a narrative event fires to the campaign chat: _"The party encounters [name]."_ or _"[Player] encounters [name]."_ [name] is the **player-facing** name — see "Names in chat" below; it is never `npc.name`.
 
 ### Header Actions
 
@@ -230,6 +230,43 @@ An NPC can have a parallel identity:
 - `is_revealed` — DM-controlled flag; when `false` the disguise name/portrait is shown to players instead of the true form
 
 The DM always sees both identities. The page title and list card show the disguise name when `is_revealed` is `false`. The `getNpcDisplayName`, `getNpcDisplayPortrait`, and `getNpcDisplayFocalPoint` helpers in `src/lib/npcDisplay.ts` centralise this logic.
+
+#### Names in chat
+
+A chat message is plain prose in `campaign_messages.message`, readable by the whole
+campaign forever. No projection gates it after the fact, so the only place the
+disguise and field rules can be applied is **at write time** — which is exactly
+where they were missing. Four announcements and two attributions interpolated
+`npc.name` directly, so an NPC with an unrevealed alter ego, or one whose "Name"
+field the DM had not ticked, had their true name posted the moment they were
+(partially) revealed. The portal card beside it still said "???".
+
+Two helpers, and the choice between them is not stylistic:
+
+| Writing | Use | Because |
+| ------- | --- | ------- |
+| Prose the **app** narrates — reveal announcements | `getNpcPlayerFacingName` | The app must say no more than the portal card does: it applies the disguise rule **and** the `player_visible_fields` name gate, returning `null` when no name has been shared. |
+| An attribution the **DM** chose — `sender_name` on a "talk as" line or an inventory drop | `getNpcDisplayName` | Naming the speaker is the DM's deliberate act; rewriting it to "???" would fight an explicit instruction. `is_revealed: false` is different — that is the DM's own flag saying this identity is a secret, so the cover name is used. |
+
+`getNpcPlayerFacingName` reproduces the `name` column of
+`get_player_visible_npcs` (migration `20260711000021`) exactly, including the
+detail that a **portrait-only** disguise leaves the name alone — a purely visual
+mask does not change what the party calls you. Chat and the portal card have to
+agree or they contradict each other in front of the players.
+
+Two traps the fix had to step around:
+
+- **The reveal control announces against the fields it is about to write**, not
+  the ones on the row. Sharing an NPC for the first time seeds `name` + `portrait`
+  in the same breath (`fieldsForFirstReveal`), so the row still says the name is
+  hidden while that write is in flight. Reading the row would say "someone" for
+  every first reveal.
+- **The "As:" persona name is a snapshot** taken when the DM picks it.
+  `CampaignChat` re-syncs it whenever the NPC list changes, or revealing — or
+  re-concealing — mid-session would leave the stale identity on every later line.
+
+When no name has been shared, prose says "someone" (`NPC_UNNAMED_IN_PROSE`) and an
+inventory drop falls back to the DM's own sender name. Never the true name.
 
 ---
 

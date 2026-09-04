@@ -120,7 +120,7 @@
 
           <!-- Inventory tab -->
           <div v-else-if="activeTab === 'inventory'">
-            <NpcInventorySection v-if="npc?.id" :npc-id="npc.id" :npc-name="npc.name" />
+            <NpcInventorySection v-if="npc?.id" :npc-id="npc.id" :npc-name="getNpcDisplayName(npc)" />
             <p v-else class="text-body text-muted-foreground italic">Save the NPC first to manage inventory.</p>
           </div>
 
@@ -233,6 +233,7 @@ import EntityCombobox from '@/components/common/EntityCombobox.vue'
 import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
 import PaywallModal from '@/components/common/PaywallModal.vue'
 import { isQuotaExceeded } from '@/lib/quotaError'
+import { getNpcDisplayName, getNpcPlayerFacingName, NPC_UNNAMED_IN_PROSE } from '@/lib/npcDisplay'
 import TabBar from '@/components/common/TabBar.vue'
 import StatBlockEditor from '@/components/common/StatBlockEditor.vue'
 
@@ -613,9 +614,17 @@ async function save() {
       router.push(`/npcs/${created.id}`)
     }
 
-    if (becameVisible && ui.dmMode === 'play' && form.name.trim()) {
+    if (becameVisible && ui.dmMode === 'play') {
+      // The announced name is the projection's, not the draft's: an NPC saved
+      // with an unrevealed alter ego is announced under its cover, and one
+      // whose "Name" field the DM left unticked is announced under none. The
+      // old wording used `form.name` and posted the true name in both cases.
+      const announced = getNpcPlayerFacingName({
+        ...form,
+        name: form.name.trim() || null,
+      }) ?? NPC_UNNAMED_IN_PROSE
       // Fire-and-forget — chat failure must not block the save navigation.
-      void sendNarrativeEvent(`You encounter ${form.name.trim()}.`, savedNpcId ?? undefined)
+      void sendNarrativeEvent(`You encounter ${announced}.`, savedNpcId ?? undefined)
     }
 
     // Back to the list, which is the confirmation that the save landed. On

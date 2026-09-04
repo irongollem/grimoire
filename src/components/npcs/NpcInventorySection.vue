@@ -78,7 +78,12 @@ import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { NpcInventoryItem } from "@/types/npc-inventory.types";
 
-const props = defineProps<{ npcId: string; npcName?: string }>();
+/** `npcName` is the players' name for this NPC — an unrevealed alter ego's
+ *  cover, never the true name behind it. It is the chat `sender_name` on the
+ *  drop, so a parent passing `npc.name` raw spoils the disguise. Nullable:
+ *  `getNpcDisplayName` is honestly null for a player projection, and the drop
+ *  then falls back to the DM's own sender name rather than inventing one. */
+const props = defineProps<{ npcId: string; npcName?: string | null }>();
 
 const { data: rawItems } = useNpcInventory(props.npcId);
 const items = computed(() => rawItems.value ?? []);
@@ -110,7 +115,7 @@ async function remove(item: NpcInventoryItem) {
 }
 
 async function dropToChat(item: NpcInventoryItem) {
-  await sendItemDrop(item.name, item.item_id, item.quantity, null, props.npcName);
+  await sendItemDrop(item.name, item.item_id, item.quantity, null, props.npcName ?? undefined);
   await removeItem({ id: item.id, npcId: props.npcId });
 }
 </script>

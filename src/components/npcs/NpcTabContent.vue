@@ -34,7 +34,7 @@
 
     <!-- Inventory tab -->
     <div v-else-if="activeTab === 'inventory'">
-      <NpcInventorySection :npc-id="npc.id" :npc-name="npc.name" />
+      <NpcInventorySection :npc-id="npc.id" :npc-name="getNpcDisplayName(npc)" />
     </div>
 
     <!-- Relations tab -->
@@ -83,6 +83,7 @@ import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
 import NpcPcNotesSection from "@/components/npcs/NpcPcNotesSection.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
+import { getNpcDisplayName } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";
 
 defineProps<{ npc: Npc }>();

@@ -117,6 +117,7 @@ import { useAddInventoryItem } from "@/composables/items/usePartyInventory";
 import { useItems } from "@/composables/items/useItems";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { getNpcDisplayName } from "@/lib/npcDisplay";
 import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
@@ -207,9 +208,31 @@ const { mutateAsync: addInventoryItem }    = useAddInventoryItem();
 const { mutateAsync: updatePartyMember }   = useUpdatePartyMember();
 const queryClient = useQueryClient();
 
+// The DM's "As:" persona list. `getNpcDisplayName`, not `n.name`: an NPC with
+// an unrevealed alter ego speaks under its cover, and the raw name posted the
+// true one as `sender_name` on every line the DM said in that persona — the
+// loudest possible place for it, above the message, in everyone's chat.
+//
+// The field gate (`getNpcPlayerFacingName`) deliberately does *not* apply here.
+// Choosing a persona is the DM attributing a line out loud; rewriting that to
+// "???" would fight an explicit instruction. `is_revealed` is different — it is
+// the DM's own flag saying this identity is still a secret.
 const npcs = computed(() =>
-  (npcsData.value ?? []).map((n) => ({ id: n.id, name: n.name }))
+  (npcsData.value ?? []).map((n) => ({ id: n.id, name: getNpcDisplayName(n) ?? "???" }))
 );
+
+// The persona name is stored as a snapshot when the DM picks it, so revealing
+// (or re-concealing) that NPC mid-session would leave the old identity on every
+// subsequent line. Re-sync it whenever the list changes; setDmTalkAsNpc no-ops
+// when nothing moved.
+watch(npcs, (list) => {
+  if (!ui.dmTalkAsNpcId) return;
+  const npc = list.find((n) => n.id === ui.dmTalkAsNpcId);
+  // Only when the NPC is actually in the list. A miss means the query is
+  // between fetches (or the NPC was deleted), and blanking the name there would
+  // silently drop the DM's chosen persona back to their own name mid-sentence.
+  if (npc) ui.setDmTalkAsNpc(npc.id, npc.name);
+});
 
 watch(messages, (msgs, prev) => {
   if (!ui.chatOpen && msgs.length > (prev?.length ?? 0)) {

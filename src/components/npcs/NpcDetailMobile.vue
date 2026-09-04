@@ -189,7 +189,7 @@
       </NpcAccordionSection>
 
       <NpcAccordionSection v-model:open="openSections.inventory" title="Inventory">
-        <NpcInventorySection :npc-id="npc.id" :npc-name="npc.name" />
+        <NpcInventorySection :npc-id="npc.id" :npc-name="displayName" />
       </NpcAccordionSection>
 
       <NpcAccordionSection v-model:open="openSections.relations" title="Relations">

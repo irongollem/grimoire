@@ -32,7 +32,12 @@ import RevealedFieldsPanel from "@/components/common/RevealedFieldsPanel.vue";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useParty } from "@/composables/party/useParty";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
-import { fieldsForFirstReveal, NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
+import {
+  fieldsForFirstReveal,
+  getNpcPlayerFacingName,
+  NPC_PLAYER_FIELDS,
+  NPC_UNNAMED_IN_PROSE,
+} from "@/lib/npcDisplay";
 import type { RevealAdapter, RevealForm } from "@/lib/reveal";
 import { useUiStore } from "@/stores/ui";
 import type { Npc } from "@/types/npc.types";
@@ -72,23 +77,27 @@ const adapter: RevealAdapter = {
     const next = adding
       ? [...visibleTo.value, memberId]
       : visibleTo.value.filter((id) => id !== memberId);
-    apply(next);
+    const nextFields = apply(next);
     if (adding && ui.dmMode === "play") {
       const who = (partyData.value ?? []).find((m) => m.id === memberId)?.name;
-      void sendNarrativeEvent(`${who ?? "A party member"} encounters ${npc.name}.`, npc.id);
+      void sendNarrativeEvent(
+        `${who ?? "A party member"} encounters ${announcedName(nextFields)}.`,
+        npc.id,
+      );
     }
   },
   setWholeParty: () => {
     const wasHidden = visibleTo.value.length === 0;
-    apply((partyData.value ?? []).map((m) => m.id));
+    const nextFields = apply((partyData.value ?? []).map((m) => m.id));
     if (wasHidden && ui.dmMode === "play") {
-      void sendNarrativeEvent(`The party encounters ${npc.name}.`, npc.id);
+      void sendNarrativeEvent(`The party encounters ${announcedName(nextFields)}.`, npc.id);
     }
   },
-  unshare: () => apply([]),
+  unshare: () => void apply([]),
 };
 
-function apply(next: string[]) {
+/** The stored field list, so callers can announce against what was actually saved. */
+function apply(next: string[]): string[] {
   // Hiding leaves the field list alone: the DM's choice of what to show should
   // still be there when they reveal this NPC again.
   const nextFields = next.length ? fieldsForFirstReveal(fields.value) : fields.value;
@@ -98,6 +107,26 @@ function apply(next: string[]) {
     id: npc.id,
     update: { player_visible_to: next, player_visible_fields: nextFields },
   });
+  return nextFields;
+}
+
+/**
+ * The name to put in the chat announcement.
+ *
+ * Read against `nextFields` rather than the NPC row, because the reveal seeds
+ * the field list in the same breath: on a first reveal the row still says the
+ * name is hidden while the write that shares it is in flight. Reading the row
+ * would announce "someone" for every first reveal.
+ *
+ * `npc.name` is the true name and must never appear here — an unrevealed alter
+ * ego announces under its cover, and an NPC whose name the DM has not ticked
+ * announces under none at all.
+ */
+function announcedName(nextFields: string[]): string {
+  return (
+    getNpcPlayerFacingName({ ...npc, player_visible_fields: nextFields })
+    ?? NPC_UNNAMED_IN_PROSE
+  );
 }
 
 function setFields(next: string[]) {
