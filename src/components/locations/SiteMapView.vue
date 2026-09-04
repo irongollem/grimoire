@@ -5,183 +5,96 @@
          and the location editor owns it. A second uploader here meant a second
          image field, and a site could then have a map while this panel
          insisted it had none. Regions overlay whatever map_url holds. -->
-    <!-- Composited viewer: the base image, then the live map, then the region
-         overlay — bottom to top, per the epic's layer model. -->
     <div class="flex flex-col gap-1.5">
-      <div class="flex items-center justify-between">
-        <span class="text-label-lg font-semibold text-muted-foreground">Map</span>
-        <span v-if="mapLoading" class="text-caption text-muted-foreground italic">Loading map…</span>
-      </div>
+      <span class="text-label-lg font-semibold text-muted-foreground">Map</span>
 
       <div
         v-if="mode === 'browse' && activeRegion"
         class="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5"
       >
         <span class="text-caption text-foreground">
-          Tracing <strong>{{ activeRegionLabel }}</strong> — click cells below to add or remove them.
+          Tracing <strong>{{ activeRegionLabel }}</strong> — drag over cells below to add or remove them.
         </span>
         <AppButton variant="ghost" size="inline-xs" label="Done" @click="activeRegionId = null" />
       </div>
 
-      <div ref="containerEl" class="max-h-128 overflow-auto rounded-lg border border-border bg-muted/20">
-        <div class="relative" :style="stageStyle">
-          <p
-            v-if="!baseImageUrl && !mapCanvasBox"
-            class="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-caption text-muted-foreground italic"
-          >{{ mode === "run" ? "No map traced yet — use the room list below." : "No map on this place yet — add one in the editor, or trace rooms straight onto the grid." }}</p>
-          <img
-            v-if="baseImageUrl"
-            :src="baseImageUrl"
-            alt=""
-            class="absolute inset-0 h-full w-full object-cover"
-          />
-          <canvas
-            v-if="mapCanvasBox"
-            ref="mapCanvasEl"
-            class="absolute"
-            :style="mapCanvasStyle"
-          />
-          <canvas
-            ref="overlayCanvasEl"
-            class="absolute inset-0 h-full w-full cursor-pointer"
-            @click="onOverlayClick"
-          />
-        </div>
-      </div>
-    </div>
+      <p v-if="!baseImageUrl" class="text-caption text-muted-foreground italic">
+        {{
+          mode === "run"
+            ? "No map traced yet — use the room list below."
+            : "No map on this place yet — add one in the editor before tracing rooms."
+        }}
+      </p>
 
-    <!-- Room shapes — every room of this site, whether or not it has a region
-         yet, so the site is usable before it is fully traced.
-         Deliberately NOT called "Rooms": `SiteRoomsPanel` sits directly below
-         and owns rooms themselves (order, add, rename, delete). Two headings
-         reading "Rooms" a few hundred pixels apart is the duplication #783
-         removed from the Atlas tree, re-created by accident. This list is
-         about each room's *shape on the map*, which is a different thing, and
-         naming it so makes the adjacency informative instead of confusing.
-         Editing-only, so run mode hides it: `SiteRunSurface` renders its own
-         click-to-move room list instead. -->
-    <div v-if="mode !== 'run'" class="flex flex-col gap-1.5">
-      <span class="text-label-lg font-semibold text-muted-foreground">Room shapes</span>
-      <p v-if="!rooms.length" class="text-caption text-muted-foreground italic">No rooms yet — add them below.</p>
-      <div v-else class="flex flex-col gap-1.5">
+      <template v-else>
+        <div class="max-h-128 overflow-auto rounded-lg border border-border bg-muted/20">
+          <div class="relative inline-block max-w-full">
+            <img ref="imageEl" :src="baseImageUrl" alt="" :class="MAP_IMAGE_SIZING" @load="onImageLoad" />
+            <canvas
+              v-if="calibration"
+              ref="overlayCanvasEl"
+              class="absolute inset-0 h-full w-full cursor-pointer"
+              @pointerdown="onPointerDown"
+              @pointermove="onPointerMove"
+              @pointerup="onPointerUp"
+              @pointercancel="onPointerUp"
+              @click="onOverlayClick"
+            />
+          </div>
+        </div>
+
         <div
-          v-for="room in rooms"
-          :key="room.id"
-          class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
+          v-if="!calibration"
+          class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2"
         >
-          <RouterLink
-            :to="`/locations/${room.id}`"
-            class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
-          >{{ room.name }}</RouterLink>
-
-          <template v-if="boundRegionByRoom.get(room.id)">
-            <AppButton
-              variant="ghost"
-              size="inline-xs"
-              label="Trace"
-              :active="activeRegionId === boundRegionByRoom.get(room.id)!.id"
-              @click="setActive(boundRegionByRoom.get(room.id)!.id)"
-            />
-            <AppButton
-              variant="ghost"
-              size="inline-xs"
-              label="Unbind"
-              @click="unbind(boundRegionByRoom.get(room.id)!)"
-            />
-            <AppButton
-              variant="ghost"
-              tone="danger"
-              size="icon-xs"
-              :icon="IconDelete"
-              tooltip="Delete this room's shape"
-              @click="removeRegion(boundRegionByRoom.get(room.id)!)"
-            />
-          </template>
-          <AppButton v-else variant="ghost" size="inline-xs" label="Add region" @click="addRegionForRoom(room)" />
+          <span class="text-caption text-muted-foreground">
+            A grid has to be matched to this map before rooms can be traced on it.
+          </span>
+          <AppButton variant="primary" size="sm" label="Calibrate grid" @click="calibrationOpen = true" />
         </div>
-      </div>
+      </template>
     </div>
 
-    <!-- Untitled shapes — traced but not (yet) bound to a room. Tracing tools
-         only make sense in browse mode; see the Rooms gate above. -->
-    <div v-if="mode !== 'run'" class="flex flex-col gap-1.5">
-      <div class="flex items-center justify-between">
-        <span class="text-label-lg font-semibold text-muted-foreground">Untitled shapes</span>
-        <AppButton variant="ghost" size="inline-xs" :icon="IconAdd" label="New shape" @click="addUnboundRegion" />
-      </div>
-      <p v-if="!unboundRegions.length" class="text-caption text-muted-foreground italic">Nothing traced yet.</p>
-      <div v-else class="flex flex-col gap-1.5">
-        <div
-          v-for="region in unboundRegions"
-          :key="region.id"
-          class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
-        >
-          <AppInput
-            :model-value="region.label ?? ''"
-            :model-modifiers="{ lazy: true }"
-            type="text"
-            tone="bare"
-            size="xs"
-            placeholder="Name this shape…"
-            class="min-w-0 flex-1"
-            @update:model-value="commitLabel(region, $event as string)"
-          />
-          <EntityCombobox
-            :model-value="''"
-            :options="unclaimedRooms"
-            placeholder="Bind to room…"
-            class="w-40 shrink-0"
-            @update:model-value="onBindRoom(region, $event)"
-          />
-          <AppButton
-            variant="ghost"
-            size="inline-xs"
-            label="Trace"
-            :active="activeRegionId === region.id"
-            @click="setActive(region.id)"
-          />
-          <AppButton
-            variant="ghost"
-            tone="danger"
-            size="icon-xs"
-            :icon="IconDelete"
-            tooltip="Delete this shape"
-            @click="removeRegion(region)"
-          />
-        </div>
-      </div>
-    </div>
+    <!-- Region CRUD (room shapes + untitled shapes) is its own component —
+         see `SiteMapRegionList.vue` for why. Editing-only, so run mode hides
+         it: `SiteRunSurface` renders its own click-to-move room list
+         instead. -->
+    <SiteMapRegionList
+      v-if="mode !== 'run'"
+      :location-id="locationId"
+      :rooms="rooms"
+      :regions="regions"
+      :active-region-id="activeRegionId"
+      :can-trace="!!calibration"
+      @update:active-region-id="activeRegionId = $event"
+    />
+
+    <!-- Mounted unconditionally, same idiom as `LocationEditor.vue` — gated
+         purely by `:open`, not by a v-if that would tear it down mid-flow. -->
+    <GridCalibrationDialog
+      :open="calibrationOpen"
+      :map-url="baseImageUrl"
+      :existing="calibration"
+      @cancel="calibrationOpen = false"
+      @save="onCalibrationSave"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { RouterLink, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { IconAdd, IconDelete } from "@/lib/icons";
-import { useLocation, useLocations } from "@/composables/locations/useLocations";
-import {
-  useCreateLocationMapRegion,
-  useDeleteLocationMapRegion,
-  useLocationMapRegions,
-  useUpdateLocationMapRegion,
-} from "@/composables/locations/useLocationMapRegions";
-import { useSiteMapRuntimes } from "@/composables/locations/useSiteMapRuntimes";
-import { useDungeonMap } from "@/composables/cartographer/useDungeonMaps";
-import { useConfirm } from "@/composables/useConfirm";
+import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
+import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
+import { useLocation, useLocations, useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
+import { useLocationMapRegions, useUpdateLocationMapRegion } from "@/composables/locations/useLocationMapRegions";
 import { useToast } from "@/composables/useToast";
-import { renderMap } from "@/cartographer/renderMap";
-import { parseCellKey } from "@/types/dungeonMap.types";
-import {
-  cellAtPoint,
-  fitTilePx,
-  layersBoundingBox,
-  resolveGridBounds,
-  toggleCell,
-} from "@/lib/locations/siteMap";
-import type { Location } from "@/types/location.types";
+import { cellAtImageFraction, cellRectInImageFractions, gridExtent } from "@/lib/gridCalibration";
+import { MAP_IMAGE_SIZING } from "@/lib/locations/mapZoom";
+import { isCellOnImageGrid, toggleCell } from "@/lib/locations/siteMap";
+import { cellKey, type CellKey } from "@/types/dungeonMap.types";
+import type { GridCalibration, Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
 const {
@@ -214,7 +127,6 @@ const {
 const emit = defineEmits<{ "move-party": [roomId: string] }>();
 
 const router = useRouter();
-const { confirm } = useConfirm();
 const { error: toastError, fromError } = useToast();
 
 // ── Site, rooms, regions ────────────────────────────────────────────────────
@@ -225,17 +137,11 @@ const rooms = computed<Location[]>(() => (children.value ?? []).filter((l) => l.
 
 const regionsQuery = useLocationMapRegions(computed(() => locationId));
 const regions = computed<LocationMapRegion[]>(() => regionsQuery.data.value ?? []);
-const boundRegionByRoom = computed(() => {
-  const map = new Map<string, LocationMapRegion>();
-  for (const r of regions.value) if (r.room_location_id) map.set(r.room_location_id, r);
-  return map;
-});
-const unboundRegions = computed(() => regions.value.filter((r) => !r.room_location_id));
-// A room already claimed by a bound region can't take a second one — the
-// partial unique index would reject it — so it's left out of the picker
-// entirely rather than surfacing that as a toast after the fact.
-const unclaimedRooms = computed(() => rooms.value.filter((r) => !boundRegionByRoom.value.has(r.id)));
 
+// `boundRegionByRoom`/`unboundRegions`/`unclaimedRooms` and every region
+// mutation (create/bind/unbind/label/delete) live in `SiteMapRegionList.vue`
+// now — this view only needs to know which region is active, for the
+// tracing banner below and the canvas highlight/stroke target.
 const activeRegionId = ref<string | null>(null);
 const activeRegion = computed(() => regions.value.find((r) => r.id === activeRegionId.value) ?? null);
 const activeRegionLabel = computed(() => {
@@ -244,68 +150,12 @@ const activeRegionLabel = computed(() => {
   if (region.room_location_id) return rooms.value.find((r) => r.id === region.room_location_id)?.name ?? "this room";
   return region.label || "this shape";
 });
-function setActive(id: string): void {
-  activeRegionId.value = activeRegionId.value === id ? null : id;
-}
 
-const createRegion = useCreateLocationMapRegion();
+// Still owned here, not `SiteMapRegionList`: committing a drag stroke
+// (`onPointerUp` below) is a cell-list update on the active region, the same
+// mutation shape as a label edit, just triggered by the canvas instead of a
+// list row.
 const updateRegion = useUpdateLocationMapRegion();
-const deleteRegion = useDeleteLocationMapRegion();
-
-async function addRegionForRoom(room: Location): Promise<void> {
-  try {
-    const created = await createRegion.mutateAsync({ site_location_id: locationId, room_location_id: room.id });
-    activeRegionId.value = created.id;
-  } catch (e) {
-    toastError(fromError(e));
-  }
-}
-
-async function addUnboundRegion(): Promise<void> {
-  try {
-    const created = await createRegion.mutateAsync({ site_location_id: locationId });
-    activeRegionId.value = created.id;
-  } catch (e) {
-    toastError(fromError(e));
-  }
-}
-
-async function onBindRoom(region: LocationMapRegion, roomId: string): Promise<void> {
-  if (!roomId) return;
-  try {
-    await updateRegion.mutateAsync({ id: region.id, update: { room_location_id: roomId } });
-  } catch (e) {
-    toastError(fromError(e));
-  }
-}
-
-async function unbind(region: LocationMapRegion): Promise<void> {
-  try {
-    await updateRegion.mutateAsync({ id: region.id, update: { room_location_id: null } });
-  } catch (e) {
-    toastError(fromError(e));
-  }
-}
-
-async function removeRegion(region: LocationMapRegion): Promise<void> {
-  const label = region.room_location_id
-    ? (rooms.value.find((r) => r.id === region.room_location_id)?.name ?? "this room's shape")
-    : (region.label || "this shape");
-  const ok = await confirm(`Delete "${label}"? This cannot be undone.`, { danger: true });
-  if (!ok) return;
-  if (activeRegionId.value === region.id) activeRegionId.value = null;
-  try {
-    await deleteRegion.mutateAsync(region.id);
-  } catch (e) {
-    toastError(fromError(e));
-  }
-}
-
-function commitLabel(region: LocationMapRegion, value: string): void {
-  const next = value.trim();
-  if (next === (region.label ?? "")) return;
-  updateRegion.mutate({ id: region.id, update: { label: next === "" ? null : next } });
-}
 
 // ── The image the regions sit on ────────────────────────────────────────────
 
@@ -324,160 +174,117 @@ function commitLabel(region: LocationMapRegion, value: string): void {
  */
 const baseImageUrl = computed<string | null>(() => site.data.value?.map_url ?? null);
 
-// ── Live map + tile packs ───────────────────────────────────────────────────
+// ── Grid calibration ─────────────────────────────────────────────────────────
+// The bug this whole view was rewritten for (#805): cells anchor to the
+// *image* via `locations.grid_calibration`, never to whatever the traced
+// regions (or, before this ticket, a live Cartographer map) happen to cover.
+// `null` is a real state — "not calibrated yet" — not something to default
+// away; see `cellAtImageFraction`/`cellRectInImageFractions` in
+// `lib/gridCalibration.ts`, which this view is the first to consume.
 
-const sourceMapIdParam = computed(() => site.data.value?.source_map_id ?? "");
-const dungeonMapQuery = useDungeonMap(sourceMapIdParam);
-const { runtimes, loading: packsLoading } = useSiteMapRuntimes(dungeonMapQuery.data);
-const mapLoading = computed(() => dungeonMapQuery.isLoading.value || packsLoading.value);
+const calibration = computed<GridCalibration | null>(() => site.data.value?.grid_calibration ?? null);
+const calibrationOpen = ref(false);
+const updateCalibration = useUpdateLocationGridCalibration();
 
-// ── Grid geometry ───────────────────────────────────────────────────────────
+async function onCalibrationSave(next: GridCalibration): Promise<void> {
+  try {
+    await updateCalibration.mutateAsync({ id: locationId, calibration: next });
+    calibrationOpen.value = false;
+  } catch (e) {
+    toastError(fromError(e));
+  }
+}
 
-const containerEl = ref<HTMLDivElement | null>(null);
-const containerWidth = ref(0);
-let resizeObserver: ResizeObserver | null = null;
-onMounted(() => {
-  if (!containerEl.value) return;
-  resizeObserver = new ResizeObserver((entries) => {
-    containerWidth.value = entries[0]?.contentRect.width ?? 0;
-  });
-  resizeObserver.observe(containerEl.value);
-  containerWidth.value = containerEl.value.clientWidth;
-});
-onUnmounted(() => resizeObserver?.disconnect());
+// ── Image geometry ───────────────────────────────────────────────────────────
 
-const gridBounds = computed(() => resolveGridBounds(dungeonMapQuery.data.value?.layers ?? null, regions.value));
-const cols = computed(() => gridBounds.value.maxX - gridBounds.value.minX + 1);
-const rows = computed(() => gridBounds.value.maxY - gridBounds.value.minY + 1);
-const tilePx = computed(() => fitTilePx(containerWidth.value, cols.value));
-const stageStyle = computed(() => ({
-  width: `${cols.value * tilePx.value}px`,
-  height: `${rows.value * tilePx.value}px`,
-}));
-
-// The map's own painted extent, not the full grid — renderMap always fills
-// its whole canvas with an opaque background, so sizing this canvas to just
-// what the map painted is what lets the base image show through everywhere
-// else. See the SiteMapView reuse note in the #784 report: renderMap has no
-// "transparent" mode, so exact-bbox sizing plus DOM layering is how this
-// stays a read-only consumer instead of a change to renderMap itself.
-const mapBBox = computed(() => {
-  const map = dungeonMapQuery.data.value;
-  return map ? layersBoundingBox(map.layers) : null;
-});
-const mapCanvasBox = computed(() => {
-  const box = mapBBox.value;
-  if (!box) return null;
-  const t = tilePx.value;
-  return {
-    left: (box.minX - gridBounds.value.minX) * t,
-    top: (box.minY - gridBounds.value.minY) * t,
-    width: (box.maxX - box.minX + 1) * t,
-    height: (box.maxY - box.minY + 1) * t,
-    minX: box.minX,
-    minY: box.minY,
-    maxX: box.maxX,
-    maxY: box.maxY,
-  };
-});
-const mapCanvasStyle = computed(() => {
-  const box = mapCanvasBox.value;
-  if (!box) return {};
-  return { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` };
-});
-
-// ── Rendering ────────────────────────────────────────────────────────────
-// Everything below draws in device pixels directly (tilePx * dpr) rather than
-// via ctx.scale, matching how renderMap itself already expects to be called.
-
-const mapCanvasEl = ref<HTMLCanvasElement | null>(null);
+const imageEl = ref<HTMLImageElement | null>(null);
 const overlayCanvasEl = ref<HTMLCanvasElement | null>(null);
 
-function renderMapCanvas(): void {
-  const canvas = mapCanvasEl.value;
-  const map = dungeonMapQuery.data.value;
-  const box = mapCanvasBox.value;
-  if (!canvas || !map || !box) return;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.max(1, Math.round(box.width * dpr));
-  canvas.height = Math.max(1, Math.round(box.height * dpr));
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  const devicePx = tilePx.value * dpr;
-  renderMap({
-    ctx,
-    canvasWidth: canvas.width,
-    canvasHeight: canvas.height,
-    tilePx: devicePx,
-    viewportOffset: { x: box.minX * devicePx, y: box.minY * devicePx },
-    bounds: { minX: box.minX, minY: box.minY, maxX: box.maxX, maxY: box.maxY },
-    layers: map.layers,
-    metadata: map.metadata,
-    runtimes: runtimes.value,
-    fallbackRuntime: null,
-    // Only reached when a wall-joint corner has no adjacent wall to claim
-    // ownership from — which the joint code only visits when at least one
-    // does, so this default is unreachable in practice. See renderMap.ts.
-    currentPackId: map.default_pack_id ?? "",
-    activeTool: "pan",
-    viewMode: true,
-    hoveredEdge: null,
-    hoverCell: null,
-    selectedCell: null,
-    previewCells: new Set(),
-    // The whole point: the drawn map sits *over* the base
-    // image, so unpainted space has to let it through. Without this the map's
-    // own dark ground covers the scanned page everywhere inside its bounding
-    // box, which is most of the page while a DM is still tracing.
-    transparentBackground: true,
-  });
+// 0 before the <img> fires `load` — every geometry function here treats that
+// the same as "no image", per `gridExtent`'s documented degenerate-input
+// contract.
+const imageNaturalWidth = ref(0);
+const imageNaturalHeight = ref(0);
+
+function onImageLoad(): void {
+  const img = imageEl.value;
+  if (!img) return;
+  imageNaturalWidth.value = img.naturalWidth;
+  imageNaturalHeight.value = img.naturalHeight;
+  renderOverlay();
 }
 
-function renderOverlay(): void {
-  const canvas = overlayCanvasEl.value;
-  if (!canvas) return;
-  const dpr = window.devicePixelRatio || 1;
-  const t = tilePx.value * dpr;
-  canvas.width = Math.max(1, Math.round(cols.value * t));
-  canvas.height = Math.max(1, Math.round(rows.value * t));
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+// A different (or removed) map invalidates the natural size and any in-flight
+// stroke from the old one — both are meaningless until the new <img>, if any,
+// fires its own `load`.
+watch(baseImageUrl, () => {
+  imageNaturalWidth.value = 0;
+  imageNaturalHeight.value = 0;
+  stroke = null;
+});
 
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = 0; x <= cols.value; x++) {
-    ctx.moveTo(x * t, 0);
-    ctx.lineTo(x * t, rows.value * t);
-  }
-  for (let y = 0; y <= rows.value; y++) {
-    ctx.moveTo(0, y * t);
-    ctx.lineTo(cols.value * t, y * t);
-  }
-  ctx.stroke();
+let resizeObserver: ResizeObserver | null = null;
+onMounted(() => {
+  resizeObserver = new ResizeObserver(() => renderOverlay());
+});
+onUnmounted(() => resizeObserver?.disconnect());
+// The canvas is sized in CSS to exactly cover the rendered image box (`inset-0
+// h-full w-full` inside a wrapper the image alone sizes), so observing the
+// canvas itself is sufficient to catch every resize that would move it out of
+// alignment — a window resize, a sidebar collapsing, the map switching.
+watch(overlayCanvasEl, (el, oldEl) => {
+  if (oldEl) resizeObserver?.unobserve(oldEl);
+  if (el) resizeObserver?.observe(el);
+});
 
-  for (const region of regions.value) {
-    const isHighlighted = mode === "run" ? region.room_location_id === partyRoomId : region.id === activeRegionId.value;
-    ctx.fillStyle = regionFillColor(region);
-    for (const key of region.cells) {
-      const [x, y] = parseCellKey(key);
-      const lx = (x - gridBounds.value.minX) * t;
-      const ly = (y - gridBounds.value.minY) * t;
-      ctx.fillRect(lx, ly, t, t);
-    }
-    if (isHighlighted) {
-      ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
-      ctx.lineWidth = 2;
-      for (const key of region.cells) {
-        const [x, y] = parseCellKey(key);
-        const lx = (x - gridBounds.value.minX) * t;
-        const ly = (y - gridBounds.value.minY) * t;
-        ctx.strokeRect(lx + 1, ly + 1, t - 2, t - 2);
-      }
-    }
-  }
+// ── Rendering ────────────────────────────────────────────────────────────────
+
+/**
+ * An in-flight drag stroke (#805 slice 2). Kept outside Vue's reactivity on
+ * purpose: it is mutated by a pointer handler and immediately read back by an
+ * explicit `renderOverlay()` call in that same handler, every time — a ref
+ * would add proxy overhead to a per-pointermove hot path for reactivity
+ * nothing here depends on.
+ */
+interface Stroke {
+  regionId: string;
+  mode: "paint" | "erase";
+  cells: CellKey[];
 }
+let stroke: Stroke | null = null;
+
+/**
+ * The cells a finished stroke committed, drawn in place of the server's copy
+ * until the refetch carries them back.
+ *
+ * Without this the shape snaps to its pre-drag state the instant you let go
+ * and only jumps forward a round trip later — which is the very complaint the
+ * drag was built to answer, in a new costume. `useUpdateLocationMapRegion`
+ * invalidates rather than writing through, so the cache is stale by exactly
+ * one fetch; this is the local-optimistic-ref pattern used elsewhere in the
+ * app rather than a second mutation strategy.
+ *
+ * Reactive, unlike `stroke`: it is cleared by a watcher rather than by the
+ * handler that set it, so the canvas has to redraw on its own.
+ */
+const pendingStroke = ref<{ regionId: string; cells: CellKey[] } | null>(null);
+
+function sameCells(a: readonly CellKey[], b: readonly CellKey[]): boolean {
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((k) => set.has(k));
+}
+
+// Order-insensitive on purpose: the server returns a region's cells in
+// whatever order the array was stored, and a stroke builds its own order by
+// the path the pointer took. Comparing sequences would leave the optimistic
+// copy on screen forever after any drag that revisited a cell.
+watch(regions, (next) => {
+  const pending = pendingStroke.value;
+  if (!pending) return;
+  const region = next.find((r) => r.id === pending.regionId);
+  if (!region || sameCells(region.cells, pending.cells)) pendingStroke.value = null;
+});
 
 /**
  * Browse mode's palette is unchanged: active-for-tracing blue, bound green,
@@ -501,27 +308,176 @@ function regionFillColor(region: LocationMapRegion): string {
   return isActive ? "rgba(96, 165, 250, 0.45)" : bound ? "rgba(74, 222, 128, 0.28)" : "rgba(251, 191, 36, 0.28)";
 }
 
+function renderOverlay(): void {
+  const canvas = overlayCanvasEl.value;
+  const cal = calibration.value;
+  if (!canvas || !cal) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr));
+  canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const w = imageNaturalWidth.value;
+  const h = imageNaturalHeight.value;
+  const { cols, rows } = gridExtent(cal, w, h);
+  if (cols <= 0 || rows <= 0) return;
+
+  const originCellX = cal.origin_cell_x ?? 0;
+  const originCellY = cal.origin_cell_y ?? 0;
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let ix = 0; ix <= cols; ix++) {
+    const rect = cellRectInImageFractions(cellKey(ix + originCellX, originCellY), cal, w, h);
+    const px = rect.x * canvas.width;
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px, canvas.height);
+  }
+  for (let iy = 0; iy <= rows; iy++) {
+    const rect = cellRectInImageFractions(cellKey(originCellX, iy + originCellY), cal, w, h);
+    const py = rect.y * canvas.height;
+    ctx.moveTo(0, py);
+    ctx.lineTo(canvas.width, py);
+  }
+  ctx.stroke();
+
+  for (const region of regions.value) {
+    const pending = pendingStroke.value;
+    const cells =
+      stroke && stroke.regionId === region.id
+        ? stroke.cells
+        : pending && pending.regionId === region.id
+          ? pending.cells
+          : region.cells;
+    const isHighlighted = mode === "run" ? region.room_location_id === partyRoomId : region.id === activeRegionId.value;
+    ctx.fillStyle = regionFillColor(region);
+    for (const key of cells) {
+      const rect = cellRectInImageFractions(key, cal, w, h);
+      ctx.fillRect(rect.x * canvas.width, rect.y * canvas.height, rect.w * canvas.width, rect.h * canvas.height);
+    }
+    if (isHighlighted) {
+      ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
+      ctx.lineWidth = 2;
+      for (const key of cells) {
+        const rect = cellRectInImageFractions(key, cal, w, h);
+        const x = rect.x * canvas.width;
+        const y = rect.y * canvas.height;
+        const cw = rect.w * canvas.width;
+        const ch = rect.h * canvas.height;
+        ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2);
+      }
+    }
+  }
+}
+
 watch(
-  [() => dungeonMapQuery.data.value, runtimes, tilePx, mapCanvasBox],
-  () => renderMapCanvas(),
-  { flush: "post", immediate: true },
-);
-watch(
-  [regions, tilePx, gridBounds, activeRegionId, cols, rows, () => mode, () => partyRoomId, () => reachableRoomIds],
+  [regions, calibration, activeRegionId, imageNaturalWidth, imageNaturalHeight, () => mode, () => partyRoomId, () => reachableRoomIds],
   () => renderOverlay(),
   { flush: "post", immediate: true },
 );
 
-// ── Interaction ─────────────────────────────────────────────────────────────
+// ── Interaction ───────────────────────────────────────────────────────────────
 
-function onOverlayClick(e: MouseEvent): void {
-  const key = cellAtPoint(e.offsetX, e.offsetY, tilePx.value, gridBounds.value);
-  if (mode === "browse" && activeRegionId.value) {
-    const region = regions.value.find((r) => r.id === activeRegionId.value);
-    if (!region) return;
-    updateRegion.mutate({ id: region.id, update: { cells: toggleCell(region.cells, key) } });
-    return;
+/** The map cell under a pointer/mouse event, in image-fraction space via the
+ *  canvas's own on-screen box — the exact inverse of how the overlay draws a
+ *  cell's rect back onto that same box. Null before an image has loaded, or
+ *  when there is nothing calibrated to resolve against. */
+function cellFromEvent(e: MouseEvent): CellKey | null {
+  const canvas = overlayCanvasEl.value;
+  const cal = calibration.value;
+  const w = imageNaturalWidth.value;
+  const h = imageNaturalHeight.value;
+  if (!canvas || !cal || w <= 0 || h <= 0) return null;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const fx = (e.clientX - rect.left) / rect.width;
+  const fy = (e.clientY - rect.top) / rect.height;
+  return cellAtImageFraction(fx, fy, cal, w, h);
+}
+
+/**
+ * Drag-to-paint (#805 slice 2, reported from use — a click-only overlay
+ * painted one cell per drag, the one under the pointer at release, which read
+ * as "the shape appeared when I let go"). Direction locks on the first cell
+ * touched: if it's already in the region the whole stroke erases, otherwise
+ * the whole stroke paints, so dragging back over a cell already handled this
+ * stroke can't flicker it. A plain click is just a one-cell stroke — pointer
+ * down then immediately up — so it needs no separate handling.
+ */
+function onPointerDown(e: PointerEvent): void {
+  if (mode !== "browse" || !activeRegionId.value) return;
+  const region = regions.value.find((r) => r.id === activeRegionId.value);
+  const cal = calibration.value;
+  if (!region || !cal) return;
+  const key = cellFromEvent(e);
+  if (!key || !isCellOnImageGrid(key, cal, imageNaturalWidth.value, imageNaturalHeight.value)) return;
+
+  stroke = {
+    regionId: region.id,
+    mode: region.cells.includes(key) ? "erase" : "paint",
+    cells: toggleCell(region.cells, key),
+  };
+  // Keeps the stroke alive (and pointermove/pointerup firing on this canvas)
+  // even if the drag leaves the canvas's bounds before the button comes up.
+  overlayCanvasEl.value?.setPointerCapture(e.pointerId);
+  renderOverlay();
+}
+
+function onPointerMove(e: PointerEvent): void {
+  if (!stroke) return;
+  const cal = calibration.value;
+  if (!cal) return;
+  const key = cellFromEvent(e);
+  if (!key || !isCellOnImageGrid(key, cal, imageNaturalWidth.value, imageNaturalHeight.value)) return;
+
+  const alreadyInStrokeDirection = stroke.mode === "paint" ? stroke.cells.includes(key) : !stroke.cells.includes(key);
+  if (alreadyInStrokeDirection) return;
+  stroke.cells = toggleCell(stroke.cells, key);
+  renderOverlay();
+}
+
+/** Commits the whole stroke as one mutation — not one `updateRegion` round
+ *  trip per cell, which is what the drag replaced. Also the handler for
+ *  `pointercancel`: whatever the stroke touched before the interruption is
+ *  what gets saved, same as a normal release. */
+function onPointerUp(e: PointerEvent): void {
+  if (!stroke) return;
+  const { regionId, cells } = stroke;
+  stroke = null;
+  if (overlayCanvasEl.value?.hasPointerCapture(e.pointerId)) {
+    overlayCanvasEl.value.releasePointerCapture(e.pointerId);
   }
+  pendingStroke.value = { regionId, cells };
+  updateRegion.mutate(
+    { id: regionId, update: { cells } },
+    {
+      // Drop the optimistic copy on failure so the canvas falls back to what
+      // the server actually holds rather than showing a shape that was never
+      // saved. The toast is the only other signal the DM gets.
+      onError: (e) => {
+        if (pendingStroke.value?.regionId === regionId) pendingStroke.value = null;
+        toastError(fromError(e));
+        renderOverlay();
+      },
+    },
+  );
+  renderOverlay();
+}
+
+/**
+ * Everything that isn't painting: selecting an unbound shape to trace,
+ * navigating to a bound room's sheet, or — in run mode — moving the party.
+ * Tracing itself (browse mode with a region active) is fully handled by the
+ * pointer-stroke handlers above; this only has to stay out of their way.
+ */
+function onOverlayClick(e: MouseEvent): void {
+  if (mode === "browse" && activeRegionId.value) return;
+  const key = cellFromEvent(e);
+  if (!key) return;
   const found = regions.value.find((r) => r.cells.includes(key));
   if (!found) return;
 

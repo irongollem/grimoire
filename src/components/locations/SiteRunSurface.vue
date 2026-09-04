@@ -174,11 +174,14 @@ function isReachable(roomId: string): boolean {
 
 // ── Whether there's anything worth mounting the map for. A site with
 //    nothing traced and no reference image yet is still fully runnable via
-//    the room list above — mounting an empty grid would only be noise. ──────
+//    the room list above — mounting an empty grid would only be noise.
+//    `source_map_id` used to matter here too, back when this view drew the
+//    live Cartographer map straight from it; #805 deleted that live canvas
+//    (the bake — map_url — already IS the render, so drawing the tiles over
+//    their own bake was redundant), so `SiteMapView` no longer reads
+//    `source_map_id` at all and it dropped out of this gate with it. ────────
 const regionsQuery = useLocationMapRegions(siteId);
-const hasMapContent = computed(
-  () => (regionsQuery.data.value?.length ?? 0) > 0 || !!location.map_url || !!location.source_map_id,
-);
+const hasMapContent = computed(() => (regionsQuery.data.value?.length ?? 0) > 0 || !!location.map_url);
 
 // ── Moving the party ──────────────────────────────────────────────────────
 const { mutate: setCampaignLocation, isPending: isMoving } = useSetCampaignLocation();

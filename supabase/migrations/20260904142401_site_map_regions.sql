@@ -1,23 +1,30 @@
 -- Clickable rooms on a site's map. Story #784, epic #780.
 --
--- The design this implements has three layers, any of which may be absent:
+-- The design this implements has two layers, either of which may be absent:
 --
 --   image      the picture of this place: `locations.map_url` — a Cartographer
 --              bake, an uploaded scan, a photo of a hand-drawn page. There is
 --              no second image column; see the note below.
---   live map   the dungeon_maps construct behind `locations.source_map_id`,
---              rendered from its `layers` over that picture
 --   regions    cell-sets bound to `room` locations — click a room, get that room
 --
--- The middle layer is the point, and is why this is not just "trace shapes on a
--- picture": the Cartographer map is a construct with cells that already carry
--- meaning (`CellMetadata` holds trap_id, feature_id, encounter_id, note_id and
--- both spawn arrays, authored since the tool shipped and read by nothing at
--- runtime). `renderMap()` in src/cartographer/renderMap.ts is a pure function
--- with no Vue or DOM imports, so the Atlas can render the same construct
--- read-only. That is a third consumer of a pure engine, not a merge of the
--- authoring tool with the encounter runner — CLAUDE.md forbids the latter and
--- this does not do it.
+-- AMENDED by #805, before any of this reached production. This header
+-- originally described a third layer between those two — the `dungeon_maps`
+-- construct behind `locations.source_map_id`, rendered live over the picture —
+-- and called it "the point". It was not, and it has been deleted.
+--
+-- `map_url` and `source_map_id` are written together by Save to Atlas, so the
+-- bake already *is* the render: drawing the tiles over their own bake shows
+-- the same picture, except when the map was edited without re-baking, and the
+-- answer to that is re-baking. What makes this more than "trace shapes on a
+-- picture" is the Cartographer's cell *data* — `CellMetadata` holds trap_id,
+-- feature_id, encounter_id, note_id and both spawn arrays, authored since the
+-- tool shipped and read by nothing at runtime — which #789 reads by matching
+-- cell keys. That never needed a second renderer in the Atlas.
+--
+-- The cells themselves are anchored to the image through
+-- `locations.grid_calibration` (#805). They were briefly anchored to the
+-- bounding box of whatever had been traced, which meant tracing a shape
+-- resized the space the shape was traced in.
 
 -- ── No separate underlay column ────────────────────────────────────────────
 --
