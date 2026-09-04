@@ -231,6 +231,27 @@ export interface GridCalibration {
    * underlying grid does the visual work. Defaults to 0.35 when omitted.
    */
   grid_opacity?: number;
+  /**
+   * The map-cell coordinate — in the authoring tool's own cell space, e.g.
+   * a Cartographer `DungeonMap`'s `CellKey` (`src/types/dungeonMap.types.ts`)
+   * — that corresponds to image cell (0,0): the cell whose top-left corner
+   * sits at (`origin_x_pct`, `origin_y_pct`).
+   *
+   * Exists because a baked map image is not a 1:1 crop of the authored map:
+   * `src/cartographer/bake.ts` pads the painted bounding box by
+   * `DEFAULT_BAKE_PADDING_CELLS` (3) cells on every side, so image cell (0,0)
+   * is that *padded* corner, not the map's own (0,0) — it is map cell
+   * `(minX - padding, minY - padding)`. Without this offset, anything that
+   * resolves a traced/painted region back to its authored map cell
+   * (encounters, traps, features keyed by `CellKey`) would silently drift by
+   * the padding amount.
+   *
+   * Optional, defaulting to (0, 0) so every calibration written before this
+   * field existed — including the ones `useMapExport.ts` already wrote with
+   * an implicit (0,0) — keeps resolving exactly as it did before.
+   */
+  origin_cell_x?: number;
+  origin_cell_y?: number;
 }
 
 export const DEFAULT_GRID_OPACITY = 0.35;

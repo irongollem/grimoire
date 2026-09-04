@@ -109,6 +109,11 @@ export function useMapExport(opts: {
           cells_per_image_width: dims.cols,
           origin_x_pct: 0,
           origin_y_pct: 0,
+          // Image cell (0,0) is the *padded* corner of the bake, not the map's
+          // own (0,0) — `computeBakedDimensions` applies the padding itself so
+          // this cannot drift from whatever padding the bake actually used.
+          origin_cell_x: dims.originCellX,
+          origin_cell_y: dims.originCellY,
         },
       });
       showAtlasModal.value = false;

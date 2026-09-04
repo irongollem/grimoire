@@ -23,11 +23,23 @@ export const DEFAULT_BAKE_PADDING_CELLS = 3;
  * Computes the dimensions (in cells) the bake will produce for a given map.
  * Useful for downstream consumers like VTT grid calibration that need to know
  * the cell count without re-rasterising the map.
+ *
+ * Also returns the map cell that the baked image's cell (0,0) corresponds to
+ * — what a `GridCalibration` stores as `origin_cell_x/y`
+ * (`src/types/location.types.ts`). That is the *padded* corner, not the
+ * painted bounding box's own min: the bake insets the drawing by
+ * `paddingCells` on every side, so the image starts that many cells before
+ * the first painted one.
+ *
+ * Deliberately returned already-padded rather than as a raw `minX`/`minY` the
+ * caller subtracts from: `paddingCells` is a parameter, so a caller doing its
+ * own subtraction with the default constant is correct only for as long as
+ * nobody passes a different one.
  */
 export function computeBakedDimensions(
   map: DungeonMap,
   paddingCells: number = DEFAULT_BAKE_PADDING_CELLS,
-): { cols: number; rows: number } {
+): { cols: number; rows: number; originCellX: number; originCellY: number } {
   const allKeys = [
     ...Object.keys(map.layers.floor),
     ...Object.keys(map.layers.solidBlock),
@@ -48,6 +60,8 @@ export function computeBakedDimensions(
   return {
     cols: maxX - minX + 1 + paddingCells * 2,
     rows: maxY - minY + 1 + paddingCells * 2,
+    originCellX: minX - paddingCells,
+    originCellY: minY - paddingCells,
   };
 }
 
