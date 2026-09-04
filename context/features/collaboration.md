@@ -337,6 +337,8 @@ Two things ride it beyond deletes:
 
 `campaignSyncTables.test.ts` holds the trigger list in the migration and the two client registries to the same set of tables, so a table added to one and not the others fails the suite instead of going quietly un-synced.
 
+**What a member learns from it, and why that is accepted.** The doorbell carries a table name and a timestamp — no ids, no content — to every member of the campaign. A few of the 29 tables are not player-readable at all (`quest_beat_loot` is `is_campaign_dm`; `discovered_monsters` and the downtime tables are partly DM-only), so a player can infer *"the DM just deleted something in quest_beat_loot"*. That is spoiler-shaped metadata rather than a data leak, and it is kept deliberately: filtering DM-only tables out of the signal would also drop the player-visible deletions in the tables that are only *partly* DM-only, which is the failure this whole mechanism exists to end. Revisit it if a table is ever added whose mere name is a spoiler.
+
 Ten of the triggered tables have a *nullable* `campaign_id` (general-scope rows owned by a user rather than a campaign). Deleting one of those signals nothing — there is no campaign to signal — which is why a general vault item deleted by the DM is the one case still needing a reload.
 
 **Realtime is the primary read path.** HTTP reads are deliberately confined to three cases: initial load, genuine gap recovery, and the query shapes explicitly derived for it. Anything else re-fetching over HTTP is a bug — it means a subscription that should have carried the change is either missing or not trusted, and adding a poll on top hides that rather than fixing it.
@@ -374,6 +376,10 @@ All access control is enforced via PostgreSQL Row-Level Security — the client 
 **`join_campaign_via_invite` function:**
 
 - Declared `security definer`, runs with elevated privileges to atomically validate the token and insert the membership. The caller gets no direct write access to `campaign_members` — they can only go through this function.
+
+**`campaign_sync` policies:**
+
+- `campaign_sync_member_select` — the campaign's own members may read it, and that is the *only* policy on the table. There are deliberately no insert/update/delete policies: every write comes from the `SECURITY DEFINER` triggers described under [the doorbell](#the-campaign_sync-doorbell), so a client that could forge a signal — and force every other client at the table into a refetch loop — has no way in. Listed here for the reader who expects every table's policy shape in this section; the reasoning lives with the mechanism.
 
 **Campaign data tables:**
 

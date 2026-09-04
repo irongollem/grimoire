@@ -80,6 +80,11 @@ begin
      -- gone by the time its children cascade, so the insert would fail the FK —
      -- and nobody is listening to a campaign that no longer exists.
      and exists (select 1 from campaigns p where p.id = c.campaign_id)
+   -- Lock the doorbell rows in a fixed order. A statement deleting across two
+   -- campaigns takes a row lock per campaign, and two such statements running
+   -- in opposite orders would deadlock; ordering by the key makes that
+   -- impossible rather than unlikely.
+   order by 1
   on conflict (campaign_id) do update
      set changed_table = excluded.changed_table,
          updated_at    = excluded.updated_at;
@@ -104,6 +109,7 @@ begin
     join locations l on l.id = c.location_id
    where l.campaign_id is not null
      and exists (select 1 from campaigns p where p.id = l.campaign_id)
+   order by 1
   on conflict (campaign_id) do update
      set changed_table = excluded.changed_table,
          updated_at    = excluded.updated_at;
