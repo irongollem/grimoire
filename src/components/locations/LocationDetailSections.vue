@@ -19,6 +19,15 @@
       <RichTextViewer :content="location.description" />
     </section>
 
+    <!-- Site State — durable, provenance-tracked Explored/Cleared/Looted
+         facts (#787, epic #780). No location-type gate, same as Prepared
+         Here below: the migration is explicit that a district can be
+         cleared and a whole dungeon can be looted, not only a room. -->
+    <section class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Site State</h2>
+      <LocationStateControls :location-id="location.id" />
+    </section>
+
     <!-- Related Locations — non-hierarchical links (trade routes, tunnels,
          connected districts). Hidden on room-typed places: Ways out below is
          the room-scoped version of "what this connects to", and rendering
@@ -169,6 +178,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/LocationDoors.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
+import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import SiteRoomsPanel from "@/components/locations/SiteRoomsPanel.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
@@ -245,10 +255,13 @@ function locationNameOf(id: string): string {
  * `hasSubstance` answers the different question the Atlas pane actually asks —
  * is there anything *here*, as opposed to an empty place with editing
  * affordances on it? It deliberately excludes the always-present editing
- * panels (Rooms, Prepared Here, Ways out), so "Nothing inside X yet" keeps
- * meaning what it meant before those sections existed. Folding one of them
- * into the body gate alone would have silently retired that message for every
- * location in the app.
+ * panels (Rooms, Prepared Here, Ways out, Site State), so "Nothing inside X
+ * yet" keeps meaning what it meant before those sections existed. Folding one
+ * of them into the body gate alone would have silently retired that message
+ * for every location in the app. Site State (#787) is the newest of the four:
+ * every location gets the section whether or not a fact has ever been
+ * asserted, so counting it toward substance would make a bare, freshly
+ * created place register as non-empty the instant this section mounted.
  */
 const hasSubstance = computed(
   () =>

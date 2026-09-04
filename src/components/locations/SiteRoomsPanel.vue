@@ -43,6 +43,24 @@
           class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground"
         >{{ room.name }}</span>
 
+        <!-- Read-only cleared/looted markers (#787, epic #780). The toggles
+             themselves live on the room's own detail page (LocationStateControls);
+             this is a glance-only indicator, so it shows only a positive
+             assertion — an "unknown" or explicit-false room renders no marker
+             at all, keeping the row exactly as dense as before this feature. -->
+        <IconShieldCheck
+          v-if="siteStateOf(room.id, 'cleared')?.value"
+          class="h-3.5 w-3.5 shrink-0 text-tone-success"
+          aria-label="Cleared"
+          title="Cleared"
+        />
+        <IconLoot
+          v-if="siteStateOf(room.id, 'looted')?.value"
+          class="h-3.5 w-3.5 shrink-0 text-tone-caution"
+          aria-label="Looted"
+          title="Looted"
+        />
+
         <AppButton
           v-if="editingId !== room.id"
           variant="ghost"
@@ -95,7 +113,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import { IconAdd, IconClose, IconDrag, IconEdit } from "@/lib/icons";
+import { IconAdd, IconClose, IconDrag, IconEdit, IconLoot, IconShieldCheck } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import {
@@ -105,6 +123,7 @@ import {
   useDeleteLocation,
   useReorderLocations,
 } from "@/composables/locations/useLocations";
+import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import type { Location, LocationInsert } from "@/types/location.types";
 
 /**
@@ -124,6 +143,12 @@ const { locationId } = defineProps<{ locationId: string }>();
 const locationIdRef = computed(() => locationId);
 const { data: children } = useLocations(locationIdRef);
 const rooms = computed(() => (children.value ?? []).filter((l) => l.location_type === "room"));
+
+// Batched rather than one query per row — the reason `useLocationStateForRooms`
+// exists at all. Read-only here: the toggles that actually assert a fact live
+// on the room's own detail page (LocationStateControls), keyed by locationId.
+const roomIds = computed(() => rooms.value.map((r) => r.id));
+const { stateOf: siteStateOf } = useLocationStateForRooms(roomIds);
 
 const toast = useToast();
 const { confirm } = useConfirm();
