@@ -206,6 +206,14 @@ export interface Location {
    * alone.
    */
   audio_theme: string | null;
+  /**
+   * Manual order among siblings; `null` sorts last ("no order claimed yet").
+   * Written only by the `reorder_locations` RPC — ordinary saves never touch
+   * it, so rearranging siblings doesn't bump `updated_at` or invalidate the
+   * embedding source hash. See `lib/locations/tree`'s `compareSiblings` for
+   * the full sort key (tier, then this, then name).
+   */
+  sort_order: number | null;
   ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
@@ -228,9 +236,11 @@ export const DEFAULT_GRID_OPACITY = 0.35;
 
 export type LocationInsert = Omit<
   Location,
-  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme"
+  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme" | "sort_order"
 > & {
   /** Omit to take the column default of null — no audio is requested. */
   audio_theme?: string | null;
+  /** Omit to take the column default of null — the DM hasn't arranged this yet. */
+  sort_order?: number | null;
 };
 export type LocationUpdate = Partial<LocationInsert>;

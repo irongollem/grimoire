@@ -10,6 +10,7 @@ import { deleteByPublicUrl } from "@/lib/storage";
 import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
 import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
+import { persistReorder, toReorderEntries } from "@/lib/reorder";
 
 /** A location enriched with the chain of vague-container names we traversed
  *  to reach it, starting with the outermost region and ending with the
@@ -72,16 +73,16 @@ async function fetchLocations(campaignId: string, parentId: string | null): Prom
   let query = supabase
     .from("locations")
     .select("*")
-    .eq("campaign_id", campaignId)
+    .eq("campaign_id", campaignId);
+
+  query = parentId === null ? query.is("parent_id", null) : query.eq("parent_id", parentId);
+
+  // Sibling order: the DM's manual sort_order (nulls last, i.e. "no order
+  // claimed yet"), then name. `compareSiblings` in lib/locations/tree adds
+  // scale on top of this client-side, for views that mix tiers.
+  const { data, error } = await query
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
-
-  if (parentId === null) {
-    query = query.is("parent_id", null);
-  } else {
-    query = query.eq("parent_id", parentId);
-  }
-
-  const { data, error } = await query;
   if (error) throw error;
   return data as Location[];
 }
@@ -91,6 +92,7 @@ async function fetchAllLocations(campaignId: string): Promise<Location[]> {
     .from("locations")
     .select("*")
     .eq("campaign_id", campaignId)
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
   if (error) throw error;
   return data as Location[];
@@ -141,13 +143,23 @@ async function deleteLocation(id: string): Promise<void> {
 
 // ── Public composables ─────────────────────────────────────────────────────────
 
-/** List root locations (parent_id IS NULL) or children of a specific parent. */
-export function useLocations(parentId: string | null = null) {
+/**
+ * List root locations (parent_id IS NULL) or children of a specific parent.
+ *
+ * `parentId` accepts a plain value or a `Ref`. A plain value is enough for a
+ * component that is remounted per-location (a route-keyed detail page); a
+ * `Ref` is what a component needs when it is *reused* across locations
+ * instead — `AtlasPlacePane` never remounts `LocationDetailSections` when the
+ * selection changes, so `SiteRoomsPanel` needs the query to react to its own
+ * `locationId` prop rather than freezing on whichever parent mounted first.
+ */
+export function useLocations(parentId: string | null | Ref<string | null> = null) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const parentIdRef = isRef(parentId) ? parentId : ref(parentId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, parentId]),
-    queryFn: () => fetchLocations(campaignId.value!, parentId),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, parentIdRef.value]),
+    queryFn: () => fetchLocations(campaignId.value!, parentIdRef.value),
     enabled: () => !!campaignId.value,
   });
 }
@@ -382,6 +394,26 @@ export function useDeleteLocation() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: ["quests"] });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
+  });
+}
+
+async function reorderLocations(orderedIds: string[]): Promise<void> {
+  await persistReorder("reorder_locations", toReorderEntries(orderedIds));
+}
+
+/**
+ * Persist a drag-reordered sibling set (e.g. a site's rooms, in
+ * `SiteRoomsPanel`) via the `reorder_locations` RPC. Every id in the array
+ * must belong to the same `parent_id` — the RPC rejects a partial set, since
+ * that is how two rows end up claiming the same position.
+ */
+export function useReorderLocations() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: reorderLocations,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
     onError: (e) => toast.error(toast.fromError(e)),
   });
 }

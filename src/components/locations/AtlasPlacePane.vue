@@ -229,7 +229,7 @@ import { isLocationOutOfEra } from "@/lib/locations/era";
 import { planAscent, planDescent } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 import { visibleTags } from "@/lib/locations/tags";
-import { groupByTier, occupiedTiers } from "@/lib/locations/tiers";
+import { groupByTier, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
 import type { LocationTier } from "@/lib/locations/tiers";
 import { ancestorPath, childrenOf, descendantsOf } from "@/lib/locations/tree";
 import type { AtlasIndex, AtlasRow } from "@/lib/locations/tree";
@@ -339,7 +339,19 @@ const trail = computed(() => (location ? ancestorPath(index, location.id) : []))
 
 const children = computed(() => (location ? childrenOf(index, location.id) : []));
 
-const groups = computed(() => groupByTier(children.value));
+/**
+ * On a site-tier place, `LocationDetailSections` mounts `SiteRoomsPanel`
+ * below — an ordered, editable view of the same `room` children. Grouping
+ * them into an "Interiors" tile here too would render every room twice, in
+ * two different orders (this list is scale-then-name; the panel is the DM's
+ * manual `sort_order`). Every other tier still groups normally.
+ */
+const groups = computed(() => {
+  const kids = location && isSiteType(location.location_type)
+    ? children.value.filter((c) => c.location_type !== "room")
+    : children.value;
+  return groupByTier(kids);
+});
 
 const occupied = computed<ReadonlySet<LocationTier>>(() =>
   location ? occupiedTiers(descendantsOf(index, location.id)) : new Set<LocationTier>(),

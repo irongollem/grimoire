@@ -49,6 +49,16 @@
       <StoreInventory :location-id="location.id" :owner-npc-name="ownerNpcName" />
     </section>
 
+    <!-- Site rooms — numbered, orderable rooms inside a site-tier place
+         (district/building/dungeon/wilderness). Same self-contained,
+         always-editable shape as Store above; replaces the Atlas tree's
+         "Interiors" group for site-tier locations (AtlasPlacePane), so a
+         dungeon's rooms are never rendered in two places at once. -->
+    <section v-if="isSite" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Rooms</h2>
+      <SiteRoomsPanel :location-id="location.id" />
+    </section>
+
     <!-- People in the Area — NPCs whose location is this or any descendant. -->
     <section v-if="locationNpcs?.length" class="flex flex-col gap-2">
       <div class="flex items-center justify-between">
@@ -133,12 +143,14 @@ import { computed, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import SiteRoomsPanel from "@/components/locations/SiteRoomsPanel.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useEncountersByLocation } from "@/composables/encounters/useEncounters";
 import { useNpcs, useNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { IconChevronRight } from "@/lib/icons";
+import { isSiteType } from "@/lib/locations/tiers";
 import { buildAtlasIndex, descendantsOf } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";
 import { LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
@@ -180,6 +192,7 @@ const membersHere = computed(() =>
 );
 
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(location.location_type));
+const isSite = computed(() => isSiteType(location.location_type));
 
 const { data: allNpcs } = useNpcs();
 const ownerNpcName = computed(
@@ -200,6 +213,7 @@ const hasContent = computed(
     hasDescription.value ||
     relatedLocations.value.length > 0 ||
     isStoreType.value ||
+    isSite.value ||
     (locationNpcs.value?.length ?? 0) > 0 ||
     (locationEncounters.value?.length ?? 0) > 0 ||
     membersHere.value.length > 0,

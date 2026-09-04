@@ -1,5 +1,7 @@
 import type { QueryClient, QueryKey } from "@tanstack/vue-query";
 import { applyRealtimeRow, type RealtimeRowChange } from "@/lib/campaignLiveSync/realtimeCache";
+import { compareSiblings, type SiblingOrder } from "@/lib/locations/tree";
+import { isLocationType } from "@/lib/locations/tiers";
 
 type WorldTable = "notes" | "quests" | "locations" | "factions" | "npcs" | "companions";
 type Row = Record<string, unknown> & { id: string; campaign_id?: string | null };
@@ -32,6 +34,25 @@ function compareCompanion(left: Row, right: Row): number {
   const leftOrder = typeof left.sort_order === "number" ? left.sort_order : 0;
   const rightOrder = typeof right.sort_order === "number" ? right.sort_order : 0;
   return leftOrder - rightOrder || compareName(left, right);
+}
+
+/**
+ * `Row` resolves every field to `unknown` through its index signature, so this
+ * narrows the three the sibling order actually reads — the same defensive shape
+ * `compareCompanion` above uses. An unrecognised type falls back to `other`,
+ * which `tierIndex` already sorts last, so a malformed payload lands at the
+ * bottom rather than throwing or jumping the queue.
+ */
+function siblingOrderOf(row: Row): SiblingOrder {
+  return {
+    location_type: isLocationType(row.location_type) ? row.location_type : "other",
+    sort_order: typeof row.sort_order === "number" ? row.sort_order : null,
+    name: typeof row.name === "string" ? row.name : "",
+  };
+}
+
+function compareLocationSiblings(left: Row, right: Row): number {
+  return compareSiblings(siblingOrderOf(left), siblingOrderOf(right));
 }
 
 /**
@@ -130,7 +151,10 @@ function applyLocations(queryClient: QueryClient, change: Change, context: Conte
         if (row.campaign_id !== context.campaignId) return false;
         return key[2] === "all" || key[2] === row.parent_id;
       },
-      compare: compareName,
+      // Sibling order (tier, then sort_order, then name) — not just name —
+      // so a realtime insert lands where SiteRoomsPanel and the Atlas tree
+      // would put it, rather than reshuffling on the next full refetch.
+      compare: compareLocationSiblings,
     });
   }
 

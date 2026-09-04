@@ -90,8 +90,29 @@ export const TIER_COLORS: Record<LocationTier, string> = Object.fromEntries(
   LOCATION_TIERS.map((tier) => [tier, LOCATION_TYPE_COLORS[TIER_REPRESENTATIVE_TYPE[tier]]]),
 ) as Record<LocationTier, string>;
 
+/**
+ * Whether an arbitrary value is one of the 17 location types. `LOCATION_TYPE_TIER`
+ * is keyed by every one of them, so membership in it *is* the check — which keeps
+ * callers holding loosely-typed data (realtime payloads) from having to assert a
+ * shape they cannot actually see.
+ */
+export function isLocationType(value: unknown): value is LocationType {
+  return typeof value === "string" && value in LOCATION_TYPE_TIER;
+}
+
 export function tierOf(type: LocationType): LocationTier | null {
   return LOCATION_TYPE_TIER[type];
+}
+
+/**
+ * True for the `site` tier — district, building, dungeon, wilderness. This is
+ * the tier that gets a rooms panel (#783): big enough to be worth numbering
+ * rooms in, but not a `venue` (store/tavern/inn), which can *hold* a room per
+ * the DB constraint but doesn't get the panel — an inn does not need a
+ * numbered map.
+ */
+export function isSiteType(type: LocationType): boolean {
+  return LOCATION_TYPE_TIER[type] === "site";
 }
 
 /** Ladder position, for the scale rail. `null` tier sorts last. */

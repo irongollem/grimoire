@@ -4,6 +4,7 @@ import {
   ancestorPath,
   buildAtlasIndex,
   childrenOf,
+  compareSiblings,
   descendantsOf,
   visibleRows,
 } from "./tree";
@@ -42,6 +43,7 @@ function loc(
     era_start: null,
     era_end: null,
     audio_theme: null,
+    sort_order: null,
     created_at: "",
     updated_at: "",
     ...extra,
@@ -72,6 +74,17 @@ describe("buildAtlasIndex", () => {
     ]);
     // The city outranks the alphabetically-earlier tavern.
     expect(index.childIds.get("r")).toEqual(["zzz-city", "keep", "aaa-tavern"]);
+  });
+
+  it("uses sort_order over name when siblings share a tier", () => {
+    // Named to contradict alphabetical order: if this passed by name alone,
+    // "aaa-second" would come first — proving sort_order is what decided it.
+    const index = buildAtlasIndex([
+      loc("zzz-first", "city", "r", { sort_order: 0 }),
+      loc("aaa-second", "city", "r", { sort_order: 1 }),
+      loc("r", "region"),
+    ]);
+    expect(index.childIds.get("r")).toEqual(["zzz-first", "aaa-second"]);
   });
 
   it("promotes an orphan to a root rather than dropping it", () => {
@@ -200,5 +213,35 @@ describe("ancestorPath", () => {
   it("terminates on a cycle", () => {
     const index = buildAtlasIndex([loc("a", "city", "b"), loc("b", "city", "a")]);
     expect(ancestorPath(index, "a").length).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("compareSiblings", () => {
+  it("orders by tier before anything else, regardless of sort_order or name", () => {
+    const room = loc("aaa-room", "room", null, { sort_order: 0 });
+    const region = loc("zzz-region", "region", null, { sort_order: 99 });
+    expect(compareSiblings(region, room)).toBeLessThan(0);
+    expect(compareSiblings(room, region)).toBeGreaterThan(0);
+  });
+
+  it("orders ascending by sort_order within a tier", () => {
+    const first = loc("b", "city", null, { sort_order: 0 });
+    const second = loc("a", "city", null, { sort_order: 1 });
+    expect(compareSiblings(first, second)).toBeLessThan(0);
+    expect(compareSiblings(second, first)).toBeGreaterThan(0);
+  });
+
+  it("sorts a null sort_order after any numbered sibling", () => {
+    const numbered = loc("numbered", "city", null, { sort_order: 0 });
+    const unordered = loc("unordered", "city", null, { sort_order: null });
+    expect(compareSiblings(numbered, unordered)).toBeLessThan(0);
+    expect(compareSiblings(unordered, numbered)).toBeGreaterThan(0);
+  });
+
+  it("falls back to name when sort_order ties, including two unordered siblings", () => {
+    const alpha = loc("Alpha", "city");
+    const beta = loc("Beta", "city");
+    expect(compareSiblings(alpha, beta)).toBeLessThan(0);
+    expect(compareSiblings(beta, alpha)).toBeGreaterThan(0);
   });
 });

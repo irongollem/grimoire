@@ -3,6 +3,7 @@ import {
   LOCATION_TIERS,
   LOCATION_TYPE_TIER,
   groupByTier,
+  isSiteType,
   occupiedTiers,
   tierIndex,
   tierOf,
@@ -38,6 +39,7 @@ function loc(name: string, location_type: LocationType): Location {
     era_start: null,
     era_end: null,
     audio_theme: null,
+    sort_order: null,
     created_at: "",
     updated_at: "",
   };
@@ -76,6 +78,30 @@ describe("tier assignment", () => {
     expect(tierOf("dungeon")).toBe("site");
     expect(tierOf("wilderness")).toBe("site");
     expect(tierOf("building")).toBe("site");
+  });
+});
+
+describe("isSiteType", () => {
+  it("agrees with the tier map for every location type", () => {
+    for (const type of Object.keys(LOCATION_TYPE_TIER) as LocationType[]) {
+      expect(isSiteType(type)).toBe(LOCATION_TYPE_TIER[type] === "site");
+    }
+  });
+
+  it("covers exactly district, building, dungeon and wilderness", () => {
+    expect(isSiteType("district")).toBe(true);
+    expect(isSiteType("building")).toBe(true);
+    expect(isSiteType("dungeon")).toBe(true);
+    expect(isSiteType("wilderness")).toBe(true);
+  });
+
+  it("excludes venue, interior and every other tier", () => {
+    expect(isSiteType("store")).toBe(false);
+    expect(isSiteType("tavern")).toBe(false);
+    expect(isSiteType("inn")).toBe(false);
+    expect(isSiteType("room")).toBe(false);
+    expect(isSiteType("city")).toBe(false);
+    expect(isSiteType("other")).toBe(false);
   });
 });
 
