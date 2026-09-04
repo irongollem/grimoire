@@ -19,8 +19,14 @@
       <RichTextViewer :content="location.description" />
     </section>
 
-    <!-- Related Locations — non-hierarchical links (trade routes, tunnels, etc.) -->
-    <section v-if="relatedLocations.length" class="flex flex-col gap-2">
+    <!-- Related Locations — non-hierarchical links (trade routes, tunnels,
+         connected districts). Hidden on room-typed places: Ways out below is
+         the room-scoped version of "what this connects to", and rendering
+         both would be the same list of connections twice, in two mechanisms —
+         the duplication #783 already removed from the Atlas tree's Interiors
+         group. `related_location_ids` itself is untouched; a room simply
+         doesn't render this section. -->
+    <section v-if="relatedLocations.length && !isRoom" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Related Locations
         <span class="font-fell font-normal text-muted-foreground">({{ relatedLocations.length }})</span>
@@ -39,6 +45,15 @@
           <span class="font-cinzel text-xs text-foreground truncate max-w-40">{{ rel.name }}</span>
         </RouterLink>
       </div>
+    </section>
+
+    <!-- Ways out — named, directional, lockable doors to sibling rooms
+         (#785, epic #780). Same self-contained, always-editable shape as
+         Rooms/Prepared Here below; this is the section that makes Related
+         Locations redundant on a room, per the comment above. -->
+    <section v-if="isRoom" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Ways out</h2>
+      <LocationDoors :room-id="location.id" :parent-id="location.parent_id" />
     </section>
 
     <!-- Store inventory — self-contained editable component. Useful enough
@@ -152,6 +167,7 @@ import { computed, ref, watch } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import LocationDoors from "@/components/locations/LocationDoors.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import SiteRoomsPanel from "@/components/locations/SiteRoomsPanel.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
@@ -203,6 +219,7 @@ const membersHere = computed(() =>
 
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(location.location_type));
 const isSite = computed(() => isSiteType(location.location_type));
+const isRoom = computed(() => location.location_type === "room");
 
 const { data: allNpcs } = useNpcs();
 const ownerNpcName = computed(
@@ -227,15 +244,20 @@ function locationNameOf(id: string): string {
  *
  * `hasSubstance` answers the different question the Atlas pane actually asks —
  * is there anything *here*, as opposed to an empty place with editing
- * affordances on it? It deliberately excludes the always-available panels, so
- * "Nothing inside X yet" keeps meaning what it meant before this section
- * existed. Folding placements into the body gate alone would have silently
- * retired that message for every location in the app.
+ * affordances on it? It deliberately excludes the always-present editing
+ * panels (Rooms, Prepared Here, Ways out), so "Nothing inside X yet" keeps
+ * meaning what it meant before those sections existed. Folding one of them
+ * into the body gate alone would have silently retired that message for every
+ * location in the app.
  */
 const hasSubstance = computed(
   () =>
     hasDescription.value ||
-    relatedLocations.value.length > 0 ||
+    // Only counts when the Related Locations section itself would render —
+    // on a room it never does (Ways out replaces it), so a stray
+    // `related_location_ids` set before the place became a room must not
+    // claim substance the body no longer shows.
+    (relatedLocations.value.length > 0 && !isRoom.value) ||
     (locationNpcs.value?.length ?? 0) > 0 ||
     (locationEncounters.value?.length ?? 0) > 0 ||
     membersHere.value.length > 0,
