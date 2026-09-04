@@ -78,7 +78,7 @@
       <StoreInventory :location-id="location.id" :owner-npc-name="ownerNpcName" />
     </section>
 
-    <!-- Site map — underlay + live Cartographer map + clickable room regions
+    <!-- Site map — the place's image + live Cartographer map + room regions
          on a site-tier place (#784, epic #780). Self-contained, same
          scalar-prop shape as the panels around it. -->
     <section v-if="isSite" class="flex flex-col gap-2">

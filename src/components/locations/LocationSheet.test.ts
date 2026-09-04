@@ -47,7 +47,7 @@ function place(over: Partial<Location> & { id: string }): Location {
   return {
     user_id: "u", campaign_id: "c", parent_id: null, name: over.id,
     location_type: "building", description: null, notes: null, tags: [],
-    image_url: null, map_url: null, underlay_url: null, map_pins: [], is_map_shared: false,
+    image_url: null, map_url: null, map_pins: [], is_map_shared: false,
     player_visible_to: [], player_summary: null, is_description_shared: false,
     is_npcs_shared: false, is_inventory_shared: false, npc_owner_id: null,
     related_location_ids: [], source_map_id: null, is_battle_map: false,

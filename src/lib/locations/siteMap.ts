@@ -1,7 +1,7 @@
 // Pure grid/geometry maths for the site map viewer (#784, epic #780).
 //
-// The grid is the coordinate space; the underlay image and the live
-// Cartographer map are optional decoration over it — see the header of
+// The grid is the coordinate space; the place's own image (`map_url`) and the
+// live Cartographer map are optional decoration over it — see the header of
 // migration `20260904142401_site_map_regions.sql`. Everything here is
 // deliberately free of Vue, DOM and canvas so it can be unit tested without a
 // browser. `SiteMapView.vue` is the only consumer.
@@ -79,7 +79,7 @@ export function regionsBoundingBox(regions: readonly Pick<LocationMapRegion, "ce
  * The addressable grid for the viewer: the union of whatever the live map has
  * painted and whatever any region has already traced, padded by
  * `GRID_PADDING_CELLS`, falling back to `DEFAULT_GRID_BOUNDS` when neither
- * exists yet — a freshly-added site with only an underlay still needs a grid
+ * exists yet — a freshly-added site with only a picture still needs a grid
  * to trace onto.
  */
 export function resolveGridBounds(

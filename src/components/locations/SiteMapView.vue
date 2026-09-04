@@ -1,44 +1,11 @@
 <template>
   <div class="flex flex-col gap-4">
-    <!-- Underlay: a static reference image the DM can trace rooms onto,
-         independent of whether a live Cartographer map exists (#784).
-         Run mode (#791) shows the underlay itself further down — it's part
-         of the composited stage — but not the uploader: a DM at the table
-         isn't the one who should be prompted to attach a reference image. -->
-    <div v-if="mode !== 'run'" class="flex flex-col gap-1.5">
-      <div class="flex items-center justify-between gap-2">
-        <span class="text-label-lg font-semibold text-muted-foreground">Reference image</span>
-        <!-- Collapsed until asked for. A landscape dropzone is ~40rem tall
-             empty, and most sites never get a scan at all — that is a lot of
-             nothing on every dungeon, district, building and wilderness in the
-             Atlas. Once an image exists the uploader shows it, so there is no
-             hidden state to discover. -->
-        <AppButton
-          v-if="!underlayUrl && !showUnderlayPicker"
-          variant="ghost"
-          size="inline-xs"
-          label="Add a reference image"
-          @click="showUnderlayPicker = true"
-        />
-      </div>
-      <template v-if="underlayUrl || showUnderlayPicker">
-        <ImageUpload
-          v-model="underlayUrl"
-          bucket="location-images"
-          aspect="landscape"
-          placeholder="Upload a scanned page or photo to trace over…"
-        />
-        <p class="text-caption text-muted-foreground italic">
-          Stays private to your account — never shown to players.
-        </p>
-      </template>
-      <p v-else class="text-caption text-muted-foreground italic">
-        A scanned page or photo to trace rooms over. Optional — you can trace
-        straight onto the grid.
-      </p>
-    </div>
-
-    <!-- Composited viewer: underlay, then the live map, then the region
+    <!-- No image uploader here on purpose. `locations.map_url` already IS the
+         image of this place — a Cartographer bake, an uploaded scan, a photo —
+         and the location editor owns it. A second uploader here meant a second
+         image field, and a site could then have a map while this panel
+         insisted it had none. Regions overlay whatever map_url holds. -->
+    <!-- Composited viewer: the base image, then the live map, then the region
          overlay — bottom to top, per the epic's layer model. -->
     <div class="flex flex-col gap-1.5">
       <div class="flex items-center justify-between">
@@ -59,12 +26,12 @@
       <div ref="containerEl" class="max-h-128 overflow-auto rounded-lg border border-border bg-muted/20">
         <div class="relative" :style="stageStyle">
           <p
-            v-if="!underlayUrl && !mapCanvasBox"
+            v-if="!baseImageUrl && !mapCanvasBox"
             class="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-caption text-muted-foreground italic"
-          >{{ mode === "run" ? "No map traced yet — use the room list below." : "No underlay or map yet — trace directly on the grid below." }}</p>
+          >{{ mode === "run" ? "No map traced yet — use the room list below." : "No map on this place yet — add one in the editor, or trace rooms straight onto the grid." }}</p>
           <img
-            v-if="underlayUrl"
-            :src="underlayUrl"
+            v-if="baseImageUrl"
+            :src="baseImageUrl"
             alt=""
             class="absolute inset-0 h-full w-full object-cover"
           />
@@ -193,9 +160,8 @@ import { RouterLink, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import ImageUpload from "@/components/common/ImageUpload.vue";
 import { IconAdd, IconDelete } from "@/lib/icons";
-import { useLocation, useLocations, useUpdateLocation } from "@/composables/locations/useLocations";
+import { useLocation, useLocations } from "@/composables/locations/useLocations";
 import {
   useCreateLocationMapRegion,
   useDeleteLocationMapRegion,
@@ -341,26 +307,22 @@ function commitLabel(region: LocationMapRegion, value: string): void {
   updateRegion.mutate({ id: region.id, update: { label: next === "" ? null : next } });
 }
 
-// ── Underlay persistence ────────────────────────────────────────────────────
-// Self-contained and always-editable, like the sibling site/room panels: each
-// change persists immediately rather than waiting on a form Save button.
+// ── The image the regions sit on ────────────────────────────────────────────
 
-const underlayUrl = ref<string | null>(null);
-
-// Opens the uploader on a site that has no reference image yet. See the
-// template: an empty landscape dropzone is ~40rem tall, and most sites never
-// get a scan, so it stays collapsed until a DM asks for it.
-const showUnderlayPicker = ref(false);
-watch(
-  () => site.data.value?.underlay_url ?? null,
-  (v) => { underlayUrl.value = v; },
-  { immediate: true },
-);
-const updateLocation = useUpdateLocation();
-watch(underlayUrl, (v) => {
-  if (v === (site.data.value?.underlay_url ?? null)) return;
-  updateLocation.mutate({ id: locationId, update: { underlay_url: v } });
-});
+/**
+ * The image the regions sit on: the location's own `map_url`.
+ *
+ * There is deliberately no second field. `map_url` is the image of this place
+ * whatever it is — a Cartographer bake, a scanned module page, a photo of a
+ * hand-drawn map — and `is_map_shared` already decides whether players see it.
+ * A separate `underlay_url` was a second answer to a question `locations`
+ * already answered, and it showed: a site with a perfectly good map_url
+ * reported "no map yet" here, because this panel only looked at its own field.
+ *
+ * Read-only on purpose. The location editor owns map_url; two uploaders for one
+ * image is how the two fields happened in the first place.
+ */
+const baseImageUrl = computed<string | null>(() => site.data.value?.map_url ?? null);
 
 // ── Live map + tile packs ───────────────────────────────────────────────────
 
@@ -395,7 +357,7 @@ const stageStyle = computed(() => ({
 
 // The map's own painted extent, not the full grid — renderMap always fills
 // its whole canvas with an opaque background, so sizing this canvas to just
-// what the map painted is what lets the underlay show through everywhere
+// what the map painted is what lets the base image show through everywhere
 // else. See the SiteMapView reuse note in the #784 report: renderMap has no
 // "transparent" mode, so exact-bbox sizing plus DOM layering is how this
 // stays a read-only consumer instead of a change to renderMap itself.
@@ -463,7 +425,7 @@ function renderMapCanvas(): void {
     hoverCell: null,
     selectedCell: null,
     previewCells: new Set(),
-    // The whole point of the underlay: the drawn map sits *over* the reference
+    // The whole point: the drawn map sits *over* the base
     // image, so unpainted space has to let it through. Without this the map's
     // own dark ground covers the scanned page everywhere inside its bounding
     // box, which is most of the page while a DM is still tracing.

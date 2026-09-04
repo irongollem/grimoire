@@ -177,7 +177,7 @@ function isReachable(roomId: string): boolean {
 //    the room list above — mounting an empty grid would only be noise. ──────
 const regionsQuery = useLocationMapRegions(siteId);
 const hasMapContent = computed(
-  () => (regionsQuery.data.value?.length ?? 0) > 0 || !!location.underlay_url || !!location.source_map_id,
+  () => (regionsQuery.data.value?.length ?? 0) > 0 || !!location.map_url || !!location.source_map_id,
 );
 
 // ── Moving the party ──────────────────────────────────────────────────────

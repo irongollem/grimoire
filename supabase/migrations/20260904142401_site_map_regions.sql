@@ -2,8 +2,11 @@
 --
 -- The design this implements has three layers, any of which may be absent:
 --
---   underlay   a static image: a scanned module page, a photo of a hand-drawn map
---   map        a LIVE dungeon_maps construct, rendered from its `layers`
+--   image      the picture of this place: `locations.map_url` — a Cartographer
+--              bake, an uploaded scan, a photo of a hand-drawn page. There is
+--              no second image column; see the note below.
+--   live map   the dungeon_maps construct behind `locations.source_map_id`,
+--              rendered from its `layers` over that picture
 --   regions    cell-sets bound to `room` locations — click a room, get that room
 --
 -- The middle layer is the point, and is why this is not just "trace shapes on a
@@ -16,18 +19,18 @@
 -- authoring tool with the encounter runner — CLAUDE.md forbids the latter and
 -- this does not do it.
 
--- ── The underlay ────────────────────────────────────────────────────────────
+-- ── No separate underlay column ────────────────────────────────────────────
 --
--- Deliberately NOT `map_url`. The two have different lifetimes: you keep the
--- scan when you redraw the map over it, and you may have either without the
--- other. One column cannot hold both without one of them being destroyed the
--- first time the other changes.
-alter table public.locations add column underlay_url text;
-
-comment on column public.locations.underlay_url is
-  'A static reference image beneath the map: a scanned page, a photo. DM-only '
-  'and never projected to players -- see the player projection below. Distinct '
-  'from map_url, which is the drawn map and may be shared.';
+-- An earlier draft of this migration added `locations.underlay_url` for "a
+-- scanned page to trace over". That was a second answer to a question
+-- `locations` already answers: `map_url` IS the image of this place, whatever
+-- it is — a Cartographer bake, an uploaded scan, a photo — and `is_map_shared`
+-- already decides whether players see it.
+--
+-- Two image columns meant the site panel reported "no map yet" on a location
+-- that plainly had one, because it looked only at its own field. Regions
+-- therefore overlay `map_url` (or the live `dungeon_maps` construct behind
+-- `source_map_id` when there is one), and nothing new is stored for the image.
 
 -- ── Regions ─────────────────────────────────────────────────────────────────
 --
@@ -163,84 +166,6 @@ create policy "location_map_regions_update" on public.location_map_regions
 create policy "location_map_regions_delete" on public.location_map_regions
   for delete using ((select auth.uid()) = user_id);
 
--- ── Recreate the player projection ──────────────────────────────────────────
---
--- The sixth recreation. `get_player_visible_locations` returns `setof
--- locations` and lists every column positionally so it can null the DM-only
--- ones, so any new column makes its list one short and it fails at call time
--- with a return type mismatch -- in the *player* atlas, not the DM's.
--- 20260818081308 learned that and says so in its own header.
---
--- `underlay_url` is nulled, alongside `notes` and `audio_theme`. This is a
--- licensing posture, not a visibility preference: the underlay is typically a
--- scanned page from a book the DM owns. Keeping it for their own prep is
--- ordinary personal use; projecting it to other accounts is redistribution,
--- and the projection is the exact boundary where that would happen. Players
--- see `map_url` -- the drawn map -- when the DM shares it, which is the DM's
--- own work and theirs to share.
-create or replace function public.get_player_visible_locations(
-  p_campaign_id uuid default null,
-  p_location_id uuid default null
-)
-returns setof locations
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select
-    l.id,
-    l.user_id,
-    l.campaign_id,
-    l.parent_id,
-    l.name,
-    l.location_type,
-    case when l.is_description_shared then l.description else null::text end,  -- full description
-    null::text,                                                               -- notes (DM-only)
-    l.tags,
-    l.image_url,
-    l.created_at,
-    l.updated_at,
-    case when l.is_map_shared then l.map_url else null::text end,             -- map_url gated by is_map_shared
-    coalesce((
-      select jsonb_agg(pin)
-      from jsonb_array_elements(coalesce(l.map_pins, '[]'::jsonb)) pin
-      where coalesce((pin->>'visible_to_players')::boolean, false)
-    ), '[]'::jsonb),
-    l.is_map_shared,
-    l.player_summary,
-    l.is_description_shared,
-    l.is_npcs_shared,
-    l.player_visible_to,
-    l.is_inventory_shared,
-    l.npc_owner_id,
-    l.related_location_ids,
-    l.source_map_id,
-    l.grid_calibration,
-    l.is_battle_map,
-    l.era_start,
-    l.era_end,
-    null::text,                                                               -- audio_theme (DM-only)
-    l.ai_provenance,
-    l.setting_source,
-    l.sort_order,
-    null::text                                                                -- underlay_url (DM-only; see header)
-  from locations l
-  where l.campaign_id is not null
-    and (p_campaign_id is null or l.campaign_id = p_campaign_id)
-    and (p_location_id is null or l.id = p_location_id)
-    and exists (
-      select 1 from campaign_members cm
-      where cm.user_id = (select auth.uid())
-        and cm.campaign_id = l.campaign_id
-    )
-    and (
-      exists (
-        select 1 from campaign_members cm
-        where cm.user_id = (select auth.uid())
-          and cm.campaign_id = l.campaign_id
-          and cm.party_member_id = any (l.player_visible_to)
-      )
-      or (p_location_id is not null and l.is_map_shared = true)
-    )
-$$;
+-- No projection recreate: `locations` gains no column here, so
+-- `get_player_visible_locations` still matches the rowtype it was last built
+-- against (20260904014714, for `sort_order`).
