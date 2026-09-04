@@ -42,11 +42,11 @@ export const VAGUE_LOCATION_TYPES = new Set<LocationType>([
 ]);
 
 /**
- * Declaration order is **scale order**, matching the ladder in
- * `lib/locations/tiers`. Both type dropdowns — the DM Atlas and the player
- * portal — build their options by iterating this record, so the order here is
- * the order a user reads, and an alphabetical or arbitrary sort would put a
- * broom closet between two continents.
+ * Declaration order is **ladder order**, matching `lib/locations/tiers`. Both
+ * type dropdowns — the DM Atlas and the player portal — build their options
+ * by iterating this record, so the order here is the order a user reads, and
+ * an alphabetical or arbitrary sort would put a broom closet between two
+ * continents.
  */
 export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   world: "World",
@@ -55,16 +55,16 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   continent: "Continent",
   region: "Region",
   country: "Country",
+  wilderness: "Wilderness",
 
   city: "City",
   town: "Town",
   village: "Village",
 
-  dungeon: "Dungeon",
   district: "District",
-  building: "Building",
-  wilderness: "Wilderness",
 
+  building: "Building",
+  dungeon: "Dungeon",
   store: "Store",
   tavern: "Tavern",
   inn: "Inn",
@@ -75,28 +75,34 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
 };
 
 /**
- * Type colours are a **scale ramp, not a palette of kinds** — do not reshuffle
+ * Type colours are a **tier ramp, not a palette of kinds** — do not reshuffle
  * these into "a red for dungeons, a green for forests". That was the previous
  * scheme, and it meant colour carried no information the type label did not
- * already carry, while the one thing a DM cannot read from a label — how big
- * this place is relative to that one — went unencoded entirely.
+ * already carry, while the one thing a DM cannot read from a label — what
+ * kind of map this place gets, and how its children sit on it — went
+ * unencoded entirely.
  *
- * The ramp runs cool-to-warm along the scale ladder in `lib/locations/tiers`,
- * which reads as distance: the far and cosmic are cold, the near and enclosed
- * are warm.
+ * The ramp runs cool-to-warm along the ladder in `lib/locations/tiers`, which
+ * reads as distance: the far and cosmic are cold, the near and enclosed are
+ * warm.
  *
  *   cosmic      violet   — the void
- *   continental blue     — lands seen from above
+ *   land        blue     — no floor plan, seen from above (continent, region,
+ *                          country, wilderness — pins all the way down)
  *   settlement  teal     — where people gather
- *   site        lime     — a place you can walk around
- *   venue       amber    — hearth-light, a room you can stand in
+ *   district    lime     — geography one step in: still pins, not a floor plan
+ *   site        amber    — a floor plan; hearth-light, walls you can trace
  *   interior    rust     — fully enclosed
- *   other       grey     — no scale claimed
+ *   other       grey     — no tier claimed
  *
- * Within a tier, lightness steps by **enclosure**, darkest = most enclosed. So
- * `dungeon` is the darkest site and `wilderness` the lightest, which is why
- * they sit in the same hue family despite feeling like opposites — they are
- * the same *scale*, and that is what this channel now means.
+ * Within a tier, lightness steps by **enclosure**, darkest = most enclosed.
+ * `land` runs continent → region → country → wilderness, lightest last:
+ * `wilderness` is the least enclosed thing on the ladder. `site` now steps
+ * five types instead of three — dungeon (underground, windowless) darkest,
+ * then building, then store/tavern/inn lightest — so `dungeon` reads darkest
+ * of the whole ramp. `dungeon` and `wilderness` no longer share a hue family;
+ * under the old ladder they did, which was the bug (#810) — they are not the
+ * same kind of map, whatever their footprint on the page.
  *
  * Values stay 6-digit hex: several call sites append an alpha pair
  * (`LOCATION_TYPE_COLORS[t] + "22"`) to derive a tint.
@@ -108,16 +114,16 @@ export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
   continent: "#1d4ed8",
   region: "#3b82f6",
   country: "#60a5fa",
+  wilderness: "#93c5fd",
 
   city: "#0f766e",
   town: "#14b8a6",
   village: "#2dd4bf",
 
-  dungeon: "#3f6212",
   district: "#4d7c0f",
-  building: "#65a30d",
-  wilderness: "#84cc16",
 
+  building: "#92400e",
+  dungeon: "#78350f",
   store: "#b45309",
   tavern: "#d97706",
   inn: "#f59e0b",

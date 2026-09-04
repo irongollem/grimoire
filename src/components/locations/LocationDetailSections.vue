@@ -24,10 +24,10 @@
          migration is explicit that a district can be cleared and a whole
          dungeon can be looted, not only a room.
          Titled "Progress" rather than "Site State" precisely because there is
-         no gate — this renders on rooms, taverns and continents too, and a
-         room is not a site. "Site" is the tier above it (district, building,
-         dungeon, wilderness), so the word was actively wrong wherever this
-         panel is most used. -->
+         no gate — this renders on rooms, districts and continents too, and a
+         room is not a site. "Site" means building, dungeon, store, tavern or
+         inn (#810) — the five types with a floor plan — so the word was
+         actively wrong wherever this panel is most used. -->
     <section class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Progress</h2>
       <LocationStateControls :location-id="location.id" />
@@ -87,8 +87,9 @@
     </section>
 
     <!-- Site rooms — numbered, orderable rooms inside a site-tier place
-         (district/building/dungeon/wilderness). Same self-contained,
-         always-editable shape as Store above; replaces the Atlas tree's
+         (building/dungeon/store/tavern/inn — the five types with a floor
+         plan, #810). Same self-contained, always-editable shape as Store
+         above; replaces the Atlas tree's
          "Interiors" group for site-tier locations (AtlasPlacePane), so a
          dungeon's rooms are never rendered in two places at once. -->
     <section v-if="isSite" class="flex flex-col gap-2">

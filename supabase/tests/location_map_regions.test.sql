@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(10);
 
 -- Story #784 (epic #780). A region binds a shape on a site's map to one of its
 -- rooms. The binding is a real FK with a real guard; the geometry is jsonb
@@ -19,7 +19,8 @@ on conflict (campaign_id, user_id) do update set role = excluded.role;
 
 insert into public.locations (id, user_id, campaign_id, name, location_type) values
   ('78400000-0000-4000-8000-000000000020', '78400000-0000-4000-8000-000000000001', '78400000-0000-4000-8000-000000000010', 'The Sunken Vault', 'dungeon'),
-  ('78400000-0000-4000-8000-000000000021', '78400000-0000-4000-8000-000000000001', '78400000-0000-4000-8000-000000000010', 'The Drowned Chapel', 'dungeon');
+  ('78400000-0000-4000-8000-000000000021', '78400000-0000-4000-8000-000000000001', '78400000-0000-4000-8000-000000000010', 'The Drowned Chapel', 'dungeon'),
+  ('78400000-0000-4000-8000-000000000022', '78400000-0000-4000-8000-000000000001', '78400000-0000-4000-8000-000000000010', 'The White Quarter', 'district');
 insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type) values
   ('78400000-0000-4000-8000-000000000030', '78400000-0000-4000-8000-000000000001', '78400000-0000-4000-8000-000000000010', '78400000-0000-4000-8000-000000000020', 'Reliquary', 'room'),
   ('78400000-0000-4000-8000-000000000031', '78400000-0000-4000-8000-000000000001', '78400000-0000-4000-8000-000000000010', '78400000-0000-4000-8000-000000000021', 'Far Vestry', 'room');
@@ -95,6 +96,35 @@ select is(
     where id = '78400000-0000-4000-8000-000000000041'),
   0,
   'removing a room removes the region bound to it'
+);
+
+-- #810: a region is geometry on a floor plan, so it can only be traced on a
+-- place that has one. Before #810 the guard constrained only the bound *room*
+-- and never the site, so the database happily stored a region on a continent —
+-- a row no screen could ever render. Free to close while the table is empty.
+select throws_ok(
+  $$insert into public.location_map_regions (user_id, site_location_id, cells)
+    values ('78400000-0000-4000-8000-000000000001', '78400000-0000-4000-8000-000000000022', '["1,1"]'::jsonb)$$,
+  '23514',
+  null,
+  'a region may not be traced on a district'
+);
+
+-- #810: retyping a site out of the tier must not strand the shapes drawn on it.
+-- The region guard fires only on insert and on rebinding, so before this the
+-- site could simply become a city afterwards, leaving an unbound region on a
+-- place with no floor plan — and then partly frozen, since any later write
+-- touching `site_location_id` raises. Unbound is the normal mid-trace state, so
+-- the gap sat exactly on the workflow the table exists for.
+insert into public.location_map_regions (id, user_id, site_location_id, cells, label)
+values ('78400000-0000-4000-8000-000000000050', '78400000-0000-4000-8000-000000000001', '78400000-0000-4000-8000-000000000021', '["4,4"]'::jsonb, 'Untraced yet');
+
+select throws_ok(
+  $$update public.locations set location_type = 'city'
+    where id = '78400000-0000-4000-8000-000000000021'$$,
+  '23514',
+  null,
+  'a site carrying an unbound region cannot become a place with no floor plan'
 );
 
 select * from finish();

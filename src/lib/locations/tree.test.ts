@@ -72,8 +72,10 @@ describe("buildAtlasIndex", () => {
       loc("aaa-tavern", "tavern", "r"),
       loc("zzz-city", "city", "r"),
     ]);
-    // The city outranks the alphabetically-earlier tavern.
-    expect(index.childIds.get("r")).toEqual(["zzz-city", "keep", "aaa-tavern"]);
+    // The city outranks both site-tier siblings. `building` and `tavern` now
+    // share a tier ("site" — the ladder groups by map kind, not size), so
+    // they fall back to alphabetical order: "aaa-tavern" before "keep".
+    expect(index.childIds.get("r")).toEqual(["zzz-city", "aaa-tavern", "keep"]);
   });
 
   it("uses sort_order over name when siblings share a tier", () => {
