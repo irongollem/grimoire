@@ -19,6 +19,7 @@ The loop:
 | Credits are **per character**, not per user | A user may own several `party_members`. Every table keys on `party_member_id`. |
 | Balance is **derived**, never stored | `sum(grants) − draws where status <> 'cancelled'`. Cannot drift. A cancelled draw refunds; a resolved one does not. |
 | Outcomes **propose** effects; the DM disposes | "The DM decides how dark their world is; we facilitate." Nothing mutates a character until the DM ticks a box. |
+| Spending is **confirmed, then the card turns face-down** | A player reported that tapping a card did nothing. It did — the draw landed — but the board said so only in the empty-state line ("Nothing to spend yet…", identical to never having had a credit) and in a `text-2xs` row buried under eight cards. See "Saying that something happened" below. |
 | Prepped card backs are a **per-archetype FIFO pile** | Prepped backs are dealt first; when the pile is dry the deck falls back to a random system seed. Same deck serves the winging-it DM and the DM who plots six sessions ahead. |
 | Archetype catalog + seeds live in **code, not the DB** | Adding an archetype must be data, never a migration. |
 
@@ -41,9 +42,10 @@ The loop:
 | `src/lib/downtime/downtimeDeck.ts` | `drawFromDeck(activityKey, backs, seeds, rng)` — prepped FIFO first, else weighted seed. **RNG is injected**; the function is pure. Also `nextPreppedBack`, `pickWeightedSeed` |
 | `src/lib/downtime/downtimeBalance.ts` | `computeBalance(grants, draws)` |
 | `src/lib/downtime/downtimeSeedReward.ts` | `npcInsertFromSeed` / `itemInsertFromSeed` / `noteInsertFromSeed` — per-kind clone payloads, `Omit<…,"campaign_id">`. Minted rows are private + hidden from players by default; notes convert Markdown → Tiptap here |
+| `src/lib/downtime/downtimeReward.ts` | `downtimeRewardHref` (an `item` is at `/vault/:id`, **not** `/items/:id`), `pendingRewardLabel` (voice-neutral, because the DM board renders it too), `RESOLVABLE_REWARD_TYPES` / `isResolvableRewardType` |
 | `src/lib/downtime/downtimeEffects.ts` | `applyCoinEffects` / `applyHpEffects` / `applyConditionEffects` (pure, ticked-only), `isAutoAppliedKind`, `hasApplicableMemberEffect` — the state transforms the app enacts automatically |
 
-Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7), `downtimeEffects.test.ts` (24), `downtimeSeedReward.test.ts` (13, incl. deck-data invariants).
+Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7), `downtimeEffects.test.ts` (24), `downtimeSeedReward.test.ts` (13, incl. deck-data invariants), `downtimeReward.test.ts` (7, incl. a guard that every kind a seed can mint is one the boards can name).
 
 ### Composable
 
@@ -55,13 +57,19 @@ Tests: `downtimeDeck.test.ts` (21), `downtimeBalance.test.ts` (7), `downtimeEffe
 - `useApplyEffects` applies the ticked coin/HP/condition effects in one `party_members` read-modify-write (via the pure `downtimeEffects.ts` transforms). `item` effects stay a DM checklist.
 - `previewDraw(activityKey, backs)` binds `Math.random` at the edge
 
+`src/composables/downtime/useDowntimeRewardName.ts` — the **DM-side** reward-name
+lookup (`useNpcs`/`useItems`/`useNotes`), shared by `DowntimeBoardView`'s
+resolved feed and `DeckBacksPanel`'s prepped pile. It exists because those two
+surfaces had each hand-written the same switch and only one of them was right;
+see "Naming the reward" below before writing a third copy.
+
 > `useDowntimeBalance` returns `number | null`. **Null means "not knowable yet"** — loading, or this user plays no character here. It is deliberately *not* zero, so the UI hides the board rather than rendering a misleading `0`.
 
 ### Components (`src/components/downtime/`)
 
 | File | Used by |
 | --- | --- |
-| `DowntimeActivityCard.vue` | Player board **and** DM prep panel — one component, props differ. Procedural card face from `accent` + `glyph` when `artUrl` is null |
+| `DowntimeActivityCard.vue` | Player board **and** DM prep panel — one component, props differ. Procedural card face from `accent` + `glyph` when `artUrl` is null. Two-faced: `pendingCount > 0` turns it face-down (`cardTurnStyle` from `lib/motion.ts`) |
 | `DowntimeOutcomeVignette.vue` | Player history **and** DM board |
 | `DowntimeResolvePanel.vue` | DM board — one pending draw |
 | `DeckBacksPanel.vue` | DM board — "stack the deck" |
@@ -113,6 +121,64 @@ The full loop was exercised against the live DB as a real player and DM (JWT cla
 spend blocked at 0 credits · player cannot self-grant · DM grants · player spends · double-spend blocked · player cannot resolve · DM resolves · draw marked resolved · one-shot back consumed · recurring back **not** consumed · double-resolve blocked · balance returns to 0.
 
 ---
+
+## Saying that something happened
+
+A spend is asynchronous by design: the player commits, and the outcome arrives
+a session later from the DM. That leaves the tap itself with nothing to show,
+and the first version showed nothing — the complaint was literally "nothing
+happens". Four things now answer the tap, in the order the eye meets them:
+
+1. **A confirm before the spend.** The card is a large art tile, which reads as
+   *tap to open*, not *tap to spend a scarce, DM-granted credit only the DM can
+   refund*. `useConfirm`, `danger: false`. The activity name leads the *message*
+   rather than the title, because `ModalHeader` keeps a title to one line and
+   "Spend your draw on Craft & En…" is not a question anyone can answer.
+2. **The card turns over.** A real `rotateY` through `transform-3d` +
+   `backface-hidden`, at `CARD_TURN_MS` (520ms — longer than any other motion in
+   the app, because a turn under ~400ms reads as an instant swap of two faces,
+   which is the very "nothing happened" it exists to cure). It turns on confirm,
+   optimistically, and the refetched draw takes the state over; a DM's
+   cancellation turns it back. Reduced motion zeroes the duration but keeps the
+   rotation — the resting face *is* the state, not decoration.
+3. **A toast**, naming the activity. Note this is a deliberate departure from
+   the crafting precedent's "no toast, on purpose": crafting surfaces its
+   outcome inline on the same panel, and this one cannot.
+4. **The pending list sits above the board**, not below it, and names each
+   activity. It is the answer to "what did my tap do"; under four rows of cards
+   nobody ever reached it.
+
+And the balance line distinguishes **"0 draws, one is with your DM"** from
+**"0 draws, you never had one"**. Collapsing those two was the actual bug: a
+successful spend reported itself in the words of the empty state.
+
+### Naming the reward — the bug Phase 2 left behind
+
+Phase 2 generalised what a draw *mints* (npc → npc/item/note) but not what the
+two boards can *name*: both `rewardName` and `rewardHref` began
+`if (rewardType !== "npc") return null`, so every item and note reward ever
+handed out rendered as **"??? (no longer exists)"** while the row sat intact in
+the campaign. Found 5 Sep 2026 on a resolved Craft & Enchant draw whose item,
+The Frostbound Clasp, was in the Vault the whole time.
+
+It is worth naming the shape of it, because the vignette's own docstring
+already forbade exactly this ("must never be reported as 'no longer exists' —
+that's a lie the player can catch out"). The rule was written for the npc path
+and then the npc path was the only one that got the code. **A guard that lives
+in one branch of a switch is not a guard.**
+
+How it resolves now:
+
+- **DM board** — resolves npc/item/note through `useDowntimeRewardName`, which
+  `DeckBacksPanel` shares. The DM owns every row, so an unresolved one of those
+  genuinely is deleted and may say so. The three kinds nothing can currently mint report as *pending*
+  rather than absent, because nobody looked them up — an unchecked absence is a
+  guess, not a fact.
+- **Player board** — resolves npc/item against the gated projections. Anything
+  else it cannot see is **always** pending, never absent: seed rewards are
+  minted hidden, a player cannot tell "withheld" from "deleted", and the reward
+  pair is null-together by CHECK, so an id present means a row was created.
+- Only a **resolved** reward gets a link, since a link to a deleted id 404s.
 
 ## Named limits (current)
 

@@ -11,17 +11,24 @@ import GrantDowntimeButton from "@/components/downtime/GrantDowntimeButton.vue";
 import RuleDisabledNotice from "@/components/common/RuleDisabledNotice.vue";
 import { useIsRuleEnabled } from "@/composables/rules/useOptionalRules";
 import { useParty } from "@/composables/party/useParty";
-import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useDowntimeRewardName } from "@/composables/downtime/useDowntimeRewardName";
+import {
+  downtimeRewardHref,
+  isResolvableRewardType,
+} from "@/lib/downtime/downtimeReward";
 import { useDowntimeDraws, useDowntimeOutcomes, useDeckBacks } from "@/composables/downtime/useDowntime";
 import { useUiStore } from "@/stores/ui";
 import { DOWNTIME_DRAW_STATUSES, DOWNTIME_DRAW_STATUS_LABELS } from "@/types/downtime.types";
-import type { DowntimeDraw } from "@/types/downtime.types";
+import type { DowntimeDraw, DowntimeRewardType } from "@/types/downtime.types";
 
 const ui = useUiStore();
 // Hidden from the sidebar when off, but a bookmarked URL still lands here.
 const isEnabled = useIsRuleEnabled("downtime");
 const { data: party, isPending: partyPending } = useParty();
-const { data: npcs } = useNpcs();
+// Item and note rewards are as real as npc ones — Phase 2 made every seed's
+// reward polymorphic — and this board used to resolve `npc` alone, so the other
+// two rendered as the absence marker over rows that exist.
+const { rewardName } = useDowntimeRewardName();
 const { data: draws } = useDowntimeDraws();
 const { data: outcomes } = useDowntimeOutcomes();
 const { data: backs } = useDeckBacks();
@@ -63,14 +70,19 @@ const resolvedFeed = computed(() =>
     ),
 );
 
-function rewardName(rewardType: string | null, rewardId: string | null): string | null {
-  if (rewardType !== "npc" || !rewardId) return null;
-  return npcs.value?.find((n) => n.id === rewardId)?.name ?? null;
+/** Only link once the row is actually there — a link to a deleted id 404s. */
+function rewardHref(rewardType: DowntimeRewardType | null, rewardId: string | null): string | null {
+  if (!rewardType || !rewardId) return null;
+  return rewardName(rewardType, rewardId) ? downtimeRewardHref(rewardType, rewardId) : null;
 }
 
-function rewardHref(rewardType: string | null, rewardId: string | null): string | null {
-  if (rewardType !== "npc" || !rewardId) return null;
-  return `/npcs/${rewardId}`;
+/**
+ * The DM owns every row here, so an unresolved npc/item/note genuinely is gone
+ * and may say so. The three kinds nothing can mint were never looked up, and
+ * claiming they no longer exist would be a guess dressed as a fact.
+ */
+function rewardPending(rewardType: DowntimeRewardType | null, rewardId: string | null): boolean {
+  return !!rewardType && !!rewardId && !isResolvableRewardType(rewardType);
 }
 </script>
 
@@ -193,6 +205,7 @@ function rewardHref(rewardType: string | null, rewardId: string | null): string 
           :activity-key="draw.activity_key"
           :reward-name="rewardName(outcome.reward_type, outcome.reward_id)"
           :reward-href="rewardHref(outcome.reward_type, outcome.reward_id)"
+          :reward-pending="rewardPending(outcome.reward_type, outcome.reward_id)"
         />
       </div>
     </section>
