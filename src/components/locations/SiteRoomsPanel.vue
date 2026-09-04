@@ -1,8 +1,10 @@
 <template>
   <div class="flex flex-col gap-3">
-    <div class="flex items-center justify-between">
-      <span class="text-label-lg font-semibold text-muted-foreground">Rooms</span>
-    </div>
+    <!-- No internal "Rooms" heading: `LocationDetailSections` already titles
+         this section Rooms, and repeating the word a line apart is noise.
+         `StoreInventory` avoids the same collision by calling its own list
+         "Inventory" under a "Store" heading; here there is no second word
+         worth inventing, so the row simply goes. -->
 
     <!-- Room list -->
     <VueDraggable

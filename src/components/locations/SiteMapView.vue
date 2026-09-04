@@ -1,17 +1,40 @@
 <template>
   <div class="flex flex-col gap-4">
     <!-- Underlay: a static reference image the DM can trace rooms onto,
-         independent of whether a live Cartographer map exists (#784). -->
-    <div class="flex flex-col gap-1.5">
-      <span class="text-label-lg font-semibold text-muted-foreground">Reference image</span>
-      <ImageUpload
-        v-model="underlayUrl"
-        bucket="location-images"
-        aspect="landscape"
-        placeholder="Upload a scanned page or photo to trace over…"
-      />
-      <p class="text-caption text-muted-foreground italic">
-        Stays private to your account — never shown to players.
+         independent of whether a live Cartographer map exists (#784).
+         Run mode (#791) shows the underlay itself further down — it's part
+         of the composited stage — but not the uploader: a DM at the table
+         isn't the one who should be prompted to attach a reference image. -->
+    <div v-if="mode !== 'run'" class="flex flex-col gap-1.5">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-label-lg font-semibold text-muted-foreground">Reference image</span>
+        <!-- Collapsed until asked for. A landscape dropzone is ~40rem tall
+             empty, and most sites never get a scan at all — that is a lot of
+             nothing on every dungeon, district, building and wilderness in the
+             Atlas. Once an image exists the uploader shows it, so there is no
+             hidden state to discover. -->
+        <AppButton
+          v-if="!underlayUrl && !showUnderlayPicker"
+          variant="ghost"
+          size="inline-xs"
+          label="Add a reference image"
+          @click="showUnderlayPicker = true"
+        />
+      </div>
+      <template v-if="underlayUrl || showUnderlayPicker">
+        <ImageUpload
+          v-model="underlayUrl"
+          bucket="location-images"
+          aspect="landscape"
+          placeholder="Upload a scanned page or photo to trace over…"
+        />
+        <p class="text-caption text-muted-foreground italic">
+          Stays private to your account — never shown to players.
+        </p>
+      </template>
+      <p v-else class="text-caption text-muted-foreground italic">
+        A scanned page or photo to trace rooms over. Optional — you can trace
+        straight onto the grid.
       </p>
     </div>
 
@@ -24,7 +47,7 @@
       </div>
 
       <div
-        v-if="activeRegion"
+        v-if="mode === 'browse' && activeRegion"
         class="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5"
       >
         <span class="text-caption text-foreground">
@@ -33,12 +56,12 @@
         <AppButton variant="ghost" size="inline-xs" label="Done" @click="activeRegionId = null" />
       </div>
 
-      <div ref="containerEl" class="max-h-[32rem] overflow-auto rounded-lg border border-border bg-muted/20">
+      <div ref="containerEl" class="max-h-128 overflow-auto rounded-lg border border-border bg-muted/20">
         <div class="relative" :style="stageStyle">
           <p
             v-if="!underlayUrl && !mapCanvasBox"
             class="pointer-events-none absolute inset-0 flex items-center justify-center px-4 text-center text-caption text-muted-foreground italic"
-          >No underlay or map yet — trace directly on the grid below.</p>
+          >{{ mode === "run" ? "No map traced yet — use the room list below." : "No underlay or map yet — trace directly on the grid below." }}</p>
           <img
             v-if="underlayUrl"
             :src="underlayUrl"
@@ -60,11 +83,19 @@
       </div>
     </div>
 
-    <!-- Rooms — every room of this site, whether or not it has a region yet,
-         so the site is usable before it is fully traced. -->
-    <div class="flex flex-col gap-1.5">
-      <span class="text-label-lg font-semibold text-muted-foreground">Rooms</span>
-      <p v-if="!rooms.length" class="text-caption text-muted-foreground italic">No rooms yet.</p>
+    <!-- Room shapes — every room of this site, whether or not it has a region
+         yet, so the site is usable before it is fully traced.
+         Deliberately NOT called "Rooms": `SiteRoomsPanel` sits directly below
+         and owns rooms themselves (order, add, rename, delete). Two headings
+         reading "Rooms" a few hundred pixels apart is the duplication #783
+         removed from the Atlas tree, re-created by accident. This list is
+         about each room's *shape on the map*, which is a different thing, and
+         naming it so makes the adjacency informative instead of confusing.
+         Editing-only, so run mode hides it: `SiteRunSurface` renders its own
+         click-to-move room list instead. -->
+    <div v-if="mode !== 'run'" class="flex flex-col gap-1.5">
+      <span class="text-label-lg font-semibold text-muted-foreground">Room shapes</span>
+      <p v-if="!rooms.length" class="text-caption text-muted-foreground italic">No rooms yet — add them below.</p>
       <div v-else class="flex flex-col gap-1.5">
         <div
           v-for="room in rooms"
@@ -104,8 +135,9 @@
       </div>
     </div>
 
-    <!-- Untitled shapes — traced but not (yet) bound to a room. -->
-    <div class="flex flex-col gap-1.5">
+    <!-- Untitled shapes — traced but not (yet) bound to a room. Tracing tools
+         only make sense in browse mode; see the Rooms gate above. -->
+    <div v-if="mode !== 'run'" class="flex flex-col gap-1.5">
       <div class="flex items-center justify-between">
         <span class="text-label-lg font-semibold text-muted-foreground">Untitled shapes</span>
         <AppButton variant="ghost" size="inline-xs" :icon="IconAdd" label="New shape" @click="addUnboundRegion" />
@@ -186,7 +218,34 @@ import {
 import type { Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
-const props = defineProps<{ locationId: string }>();
+const {
+  locationId,
+  mode = "browse",
+  partyRoomId = null,
+  reachableRoomIds = null,
+} = defineProps<{
+  locationId: string;
+  /**
+   * Ordinary Atlas browsing (default) selects an unbound region for tracing
+   * and navigates to a bound one's room on click. Run mode (#791, epic #780)
+   * instead moves the party there — see `onOverlayClick` and
+   * `SiteRunSurface.vue`, the one caller that passes `"run"`.
+   */
+  mode?: "browse" | "run";
+  /** The room the party currently occupies, for the marker overlay. Only
+   *  meaningful in run mode; ignored in browse mode. */
+  partyRoomId?: string | null;
+  /**
+   * Rooms the party can currently walk to from `partyRoomId`, per the site's
+   * door graph (`lib/locations/siteRun.ts`). Only meaningful in run mode.
+   * `null` means "nothing to be unreachable from yet" — the party isn't in a
+   * room of this site at all — so every bound region renders and behaves as
+   * reachable.
+   */
+  reachableRoomIds?: ReadonlySet<string> | null;
+}>();
+
+const emit = defineEmits<{ "move-party": [roomId: string] }>();
 
 const router = useRouter();
 const { confirm } = useConfirm();
@@ -194,11 +253,11 @@ const { error: toastError, fromError } = useToast();
 
 // ── Site, rooms, regions ────────────────────────────────────────────────────
 
-const site = useLocation(computed(() => props.locationId));
-const { data: children } = useLocations(computed(() => props.locationId));
+const site = useLocation(computed(() => locationId));
+const { data: children } = useLocations(computed(() => locationId));
 const rooms = computed<Location[]>(() => (children.value ?? []).filter((l) => l.location_type === "room"));
 
-const regionsQuery = useLocationMapRegions(computed(() => props.locationId));
+const regionsQuery = useLocationMapRegions(computed(() => locationId));
 const regions = computed<LocationMapRegion[]>(() => regionsQuery.data.value ?? []);
 const boundRegionByRoom = computed(() => {
   const map = new Map<string, LocationMapRegion>();
@@ -229,7 +288,7 @@ const deleteRegion = useDeleteLocationMapRegion();
 
 async function addRegionForRoom(room: Location): Promise<void> {
   try {
-    const created = await createRegion.mutateAsync({ site_location_id: props.locationId, room_location_id: room.id });
+    const created = await createRegion.mutateAsync({ site_location_id: locationId, room_location_id: room.id });
     activeRegionId.value = created.id;
   } catch (e) {
     toastError(fromError(e));
@@ -238,7 +297,7 @@ async function addRegionForRoom(room: Location): Promise<void> {
 
 async function addUnboundRegion(): Promise<void> {
   try {
-    const created = await createRegion.mutateAsync({ site_location_id: props.locationId });
+    const created = await createRegion.mutateAsync({ site_location_id: locationId });
     activeRegionId.value = created.id;
   } catch (e) {
     toastError(fromError(e));
@@ -287,6 +346,11 @@ function commitLabel(region: LocationMapRegion, value: string): void {
 // change persists immediately rather than waiting on a form Save button.
 
 const underlayUrl = ref<string | null>(null);
+
+// Opens the uploader on a site that has no reference image yet. See the
+// template: an empty landscape dropzone is ~40rem tall, and most sites never
+// get a scan, so it stays collapsed until a DM asks for it.
+const showUnderlayPicker = ref(false);
 watch(
   () => site.data.value?.underlay_url ?? null,
   (v) => { underlayUrl.value = v; },
@@ -295,7 +359,7 @@ watch(
 const updateLocation = useUpdateLocation();
 watch(underlayUrl, (v) => {
   if (v === (site.data.value?.underlay_url ?? null)) return;
-  updateLocation.mutate({ id: props.locationId, update: { underlay_url: v } });
+  updateLocation.mutate({ id: locationId, update: { underlay_url: v } });
 });
 
 // ── Live map + tile packs ───────────────────────────────────────────────────
@@ -432,16 +496,15 @@ function renderOverlay(): void {
   ctx.stroke();
 
   for (const region of regions.value) {
-    const isActive = region.id === activeRegionId.value;
-    const bound = !!region.room_location_id;
-    ctx.fillStyle = isActive ? "rgba(96, 165, 250, 0.45)" : bound ? "rgba(74, 222, 128, 0.28)" : "rgba(251, 191, 36, 0.28)";
+    const isHighlighted = mode === "run" ? region.room_location_id === partyRoomId : region.id === activeRegionId.value;
+    ctx.fillStyle = regionFillColor(region);
     for (const key of region.cells) {
       const [x, y] = parseCellKey(key);
       const lx = (x - gridBounds.value.minX) * t;
       const ly = (y - gridBounds.value.minY) * t;
       ctx.fillRect(lx, ly, t, t);
     }
-    if (isActive) {
+    if (isHighlighted) {
       ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
       ctx.lineWidth = 2;
       for (const key of region.cells) {
@@ -454,13 +517,35 @@ function renderOverlay(): void {
   }
 }
 
+/**
+ * Browse mode's palette is unchanged: active-for-tracing blue, bound green,
+ * unbound amber. Run mode has no tracing, so it repurposes the same three
+ * slots for the questions a DM actually asks while playing — where is the
+ * party (blue, same as "active" so the two modes never fight for a colour),
+ * can they walk to this room (green), can they not (a dim stone grey rather
+ * than amber, so "locked" doesn't read as "look here" the way tracing's
+ * unbound colour deliberately does) — and an untraced shape fades nearly
+ * away, since it names nothing a DM needs mid-session.
+ */
+function regionFillColor(region: LocationMapRegion): string {
+  if (mode === "run") {
+    if (region.room_location_id === partyRoomId) return "rgba(96, 165, 250, 0.55)";
+    if (!region.room_location_id) return "rgba(255, 255, 255, 0.04)";
+    const reachable = !reachableRoomIds || reachableRoomIds.has(region.room_location_id);
+    return reachable ? "rgba(74, 222, 128, 0.28)" : "rgba(120, 113, 108, 0.35)";
+  }
+  const isActive = region.id === activeRegionId.value;
+  const bound = !!region.room_location_id;
+  return isActive ? "rgba(96, 165, 250, 0.45)" : bound ? "rgba(74, 222, 128, 0.28)" : "rgba(251, 191, 36, 0.28)";
+}
+
 watch(
   [() => dungeonMapQuery.data.value, runtimes, tilePx, mapCanvasBox],
   () => renderMapCanvas(),
   { flush: "post", immediate: true },
 );
 watch(
-  [regions, tilePx, gridBounds, activeRegionId, cols, rows],
+  [regions, tilePx, gridBounds, activeRegionId, cols, rows, () => mode, () => partyRoomId, () => reachableRoomIds],
   () => renderOverlay(),
   { flush: "post", immediate: true },
 );
@@ -469,7 +554,7 @@ watch(
 
 function onOverlayClick(e: MouseEvent): void {
   const key = cellAtPoint(e.offsetX, e.offsetY, tilePx.value, gridBounds.value);
-  if (activeRegionId.value) {
+  if (mode === "browse" && activeRegionId.value) {
     const region = regions.value.find((r) => r.id === activeRegionId.value);
     if (!region) return;
     updateRegion.mutate({ id: region.id, update: { cells: toggleCell(region.cells, key) } });
@@ -477,10 +562,26 @@ function onOverlayClick(e: MouseEvent): void {
   }
   const found = regions.value.find((r) => r.cells.includes(key));
   if (!found) return;
-  if (found.room_location_id) {
-    router.push(`/locations/${found.room_location_id}`);
-  } else {
-    activeRegionId.value = found.id;
+
+  if (!found.room_location_id) {
+    // Nothing to move to or navigate into — only browse mode's tracing UI
+    // makes an untitled shape worth selecting.
+    if (mode === "browse") activeRegionId.value = found.id;
+    return;
   }
+
+  if (mode === "run") {
+    // Reachable rooms move the party in one click, per #791's whole point.
+    // An unreachable one still lets the DM look — "select-without-moving" —
+    // by falling back to the same plain navigation browse mode always did.
+    if (!reachableRoomIds || reachableRoomIds.has(found.room_location_id)) {
+      emit("move-party", found.room_location_id);
+    } else {
+      router.push(`/locations/${found.room_location_id}`);
+    }
+    return;
+  }
+
+  router.push(`/locations/${found.room_location_id}`);
 }
 </script>

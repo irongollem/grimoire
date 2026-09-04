@@ -4,7 +4,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { LocationState, LocationStateEvent, LocationStateEventInsert, LocationStateFact } from "@/types/locationState.types";
 
-const QUERY_KEY = "location-state";
+/**
+ * Exported because moving the party invalidates it from outside this module.
+ * A database trigger records the party's first arrival somewhere as an
+ * `explored` assertion (#790), so rows appear that the client never asked for
+ * and cannot infer — without an explicit invalidation the DM moves the party,
+ * the room really is explored, and the UI keeps saying it is not until a
+ * reload. See `useSetCampaignLocation`.
+ */
+export const LOCATION_STATE_QUERY_KEY = "location-state";
+const QUERY_KEY = LOCATION_STATE_QUERY_KEY;
 
 async function fetchLocationState(locationIds: readonly string[]): Promise<LocationState[]> {
   if (!locationIds.length) return [];

@@ -11,6 +11,7 @@ import type {
   HomebrewKind,
   TransferScopedDisposition,
 } from "@/lib/campaign/campaignHomebrewDisposition";
+import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
 import { HOMEBREW_TABLES, EMPTY_HOMEBREW_COUNTS } from "@/lib/campaign/campaignHomebrewDisposition";
 
 // All campaign-scoped tables whose orphaned rows (campaign_id IS NULL) can be claimed
@@ -397,6 +398,13 @@ export function useSetCampaignLocation() {
       updateCampaign(id, { current_location_id: locationId } as CampaignUpdate),
     onSuccess: (updatedCampaign) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      // Moving the party fires a database trigger that records their first
+      // arrival as an `explored` assertion (#790). Those rows appear without
+      // the client asking, so nothing here can infer them — without this the
+      // DM moves the party, the room genuinely is explored, and the UI keeps
+      // saying it is not until a reload. Invalidated here rather than at the
+      // call site so no caller can forget: every party move writes one.
+      queryClient.invalidateQueries({ queryKey: [LOCATION_STATE_QUERY_KEY] });
       import("@/stores/campaign").then(({ useCampaignStore }) => {
         const store = useCampaignStore();
         if (store.activeCampaign && updatedCampaign) {

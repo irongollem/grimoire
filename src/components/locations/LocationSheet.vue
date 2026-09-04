@@ -35,6 +35,17 @@
         :disabled="isDeleting"
         @click="onDelete"
       />
+      <!-- The site runner (#791, epic #780) — one surface to run a dungeon
+           at the table. Site-tier only: a room's own sheet has nothing to
+           run, and every other tier has no rooms to move a party between. -->
+      <AppButton
+        v-if="isSiteType(location.location_type)"
+        variant="outline"
+        size="md"
+        :icon="IconPlay"
+        label="Run"
+        @click="router.push({ query: { ...route.query, run: 'true' } })"
+      />
       <AppButton
         variant="primary"
         size="md"
@@ -118,7 +129,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
-import { IconDelete, IconEdit } from '@/lib/icons';
+import { IconDelete, IconEdit, IconPlay } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
 import { useUiStore } from "@/stores/ui";
@@ -128,6 +139,7 @@ import {
   useDeleteLocation,
   getPinnableDescendants,
 } from "@/composables/locations/useLocations";
+import { isSiteType } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import { visibleTags } from "@/lib/locations/tags";
 import type { Location } from "@/types/location.types";
