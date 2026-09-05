@@ -75,92 +75,12 @@
     <TagInput v-model="tags" />
 
     <!-- ── Session date fields ──────────────────────────────────────────────── -->
-    <template v-if="category === 'session'">
-      <div class="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
-        <p class="text-label-lg font-semibold text-muted-foreground">SESSION DATES</p>
-
-        <!-- Start date -->
-        <div class="space-y-1.5">
-          <p class="text-caption text-muted-foreground">Start date (in-game)</p>
-          <div class="flex gap-2 flex-wrap">
-            <AppInput
-              v-model.number="sessionStartYear"
-              type="number"
-              min="1"
-              placeholder="Year"
-              tone="card"
-              size="body-xs"
-              class="w-24"
-            />
-            <AppSelect v-model.number="sessionStartMonth" size="body">
-              <option :value="null">— Month —</option>
-              <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
-            </AppSelect>
-            <AppInput
-              v-model.number="sessionStartDay"
-              type="number"
-              min="1"
-              max="30"
-              placeholder="Day"
-              tone="card"
-              size="body-xs"
-              class="w-20"
-            />
-          </div>
-        </div>
-
-        <!-- End date -->
-        <div class="space-y-1.5">
-          <p class="text-caption text-muted-foreground">End date (in-game, optional)</p>
-          <div class="flex gap-2 flex-wrap">
-            <AppInput
-              v-model.number="sessionEndYear"
-              type="number"
-              min="1"
-              placeholder="Year"
-              tone="card"
-              size="body-xs"
-              class="w-24"
-            />
-            <AppSelect v-model.number="sessionEndMonth" size="body">
-              <option :value="null">— Month —</option>
-              <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
-            </AppSelect>
-            <AppInput
-              v-model.number="sessionEndDay"
-              type="number"
-              min="1"
-              max="30"
-              placeholder="Day"
-              tone="card"
-              size="body-xs"
-              class="w-20"
-            />
-          </div>
-        </div>
-
-        <!-- Real-world date -->
-        <div class="space-y-1.5">
-          <p class="text-caption text-muted-foreground">Real-world date (optional)</p>
-          <VueDatePicker
-            v-model="sessionRealDate"
-            :dark="true"
-            :enable-time-picker="false"
-            :teleport="true"
-            model-type="yyyy-MM-dd"
-            format="yyyy-MM-dd"
-            placeholder="Pick real-world date…"
-            class="grimoire-datepicker"
-          />
-        </div>
-
-        <!-- Linked calendar event indicator -->
-        <div v-if="props.note?.linked_calendar_event_id" class="flex items-center gap-2 font-cinzel text-xs text-primary">
-          <IconCalendarDays class="h-3 w-3" />
-          Calendar event linked
-        </div>
-      </div>
-    </template>
+    <NoteSessionDatesPanel
+      v-if="category === 'session'"
+      v-model="sessionDates"
+      :is-new-note="!props.note"
+      :linked-calendar-event-id="props.note?.linked_calendar_event_id ?? null"
+    />
 
     <p v-if="saveError" class="text-destructive text-body">
       {{ saveError }}
@@ -248,16 +168,16 @@
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
-import { ref, computed, watch } from "vue";
-import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter, type RouteLocationNormalized } from "vue-router";
-import { VueDatePicker } from "@vuepic/vue-datepicker";
-import "@/assets/vendor/datepicker.css";
+import { ref, computed } from "vue";
+import { useRouter, type RouteLocationNormalized } from "vue-router";
+import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import RichTextEditor from "../common/RichTextEditor.vue";
 import InlineCalendarEventModal from "@/components/calendar/InlineCalendarEventModal.vue";
 import ChroniclerGenerateDialog from "./ChroniclerGenerateDialog.vue";
 import ChroniclerLibraryPicker from "./ChroniclerLibraryPicker.vue";
 import ChroniclerWriteDialog from "./ChroniclerWriteDialog.vue";
-import { IconCalendarDays, IconDelete, IconGenerate, IconImages, IconNote, IconPin, IconSave } from '@/lib/icons';
+import NoteSessionDatesPanel from "./NoteSessionDatesPanel.vue";
+import { IconDelete, IconGenerate, IconImages, IconNote, IconPin, IconSave } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -267,24 +187,19 @@ import {
   useCreateNote,
   useUpdateNote,
   useDeleteNote,
-  useNotes,
 } from "@/composables/notes/useNotes";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
-import {
-  useCreateCalendarEvent,
-  useUpdateCalendarEvent,
-  useDeleteCalendarEvent,
-} from "@/composables/calendar/useCalendarEvents";
+import { useNoteCalendarSync } from "@/composables/notes/useNoteCalendarSync";
+import { useDeleteCalendarEvent } from "@/composables/calendar/useCalendarEvents";
 import {
   removeRichTextImages,
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
-import type { Note, NoteCategory } from "@/types/notes.types";
+import type { Note, NoteCategory, NoteSessionDates } from "@/types/notes.types";
 import type { ChronicleInsert } from "@/types/chronicler.types";
 import type { CalendarEvent } from "@/types/calendar.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCalendarStore } from "@/stores/calendar";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { notifyNoteShared } from "@/composables/campaign/useEmailNotify";
 import { getCurrentUser } from "@/lib/supabase";
@@ -333,51 +248,20 @@ const saveError = ref("");
 const user = getCurrentUser();
 
 // ── Session dates ─────────────────────────────────────────────────────────────
-const sessionStartYear  = ref<number | null>(props.note?.session_start_year ?? null);
-const sessionStartMonth = ref<number | null>(props.note?.session_start_month ?? null);
-const sessionStartDay   = ref<number | null>(props.note?.session_start_day ?? null);
-const sessionEndYear    = ref<number | null>(props.note?.session_end_year ?? null);
-const sessionEndMonth   = ref<number | null>(props.note?.session_end_month ?? null);
-const sessionEndDay     = ref<number | null>(props.note?.session_end_day ?? null);
-const sessionRealDate   = ref<string | null>(props.note?.session_real_date ?? null);
+// Grouped into one NoteSessionDates value so NoteEditor holds a single ref
+// instead of seven — NoteSessionDatesPanel owns the fields, the prefill-from-
+// last-session logic, and the calendar adapter it renders against.
+const sessionDates = ref<NoteSessionDates>({
+  startYear:  props.note?.session_start_year ?? null,
+  startMonth: props.note?.session_start_month ?? null,
+  startDay:   props.note?.session_start_day ?? null,
+  endYear:    props.note?.session_end_year ?? null,
+  endMonth:   props.note?.session_end_month ?? null,
+  endDay:     props.note?.session_end_day ?? null,
+  realDate:   props.note?.session_real_date ?? null,
+});
 
-const calendarStore = useCalendarStore();
-const calendarAdapter = computed(() => calendarStore.adapter);
-
-const { data: allNotes } = useNotes();
 const { mentionItems: entityMentionItems } = useEntityMentionItems();
-
-// ── Pre-fill start date from the last session note's end date ─────────────────
-// Only applies when creating a new session note (props.note === null).
-watch(
-  category,
-  (newCat) => {
-    if (props.note !== null) return; // editing — don't overwrite
-    if (newCat !== "session") return;
-    if (sessionStartYear.value !== null) return; // already set
-
-    const sessionNotes = (allNotes.value ?? []).filter(
-      (n) => n.category === "session" && n.session_num !== null,
-    );
-    if (!sessionNotes.length) return;
-
-    const last = sessionNotes.reduce((a, b) =>
-      (a.session_num ?? 0) > (b.session_num ?? 0) ? a : b,
-    );
-
-    // Use end date if set, otherwise fall back to start date
-    const prefillYear  = last.session_end_year  ?? last.session_start_year;
-    const prefillMonth = last.session_end_month ?? last.session_start_month;
-    const prefillDay   = last.session_end_day   ?? last.session_start_day;
-
-    if (prefillYear !== null) {
-      sessionStartYear.value  = prefillYear;
-      sessionStartMonth.value = prefillMonth;
-      sessionStartDay.value   = prefillDay;
-    }
-  },
-  { immediate: true },
-);
 
 // ── Chronicler ────────────────────────────────────────────────────────────────
 const showChroniclerGenerate = ref(false);
@@ -472,9 +356,8 @@ function onEventCreated(event: CalendarEvent) {
 const { mutateAsync: create } = useCreateNote();
 const { mutateAsync: update } = useUpdateNote();
 const { mutateAsync: del } = useDeleteNote();
-const { mutateAsync: createCalEvent } = useCreateCalendarEvent();
-const { mutateAsync: updateCalEvent } = useUpdateCalendarEvent();
 const { mutateAsync: deleteCalEvent } = useDeleteCalendarEvent();
+const { syncSessionCalendarEvent } = useNoteCalendarSync();
 const { activeCampaignId } = storeToRefs(useCampaignStore());
 
 function buildPayload() {
@@ -489,13 +372,13 @@ function buildPayload() {
     content: body.value ?? null,
     ai_provenance: aiProvenance.value,
     user_id: user?.id,
-    session_start_year:  isSession ? (sessionStartYear.value ?? null) : null,
-    session_start_month: isSession ? (sessionStartMonth.value ?? null) : null,
-    session_start_day:   isSession ? (sessionStartDay.value ?? null) : null,
-    session_end_year:    isSession ? (sessionEndYear.value ?? null) : null,
-    session_end_month:   isSession ? (sessionEndMonth.value ?? null) : null,
-    session_end_day:     isSession ? (sessionEndDay.value ?? null) : null,
-    session_real_date:   isSession ? (sessionRealDate.value ?? null) : null,
+    session_start_year:  isSession ? (sessionDates.value.startYear ?? null) : null,
+    session_start_month: isSession ? (sessionDates.value.startMonth ?? null) : null,
+    session_start_day:   isSession ? (sessionDates.value.startDay ?? null) : null,
+    session_end_year:    isSession ? (sessionDates.value.endYear ?? null) : null,
+    session_end_month:   isSession ? (sessionDates.value.endMonth ?? null) : null,
+    session_end_day:     isSession ? (sessionDates.value.endDay ?? null) : null,
+    session_real_date:   isSession ? (sessionDates.value.realDate ?? null) : null,
     // Managed by syncSessionCalendarEvent — never set directly here
     linked_calendar_event_id: props.note?.linked_calendar_event_id ?? null,
   };
@@ -508,9 +391,6 @@ function buildPayload() {
 // word. The payload is the comparison because it is already the exact set of
 // values that would be written.
 
-/** Set immediately before this component's own navigations, which are the
- *  intended exits and must not be questioned. */
-const leavingDeliberately = ref(false);
 const savedState = ref(JSON.stringify(buildPayload()));
 const isDirty = computed(() => JSON.stringify(buildPayload()) !== savedState.value);
 
@@ -519,64 +399,33 @@ function editorSurvives(to: RouteLocationNormalized): boolean {
   return to.name === "note-new" || (to.name === "note-detail" && to.query.edit === "true");
 }
 
-async function guardUnsaved(to: RouteLocationNormalized): Promise<boolean> {
-  if (leavingDeliberately.value || editorSurvives(to) || !isDirty.value) return true;
-  return await confirm("This note has unsaved changes, including any chronicle you inserted.", {
-    title: "Discard changes",
-    confirmLabel: "Discard",
-  });
-}
-
-onBeforeRouteLeave(guardUnsaved);
-// Dropping `?edit=true` — the browser's Back button after opening the editor —
-// is a same-route *update*, so the leave guard never sees it. The editor is
-// unmounted by NoteDetailView's v-if all the same, which is precisely the
-// silent-loss case.
-onBeforeRouteUpdate(guardUnsaved);
+// Registers both onBeforeRouteLeave and onBeforeRouteUpdate — the latter catches
+// the browser's Back button dropping `?edit=true`, a same-route *update* that a
+// leave guard alone never sees, even though NoteDetailView's v-if unmounts this
+// editor a moment later all the same. See useUnsavedGuard's docstring.
+const { allowLeave } = useUnsavedGuard({
+  isDirty: () => isDirty.value,
+  survives: editorSurvives,
+  ask: () =>
+    confirm("This note has unsaved changes, including any chronicle you inserted.", {
+      title: "Discard changes",
+      confirmLabel: "Discard",
+    }),
+});
 
 // ── Session calendar event sync ───────────────────────────────────────────────
-// Avoids circular FK: insert note first → insert event with linked_note_id
-// → patch note.linked_calendar_event_id.
-
-async function syncSessionCalendarEvent(noteId: string) {
-  const isSession = category.value === "session";
-  const hasDate = isSession && sessionStartYear.value !== null;
-  const existingEventId = props.note?.linked_calendar_event_id ?? null;
-
-  if (hasDate) {
-    const isMultiDay = sessionEndYear.value !== null;
-    const eventPayload = {
-      title: `Session ${sessionNum.value ?? "?"}: ${title.value.trim()}`,
-      event_type: "session" as const,
-      color: "#C9920A",
-      harptos_year:  sessionStartYear.value!,
-      harptos_month: sessionStartMonth.value,
-      harptos_day:   sessionStartDay.value,
-      festival_day:  null,
-      is_multi_day:  isMultiDay,
-      end_year:      isMultiDay ? sessionEndYear.value : null,
-      end_month:     isMultiDay ? sessionEndMonth.value : null,
-      end_day:       isMultiDay ? sessionEndDay.value : null,
-      description:   null,
-      linked_quest_id: null,
-      linked_encounter_id: null,
-      linked_location_id: null,
-      linked_note_id: noteId,
-      travel_party_member_ids: [],
-      player_visible: false,
-      campaign_id: activeCampaignId.value,
-    };
-
-    if (existingEventId) {
-      await updateCalEvent({ id: existingEventId, update: eventPayload });
-    } else {
-      const newEvt = await createCalEvent(eventPayload);
-      await update({ id: noteId, update: { linked_calendar_event_id: newEvt.id } });
-    }
-  } else if (existingEventId) {
-    await deleteCalEvent(existingEventId);
-    await update({ id: noteId, update: { linked_calendar_event_id: null } });
-  }
+// syncSessionCalendarEvent itself (create/update/delete + the note write-back)
+// lives in useNoteCalendarSync — see that module for the circular-FK ordering.
+function calendarSyncInput(noteId: string) {
+  return {
+    noteId,
+    title: title.value,
+    sessionNum: sessionNum.value,
+    dates: sessionDates.value,
+    isSession: category.value === "session",
+    existingEventId: props.note?.linked_calendar_event_id ?? null,
+    campaignId: activeCampaignId.value,
+  };
 }
 
 async function save() {
@@ -607,7 +456,7 @@ async function save() {
       const oldContent = props.note.content;
       await update({ id: props.note.id, update: buildPayload() });
       cleanupRemovedRichTextImages(oldContent, body.value);
-      await syncSessionCalendarEvent(props.note.id);
+      await syncSessionCalendarEvent(calendarSyncInput(props.note.id));
       if (justShared && activeCampaignId.value)
         void sendCampaignAnnouncement(
           activeCampaignId.value,
@@ -615,11 +464,11 @@ async function save() {
           { entity_type: "note", entity_id: props.note.id },
         );
       notifyNoteShared(props.note.id, newlyVisibleTo);
-      leavingDeliberately.value = true;
+      allowLeave();
       router.push("/notes");
     } else {
       const created = await create(buildPayload());
-      await syncSessionCalendarEvent(created.id);
+      await syncSessionCalendarEvent(calendarSyncInput(created.id));
       if (nowShared && activeCampaignId.value)
         void sendCampaignAnnouncement(
           activeCampaignId.value,
@@ -627,7 +476,7 @@ async function save() {
           { entity_type: "note", entity_id: created.id },
         );
       notifyNoteShared(created.id, newlyVisibleTo);
-      leavingDeliberately.value = true;
+      allowLeave();
       router.replace(`/notes/${created.id}`);
     }
   } catch (e: unknown) {
@@ -650,7 +499,7 @@ async function remove() {
       await deleteCalEvent(props.note.linked_calendar_event_id);
     await del(props.note.id);
     removeRichTextImages(oldContent);
-    leavingDeliberately.value = true;
+    allowLeave();
     router.push("/notes");
   } catch {
     // failure is surfaced to the user by the mutation's onError toast

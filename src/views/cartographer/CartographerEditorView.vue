@@ -216,7 +216,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from "vue";
-import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import {
   IconSave,
@@ -258,6 +258,7 @@ import {
   useDeleteDungeonMap,
 } from "@/composables/cartographer/useDungeonMaps";
 import { useConfirm } from "@/composables/useConfirm";
+import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useMapExport } from "@/composables/cartographer/useMapExport";
@@ -1280,9 +1281,34 @@ async function onDelete(): Promise<void> {
   }
 }
 
-onBeforeRouteLeave(() => {
-  if (!dirty.value || saving.value || deleting.value || viewMode.value) return true;
-  return window.confirm("Unsaved changes will be lost. Leave anyway?");
+// The three suppressing conditions are carried over verbatim from the guard
+// this replaced, and none of them is redundant with `dirty`:
+//
+// - `saving`/`deleting` cover this component's own navigations for their whole
+//   duration. `onDelete` does clear `dirty` before its `router.push`, but only
+//   once the mutation resolves; the flag covers the window before that.
+// - `viewMode` is a computed over `route.query.edit`, not a state that clears
+//   anything. The canvas is not editable there, so a `dirty` left over from an
+//   earlier edit session must not raise a prompt.
+//
+// Folding them into `isDirty` rather than calling `allowLeave()` on each exit
+// path keeps the whole rule in one place and leaves no flag to forget to set.
+useUnsavedGuard({
+  isDirty: () => dirty.value && !saving.value && !deleting.value && !viewMode.value,
+  // Unlike NoteEditor, this component *is* the route component — nothing mounts
+  // it behind a `v-if` on `?edit=true`. So toggling that query (the browser's
+  // Back button leaving edit mode) keeps the editor mounted with its layers and
+  // metadata untouched, and there is nothing to discard. Saying so matters
+  // because the guard now registers onBeforeRouteUpdate as well as
+  // onBeforeRouteLeave: the hand-rolled leave-only guard this replaced never
+  // saw that transition at all, so without this the swap would have introduced
+  // a prompt where none belongs.
+  survives: (to) => to.name === route.name && to.params.id === route.params.id,
+  ask: () =>
+    confirm("Unsaved changes will be lost. Leave anyway?", {
+      title: "Discard changes",
+      confirmLabel: "Discard",
+    }),
 });
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────

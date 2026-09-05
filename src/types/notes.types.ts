@@ -39,3 +39,14 @@ export type NoteInsert = Omit<
   "id" | "user_id" | "created_at" | "updated_at" | "sort_order"
 >;
 export type NoteUpdate = Partial<NoteInsert>;
+
+/** The seven session-date columns of a `Note`, grouped for NoteSessionDatesPanel's v-model. */
+export interface NoteSessionDates {
+  startYear: number | null;
+  startMonth: number | null;
+  startDay: number | null;
+  endYear: number | null;
+  endMonth: number | null;
+  endDay: number | null;
+  realDate: string | null;
+}
