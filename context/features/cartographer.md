@@ -904,6 +904,15 @@ A credit-gated "✦ AI Style" button in the view-mode export bar. The DM bakes a
 
 All outputs include a `dungeongrimoire.com` watermark via a fixed prompt suffix.
 
+**Neither modal dismisses on a backdrop click**, and Escape on the result asks
+first. The styled map is a blob URL held in `useMapExport` and nothing reopens
+that panel — only a fresh generation sets `showResult` — so closing it is the
+end of a paid render, and it was never uploaded anywhere to recover it from. A
+stray click beside the panel used to do that silently. The rule is general (see
+`AppModal`'s `backdropDismiss` docstring) and pinned by
+`src/components/common/appModalPaidBackdrop.test.ts`, which fails if any modal
+that prices, shows or runs a generation ships without the prop.
+
 #### Prompt composition
 
 ```ts

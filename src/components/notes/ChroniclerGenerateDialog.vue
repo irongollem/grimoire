@@ -1,5 +1,8 @@
 <template>
-  <AppModal :open="visible" size="md" @close="emit('close')">
+  <!-- No backdrop dismiss: this holds a typed scene prompt and, between Generate
+       and the `started` emit, a paid render whose anchor has not been dropped
+       into the note yet. See AppModal's `backdropDismiss`. -->
+  <AppModal :open="visible" size="md" :backdrop-dismiss="false" @close="emit('close')">
     <ModalHeader title="Generate Scene Illustration" />
 
     <div ref="dialogRef" class="min-h-0 flex-1 overflow-y-auto overscroll-contain flex flex-col gap-4 px-5 py-4">

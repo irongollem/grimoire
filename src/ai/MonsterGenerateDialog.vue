@@ -1,8 +1,14 @@
 <template>
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-    @click.self="emit('close')"
-  >
+  <!--
+    No backdrop dismissal. `generate()` here awaits a paid call and hands the
+    result straight to the parent, which mounts this dialog behind a `v-if` —
+    so a stray click outside during the wait unmounts the component and the
+    finished generation emits into nothing. The credits are spent either way.
+    Close with the ✕ or Cancel. (This is a hand-rolled panel rather than
+    AppModal, which is why the rule is restated here instead of set by a prop
+    — see #816.)
+  -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
     <div class="bg-card rounded-xl border border-border shadow-xl w-full max-w-lg flex flex-col gap-5 p-6">
 
       <!-- Header -->
