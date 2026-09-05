@@ -85,7 +85,8 @@
       </div>
     </div>
 
-    <!-- Map -->
+    <!-- Map — pins and, on a site-tier place, traced room regions, both on
+         the one rendering of `location.map_url` (#807). -->
     <section v-if="location.map_url" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Map</h2>
       <LocationMap
@@ -94,19 +95,25 @@
         :children="mapPinnableChildren"
         mode="view"
         :show-hidden-pins="true"
+        :location-id="location.id"
+        :show-regions="isSiteType(location.location_type)"
+        :regions="siteRegions"
+        :rooms="siteRooms"
+        :calibration="location.grid_calibration"
+        v-model:active-region-id="activeRegionId"
         @pin-click="onPinClick"
       />
     </section>
 
     <!-- Sub-locations — read-only list linking into each child. -->
-    <section v-if="children?.length" class="flex flex-col gap-2">
+    <section v-if="subLocations.length" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Sub-locations
-        <span class="font-fell font-normal text-muted-foreground">({{ children.length }})</span>
+        <span class="font-fell font-normal text-muted-foreground">({{ subLocations.length }})</span>
       </h2>
       <div class="flex flex-wrap gap-2">
         <RouterLink
-          v-for="child in children"
+          v-for="child in subLocations"
           :key="child.id"
           :to="`/locations/${child.id}`"
           class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
@@ -139,6 +146,7 @@ import {
   useDeleteLocation,
   getPinnableDescendants,
 } from "@/composables/locations/useLocations";
+import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { isSiteType } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import { visibleTags } from "@/lib/locations/tags";
@@ -183,6 +191,37 @@ const mapPinnableChildren = computed(() => {
   if (!allLocations.value?.length) return [];
   return getPinnableDescendants(props.location.id, allLocations.value);
 });
+
+// ── Site regions (#807) — only ever queried for a site-tier place; the
+//    empty-string id below keeps the query disabled everywhere else. ────────
+const activeRegionId = ref<string | null>(null);
+const isSite = computed(() => isSiteType(props.location.location_type));
+const siteRegionsQuery = useLocationMapRegions(
+  computed(() => (isSite.value ? props.location.id : "")),
+);
+const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
+const siteRooms = computed(() => (children.value ?? []).filter((l) => l.location_type === "room"));
+
+/**
+ * Sub-locations, minus the rooms — a site's rooms are owned by the Rooms panel
+ * below (`SiteRoomsPanel`, via `LocationDetailSections`), which numbers and
+ * orders them, and by the traced regions on the map above.
+ *
+ * Without this a dungeon lists every room twice on one page: once here as a
+ * plain child and once as a numbered room. #783 made exactly this cut in the
+ * Atlas tree's "Interiors" group for the same reason; this list was simply
+ * missed, and stayed invisible while rooms were also pinnable, because the
+ * pins made the duplication look like three views of one thing rather than
+ * two lists of the same thing.
+ *
+ * Only on a place that *has* the Rooms panel: everywhere else a room-typed
+ * child has no other home, and hiding it would lose it.
+ */
+const subLocations = computed(() =>
+  isSite.value
+    ? (children.value ?? []).filter((l) => l.location_type !== "room")
+    : (children.value ?? []),
+);
 
 // ── Delete ──────────────────────────────────────────────────────────────────
 const { mutateAsync: deleteLocation } = useDeleteLocation();

@@ -1,5 +1,16 @@
 <template>
   <div class="flex flex-col gap-3">
+    <!-- Tracing banner — browse mode only; run mode has nothing to trace. -->
+    <div
+      v-if="showRegions && !runMode && activeRegion"
+      class="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5"
+    >
+      <span class="text-caption text-foreground">
+        Tracing <strong>{{ activeRegionLabel }}</strong> — drag over cells below to add or remove them.
+      </span>
+      <AppButton variant="ghost" size="inline-xs" label="Done" @click="activeRegionId = null" />
+    </div>
+
     <MapFrame
       ref="frameRef"
       :map-url="mapUrl"
@@ -8,6 +19,21 @@
       @tap="onTap"
       @container-click="pinsLayerRef?.clearPinned()"
     >
+      <!-- Regions render beneath pins: room shapes are a floor to stand on,
+           pins are markers placed on top of it. -->
+      <MapRegionsLayer
+        v-if="showRegions && hasRegionContent"
+        v-model:active-region-id="activeRegionId"
+        :regions="regions"
+        :calibration="calibration"
+        :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
+        :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
+        :mode="runMode ? 'run' : 'browse'"
+        :party-room-id="partyRoomId"
+        :reachable-room-ids="reachableRoomIds"
+        :to-image-fraction="toImageFraction"
+        @move-party="emit('move-party', $event)"
+      />
       <MapPinsLayer
         ref="pinsLayerRef"
         v-model:pins="pins"
@@ -70,32 +96,92 @@
         </AppButton>
       </div>
     </template>
+
+    <!-- Site regions: calibration gate + the room-shapes list. Gated on
+         presence (rooms or regions actually exist), not on tier — see
+         `hasRegionContent`. -->
+    <template v-if="showRegions && hasRegionContent">
+      <div
+        v-if="!calibration"
+        class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2"
+      >
+        <span class="text-caption text-muted-foreground">
+          A grid has to be matched to this map before rooms can be traced on it.
+        </span>
+        <AppButton variant="primary" size="sm" label="Calibrate grid" @click="calibrationOpen = true" />
+      </div>
+
+      <!-- Editing-only, same as `LocationEditor`'s inline panels — run mode
+           renders its own click-to-move room list instead (`SiteRunSurface`). -->
+      <SiteMapRegionList
+        v-if="!runMode"
+        :location-id="locationId!"
+        :rooms="rooms"
+        :regions="regions"
+        :active-region-id="activeRegionId"
+        :can-trace="!!calibration"
+        @update:active-region-id="activeRegionId = $event"
+      />
+    </template>
+
+    <!-- Mounted unconditionally, same idiom as `LocationEditor.vue` — gated
+         purely by `:open`, not by a v-if that would tear it down mid-flow. -->
+    <GridCalibrationDialog
+      v-if="showRegions"
+      :open="calibrationOpen"
+      :map-url="mapUrl"
+      :existing="calibration"
+      @cancel="calibrationOpen = false"
+      @save="onCalibrationSave"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed, ref } from "vue";
 import { IconLocation } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
 import MapFrame from "@/components/locations/MapFrame.vue";
 import MapPinsLayer from "@/components/locations/MapPinsLayer.vue";
+import MapRegionsLayer from "@/components/locations/MapRegionsLayer.vue";
+import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
+import { useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
+import { useToast } from "@/composables/useToast";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
-import type { MapPin as MapPinType, LocationType } from "@/types/location.types";
+import type { GridCalibration, Location, LocationType, MapPin as MapPinType } from "@/types/location.types";
+import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
 const pins = defineModel<MapPinType[]>("pins", { required: true });
+/** Which region is selected for tracing (browse mode) — lifted so the
+ *  canvas (`MapRegionsLayer`) and the room-shapes list (`SiteMapRegionList`)
+ *  below it, and the tracing banner above it, all agree on one answer. */
+const activeRegionId = defineModel<string | null>("activeRegionId", { default: null });
+
 const {
   mapUrl,
   children,
   mode,
   showHiddenPins = false,
   offerPeek = true,
+  compact,
+  sharedChildIds,
+  locationId = null,
+  showRegions = false,
+  regions = [],
+  rooms = [],
+  calibration = null,
+  runMode = false,
+  partyRoomId = null,
+  reachableRoomIds = null,
 } = defineProps<{
   mapUrl: string;
   /** Candidate pin targets (edit mode: unplaced list + pin data population).
    *  Usually direct children, but callers can also pass descendants that were
    *  surfaced through vague container types (regions / continents / …) — in
    *  that case `parent_chain` names the intermediate containers for the
-   *  unplaced-list breadcrumb. */
+   *  unplaced-list breadcrumb. Rooms are never pin candidates (#807) —
+   *  `getPinnableDescendants` already excludes them. */
   children: Array<{
     id: string;
     name: string;
@@ -110,20 +196,36 @@ const {
   compact?: boolean;
   /** Player view only: IDs of child locations that are shared (gates the Go-there button). */
   sharedChildIds?: Set<string>;
-  /**
-   * Offer the peek (Watch) action on a pin. Default true.
-   *
-   * Turn it off where travelling is already cheap — the Atlas explorer zooms
-   * between maps without leaving the page, so a peek there duplicates what
-   * clicking the pill does and only makes the pill harder to hit.
-   */
+  /** Offer the peek (Watch) action on a pin. Default true; off where
+   *  travelling is already cheap (the Atlas explorer's own zoom). */
   offerPeek?: boolean;
+  /** The location this map belongs to. Required whenever `showRegions` is
+   *  true — it feeds the calibration mutation and `SiteMapRegionList`'s
+   *  region-create calls. */
+  locationId?: string | null;
+  /** Whether this place has a floor plan (site tier — building, dungeon,
+   *  store, tavern, inn, #810) and should render the regions layer, the
+   *  calibration gate, and the room-shapes list alongside pins. */
+  showRegions?: boolean;
+  regions?: LocationMapRegion[];
+  /** This site's `room`-typed direct children — for the region list and the
+   *  tracing banner's room-name lookup. Only meaningful when `showRegions`. */
+  rooms?: Location[];
+  calibration?: GridCalibration | null;
+  /** Regions interaction: browse (trace/select/navigate, default) or run
+   *  (click-to-move-party, `SiteRunSurface`). Ignored when `!showRegions`. */
+  runMode?: boolean;
+  /** The room the party currently occupies. Only meaningful when `runMode`. */
+  partyRoomId?: string | null;
+  /** Rooms reachable from `partyRoomId`. Only meaningful when `runMode`. */
+  reachableRoomIds?: ReadonlySet<string> | null;
 }>();
 
 const emit = defineEmits<{
   "pin-click": [childId: string];
   "pin-go": [childId: string];
   "pin-watch": [childId: string];
+  "move-party": [roomId: string];
 }>();
 
 const frameRef = ref<InstanceType<typeof MapFrame> | null>(null);
@@ -136,21 +238,23 @@ const pinsLayerRef = ref<InstanceType<typeof MapPinsLayer> | null>(null);
 const placingChildId = ref<string | null>(null);
 
 /**
- * The frame recognises a clean tap (no pan, no pinch) and hands back the
- * pointerdown's original target without interpreting it — see
- * `MapFrame.vue`'s `tap` event. Only the pins layer knows what `data-pin-id`
- * means, so the lookup and the touch two-step (hover-vs-pinned) live there;
- * this just wires the two together and, when the layer reports it consumed
- * the tap, tells the frame to swallow the synthetic click pointer capture
- * still redirects here afterwards (fix for the pin-tap-undone-by-click bug).
+ * The frame recognises a clean tap and hands back the pointerdown's original
+ * target — see `MapFrame.vue`'s `tap` event. Only the pins layer knows what
+ * `data-pin-id` means, so the lookup lives there; this wires the two
+ * together and, when the layer consumed the tap, tells the frame to swallow
+ * the synthetic click pointer capture still redirects here afterwards.
+ *
+ * `MapRegionsLayer` doesn't go through this — its own pointer tracking
+ * survives the frame's capture via `window` listeners instead (see its own
+ * docstring), so it needs nothing from `tap`.
  */
 function onTap(target: EventTarget | null) {
   const handled = pinsLayerRef.value?.handleTap(target);
   if (handled) frameRef.value?.swallowClick();
 }
 
-/** Passed down to the pins layer so `onPlacePin` and pin-drag repositioning
- *  share the frame's one implementation of client-coords → image-fraction. */
+/** Passed down to the pins layer and the regions layer so both share the
+ *  frame's one implementation of client-coords → image-fraction. */
 function toImageFraction(clientX: number, clientY: number): { x: number; y: number } | null {
   return frameRef.value?.toImageFraction(clientX, clientY) ?? null;
 }
@@ -163,4 +267,35 @@ const unplacedChildren = computed(() =>
 const placingChildName = computed(
   () => children.find((c) => c.id === placingChildId.value)?.name ?? "",
 );
+
+// ── Site regions (#807) ──────────────────────────────────────────────────────
+// Gated on presence, not on tier: #810 made every store/tavern/inn a
+// `showRegions` candidate too, and most of them will never hold a single
+// traced room. A room is added first, through the always-present Rooms
+// panel (`SiteRoomsPanel`, unconditional on site tier) — so this apparatus
+// stays out of the way until the DM has actually created one, and reveals
+// itself the moment they do.
+const hasRegionContent = computed(() => rooms.length > 0 || regions.length > 0);
+
+const activeRegion = computed(() => regions.find((r) => r.id === activeRegionId.value) ?? null);
+const activeRegionLabel = computed(() => {
+  const region = activeRegion.value;
+  if (!region) return "";
+  if (region.room_location_id) return rooms.find((r) => r.id === region.room_location_id)?.name ?? "this room";
+  return region.label || "this shape";
+});
+
+const calibrationOpen = ref(false);
+const updateCalibration = useUpdateLocationGridCalibration();
+const { error: toastError, fromError } = useToast();
+
+async function onCalibrationSave(next: GridCalibration): Promise<void> {
+  if (!locationId) return;
+  try {
+    await updateCalibration.mutateAsync({ id: locationId, calibration: next });
+    calibrationOpen.value = false;
+  } catch (e) {
+    toastError(fromError(e));
+  }
+}
 </script>

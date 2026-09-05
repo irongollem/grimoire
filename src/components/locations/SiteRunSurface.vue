@@ -19,10 +19,19 @@
       <section class="flex flex-col gap-3">
         <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">The Place</h2>
 
-        <SiteMapView
-          v-if="hasMapContent"
+        <LocationMap
+          v-if="location.map_url"
+          :map-url="location.map_url"
+          :pins="location.map_pins"
+          :children="pinnableChildren"
+          mode="view"
+          :show-hidden-pins="true"
           :location-id="location.id"
-          mode="run"
+          show-regions
+          :regions="regions"
+          :rooms="rooms"
+          :calibration="location.grid_calibration"
+          run-mode
           :party-room-id="currentRoomId"
           :reachable-room-ids="reachable"
           @move-party="moveTo"
@@ -120,9 +129,9 @@ import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/LocationDoors.vue";
+import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
-import SiteMapView from "@/components/locations/SiteMapView.vue";
 import { IconClose, IconLocation, IconLock, IconLoot, IconShieldCheck } from "@/lib/icons";
 import { useLocations } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
@@ -154,6 +163,12 @@ const rooms = computed<Location[]>(() =>
 );
 const roomIds = computed(() => rooms.value.map((r) => r.id));
 
+// Pins are for this site's non-room children (another nested site, say) —
+// rooms are placed by a region, never a pin (#807).
+const pinnableChildren = computed<Location[]>(() =>
+  (children.value ?? []).filter((l) => l.location_type !== "room"),
+);
+
 // ── Where the party is, and what it can reach from there ────────────────────
 const currentRoomId = computed(() =>
   partyRoomInSite(campaign.activeCampaign?.current_location_id ?? null, roomIds.value),
@@ -172,16 +187,15 @@ function isReachable(roomId: string): boolean {
   return !reachable.value || reachable.value.has(roomId);
 }
 
-// ── Whether there's anything worth mounting the map for. A site with
-//    nothing traced and no reference image yet is still fully runnable via
-//    the room list above — mounting an empty grid would only be noise.
-//    `source_map_id` used to matter here too, back when this view drew the
-//    live Cartographer map straight from it; #805 deleted that live canvas
-//    (the bake — map_url — already IS the render, so drawing the tiles over
-//    their own bake was redundant), so `SiteMapView` no longer reads
-//    `source_map_id` at all and it dropped out of this gate with it. ────────
+// The composite (`LocationMap.vue`) mounts whenever `location.map_url`
+// exists, same gate `LocationSheet` uses — a site with nothing traced yet is
+// still fully runnable via the room list above, but a reference image alone
+// is worth showing. Its own regions apparatus (canvas, calibration prompt,
+// room-shapes list — hidden here anyway, see `run-mode` below) additionally
+// gates on having a room or a region at all, so an untraced site's map still
+// renders without a noisy empty grid.
 const regionsQuery = useLocationMapRegions(siteId);
-const hasMapContent = computed(() => (regionsQuery.data.value?.length ?? 0) > 0 || !!location.map_url);
+const regions = computed(() => regionsQuery.data.value ?? []);
 
 // ── Moving the party ──────────────────────────────────────────────────────
 const { mutate: setCampaignLocation, isPending: isMoving } = useSetCampaignLocation();

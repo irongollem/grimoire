@@ -78,14 +78,6 @@
       <StoreInventory :location-id="location.id" :owner-npc-name="ownerNpcName" />
     </section>
 
-    <!-- Site map — the place's image + live Cartographer map + room regions
-         on a site-tier place (#784, epic #780). Self-contained, same
-         scalar-prop shape as the panels around it. -->
-    <section v-if="isSite" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Site Map</h2>
-      <SiteMapView :location-id="location.id" />
-    </section>
-
     <!-- Site rooms — numbered, orderable rooms inside a site-tier place
          (building/dungeon/store/tavern/inn — the five types with a floor
          plan, #810). Same self-contained, always-editable shape as Store
@@ -194,7 +186,6 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/LocationDoors.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
-import SiteMapView from "@/components/locations/SiteMapView.vue";
 import SiteRoomsPanel from "@/components/locations/SiteRoomsPanel.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";

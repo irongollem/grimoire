@@ -1,15 +1,15 @@
 <template>
   <!-- Room shapes — every room of this site, whether or not it has a region
        yet, so the site is usable before it is fully traced.
-       Deliberately NOT called "Rooms": `SiteRoomsPanel` sits directly below
-       and owns rooms themselves (order, add, rename, delete). Two headings
-       reading "Rooms" a few hundred pixels apart is the duplication #783
-       removed from the Atlas tree, re-created by accident. This list is
-       about each room's *shape on the map*, which is a different thing, and
-       naming it so makes the adjacency informative instead of confusing.
+       Deliberately NOT called "Rooms": `SiteRoomsPanel` owns rooms themselves
+       (order, add, rename, delete) further down the same place's page. Two
+       sections reading "Rooms" is the duplication #783 removed from the
+       Atlas tree, re-created by accident. This list is about each room's
+       *shape on the map*, which is a different thing, and naming it so
+       makes the relationship informative instead of confusing.
        Only mounted in browse mode — see the `v-if` at the call site in
-       `SiteMapView.vue` — run mode renders its own click-to-move room list
-       instead. -->
+       `LocationMap.vue` (#807) — run mode renders its own click-to-move
+       room list instead. -->
   <div class="flex flex-col gap-1.5">
     <span class="text-label-lg font-semibold text-muted-foreground">Room shapes</span>
     <p v-if="!rooms.length" class="text-caption text-muted-foreground italic">No rooms yet — add them below.</p>
@@ -108,12 +108,13 @@
 
 <script setup lang="ts">
 /**
- * The region-CRUD half of the Atlas site map panel — split out of
+ * The region-CRUD half of the site map apparatus — split out of
  * `SiteMapView.vue` (#805 slice 2) once that file's canvas/calibration/
- * drag-to-paint rewrite pushed it past the 600-line soft max. This owns
- * creating, binding, labelling and deleting regions; `SiteMapView` keeps
- * everything about the map image itself (the canvas, calibration, painting
- * cells into whichever region is active).
+ * drag-to-paint rewrite pushed it past the 600-line soft max, and now
+ * mounted by `LocationMap.vue` (#807, once `SiteMapView` itself was
+ * deleted). This owns creating, binding, labelling and deleting regions;
+ * the canvas (`MapRegionsLayer.vue`) keeps everything about painting cells
+ * into whichever region is active.
  *
  * `activeRegionId` is lifted to the parent — it also drives the map canvas's
  * highlight and the "Tracing X" banner above it, neither of which this
@@ -144,7 +145,7 @@ const { locationId, rooms, regions, activeRegionId, canTrace } = defineProps<{
   regions: LocationMapRegion[];
   activeRegionId: string | null;
   /** Whether the map has a grid to trace onto at all (`grid_calibration` is
-   *  set) — `SiteMapView` disables "Trace" rather than opening a tracing UI
+   *  set) — the caller disables "Trace" rather than opening a tracing UI
    *  with nothing calibrated to paint on. */
   canTrace: boolean;
 }>();

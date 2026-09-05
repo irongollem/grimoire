@@ -51,6 +51,7 @@
         :class="[MAP_IMAGE_SIZING, compact ? MAP_IMAGE_COMPACT_SIZING : '']"
         draggable="false"
         alt="Location map"
+        @load="onImageLoad"
       />
 
       <!--
@@ -97,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { MAP_IMAGE_COMPACT_SIZING, MAP_IMAGE_SIZING } from "@/lib/locations/mapZoom";
 
@@ -407,16 +408,40 @@ function resetZoom() {
   ty.value = 0;
 }
 
+// ── Natural image size (#807) ────────────────────────────────────────────────
+// Exposed so a slotted layer that needs image-space geometry (region cells,
+// today) doesn't mount its own second `<img>` just to read
+// naturalWidth/naturalHeight — this is the frame's own image, and it is the
+// only one `map_url` is rendered by. Reset on every `mapUrl` change so a
+// slower-loading replacement image can't leave a stale size behind for the
+// gap between the swap and the new `load` event.
+const imageNaturalWidth = ref(0);
+const imageNaturalHeight = ref(0);
+
+function onImageLoad(e: Event) {
+  const img = e.target as HTMLImageElement;
+  imageNaturalWidth.value = img.naturalWidth;
+  imageNaturalHeight.value = img.naturalHeight;
+}
+
+watch(
+  () => mapUrl,
+  () => {
+    imageNaturalWidth.value = 0;
+    imageNaturalHeight.value = 0;
+  },
+);
+
 /**
  * Client coordinates → fraction (0..1, clamped) of the image, via the
  * transformed container's own on-screen box. `getBoundingClientRect()`
  * already reflects the current pan/zoom, so this needs no `scale` term of
  * its own.
  *
- * The single implementation both `onPlacePin` and pin-drag repositioning
- * need (previously duplicated), and what `SiteMapView`'s `cellFromEvent`
- * computes separately today for its own canvas — not wired to this frame
- * yet (#807).
+ * The single implementation `onPlacePin`, pin-drag repositioning, and
+ * `MapRegionsLayer`'s `cellFromEvent` all share (#807) — previously
+ * duplicated, `SiteMapView`'s canvas computed its own copy from
+ * `canvas.getBoundingClientRect()` before that component was deleted.
  */
 function toImageFraction(clientX: number, clientY: number): { x: number; y: number } | null {
   const container = mapContainer.value;
@@ -433,5 +458,7 @@ defineExpose({
   /** Exposed so a slotted layer can protect an action it just took (from a
    *  tap) against the synthetic click pointer capture still redirects here. */
   swallowClick: installClickSwallow,
+  imageNaturalWidth,
+  imageNaturalHeight,
 });
 </script>

@@ -9,7 +9,9 @@
 // opposed to a partial cell hanging off the grid's origin or its far edge).
 //
 // Deliberately free of Vue, DOM and canvas so it can be unit tested without a
-// browser. `SiteMapView.vue` is the only consumer.
+// browser. `MapRegionsLayer.vue` is the only consumer (#807; previously
+// `SiteMapView.vue`, deleted when the map's regions overlay moved into the
+// composite).
 
 import { gridExtent } from "@/lib/gridCalibration";
 import { parseCellKey, type CellKey } from "@/types/dungeonMap.types";

@@ -37,6 +37,9 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useDeleteLocation: () => ({ mutateAsync: mocks.deleteLocation }),
   getPinnableDescendants: () => [],
 }));
+vi.mock("@/composables/locations/useLocationMapRegions", () => ({
+  useLocationMapRegions: () => ({ data: { value: [] } }),
+}));
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRoute: () => ({ query: {} }),

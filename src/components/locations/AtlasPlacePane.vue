@@ -144,6 +144,12 @@
           show-hidden-pins
           compact
           :offer-peek="false"
+          :location-id="location.id"
+          :show-regions="isSite"
+          :regions="siteRegions"
+          :rooms="siteRooms"
+          :calibration="location.grid_calibration"
+          v-model:active-region-id="activeRegionId"
           @pin-click="descendTo"
           @pin-go="descendTo"
           @pin-watch="descendTo"
@@ -224,6 +230,7 @@ import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
+import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { IconChevronRight, IconChevronUp, IconClock, IconEdit, IconLocation, IconMap } from "@/lib/icons";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { planAscent, planDescent } from "@/lib/locations/mapZoom";
@@ -338,6 +345,24 @@ onBeforeUnmount(clearZoom);
 const trail = computed(() => (location ? ancestorPath(index, location.id) : []));
 
 const children = computed(() => (location ? childrenOf(index, location.id) : []));
+
+// ── Site regions (#807) — only ever queried for a site-tier place; the
+//    empty-string id below keeps the query disabled everywhere else. ────────
+const activeRegionId = ref<string | null>(null);
+const isSite = computed(() => !!location && isSiteType(location.location_type));
+const siteRegionsQuery = useLocationMapRegions(computed(() => (isSite.value ? location!.id : "")));
+const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
+const siteRooms = computed(() => children.value.filter((c) => c.location_type === "room"));
+
+// An active trace belongs to the place it was started on; carrying it into
+// the next selection would reopen a stale "Tracing X" banner on an unrelated
+// map, same reasoning as `npcsExpanded` in `LocationDetailSections`.
+watch(
+  () => location?.id,
+  () => {
+    activeRegionId.value = null;
+  },
+);
 
 /**
  * On a site-tier place, `LocationDetailSections` mounts `SiteRoomsPanel`
