@@ -89,4 +89,27 @@ describe("QuestBeatObjectivesPanel", () => {
     ];
     expect(mountPanel().get("ul li").text()).toContain("Objective removed");
   });
+
+  it("shows the objective's live status alongside the rule that moves it", () => {
+    mocks.effects = [
+      { id: "fx-1", quest_id: "quest-1", objective_id: "obj-1", trigger_beat_id: "beat-fork", trigger_edge_id: null, effect: "complete" },
+    ];
+    const row = mountPanel().get("ul li");
+    expect(row.findComponent({ name: "QuestObjectiveStatusMark" }).props("status")).toBe("pending");
+  });
+
+  it("offers raise — the verb that wakes a dormant objective — first among the effects", () => {
+    const options = mountPanel().findAll("select")[1]!.findAll("option");
+    expect(options.map((option) => option.attributes("value"))).toEqual(["raise", "reveal", "complete", "fail"]);
+  });
+
+  it("can author a raise rule", async () => {
+    const wrapper = mountPanel();
+    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "obj-1");
+    await wrapper.findAll("select")[1]!.setValue("raise");
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ objective_id: "obj-1", effect: "raise" }));
+  });
 });

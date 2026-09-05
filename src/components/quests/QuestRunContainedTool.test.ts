@@ -18,14 +18,12 @@ const mocks = vi.hoisted(() => ({
   handout: { value: undefined as Record<string, unknown> | undefined },
   soundEnabled: null as (() => boolean) | null,
   playlistEnabled: null as (() => boolean) | null,
-  objectiveQuestId: { value: "" },
   monsterId: { value: "" },
   noteId: { value: "" },
   handoutId: { value: "" },
   trigger: vi.fn(),
   playPlaylist: vi.fn(),
   stopPlaylist: vi.fn(),
-  updateObjective: vi.fn(),
 }));
 
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
@@ -66,14 +64,6 @@ vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({
   playPlaylist: mocks.playPlaylist,
   stopPlaylist: mocks.stopPlaylist,
 }) }));
-vi.mock("@/composables/quests/useQuests", () => ({
-  useQuestObjectives: (questId: { value: string }) => {
-    mocks.objectiveQuestId = questId;
-    return { data: { value: [] } };
-  },
-  useUpdateObjective: () => ({ mutateAsync: mocks.updateObjective }),
-}));
-
 function attachment(type: QuestBeatAttachmentType, overrides: Partial<QuestBeatAttachmentSummary> = {}): QuestBeatAttachmentSummary {
   return {
     id: "a1", beat_id: "b1", quest_id: "q1", campaign_id: "c1", attachment_type: type,
@@ -180,7 +170,6 @@ describe("QuestRunContainedTool", () => {
     expect(mocks.noteId.value).toBe("note-1");
     expect(mocks.handoutId.value).toBe("");
     expect(mocks.monsterId.value).toBe("");
-    expect(mocks.objectiveQuestId.value).toBe("");
     expect(mocks.soundEnabled?.()).toBe(false);
     expect(mocks.playlistEnabled?.()).toBe(false);
   });

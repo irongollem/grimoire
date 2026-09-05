@@ -4,7 +4,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(17);
 
 select col_type_is('public', 'quest_objectives', 'status', 'text', 'an objective has a real outcome, not a done flag');
 select hasnt_column('public', 'quest_objectives', 'is_done', 'a boolean could not say an objective failed');
@@ -143,6 +143,22 @@ select throws_ok(
   '23514',
   null,
   'an unknown verb is refused rather than stored'
+);
+
+-- Revealing a still-dormant objective must raise it, not raise 23514. A DM
+-- authoring "reveal at B" without "raise at A" is the ordinary mistake, and
+-- `quest_objectives_dormant_is_hidden` forbids visible-and-dormant outright —
+-- so without reveal implying raise this update aborts the whole transition
+-- mid-session. Reproduces exactly what the runtime's effect arm does.
+select lives_ok(
+  $$update public.quest_objectives
+      set status = case 'reveal'
+            when 'raise' then case when status = 'dormant' then 'pending' else status end
+            when 'reveal' then case when status = 'dormant' then 'pending' else status end
+            when 'complete' then 'complete' when 'fail' then 'failed' else status end,
+          is_player_visible = true
+    where id = '66000000-0000-4000-8000-000000000053'$$,
+  'revealing a dormant objective raises it instead of violating the constraint'
 );
 
 select * from finish();

@@ -2,8 +2,6 @@ import { computed, isRef, ref, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
-import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
-import type { QuestObjectiveStatus } from "@/types/quest.types";
 import { deriveQuestBoardSummaries, type QuestBoardSummary } from "@/lib/quests/board";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
@@ -137,7 +135,6 @@ async function fetchAttachmentTargets(
   const targets = new Map<string, AttachmentTarget>();
   const definitions = [
     ["encounter", "encounters", "id, name", "name"],
-    ["objective", "quest_objectives", "id, description, status", "description"],
     ["quest_ref", "quest_refs", "id, ref_type", "ref_type"],
     ["location_set", "locations", "id, name", "name"],
     ["npc", "npcs", "id, name", "name"],
@@ -159,8 +156,7 @@ async function fetchAttachmentTargets(
     for (const raw of data ?? []) {
       const row = raw as unknown as Record<string, unknown>;
       const id = String(row.id);
-      const detail = type === "objective" ? QUEST_OBJECTIVE_STATUS_LABELS[row.status as QuestObjectiveStatus] ?? "Open" : null;
-      targets.set(`${type}:${id}`, { label: String(row[labelKey] ?? "Untitled"), detail });
+      targets.set(`${type}:${id}`, { label: String(row[labelKey] ?? "Untitled"), detail: null });
     }
   }));
   return targets;

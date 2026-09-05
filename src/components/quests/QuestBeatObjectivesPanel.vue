@@ -10,6 +10,7 @@
     <ul v-if="effects.length" class="space-y-1.5">
       <li v-for="effect in effects" :key="effect.id" class="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border p-2 text-caption">
         <span class="rounded bg-muted px-1.5 py-0.5 uppercase text-muted-foreground" :class="EFFECT_TONES[effect.effect]">{{ EFFECT_LABELS[effect.effect] }}</span>
+        <QuestObjectiveStatusMark v-if="objectiveFor(effect.objective_id)" :status="objectiveFor(effect.objective_id)!.status" />
         <span class="min-w-0 flex-1 truncate text-foreground">{{ objectiveLabel(effect.objective_id) }}</span>
         <span class="truncate text-muted-foreground">{{ triggerLabel(effect) }}</span>
         <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === effect.id" @click="remove(effect.id)" />
@@ -44,23 +45,28 @@
 import { computed, ref } from "vue";
 import { useCreateQuestObjectiveEffect, useDeleteQuestObjectiveEffect, useQuestObjectiveEffects } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
-import type { QuestBeat, QuestBeatEdge, QuestObjectiveEffect } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatEdge, QuestObjectiveEffect, QuestObjectiveEffectVerb } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 
-const QUEST_OBJECTIVE_EFFECTS = ["reveal", "complete", "fail"] as const;
+// Raise first: it is the step that has to happen before any of the other
+// three mean anything for an objective that started dormant.
+const QUEST_OBJECTIVE_EFFECTS: readonly QuestObjectiveEffectVerb[] = ["raise", "reveal", "complete", "fail"];
 
 // Phrased as what happens at the table, not as a state transition: "Complete"
 // rather than "set status = complete", because the DM is describing a story
 // consequence and will read this list back mid-session.
-const EFFECT_LABELS: Record<QuestObjectiveEffect["effect"], string> = {
+const EFFECT_LABELS: Record<QuestObjectiveEffectVerb, string> = {
+  raise: "Raise",
   reveal: "Reveal to players",
   complete: "Complete",
   fail: "Fail",
 };
 
-const EFFECT_TONES: Record<QuestObjectiveEffect["effect"], string> = {
+const EFFECT_TONES: Record<QuestObjectiveEffectVerb, string> = {
+  raise: "text-tone-info",
   reveal: "text-primary",
   complete: "text-tone-success",
   fail: "text-destructive",
@@ -85,13 +91,17 @@ const objectiveOptions = computed(() => (objectives.value ?? []).map((objective)
 
 const objectiveId = ref("");
 const trigger = ref("beat");
-const effect = ref<QuestObjectiveEffect["effect"]>("complete");
+const effect = ref<QuestObjectiveEffectVerb>("complete");
 const adding = ref(false);
 const removingId = ref("");
 const error = ref("");
 
+function objectiveFor(id: string) {
+  return (objectives.value ?? []).find((objective) => objective.id === id);
+}
+
 function objectiveLabel(id: string) {
-  return (objectives.value ?? []).find((objective) => objective.id === id)?.description ?? "Objective removed";
+  return objectiveFor(id)?.description ?? "Objective removed";
 }
 
 function triggerLabel(row: QuestObjectiveEffect) {

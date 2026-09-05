@@ -68,7 +68,15 @@ export type QuestInsert = Omit<
 > & { flow_enabled_at?: string | null };
 export type QuestUpdate = Partial<QuestInsert>;
 
-export type QuestObjectiveStatus = "pending" | "complete" | "failed";
+/**
+ * `dormant` -> `pending` (raised) -> `complete` | `failed`, with `dormant`
+ * reachable again from `pending` when a branch closes an objective off
+ * without resolving it. A `dormant` objective belongs to a branch the party
+ * has not been sent down yet — it is a stored fact the ledger carries, not a
+ * derived "not reachable from here" (see migration `20260905101454`), and the
+ * database refuses `dormant` + `is_player_visible` together.
+ */
+export type QuestObjectiveStatus = "dormant" | "pending" | "complete" | "failed";
 
 export interface QuestObjective {
   id: string;
@@ -83,6 +91,14 @@ export interface QuestObjective {
   sort_order: number;
 }
 
+/**
+ * `raise` lifts an objective out of `dormant` and does nothing to one already
+ * settled. It is deliberately not `reveal`: raising makes the objective live
+ * for the DM, revealing tells the party — an objective is routinely one
+ * without the other.
+ */
+export type QuestObjectiveEffectVerb = "raise" | "reveal" | "complete" | "fail";
+
 /** A place in the flow that decides an objective. See `quest_objective_effects`. */
 export interface QuestObjectiveEffect {
   id: string;
@@ -91,7 +107,7 @@ export interface QuestObjectiveEffect {
   /** Exactly one of these is set: arrival at a beat, or taking one branch. */
   trigger_beat_id: string | null;
   trigger_edge_id: string | null;
-  effect: "reveal" | "complete" | "fail";
+  effect: QuestObjectiveEffectVerb;
   created_at: string;
   updated_at: string;
 }
@@ -280,7 +296,7 @@ export interface PlayerQuestBeat {
 
 export interface PlayerQuestBeatAttachmentSummary {
   attachment_id: string;
-  type: "objective" | QuestRefType;
+  type: QuestRefType;
   ref_id: string;
   label?: string;
   role?: string;
@@ -302,7 +318,6 @@ export interface PlayerQuestBeatVisitSummary {
 
 export type QuestBeatAttachmentType =
   | "encounter"
-  | "objective"
   | "quest_ref"
   | "location_set"
   | "npc"

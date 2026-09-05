@@ -7,8 +7,8 @@ import type {
 export interface QuestBeatAttachmentAdapter {
   type: QuestBeatAttachmentType;
   label: string;
-  runAction: "run" | "view" | "play" | "manage";
-  containedSurface: "encounter" | "atlas" | "entity" | "audio" | "document" | "objective";
+  runAction: "run" | "view" | "play";
+  containedSurface: "encounter" | "atlas" | "entity" | "audio" | "document";
   summary: (attachment: QuestBeatAttachment, target: { label: string; detail?: string | null } | null) => { label: string; detail: string | null };
   fullEditorTo: (refId: string, questId: string) => string | null;
 }
@@ -20,7 +20,6 @@ const summary = (attachment: QuestBeatAttachment, target: { label: string; detai
 
 export const QUEST_BEAT_ATTACHMENT_ADAPTERS: Record<QuestBeatAttachmentType, QuestBeatAttachmentAdapter> = {
   encounter: { type: "encounter", label: "Encounter", runAction: "run", containedSurface: "encounter", summary, fullEditorTo: (id) => `/encounters/${id}` },
-  objective: { type: "objective", label: "Objective", runAction: "manage", containedSurface: "objective", summary, fullEditorTo: (_id, questId) => `/quests/${questId}?view=overview` },
   quest_ref: { type: "quest_ref", label: "Quest reference", runAction: "view", containedSurface: "entity", summary, fullEditorTo: (_id, questId) => `/quests/${questId}?view=overview` },
   location_set: { type: "location_set", label: "Atlas set", runAction: "view", containedSurface: "atlas", summary, fullEditorTo: (id) => `/locations/${id}` },
   npc: { type: "npc", label: "NPC", runAction: "view", containedSurface: "entity", summary, fullEditorTo: (id) => `/npcs/${id}` },

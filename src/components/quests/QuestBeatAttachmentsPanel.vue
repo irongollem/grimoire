@@ -81,7 +81,6 @@ import { useNotes } from "@/composables/notes/useNotes";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useItems } from "@/composables/items/useItems";
 import { useMonsters } from "@/composables/monsters/useMonsters";
-import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useScriptoriumDocuments } from "@/composables/scriptorium/useScriptorium";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
@@ -97,7 +96,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import QuestRunContainedTool from "./QuestRunContainedTool.vue";
 
 const props = defineProps<{ beat: QuestBeat; attachments: QuestBeatAttachmentSummary[] }>();
-const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "objective", "location_set", "npc", "faction", "item", "monster", "sound", "audio_scene", "playlist", "note", "handout"];
+const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "location_set", "npc", "faction", "item", "monster", "sound", "audio_scene", "playlist", "note", "handout"];
 const attachmentType = ref<QuestBeatAttachmentType>("encounter");
 const refId = ref("");
 const adding = ref(false);
@@ -113,7 +112,6 @@ const deleteAttachment = useDeleteQuestBeatAttachment();
 const updateRequired = useSetQuestBeatAttachmentRequired();
 const createEncounter = useCreateEncounter();
 const { data: encounters } = useEncounters();
-const { data: objectives } = useQuestObjectives(computed(() => props.beat.quest_id));
 const { data: locations } = useAllLocations();
 const { data: npcs } = useNpcs();
 const { data: factions } = useAllFactions();
@@ -126,7 +124,6 @@ const { data: documents } = useScriptoriumDocuments();
 
 const options = computed<Array<{ id: string; name: string }>>(() => ({
   encounter: (encounters.value ?? []).map((row) => ({ id: row.id, name: row.name })),
-  objective: (objectives.value ?? []).map((row) => ({ id: row.id, name: row.description })),
   location_set: (locations.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   npc: (npcs.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   faction: (factions.value ?? []).map((row) => ({ id: row.id, name: row.name })),
@@ -158,7 +155,6 @@ const roomOptions = computed(() => {
 });
 const createUrl = computed(() => withQuestReturnTo(({
   encounter: "/encounters/new",
-  objective: `/quests/${props.beat.quest_id}?view=overview`,
   location_set: "/locations/new",
   npc: "/npcs/new",
   faction: "/factions/new",

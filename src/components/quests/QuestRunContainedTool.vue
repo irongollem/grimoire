@@ -14,8 +14,7 @@
           <EncounterRunSurface :encounter-id="attachment.ref_id" />
         </div>
         <template v-else>
-          <p v-if="toolError" role="alert" class="mt-3 rounded-md border border-destructive/40 p-2 text-caption text-destructive">{{ toolError }}</p>
-          <div v-else-if="attachment.prep_gap" class="mt-3 rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">This attachment is missing. Close this tool and keep running, or use the full editor to repair it.</div>
+          <div v-if="attachment.prep_gap" class="mt-3 rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">This attachment is missing. Close this tool and keep running, or use the full editor to repair it.</div>
           <div v-else class="mt-4 space-y-3">
           <div v-if="adapter.containedSurface === 'encounter'" class="rounded-lg border border-border bg-card p-3">
             <p class="text-body text-foreground">Focused encounter state stays in the existing Encounter Runner.</p>
@@ -68,17 +67,6 @@
             <p class="text-body text-foreground">{{ monster?.size || "Unknown size" }} {{ monster?.monster_type || "monster" }}</p>
             <p v-if="monster?.description" class="mt-2 line-clamp-4 text-caption text-muted-foreground">{{ monster.description }}</p>
           </div>
-          <div v-else-if="attachment.attachment_type === 'objective'" class="rounded-lg border border-border bg-card p-3">
-            <p class="text-body text-foreground">{{ objective?.description || attachment.label }}</p>
-            <AppButton
-              v-if="objective"
-              class="mt-2"
-              :label="QUEST_OBJECTIVE_ACTION_LABELS[objective.status]"
-              variant="primary"
-              :loading="objectiveSaving"
-              @click="toggleObjective"
-            />
-          </div>
           <div v-else-if="attachment.attachment_type === 'note'" class="rounded-lg border border-border bg-card p-3">
             <LoadingSpinner v-if="noteQuery.isLoading.value" />
             <template v-else-if="noteRecord">
@@ -129,9 +117,6 @@ import { useActionCheck, useBlockedCheck, useSoundTrigger } from "@/composables/
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
 import { withQuestReturnTo } from "@/lib/quests/navigation";
 import { useSoundboardStore } from "@/stores/soundboard";
-import { useQuestObjectives, useUpdateObjective } from "@/composables/quests/useQuests";
-import { nextObjectiveStatus } from "@/lib/quests/objectives";
-import type { QuestObjectiveStatus } from "@/types/quest.types";
 import type { QuestBeatAttachmentSummary } from "@/types/quest.types";
 import type { Sound } from "@/types/sound.types";
 import AppButton from "@/components/common/AppButton.vue";
@@ -141,19 +126,9 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
 const EncounterRunSurface = defineAsyncComponent(() => import("@/components/encounters/EncounterRunSurface.vue"));
 
-// Named for what the click does next, so the button never reads "Mark complete"
-// on an objective the flow has already failed.
-const QUEST_OBJECTIVE_ACTION_LABELS: Record<QuestObjectiveStatus, string> = {
-  pending: "Mark complete",
-  complete: "Mark failed",
-  failed: "Reopen objective",
-};
-
 const props = defineProps<{ attachment: QuestBeatAttachmentSummary; returnTo: string }>();
 const emit = defineEmits<{ close: [] }>();
 const encounterFocused = ref(false);
-const objectiveSaving = ref(false);
-const toolError = ref("");
 const adapter = computed(() => QUEST_BEAT_ATTACHMENT_ADAPTERS[props.attachment.attachment_type]);
 const { data: locations } = useAllLocations(() => props.attachment.attachment_type === "location_set");
 const npcId = computed(() => props.attachment.attachment_type === "npc" ? props.attachment.ref_id : "");
@@ -171,10 +146,6 @@ const factionRecord = computed(() => faction.value ?? null);
 const monster = computed(() => monsterQuery.data.value?.monster ?? null);
 const noteRecord = computed(() => noteQuery.data.value ?? null);
 const handoutRecord = computed(() => handoutQuery.data.value ?? null);
-const objectiveQuestId = computed(() => props.attachment.attachment_type === "objective" ? props.attachment.quest_id : "");
-const { data: objectives } = useQuestObjectives(objectiveQuestId);
-const updateObjective = useUpdateObjective();
-const objective = computed(() => props.attachment.attachment_type === "objective" ? objectives.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
 const { data: items } = useItems(() => ({ enabled: props.attachment.attachment_type === "item" }));
 const item = computed(() => props.attachment.attachment_type === "item" ? items.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
 const portraitSrc = computed(() => npcRecord.value?.portrait_url ?? factionRecord.value?.emblem_url ?? item.value?.image_url ?? monster.value?.image_url ?? null);
@@ -204,20 +175,6 @@ function togglePlaylist() {
   if (!playlist.value) return;
   if (playlistActive.value) soundboard.stopPlaylist(playlist.value.playlist_type, playlist.value.id);
   else if (playlistTracks.value.length) soundboard.playPlaylist(playlist.value, playlistTracks.value);
-}
-async function toggleObjective() {
-  if (!objective.value) return;
-  objectiveSaving.value = true;
-  toolError.value = "";
-  try {
-    await updateObjective.mutateAsync({
-      id: objective.value.id,
-      questId: objective.value.quest_id,
-      update: { status: nextObjectiveStatus(objective.value.status) },
-    });
-  } catch (caught) {
-    toolError.value = caught instanceof Error ? caught.message : "The objective could not be updated";
-  } finally { objectiveSaving.value = false; }
 }
 useHotkeys([{ combo: "escape", description: "Close contained quest tool", handler: () => emit("close"), hidden: true }], { layer: "overlay" });
 </script>

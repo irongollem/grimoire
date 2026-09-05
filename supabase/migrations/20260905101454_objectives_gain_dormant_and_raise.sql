@@ -330,6 +330,14 @@ begin
             -- settled: a beat that raises "Carry the news home" must not undo an
             -- earlier failure of it if the party loops back through.
             when 'raise' then case when status = 'dormant' then 'pending' else status end
+            -- `reveal` implies `raise`, and must: you cannot tell the party
+            -- about an objective that has not been raised, and
+            -- `quest_objectives_dormant_is_hidden` forbids the pair outright.
+            -- Without this, a beat that reveals something still dormant — a DM
+            -- authoring "reveal at B" and forgetting "raise at A", which is the
+            -- ordinary mistake — raises 23514 from inside the transition and
+            -- takes the whole advance down mid-session. Revealing it wakes it.
+            when 'reveal' then case when status = 'dormant' then 'pending' else status end
             when 'complete' then 'complete'
             when 'fail' then 'failed'
             else status
