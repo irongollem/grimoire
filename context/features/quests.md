@@ -73,7 +73,9 @@ sharpest special case in #793.
 |        | Generation one — the quest sheet                             | Generation two — the story flow                                                                                                         |
 | ------ | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Shape  | a record with a checklist                                    | a graph you run a cursor through                                                                                                        |
-| Tables | `quests`, `quest_objectives`, `quest_refs`, `quest_triggers` | `quest_beats`, `quest_beat_edges`, `quest_beat_attachments`, `quest_runtime_state`, `quest_beat_transitions`, `quest_objective_effects` |
+| Tables | `quests`, `quest_objectives`, `quest_refs`                   | `quest_beats`, `quest_beat_edges`, `quest_beat_attachments`, `quest_runtime_state`, `quest_beat_transitions`                            |
+
+`quest_consequences` / `quest_consequence_events` (#794) belong to neither generation — they are the one rule engine both now share, see below.
 
 **The opening beat, not a bridge.** Every quest used to own exactly one
 `is_overview` beat, minted by an `after insert on quests` trigger and pinned by a
@@ -97,7 +99,10 @@ and no rule about which wins:
 | -------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | `quests.reward_*` (coins, pools, items, art) | `quest_beat_loot` rows with `source_type = 'quest_reward'`                           | a one-time copy in `20260810220934` — all four kinds, not just items                          |
 | `quest_refs`                                 | `quest_beat_attachments`                                                             | a trigger syncs attachment → ref; nothing syncs back, and removing a placement leaves the ref |
-| `quest_triggers` (fires _from_ an objective) | `quest_objective_effects` (fires _to_ one)                                           | nothing — two ends of one idea                                                                |
+
+`quest_triggers` (fired _from_ an objective) and `quest_objective_effects` (fired _to_ one)
+were this table's third row until #794: two ends of one idea, reconciled by merging both into
+`quest_consequences` — see "one rule engine" in the data model below.
 
 `quests.summary` is the one quest-wide field the model keeps on the quest row on
 purpose: a premise is identity, like title and tags, and no beat field means
@@ -113,12 +118,17 @@ their partial unique index outlive `convert_quest_to_flow`,
 `preview_quest_flow_conversion` and `rollback_quest_flow_conversion`, which shipped
 in `20260810000016` and were dropped the same day by `20260810202052`.
 
-### An objective appears in two surfaces that disagree, once three
+### An objective appears in two surfaces that once disagreed, and a third that used to
 
-| Surface              | Component                                                    | What it says an objective is                                                         |
-| -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| A checklist you tick | `QuestObjectivesList.vue` (Overview › Quest lifecycle)       | a to-do the DM maintains — the mark cycles pending → complete → failed               |
-| A rule you author    | `QuestBeatObjectivesPanel.vue` (beat inspector, beat page)   | a variable the graph writes — shows _reveal / complete / fail_, and no status at all |
+| Surface              | Component                                                                    | What it says an objective is                                                                    |
+| --------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| A checklist you tick | Inline in `QuestOverviewLifecycle.vue` (Overview › Quest lifecycle)          | a to-do the DM asserts via `assert_quest_objective_status` — the mark cycles dormant → pending → complete → failed |
+| A rule you author    | `QuestConsequencesPanel.vue`, `scope="beat"` (beat inspector, beat page) and `scope="quest"` (quest overview) | one `quest_consequences` row: a beat/edge condition (beat scope) or an objective-became/quest-settled condition (quest scope), doing one of the four ledger verbs or the two world actions alike |
+
+Until #794 the second row showed only _reveal / complete / fail_ and no status at all —
+`quest_objective_effects` couldn't raise a dormant objective or watch one settle. One
+table now backs both surfaces' writes, so a beat and the overview checklist can no
+longer disagree about what "complete" means, only about _when_ it fires.
 
 A third surface used to exist: `attachment_type = 'objective'` on
 `quest_beat_attachments` was a live, addable pointer meaning only "relevant
@@ -150,9 +160,18 @@ Carries `unique (id, campaign_id)` — the composite every beat-side FK targets.
 
 ### `quest_objectives`
 
-`description`, `sort_order`, `is_player_visible`, `status` (`pending` |
-`complete` | `failed`). `is_done` was dropped in `20260818212305` after backfilling
-`status`; the cycle lives in `lib/quests/objectives.ts`.
+`description`, `sort_order`, `is_player_visible`, `status` (`dormant` |
+`pending` | `complete` | `failed` — `dormant` added by `20260905101454`, #792:
+a branch the party has not been sent down yet, not derived, refused paired
+with `is_player_visible`). `is_done` was dropped in `20260818212305` after
+backfilling `status`; the cycle lives in `lib/quests/objectives.ts`.
+
+**`status` has exactly one writer since #794:** `assert_quest_objective_status`.
+A column-level grant revokes it from a plain client `UPDATE` (`description`,
+`sort_order` and `is_player_visible` still go straight through PostgREST) —
+`transition_quest_runtime` is the only other writer, and both funnel through
+`private.apply_quest_consequences` so a status change can never bypass the
+consequence engine watching it.
 
 ### `quest_beats`
 
@@ -213,15 +232,56 @@ grant; it moves only through the RPCs.
 ### `quest_beat_transitions` — append-only
 
 `transition_kind`: `enter`, `forward`, `previous`, `jump`, `return`, `improv`,
-`pause`, `resume`, `end`. Denormalised title snapshots so history survives edits.
-No UPDATE/DELETE policies, and both are revoked from `authenticated`/`anon`.
+`pause`, `resume`, `end`, and `assert` (#794 — the DM saying "this already
+happened" via `assert_quest_objective_status`, with no cursor movement: a
+quest and no beat, the one shape that kind of row is allowed). Denormalised
+title snapshots so history survives edits. No UPDATE/DELETE policies, and both
+are revoked from `authenticated`/`anon`.
+
+### `quest_consequences` and `quest_consequence_events` — one rule engine (#794)
+
+One rule: **when this becomes that, do this.** Replaces `quest_objective_effects`
+(beat/edge → ledger verb) and `quest_triggers`/`quest_trigger_scheduled`
+(ledger/settled → world action), which never composed — a beat could complete
+an objective, but nothing then watched that completion to fire a calendar
+event.
+
+`quest_consequences` is the rule: exactly one **condition** (`on_beat_id`,
+`on_edge_id`, `on_objective_id` + `on_objective_status` ∈
+`pending`/`complete`/`failed`, or `on_quest_settled`), an **`after_days`**
+delay, and an **`action`** ∈ `raise`/`reveal`/`complete`/`fail` (a ledger verb,
+needs `target_objective_id`) or `create_calendar_event`/`send_broadcast` (a
+world action, needs `action_payload`). Authored by `QuestConsequencesPanel.vue`
+— `scope="beat"` on a beat authors the first two condition kinds,
+`scope="quest"` on the overview authors the last two.
+
+`quest_consequence_events` is the append-only log every rule fires into:
+`private.apply_quest_consequences` runs it from both `assert_quest_objective_status`
+and `transition_quest_runtime`, in the same transaction as the write that made
+the condition true — which is what lets `previous` undo a rule's effect by
+replaying the event's `previous_status`/`previous_is_player_visible`, and by
+handle (`calendar_event_id`, `message_id`) for a world action.
+
+**The database cannot compute a delayed action's due date itself.**
+Per-calendar leap and intercalary rules live only in `src/lib/dayMath.ts`
+(#766), and a plpgsql port would be a fifth copy. So a delayed row
+(`after_days > 0`) is logged with `fires_on_year/month/day` and left
+`performed_at is null`; the client decides `fires_on + after_days` has
+arrived and calls `perform_quest_consequence(event_id, year, month, day)` to
+perform it. `useDueConsequences` (mounted once in `DefaultLayout.vue`) is the
+one place that watches for that — a watcher on the campaign store's own today
+fields, not on any one "set today" call site, closes the bug where aging a
+campaign forward from `DetailsTab`'s "Current Year" field fired nothing.
+
+A ledger verb applies **immediately** regardless of `after_days` — only the
+two world actions are ever deferred; `perform_quest_consequence` does not
+know how to perform a ledger verb. `after_days` on a ledger-verb row is
+authored intent, not (yet) an enforced wait.
 
 ### The rest
 
 `quest_beat_loot` (with `dispatch_message_id` into `campaign_messages`),
-`quest_objective_effects` (`reveal`/`complete`/`fail`, triggered by exactly one of
-`trigger_beat_id` or `trigger_edge_id`), `quest_objective_effect_events` (the undo
-journal for the above), `quest_refs`, `quest_triggers`, `quest_trigger_scheduled`.
+`quest_refs`.
 
 Types live in `src/types/quest.types.ts`. There is **no `QuestFlow` domain type** —
 "flow" in this codebase means the rendered graph, and `lib/quests/flow.ts` holds
@@ -330,7 +390,10 @@ return target, and the most recent **100** transitions — the cockpit polls it)
 `improvise_quest_runtime`, `search_quest_runtime_jump_targets`,
 `end_campaign_quest_session`, `archive_quest_beat`, `create_quest_beat_with_route`,
 `dispatch_quest_beat_loot`, `get_quest_beat_loot`, `get_player_visible_quest_beats`,
-`get_player_visible_quests`.
+`get_player_visible_quests`, `assert_quest_objective_status` (#794 — the DM
+asserting a status with no cursor movement) and `perform_quest_consequence`
+(#794 — performs one already-logged, delayed world-action event on a date the
+client computed; see "one rule engine" above).
 
 Semantics not to re-litigate (from #755):
 

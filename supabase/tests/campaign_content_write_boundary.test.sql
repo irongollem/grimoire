@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 -- Campaign-scoped DM content may only be written by that campaign's DM.
 --
@@ -126,10 +126,35 @@ select is(
         'calendar_events','class_feature_options','class_features','crafting_recipes',
         'custom_classes','custom_subclasses','encounters','factions','items','locations',
         'loot_tables','monsters','npc_inventory','npc_relationships','npc_sets','npcs',
-        'puzzle_rooms','quest_trigger_scheduled','quests','roll_tables','rules',
+        'puzzle_rooms','quests','roll_tables','rules',
         'soundboard_pages','soundboard_playlists','sounds','species','spells','traps')),
   '',
   'every write policy on a campaign-scoped content table consults campaign_id');
+
+-- The list above is strings, and a string stops matching when a table is
+-- dropped — silently. `quest_trigger_scheduled` sat in it after #794 removed
+-- the table, sweeping nothing and reporting success, which is worse than an
+-- absent test because it reads as covered. This asserts every name in the list
+-- is a real table, so the next drop fails here instead of quietly shrinking
+-- what the guard above examines.
+select is(
+  (select coalesce(string_agg(t.name, ', ' order by t.name), '')
+     from unnest(array[
+        'calendar_events', 'class_feature_options', 'class_features', 'crafting_recipes',
+        'custom_classes', 'custom_subclasses', 'encounters', 'factions',
+        'items', 'locations', 'loot_tables', 'monsters',
+        'npc_inventory', 'npc_relationships', 'npc_sets', 'npcs',
+        'puzzle_rooms', 'quests', 'roll_tables', 'rules',
+        'soundboard_pages', 'soundboard_playlists', 'sounds', 'species',
+        'spells', 'traps'
+     ]) as t(name)
+    where not exists (
+      select 1 from information_schema.tables
+       where table_schema = 'public' and table_name = t.name
+    )),
+  '',
+  'every table named in the structural sweep still exists'
+);
 
 select * from finish();
 rollback;

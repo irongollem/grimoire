@@ -34,7 +34,7 @@
     </section>
 
     <div id="beat-attachments"><QuestBeatAttachmentsPanel :beat="beat" :attachments="attachments" /></div>
-    <QuestBeatObjectivesPanel :beat="beat" :edges="edges" />
+    <QuestConsequencesPanel scope="beat" :quest-id="beat.quest_id" :beat="beat" :edges="edges" />
     <div id="beat-loot"><QuestBeatLootPanel :beat="beat" :loot="loot" /></div>
   </aside>
 </template>
@@ -45,7 +45,7 @@ import { deriveQuestBeatPrepGaps, type QuestBeatPresentation, type QuestBeatPrep
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatLoot } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestBeatAttachmentsPanel from "./QuestBeatAttachmentsPanel.vue";
-import QuestBeatObjectivesPanel from "./QuestBeatObjectivesPanel.vue";
+import QuestConsequencesPanel from "./QuestConsequencesPanel.vue";
 import QuestBeatFields from "./QuestBeatFields.vue";
 import QuestBeatLootPanel from "./QuestBeatLootPanel.vue";
 

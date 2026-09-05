@@ -101,7 +101,7 @@ describe("addDays", () => {
     expect(addDays(PLAIN, { year: 2001, month: 1, day: 30 }, 3)).toEqual({ year: 2001, month: 2, day: 3 });
   });
 
-  // `quest_trigger_scheduled` has three integer columns and nowhere to put
+  // `quest_consequence_events` has three integer columns and nowhere to put
   // "Founding", so landing on one rolls forward to the next dated day.
   it("never returns an intercalary day, rolling forward to the next dated one", () => {
     // 1/30 + 1 is Founding, + 2 is Midyear; both roll to 2/1.

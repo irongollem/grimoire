@@ -71,7 +71,7 @@ export type DashboardWidgetId =
   | "recent-monsters"
   | "store-restock"
   | "monster-pull"
-  | "quest-triggers"
+  | "quest-consequences"
   | "shared-journal";
 
 export interface DashboardWidgetDef {
@@ -273,9 +273,9 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDef[] = [
     maxInstances: 1,
   },
   {
-    id: "quest-triggers",
-    title: "Quest triggers due",
-    description: "Scheduled consequences about to fire, time-delayed and immediate.",
+    id: "quest-consequences",
+    title: "Quest consequences due",
+    description: "Delayed calendar events and broadcasts about to fire.",
     widths: LIST_WIDTHS,
     defaultWidth: "cell",
     surfaces: BOTH_SURFACES,

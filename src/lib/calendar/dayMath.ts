@@ -174,11 +174,12 @@ function datedDayAt(adapter: CalendarAdapter, year: number, ordinal: number): Ca
  *    on Harptos crosses a festival, and a calendar that ignores it lands the
  *    DM a day early — which is precisely how quest triggers drifted 5-6 days
  *    per in-world year against the calendar screen.
- * 2. **It never returns a festival.** `quest_trigger_scheduled` stores three
- *    integer columns and has nowhere to put "Shieldmeet", so an offset that
- *    lands on an intercalary day rolls forward to the next dated day rather
- *    than being silently misrepresented as a numbered one. The trigger fires
- *    on the first dated day at or after its true target.
+ * 2. **It never returns a festival.** `quest_consequence_events` (formerly
+ *    `quest_trigger_scheduled`) stores three integer columns and has nowhere
+ *    to put "Shieldmeet", so an offset that lands on an intercalary day rolls
+ *    forward to the next dated day rather than being silently misrepresented
+ *    as a numbered one. The consequence fires on the first dated day at or
+ *    after its true target.
  *
  * Returns `from` unchanged if the adapter cannot place it, which is the same
  * "unreadable data degrades rather than throws" stance as `ordinalWithinYear`.

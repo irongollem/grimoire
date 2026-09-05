@@ -86,7 +86,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { scheduleQuestTriggers, useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
+import { useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type Quest, type QuestStatus } from "@/types/quest.types";
 
@@ -137,7 +137,6 @@ async function saveMetadata() {
     saveQueued = true;
     return;
   }
-  const previousStatus = props.quest.status;
   const wasShared = (props.quest.player_visible_to?.length ?? 0) > 0;
   saving.value = true;
   saveError.value = "";
@@ -156,13 +155,6 @@ async function saveMetadata() {
         player_visible_to: playerVisibleTo.value,
       },
     });
-    if (previousStatus !== "completed" && status.value === "completed" && campaign.activeCampaignId) {
-      void scheduleQuestTriggers(props.quest.id, "quest_complete", null, {
-        year: campaign.todayYear,
-        month: campaign.todayMonth,
-        day: campaign.todayDay,
-      }, campaign.activeCampaignId);
-    }
     if (!wasShared && playerVisibleTo.value.length && campaign.activeCampaignId) {
       void sendCampaignAnnouncement(campaign.activeCampaignId, `📋 Quest shared: "${nextTitle}"`, {
         entity_type: "quest",

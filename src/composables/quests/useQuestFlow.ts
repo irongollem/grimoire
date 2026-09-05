@@ -23,8 +23,8 @@ import type {
   CampaignLiveQuest,
   QuestRuntimeContext,
   QuestRuntimeJumpTarget,
-  QuestObjectiveEffect,
-  QuestObjectiveEffectInsert,
+  QuestConsequence,
+  QuestConsequenceInsert,
   QuestRuntimeState,
 } from "@/types/quest.types";
 
@@ -40,7 +40,7 @@ const TRANSITIONS_KEY = "quest_beat_transitions";
 export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY] as const;
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "quest_beat_loot";
-const OBJECTIVE_EFFECTS_KEY = "quest_objective_effects";
+const CONSEQUENCES_KEY = "quest_consequences";
 
 /** Player projections are audience-keyed. An authored beat change can alter
  * every audience's safe DTO, so invalidating only the authored quest key leaves
@@ -770,53 +770,59 @@ export function usePlayerQuestBeatHistory(questId?: string | Ref<string>, previe
 
 
 /**
- * The rules that let the flow decide an objective: arriving at a beat, or taking
- * one branch out of it, can reveal, complete or fail it.
+ * One rule table for the whole quest: arrival at a beat, taking a branch, an
+ * objective becoming a status, or the ledger settling, each doing one of the
+ * four ledger verbs or one of the two world actions (#794). Replaces
+ * `useQuestObjectiveEffects` (beat/edge → ledger verb only) and the deleted
+ * `useQuestTriggers`/`useCreateQuestTrigger`/`useDeleteQuestTrigger`
+ * (ledger/settled → world action only) — two ends of the same sentence.
  *
- * Applied inside `transition_quest_runtime` rather than here, so the objective
- * moves in the same transaction as the party — and so stepping back can undo it,
- * which needs the state each rule overwrote.
+ * Beat/edge conditions are applied inside `transition_quest_runtime`;
+ * objective/settled conditions inside `assert_quest_objective_status` as well
+ * — both call `private.apply_quest_consequences` server-side, in the same
+ * transaction as the write that made the condition true, so stepping back can
+ * undo what a rule did.
  */
-export function useQuestObjectiveEffects(questId: string | Ref<string>) {
+export function useQuestConsequences(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [OBJECTIVE_EFFECTS_KEY, id.value]),
-    queryFn: async (): Promise<QuestObjectiveEffect[]> => {
+    queryKey: computed(() => [CONSEQUENCES_KEY, id.value]),
+    queryFn: async (): Promise<QuestConsequence[]> => {
       const { data, error } = await supabase
-        .from("quest_objective_effects")
+        .from("quest_consequences")
         .select("*")
         .eq("quest_id", id.value)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as QuestObjectiveEffect[];
+      return (data ?? []) as QuestConsequence[];
     },
     enabled: () => !!id.value,
   });
 }
 
-export function useCreateQuestObjectiveEffect() {
+export function useCreateQuestConsequence() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: QuestObjectiveEffectInsert): Promise<QuestObjectiveEffect> => {
-      const { data, error } = await supabase.from("quest_objective_effects").insert(input).select().single();
+    mutationFn: async (input: QuestConsequenceInsert): Promise<QuestConsequence> => {
+      const { data, error } = await supabase.from("quest_consequences").insert(input).select().single();
       if (error) throw error;
-      return data as QuestObjectiveEffect;
+      return data as QuestConsequence;
     },
-    onSuccess: (_effect, input) => {
-      queryClient.invalidateQueries({ queryKey: [OBJECTIVE_EFFECTS_KEY, input.quest_id] });
+    onSuccess: (_row, input) => {
+      queryClient.invalidateQueries({ queryKey: [CONSEQUENCES_KEY, input.quest_id] });
     },
   });
 }
 
-export function useDeleteQuestObjectiveEffect() {
+export function useDeleteQuestConsequence() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { id: string; questId: string }) => {
-      const { error } = await supabase.from("quest_objective_effects").delete().eq("id", input.id);
+      const { error } = await supabase.from("quest_consequences").delete().eq("id", input.id);
       if (error) throw error;
     },
     onSuccess: (_result, input) => {
-      queryClient.invalidateQueries({ queryKey: [OBJECTIVE_EFFECTS_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [CONSEQUENCES_KEY, input.questId] });
     },
   });
 }

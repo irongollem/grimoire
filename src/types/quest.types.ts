@@ -94,23 +94,113 @@ export interface QuestObjective {
  * settled. It is deliberately not `reveal`: raising makes the objective live
  * for the DM, revealing tells the party — an objective is routinely one
  * without the other.
+ *
+ * `create_calendar_event` / `send_broadcast` are the two world actions —
+ * everything else is a ledger verb. One vocabulary for both ends of a
+ * consequence (#794): `quest_triggers` fired *from* an objective becoming
+ * something, and `quest_objective_effects` fired *to* one; `quest_consequences`
+ * replaces both.
  */
-export type QuestObjectiveEffectVerb = "raise" | "reveal" | "complete" | "fail";
+export type QuestConsequenceAction = "raise" | "reveal" | "complete" | "fail" | "create_calendar_event" | "send_broadcast";
 
-/** A place in the flow that decides an objective. See `quest_objective_effects`. */
-export interface QuestObjectiveEffect {
+export const QUEST_CONSEQUENCE_LEDGER_ACTIONS: readonly QuestConsequenceAction[] = ["raise", "reveal", "complete", "fail"];
+export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] = ["create_calendar_event", "send_broadcast"];
+
+/** The three statuses a `quest_consequences.on_objective_status` condition can
+ *  name — never `dormant`, which nothing "becomes" on purpose (it is the
+ *  starting state a `raise` rule lifts an objective out of). */
+export type QuestConsequenceObjectiveStatus = "pending" | "complete" | "failed";
+export const QUEST_CONSEQUENCE_OBJECTIVE_STATUSES: readonly QuestConsequenceObjectiveStatus[] = ["pending", "complete", "failed"];
+
+export interface CalendarEventConsequencePayload {
+  title: string;
+  event_type: string;
+  description?: string;
+}
+
+export interface BroadcastConsequencePayload {
+  message: string;
+}
+
+export type QuestConsequenceActionPayload =
+  | CalendarEventConsequencePayload
+  | BroadcastConsequencePayload
+  | Record<string, never>;
+
+/**
+ * One rule: when this becomes that, do this. Exactly one condition family is
+ * set — `on_beat_id` (arrival), `on_edge_id` (taking that branch),
+ * `on_objective_id` + `on_objective_status` (an objective became that status),
+ * or `on_quest_settled` (the whole ledger has nothing pending left) — enforced
+ * by `quest_consequences_one_condition` in the database, not here.
+ *
+ * Replaces `quest_objective_effects` (event → state) and `quest_triggers`
+ * (state → world action), which were two ends of the same sentence and never
+ * composed (#794). See `supabase/migrations/20260905215424_one_consequence_mechanism.sql`.
+ */
+export interface QuestConsequence {
   id: string;
   quest_id: string;
-  objective_id: string;
-  /** Exactly one of these is set: arrival at a beat, or taking one branch. */
-  trigger_beat_id: string | null;
-  trigger_edge_id: string | null;
-  effect: QuestObjectiveEffectVerb;
+  on_beat_id: string | null;
+  on_edge_id: string | null;
+  on_objective_id: string | null;
+  on_objective_status: QuestConsequenceObjectiveStatus | null;
+  on_quest_settled: boolean;
+  /** In-world days between the condition firing and the action performing.
+   *  Zero performs inside the same transaction as the condition. Honoured for
+   *  the two world actions; a ledger verb applies immediately regardless —
+   *  see `private.apply_quest_consequences`. */
+  after_days: number;
+  action: QuestConsequenceAction;
+  /** Required for a ledger verb, forbidden for a world action — the other
+   *  objective a ledger verb moves. Never the same objective named by
+   *  `on_objective_id` (no self-reference). */
+  target_objective_id: string | null;
+  action_payload: QuestConsequenceActionPayload;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestObjectiveEffectInsert = Omit<QuestObjectiveEffect, "id" | "created_at" | "updated_at">;
+export type QuestConsequenceInsert = Omit<QuestConsequence, "id" | "created_at" | "updated_at">;
+
+/**
+ * The append-only log of every consequence that fired: `quest_consequence_events`.
+ * DM-only (`private.is_campaign_dm`) — a player's objective/verb/previous-visibility
+ * history is not theirs to read (see #798 for the player-facing projection).
+ *
+ * A row with `performed_at is null and undone_at is null and after_days > 0` is
+ * waiting for its in-world date — the database logs it and names the day it
+ * fired on (`fires_on_year/month/day`); the client, the one place per-calendar
+ * arithmetic lives (`src/lib/calendar/dayMath.ts`), decides when
+ * `fires_on + after_days` has arrived and calls `perform_quest_consequence`.
+ * See `useDueConsequences`.
+ */
+export interface QuestConsequenceEvent {
+  id: string;
+  campaign_id: string;
+  quest_id: string;
+  transition_id: string;
+  consequence_id: string | null;
+  action: QuestConsequenceAction;
+  target_objective_id: string | null;
+  previous_status: QuestObjectiveStatus | null;
+  previous_is_player_visible: boolean | null;
+  action_payload: QuestConsequenceActionPayload;
+  after_days: number;
+  fires_on_year: number | null;
+  fires_on_month: number | null;
+  fires_on_day: number | null;
+  performed_at: string | null;
+  performed_on_year: number | null;
+  performed_on_month: number | null;
+  performed_on_day: number | null;
+  calendar_event_id: string | null;
+  message_id: string | null;
+  undone_at: string | null;
+  seq: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export type QuestObjectiveInsert = Omit<QuestObjective, "id">;
 export type QuestObjectiveUpdate = Partial<
@@ -418,45 +508,3 @@ export type QuestRefInsert = Omit<QuestRef, "id" | "is_player_visible"> & {
   is_player_visible?: boolean;
 };
 
-export type TriggerType = "quest_complete" | "objective_done";
-export type TriggerActionType = "create_calendar_event" | "send_broadcast";
-
-export interface CalendarEventTriggerPayload {
-  title: string;
-  event_type: string;
-  description?: string;
-}
-
-export interface BroadcastTriggerPayload {
-  message: string;
-}
-
-export interface QuestTrigger {
-  id: string;
-  user_id: string;
-  quest_id: string;
-  objective_id: string | null;
-  trigger_type: TriggerType;
-  offset_days: number;
-  action_type: TriggerActionType;
-  action_payload: CalendarEventTriggerPayload | BroadcastTriggerPayload;
-  created_at: string;
-  updated_at: string;
-}
-
-export type QuestTriggerInsert = Omit<QuestTrigger, "id" | "user_id" | "created_at" | "updated_at">;
-export type QuestTriggerUpdate = Partial<Omit<QuestTriggerInsert, "quest_id">>;
-
-export interface QuestTriggerScheduled {
-  id: string;
-  user_id: string;
-  campaign_id: string;
-  trigger_id: string;
-  quest_id: string;
-  fire_year: number;
-  fire_month: number;
-  fire_day: number;
-  fired_at: string | null;
-  created_at: string;
-  updated_at: string;
-}

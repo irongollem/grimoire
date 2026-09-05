@@ -58,8 +58,8 @@ begin
   values (v_quest.id, 'Find out who sent the rider', 'dormant', false, 1)
   returning id into v_obj;
 
-  insert into public.quest_objective_effects (quest_id, objective_id, trigger_beat_id, effect)
-  values (v_quest.id, v_obj, v_branch, 'raise');
+  insert into public.quest_consequences (quest_id, on_beat_id, action, target_objective_id)
+  values (v_quest.id, v_branch, 'raise', v_obj);
 
   raise notice 'seeded a two-beat quest graph on %', v_quest.title;
 end $$;

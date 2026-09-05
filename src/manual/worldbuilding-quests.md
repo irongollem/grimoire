@@ -73,23 +73,22 @@ Players can add their own **notes** to any quest visible to them. There are two 
 - **Party notes** — shared with the full party.
 - **Personal notes** — private to the individual player.
 
-## Quest Consequences (Triggers)
+## Quest Consequences
 
-Triggers let you automate what happens when a quest milestone is reached. Each trigger has:
+Consequences let you automate what happens when something in a quest becomes true — one mechanism covers both the story flow and the objective checklist. Each consequence has a **condition**, an optional **delay**, and an **action**.
 
-**Trigger types:**
+**Conditions** — exactly one:
 
-- `quest_complete` — fires when the quest status changes to Completed.
-- `objective_done` — fires when a specific objective is checked.
+- On a beat (in Story Flow) — fires the moment the party arrives, or the moment they take a specific branch out of it.
+- On the quest overview — fires when a named objective becomes Open, Completed or Failed, or when the whole objective ledger settles (nothing left open).
 
-**Action types:**
+**Actions:**
 
-- `create_calendar_event` — automatically adds an event to the campaign calendar with an optional offset in in-game days.
-- `send_broadcast` — posts a message to the campaign chat when the trigger fires.
+- **Raise / Reveal to players / Complete / Fail** — moves another objective. Raise wakes a not-yet-raised objective; Reveal also makes it visible to players.
+- **Create calendar event** — adds an event to the campaign calendar.
+- **Send broadcast** — posts a message to the campaign chat.
 
-**Fire Once toggle** — prevents the trigger from repeating if the objective is unchecked and re-checked.
-
-Triggers fire automatically when the DM advances the in-world date past the offset deadline, or immediately if no offset is set.
+**Delay** — an optional number of in-world days between the condition firing and the action happening. Zero fires immediately; a calendar event or broadcast with a delay fires the moment you advance the in-world date past its target, wherever in the app you change that date.
 
 ## Scriptorium export
 

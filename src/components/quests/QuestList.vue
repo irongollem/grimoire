@@ -104,11 +104,9 @@ import {
   useAllQuests,
   useCampaignQuestRefs,
   useUpdateQuest,
-  scheduleQuestTriggers,
 } from "@/composables/quests/useQuests";
 import { useParty } from "@/composables/party/useParty";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
-import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
@@ -123,7 +121,6 @@ import {
 } from "@/types/quest.types";
 
 const ui = useUiStore();
-const campaign = useCampaignStore();
 const search = computed(() => ui.questsSearch);
 const isKanban = computed(() => ui.questsIsKanban);
 
@@ -150,13 +147,5 @@ async function onMove({ id, status: targetStatus }: { id: string; status: QuestS
   if (!quest || quest.status === targetStatus) return;
 
   await updateQuest({ id, update: { status: targetStatus } });
-
-  if (targetStatus === "completed" && campaign.activeCampaignId) {
-    void scheduleQuestTriggers(
-      id, "quest_complete", null,
-      { year: campaign.todayYear, month: campaign.todayMonth, day: campaign.todayDay },
-      campaign.activeCampaignId,
-    );
-  }
 }
 </script>

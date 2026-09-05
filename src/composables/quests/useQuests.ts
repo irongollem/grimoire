@@ -4,61 +4,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
-import { useCalendarStore } from "@/stores/calendar";
-import { addDays, isOnOrBefore } from "@/lib/calendar/dayMath";
-import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useToast } from "@/composables/useToast";
-import { EVENT_TYPE_COLORS } from "@/types/calendar.types";
-import type { CalendarAdapter } from "@/types/calendar.types";
 import type {
   Quest,
   QuestInsert,
   QuestUpdate,
   QuestObjective,
   QuestObjectiveInsert,
+  QuestObjectiveStatus,
   QuestObjectiveUpdate,
   QuestRef,
   QuestRefInsert,
   QuestStatus,
-  QuestTrigger,
-  QuestTriggerInsert,
-  QuestTriggerScheduled,
-  TriggerType,
-  CalendarEventTriggerPayload,
-  BroadcastTriggerPayload,
 } from "@/types/quest.types";
 
 const QUESTS_KEY     = "quests";
 const OBJECTIVES_KEY = "quest_objectives";
 const REFS_KEY       = "quest_refs";
-const TRIGGERS_KEY   = "quest_triggers";
-const SCHEDULED_KEY  = "quest_trigger_scheduled";
+const CONSEQUENCE_EVENTS_KEY = "quest_consequence_events";
 const QUEST_FILTER_ENTITIES_KEY = "quest_filter_entities";
 
 export interface QuestFilterEntityOption {
   id: string;
   name: string;
-}
-
-/**
- * The campaign's own calendar, for trigger date arithmetic (#766).
- *
- * Read from the store rather than taken as a parameter, deliberately. These
- * are module-level functions with four call sites across three components, and
- * an explicit `adapter` argument is one more thing each of them could pass
- * wrongly — while the answer is never in doubt: a trigger belongs to a
- * campaign, and a campaign has exactly one calendar. Reading `supabase` and
- * `getCurrentUser()` as globals here is the same shape, and the same reason.
- *
- * Until #766 this file did its own arithmetic: twelve months of exactly thirty
- * days, intercalary days ignored. Harptos years are 365 or 366 days (five
- * festivals, plus Shieldmeet in leap years), so every scheduled trigger drifted
- * 5-6 days per in-world year against the calendar the DM is actually looking
- * at. It hid because *both* halves used the same wrong helper and therefore
- * agreed with each other perfectly.
- */
-function campaignCalendar(): CalendarAdapter {
-  return useCalendarStore().adapter;
 }
 
 // ── Quest fetchers ─────────────────────────────────────────────────────────────
@@ -338,6 +306,14 @@ export function useCreateObjective() {
   });
 }
 
+/**
+ * `update` must never carry `status` — PostgREST rejects it with 42501 since
+ * migration `20260905215424` revoked the column-level grant. `status` has
+ * exactly one writer now: {@link useAssertQuestObjectiveStatus}, because a
+ * status change no longer just marks a checkbox, it is a condition the
+ * consequence engine watches for (`quest_consequences.on_objective_status`),
+ * and a raw PATCH is a change nothing is watching.
+ */
 export function useUpdateObjective() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -345,6 +321,36 @@ export function useUpdateObjective() {
       updateObjective(id, update),
     onSuccess: (_data, { questId }) =>
       queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] }),
+  });
+}
+
+/**
+ * The DM saying "this happened" — the only way to move `quest_objectives.status`
+ * since #794. Runs `private.apply_quest_consequences` server-side, so a status
+ * change can raise/reveal/complete/fail other objectives, fire a delayed world
+ * action, or settle the quest, in the same transaction. Also invalidates the
+ * consequence-events log and the calendar, since either can gain a row as a
+ * side effect of this one call.
+ */
+export function useAssertQuestObjectiveStatus() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: async (input: { objectiveId: string; questId: string; status: QuestObjectiveStatus; reason?: string }) => {
+      const { data, error } = await supabase.rpc("assert_quest_objective_status", {
+        p_objective_id: input.objectiveId,
+        p_status: input.status,
+        p_reason: input.reason ?? null,
+      });
+      if (error) throw error;
+      return data as { changed: boolean; status: QuestObjectiveStatus; transition_id?: string };
+    },
+    onSuccess: (_result, { questId }) => {
+      queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] });
+      queryClient.invalidateQueries({ queryKey: [CONSEQUENCE_EVENTS_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+    },
+    onError: (e) => toast.error(toast.fromError(e)),
   });
 }
 
@@ -489,256 +495,3 @@ export function useEncounterQuestLinks() {
   });
 }
 
-// ── Quest Triggers ─────────────────────────────────────────────────────────────
-
-async function fetchTriggers(questId: string): Promise<QuestTrigger[]> {
-  const { data, error } = await supabase
-    .from("quest_triggers")
-    .select("*")
-    .eq("quest_id", questId)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return data as QuestTrigger[];
-}
-
-async function createTrigger(trigger: QuestTriggerInsert): Promise<QuestTrigger> {
-  const user = getCurrentUser();
-  const { data, error } = await supabase
-    .from("quest_triggers")
-    .insert({ ...trigger, user_id: user!.id })
-    .select()
-    .single();
-  if (error) throw error;
-  return data as QuestTrigger;
-}
-
-async function deleteTrigger(id: string): Promise<void> {
-  const { error } = await supabase.from("quest_triggers").delete().eq("id", id);
-  if (error) throw error;
-}
-
-export function useQuestTriggers(questId: string | Ref<string>) {
-  const idRef = isRef(questId) ? questId : ref(questId);
-  return useQuery({
-    queryKey: computed(() => [TRIGGERS_KEY, idRef.value]),
-    queryFn: () => fetchTriggers(idRef.value),
-    enabled: () => !!idRef.value,
-  });
-}
-
-export function useCreateQuestTrigger() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: createTrigger,
-    onSuccess: (_data, vars) =>
-      queryClient.invalidateQueries({ queryKey: [TRIGGERS_KEY, vars.quest_id] }),
-  });
-}
-
-export function useDeleteQuestTrigger() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id }: { id: string; questId: string }) => deleteTrigger(id),
-    onSuccess: (_data, { questId }) =>
-      queryClient.invalidateQueries({ queryKey: [TRIGGERS_KEY, questId] }),
-  });
-}
-
-// ── Trigger scheduling (called on quest/objective completion) ──────────────────
-
-/** Schedule all triggers for this quest/objective. Called when quest is completed or
- *  an objective is checked off. Creates quest_trigger_scheduled entries with computed
- *  fire dates; the DM advancing "today" will cause them to fire.  */
-export async function scheduleQuestTriggers(
-  questId: string,
-  triggerType: TriggerType,
-  objectiveId: string | null,
-  today: { year: number; month: number; day: number },
-  campaignId: string,
-): Promise<void> {
-  const user = getCurrentUser();
-  if (!user) return;
-
-  const { data: triggers, error } = await supabase
-    .from("quest_triggers")
-    .select("*")
-    .eq("quest_id", questId)
-    .eq("trigger_type", triggerType);
-  if (error || !triggers?.length) return;
-
-  const matching = triggerType === "objective_done"
-    ? triggers.filter((t) => t.objective_id === objectiveId)
-    : triggers;
-  if (!matching.length) return;
-
-  const rows = matching.map((t) => {
-    const fireDate = addDays(campaignCalendar(), today, (t as QuestTrigger).offset_days);
-    return {
-      user_id: user.id,
-      campaign_id: campaignId,
-      trigger_id: t.id,
-      quest_id: questId,
-      fire_year: fireDate.year,
-      fire_month: fireDate.month,
-      fire_day: fireDate.day,
-      fired_at: null,
-    };
-  });
-
-  await supabase.from("quest_trigger_scheduled").insert(rows);
-}
-
-// ── Trigger firing (called when DM advances "today") ───────────────────────────
-
-/** A quest_trigger_scheduled row whose joined trigger actually resolved — the
- *  only ones that can fire (a dangling scheduled row whose trigger was since
- *  deleted has `trigger: null` and is left pending, same as before batching). */
-type FiringTrigger = QuestTriggerScheduled & { trigger: QuestTrigger };
-
-/** calendar_events insert row for a fired `create_calendar_event` trigger. */
-interface FiredCalendarEventRow {
-  user_id: string;
-  campaign_id: string;
-  title: string;
-  description: string | null;
-  event_type: string;
-  harptos_year: number;
-  harptos_month: number;
-  harptos_day: number;
-  festival_day: null;
-  is_multi_day: boolean;
-  end_year: null;
-  end_month: null;
-  end_day: null;
-  color: string;
-  linked_quest_id: string;
-  linked_encounter_id: null;
-  linked_location_id: null;
-  travel_party_member_ids: string[];
-  player_visible: boolean;
-}
-
-/**
- * Pure row-builder for fireDueTriggers: turns the due-and-resolved rows into
- * the calendar_events batch-insert payload and the plain broadcast messages
- * to send, in trigger order. Exported for testing — see fireDueTriggers for
- * the actual (batched) writes.
- */
-export function buildFiredTriggerWrites(
-  firing: FiringTrigger[],
-  campaignId: string,
-  userId: string,
-): { calendarRows: FiredCalendarEventRow[]; broadcasts: string[] } {
-  const calendarRows: FiredCalendarEventRow[] = [];
-  const broadcasts: string[] = [];
-  for (const s of firing) {
-    const trigger = s.trigger;
-    if (trigger.action_type === "create_calendar_event") {
-      const payload = trigger.action_payload as CalendarEventTriggerPayload;
-      const color = EVENT_TYPE_COLORS[payload.event_type as keyof typeof EVENT_TYPE_COLORS] ?? EVENT_TYPE_COLORS.quest;
-      calendarRows.push({
-        user_id: userId,
-        campaign_id: campaignId,
-        title: payload.title,
-        description: payload.description ?? null,
-        event_type: payload.event_type ?? "quest",
-        harptos_year: s.fire_year,
-        harptos_month: s.fire_month,
-        harptos_day: s.fire_day,
-        festival_day: null,
-        is_multi_day: false,
-        end_year: null,
-        end_month: null,
-        end_day: null,
-        color,
-        linked_quest_id: s.quest_id,
-        linked_encounter_id: null,
-        linked_location_id: null,
-        travel_party_member_ids: [],
-        player_visible: false,
-      });
-    } else if (trigger.action_type === "send_broadcast") {
-      const payload = trigger.action_payload as BroadcastTriggerPayload;
-      broadcasts.push(payload.message);
-    }
-  }
-  return { calendarRows, broadcasts };
-}
-
-/** Fire all pending scheduled triggers that are due on or before `today`.
- *  Returns the number of triggers that fired. */
-export async function fireDueTriggers(
-  campaignId: string,
-  today: { year: number; month: number; day: number },
-): Promise<number> {
-  const user = getCurrentUser();
-  if (!user) return 0;
-
-  const { data: pending, error } = await supabase
-    .from("quest_trigger_scheduled")
-    .select("*, trigger:quest_triggers(*)")
-    .eq("campaign_id", campaignId)
-    .is("fired_at", null);
-  if (error || !pending?.length) return 0;
-
-  // Rows scheduled before #766 keep the fire dates they were stamped with and
-  // go off on those dates. Recomputing them on read would move deadlines a DM
-  // has already been told about, mid-campaign, which is a worse trade than a
-  // handful of legacy rows being a few days out.
-  const calendar = campaignCalendar();
-  const due = pending.filter((s: QuestTriggerScheduled & { trigger: QuestTrigger | null }) =>
-    isOnOrBefore(
-      calendar,
-      { year: s.fire_year, month: s.fire_month, day: s.fire_day },
-      today,
-    ),
-  ) as (QuestTriggerScheduled & { trigger: QuestTrigger | null })[];
-
-  if (!due.length) return 0;
-
-  // Only rows whose trigger actually resolved are ones that fire — see
-  // FiringTrigger above. due.length (not firing.length) is still what's
-  // returned below, matching the pre-batching count exactly.
-  const firing = due.filter((s): s is FiringTrigger => s.trigger !== null);
-
-  if (firing.length > 0) {
-    const { calendarRows, broadcasts } = buildFiredTriggerWrites(firing, campaignId, user.id);
-
-    if (calendarRows.length > 0) {
-      const { error: insertErr } = await supabase.from("calendar_events").insert(calendarRows);
-      if (insertErr) throw insertErr;
-    }
-
-    for (const message of broadcasts) {
-      await sendCampaignAnnouncement(campaignId, message);
-    }
-
-    const { error: markErr } = await supabase
-      .from("quest_trigger_scheduled")
-      .update({ fired_at: new Date().toISOString() })
-      .in("id", firing.map((s) => s.id));
-    if (markErr) throw markErr;
-  }
-
-  return due.length;
-}
-
-// ── Pending scheduled trigger count (badge for calendar) ─────────────────────
-
-export function usePendingTriggerCount() {
-  const campaign = useCampaignStore();
-  const campaignId = computed(() => campaign.activeCampaignId);
-  return useQuery({
-    queryKey: computed(() => [SCHEDULED_KEY, campaignId.value, "pending"]),
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("quest_trigger_scheduled")
-        .select("id", { count: "exact", head: true })
-        .eq("campaign_id", campaignId.value!)
-        .is("fired_at", null);
-      if (error) throw error;
-      return count ?? 0;
-    },
-    enabled: () => !!campaignId.value,
-  });
-}
