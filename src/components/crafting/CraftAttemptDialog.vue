@@ -196,6 +196,7 @@ import type { CraftingRecipe, CraftingOutput, CraftingModifier, CraftingAttemptR
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
+import { inventoryItemRef } from "@/lib/inventory/itemRef";
 
 const POOR_INGREDIENTS_PENALTY = -2;
 
@@ -262,7 +263,7 @@ const ingredientSlots = computed(() =>
     if (req.item_id) {
       itemName = props.allItems.find((i) => i.id === req.item_id)?.name ?? "Unknown item";
       available = props.inventory
-        .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
+        .filter((inv) => inventoryItemRef(inv) === req.item_id && !inv.is_ruined)
         .reduce((sum, inv) => sum + inv.quantity, 0);
     } else {
       // Tag-based: any non-ruined inventory item whose vault item has ALL required tags
@@ -272,7 +273,7 @@ const ingredientSlots = computed(() =>
       available = props.inventory
         .filter((inv) => {
           if (inv.is_ruined) return false;
-          const def = props.allItems.find((i) => i.id === inv.item_id);
+          const def = props.allItems.find((i) => i.id === inventoryItemRef(inv));
           return req.tags!.every((t) => def?.tags?.includes(t) ?? false);
         })
         .reduce((sum, inv) => sum + inv.quantity, 0);
@@ -329,12 +330,12 @@ function resolveIngredientConsumption(): {
     let remaining = req.quantity;
     const matchingItems = req.item_id
       ? props.inventory
-          .filter((inv) => inv.item_id === req.item_id && eligible(inv))
+          .filter((inv) => inventoryItemRef(inv) === req.item_id && eligible(inv))
           .sort((a, b) => b.quantity - a.quantity)
       : props.inventory
           .filter((inv) => {
             if (!eligible(inv)) return false;
-            const def = props.allItems.find((i) => i.id === inv.item_id);
+            const def = props.allItems.find((i) => i.id === inventoryItemRef(inv));
             return req.tags!.every((t) => def?.tags?.includes(t) ?? false);
           })
           .sort((a, b) => b.quantity - a.quantity);
@@ -388,7 +389,7 @@ async function attempt() {
   attemptError.value = null;
 
   const { consumption, primaryId, primaryItem } = resolveIngredientConsumption();
-  const primaryItemDef = props.allItems.find((i) => i.id === primaryItem?.item_id);
+  const primaryItemDef = props.allItems.find((i) => i.id === (primaryItem ? inventoryItemRef(primaryItem) : null));
 
   try {
     const resolvedOutputNames: Record<string, string> = {};
@@ -403,7 +404,11 @@ async function attempt() {
       ingredientConsumption: consumption,
       primaryIngredientInventoryId: primaryId,
       primaryInventoryItem: {
-        item_id: primaryItem.item_id ?? "",
+        // Was `primaryItem.item_id ?? ""` — an empty string is not an id, and
+        // craft_apply nullifs it anyway. Pass both columns as they really are so
+        // the ruined row keeps a library reference instead of losing it.
+        item_id: primaryItem.item_id,
+        library_item_id: primaryItem.library_item_id,
         name: primaryItem.name || primaryItemDef?.name || "Item",
         carried_by: primaryItem.carried_by,
         campaign_id: primaryItem.campaign_id,

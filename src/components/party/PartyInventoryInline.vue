@@ -192,6 +192,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { PartyMember } from "@/types/party.types";
+import { itemRefColumns } from "@/lib/inventory/itemRef";
 
 const { party } = defineProps<{ party: PartyMember[] }>();
 
@@ -282,7 +283,7 @@ async function submitAddItem() {
     carried_by: newItem.carried_by || null,
     notes: newItem.notes.trim() || null,
     is_attuned: newItem.isAttuned,
-    item_id: newItem.selectedItemId,
+    ...itemRefColumns(newItem.selectedItemId),
     is_equipped: false,
     location: 'backpack',
     slot: null,

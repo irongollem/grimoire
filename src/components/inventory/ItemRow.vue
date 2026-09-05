@@ -130,8 +130,9 @@ const props = defineProps<{
 // vault item's own fields (content included), and ItemRow has no parent-fed
 // item map to read instead, so it shares the cached query directly.
 const { data: allVisibleItems } = usePlayerVisibleItems();
+import { inventoryItemRef } from "@/lib/inventory/itemRef";
 const hasContent = computed(() => {
-  const id = props.item.item_id;
+  const id = inventoryItemRef(props.item);
   if (!id) return false;
   return allVisibleItems.value?.find((it) => it.id === id)?.content != null;
 });

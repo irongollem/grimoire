@@ -8,6 +8,7 @@ import {
   useAddInventoryItem,
   useUpdateInventoryItem,
 } from "@/composables/items/usePartyInventory";
+import { inventoryItemRef } from "@/lib/inventory/itemRef";
 
 interface UseInventorySlotsOptions {
   equippedItems: ComputedRef<PartyInventoryItem[]>;
@@ -35,9 +36,8 @@ export function useInventorySlots({
     const unequipped = myItems.value.filter((i) => i.location !== "equipped");
 
     function vaultItem(inv: PartyInventoryItem) {
-      return inv.item_id
-        ? (allItems.value?.find((it) => it.id === inv.item_id) ?? null)
-        : null;
+      const ref = inventoryItemRef(inv);
+      return ref ? (allItems.value?.find((it) => it.id === ref) ?? null) : null;
     }
 
     const TAG_SLOTS: Partial<Record<InventorySlot, string[]>> = {
@@ -99,7 +99,10 @@ export function useInventorySlots({
       });
       try {
         await addInventoryItem({
+          // Equipping splits one off the stack — the new row must keep whichever
+          // reference the original had, not just the vault one.
           item_id: item.item_id,
+          library_item_id: item.library_item_id,
           name: item.name,
           quantity: 1,
           carried_by: item.carried_by,

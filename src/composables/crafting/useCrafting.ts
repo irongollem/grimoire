@@ -421,8 +421,10 @@ export function useAttemptCraft() {
       ingredientConsumption: { id: string; qty: number }[];
       /** primary ingredient's inventory id — ruined on critical fail */
       primaryIngredientInventoryId: string;
-      /** primary ingredient's carried_by (for re-adding as ruined) */
-      primaryInventoryItem: { item_id: string; name: string; carried_by: string | null; campaign_id: string };
+      /** primary ingredient's carried_by (for re-adding as ruined). Carries both
+       *  reference columns: the ruined row must point at whichever the original
+       *  used, and a library reference in item_id is the 22P02 of #815. */
+      primaryInventoryItem: { item_id: string | null; library_item_id: string | null; name: string; carried_by: string | null; campaign_id: string };
       modifierBonuses: number[];
       abilityMod: number;
       profBonus: number;
@@ -481,6 +483,9 @@ export function useAttemptCraft() {
           ? outputs.map((output) => ({
               campaign_id: recipe.campaign_id,
               item_id: output.item_id,
+              // Recipe outputs are still uuid-only this slice; craft_apply
+              // accepts the column so #815's next slice needs no RPC change.
+              library_item_id: null,
               name: output.item_id ? (outputItemNames[output.item_id] ?? "") : "",
               quantity: output.quantity,
               carried_by: partyMemberId,
@@ -491,6 +496,7 @@ export function useAttemptCraft() {
           ? {
               campaign_id: primaryInventoryItem.campaign_id,
               item_id: primaryInventoryItem.item_id,
+              library_item_id: primaryInventoryItem.library_item_id,
               name: `Ruined: ${primaryInventoryItem.name}`,
               carried_by: primaryInventoryItem.carried_by,
             }

@@ -1,5 +1,6 @@
 import { ref, computed, type Ref, type ComputedRef } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
+import { inventoryItemRef, itemRefColumns } from "@/lib/inventory/itemRef";
 import {
   useAddInventoryItem,
   useAddInventoryItems,
@@ -135,8 +136,9 @@ export function useInventoryMutations({
       ))
     )
       return;
-    const linkedItem = inv.item_id
-      ? (allItems.value?.find((it) => it.id === inv.item_id) ?? null)
+    const ref = inventoryItemRef(inv);
+    const linkedItem = ref
+      ? (allItems.value?.find((it) => it.id === ref) ?? null)
       : null;
     await sendItemDrop(
       inv.name,
@@ -165,7 +167,10 @@ export function useInventoryMutations({
     await addInventoryItem({
       name: inv.name,
       quantity: n,
+      // Both halves keep whichever reference the original carried; copying only
+      // item_id would quietly strip a library-referenced stack on every split.
       item_id: inv.item_id,
+      library_item_id: inv.library_item_id,
       carried_by: inv.carried_by,
       location: inv.location,
       slot: inv.slot,
@@ -188,7 +193,11 @@ export function useInventoryMutations({
     await addInventoryItem({
       name,
       quantity: 1,
-      item_id: itemId,
+      // The picker offers vault items and shared library content in one list,
+      // and only the id's shape says which. Writing a library id into item_id
+      // is the 22P02 of #815 — the whole catalogue was selectable and none of
+      // it addable.
+      ...itemRefColumns(itemId),
       carried_by: resolvedMemberId.value ?? null,
       location,
       slot: null,
@@ -211,7 +220,7 @@ export function useInventoryMutations({
       const packRow = await addInventoryItem({
         name,
         quantity: qty,
-        item_id: vaultItem!.id,
+        ...itemRefColumns(vaultItem!.id),
         carried_by: resolvedMemberId.value ?? null,
         location: "backpack",
         slot: null,
@@ -232,7 +241,7 @@ export function useInventoryMutations({
           return {
             name: sub.name,
             quantity: sub.quantity ?? 1,
-            item_id: subVault?.id ?? null,
+            ...itemRefColumns(subVault?.id ?? null),
             carried_by: resolvedMemberId.value ?? null,
             location: "container" as const,
             slot: null,
@@ -250,7 +259,7 @@ export function useInventoryMutations({
       await addInventoryItem({
         name,
         quantity: qty,
-        item_id: selectedId || null,
+        ...itemRefColumns(selectedId || null),
         carried_by: resolvedMemberId.value ?? null,
         location: "backpack",
         slot: null,

@@ -103,6 +103,7 @@ import ItemRow from "./ItemRow.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
+import { inventoryItemRef } from "@/lib/inventory/itemRef";
 
 const props = defineProps<{
   label: string;
@@ -139,8 +140,9 @@ const itemWeightMap = computed((): Map<string, number> => {
 });
 
 function weightForItem(item: PartyInventoryItem): number {
-  if (!item.item_id) return 0;
-  return itemWeightMap.value.get(item.item_id) ?? 0;
+  const ref = inventoryItemRef(item);
+  if (!ref) return 0;
+  return itemWeightMap.value.get(ref) ?? 0;
 }
 
 const open = ref(true);

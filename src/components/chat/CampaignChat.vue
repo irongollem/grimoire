@@ -122,6 +122,7 @@ import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
 import { toCP, fromCP } from "@/rules/currency";
+import { itemRefColumns } from "@/lib/inventory/itemRef";
 
 const { contained = false, hideTab = false } = defineProps<{ contained?: boolean; hideTab?: boolean }>();
 
@@ -345,7 +346,7 @@ async function handlePayVendorOffer({ messageId }: { messageId: string }) {
   await Promise.all([
     updatePartyMember({ id: member.id, update: { pp, gp, ep, sp, cp } }),
     meta.item_name && !isService ? addInventoryItem({
-      name: meta.item_name, quantity: 1, item_id: meta.item_id,
+      name: meta.item_name, quantity: 1, ...itemRefColumns(meta.item_id),
       carried_by: partyMemberId,
       location: 'backpack', slot: null,
       is_container: false, container_id: null,
@@ -455,7 +456,7 @@ async function handleClaimLootChest({ messageId, atomId }: { messageId: string; 
     await addInventoryItem({
       name: atom.item_name ?? "",
       quantity: 1,
-      item_id: atom.item_id ?? null,
+      ...itemRefColumns(atom.item_id ?? null),
       carried_by: partyMemberId,
       location: 'backpack',
       slot: null,

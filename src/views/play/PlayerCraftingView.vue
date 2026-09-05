@@ -199,6 +199,7 @@ import type { DisciplineConfig } from "@/lib/crafting-disciplines";
 import { canonicalToolName, hasToolProficiency } from "@/rules/toolProficiency";
 import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs, useCraftableOutputItems } from "@/composables/crafting/useCrafting";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { inventoryItemRef } from "@/lib/inventory/itemRef";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { useParty } from "@/composables/party/useParty";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
@@ -319,14 +320,14 @@ function ingredientLabel(ing: CraftingIngredient): string {
 function ownedCount(ing: CraftingIngredient): number {
   if (ing.item_id) {
     return myInventory.value
-      .filter((i) => i.item_id === ing.item_id && !i.is_ruined)
+      .filter((i) => inventoryItemRef(i) === ing.item_id && !i.is_ruined)
       .reduce((sum, i) => sum + i.quantity, 0);
   }
   // Tag-based: sum all non-ruined inventory items whose vault definition has ALL required tags
   return myInventory.value
     .filter((i) => {
       if (i.is_ruined) return false;
-      const def = allItems.value?.find((a) => a.id === i.item_id);
+      const def = allItems.value?.find((a) => a.id === inventoryItemRef(i));
       return ing.tags!.every((t) => def?.tags?.includes(t) ?? false);
     })
     .reduce((sum, i) => sum + i.quantity, 0);

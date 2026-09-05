@@ -4,6 +4,7 @@ import { CLASS_EQUIPMENT } from "@/data/classEquipment";
 import type { CharacterFormState } from "@/rules/characterCreation";
 import type { BundleItemEntry } from "@/types/item.types";
 import type { PartyInventoryInsert, PartyInventoryItem } from "@/types/inventory.types";
+import { itemRefColumns } from "@/lib/inventory/itemRef";
 
 /** Vault item data needed for equipment seeding. */
 export interface VaultEntry { id: string; bundle_items: BundleItemEntry[] | null }
@@ -71,7 +72,7 @@ export function useCharacterEquipmentSeeding(
     if (bundleItems && bundleItems.length > 0) {
       // Pack: insert the pack itself as a container
       const packRow = await addInventoryItem({
-        item_id: vault!.id, name: entry.name, quantity: entry.quantity ?? 1,
+        ...itemRefColumns(vault!.id), name: entry.name, quantity: entry.quantity ?? 1,
         carried_by: carrierId, location: "backpack",
         slot: null, is_container: true, container_id: null,
         is_attuned: false, is_equipped: false, notes: null,
@@ -84,7 +85,7 @@ export function useCharacterEquipmentSeeding(
         bundleItems.map((sub) => {
           const subVault = subMap.get(sub.name.toLowerCase()) ?? null;
           return {
-            item_id: subVault?.id ?? null, name: sub.name, quantity: sub.quantity ?? 1,
+            ...itemRefColumns(subVault?.id ?? null), name: sub.name, quantity: sub.quantity ?? 1,
             carried_by: carrierId, location: "container" as const,
             slot: null, is_container: false, container_id: packRow.id,
             is_attuned: false, is_equipped: false, notes: null,
@@ -95,7 +96,7 @@ export function useCharacterEquipmentSeeding(
     } else {
       // Plain item
       await addInventoryItem({
-        item_id: vault?.id ?? null, name: entry.name, quantity: entry.quantity ?? 1,
+        ...itemRefColumns(vault?.id ?? null), name: entry.name, quantity: entry.quantity ?? 1,
         carried_by: carrierId, location: "backpack",
         slot: null, is_container: false, container_id: null,
         is_attuned: false, is_equipped: false, notes: null,
