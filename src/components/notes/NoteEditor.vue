@@ -229,6 +229,8 @@
   <ChroniclerWriteDialog
     :visible="showChroniclerWrite"
     :note-id="props.note?.id"
+    :note-title="title"
+    :note-session-num="sessionNum"
     @close="showChroniclerWrite = false"
     @insert="onChroniclerWrite"
   />
@@ -247,7 +249,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
-import { useRouter } from "vue-router";
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRouter, type RouteLocationNormalized } from "vue-router";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
 import "@/assets/vendor/datepicker.css";
 import RichTextEditor from "../common/RichTextEditor.vue";
@@ -278,6 +280,7 @@ import {
   cleanupRemovedRichTextImages,
 } from "@/composables/useImageUpload";
 import type { Note, NoteCategory } from "@/types/notes.types";
+import type { ChronicleInsert } from "@/types/chronicler.types";
 import type { CalendarEvent } from "@/types/calendar.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { useCampaignStore } from "@/stores/campaign";
@@ -319,6 +322,10 @@ const aiProvenance = ref<AiProvenance | null>(props.note?.ai_provenance ?? null)
 // further change beyond this baseline is, so `save()` diffs against this
 // rather than against `props.note.content` directly (#606).
 const aiContentSnapshot = ref<string | null>(props.note?.content ?? null);
+// The title as of the last Chronicle insert that supplied one. Null unless the
+// model actually wrote this note's title — a DM-written title is not AI-authored
+// and must never be diffed as though it were.
+const aiTitleSnapshot = ref<string | null>(null);
 const saving = ref(false);
 const deleting = ref(false);
 const showPaywall = ref(false);
@@ -415,10 +422,23 @@ function onChroniclerSelect(url: string) {
   rteRef.value?.insertImageAtCursor(url);
 }
 
-function onChroniclerWrite(rawMarkdown: string, provenance: AiProvenance | null) {
-  rteRef.value?.insertChronicleContent(rawMarkdown, provenance?.model ?? null);
-  if (provenance) {
-    aiProvenance.value = provenance;
+function onChroniclerWrite(chronicle: ChronicleInsert) {
+  rteRef.value?.insertChronicleContent(chronicle.markdown, chronicle.aiProvenance?.model ?? null);
+  // The title line the model wrote is a title, not prose — the dialog parsed it
+  // out and showed the DM exactly these two values before they pressed Insert.
+  if (chronicle.title) {
+    title.value = chronicle.title;
+    aiTitleSnapshot.value = chronicle.title;
+  }
+  if (chronicle.sessionNum !== null) {
+    // The Session # field is only rendered for a session note, and
+    // buildPayload() nulls the column for every other category — so a number
+    // set without switching category would be dropped on save without a trace.
+    category.value = "session";
+    sessionNum.value = chronicle.sessionNum;
+  }
+  if (chronicle.aiProvenance) {
+    aiProvenance.value = chronicle.aiProvenance;
     // insertChronicleContent() runs synchronously through Tiptap's onUpdate →
     // emit("update:modelValue") → this component's v-model handler, so `body`
     // already reflects the insert here. Accepting the AI draft as-is isn't a
@@ -481,6 +501,39 @@ function buildPayload() {
   };
 }
 
+// ── Leaving with unsaved work ─────────────────────────────────────────────────
+// A chronicle costs credits and exists only in this editor until Save, and the
+// same is true of anything typed here. Navigating away — the browser's back
+// button out of `?edit=true` most of all — used to discard all of it without a
+// word. The payload is the comparison because it is already the exact set of
+// values that would be written.
+
+/** Set immediately before this component's own navigations, which are the
+ *  intended exits and must not be questioned. */
+const leavingDeliberately = ref(false);
+const savedState = ref(JSON.stringify(buildPayload()));
+const isDirty = computed(() => JSON.stringify(buildPayload()) !== savedState.value);
+
+/** Whether NoteDetailView will still be rendering this editor afterwards. */
+function editorSurvives(to: RouteLocationNormalized): boolean {
+  return to.name === "note-new" || (to.name === "note-detail" && to.query.edit === "true");
+}
+
+async function guardUnsaved(to: RouteLocationNormalized): Promise<boolean> {
+  if (leavingDeliberately.value || editorSurvives(to) || !isDirty.value) return true;
+  return await confirm("This note has unsaved changes, including any chronicle you inserted.", {
+    title: "Discard changes",
+    confirmLabel: "Discard",
+  });
+}
+
+onBeforeRouteLeave(guardUnsaved);
+// Dropping `?edit=true` — the browser's Back button after opening the editor —
+// is a same-route *update*, so the leave guard never sees it. The editor is
+// unmounted by NoteDetailView's v-if all the same, which is precisely the
+// silent-loss case.
+onBeforeRouteUpdate(guardUnsaved);
+
 // ── Session calendar event sync ───────────────────────────────────────────────
 // Avoids circular FK: insert note first → insert event with linked_note_id
 // → patch note.linked_calendar_event_id.
@@ -539,12 +592,15 @@ async function save() {
   const newlyVisibleTo = playerVisibleTo.value.filter((id) => !previouslyVisibleTo.has(id));
   try {
     if (props.note) {
-      // Material edit detection (#606): only the body counts — title,
-      // category, pin state, tags and visibility aren't AI-authored content.
-      // Diffed against the last known AI-authored snapshot, not the loaded
-      // content directly, so accepting a Chronicle draft as-is doesn't
-      // itself count as an edit (see aiContentSnapshot above).
-      if (body.value !== aiContentSnapshot.value) {
+      // Material edit detection (#606): only AI-authored values count —
+      // category, pin state, tags and visibility never are. The body always
+      // can be, and the title can be too, since a Chronicle insert may have
+      // written it. Both are diffed against the last known AI-authored
+      // snapshot rather than the loaded row, so accepting a draft as-is isn't
+      // itself an edit (see aiContentSnapshot / aiTitleSnapshot above).
+      const titleEdited =
+        aiTitleSnapshot.value !== null && title.value.trim() !== aiTitleSnapshot.value;
+      if (body.value !== aiContentSnapshot.value || titleEdited) {
         aiProvenance.value = markEdited(aiProvenance.value);
       }
 
@@ -559,6 +615,7 @@ async function save() {
           { entity_type: "note", entity_id: props.note.id },
         );
       notifyNoteShared(props.note.id, newlyVisibleTo);
+      leavingDeliberately.value = true;
       router.push("/notes");
     } else {
       const created = await create(buildPayload());
@@ -570,6 +627,7 @@ async function save() {
           { entity_type: "note", entity_id: created.id },
         );
       notifyNoteShared(created.id, newlyVisibleTo);
+      leavingDeliberately.value = true;
       router.replace(`/notes/${created.id}`);
     }
   } catch (e: unknown) {
@@ -592,6 +650,7 @@ async function remove() {
       await deleteCalEvent(props.note.linked_calendar_event_id);
     await del(props.note.id);
     removeRichTextImages(oldContent);
+    leavingDeliberately.value = true;
     router.push("/notes");
   } catch {
     // failure is surfaced to the user by the mutation's onError toast

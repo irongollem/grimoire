@@ -415,6 +415,7 @@ const ResizableImage = Image.extend({
   },
 });
 import { parseMarkdown, looksLikeMarkdown, sanitizePasteText } from "@/lib/tiptap/markdownToTiptap";
+import { insertionPos } from "@/lib/tiptap/insertionPos";
 import { useTextEnhancement } from "@/ai/useTextEnhancement";
 import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconCalendarDays, IconColumns, IconDelete, IconHighlight, IconImage, IconInsertColumn, IconInsertRow, IconLink, IconList, IconListOrdered, IconListTodo, IconLoadingAlt, IconMinus, IconQuote, IconRedo, IconTable, IconUnderline, IconUndo, IconWand } from '@/lib/icons';
 import TextAlign from "@tiptap/extension-text-align";
@@ -597,6 +598,12 @@ function parseContent(value: string | null | undefined): object | string | undef
   }
 }
 
+/**
+ * Whether the reader has ever put a cursor in this editor — see `insertionPos`,
+ * which falls back to the end of the document until they have.
+ */
+const cursorPlaced = ref(false);
+
 const editor = useEditor({
   content: parseContent(modelValue),
   extensions: [
@@ -695,6 +702,9 @@ const editor = useEditor({
       return true;
     },
   },
+  onFocus() {
+    cursorPlaced.value = true;
+  },
   onTransaction({ editor: e }) {
     twoColumn.value = e.state.doc.attrs.twoColumn ?? false;
   },
@@ -728,15 +738,16 @@ defineExpose({
     editor.value?.commands.insertEntityMention(attrs);
   },
   insertImageAtCursor(src: string): void {
-    editor.value?.chain().focus().setImage({ src }).run();
+    const e = editor.value;
+    if (!e) return;
+    e.chain().focus().insertContentAt(insertionPos(e, cursorPlaced.value), { type: "image", attrs: { src } }).run();
   },
   insertPendingImageAtCursor(attrs: { jobId: string; prompt: string; size: string }): void {
-    if (!editor.value) return;
-    const pos = editor.value.state.selection.to;
-    editor.value
-      .chain()
+    const e = editor.value;
+    if (!e) return;
+    e.chain()
       .focus()
-      .insertContentAt(pos, [
+      .insertContentAt(insertionPos(e, cursorPlaced.value), [
         { type: "pendingImage", attrs: { ...attrs, status: "pending", startedAt: Date.now() } },
         { type: "paragraph" },
       ])
@@ -744,12 +755,11 @@ defineExpose({
     pendingImageResolver.scan();
   },
   insertMarkdownContent(md: string): void {
-    const nodes = parseMarkdown(md);
-    const pos = editor.value?.state.selection.to ?? editor.value?.state.doc.content.size ?? 0;
-    editor.value
-      ?.chain()
+    const e = editor.value;
+    if (!e) return;
+    e.chain()
       .focus()
-      .insertContentAt(pos, nodes, { parseOptions: { preserveWhitespace: false } })
+      .insertContentAt(insertionPos(e, cursorPlaced.value), parseMarkdown(md), { parseOptions: { preserveWhitespace: false } })
       .run();
   },
   /** Insert the Chronicler's generated markdown, wrapped in an `aiGenerated`
@@ -769,13 +779,12 @@ defineExpose({
     }
     const textAfter = md.slice(last);
     if (textAfter.trim()) blocks.push(...parseMarkdown(textAfter));
-    if (!blocks.length) return;
+    const e = editor.value;
+    if (!blocks.length || !e) return;
     const content = [{ type: "aiGenerated", attrs: { model: aiModel ?? null }, content: blocks }];
-    const pos = editor.value?.state.selection.to ?? editor.value?.state.doc.content.size ?? 0;
-    editor.value
-      ?.chain()
+    e.chain()
       .focus()
-      .insertContentAt(pos, content, { parseOptions: { preserveWhitespace: false } })
+      .insertContentAt(insertionPos(e, cursorPlaced.value), content, { parseOptions: { preserveWhitespace: false } })
       .run();
   },
 });

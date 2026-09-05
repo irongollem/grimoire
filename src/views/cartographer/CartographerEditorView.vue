@@ -1280,10 +1280,9 @@ async function onDelete(): Promise<void> {
   }
 }
 
-onBeforeRouteLeave((_to, _from, next) => {
-  if (!dirty.value || saving.value || deleting.value || viewMode.value) return next();
-  const ok = window.confirm("Unsaved changes will be lost. Leave anyway?");
-  next(ok);
+onBeforeRouteLeave(() => {
+  if (!dirty.value || saving.value || deleting.value || viewMode.value) return true;
+  return window.confirm("Unsaved changes will be lost. Leave anyway?");
 });
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
