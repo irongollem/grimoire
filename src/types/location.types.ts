@@ -16,6 +16,7 @@ export type LocationType =
   | "inn"
   | "room"
   | "dungeon"
+  | "grounds"
   | "wilderness"
   | "other";
 
@@ -65,6 +66,7 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
 
   building: "Building",
   dungeon: "Dungeon",
+  grounds: "Grounds",
   store: "Store",
   tavern: "Tavern",
   inn: "Inn",
@@ -124,6 +126,7 @@ export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
 
   building: "#92400e",
   dungeon: "#78350f",
+  grounds: "#a16207",
   store: "#b45309",
   tavern: "#d97706",
   inn: "#f59e0b",

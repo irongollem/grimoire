@@ -92,18 +92,24 @@ describe("isSiteType", () => {
     }
   });
 
-  it("covers exactly building, dungeon, store, tavern and inn — the five types with a floor plan", () => {
-    expect(isSiteType("building")).toBe(true);
-    expect(isSiteType("dungeon")).toBe(true);
-    expect(isSiteType("store")).toBe(true);
-    expect(isSiteType("tavern")).toBe(true);
-    expect(isSiteType("inn")).toBe(true);
+  // Deliberately a *closed* set rather than a list of things that are true.
+  // The previous version named five types and asserted each was a site, which
+  // says nothing about a sixth — and a sixth duly arrived (`grounds`, #817)
+  // without failing anything. An equality check is what makes this test notice
+  // the next one, and it is also the mirror of
+  // `private.location_can_hold_rooms`, which must hold the same set.
+  it("is exactly the types with a floor plan", () => {
+    const sites = (Object.keys(LOCATION_TYPE_TIER) as LocationType[]).filter(isSiteType);
+    expect(new Set(sites)).toEqual(
+      new Set<LocationType>(["building", "dungeon", "grounds", "store", "tavern", "inn"]),
+    );
   });
 
-  it("excludes district, wilderness, interior and every other tier", () => {
-    // district and wilderness are the two types that moved off `site`: a
-    // district's children are buildings on a geography map, and a wilderness
-    // has no floor plan at all.
+  it("excludes geography and interiors", () => {
+    // district and wilderness are the two types that moved off `site` in #810:
+    // a district's children are buildings on a geography map, and a wilderness
+    // has no floor plan at all. `grounds` is the counter-case — unroofed, but
+    // still a floor plan you can trace (#817).
     expect(isSiteType("district")).toBe(false);
     expect(isSiteType("wilderness")).toBe(false);
     expect(isSiteType("room")).toBe(false);

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(17);
 
 -- Story #783 (epic #780). Two invariants ship together and neither has a
 -- client-side equivalent that can be trusted: a room must sit somewhere that
@@ -21,7 +21,8 @@ insert into public.locations (id, user_id, campaign_id, name, location_type) val
   ('78300000-0000-4000-8000-000000000021', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'The Rusted Flagon', 'inn'),
   ('78300000-0000-4000-8000-000000000022', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'Ilvaren Reach', 'region'),
   ('78300000-0000-4000-8000-000000000023', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'The White Quarter', 'district'),
-  ('78300000-0000-4000-8000-000000000024', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'The Frost Moors', 'wilderness');
+  ('78300000-0000-4000-8000-000000000024', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'The Frost Moors', 'wilderness'),
+  ('78300000-0000-4000-8000-000000000025', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'Sunken Courtyard', 'grounds');
 
 -- ── a room's parent ─────────────────────────────────────────────────────────
 
@@ -127,6 +128,26 @@ select is(
 select lives_ok(
   $$select * from public.get_player_visible_locations('78300000-0000-4000-8000-000000000010', null)$$,
   'get_player_visible_locations still matches the widened locations rowtype'
+);
+
+-- ── an outdoor site is still a site (#817) ──────────────────────────────────
+--
+-- `grounds` exists because every other site type is roofed, so a garden or a
+-- courtyard fell out to `wilderness` and became terrain. It has a floor plan
+-- like the rest, so it holds rooms like the rest.
+select lives_ok(
+  $$insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type)
+    values ('78300000-0000-4000-8000-000000000032', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', '78300000-0000-4000-8000-000000000025', 'Broken Well', 'room')$$,
+  'a room may sit inside grounds'
+);
+
+-- A site inside a site is ordinary and nothing forbids it: a dungeon with an
+-- outdoor courtyard in it, which in turn has rooms. Only `room` children are
+-- constrained by parent type at all.
+select lives_ok(
+  $$update public.locations set parent_id = '78300000-0000-4000-8000-000000000020'
+    where id = '78300000-0000-4000-8000-000000000025'$$,
+  'a dungeon may contain an outdoor site that itself holds rooms'
 );
 
 -- ── a row that predates the rule stays editable (#810) ──────────────────────

@@ -77,6 +77,7 @@ export const LOCATION_TYPE_TIER: Record<LocationType, LocationTier | null> = {
   district: "district",
   building: "site",
   dungeon: "site",
+  grounds: "site",
   store: "site",
   tavern: "site",
   inn: "site",
