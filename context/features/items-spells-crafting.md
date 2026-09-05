@@ -503,10 +503,15 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 ### PartyInventoryItem (`party_inventory` table)
 
-| Field           | Notes                                             |
-| --------------- | ------------------------------------------------- |
-| `item_id`       | FK to vault item (null for ad-hoc items)          |
-| `name`          | display name                                      |
+**A row references its catalogue entry through one of two columns, and nothing outside `src/lib/inventory/itemRef.ts` should read either directly.** `item_id` is a uuid FK to the owner's own `items` row; `library_item_id` is a text FK to shared `library_items`. A check constraint allows at most one, and both-null is legal — that is free-text loot with no catalogue entry at all.
+
+The second column exists because `item_id` predates the shared library: `library_items.id` is text, so until #815 a player picking anything shared got `invalid input syntax for type uuid` and the entire catalogue was selectable but unaddable. Note the shape of the workaround that grew instead — `useEnsureOwnedItem` copies a library row into the caller's vault, which is where 673 shadow rows on one long-standing account came from. Reference shared content; do not copy it. Use `inventoryItemRef(row)` to read and `itemRefColumns(pickedId)` to write, and remember that a row carrying a library reference must keep it through a stack split or an equip, or the link vanishes while the row still looks right.
+
+| Field             | Notes                                             |
+| ----------------- | ------------------------------------------------- |
+| `item_id`         | FK to the owner's vault item (uuid)               |
+| `library_item_id` | FK to shared library content (text) — #815        |
+| `name`            | display name                                      |
 | `quantity`      |                                                   |
 | `carried_by`    | party member id; null = party stash               |
 | `location`      | equipped, backpack, belt, container, stored       |
