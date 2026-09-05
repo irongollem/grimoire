@@ -4,7 +4,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(16);
 
 select col_type_is('public', 'quest_objectives', 'status', 'text', 'an objective has a real outcome, not a done flag');
 select hasnt_column('public', 'quest_objectives', 'is_done', 'a boolean could not say an objective failed');
@@ -23,7 +23,9 @@ values ('66000000-0000-4000-8000-000000000030', '66000000-0000-4000-8000-0000000
 
 insert into public.quest_objectives (id, quest_id, description, status, is_player_visible, sort_order) values
   ('66000000-0000-4000-8000-000000000051', '66000000-0000-4000-8000-000000000030', 'Save the caravan', 'pending', false, 1),
-  ('66000000-0000-4000-8000-000000000052', '66000000-0000-4000-8000-000000000030', 'Keep the bridge standing', 'pending', true, 2);
+  ('66000000-0000-4000-8000-000000000052', '66000000-0000-4000-8000-000000000030', 'Keep the bridge standing', 'pending', true, 2),
+  -- #792: the branch not taken. Raised by a beat the party may never reach.
+  ('66000000-0000-4000-8000-000000000053', '66000000-0000-4000-8000-000000000030', 'Carry the news home', 'dormant', false, 3);
 
 insert into public.quest_beats (id, quest_id, campaign_id, title, visibility, kind) values
   ('66000000-0000-4000-8000-000000000041', '66000000-0000-4000-8000-000000000030', '66000000-0000-4000-8000-000000000010', 'The fork', 'hidden', 'social'),
@@ -99,6 +101,48 @@ select is(
    where campaign_id = '66000000-0000-4000-8000-000000000010'),
   1,
   'only the reversed arrival is dropped from the effect log'
+);
+
+-- ── the fourth state and the fourth verb (#792) ─────────────────────────────
+
+-- A dormant objective is one the party has not been given. Showing it would
+-- leak the untaken branch, which is the whole point of the state.
+select throws_ok(
+  $$update public.quest_objectives set is_player_visible = true
+    where id = '66000000-0000-4000-8000-000000000053'$$,
+  '23514',
+  null,
+  'a dormant objective cannot be player-visible'
+);
+
+-- The reverse order is refused too: revealing first and then going dormant is
+-- the same illegal pair reached from the other side.
+select throws_ok(
+  $$update public.quest_objectives set status = 'dormant', is_player_visible = true
+    where id = '66000000-0000-4000-8000-000000000051'$$,
+  '23514',
+  null,
+  'an objective cannot become dormant while player-visible'
+);
+
+-- `raise` is the verb that wakes it. Deliberately distinct from `reveal`: this
+-- makes the objective live for the DM without telling the party.
+select lives_ok(
+  $$insert into public.quest_objective_effects (quest_id, objective_id, trigger_beat_id, effect)
+    values ('66000000-0000-4000-8000-000000000030', '66000000-0000-4000-8000-000000000053',
+            '66000000-0000-4000-8000-000000000042', 'raise')$$,
+  'a beat may raise a dormant objective'
+);
+
+-- And nothing else: the verb set is closed, so a typo cannot become a silent
+-- no-op rule that never fires.
+select throws_ok(
+  $$insert into public.quest_objective_effects (quest_id, objective_id, trigger_beat_id, effect)
+    values ('66000000-0000-4000-8000-000000000030', '66000000-0000-4000-8000-000000000053',
+            '66000000-0000-4000-8000-000000000043', 'awaken')$$,
+  '23514',
+  null,
+  'an unknown verb is refused rather than stored'
 );
 
 select * from finish();
