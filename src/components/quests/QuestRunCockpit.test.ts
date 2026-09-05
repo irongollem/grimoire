@@ -10,6 +10,7 @@ import QuestRunOpenChains from "./QuestRunOpenChains.vue";
 const mocks = vi.hoisted(() => ({
   context: { value: null as Record<string, unknown> | null },
   beats: { value: [] as Array<Record<string, unknown>> },
+  edges: { value: [] as Array<Record<string, unknown>> },
   targets: { value: [] as Array<Record<string, unknown>> },
   quests: { value: [] as Array<Record<string, unknown>> },
   liveQuests: { value: [] as Array<Record<string, unknown>> },
@@ -29,6 +30,7 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestRuntimeContext: () => ({ data: mocks.context, isLoading: { value: false }, error: { value: null }, refetch: mocks.refetch }),
   useQuestRuntimeCommand: () => ({ mutateAsync: mocks.mutateAsync }),
   useQuestBeats: () => ({ data: mocks.beats }),
+  useQuestBeatEdges: () => ({ data: mocks.edges }),
   useQuests: () => ({ data: mocks.quests }),
   useQuestBeatAttachmentSummaries: () => ({ data: { value: [] } }),
   useQuestBeatLoot: () => ({ data: { value: [] } }),
@@ -52,6 +54,7 @@ describe("QuestRunCockpit", () => {
   beforeEach(() => {
     mocks.context.value = null;
     mocks.beats.value = [beat];
+    mocks.edges.value = [];
     mocks.targets.value = [];
     mocks.quests.value = [];
     mocks.liveQuests.value = [];
@@ -70,6 +73,28 @@ describe("QuestRunCockpit", () => {
     await wrapper.vm.$nextTick();
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Start run")!.trigger("click");
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "start", expectedVersion: 0, targetBeatId: "b1" }));
+  });
+
+  // Runs used to start on the stored overview beat by default, and offered
+  // every other beat in plain `created_at` order with nothing pre-selected
+  // (#793). The opening beat is a graph root now — a beat with no incoming
+  // route — so a sole root is picked for the DM, and every root sorts first
+  // when there is more than one place the party could have started.
+  it("defaults the start picker to the sole graph root and ranks other roots first", async () => {
+    mocks.beats.value = [
+      { id: "b2", quest_id: "q1", campaign_id: "c1", title: "Second beat", kind: "neutral" },
+      beat,
+    ];
+    mocks.edges.value = [{ id: "e1", quest_id: "q1", campaign_id: "c1", source_beat_id: "b1", target_beat_id: "b2" }];
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findComponent({ name: "EntityCombobox" }).props("modelValue")).toBe("b1");
+    const options = wrapper.findComponent({ name: "EntityCombobox" }).props("options") as Array<{ id: string }>;
+    expect(options[0]!.id).toBe("b1");
+
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Start run")!.trigger("click");
+    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "start", targetBeatId: "b1" }));
   });
 
   it("routes previous, branch, pause, resume, and jump through versioned commands", async () => {

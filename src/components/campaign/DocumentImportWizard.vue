@@ -566,6 +566,37 @@ async function runImport(): Promise<void> {
       }
       await applyLinkResolution(resolution);
     }
+
+    // A second pass like the link resolution above, for the same reason: the
+    // opening beat needs the quest's own id, which does not exist until here.
+    // `quests.description`/`.notes` are gone (#793) — `mapExtractedQuest`
+    // carries their prose as `openingBeat` instead, and this is where it
+    // lands, as an ordinary unwired beat the DM connects from Story flow.
+    if (kind === "quests") {
+      for (const outcome of outcomes) {
+        if (outcome.status !== "inserted") continue;
+        const planned = plan.find((p) => p.ref === outcome.ref);
+        const openingBeat = planned?.openingBeat;
+        if (!openingBeat) continue;
+        try {
+          await supabase.from("quest_beats").insert({
+            quest_id: outcome.id,
+            campaign_id: importRow.campaign_id,
+            title: "Opening beat",
+            dm_content: openingBeat.dm_content,
+            how_it_plays: openingBeat.how_it_plays,
+            kind: "neutral",
+            visibility: "hidden",
+            canvas_x: 0,
+            canvas_y: 0,
+          });
+        } catch {
+          // Best-effort, like the link writes above: the quest already landed
+          // and is already counted as imported.
+        }
+      }
+    }
+
     const progress: PendingProgress = { kind, count: report.imported, report, unresolved };
     pendingProgress.value = progress;
     await persistCount(kind, report.imported);

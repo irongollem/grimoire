@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(38);
 
 select has_table('public', 'quest_beats', 'authored beats have their own table');
 select has_table('public', 'quest_beat_edges', 'authored routes have their own table');
@@ -10,6 +10,24 @@ select has_table('public', 'quest_beat_transitions', 'route history is append-on
 select has_table('public', 'quest_beat_attachments', 'beats place authoritative records without cloning them');
 select hasnt_column('public', 'quest_beats', 'is_current', 'current position is not authored beat state');
 select hasnt_column('public', 'quest_beats', 'is_ready', 'prep readiness is not a drifting beat flag');
+
+-- #793: the opening beat is a graph shape (a root — no incoming edge), not a
+-- stored flag. These pin the deletion so the flag, the quest-wide prose
+-- columns it justified, and the attachment type #792 already dropped
+-- client-side cannot quietly grow back.
+select hasnt_column('public', 'quest_beats', 'is_overview', 'a beat''s opening status is derived from the edge graph, not stored');
+select hasnt_column('public', 'quests', 'description', 'quest prose lives on the opening beat''s dm_content, not a quest column');
+select hasnt_column('public', 'quests', 'notes', 'quest prose lives on the opening beat''s how_it_plays, not a quest column');
+select is_empty(
+  $q$
+    select conname
+    from pg_constraint
+    where conrelid = 'public.quest_beat_attachments'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%objective%'
+  $q$,
+  'no CHECK constraint on quest_beat_attachments admits the retired objective attachment type'
+);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -122,10 +140,17 @@ select is(
   'beat placement keeps one authoritative quest-level reference for existing filters'
 );
 
+-- The invariant is that an attachment cannot point at a row belonging to a
+-- different quest. This used to be written with an `objective` attachment,
+-- which #792/#793 deleted outright — so it is written with a `quest_ref`, a
+-- type that still exists and is validated by the same `case` arm structure in
+-- `private.validate_quest_beat_attachment`. Keeping the assertion pointed at a
+-- deleted type would have been a test that passes by accident: the CHECK now
+-- rejects the row for its type before the cross-quest rule is ever consulted.
 select throws_ok($$
   insert into public.quest_beat_attachments (beat_id, quest_id, campaign_id, attachment_type, ref_id)
-  values ('65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', 'objective', '65800000-0000-4000-8000-000000000061')
-$$, '23514', null, 'an objective attachment cannot cross quests');
+  values ('65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', 'quest_ref', '65800000-0000-4000-8000-000000000061')
+$$, '23514', null, 'an attachment cannot reference a row from another quest');
 
 select throws_ok($$
   insert into public.quest_beat_attachments (beat_id, quest_id, campaign_id, attachment_type, ref_id)
@@ -149,10 +174,10 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '65800000-0000-4000-8000-000000000001', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select is((select count(*)::integer from public.quest_beats where campaign_id = '65800000-0000-4000-8000-000000000010' and not is_overview), 5, 'the DM can read authored beats');
--- Each of the two quests in this campaign also carries an auto-created overview
--- beat, and the DM reads those through the same policy.
-select is((select count(*)::integer from public.quest_beats where campaign_id = '65800000-0000-4000-8000-000000000010' and is_overview), 2, 'the DM can read the per-quest overview beats');
+-- Quests no longer mint a hidden overview beat on creation (#793), so this
+-- campaign's beat count is exactly the six hand-authored above, five of which
+-- belong to campaign 010.
+select is((select count(*)::integer from public.quest_beats where campaign_id = '65800000-0000-4000-8000-000000000010'), 5, 'the DM can read authored beats');
 select throws_ok($$
   update public.quest_beat_transitions set transition_kind = 'previous'
   where campaign_id = '65800000-0000-4000-8000-000000000010'

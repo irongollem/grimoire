@@ -31,12 +31,13 @@ Your view preference persists for the session.
 Click **New Quest** and fill in:
 
 - **Title** — the quest's name (required).
-- **Summary** — one or two sentences players see in the portal.
-- **Description** — full rich text body with DM notes, backstory, lore.
+- **Summary** — one or two sentences players see in the portal; this is the quest's premise, and it stays editable from the Overview tab afterward.
 - **Quest Giver** — link an NPC from your tracker.
 - **Primary Location** — the main location associated with this quest.
 - **Parent Quest** — if this is a sub-quest, link it to the parent here.
 - **Tags** — freeform labels for filtering.
+
+Once the quest exists, open its **Overview** tab and write the **opening beat** — the DM-facing narrative, backstory and lore that used to live in a Description field here. It's an ordinary beat, authored the same way as any other, and you connect it to whatever comes next from **Story Flow**.
 
 ## Objectives
 

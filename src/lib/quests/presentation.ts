@@ -127,15 +127,11 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
   }
   const connected = new Set(input.edges.flatMap((edge) => [edge.source_beat_id, edge.target_beat_id]));
   const visited = new Set((input.transitions ?? []).map((transition) => transition.to_beat_id));
-  // Connectivity is a per-quest question, and the overview beat is quest-level:
-  // it is deliberately never wired into the edge graph, so it is neither
-  // disconnected itself nor part of the count that decides whether a flow beat
-  // has anything to connect to. The board passes campaign-wide beats through
-  // here, so counting `input.beats` directly would make every quest answer for
-  // every other one.
+  // Connectivity is a per-quest question. The board passes campaign-wide beats
+  // through here, so counting `input.beats` directly would make every quest
+  // answer for every other one.
   const flowBeatsPerQuest = new Map<string, number>();
   for (const beat of input.beats) {
-    if (beat.is_overview) continue;
     flowBeatsPerQuest.set(beat.quest_id, (flowBeatsPerQuest.get(beat.quest_id) ?? 0) + 1);
   }
   // Reach is only a question once a run is under way, and only for the quests
@@ -158,18 +154,15 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
 
   for (const beat of input.beats) {
     const placed = attachments.get(beat.id) ?? [];
-    const isDisconnected = !beat.is_overview
-      && (flowBeatsPerQuest.get(beat.quest_id) ?? 0) > 1
+    const isDisconnected = (flowBeatsPerQuest.get(beat.quest_id) ?? 0) > 1
       && !connected.has(beat.id);
     const prepGaps = deriveQuestBeatPrepGaps(beat, placed, { isDisconnected });
     const loot = input.lootByBeat?.[beat.id] ?? { total: 0, undispatched: 0, unclaimed: 0 };
     const isCurrent = currentBeatIds.has(beat.id);
     const isVisited = visited.has(beat.id);
-    // A staging beat is unwired rather than cut off, and the overview beat is
-    // quest-level and deliberately outside the graph: calling either "stranded"
+    // A staging beat is unwired rather than cut off — calling it "stranded"
     // would report the same fact twice under a scarier name.
     const outsideTheRun = !cursorByQuest.has(beat.quest_id)
-      || beat.is_overview
       || isDisconnected;
     const reach: QuestBeatReach = isCurrent ? "current"
       : isVisited ? "visited"

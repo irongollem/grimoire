@@ -23,8 +23,6 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     reward_sp: 0,
     reward_cp: 0,
     tags: ["harbour", "mystery"],
-    description: null,
-    notes: null,
     player_visible_to: [],
     reward_item_ids: [],
     reward_currency_pools: [],

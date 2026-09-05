@@ -464,17 +464,23 @@ async function executeImport(
     const sortedQuests = sortByHierarchy(backup.quests, "parent_quest_id");
     await batchInsert(
       "quests",
-      sortedQuests.map((q) => ({
-        ...q,
-        id: r(q.id, idMap),
-        campaign_id: newCampaignId,
-        user_id: userId,
-        parent_quest_id: r(q.parent_quest_id, idMap),
-        giver_npc_id: r(q.giver_npc_id, idMap),
-        location_id: r(q.location_id, idMap),
-        player_visible_to: rArr(q.player_visible_to, idMap),
-        // reward_item_ids kept as-is (user-library refs)
-      })),
+      sortedQuests.map((q) => {
+        // A v1 backup predates the description/notes → opening-beat migration
+        // (#793) and may still carry these keys; the columns are gone, so a
+        // raw `...q` spread would send PostgREST "column does not exist."
+        const { description: _description, notes: _notes, ...quest } = q;
+        return {
+          ...quest,
+          id: r(q.id, idMap),
+          campaign_id: newCampaignId,
+          user_id: userId,
+          parent_quest_id: r(q.parent_quest_id, idMap),
+          giver_npc_id: r(q.giver_npc_id, idMap),
+          location_id: r(q.location_id, idMap),
+          player_visible_to: rArr(q.player_visible_to, idMap),
+          // reward_item_ids kept as-is (user-library refs)
+        };
+      }),
     );
 
     // 7. Quest objectives (needed before triggers)

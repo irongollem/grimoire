@@ -97,6 +97,7 @@ import { useHotkeys } from "@/composables/useHotkeys";
 import {
   useCampaignLiveQuests,
   useQuestBeatAttachmentSummaries,
+  useQuestBeatEdges,
   useQuestBeatLoot,
   useQuestBeats,
   useQuestRuntimeCommand,
@@ -106,6 +107,7 @@ import {
   useUpdateQuestBeat,
 } from "@/composables/quests/useQuestFlow";
 import { useQuests } from "@/composables/quests/useQuests";
+import { rootBeatIds } from "@/lib/quests/graph";
 import { rankQuestJumpTargets, type RankedQuestJumpTarget } from "@/lib/quests/run";
 import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
@@ -139,6 +141,7 @@ const questId = computed(() => anchorQuestId);
 const contextQuery = useQuestRuntimeContext(questId);
 const runtimeCommand = useQuestRuntimeCommand();
 const beatsQuery = useQuestBeats(questId);
+const edgesQuery = useQuestBeatEdges(questId);
 const questsQuery = useQuests();
 const liveQuestsQuery = useCampaignLiveQuests();
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
@@ -166,7 +169,15 @@ const currentBeat = computed(() => {
   return (beatsQuery.data.value ?? []).find((beat) => beat.id === snapshot.id) ?? snapshot;
 });
 const runReturn = computed(() => `/quests/${anchorQuestId}?beat=${context.value?.current?.id ?? ""}`);
-const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
+// The opening beat is a graph root (#793) — a beat with no incoming route —
+// computed here rather than read off a stored flag. A quest can legitimately
+// open from more than one place (the party can start at the tavern or the
+// docks), so every root is ranked first rather than one being guessed at;
+// only a *sole* root gets picked for the DM automatically, below.
+const rootIds = computed(() => new Set(rootBeatIds(beatsQuery.data.value ?? [], edgesQuery.data.value ?? [])));
+const startOptions = computed(() => [...(beatsQuery.data.value ?? [])]
+  .sort((a, b) => Number(rootIds.value.has(b.id)) - Number(rootIds.value.has(a.id)))
+  .map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const currentLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const previewBeat = computed(() => (beatsQuery.data.value ?? []).find((beat) => beat.id === previewBeatId.value) ?? context.value?.current ?? null);
@@ -202,6 +213,15 @@ const rankedJumpTargets = computed(() => rankQuestJumpTargets(
   (jumpTargetsQuery.data.value ?? []).filter((target) => target.beat_id !== context.value?.current?.id),
   recentBeatIds.value,
 ));
+
+// Runs got started on the overview beat by default before #793, because the
+// picker offered every beat in `created_at` order with nothing selected. A
+// sole root is the honest default now; several roots still leave the choice
+// to the DM rather than guess which one the party actually took.
+watch(rootIds, (roots) => {
+  if (startBeatId.value) return;
+  if (roots.size === 1) startBeatId.value = [...roots][0]!;
+}, { immediate: true });
 
 watch(() => context.value?.current?.id, (beatId) => {
   containedDirty.value = false;

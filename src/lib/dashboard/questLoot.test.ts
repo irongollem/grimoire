@@ -20,8 +20,6 @@ const quest = (id: string, title: string): Quest => ({
   reward_sp: 0,
   reward_cp: 0,
   tags: [],
-  description: null,
-  notes: null,
   player_visible_to: [],
   reward_item_ids: [],
   reward_currency_pools: [],

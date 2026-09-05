@@ -48,8 +48,6 @@ export interface Quest {
   reward_sp: number;
   reward_cp: number;
   tags: string[];
-  description: string | null; // Tiptap JSON — full narrative
-  notes: string | null; // Tiptap JSON — DM session notes
   player_visible_to: string[];
   reward_item_ids: string[];
   reward_currency_pools: RewardCurrencyPool[];
@@ -156,7 +154,6 @@ export interface QuestBeat {
   canvas_x: number;
   canvas_y: number;
   is_improvised: boolean;
-  is_overview: boolean;
   improv_reviewed_at: string | null;
   conversion_source_type?: "legacy_overview" | "legacy_encounter_ref" | null;
   conversion_source_id?: string | null;

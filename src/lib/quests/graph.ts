@@ -1,6 +1,7 @@
-import type { QuestBeatEdge } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 
 type GraphEdge = Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id">;
+type GraphBeat = Pick<QuestBeat, "id" | "kind">;
 
 function outgoingByBeat(edges: GraphEdge[]): Map<string, string[]> {
   const outgoing = new Map<string, string[]>();
@@ -31,6 +32,20 @@ export function getReachableBeatIds(startBeatId: string, edges: GraphEdge[]): st
   }
 
   return reachable;
+}
+
+/**
+ * The opening beat, computed rather than stored (#793): a non-archived beat
+ * with no incoming edge. A quest may legitimately open from more than one
+ * place — the party can pick the thread up at the tavern or at the docks —
+ * so this returns every root rather than inventing a single winner. An empty
+ * result is equally legitimate: a pure cycle, or no beats authored yet.
+ */
+export function rootBeatIds(beats: readonly GraphBeat[], edges: GraphEdge[]): string[] {
+  const hasIncoming = new Set(edges.map((edge) => edge.target_beat_id));
+  return beats
+    .filter((beat) => beat.kind !== "archived" && !hasIncoming.has(beat.id))
+    .map((beat) => beat.id);
 }
 
 /** Returns the shortest directed path, including both endpoints. */

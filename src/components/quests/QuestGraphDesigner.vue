@@ -249,7 +249,6 @@ function onCommand(command: QuestGraphCommand) {
   if (command.type === "create") openComposer(command);
   if (command.type === "link") void linkExisting(command.sourceBeatId, command.targetBeatId);
   if (command.type === "delete-beat") {
-    if (beats.value.find((beat) => beat.id === command.beatId)?.is_overview) return;
     pendingDeleteBeatId.value = command.beatId;
     replacementBeatId.value = "";
   }

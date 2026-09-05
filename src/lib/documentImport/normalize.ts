@@ -84,9 +84,21 @@ export interface EntityLinks {
   location_name?: string;
 }
 
+/**
+ * A quest's opening beat, carried alongside its row rather than inserted
+ * here: the beat needs the quest's own id, which does not exist until the
+ * wizard's insert returns one (same reason `EntityLinks` defers cross-entity
+ * ids — see file header). Only `mapExtractedQuest` ever populates this.
+ */
+export interface QuestOpeningBeatPayload {
+  dm_content: string | null;
+  how_it_plays: string | null;
+}
+
 export interface MappedEntity<K extends ImportEntityKind = ImportEntityKind> {
   row: ImportRowMap[K];
   links: EntityLinks;
+  openingBeat?: QuestOpeningBeatPayload;
 }
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
@@ -456,8 +468,6 @@ export function mapExtractedQuest(
     reward_sp: 0,
     reward_cp: 0,
     tags: [], // not extracted
-    description: capProse(payload.description),
-    notes: capProse(payload.notes),
     player_visible_to: [], // schema default '{}'
     reward_item_ids: [], // schema default '{}'
     reward_currency_pools: [], // schema default '[]'
@@ -466,7 +476,18 @@ export function mapExtractedQuest(
     ai_provenance: provenance,
     // flow_enabled_at omitted — optional, DB default now().
   };
-  return { row, links: { giver_npc_name: payload.giver_npc_name, location_name: payload.location_name } };
+  // `quests.description`/`.notes` are gone (#793) — their prose now lives on
+  // the opening beat's `dm_content`/`how_it_plays`. The wizard inserts this
+  // once the quest row exists, in the same second pass that resolves `links`,
+  // because the beat needs the quest's own id.
+  const dmContent = capProse(payload.description);
+  const howItPlays = capProse(payload.notes);
+  const openingBeat = dmContent || howItPlays ? { dm_content: dmContent, how_it_plays: howItPlays } : undefined;
+  return {
+    row,
+    links: { giver_npc_name: payload.giver_npc_name, location_name: payload.location_name },
+    openingBeat,
+  };
 }
 
 // ── Factions ─────────────────────────────────────────────────────────────────

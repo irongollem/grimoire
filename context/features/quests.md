@@ -64,33 +64,48 @@ and every one lands in the player's journal.
 
 ---
 
-## Today: two generations, joined by a synthetic beat
+## Today: two generations, now meeting at a computed root
 
 Nothing here is broken code. It is two coherent designs built four months apart
-that were never asked to agree, plus one auto-created beat holding the seam shut.
+that were never asked to fully agree — though the seam between them lost its
+sharpest special case in #793.
 
 |        | Generation one — the quest sheet                             | Generation two — the story flow                                                                                                         |
 | ------ | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Shape  | a record with a checklist                                    | a graph you run a cursor through                                                                                                        |
 | Tables | `quests`, `quest_objectives`, `quest_refs`, `quest_triggers` | `quest_beats`, `quest_beat_edges`, `quest_beat_attachments`, `quest_runtime_state`, `quest_beat_transitions`, `quest_objective_effects` |
 
-**The bridge.** Every quest owns exactly one `is_overview` beat, created by an
-`after insert on quests` trigger and pinned by a partial unique index. It carries
-quest-wide material so generation one's content had somewhere to live inside
-generation two. Keeping it alive costs five special cases: the insert trigger,
-`private.protect_quest_overview_beat()` refusing to archive or demote it, the
-partial unique index, its exclusion from `search_quest_runtime_jump_targets`, and
-its exemption from disconnected-staging prep gaps in `deriveQuestBeatPresentations`.
+**The opening beat, not a bridge.** Every quest used to own exactly one
+`is_overview` beat, minted by an `after insert on quests` trigger and pinned by a
+partial unique index, existing only to give generation one's quest-wide material
+somewhere to live inside generation two. #793 deleted the whole apparatus: the
+insert trigger, `private.protect_quest_overview_beat()`, the partial unique
+index, and its exclusions from `search_quest_runtime_jump_targets` and
+disconnected-staging prep gaps in `deriveQuestBeatPresentations` alike.
 
-**Where the two overlap.** Each of these is a fact with two writable homes and no
-rule about which wins:
+The opening beat is now an ordinary beat — **a graph root, computed rather than
+stored.** `rootBeatIds()` in `lib/quests/graph.ts` returns every non-archived
+beat with no incoming edge. A quest may legitimately open from more than one
+place (the party can pick the thread up at the tavern or the docks) or from
+none yet (no beats authored, or a pure cycle) — both are honest answers, not a
+bug to paper over with an invented winner.
+
+**Where the two still overlap.** Each of these is a fact with two writable homes
+and no rule about which wins:
 
 | Generation one holds                         | Generation two also holds                                                            | Reconciled by                                                                                 |
 | -------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `quests.summary` / `description` / `notes`   | the overview beat's `dm_content` / `how_it_plays` / `presentation_hint` / `outcomes` | a one-time copy in `20260810220934`; nothing since                                            |
-| `quests.reward_*` (coins, pools, items, art) | `quest_beat_loot` rows with `source_type = 'quest_reward'`                           | the same one-time copy — all four kinds, not just items                                       |
+| `quests.reward_*` (coins, pools, items, art) | `quest_beat_loot` rows with `source_type = 'quest_reward'`                           | a one-time copy in `20260810220934` — all four kinds, not just items                          |
 | `quest_refs`                                 | `quest_beat_attachments`                                                             | a trigger syncs attachment → ref; nothing syncs back, and removing a placement leaves the ref |
 | `quest_triggers` (fires _from_ an objective) | `quest_objective_effects` (fires _to_ one)                                           | nothing — two ends of one idea                                                                |
+
+`quests.summary` is the one quest-wide field the model keeps on the quest row on
+purpose: a premise is identity, like title and tags, and no beat field means
+"premise." #793 gave it its own editor in `QuestOverviewMetadata`, alongside
+title/status/giver/location/parent/tags/sharing — it was write-once at creation
+before that. `quests.description`/`.notes` are gone outright; the same prose is
+now the opening beat's `dm_content`/`how_it_plays`, moved once by #793's
+migration and never duplicated again.
 
 **Dead residue.** `quests.flow_enabled_at` is `NOT NULL DEFAULT now()`, so it is
 always set — a dead opt-in flag. `quest_beats.conversion_source_type` / `_id` and
@@ -98,17 +113,19 @@ their partial unique index outlive `convert_quest_to_flow`,
 `preview_quest_flow_conversion` and `rollback_quest_flow_conversion`, which shipped
 in `20260810000016` and were dropped the same day by `20260810202052`.
 
-### An objective appears in three surfaces that disagree
+### An objective appears in two surfaces that disagree, once three
 
 | Surface              | Component                                                    | What it says an objective is                                                         |
 | -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | A checklist you tick | `QuestObjectivesList.vue` (Overview › Quest lifecycle)       | a to-do the DM maintains — the mark cycles pending → complete → failed               |
 | A rule you author    | `QuestBeatObjectivesPanel.vue` (beat inspector, beat page)   | a variable the graph writes — shows _reveal / complete / fail_, and no status at all |
-| A thing you attached | `QuestBeatAttachmentsPanel.vue`, `QuestRunContainedTool.vue` | prepared material, like a sound cue                                                  |
 
-The third is a live, addable `attachment_type = 'objective'` pointer whose only
-meaning is "relevant here". It was backfilled onto every overview beat once and
-nothing has synced it since.
+A third surface used to exist: `attachment_type = 'objective'` on
+`quest_beat_attachments` was a live, addable pointer meaning only "relevant
+here," backfilled onto every overview beat once and never synced since. #793
+dropped `'objective'` from the attachment CHECK and from the player
+projection along with the overview beat it was backfilled onto — one fewer
+place an objective's meaning could disagree with itself.
 
 ---
 
@@ -117,12 +134,17 @@ nothing has synced it since.
 ### `quests`
 
 `title`, `status` (`quest_status_enum`: `undiscovered`, `rumor`, `active`,
-`completed`, `failed`), `summary`, `description` (Tiptap JSON in text), `notes`
-(DM-only), `giver_npc_id`, `location_id`, `parent_quest_id` (sub-quests, no depth
-limit), `rewards`, `reward_pp/gp/ep/sp/cp`, `reward_currency_pools`,
-`reward_item_ids`, `reward_art_objects`, `tags`, `player_visible_to uuid[]`
-(null = never shared), `started_at` / `resolved_at` (**`started_at` is never
-written by anything**), `ai_provenance`, `flow_enabled_at`.
+`completed`, `failed`), `summary`, `giver_npc_id`, `location_id`,
+`parent_quest_id` (sub-quests, no depth limit), `rewards`,
+`reward_pp/gp/ep/sp/cp`, `reward_currency_pools`, `reward_item_ids`,
+`reward_art_objects`, `tags`, `player_visible_to uuid[]` (null = never shared),
+`started_at` / `resolved_at` (**`started_at` is never written by anything**),
+`ai_provenance`, `flow_enabled_at`.
+
+`description`/`notes` are gone (#793) — their prose is the opening beat's
+`dm_content`/`how_it_plays` now, not a quest-level column. `summary` stays: a
+premise is quest-level identity, and it has its own editor in
+`QuestOverviewMetadata` rather than being write-once at creation.
 
 Carries `unique (id, campaign_id)` — the composite every beat-side FK targets.
 
@@ -137,13 +159,16 @@ Carries `unique (id, campaign_id)` — the composite every beat-side FK targets.
 `title` (non-blank, enforced), `dm_content`, `rumor_text`, `reveal_text`,
 `visibility` (`hidden` | `rumored` | `revealed`), `kind` (**open text, not an
 enum** — conventionally `combat` / `social` / `explore` / `discovery` / `neutral`,
-plus `overview` and the tombstone `archived`), `presentation_hint`, `canvas_x/y`,
+plus the tombstone `archived`), `presentation_hint`, `canvas_x/y`,
 `is_improvised`, `improv_reviewed_at`, `read_aloud`, `how_it_plays`, `outcomes`,
-`consequences`, `is_overview`, `conversion_source_type/_id`.
+`consequences`, `conversion_source_type/_id`.
 
-`kind` is doing three jobs at once: a presentation hint, an `overview` marker
-redundant with the later `is_overview` boolean, and an `archived` tombstone every
-runtime query has to filter out.
+`kind` still does two jobs at once: a presentation hint, and an `archived`
+tombstone every runtime query has to filter out. It used to do a third — an
+`overview` marker redundant with the `is_overview` boolean — until #793 retired
+both: `kind = 'overview'` rows became `neutral`, and the opening beat is a
+computed graph root instead of a stored marker (see "The opening beat, not a
+bridge" above).
 
 **Beats have no ordering column.** Author order is `canvas_x/y`; player order is
 `story_order`, the longest path from a root, computed in a recursive CTE inside
@@ -157,10 +182,12 @@ different labels. Cycles are valid, and `lib/quests/graph.ts` is cycle-safe.
 
 ### `quest_beat_attachments`
 
-Typed placements: `encounter`, `objective`, `quest_ref`, `location_set`, `npc`,
-`faction`, `item`, `monster`, `sound`, `audio_scene`, `playlist`, `note`,
-`handout`. Polymorphic `ref_id text`, validated by
-`private.validate_quest_beat_attachment()` rather than an FK.
+Typed placements: `encounter`, `quest_ref`, `location_set`, `npc`, `faction`,
+`item`, `monster`, `sound`, `audio_scene`, `playlist`, `note`, `handout`.
+Polymorphic `ref_id text`, validated by
+`private.validate_quest_beat_attachment()` rather than an FK. `'objective'` was
+a member of this CHECK until #793 dropped it along with the overview beat it
+was backfilled onto (see above).
 
 `location_set` is the current dungeon shape: `ref_id` is the root location and
 `metadata.room_ids` a jsonb array of descendants. It has **no ordering, no
@@ -214,8 +241,14 @@ Vue Flow view-model wrappers only.
 `/quests/:id` has two peer surfaces behind a `SegmentedControl`, selected by
 `?view=`:
 
-- **Overview** — `QuestOverviewPanel` → metadata, the overview beat's fields,
-  attachments, loot, lifecycle (objectives, consequences, sub-quests, calendar).
+- **Overview** — `QuestOverviewPanel` → metadata (title, premise/`summary`,
+  status, giver, location, parent, tags, sharing — one autosaved editor per
+  field), then either a "Write the opening beat" empty state (no beats yet) or
+  a read-only list of the graph's root beat(s) linking into Work, then
+  lifecycle (objectives, consequences, sub-quests, calendar). A beat's own
+  content is edited in exactly one place — the Work-tab inspector or
+  `QuestBeatDetailView` — never here; this surface no longer embeds a second
+  beat editor (it did, for the `is_overview` beat, before #793).
 - **Work** — the **story flow** (`QuestGraphDesigner` + `QuestFlowCanvas`, with
   `QuestGraphOutline` as the sub-`48rem` and screen-reader fallback), or the **run
   cockpit** (`QuestRunCockpit`) when a session is running or `?mode=run` asked.
@@ -254,9 +287,11 @@ Despite the name it is also the prep-time viewer, mounted from
 
 The detail view gates on `player_visible_to` being non-empty, then shows title and
 status, giver (NPC lightbox) and primary location (link only if actually shared),
-summary and description, **`PlayerQuestStoryThread`** ("Story so far"), visible
-objectives with a progress count, rewards, visible refs, and a
-`PlayerNotesWidget`.
+summary, **`PlayerQuestStoryThread`** ("Story so far"), visible objectives with
+a progress count, rewards, visible refs, and a `PlayerNotesWidget`. It used to
+also show `quest.description` — a DM-authored field with no visibility gate of
+its own — until #793 removed the column; the story thread is the player
+projection now, and it is already visibility-gated per beat.
 
 `PlayerQuestStoryThread` renders a dashed **Rumors** block for `rumored` beats and
 a **Confirmed journey** timeline for `revealed` ones, ordered by `story_order`

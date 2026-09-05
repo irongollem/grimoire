@@ -665,14 +665,6 @@ const questFormatter: AssetFormatter<{
       html += `</ul>\n`;
     }
 
-    // Notes (Tiptap JSON)
-    if (quest.notes) {
-      const notesHtml = tiptapJsonToHtml(quest.notes);
-      if (notesHtml) {
-        html += `<h2>Notes</h2>\n${notesHtml}`;
-      }
-    }
-
     return {
       title: quest.title,
       content: html,

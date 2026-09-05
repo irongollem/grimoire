@@ -3,7 +3,7 @@
     <div class="flex items-start gap-3">
       <div class="min-w-0 flex-1">
         <h3 class="font-cinzel text-sm font-bold text-foreground">Quest identity</h3>
-        <p class="text-caption text-muted-foreground">Whole-story fields. Narrative preparation lives on the overview beat below.</p>
+        <p class="text-caption text-muted-foreground">What the quest is, rather than what happens in it. The story itself lives in its beats.</p>
       </div>
       <span class="text-caption" :class="saveError ? 'text-destructive' : 'text-muted-foreground'">
         {{ saveError || (saving ? "Saving…" : "Saved") }}
@@ -18,6 +18,18 @@
           tone="card"
           size="body"
           placeholder="Untitled Quest"
+          @blur="saveMetadata"
+          @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+        />
+      </label>
+
+      <label class="flex flex-col gap-1 sm:col-span-2">
+        <span class="text-label font-semibold text-muted-foreground">Premise</span>
+        <AppInput
+          v-model="summary"
+          tone="card"
+          size="body"
+          placeholder="What makes this quest matter at the table?"
           @blur="saveMetadata"
           @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
         />
@@ -86,6 +98,7 @@ const { data: allQuests } = useAllQuests();
 const { mutateAsync: updateQuest } = useUpdateQuest();
 
 const title = ref("");
+const summary = ref("");
 const status = ref<QuestStatus>("undiscovered");
 const giverNpcId = ref("");
 const locationId = ref("");
@@ -103,6 +116,7 @@ const parentQuestOptions = computed(() => (allQuests.value ?? [])
 
 function syncFromQuest() {
   title.value = props.quest.title ?? "";
+  summary.value = props.quest.summary ?? "";
   status.value = props.quest.status;
   giverNpcId.value = props.quest.giver_npc_id ?? "";
   locationId.value = props.quest.location_id ?? "";
@@ -133,6 +147,7 @@ async function saveMetadata() {
       id: props.quest.id,
       update: {
         title: nextTitle,
+        summary: summary.value.trim() || null,
         status: status.value,
         giver_npc_id: giverNpcId.value || null,
         location_id: locationId.value || null,

@@ -250,6 +250,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useCreateQuest, useCreateObjective, useCreateQuestRef } from "@/composables/quests/useQuests";
+import { useCreateQuestBeat } from "@/composables/quests/useQuestFlow";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -297,6 +298,7 @@ const {
 const { mutateAsync: createQuest } = useCreateQuest();
 const { mutateAsync: createObjective } = useCreateObjective();
 const { mutateAsync: createQuestRef } = useCreateQuestRef();
+const { mutateAsync: createBeat } = useCreateQuestBeat();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
@@ -408,7 +410,6 @@ async function createFromHook(hook: QuestHookResult, index: number) {
     const quest = await createQuest({
       title: hook.title,
       summary: hook.summary,
-      description: hook.hook_description ? toTiptapJson(hook.hook_description) : null,
       tags: hook.tags,
       status: "active",
       giver_npc_id: giverNpcId.value || null,
@@ -422,12 +423,42 @@ async function createFromHook(hook: QuestHookResult, index: number) {
       reward_cp: 0,
       reward_item_ids: [],
       reward_currency_pools: [],
-      notes: null,
       player_visible_to: [],
       started_at: null,
       resolved_at: null,
       ai_provenance: provenance.value,
     });
+
+    // The generated hook's narrative used to live on `quests.description`; that
+    // bridge column is gone (#793), and under the ledger model the quest-wide
+    // material belongs on an ordinary beat — the opening one, an unwired graph
+    // root the DM connects into the flow from Story flow.
+    if (hook.hook_description) {
+      try {
+        await createBeat({
+          quest_id: quest.id,
+          campaign_id: campaign.activeCampaignId!,
+          title: "Opening beat",
+          dm_content: toTiptapJson(hook.hook_description),
+          read_aloud: null,
+          how_it_plays: null,
+          outcomes: null,
+          consequences: null,
+          rumor_text: null,
+          reveal_text: null,
+          visibility: "hidden",
+          kind: "neutral",
+          presentation_hint: null,
+          canvas_x: 0,
+          canvas_y: 0,
+          is_improvised: false,
+          improv_reviewed_at: null,
+        });
+      } catch {
+        // Best-effort, like the objective/ref writes below: a missing opening
+        // beat doesn't undo the quest, which already landed.
+      }
+    }
 
     await Promise.all(
       hook.objectives.map((desc, i) =>

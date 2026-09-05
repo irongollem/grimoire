@@ -825,16 +825,22 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
 
   if (includeTypes.has("quests") && bundle.quests?.length) {
     const sorted = sortByHierarchy(bundle.quests, "parent_quest_id");
-    await batchInsert("quests", sorted.map((q) => ({
-      ...q,
-      id: idMap.get(q.id as string) ?? crypto.randomUUID(),
-      campaign_id: campaignId,
-      user_id: userId,
-      parent_quest_id: rCamp(q.parent_quest_id, idMap),
-      giver_npc_id: rCamp(q.giver_npc_id, idMap),
-      location_id: rCamp(q.location_id, idMap),
-      player_visible_to: [],
-    })));
+    await batchInsert("quests", sorted.map((q) => {
+      // A bundle exported before the description/notes → opening-beat
+      // migration (#793) may still carry these keys; the columns are gone,
+      // so a raw `...q` spread would send PostgREST "column does not exist."
+      const { description: _description, notes: _notes, ...quest } = q;
+      return {
+        ...quest,
+        id: idMap.get(q.id as string) ?? crypto.randomUUID(),
+        campaign_id: campaignId,
+        user_id: userId,
+        parent_quest_id: rCamp(q.parent_quest_id, idMap),
+        giver_npc_id: rCamp(q.giver_npc_id, idMap),
+        location_id: rCamp(q.location_id, idMap),
+        player_visible_to: [],
+      };
+    }));
     if (bundle.quest_objectives?.length) {
       await batchInsert("quest_objectives", bundle.quest_objectives.map((obj) => ({
         ...obj,

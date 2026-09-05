@@ -74,13 +74,6 @@
         {{ quest.summary }}
       </p>
 
-      <!-- Full narrative description (rich text) -->
-      <RichTextViewer
-        v-if="quest.description"
-        :content="quest.description"
-        class="font-fell text-foreground leading-relaxed"
-      />
-
       <!-- Existing quests stay unchanged until the DM authors at least one
            player-visible beat. The thread is a projection, never the graph. -->
       <PlayerQuestStoryThread v-if="playerBeats?.length" :beats="playerBeats" />
@@ -303,7 +296,6 @@ import AppModal from "@/components/common/AppModal.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import QuestObjectiveStatusMark from "@/components/quests/QuestObjectiveStatusMark.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
   usePlayerVisibleQuest,
   useQuestObjectives,

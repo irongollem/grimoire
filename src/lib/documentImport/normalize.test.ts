@@ -409,8 +409,8 @@ describe("mapExtractedSpell", () => {
 // ── Quests ───────────────────────────────────────────────────────────────────
 
 describe("mapExtractedQuest", () => {
-  it("maps a full payload correctly", () => {
-    const { row, links } = mapExtractedQuest(
+  it("maps a full payload correctly, deferring the opening beat's prose", () => {
+    const { row, links, openingBeat } = mapExtractedQuest(
       {
         title: "The Sunken Bell",
         summary: "Recover a bell lost when the old cathedral flooded.",
@@ -426,9 +426,7 @@ describe("mapExtractedQuest", () => {
 
     expect(row.title).toBe("The Sunken Bell");
     expect(row.summary).toBe("Recover a bell lost when the old cathedral flooded.");
-    expect(row.description).toBe("The party must dive into the flooded crypt beneath the cathedral.");
     expect(row.rewards).toBe("500 gp and the gratitude of the parish");
-    expect(row.notes).toBe("The bell is cursed.");
     expect(row.status).toBe("undiscovered");
     expect(row.campaign_id).toBe(CAMPAIGN_ID);
     expect(row.ai_provenance).toBe(PROVENANCE);
@@ -437,10 +435,16 @@ describe("mapExtractedQuest", () => {
     expect(row.location_id).toBeNull();
     expect(links.giver_npc_name).toBe("Father Corvin");
     expect(links.location_name).toBe("The Flooded Cathedral");
+    // `quests.description`/`.notes` are gone (#793); the same prose now rides
+    // along as the opening beat the wizard inserts once the quest has an id.
+    expect(row).not.toHaveProperty("description");
+    expect(row).not.toHaveProperty("notes");
+    expect(openingBeat?.dm_content).toBe("The party must dive into the flooded crypt beneath the cathedral.");
+    expect(openingBeat?.how_it_plays).toBe("The bell is cursed.");
   });
 
-  it("maps a name-only payload to a valid row with schema defaults", () => {
-    const { row, links } = mapExtractedQuest({ title: "A Rumor" }, CAMPAIGN_ID, PROVENANCE);
+  it("maps a name-only payload to a valid row with schema defaults, and no opening beat to insert", () => {
+    const { row, links, openingBeat } = mapExtractedQuest({ title: "A Rumor" }, CAMPAIGN_ID, PROVENANCE);
 
     expect(row.status).toBe("undiscovered");
     expect(row.reward_pp).toBe(0);
@@ -455,18 +459,20 @@ describe("mapExtractedQuest", () => {
     expect(row.giver_npc_id).toBeNull();
     expect(row.location_id).toBeNull();
     expect(links).toEqual({});
+    // Nothing to carry over — an opening beat with no prose isn't worth minting.
+    expect(openingBeat).toBeUndefined();
   });
 
-  it("caps summary/description/notes on a word boundary but never invents a status", () => {
+  it("caps summary on the row and description/notes on the deferred opening beat, never inventing a status", () => {
     const long = "peril ".repeat(150).trim();
-    const { row } = mapExtractedQuest(
+    const { row, openingBeat } = mapExtractedQuest(
       { title: "X", summary: long, description: long, notes: long },
       CAMPAIGN_ID,
       PROVENANCE,
     );
     expect((row.summary as string).endsWith("…")).toBe(true);
-    expect((row.description as string).endsWith("…")).toBe(true);
-    expect((row.notes as string).endsWith("…")).toBe(true);
+    expect(openingBeat?.dm_content?.endsWith("…")).toBe(true);
+    expect(openingBeat?.how_it_plays?.endsWith("…")).toBe(true);
     expect(row.status).toBe("undiscovered");
   });
 });
