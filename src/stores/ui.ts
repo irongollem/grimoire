@@ -737,6 +737,17 @@ export const useUiStore = defineStore("ui", () => {
   // plain ref that resets on reload.
   const locationsTreeCollapsed = useLocalStorage("grimoire:atlas:treeCollapsed", false);
 
+  // The place the Atlas was left on. Selection itself lives in the URL
+  // (`/locations?at=<id>`) so that Back walks the trail of places visited, and
+  // that is worth keeping — but it means leaving the Atlas by the sidebar and
+  // returning through a bare `/locations` dropped the place you were looking
+  // at. This remembers it so arriving with no `at` can restore one.
+  //
+  // Stored, not session state: coming back to the map you were reading is the
+  // same kind of durable preference as the tree's fold, and it should survive a
+  // reload rather than only a Back.
+  const locationsLastSelectedId = useLocalStorage<string | null>("grimoire:atlas:lastSelected", null);
+
   function rememberExpanded(ids: string[]) {
     locationsExpandedIds.value = ids.slice(-EXPANDED_CAP);
   }
@@ -1196,6 +1207,7 @@ export const useUiStore = defineStore("ui", () => {
     resetLocationsFilters,
     locationsExpanded,
     locationsSelectedId,
+    locationsLastSelectedId,
     locationsPaneMode,
     locationsTreeCollapsed,
     toggleLocationExpanded,

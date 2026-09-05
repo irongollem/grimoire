@@ -184,15 +184,63 @@ function select(id: string) {
 }
 
 function clearSelection() {
+  // Forget it too, or "All places" would be undone by the restore below the
+  // next time the Atlas is opened — an exit the user cannot take.
+  ui.locationsLastSelectedId = null;
   const { at: _discarded, ...rest } = route.query;
   router.push({ query: rest });
 }
+
+/**
+ * Arriving at a bare `/locations` reopens the place you were last on.
+ *
+ * Selection lives in the URL so Back walks the trail, which is right, but it
+ * also meant leaving the Atlas by the sidebar and returning dropped the place
+ * you were reading. `replace`, not `push`: restoring is not a navigation the
+ * user made, and pushing it would put a place they never clicked into history
+ * and make Back bounce between the list and it.
+ *
+ * Once only. After this the absence of `at` means the user cleared the
+ * selection, and reasserting it would take away the way out.
+ */
+let restoredLastSelection = false;
+watch(
+  [() => route.query.at, index],
+  ([at, idx]) => {
+    if (restoredLastSelection || typeof at === "string") return;
+    const remembered = ui.locationsLastSelectedId;
+    if (!remembered) return;
+    // The index is empty until the locations query resolves, and this watcher
+    // runs immediately. Treating that first empty tick as "the place is gone"
+    // both skips the restore and throws the memory away — so wait for the data
+    // before letting the index answer. An account with genuinely no locations
+    // renders the empty state, which never reaches here.
+    if (idx.byId.size === 0) return;
+    restoredLastSelection = true;
+    // A remembered id can still outlive the place: deleted, or belonging to a
+    // campaign that is no longer the active one. Now that the index is loaded
+    // it is the authority, so an id it does not know is forgotten.
+    if (!idx.byId.has(remembered)) {
+      ui.locationsLastSelectedId = null;
+      return;
+    }
+    router.replace({ query: { ...route.query, at: remembered } });
+  },
+  { immediate: true },
+);
 
 watch(
   [() => route.query.at, index],
   ([at, idx]) => {
     const id = typeof at === "string" && idx.byId.has(at) ? at : null;
     ui.locationsSelectedId = id;
+    // Only remember a real place. Clearing is handled by `clearSelection`, so a
+    // null here is either the empty list or an id that no longer resolves —
+    // neither of which should overwrite a good memory.
+    if (id) {
+      ui.locationsLastSelectedId = id;
+      restoredLastSelection = true;
+    }
     // Opening a place also opens the branch holding it, so dismissing a search
     // leaves the tree showing where you actually are rather than collapsed —
     // and a deep link or a Back lands with its ancestors already unfolded.
