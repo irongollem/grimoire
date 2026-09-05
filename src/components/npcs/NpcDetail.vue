@@ -192,7 +192,7 @@
   </form>
 
   <NpcGenerateDialog
-    v-if="showGenerateDialog"
+    :visible="showGenerateDialog"
     @close="showGenerateDialog = false"
     @generated="onAiGenerated"
   />

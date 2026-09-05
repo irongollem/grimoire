@@ -1,35 +1,14 @@
 <template>
-  <!--
-    No backdrop dismissal. `generate()` here awaits a paid call and hands the
-    result straight to the parent, which mounts this dialog behind a `v-if` —
-    so a stray click outside during the wait unmounts the component and the
-    finished generation emits into nothing. The credits are spent either way.
-    Close with the ✕ or Cancel. (This is a hand-rolled panel rather than
-    AppModal, which is why the rule is restated here instead of set by a prop
-    — see #816.)
-  -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-    <div class="bg-card rounded-xl border border-border shadow-xl w-full max-w-lg flex flex-col gap-5 p-6">
+  <!-- No backdrop dismiss: see AppModal's `backdropDismiss` docstring (#816). -->
+  <AppModal :open="visible" size="md" :backdrop-dismiss="false" @close="emit('close')">
+    <ModalHeader
+      title="Generate Spell with AI"
+      subtitle="Describe the spell concept. Lock the level or school to constrain the result."
+      closeable
+      @close="emit('close')"
+    />
 
-      <!-- Header -->
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h2 class="font-cinzel font-bold text-base tracking-wide text-foreground">Generate Spell with AI</h2>
-          <p class="text-caption text-muted-foreground mt-0.5 italic">
-            Describe the spell concept. Lock the level or school to constrain the result.
-          </p>
-        </div>
-        <AppButton
-          variant="ghost"
-          size="icon-xs"
-          icon-size="md"
-          :icon="IconClose"
-          aria-label="Close"
-          class="mt-0.5"
-          @click="emit('close')"
-        />
-      </div>
-
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain flex flex-col gap-4 px-5 py-4">
       <!-- Concept prompt -->
       <div class="flex flex-col gap-2">
         <label class="text-label-lg font-semibold text-muted-foreground">CONCEPT</label>
@@ -89,35 +68,36 @@
         <IconGenerate class="h-8 w-8 text-primary animate-pulse" />
         <p class="text-body text-muted-foreground italic">{{ currentLoadingQuote }}</p>
       </div>
-
-      <!-- Actions -->
-      <div v-else class="flex justify-end gap-2">
-        <AppButton
-          variant="outline"
-          fill="muted"
-          size="sm"
-          label="Cancel"
-          @click="emit('close')"
-        />
-        <AppButton
-          variant="primary"
-          size="sm"
-          :disabled="!prompt.trim()"
-          :icon="IconGenerate"
-          label="Generate"
-          @click="run"
-        />
-      </div>
-
     </div>
-  </div>
+
+    <!-- Actions -->
+    <div v-if="!isGenerating" class="flex gap-2 justify-end items-center shrink-0 px-5 py-3 border-t border-border">
+      <AppButton
+        variant="outline"
+        fill="muted"
+        size="sm"
+        label="Cancel"
+        @click="emit('close')"
+      />
+      <AppButton
+        variant="primary"
+        size="sm"
+        :disabled="!prompt.trim()"
+        :icon="IconGenerate"
+        label="Generate"
+        @click="run"
+      />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { IconClose, IconGenerate } from '@/lib/icons';
+import { ref, watch } from "vue";
+import { IconGenerate } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { AI_PROMPT_LIMIT } from "./utils";
 
@@ -126,6 +106,8 @@ import { useSpellGeneration } from "./useSpellGeneration";
 import { currentLoadingQuote } from "./aiGenerationState";
 import type { SpellAiGenerated } from "./types";
 import { SPELL_SCHOOLS, type SpellSchool } from "@/types/spell.types";
+
+const { visible } = defineProps<{ visible: boolean }>();
 
 const emit = defineEmits<{
   close: [];
@@ -137,6 +119,22 @@ const levelChoice = ref("");
 const schoolChoice = ref<"" | SpellSchool>("");
 const generateImage = ref(true);
 const { isGenerating, error, generate } = useSpellGeneration();
+
+// The dialog now stays mounted behind `visible` (AppModal owns its own v-if
+// inside a Teleport, and the enter animation only plays on an `open`
+// transition — a modal mounted already-open would skip it). That also fixes
+// a real bug: under the old `v-if`, closing mid-generation unmounted this
+// component, so the awaited paid `generate()` call resolved into nothing and
+// the credits were spent for no result. Reset the form on each reopen since
+// the instance is no longer recreated for us.
+watch(() => visible, (v) => {
+  if (v) {
+    prompt.value = "";
+    levelChoice.value = "";
+    schoolChoice.value = "";
+    generateImage.value = true;
+  }
+});
 
 function levelSuffix(n: number): string {
   if (n === 1) return "st";

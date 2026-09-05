@@ -241,7 +241,7 @@
 
   <!-- AI generation dialog -->
   <MonsterGenerateDialog
-    v-if="showGenerateDialog && isAiEnabled"
+    :visible="showGenerateDialog && isAiEnabled"
     @close="showGenerateDialog = false"
     @generated="onAiGenerated"
   />

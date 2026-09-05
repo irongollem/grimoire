@@ -1,35 +1,15 @@
 <template>
-  <!--
-    No backdrop dismissal. `generate()` here awaits a paid call and hands the
-    result straight to the parent, which mounts this dialog behind a `v-if` —
-    so a stray click outside during the wait unmounts the component and the
-    finished generation emits into nothing. The credits are spent either way.
-    Close with the ✕ or Cancel. (This is a hand-rolled panel rather than
-    AppModal, which is why the rule is restated here instead of set by a prop
-    — see #816.)
-  -->
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-    <div class="bg-card rounded-xl border border-border shadow-xl w-full max-w-lg flex flex-col gap-5 p-6">
+  <!-- No backdrop dismiss: `generate()` awaits a paid call and hands the result
+       to the parent — see AppModal's `backdropDismiss` docstring. -->
+  <AppModal :open="visible" size="md" :backdrop-dismiss="false" @close="emit('close')">
+    <ModalHeader
+      title="Generate NPC with AI"
+      subtitle="Describe the NPC you need. The more detail, the better the result."
+      closeable
+      @close="emit('close')"
+    />
 
-      <!-- Header -->
-      <div class="flex items-start justify-between gap-4">
-        <div>
-          <h2 class="font-cinzel font-bold text-base tracking-wide text-foreground">Generate NPC with AI</h2>
-          <p class="text-caption text-muted-foreground mt-0.5 italic">
-            Describe the NPC you need. The more detail, the better the result.
-          </p>
-        </div>
-        <AppButton
-          variant="ghost"
-          size="icon-xs"
-          icon-size="md"
-          :icon="IconClose"
-          aria-label="Close"
-          class="shrink-0 mt-0.5"
-          @click="emit('close')"
-        />
-      </div>
-
+    <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain flex flex-col gap-4 px-5 py-4">
       <!-- Prompt input -->
       <div class="flex flex-col gap-2">
         <label class="text-label-lg font-semibold text-muted-foreground">YOUR PROMPT</label>
@@ -83,37 +63,40 @@
         <IconGenerate class="h-8 w-8 text-primary animate-pulse" />
         <p class="text-body text-muted-foreground italic">{{ currentLoadingQuote }}</p>
       </div>
-
-      <!-- Actions -->
-      <div v-else class="flex justify-end gap-2">
-        <AppButton type="button" variant="subtle" size="sm" label="Cancel" @click="emit('close')" />
-        <AppButton
-          type="button"
-          variant="primary"
-          size="sm"
-          :disabled="!prompt.trim()"
-          :icon="IconGenerate"
-          label="Generate"
-          @click="run"
-        />
-      </div>
-
     </div>
-  </div>
+
+    <!-- Actions -->
+    <div v-if="!isGenerating" class="flex gap-2 justify-end items-center shrink-0 px-5 py-3 border-t border-border">
+      <AppButton type="button" variant="subtle" size="sm" label="Cancel" @click="emit('close')" />
+      <AppButton
+        type="button"
+        variant="primary"
+        size="sm"
+        :disabled="!prompt.trim()"
+        :icon="IconGenerate"
+        label="Generate"
+        @click="run"
+      />
+    </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import AppModal from "@/components/common/AppModal.vue";
+import ModalHeader from "@/components/common/ModalHeader.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
-import { IconClose, IconGenerate } from '@/lib/icons';
+import { IconGenerate } from '@/lib/icons';
 import { AI_PROMPT_LIMIT } from "./utils";
 
 const PROMPT_LIMIT = AI_PROMPT_LIMIT;
 import { useNpcGeneration } from "./useNpcGeneration";
 import { currentLoadingQuote } from "./aiGenerationState";
 import type { NpcAiGenerated } from "./types";
+
+const { visible } = defineProps<{ visible: boolean }>();
 
 const emit = defineEmits<{
   close: [];
@@ -124,6 +107,20 @@ const prompt = ref("");
 const generateAlterEgo = ref(false);
 const generateImage = ref(true);
 const { isGenerating, error, generate } = useNpcGeneration();
+
+// The dialog now stays mounted behind AppModal's own v-if (see #816), so its
+// form is reset on open rather than recreated from scratch each time. This
+// also fixes a real bug: under the old v-if, closing during a generation
+// unmounted the component, so `emit("generated", result)` after the awaited
+// paid call landed nowhere and the credits were spent for nothing. Staying
+// mounted means the component survives and the result still arrives.
+watch(() => visible, (v) => {
+  if (v) {
+    prompt.value = "";
+    generateAlterEgo.value = false;
+    generateImage.value = true;
+  }
+});
 
 async function run() {
   if (!prompt.value.trim()) return;

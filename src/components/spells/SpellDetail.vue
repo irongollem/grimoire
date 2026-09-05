@@ -222,7 +222,7 @@
 
   <!-- AI generation dialog -->
   <SpellGenerateDialog
-    v-if="showGenerateDialog && isAiEnabled"
+    :visible="showGenerateDialog && isAiEnabled"
     @close="showGenerateDialog = false"
     @generated="onAiGenerated"
   />
