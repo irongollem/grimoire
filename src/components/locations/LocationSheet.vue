@@ -98,7 +98,7 @@
         :location-id="location.id"
         :show-regions="isSiteType(location.location_type)"
         :regions="siteRegions"
-        :rooms="siteRooms"
+        :spaces="siteSpaces"
         :calibration="location.grid_calibration"
         v-model:active-region-id="activeRegionId"
         @pin-click="onPinClick"
@@ -147,7 +147,7 @@ import {
   getPinnableDescendants,
 } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
-import { isSiteType } from "@/lib/locations/tiers";
+import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import { visibleTags } from "@/lib/locations/tags";
 import type { Location } from "@/types/location.types";
@@ -200,7 +200,10 @@ const siteRegionsQuery = useLocationMapRegions(
   computed(() => (isSite.value ? props.location.id : "")),
 );
 const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
-const siteRooms = computed(() => (children.value ?? []).filter((l) => l.location_type === "room"));
+// Every child that can carry a shape on this map — a room, or a nested site
+// such as a courtyard inside a dungeon (#818). The database decides this; the
+// helper exists so the picker never offers what the guard would refuse.
+const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
 
 /**
  * Sub-locations, minus the rooms — a site's rooms are owned by the Rooms panel

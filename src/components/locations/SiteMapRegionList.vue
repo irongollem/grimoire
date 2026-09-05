@@ -1,60 +1,61 @@
 <template>
-  <!-- Room shapes — every room of this site, whether or not it has a region
-       yet, so the site is usable before it is fully traced.
+  <!-- Space shapes — every addressable space of this site (a room, or a
+       nested site with its own floor plan, #818), whether or not it has a
+       region yet, so the site is usable before it is fully traced.
        Deliberately NOT called "Rooms": `SiteRoomsPanel` owns rooms themselves
        (order, add, rename, delete) further down the same place's page. Two
        sections reading "Rooms" is the duplication #783 removed from the
-       Atlas tree, re-created by accident. This list is about each room's
+       Atlas tree, re-created by accident. This list is about each space's
        *shape on the map*, which is a different thing, and naming it so
        makes the relationship informative instead of confusing.
        Only mounted in browse mode — see the `v-if` at the call site in
        `LocationMap.vue` (#807) — run mode renders its own click-to-move
        room list instead. -->
   <div class="flex flex-col gap-1.5">
-    <span class="text-label-lg font-semibold text-muted-foreground">Room shapes</span>
-    <p v-if="!rooms.length" class="text-caption text-muted-foreground italic">No rooms yet — add them below.</p>
+    <span class="text-label-lg font-semibold text-muted-foreground">Space shapes</span>
+    <p v-if="!spaces.length" class="text-caption text-muted-foreground italic">No spaces yet — add a room below, or a nested site as a child location.</p>
     <div v-else class="flex flex-col gap-1.5">
       <div
-        v-for="room in rooms"
-        :key="room.id"
+        v-for="space in spaces"
+        :key="space.id"
         class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
       >
         <RouterLink
-          :to="`/locations/${room.id}`"
+          :to="`/locations/${space.id}`"
           class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
-        >{{ room.name }}</RouterLink>
+        >{{ space.name }}</RouterLink>
 
-        <template v-if="boundRegionByRoom.get(room.id)">
+        <template v-if="boundRegionBySpace.get(space.id)">
           <AppButton
             variant="ghost"
             size="inline-xs"
             label="Trace"
-            :active="activeRegionId === boundRegionByRoom.get(room.id)!.id"
+            :active="activeRegionId === boundRegionBySpace.get(space.id)!.id"
             :disabled="!canTrace"
             :tooltip="canTrace ? undefined : 'Calibrate the grid before tracing'"
-            @click="toggleActive(boundRegionByRoom.get(room.id)!.id)"
+            @click="toggleActive(boundRegionBySpace.get(space.id)!.id)"
           />
           <AppButton
             variant="ghost"
             size="inline-xs"
             label="Unbind"
-            @click="unbind(boundRegionByRoom.get(room.id)!)"
+            @click="unbind(boundRegionBySpace.get(space.id)!)"
           />
           <AppButton
             variant="ghost"
             tone="danger"
             size="icon-xs"
             :icon="IconDelete"
-            tooltip="Delete this room's shape"
-            @click="removeRegion(boundRegionByRoom.get(room.id)!)"
+            tooltip="Delete this space's shape"
+            @click="removeRegion(boundRegionBySpace.get(space.id)!)"
           />
         </template>
-        <AppButton v-else variant="ghost" size="inline-xs" label="Add region" @click="addRegionForRoom(room)" />
+        <AppButton v-else variant="ghost" size="inline-xs" label="Add region" @click="addRegionForSpace(space)" />
       </div>
     </div>
   </div>
 
-  <!-- Untitled shapes — traced but not (yet) bound to a room. -->
+  <!-- Untitled shapes — traced but not (yet) bound to a space. -->
   <div class="flex flex-col gap-1.5">
     <div class="flex items-center justify-between">
       <span class="text-label-lg font-semibold text-muted-foreground">Untitled shapes</span>
@@ -79,10 +80,10 @@
         />
         <EntityCombobox
           :model-value="''"
-          :options="unclaimedRooms"
-          placeholder="Bind to room…"
+          :options="unclaimedSpaces"
+          placeholder="Bind to space…"
           class="w-40 shrink-0"
-          @update:model-value="onBindRoom(region, $event)"
+          @update:model-value="onBindSpace(region, $event)"
         />
         <AppButton
           variant="ghost"
@@ -134,14 +135,16 @@ import {
 } from "@/composables/locations/useLocationMapRegions";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import type { Location } from "@/types/location.types";
-import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
 
-const { locationId, rooms, regions, activeRegionId, canTrace } = defineProps<{
+const { locationId, spaces, regions, activeRegionId, canTrace } = defineProps<{
   /** The site these regions belong to — `createRegion` needs it as
    *  `site_location_id`. */
   locationId: string;
-  rooms: Location[];
+  /** Every child that can carry a shape on this map: a room, or a nested site
+   *  (#818). The caller derives it, because deciding what counts is a tier
+   *  question and this component only needs an id to bind and a name to show. */
+  spaces: BindableSpace[];
   regions: LocationMapRegion[];
   activeRegionId: string | null;
   /** Whether the map has a grid to trace onto at all (`grid_calibration` is
@@ -155,16 +158,16 @@ const emit = defineEmits<{ "update:activeRegionId": [id: string | null] }>();
 const { confirm } = useConfirm();
 const { error: toastError, fromError } = useToast();
 
-const boundRegionByRoom = computed(() => {
+const boundRegionBySpace = computed(() => {
   const map = new Map<string, LocationMapRegion>();
-  for (const r of regions) if (r.room_location_id) map.set(r.room_location_id, r);
+  for (const r of regions) if (r.space_location_id) map.set(r.space_location_id, r);
   return map;
 });
-const unboundRegions = computed(() => regions.filter((r) => !r.room_location_id));
-// A room already claimed by a bound region can't take a second one — the
+const unboundRegions = computed(() => regions.filter((r) => !r.space_location_id));
+// A space already claimed by a bound region can't take a second one — the
 // partial unique index would reject it — so it's left out of the picker
 // entirely rather than surfacing that as a toast after the fact.
-const unclaimedRooms = computed(() => rooms.filter((r) => !boundRegionByRoom.value.has(r.id)));
+const unclaimedSpaces = computed(() => spaces.filter((s) => !boundRegionBySpace.value.has(s.id)));
 
 function toggleActive(id: string): void {
   emit("update:activeRegionId", activeRegionId === id ? null : id);
@@ -174,9 +177,9 @@ const createRegion = useCreateLocationMapRegion();
 const updateRegion = useUpdateLocationMapRegion();
 const deleteRegion = useDeleteLocationMapRegion();
 
-async function addRegionForRoom(room: Location): Promise<void> {
+async function addRegionForSpace(space: BindableSpace): Promise<void> {
   try {
-    const created = await createRegion.mutateAsync({ site_location_id: locationId, room_location_id: room.id });
+    const created = await createRegion.mutateAsync({ site_location_id: locationId, space_location_id: space.id });
     emit("update:activeRegionId", created.id);
   } catch (e) {
     toastError(fromError(e));
@@ -192,10 +195,10 @@ async function addUnboundRegion(): Promise<void> {
   }
 }
 
-async function onBindRoom(region: LocationMapRegion, roomId: string): Promise<void> {
-  if (!roomId) return;
+async function onBindSpace(region: LocationMapRegion, spaceId: string): Promise<void> {
+  if (!spaceId) return;
   try {
-    await updateRegion.mutateAsync({ id: region.id, update: { room_location_id: roomId } });
+    await updateRegion.mutateAsync({ id: region.id, update: { space_location_id: spaceId } });
   } catch (e) {
     toastError(fromError(e));
   }
@@ -203,15 +206,15 @@ async function onBindRoom(region: LocationMapRegion, roomId: string): Promise<vo
 
 async function unbind(region: LocationMapRegion): Promise<void> {
   try {
-    await updateRegion.mutateAsync({ id: region.id, update: { room_location_id: null } });
+    await updateRegion.mutateAsync({ id: region.id, update: { space_location_id: null } });
   } catch (e) {
     toastError(fromError(e));
   }
 }
 
 async function removeRegion(region: LocationMapRegion): Promise<void> {
-  const label = region.room_location_id
-    ? (rooms.find((r) => r.id === region.room_location_id)?.name ?? "this room's shape")
+  const label = region.space_location_id
+    ? (spaces.find((sp) => sp.id === region.space_location_id)?.name ?? "this space's shape")
     : (region.label || "this shape");
   const ok = await confirm(`Delete "${label}"? This cannot be undone.`, { danger: true });
   if (!ok) return;

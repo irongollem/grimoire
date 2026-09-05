@@ -124,13 +124,13 @@ watch(
  *  than amber, so it doesn't read as "look here"), untraced nearly invisible. */
 function regionFillColor(region: LocationMapRegion): string {
   if (mode === "run") {
-    if (region.room_location_id === partyRoomId) return "rgba(96, 165, 250, 0.55)";
-    if (!region.room_location_id) return "rgba(255, 255, 255, 0.04)";
-    const reachable = !reachableRoomIds || reachableRoomIds.has(region.room_location_id);
+    if (region.space_location_id === partyRoomId) return "rgba(96, 165, 250, 0.55)";
+    if (!region.space_location_id) return "rgba(255, 255, 255, 0.04)";
+    const reachable = !reachableRoomIds || reachableRoomIds.has(region.space_location_id);
     return reachable ? "rgba(74, 222, 128, 0.28)" : "rgba(120, 113, 108, 0.35)";
   }
   const isActive = region.id === activeRegionId.value;
-  const bound = !!region.room_location_id;
+  const bound = !!region.space_location_id;
   return isActive ? "rgba(96, 165, 250, 0.45)" : bound ? "rgba(74, 222, 128, 0.28)" : "rgba(251, 191, 36, 0.28)";
 }
 
@@ -179,7 +179,7 @@ function renderOverlay(): void {
         : pending && pending.regionId === region.id
           ? pending.cells
           : region.cells;
-    const isHighlighted = mode === "run" ? region.room_location_id === partyRoomId : region.id === activeRegionId.value;
+    const isHighlighted = mode === "run" ? region.space_location_id === partyRoomId : region.id === activeRegionId.value;
     ctx.fillStyle = regionFillColor(region);
     for (const key of cells) {
       const rect = cellRectInImageFractions(key, cal, w, h);
@@ -311,21 +311,21 @@ function handleClick(e: PointerEvent): void {
   const found = regions.find((r) => r.cells.includes(key));
   if (!found) return;
 
-  if (!found.room_location_id) {
+  if (!found.space_location_id) {
     if (mode === "browse") activeRegionId.value = found.id;
     return;
   }
 
   if (mode === "run") {
-    if (!reachableRoomIds || reachableRoomIds.has(found.room_location_id)) {
-      emit("move-party", found.room_location_id);
+    if (!reachableRoomIds || reachableRoomIds.has(found.space_location_id)) {
+      emit("move-party", found.space_location_id);
     } else {
-      router.push(`/locations/${found.room_location_id}`);
+      router.push(`/locations/${found.space_location_id}`);
     }
     return;
   }
 
-  router.push(`/locations/${found.room_location_id}`);
+  router.push(`/locations/${found.space_location_id}`);
 }
 
 onUnmounted(() => {

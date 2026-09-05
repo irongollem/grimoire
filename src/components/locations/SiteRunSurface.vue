@@ -29,7 +29,7 @@
           :location-id="location.id"
           show-regions
           :regions="regions"
-          :rooms="rooms"
+          :spaces="siteSpaces"
           :calibration="location.grid_calibration"
           run-mode
           :party-room-id="currentRoomId"
@@ -134,6 +134,7 @@ import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import { IconClose, IconLocation, IconLock, IconLoot, IconShieldCheck } from "@/lib/icons";
 import { useLocations } from "@/composables/locations/useLocations";
+import { bindableSpaces } from "@/lib/locations/tiers";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
@@ -162,6 +163,9 @@ const rooms = computed<Location[]>(() =>
   (children.value ?? []).filter((l) => l.location_type === "room").sort(compareSiblings),
 );
 const roomIds = computed(() => rooms.value.map((r) => r.id));
+// What a traced shape on this map may be bound to: a room, or a nested site
+// such as a courtyard inside this dungeon (#818).
+const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
 
 // Pins are for this site's non-room children (another nested site, say) —
 // rooms are placed by a region, never a pin (#807).

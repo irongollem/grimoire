@@ -147,7 +147,7 @@
           :location-id="location.id"
           :show-regions="isSite"
           :regions="siteRegions"
-          :rooms="siteRooms"
+          :spaces="siteSpaces"
           :calibration="location.grid_calibration"
           v-model:active-region-id="activeRegionId"
           @pin-click="descendTo"
@@ -236,7 +236,7 @@ import { isLocationOutOfEra } from "@/lib/locations/era";
 import { planAscent, planDescent } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 import { visibleTags } from "@/lib/locations/tags";
-import { groupByTier, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
+import { bindableSpaces, groupByTier, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
 import type { LocationTier } from "@/lib/locations/tiers";
 import { ancestorPath, childrenOf, descendantsOf } from "@/lib/locations/tree";
 import type { AtlasIndex, AtlasRow } from "@/lib/locations/tree";
@@ -352,7 +352,8 @@ const activeRegionId = ref<string | null>(null);
 const isSite = computed(() => !!location && isSiteType(location.location_type));
 const siteRegionsQuery = useLocationMapRegions(computed(() => (isSite.value ? location!.id : "")));
 const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
-const siteRooms = computed(() => children.value.filter((c) => c.location_type === "room"));
+// See LocationSheet: a room, or a nested site that occupies part of this map.
+const siteSpaces = computed(() => bindableSpaces(children.value));
 
 // An active trace belongs to the place it was started on; carrying it into
 // the next selection would reopen a stale "Tracing X" banner on an unrelated

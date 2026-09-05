@@ -185,3 +185,24 @@ export function occupiedTiers(locations: readonly Location[]): Set<LocationTier>
   }
   return present;
 }
+
+/**
+ * The children of a site that can carry a traced region on its map (#818).
+ *
+ * A room, or a nested site — a `grounds` courtyard inside a dungeon occupies an
+ * area of the dungeon's floor plan exactly as a room does, and tracing its
+ * footprint to click through into it is the same descent a pin already gives,
+ * drawn as a polygon instead of a point.
+ *
+ * Direct children only: the database guard requires the bound location to be a
+ * child of the site the region is drawn on, so offering a grandchild here would
+ * build a picker whose choices are rejected on save.
+ *
+ * This mirrors the type half of `guard_location_map_region_space`. The database
+ * is the authority; this exists so the UI never offers what it will refuse.
+ */
+export function bindableSpaces<T extends { location_type: LocationType }>(
+  children: readonly T[],
+): T[] {
+  return children.filter((c) => c.location_type === "room" || isSiteType(c.location_type));
+}

@@ -98,7 +98,7 @@
     </template>
 
     <!-- Site regions: calibration gate + the room-shapes list. Gated on
-         presence (rooms or regions actually exist), not on tier — see
+         presence (spaces or regions actually exist), not on tier — see
          `hasRegionContent`. -->
     <template v-if="showRegions && hasRegionContent">
       <div
@@ -106,7 +106,7 @@
         class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2"
       >
         <span class="text-caption text-muted-foreground">
-          A grid has to be matched to this map before rooms can be traced on it.
+          A grid has to be matched to this map before spaces can be traced on it.
         </span>
         <AppButton variant="primary" size="sm" label="Calibrate grid" @click="calibrationOpen = true" />
       </div>
@@ -116,7 +116,7 @@
       <SiteMapRegionList
         v-if="!runMode"
         :location-id="locationId!"
-        :rooms="rooms"
+        :spaces="spaces"
         :regions="regions"
         :active-region-id="activeRegionId"
         :can-trace="!!calibration"
@@ -149,8 +149,8 @@ import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
 import { useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
-import type { GridCalibration, Location, LocationType, MapPin as MapPinType } from "@/types/location.types";
-import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+import type { GridCalibration, LocationType, MapPin as MapPinType } from "@/types/location.types";
+import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
 
 const pins = defineModel<MapPinType[]>("pins", { required: true });
 /** Which region is selected for tracing (browse mode) — lifted so the
@@ -169,7 +169,7 @@ const {
   locationId = null,
   showRegions = false,
   regions = [],
-  rooms = [],
+  spaces = [],
   calibration = null,
   runMode = false,
   partyRoomId = null,
@@ -208,9 +208,11 @@ const {
    *  calibration gate, and the room-shapes list alongside pins. */
   showRegions?: boolean;
   regions?: LocationMapRegion[];
-  /** This site's `room`-typed direct children — for the region list and the
-   *  tracing banner's room-name lookup. Only meaningful when `showRegions`. */
-  rooms?: Location[];
+  /** The direct children that can carry a shape on this map — a room, or a
+   *  nested site (#818). Callers build it with `bindableSpaces()`. Used by the
+   *  region list and the tracing banner's name lookup. Only meaningful when
+   *  `showRegions`. */
+  spaces?: BindableSpace[];
   calibration?: GridCalibration | null;
   /** Regions interaction: browse (trace/select/navigate, default) or run
    *  (click-to-move-party, `SiteRunSurface`). Ignored when `!showRegions`. */
@@ -275,13 +277,13 @@ const placingChildName = computed(
 // panel (`SiteRoomsPanel`, unconditional on site tier) — so this apparatus
 // stays out of the way until the DM has actually created one, and reveals
 // itself the moment they do.
-const hasRegionContent = computed(() => rooms.length > 0 || regions.length > 0);
+const hasRegionContent = computed(() => spaces.length > 0 || regions.length > 0);
 
 const activeRegion = computed(() => regions.find((r) => r.id === activeRegionId.value) ?? null);
 const activeRegionLabel = computed(() => {
   const region = activeRegion.value;
   if (!region) return "";
-  if (region.room_location_id) return rooms.find((r) => r.id === region.room_location_id)?.name ?? "this room";
+  if (region.space_location_id) return spaces.find((sp) => sp.id === region.space_location_id)?.name ?? "this space";
   return region.label || "this shape";
 });
 

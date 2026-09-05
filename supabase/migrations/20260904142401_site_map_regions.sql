@@ -5,12 +5,21 @@
 --   image      the picture of this place: `locations.map_url` — a Cartographer
 --              bake, an uploaded scan, a photo of a hand-drawn page. There is
 --              no second image column; see the note below.
---   regions    cell-sets bound to `room` locations — click a room, get that room
+--   regions    cell-sets bound to an addressable space — a `room`, or a
+--              nested site with its own floor plan — click one, get that
+--              space
 --
 -- AMENDED by #805, before any of this reached production. This header
 -- originally described a third layer between those two — the `dungeon_maps`
 -- construct behind `locations.source_map_id`, rendered live over the picture —
 -- and called it "the point". It was not, and it has been deleted.
+--
+-- AMENDED AGAIN by #818, also before production. A region could only bind to
+-- a `room` child, so a nested site occupying its own footprint on the
+-- parent's map — a courtyard inside a dungeon, once #817 gave that shape a
+-- type (`grounds`) — could be pinned but never traced. The column is
+-- `space_location_id`, not `room_location_id`, and the guard accepts a
+-- `room` or anything `private.location_can_hold_rooms` admits.
 --
 -- `map_url` and `source_map_id` are written together by Save to Atlas, so the
 -- bake already *is* the render: drawing the tiles over their own bake shows
@@ -41,9 +50,10 @@
 
 -- ── Regions ─────────────────────────────────────────────────────────────────
 --
--- The binding is relational; the geometry is not. A region points at a room
--- with a real foreign key and a real cascade, while the cells it covers are
--- genuinely shaped data and live in jsonb. That split is the same one
+-- The binding is relational; the geometry is not. A region points at a space
+-- -- a room, or a nested site that itself has a floor plan -- with a real
+-- foreign key and a real cascade, while the cells it covers are genuinely
+-- shaped data and live in jsonb. That split is the same one
 -- location_placements makes, and it is deliberately NOT the shape of
 -- `quest_beat_attachments.metadata.room_ids` -- an unenforceable id list inside
 -- a blob, which this epic is deleting.
@@ -51,13 +61,16 @@ create table public.location_map_regions (
   id               uuid primary key default gen_random_uuid(),
   user_id          uuid not null references auth.users(id) on delete cascade,
 
-  -- The site this region is drawn on. Required even when a room is bound,
+  -- The site this region is drawn on. Required even when a space is bound,
   -- because a region may exist *before* it is bound to anything: you trace the
-  -- shapes off the page first, then say which room each one is.
+  -- shapes off the page first, then say which space each one is.
   site_location_id uuid not null references public.locations(id) on delete cascade,
 
   -- Null while unbound. The canvas shows it as "Region 5" until it is named.
-  room_location_id uuid references public.locations(id) on delete cascade,
+  -- Despite the name, not only a room -- see guard_location_map_region_space
+  -- below: any direct child of the site that is itself an addressable space
+  -- (a room, or a nested site with its own floor plan) may bind here.
+  space_location_id uuid references public.locations(id) on delete cascade,
 
   -- Cell keys from the Cartographer's own coordinate space (`cellKey` in
   -- types/dungeonMap.types.ts). An array of strings; shaped data, not a
@@ -75,27 +88,29 @@ create table public.location_map_regions (
 );
 
 comment on table public.location_map_regions is
-  'A shape on a site''s map bound to one of its rooms. Binding is a real FK; the geometry is jsonb because a shape is shaped data. Unbound regions are allowed -- you trace first and name second.';
+  'A shape on a site''s map bound to one of its addressable spaces -- a room, or a nested site with its own floor plan. Binding is a real FK; the geometry is jsonb because a shape is shaped data. Unbound regions are allowed -- you trace first and name second.';
 
 create index location_map_regions_site_idx on public.location_map_regions (site_location_id);
-create index location_map_regions_room_idx on public.location_map_regions (room_location_id)
-  where room_location_id is not null;
+create index location_map_regions_space_idx on public.location_map_regions (space_location_id)
+  where space_location_id is not null;
 
--- One region per room. Two shapes claiming the same room is always a mistake;
--- two unbound shapes are the normal state while tracing, so the index is
--- partial.
-create unique index location_map_regions_room_uniq
-  on public.location_map_regions (room_location_id)
-  where room_location_id is not null;
+-- One region per space. Two shapes claiming the same space is always a
+-- mistake; two unbound shapes are the normal state while tracing, so the
+-- index is partial.
+create unique index location_map_regions_space_uniq
+  on public.location_map_regions (space_location_id)
+  where space_location_id is not null;
 
 create trigger location_map_regions_updated_at
   before update on public.location_map_regions
   for each row execute procedure update_updated_at();
 
--- A bound region's room must actually be a room of that site. Without this the
--- binding is an id pair nothing checks, which is exactly the hole
--- metadata.room_ids left by validating only that an id existed.
-create function public.guard_location_map_region_room()
+-- A bound region's space must actually be a direct child of that site, and
+-- itself something addressable -- a room, or a nested site with its own
+-- floor plan (private.location_can_hold_rooms). Without this the binding is
+-- an id pair nothing checks, which is exactly the hole metadata.room_ids left
+-- by validating only that an id existed.
+create function public.guard_location_map_region_space()
 returns trigger
 language plpgsql
 set search_path = public, private
@@ -104,19 +119,19 @@ declare
   v_parent uuid;
   v_type   public.location_type_enum;
 begin
-  if new.room_location_id is null then
+  if new.space_location_id is null then
     return new;
   end if;
 
   select parent_id, location_type into v_parent, v_type
-    from public.locations where id = new.room_location_id;
+    from public.locations where id = new.space_location_id;
 
-  if v_type is distinct from 'room' then
-    raise exception 'A map region can only be bound to a room' using errcode = '23514';
+  if v_type is distinct from 'room' and not private.location_can_hold_rooms(v_type) then
+    raise exception 'A map region can only be bound to a room or a nested site' using errcode = '23514';
   end if;
 
   if v_parent is distinct from new.site_location_id then
-    raise exception 'A map region can only be bound to a room of the site it is drawn on'
+    raise exception 'A map region can only be bound to a space of the site it is drawn on'
       using errcode = '23514';
   end if;
 
@@ -124,12 +139,12 @@ begin
 end;
 $$;
 
-revoke execute on function public.guard_location_map_region_room() from public, anon, authenticated;
+revoke execute on function public.guard_location_map_region_space() from public, anon, authenticated;
 
-create trigger location_map_regions_room_guard
-  before insert or update of room_location_id, site_location_id
+create trigger location_map_regions_space_guard
+  before insert or update of space_location_id, site_location_id
   on public.location_map_regions
-  for each row execute procedure public.guard_location_map_region_room();
+  for each row execute procedure public.guard_location_map_region_space();
 
 alter table public.location_map_regions enable row level security;
 

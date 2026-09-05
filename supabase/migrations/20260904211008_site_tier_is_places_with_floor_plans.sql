@@ -166,9 +166,12 @@ $$;
 -- table is empty in production, so the check is free today and a backfill
 -- tomorrow.
 --
--- Rebuilt from the live definition; the two existing checks are unchanged.
+-- Rebuilt from the live definition; the site check below is new, the parent
+-- check is unchanged, and the type check is widened by #818 (edited in
+-- place, same reasoning as the column rename it travels with -- see
+-- 20260904142401) to admit a nested site alongside a room.
 
-create or replace function public.guard_location_map_region_room()
+create or replace function public.guard_location_map_region_space()
 returns trigger
 language plpgsql
 set search_path = 'public', 'private'
@@ -186,19 +189,24 @@ begin
       using errcode = '23514';
   end if;
 
-  if new.room_location_id is null then
+  if new.space_location_id is null then
     return new;
   end if;
 
   select parent_id, location_type into v_parent, v_type
-    from public.locations where id = new.room_location_id;
+    from public.locations where id = new.space_location_id;
 
-  if v_type is distinct from 'room' then
-    raise exception 'A map region can only be bound to a room' using errcode = '23514';
+  -- #818: the bound child must itself be an addressable space -- a room, or
+  -- a nested site with its own floor plan (a courtyard inside a dungeon, a
+  -- shop's back room inside an inn). private.location_can_hold_rooms is the
+  -- single site-tier predicate (see 20260904014714); do not re-list types
+  -- here.
+  if v_type is distinct from 'room' and not private.location_can_hold_rooms(v_type) then
+    raise exception 'A map region can only be bound to a room or a nested site' using errcode = '23514';
   end if;
 
   if v_parent is distinct from new.site_location_id then
-    raise exception 'A map region can only be bound to a room of the site it is drawn on'
+    raise exception 'A map region can only be bound to a space of the site it is drawn on'
       using errcode = '23514';
   end if;
 
@@ -209,4 +217,4 @@ $$;
 -- Trigger functions are never reached through PostgREST, and the trigger system
 -- bypasses the EXECUTE check, so keep both off the RPC surface.
 revoke execute on function public.guard_location_room_parent() from public, anon, authenticated;
-revoke execute on function public.guard_location_map_region_room() from public, anon, authenticated;
+revoke execute on function public.guard_location_map_region_space() from public, anon, authenticated;
