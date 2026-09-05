@@ -64,7 +64,7 @@
 
       <div v-else class="grid gap-4 sm:grid-cols-2">
         <div
-          v-for="recipe in disciplineRecipes"
+          v-for="recipe in visibleRecipes"
           :key="recipe.id"
           class="rounded-lg border border-border bg-card flex flex-col overflow-hidden"
         >
@@ -161,6 +161,8 @@
           </div>
         </div>
       </div>
+
+      <div ref="sentinelRef" />
     </template>
 
     <!-- Attempt dialog -->
@@ -194,7 +196,9 @@ import AppButton from "@/components/common/AppButton.vue";
 import CraftAttemptDialog from "@/components/crafting/CraftAttemptDialog.vue";
 import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines";
 import type { DisciplineConfig } from "@/lib/crafting-disciplines";
+import { canonicalToolName, hasToolProficiency } from "@/rules/toolProficiency";
 import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs, useCraftableOutputItems } from "@/composables/crafting/useCrafting";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { useParty } from "@/composables/party/useParty";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
@@ -246,18 +250,23 @@ function abilityModFor(discipline: DisciplineConfig): number {
   return Math.floor((score - 10) / 2);
 }
 
-// Check tool proficiency on character — any accepted tool counts
+// Check tool proficiency on character — any accepted tool counts. Both sides
+// are canonicalised inside hasToolProficiency, so a dirty stored value like
+// "Herbalist kit" still satisfies a discipline that requires "Herbalism Kit".
 function hasProficiency(tools: string[]): boolean {
-  return tools.some((t) => member.value?.tool_proficiencies?.includes(t) ?? false);
+  return hasToolProficiency(member.value?.tool_proficiencies, tools);
 }
 
-// Check if player has any accepted tool in inventory
+// Check if player has any accepted tool in inventory. The discipline's tool
+// name is canonicalised before the substring match so a differently-cased
+// inventory row (e.g. "Forgery kit") still matches "Forgery Kit".
 function hasTools(tools: string[]): boolean {
-  return tools.some((tool) =>
-    myInventory.value.some(
-      (inv) => inv.name.toLowerCase().includes(tool.toLowerCase()) && !inv.is_ruined,
-    ),
-  );
+  return tools.some((tool) => {
+    const canonical = canonicalToolName(tool) ?? tool;
+    return myInventory.value.some(
+      (inv) => inv.name.toLowerCase().includes(canonical.toLowerCase()) && !inv.is_ruined,
+    );
+  });
 }
 
 const disciplineRecipes = computed(() =>
@@ -265,6 +274,16 @@ const disciplineRecipes = computed(() =>
     ? (recipes.value ?? [])
     : (recipes.value ?? []).filter((r) => r.discipline === ui.playerCraftingActiveTab),
 );
+
+// Page the grid in on scroll rather than mounting every recipe at once.
+// A recipe card is ~5ms of mount work (47 nodes, an AppButton and three glyph
+// components each), so the 184-recipe "All" tab rendered as one unbroken 977ms
+// task in a production build on a fast desktop. A low-end Chromebook is several
+// times slower than that, and during a single long task the browser answers no
+// input at all — not even a reload — which is how the tab read as hung before
+// Chrome killed the renderer. The page size is smaller than the 48 the other
+// list views use because this card is much heavier than a grid tile.
+const { visibleItems: visibleRecipes, sentinelRef } = useInfiniteScroll(disciplineRecipes, 24);
 
 const allRecipeIds = computed(() => (recipes.value ?? []).map((r) => r.id));
 const ingredientsMap = useAllRecipeIngredients(allRecipeIds);

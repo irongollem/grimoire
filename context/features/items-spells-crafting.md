@@ -299,7 +299,7 @@ Mutation errors from these RPCs surface via toasts (`useCharacterSpells` mutatio
 
 The Workshop is where the DM creates crafting recipes and controls which players can see them.
 
-**List view** — tabbed by crafting discipline. All recipes are shown in an "All" tab; individual discipline tabs filter the list. Mobile-responsive cards truncate the name and collapse discipline/proficiency/tools badges to icons only.
+**List view** — tabbed by crafting discipline. All recipes are shown in an "All" tab; individual discipline tabs filter the list. Mobile-responsive cards truncate the name and collapse discipline/proficiency/tools badges to icons only. The list is paged in on scroll via `useInfiniteScroll` (48 at a time) with `useScrollRestore` keyed `crafting-recipes`, so returning from `/crafting/:id` lands where you left off.
 
 **Crafting disciplines** — defined in `src/lib/crafting-disciplines.ts`. Each discipline has:
 
@@ -308,6 +308,10 @@ The Workshop is where the DM creates crafting recipes and controls which players
 - The relevant tool(s) for proficiency checks
 - A workspace bonus (standard modifier for having a proper workspace)
 - A workspace label shown in the attempt dialog
+
+Not every discipline maps to an artisan's tool. Herbalism, Poisoncraft and Forgery key off kits, which is deliberate: the point of a discipline is that *some* proficiency unlocks it, and a Charlatan's Forgery Kit is as real a qualification as a smith's hammer. Forgery currently reuses `IconCraftScribing` because `CRAFTING_GLYPHS` is generated from a 14-discipline art sheet and no forgery glyph exists yet — replace it by adding art and regenerating, never by hand-editing `craftingGlyphs.generated.ts`.
+
+**Starter recipe data invariants** — `src/data/starterRecipes.test.ts` asserts three things, each because it shipped broken and nothing failed: no duplicate recipe names (the whole `painting` block was once duplicated, so every DM who imported got doubled cards); every output names an item that actually exists in `gear.ts`, `provisions.ts` or `ammunition.ts` (`buildStarterRecipeChildRows` silently *drops* an output it cannot resolve, so the recipe imports fine and then crafts into nothing); and every `discipline` is a real id. Note the third list — ammunition was missing from the importer's lookup, which is why the two arrow/bolt recipes produced nothing.
 
 **Reveal control** — `AudienceRevealControl` on each recipe card controls which player characters can see the recipe in their portal. This can be changed directly from the list without entering the editor, and `RecipeSheet` and `RecipeEditor` carry the same control (#741).
 
@@ -335,6 +339,8 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 **Discipline tabs** — only disciplines with at least one accessible recipe are shown. Tabs where the character lacks the required tool proficiency show a "NO PROF" badge and use dimmer styling.
 
+**Paging** — the grid mounts 24 cards and pages the rest in on scroll (`useInfiniteScroll`); switching tabs resets to the first page. The page size is deliberately smaller than the 48 used elsewhere: a recipe card is ~5ms of mount work, so a campaign with 184 shared recipes rendered as one unbroken ~980ms task in a production build on a fast desktop. On a low-end Chromebook that was several seconds during which the browser answers no input at all — not even a reload — and Chrome killed the renderer with an out-of-memory error, which is what the freeze was originally reported as. Do not render the full list "because it is only a few hundred": the cost is linear and there is no cap on recipes per campaign.
+
 **Recipe cards** — each card shows:
 
 - Name and discipline badge (when viewing "All")
@@ -348,6 +354,8 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 **Discipline header** (when a specific discipline is active) — shows the discipline description, the ability score used (e.g. "Uses INT (+2) + Proficiency (+3)") or a note that no proficiency bonus applies.
 
 **Ingredient matching** — specific-item ingredients matched by `item_id`; tag-based ingredients matched by checking ALL required tags against the vault item's tag array. Ruined items are excluded from counts. Party stash items are included.
+
+**Tool-proficiency matching goes through `src/rules/toolProficiency.ts` — never compare the strings directly.** `party_members.tool_proficiencies` is free text fed from three places (the sheet's picker, Open5e background prose, hand-written homebrew), and the exact `includes()` this replaced meant a background granted proficiencies that toggled nothing: production held four spellings of the herbalism kit (`"herbalism kit"`, `"Herbalism kit"`, `"Herbalism Kit"`, `"Herbalist kit"`), lowercase `"Alchemist's supplies"`, the fragment `"or Disguise Kit."`, and `"No additional tool proficiencies"` stored as though it were a proficiency. `canonicalToolName` resolves those against `TOOL_PROFICIENCY_GROUPS`, returns `null` for prose that names no tool, and passes homebrew and armour/weapon entries through untouched. Because it canonicalises on *read* as well as write, existing dirty rows started matching without a backfill.
 
 **CraftAttemptDialog** — modal that opens when "Attempt Craft" is clicked:
 

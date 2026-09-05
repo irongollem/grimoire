@@ -4,6 +4,7 @@ import type { AbilityScoreKey, BackgroundInsert } from "@/types/background.types
 import { ABILITY_SCORE_KEYS } from "@/types/background.types";
 import type { RulesetKey } from "@/types/ruleset.types";
 import { parseOriginFeatText } from "@/rules/backgroundAsi";
+import { canonicalToolName } from "@/rules/toolProficiency";
 
 interface Open5eV2Document extends Open5eDocumentRef {
   publication_date?: string | null;
@@ -40,6 +41,25 @@ function splitProficiencies(raw: string | null | undefined): string[] {
     return [trimmed.replace(/\s*\.\s*$/, "")];
   }
   return trimmed.split(/[,;]|\band\b/i).map(value => value.trim()).filter(Boolean);
+}
+
+/**
+ * This benefit text is prose, not data, and it is where the dirty values in
+ * `party_members.tool_proficiencies` came from: four spellings of the
+ * herbalism kit ("herbalism kit", "Herbalism kit", "Herbalist kit"), lowercase
+ * "Alchemist's supplies", the fragment "or Disguise Kit." left by splitting on
+ * commas, and "No additional tool proficiencies" — prose that names no tool at
+ * all — all stored as if they were proficiencies.
+ *
+ * Canonicalising here stops new imports seeding that mess, and dropping the
+ * `null`s keeps unusable literals out of the column entirely. Existing rows
+ * are handled at read time by `hasToolProficiency`, so nothing needs a
+ * backfill.
+ */
+function splitToolProficiencies(raw: string | null | undefined): string[] {
+  return splitProficiencies(raw)
+    .map((entry) => canonicalToolName(entry))
+    .filter((entry): entry is string => entry !== null);
 }
 
 function benefit(background: Open5eV2Background, type: string): Open5eBenefit | undefined {
@@ -81,7 +101,7 @@ function mapBackground(
     name: background.name,
     description: background.desc?.trim() || null,
     skill_proficiencies: splitProficiencies(benefit(background, "skill_proficiency")?.desc),
-    tool_proficiencies: splitProficiencies(benefit(background, "tool_proficiency")?.desc),
+    tool_proficiencies: splitToolProficiencies(benefit(background, "tool_proficiency")?.desc),
     languages: splitProficiencies(benefit(background, "language")?.desc),
     equipment: benefit(background, "equipment")?.desc?.trim() || null,
     feature_name: feature?.name?.trim() || null,

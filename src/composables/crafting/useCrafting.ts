@@ -629,6 +629,12 @@ export function useImportStarterRecipes() {
       const { STARTER_RECIPES } = await import("@/data/starterRecipes");
       const { GEAR } = await import("@/data/gear");
       const { PROVISIONS } = await import("@/data/provisions");
+      // Ammunition belongs here too: "Whittle Arrow Shafts" and "Carve Crossbow
+      // Bolts" output "Arrows (20)" / "Crossbow Bolts (20)", which live in
+      // ammunition.ts and in neither of the two lists above. Without it those
+      // names resolve to nothing, `buildStarterRecipeChildRows` drops the output
+      // row, and the recipe imports cleanly but crafts into thin air.
+      const { AMMUNITION } = await import("@/data/ammunition");
       const user = getCurrentUser();
       const campaignId = campaign.activeCampaignId!;
 
@@ -643,7 +649,7 @@ export function useImportStarterRecipes() {
 
       const missing = outputNames.filter((n) => !existingByName.has(n));
       if (missing.length > 0) {
-        const toInsert = [...GEAR, ...PROVISIONS]
+        const toInsert = [...GEAR, ...PROVISIONS, ...AMMUNITION]
           .filter((g) => missing.includes(g.name))
           .map((g) => ({ curse_description: null, ...g, user_id: user!.id }));
         if (toInsert.length > 0) {

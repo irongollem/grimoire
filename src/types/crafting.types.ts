@@ -9,6 +9,7 @@ export type CraftingDiscipline =
   | "tinkering"
   | "cooking"
   | "scribing"
+  | "forgery"
   | "brewing"
   | "weaving"
   | "masonry"
