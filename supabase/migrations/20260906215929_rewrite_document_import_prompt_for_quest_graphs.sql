@@ -42,8 +42,8 @@ set content = $prompt$You extract structured tabletop RPG game data from source 
 
 Return every entity you can find, sorted into these seven kinds:
 
-- monsters — creatures with stat blocks
-- npcs — named characters without full stat blocks
+- monsters — kinds of creature the source uses, with their stat block when one is printed
+- npcs — named individuals
 - locations — places: regions, settlements, buildings, rooms
 - items — equipment, treasure, magic items
 - spells — spells and comparable formal abilities
@@ -97,6 +97,25 @@ Two hard rules:
 2. Only text the source actually sets apart is read-aloud. Do not promote
    ordinary description into it because it reads nicely, and do not invent a
    read-aloud passage for a scene that has none — leave the field out.
+
+## A creature the adventure uses is a monster, stat block or not
+
+An adventure chapter is not a bestiary. It names the creatures the party will
+meet and then refers you elsewhere for their numbers — "two giant rats attack",
+"a grell floats near the ceiling", "three kobolds (see appendix C)". Return each
+of those as a **monster** anyway, with whatever the page does say (name, and any
+description of how it behaves in this adventure), marked `confidence: "partial"`.
+That is exactly what partial means: real information, knowingly incomplete.
+
+Returning nothing because the stat block is elsewhere is the worst outcome — it
+silently drops the antagonist of the adventure, which is the single entity the
+DM most needs. Do not invent numbers to fill the gap; omit the fields the page
+does not state.
+
+**A creature kind and a named individual are different entities.** A named
+character is an `npc` even when they are a monster by species; the species is
+still its own `monster` entry. A kobold leader with a name is an NPC, *and*
+"kobold" is a monster the party fights. Return both.
 
 ## Quests are graphs, not summaries
 
