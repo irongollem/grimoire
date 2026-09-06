@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(18);
 
 -- Regression cover for the storage-path escape found reviewing #353 chunk 2 and
 -- fixed in 20260824214506.
@@ -146,6 +146,46 @@ select ok(
     where conrelid = 'public.document_imports'::regclass
       and conname = 'document_imports_page_count_ceiling_check') like '%page_count <= 50%',
   'the absolute page ceiling is enforced in the database'
+);
+
+-- ── The third source kind (#829) ──────────────────────────────────────────
+--
+-- A pasted import carries its source in `source_text` and has **no storage
+-- objects**, so `source_paths` is empty by construction. `paths_under_caller_prefix`
+-- returns false for an empty array — correctly, for the two upload kinds — and
+-- both policies gated on it unconditionally, so the paste feature shipped
+-- inert: a text row could not even be inserted.
+--
+-- These cases exist because nothing else could see it. RLS is data-layer:
+-- typecheck cannot reach it, the client tests mock the Supabase client, and the
+-- build never opens a database. This file is the only gate that can fail.
+
+select ok(
+  not private.paths_under_caller_prefix(array[]::text[]),
+  'an empty array is still denied by the predicate itself — the exemption belongs in the policy, not here'
+);
+
+select ok(
+  (select with_check from pg_policies
+    where tablename = 'document_imports' and policyname = 'document_imports_insert')
+    like '%cardinality(source_paths) = 0%',
+  'the insert policy exempts a pasted import, which has no paths to prefix'
+);
+
+select ok(
+  (select with_check from pg_policies
+    where tablename = 'document_imports' and policyname = 'document_imports_update')
+    like '%cardinality(source_paths) = 0%',
+  'and so does the update policy, or a DM could never save review progress'
+);
+
+-- The exemption names both halves rather than resting on the shape CHECK being
+-- evaluated first: a row claiming `text` while carrying paths gets no bypass.
+select ok(
+  (select with_check from pg_policies
+    where tablename = 'document_imports' and policyname = 'document_imports_insert')
+    like '%source_kind = ''text''%',
+  'the exemption is tied to the text kind, not to emptiness alone'
 );
 
 select * from finish();
