@@ -133,41 +133,35 @@ select ok(
 
 -- ── A region may not straddle two campaigns ────────────────────────────────
 --
--- Found by exploit during the #798 audit, not by design review. Nothing in the
--- schema ties a region's space to its site's campaign: the region guard checks
--- parent_id, the room guard checks the parent's type, and neither RLS policy
--- relates a child's campaign to its parent's. So a DM running two tables can
--- reparent a campaign-B room under a campaign-A site with two ordinary writes
--- and hand B's secrets to A's players.
+-- Found by exploit during the #798 audit. The projection was fixed first; #827
+-- then closed the write path, so the malformed row can no longer be created at
+-- all — which is why this now asserts the guard rather than building the row
+-- and checking it is filtered. The stronger property, asserted at the stronger
+-- place.
 
 reset role;
 
 insert into public.campaigns (id, user_id, name)
 values ('79800000-0000-4000-8000-000000000011', '79800000-0000-4000-8000-000000000001', 'The other table');
 
--- A room belonging to the OTHER campaign, parented under THIS campaign's site.
--- Both writes pass every existing trigger: the site can hold rooms, and the
--- region's space really is a child of the site.
+-- The room needs a legitimate home in the other campaign first: a room cannot
+-- exist without a parent that can hold it, so the exploit is a *reparent*, not
+-- an orphan insert.
+insert into public.locations (id, user_id, campaign_id, name, location_type)
+values ('79800000-0000-4000-8000-000000000054', '79800000-0000-4000-8000-000000000001', '79800000-0000-4000-8000-000000000011', 'Sunken Crypt', 'dungeon');
+
 insert into public.locations (id, user_id, campaign_id, name, location_type, parent_id)
-values ('79800000-0000-4000-8000-000000000053', '79800000-0000-4000-8000-000000000001', '79800000-0000-4000-8000-000000000011', 'The lich phylactery', 'room', '79800000-0000-4000-8000-000000000050');
+values ('79800000-0000-4000-8000-000000000053', '79800000-0000-4000-8000-000000000001', '79800000-0000-4000-8000-000000000011', 'The lich phylactery', 'room', '79800000-0000-4000-8000-000000000054');
 
-insert into public.location_map_regions (id, user_id, site_location_id, space_location_id, cells, label, sort_order)
-values ('79800000-0000-4000-8000-000000000062', '79800000-0000-4000-8000-000000000001', '79800000-0000-4000-8000-000000000050', '79800000-0000-4000-8000-000000000053', '["9,9"]'::jsonb, 'Phylactery', 3);
-
-insert into public.location_state_events (user_id, location_id, fact, value)
-values ('79800000-0000-4000-8000-000000000001', '79800000-0000-4000-8000-000000000053', 'explored', true);
+select throws_ok($$
+  update public.locations
+     set parent_id = '79800000-0000-4000-8000-000000000050'
+   where id = '79800000-0000-4000-8000-000000000053'
+$$, '23514', null,
+  'a room from another campaign cannot be parented under this campaign''s site');
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"79800000-0000-4000-8000-000000000002","role":"authenticated"}', true);
-
-select ok(
-  not exists (
-    select 1 from public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050')
-     where space_location_id = '79800000-0000-4000-8000-000000000053'
-  ),
-  'a room belonging to another campaign never reaches this campaign''s players, '
-  'however it came to be parented under their site'
-);
 
 -- ── Who may ask ─────────────────────────────────────────────────────────────
 
