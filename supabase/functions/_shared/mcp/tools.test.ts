@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyCampaignFilter, resolveImageColumn, validateFields } from "./tools.ts";
+import { applyCampaignFilter, callTool, resolveImageColumn, validateFields } from "./tools.ts";
 import { CREATABLE_TYPES, ENTITY_REGISTRY, ENTITY_TYPES } from "./registry.ts";
 
 const quest = ENTITY_REGISTRY.quest;
@@ -203,6 +203,85 @@ describe("applyCampaignFilter", () => {
       const def = ENTITY_REGISTRY[t];
       const [call] = applyCampaignFilter(spy(), def, cid).calls;
       expect(call.startsWith(def.campaignScope === "shared" ? "or:" : "eq:"), `${t} filtered with ${call}`).toBe(true);
+    }
+  });
+});
+
+describe("create/update — embed-on-write (#838)", () => {
+  const ROW_ID = "123e4567-e89b-12d3-a456-426614174000";
+
+  /** Minimal PostgREST + functions stand-in: records `functions.invoke` calls
+   *  and answers every write with one row. `embedError` makes the embedding
+   *  call fail, to prove a write still succeeds without it. */
+  function fakeCtx(embedError?: { message: string }) {
+    const invoked: { fn: string; body: unknown }[] = [];
+    const row = { id: ROW_ID, name: "Psi Crystal" };
+    const ctx = {
+      userId: "dm-1",
+      supabase: {
+        from: () => ({
+          insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: row, error: null }) }) }),
+          update: () => ({
+            eq: () => ({ select: () => ({ maybeSingle: () => Promise.resolve({ data: row, error: null }) }) }),
+          }),
+        }),
+        functions: {
+          invoke: (fn: string, opts: { body: unknown }) => {
+            invoked.push({ fn, body: opts.body });
+            return Promise.resolve({ data: null, error: embedError ?? null });
+          },
+        },
+      },
+    };
+    return { ctx: ctx as unknown as Parameters<typeof callTool>[0], invoked, row };
+  }
+
+  it("queues a created item for embedding", async () => {
+    const { ctx, invoked } = fakeCtx();
+    await callTool(ctx, "create", { type: "item", fields: { name: "Psi Crystal" } });
+    expect(invoked).toEqual([
+      { fn: "embed-content", body: { mode: "single", entity: "item", id: ROW_ID } },
+    ]);
+  });
+
+  it("routes monsters to their own edge function, which takes monster_id", async () => {
+    const { ctx, invoked } = fakeCtx();
+    await callTool(ctx, "create", { type: "monster", fields: { name: "Owlbear" } });
+    expect(invoked).toEqual([{ fn: "embed-monsters", body: { mode: "single", monster_id: ROW_ID } }]);
+  });
+
+  it("queues an updated row too — an edited item's vector must follow its text", async () => {
+    const { ctx, invoked } = fakeCtx();
+    await callTool(ctx, "update", { type: "item", id: ROW_ID, fields: { description: "It hums." } });
+    expect(invoked).toEqual([
+      { fn: "embed-content", body: { mode: "single", entity: "item", id: ROW_ID } },
+    ]);
+  });
+
+  it("makes no call for a type with no corpus", async () => {
+    const { ctx, invoked } = fakeCtx();
+    await callTool(ctx, "create", { type: "quest", fields: { title: "The Bell" } });
+    expect(invoked).toEqual([]);
+  });
+
+  it("still returns the written row when embedding fails", async () => {
+    const { ctx, row } = fakeCtx({ message: "embedding_provider_unavailable" });
+    await expect(callTool(ctx, "create", { type: "item", fields: { name: "Psi Crystal" } })).resolves.toEqual(row);
+  });
+
+  it("declares embedOnWrite for exactly the types that have a corpus", () => {
+    // Pinned rather than derived: the corpora live in embed-content's own
+    // registry, which this file cannot import. A seventh entity type gaining
+    // vectors should be a deliberate edit here, not a silent omission — the
+    // failure mode is invisible (rows write fine and are simply never found).
+    const embedded = ENTITY_TYPES.filter((t) => ENTITY_REGISTRY[t].embedOnWrite).sort();
+    expect(embedded).toEqual(["faction", "item", "location", "monster", "note", "npc"]);
+  });
+
+  it("gives every embeddable type a create block — an unwritable type cannot need the hook", () => {
+    for (const t of ENTITY_TYPES) {
+      if (!ENTITY_REGISTRY[t].embedOnWrite) continue;
+      expect(CREATABLE_TYPES, `${t} declares embedOnWrite but is read-only`).toContain(t);
     }
   });
 });

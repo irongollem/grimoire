@@ -589,6 +589,41 @@ async function list(ctx: ToolContext, args: Record<string, unknown>) {
   return { type: def.type, count: (data ?? []).length, items: (data ?? []).map((r) => toHit(def, r)) };
 }
 
+/**
+ * Queue a just-written row for semantic-search embedding, when its type feeds a
+ * corpus (see `EntityDef.embedOnWrite`). The app's own mutations do this in
+ * `useItems`/`useMonsters`/`useNpcs`/…; a row created over MCP took no such
+ * path, so it landed in the vault invisible to every retrieval-backed
+ * generator — an item added here could never be found by the loot generator,
+ * and a monster never by the encounter suggester (#838).
+ *
+ * Awaited rather than fired-and-forgotten, unlike the browser's version: an
+ * edge isolate may be torn down as soon as it returns its response, which would
+ * silently drop an unawaited request and leave a hook that looks wired and does
+ * nothing. The embed costs one provider round-trip, and short-circuits without
+ * one when the row's text hash is unchanged (the common case on `update`).
+ *
+ * Failure is never fatal to the write: the row is already saved, so a failed
+ * embed just leaves it for the next backfill sweep — exactly the degradation
+ * the app's fire-and-forget callers accept.
+ */
+async function queueEmbedding(ctx: ToolContext, def: EntityDef, row: unknown): Promise<void> {
+  const target = def.embedOnWrite;
+  if (!target) return;
+  const id = (row as { id?: unknown } | null)?.id;
+  if (typeof id !== "string" || !id) return;
+
+  const body = target.fn === "embed-monsters"
+    ? { mode: "single", monster_id: id }
+    : { mode: "single", entity: target.entity, id };
+  try {
+    const { error } = await ctx.supabase.functions.invoke(target.fn, { body });
+    if (error) console.error(`mcp: embedding ${def.type} ${id} failed:`, error.message);
+  } catch (e) {
+    console.error(`mcp: embedding ${def.type} ${id} failed:`, e);
+  }
+}
+
 async function create(ctx: ToolContext, args: Record<string, unknown>) {
   const def = resolveDef(args.type);
   const fields = validateFields(def, args.fields, { partial: false });
@@ -596,6 +631,7 @@ async function create(ctx: ToolContext, args: Record<string, unknown>) {
   const row = { ...fields, user_id: ctx.userId };
   const { data, error } = await ctx.supabase.from(def.table).insert(row).select("*").single();
   if (error) throw await writeError(ctx, error, def);
+  await queueEmbedding(ctx, def, data);
   return data;
 }
 
@@ -608,6 +644,7 @@ async function update(ctx: ToolContext, args: Record<string, unknown>) {
   const { data, error } = await ctx.supabase.from(def.table).update(fields).eq("id", id).select("*").maybeSingle();
   if (error) throw await writeError(ctx, error, def);
   if (!data) throw new Error(`No ${def.label} found with id ${id} (it may not exist or you may not have access).`);
+  await queueEmbedding(ctx, def, data);
   return data;
 }
 
