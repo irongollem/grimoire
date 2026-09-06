@@ -1,12 +1,13 @@
 # Document Import
 
-A DM uploads a PDF or a batch of page photos, an AI pass extracts game entities
-from it, and a seven-step wizard reviews every entity before anything reaches a
-content table. **DM-only** — there is no player-facing surface at all.
+A DM supplies source material — a PDF, a batch of page photos, or **text pasted
+straight in** — an AI pass extracts game entities from it, and a seven-step
+wizard reviews every entity before anything reaches a content table. **DM-only**
+— there is no player-facing surface at all.
 
 Lives at **Campaign Settings → Import Document** (`/campaign/settings?tab=import`).
 
-Issues #353 and #769.
+Issues #353, #769 and #829.
 
 ---
 
@@ -33,7 +34,9 @@ Seven kinds, in **dependency order** (`IMPORT_ENTITY_KINDS`):
 | --- | --- |
 | `documentImport.types.ts` | The extraction contract — seven narrow payloads, review envelope, `ExtractionResult`, `DocumentImport` row type |
 | `entityKinds.ts` | Per-kind registry: target table, labels, `displayField`, `quotaResource` |
-| `limits.ts` | Page caps (10 free / 50 Pro), MIME allowlist, per-object and per-import byte caps |
+| `limits.ts` | Page caps (10 free / 50 Pro), MIME allowlist, per-object and per-import byte caps, and the characters→pages conversion for a pasted import |
+| `../tiptap/sourceHtml.ts` | Normalises pasted HTML so structure survives into Tiptap — `aside`/hinted classes → blockquote, noise stripped |
+| `../tiptap/tiptapToMarkdown.ts` | The inverse of `markdownToTiptap.ts`; what the pasted, trimmed document is sent to the model as |
 | `downscale.ts` | Reduces page photos before upload — pure sizing arithmetic plus a browser-only re-encode |
 | `pageCount.ts` | PDF page counting via `pdf-lib`; rejects mixed PDF+image and multi-PDF selections |
 | `normalize.ts` | The **one** place an extracted payload becomes an `<Entity>Insert` |
@@ -71,6 +74,65 @@ should not be raised as if it were. Full reasoning on #353.
 
 **Copy is deliberately neutral.** "Import from a PDF or page photos" — never a
 named book, publisher, or D&D Beyond, anywhere in UI, docs or marketing.
+
+### Pasting is a third source kind, and the box is rich text on purpose (#829)
+
+`source_kind` is `pdf | images | text`. A pasted import carries no storage object
+at all — `source_paths` is empty and the text lives in `document_imports.source_text`,
+swept by the same `expires_at` cleanup. `document_imports_source_shape_check`
+binds all three: each kind to its own `source_paths` cardinality, and whether
+`source_text` is set.
+
+**Why the paste box is a `RichTextEditor` and not a `<textarea>`.** This looks
+like a violation of CLAUDE.md's sanctioned `<textarea>` exception and is the
+opposite case. That exception covers **AI-prompt** fields, where markup reaching
+the model is noise the user never intended. This is a **source-document** field,
+where the markup *is* the structure and is the only reason extraction works.
+
+The measurement behind it: a real ⌘C from a digital edition puts two flavours on
+the clipboard. `text/plain` comes back **completely flat** — every heading a bare
+line, all structure gone. `text/html` is ~6x larger and keeps the heading
+hierarchy, the tables, and the boxed text as its own element. Paste into a
+textarea and the signal is destroyed before anything can use it.
+
+**The converter must not know who published the source.** One vendor's HTML
+labels boxed text outright; other books from that publisher and every book from
+another will not. So `sourceHtml.ts` works on *generic* semantics — `h1`-`h6`,
+`blockquote`, `aside`, tables, lists, `em`/`strong` — with a small extensible
+lookup of class hints on top. When the hints miss, heading depth and quoting
+still carry; when there is no structure at all, the model judges from prose.
+**One output shape, three levels of signal** — richer input means the model
+guesses less, never differently.
+
+The division of labour is deliberate: the parser's only job is to *preserve*
+structure, and every semantic judgement stays with the model. A parser can tell
+you a block is set apart and that a heading is depth-3; only a model can tell
+you that one depth-3 heading is a scene and the next is a container that merely
+groups the rooms beneath it.
+
+### The page cap is enforced where it cannot be forged (#829)
+
+`limits.ts` documents *why* the cap exists, and only one of the two reasons is
+cost. The other is the EU sui generis database right (Directive 96/9/EC), which
+protects a compiled database against extraction of a *substantial part*. A paste
+box with a client-declared page count would be a way straight around it — send
+`page_count = 1` with a megabyte of text and the ceiling never fires.
+
+So the CHECK requires `page_count >= ceil(char_length(source_text) / 3500)`,
+making the count **derived rather than declared**. With the existing
+`page_count <= 50` that caps pasted text at ~175,000 characters as a property of
+the row rather than a promise the client keeps. `TEXT_CHARS_PER_PAGE` in
+`limits.ts` mirrors the constant in the migration; a client that rounds *down*
+fails the check rather than silently under-paying, which is the direction the
+mismatch should break in.
+
+### A text import calls the provider with `parts: []`
+
+Not a special text-only code path. All three provider block builders in
+`documentGen.ts` map their `parts` and *then* append the instruction, so an empty
+`parts` array yields exactly one text block — the document/vision call degrades
+into a text call for free, with the source embedded in the instruction. Verified
+against the builders rather than assumed; no provider code changed for #829.
 
 ### `import-documents` is NOT in the `BUCKETS` registry
 
