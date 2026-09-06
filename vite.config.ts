@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { visualizer } from "rollup-plugin-visualizer";
 import path from "path";
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -157,6 +158,22 @@ export default defineConfig(({ mode }) => {
                 console.warn(`::warning::Sentry source-map upload failed: ${err.message}`);
               },
             }),
+          ]
+        : []),
+      // Bundle profiler — off unless `npm run analyze` sets ANALYZE=1, so the
+      // production build and the CI gate are byte-identical with and without it.
+      // Writes dist/stats.html (gitignored); `treemap` answers "what is big",
+      // gzip/brotli sizes answer "what is big *over the wire*", which is the
+      // number that actually decides whether a chunk needs splitting.
+      ...(process.env.ANALYZE
+        ? [
+            visualizer({
+              filename: "dist/stats.html",
+              template: "treemap",
+              gzipSize: true,
+              brotliSize: true,
+              open: true,
+            }) as Plugin,
           ]
         : []),
     ],
