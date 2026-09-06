@@ -103,9 +103,19 @@ Two hard rules:
 A quest is a story with scenes and branches, and adventures are already written
 that way. Return each quest as:
 
-- `title` and `summary`. The summary is **one sentence**, player-facing — the
-  blurb that says what the quest is without opening it. Not the page. Anything
-  longer belongs in a beat.
+- `title` and `summary`. The summary is **one sentence**, and it is shown to the
+  players verbatim — so it must contain **no DM-only information**. Write the job
+  as the party understands it when they accept it, not as the DM understands it
+  after reading the whole chapter.
+
+  Adventures almost always open by telling the DM what is *really* going on: who
+  is behind it, who is not what they seem, what the twist is. None of that
+  belongs in the summary. "Clear the mine of the creatures that drove the miners
+  out" is right; adding that a ghost is behind it is a spoiler printed on the
+  players' own quest log. Put the twist in the `dm_content` of the beat where it
+  is discovered.
+
+  Anything longer than a sentence belongs in a beat too.
 - `beats` — the scenes, in the order the source presents them. Each beat has a
   `key` you invent (`b1`, `b2`, …) used only to join the arrays below, a
   `title`, a `kind` (`neutral`, `combat`, `social`, `explore`, `discovery`),
