@@ -3,7 +3,7 @@
     <!-- Top: portrait left + stat block right -->
     <div class="grid grid-cols-1 lg:grid-cols-[12.5rem_1fr] gap-6">
       <!-- Left: portrait.
-           `max-h-[28rem]` is a fixed cap rather than the `75vh` it replaces.
+           `max-h-112` is a fixed cap rather than the `75vh` it replaces.
            The viewport measurement only ever bound below `lg`, where the
            portrait spans the full width — and it bound badly once this sheet
            started appearing in a modal, where three quarters of the viewport is
@@ -16,7 +16,7 @@
           format="portrait"
           :lightbox="true"
           placeholder="/assets/placeholders/monster.webp"
-          class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[28rem]"
+          class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-112"
         />
         <div v-if="monster.tags?.length" class="flex flex-wrap gap-1">
           <span

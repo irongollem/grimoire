@@ -10,7 +10,7 @@
         :class="cn(
           fieldVariants({ tone: 'card', size: 'body', control: 'input' }),
           // pr-14 clears the overlaid clear button and chevron; w-full is the
-          // caller's layout. Everything else is the shared field recipe.
+          // layout the caller asks for. Everything else is the shared recipe.
           'w-full pr-14',
           selectedLabel && !query ? 'placeholder:text-foreground' : '',
         )"

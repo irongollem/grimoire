@@ -18,7 +18,7 @@
       <h4 class="text-label-lg font-semibold text-muted-foreground">Confirmed journey</h4>
       <ol v-if="events.length" aria-label="Revealed quest history" class="relative space-y-3 border-l border-border pl-4 sm:pl-5">
         <li v-for="event in events" :key="event.beatId" class="relative min-w-0">
-          <span aria-hidden="true" class="absolute -left-[1.3rem] top-2 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary sm:-left-[1.55rem]" />
+          <span aria-hidden="true" class="absolute left-[-1.3rem] top-2 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary sm:left-[-1.55rem]" />
           <article class="min-w-0 rounded-lg bg-muted/20 p-3">
             <p class="font-fell text-body leading-relaxed text-foreground">{{ event.playerText }}</p>
             <p class="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-2xs text-muted-foreground">

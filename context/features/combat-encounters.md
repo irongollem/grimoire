@@ -65,7 +65,7 @@ The same arrangement as the NPC tracker, built on the same components — read t
 
 Two things differ from NPCs:
 
-- **The body scrolls, not the sheet.** `MonsterSheet` flows as one column rather than managing a fixed portrait beside a scrolling pane, so the modal is used *without* `contained` and `EntityDetailModal`'s body owns the scrolling. `NpcSheet` is the other case. The portrait's cap is `max-h-[28rem]` rather than a `vh` measurement for the same reason — see the comment in `MonsterSheet.vue`.
+- **The body scrolls, not the sheet.** `MonsterSheet` flows as one column rather than managing a fixed portrait beside a scrolling pane, so the modal is used *without* `contained` and `EntityDetailModal`'s body owns the scrolling. `NpcSheet` is the other case. The portrait's cap is `max-h-112` rather than a `vh` measurement for the same reason — see the comment in `MonsterSheet.vue`.
 - **A monster may be a shared library row.** `MonsterDetailModal` folds the DM's `library_monster_art` override in over the canonical `image_url`, exactly as `MonsterDetailView` does for the page — the sheet takes a finished monster and does not know the art tables exist. `useResolvedMonster` is seeded from whichever bestiary cache already holds the row (library by prefix, then the DM's own), normalised the same way the fetch normalises it, so the modal opens populated instead of spinning over a card that is already on screen behind it.
 
 Saving an existing monster returns to `/monsters/:id` on desktop — the bestiary with the saved stat block on show — and to `/monsters` on a phone, where that path is a takeover rather than a list. That is a recorded Sanctioned Exception in `CLAUDE.md`, not a Post-Mutation Navigation slip.

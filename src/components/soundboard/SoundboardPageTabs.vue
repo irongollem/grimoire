@@ -13,8 +13,8 @@
       label="All"
       :class="[
         'shrink-0',
-        // An inactive tab shows no box until hovered — `subtle`'s solid border
-        // would turn the whole row into a strip of outlined buttons.
+        // An inactive tab shows no box until hovered — the solid border that
+        // `subtle` draws would turn the row into a strip of outlined buttons.
         activePageId === null ? '' : 'border-transparent hover:border-border',
         dropRing(''),
       ]"
