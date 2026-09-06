@@ -103,7 +103,11 @@ let playerRealtime: RealtimeChannelHandle | null = null;
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ── DM composable ──────────────────────────────────────────────────────────────
-export function useEncounterLive(encounterId: MaybeRefOrGetter<string>) {
+// `string | null` rather than `string`, deliberately: an encounter being
+// created has no id yet, and the previous signature forced the caller to lie
+// about that with `?? ""` — which is how an empty UUID reached PostgREST and
+// came back 400 (#833). Absence is a real state here, so the type says so.
+export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
   const campaign = useCampaignStore();
 
   const isLive = computed(() => liveState.value?.encounter_id === toValue(encounterId) && liveState.value?.is_running === true);
@@ -209,12 +213,30 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string>) {
 
   // Load existing state on mount (in case DM navigated away and back)
   async function loadState() {
+    const id = toValue(encounterId);
+
+    // An unsaved encounter has nothing to load. Clearing rather than leaving
+    // the previous encounter's state in place matters: this component is reused
+    // across route param changes, so a stale `liveState` would otherwise show
+    // one encounter as running while a different one is on screen.
+    if (!id) {
+      liveState.value = null;
+      liveStateLoaded.value = true;
+      return;
+    }
+
     const { data } = await supabase
       .from("encounter_state")
       .select("*")
-      .eq("encounter_id", toValue(encounterId))
+      .eq("encounter_id", id)
       .maybeSingle();
-    if (data) liveState.value = data as EncounterState;
+
+    // The id may have moved on while this was in flight — switching encounters
+    // quickly starts a second load before the first returns, and without this
+    // the slower response wins and installs the wrong encounter's state.
+    if (toValue(encounterId) !== id) return;
+
+    liveState.value = (data as EncounterState | null) ?? null;
     liveStateLoaded.value = true;
   }
 
