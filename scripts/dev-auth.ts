@@ -54,6 +54,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { parseArgs } from "node:util";
 import { quote, sql } from "./lib/dev-db.ts";
 import { ensureFixtureContent } from "./lib/dev-fixture-content.ts";
+import { ensureFixtureQuest } from "./lib/dev-fixture-quest.ts";
 
 /** Local-only, deliberately boring, never valid anywhere but this machine. */
 const DEV_PASSWORD = "grimoire-local-dev";
@@ -214,12 +215,24 @@ async function main() {
   if (player.passwordChanged) changed.push(PLAYER_EMAIL);
   const beasts = ensureFixtureBestiary(stack.DB_URL, fixtureId);
   const content = ensureFixtureContent(stack.DB_URL, fixtureId);
+  // After the player, not before: it shares the quest with the party member
+  // ensureFixturePlayer just claimed.
+  const quest = ensureFixtureQuest(stack.DB_URL, fixtureId);
 
   const inventory = [
     `${cloned} locations`,
     `${party} party members`,
     `${beasts} monsters`,
     ...Object.entries(content).map(([name, n]) => `${n} ${name}`),
+    ...(quest
+      ? [
+          `1 quest (${quest.beats} beats, ${quest.edges} edges, ${quest.gates} gates, ` +
+            `${quest.objectives} objectives incl. ${quest.dormantObjectives} dormant, ` +
+            `${quest.consequences} consequences` +
+            (quest.hasRuntimeState ? ", runtime mid-chain" : "") +
+            ")",
+        ]
+      : []),
   ].join(", ");
 
   console.log(`Local sign-in ready — password for all three: ${DEV_PASSWORD}\n`);
