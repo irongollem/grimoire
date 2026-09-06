@@ -114,7 +114,7 @@ import {
   useCampaignLiveQuests,
   useQuestBeatAttachmentSummaries,
   useQuestBeatEdges,
-  useQuestBeatLoot,
+  useLootPlacements,
   useQuestBeats,
   useQuestRuntimeCommand,
   useQuestRuntimeContext,
@@ -163,7 +163,7 @@ const edgesQuery = useQuestBeatEdges(questId);
 const questsQuery = useQuests();
 const liveQuestsQuery = useCampaignLiveQuests();
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
-const lootQuery = useQuestBeatLoot(questId);
+const lootQuery = useLootPlacements(questId);
 const jumpSearch = ref("");
 const debouncedJumpSearch = refDebounced(jumpSearch, 250);
 const jumpTargetsQuery = useQuestRuntimeJumpTargets(questId, debouncedJumpSearch);

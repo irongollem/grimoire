@@ -509,35 +509,46 @@ export interface QuestBeatAttachmentSummary extends QuestBeatAttachment {
   full_editor_to: string | null;
 }
 
-export type QuestBeatLootKind = "item" | "currency" | "loot_chest";
-export type QuestBeatLootSource = "prepared" | "quest_reward" | "encounter_loot";
-export type QuestBeatLootDeliveryState = "held" | "chat" | "partially_claimed" | "claimed" | "message_removed";
+export type LootPlacementKind = "item" | "currency" | "loot_chest";
+export type LootPlacementSource = "prepared" | "quest_reward" | "encounter_loot" | "loot_table";
+export type LootPlacementDeliveryState = "held" | "chat" | "partially_claimed" | "claimed" | "message_removed";
 
-export interface QuestBeatLoot {
+/**
+ * Loot a beat or a room *holds*, until a DM drops it to chat (#830). Renamed
+ * from `QuestBeatLoot`/`quest_beat_loot` when rooms gained the same verb —
+ * a row has exactly one home: `beat_id` + `quest_id` together, or
+ * `location_id` alone (`loot_placements_one_home`,
+ * `loot_placements_beat_pair` in the database). Never assume a beat home; a
+ * `location_id` row deliberately carries `beat_id`/`quest_id` as `null`.
+ */
+export interface LootPlacement {
   id: string;
-  beat_id: string;
-  quest_id: string;
+  beat_id: string | null;
+  quest_id: string | null;
+  /** The room that holds this loot, exclusive with `beat_id` (#830). A DM
+   *  standing in a room drops it directly; no quest cursor is involved. */
+  location_id: string | null;
   campaign_id: string;
-  kind: QuestBeatLootKind;
+  kind: LootPlacementKind;
   item_id: string | null;
   quantity: number;
   label: string;
   payload: Record<string, unknown>;
-  source_type: QuestBeatLootSource;
+  source_type: LootPlacementSource;
   source_id: string | null;
   sort_order: number;
   dispatch_message_id: string | null;
   dispatched_at: string | null;
-  delivery_state: QuestBeatLootDeliveryState;
+  delivery_state: LootPlacementDeliveryState;
   quantity_remaining: number;
   claimed_by_names: string[];
   handed_out_this_session: boolean;
 }
 
-export type QuestBeatLootInsert = Omit<
-  QuestBeatLoot,
-  "id" | "dispatch_message_id" | "dispatched_at" | "delivery_state" | "quantity_remaining" | "claimed_by_names" | "handed_out_this_session"
-> & Partial<Pick<QuestBeatLoot, "quantity" | "label" | "payload" | "source_type" | "source_id" | "sort_order">>;
+export type LootPlacementInsert = Omit<
+  LootPlacement,
+  "id" | "dispatch_message_id" | "dispatched_at" | "delivery_state" | "quantity_remaining" | "claimed_by_names" | "handed_out_this_session" | "location_id"
+> & Partial<Pick<LootPlacement, "quantity" | "label" | "payload" | "source_type" | "source_id" | "sort_order" | "location_id">>;
 
 export interface RewardCurrencyPool {
   id: string;

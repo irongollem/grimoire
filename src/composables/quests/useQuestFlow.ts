@@ -19,8 +19,8 @@ import type {
   QuestBeatAttachment,
   QuestBeatAttachmentInsert,
   QuestBeatAttachmentSummary,
-  QuestBeatLoot,
-  QuestBeatLootInsert,
+  LootPlacement,
+  LootPlacementInsert,
   QuestConsequenceObjectiveStatus,
   CampaignLiveQuest,
   QuestRuntimeContext,
@@ -42,7 +42,7 @@ const TRANSITIONS_KEY = "quest_beat_transitions";
  *  server-side, so the client has to be told its runtime views are stale. */
 export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY] as const;
 const ATTACHMENTS_KEY = "quest_beat_attachments";
-const LOOT_KEY = "quest_beat_loot";
+const LOOT_KEY = "loot_placements";
 const CONSEQUENCES_KEY = "quest_consequences";
 
 /** Player projections are audience-keyed. An authored beat change can alter
@@ -193,29 +193,33 @@ export function useQuestBeatAttachments(questId: string | Ref<string>) {
 }
 
 /** Quest-scoped and campaign-scoped callers share one aggregate RPC. That RPC
- * joins dispatch messages once, so cards never fetch claim state one by one. */
-export function useQuestBeatLoot(questId?: string | Ref<string>) {
+ * joins dispatch messages once, so cards never fetch claim state one by one.
+ * Room-homed placements (#830) never surface here: passing a quest id filters
+ * to that quest's beat-homed rows, and a location filter is not offered —
+ * the room-loot surface is a separate story. */
+export function useLootPlacements(questId?: string | Ref<string>) {
   const campaign = useCampaignStore();
   const id = questId === undefined ? ref("") : asRef(questId);
   return useQuery({
     queryKey: computed(() => [LOOT_KEY, campaign.activeCampaignId, id.value || "all"]),
-    queryFn: async (): Promise<QuestBeatLoot[]> => {
-      const { data, error } = await supabase.rpc("get_quest_beat_loot", {
+    queryFn: async (): Promise<LootPlacement[]> => {
+      const { data, error } = await supabase.rpc("get_loot_placements", {
         p_campaign_id: campaign.activeCampaignId!,
         p_quest_id: id.value || null,
+        p_location_id: null,
       });
       if (error) throw error;
-      return (data ?? []) as QuestBeatLoot[];
+      return (data ?? []) as LootPlacement[];
     },
     enabled: () => !!campaign.activeCampaignId,
   });
 }
 
-export function useCreateQuestBeatLoot() {
+export function useCreateLootPlacement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (entry: QuestBeatLootInsert) => {
-      const { data, error } = await supabase.from("quest_beat_loot").insert(entry).select().single();
+    mutationFn: async (entry: LootPlacementInsert) => {
+      const { data, error } = await supabase.from("loot_placements").insert(entry).select().single();
       if (error) throw error;
       return data;
     },
@@ -226,11 +230,11 @@ export function useCreateQuestBeatLoot() {
   });
 }
 
-export function useDeleteQuestBeatLoot() {
+export function useDeleteLootPlacement() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { id: string; campaignId: string }) => {
-      const { data, error } = await supabase.from("quest_beat_loot").delete().eq("id", input.id).is("dispatched_at", null).select("id").maybeSingle();
+      const { data, error } = await supabase.from("loot_placements").delete().eq("id", input.id).is("dispatched_at", null).select("id").maybeSingle();
       if (error) throw error;
       if (!data) throw new Error("Only held loot can be removed; dispatched chat keeps its provenance.");
     },
@@ -241,13 +245,16 @@ export function useDeleteQuestBeatLoot() {
   });
 }
 
-export function useDispatchQuestBeatLoot() {
+/** `dispatch_loot` authorises per entry on that row's own `campaign_id`
+ * (#830), so it takes a batch of entry ids rather than a beat id — "drop
+ * all" on a beat means "every held entry currently shown for that beat,"
+ * gathered client-side by the caller. */
+export function useDispatchLoot() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { beatId: string; entryId?: string | null; campaignId: string }) => {
-      const { data, error } = await supabase.rpc("dispatch_quest_beat_loot", {
-        p_beat_id: input.beatId,
-        p_entry_id: input.entryId ?? null,
+    mutationFn: async (input: { entryIds: string[]; campaignId: string }) => {
+      const { data, error } = await supabase.rpc("dispatch_loot", {
+        p_entry_ids: input.entryIds,
       });
       if (error) throw error;
       return data;
@@ -291,7 +298,7 @@ export function useQuestBoardSummaries() {
         supabase.from("quest_beat_attachments").select("*").eq("campaign_id", campaignId).order("sort_order").order("created_at"),
         supabase.from("quest_runtime_state").select("*").eq("campaign_id", campaignId),
         supabase.from("quest_beat_transitions").select("*").eq("campaign_id", campaignId).order("created_at"),
-        supabase.rpc("get_quest_beat_loot", { p_campaign_id: campaignId, p_quest_id: null }),
+        supabase.rpc("get_loot_placements", { p_campaign_id: campaignId, p_quest_id: null, p_location_id: null }),
       ]);
       const error = [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult]
         .find((result) => result.error)?.error;
@@ -309,7 +316,7 @@ export function useQuestBoardSummaries() {
         attachments,
         runtime: (runtimeResult.data ?? []) as QuestRuntimeState[],
         transitions: (transitionsResult.data ?? []) as QuestBeatTransition[],
-        loot: (lootResult.data ?? []) as QuestBeatLoot[],
+        loot: (lootResult.data ?? []) as LootPlacement[],
       });
     },
     enabled: () => !!campaign.activeCampaignId,

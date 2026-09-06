@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatLoot } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatAttachmentSummary, LootPlacement } from "@/types/quest.types";
 import { deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -79,7 +79,7 @@ const props = defineProps<{
   anchorQuestId: string;
   beat: QuestBeat;
   attachments: QuestBeatAttachmentSummary[];
-  loot: QuestBeatLoot[];
+  loot: LootPlacement[];
 }>();
 const emit = defineEmits<{ dirty: [dirty: boolean]; "open-attachment": [attachment: QuestBeatAttachmentSummary]; "edit-beat": []; reveal: [] }>();
 

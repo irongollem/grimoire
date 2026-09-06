@@ -488,7 +488,7 @@ describe("mapExtractedQuest", () => {
     expect(row.summary).toBe("Recover a bell lost when the old cathedral flooded.");
     // `quests.rewards` and the currency/item reward columns are gone (#799) —
     // loot now reaches players through the beat that grants it
-    // (`quest_beat_loot`), never the quest header.
+    // (`loot_placements`), never the quest header.
     expect(row).not.toHaveProperty("rewards");
     // Gone with #793; their prose lives on beats now.
     expect(row).not.toHaveProperty("description");

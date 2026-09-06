@@ -1,7 +1,7 @@
 import { shallowMount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestBeatLootPanel from "./QuestBeatLootPanel.vue";
-import type { QuestBeat, QuestBeatLoot } from "@/types/quest.types";
+import type { QuestBeat, LootPlacement } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
   dispatch: vi.fn(),
@@ -12,17 +12,17 @@ vi.mock("@/composables/items/useItems", () => ({ useItems: () => ({ data: { valu
 vi.mock("@/stores/auth", () => ({ useAuthStore: () => ({ user: { id: "dm" } }) }));
 vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ openChatAt: mocks.openChatAt }) }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
-  useCreateQuestBeatLoot: () => ({ mutateAsync: vi.fn() }),
-  useDeleteQuestBeatLoot: () => ({ mutateAsync: vi.fn() }),
-  useDispatchQuestBeatLoot: () => ({ mutateAsync: mocks.dispatch }),
+  useCreateLootPlacement: () => ({ mutateAsync: vi.fn() }),
+  useDeleteLootPlacement: () => ({ mutateAsync: vi.fn() }),
+  useDispatchLoot: () => ({ mutateAsync: mocks.dispatch }),
 }));
 
 const beat = {
   id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", title: "Reward",
 } as QuestBeat;
 
-const loot = (overrides: Partial<QuestBeatLoot> = {}): QuestBeatLoot => ({
-  id: "loot-1", beat_id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1",
+const loot = (overrides: Partial<LootPlacement> = {}): LootPlacement => ({
+  id: "loot-1", beat_id: "beat-1", quest_id: "quest-1", location_id: null, campaign_id: "campaign-1",
   kind: "item", item_id: "item-1", quantity: 2, label: "Moon keys", payload: {},
   source_type: "prepared", source_id: null, sort_order: 0, dispatch_message_id: "message-1",
   dispatched_at: "2026-08-10T00:00:00Z", delivery_state: "partially_claimed",
@@ -47,10 +47,25 @@ describe("QuestBeatLootPanel", () => {
   it("dispatches all held rows through the one batch RPC call", async () => {
     mocks.dispatch.mockResolvedValue([]);
     const wrapper = shallowMount(QuestBeatLootPanel, {
-      props: { beat, loot: [loot({ dispatch_message_id: null, dispatched_at: null, delivery_state: "held", quantity_remaining: 2, claimed_by_names: [], handed_out_this_session: false })] },
+      props: {
+        beat,
+        loot: [
+          loot({ id: "loot-1", dispatch_message_id: null, dispatched_at: null, delivery_state: "held", quantity_remaining: 2, claimed_by_names: [], handed_out_this_session: false }),
+          loot({ id: "loot-2", dispatch_message_id: null, dispatched_at: null, delivery_state: "held", quantity_remaining: 3, claimed_by_names: [], handed_out_this_session: false }),
+        ],
+      },
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Drop all")!.trigger("click");
-    expect(mocks.dispatch).toHaveBeenCalledWith({ beatId: "beat-1", entryId: undefined, campaignId: "campaign-1" });
+    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["loot-1", "loot-2"], campaignId: "campaign-1" });
+  });
+
+  it("dispatches a single held row as a one-entry batch", async () => {
+    mocks.dispatch.mockResolvedValue([]);
+    const wrapper = shallowMount(QuestBeatLootPanel, {
+      props: { beat, loot: [loot({ dispatch_message_id: null, dispatched_at: null, delivery_state: "held", quantity_remaining: 2, claimed_by_names: [], handed_out_this_session: false })] },
+    });
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Drop")!.trigger("click");
+    expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["loot-1"], campaignId: "campaign-1" });
   });
 
   it("keeps preparation controls inside the narrow beat inspector", () => {

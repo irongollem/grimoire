@@ -34,7 +34,7 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useQuest } from "@/composables/quests/useQuests";
-import { useQuestBeat, useQuestBeatAttachmentSummaries, useQuestBeatEdges, useQuestBeatLoot, useQuestBeats } from "@/composables/quests/useQuestFlow";
+import { useQuestBeat, useQuestBeatAttachmentSummaries, useQuestBeatEdges, useLootPlacements, useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { safeQuestReturnTo } from "@/lib/quests/navigation";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -52,7 +52,7 @@ const beatQuery = useQuestBeat(beatId);
 const beatsQuery = useQuestBeats(questId);
 const edgesQuery = useQuestBeatEdges(questId);
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
-const lootQuery = useQuestBeatLoot(questId);
+const lootQuery = useLootPlacements(questId);
 const beat = computed(() => beatQuery.data.value?.quest_id === questId.value ? beatQuery.data.value : null);
 const attachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));
 const loot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));

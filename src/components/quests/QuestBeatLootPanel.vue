@@ -52,25 +52,25 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { useCreateQuestBeatLoot, useDeleteQuestBeatLoot, useDispatchQuestBeatLoot } from "@/composables/quests/useQuestFlow";
+import { useCreateLootPlacement, useDeleteLootPlacement, useDispatchLoot } from "@/composables/quests/useQuestFlow";
 import { useItems } from "@/composables/items/useItems";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
-import type { QuestBeat, QuestBeatLoot, QuestBeatLootDeliveryState, QuestBeatLootKind } from "@/types/quest.types";
+import type { QuestBeat, LootPlacement, LootPlacementDeliveryState, LootPlacementKind } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 
-const props = defineProps<{ beat: QuestBeat; loot: QuestBeatLoot[] }>();
+const props = defineProps<{ beat: QuestBeat; loot: LootPlacement[] }>();
 const emit = defineEmits<{ dirty: [dirty: boolean] }>();
 const auth = useAuthStore();
 const ui = useUiStore();
 const { data: items } = useItems();
-const createLoot = useCreateQuestBeatLoot();
-const deleteLoot = useDeleteQuestBeatLoot();
-const dispatchLoot = useDispatchQuestBeatLoot();
-const kind = ref<Extract<QuestBeatLootKind, "item" | "currency">>("item");
+const createLoot = useCreateLootPlacement();
+const deleteLoot = useDeleteLootPlacement();
+const dispatchLoot = useDispatchLoot();
+const kind = ref<Extract<LootPlacementKind, "item" | "currency">>("item");
 const itemId = ref("");
 const label = ref("");
 const quantity = ref(1);
@@ -80,7 +80,8 @@ const adding = ref(false);
 const removingId = ref("");
 const dispatching = ref("");
 const error = ref("");
-const heldCount = computed(() => props.loot.filter((entry) => entry.delivery_state === "held").length);
+const heldIds = computed(() => props.loot.filter((entry) => entry.delivery_state === "held").map((entry) => entry.id));
+const heldCount = computed(() => heldIds.value.length);
 const itemOptions = computed(() => (items.value ?? [])
   .filter((item) => item.user_id === auth.user?.id || item.campaign_id === props.beat.campaign_id)
   .map((item) => ({ id: item.id, name: item.name })));
@@ -90,10 +91,10 @@ const isDraftDirty = computed(() => !!itemId.value || !!label.value.trim() || qu
 watch(kind, () => { itemId.value = ""; label.value = ""; error.value = ""; });
 watch(isDraftDirty, (dirty) => emit("dirty", dirty), { immediate: true });
 
-function statusLabel(status: QuestBeatLootDeliveryState) {
+function statusLabel(status: LootPlacementDeliveryState) {
   return { held: "Held", chat: "In chat", partially_claimed: "Partly claimed", claimed: "Claimed", message_removed: "Chat removed" }[status];
 }
-function statusClass(status: QuestBeatLootDeliveryState) {
+function statusClass(status: LootPlacementDeliveryState) {
   return status === "claimed" ? "text-tone-success" : status === "message_removed" ? "text-tone-caution" : "text-muted-foreground";
 }
 
@@ -129,8 +130,10 @@ async function remove(id: string) {
 }
 
 async function dispatch(entryId?: string) {
+  const entryIds = entryId ? [entryId] : heldIds.value;
+  if (!entryIds.length) return;
   dispatching.value = entryId ?? "all"; error.value = "";
-  try { await dispatchLoot.mutateAsync({ beatId: props.beat.id, entryId, campaignId: props.beat.campaign_id }); }
+  try { await dispatchLoot.mutateAsync({ entryIds, campaignId: props.beat.campaign_id }); }
   catch (caught) { error.value = caught instanceof Error ? caught.message : "Could not drop loot in chat"; }
   finally { dispatching.value = ""; }
 }

@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { deriveQuestBeatPrepGaps, type QuestBeatPresentation, type QuestBeatPrepGapKind } from "@/lib/quests/presentation";
-import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatLoot } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, LootPlacement } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestBeatAttachmentsPanel from "./QuestBeatAttachmentsPanel.vue";
 import QuestConsequencesPanel from "./QuestConsequencesPanel.vue";
@@ -54,7 +54,7 @@ const props = defineProps<{
   beats: QuestBeat[];
   edges: QuestBeatEdge[];
   attachments: QuestBeatAttachmentSummary[];
-  loot: QuestBeatLoot[];
+  loot: LootPlacement[];
   presentation?: QuestBeatPresentation;
 }>();
 const emit = defineEmits<{

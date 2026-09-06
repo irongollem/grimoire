@@ -45,11 +45,11 @@ export const SYNC_TABLES = [
   ["session_proposals",       "session_proposals"],
   ["session_availability",    "session_availability"],
   ["items",                   "items"],
-  ["quest_beat_loot",         "quest_beat_loot"],
+  ["loot_placements",         "loot_placements"],
   // Chat carries the authoritative claim/removal state for dispatched loot, but
   // it is also the busiest table here — the system reducer filters down to the
   // loot message types before touching any quest cache.
-  ["campaign_messages",       "quest_beat_loot"],
+  ["campaign_messages",       "loot_placements"],
   ["npc_inventory",           "npc-inventory"],
   // Membership add/remove + display-name changes — so a player renaming
   // themselves (or being added/removed) propagates to every member's party and

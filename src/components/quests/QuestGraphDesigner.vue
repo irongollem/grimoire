@@ -127,7 +127,7 @@ import { IconCenter, IconMaximize } from "@/lib/icons";
 import {
   useQuestBeatAttachmentSummaries,
   useQuestBeatEdgeGates,
-  useQuestBeatLoot,
+  useLootPlacements,
   useArchiveQuestBeat,
   useClearQuestBeatEdgeGate,
   useCreateQuestBeatWithRoute,
@@ -186,7 +186,7 @@ const edgesQuery = useQuestBeatEdges(questIdRef);
 const edgeGatesQuery = useQuestBeatEdgeGates(questIdRef);
 const objectivesQuery = useQuestObjectives(questIdRef);
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questIdRef);
-const lootQuery = useQuestBeatLoot(questIdRef);
+const lootQuery = useLootPlacements(questIdRef);
 const runtimeQuery = useQuestRuntimeState(questId);
 const transitionsQuery = useQuestBeatTransitionsForQuest(questIdRef);
 const updateBeat = useUpdateQuestBeat();

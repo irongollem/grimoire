@@ -67,7 +67,7 @@ describe("PlayerQuestDetailView", () => {
 
   // Regression guard for #799: `quests.rewards` and the currency/item reward
   // columns are gone from the schema. Loot now reaches players through the
-  // beat that grants it (`quest_beat_loot`), never the quest header, so the
+  // beat that grants it (`loot_placements`), never the quest header, so the
   // Rewards section — and the `hasCurrencyReward`/`currencyParts` computeds
   // that fed it — must not come back.
   it("renders no Rewards section — loot lives on the beat that grants it, not the quest header", async () => {
