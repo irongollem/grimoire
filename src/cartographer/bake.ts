@@ -9,7 +9,7 @@
 
 import { BASE_TILE_SIZE, type PackCategory } from "./packSchema";
 import type { TilePackRuntime } from "./packLoader";
-import type { DungeonMap } from "@/types/dungeonMap.types";
+import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { classifyJoint } from "./edges";
 
 export interface BakeOptions {
@@ -71,6 +71,7 @@ function renderToCanvas(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
   paddingCells: number,
+  glyphs: Record<CellKey, PackCategory> = {},
 ): OffscreenCanvas {
   const ts = BASE_TILE_SIZE;
   const layers = map.layers;
@@ -209,6 +210,23 @@ function renderToCanvas(
     }
   }
 
+  // Hazard / feature glyph layer (#804) — same convention as the live editor
+  // renderer (renderMap.ts): `glyphs` is resolved OUTSIDE this function from
+  // the linked trap's/feature's live hazard_glyph/feature_glyph (see
+  // cartographer/glyphs.ts). There is no "currently active pack" once baking
+  // runs headless, so this draws against the map's own persisted default
+  // pack — skipped (like every other layer here) when that pack isn't
+  // present in `runtimes`.
+  const glyphRt = map.default_pack_id ? rt(map.default_pack_id) : null;
+  if (glyphRt) {
+    for (const [k, category] of Object.entries(glyphs)) {
+      const [xs, ys] = k.split(",");
+      const x = Number(xs), y = Number(ys);
+      const tile = glyphRt.getTile(category, 0);
+      ctx.drawImage(tile.source, dx(x), dy(y), ts, ts);
+    }
+  }
+
   // Annotation layer
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -230,13 +248,16 @@ function renderToCanvas(
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-/** Bake a map to a WebP Blob suitable for Atlas upload. */
+/** Bake a map to a WebP Blob suitable for Atlas upload. `glyphs` is the
+ *  resolved trap/feature hazard glyph map (#804) — see cartographer/glyphs.ts;
+ *  defaults to none for callers that don't care about hazard/feature art. */
 export async function bakeMap(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
   options: BakeOptions = {},
+  glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3);
+  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3, glyphs);
   let blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.9 });
   if (blob.size > MAX_BYTES) {
     blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.75 });
@@ -252,8 +273,9 @@ export async function bakeMapAsPng(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
   options: BakeOptions = {},
+  glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3);
+  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3, glyphs);
   return canvas.convertToBlob({ type: "image/png" });
 }
 
@@ -262,8 +284,9 @@ export async function bakeMapForAI(
   map: DungeonMap,
   runtimes: Map<string, TilePackRuntime>,
   options: BakeOptions = {},
+  glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3);
+  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3, glyphs);
   const MAX_DIM = 1024;
   if (canvas.width <= MAX_DIM && canvas.height <= MAX_DIM) {
     return canvas.convertToBlob({ type: "image/png" });

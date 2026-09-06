@@ -76,6 +76,13 @@
               </div>
             </div>
             <div class="col-span-2">
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">How it draws on the map</label>
+              <AppSelect v-model="form.hazard_glyph" size="body" block>
+                <option :value="null">Generic hazard marker</option>
+                <option v-for="g in HAZARD_GLYPHS" :key="g" :value="g">{{ HAZARD_GLYPH_LABELS[g] }}</option>
+              </AppSelect>
+            </div>
+            <div class="col-span-2">
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Tags</label>
               <TagInput v-model="form.tags" />
             </div>
@@ -341,8 +348,10 @@ import {
   TRAP_RESET_TYPES,
   TRAP_SAVE_TYPES,
   CR_LIST,
+  HAZARD_GLYPHS,
+  HAZARD_GLYPH_LABELS,
 } from "@/types/trap.types";
-import type { Trap, DamageEntry } from "@/types/trap.types";
+import type { Trap, DamageEntry, HazardGlyph } from "@/types/trap.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import { DAMAGE_TYPES } from "@/types/damage.types";
@@ -383,6 +392,7 @@ const saving = ref(false);
 const blankForm = () => ({
   name: "",
   trap_type: "Mechanical" as const,
+  hazard_glyph: null as HazardGlyph | null,
   cr: null as string | null,
   // New traps default to the active campaign; existing ones keep whatever
   // scope they already have (#597) — this only matters for the pre-load
@@ -417,6 +427,7 @@ watch(
       Object.assign(form.value, {
         name: t.name,
         trap_type: t.trap_type,
+        hazard_glyph: t.hazard_glyph,
         cr: t.cr,
         campaign_id: t.campaign_id,
         trigger_type: t.trigger_type,
@@ -461,7 +472,9 @@ async function save() {
     } else {
       // Material edit detection (#606): damage immunities (a tag-style
       // field), portrait art, tags and campaign scope are excluded per the
-      // "moves/tags/image" carve-outs.
+      // "moves/tags/image" carve-outs. hazard_glyph (#804) joins that
+      // carve-out — it says how the trap draws on a map, not what it does,
+      // the same presentational category as tags/portrait.
       const t = props.trap!;
       const contentChanged =
         form.value.name !== t.name ||

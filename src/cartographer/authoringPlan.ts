@@ -140,6 +140,14 @@ const EDGE_CATEGORIES = new Set<PackCategory>([
 const OVERLAY_CATEGORIES = new Set<PackCategory>([
   "rubble", "debris", "objectChest", "objectBarrel", "objectTable",
   "objectStatue", "objectPillar", "objectBrazier",
+  // #804 — trap/feature glyphs draw the same way: a transparent-background
+  // stamp centered in the cell, never an opaque full-cell fill.
+  "hazardPit", "hazardPressurePlate", "hazardTripwire", "hazardFallingBlock",
+  "hazardDartWall", "hazardBlade", "hazardFlameJet", "hazardGlyph",
+  "hazardNet", "hazardAlarm", "hazardCollapsingFloor", "hazardGeneric",
+  "featureSecretDoor", "featureHiddenPassage", "featureCache", "featureMovingWall",
+  "featureLever", "featureAltar", "featureFountain", "featureStatue",
+  "featureRubble", "featureInscription", "featureGeneric",
 ]);
 
 function jointEdges(side: string | undefined): readonly ("N" | "E" | "S" | "W")[] {

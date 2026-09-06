@@ -194,8 +194,12 @@
         :annotation-text="annotationText"
         :linked-note-id="linkedNoteId"
         :linked-encounter-id="linkedEncounterId"
+        :linked-trap-id="linkedTrapId"
+        :linked-feature-id="linkedFeatureId"
         :note-options="noteOptions"
         :encounter-options="encounterOptions"
+        :trap-options="trapOptions"
+        :feature-options="featureOptions"
         :active-template-shape="activeTemplateShape"
         :template-shapes="TEMPLATE_SHAPES"
         :cave-radius="caveRadius"
@@ -207,6 +211,8 @@
         @update:annotation-text="annotationText = $event"
         @update:linked-note-id="linkedNoteId = $event"
         @update:linked-encounter-id="linkedEncounterId = $event"
+        @update:linked-trap-id="linkedTrapId = $event"
+        @update:linked-feature-id="linkedFeatureId = $event"
         @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
         @update:cave-radius="caveRadius = $event"
       />
@@ -261,6 +267,8 @@ import { useConfirm } from "@/composables/useConfirm";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useEncounters } from "@/composables/encounters/useEncounters";
+import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
 import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { loadUserPack, useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
@@ -281,6 +289,7 @@ import {
 import { BASE_TILE_SIZE, type PackCategory, OBJECT_CATEGORIES, type ObjectCategory } from "@/cartographer/packSchema";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import { renderMap } from "@/cartographer/renderMap";
+import { resolveCellGlyphs } from "@/cartographer/glyphs";
 import { pickVariant } from "@/cartographer/tileVariants";
 import * as paintOps from "@/cartographer/paintOps";
 import type { PaintContext } from "@/cartographer/paintOps";
@@ -386,6 +395,7 @@ const {
   buildMap: () => (loadedMap.value ? { ...loadedMap.value, layers: layers.value, metadata: metadata.value } : null),
   runtimes: () => loadedRuntimes.value,
   mapName: () => name.value,
+  glyphs: () => cellGlyphs.value,
 });
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
@@ -493,6 +503,21 @@ const encounterOptions = computed(() =>
   (encountersData.value ?? []).map((e) => ({ id: e.id, name: e.name })),
 );
 
+// #804 — hazard/feature glyph resolution. `includeAllScopes` because a cell's
+// trap_id/feature_id must keep resolving even after its target is scoped out
+// of the active campaign, same rule useLocationPlacements documents.
+const { data: allTrapsData } = useTraps(() => ({ includeAllScopes: true }));
+const { data: allFeaturesData } = useDungeonFeatures(() => ({ includeAllScopes: true }));
+const trapsById = computed(() => new Map((allTrapsData.value ?? []).map((t) => [t.id, t])));
+const featuresById = computed(() => new Map((allFeaturesData.value ?? []).map((f) => [f.id, f])));
+// The pickers offer the same rows the glyph resolver reads. `includeAllScopes`
+// is right for both here: a trap is homebrew content that may legitimately be
+// personal rather than campaign-scoped, and offering a narrower list than the
+// resolver can render would let a DM see a glyph they cannot re-select.
+const trapOptions = computed(() => (allTrapsData.value ?? []).map((t) => ({ id: t.id, name: t.name })));
+const featureOptions = computed(() => (allFeaturesData.value ?? []).map((f) => ({ id: f.id, name: f.name })));
+const cellGlyphs = computed(() => resolveCellGlyphs(metadata.value, trapsById.value, featuresById.value));
+
 // Writable computeds for the inspector's link pickers
 const linkedNoteId = computed({
   get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.note_id ?? "") : ""),
@@ -509,6 +534,24 @@ const linkedEncounterId = computed({
     if (!selectedCell.value) return;
     const k = cellKey(...selectedCell.value);
     metadata.value[k] = { ...metadata.value[k], encounter_id: id || undefined };
+    dirty.value = true;
+  },
+});
+const linkedTrapId = computed({
+  get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.trap_id ?? "") : ""),
+  set: (id: string) => {
+    if (!selectedCell.value) return;
+    const k = cellKey(...selectedCell.value);
+    metadata.value[k] = { ...metadata.value[k], trap_id: id || undefined };
+    dirty.value = true;
+  },
+});
+const linkedFeatureId = computed({
+  get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.feature_id ?? "") : ""),
+  set: (id: string) => {
+    if (!selectedCell.value) return;
+    const k = cellKey(...selectedCell.value);
+    metadata.value[k] = { ...metadata.value[k], feature_id: id || undefined };
     dirty.value = true;
   },
 });
@@ -932,6 +975,7 @@ function render(): void {
     bounds,
     layers: layers.value,
     metadata: metadata.value,
+    glyphs: cellGlyphs.value,
     runtimes: loadedRuntimes.value,
     fallbackRuntime: packRuntime.value,
     currentPackId: currentPackId.value,
@@ -953,7 +997,7 @@ function scheduleRender(): void {
   });
 }
 
-watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells, metadata, selectedCell, viewMode], () => scheduleRender(), { deep: true });
+watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells, metadata, selectedCell, viewMode, cellGlyphs], () => scheduleRender(), { deep: true });
 
 // ── Pointer interaction ────────────────────────────────────────────────────
 
@@ -1255,7 +1299,7 @@ async function onDownloadPng(): Promise<void> {
   baking.value = true;
   try {
     const map = { ...loadedMap.value, layers: layers.value, metadata: metadata.value };
-    const blob = await bakeMapAsPng(map, loadedRuntimes.value);
+    const blob = await bakeMapAsPng(map, loadedRuntimes.value, {}, cellGlyphs.value);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

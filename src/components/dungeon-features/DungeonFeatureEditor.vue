@@ -57,6 +57,13 @@
               </AppSelect>
             </div>
             <div class="col-span-2">
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">How it draws on the map</label>
+              <AppSelect v-model="form.feature_glyph" size="body" weight="normal" block>
+                <option :value="null">Generic feature marker</option>
+                <option v-for="g in FEATURE_GLYPHS" :key="g" :value="g">{{ FEATURE_GLYPH_LABELS[g] }}</option>
+              </AppSelect>
+            </div>
+            <div class="col-span-2">
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Tags</label>
               <TagInput v-model="form.tags" />
             </div>
@@ -157,8 +164,13 @@ import {
 } from "@/composables/dungeon-features/useDungeonFeatures";
 import { useConfirm } from "@/composables/useConfirm";
 import { useCampaignStore } from "@/stores/campaign";
-import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TRIGGERS } from "@/types/dungeonFeature.types";
-import type { DungeonFeature, DungeonFeatureTrigger } from "@/types/dungeonFeature.types";
+import {
+  DUNGEON_FEATURE_TYPES,
+  DUNGEON_FEATURE_TRIGGERS,
+  FEATURE_GLYPHS,
+  FEATURE_GLYPH_LABELS,
+} from "@/types/dungeonFeature.types";
+import type { DungeonFeature, DungeonFeatureTrigger, FeatureGlyph } from "@/types/dungeonFeature.types";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
@@ -182,6 +194,7 @@ const saving = ref(false);
 const blankForm = () => ({
   name: "",
   feature_type: "Secret Door" as (typeof DUNGEON_FEATURE_TYPES)[number],
+  feature_glyph: null as FeatureGlyph | null,
   // New features default to the active campaign; existing ones keep whatever
   // scope they already have (#800) — this only matters for the pre-load
   // (isNew) case, since the watch below overwrites it from `f.campaign_id`.
@@ -208,6 +221,7 @@ watch(
       Object.assign(form.value, {
         name: f.name,
         feature_type: f.feature_type,
+        feature_glyph: f.feature_glyph,
         campaign_id: f.campaign_id,
         description: f.description
           ? typeof f.description === "string" ? f.description : JSON.stringify(f.description)

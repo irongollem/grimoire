@@ -141,6 +141,7 @@ function baseScene(overrides: Partial<MapRenderScene> = {}): { scene: MapRenderS
     bounds: { minX: 0, minY: 0, maxX: 5, maxY: 5 },
     layers: emptyLayers(),
     metadata: {},
+    glyphs: {},
     runtimes: new Map(),
     fallbackRuntime: null,
     currentPackId: "stone-dungeon",
@@ -216,6 +217,63 @@ describe("renderMap — layer ordering", () => {
     const solidIdx = categories.indexOf("solidBlock");
     expect(floorIdx).toBeGreaterThanOrEqual(0);
     expect(solidIdx).toBeGreaterThan(floorIdx);
+  });
+});
+
+describe("renderMap — hazard/feature glyph layer (#804)", () => {
+  it("draws a glyph against the current pack at variant 0", () => {
+    const { scene, rec } = baseScene({
+      glyphs: { [cellKey(2, 2)]: "hazardPit" },
+      runtimes: new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]),
+      currentPackId: "stone-dungeon",
+    });
+    renderMap(scene);
+
+    const glyphDraws = rec.drawImages.filter((d) => sourceOf(d).category === "hazardPit");
+    expect(glyphDraws).toHaveLength(1);
+    expect(sourceOf(glyphDraws[0]!)).toMatchObject({ pack: "stone-dungeon", variant: 0 });
+    expect(glyphDraws[0]).toMatchObject({ x: 2 * 64, y: 2 * 64, w: 64, h: 64 });
+  });
+
+  it("draws nothing for a cell with no glyph entry", () => {
+    const { scene, rec } = baseScene({
+      glyphs: {},
+      runtimes: new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]),
+    });
+    renderMap(scene);
+
+    expect(rec.drawImages).toHaveLength(0);
+  });
+
+  it("falls back to fallbackRuntime when the current pack isn't loaded", () => {
+    const { scene, rec } = baseScene({
+      glyphs: { [cellKey(0, 0)]: "featureAltar" },
+      // Non-empty so the `runtimes.size > 0` gate opens; "missing-pack" is
+      // deliberately absent from it so the glyph must resolve via fallback.
+      runtimes: new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]),
+      fallbackRuntime: makeRuntime("fallback-pack"),
+      currentPackId: "missing-pack",
+    });
+    renderMap(scene);
+
+    const glyphDraws = rec.drawImages.filter((d) => sourceOf(d).category === "featureAltar");
+    expect(glyphDraws).toHaveLength(1);
+    expect(sourceOf(glyphDraws[0]!).pack).toBe("fallback-pack");
+  });
+
+  it("draws the glyph above the object layer for the same cell", () => {
+    const layers = emptyLayers();
+    const k = cellKey(1, 1);
+    layers.object[k] = { pack_id: "stone-dungeon", pack_version: 1, variant: 0, category: "objectChest" };
+    const { scene, rec } = baseScene({
+      layers,
+      glyphs: { [k]: "hazardPit" },
+      runtimes: new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]),
+    });
+    renderMap(scene);
+
+    const categories = rec.drawImages.map((d) => sourceOf(d).category);
+    expect(categories.indexOf("hazardPit")).toBeGreaterThan(categories.indexOf("objectChest"));
   });
 });
 

@@ -825,6 +825,52 @@ Pure functions, fully unit-tested:
 - `public/cartographer/stone-dungeon/v1/manifest.json` — `schema_version` bumped to 2; `wallRoundJoint` slots declared (use placeholder art until WebP lands).
 - `src/views/cartographer/CartographerEditorView.vue` — two new tools wired into TOOLS, pointer handlers, inspector panels; round-corner rendering branch in `render()`; fine-rotation `[` / `]` hotkeys.
 
+### Schema v3 — a hazard says how it looks ([#804](https://github.com/irongollem/grimoire/issues/804))
+
+23 new **optional** categories: eleven `hazard*` plus `hazardGeneric`, ten
+`feature*` plus `featureGeneric`. Optional throughout, so every v2 pack stays
+valid and simply falls back.
+
+**A trap does not point at a pack asset.** `traps.hazard_glyph` and
+`dungeon_features.feature_glyph` say what the thing *is* — pit, pressure plate,
+falling block — and the renderer decides how to draw that under whichever pack
+is loaded, the same separation `location_type` → colour uses. Pointing a content
+row at a pack category would make the trap undrawable the moment a DM loads a
+pack lacking that art. Both columns are `text` + CHECK rather than a Postgres
+enum, because the list grows as packs gain art and `alter type … add value`
+cannot run in a transaction block alongside other statements.
+
+**The glyph resolves live**, never persisted onto the map: editing a trap's
+glyph updates every map it appears on. Same rule as the colour ramp.
+
+**The two `*Generic` categories are load-bearing.** A null glyph is a legitimate
+state — most content has no honest match in a deliberately short list — and must
+still draw something rather than leaving an empty cell.
+
+**The placeholder matters more than the art here.** Most packs will have no
+hazard tiles for a long time, so the procedural placeholder is what a DM
+actually sees, and a pit must be distinguishable from a boulder *as a
+placeholder*. `hazardPlaceholders.ts` and `featurePlaceholders.ts` give each
+glyph its own silhouette, and their tests assert the drawing trace is unique
+across categories even under an identical colour — shape-only distinctness,
+which is the property that was asked for.
+
+**The version warning changed with this bump.** `validatePack` now warns only
+when a pack is *newer* than the runtime. A pack older than the runtime is
+silent: every bump so far has added only optional categories, and the
+required-category check already catches a genuinely incomplete pack. Without
+this, v3 would have made every existing v2 pack start warning — which trains a
+reader to ignore warnings.
+
+**The link tool reaches traps and features now.** `CellMetadata` has carried
+`trap_id` and `feature_id` since the Cartographer shipped, but the inspector
+only ever wired `note_id` and `encounter_id` — so the glyph renderer had no way
+to be reached by clicking. Both pickers now exist beside the other two.
+
+**Puzzles need no third path.** `puzzle_rooms` carries `location_id` and
+`dungeon_feature_id`: a puzzle on a feature draws as that feature's glyph, and
+one on a location is the room itself, which has no cell to mark.
+
 #### Open items
 
 - Real bundled WebP art for `wallRoundJoint` on Stone Dungeon and other packs — existing bundled manifests still fall back to the placeholder. M7 now provides the production generation and QA loop; regenerating the fundamental bundled catalogue is a separate content-production pass after the customer workflow is proven.

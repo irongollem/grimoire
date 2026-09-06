@@ -4,6 +4,8 @@
 // the AI generation pipeline ships.
 
 import { BASE_TILE_SIZE, type PackCategory } from "./packSchema";
+import { drawHazardGlyph, isHazardCategory } from "./hazardPlaceholders";
+import { drawFeatureGlyph, isFeatureCategory } from "./featurePlaceholders";
 
 interface PlaceholderKey {
   pack_id: string;
@@ -50,6 +52,31 @@ const STONE_DEFAULTS: Record<string, [number, number, number]> = {
   objectStatue:  [140, 135, 125],
   objectPillar:  [120, 115, 108],
   objectBrazier: [180, 120, 40],
+  // #804 — trap hazard glyphs. Drawn by hazardPlaceholders.ts.
+  hazardPit:             [55, 50, 45],
+  hazardPressurePlate:   [90, 90, 95],
+  hazardTripwire:        [120, 100, 60],
+  hazardFallingBlock:    [110, 100, 90],
+  hazardDartWall:        [130, 70, 65],
+  hazardBlade:           [170, 170, 180],
+  hazardFlameJet:        [220, 90, 30],
+  hazardGlyph:           [120, 60, 180],
+  hazardNet:             [140, 110, 70],
+  hazardAlarm:           [200, 170, 40],
+  hazardCollapsingFloor: [100, 80, 60],
+  hazardGeneric:         [200, 60, 40],
+  // #804 — dungeon feature glyphs. Drawn by featurePlaceholders.ts.
+  featureSecretDoor:     [90, 80, 70],
+  featureHiddenPassage:  [60, 55, 65],
+  featureCache:          [150, 120, 50],
+  featureMovingWall:     [100, 100, 110],
+  featureLever:          [150, 110, 50],
+  featureAltar:          [190, 180, 160],
+  featureFountain:       [70, 130, 170],
+  featureStatue:         [140, 135, 125],
+  featureRubble:         [110, 100, 90],
+  featureInscription:    [170, 150, 110],
+  featureGeneric:        [70, 150, 160],
 };
 
 type Palette = Partial<Record<string, [number, number, number]>>;
@@ -209,6 +236,18 @@ export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCa
       const bh = 6 + ((seed >>> (i * 3 + 5)) % 12);
       ctx.fillRect(bx - bw / 2, by - bh / 2, bw, bh);
     }
+    return finalise(canvas, id);
+  }
+
+  // #804 — trap hazard / dungeon feature glyphs. Delegated out to their own
+  // modules: 21 distinct silhouettes (plus the two "unset glyph" generics)
+  // would have pushed this file well past its soft line limit.
+  if (isHazardCategory(k.category)) {
+    drawHazardGlyph(ctx, k.category, base);
+    return finalise(canvas, id);
+  }
+  if (isFeatureCategory(k.category)) {
+    drawFeatureGlyph(ctx, k.category, base);
     return finalise(canvas, id);
   }
 

@@ -12,9 +12,10 @@ import { computed, ref } from "vue";
 import { bakeMap, bakeMapForAI, computeBakedDimensions } from "@/cartographer/bake";
 import { blobToBase64, base64ToBlob } from "@/cartographer/imageCodec";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
+import type { PackCategory } from "@/cartographer/packSchema";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser, supabase } from "@/lib/supabase";
-import type { DungeonMap } from "@/types/dungeonMap.types";
+import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
@@ -36,6 +37,8 @@ export function useMapExport(opts: {
   buildMap: () => DungeonMap | null;
   runtimes: () => Map<string, TilePackRuntime>;
   mapName: () => string;
+  /** Resolved trap/feature glyph categories (#804) — see cartographer/glyphs.ts. */
+  glyphs: () => Record<CellKey, PackCategory>;
 }) {
   const { data: allLocationsData } = useAllLocations();
   const locationOptionsSource = computed(() => allLocationsData.value ?? []);
@@ -84,7 +87,7 @@ export function useMapExport(opts: {
     atlasError.value = null;
     baking.value = true;
     try {
-      const blob = await bakeMap(map, opts.runtimes());
+      const blob = await bakeMap(map, opts.runtimes(), {}, opts.glyphs());
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
       const url = await uploadToBucket({
@@ -131,7 +134,7 @@ export function useMapExport(opts: {
     styleError.value = null;
     styleGenerating.value = true;
     try {
-      const pngBlob = await bakeMapForAI(map, opts.runtimes());
+      const pngBlob = await bakeMapForAI(map, opts.runtimes(), {}, opts.glyphs());
       const image_b64 = await blobToBase64(pngBlob);
 
       const { data, error } = await supabase.functions.invoke<StyleMapResponse>("style-map", {

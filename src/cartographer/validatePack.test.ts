@@ -28,6 +28,30 @@ it("reports exact zero-based holes instead of accepting an equal-length random c
   });
 });
 
+describe("schema_version comparison", () => {
+  it("does not warn about a pack older than the runtime schema (#804)", () => {
+    const manifest = emptyManifest();
+    manifest.schema_version = TILE_PACK_SCHEMA.version - 1;
+
+    expect(validatePack(manifest).warnings).toEqual([]);
+  });
+
+  it("warns about a pack newer than the runtime schema", () => {
+    const manifest = emptyManifest();
+    manifest.schema_version = TILE_PACK_SCHEMA.version + 1;
+
+    expect(validatePack(manifest).warnings).toContain(
+      `Pack schema_version ${TILE_PACK_SCHEMA.version + 1} is newer than this app's schema version ${TILE_PACK_SCHEMA.version}. Some categories may not render correctly.`,
+    );
+  });
+
+  it("does not warn when the pack matches the runtime schema exactly", () => {
+    const manifest = emptyManifest();
+
+    expect(validatePack(manifest).warnings).toEqual([]);
+  });
+});
+
 describe("duplicate slot identities", () => {
   it("warns for duplicate variants", () => {
     const manifest = emptyManifest();

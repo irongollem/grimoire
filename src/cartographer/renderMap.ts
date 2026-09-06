@@ -21,6 +21,14 @@ export interface MapRenderScene {
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
   layers: DungeonMapLayers;
   metadata: Record<CellKey, CellMetadata>;
+  /**
+   * Per-cell PackCategory for a placed trap/feature's glyph (#804), resolved
+   * OUTSIDE this function from the linked entity's live hazard_glyph /
+   * feature_glyph — see cartographer/glyphs.ts. This stays a plain resolved
+   * value rather than raw trap/feature data so renderMap keeps taking only
+   * plain values, same rule as everything else on this scene.
+   */
+  glyphs: Record<CellKey, PackCategory>;
   runtimes: Map<string, TilePackRuntime>;
   fallbackRuntime: TilePackRuntime | null;
   /**
@@ -55,6 +63,7 @@ export function renderMap(scene: MapRenderScene): void {
     bounds,
     layers,
     metadata,
+    glyphs,
     runtimes,
     fallbackRuntime,
     currentPackId,
@@ -237,6 +246,28 @@ export function renderMap(scene: MapRenderScene): void {
         } else {
           ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
         }
+      }
+    }
+  }
+
+  // Hazard / feature glyph layer (#804) — a placed trap's or feature's
+  // visual glyph, drawn above objects. There is no per-cell stored pack_id
+  // for these (they aren't authored through a stamp tool; `glyphs` is
+  // resolved live off the linked trap/feature — see cartographer/glyphs.ts),
+  // so they draw against the currently active pack, same fallback rule as
+  // the corner-joint code above. Variant is always 0 — this is a drawing
+  // hint, not an authored stamp with variety to pick between.
+  if (runtimes.size > 0) {
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const category = glyphs[cellKey(x, y)];
+        if (!category) continue;
+        const r = rt(currentPackId);
+        if (!r) continue;
+        const drawX = x * tilePx - viewportOffset.x;
+        const drawY = y * tilePx - viewportOffset.y;
+        const tile = r.getTile(category, 0);
+        ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
       }
     }
   }

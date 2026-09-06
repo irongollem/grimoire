@@ -28,9 +28,16 @@ export function validatePack(manifest: TilePackManifest): ValidationResult {
   const extras: string[] = [];
   const warnings: string[] = [];
 
-  if (manifest.schema_version !== TILE_PACK_SCHEMA.version) {
+  // A pack OLDER than the runtime schema is not a problem by itself: every
+  // schema bump so far only adds `optional` categories, so an old pack that
+  // still satisfies every REQUIRED category (checked below, independently of
+  // this comparison) is simply an older pack — warning about it here would be
+  // noise on every v2 pack the moment the runtime moved to v3. Only a pack
+  // NEWER than the runtime is worth flagging: it may declare categories this
+  // build doesn't know how to interpret yet.
+  if (manifest.schema_version > TILE_PACK_SCHEMA.version) {
     warnings.push(
-      `Pack schema_version ${manifest.schema_version} does not match runtime schema version ${TILE_PACK_SCHEMA.version}. Some categories may not render correctly.`,
+      `Pack schema_version ${manifest.schema_version} is newer than this app's schema version ${TILE_PACK_SCHEMA.version}. Some categories may not render correctly.`,
     );
   }
 

@@ -35,6 +35,37 @@ export const DUNGEON_FEATURE_TRIGGERS = [
 ] as const;
 export type DungeonFeatureTrigger = (typeof DUNGEON_FEATURE_TRIGGERS)[number];
 
+/** How this feature draws on a site map (#804). Same contract as
+ *  `traps.hazard_glyph` — matches the CHECK constraint on
+ *  `dungeon_features.feature_glyph` (migration 20260906200347): an app-level
+ *  visual kind, never a pack asset id. */
+export const FEATURE_GLYPHS = [
+  "secret_door",
+  "hidden_passage",
+  "cache",
+  "moving_wall",
+  "lever",
+  "altar",
+  "fountain",
+  "statue",
+  "rubble",
+  "inscription",
+] as const;
+export type FeatureGlyph = (typeof FEATURE_GLYPHS)[number];
+
+export const FEATURE_GLYPH_LABELS: Record<FeatureGlyph, string> = {
+  secret_door:    "Secret Door",
+  hidden_passage: "Hidden Passage",
+  cache:          "Cache",
+  moving_wall:    "Moving Wall",
+  lever:          "Lever",
+  altar:          "Altar",
+  fountain:       "Fountain",
+  statue:         "Statue",
+  rubble:         "Rubble",
+  inscription:    "Inscription",
+};
+
 export interface DungeonFeature {
   id: string;
   user_id: string;
@@ -52,6 +83,9 @@ export interface DungeonFeature {
   arcana_dc: number | null;
   trigger_type: DungeonFeatureTrigger | null;
   trigger_description: string | null;
+  /** How this feature draws on a site map (#804). Null = renderer falls back
+   *  to a generic feature marker — never an empty cell. */
+  feature_glyph: FeatureGlyph | null;
   /** What's inside / what happens when opened */
   contents_description: string | null;
   image_url: string | null;
