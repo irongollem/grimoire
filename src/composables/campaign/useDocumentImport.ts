@@ -188,20 +188,33 @@ export function useActiveDocumentImport() {
 
 export interface CreateDocumentImportInput {
   /** The file(s) to upload, already in page order — one element for a PDF,
-   *  one per photo for a batch. This composable does not reorder them. */
+   *  one per photo for a batch. This composable does not reorder them.
+   *  Empty for a `sourceKind: "text"` import, which has nothing to upload —
+   *  see `sourceText`. */
   files: File[];
+  /**
+   * Widened past `DocumentImportSourceKind` to include `"text"` (#829) —
+   * `documentImport.types.ts` is a frozen contract this story does not own
+   * (see that file's header; it is being extended in step with the parallel
+   * "quest as a graph" work). The DB itself already accepts `'text'`
+   * (migration 20260906213100), so this is the type catching up to what the
+   * row can actually hold, done here rather than there.
+   */
   sourceKind: DocumentImportSourceKind;
   /** What the DM called it, for the wizard header. */
   displayName: string;
-  /** Pages for a PDF, photos for a batch — computed by the caller (the pure
-   *  logic for this lives in `src/lib/documentImport/`, not here) and simply
-   *  persisted onto the row. */
+  /** Pages for a PDF, photos for a batch, or `pagesForText(...)` for a
+   *  paste — computed by the caller (the pure logic for this lives in
+   *  `src/lib/documentImport/`, not here) and simply persisted onto the row. */
   pageCount: number;
   /** The DM's ticked rights-attestation checkbox. Required to be `true` —
    *  `document_imports.rights_attested_at` is `NOT NULL` with no default, so
    *  an unattested upload must fail here rather than the mutation silently
    *  stamping "now" on the DM's behalf. */
   rightsAttested: boolean;
+  /** The pasted source markdown, required when `sourceKind === "text"` and
+   *  ignored otherwise. */
+  sourceText?: string;
 }
 
 /**
@@ -212,6 +225,10 @@ export interface CreateDocumentImportInput {
  * batch, or the row insert itself — every object already uploaded in this
  * call is removed before the error propagates. See the file header for why
  * that matters (#769): a rejected insert must not orphan bytes.
+ *
+ * A `sourceKind: "text"` input (#829) skips all of that: there is nothing to
+ * downscale, validate as a file, or upload, and `source_paths` stays `[]` —
+ * so it branches to its own short insert path before any storage code runs.
  */
 export function useCreateDocumentImport() {
   const qc = useQueryClient();
@@ -221,11 +238,52 @@ export function useCreateDocumentImport() {
       if (!input.rightsAttested) {
         throw new Error("Confirm you have the rights to this document before it can be imported.");
       }
-      if (!input.files.length) {
-        throw new Error("Select a PDF or at least one page photo first.");
-      }
       if (input.pageCount <= 0) {
         throw new Error("Could not determine a page count for this document.");
+      }
+
+      const user = getCurrentUser();
+      if (!user) throw new Error("You must be signed in to start an import.");
+      const campaignId = campaign.activeCampaignId;
+      if (!campaignId) throw new Error("No active campaign selected.");
+
+      if (input.sourceKind === "text") {
+        const sourceText = input.sourceText?.trim();
+        if (!sourceText) throw new Error("Paste some text before starting the import.");
+
+        // A plain object literal rather than `DocumentImportInsert` — that
+        // type is `Omit<DocumentImport, ...>` from the frozen
+        // documentImport.types.ts, whose `source_kind`/no `source_text`
+        // shape doesn't have room for this branch (see the field comment on
+        // `sourceKind` above). The `supabase` client here is untyped
+        // (`createClient` with no Database generic — src/lib/supabase.ts),
+        // so nothing downstream needs that type for this to compile safely.
+        const { data: row, error: insertError } = await supabase
+          .from("document_imports")
+          .insert({
+            campaign_id: campaignId,
+            source_kind: "text",
+            source_paths: [],
+            source_text: sourceText,
+            display_name: input.displayName,
+            page_count: input.pageCount,
+            rights_attested_at: new Date().toISOString(),
+            user_id: user.id,
+          })
+          .select()
+          .single();
+        if (insertError) {
+          // Same RLS mapping as the upload path below — see its comment.
+          if (isRlsDeniedError(insertError)) {
+            throw new Error("Only the campaign's DM can start a document import.");
+          }
+          throw insertError;
+        }
+        return row as DocumentImport;
+      }
+
+      if (!input.files.length) {
+        throw new Error("Select a PDF or at least one page photo first.");
       }
       // Downscale first, then validate: the aggregate cap is a bound on what we
       // upload and send to the provider, so measuring the camera originals would
@@ -236,11 +294,6 @@ export function useCreateDocumentImport() {
       for (const file of files) validateImportFile(file);
       const aggregate = validateTotalUploadBytes(files.reduce((sum, file) => sum + file.size, 0));
       if (!aggregate.ok) throw new Error(aggregate.message);
-
-      const user = getCurrentUser();
-      if (!user) throw new Error("You must be signed in to start an import.");
-      const campaignId = campaign.activeCampaignId;
-      if (!campaignId) throw new Error("No active campaign selected.");
 
       const uploadedPaths: string[] = [];
       try {

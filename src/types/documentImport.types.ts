@@ -310,7 +310,13 @@ export type ExtractionResult = {
 
 // ── The staging row ──────────────────────────────────────────────────────────
 
-export const DOCUMENT_IMPORT_SOURCE_KINDS = ["pdf", "images"] as const;
+/**
+ * How the source reached us. `pdf` and `images` arrive as objects in the
+ * `import-documents` bucket; `text` (#829) is pasted straight in and carries no
+ * storage object at all — `document_imports_source_shape_check` binds each kind
+ * to its own `source_paths` cardinality and to whether `source_text` is set.
+ */
+export const DOCUMENT_IMPORT_SOURCE_KINDS = ["pdf", "images", "text"] as const;
 
 export type DocumentImportSourceKind = (typeof DOCUMENT_IMPORT_SOURCE_KINDS)[number];
 
