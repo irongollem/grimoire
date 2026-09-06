@@ -12,7 +12,7 @@
         class="flex items-center gap-2"
       >
         <span class="flex-1 text-body text-foreground truncate">
-          {{ itemById(out.item_id)?.name ?? "Unknown item" }}
+          {{ itemById(inventoryItemRef(out))?.name ?? "Unknown item" }}
         </span>
         <AppInput
           v-model.number="out.quantity"
@@ -76,10 +76,11 @@ import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { IconDelete, IconSearch } from "@/lib/icons";
+import { inventoryItemRef } from "@/lib/inventory/itemRef";
+import type { ItemRefColumns } from "@/lib/inventory/itemRef";
 import type { Item } from "@/types/item.types";
 
-interface OutputEntry {
-  item_id: string;
+interface OutputEntry extends ItemRefColumns {
   quantity: number;
 }
 
@@ -91,7 +92,7 @@ const {
   outputs?: OutputEntry[];
   filteredItems?: Item[];
   search?: string;
-  itemById: (id: string) => Item | undefined;
+  itemById: (id: string | null) => Item | undefined;
 }>();
 
 const emit = defineEmits<{

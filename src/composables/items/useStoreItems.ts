@@ -3,13 +3,14 @@ import { computed, watch } from "vue";
 import type { Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item } from "@/types/item.types";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { usePlayerVisibleItems, normalizeLibraryItem } from "@/composables/items/useItems";
+import { inventoryItemRef } from "@/lib/inventory/itemRef";
+import type { ItemRefColumns } from "@/lib/inventory/itemRef";
 
-export interface StoreItem {
+export interface StoreItem extends ItemRefColumns {
   id: string;
   user_id: string;
   location_id: string;
-  item_id: string;
   price_override: string | null;
   visible: boolean;
   sort_order: number;
@@ -25,9 +26,8 @@ export interface StoreItem {
  *  renderable state — not "still loading". */
 export type PlayerStoreItem = Omit<StoreItem, "item"> & { item: Item | null };
 
-export interface StoreItemInsert {
+export interface StoreItemInsert extends ItemRefColumns {
   location_id: string;
-  item_id: string;
   price_override?: string | null;
   visible?: boolean;
   sort_order?: number;
@@ -41,14 +41,38 @@ export interface StoreItemUpdate {
 
 const QUERY_KEY = "store-items";
 
+/** Raw shape of a `store_items` row selected with both possible embeds — see
+ *  {@link resolveStoreItemRow}. Supabase resolves an embed to `null` when its
+ *  own FK column is null, so a vault-referenced row's `library_item` is null
+ *  and vice versa; never both populated (the DB check constraint forbids it). */
+export interface RawStoreItemRow extends ItemRefColumns {
+  [key: string]: unknown;
+  item: Item | null;
+  library_item: Record<string, unknown> | null;
+}
+
+/** A joined `items(*)` embed can only ever resolve a vault reference —
+ *  `library_items` is a different table PostgREST has to be told about
+ *  separately (#819). Embedding both and merging here means a shop can stock
+ *  library content without a second round-trip per row. Exported for testing. */
+export function resolveStoreItemRow(row: RawStoreItemRow): StoreItem {
+  const { library_item, ...rest } = row;
+  return {
+    ...rest,
+    item: rest.item ?? (library_item ? normalizeLibraryItem(library_item) : null),
+  } as StoreItem;
+}
+
+const STORE_ITEM_SELECT = "*, item:items(*), library_item:library_items(*)";
+
 async function fetchStoreItems(locationId: string): Promise<StoreItem[]> {
   const { data, error } = await supabase
     .from("store_items")
-    .select("*, item:items(*)")
+    .select(STORE_ITEM_SELECT)
     .eq("location_id", locationId)
     .order("sort_order", { ascending: true });
   if (error) throw error;
-  return data as StoreItem[];
+  return (data as unknown as RawStoreItemRow[]).map(resolveStoreItemRow);
 }
 
 /** Row-only fetch, no `item:items(*)` embed — the embed is dead weight for a
@@ -69,10 +93,10 @@ async function addStoreItem(insert: StoreItemInsert): Promise<StoreItem> {
   const { data, error } = await supabase
     .from("store_items")
     .insert({ ...insert, user_id: user!.id })
-    .select("*, item:items(*)")
+    .select(STORE_ITEM_SELECT)
     .single();
   if (error) throw error;
-  return data as StoreItem;
+  return resolveStoreItemRow(data as unknown as RawStoreItemRow);
 }
 
 async function updateStoreItem(id: string, update: StoreItemUpdate): Promise<StoreItem> {
@@ -80,10 +104,10 @@ async function updateStoreItem(id: string, update: StoreItemUpdate): Promise<Sto
     .from("store_items")
     .update(update)
     .eq("id", id)
-    .select("*, item:items(*)")
+    .select(STORE_ITEM_SELECT)
     .single();
   if (error) throw error;
-  return data as StoreItem;
+  return resolveStoreItemRow(data as unknown as RawStoreItemRow);
 }
 
 async function removeStoreItem(id: string): Promise<void> {
@@ -179,12 +203,21 @@ export function useSharedStoreItems(locationId: Ref<string | undefined>) {
     const rows = rowsQuery.data.value;
     if (!rows) return undefined;
     const byId = new Map((visibleItems.value ?? []).map((item) => [item.id, item]));
-    return rows.map((row) => ({ ...row, item: byId.get(row.item_id) ?? null }));
+    return rows.map((row) => {
+      const ref = inventoryItemRef(row);
+      return { ...row, item: (ref ? byId.get(ref) : undefined) ?? null };
+    });
   });
   const isLoading = computed(() => rowsQuery.isLoading.value || itemsLoading.value);
 
+  // A row with neither column set has no catalogue entry to resolve at all —
+  // never a case the projection could help with, so it's excluded here rather
+  // than driving a refetch that can never satisfy it.
   const unresolved = computed(() =>
-    (data.value ?? []).filter((row) => !row.item).map((row) => row.item_id),
+    (data.value ?? [])
+      .filter((row) => !row.item)
+      .map((row) => inventoryItemRef(row))
+      .filter((id): id is string => id !== null),
   );
 
   // Ask once per item id, not once per unresolved render. The refetch is not
@@ -224,6 +257,12 @@ export function useAddStoreItem() {
  * the store query. Duplicates are silently skipped via the
  * (location_id, item_id) unique constraint so filling against a stale view
  * is harmless.
+ *
+ * That guard is `item_id`-only (#819 added no equivalent index for
+ * library_item_id), so two quick-fills that both pick the same library item
+ * insert two rows rather than one being skipped — a known, narrow gap rather
+ * than a silent one: still correct, just not deduplicated the way a vault
+ * pick already is.
  */
 async function addStoreItems(inserts: StoreItemInsert[]): Promise<void> {
   const user = getCurrentUser();

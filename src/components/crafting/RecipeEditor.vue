@@ -227,7 +227,8 @@ import {
   getDiscipline,
 } from "@/lib/crafting-disciplines";
 import { useUiStore } from "@/stores/ui";
-import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useItems } from "@/composables/items/useItems";
+import { itemRefColumns, sameItemRef } from "@/lib/inventory/itemRef";
 import {
   useCreateRecipe,
   useUpdateRecipe,
@@ -255,7 +256,6 @@ const recipeId = computed(() => props.recipe?.id);
 const ui = useUiStore();
 
 const { data: allItems } = useItems();
-const { ensureOwnedItem } = useEnsureOwnedItem();
 
 // Load existing sub-resources when editing — pass the computed so the query
 // re-enables reactively once the recipe prop resolves after a hard refresh.
@@ -292,10 +292,10 @@ const form = ref({
 });
 
 const ingredients = ref<
-  { item_id: string | null; tags: string[] | null; quantity: number }[]
+  { item_id: string | null; library_item_id: string | null; tags: string[] | null; quantity: number }[]
 >([]);
 const modifiers = ref<{ description: string; bonus: number }[]>([]);
-const outputs = ref<{ item_id: string; quantity: number }[]>([]);
+const outputs = ref<{ item_id: string | null; library_item_id: string | null; quantity: number }[]>([]);
 
 watch(
   () => props.recipe,
@@ -324,6 +324,7 @@ watch(
     if (data && ingredients.value.length === 0) {
       ingredients.value = data.map((i) => ({
         item_id: i.item_id,
+        library_item_id: i.library_item_id,
         tags: i.tags,
         quantity: i.quantity,
       }));
@@ -351,6 +352,7 @@ watch(
     if (data && outputs.value.length === 0) {
       outputs.value = data.map((o) => ({
         item_id: o.item_id,
+        library_item_id: o.library_item_id,
         quantity: o.quantity,
       }));
     }
@@ -390,36 +392,36 @@ function matchesSearch(name: string, query: string): boolean {
   return tokens.every((t) => lower.includes(t));
 }
 
-function itemById(id: string) {
-  return items.value.find((i) => i.id === id);
+function itemById(id: string | null) {
+  return id ? items.value.find((i) => i.id === id) : undefined;
 }
 
-async function addOutput(itemId: string) {
+function addOutput(itemId: string) {
   const picked = itemById(itemId);
   if (!picked) return;
   outputSearch.value = "";
-  // Resolve the owned (uuid) id BEFORE it enters the outputs array, so a Save
-  // that fires during the clone can never persist an srd slug into the
-  // crafting_recipe_outputs.item_id uuid FK.
-  const owned = await ensureOwnedItem(picked);
-  const existing = outputs.value.find((o) => o.item_id === owned.id);
+  // A vault (uuid) id and a library (text) id route to different columns —
+  // itemRefColumns is the one place that decides which (#819). Referencing
+  // shared content directly beats cloning it into the vault first.
+  const ref = itemRefColumns(picked.id);
+  const existing = outputs.value.find((o) => sameItemRef(o, ref));
   if (existing) {
     existing.quantity += 1;
   } else {
-    outputs.value.push({ item_id: owned.id, quantity: 1 });
+    outputs.value.push({ ...ref, quantity: 1 });
   }
 }
 
-async function addIngredient(itemId: string) {
+function addIngredient(itemId: string) {
   const picked = itemById(itemId);
   if (!picked) return;
   ingredientSearch.value = "";
-  const owned = await ensureOwnedItem(picked);
-  const existing = ingredients.value.find((i) => i.item_id === owned.id);
+  const ref = itemRefColumns(picked.id);
+  const existing = ingredients.value.find((i) => sameItemRef(i, ref));
   if (existing) {
     existing.quantity += 1;
   } else {
-    ingredients.value.push({ item_id: owned.id, tags: null, quantity: 1 });
+    ingredients.value.push({ ...ref, tags: null, quantity: 1 });
   }
 }
 
@@ -438,7 +440,7 @@ function addTagIngredient() {
   if (existing) {
     existing.quantity += 1;
   } else {
-    ingredients.value.push({ item_id: null, tags, quantity: 1 });
+    ingredients.value.push({ item_id: null, library_item_id: null, tags, quantity: 1 });
   }
   tagIngredientInput.value = "";
 }

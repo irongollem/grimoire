@@ -80,7 +80,7 @@
               </div>
               <p class="text-caption text-muted-foreground">
                 DC {{ recipe.dc }} · {{ recipe.crafting_time }} {{ recipe.crafting_time !== 1 ? recipe.crafting_time_unit : recipe.crafting_time_unit.replace(/s$/, '') }}
-                <span v-if="outputsFor(recipe.id).length"> · → {{ outputsFor(recipe.id).map(o => (o.quantity > 1 ? `${o.quantity}× ` : '') + (itemName(o.item_id))).join(', ') }}</span>
+                <span v-if="outputsFor(recipe.id).length"> · → {{ outputsFor(recipe.id).map(o => (o.quantity > 1 ? `${o.quantity}× ` : '') + (itemName(inventoryItemRef(o)))).join(', ') }}</span>
               </p>
               <p
                 v-if="recipe.requires_tools && !hasTools(getDiscipline(recipe.discipline).tools)"
@@ -134,7 +134,7 @@
                 class="h-3.5 w-3.5 shrink-0"
                 :class="hasEnough(ing) ? 'text-elven-green' : 'text-destructive'"
               />
-              <span class="text-caption text-foreground flex-1 truncate" :class="{ italic: !ing.item_id }">
+              <span class="text-caption text-foreground flex-1 truncate" :class="{ italic: !inventoryItemRef(ing) }">
                 {{ ingredientLabel(ing) }}
               </span>
               <span class="font-cinzel text-2xs text-muted-foreground shrink-0">
@@ -303,24 +303,30 @@ function outputsFor(recipeId: string): CraftingOutput[] {
   return outputsMap.value.get(recipeId) ?? [];
 }
 
-function itemName(itemId: string): string {
-  return allItems.value?.find((i) => i.id === itemId)?.name
+function itemName(ref: string | null): string {
+  if (!ref) return "Unknown item";
+  return allItems.value?.find((i) => i.id === ref)?.name
     // A recipe output the player has never held isn't in their visible items, so
     // resolve its name from the craftable-output projection before giving up.
-    ?? craftableOutputNames.value.get(itemId)
+    // (That projection only ever covers vault items — see useCraftableOutputItems
+    // — but a library-referenced ref already resolved above via allItems, which
+    // includes the shared catalogue directly.)
+    ?? craftableOutputNames.value.get(ref)
     ?? "Unknown item";
 }
 
 function ingredientLabel(ing: CraftingIngredient): string {
-  if (ing.item_id) return itemName(ing.item_id);
+  const ref = inventoryItemRef(ing);
+  if (ref) return itemName(ref);
   if (!ing.tags) return "Any";
   return `Any "${ing.tags.join(", ")}"`;
 }
 
 function ownedCount(ing: CraftingIngredient): number {
-  if (ing.item_id) {
+  const ref = inventoryItemRef(ing);
+  if (ref) {
     return myInventory.value
-      .filter((i) => inventoryItemRef(i) === ing.item_id && !i.is_ruined)
+      .filter((i) => inventoryItemRef(i) === ref && !i.is_ruined)
       .reduce((sum, i) => sum + i.quantity, 0);
   }
   // Tag-based: sum all non-ruined inventory items whose vault definition has ALL required tags

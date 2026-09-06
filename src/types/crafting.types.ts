@@ -41,7 +41,10 @@ export type CraftingRecipeUpdate = Partial<CraftingRecipeInsert>;
 export interface CraftingOutput {
   id: string;
   recipe_id: string;
-  item_id: string;
+  // At most one of these is set — a DB check constraint enforces it. Resolve
+  // through `src/lib/inventory/itemRef.ts`, never by reading a column directly.
+  item_id: string | null; // the owner's own items row (uuid)
+  library_item_id: string | null; // shared library content (text id) — #819
   quantity: number;
 }
 
@@ -50,8 +53,11 @@ export type CraftingOutputInsert = Omit<CraftingOutput, "id">;
 export interface CraftingIngredient {
   id: string;
   recipe_id: string;
-  /** Specific item required. Exactly one of item_id / tags must be set. */
+  /** Specific item required. Exactly one of item_id / library_item_id / tags
+   *  must be set — resolve via `src/lib/inventory/itemRef.ts`. */
   item_id: string | null;
+  /** Shared library content required (text id) — #819. */
+  library_item_id: string | null;
   /** Tag-based ingredient: any item whose tags include ALL values in this array. */
   tags: string[] | null;
   quantity: number;

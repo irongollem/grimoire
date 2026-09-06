@@ -4,6 +4,7 @@ import { GEAR } from "./gear";
 import { PROVISIONS } from "./provisions";
 import { AMMUNITION } from "./ammunition";
 import { CRAFTING_DISCIPLINES } from "@/lib/crafting-disciplines";
+import { buildStarterRecipeChildRows } from "@/composables/crafting/useCrafting";
 
 /**
  * Invariants over the starter-recipe table. Both of these shipped broken and
@@ -47,5 +48,28 @@ describe("STARTER_RECIPES", () => {
       (recipe) => `${recipe.name} → ${recipe.discipline}`,
     );
     expect(unknown).toEqual([]);
+  });
+
+  it("resolves 'Stitch Leather Armour' → 'Leather Armour' via the shared library even with an empty vault map (#819)", () => {
+    // The concrete damage #819 was filed over: "Leather Armour" is
+    // grimoire-bundled — always present as a library_items row — but before
+    // this fix there was no column for a starter-recipe output to reference
+    // one, so buildStarterRecipeChildRows silently dropped it on any account
+    // that hadn't separately created a vault copy by that exact name. The
+    // "known" check above only proves the name exists *somewhere*; this
+    // proves the resolver actually reaches it when the vault has nothing.
+    const recipeDef = STARTER_RECIPES.find((recipe) => recipe.name === "Stitch Leather Armour");
+    expect(recipeDef).toBeDefined();
+
+    const { outputRows } = buildStarterRecipeChildRows(
+      [recipeDef!],
+      ["recipe-a"],
+      new Map(), // nothing in the vault
+      new Map([["Leather Armour", "srd_grimoire_bundled_leather_armour"]]),
+    );
+
+    expect(outputRows).toEqual([
+      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_armour", quantity: 1 },
+    ]);
   });
 });

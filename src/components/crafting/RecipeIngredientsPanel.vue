@@ -18,7 +18,7 @@
         >
         <span v-else class="w-10 shrink-0" />
         <span class="flex-1 text-body text-foreground truncate">
-          <span v-if="ing.item_id">{{ itemById(ing.item_id)?.name ?? "Unknown item" }}</span>
+          <span v-if="inventoryItemRef(ing)">{{ itemById(inventoryItemRef(ing))?.name ?? "Unknown item" }}</span>
           <span v-else class="italic text-muted-foreground">
             any
             <template v-if="ing.tags && ing.tags.length === 1">"{{ ing.tags[0] }}"</template>
@@ -113,10 +113,12 @@
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconDelete, IconSearch, IconTag } from "@/lib/icons";
+import { inventoryItemRef } from "@/lib/inventory/itemRef";
 import type { Item } from "@/types/item.types";
 
 interface IngredientEntry {
   item_id: string | null;
+  library_item_id: string | null;
   tags: string[] | null;
   quantity: number;
 }
@@ -131,7 +133,7 @@ const {
   filteredItems?: Item[];
   itemSearch?: string;
   tagInput?: string;
-  itemById: (id: string) => Item | undefined;
+  itemById: (id: string | null) => Item | undefined;
 }>();
 
 const emit = defineEmits<{

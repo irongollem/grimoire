@@ -686,6 +686,9 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
         id: idMap.get(si.id as string) ?? crypto.randomUUID(),
         user_id: userId,
         location_id: rCamp(si.location_id, idMap),
+        // library_item_id kept as-is via the spread (#819) — it names shared
+        // content by a stable id every account resolves the same way, unlike
+        // item_id's importer-owned uuid.
       })));
     }
   }
@@ -813,6 +816,8 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
             ...fi, id: idMap.get(fi.id as string) ?? crypto.randomUUID(), user_id: userId,
             faction_id: rCamp(fi.faction_id, idMap),
             // item_id: rLib so importer's library items are preserved
+            // library_item_id kept as-is via the spread (#819) — same reasoning
+            // as store_items above: it's a stable id, not an importer-owned uuid.
           }))) : Promise.resolve(),
       bundle.faction_relations?.length
         ? batchInsert("faction_relations", bundle.faction_relations.map((fr) => ({

@@ -39,11 +39,24 @@ vi.mock("@/composables/items/useItems", () => {
         mocks.refetches += 1;
       },
     }),
+    // Mirrors the real normalizeLibraryItem's patch-in-the-missing-columns
+    // shape closely enough for resolveStoreItemRow's own tests below.
+    normalizeLibraryItem: (row: Record<string, unknown>) => ({
+      ...row,
+      user_id: "",
+      campaign_id: null,
+      dm_notes: null,
+      spell_ids: [],
+      content: null,
+      content_player_writable: false,
+      content_updated_at: null,
+    }),
   };
 });
 
 /** Imported after the mocks so the composable picks them up. */
-const { useSharedStoreItems } = await import("@/composables/items/useStoreItems");
+import type { RawStoreItemRow } from "@/composables/items/useStoreItems";
+const { useSharedStoreItems, resolveStoreItemRow } = await import("@/composables/items/useStoreItems");
 
 /** Mounts a panel that records the ware names it would render, per update. */
 function mountPanel() {
@@ -106,5 +119,47 @@ describe("useSharedStoreItems", () => {
     await flushPromises();
 
     expect(mocks.refetches).toBe(1);
+  });
+});
+
+describe("resolveStoreItemRow", () => {
+  /** A row referencing the owner's own vault item — the `items(*)` embed
+   *  resolves it, `library_items(*)` comes back null. */
+  function vaultRow(): RawStoreItemRow {
+    return {
+      id: "row-1", user_id: "u1", location_id: "loc-1",
+      item_id: "item-1", library_item_id: null,
+      price_override: null, visible: true, sort_order: 0,
+      created_at: "", updated_at: "",
+      item: { id: "item-1", name: "Tanned Leather" } as unknown as RawStoreItemRow["item"],
+      library_item: null,
+    };
+  }
+
+  it("keeps the items(*) embed when the row references a vault item", () => {
+    const resolved = resolveStoreItemRow(vaultRow());
+    expect(resolved.item?.name).toBe("Tanned Leather");
+    expect(resolved.item_id).toBe("item-1");
+    expect(resolved.library_item_id).toBeNull();
+  });
+
+  it("resolves via the library_items(*) embed when the row references shared content (#819)", () => {
+    const row: RawStoreItemRow = {
+      ...vaultRow(),
+      item_id: null,
+      library_item_id: "srd_grimoire_bundled_leather_armour",
+      item: null,
+      library_item: { id: "srd_grimoire_bundled_leather_armour", name: "Leather Armour" },
+    };
+    const resolved = resolveStoreItemRow(row);
+    expect(resolved.item?.name).toBe("Leather Armour");
+    // normalizeLibraryItem's patch — proves the merge routes through it
+    // rather than casting the raw library row directly.
+    expect(resolved.item?.user_id).toBe("");
+  });
+
+  it("never renders a library-stocked row blank — both embeds null only means neither resolved yet, not that the item is missing", () => {
+    const row: RawStoreItemRow = { ...vaultRow(), item_id: null, item: null, library_item: null };
+    expect(resolveStoreItemRow(row).item).toBeNull();
   });
 });

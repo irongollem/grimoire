@@ -77,6 +77,29 @@ async function deleteItem(item: Item): Promise<void> {
   await deleteByPublicUrl(item.image_url, item.mundane_image_url);
 }
 
+/**
+ * Reshapes a raw `library_items` row into the `Item` shape every consumer
+ * (Vault, stores, crafting, factions, NPC inventory, …) already expects.
+ * `library_items` carries no `user_id`/`campaign_id`/`dm_notes`/`spell_ids`/
+ * document-item columns — leaving those `undefined` reads as "has content" to
+ * a `content !== null` check (feather badge on every SRD item), so every
+ * reader of a library row must go through this rather than casting the raw
+ * row directly. Exported for the other tables that now embed `library_items`
+ * (#819) — `useStoreItems.ts` in particular.
+ */
+export function normalizeLibraryItem(row: Record<string, unknown>): Item {
+  return {
+    ...row,
+    user_id: "",
+    campaign_id: null,
+    dm_notes: null,
+    spell_ids: [],
+    content: null,
+    content_player_writable: false,
+    content_updated_at: null,
+  } as unknown as Item;
+}
+
 async function fetchLibraryItems(enabledSlugs: string[], ruleset: RulesetKey): Promise<Item[]> {
   // Edition-neutral grimoire-bundled gear is always visible; enabled campaign
   // sources add to it. Array-form `.in()` (not a string-interpolated
@@ -89,21 +112,7 @@ async function fetchLibraryItems(enabledSlugs: string[], ruleset: RulesetKey): P
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("name", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    ...row,
-    user_id: "",
-    campaign_id: null,
-    dm_notes: null,
-    // library_items carries no spell_ids column — the field only exists on
-    // user-authored items with linked spells (e.g. a homebrew staff).
-    spell_ids: [],
-    // Nor the document-item columns: shared catalog rows are never documents.
-    // Without these the raw row leaves them undefined, which reads as "has
-    // content" to `content !== null` checks (feather badge on every SRD item).
-    content: null,
-    content_player_writable: false,
-    content_updated_at: null,
-  })) as Item[];
+  return (data ?? []).map(normalizeLibraryItem);
 }
 
 
@@ -362,18 +371,7 @@ export function useResolvedItem(id: Ref<string>) {
       if (sharedError) throw sharedError;
       if (!shared) throw new Error("Item not found");
       return {
-        item: {
-          ...shared,
-          user_id: "",
-          campaign_id: null,
-          dm_notes: null,
-          spell_ids: [],
-          // Same patch as fetchLibraryItems: these columns don't exist on
-          // library_items, and undefined would read as "has content".
-          content: null,
-          content_player_writable: false,
-          content_updated_at: null,
-        } as Item,
+        item: normalizeLibraryItem(shared),
         isShared: true,
       };
     },

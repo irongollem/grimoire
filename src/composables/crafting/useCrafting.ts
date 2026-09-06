@@ -15,6 +15,7 @@ import type {
   CraftingAttemptResult,
 } from "@/types/crafting.types";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
+import { inventoryItemRef } from "@/lib/inventory/itemRef";
 import type { StarterRecipeDef } from "@/data/starterRecipes";
 
 const RECIPES_KEY    = "crafting-recipes";
@@ -415,7 +416,8 @@ export function useAttemptCraft() {
       recipe: CraftingRecipe;
       /** Output items to add to inventory on success */
       outputs: CraftingOutput[];
-      /** Resolved names for each output item (item_id → display name) */
+      /** Resolved names for each output (ref id → display name) — the ref may
+       *  be either item_id or library_item_id, see inventoryItemRef. */
       outputItemNames: Record<string, string>;
       /** party_inventory rows to consume, each with the quantity the recipe uses */
       ingredientConsumption: { id: string; qty: number }[];
@@ -480,16 +482,17 @@ export function useAttemptCraft() {
       // ingredients with nothing created.
       const successRows =
         outcome === "success"
-          ? outputs.map((output) => ({
-              campaign_id: recipe.campaign_id,
-              item_id: output.item_id,
-              // Recipe outputs are still uuid-only this slice; craft_apply
-              // accepts the column so #815's next slice needs no RPC change.
-              library_item_id: null,
-              name: output.item_id ? (outputItemNames[output.item_id] ?? "") : "",
-              quantity: output.quantity,
-              carried_by: partyMemberId,
-            }))
+          ? outputs.map((output) => {
+              const ref = inventoryItemRef(output);
+              return {
+                campaign_id: recipe.campaign_id,
+                item_id: output.item_id,
+                library_item_id: output.library_item_id,
+                name: ref ? (outputItemNames[ref] ?? "") : "",
+                quantity: output.quantity,
+                carried_by: partyMemberId,
+              };
+            })
           : [];
       const ruinedRow =
         outcome === "ruin"
@@ -523,6 +526,10 @@ export function useAttemptCraft() {
 
 // ── Starter recipe import ────────────────────────────────────────────────────
 
+/** A starter-recipe output row, resolved against exactly one of the vault or
+ *  the shared library — see {@link buildStarterRecipeChildRows}. */
+type OutputRow = { recipe_id: string; item_id: string | null; library_item_id: string | null; quantity: number };
+
 /**
  * Correlates each starter-recipe definition with its freshly-inserted recipe
  * id by array position (see useImportStarterRecipes: a single bulk
@@ -536,9 +543,17 @@ export function buildStarterRecipeChildRows(
   defs: StarterRecipeDef[],
   recipeIds: string[],
   outputItemIdByName: Map<string, string>,
+  /** Shared `library_items` fallback (#819) — a starter-recipe output whose
+   *  name isn't in the caller's vault (e.g. never auto-created there, or the
+   *  name exists only as grimoire-bundled library content, as
+   *  "Leather Armour" does for "Stitch Leather Armour") resolves here instead
+   *  of being dropped. Vault takes priority when both would match, so an
+   *  account that already owns an item by that name keeps behaving exactly as
+   *  before. Optional/defaulted so existing callers are unaffected. */
+  libraryItemIdByName: Map<string, string> = new Map(),
 ): {
   ingredientRows: { recipe_id: string; item_id: null; tags: string[]; quantity: number }[];
-  outputRows: { recipe_id: string; item_id: string; quantity: number }[];
+  outputRows: OutputRow[];
   modifierRows: { recipe_id: string; description: string; bonus: number }[];
 } {
   const ingredientRows = defs.flatMap((def, i) =>
@@ -547,13 +562,13 @@ export function buildStarterRecipeChildRows(
     })),
   );
   const outputRows = defs.flatMap((def, i) =>
-    def.outputs
-      .map((o) => ({
-        recipe_id: recipeIds[i],
-        item_id: outputItemIdByName.get(o.name) ?? null,
-        quantity: o.quantity,
-      }))
-      .filter((o): o is { recipe_id: string; item_id: string; quantity: number } => o.item_id !== null),
+    def.outputs.flatMap((o): OutputRow[] => {
+      const vaultId = outputItemIdByName.get(o.name);
+      if (vaultId) return [{ recipe_id: recipeIds[i], item_id: vaultId, library_item_id: null, quantity: o.quantity }];
+      const libraryId = libraryItemIdByName.get(o.name);
+      if (libraryId) return [{ recipe_id: recipeIds[i], item_id: null, library_item_id: libraryId, quantity: o.quantity }];
+      return [];
+    }),
   );
   const modifierRows = defs.flatMap((def, i) =>
     (def.modifiers ?? []).map((m) => ({ recipe_id: recipeIds[i], description: m.description, bonus: m.bonus })),
@@ -570,7 +585,7 @@ export function buildStarterRecipeChildRows(
  */
 export interface RecipeChildWriters {
   insertIngredients: (rows: { recipe_id: string; item_id: null; tags: string[]; quantity: number }[]) => PromiseLike<{ error: unknown }>;
-  insertOutputs: (rows: { recipe_id: string; item_id: string; quantity: number }[]) => PromiseLike<{ error: unknown }>;
+  insertOutputs: (rows: OutputRow[]) => PromiseLike<{ error: unknown }>;
   insertModifiers: (rows: { recipe_id: string; description: string; bonus: number }[]) => PromiseLike<{ error: unknown }>;
   deleteRecipes: (ids: string[]) => PromiseLike<unknown>;
 }
@@ -591,6 +606,10 @@ export async function seedRecipeChildren(
   recipeIds: string[],
   outputItemIdByName: Map<string, string>,
   writers: RecipeChildWriters,
+  /** See {@link buildStarterRecipeChildRows} — optional/defaulted so existing
+   *  callers are unaffected. Appended after `writers` rather than inserted
+   *  before it so every pre-#819 call site keeps compiling unchanged. */
+  libraryItemIdByName: Map<string, string> = new Map(),
 ): Promise<void> {
   try {
     if (recipeIds.length !== toImport.length) {
@@ -598,7 +617,7 @@ export async function seedRecipeChildren(
     }
 
     const { ingredientRows, outputRows, modifierRows } =
-      buildStarterRecipeChildRows(toImport, recipeIds, outputItemIdByName);
+      buildStarterRecipeChildRows(toImport, recipeIds, outputItemIdByName, libraryItemIdByName);
 
     if (ingredientRows.length > 0) {
       const { error } = await writers.insertIngredients(ingredientRows);
@@ -644,16 +663,29 @@ export function useImportStarterRecipes() {
       const user = getCurrentUser();
       const campaignId = campaign.activeCampaignId!;
 
-      // 1. Ensure all output items exist in the vault (insert missing ones)
+      // 1. Ensure all output items exist in the vault OR the shared library
+      // (insert only the ones resolvable by neither). A name the vault
+      // already owns keeps resolving there unchanged; a name that's only
+      // ever existed as grimoire-bundled library content (#819 — "Leather
+      // Armour" for "Stitch Leather Armour" is the case that motivated this)
+      // now references that instead of minting a redundant personal copy.
       const outputNames = [...new Set(STARTER_RECIPES.flatMap((r) => r.outputs.map((o) => o.name)))];
-      const { data: existingItems } = await supabase
-        .from("items")
-        .select("id, name")
-        .eq("user_id", user!.id)
-        .in("name", outputNames);
+      const [{ data: existingItems }, { data: libraryItems, error: libraryError }] = await Promise.all([
+        supabase
+          .from("items")
+          .select("id, name")
+          .eq("user_id", user!.id)
+          .in("name", outputNames),
+        supabase
+          .from("library_items")
+          .select("id, name")
+          .in("name", outputNames),
+      ]);
+      if (libraryError) throw libraryError;
       const existingByName = new Map((existingItems ?? []).map((i: { id: string; name: string }) => [i.name, i.id]));
+      const libraryByName = new Map((libraryItems ?? []).map((i: { id: string; name: string }) => [i.name, i.id]));
 
-      const missing = outputNames.filter((n) => !existingByName.has(n));
+      const missing = outputNames.filter((n) => !existingByName.has(n) && !libraryByName.has(n));
       if (missing.length > 0) {
         const toInsert = [...GEAR, ...PROVISIONS, ...AMMUNITION]
           .filter((g) => missing.includes(g.name))
@@ -707,7 +739,7 @@ export function useImportStarterRecipes() {
         insertOutputs: (rows) => supabase.from("crafting_recipe_outputs").insert(rows),
         insertModifiers: (rows) => supabase.from("crafting_recipe_modifiers").insert(rows),
         deleteRecipes: (ids) => supabase.from("crafting_recipes").delete().in("id", ids),
-      });
+      }, libraryByName);
 
       return toImport.length;
     },

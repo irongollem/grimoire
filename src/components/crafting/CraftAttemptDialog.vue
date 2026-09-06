@@ -206,7 +206,7 @@ const props = defineProps<{
   /** Output items produced on success */
   outputs: CraftingOutput[];
   /** Required ingredients from the recipe definition */
-  requiredIngredients: { item_id: string | null; tags: string[] | null; quantity: number }[];
+  requiredIngredients: { item_id: string | null; library_item_id: string | null; tags: string[] | null; quantity: number }[];
   modifiers: CraftingModifier[];
   /** Player's full inventory (carried items) */
   inventory: PartyInventoryItem[];
@@ -259,11 +259,12 @@ const ingredientSlots = computed(() =>
   props.requiredIngredients.map((req) => {
     let itemName: string;
     let available: number;
+    const ref = inventoryItemRef(req);
 
-    if (req.item_id) {
-      itemName = props.allItems.find((i) => i.id === req.item_id)?.name ?? "Unknown item";
+    if (ref) {
+      itemName = props.allItems.find((i) => i.id === ref)?.name ?? "Unknown item";
       available = props.inventory
-        .filter((inv) => inventoryItemRef(inv) === req.item_id && !inv.is_ruined)
+        .filter((inv) => inventoryItemRef(inv) === ref && !inv.is_ruined)
         .reduce((sum, inv) => sum + inv.quantity, 0);
     } else {
       // Tag-based: any non-ruined inventory item whose vault item has ALL required tags
@@ -280,7 +281,9 @@ const ingredientSlots = computed(() =>
     }
 
     return {
-      item_id: req.item_id,
+      // Holds the resolved reference (either column, whichever is set) — the
+      // template only needs it to tell "a specific item" from "tag-based".
+      item_id: ref,
       tags: req.tags,
       itemName,
       needed: req.quantity,
@@ -328,9 +331,10 @@ function resolveIngredientConsumption(): {
 
   for (const req of props.requiredIngredients) {
     let remaining = req.quantity;
-    const matchingItems = req.item_id
+    const ref = inventoryItemRef(req);
+    const matchingItems = ref
       ? props.inventory
-          .filter((inv) => inventoryItemRef(inv) === req.item_id && eligible(inv))
+          .filter((inv) => inventoryItemRef(inv) === ref && eligible(inv))
           .sort((a, b) => b.quantity - a.quantity)
       : props.inventory
           .filter((inv) => {
@@ -362,13 +366,14 @@ const outcomeLabel = computed(() => {
   return "Failure";
 });
 
-function resolveOutputName(itemId: string): string | undefined {
-  return props.allItems.find((i) => i.id === itemId)?.name ?? props.outputNameMap?.get(itemId);
+function resolveOutputName(ref: string): string | undefined {
+  return props.allItems.find((i) => i.id === ref)?.name ?? props.outputNameMap?.get(ref);
 }
 
 const outputNames = computed(() =>
   props.outputs.map((o) => {
-    const name = resolveOutputName(o.item_id) ?? "item";
+    const ref = inventoryItemRef(o);
+    const name = (ref ? resolveOutputName(ref) : undefined) ?? "item";
     return o.quantity > 1 ? `${o.quantity}× ${name}` : name;
   }),
 );
@@ -394,7 +399,8 @@ async function attempt() {
   try {
     const resolvedOutputNames: Record<string, string> = {};
     for (const o of props.outputs) {
-      if (o.item_id) resolvedOutputNames[o.item_id] = resolveOutputName(o.item_id) ?? "";
+      const ref = inventoryItemRef(o);
+      if (ref) resolvedOutputNames[ref] = resolveOutputName(ref) ?? "";
     }
 
     const res = await attemptCraft({
