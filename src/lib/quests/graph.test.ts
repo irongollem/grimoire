@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findBeatPath, getReachableBeatIds, rootBeatIds } from "./graph";
+import { findBeatPath, getReachableBeatIds, rootBeatIds, storyBeatOrder } from "./graph";
 
 const edge = (source_beat_id: string, target_beat_id: string) => ({
   source_beat_id,
@@ -47,5 +47,32 @@ describe("quest beat graph roots", () => {
 
   it("never returns an archived beat, even with no incoming edge", () => {
     expect(rootBeatIds([beat("a"), beat("gone", "archived")], [])).toEqual(["a"]);
+  });
+});
+
+describe("quest beat story order", () => {
+  const beat = (id: string, kind = "neutral") => ({ id, kind });
+
+  it("walks a linear chain start to finish", () => {
+    const edges = [edge("a", "b"), edge("b", "c")];
+    expect(storyBeatOrder([beat("a"), beat("b"), beat("c")], edges)).toEqual(["a", "b", "c"]);
+  });
+
+  it("finishes one root's branches before moving to the next root", () => {
+    const edges = [edge("tavern", "cave")];
+    expect(storyBeatOrder([beat("tavern"), beat("docks"), beat("cave")], edges)).toEqual(["tavern", "cave", "docks"]);
+  });
+
+  it("still lists every beat of a pure cycle, in authored order, when there is no root to walk from", () => {
+    const edges = [edge("a", "b"), edge("b", "a")];
+    expect(storyBeatOrder([beat("a"), beat("b")], edges)).toEqual(["a", "b"]);
+  });
+
+  it("never returns an archived beat", () => {
+    expect(storyBeatOrder([beat("a"), beat("gone", "archived")], [])).toEqual(["a"]);
+  });
+
+  it("ignores an edge pointing at a beat outside this list", () => {
+    expect(storyBeatOrder([beat("a")], [edge("a", "ghost")])).toEqual(["a"]);
   });
 });

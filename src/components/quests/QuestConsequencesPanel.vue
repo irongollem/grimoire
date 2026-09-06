@@ -101,8 +101,6 @@ import {
   QUEST_CONSEQUENCE_LEDGER_ACTIONS,
   QUEST_CONSEQUENCE_OBJECTIVE_STATUSES,
   QUEST_CONSEQUENCE_WORLD_ACTIONS,
-  type BroadcastConsequencePayload,
-  type CalendarEventConsequencePayload,
   type QuestBeat,
   type QuestBeatEdge,
   type QuestConsequence,
@@ -117,6 +115,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconLightning } from "@/lib/icons";
+import { describeQuestConsequenceAction, isLedgerConsequenceAction, QUEST_CONSEQUENCE_ACTION_LABELS } from "@/lib/quests/consequences";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 
 /**
@@ -148,14 +147,7 @@ const { scope, questId, beat, edges = [], beats = [] } = defineProps<{
 
 const CALENDAR_EVENT_TYPES = Object.keys(EVENT_TYPE_COLORS) as CalendarEventType[];
 
-const ACTION_LABELS: Record<QuestConsequenceAction, string> = {
-  raise: "Raise",
-  reveal: "Reveal to players",
-  complete: "Complete",
-  fail: "Fail",
-  create_calendar_event: "Create calendar event",
-  send_broadcast: "Send broadcast",
-};
+const ACTION_LABELS = QUEST_CONSEQUENCE_ACTION_LABELS;
 
 // Phrased as what happens at the table, not as a state transition, because
 // the DM is describing a story consequence and will read this list back
@@ -169,9 +161,7 @@ const ACTION_TONES: Record<QuestConsequenceAction, string> = {
   send_broadcast: "text-tone-info",
 };
 
-function isLedgerAction(a: QuestConsequenceAction): boolean {
-  return QUEST_CONSEQUENCE_LEDGER_ACTIONS.includes(a);
-}
+const isLedgerAction = isLedgerConsequenceAction;
 function isWorldAction(a: QuestConsequenceAction): boolean {
   return QUEST_CONSEQUENCE_WORLD_ACTIONS.includes(a);
 }
@@ -265,13 +255,7 @@ function delaySuffix(row: QuestConsequence): string {
 }
 
 function actionSummary(row: QuestConsequence): string {
-  if (isLedgerAction(row.action)) return `${ACTION_LABELS[row.action]} "${objectiveLabel(row.target_objective_id)}"`;
-  if (row.action === "create_calendar_event") {
-    const payload = row.action_payload as CalendarEventConsequencePayload;
-    return `Calendar event: "${payload.title ?? ""}"`;
-  }
-  const payload = row.action_payload as BroadcastConsequencePayload;
-  return `Broadcast: "${payload.message ?? ""}"`;
+  return describeQuestConsequenceAction(row, objectiveLabel);
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────

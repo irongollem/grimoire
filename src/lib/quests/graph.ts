@@ -48,6 +48,44 @@ export function rootBeatIds(beats: readonly GraphBeat[], edges: GraphEdge[]): st
     .map((beat) => beat.id);
 }
 
+/**
+ * Every non-archived beat, in the order a party walking the authored story
+ * would meet it: root-first, breadth-first from each root in turn — reusing
+ * {@link rootBeatIds} and {@link getReachableBeatIds} rather than a third
+ * traversal. A beat no root can reach — a cyclic island, or a quest authored
+ * with no root at all (`rootBeatIds` returns none for a pure cycle) — still
+ * needs a place in a backfill list, so anything left over is appended in
+ * authored (array) order rather than silently dropped (#796).
+ *
+ * An edge pointing at an id absent from `beats` (a stray row, or a beat from
+ * another quest) is ignored rather than trusted — the result only ever names
+ * beats the caller actually has data for.
+ */
+export function storyBeatOrder(beats: readonly GraphBeat[], edges: GraphEdge[]): string[] {
+  const validIds = new Set(beats.filter((beat) => beat.kind !== "archived").map((beat) => beat.id));
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+
+  for (const rootId of rootBeatIds(beats, edges)) {
+    if (seen.has(rootId)) continue;
+    seen.add(rootId);
+    ordered.push(rootId);
+    for (const id of getReachableBeatIds(rootId, edges)) {
+      if (seen.has(id) || !validIds.has(id)) continue;
+      seen.add(id);
+      ordered.push(id);
+    }
+  }
+
+  for (const beat of beats) {
+    if (beat.kind === "archived" || seen.has(beat.id)) continue;
+    seen.add(beat.id);
+    ordered.push(beat.id);
+  }
+
+  return ordered;
+}
+
 /** Returns the shortest directed path, including both endpoints. */
 export function findBeatPath(
   startBeatId: string,

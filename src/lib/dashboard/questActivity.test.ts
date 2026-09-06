@@ -142,4 +142,54 @@ describe("deriveQuestActivityRows", () => {
     const rows = deriveQuestActivityRows([transition({ id: "t1" })], [quest("q1", "The Sunken Keep")]);
     expect(rows[0].summary).toBe('Advanced from "The Flooded Hall" to "The Drowned Vault"');
   });
+
+  // #796: a backfilled beat is worded as a record, never as a move — it never
+  // happened "from X to Y" at the table, so it must not read like one did.
+  it("phrases a backfilled beat as recorded, not as a play verb", () => {
+    const rows = deriveQuestActivityRows(
+      [transition({
+        id: "t1",
+        transition_kind: "assert",
+        from_quest_id: null,
+        from_beat_id: null,
+        from_beat_title: null,
+        to_beat_title: "The Drowned Vault",
+      })],
+      [quest("q1", "The Sunken Keep")],
+    );
+    expect(rows[0].summary).toBe('Recorded reaching "The Drowned Vault"');
+  });
+
+  // `assert_quest_objective_status` (#794) writes an assert transition with no
+  // beat at all — the reason is all there is to say.
+  it("phrases a beatless assertion (an objective status backfill) from its reason", () => {
+    const rows = deriveQuestActivityRows(
+      [transition({
+        id: "t1",
+        transition_kind: "assert",
+        from_beat_id: null,
+        from_beat_title: null,
+        to_beat_id: null,
+        to_beat_title: null,
+        reason: "Session 4 recap",
+      })],
+      [quest("q1", "The Sunken Keep")],
+    );
+    expect(rows[0].summary).toBe("Recorded: Session 4 recap");
+  });
+
+  it("falls back to a generic phrase for a beatless assertion with no reason", () => {
+    const rows = deriveQuestActivityRows(
+      [transition({
+        id: "t1",
+        transition_kind: "assert",
+        from_beat_id: null,
+        from_beat_title: null,
+        to_beat_id: null,
+        to_beat_title: null,
+      })],
+      [quest("q1", "The Sunken Keep")],
+    );
+    expect(rows[0].summary).toBe("Recorded a ledger change");
+  });
 });

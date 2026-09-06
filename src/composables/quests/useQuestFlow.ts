@@ -699,6 +699,61 @@ export function useQuestRuntimeCommand() {
   });
 }
 
+export interface QuestAssertRuntimeInput {
+  campaignId: string;
+  questId: string;
+  /** In story order — the order beats are applied and chained from. */
+  beatIds: string[];
+  placeCursor: boolean;
+  reason?: string;
+}
+
+export interface QuestAssertRuntimeResult {
+  asserted: number;
+  /** Titles of the beats just asserted, in the order applied. */
+  beats: string[];
+  cursor_placed: boolean;
+  current_beat_id: string | null;
+}
+
+/**
+ * Records beats as already played, without playing through them (#796): the
+ * prep-time counterpart to {@link useQuestRuntimeCommand}. It appends one
+ * `assert` transition per beat, fires each beat's arrival consequences exactly
+ * as playing through would, and optionally places the cursor at the last one —
+ * but it never sets `status = 'running'`. Fixing the record must not light the
+ * session rail; only the verb machine (`transition_quest_runtime`) starts a
+ * session. See `supabase/migrations/20260906093154_prep_can_assert_the_cursor.sql`.
+ */
+export function useAssertQuestRuntime() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: QuestAssertRuntimeInput): Promise<QuestAssertRuntimeResult> => {
+      const { data, error } = await supabase.rpc("assert_quest_runtime", {
+        p_campaign_id: input.campaignId,
+        p_quest_id: input.questId,
+        p_beat_ids: input.beatIds,
+        p_place_cursor: input.placeCursor,
+        p_reason: input.reason?.trim() || null,
+      });
+      if (error) throw error;
+      return data as QuestAssertRuntimeResult;
+    },
+    onSuccess: () => {
+      // The cursor and the log — the same caches a played move invalidates.
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board"] });
+      // Consequences can move objectives, log events, and touch the calendar —
+      // same set `useAssertQuestObjectiveStatus` invalidates for the same reason.
+      queryClient.invalidateQueries({ queryKey: ["quest_objectives"] });
+      queryClient.invalidateQueries({ queryKey: ["quest_consequence_events"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+    },
+  });
+}
+
 export interface QuestRuntimeImprovInput {
   campaignId: string;
   questId: string;

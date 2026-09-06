@@ -348,7 +348,7 @@ export interface QuestRuntimeState {
 
 export type QuestRuntimeStatus = "idle" | "running" | "paused" | "ended";
 export type QuestRuntimeCommand = "start" | "advance" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
-export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
+export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end" | "assert";
 
 /** A place in one chain. The quest is the cursor row's own key, so an entry
  * carries only the beat — a quest_id inside it could only ever disagree. */

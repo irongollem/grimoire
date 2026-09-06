@@ -101,6 +101,7 @@
     </section>
 
     <QuestConsequencesPanel scope="quest" :quest-id="quest.id" />
+    <QuestBackfillPanel :quest="quest" />
     <QuestSidebarPanels
       :is-new="false"
       :quest-id="quest.id"
@@ -142,6 +143,7 @@ import type { Quest, QuestObjective } from "@/types/quest.types";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 import QuestSidebarPanels from "./QuestSidebarPanels.vue";
 import QuestConsequencesPanel from "./QuestConsequencesPanel.vue";
+import QuestBackfillPanel from "./QuestBackfillPanel.vue";
 
 const props = defineProps<{ quest: Quest }>();
 const router = useRouter();

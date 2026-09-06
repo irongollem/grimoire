@@ -68,9 +68,11 @@ function mountLifecycle() {
     global: {
       stubs: {
         // Isolate this component's own ledger/lifecycle logic from its
-        // children's — QuestConsequencesPanel and EntityCalendarSection have
-        // their own composables and their own test files.
+        // children's — QuestConsequencesPanel, QuestBackfillPanel and
+        // EntityCalendarSection have their own composables and their own test
+        // files.
         QuestConsequencesPanel: true,
+        QuestBackfillPanel: true,
         EntityCalendarSection: true,
         QuestSidebarPanels: true,
       },
