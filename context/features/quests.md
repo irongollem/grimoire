@@ -560,10 +560,47 @@ active` on arrival, never demotes, never touches `completed`/`failed`.
 
 `QuestGeneratorPanel.vue` (a `fixed` drawer mounted globally via
 `AiGeneratorPanels.vue`), `src/ai/useQuestGeneration.ts`, edge function
-`generate-quest`. Pro-gated. Produces **exactly 5** hooks — the seeded system prompt
-(`20260507000001_ai_system_prompts.sql`) says so twice and both the server and the
-local-key client path load the same prompt row. Picking one creates the quest, its
-objectives and `quest_refs` for every resolved NPC/location.
+`generate-quest`. Pro-gated. Produces **exactly 5** hooks — the system prompt says
+so, and both the server and the local-key client path load the same prompt row.
+
+Picking one creates the quest, **its story spine**, its objectives and `quest_refs`
+for every resolved NPC/location.
+
+### The spine, and its two producers
+
+Until #822 a hook was a paragraph of narration plus a flat checklist. The prompt
+had asked for a five-string `objectives` list described as a story arc, which is
+a five-beat spine mislabeled — the model had been writing one on every call since
+May and the schema had been throwing it away. `20260906175050_rewrite_quest_generator_prompt.sql`
+rewrote it to ask for what the schema can actually hold: `beats`, `routes` between
+them by key, and `objectives` carrying `raised_by`.
+
+**`raised_by` is the point of it.** An objective named by the opening beat lands
+`pending`; one named only by a later beat lands `dormant`, because the party has
+not been sent down that branch yet. An unwired objective lands `pending`
+conservatively, so a hole in the model's output never hides a goal from the DM.
+
+The planning is pure and lives in `src/lib/quests/spine.ts` — it treats the
+response as untrusted and *degrades* rather than throwing: blank keys, dangling
+routes, duplicate pairs and unknown kinds are dropped. **Nothing is ever
+manufactured.** A response with no usable spine creates no beat at all; a
+fabricated "Opening beat" would let the generation-one shape survive its own
+deletion, which is the whole of what epic #780 undid.
+
+The writing lives in `src/lib/quests/spineWrite.ts` (#829), which takes its four
+mutations as injected deps because there are now **two producers**:
+
+| Producer | Gets its mutations from | Fills `read_aloud`? |
+| --- | --- | --- |
+| `useCreateQuestFromHook` (this generator) | TanStack mutations | No — invented prose has no boxed text |
+| `DocumentImportWizard` (#829, pasted adventure page) | plain Supabase inserts | Yes — a published page marks its boxed text |
+
+Three behaviours in there look arbitrary and are not: beats are created
+**sequentially rather than `Promise.all`** (`canvas_x` reads left-to-right in story
+order, and a mid-sequence failure must leave the earlier beats behind instead of
+losing all of them to fail-fast); the beat/route block is **best-effort** inside a
+`try/catch` (a partly wired spine must not undo a quest that already landed); and
+routes and consequences are filtered to keys that actually landed.
 
 Retrieval grounding (#600) is documented in
 [world-building.md](world-building.md#retrieval-grounding-for-ai-generators-600) — that section is
