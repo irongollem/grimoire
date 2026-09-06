@@ -9,14 +9,15 @@ const mocks = vi.hoisted(() => ({
   createObjective: vi.fn(),
   createQuestRef: vi.fn(),
   createBeat: vi.fn(),
+  createBeatEdge: vi.fn(),
+  createConsequence: vi.fn(),
   push: vi.fn(),
 }));
 
 const hook: QuestHookResult = {
   title: "The Silent Bell",
   summary: "Something rings under the church at night.",
-  hook_description: "", // falsy — skips the opening-beat branch, not under test here
-  objectives: [],
+  objectives: [], // no spine, no objectives — not under test here (see useCreateQuestFromHook.test.ts)
   tags: [],
 };
 
@@ -42,7 +43,14 @@ vi.mock("@/composables/quests/useQuests", () => ({
   useCreateObjective: () => ({ mutateAsync: mocks.createObjective }),
   useCreateQuestRef: () => ({ mutateAsync: mocks.createQuestRef }),
 }));
-vi.mock("@/composables/quests/useQuestFlow", () => ({ useCreateQuestBeat: () => ({ mutateAsync: mocks.createBeat }) }));
+// useCreateQuestFromHook (#822) calls straight through to these — mocked here
+// rather than mocking useCreateQuestFromHook itself, so this test still
+// exercises the real orchestration logic end to end.
+vi.mock("@/composables/quests/useQuestFlow", () => ({
+  useCreateQuestBeat: () => ({ mutateAsync: mocks.createBeat }),
+  useCreateQuestBeatEdge: () => ({ mutateAsync: mocks.createBeatEdge }),
+  useCreateQuestConsequence: () => ({ mutateAsync: mocks.createConsequence }),
+}));
 vi.mock("@/composables/billing/useSubscription", () => ({ useSubscription: () => ({ isPro: ref(true) }) }));
 vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 0, affordable: () => true }) }));
 vi.mock("@/composables/ai/useProviderConfig", () => ({ useProviderConfig: () => ({ textMultiplierFor: () => 1 }) }));
@@ -80,8 +88,11 @@ describe("QuestGeneratorPanel — createFromHook", () => {
     mocks.createObjective.mockReset();
     mocks.createQuestRef.mockReset();
     mocks.createBeat.mockReset();
+    mocks.createBeatEdge.mockReset();
+    mocks.createConsequence.mockReset();
     mocks.push.mockReset();
     mocks.createQuest.mockResolvedValue({ id: "quest-new" });
+    mocks.createObjective.mockResolvedValue({ id: "objective-new" });
   });
 
   // Regression guard for #799: `quests.rewards` and the currency/item reward

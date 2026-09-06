@@ -71,13 +71,35 @@
             <ul v-if="hook.objectives.length" class="space-y-1">
               <li
                 v-for="obj in hook.objectives"
-                :key="obj"
+                :key="obj.description"
                 class="flex items-start gap-2 text-caption text-muted-foreground"
               >
                 <span class="text-primary mt-0.5 shrink-0">•</span>
-                <span>{{ obj }}</span>
+                <span>{{ obj.description }}</span>
               </li>
             </ul>
+
+            <!-- Story spine preview (#822) — the beats and their order, visible
+                 before Create rather than discovered afterwards. Deliberately
+                 compact: a numbered list and a route summary, not a graph
+                 editor. -->
+            <div v-if="spineBeatsByHook[i]?.length" class="space-y-1">
+              <p class="text-label text-muted-foreground/60">STORY BEATS</p>
+              <ol class="space-y-1">
+                <li
+                  v-for="(beat, bi) in spineBeatsByHook[i]"
+                  :key="beat.key"
+                  class="flex items-baseline gap-2 text-caption text-muted-foreground"
+                >
+                  <span class="font-cinzel text-2xs text-primary shrink-0">{{ bi + 1 }}.</span>
+                  <span class="flex-1">{{ beat.title }}</span>
+                  <span class="text-caption-sm text-muted-foreground/50 uppercase shrink-0">{{ beat.kind }}</span>
+                </li>
+              </ol>
+              <p v-if="spineRoutesByHook[i]?.length" class="text-caption-sm text-muted-foreground/50">
+                Route: {{ spineRoutesByHook[i].join(", ") }}
+              </p>
+            </div>
 
             <div v-if="hook.tags.length" class="flex flex-wrap gap-1.5">
               <span
@@ -249,13 +271,11 @@ import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
-import { useCreateQuest, useCreateObjective, useCreateQuestRef } from "@/composables/quests/useQuests";
-import { useCreateQuestBeat } from "@/composables/quests/useQuestFlow";
+import { useCreateQuestFromHook } from "@/composables/quests/useCreateQuestFromHook";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { useQuestGeneration } from "@/ai/useQuestGeneration";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
@@ -264,6 +284,8 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { resolveGeneratedEntities, type ResolvedEntity } from "@/ai/resolveGeneratedEntities";
+import { describeSpineRoutes, planSpineBeats } from "@/lib/quests/spine";
+import { useToast } from "@/composables/useToast";
 import type { QuestHookResult } from "@/ai/types";
 
 const ui = useUiStore();
@@ -295,10 +317,16 @@ const {
   clearHooks,
 } = useQuestGeneration();
 
-const { mutateAsync: createQuest } = useCreateQuest();
-const { mutateAsync: createObjective } = useCreateObjective();
-const { mutateAsync: createQuestRef } = useCreateQuestRef();
-const { mutateAsync: createBeat } = useCreateQuestBeat();
+const { createFromHook: createQuestFromHook } = useCreateQuestFromHook();
+const toast = useToast();
+
+/** Spine preview data per hook, aligned by index with `hooks` (#822). Reuses
+ * the same plan functions the write path uses, so the preview can never show
+ * a beat or route that createFromHook would then silently drop. */
+const spineBeatsByHook = computed(() => hooks.value.map((hook) => planSpineBeats(hook.beats)));
+const spineRoutesByHook = computed(() =>
+  spineBeatsByHook.value.map((beats, i) => describeSpineRoutes(beats, hooks.value[i]!.routes)),
+);
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
@@ -404,95 +432,36 @@ function buildCreated(index: number) {
   }
 }
 
+// The actual write path — quest, spine beats/edges, objectives split
+// pending/dormant by reachability, raise consequences, and resolved
+// npc/location refs — lives in useCreateQuestFromHook (#822). It moved out
+// of this panel once the spine write logic pushed the file past the 600-line
+// soft cap in CLAUDE.md; this component now owns only the preview (see
+// spineBeatsByHook/spineRoutesByHook above) and the Create button's own
+// pending/created-index bookkeeping.
 async function createFromHook(hook: QuestHookResult, index: number) {
   creatingIndex.value = index;
   try {
-    const quest = await createQuest({
-      title: hook.title,
-      summary: hook.summary,
-      tags: hook.tags,
-      status: "active",
-      giver_npc_id: giverNpcId.value || null,
-      location_id: locationId.value || null,
-      parent_quest_id: null,
-      player_visible_to: [],
-      started_at: null,
-      resolved_at: null,
-      ai_provenance: provenance.value,
+    const { questId, beatsCreated } = await createQuestFromHook({
+      hook,
+      giverNpcId: giverNpcId.value,
+      locationId: locationId.value,
+      entityPools: entityPools.value,
+      aiProvenance: provenance.value,
     });
-
-    // The generated hook's narrative used to live on `quests.description`; that
-    // bridge column is gone (#793), and under the ledger model the quest-wide
-    // material belongs on an ordinary beat — the opening one, an unwired graph
-    // root the DM connects into the flow from Story flow.
-    if (hook.hook_description) {
-      try {
-        await createBeat({
-          quest_id: quest.id,
-          campaign_id: campaign.activeCampaignId!,
-          title: "Opening beat",
-          dm_content: toTiptapJson(hook.hook_description),
-          read_aloud: null,
-          how_it_plays: null,
-          outcomes: null,
-          consequences: null,
-          rumor_text: null,
-          reveal_text: null,
-          visibility: "hidden",
-          kind: "neutral",
-          presentation_hint: null,
-          canvas_x: 0,
-          canvas_y: 0,
-          is_improvised: false,
-          improv_reviewed_at: null,
-        });
-      } catch {
-        // Best-effort, like the objective/ref writes below: a missing opening
-        // beat doesn't undo the quest, which already landed.
-      }
+    // #822: no beat is manufactured when the model returned no usable spine —
+    // a quest with no beats is a legitimate state, not a failure — but
+    // silence would still be worse than either option: the DM asked for a
+    // quest and got less than one, and shouldn't have to open Story flow to
+    // notice.
+    if (beatsCreated === 0) {
+      toast.info(
+        `"${hook.title}" has no story beats yet — the AI didn't return one. Its objectives are ready; write the beats yourself in Story flow.`,
+        8000,
+      );
     }
-
-    await Promise.all(
-      hook.objectives.map((desc, i) =>
-        createObjective({
-          quest_id: quest.id,
-          description: desc,
-          status: "pending" as const,
-          is_player_visible: false,
-          sort_order: i,
-        }),
-      ),
-    );
-
-    // Resolved npcs/locations become quest_refs so they show up in Key NPCs /
-    // Key Locations on the quest detail page — but skip the giver/location,
-    // which are already first-class FK columns on the quest row, and never
-    // ref a faction: QuestRefType (quest.types.ts) has no "faction" member,
-    // so a resolved faction stays chip-only in this panel.
-    const refTargets = resolveGeneratedEntities(hook, entityPools.value).filter(
-      (e): e is ResolvedEntity & { kind: "npc" | "location"; id: string } =>
-        e.id !== null &&
-        (e.kind === "npc" || e.kind === "location") &&
-        !(e.kind === "npc" && e.id === giverNpcId.value) &&
-        !(e.kind === "location" && e.id === locationId.value),
-    );
-
-    // Best-effort like the objectives above, but explicitly tolerant of
-    // per-ref failure: a lost cross-reference chip is fine, an undone quest
-    // creation is not.
-    await Promise.allSettled(
-      refTargets.map((e) =>
-        createQuestRef({
-          quest_id: quest.id,
-          ref_type: e.kind,
-          ref_id: e.id,
-          is_player_visible: false,
-        }),
-      ),
-    );
-
-    createdQuestIds.value = { ...createdQuestIds.value, [index]: quest.id };
-    completedEntityId.value = quest.id;
+    createdQuestIds.value = { ...createdQuestIds.value, [index]: questId };
+    completedEntityId.value = questId;
   } finally {
     creatingIndex.value = null;
   }
