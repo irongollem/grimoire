@@ -372,11 +372,30 @@ document. Binding containment to `view === "work"` gave the cockpit the canvas's
 contract and made its body an unscrollable `overflow:hidden` box at `lg` and wider
 (#776). The binding is `showsGraph`, and it must stay that way.
 
-**The cockpit** (`QuestRunCockpit`) is the beat card, a right rail (`QuestRunPath`,
-`QuestRunOpenChains`), the jump and improv panels in flow, the contained tool
-overlay, and `QuestRunControls` — a `sticky bottom-2` bar carrying the branch
-cards, Previous / Jump / Something else, and Pause / End. Runtime context, live
-chains and runtime state all poll at 5s; every command carries `expectedVersion`.
+**The cockpit** (`QuestRunCockpit`, #820) expresses three concerns rather than
+one long form: `QuestRunSitePanel` (where the party physically is — a compact
+sibling of `SiteRunSurface`, reading `campaigns.current_location_id` directly
+rather than any beat's `location_set`, because a dungeon is a fact about the
+world, not about the quest currently running), the beat card plus a rail
+(`QuestRunObjectivesLedger`, `QuestRunPath`, `QuestRunOpenChains`), and
+`QuestRunOutcomeStrip` — one card per outgoing route plus "Something else…"
+(improvise, opening inline in the same column via `v-model:improvise-open`
+rather than a separate panel). The strip is docked to the bottom of the rail
+column with `mt-auto` inside a stretched grid row — **in normal document
+flow, never `sticky` or `fixed`** — which is the #776 fix and the reason it
+must not regress back into a floating bar. `QuestRunControls` now holds only
+the session-wide commands an outcome strip doesn't own: Previous, Jump,
+Pause/Resume, End — also unsticky, in flow. The jump panel and the contained
+tool overlay still render in flow above these. Runtime context, live chains
+and runtime state all poll at 5s; every command carries `expectedVersion`.
+
+Clicking a room in `QuestRunSitePanel` moves the party and marks it explored
+in the same click SiteRunSurface uses (one write to
+`campaigns.current_location_id`; the arrival trigger does the rest) — no
+reason prompt, and nothing written to `quest_beat_transitions`. That is the
+whole distinction the epic is named for: walking around a dungeon is not a
+story transition, and only `QuestRunOutcomeStrip`'s Choose or `QuestRunControls`'
+Jump ever move a quest's cursor.
 
 `QuestRunContainedTool` opens an attachment in place: encounters embed
 `EncounterRunSurface`, audio calls the Soundboard, objectives get a next-status

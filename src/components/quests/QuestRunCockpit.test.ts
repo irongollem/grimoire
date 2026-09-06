@@ -4,6 +4,7 @@ import QuestRunCockpit from "./QuestRunCockpit.vue";
 import QuestRunControls from "./QuestRunControls.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
+import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 import QuestRunOpenChains from "./QuestRunOpenChains.vue";
 
@@ -102,7 +103,7 @@ describe("QuestRunCockpit", () => {
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     const controls = wrapper.findComponent(QuestRunControls);
     controls.vm.$emit("previous");
-    controls.vm.$emit("advance", "e1");
+    wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("advance", "e1");
     controls.vm.$emit("pause");
     await wrapper.vm.$nextTick();
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "previous", expectedVersion: 4 }));

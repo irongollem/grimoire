@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { rankQuestJumpTargets, soleOpenOutgoingEdgeId } from "./run";
+import { formatSiteSummary, rankQuestJumpTargets, resolveCurrentSite, soleOpenOutgoingEdgeId } from "./run";
+import type { SiteGraphLocation } from "./run";
 import type { QuestRuntimeChoice, QuestRuntimeJumpTarget } from "@/types/quest.types";
 
 const target = (beat_id: string, beat_title = beat_id): QuestRuntimeJumpTarget => ({
@@ -54,5 +55,50 @@ describe("soleOpenOutgoingEdgeId", () => {
 
   it("refuses at a dead end", () => {
     expect(soleOpenOutgoingEdgeId([])).toBeNull();
+  });
+});
+
+const loc = (id: string, location_type: SiteGraphLocation["location_type"], parent_id: string | null): SiteGraphLocation => ({ id, location_type, parent_id });
+
+describe("resolveCurrentSite", () => {
+  const dungeon = loc("dungeon-1", "dungeon", null);
+  const room = loc("room-1", "room", "dungeon-1");
+  const locations = [dungeon, room, loc("town-1", "town", null)];
+
+  it("walks up from a room to its site", () => {
+    expect(resolveCurrentSite("room-1", locations)).toBe(dungeon);
+  });
+
+  it("returns the site itself when the party stands there but has entered no room yet", () => {
+    expect(resolveCurrentSite("dungeon-1", locations)).toBe(dungeon);
+  });
+
+  it("returns null when the party's position is not inside any site", () => {
+    expect(resolveCurrentSite("town-1", locations)).toBeNull();
+  });
+
+  it("returns null when the party's position is unknown", () => {
+    expect(resolveCurrentSite(null, locations)).toBeNull();
+  });
+
+  it("returns null for a stale or missing location id", () => {
+    expect(resolveCurrentSite("ghost", locations)).toBeNull();
+  });
+
+  it("does not loop forever on a malformed ancestor cycle", () => {
+    const cyclic = [loc("a", "room", "b"), loc("b", "room", "a")];
+    expect(resolveCurrentSite("a", cyclic)).toBeNull();
+  });
+});
+
+describe("formatSiteSummary", () => {
+  it("reads as one line: name, type, room count, explored count", () => {
+    expect(formatSiteSummary({ name: "The Sunken Vault", location_type: "dungeon" }, 5, 2))
+      .toBe("The Sunken Vault · dungeon · 5 rooms · 2 explored");
+  });
+
+  it("singularizes a lone room", () => {
+    expect(formatSiteSummary({ name: "The Ossuary", location_type: "dungeon" }, 1, 0))
+      .toBe("The Ossuary · dungeon · 1 room · 0 explored");
   });
 });
