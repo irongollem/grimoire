@@ -255,6 +255,23 @@ export interface QuestSpineBeatResult {
   title: string;
   /** Plain text — convert to Tiptap JSON via toTiptapJson() before storing */
   dm_content: string;
+  /**
+   * The passage a DM reads out at the table, plain text, distinct from the
+   * `dm_content` guidance around it. Optional because the two producers differ
+   * in what they can honestly supply, not because there are two shapes:
+   *
+   * - The **generator** leaves it empty. Invented prose has no boxed text, and
+   *   asking a model to write some produces read-aloud copy for a scene the DM
+   *   has not yet agreed to.
+   * - The **importer** (#829) fills it, because a published adventure marks its
+   *   boxed text explicitly — D&D Beyond emits `<aside class="read-aloud-text">`
+   *   — so this is transcription rather than invention.
+   *
+   * Adding it here rather than to an importer-only beat type is deliberate:
+   * `quest_beats.read_aloud` is one column with one meaning, and a second beat
+   * shape for the second producer is exactly the fork epic #780 exists to undo.
+   */
+  read_aloud?: string;
   kind: string;
 }
 

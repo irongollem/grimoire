@@ -22,10 +22,16 @@ import { QUEST_BEAT_KINDS, type QuestBeatKind, type QuestObjectiveStatus } from 
  * here manufactures a beat to paper over one the model didn't provide.
  */
 
-/** A sanity ceiling, not a design constraint: the prompt asks for 3-5 beats,
- *  but a degenerate response should not turn into dozens of sequential beat
- *  inserts. */
-const SPINE_BEAT_SANITY_CAP = 8;
+/** A sanity ceiling, not a design constraint: a degenerate response should not
+ *  turn into dozens of sequential beat inserts.
+ *
+ *  Raised from 8 to 12 for #829. The generator's prompt asks for 3-5 beats, so
+ *  8 was headroom it never used; an imported adventure chapter is bounded by
+ *  what the source actually says instead, and a chapter with ten scenes is
+ *  ordinary. Raised rather than made per-caller: a cap that differs by producer
+ *  is two behaviours to reason about, and the number is arbitrary in both
+ *  cases — what matters is only that it is finite. */
+const SPINE_BEAT_SANITY_CAP = 12;
 
 export interface SpineBeatDraft {
   /** The model's own local id — used only to join routes/objectives to this
@@ -35,6 +41,10 @@ export interface SpineBeatDraft {
   kind: QuestBeatKind;
   /** Plain text; the caller converts to Tiptap JSON before writing. */
   dmContentPlain: string;
+  /** Plain text, empty when the producer had no boxed text to transcribe —
+   *  see `QuestSpineBeatResult.read_aloud`. The caller converts to Tiptap
+   *  JSON and writes it to `quest_beats.read_aloud`. */
+  readAloudPlain: string;
 }
 
 export interface SpineRoutePlanEntry {
@@ -84,6 +94,7 @@ export function planSpineBeats(beats: QuestSpineBeatResult[] | undefined): Spine
       title,
       kind: normalizeSpineBeatKind(beat.kind),
       dmContentPlain: typeof beat.dm_content === "string" ? beat.dm_content : "",
+      readAloudPlain: typeof beat.read_aloud === "string" ? beat.read_aloud : "",
     });
   }
   return drafts;

@@ -1,9 +1,8 @@
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateQuest, useCreateObjective, useCreateQuestRef } from "@/composables/quests/useQuests";
 import { useCreateQuestBeat, useCreateQuestBeatEdge, useCreateQuestConsequence } from "@/composables/quests/useQuestFlow";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { resolveGeneratedEntities, type ResolvedEntity } from "@/ai/resolveGeneratedEntities";
-import { deriveObjectiveStatuses, planObjectiveConsequences, planSpineBeats, planSpineRoutes } from "@/lib/quests/spine";
+import { writeQuestSpine } from "@/lib/quests/spineWrite";
 import type { QuestHookResult } from "@/ai/types";
 import type { AiProvenance } from "@/ai/provenance";
 
@@ -44,12 +43,12 @@ export interface CreateQuestFromHookResult {
  * there) and calls this for the actual writes.
  *
  * Creates, in order: the quest row; the story spine — the beats the model
- * proposed and the routes between them, resolved from the model's local
- * `key`s to real ids as each beat lands (see src/lib/quests/spine.ts); the
- * objectives, split `pending`/`dormant` by which beat (if any) raises each
- * one; a `quest_consequences` "raise" row per beat/objective pair the spine
- * named, the minimum wiring that makes a generated quest a live ledger
- * instead of a checklist; and finally the resolved npc/location quest_refs.
+ * proposed, the routes between them, the objectives split `pending`/`dormant`
+ * by which beat (if any) raises each one, and a `quest_consequences` "raise"
+ * row per beat/objective pair the spine named — all via
+ * `writeQuestSpine` (src/lib/quests/spineWrite.ts), shared with the document
+ * importer (#829), the spine's second producer; and finally the resolved
+ * npc/location quest_refs.
  *
  * When the response has no usable spine, this does NOT manufacture a beat —
  * a quest with no beats yet is a legitimate state (see
@@ -89,110 +88,20 @@ export function useCreateQuestFromHook() {
       ai_provenance: aiProvenance,
     });
 
-    // #822: the model's own beats become real beats and the routes between
-    // them; `beatIdByKey` maps its local `key` strings to the real ids
-    // created below — a key means nothing until the beat it names has
-    // actually landed. No fallback beat when there is nothing usable here:
-    // see this composable's doc comment.
-    const spineBeats = planSpineBeats(hook.beats);
-    const beatIdByKey = new Map<string, string>();
-
-    if (spineBeats.length > 0) {
-      try {
-        // Sequential, not Promise.all: canvas_x below reads left-to-right in
-        // story order, and a mid-sequence failure leaves the earlier beats
-        // (and their routes) behind for the DM instead of losing all of them
-        // to Promise.all's fail-fast behaviour.
-        for (const [i, beat] of spineBeats.entries()) {
-          const created = await createBeat({
-            quest_id: quest.id,
-            campaign_id: campaign.activeCampaignId!,
-            title: beat.title,
-            dm_content: toTiptapJson(beat.dmContentPlain),
-            read_aloud: null,
-            how_it_plays: null,
-            outcomes: null,
-            consequences: null,
-            rumor_text: null,
-            reveal_text: null,
-            visibility: "hidden",
-            kind: beat.kind,
-            presentation_hint: null,
-            // 320px apart on one row, matching the spacing QuestFlowCanvas
-            // already uses when the DM adds a beat from the "+" button — a
-            // starting layout the DM can rearrange, not a final one.
-            canvas_x: i * 320,
-            canvas_y: 0,
-            is_improvised: false,
-            improv_reviewed_at: null,
-          });
-          beatIdByKey.set(beat.key, created.id);
-        }
-
-        const routes = planSpineRoutes(spineBeats, hook.routes).filter(
-          (route) => beatIdByKey.has(route.from) && beatIdByKey.has(route.to),
-        );
-        await Promise.allSettled(
-          routes.map((route) =>
-            createBeatEdge({
-              quest_id: quest.id,
-              campaign_id: campaign.activeCampaignId!,
-              source_beat_id: beatIdByKey.get(route.from)!,
-              target_beat_id: beatIdByKey.get(route.to)!,
-            }),
-          ),
-        );
-      } catch {
-        // Best-effort: a partially wired spine doesn't undo the quest, which
-        // already landed.
-      }
-    }
-
-    // Reachability (#822): an objective the root beat raises is live from the
-    // start (`pending`); one only a later beat raises is `dormant`, since the
-    // party hasn't been sent down that branch yet. No beats at all means
-    // every objective is `pending` — there is nothing to raise it out of
-    // dormant in the first place.
-    const objectiveList = Array.isArray(hook.objectives) ? hook.objectives : [];
-    const objectiveStatuses = deriveObjectiveStatuses(objectiveList, spineBeats);
-    const createdObjectives = await Promise.all(
-      objectiveList.map((objective, i) =>
-        createObjective({
-          quest_id: quest.id,
-          description: objective.description,
-          status: objectiveStatuses[i]!,
-          is_player_visible: false,
-          sort_order: i,
-        }),
-      ),
+    // #822: the model's own beats/routes/objectives become the quest's story
+    // spine, resolved from the model's local `key`s to real ids as each beat
+    // lands. No fallback beat when there is nothing usable here: see this
+    // composable's doc comment.
+    const { beatIdByKey } = await writeQuestSpine(
+      {
+        questId: quest.id,
+        campaignId: campaign.activeCampaignId!,
+        beats: hook.beats,
+        routes: hook.routes,
+        objectives: hook.objectives,
+      },
+      { createBeat, createBeatEdge, createObjective, createConsequence },
     );
-
-    // One `quest_consequences` "raise" row per objective whose `raised_by`
-    // named a beat that actually landed — the minimum wiring that makes a
-    // generated quest a live ledger instead of a checklist (#822). A beat
-    // that failed to create above has nothing in `beatIdByKey`, so its
-    // raises are silently skipped rather than thrown.
-    if (beatIdByKey.size > 0) {
-      const consequencePlan = planObjectiveConsequences(objectiveList, spineBeats).filter(
-        (entry) => beatIdByKey.has(entry.beatKey) && entry.objectiveIndex < createdObjectives.length,
-      );
-      await Promise.allSettled(
-        consequencePlan.map((entry) =>
-          createConsequence({
-            quest_id: quest.id,
-            on_beat_id: beatIdByKey.get(entry.beatKey)!,
-            on_edge_id: null,
-            on_objective_id: null,
-            on_objective_status: null,
-            on_quest_settled: false,
-            after_days: 0,
-            action: "raise",
-            target_objective_id: createdObjectives[entry.objectiveIndex]!.id,
-            action_payload: {},
-          }),
-        ),
-      );
-    }
 
     // Resolved npcs/locations become quest_refs so they show up in Key NPCs /
     // Key Locations on the quest detail page — but skip the giver/location,

@@ -26,7 +26,7 @@ describe("planSpineBeats", () => {
   it("normalizes an unknown kind to neutral", () => {
     const beats: QuestSpineBeatResult[] = [{ key: "a", title: "A beat", dm_content: "", kind: "mystical" }];
     expect(planSpineBeats(beats)).toEqual([
-      { key: "a", title: "A beat", kind: "neutral", dmContentPlain: "" },
+      { key: "a", title: "A beat", kind: "neutral", dmContentPlain: "", readAloudPlain: "" },
     ]);
   });
 
