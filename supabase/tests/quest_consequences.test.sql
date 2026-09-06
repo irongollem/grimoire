@@ -10,7 +10,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(54);
 
 -- Six scenarios, six DM fixtures. request.jwt.claim.sub survives both a role
 -- change and a scenario boundary, so a later scenario's fixture inserts (run
@@ -515,6 +515,95 @@ select lives_ok(
       ('79400000-0000-4000-8000-000000f00030', true, 'send_broadcast')$$,
   'two world actions with no objective on either side of the self-reference check are both accepted'
 );
+
+-- ── The two outcome verbs added after the engine shipped ───────────────────
+--
+-- #831 shifts an NPC's disposition; #836 unlocks another quest. Both are world
+-- actions on the same (condition, delay, action) rule, so what needs cover is
+-- the pairing checks and the two behaviours that are decisions rather than
+-- arithmetic: the clamp, and `unknown` not being a rung.
+
+reset role;
+insert into public.npcs (id, user_id, campaign_id, name, relationship)
+values ('79400000-0000-4000-8000-000000f00070', '79400000-0000-4000-8000-000000f00001', '79400000-0000-4000-8000-000000f00010', 'The innkeeper', 'indifferent');
+insert into public.quests (id, user_id, campaign_id, title, status) values
+  ('79400000-0000-4000-8000-000000f00080', '79400000-0000-4000-8000-000000f00001', '79400000-0000-4000-8000-000000f00010', 'The sequel', 'undiscovered'),
+  ('79400000-0000-4000-8000-000000f00081', '79400000-0000-4000-8000-000000f00001', '79400000-0000-4000-8000-000000f00010', 'Already running', 'active');
+insert into public.quest_beat_transitions (id, campaign_id, transition_kind, provenance, runtime_version)
+values ('79400000-0000-4000-8000-000000f00090', '79400000-0000-4000-8000-000000f00010', 'enter', '{}'::jsonb, 1);
+
+select throws_ok(
+  $$insert into public.quest_consequences (quest_id, on_quest_settled, action)
+    values ('79400000-0000-4000-8000-000000f00030', true, 'shift_npc_relationship')$$,
+  '23514', null,
+  'a disposition shift naming no NPC is refused'
+);
+select throws_ok(
+  $$insert into public.quest_consequences (quest_id, on_quest_settled, action, target_npc_id)
+    values ('79400000-0000-4000-8000-000000f00030', true, 'send_broadcast', '79400000-0000-4000-8000-000000f00070')$$,
+  '23514', null,
+  'an NPC on a rule that does not shift one is refused'
+);
+select throws_ok(
+  $$insert into public.quest_consequences (quest_id, on_quest_settled, action, target_quest_id)
+    values ('79400000-0000-4000-8000-000000f00030', true, 'unlock_quest', '79400000-0000-4000-8000-000000f00030')$$,
+  '23514', null,
+  'a quest cannot unlock itself'
+);
+select lives_ok(
+  $$insert into public.quest_consequences (quest_id, on_quest_settled, action, target_npc_id, action_payload)
+    values ('79400000-0000-4000-8000-000000f00030', true, 'shift_npc_relationship', '79400000-0000-4000-8000-000000f00070', '{"step":1}')$$,
+  'a disposition shift with an NPC and a step is accepted'
+);
+
+-- Clamping and the `unknown` skip, performed directly so the assertions are
+-- about the action rather than about the runtime that schedules it.
+create temp table shift_probe(label text, result text) on commit drop;
+do $do$
+declare v_ev uuid; v_rel text; v_prev text; v_case record;
+begin
+  for v_case in
+    select * from (values ('helpful', '{"step":3}'), ('hostile', '{"step":-3}'), ('unknown', '{"step":2}')) v(start_rel, step)
+  loop
+    update public.npcs set relationship = v_case.start_rel::public.npc_relationship where id = '79400000-0000-4000-8000-000000f00070';
+    insert into public.quest_consequence_events (campaign_id, quest_id, transition_id, action, target_npc_id, action_payload, after_days, fires_on_year, fires_on_month, fires_on_day)
+    values ('79400000-0000-4000-8000-000000f00010', '79400000-0000-4000-8000-000000f00030', '79400000-0000-4000-8000-000000f00090', 'shift_npc_relationship', '79400000-0000-4000-8000-000000f00070', v_case.step::jsonb, 0, 1492, 1, 1)
+    returning id into v_ev;
+    perform private.perform_quest_consequence(v_ev, 1492, 1, 1);
+    select relationship::text into v_rel from public.npcs where id = '79400000-0000-4000-8000-000000f00070';
+    select previous_relationship::text into v_prev from public.quest_consequence_events where id = v_ev;
+    insert into shift_probe values (v_case.start_rel || ' ' || v_case.step, v_rel || '/' || coalesce(v_prev, 'null'));
+  end loop;
+end
+$do$;
+
+select is((select result from shift_probe where label = 'helpful {"step":3}'), 'helpful/helpful',
+  'stepping past the top of the ladder clamps rather than wrapping');
+select is((select result from shift_probe where label = 'hostile {"step":-3}'), 'hostile/hostile',
+  'stepping past the bottom clamps rather than wrapping');
+select is((select result from shift_probe where label = 'unknown {"step":2}'), 'unknown/null',
+  'unknown is not a rung: the shift is a no-op and records nothing for undo to restore');
+
+-- The unlock promotes exactly one rung, and only from `undiscovered`.
+do $do$
+declare v_ev uuid;
+begin
+  insert into public.quest_consequence_events (campaign_id, quest_id, transition_id, action, target_quest_id, action_payload, after_days, fires_on_year, fires_on_month, fires_on_day)
+  values ('79400000-0000-4000-8000-000000f00010', '79400000-0000-4000-8000-000000f00030', '79400000-0000-4000-8000-000000f00090', 'unlock_quest', '79400000-0000-4000-8000-000000f00080', '{}', 0, 1492, 1, 1) returning id into v_ev;
+  perform private.perform_quest_consequence(v_ev, 1492, 1, 1);
+  insert into public.quest_consequence_events (campaign_id, quest_id, transition_id, action, target_quest_id, action_payload, after_days, fires_on_year, fires_on_month, fires_on_day)
+  values ('79400000-0000-4000-8000-000000f00010', '79400000-0000-4000-8000-000000f00030', '79400000-0000-4000-8000-000000f00090', 'unlock_quest', '79400000-0000-4000-8000-000000f00081', '{}', 0, 1492, 1, 1) returning id into v_ev;
+  perform private.perform_quest_consequence(v_ev, 1492, 1, 1);
+end
+$do$;
+
+select is((select status::text from public.quests where id = '79400000-0000-4000-8000-000000f00080'), 'rumor',
+  'an unlock promotes a locked quest to rumor, not straight to active');
+select is((select status::text from public.quests where id = '79400000-0000-4000-8000-000000f00081'), 'active',
+  'a quest already in play is not re-announced by a late unlock');
+select ok((select previous_quest_status is null from public.quest_consequence_events
+             where target_quest_id = '79400000-0000-4000-8000-000000f00081'),
+  'the no-op records nothing, so undo has nothing to restore');
 
 select * from finish();
 rollback;
