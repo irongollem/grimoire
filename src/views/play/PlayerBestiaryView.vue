@@ -187,11 +187,19 @@
               placeholder="/assets/placeholders/monster.webp"
             />
             <!-- Left, not right: the mini badge owns bottom-right here. -->
+            <!--
+              `stat_block` is optional-chained because the player projection
+              nulls it whole when the DM has not revealed a creature's stats
+              (`get_player_visible_monsters`, gated on `reveal_stats`). Opening
+              the lightbox on an unrevealed monster used to crash the page —
+              `crBg`/`crText` have always handled a missing CR, rendering
+              "CR ???"; only these call sites assumed one was there.
+            -->
             <span
               v-if="lightbox?.monster"
               class="absolute bottom-2 left-2 px-2 py-0.5 rounded font-cinzel text-2xs font-bold text-white"
-              :class="crBg(lightbox.monster.stat_block.challenge_rating)"
-            >CR {{ crText(lightbox.monster.stat_block.challenge_rating) }}</span>
+              :class="crBg(lightbox.monster.stat_block?.challenge_rating)"
+            >CR {{ crText(lightbox.monster.stat_block?.challenge_rating) }}</span>
           </MiniPortraitOverlay>
         </div>
 
@@ -444,7 +452,7 @@ const eligibleBeastForms = computed<FormEntry[]>(() => {
       !pinnedMonsterIds.value.has(m.id),
     )
     .map((m) => ({ monster: m, name: m.name, imageUrl: m.image_url ?? null }))
-    .sort((a, b) => parseCr(a.monster.stat_block.challenge_rating) - parseCr(b.monster.stat_block.challenge_rating));
+    .sort((a, b) => parseCr(a.monster.stat_block?.challenge_rating) - parseCr(b.monster.stat_block?.challenge_rating));
 });
 
 const pinnedForms  = computed(() => pinnedFormMonsters.value);

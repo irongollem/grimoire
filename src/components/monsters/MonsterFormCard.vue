@@ -27,10 +27,16 @@
             <span><span class="text-foreground font-bold">AC</span> {{ monster.stat_block.armor_class }}</span>
             <span><span class="text-foreground font-bold">HP</span> {{ formatHitPoints(monster.stat_block.hit_points) }}</span>
           </template>
+          <!--
+            Optional-chained for the same reason lines 3 and 17 above already
+            are: the player projection withholds the whole `stat_block` for an
+            unrevealed creature. AC/HP beside this are correctly behind
+            `revealStats`; the CR badge shows either way and must survive it.
+          -->
           <span
             class="ml-auto px-1.5 py-0.5 rounded font-bold text-white text-2xs"
-            :class="crBg(monster.stat_block.challenge_rating)"
-          >CR {{ crText(monster.stat_block.challenge_rating) }}</span>
+            :class="crBg(monster.stat_block?.challenge_rating)"
+          >CR {{ crText(monster.stat_block?.challenge_rating) }}</span>
         </div>
       </div>
     </div>
