@@ -39,7 +39,7 @@
 -- the rank order is: own exact, library exact, own containment, library
 -- containment.
 
-create or replace function private.normalize_creature_name(p_name text)
+create or replace function private.normalize_entity_name(p_name text)
 returns text
 language sql
 immutable
@@ -48,19 +48,26 @@ as $function$
   select nullif(
     regexp_replace(
       regexp_replace(
-        regexp_replace(lower(btrim(coalesce(p_name, ''))), '^(a|an|the)\s+', ''),
-      '\s+', ' ', 'g'),
+        regexp_replace(
+          regexp_replace(lower(btrim(coalesce(p_name, ''))), '^(a|an|the)\s+', ''),
+        '\s+', ' ', 'g'),
+      -- "potions of healing" → "potion of healing". English pluralises the head
+      -- noun of an "X of Y" name, so the trailing-s rule below never sees it —
+      -- and "X of Y" is how most magic items are named.
+      '^([a-z]{3,})s( of )', '\1\2'),
     '([a-z]{3,})s$', '\1'),
   '');
 $function$;
 
-comment on function private.normalize_creature_name(text) is
+comment on function private.normalize_entity_name(text) is
   'Lowercases, trims, drops a leading article and de-pluralises the last word '
   'so "The Giant Rats" and "giant rat" meet (#837). Deliberately naive: this is '
-  'a lookup key for creature names, not an English stemmer, and a wrong '
-  'singularisation costs a missed match rather than a wrong one.';
+  'a lookup key for entity names, not an English stemmer, and a wrong '
+  'singularisation costs a missed match rather than a wrong one. Named for '
+  'entities rather than creatures because items resolve the same way (#838) — '
+  'the normalisation is the shared part; the matching is per-table and typed.';
 
-revoke execute on function private.normalize_creature_name(text) from public, anon, authenticated;
+revoke execute on function private.normalize_entity_name(text) from public, anon, authenticated;
 
 create or replace function public.resolve_monster_references(
   p_campaign_id uuid,
@@ -82,21 +89,21 @@ as $function$
   with asked as (
     select distinct
       n as query_name,
-      private.normalize_creature_name(n) as norm
+      private.normalize_entity_name(n) as norm
     from unnest(coalesce(p_names, array[]::text[])) as n
-    where private.normalize_creature_name(n) is not null
+    where private.normalize_entity_name(n) is not null
   ),
   -- Own monsters, scoped to the caller. `monsters` SELECT is owner-only and
   -- this function is SECURITY DEFINER, so the scope has to be re-stated here
   -- rather than inherited. Never widen past `auth.uid()`.
   mine as (
-    select m.id, m.name, private.normalize_creature_name(m.name) as norm
+    select m.id, m.name, private.normalize_entity_name(m.name) as norm
     from public.monsters m
     where m.user_id = auth.uid()
       and (m.campaign_id = p_campaign_id or m.campaign_id is null)
   ),
   shared as (
-    select l.id, l.name, private.normalize_creature_name(l.name) as norm
+    select l.id, l.name, private.normalize_entity_name(l.name) as norm
     from public.library_monsters l
   ),
   candidates as (
