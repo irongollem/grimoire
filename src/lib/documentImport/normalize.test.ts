@@ -197,6 +197,54 @@ describe("mapExtractedNpc", () => {
 // ── Locations ────────────────────────────────────────────────────────────────
 
 describe("mapExtractedLocation", () => {
+  // #829. Most of the read-aloud prose in an adventure chapter belongs to keyed
+  // rooms rather than to narrative beats — 14 of 17 blocks in the reference
+  // chapter — so a location extracted without this discards the most directly
+  // useful text on the page.
+  it("leads a keyed area's description with its boxed text", () => {
+    const { row } = mapExtractedLocation(
+      {
+        name: "M3. River Cavern",
+        description: "Two giant rats lair here; the river exits through a narrow fissure.",
+        read_aloud: "An underground river flows through the far side of this cavern.",
+        parent_name: "The Gem Mine",
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+
+    expect(row.description).toBe(
+      "An underground river flows through the far side of this cavern.\n\n"
+        + "Two giant rats lair here; the river exits through a narrow fissure.",
+    );
+  });
+
+  // The bound on the one exception to summarise-don't-copy: boxed text is
+  // transcribed rather than paraphrased, so it must never land anywhere a
+  // player can read it. `player_summary` is player-facing by definition.
+  it("never puts transcribed boxed text in a player-visible field", () => {
+    const { row } = mapExtractedLocation(
+      { name: "M3. River Cavern", read_aloud: "An underground river flows through the far side." },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+
+    expect(row.player_summary).toBeNull();
+    expect(row.is_description_shared).toBe(false);
+    expect(row.player_visible_to).toEqual([]);
+    expect(row.description).toBe("An underground river flows through the far side.");
+  });
+
+  it("keeps the DM prose alone when the source had no boxed text", () => {
+    const { row } = mapExtractedLocation(
+      { name: "A Crossroads", description: "Three roads meet." },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(row.description).toBe("Three roads meet.");
+    expect(row.player_summary).toBeNull();
+  });
+
   it("maps a full payload correctly", () => {
     const { row, links } = mapExtractedLocation(
       {
@@ -409,14 +457,26 @@ describe("mapExtractedSpell", () => {
 // ── Quests ───────────────────────────────────────────────────────────────────
 
 describe("mapExtractedQuest", () => {
-  it("maps a full payload correctly, deferring the opening beat's prose", () => {
-    const { row, links, openingBeat } = mapExtractedQuest(
+  it("maps a full payload, carrying the spine rather than flattening it to prose", () => {
+    const { row, links, questSpine } = mapExtractedQuest(
       {
         title: "The Sunken Bell",
         summary: "Recover a bell lost when the old cathedral flooded.",
-        description: "The party must dive into the flooded crypt beneath the cathedral.",
-        rewards: "500 gp and the gratitude of the parish",
-        notes: "The bell is cursed.",
+        beats: [
+          { key: "b1", title: "The parish asks", kind: "social", dm_content: "Father Corvin is evasive." },
+          {
+            key: "b2",
+            title: "Into the crypt",
+            kind: "explore",
+            dm_content: "The water is waist-deep and rising.",
+            read_aloud: "Cold black water laps at the chancel steps.",
+          },
+        ],
+        routes: [{ from: "b1", to: "b2" }],
+        objectives: [
+          { description: "Find the bell", raised_by: "b1" },
+          { description: "Discover what drowned the bellringer", raised_by: "b2" },
+        ],
         giver_npc_name: "Father Corvin",
         location_name: "The Flooded Cathedral",
       },
@@ -428,9 +488,11 @@ describe("mapExtractedQuest", () => {
     expect(row.summary).toBe("Recover a bell lost when the old cathedral flooded.");
     // `quests.rewards` and the currency/item reward columns are gone (#799) —
     // loot now reaches players through the beat that grants it
-    // (`quest_beat_loot`), never the quest header, so the extracted free-text
-    // `rewards` field has nowhere on the row to land.
+    // (`quest_beat_loot`), never the quest header.
     expect(row).not.toHaveProperty("rewards");
+    // Gone with #793; their prose lives on beats now.
+    expect(row).not.toHaveProperty("description");
+    expect(row).not.toHaveProperty("notes");
     expect(row.status).toBe("undiscovered");
     expect(row.campaign_id).toBe(CAMPAIGN_ID);
     expect(row.ai_provenance).toBe(PROVENANCE);
@@ -439,16 +501,19 @@ describe("mapExtractedQuest", () => {
     expect(row.location_id).toBeNull();
     expect(links.giver_npc_name).toBe("Father Corvin");
     expect(links.location_name).toBe("The Flooded Cathedral");
-    // `quests.description`/`.notes` are gone (#793); the same prose now rides
-    // along as the opening beat the wizard inserts once the quest has an id.
-    expect(row).not.toHaveProperty("description");
-    expect(row).not.toHaveProperty("notes");
-    expect(openingBeat?.dm_content).toBe("The party must dive into the flooded crypt beneath the cathedral.");
-    expect(openingBeat?.how_it_plays).toBe("The bell is cursed.");
+
+    // The whole point of #829: a graph arrives as a graph.
+    expect(questSpine?.beats).toHaveLength(2);
+    expect(questSpine?.routes).toEqual([{ from: "b1", to: "b2" }]);
+    expect(questSpine?.objectives).toHaveLength(2);
+    // Boxed text stays on its own field rather than being folded into the DM
+    // prose — the distinction a published adventure hands us for free.
+    expect(questSpine?.beats[1]?.read_aloud).toBe("Cold black water laps at the chancel steps.");
+    expect(questSpine?.beats[1]?.dm_content).toBe("The water is waist-deep and rising.");
   });
 
-  it("maps a name-only payload to a valid row with schema defaults, and no opening beat to insert", () => {
-    const { row, links, openingBeat } = mapExtractedQuest({ title: "A Rumor" }, CAMPAIGN_ID, PROVENANCE);
+  it("maps a name-only payload to a valid row with schema defaults, and no spine to write", () => {
+    const { row, links, questSpine } = mapExtractedQuest({ title: "A Rumor" }, CAMPAIGN_ID, PROVENANCE);
 
     expect(row.status).toBe("undiscovered");
     expect(row).not.toHaveProperty("rewards");
@@ -460,20 +525,30 @@ describe("mapExtractedQuest", () => {
     expect(row.giver_npc_id).toBeNull();
     expect(row.location_id).toBeNull();
     expect(links).toEqual({});
-    // Nothing to carry over — an opening beat with no prose isn't worth minting.
-    expect(openingBeat).toBeUndefined();
+    expect(questSpine).toBeUndefined();
   });
 
-  it("caps description/notes on the deferred opening beat, never inventing a status", () => {
-    const long = "peril ".repeat(150).trim();
-    const { row, openingBeat } = mapExtractedQuest(
-      { title: "X", description: long, notes: long },
+  // #822, restated for the importer: a response with no usable spine imports as
+  // a quest with no beats. Nothing is manufactured to fill the hole, because a
+  // fabricated "Opening beat" is how the generation-one shape would survive its
+  // own deletion.
+  it("mints no placeholder beat when the model returned none", () => {
+    const { questSpine } = mapExtractedQuest(
+      { title: "X", summary: "Find the lost sword.", beats: [], routes: [], objectives: [] },
       CAMPAIGN_ID,
       PROVENANCE,
     );
-    expect(openingBeat?.dm_content?.endsWith("…")).toBe(true);
-    expect(openingBeat?.how_it_plays?.endsWith("…")).toBe(true);
-    expect(row.status).toBe("undiscovered");
+    expect(questSpine).toBeUndefined();
+  });
+
+  it("keeps objectives even when the model gave no beats to raise them", () => {
+    const { questSpine } = mapExtractedQuest(
+      { title: "X", objectives: [{ description: "Survive the night" }] },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(questSpine?.beats).toEqual([]);
+    expect(questSpine?.objectives).toHaveLength(1);
   });
 
   // The regression this guards (#799): `summary` used to run through the same
@@ -484,40 +559,49 @@ describe("mapExtractedQuest", () => {
   it("splits a multi-sentence summary at its first sentence rather than truncating it", () => {
     const summary = "A farmer's daughter vanished near the old mill. The miller swears he heard singing at midnight. "
       + "Something pale has been seen wading the millpond.";
-    const { row, openingBeat } = mapExtractedQuest({ title: "X", summary }, CAMPAIGN_ID, PROVENANCE);
+    const { row, questSpine } = mapExtractedQuest({ title: "X", summary }, CAMPAIGN_ID, PROVENANCE);
 
     expect(row.summary).toBe("A farmer's daughter vanished near the old mill.");
-    expect(openingBeat?.dm_content).toBe(
+    // No beats came back, so one is minted to hold the remainder — the narrow
+    // exception documented on `mapExtractedQuest`. Losing the text instead
+    // would be the #799 regression all over again.
+    expect(questSpine?.beats).toHaveLength(1);
+    expect(questSpine?.beats[0]?.dm_content).toBe(
       "The miller swears he heard singing at midnight. Something pale has been seen wading the millpond.",
     );
     // No word from the original summary is lost between the two fields.
-    expect(`${row.summary} ${openingBeat?.dm_content}`).toBe(summary);
+    expect(`${row.summary} ${questSpine?.beats[0]?.dm_content}`).toBe(summary);
   });
 
-  it("prepends the summary's overflow to existing description prose on the opening beat, rather than replacing it", () => {
-    const { row, openingBeat } = mapExtractedQuest(
+  it("prepends the summary's overflow to the first beat's prose, rather than replacing it", () => {
+    const { row, questSpine } = mapExtractedQuest(
       {
         title: "X",
         summary: "The party is hired to clear the old mill. It has stood empty for a decade.",
-        description: "The mill sits at the edge of the village, half-swallowed by ivy.",
+        beats: [
+          { key: "b1", title: "Arrival", kind: "neutral", dm_content: "The mill sits half-swallowed by ivy." },
+          { key: "b2", title: "Inside", kind: "explore", dm_content: "Something moves upstairs." },
+        ],
       },
       CAMPAIGN_ID,
       PROVENANCE,
     );
 
     expect(row.summary).toBe("The party is hired to clear the old mill.");
-    expect(openingBeat?.dm_content).toBe(
-      "The mill sits at the edge of the village, half-swallowed by ivy.\n\nIt has stood empty for a decade.",
+    expect(questSpine?.beats[0]?.dm_content).toBe(
+      "It has stood empty for a decade.\n\nThe mill sits half-swallowed by ivy.",
     );
+    // Only the first beat is touched.
+    expect(questSpine?.beats[1]?.dm_content).toBe("Something moves upstairs.");
   });
 
-  it("does not mint an overflow-only opening beat when the summary is a single sentence", () => {
-    const { openingBeat } = mapExtractedQuest(
+  it("does not mint an overflow beat when the summary is a single sentence", () => {
+    const { questSpine } = mapExtractedQuest(
       { title: "X", summary: "Find the lost sword." },
       CAMPAIGN_ID,
       PROVENANCE,
     );
-    expect(openingBeat).toBeUndefined();
+    expect(questSpine).toBeUndefined();
   });
 });
 

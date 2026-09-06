@@ -180,6 +180,7 @@ import {
   type NameLookupRow,
 } from "@/lib/documentImport/importPlan";
 import { isQuotaExceeded } from "@/lib/quotaError";
+import { writeQuestSpine, type WriteQuestSpineDeps } from "@/lib/quests/spineWrite";
 import {
   IMPORT_ENTITY_KINDS,
   type DocumentImport,
@@ -371,6 +372,37 @@ function advanceDisplayedStep(): void {
 /** Never includes `source_paths` — the UPDATE policy re-checks it, and
  *  omitting the key entirely (rather than sending it back unchanged) is the
  *  documented-safe way to leave it alone. */
+
+/**
+ * `writeQuestSpine`'s four writes, done with the wizard's own plain Supabase
+ * inserts rather than the TanStack mutations `useCreateQuestFromHook` injects.
+ * The wizard imports in batches outside any component's query cache and does
+ * its own invalidation at the end of a step, so going through the mutation
+ * composables here would fire one cache round-trip per beat.
+ */
+const questSpineDeps: WriteQuestSpineDeps = {
+  createBeat: async (beat) => {
+    const { data, error } = await supabase.from("quest_beats").insert(beat).select().single();
+    if (error) throw error;
+    return data;
+  },
+  createBeatEdge: async (edge) => {
+    const { data, error } = await supabase.from("quest_beat_edges").insert(edge).select().single();
+    if (error) throw error;
+    return data;
+  },
+  createObjective: async (objective) => {
+    const { data, error } = await supabase.from("quest_objectives").insert(objective).select().single();
+    if (error) throw error;
+    return data;
+  },
+  createConsequence: async (consequence) => {
+    const { data, error } = await supabase.from("quest_consequences").insert(consequence).select().single();
+    if (error) throw error;
+    return data;
+  },
+};
+
 async function persistCount(kind: ImportEntityKind, count: number): Promise<void> {
   const nextCounts = { ...localCounts.value, [kind]: count };
   const allDone = IMPORT_ENTITY_KINDS.every((k) => nextCounts[k] !== undefined);
@@ -567,32 +599,35 @@ async function runImport(): Promise<void> {
       await applyLinkResolution(resolution);
     }
 
-    // A second pass like the link resolution above, for the same reason: the
-    // opening beat needs the quest's own id, which does not exist until here.
-    // `quests.description`/`.notes` are gone (#793) — `mapExtractedQuest`
-    // carries their prose as `openingBeat` instead, and this is where it
-    // lands, as an ordinary unwired beat the DM connects from Story flow.
+    // A second pass like the link resolution above, for the same reason: every
+    // beat needs the quest's own id, which does not exist until here.
+    //
+    // This used to insert a single hardcoded "Opening beat" holding all of a
+    // quest's prose — the generation-one shape, which survived #793 by moving
+    // from `quests.description` onto one beat rather than being deleted. An
+    // adventure page is already written as events with branches, so #829 lands
+    // the whole graph instead, through the same `writeQuestSpine` the AI hook
+    // generator uses. One writer for `quest_beats`, not two.
     if (kind === "quests") {
       for (const outcome of outcomes) {
         if (outcome.status !== "inserted") continue;
-        const planned = plan.find((p) => p.ref === outcome.ref);
-        const openingBeat = planned?.openingBeat;
-        if (!openingBeat) continue;
+        const spine = plan.find((p) => p.ref === outcome.ref)?.questSpine;
+        if (!spine) continue;
         try {
-          await supabase.from("quest_beats").insert({
-            quest_id: outcome.id,
-            campaign_id: importRow.campaign_id,
-            title: "Opening beat",
-            dm_content: openingBeat.dm_content,
-            how_it_plays: openingBeat.how_it_plays,
-            kind: "neutral",
-            visibility: "hidden",
-            canvas_x: 0,
-            canvas_y: 0,
-          });
+          await writeQuestSpine(
+            {
+              questId: outcome.id,
+              campaignId: importRow.campaign_id,
+              beats: spine.beats,
+              routes: spine.routes,
+              objectives: spine.objectives,
+            },
+            questSpineDeps,
+          );
         } catch {
           // Best-effort, like the link writes above: the quest already landed
-          // and is already counted as imported.
+          // and is already counted as imported. `writeQuestSpine` is itself
+          // partial-failure tolerant, so this only catches a total failure.
         }
       }
     }

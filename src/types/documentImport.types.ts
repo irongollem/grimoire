@@ -40,6 +40,7 @@
  */
 import type { AiProvenance } from "@/ai/provenance";
 import type { MonsterStatBlock } from "@/types/monster.types";
+import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult } from "@/ai/types";
 
 // ── Entity kinds ─────────────────────────────────────────────────────────────
 
@@ -140,6 +141,23 @@ export interface ExtractedLocation {
   /** Free text as printed ("a walled city"); the mapper resolves it to `location_type_enum`. */
   location_type?: string;
   description?: string;
+  /**
+   * The boxed text for a keyed area, read out when the party first enters.
+   *
+   * It leads `locations.description` and pointedly NOT `player_summary`:
+   * transcribed publisher prose must never reach a player-visible field. See
+   * the note in `mapExtractedLocation` — this is the bound on the one exception
+   * to the extractor's summarise-don't-copy policy.
+   *
+   * This exists because of where the boxed text in an adventure chapter
+   * actually lives. Measured on the reference chapter: of 17 read-aloud
+   * blocks, 3 belonged to narrative beats and **14 to keyed rooms**. Extracting
+   * rooms without it would discard the majority of the most directly useful
+   * prose on the page — the part a DM would otherwise retype at the table.
+   *
+   * Same prose cap and same private lock as `ExtractedQuest.read_aloud`.
+   */
+  read_aloud?: string;
   notes?: string;
   /**
    * Name of another location in the same document. The mapper cannot resolve
@@ -185,12 +203,57 @@ export interface ExtractedSpell {
   classes?: string[];
 }
 
+/**
+ * A quest as a *graph*, not a prose blob (#829).
+ *
+ * The beat/route/objective shape is imported from the AI generator's contract
+ * rather than redeclared, and that is the point: `quest_beats` is one table
+ * with one meaning, so its two producers — the hook generator (#822) and this
+ * importer — emit the same spine and share `src/lib/quests/spine.ts` to plan
+ * the writes. A parallel importer-only beat type would be the second quest
+ * generation epic #780 exists to delete.
+ *
+ * ── Why an adventure page suits this and a generated hook barely does ───────
+ *
+ * Published adventures are already written as events with branches, and they
+ * mark boxed text typographically — so `read_aloud` here is transcription,
+ * where for the generator it would be invention. See `QuestSpineBeatResult`.
+ *
+ * ── read_aloud is prose, and obeys the prose rule above ─────────────────────
+ *
+ * Boxed text is protected expression in exactly the way this file's header
+ * describes — more purely so than a statblock, which is mostly unprotectable
+ * fact. It therefore goes through `capProse` like every other descriptive
+ * field, with no carve-out for being useful. What makes transcribing it
+ * defensible is not the cap but the lock: per `project_content_licensing` and
+ * #353, imported material stays private to the importing account, is never
+ * promoted to `library_*`, and is never reused as seed or training data.
+ */
 export interface ExtractedQuest {
   title: string;
+  /**
+   * One line, player-facing. Not the page — `quests_summary_is_one_line`
+   * (migration 20260906160921) caps this at 280 characters with no line
+   * breaks, and `splitQuestSummary` sends the remainder to the opening beat
+   * rather than truncating. A cut sentence is a lie (#799).
+   */
   summary?: string;
-  description?: string;
-  rewards?: string;
-  notes?: string;
+  /**
+   * The scenes the page describes, in source order. Absent or empty is not an
+   * error and never manufactures a placeholder beat: a page that yields no
+   * usable spine imports as a quest with no beats, which the DM can then
+   * author by hand. Inventing an "Opening beat" to fill the hole is how the
+   * generation-one shape would survive its own deletion (#822).
+   */
+  beats?: QuestSpineBeatResult[];
+  /** Directed edges between `beats`, by `key`. Optional for the same reason. */
+  routes?: QuestSpineRouteResult[];
+  /**
+   * The ledger of what the party is trying to do. `raised_by` names the beat
+   * that opens each one, which is what lets `deriveObjectiveStatuses` land a
+   * branch the party has not reached yet as `dormant` rather than `pending`.
+   */
+  objectives?: QuestObjectiveResult[];
   /** Names, resolved against the same import's NPCs and locations at insert. */
   giver_npc_name?: string;
   location_name?: string;

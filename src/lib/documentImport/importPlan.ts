@@ -57,20 +57,21 @@ import type {
   ExtractedSpell,
   ImportEntityKind,
 } from "@/types/documentImport.types";
-import { ENTITY_MAPPERS, type EntityLinks, type ImportRowMap, type MappedEntity, type QuestOpeningBeatPayload } from "./normalize";
+import { ENTITY_MAPPERS, type EntityLinks, type ImportRowMap, type MappedEntity, type QuestSpinePayload } from "./normalize";
 
 // ── Building the plan ────────────────────────────────────────────────────────
 
 /** One row to insert, still carrying the `ref` it came from so the caller can
  *  correlate a later Supabase result (or error) back to the review card that
  *  produced it, the raw-name `links` a second pass will try to resolve, and
- *  (quests only) the opening-beat prose that same second pass inserts once
- *  the quest has an id. */
+ *  (quests only) the story spine that same second pass writes once the quest
+ *  has an id — beats, the routes between them, and the objectives they
+ *  raise (#829). */
 export interface PlannedInsert<K extends ImportEntityKind = ImportEntityKind> {
   ref: string;
   row: ImportRowMap[K];
   links: EntityLinks;
-  openingBeat?: QuestOpeningBeatPayload;
+  questSpine?: QuestSpinePayload;
 }
 
 /**
@@ -129,8 +130,8 @@ export function buildImportPlan<K extends ImportEntityKind>(
   return entities
     .filter((entity) => selected.has(entity.ref))
     .map((entity) => {
-      const { row, links, openingBeat } = mapEntity(kind, entity.data, campaignId, provenance);
-      return { ref: entity.ref, row, links, openingBeat };
+      const { row, links, questSpine } = mapEntity(kind, entity.data, campaignId, provenance);
+      return { ref: entity.ref, row, links, questSpine };
     });
 }
 

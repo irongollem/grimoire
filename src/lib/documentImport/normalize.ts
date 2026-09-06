@@ -31,6 +31,7 @@
  * the *already-inserted* rows for that document does the name → id lookup.
  */
 import type { AiProvenance } from "@/ai/provenance";
+import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult } from "@/ai/types";
 import type {
   ExtractedFaction,
   ExtractedItem,
@@ -86,20 +87,33 @@ export interface EntityLinks {
 }
 
 /**
- * A quest's opening beat, carried alongside its row rather than inserted
- * here: the beat needs the quest's own id, which does not exist until the
- * wizard's insert returns one (same reason `EntityLinks` defers cross-entity
- * ids — see file header). Only `mapExtractedQuest` ever populates this.
+ * A quest's story spine, carried alongside its row rather than inserted here:
+ * every beat needs the quest's own id, which does not exist until the wizard's
+ * insert returns one (same reason `EntityLinks` defers cross-entity ids — see
+ * file header). Only `mapExtractedQuest` ever populates this.
+ *
+ * This replaced a single `QuestOpeningBeatPayload` in #829. The importer used
+ * to emit exactly one beat holding all of a quest's prose, which is the
+ * generation-one shape epic #780 exists to delete — a quest was a blob, and
+ * the blob simply moved from `quests.description` onto one beat when #793
+ * dropped the column. A published adventure page is already written as events
+ * with branches, so there is no reason to flatten it on the way in.
+ *
+ * Deliberately the model's raw spine rather than a pre-planned one: the
+ * hardening (dropping blank keys, dangling routes, duplicate pairs, unknown
+ * kinds) lives in `src/lib/quests/spine.ts` and is shared with the AI
+ * generator. Doing it here as well would be two validators for one contract.
  */
-export interface QuestOpeningBeatPayload {
-  dm_content: string | null;
-  how_it_plays: string | null;
+export interface QuestSpinePayload {
+  beats: QuestSpineBeatResult[];
+  routes: QuestSpineRouteResult[];
+  objectives: QuestObjectiveResult[];
 }
 
 export interface MappedEntity<K extends ImportEntityKind = ImportEntityKind> {
   row: ImportRowMap[K];
   links: EntityLinks;
-  openingBeat?: QuestOpeningBeatPayload;
+  questSpine?: QuestSpinePayload;
 }
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
@@ -315,7 +329,9 @@ export function mapExtractedLocation(
     parent_id: null, // resolved from links.parent_name in a second pass, see file header
     name: payload.name,
     location_type: resolveEnum<LocationType>(payload.location_type, LOCATION_TYPES, "other"),
-    description: capProse(payload.description),
+    // Boxed text leads the description: in an adventure it *is* what the room
+    // looks like, and the surrounding DM prose is contents and mechanics.
+    description: capProse(joinRoomProse(payload.read_aloud, payload.description)),
     notes: capProse(payload.notes),
     tags: [], // not extracted
     image_url: null,
@@ -323,6 +339,19 @@ export function mapExtractedLocation(
     map_pins: [], // schema default '[]'
     is_map_shared: false, // schema default
     player_visible_to: [], // schema default '{}'
+    // Deliberately NOT where a keyed area's boxed text goes (#829), even though
+    // "the passage read to players" is close to what this column means.
+    //
+    // Transcribed publisher prose must never reach a player-visible field. The
+    // extractor's standing policy is to summarise narrative text rather than
+    // copy it, precisely so this tool cannot become a copying machine; boxed
+    // text is the one exception, because a summarised read-aloud box cannot be
+    // read at the table. The exception is bounded by keeping it DM-only —
+    // `description` above, and `quest_beats.read_aloud`, which
+    // `get_player_visible_quest_beats` does not return.
+    //
+    // `player_summary` is player-facing by definition, so it stays the DM's own
+    // words. Do not "fix" this by moving the boxed text here.
     player_summary: null,
     is_description_shared: false, // schema default
     is_npcs_shared: false, // schema default
@@ -339,6 +368,18 @@ export function mapExtractedLocation(
     // default of null, which is exactly what applies here.
   };
   return { row, links: { parent_name: payload.parent_name } };
+}
+
+/**
+ * A keyed area's boxed text ahead of the DM prose around it, blank line
+ * between, skipping either when absent. Not coalesced to "": an absent field
+ * stays absent rather than becoming an empty paragraph.
+ */
+function joinRoomProse(readAloud: string | undefined, description: string | undefined): string | undefined {
+  const boxed = readAloud?.trim();
+  const prose = description?.trim();
+  if (boxed && prose) return `${boxed}\n\n${prose}`;
+  return boxed || prose || undefined;
 }
 
 // ── Items ────────────────────────────────────────────────────────────────────
@@ -479,20 +520,54 @@ export function mapExtractedQuest(
     resolved_at: null,
     ai_provenance: provenance,
   };
-  // `quests.description`/`.notes` are gone (#793) — their prose now lives on
-  // the opening beat's `dm_content`/`how_it_plays`. The wizard inserts this
-  // once the quest row exists, in the same second pass that resolves `links`,
-  // because the beat needs the quest's own id. Any overflow past the summary's
-  // first sentence joins `dm_content` too, the same rule the migration itself
-  // applies to production rows over 280 characters.
-  const description = capProse(payload.description);
-  const dmContent = description && summaryTail ? `${description}\n\n${summaryTail}` : description || summaryTail || null;
-  const howItPlays = capProse(payload.notes);
-  const openingBeat = dmContent || howItPlays ? { dm_content: dmContent, how_it_plays: howItPlays } : undefined;
+  // The spine travels to the wizard untouched; `src/lib/quests/spine.ts` plans
+  // it into rows there, once the quest id exists. An absent or empty `beats`
+  // stays absent — a quest with no usable spine imports as a quest with no
+  // beats, which the DM can author by hand. Manufacturing a placeholder
+  // "Opening beat" to hold the prose is precisely how the generation-one shape
+  // would survive its own deletion (#822), so it is not done here either.
+  const beats = Array.isArray(payload.beats) ? payload.beats : [];
+  const routes = Array.isArray(payload.routes) ? payload.routes : [];
+  const objectives = Array.isArray(payload.objectives) ? payload.objectives : [];
+
+  // Overflow past the summary's first sentence joins the first beat's prose,
+  // the same rule migration 20260906160921 applies to production rows over 280
+  // characters — and it must not be lost, because `quests` has carried no
+  // prose column since #793/#799.
+  //
+  // When the model returns a long summary and no beats at all, one beat is
+  // minted to hold the remainder, and that is a deliberate exception to #822's
+  // ban on fallback beats rather than an oversight. The two cases differ in
+  // what the beat is *for*: #822 forbids fabricating a spine to paper over a
+  // malformed one, because a manufactured "Opening beat" would let the
+  // generation-one shape survive its own deletion. This mints a beat to hold
+  // prose that genuinely exists and has nowhere else to live. A beat minted to
+  // carry text is not the same as a beat minted to hide the absence of text —
+  // and the alternative here is silent data loss, which is exactly the #799
+  // regression (`normalize.test.ts` asserts the split reassembles losslessly).
+  //
+  // It should be rare either way: the contract now asks for a one-line summary,
+  // so a tail means the model overran a field it was told the width of.
+  const withOverflow: QuestSpineBeatResult[] = !summaryTail
+    ? beats
+    : beats.length > 0
+      ? beats.map((beat, i) =>
+          i === 0
+            ? { ...beat, dm_content: beat.dm_content ? `${summaryTail}\n\n${beat.dm_content}` : summaryTail }
+            : beat,
+        )
+      : [{ key: "summary-overflow", title: payload.title, kind: "neutral", dm_content: summaryTail }];
+  const spineBeats = withOverflow;
+
+  const questSpine =
+    spineBeats.length > 0 || objectives.length > 0
+      ? { beats: spineBeats, routes, objectives }
+      : undefined;
+
   return {
     row,
     links: { giver_npc_name: payload.giver_npc_name, location_name: payload.location_name },
-    openingBeat,
+    questSpine,
   };
 }
 
