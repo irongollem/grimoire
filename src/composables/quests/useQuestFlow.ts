@@ -159,7 +159,6 @@ async function fetchAttachmentTargets(
   const definitions = [
     ["encounter", "encounters", "id, name", "name"],
     ["quest_ref", "quest_refs", "id, ref_type", "ref_type"],
-    ["location_set", "locations", "id, name", "name"],
     ["npc", "npcs", "id, name", "name"],
     ["faction", "factions", "id, name", "name"],
     ["item", "items", "id, name", "name"],

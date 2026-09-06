@@ -23,22 +23,6 @@
               <AppButton :to="specialistUrl(`/encounters/${attachment.ref_id}/run`)" label="Open full-screen" variant="subtle" />
             </div>
           </div>
-          <div v-else-if="adapter.containedSurface === 'atlas'" class="rounded-lg border border-border bg-card p-3">
-            <p class="text-body font-semibold text-foreground">{{ atlasRoot?.name || attachment.label }}</p>
-            <p class="text-caption text-muted-foreground">{{ atlasRoot?.location_type || 'Atlas location' }} · {{ preparedRooms.length }} prepared room{{ preparedRooms.length === 1 ? '' : 's' }}</p>
-            <RichTextViewer v-if="atlasRoot?.description" class="mt-2" :content="atlasRoot.description" />
-            <p v-if="atlasRoot?.notes" class="mt-2 whitespace-pre-wrap text-caption text-muted-foreground">{{ atlasRoot.notes }}</p>
-            <ul v-if="preparedRooms.length" class="mt-3 space-y-2">
-              <li v-for="room in preparedRooms" :key="room.id" class="rounded-md border border-border p-2">
-                <p class="text-caption font-semibold text-foreground">{{ room.name }}</p>
-                <RichTextViewer v-if="room.description" class="mt-1" :content="room.description" />
-                <p v-if="room.notes" class="mt-1 whitespace-pre-wrap text-caption text-muted-foreground">{{ room.notes }}</p>
-                <p v-if="!room.description && !room.notes" class="mt-1 text-caption italic text-muted-foreground">No room notes prepared.</p>
-              </li>
-            </ul>
-            <p v-else class="mt-2 text-caption italic text-muted-foreground">No room context selected for this beat.</p>
-            <p class="mt-2 text-caption text-muted-foreground">Open Atlas for maps, pins, and advanced editing.</p>
-          </div>
           <div v-else-if="adapter.containedSurface === 'audio'" class="rounded-lg border border-border bg-card p-3">
             <template v-if="sound">
               <p class="text-body text-foreground">{{ sound.category }} · {{ sound.source_type }}</p>
@@ -104,7 +88,6 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref } from "vue";
 import { useHotkeys } from "@/composables/useHotkeys";
-import { useAllLocations } from "@/composables/locations/useLocations";
 import { useNpc } from "@/composables/npcs/useNpcs";
 import { useFaction } from "@/composables/factions/useFactions";
 import { useItems } from "@/composables/items/useItems";
@@ -130,7 +113,6 @@ const props = defineProps<{ attachment: QuestBeatAttachmentSummary; returnTo: st
 const emit = defineEmits<{ close: [] }>();
 const encounterFocused = ref(false);
 const adapter = computed(() => QUEST_BEAT_ATTACHMENT_ADAPTERS[props.attachment.attachment_type]);
-const { data: locations } = useAllLocations(() => props.attachment.attachment_type === "location_set");
 const npcId = computed(() => props.attachment.attachment_type === "npc" ? props.attachment.ref_id : "");
 const factionId = computed(() => props.attachment.attachment_type === "faction" ? props.attachment.ref_id : "");
 const monsterId = computed(() => props.attachment.attachment_type === "monster" ? props.attachment.ref_id : "");
@@ -167,9 +149,6 @@ const triggerSound = useSoundTrigger();
 const actionFor = useActionCheck();
 const blockedReason = useBlockedCheck();
 const audioAction = (value: Sound) => ({ play: "Play cue", pause: "Pause cue", refire: "Fire cue again" })[actionFor(value)];
-const roomIds = computed(() => new Set(Array.isArray(props.attachment.metadata.room_ids) ? props.attachment.metadata.room_ids.map(String) : []));
-const atlasRoot = computed(() => (locations.value ?? []).find((location) => location.id === props.attachment.ref_id) ?? null);
-const preparedRooms = computed(() => (locations.value ?? []).filter((location) => roomIds.value.has(location.id)));
 const specialistUrl = (path: string) => withQuestReturnTo(path, props.returnTo);
 function togglePlaylist() {
   if (!playlist.value) return;

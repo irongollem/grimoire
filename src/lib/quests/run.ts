@@ -26,11 +26,12 @@ export interface SiteGraphLocation {
  * the party stands at the site's own entry rather than in a named room yet.
  *
  * Site position is a fact about the world (epic #780's Atlas), not about any
- * one quest's beat — a party can be mid-dungeon on a chain that never anchors
- * a beat there (that join is Phase 3's job, #797, and does not exist yet).
- * This is why the run cockpit reads `campaigns.current_location_id` directly
- * rather than a beat's `location_set` attachment: walking around a dungeon is
- * not a story event, so it must not depend on one being authored.
+ * one quest's beat. Phase 3 (#797) shipped the join — a beat can stage at one
+ * place via `quest_beats.staged_at_location_id` — but this function still
+ * does not consume it: a party can be mid-dungeon on a chain that has never
+ * staged a beat there at all, so the run cockpit reads
+ * `campaigns.current_location_id` directly. Walking around a dungeon is not a
+ * story event, so it must not depend on one being authored.
  *
  * Cycle-safe the same way `graph.ts` is: `seen` guards the ancestor walk so a
  * malformed `parent_id` chain cannot loop forever.

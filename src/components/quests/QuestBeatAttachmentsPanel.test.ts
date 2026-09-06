@@ -15,7 +15,6 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
 }));
 vi.mock("@/composables/encounters/useEncounters", () => ({ useCreateEncounter: helpers.mutation, useEncounters: helpers.emptyQuery }));
 vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: helpers.emptyQuery }));
-vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: helpers.emptyQuery }));
 vi.mock("@/composables/notes/useNotes", () => ({ useNotes: helpers.emptyQuery }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: helpers.emptyQuery }));
 vi.mock("@/composables/items/useItems", () => ({ useItems: helpers.emptyQuery }));

@@ -227,9 +227,11 @@ What the RPC does, in order:
    NPCs, factions and locations that quest content references (campaign-scoped rows of
    these kinds simply move in step 4, ids intact, so they need nothing). NPC clones pull
    their `linked_monster_id` stat block and `scriptorium_doc_id` handout into the
-   monster/doc clone sets so the copy resolves; location clones include `location_set`
-   `room_ids`, get `parent_location_id` remapped clone-to-clone and `source_map_id`
-   nulled (the Cartographer deep-link rule); faction clones are shallow — `faction_*`
+   monster/doc clone sets so the copy resolves; location clones follow a beat's
+   `staged_at_location_id` **and everything beneath it** (#797 — the previous
+   `metadata.room_ids` array only cloned rooms the DM had remembered to list, so a
+   dungeon could arrive at its new owner missing rooms), get `parent_id` remapped
+   clone-to-clone and `source_map_id` nulled (the Cartographer deep-link rule); faction clones are shallow — `faction_*`
    junction rows are campaign relations and stay put. No disposition question is asked
    for any of these: originals are global, stay with their author, and lose nothing. Separately, `delete_campaign_with_homebrew` once disposed of left-behind rows
    with an owner-less `where campaign_id = …`; `20260809000004` confines each

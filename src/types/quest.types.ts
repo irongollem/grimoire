@@ -241,6 +241,15 @@ export interface QuestBeat {
   visibility: QuestBeatVisibility;
   kind: QuestBeatKind;
   presentation_hint: string | null;
+  /**
+   * Where this beat happens. Singular: a beat is one event in one place; a
+   * scene spanning two places is two beats. Any location qualifies — being a
+   * *site* with a floor plan is what unlocks the run cockpit's room surface,
+   * not a precondition for naming the place (`isSiteType`, `lib/locations/tiers.ts`).
+   * Replaces the `location_set` attachment and its unenforceable
+   * `metadata.room_ids` list (#797, migration `20260906113143`).
+   */
+  staged_at_location_id: string | null;
   canvas_x: number;
   canvas_y: number;
   is_improvised: boolean;
@@ -252,10 +261,12 @@ export interface QuestBeat {
   updated_at: string;
 }
 
-export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "conversion_source_type" | "conversion_source_id"> & {
+export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "conversion_source_type" | "conversion_source_id" | "staged_at_location_id"> & {
   id?: string;
   conversion_source_type?: QuestBeat["conversion_source_type"];
   conversion_source_id?: string | null;
+  /** Omit to take the column default of null — stage it after creation. */
+  staged_at_location_id?: string | null;
 };
 export type QuestBeatUpdate = Partial<Omit<QuestBeatInsert, "quest_id" | "campaign_id">>;
 
@@ -461,7 +472,6 @@ export interface PlayerQuestBeatVisitSummary {
 export type QuestBeatAttachmentType =
   | "encounter"
   | "quest_ref"
-  | "location_set"
   | "npc"
   | "faction"
   | "item"

@@ -4,10 +4,6 @@ import QuestRunContainedTool from "./QuestRunContainedTool.vue";
 import type { QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
-  locations: { value: [
-    { id: "root", name: "Drowned Abbey", location_type: "dungeon", description: "root-body", notes: "Mind the tide.", parent_id: null },
-    { id: "room-1", name: "Crypt", location_type: "room", description: "room-body", notes: null, parent_id: "root" },
-  ] },
   sounds: { value: [{ id: "sound-1", name: "Thunder", category: "effects", source_type: "url", file_url: "thunder.mp3", storage_path: null }] },
   playlists: { value: [] as Array<{ id: string; name: string; playlist_type: "ambient" | "music" }> },
   tracks: { value: [] as Array<Record<string, unknown>> },
@@ -27,7 +23,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
-vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: mocks.locations }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpc: () => ({ data: mocks.npc }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useFaction: () => ({ data: mocks.faction }) }));
 vi.mock("@/composables/items/useItems", () => ({ useItems: () => ({ data: { value: [] } }) }));
@@ -109,18 +104,6 @@ describe("QuestRunContainedTool", () => {
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Encounter summary")!.trigger("click");
     expect(wrapper.findComponent({ name: "EncounterRunSurface" }).exists()).toBe(false);
     expect(wrapper.text()).toContain("Focused encounter state stays in the existing Encounter Runner.");
-  });
-
-  it("shows only the rooms prepared for the beat", () => {
-    const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("location_set", { ref_id: "root", metadata: { room_ids: ["room-1"] } }), returnTo: "/quests/q1?mode=run&beat=b1" },
-      global,
-    });
-    expect(wrapper.text()).toContain("Crypt");
-    expect(wrapper.text()).toContain("1 prepared room");
-    expect(wrapper.text()).toContain("Mind the tide.");
-    const bodies = wrapper.findAllComponents({ name: "RichTextViewer" }).map((viewer) => viewer.props("content"));
-    expect(bodies).toEqual(["root-body", "room-body"]);
   });
 
   it("fires an attached sound through the shared playback subsystem", async () => {

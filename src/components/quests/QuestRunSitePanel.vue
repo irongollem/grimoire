@@ -39,10 +39,18 @@
 /**
  * Concern 1 of the run cockpit (#820, epic #780): where the party physically
  * is, independent of which quest is running. Site state belongs to the Atlas,
- * not to a beat — a party can be mid-dungeon while running a chain that has
- * never anchored a beat there (that join is Phase 3's job, #797) — so this
- * reads `campaigns.current_location_id` directly rather than any beat's
- * `location_set` attachment.
+ * not to a beat, so this reads `campaigns.current_location_id` directly.
+ *
+ * Phase 3 (#797) shipped the join this used to wait on: a beat now stages at
+ * one place via `quest_beats.staged_at_location_id`. This panel still does not
+ * consume it, and that is unchanged by the column existing — a party can be
+ * mid-dungeon while running a chain that has never staged a beat there at all,
+ * or running several chains at once (`QuestRunOpenChains`), so "where the
+ * party is" has to stand on its own regardless of any one quest's cursor.
+ * Cross-checking the *running* beat's staging against this location is a
+ * cockpit-level concern instead: it needs the anchored quest's current beat
+ * (`QuestRunCockpit`'s `context.current`, concern 2), which this panel is
+ * mounted without and deliberately does not fetch a second time.
  *
  * A thin, compact sibling of `SiteRunSurface` (#791): same underlying reads
  * and the same one-click move-and-explore write, without the map, the doors

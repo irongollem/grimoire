@@ -5,9 +5,12 @@
 // with its own floor plan (`grounds`, `building`, `dungeon`, `store`,
 // `tavern`, `inn`). Binding is a real FK (`space_location_id`); the geometry
 // it covers is shaped data and lives in jsonb — the same split
-// `location_placements` makes, and deliberately not the shape of
-// `quest_beat_attachments.metadata.room_ids`, an unenforceable id list
-// inside a blob that this epic is removing everywhere else.
+// `location_placements` makes, and deliberately not the shape
+// `quest_beat_attachments.metadata.room_ids` used to be: an unenforceable id
+// list inside a blob. #797 finished removing that shape everywhere else,
+// deleting the `location_set` attachment in favour of a real FK column,
+// `quest_beats.staged_at_location_id` — the same real-FK-over-id-list
+// preference this region binding already followed.
 //
 // `site_location_id` is required even on an unbound region: a DM traces
 // shapes off a scanned page first and names them second, so a region can

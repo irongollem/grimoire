@@ -250,21 +250,52 @@ Build mode joins the same shape client-side, in
 
 ### `quest_beat_attachments`
 
-Typed placements: `encounter`, `quest_ref`, `location_set`, `npc`, `faction`,
+Typed placements: `encounter`, `quest_ref`, `npc`, `faction`,
 `item`, `monster`, `sound`, `audio_scene`, `playlist`, `note`, `handout`.
 Polymorphic `ref_id text`, validated by
 `private.validate_quest_beat_attachment()` rather than an FK. `'objective'` was
 a member of this CHECK until #793 dropped it along with the overview beat it
 was backfilled onto (see above).
 
-`location_set` is the current dungeon shape: `ref_id` is the root location and
-`metadata.room_ids` a jsonb array of descendants. It has **no ordering, no
-per-room state and no per-room material binding**, and the validator checks that a
-room _exists_, never that it sits inside the root — the picker's BFS over
-`parent_id` is the only thing enforcing that.
+`'location_set'` was a member of this CHECK until #797 replaced it with
+`quest_beats.staged_at_location_id` (below). It carried `metadata.room_ids`, a
+jsonb array of descendant ids with no ordering, no per-room state and no
+per-room material binding — and the validator only checked that each room
+_existed_, never that it sat inside the root. Production held **zero** non-empty
+`room_ids` arrays across every attachment type for the whole life of the
+feature.
 
 `quest_ref` is allowed by the CHECK but deliberately absent from the panel's
 `supportedTypes`, so it cannot be created from the UI.
+
+### `quest_beats.staged_at_location_id` — where a beat happens
+
+A beat is an event, and an event happens somewhere. That "somewhere" is a
+nullable uuid column with an FK to `locations` and `on delete set null`, so
+losing a place unstages its beats instead of taking them with it (#797).
+
+**Singular on purpose.** A beat is one event in one place; a scene spanning two
+places is two beats. The evidence: of the ten `location_set` rows production
+ever held, nine were written by `backfill_quest_story_flows` at one identical
+microsecond onto overview beats, and exactly one was authored by a person — one
+beat, one place. Every apparently-plural beat was a former `— overview` beat,
+which stood for a whole quest and so accumulated everything the quest touched.
+
+**Not restricted to sites**, despite the story's title. Production stages beats
+at two towns and a lake as well as at dungeons, buildings and a store. Being a
+site is what unlocks the run surface — a capability of the place, not a
+precondition for naming it; `bindableSpaces()` draws that line.
+
+`private.guard_beat_staging()` enforces campaign scope on insert and update,
+with the same predicate every arm of the attachment validator uses: the location
+is campaign-scoped to this campaign, or it is personal content belonging to the
+writer or to the campaign's owner. A foreign key proves a location exists, not
+that this campaign may see it.
+
+`transfer_campaign_ownership` follows staging when a campaign changes hands, and
+clones **the staged place and everything beneath it** — the old attachment only
+cloned rooms that happened to be listed in `room_ids`, so a room the DM forgot
+to list stayed behind with the previous owner.
 
 ### `quest_runtime_state` — the cursor
 
@@ -375,8 +406,9 @@ contract and made its body an unscrollable `overflow:hidden` box at `lg` and wid
 **The cockpit** (`QuestRunCockpit`, #820) expresses three concerns rather than
 one long form: `QuestRunSitePanel` (where the party physically is — a compact
 sibling of `SiteRunSurface`, reading `campaigns.current_location_id` directly
-rather than any beat's `location_set`, because a dungeon is a fact about the
-world, not about the quest currently running), the beat card plus a rail
+rather than the running beat's `staged_at_location_id`, because where the party
+*is* is a fact about the world, not about the quest currently running — the two
+legitimately differ, and the panel shows where the party stands), the beat card plus a rail
 (`QuestRunObjectivesLedger`, `QuestRunPath`, `QuestRunOpenChains`), and
 `QuestRunOutcomeStrip` — one card per outgoing route plus "Something else…"
 (improvise, opening inline in the same column via `v-model:improvise-open`
@@ -399,7 +431,7 @@ Jump ever move a quest's cursor.
 
 `QuestRunContainedTool` opens an attachment in place: encounters embed
 `EncounterRunSurface`, audio calls the Soundboard, objectives get a next-status
-button, notes and handouts render their bodies, `location_set` renders root + rooms.
+button, notes and handouts render their bodies.
 Despite the name it is also the prep-time viewer, mounted from
 `QuestBeatAttachmentsPanel`.
 

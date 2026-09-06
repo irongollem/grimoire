@@ -29,6 +29,16 @@
           <option value="revealed">Revealed</option>
         </AppSelect>
       </label>
+      <label class="space-y-1 text-caption font-semibold text-foreground">
+        Staged at
+        <EntityCombobox v-model="stagedLocationId" :options="locationOptions" placeholder="Where does this beat happen?">
+          <template #option="{ opt }">
+            <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 0.75}rem` }">{{ opt.name }}</span>
+          </template>
+        </EntityCombobox>
+        <span v-if="stagingSaving" class="block text-caption font-normal text-muted-foreground">Saving…</span>
+        <span v-else-if="stagingError" role="alert" class="block text-caption font-normal text-destructive">{{ stagingError }}</span>
+      </label>
     </div>
 
     <div class="flex flex-wrap items-center gap-2">
@@ -94,14 +104,19 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useDebounceFn } from "@vueuse/core";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
+import { useLocationTree } from "@/composables/locations/useLocations";
 import { questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
 import { QUEST_BEAT_KINDS, QUEST_BEAT_KIND_LABELS, type QuestBeat } from "@/types/quest.types";
+import type { Location } from "@/types/location.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
+
+type LocationOption = Location & { depth: number };
 
 const { beat, compact = false } = defineProps<{ beat: QuestBeat; compact?: boolean }>();
 const emit = defineEmits<{
@@ -109,6 +124,7 @@ const emit = defineEmits<{
   preview: [context: { draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean }];
 }>();
 const updateBeat = useUpdateQuestBeat();
+const { locationOptions } = useLocationTree();
 const draft = reactive(questBeatToDraft(beat));
 let baseline = questBeatToDraft(beat);
 const activeBeatId = ref(beat.id);
@@ -132,6 +148,48 @@ function kindLabel(option: string) {
   return QUEST_BEAT_KIND_LABELS[option as (typeof QUEST_BEAT_KINDS)[number]] ?? option;
 }
 let hydrating = false;
+
+// Staging saves immediately, outside the debounced draft above: picking a
+// place is one discrete action, not something typed through a pause, so there
+// is no keystroke to protect and no reason to wait out `saveLater`. It reads
+// `beat.staged_at_location_id` straight from the prop rather than mirroring it
+// into a ref — a selection is instantaneous, so there is no live text to lose
+// to an echo, and on failure the getter simply reverts to the still-unchanged
+// prop value with no extra bookkeeping.
+//
+// EntityCombobox's model is a plain `string` ("" means unselected, see its
+// own `clear()`), so "" and `null` both mean "unstaged" and are translated at
+// this boundary rather than anywhere staged_at_location_id is stored.
+const stagingSaving = ref(false);
+const stagingError = ref("");
+const stagedLocationId = computed<string>({
+  get: () => beat.staged_at_location_id ?? "",
+  set: (nextId) => { void setStagedLocation(nextId); },
+});
+
+async function setStagedLocation(nextId: string) {
+  const targetBeatId = beat.id;
+  const current = beat.staged_at_location_id ?? "";
+  if (nextId === current) return;
+  stagingSaving.value = true;
+  stagingError.value = "";
+  try {
+    const saved = await updateBeat.mutateAsync({
+      id: targetBeatId,
+      questId: beat.quest_id,
+      update: { staged_at_location_id: nextId || null },
+    });
+    // The debounced draft's own optimistic-concurrency check compares against
+    // this same `version` ref (see `saveNow` below) — without updating it here
+    // too, its next autosave would compare against a row this write already
+    // moved past and fail with a false "changed in another window".
+    if (targetBeatId === activeBeatId.value) version.value = saved.updated_at;
+  } catch (caught) {
+    stagingError.value = caught instanceof Error ? caught.message : "Could not change where this beat is staged";
+  } finally {
+    stagingSaving.value = false;
+  }
+}
 
 // Our own autosave echoes straight back through this prop — first the optimistic
 // write, then the refetch `onSettled` triggers — and the row it carries is the

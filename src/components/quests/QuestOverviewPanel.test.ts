@@ -32,7 +32,7 @@ const beat = (id: string, title: string): QuestBeat => ({
   id, quest_id: "quest-1", campaign_id: "campaign-1", title,
   dm_content: null, read_aloud: null, how_it_plays: null, outcomes: null, consequences: null,
   rumor_text: null, reveal_text: null, visibility: "hidden", kind: "neutral",
-  presentation_hint: null, canvas_x: 0, canvas_y: 0, is_improvised: false,
+  presentation_hint: null, canvas_x: 0, canvas_y: 0, is_improvised: false, staged_at_location_id: null,
   improv_reviewed_at: null, created_by: "dm", created_at: "now", updated_at: "now",
 });
 
