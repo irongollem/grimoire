@@ -1,6 +1,7 @@
 import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestFlowStarter from "./QuestFlowStarter.vue";
+import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
@@ -43,6 +44,36 @@ describe("QuestFlowStarter", () => {
       status: "undiscovered",
     }));
     expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: { view: "overview" } });
+  });
+
+  // Regression guard for #799: `quests.rewards` and the currency/item reward
+  // columns are gone from the schema, so sending them in the insert fails at
+  // the database. This asserts the client-side row shape, not just that the
+  // call happened.
+  it("never sends the deleted reward columns on the created quest", async () => {
+    mocks.create.mockResolvedValue({ id: "quest-new" });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+
+    await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
+    await wrapper.get('button[aria-label="Create quest"]').trigger("click");
+    await flushPromises();
+
+    const insert = mocks.create.mock.calls[0]![0] as Record<string, unknown>;
+    for (const column of [
+      "rewards", "reward_pp", "reward_gp", "reward_ep", "reward_sp", "reward_cp",
+      "reward_item_ids", "reward_currency_pools",
+    ]) {
+      expect(insert).not.toHaveProperty(column);
+    }
+  });
+
+  // The database enforces this too (`quests_summary_is_one_line`, migration
+  // 20260906160921) — this is the fast, friendly version of the same rule.
+  it("caps the premise input at QUEST_SUMMARY_MAX and names the player audience in its placeholder", () => {
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    const summaryInput = wrapper.findAll("input")[1]!;
+    expect(summaryInput.attributes("maxlength")).toBe(String(QUEST_SUMMARY_MAX));
+    expect(summaryInput.attributes("placeholder")).toContain("Players see this");
   });
 
   // The regression this guards: creating a flow used to write `dmMode = "prep"`,

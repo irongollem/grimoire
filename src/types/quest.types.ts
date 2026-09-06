@@ -37,33 +37,28 @@ export interface Quest {
   campaign_id: string | null;
   parent_quest_id: string | null;
   title: string;
+  /**
+   * The blurb that lets you tell what a quest is without opening it. One
+   * line, by CHECK (`quests_summary_is_one_line`, migration `20260906160921`)
+   * — not prose, which belongs on a beat. Shown on the DM quest card, the
+   * kanban board, the player quest log and the player quest page, and matched
+   * by quest search. Player-facing: never put a DM secret here (#799). See
+   * `QUEST_SUMMARY_MAX` (`src/lib/quests/summary.ts`) for the enforced cap.
+   */
   summary: string | null;
   status: QuestStatus;
   giver_npc_id: string | null;
   location_id: string | null;
-  rewards: string | null;
-  reward_pp: number;
-  reward_gp: number;
-  reward_ep: number;
-  reward_sp: number;
-  reward_cp: number;
   tags: string[];
   player_visible_to: string[];
-  reward_item_ids: string[];
-  reward_currency_pools: RewardCurrencyPool[];
-  reward_art_objects?: import("@/types/encounter.types").ArtObject[];
   started_at: string | null;
   resolved_at: string | null;
   ai_provenance?: AiProvenance | null;
-  flow_enabled_at?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestInsert = Omit<
-  Quest,
-  "id" | "user_id" | "created_at" | "updated_at" | "flow_enabled_at"
-> & { flow_enabled_at?: string | null };
+export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at">;
 export type QuestUpdate = Partial<QuestInsert>;
 
 /**
@@ -254,17 +249,13 @@ export interface QuestBeat {
   canvas_y: number;
   is_improvised: boolean;
   improv_reviewed_at: string | null;
-  conversion_source_type?: "legacy_overview" | "legacy_encounter_ref" | null;
-  conversion_source_id?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "conversion_source_type" | "conversion_source_id" | "staged_at_location_id"> & {
+export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "staged_at_location_id"> & {
   id?: string;
-  conversion_source_type?: QuestBeat["conversion_source_type"];
-  conversion_source_id?: string | null;
   /** Omit to take the column default of null — stage it after creation. */
   staged_at_location_id?: string | null;
 };
@@ -480,7 +471,6 @@ export interface PlayerQuestBeatVisitSummary {
 
 export type QuestBeatAttachmentType =
   | "encounter"
-  | "quest_ref"
   | "npc"
   | "faction"
   | "item"

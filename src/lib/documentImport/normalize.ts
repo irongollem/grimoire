@@ -52,6 +52,7 @@ import type { MonsterInsert, MonsterSize, MonsterStatBlock, MonsterType } from "
 import { MONSTER_SIZES, MONSTER_TYPES } from "@/types/monster.types";
 import type { NpcInsert } from "@/types/npc.types";
 import type { QuestInsert } from "@/types/quest.types";
+import { splitQuestSummary } from "@/lib/quests/summary";
 import type { SpellInsert, SpellSchool } from "@/types/spell.types";
 import { SPELL_SCHOOLS } from "@/types/spell.types";
 
@@ -442,11 +443,22 @@ export function mapExtractedQuest(
   campaignId: string,
   provenance: AiProvenance,
 ): MappedEntity<"quests"> {
+  // `quests.summary` is capped at the database (`quests_summary_is_one_line`,
+  // migration 20260906160921) to one line, 280 characters, because it is
+  // shown verbatim to players — not truncated to it. Running the whole
+  // extracted summary through `capProse`'s 600-character word-boundary cut
+  // (the same cut used for a character backstory) is how a five-sentence
+  // adventure blurb ended up in a one-line field (#799): a cut sentence is a
+  // lie, so the fix is to split at the first sentence rather than truncate.
+  // The remainder joins the opening beat's prose below, where story text
+  // belongs.
+  const { head: summaryHead, tail: summaryTail } = splitQuestSummary(payload.summary);
+
   const row: QuestInsert = {
     campaign_id: campaignId,
     parent_quest_id: null,
     title: payload.title,
-    summary: capProse(payload.summary),
+    summary: summaryHead,
     // 'undiscovered', matching the live column default — and semantically the
     // only defensible value. A quest lifted off a page is one the party has not
     // met yet; importing a setting book's twenty plot hooks as 'active' would
@@ -461,26 +473,20 @@ export function mapExtractedQuest(
     status: "undiscovered",
     giver_npc_id: null, // resolved from links.giver_npc_name in a second pass, see file header
     location_id: null, // resolved from links.location_name in a second pass, see file header
-    rewards: payload.rewards ?? null,
-    reward_pp: 0, // schema default; ExtractedQuest carries a free-text `rewards` field, not a currency breakdown
-    reward_gp: 0,
-    reward_ep: 0,
-    reward_sp: 0,
-    reward_cp: 0,
     tags: [], // not extracted
     player_visible_to: [], // schema default '{}'
-    reward_item_ids: [], // schema default '{}'
-    reward_currency_pools: [], // schema default '[]'
     started_at: null,
     resolved_at: null,
     ai_provenance: provenance,
-    // flow_enabled_at omitted — optional, DB default now().
   };
   // `quests.description`/`.notes` are gone (#793) — their prose now lives on
   // the opening beat's `dm_content`/`how_it_plays`. The wizard inserts this
   // once the quest row exists, in the same second pass that resolves `links`,
-  // because the beat needs the quest's own id.
-  const dmContent = capProse(payload.description);
+  // because the beat needs the quest's own id. Any overflow past the summary's
+  // first sentence joins `dm_content` too, the same rule the migration itself
+  // applies to production rows over 280 characters.
+  const description = capProse(payload.description);
+  const dmContent = description && summaryTail ? `${description}\n\n${summaryTail}` : description || summaryTail || null;
   const howItPlays = capProse(payload.notes);
   const openingBeat = dmContent || howItPlays ? { dm_content: dmContent, how_it_plays: howItPlays } : undefined;
   return {

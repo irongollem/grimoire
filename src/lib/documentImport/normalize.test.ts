@@ -426,7 +426,11 @@ describe("mapExtractedQuest", () => {
 
     expect(row.title).toBe("The Sunken Bell");
     expect(row.summary).toBe("Recover a bell lost when the old cathedral flooded.");
-    expect(row.rewards).toBe("500 gp and the gratitude of the parish");
+    // `quests.rewards` and the currency/item reward columns are gone (#799) —
+    // loot now reaches players through the beat that grants it
+    // (`quest_beat_loot`), never the quest header, so the extracted free-text
+    // `rewards` field has nowhere on the row to land.
+    expect(row).not.toHaveProperty("rewards");
     expect(row.status).toBe("undiscovered");
     expect(row.campaign_id).toBe(CAMPAIGN_ID);
     expect(row.ai_provenance).toBe(PROVENANCE);
@@ -447,13 +451,10 @@ describe("mapExtractedQuest", () => {
     const { row, links, openingBeat } = mapExtractedQuest({ title: "A Rumor" }, CAMPAIGN_ID, PROVENANCE);
 
     expect(row.status).toBe("undiscovered");
-    expect(row.reward_pp).toBe(0);
-    expect(row.reward_gp).toBe(0);
-    expect(row.reward_ep).toBe(0);
-    expect(row.reward_sp).toBe(0);
-    expect(row.reward_cp).toBe(0);
-    expect(row.reward_currency_pools).toEqual([]);
-    expect(row.reward_item_ids).toEqual([]);
+    expect(row).not.toHaveProperty("rewards");
+    expect(row).not.toHaveProperty("reward_pp");
+    expect(row).not.toHaveProperty("reward_currency_pools");
+    expect(row).not.toHaveProperty("reward_item_ids");
     expect(row.tags).toEqual([]);
     expect(row.player_visible_to).toEqual([]);
     expect(row.giver_npc_id).toBeNull();
@@ -463,17 +464,60 @@ describe("mapExtractedQuest", () => {
     expect(openingBeat).toBeUndefined();
   });
 
-  it("caps summary on the row and description/notes on the deferred opening beat, never inventing a status", () => {
+  it("caps description/notes on the deferred opening beat, never inventing a status", () => {
     const long = "peril ".repeat(150).trim();
     const { row, openingBeat } = mapExtractedQuest(
-      { title: "X", summary: long, description: long, notes: long },
+      { title: "X", description: long, notes: long },
       CAMPAIGN_ID,
       PROVENANCE,
     );
-    expect((row.summary as string).endsWith("…")).toBe(true);
     expect(openingBeat?.dm_content?.endsWith("…")).toBe(true);
     expect(openingBeat?.how_it_plays?.endsWith("…")).toBe(true);
     expect(row.status).toBe("undiscovered");
+  });
+
+  // The regression this guards (#799): `summary` used to run through the same
+  // 600-character `capProse` cut as a backstory, so a five-sentence adventure
+  // blurb got truncated mid-sentence into the one-line column instead of
+  // split. This asserts the fix reassembles losslessly, not merely that the
+  // row's summary looks short.
+  it("splits a multi-sentence summary at its first sentence rather than truncating it", () => {
+    const summary = "A farmer's daughter vanished near the old mill. The miller swears he heard singing at midnight. "
+      + "Something pale has been seen wading the millpond.";
+    const { row, openingBeat } = mapExtractedQuest({ title: "X", summary }, CAMPAIGN_ID, PROVENANCE);
+
+    expect(row.summary).toBe("A farmer's daughter vanished near the old mill.");
+    expect(openingBeat?.dm_content).toBe(
+      "The miller swears he heard singing at midnight. Something pale has been seen wading the millpond.",
+    );
+    // No word from the original summary is lost between the two fields.
+    expect(`${row.summary} ${openingBeat?.dm_content}`).toBe(summary);
+  });
+
+  it("prepends the summary's overflow to existing description prose on the opening beat, rather than replacing it", () => {
+    const { row, openingBeat } = mapExtractedQuest(
+      {
+        title: "X",
+        summary: "The party is hired to clear the old mill. It has stood empty for a decade.",
+        description: "The mill sits at the edge of the village, half-swallowed by ivy.",
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+
+    expect(row.summary).toBe("The party is hired to clear the old mill.");
+    expect(openingBeat?.dm_content).toBe(
+      "The mill sits at the edge of the village, half-swallowed by ivy.\n\nIt has stood empty for a decade.",
+    );
+  });
+
+  it("does not mint an overflow-only opening beat when the summary is a single sentence", () => {
+    const { openingBeat } = mapExtractedQuest(
+      { title: "X", summary: "Find the lost sword." },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(openingBeat).toBeUndefined();
   });
 });
 

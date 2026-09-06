@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(40);
 
 select has_table('public', 'quest_beat_loot', 'beat loot has a dedicated orchestration table');
 select has_function('public', 'dispatch_quest_beat_loot', array['uuid', 'uuid'], 'beat loot has an atomic dispatch RPC');
@@ -27,8 +27,8 @@ set role = excluded.role, display_name = excluded.display_name, party_member_id 
 
 insert into public.items (id, user_id, campaign_id, name, item_type, rarity, tags)
 values ('66100000-0000-4000-8000-000000000030', '66100000-0000-4000-8000-000000000001', '66100000-0000-4000-8000-000000000010', 'Moon key', 'gear', 'mundane', array['container']::text[]);
-insert into public.quests (id, user_id, campaign_id, title, reward_item_ids)
-values ('66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000001', '66100000-0000-4000-8000-000000000010', 'Vault quest', array['66100000-0000-4000-8000-000000000030']::uuid[]);
+insert into public.quests (id, user_id, campaign_id, title)
+values ('66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000001', '66100000-0000-4000-8000-000000000010', 'Vault quest');
 insert into public.quest_beats (id, quest_id, campaign_id, title)
 values ('66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'Open the vault');
 insert into public.quest_beat_transitions (
@@ -49,8 +49,6 @@ select lives_ok($$
     ('66100000-0000-4000-8000-000000000062', '66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'currency', null, 1, 'Vault purse', '{"gp":12,"sp":3}', 'prepared', null, 2),
     ('66100000-0000-4000-8000-000000000063', '66100000-0000-4000-8000-000000000050', '66100000-0000-4000-8000-000000000040', '66100000-0000-4000-8000-000000000010', 'loot_chest', null, 1, '', '{"loot_table_id":null,"loot_table_name":"Vault cache","chest_image_url":null,"rolled_atoms":[{"atom_id":"atom-1","type":"currency","gp":1}],"claims_total":1}', 'encounter_loot', null, 3)
 $$, 'item, currency, and encounter chest placements share the beat without cloning inventory');
-
-select is((select cardinality(reward_item_ids) from public.quests where id = '66100000-0000-4000-8000-000000000040'), 1, 'existing top-level quest rewards remain intact');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '66100000-0000-4000-8000-000000000001', true);

@@ -104,7 +104,7 @@ and no rule about which wins:
 
 | Generation one holds                         | Generation two also holds                                                            | Reconciled by                                                                                 |
 | -------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `quests.reward_*` (coins, pools, items, art) | `quest_beat_loot` rows with `source_type = 'quest_reward'`                           | a one-time copy in `20260810220934` — all four kinds, not just items                          |
+| `quests.reward_*` (coins, pools, items, art) | `quest_beat_loot` rows with `source_type = 'quest_reward'`                           | **resolved by #799** — the quest-level columns are dropped; `quest_beat_loot` is the only home |
 | `quest_refs`                                 | `quest_beat_attachments`                                                             | a trigger syncs attachment → ref; nothing syncs back, and removing a placement leaves the ref |
 
 `quest_triggers` (fired _from_ an objective) and `quest_objective_effects` (fired _to_ one)
@@ -119,11 +119,17 @@ before that. `quests.description`/`.notes` are gone outright; the same prose is
 now the opening beat's `dm_content`/`how_it_plays`, moved once by #793's
 migration and never duplicated again.
 
-**Dead residue.** `quests.flow_enabled_at` is `NOT NULL DEFAULT now()`, so it is
-always set — a dead opt-in flag. `quest_beats.conversion_source_type` / `_id` and
-their partial unique index outlive `convert_quest_to_flow`,
-`preview_quest_flow_conversion` and `rollback_quest_flow_conversion`, which shipped
-in `20260810000016` and were dropped the same day by `20260810202052`.
+**Dead residue — all of it swept by #799.** `quests.flow_enabled_at` was
+`NOT NULL DEFAULT now()`, so it was always set: a dead opt-in flag, non-null on
+20 of 20 production rows, and the epic's own worked example of a parallel period
+with no expiry. `quest_beats.conversion_source_type` / `_id` and their partial
+unique index outlived `convert_quest_to_flow`, `preview_quest_flow_conversion`
+and `rollback_quest_flow_conversion` (shipped in `20260810000016`, dropped the
+same day by `20260810202052`); dropping them lost provenance on 37 beats, which
+is a real if small cost taken deliberately. `quest_ref` — a beat pointing at a
+pointer, admitted by the CHECK and offered by no UI — went too, at zero rows.
+`supabase/tests/quest_flow_conversion.test.sql` survives, trimmed to the three
+`hasnt_function` assertions that pin those RPCs staying gone.
 
 ### An objective appears in two surfaces that once disagreed, and a third that used to
 
@@ -152,16 +158,31 @@ place an objective's meaning could disagree with itself.
 
 `title`, `status` (`quest_status_enum`: `undiscovered`, `rumor`, `active`,
 `completed`, `failed`), `summary`, `giver_npc_id`, `location_id`,
-`parent_quest_id` (sub-quests, no depth limit), `rewards`,
-`reward_pp/gp/ep/sp/cp`, `reward_currency_pools`, `reward_item_ids`,
-`reward_art_objects`, `tags`, `player_visible_to uuid[]` (null = never shared),
-`started_at` / `resolved_at` (**`started_at` is never written by anything**),
-`ai_provenance`, `flow_enabled_at`.
+`parent_quest_id` (sub-quests, no depth limit), `tags`,
+`player_visible_to uuid[]` (null = never shared), `started_at` / `resolved_at`
+(**`started_at` is never written by anything**), `ai_provenance`.
 
-`description`/`notes` are gone (#793) — their prose is the opening beat's
-`dm_content`/`how_it_plays` now, not a quest-level column. `summary` stays: a
-premise is quest-level identity, and it has its own editor in
-`QuestOverviewMetadata` rather than being write-once at creation.
+`description`/`notes` are gone (#793) and the whole `reward_*` family with
+`flow_enabled_at` went in #799 — loot is an event, so it belongs to the beat
+that grants it.
+
+**`summary` stays, and is now constrained rather than merely intended.** A
+premise is quest-level identity: it is the blurb that tells you what a quest is
+without opening it, and it appears on the DM quest card, the kanban board, the
+player's quest-log card, the player's quest page, and quest search. No beat field
+means "premise", and a list card cannot render a graph.
+
+It survived the manifest's deletion line on evidence: 19 of 20 production quests
+have one, and the two DMs other than the owner filled it on **every** quest they
+made, at 59 and 32 characters — one sentence each. It is the one field every DM
+fills, including the two who never authored a beat.
+
+But the intent lived only in a placeholder, a prompt row and a comment, and it
+had already regressed — one row held five sentences, because the importer capped
+it at the same 600 characters it uses for a character backstory. So #799 added
+`quests_summary_is_one_line CHECK (char_length(summary) <= 280 and summary !~
+E'[\n\r]')`, with `QUEST_SUMMARY_MAX` shared by the CHECK, the inputs and the
+importer. **It is player-facing and rendered raw** — never put a DM secret in it.
 
 Carries `unique (id, campaign_id)` — the composite every beat-side FK targets.
 

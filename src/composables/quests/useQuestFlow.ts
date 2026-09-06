@@ -158,7 +158,6 @@ async function fetchAttachmentTargets(
   const targets = new Map<string, AttachmentTarget>();
   const definitions = [
     ["encounter", "encounters", "id, name", "name"],
-    ["quest_ref", "quest_refs", "id, ref_type", "ref_type"],
     ["npc", "npcs", "id, name", "name"],
     ["faction", "factions", "id, name", "name"],
     ["item", "items", "id, name", "name"],

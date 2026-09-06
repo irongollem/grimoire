@@ -128,39 +128,6 @@
         placeholder="Jot down your thoughts, clues, suspicions…"
       />
 
-      <!-- Rewards -->
-      <div
-        v-if="
-          quest.rewards || quest.reward_item_ids?.length || hasCurrencyReward
-        "
-        class="rounded-lg border border-border bg-card overflow-hidden"
-      >
-        <div
-          class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between"
-        >
-          <span
-            class="text-label-lg font-semibold text-muted-foreground"
-            >Rewards</span
-          >
-        </div>
-        <div class="p-3 flex flex-col gap-2">
-          <p v-if="quest.rewards" class="text-body text-foreground">
-            {{ quest.rewards }}
-          </p>
-          <p v-if="hasCurrencyReward" class="text-body text-foreground">
-            {{ currencyParts.join(", ") }}
-          </p>
-          <div v-if="quest.reward_item_ids?.length" class="flex flex-wrap gap-1.5">
-            <span
-              v-for="itemId in quest.reward_item_ids"
-              :key="itemId"
-              class="text-body text-foreground bg-muted/40 rounded px-2 py-0.5"
-              >{{ itemName(itemId) }}</span
-            >
-          </div>
-        </div>
-      </div>
-
       <!-- Key NPCs -->
       <div
         v-if="linkedNpcRefs.length"
@@ -310,7 +277,6 @@ import { useMarkRead } from "@/composables/play/useReadItems";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useSharedLocations } from "@/composables/locations/useLocations";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import { resolveQuestSiteLocationId } from "@/lib/quests/playerSite";
@@ -340,7 +306,6 @@ const { data: questRefs } = useQuestRefs(questId);
 const { data: npcs } = useSharedNpcs();
 const { data: locations } = useSharedLocations();
 const { data: allMonsters } = usePlayerVisibleMonsters();
-const { data: allItems } = usePlayerVisibleItems();
 
 // NPC lightbox
 const selectedNpc = ref<PlayerNpc | null>(null);
@@ -402,17 +367,6 @@ const linkedMonsterRefs = computed(() =>
   visibleRefs.value.filter((r) => r.ref_type === "monster"),
 );
 
-// Currency reward
-const hasCurrencyReward = computed(
-  () =>
-    (quest.value?.reward_pp ?? 0) +
-      (quest.value?.reward_gp ?? 0) +
-      (quest.value?.reward_ep ?? 0) +
-      (quest.value?.reward_sp ?? 0) +
-      (quest.value?.reward_cp ?? 0) >
-    0,
-);
-
 // The DB's RLS policy already excludes a `dormant` objective (an untaken
 // branch) from what a player can read at all (#798). Filtered again here so
 // the intent is legible on this side too, and so a future policy change
@@ -436,24 +390,4 @@ function locationName2(id: string) {
 function monsterName(id: string) {
   return (allMonsters.value ?? []).find((m) => m.id === id)?.name ?? "???";
 }
-function itemName(id: string) {
-  return (allItems.value ?? []).find((i) => i.id === id)?.name ?? "???";
-}
-
-// Currency reward, formatted as e.g. "12 gp, 4 sp"
-const currencyParts = computed(() => {
-  if (!quest.value) return [];
-  const q = quest.value;
-  return (
-    [
-      ["pp", q.reward_pp],
-      ["gp", q.reward_gp],
-      ["ep", q.reward_ep],
-      ["sp", q.reward_sp],
-      ["cp", q.reward_cp],
-    ] as const
-  )
-    .filter(([, amount]) => amount > 0)
-    .map(([label, amount]) => `${amount} ${label}`);
-});
 </script>

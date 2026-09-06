@@ -29,7 +29,8 @@
           v-model="summary"
           tone="card"
           size="body"
-          placeholder="What makes this quest matter at the table?"
+          :maxlength="QUEST_SUMMARY_MAX"
+          placeholder="Players see this verbatim — the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
           @blur="saveMetadata"
           @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
         />
@@ -88,6 +89,7 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
+import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type Quest, type QuestStatus } from "@/types/quest.types";
 
 const props = defineProps<{ quest: Quest }>();

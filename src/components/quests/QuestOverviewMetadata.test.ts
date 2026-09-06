@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestOverviewMetadata from "./QuestOverviewMetadata.vue";
+import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import type { Quest } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
@@ -32,16 +33,8 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     status: "active",
     giver_npc_id: null,
     location_id: null,
-    rewards: null,
-    reward_pp: 0,
-    reward_gp: 0,
-    reward_ep: 0,
-    reward_sp: 0,
-    reward_cp: 0,
     tags: ["mill"],
     player_visible_to: [],
-    reward_item_ids: [],
-    reward_currency_pools: [],
     started_at: null,
     resolved_at: null,
     created_at: "2026-01-01T00:00:00Z",
@@ -106,6 +99,18 @@ describe("QuestOverviewMetadata", () => {
       id: "quest-1",
       update: expect.objectContaining({ title: "Untitled Quest" }),
     }));
+  });
+
+  // The database enforces this too (`quests_summary_is_one_line`, migration
+  // 20260906160921) — the input-level cap is the fast, friendly version of the
+  // same rule, not a substitute for it.
+  it("caps the premise input at QUEST_SUMMARY_MAX, since players see it verbatim", () => {
+    const wrapper = mountMetadata();
+    const summaryInput = wrapper.findAll("input")[1]!;
+    expect(summaryInput.attributes("maxlength")).toBe(String(QUEST_SUMMARY_MAX));
+    // The placeholder names the audience: this field is shown to players
+    // verbatim, so it must not read as a DM-only prompt (#799).
+    expect(summaryInput.attributes("placeholder")).toContain("Players see this");
   });
 
   it("saves the premise trimmed, or null when cleared — summary is the premise, not the deleted description/notes columns", async () => {

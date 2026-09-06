@@ -643,7 +643,6 @@ const questFormatter: AssetFormatter<{
       locationName && `<strong>Location</strong> ${locationName}`,
       quest.started_at && `<strong>Started</strong> ${quest.started_at.slice(0, 10)}`,
       quest.resolved_at && `<strong>Resolved</strong> ${quest.resolved_at.slice(0, 10)}`,
-      quest.rewards && `<strong>Rewards</strong> ${quest.rewards}`,
     ].filter(Boolean) as string[];
 
     if (metaRows.length) {

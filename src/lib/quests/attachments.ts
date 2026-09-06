@@ -20,7 +20,6 @@ const summary = (attachment: QuestBeatAttachment, target: { label: string; detai
 
 export const QUEST_BEAT_ATTACHMENT_ADAPTERS: Record<QuestBeatAttachmentType, QuestBeatAttachmentAdapter> = {
   encounter: { type: "encounter", label: "Encounter", runAction: "run", containedSurface: "encounter", summary, fullEditorTo: (id) => `/encounters/${id}` },
-  quest_ref: { type: "quest_ref", label: "Quest reference", runAction: "view", containedSurface: "entity", summary, fullEditorTo: (_id, questId) => `/quests/${questId}?view=overview` },
   npc: { type: "npc", label: "NPC", runAction: "view", containedSurface: "entity", summary, fullEditorTo: (id) => `/npcs/${id}` },
   faction: { type: "faction", label: "Faction", runAction: "view", containedSurface: "entity", summary, fullEditorTo: (id) => `/factions/${id}` },
   item: { type: "item", label: "Item", runAction: "view", containedSurface: "entity", summary, fullEditorTo: (id) => `/vault/${id}` },

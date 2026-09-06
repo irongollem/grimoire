@@ -21,7 +21,11 @@
 
     <label class="grid gap-1.5">
       <span class="text-label-lg font-semibold text-muted-foreground">Premise <span class="font-normal">(optional)</span></span>
-      <AppInput v-model="summary" placeholder="What makes this quest matter at the table?" />
+      <AppInput
+        v-model="summary"
+        :maxlength="QUEST_SUMMARY_MAX"
+        placeholder="Players see this verbatim — the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
+      />
     </label>
 
     <p v-if="error" role="alert" class="rounded-md border border-destructive/40 p-2 text-caption text-destructive">{{ error }}</p>
@@ -36,6 +40,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useCreateQuest } from "@/composables/quests/useQuests";
+import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type QuestStatus } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -62,16 +67,8 @@ async function createFlow() {
       status: status.value,
       giver_npc_id: null,
       location_id: null,
-      rewards: null,
-      reward_pp: 0,
-      reward_gp: 0,
-      reward_ep: 0,
-      reward_sp: 0,
-      reward_cp: 0,
       tags: [],
       player_visible_to: [],
-      reward_item_ids: [],
-      reward_currency_pools: [],
       started_at: null,
       resolved_at: null,
     });

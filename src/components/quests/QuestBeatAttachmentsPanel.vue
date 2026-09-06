@@ -119,7 +119,6 @@ const options = computed<Array<{ id: string; name: string }>>(() => ({
   playlist: (playlists.value ?? []).filter((row) => row.playlist_type === "music").map((row) => ({ id: row.id, name: row.name })),
   note: (notes.value ?? []).map((row) => ({ id: row.id, name: row.title })),
   handout: (documents.value ?? []).map((row) => ({ id: row.id, name: row.title })),
-  quest_ref: [],
 }[attachmentType.value]));
 const createUrl = computed(() => withQuestReturnTo(({
   encounter: "/encounters/new",
@@ -132,7 +131,6 @@ const createUrl = computed(() => withQuestReturnTo(({
   playlist: "/soundboard",
   note: "/notes/new",
   handout: "/scriptorium/new",
-  quest_ref: `/quests/${props.beat.quest_id}?view=overview`,
 })[attachmentType.value], `/quests/${props.beat.quest_id}/beats/${props.beat.id}`));
 
 watch(attachmentType, () => { refId.value = ""; error.value = ""; });

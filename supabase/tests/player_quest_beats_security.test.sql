@@ -57,10 +57,16 @@ insert into public.quest_refs (id, quest_id, ref_type, ref_id, is_player_visible
   ('67400000-0000-4000-8000-000000000070', '67400000-0000-4000-8000-000000000030', 'npc', '67400000-0000-4000-8000-000000000060', true),
   ('67400000-0000-4000-8000-000000000071', '67400000-0000-4000-8000-000000000030', 'npc', '67400000-0000-4000-8000-000000000061', false);
 -- 'objective' stopped being a valid attachment type in #793 (#792 already
--- removed it client-side); only the quest_ref-borne attachments remain.
+-- removed it client-side), and #799 retired 'quest_ref' too (a beat pointing
+-- at a pointer, offered by no UI, zero rows in production). 'npc' is the
+-- surviving vehicle for the same security point: get_player_visible_quest_beats
+-- gates an 'npc' attachment's summary on a matching quest_refs row (same
+-- quest, ref_type = 'npc', ref_id = the npc's own id) having
+-- is_player_visible = true — so the attachment's ref_id below is the npc id,
+-- not a quest_refs row id.
 insert into public.quest_beat_attachments (id, beat_id, quest_id, campaign_id, attachment_type, ref_id, role) values
-  ('67400000-0000-4000-8000-000000000082', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'quest_ref', '67400000-0000-4000-8000-000000000070', 'ally'),
-  ('67400000-0000-4000-8000-000000000083', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'quest_ref', '67400000-0000-4000-8000-000000000071', 'traitor');
+  ('67400000-0000-4000-8000-000000000082', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'npc', '67400000-0000-4000-8000-000000000060', 'ally'),
+  ('67400000-0000-4000-8000-000000000083', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'npc', '67400000-0000-4000-8000-000000000061', 'traitor');
 
 insert into public.quest_beat_transitions (
   id, campaign_id, to_quest_id, to_beat_id, transition_kind, runtime_version, to_quest_title, to_beat_title, provenance, created_at
@@ -79,9 +85,9 @@ select is((select player_text from public.get_player_visible_quest_beats('674000
 select is((select player_text from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000041'), 'Reveal B', 'revealed beats expose only reveal text');
 select ok((select not (to_jsonb(b) ?| array['title', 'dm_content', 'read_aloud', 'how_it_plays']) from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') b limit 1), 'projection contains no DM narrative fields');
 select is(jsonb_array_length((select attachments from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000040')), 0, 'rumors do not expose attachment summaries');
--- Only one attachment (quest_ref -> visible npc) now clears the visibility
--- filter: the other quest_ref target is hidden, and the 'objective' arm this
--- count used to include no longer exists (#793).
+-- Only one attachment (npc -> visible npc ref) now clears the visibility
+-- filter: the other npc's ref is hidden, and the 'objective' arm this count
+-- used to include no longer exists (#793).
 select is(jsonb_array_length((select attachments from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000041')), 1, 'revealed beats include only explicitly visible attachment summaries');
 select ok((select attachments::text not like '%Secret objective%' and attachments::text not like '%000000000061%' from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000041'), 'attachment summaries contain no hidden label or target id');
 select is(jsonb_array_length((select visits from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000040')), 1, 'history includes actual visits only when their destination beat is visible');

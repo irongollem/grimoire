@@ -536,10 +536,19 @@ async function executeImport(
     await batchInsert(
       "quests",
       sortedQuests.map((q) => {
-        // A v1 backup predates the description/notes → opening-beat migration
-        // (#793) and may still carry these keys; the columns are gone, so a
-        // raw `...q` spread would send PostgREST "column does not exist."
-        const { description: _description, notes: _notes, ...quest } = q;
+        // A backup taken before #793 (description/notes → opening beat) or
+        // #799 (quest-level rewards → the beat that grants them, and
+        // flow_enabled_at) may still carry these keys; the columns are gone
+        // from the live table, so a raw `...q` spread would send PostgREST
+        // "column does not exist" and fail the whole restore.
+        const {
+          description: _description, notes: _notes,
+          rewards: _rewards, reward_pp: _rewardPp, reward_gp: _rewardGp,
+          reward_ep: _rewardEp, reward_sp: _rewardSp, reward_cp: _rewardCp,
+          reward_item_ids: _rewardItemIds, reward_currency_pools: _rewardCurrencyPools,
+          reward_art_objects: _rewardArtObjects, flow_enabled_at: _flowEnabledAt,
+          ...quest
+        } = q;
         return {
           ...quest,
           id: r(q.id, idMap),
@@ -549,7 +558,6 @@ async function executeImport(
           giver_npc_id: r(q.giver_npc_id, idMap),
           location_id: r(q.location_id, idMap),
           player_visible_to: rArr(q.player_visible_to, idMap),
-          // reward_item_ids kept as-is (user-library refs)
         };
       }),
     );
