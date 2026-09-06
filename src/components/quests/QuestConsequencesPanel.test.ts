@@ -22,16 +22,22 @@ vi.mock("@/composables/quests/useQuests", () => ({
 }));
 
 const beat = { id: "beat-fork", quest_id: "quest-1", campaign_id: "campaign-1", title: "The fork" } as QuestBeat;
+const beats = [
+  beat,
+  { id: "beat-high", quest_id: "quest-1", campaign_id: "campaign-1", title: "The high road" },
+  { id: "beat-bridge", quest_id: "quest-1", campaign_id: "campaign-1", title: "The bridge crossing" },
+  { id: "beat-end", quest_id: "quest-1", campaign_id: "campaign-1", title: "Journey's end" },
+] as QuestBeat[];
 const edges = [
-  { id: "edge-high", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-high", label: "Take the high road" },
-  { id: "edge-bridge", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-bridge", label: "Cross the bridge" },
+  { id: "edge-high", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-high" },
+  { id: "edge-bridge", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-bridge" },
   // Belongs to a different beat, so it must not be offered here.
-  { id: "edge-elsewhere", quest_id: "quest-1", source_beat_id: "beat-high", target_beat_id: "beat-end", label: "Press on" },
+  { id: "edge-elsewhere", quest_id: "quest-1", source_beat_id: "beat-high", target_beat_id: "beat-end" },
 ] as QuestBeatEdge[];
 
 function mountBeatPanel() {
   return mount(QuestConsequencesPanel, {
-    props: { scope: "beat", questId: "quest-1", beat, edges },
+    props: { scope: "beat", questId: "quest-1", beat, edges, beats },
     global: { stubs: { EntityCombobox: true } },
   });
 }
@@ -77,8 +83,8 @@ describe("QuestConsequencesPanel — beat scope", () => {
     expect(options.map((option) => option.attributes("value"))).toEqual(["", "edge-high", "edge-bridge"]);
     expect(options.map((option) => option.text())).toEqual([
       "On arriving at this beat",
-      "On taking: Take the high road",
-      "On taking: Cross the bridge",
+      "On taking the route to The high road",
+      "On taking the route to The bridge crossing",
     ]);
   });
 
@@ -136,7 +142,7 @@ describe("QuestConsequencesPanel — beat scope", () => {
 
     expect(rows).toHaveLength(2);
     expect(rows[0]!.text()).toContain("on arrival");
-    expect(rows[1]!.text()).toContain('on taking "Cross the bridge"');
+    expect(rows[1]!.text()).toContain('on taking the route to "The bridge crossing"');
   });
 
   it("names an objective deleted out from under a rule instead of rendering a blank row", () => {

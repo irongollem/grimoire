@@ -4,7 +4,7 @@ section: World Building
 section_order: 3
 order: 1
 summary: Track and manage quests with Kanban or list view, objectives, rewards, and consequences.
-keywords: quest, quests, kanban, objectives, reward, trigger, consequence, sub-quest, player visibility
+keywords: quest, quests, kanban, objectives, reward, trigger, consequence, sub-quest, player visibility, story flow, branch, gate, route
 ---
 
 ## Quest views
@@ -72,6 +72,21 @@ Players can add their own **notes** to any quest visible to them. There are two 
 
 - **Party notes** — shared with the full party.
 - **Personal notes** — private to the individual player.
+
+## Story Flow branches
+
+In **Story Flow**, click a route between two beats to edit it. A route can carry
+a **gate**: an objective and the status it must stand in ("Open while an
+objective is completed / open / failed") for the route to be open. Pick
+**No gate** to make the route always open — the default, and what most routes
+should stay, since the fork is usually already decided at the table rather than
+by the ledger.
+
+A closed route shows greyed out on the canvas and, in the Run cockpit, its
+**Choose** button is disabled with the reason shown ("Closed — needs … to be
+…, currently …"). **Jump** still reaches a closed beat directly — it is the
+deliberate override for when the table decides something the ledger doesn't
+know about, and it always asks for a reason.
 
 ## Quest Consequences
 

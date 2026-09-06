@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(29);
 
 select has_function('public', 'get_player_visible_quest_beats', array['uuid', 'uuid', 'uuid'], 'player beats use a dedicated projection');
 select hasnt_function('public', 'get_player_visible_quest_beat_history', array['uuid', 'uuid'], 'visit history adds no second security-definer endpoint');
@@ -43,9 +43,9 @@ insert into public.quest_beats (
   ('67400000-0000-4000-8000-000000000043', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'Improvised secret', 'Improvised DM', null, 'Improvised reveal', null, null, 'hidden', true),
   ('67400000-0000-4000-8000-000000000044', '67400000-0000-4000-8000-000000000031', '67400000-0000-4000-8000-000000000010', 'B scene', 'B DM', null, 'B reveal', null, null, 'revealed', false);
 
-insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id, label) values
-  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000042', 'Secret betrayal route'),
-  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000041', 'Visible destination but DM-only edge');
+insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id) values
+  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000042'),
+  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000041');
 
 insert into public.quest_objectives (id, quest_id, description, is_player_visible) values
   ('67400000-0000-4000-8000-000000000050', '67400000-0000-4000-8000-000000000030', 'Visible objective', true),
@@ -90,6 +90,10 @@ select is((select count(*)::integer from public.quest_beats), 0, 'raw beat searc
 select is((select count(*)::integer from public.quest_beat_edges), 0, 'raw edge search cannot enumerate topology');
 select is((select count(*)::integer from public.quest_beat_attachments), 0, 'raw attachment search cannot enumerate hidden counts');
 select is((select count(*)::integer from public.quest_beat_transitions), 0, 'raw history cannot enumerate hidden visits');
+-- #795 put a new table on the player-reachable PostgREST surface. A gate names
+-- an objective that may be hidden, so it belongs in the enumeration sweep this
+-- file exists to be — the behaviour is already correct; it was simply unpinned.
+select is((select count(*)::integer from public.quest_beat_edge_gates), 0, 'raw gate search cannot enumerate route conditions or hidden objectives');
 select is((select count(*)::integer from public.quest_objectives), 1, 'existing objective queries keep their own visibility gate');
 select is((select count(*)::integer from public.quest_refs), 1, 'existing reference queries keep their own visibility gate');
 

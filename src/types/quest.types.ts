@@ -265,12 +265,66 @@ export interface QuestBeatEdge {
   campaign_id: string;
   source_beat_id: string;
   target_beat_id: string;
-  label: string;
   created_by: string | null;
   created_at: string;
+  /**
+   * Not a column here — `quest_beat_edge_gates` is a separate child table so
+   * that deleting an objective can drop the gate and keep the route, which a
+   * `set null` on two columns could not do without a trigger (#795).
+   * Populated client-side by `deriveQuestRouteGates`, joining that table
+   * against `quest_objectives`: `undefined` before that join has run, `null`
+   * once it has and no gate exists. Absence is real "always open," never a
+   * coerced default.
+   */
+  gate?: QuestRouteGate | null;
 }
 
-export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at">;
+export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at" | "gate">;
+
+/**
+ * This route is open while its objective stands in the given status; absent
+ * means always open. A child row rather than columns on the edge (#795): the
+ * FK cascades when the objective is deleted, dropping the gate and keeping
+ * the route.
+ */
+export interface QuestBeatEdgeGate {
+  edge_id: string;
+  quest_id: string;
+  campaign_id: string;
+  objective_id: string;
+  status: QuestConsequenceObjectiveStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuestBeatEdgeGateInsert = Omit<QuestBeatEdgeGate, "created_at" | "updated_at">;
+
+/**
+ * A gate as read for display: the objective it names, the status the route
+ * needs, the status the objective is actually in, and whether that makes the
+ * route open right now. Shared by Build mode (`QuestBeatEdge.gate`, joined
+ * client-side against `quest_objectives` by `deriveQuestRouteGates`) and Run
+ * mode (`QuestRuntimeChoice.gate`, joined server-side by
+ * `get_quest_runtime_context`) so both surfaces read the same fields.
+ */
+export interface QuestRouteGate {
+  objective_id: string;
+  objective: string;
+  required_status: QuestConsequenceObjectiveStatus;
+  current_status: QuestObjectiveStatus;
+  is_open: boolean;
+}
+
+/**
+ * What taking a route does — read from `quest_consequences.on_edge_id`
+ * (#794), never stored on the edge itself (#795). `objective` is null for a
+ * world action, which has no `target_objective_id`.
+ */
+export interface QuestRouteEffect {
+  action: QuestConsequenceAction;
+  objective: string | null;
+  after_days: number;
+}
 
 /**
  * One quest's live cursor. Keyed `(campaign_id, quest_id)`: a party is routinely
@@ -304,11 +358,12 @@ export interface QuestRuntimePosition {
 
 export interface QuestRuntimeChoice {
   edge_id: string;
-  label: string;
   quest_id: string;
   beat_id: string;
   beat_title: string;
   beat_kind: string;
+  gate: QuestRouteGate | null;
+  effects: QuestRouteEffect[];
 }
 
 export interface QuestRuntimeJumpTarget {

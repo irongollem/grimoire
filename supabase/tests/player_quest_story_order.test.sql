@@ -30,9 +30,9 @@ insert into public.quest_beats (id, quest_id, campaign_id, title, reveal_text, v
   ('65900000-0000-4000-8000-000000000042', '65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010', 'B', 'Then the bridge', 'revealed', 'explore', 320, '2026-08-10T16:00:00Z'),
   ('65900000-0000-4000-8000-000000000043', '65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010', 'C', 'Last the keep', 'revealed', 'combat', 640, '2026-08-10T14:00:00Z');
 
-insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id, label) values
-  ('65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010', '65900000-0000-4000-8000-000000000041', '65900000-0000-4000-8000-000000000042', 'Continue'),
-  ('65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010', '65900000-0000-4000-8000-000000000042', '65900000-0000-4000-8000-000000000043', 'Continue');
+insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id) values
+  ('65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010', '65900000-0000-4000-8000-000000000041', '65900000-0000-4000-8000-000000000042'),
+  ('65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010', '65900000-0000-4000-8000-000000000042', '65900000-0000-4000-8000-000000000043');
 
 select set_config('request.jwt.claim.sub', '65900000-0000-4000-8000-000000000002', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
@@ -55,8 +55,8 @@ set local role postgres;
 
 -- A loop back is valid authored structure. Depth must still terminate, and the
 -- beat keeps its longest-path position rather than collapsing onto the opening.
-insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id, label) values
-  ('65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010', '65900000-0000-4000-8000-000000000043', '65900000-0000-4000-8000-000000000042', 'Loop back');
+insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id) values
+  ('65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010', '65900000-0000-4000-8000-000000000043', '65900000-0000-4000-8000-000000000042');
 
 select set_config('request.jwt.claim.sub', '65900000-0000-4000-8000-000000000002', true);
 set local role authenticated;

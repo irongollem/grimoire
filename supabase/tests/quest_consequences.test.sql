@@ -55,9 +55,9 @@ insert into public.quest_beats (id, quest_id, campaign_id, title) values
   ('79400000-0000-4000-8000-000000a00041', '79400000-0000-4000-8000-000000a00030', '79400000-0000-4000-8000-000000a00010', 'The fork'),
   ('79400000-0000-4000-8000-000000a00043', '79400000-0000-4000-8000-000000a00030', '79400000-0000-4000-8000-000000a00010', 'The burning bridge');
 
-insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, label) values
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id) values
   ('79400000-0000-4000-8000-000000a00062', '79400000-0000-4000-8000-000000a00030', '79400000-0000-4000-8000-000000a00010',
-   '79400000-0000-4000-8000-000000a00041', '79400000-0000-4000-8000-000000a00043', 'Cross the bridge');
+   '79400000-0000-4000-8000-000000a00041', '79400000-0000-4000-8000-000000a00043');
 
 -- Arriving at the fork reveals the caravan objective.
 insert into public.quest_consequences (id, quest_id, on_beat_id, action, target_objective_id)

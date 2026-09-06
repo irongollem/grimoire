@@ -10,7 +10,7 @@
 --
 -- So this seeds a beat graph directly instead of synthesising one. Two beats and
 -- an edge on the first campaign-scoped quest is enough to exercise what the
--- backfill's output never could anyway: a real fork with a root, a branch label,
+-- backfill's output never could anyway: a real fork with a root, a gated route,
 -- and an objective the branch raises.
 --
 -- Note what is deliberately NOT recreated: a beat per quest. Under the ledger
@@ -24,6 +24,7 @@ declare
   v_open    uuid;
   v_branch  uuid;
   v_obj     uuid;
+  v_edge    uuid;
 begin
   select * into v_quest
   from public.quests
@@ -49,8 +50,9 @@ begin
   values (v_quest.id, v_quest.campaign_id, 'The road south', 'explore', 'hidden', 320, 0)
   returning id into v_branch;
 
-  insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id, label)
-  values (v_quest.id, v_quest.campaign_id, v_open, v_branch, 'Follow the rider');
+  insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id)
+  values (v_quest.id, v_quest.campaign_id, v_open, v_branch)
+  returning id into v_edge;
 
   -- A dormant objective the branch raises, so the #792 ledger has something to
   -- show and the raise verb has something to act on.
@@ -60,6 +62,12 @@ begin
 
   insert into public.quest_consequences (quest_id, on_beat_id, action, target_objective_id)
   values (v_quest.id, v_branch, 'raise', v_obj);
+
+  -- #795: a route's condition is the ledger, not a caption. This one stays open
+  -- only while the objective is unresolved, so the cockpit has a live gate to
+  -- draw without any prep beyond the seed.
+  insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, status)
+  values (v_edge, v_quest.id, v_quest.campaign_id, v_obj, 'pending');
 
   raise notice 'seeded a two-beat quest graph on %', v_quest.title;
 end $$;

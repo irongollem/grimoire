@@ -12,14 +12,14 @@
       </section>
 
       <QuestBeatAttachmentsPanel :beat="beat" :attachments="attachments" />
-      <QuestConsequencesPanel scope="beat" :quest-id="beat.quest_id" :beat="beat" :edges="edgesQuery.data.value ?? []" />
+      <QuestConsequencesPanel scope="beat" :quest-id="beat.quest_id" :beat="beat" :edges="edgesQuery.data.value ?? []" :beats="beatsQuery.data.value ?? []" />
       <QuestBeatLootPanel :beat="beat" :loot="loot" />
 
       <section class="rounded-lg border border-border bg-card p-3">
         <h2 class="font-cinzel text-sm font-bold text-foreground">Outgoing branches</h2>
         <ul v-if="outgoing.length" class="mt-2 space-y-1 text-caption">
           <li v-for="edge in outgoing" :key="edge.id">
-            <span class="text-muted-foreground">{{ edge.label || "Continue" }} → </span>
+            <span class="text-muted-foreground">→ </span>
             <strong>{{ beatTitle(edge.target_beat_id) }}</strong>
           </li>
         </ul>

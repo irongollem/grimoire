@@ -11,6 +11,7 @@ import type {
   PlayerQuestBeatVisit,
   QuestBeat,
   QuestBeatEdge,
+  QuestBeatEdgeGate,
   QuestBeatEdgeInsert,
   QuestBeatInsert,
   QuestBeatTransition,
@@ -20,6 +21,7 @@ import type {
   QuestBeatAttachmentSummary,
   QuestBeatLoot,
   QuestBeatLootInsert,
+  QuestConsequenceObjectiveStatus,
   CampaignLiveQuest,
   QuestRuntimeContext,
   QuestRuntimeJumpTarget,
@@ -30,6 +32,7 @@ import type {
 
 const BEATS_KEY = "quest_beats";
 const EDGES_KEY = "quest_beat_edges";
+const EDGE_GATES_KEY = "quest_beat_edge_gates";
 const RUNTIME_KEY = "quest_runtime_state";
 const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
 const TRANSITIONS_KEY = "quest_beat_transitions";
@@ -83,6 +86,26 @@ async function fetchEdges(questId: string): Promise<QuestBeatEdge[]> {
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as QuestBeatEdge[];
+}
+
+async function fetchEdgeGates(questId: string): Promise<QuestBeatEdgeGate[]> {
+  const { data, error } = await supabase
+    .from("quest_beat_edge_gates")
+    .select("*")
+    .eq("quest_id", questId);
+  if (error) throw error;
+  return (data ?? []) as QuestBeatEdgeGate[];
+}
+
+/** Raw gate rows for a quest's routes. `deriveQuestRouteGates` joins these
+ *  against `useQuestObjectives`' rows to say whether each is open. */
+export function useQuestBeatEdgeGates(questId: string | Ref<string>) {
+  const id = asRef(questId);
+  return useQuery({
+    queryKey: computed(() => [EDGE_GATES_KEY, id.value]),
+    queryFn: () => fetchEdgeGates(id.value),
+    enabled: () => !!id.value,
+  });
 }
 
 export function useQuestBeats(questId: string | Ref<string>) {
@@ -372,7 +395,6 @@ export interface CreateQuestBeatWithRouteInput {
   canvasX: number;
   canvasY: number;
   sourceBeatId?: string;
-  edgeLabel?: string;
 }
 
 export async function createQuestBeatWithRoute(input: CreateQuestBeatWithRouteInput): Promise<QuestBeat> {
@@ -383,7 +405,6 @@ export async function createQuestBeatWithRoute(input: CreateQuestBeatWithRouteIn
     p_canvas_x: input.canvasX,
     p_canvas_y: input.canvasY,
     p_source_beat_id: input.sourceBeatId ?? null,
-    p_edge_label: input.edgeLabel ?? "",
   });
   if (error) throw error;
   return data as QuestBeat;
@@ -447,6 +468,7 @@ export function useDeleteQuestBeat() {
     onSuccess: (_result, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
       void invalidatePlayerQuestBeatProjections(queryClient);
     },
   });
@@ -479,6 +501,7 @@ export function useArchiveQuestBeat() {
     onSettled: (_data, _error, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
       queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
@@ -510,6 +533,8 @@ export function useDeleteQuestBeatEdge() {
     },
     onSuccess: (_result, input) => {
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      // The gate FK cascades with the edge; the cache should follow.
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
     },
   });
 }
@@ -517,12 +542,53 @@ export function useDeleteQuestBeatEdge() {
 export function useUpdateQuestBeatEdge() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; questId: string; update: Partial<Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id" | "label">> }) => {
+    mutationFn: async (input: { id: string; questId: string; update: Partial<Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id">> }) => {
       const { data, error } = await supabase.from("quest_beat_edges").update(input.update).eq("id", input.id).select().single();
       if (error) throw error;
       return data as QuestBeatEdge;
     },
     onSettled: (_data, _error, input) => queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] }),
+  });
+}
+
+/**
+ * Sets or replaces a route's gate. `edge_id` is the gate table's primary key,
+ * so this is a plain upsert rather than an insert-then-update dance — editing
+ * an already-gated route just overwrites the one row.
+ */
+export function useSetQuestBeatEdgeGate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { edgeId: string; questId: string; campaignId: string; objectiveId: string; status: QuestConsequenceObjectiveStatus }) => {
+      const { data, error } = await supabase
+        .from("quest_beat_edge_gates")
+        .upsert({ edge_id: input.edgeId, quest_id: input.questId, campaign_id: input.campaignId, objective_id: input.objectiveId, status: input.status })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as QuestBeatEdgeGate;
+    },
+    onSuccess: (_data, input) => {
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
+    },
+  });
+}
+
+/**
+ * Removes a route's gate so the route goes back to always open. This is a
+ * distinct mutation from setting one — "no gate" is a real state to reach,
+ * not the fallback you get from clearing a field back to empty.
+ */
+export function useClearQuestBeatEdgeGate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { edgeId: string; questId: string }) => {
+      const { error } = await supabase.from("quest_beat_edge_gates").delete().eq("edge_id", input.edgeId);
+      if (error) throw error;
+    },
+    onSuccess: (_result, input) => {
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
+    },
   });
 }
 
@@ -661,7 +727,6 @@ export function useQuestRuntimeImprovise() {
         p_reason: input.reason,
         p_push_return: input.pushReturn,
         p_keep_edge: input.keepEdge,
-        p_edge_label: "Improvised",
       });
       if (error) throw error;
       return data as { context: QuestRuntimeContext; beat: QuestBeat };

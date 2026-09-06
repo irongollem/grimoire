@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(52);
+select plan(66);
 
 select has_function(
   'public', 'transition_quest_runtime',
@@ -40,10 +40,10 @@ insert into public.quest_beats (id, quest_id, campaign_id, title, visibility, is
   ('66800000-0000-4000-8000-000000000033', '66800000-0000-4000-8000-000000000021', '66800000-0000-4000-8000-000000000010', 'Side scene', 'hidden', false),
   ('66800000-0000-4000-8000-000000000034', '66800000-0000-4000-8000-000000000021', '66800000-0000-4000-8000-000000000010', 'Improvised scene', 'hidden', true);
 
-insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id, label) values
-  ('66800000-0000-4000-8000-000000000040', '66800000-0000-4000-8000-000000000020', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000030', '66800000-0000-4000-8000-000000000031', 'To B'),
-  ('66800000-0000-4000-8000-000000000041', '66800000-0000-4000-8000-000000000020', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000031', '66800000-0000-4000-8000-000000000030', 'Cycle to A'),
-  ('66800000-0000-4000-8000-000000000042', '66800000-0000-4000-8000-000000000020', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000030', '66800000-0000-4000-8000-000000000032', 'Branch to C');
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id) values
+  ('66800000-0000-4000-8000-000000000040', '66800000-0000-4000-8000-000000000020', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000030', '66800000-0000-4000-8000-000000000031'),
+  ('66800000-0000-4000-8000-000000000041', '66800000-0000-4000-8000-000000000020', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000031', '66800000-0000-4000-8000-000000000030'),
+  ('66800000-0000-4000-8000-000000000042', '66800000-0000-4000-8000-000000000020', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000030', '66800000-0000-4000-8000-000000000032');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '66800000-0000-4000-8000-000000000001', true);
@@ -85,7 +85,7 @@ select is(
     p_edge_id => '66800000-0000-4000-8000-000000000040'
   ) -> 'current' ->> 'title',
   'B', 'advance follows an authored outgoing edge');
-select is((select provenance ->> 'edge_label' from public.quest_beat_transitions where runtime_version = 2), 'To B', 'advance snapshots its authored route');
+select is((select provenance ->> 'edge_id' from public.quest_beat_transitions where runtime_version = 2), '66800000-0000-4000-8000-000000000040', 'advance snapshots its authored route');
 select is(
   public.transition_quest_runtime(
     '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', 'advance', 2,
@@ -197,6 +197,118 @@ select is((select current_beat_id from public.quest_runtime_state
 select throws_ok(
   $$ update public.quest_beat_transitions set reason = 'forged' where runtime_version = 1 $$,
   '42501', null, 'authenticated clients cannot rewrite history');
+
+-- ── #795: a route's gate ─────────────────────────────────────────────────────
+--
+-- A gate constrains only `advance`, and only while the objective it names has
+-- not reached the required status. It is enforced in the function, not just
+-- drawn in the cockpit, and it does not touch Jump — the deliberate override
+-- that already demands a reason must still get the DM past a closed gate.
+
+insert into public.quests (id, user_id, campaign_id, title) values
+  ('66800000-0000-4000-8000-000000000050', '66800000-0000-4000-8000-000000000001', '66800000-0000-4000-8000-000000000010', 'Gate quest');
+
+insert into public.quest_beats (id, quest_id, campaign_id, title, visibility, is_improvised) values
+  ('66800000-0000-4000-8000-000000000060', '66800000-0000-4000-8000-000000000050', '66800000-0000-4000-8000-000000000010', 'Gate start', 'hidden', false),
+  ('66800000-0000-4000-8000-000000000061', '66800000-0000-4000-8000-000000000050', '66800000-0000-4000-8000-000000000010', 'Gated destination', 'hidden', false),
+  ('66800000-0000-4000-8000-000000000062', '66800000-0000-4000-8000-000000000050', '66800000-0000-4000-8000-000000000010', 'Ungated destination', 'hidden', false);
+
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id) values
+  ('66800000-0000-4000-8000-000000000070', '66800000-0000-4000-8000-000000000050', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000060', '66800000-0000-4000-8000-000000000061'),
+  ('66800000-0000-4000-8000-000000000071', '66800000-0000-4000-8000-000000000050', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000060', '66800000-0000-4000-8000-000000000062');
+
+insert into public.quest_objectives (id, quest_id, description, status) values
+  ('66800000-0000-4000-8000-000000000080', '66800000-0000-4000-8000-000000000050', 'Find the key', 'pending');
+
+insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, status) values
+  ('66800000-0000-4000-8000-000000000070', '66800000-0000-4000-8000-000000000050', '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000080', 'complete');
+
+select is(
+  public.transition_quest_runtime(
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'start', 0,
+    '66800000-0000-4000-8000-000000000060'
+  ) -> 'current' ->> 'title',
+  'Gate start', 'the gate quest starts at its opening beat');
+
+select is(
+  (select jsonb_array_length(public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing')),
+  2, 'outgoing lists both authored routes from the gate beat');
+select ok(
+  (select bool_and(not (elem ? 'label')) from jsonb_array_elements(
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+  ) elem),
+  'outgoing routes no longer carry the free-text label'
+);
+select is(
+  (select elem -> 'gate' ->> 'required_status' from jsonb_array_elements(
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+  ) elem where elem ->> 'beat_id' = '66800000-0000-4000-8000-000000000061'),
+  'complete', 'a gated route in outgoing carries its required objective status'
+);
+select is(
+  (select elem -> 'gate' ->> 'is_open' from jsonb_array_elements(
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+  ) elem where elem ->> 'beat_id' = '66800000-0000-4000-8000-000000000061'),
+  'false', 'the gate reads closed while the objective has not reached the required status'
+);
+-- `gate` comes from a scalar subquery folded into jsonb_build_object, so a
+-- route with no gate row still carries the key — as a JSON null, not an
+-- absent one. `jsonb_typeof` (not `is null`) is how you tell the two apart.
+select is(
+  (select jsonb_typeof(elem -> 'gate') from jsonb_array_elements(
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+  ) elem where elem ->> 'beat_id' = '66800000-0000-4000-8000-000000000062'),
+  'null', 'an ungated route in outgoing carries a null gate — absent means always open'
+);
+select is(
+  (select elem -> 'effects' from jsonb_array_elements(
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+  ) elem where elem ->> 'beat_id' = '66800000-0000-4000-8000-000000000061'),
+  '[]'::jsonb, 'a route with no consequence rule exposes an empty effects list'
+);
+
+select throws_ok(
+  $$ select public.transition_quest_runtime(
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'advance', 1,
+    p_edge_id => '66800000-0000-4000-8000-000000000070'
+  ) $$,
+  '23514', 'That route needs "Find the key" to be complete, and it is pending',
+  'advance is refused through a closed gate');
+
+select is(
+  public.transition_quest_runtime(
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'advance', 1,
+    p_edge_id => '66800000-0000-4000-8000-000000000071'
+  ) -> 'current' ->> 'title',
+  'Ungated destination', 'a route with no gate is unaffected by a closed gate elsewhere in the quest');
+
+select is(
+  public.transition_quest_runtime(
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'jump', 2,
+    '66800000-0000-4000-8000-000000000061', p_reason => 'DM ruling: skip the key hunt'
+  ) -> 'current' ->> 'title',
+  'Gated destination', 'jump still overrides a closed gate — the deliberate override the DM needs at the table');
+
+select is(
+  public.transition_quest_runtime(
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'jump', 3,
+    '66800000-0000-4000-8000-000000000060', p_reason => 'Return to the fork'
+  ) -> 'current' ->> 'title',
+  'Gate start', 'jumping back sets up a fresh advance attempt through the same gate');
+
+select lives_ok(
+  $$ select public.assert_quest_objective_status('66800000-0000-4000-8000-000000000080', 'complete') $$,
+  'the DM can advance the gated objective to the status the route requires');
+select is(
+  (select status from public.quest_objectives where id = '66800000-0000-4000-8000-000000000080'),
+  'complete', 'the objective now stands at the required status');
+
+select is(
+  public.transition_quest_runtime(
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'advance', 4,
+    p_edge_id => '66800000-0000-4000-8000-000000000070'
+  ) -> 'current' ->> 'title',
+  'Gated destination', 'advance succeeds once the objective reaches the status the gate requires');
 
 reset role;
 delete from public.quest_beats where id = '66800000-0000-4000-8000-000000000032';

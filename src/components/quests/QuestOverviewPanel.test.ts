@@ -89,7 +89,7 @@ describe("QuestOverviewPanel", () => {
   it("lists every graph root as a link into Story flow, never a beat with an incoming route", () => {
     mocks.beats = [beat("a", "The tavern"), beat("b", "The docks"), beat("c", "The cave")];
     mocks.edges = [
-      { id: "e", quest_id: "quest-1", campaign_id: "campaign-1", source_beat_id: "a", target_beat_id: "c", label: "", created_by: "dm", created_at: "now" },
+      { id: "e", quest_id: "quest-1", campaign_id: "campaign-1", source_beat_id: "a", target_beat_id: "c", created_by: "dm", created_at: "now" },
     ];
     const wrapper = mountPanel();
     expect(wrapper.text()).toContain("The tavern");

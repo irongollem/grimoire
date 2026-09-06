@@ -12,11 +12,11 @@ describe("createQuestBeatWithRoute", () => {
     mocks.rpc.mockResolvedValue({ data: { id: "new-beat" }, error: null });
     await expect(createQuestBeatWithRoute({
       questId: "quest-1", title: "The bargain", kind: "social", canvasX: 320, canvasY: 40,
-      sourceBeatId: "source-1", edgeLabel: "Accepts",
+      sourceBeatId: "source-1",
     })).resolves.toEqual({ id: "new-beat" });
     expect(mocks.rpc).toHaveBeenCalledWith("create_quest_beat_with_route", {
       p_quest_id: "quest-1", p_title: "The bargain", p_kind: "social", p_canvas_x: 320,
-      p_canvas_y: 40, p_source_beat_id: "source-1", p_edge_label: "Accepts",
+      p_canvas_y: 40, p_source_beat_id: "source-1",
     });
   });
 

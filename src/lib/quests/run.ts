@@ -12,6 +12,18 @@ export interface QuestRunBranchChoice extends QuestRuntimeChoice {
 }
 
 /**
+ * Alt+→ means "advance when unambiguous," and unambiguous is a fact about the
+ * ledger now, not about the graph: a route the gate holds shut does not count
+ * as a candidate, so it cannot silently block the shortcut when it sits beside
+ * the one route that is actually open, and two open routes must not let the
+ * shortcut guess between them (#795).
+ */
+export function soleOpenOutgoingEdgeId(outgoing: QuestRuntimeChoice[]): string | null {
+  const open = outgoing.filter((choice) => !choice.gate || choice.gate.is_open);
+  return open.length === 1 ? open[0]!.edge_id : null;
+}
+
+/**
  * Jump moves *this* chain's cursor, so every candidate is a beat of the quest in
  * play and recency is the only axis left to rank on.
  *

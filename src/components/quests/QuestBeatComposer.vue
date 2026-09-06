@@ -7,7 +7,6 @@
         <option v-for="option in QUEST_BEAT_KINDS" :key="option" :value="option">{{ QUEST_BEAT_KIND_LABELS[option] }}</option>
       </AppSelect>
     </div>
-    <AppInput v-if="sourceBeatId" v-model="edgeLabel" class="mt-2" placeholder="Route condition (DM-only, optional)…" @keydown.escape.prevent="emit('cancel')" />
     <p v-if="error" role="alert" class="mt-2 text-caption text-destructive">{{ error }}</p>
     <div class="mt-3 flex justify-end gap-2">
       <AppButton label="Cancel" size="sm" variant="subtle" @click="emit('cancel')" />
@@ -25,15 +24,14 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import { QUEST_BEAT_KINDS, QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
 
 const { sourceBeatId, saving = false, error = "" } = defineProps<{ sourceBeatId?: string; saving?: boolean; error?: string }>();
-const emit = defineEmits<{ cancel: []; submit: [value: { title: string; kind: string; edgeLabel: string }] }>();
+const emit = defineEmits<{ cancel: []; submit: [value: { title: string; kind: string }] }>();
 const title = ref("");
 const kind = ref("neutral");
-const edgeLabel = ref("");
 const titleInput = ref<AppInputHandle | null>(null);
 const composerForm = ref<HTMLFormElement | null>(null);
 
 function submit() {
-  if (title.value.trim()) emit("submit", { title: title.value.trim(), kind: kind.value, edgeLabel: edgeLabel.value.trim() });
+  if (title.value.trim()) emit("submit", { title: title.value.trim(), kind: kind.value });
 }
 async function onFocusOut() {
   await nextTick();

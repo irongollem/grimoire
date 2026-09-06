@@ -6,12 +6,14 @@
     :marker-end="markerEnd"
     :interaction-width="interactionWidth"
   />
-  <EdgeLabelRenderer v-if="labelText">
+  <EdgeLabelRenderer v-if="gate">
     <span
       class="quest-flow-edge-label nodrag nopan"
+      :class="{ 'is-closed': !gate.is_open }"
+      :title="gateTooltip"
       :style="{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }"
     >
-      {{ labelText }}
+      {{ pillText }}
     </span>
   </EdgeLabelRenderer>
 </template>
@@ -19,6 +21,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Position } from "@vue-flow/core";
+import type { QuestRouteGate } from "@/types/quest.types";
+import { describeQuestRouteGate, questRouteGateLabel } from "@/lib/quests/gates";
 
 const {
   sourceX,
@@ -28,7 +32,7 @@ const {
   sourcePosition,
   targetPosition,
   interactionWidth = 20,
-  label,
+  data,
 } = defineProps<{
   id: string;
   sourceX: number;
@@ -40,7 +44,7 @@ const {
   markerStart?: string;
   markerEnd?: string;
   interactionWidth?: number;
-  label?: unknown;
+  data?: { edgeId: string; visited: boolean; gate: QuestRouteGate | null };
 }>();
 
 const route = computed(() => getSmoothStepPath({
@@ -52,7 +56,12 @@ const route = computed(() => getSmoothStepPath({
   targetPosition,
   borderRadius: 10,
 }));
-const labelText = computed(() => typeof label === "string" ? label : "");
+// An ungated edge shows no pill at all — the old "Continue" fallback claimed
+// there was always something to say about a route, and 39 of 44 production
+// edges prove there usually isn't (#795).
+const gate = computed(() => data?.gate ?? null);
+const pillText = computed(() => gate.value ? questRouteGateLabel(gate.value) : "");
+const gateTooltip = computed(() => gate.value ? describeQuestRouteGate(gate.value) : undefined);
 const path = computed(() => route.value[0]);
 const labelX = computed(() => route.value[1]);
 const labelY = computed(() => route.value[2]);
@@ -69,5 +78,9 @@ const labelY = computed(() => route.value[2]);
   font-size: 0.75rem;
   line-height: 1;
   pointer-events: all;
+}
+.quest-flow-edge-label.is-closed {
+  border-color: var(--destructive);
+  color: var(--destructive);
 }
 </style>

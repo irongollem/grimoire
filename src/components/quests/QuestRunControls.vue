@@ -12,10 +12,14 @@
           </div>
           <div>
             <p class="font-cinzel text-sm font-bold text-foreground">{{ choice.beat_title }}</p>
-            <p class="text-caption text-muted-foreground">{{ choice.label || "Continue" }}</p>
+            <!-- An ungated route says nothing here — the old "Continue"
+                 fallback claimed there was always something to say, and most
+                 routes genuinely have no gate (#795). -->
+            <p v-if="choice.gate" class="text-caption" :class="choice.gate.is_open ? 'text-muted-foreground' : 'text-destructive'">{{ describeQuestRouteGate(choice.gate) }}</p>
+            <p v-for="(effect, index) in choice.effects" :key="index" class="text-caption text-muted-foreground">{{ describeQuestRouteEffect(effect) }}</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <AppButton label="Choose" size="sm" variant="primary" :disabled="navigationDisabled" @click="emit('advance', choice.edge_id)" />
+            <AppButton label="Choose" size="sm" variant="primary" :disabled="navigationDisabled || isClosed(choice)" @click="emit('advance', choice.edge_id)" />
             <AppButton label="Preview as players" size="sm" variant="subtle" @click="emit('preview', choice.beat_id)" />
             <AppButton
               v-if="choice.visibility !== 'revealed'"
@@ -41,24 +45,28 @@
         <AppButton label="End" variant="destructive" :disabled="disabled" @click="emit('end')" />
       </div>
     </div>
-    <p class="text-caption text-muted-foreground">Shortcuts: Alt+← previous · Alt+→ next when unambiguous · J jump</p>
+    <p class="text-caption text-muted-foreground">Shortcuts: Alt+← previous · Alt+→ next when exactly one route is open · J jump</p>
   </nav>
 </template>
 
 <script setup lang="ts">
 import type { QuestRuntimeStatus } from "@/types/quest.types";
 import type { QuestRunBranchChoice } from "@/lib/quests/run";
+import { describeQuestRouteEffect, describeQuestRouteGate } from "@/lib/quests/gates";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { computed, ref } from "vue";
 
 const props = defineProps<{ status: QuestRuntimeStatus; hasPrevious: boolean; outgoing: QuestRunBranchChoice[]; disabled?: boolean }>();
 const navigationDisabled = computed(() => props.disabled || props.status !== "running");
+function isClosed(choice: QuestRunBranchChoice) {
+  return !!choice.gate && !choice.gate.is_open;
+}
 const branchSearch = ref("");
 const filteredOutgoing = computed(() => {
   const query = branchSearch.value.trim().toLowerCase();
   if (!query) return props.outgoing;
-  return props.outgoing.filter((choice) => `${choice.beat_title} ${choice.label} ${choice.beat_kind}`.toLowerCase().includes(query));
+  return props.outgoing.filter((choice) => `${choice.beat_title} ${choice.gate?.objective ?? ""} ${choice.beat_kind}`.toLowerCase().includes(query));
 });
 const emit = defineEmits<{
   previous: [];

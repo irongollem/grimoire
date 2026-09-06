@@ -108,7 +108,7 @@ import {
 } from "@/composables/quests/useQuestFlow";
 import { useQuests } from "@/composables/quests/useQuests";
 import { rootBeatIds } from "@/lib/quests/graph";
-import { rankQuestJumpTargets, type RankedQuestJumpTarget } from "@/lib/quests/run";
+import { rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarget } from "@/lib/quests/run";
 import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
@@ -312,9 +312,9 @@ async function confirmLeavingDraft() {
 
 useHotkeys(computed(() => [
   { combo: "alt+arrowleft", description: "Previous quest beat", handler: () => void command("previous") },
-  { combo: "alt+arrowright", description: "Advance to the only next beat", handler: () => {
-    const edge = context.value?.outgoing.length === 1 ? context.value.outgoing[0] : null;
-    if (edge) void command("advance", { edgeId: edge.edge_id });
+  { combo: "alt+arrowright", description: "Advance to the only open route", handler: () => {
+    const edgeId = context.value ? soleOpenOutgoingEdgeId(context.value.outgoing) : null;
+    if (edgeId) void command("advance", { edgeId });
   } },
   { combo: "j", description: "Jump to another quest beat", handler: () => { jumpOpen.value = true; } },
 ]), { layer: "page", enabled: computed(() => context.value?.state?.status === "running" && !transitioning.value && !jumpOpen.value && !improvOpen.value && !selectedAttachment.value && !beatEditorOpen.value) });

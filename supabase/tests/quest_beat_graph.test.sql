@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(41);
 
 select has_table('public', 'quest_beats', 'authored beats have their own table');
 select has_table('public', 'quest_beat_edges', 'authored routes have their own table');
@@ -96,18 +96,24 @@ select throws_ok($$
   values ('65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000043')
 $$, '23503', null, 'an authored edge cannot cross quests');
 
-insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id, label) values
-  ('65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000041', 'Continue');
+insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id) values
+  ('65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000041');
 
 select throws_ok($$
-  insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id, label)
-  values ('65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000041', 'Continue')
-$$, '23505', null, 'duplicate source, target, and label routes are rejected');
+  insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id)
+  values ('65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000040', '65800000-0000-4000-8000-000000000041')
+$$, '23505', null, 'a second parallel route between the same source and target is rejected');
 
 select lives_ok($$
-  insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id, label)
-  values ('65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000041', '65800000-0000-4000-8000-000000000040', 'Loop back')
+  insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id)
+  values ('65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000041', '65800000-0000-4000-8000-000000000040')
 $$, 'cycles are valid authored structure');
+
+-- #795: the gate is a child table keyed to both the edge and the objective,
+-- each pinned to its own quest by a composite FK — a route in quest 030
+-- cannot be gated on an objective belonging to quest 031.
+insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, target_beat_id) values
+  ('65800000-0000-4000-8000-000000000080', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000042', '65800000-0000-4000-8000-000000000041');
 
 select lives_ok($$
   insert into public.quest_runtime_state (campaign_id, quest_id, current_beat_id)
@@ -128,6 +134,27 @@ insert into public.npcs (id, user_id, campaign_id, name) values
 insert into public.quest_objectives (id, quest_id, description) values
   ('65800000-0000-4000-8000-000000000060', '65800000-0000-4000-8000-000000000030', 'Main objective'),
   ('65800000-0000-4000-8000-000000000061', '65800000-0000-4000-8000-000000000031', 'Side objective');
+
+select throws_ok($$
+  insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, status)
+  values ('65800000-0000-4000-8000-000000000080', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000061', 'complete')
+$$, '23503', null, 'a gate cannot cross quests: an objective from another quest is rejected by the composite FK');
+
+insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, objective_id, status)
+values ('65800000-0000-4000-8000-000000000080', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000060', 'complete');
+
+-- The whole reason the gate is a child table rather than two nullable columns
+-- on the edge: removing the gated objective must drop only the gate, not the
+-- route it constrained.
+delete from public.quest_objectives where id = '65800000-0000-4000-8000-000000000060';
+select is(
+  (select count(*)::integer from public.quest_beat_edge_gates where edge_id = '65800000-0000-4000-8000-000000000080'),
+  0, 'deleting the gated objective drops the gate'
+);
+select is(
+  (select count(*)::integer from public.quest_beat_edges where id = '65800000-0000-4000-8000-000000000080'),
+  1, 'deleting the gated objective leaves the route itself intact'
+);
 
 select lives_ok($$
   insert into public.quest_beat_attachments (beat_id, quest_id, campaign_id, attachment_type, ref_id) values

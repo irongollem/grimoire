@@ -13,13 +13,11 @@ describe("QuestBeatComposer", () => {
     expect(wrapper.emitted("cancel")?.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("submits trimmed title, kind, and DM-only route label", async () => {
+  it("submits trimmed title and kind — a beat is title and kind only, no route text", async () => {
     const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source" } });
-    const inputs = wrapper.findAll("input");
-    await inputs[0]!.setValue("  The bargain  ");
+    await wrapper.get("input").setValue("  The bargain  ");
     await wrapper.get("select").setValue("social");
-    await inputs[1]!.setValue("  if they agree  ");
     await wrapper.get("form").trigger("submit");
-    expect(wrapper.emitted("submit")?.[0]?.[0]).toEqual({ title: "The bargain", kind: "social", edgeLabel: "if they agree" });
+    expect(wrapper.emitted("submit")?.[0]?.[0]).toEqual({ title: "The bargain", kind: "social" });
   });
 });

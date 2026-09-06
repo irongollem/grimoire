@@ -45,7 +45,7 @@ const runningContext = () => ({
   state: { campaign_id: "c1", quest_id: "q1", current_beat_id: "b1", status: "running", version: 4 },
   current: beat,
   previous: { beat_id: "b0" },
-  outgoing: [{ edge_id: "e1", quest_id: "q1", beat_id: "b2", label: "Continue", beat_title: "Next", beat_kind: "neutral" }],
+  outgoing: [{ edge_id: "e1", quest_id: "q1", beat_id: "b2", gate: null, effects: [], beat_title: "Next", beat_kind: "neutral" }],
   return_target: null,
   path_so_far: [],
 });

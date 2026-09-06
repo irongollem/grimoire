@@ -38,7 +38,14 @@ enough: an objective can end badly _and_ spawn a successor in the same moment.
 Four consequences worth stating, because each one is a rule about where things go:
 
 - The quest's **opening beat** is the one that raises the first objectives.
-- **Edge labels** are the outcome that opens the route, not DM free text.
+- **A route's identity is the beat it leads to, not a caption on the edge.**
+  "Killed Ravishin" and "Came to terms with Ravishin" are two beats, not one
+  edge wearing two labels — the beat is already the model's own sentence for
+  what the fork did (#795).
+- **A route's gate and a route's consequence are different facts, and neither
+  implies the other.** The gate (`quest_beat_edge_gates`) says whether the
+  road is open right now; `quest_consequences.on_edge_id` (#794) says what
+  happens if you take it. A route can have either, both, or neither.
 - Objectives have **one home**, owned by the quest. Beats _wire_ to it.
 - **A dungeon needs no beats inside it.** Walking into room four changes nothing;
   finding the ledger changes everything. Rooms are places, not events.
@@ -195,9 +202,51 @@ bridge" above).
 
 ### `quest_beat_edges`
 
-`source_beat_id`, `target_beat_id`, `label`. Self-links forbidden; unique on
-`(quest_id, source, target, label)`, so one pair may be linked twice under
-different labels. Cycles are valid, and `lib/quests/graph.ts` is cycle-safe.
+`source_beat_id`, `target_beat_id`. Self-links forbidden; unique on
+`(quest_id, source_beat_id, target_beat_id)` since `20260906083403` (#795) — one
+route per pair, full stop, now that there is no label left for a second edge to
+differ on. "Killed him" and "spared him" are two different target beats, not
+two labels on one pair. Cycles are valid, and `lib/quests/graph.ts` is
+cycle-safe. Also carries `unique (id, quest_id, campaign_id)`, the composite
+`quest_beat_edge_gates` targets.
+
+`label` (DM-only free text) was dropped by the same migration. Production had
+44 edges and only 5 labels, none of which named an outcome — they named how a
+fork got decided at the table ("1-5 on a d6," "Agree"). The five were carried
+onto the source beat's `outcomes` field (already rendered above the branch
+cards in `QuestRunBeatCard.vue`); the other 39 forks needed no text because the
+target beat's title already was the outcome.
+
+### `quest_beat_edge_gates` — whether a route is open (#795)
+
+One optional row per edge: `objective_id` + `status` (`pending` | `complete` |
+`failed` — the same set `quest_consequences.on_objective_status` uses, and for
+the same reason `dormant` is excluded: a route gated on an objective the party
+has never been given would never open). The route is open while the named
+objective stands in that status; **absent means always open**, not a default —
+every one of the 13 production forks would leave this unset today, since every
+one is still decided at the table.
+
+A child table rather than two columns on the edge, so that removing the
+objective can drop the gate and keep the route via a plain FK cascade — a
+`set null` on two columns would need a trigger to do the same thing without
+leaving `status` dangling. RLS is a single `private.is_campaign_dm(campaign_id)`
+policy, `for all`, so the client reads and writes it directly with no RPC.
+
+**Enforced inside `transition_quest_runtime`'s `advance` branch, not only drawn
+in the cockpit.** A closed route raises `23514`, naming the objective, the
+required status, and the current one — so a route the ledger says is shut
+genuinely cannot be advanced through. Jump remains the deliberate override; it
+already demands a reason and does not consult the gate at all.
+
+`get_quest_runtime_context`'s `outgoing` entries carry `gate` (the same four
+fields joined server-side: `objective_id`, `objective`, `required_status`,
+`current_status`, `is_open`, or `null`) and `effects` (`quest_consequences`
+rows keyed by `on_edge_id`, read rather than duplicated — see #794 above).
+Build mode joins the same shape client-side, in
+`lib/quests/gates.ts#deriveQuestRouteGates`, against `useQuestObjectives` —
+`QuestBeatEdge.gate`/`QuestRuntimeChoice.gate` are typed identically
+(`QuestRouteGate`) so both surfaces read the same fields.
 
 ### `quest_beat_attachments`
 

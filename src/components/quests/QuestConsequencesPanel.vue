@@ -33,7 +33,7 @@
       <template v-if="scope === 'beat'">
         <AppSelect v-model="conditionEdgeId" class="min-w-0 sm:col-span-2" aria-label="When this fires">
           <option value="">On arriving at this beat</option>
-          <option v-for="edge in outgoing" :key="edge.id" :value="edge.id">On taking: {{ edge.label || "Continue" }}</option>
+          <option v-for="edge in outgoing" :key="edge.id" :value="edge.id">On taking the route to {{ beatTitle(edge.target_beat_id) }}</option>
         </AppSelect>
       </template>
       <template v-else>
@@ -135,12 +135,15 @@ import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
  * `quest_objective_effects` used to split that in half by scope; one table,
  * one editor now.
  */
-const { scope, questId, beat, edges = [] } = defineProps<{
+const { scope, questId, beat, edges = [], beats = [] } = defineProps<{
   scope: "beat" | "quest";
   questId: string;
   /** Required (and only meaningful) for `scope="beat"`. */
   beat?: QuestBeat;
   edges?: QuestBeatEdge[];
+  /** Named for the target beat title a branch condition now reads instead of
+   *  the free-text label that used to be an edge's own field (#795). */
+  beats?: QuestBeat[];
 }>();
 
 const CALENDAR_EVENT_TYPES = Object.keys(EVENT_TYPE_COLORS) as CalendarEventType[];
@@ -201,6 +204,10 @@ function objectiveLabel(id: string | null): string {
   return objectiveFor(id)?.description ?? "Objective removed";
 }
 
+function beatTitle(id: string): string {
+  return beats.find((row) => row.id === id)?.title || "Missing beat";
+}
+
 // ── Condition form ───────────────────────────────────────────────────────────
 
 const conditionEdgeId = ref(""); // "" = arrival at the beat itself (scope="beat")
@@ -247,7 +254,7 @@ function conditionLabel(row: QuestConsequence): string {
   if (row.on_beat_id) return "on arrival";
   if (row.on_edge_id) {
     const edge = outgoing.value.find((candidate) => candidate.id === row.on_edge_id);
-    return `on taking "${edge?.label || "Continue"}"`;
+    return `on taking the route to "${edge ? beatTitle(edge.target_beat_id) : "a removed beat"}"`;
   }
   if (row.on_quest_settled) return "when the quest settles";
   return `when "${objectiveLabel(row.on_objective_id)}" becomes ${QUEST_OBJECTIVE_STATUS_LABELS[row.on_objective_status!].toLowerCase()}`;
