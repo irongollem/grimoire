@@ -60,6 +60,11 @@ const EFFECT_VERBS: Record<QuestConsequenceAction, string> = {
   fail: "fails",
   create_calendar_event: "schedules a calendar event",
   send_broadcast: "sends a broadcast",
+  // Signed, so the verb cannot say which way. `describeQuestRouteEffect`
+  // appends the objective's name and has no step to read — the branch card
+  // says that a disposition moves; the rule editor says by how much.
+  shift_npc_relationship: "shifts an NPC's disposition",
+  unlock_quest: "unlocks a quest",
 };
 
 /** What a branch card shows for one line of "taking this route also does

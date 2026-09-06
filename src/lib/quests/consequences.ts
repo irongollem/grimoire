@@ -13,6 +13,8 @@ export const QUEST_CONSEQUENCE_ACTION_LABELS: Record<QuestConsequenceAction, str
   fail: "Fail",
   create_calendar_event: "Create calendar event",
   send_broadcast: "Send broadcast",
+  shift_npc_relationship: "Shift an NPC's disposition",
+  unlock_quest: "Unlock a quest",
 };
 
 export function isLedgerConsequenceAction(action: QuestConsequenceAction): boolean {

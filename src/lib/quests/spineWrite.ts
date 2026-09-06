@@ -180,6 +180,13 @@ export async function writeQuestSpine(
           after_days: 0,
           action: "raise",
           target_objective_id: createdObjectives[entry.objectiveIndex]!.id,
+          // A generated spine only ever raises objectives. The world actions —
+          // shifting a disposition (#831), unlocking a quest (#836) — are the
+          // DM's to author: both name a specific entity the model has no
+          // grounds to pick, and inventing one would be a rule the DM never
+          // wrote firing on a beat they did not review.
+          target_npc_id: null,
+          target_quest_id: null,
           action_payload: {},
         }),
       ),

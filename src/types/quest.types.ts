@@ -90,16 +90,51 @@ export interface QuestObjective {
  * for the DM, revealing tells the party — an objective is routinely one
  * without the other.
  *
- * `create_calendar_event` / `send_broadcast` are the two world actions —
- * everything else is a ledger verb. One vocabulary for both ends of a
- * consequence (#794): `quest_triggers` fired *from* an objective becoming
- * something, and `quest_objective_effects` fired *to* one; `quest_consequences`
- * replaces both.
+ * The **world actions** are everything else — what a beat does to the campaign
+ * rather than to its own quest. One vocabulary for both ends of a consequence
+ * (#794): `quest_triggers` fired *from* an objective becoming something, and
+ * `quest_objective_effects` fired *to* one; `quest_consequences` replaces both.
+ *
+ * `shift_npc_relationship` (#831) and `unlock_quest` (#836) joined that family
+ * rather than needing mechanisms of their own, and the reason is worth keeping:
+ * both are caused by a beat, both can be delayed, and both land as durable
+ * state on a row that already exists. A free-text "reward" field is what you
+ * reach for when the system has no verb for the thing — the fix is usually to
+ * add the verb.
+ *
+ * Note the family is **not** "rewards". A reward is positive by construction;
+ * a relationship shift is signed — charm the lady and it goes up, embarrass
+ * yourself trying and it goes down. Loot is the odd one out for always being a
+ * gain, and it is not in this list at all: it lives in `loot_placements`,
+ * because a consequence fires from the engine once per transition while loot
+ * fires from a human once ever. See that table's comment before merging them.
  */
-export type QuestConsequenceAction = "raise" | "reveal" | "complete" | "fail" | "create_calendar_event" | "send_broadcast";
+export type QuestConsequenceAction =
+  | "raise"
+  | "reveal"
+  | "complete"
+  | "fail"
+  | "create_calendar_event"
+  | "send_broadcast"
+  | "shift_npc_relationship"
+  | "unlock_quest";
 
 export const QUEST_CONSEQUENCE_LEDGER_ACTIONS: readonly QuestConsequenceAction[] = ["raise", "reveal", "complete", "fail"];
-export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] = ["create_calendar_event", "send_broadcast"];
+export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] = [
+  "create_calendar_event",
+  "send_broadcast",
+  "shift_npc_relationship",
+  "unlock_quest",
+];
+
+/**
+ * The reaction ladder, in order, as `shift_npc_relationship` walks it. Excludes
+ * `unknown`, which is a member of `npc_relationship` but **not a rung**:
+ * shifting from "we have not established this" is meaningless, and treating it
+ * as `indifferent` would invent a stance the DM never set. A shift from
+ * `unknown` is a no-op, decided in the migration rather than left to a caller.
+ */
+export const NPC_RELATIONSHIP_LADDER = ["hostile", "unfriendly", "indifferent", "friendly", "helpful"] as const;
 
 /** The three statuses a `quest_consequences.on_objective_status` condition can
  *  name — never `dormant`, which nothing "becomes" on purpose (it is the
@@ -117,9 +152,21 @@ export interface BroadcastConsequencePayload {
   message: string;
 }
 
+/**
+ * How far along the ladder to move, signed (#831). Relative rather than
+ * absolute because a stance is *earned*: "set to helpful" throws away how it
+ * got there, and composes worse when two beats both move the same NPC. Clamped
+ * at both ends by the database, so a rule firing on an already-helpful NPC is a
+ * no-op rather than a wrap round to hostile.
+ */
+export interface RelationshipShiftConsequencePayload {
+  step: number;
+}
+
 export type QuestConsequenceActionPayload =
   | CalendarEventConsequencePayload
   | BroadcastConsequencePayload
+  | RelationshipShiftConsequencePayload
   | Record<string, never>;
 
 /**
@@ -151,6 +198,17 @@ export interface QuestConsequence {
    *  objective a ledger verb moves. Never the same objective named by
    *  `on_objective_id` (no self-reference). */
   target_objective_id: string | null;
+  /** The NPC a `shift_npc_relationship` rule moves (#831). Set exactly when
+   *  the action is that one, enforced by `quest_consequences_npc_pair`. */
+  target_npc_id: string | null;
+  /**
+   * The quest an `unlock_quest` rule promotes out of `undiscovered` (#836).
+   *
+   * Deliberately **not** `parent_quest_id`: "unlocked by" and "child of" are
+   * different relations. One trigger can legitimately open both a sequel and
+   * something unrelated, so belonging stays an authoring choice made separately.
+   */
+  target_quest_id: string | null;
   action_payload: QuestConsequenceActionPayload;
   created_at: string;
   updated_at: string;

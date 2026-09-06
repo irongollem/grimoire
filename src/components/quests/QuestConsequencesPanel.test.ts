@@ -19,6 +19,15 @@ vi.mock("@/composables/quests/useQuests", () => ({
     { id: "obj-1", quest_id: "quest-1", description: "Keep the bridge standing", status: "pending", is_player_visible: true, sort_order: 1 },
     { id: "obj-2", quest_id: "quest-1", description: "Warn the village", status: "dormant", is_player_visible: false, sort_order: 2 },
   ] } }),
+  // #836: only `undiscovered` quests can be unlocked, and the quest being
+  // edited is excluded — the database refuses a self-unlock.
+  useQuests: () => ({ data: { value: [
+    { id: "quest-1", title: "This very quest", status: "undiscovered" },
+    { id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered" },
+  ] } }),
+}));
+vi.mock("@/composables/npcs/useNpcs", () => ({
+  useNpcs: () => ({ data: { value: [{ id: "npc-1", name: "Oarus Masthew" }] } }),
 }));
 
 const beat = { id: "beat-fork", quest_id: "quest-1", campaign_id: "campaign-1", title: "The fork" } as QuestBeat;
@@ -64,6 +73,8 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
     after_days: 0,
     action: "complete",
     target_objective_id: null,
+    target_npc_id: null,
+    target_quest_id: null,
     action_payload: {},
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
@@ -109,6 +120,8 @@ describe("QuestConsequencesPanel — beat scope", () => {
       after_days: 0,
       action: "fail",
       target_objective_id: "obj-1",
+      target_npc_id: null,
+      target_quest_id: null,
       action_payload: {},
     });
   });
@@ -127,8 +140,60 @@ describe("QuestConsequencesPanel — beat scope", () => {
       after_days: 3,
       action: "send_broadcast",
       target_objective_id: null,
+      target_npc_id: null,
+      target_quest_id: null,
       action_payload: { message: "The cult notices." },
     }));
+  });
+
+  // #831. The signed step is the point: the same beat shape carries "charm the
+  // lady" and "embarrass yourself trying", and the DM picks direction here.
+  it("authors a disposition shift with a signed step", async () => {
+    const wrapper = mountBeatPanel();
+    await wrapper.findAll("select")[1]!.setValue("shift_npc_relationship");
+    comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "npc-1");
+    await wrapper.findAll("select").at(-1)!.setValue("-1");
+    await wrapper.findAll("button").find((b) => b.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: "shift_npc_relationship",
+      target_npc_id: "npc-1",
+      target_quest_id: null,
+      target_objective_id: null,
+      action_payload: { step: -1 },
+    }));
+  });
+
+  // #836. The unlock names a quest and leaves `parent_quest_id` alone —
+  // "unlocked by" is not "child of".
+  it("authors an unlock that names a quest and no parent", async () => {
+    const wrapper = mountBeatPanel();
+    await wrapper.findAll("select")[1]!.setValue("unlock_quest");
+    comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "quest-sequel");
+    await flushPromises();
+    await wrapper.findAll("button").find((b) => b.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: "unlock_quest",
+      target_quest_id: "quest-sequel",
+      target_npc_id: null,
+      target_objective_id: null,
+    }));
+    expect(mocks.create.mock.calls.at(-1)![0]).not.toHaveProperty("parent_quest_id");
+  });
+
+  // The database refuses a self-unlock, so offering it would be an option that
+  // can only fail. Asserted on the picker's `options` prop rather than rendered
+  // text: `EntityCombobox` is stubbed here, so a text search would pass whether
+  // the filter worked or not. `quest-1` is undiscovered in the fixture
+  // precisely so this can distinguish a filter from an empty list.
+  it("never offers the quest being edited as its own unlock target", async () => {
+    const wrapper = mountBeatPanel();
+    await wrapper.findAll("select")[1]!.setValue("unlock_quest");
+    const options = comboboxes(wrapper)[0]!.props("options") as { id: string }[];
+    expect(options.map((option) => option.id)).toEqual(["quest-sequel"]);
   });
 
   it("lists the rules that belong to this beat and ignores the rest of the quest", () => {
@@ -208,6 +273,8 @@ describe("QuestConsequencesPanel — quest scope", () => {
       after_days: 2,
       action: "create_calendar_event",
       target_objective_id: null,
+      target_npc_id: null,
+      target_quest_id: null,
       action_payload: { title: "The cult reveals itself", event_type: "quest" },
     });
   });

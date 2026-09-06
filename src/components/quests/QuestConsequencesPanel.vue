@@ -75,6 +75,19 @@
           <option v-for="t in CALENDAR_EVENT_TYPES" :key="t" :value="t">{{ t }}</option>
         </AppSelect>
       </template>
+      <template v-else-if="action === 'shift_npc_relationship'">
+        <EntityCombobox v-if="npcOptions.length" v-model="targetNpcId" class="min-w-0 sm:col-span-2" :options="npcOptions" placeholder="Which NPC…" />
+        <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">No NPCs in this campaign yet.</p>
+        <AppSelect v-if="npcOptions.length" v-model.number="relationshipStep" class="min-w-0 sm:col-span-2" aria-label="How far to shift">
+          <option v-for="step in RELATIONSHIP_STEPS" :key="step.value" :value="step.value">{{ step.label }}</option>
+        </AppSelect>
+      </template>
+      <template v-else-if="action === 'unlock_quest'">
+        <EntityCombobox v-if="unlockableQuestOptions.length" v-model="targetQuestId" class="min-w-0 sm:col-span-2" :options="unlockableQuestOptions" placeholder="Which quest…" />
+        <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">
+          No undiscovered quests to unlock — write the sequel first and leave it undiscovered.
+        </p>
+      </template>
       <template v-else>
         <AppInput v-model="broadcastMessage" size="body-xs" placeholder="Broadcast message…" class="sm:col-span-2" />
       </template>
@@ -95,12 +108,14 @@ import {
   useDeleteQuestConsequence,
   useQuestConsequences,
 } from "@/composables/quests/useQuestFlow";
-import { useQuestObjectives } from "@/composables/quests/useQuests";
+import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
+import { useNpcs } from "@/composables/npcs/useNpcs";
 import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
 import {
   QUEST_CONSEQUENCE_LEDGER_ACTIONS,
   QUEST_CONSEQUENCE_OBJECTIVE_STATUSES,
   QUEST_CONSEQUENCE_WORLD_ACTIONS,
+  NPC_RELATIONSHIP_LADDER,
   type QuestBeat,
   type QuestBeatEdge,
   type QuestConsequence,
@@ -159,6 +174,10 @@ const ACTION_TONES: Record<QuestConsequenceAction, string> = {
   fail: "text-destructive",
   create_calendar_event: "text-tone-info",
   send_broadcast: "text-tone-info",
+  // Signed, so it gets a neutral tone rather than success or destructive —
+  // the same rule read either way depending on the step.
+  shift_npc_relationship: "text-tone-info",
+  unlock_quest: "text-primary",
 };
 
 const isLedgerAction = isLedgerConsequenceAction;
@@ -213,9 +232,40 @@ const afterDays = ref(0);
 const calendarTitle = ref("");
 const calendarType = ref<string>("quest");
 const broadcastMessage = ref("");
+const targetNpcId = ref("");
+const relationshipStep = ref(1);
+const targetQuestId = ref("");
 const adding = ref(false);
 const removingId = ref("");
 const error = ref("");
+
+const { data: npcs } = useNpcs();
+const npcOptions = computed(() =>
+  (npcs.value ?? []).map((npc) => ({ id: npc.id, name: npc.name })),
+);
+
+// Only `undiscovered` quests, because that is the only rung an unlock moves —
+// promoting anything else would be a rule that silently never fires. The quest
+// being edited is excluded too: `quest_consequences_no_self_unlock` refuses it,
+// and offering an option the database rejects is worse than not offering it.
+const { data: undiscoveredQuests } = useQuests("undiscovered");
+const unlockableQuestOptions = computed(() =>
+  (undiscoveredQuests.value ?? [])
+    .filter((quest) => quest.id !== questId)
+    .map((quest) => ({ id: quest.id, name: quest.title })),
+);
+
+// The ladder as signed offsets. A select rather than a number field: the scale
+// is five rungs, so "two friendlier" is the whole range in one direction and a
+// free number invites a 7 the database would silently clamp.
+const MAX_RELATIONSHIP_STEP = NPC_RELATIONSHIP_LADDER.length - 1;
+const RELATIONSHIP_STEPS = [
+  ...Array.from({ length: MAX_RELATIONSHIP_STEP }, (_, i) => MAX_RELATIONSHIP_STEP - i),
+  ...Array.from({ length: MAX_RELATIONSHIP_STEP }, (_, i) => -(i + 1)),
+].map((value) => ({
+  value,
+  label: `${Math.abs(value)} ${Math.abs(value) === 1 ? "rung" : "rungs"} ${value > 0 ? "friendlier" : "colder"}`,
+}));
 
 // A ledger verb cannot target the same objective its own condition names —
 // the database's no-self-reference check — so that objective is dropped from
@@ -235,6 +285,8 @@ const canAdd = computed(() => {
   if (scope === "quest" && conditionKind.value === "objective" && !conditionObjectiveId.value) return false;
   if (isLedgerAction(action.value)) return !!targetObjectiveId.value;
   if (action.value === "create_calendar_event") return !!calendarTitle.value.trim();
+  if (action.value === "shift_npc_relationship") return !!targetNpcId.value && relationshipStep.value !== 0;
+  if (action.value === "unlock_quest") return !!targetQuestId.value;
   return !!broadcastMessage.value.trim();
 });
 
@@ -268,6 +320,9 @@ function resetForm() {
   afterDays.value = 0;
   calendarTitle.value = "";
   broadcastMessage.value = "";
+  targetNpcId.value = "";
+  relationshipStep.value = 1;
+  targetQuestId.value = "";
 }
 
 async function add() {
@@ -280,7 +335,9 @@ async function add() {
       ? { title: calendarTitle.value.trim(), event_type: calendarType.value }
       : action.value === "send_broadcast"
         ? { message: broadcastMessage.value.trim() }
-        : {};
+        : action.value === "shift_npc_relationship"
+          ? { step: relationshipStep.value }
+          : {};
     const insert: QuestConsequenceInsert = {
       quest_id: questId,
       on_beat_id: scope === "beat" && !conditionEdgeId.value ? beat!.id : null,
@@ -291,6 +348,8 @@ async function add() {
       after_days: afterDays.value || 0,
       action: action.value,
       target_objective_id: isLedgerAction(action.value) ? targetObjectiveId.value : null,
+      target_npc_id: action.value === "shift_npc_relationship" ? targetNpcId.value : null,
+      target_quest_id: action.value === "unlock_quest" ? targetQuestId.value : null,
       action_payload: payload,
     };
     await createConsequence.mutateAsync(insert);
