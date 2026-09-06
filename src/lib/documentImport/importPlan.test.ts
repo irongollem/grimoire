@@ -112,6 +112,34 @@ describe("buildImportPlan", () => {
     const entities = [entity<"items">("i1", { name: "Sword" })];
     expect(buildImportPlan("items", entities, [], CAMPAIGN_ID, PROVENANCE)).toEqual([]);
   });
+
+  it("excludes a selected-but-linked entity from the plan (#837/#838)", () => {
+    const entities = [
+      entity<"monsters">("m1", { name: "Kobold" }),
+      entity<"monsters">("m2", { name: "Owlbear" }),
+    ];
+    const plan = buildImportPlan(
+      "monsters",
+      entities,
+      ["m1", "m2"],
+      CAMPAIGN_ID,
+      PROVENANCE,
+      new Set(["m1"]),
+    );
+    expect(plan.map((p) => p.ref)).toEqual(["m2"]);
+  });
+
+  it("treats an unselected entity as excluded even when it is also linked", () => {
+    const entities = [entity<"items">("i1", { name: "Potion of Healing" })];
+    const plan = buildImportPlan("items", entities, [], CAMPAIGN_ID, PROVENANCE, new Set(["i1"]));
+    expect(plan).toEqual([]);
+  });
+
+  it("defaults to linking nothing when linkedRefs is omitted", () => {
+    const entities = [entity<"monsters">("m1", { name: "Kobold" })];
+    const plan = buildImportPlan("monsters", entities, ["m1"], CAMPAIGN_ID, PROVENANCE);
+    expect(plan.map((p) => p.ref)).toEqual(["m1"]);
+  });
 });
 
 describe("buildImportRunReport", () => {

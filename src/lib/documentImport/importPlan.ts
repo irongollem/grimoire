@@ -118,6 +118,19 @@ function mapEntity<K extends ImportEntityKind>(
  * `selectedRefs` accepts anything iterable of ref strings — a `Set` built from
  * checkbox state is the expected caller shape, but the order it iterates in is
  * never what decides plan order (see file header): `entities`' own order does.
+ *
+ * `linkedRefs` (#837/#838) names entities the DM chose to link to an existing
+ * campaign or library row instead of creating a new one — resolved ahead of
+ * time by `resolve_monster_references` / `resolve_item_references` and
+ * defaulted-to-link by the wizard, with the DM able to switch any one of them
+ * back to "create new" per `entityMatching.ts`. A linked entity produces no
+ * insert at all: the row it would have duplicated already exists, so there is
+ * nothing for this module to plan. It is still filtered on `selectedRefs`
+ * first — deselecting a card means "skip it entirely," not "force-create it,"
+ * so a ref can be linked and unselected at once with the same "not planned"
+ * result as being merely unselected. The caller counts linked entities
+ * separately from `PlannedInsert`s (see `DocumentImportWizard.vue`), since
+ * this module's whole job is deciding what to *insert*.
  */
 export function buildImportPlan<K extends ImportEntityKind>(
   kind: K,
@@ -125,10 +138,11 @@ export function buildImportPlan<K extends ImportEntityKind>(
   selectedRefs: Iterable<string>,
   campaignId: string,
   provenance: AiProvenance,
+  linkedRefs: ReadonlySet<string> = new Set(),
 ): PlannedInsert<K>[] {
   const selected = new Set(selectedRefs);
   return entities
-    .filter((entity) => selected.has(entity.ref))
+    .filter((entity) => selected.has(entity.ref) && !linkedRefs.has(entity.ref))
     .map((entity) => {
       const { row, links, questSpine } = mapEntity(kind, entity.data, campaignId, provenance);
       return { ref: entity.ref, row, links, questSpine };
