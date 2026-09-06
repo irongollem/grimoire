@@ -1064,3 +1064,4 @@ begin
      and v_locations ? qb.staged_at_location_id::text;
 end;
 $function$
+;

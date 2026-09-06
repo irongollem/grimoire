@@ -74,11 +74,8 @@
         {{ quest.summary }}
       </p>
 
-      <!-- Existing quests stay unchanged until the DM authors at least one
-           player-visible beat. The thread is a projection, never the graph. -->
-      <PlayerQuestStoryThread v-if="playerBeats?.length" :beats="playerBeats" />
-
-      <!-- Objectives -->
+      <!-- Objectives — "what do we need to do?" leads, ahead of the story
+           thread and the map (#798). -->
       <div
         v-if="visibleObjectives.length"
         class="rounded-lg border border-border bg-card overflow-hidden"
@@ -114,6 +111,22 @@
           </div>
         </div>
       </div>
+
+      <!-- Story thread — "what has already happened?" (#798). Existing quests
+           stay unchanged until the DM authors at least one player-visible
+           beat: the thread is a projection, never the graph. -->
+      <PlayerQuestStoryThread v-if="playerBeats?.length" :beats="playerBeats" />
+
+      <!-- The site map, filling in as the party explores it (#798). -->
+      <PlayerSiteMap v-if="siteLocationId" :site-location-id="siteLocationId" />
+
+      <!-- Notes — "where can I put my own thinking?" (#798). -->
+      <PlayerNotesWidget
+        v-if="quest"
+        entity-type="quest"
+        :entity-id="quest.id"
+        placeholder="Jot down your thoughts, clues, suspicions…"
+      />
 
       <!-- Rewards -->
       <div
@@ -238,14 +251,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Notes -->
-      <PlayerNotesWidget
-        v-if="quest"
-        entity-type="quest"
-        :entity-id="quest.id"
-        placeholder="Jot down your thoughts, clues, suspicions…"
-      />
     </template>
   </div>
 
@@ -308,11 +313,13 @@ import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import { resolveQuestSiteLocationId } from "@/lib/quests/playerSite";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
+import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -363,6 +370,24 @@ const primaryLocationName = computed(
       ?.name ?? null,
 );
 
+// The quest's own `location_id` — already the "where this quest happens"
+// field the meta row above links out to, gated the same way that link is, on
+// the location actually being shared with this player. This is the fallback
+// `resolveQuestSiteLocationId` falls back to, second in line, for a quest
+// with no revealed staged beat yet (or none at all).
+const questSiteFallbackId = computed(() => {
+  const id = quest.value?.location_id;
+  return id && sharedLocationIds.value.has(id) ? id : null;
+});
+
+/** The site to draw the filling-in map for (#798) — see
+ *  `resolveQuestSiteLocationId`'s own docstring for the full precedence and
+ *  why "most recently revealed" means highest `story_order`, not reveal
+ *  time. */
+const siteLocationId = computed(() =>
+  resolveQuestSiteLocationId(playerBeats.value ?? [], questSiteFallbackId.value),
+);
+
 // Refs grouped by type — only show player-visible ones
 const visibleRefs = computed(() =>
   (questRefs.value ?? []).filter((r) => r.is_player_visible),
@@ -388,8 +413,13 @@ const hasCurrencyReward = computed(
     0,
 );
 
+// The DB's RLS policy already excludes a `dormant` objective (an untaken
+// branch) from what a player can read at all (#798). Filtered again here so
+// the intent is legible on this side too, and so a future policy change
+// can't silently leak one back in. A `failed` objective is never excluded —
+// "we lost that one" is something the party needs to keep seeing.
 const visibleObjectives = computed(() =>
-  (objectives.value ?? []).filter((o) => o.is_player_visible),
+  (objectives.value ?? []).filter((o) => o.is_player_visible && o.status !== "dormant"),
 );
 const doneCount = computed(
   () => countObjectivesComplete(visibleObjectives.value),

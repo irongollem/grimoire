@@ -491,9 +491,32 @@ return target, and the most recent **100** transitions — the cockpit polls it)
 `end_campaign_quest_session`, `archive_quest_beat`, `create_quest_beat_with_route`,
 `dispatch_quest_beat_loot`, `get_quest_beat_loot`, `get_player_visible_quest_beats`,
 `get_player_visible_quests`, `assert_quest_objective_status` (#794 — the DM
-asserting a status with no cursor movement) and `perform_quest_consequence`
+asserting a status with no cursor movement), `perform_quest_consequence`
 (#794 — performs one already-logged, delayed world-action event on a date the
-client computed; see "one rule engine" above).
+client computed; see "one rule engine" above) and
+`get_player_visible_site_state` (#798 — the inside of a site as the party knows
+it; see below).
+
+**Two of these changed in #798.** `get_player_visible_quest_beats` now also
+returns `staged_at_location_id`, populated **only for revealed beats** — a
+rumored beat's staging would pin a scene on the player's map before they have
+had it. Players have no other route to that column: `quest_beats` carries one
+policy, `quest_beats_dm_all`, and it is DM-only. That projection also shed a
+dead `location_set` attachment arm that #797 left behind when it deleted the
+type — the CHECK, the validator, the rows and the client all lost it, and this
+one call site did not, which is precisely the half-deletion this epic exists to
+stop.
+
+`get_player_visible_site_state(site_id, preview_party_member_id)` returns one row
+per traced region whose space the party has **explored**, with the region's
+`cells` and the `cleared`/`looted` facts they established. Unexplored rooms are
+absent from the payload rather than flagged in it — filtering on the client would
+leave them in the network tab. It checks **both ends** of a region
+(`space.campaign_id = site.campaign_id`), because nothing in the schema
+guarantees a region's space and site share a campaign; without that predicate a
+DM running two tables could show one campaign's rooms to another's players, which
+was demonstrated with a working exploit during the #798 audit. See #827 for the
+write-side root cause, still open.
 
 Semantics not to re-litigate (from #755):
 

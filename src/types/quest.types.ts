@@ -445,6 +445,15 @@ export interface PlayerQuestBeat {
   attachments: PlayerQuestBeatAttachmentSummary[];
   visits: PlayerQuestBeatVisitSummary[];
   updated_at: string;
+  /**
+   * Where this beat happens (`quest_beats.staged_at_location_id`, #797),
+   * mirrored to players by `get_player_visible_quest_beats` (#798). Populated
+   * only when `visibility === "revealed"` — a rumored beat's staging would
+   * pin a scene on the map before the party has had it, so the RPC withholds
+   * it server-side and this is `null` on every rumored row. `null` on a
+   * revealed row is also normal: most beats don't stage anywhere at all.
+   */
+  staged_at_location_id: string | null;
 }
 
 export interface PlayerQuestBeatAttachmentSummary {
