@@ -1,32 +1,6 @@
 <template>
   <section class="space-y-3 rounded-lg border border-border bg-card p-3" aria-label="Beat loot">
-    <div class="flex items-start gap-2">
-      <div>
-        <h3 class="font-cinzel text-sm font-bold text-foreground">Beat loot</h3>
-        <p class="text-caption text-muted-foreground">Prepare here, then drop through the existing claimable campaign chat.</p>
-      </div>
-      <AppButton v-if="heldCount" class="ml-auto" label="Drop all" size="xs" :loading="dispatching === 'all'" @click="dispatch()" />
-    </div>
-
-    <ul v-if="loot.length" class="space-y-1.5">
-      <li v-for="entry in loot" :key="entry.id" class="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border p-2 text-caption">
-        <span class="rounded bg-muted px-1.5 py-0.5 uppercase text-muted-foreground">{{ entry.kind.replace('_', ' ') }}</span>
-        <span class="min-w-0 flex-1 truncate text-foreground">{{ entry.quantity > 1 ? `${entry.quantity}× ` : '' }}{{ entry.label }}</span>
-        <div class="text-right">
-          <p :class="statusClass(entry.delivery_state)">{{ statusLabel(entry.delivery_state) }}</p>
-          <p v-if="entry.delivery_state !== 'held'" class="text-2xs text-muted-foreground">
-            <template v-if="entry.quantity_remaining > 0">{{ entry.quantity_remaining }} remaining</template>
-            <template v-if="entry.claimed_by_names.length"> · {{ entry.claimed_by_names.join(', ') }}</template>
-            <template v-if="entry.handed_out_this_session"> · this session</template>
-          </p>
-        </div>
-        <AppButton v-if="entry.delivery_state === 'held'" label="Drop" size="xs" :loading="dispatching === entry.id" @click="dispatch(entry.id)" />
-        <AppButton v-if="entry.delivery_state === 'held'" label="Remove" size="xs" variant="subtle" :loading="removingId === entry.id" @click="remove(entry.id)" />
-        <AppButton v-else-if="entry.dispatch_message_id && entry.delivery_state !== 'message_removed'" label="Open chat card" size="xs" variant="subtle" @click="ui.openChatAt(entry.dispatch_message_id)" />
-      </li>
-    </ul>
-    <p v-else class="text-caption italic text-muted-foreground">No loot prepared for this beat.</p>
-    <p v-if="loot.some((entry) => entry.delivery_state !== 'held')" class="text-2xs text-muted-foreground">Claims are authoritative in chat and inventory. Reassignment is not available in Run mode.</p>
+    <LootPlacementList title="Beat loot" empty-label="No loot prepared for this beat." :loot="loot" />
 
     <div data-testid="beat-loot-form" class="grid min-w-0 grid-cols-[minmax(0,8rem)_minmax(0,1fr)] gap-2">
       <AppSelect v-model="kind" class="min-w-0" aria-label="Loot kind">
@@ -52,24 +26,21 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { useCreateLootPlacement, useDeleteLootPlacement, useDispatchLoot } from "@/composables/quests/useQuestFlow";
+import { useCreateLootPlacement } from "@/composables/quests/useQuestFlow";
 import { useItems } from "@/composables/items/useItems";
 import { useAuthStore } from "@/stores/auth";
-import { useUiStore } from "@/stores/ui";
-import type { QuestBeat, LootPlacement, LootPlacementDeliveryState, LootPlacementKind } from "@/types/quest.types";
+import type { QuestBeat, LootPlacement, LootPlacementKind } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import LootPlacementList from "@/components/quests/LootPlacementList.vue";
 
 const props = defineProps<{ beat: QuestBeat; loot: LootPlacement[] }>();
 const emit = defineEmits<{ dirty: [dirty: boolean] }>();
 const auth = useAuthStore();
-const ui = useUiStore();
 const { data: items } = useItems();
 const createLoot = useCreateLootPlacement();
-const deleteLoot = useDeleteLootPlacement();
-const dispatchLoot = useDispatchLoot();
 const kind = ref<Extract<LootPlacementKind, "item" | "currency">>("item");
 const itemId = ref("");
 const label = ref("");
@@ -77,11 +48,7 @@ const quantity = ref(1);
 const coins = ["pp", "gp", "ep", "sp", "cp"] as const;
 const currency = reactive<Record<(typeof coins)[number], number>>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
 const adding = ref(false);
-const removingId = ref("");
-const dispatching = ref("");
 const error = ref("");
-const heldIds = computed(() => props.loot.filter((entry) => entry.delivery_state === "held").map((entry) => entry.id));
-const heldCount = computed(() => heldIds.value.length);
 const itemOptions = computed(() => (items.value ?? [])
   .filter((item) => item.user_id === auth.user?.id || item.campaign_id === props.beat.campaign_id)
   .map((item) => ({ id: item.id, name: item.name })));
@@ -90,13 +57,6 @@ const isDraftDirty = computed(() => !!itemId.value || !!label.value.trim() || qu
 
 watch(kind, () => { itemId.value = ""; label.value = ""; error.value = ""; });
 watch(isDraftDirty, (dirty) => emit("dirty", dirty), { immediate: true });
-
-function statusLabel(status: LootPlacementDeliveryState) {
-  return { held: "Held", chat: "In chat", partially_claimed: "Partly claimed", claimed: "Claimed", message_removed: "Chat removed" }[status];
-}
-function statusClass(status: LootPlacementDeliveryState) {
-  return status === "claimed" ? "text-tone-success" : status === "message_removed" ? "text-tone-caution" : "text-muted-foreground";
-}
 
 async function add() {
   if (!canAdd.value) return;
@@ -120,21 +80,5 @@ async function add() {
     for (const coin of coins) currency[coin] = 0;
   } catch (caught) { error.value = caught instanceof Error ? caught.message : "Could not prepare loot"; }
   finally { adding.value = false; }
-}
-
-async function remove(id: string) {
-  removingId.value = id; error.value = "";
-  try { await deleteLoot.mutateAsync({ id, campaignId: props.beat.campaign_id }); }
-  catch (caught) { error.value = caught instanceof Error ? caught.message : "Could not remove loot"; }
-  finally { removingId.value = ""; }
-}
-
-async function dispatch(entryId?: string) {
-  const entryIds = entryId ? [entryId] : heldIds.value;
-  if (!entryIds.length) return;
-  dispatching.value = entryId ?? "all"; error.value = "";
-  try { await dispatchLoot.mutateAsync({ entryIds, campaignId: props.beat.campaign_id }); }
-  catch (caught) { error.value = caught instanceof Error ? caught.message : "Could not drop loot in chat"; }
-  finally { dispatching.value = ""; }
 }
 </script>

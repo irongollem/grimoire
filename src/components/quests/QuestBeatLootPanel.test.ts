@@ -36,8 +36,10 @@ describe("QuestBeatLootPanel", () => {
     mocks.openChatAt.mockReset();
   });
 
+  const stubs = { global: { stubs: { LootPlacementList: false } } };
+
   it("shows authoritative live claim detail and opens the originating chat card", async () => {
-    const wrapper = shallowMount(QuestBeatLootPanel, { props: { beat, loot: [loot()] } });
+    const wrapper = shallowMount(QuestBeatLootPanel, { props: { beat, loot: [loot()] }, ...stubs });
     expect(wrapper.text()).toContain("1 remaining · Mira · this session");
     expect(wrapper.text()).toContain("Reassignment is not available in Run mode");
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Open chat card")!.trigger("click");
@@ -54,6 +56,7 @@ describe("QuestBeatLootPanel", () => {
           loot({ id: "loot-2", dispatch_message_id: null, dispatched_at: null, delivery_state: "held", quantity_remaining: 3, claimed_by_names: [], handed_out_this_session: false }),
         ],
       },
+      ...stubs,
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Drop all")!.trigger("click");
     expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["loot-1", "loot-2"], campaignId: "campaign-1" });
@@ -63,6 +66,7 @@ describe("QuestBeatLootPanel", () => {
     mocks.dispatch.mockResolvedValue([]);
     const wrapper = shallowMount(QuestBeatLootPanel, {
       props: { beat, loot: [loot({ dispatch_message_id: null, dispatched_at: null, delivery_state: "held", quantity_remaining: 2, claimed_by_names: [], handed_out_this_session: false })] },
+      ...stubs,
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Drop")!.trigger("click");
     expect(mocks.dispatch).toHaveBeenCalledWith({ entryIds: ["loot-1"], campaignId: "campaign-1" });

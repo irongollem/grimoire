@@ -366,6 +366,35 @@ Dropping a room's loot **is** looting the room — `dispatch_loot` appends the
 `looted` fact itself. One way only: a drop implies looted, never the reverse,
 since a DM narrating an empty room may still mark it looted by hand.
 
+**Client side.** `useLootPlacements({ questId?, locationId? })` in
+`useQuestFlow.ts` is the one read composable for both homes — an optional
+filter object, not a positional quest id, since #830 gave it a second
+independent dimension to narrow on; pass neither for the whole campaign
+(`useQuestBoardSummaries`). `useCreateLootPlacement` / `useDeleteLootPlacement`
+/ `useDispatchLoot` are likewise home-agnostic: every mutation carries its own
+`campaign_id`, so nothing in the data layer needs to know which home it is
+looking at.
+
+The **entries list** (status, claim detail, Drop/Remove, "Open chat card") is
+`LootPlacementList.vue` — extracted out of the beat panel when the room panel
+needed the identical list, because every action on a row authorises off that
+row's own `campaign_id` rather than a beat or a room, which is what made the
+extraction sound rather than a props-driven guess. It emits `dropped` after a
+successful dispatch so a location-homed caller can invalidate its own
+`location_state` cache; the component itself has no idea what a room is.
+
+What stays **per-surface** is the "prepare a new entry" form, because the two
+homes do not offer the same kinds: `QuestBeatLootPanel.vue` offers item and
+currency only (a beat's chest loot arrives via `source_type = 'encounter_loot'`
+from the encounter resolver, never authored by hand here); `LocationLootPanel.vue`
+(world-building.md, "Loot" on a room) additionally offers rolling a loot table
+into a held `loot_chest` — `source_type = 'loot_table'` — reusing
+`rollLootTable()` and the `LootChestAtom`/`LootChestMetadata` shapes the
+direct-to-chat `LootTableRollPanel` already established, but holding the roll
+in `loot_placements.payload` instead of posting it immediately. That is a
+difference in kind, not a few prop values, so the two forms are separate files
+rather than one component branching on a home type.
+
 ### `quest_consequences` and `quest_consequence_events` — one rule engine (#794)
 
 One rule: **when this becomes that, do this.** Replaces `quest_objective_effects`
@@ -448,7 +477,6 @@ authored intent, not (yet) an enforced wait.
 
 ### The rest
 
-`quest_beat_loot` (with `dispatch_message_id` into `campaign_messages`),
 `quest_refs`.
 
 Types live in `src/types/quest.types.ts`. There is **no `QuestFlow` domain type** —
@@ -577,7 +605,9 @@ return target, and the most recent **100** transitions — the cockpit polls it)
 `advance`, `previous`, `jump`, `return`, `improv`, `pause`, `resume`, `end`),
 `improvise_quest_runtime`, `search_quest_runtime_jump_targets`,
 `end_campaign_quest_session`, `archive_quest_beat`, `create_quest_beat_with_route`,
-`dispatch_quest_beat_loot`, `get_quest_beat_loot`, `get_player_visible_quest_beats`,
+`dispatch_loot`, `get_loot_placements` (renamed from `dispatch_quest_beat_loot` /
+`get_quest_beat_loot` by #830 when rooms gained the same verb — see
+`loot_placements` above), `get_player_visible_quest_beats`,
 `get_player_visible_quests`, `assert_quest_objective_status` (#794 — the DM
 asserting a status with no cursor movement), `perform_quest_consequence`
 (#794 — performs one already-logged, delayed world-action event on a date the

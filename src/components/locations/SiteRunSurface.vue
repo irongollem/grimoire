@@ -91,6 +91,11 @@
 
           <LocationStateControls :location-id="currentRoom.id" />
 
+          <div v-if="campaign.activeCampaignId" class="flex flex-col gap-2">
+            <h4 class="font-cinzel text-xs font-bold tracking-wide text-muted-foreground">Loot</h4>
+            <LocationLootPanel :location-id="currentRoom.id" :campaign-id="campaign.activeCampaignId" :loot="currentRoomLoot ?? []" />
+          </div>
+
           <div class="flex flex-col gap-2">
             <h4 class="font-cinzel text-xs font-bold tracking-wide text-muted-foreground">Prepared Here</h4>
             <LocationPlacements :location-id="currentRoom.id" />
@@ -129,6 +134,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/LocationDoors.vue";
+import LocationLootPanel from "@/components/locations/LocationLootPanel.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
@@ -136,6 +142,7 @@ import { IconClose, IconLocation, IconLock, IconLoot, IconShieldCheck } from "@/
 import { useLocations } from "@/composables/locations/useLocations";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
+import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
@@ -178,6 +185,7 @@ const currentRoomId = computed(() =>
   partyRoomInSite(campaign.activeCampaign?.current_location_id ?? null, roomIds.value),
 );
 const currentRoom = computed(() => rooms.value.find((r) => r.id === currentRoomId.value) ?? null);
+const { data: currentRoomLoot } = useLootPlacements({ locationId: computed(() => currentRoom.value?.id ?? "") });
 
 const doorsQuery = useSiteDoors(roomIds);
 const doors = computed(() => doorsQuery.data.value ?? []);

@@ -33,6 +33,18 @@
       <LocationStateControls :location-id="location.id" />
     </section>
 
+    <!-- Loot — held here until a DM drops it to chat (#830). Same
+         hold-then-drop verb `QuestBeatLootPanel` gives a beat; dropping it
+         is what flips Progress's Looted fact above, so this sits right after
+         it. No location-type gate — a shop till or a shrine can hold loot as
+         well as a dungeon room — but it does need a campaign, since dropped
+         loot is a chat message and `loot_placements` scopes to one: a
+         personal, campaign-less location has nowhere for it to land. -->
+    <section v-if="location.campaign_id" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Loot</h2>
+      <LocationLootPanel :location-id="location.id" :campaign-id="location.campaign_id" :loot="locationLoot ?? []" />
+    </section>
+
     <!-- Related Locations — non-hierarchical links (trade routes, tunnels,
          connected districts). Hidden on room-typed places: Ways out below is
          the room-scoped version of "what this connects to", and rendering
@@ -184,12 +196,14 @@ import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/LocationDoors.vue";
+import LocationLootPanel from "@/components/locations/LocationLootPanel.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import SiteRoomsPanel from "@/components/locations/SiteRoomsPanel.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useEncountersByLocation } from "@/composables/encounters/useEncounters";
+import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useNpcs, useNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
@@ -226,6 +240,7 @@ const subtreeIds = computed(() => {
 
 const { data: locationNpcs } = useNpcsByLocations(subtreeIds);
 const { data: locationEncounters } = useEncountersByLocation(computed(() => location.id));
+const { data: locationLoot } = useLootPlacements({ locationId: computed(() => location.id) });
 
 const visibleNpcs = computed(() =>
   npcsExpanded.value ? (locationNpcs.value ?? []) : (locationNpcs.value ?? []).slice(0, NPC_PREVIEW),

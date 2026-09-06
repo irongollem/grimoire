@@ -192,21 +192,31 @@ export function useQuestBeatAttachments(questId: string | Ref<string>) {
   });
 }
 
-/** Quest-scoped and campaign-scoped callers share one aggregate RPC. That RPC
- * joins dispatch messages once, so cards never fetch claim state one by one.
- * Room-homed placements (#830) never surface here: passing a quest id filters
- * to that quest's beat-homed rows, and a location filter is not offered —
- * the room-loot surface is a separate story. */
-export function useLootPlacements(questId?: string | Ref<string>) {
+export interface LootPlacementFilter {
+  questId?: string | Ref<string>;
+  /** A room's loot (#830). Mutually meaningful with `questId` cleared — a
+   *  location-homed row has no quest — but the RPC accepts either, both, or
+   *  neither filter and narrows whichever is passed. */
+  locationId?: string | Ref<string>;
+}
+
+/** Quest-scoped, location-scoped, and campaign-scoped callers share one
+ * aggregate RPC. That RPC joins dispatch messages once, so cards never fetch
+ * claim state one by one. Both filters are optional and independent: pass
+ * `questId` for a beat's story flow, `locationId` for a room's loot panel
+ * (#830), or neither for the whole campaign (`useQuestBoardSummaries`, which
+ * calls the RPC directly rather than through this composable). */
+export function useLootPlacements(filter: LootPlacementFilter = {}) {
   const campaign = useCampaignStore();
-  const id = questId === undefined ? ref("") : asRef(questId);
+  const questIdRef = filter.questId === undefined ? ref("") : asRef(filter.questId);
+  const locationIdRef = filter.locationId === undefined ? ref("") : asRef(filter.locationId);
   return useQuery({
-    queryKey: computed(() => [LOOT_KEY, campaign.activeCampaignId, id.value || "all"]),
+    queryKey: computed(() => [LOOT_KEY, campaign.activeCampaignId, questIdRef.value || "all", locationIdRef.value || "all"]),
     queryFn: async (): Promise<LootPlacement[]> => {
       const { data, error } = await supabase.rpc("get_loot_placements", {
         p_campaign_id: campaign.activeCampaignId!,
-        p_quest_id: id.value || null,
-        p_location_id: null,
+        p_quest_id: questIdRef.value || null,
+        p_location_id: locationIdRef.value || null,
       });
       if (error) throw error;
       return (data ?? []) as LootPlacement[];

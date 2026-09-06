@@ -52,7 +52,7 @@ const beatQuery = useQuestBeat(beatId);
 const beatsQuery = useQuestBeats(questId);
 const edgesQuery = useQuestBeatEdges(questId);
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
-const lootQuery = useLootPlacements(questId);
+const lootQuery = useLootPlacements({ questId });
 const beat = computed(() => beatQuery.data.value?.quest_id === questId.value ? beatQuery.data.value : null);
 const attachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));
 const loot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));
