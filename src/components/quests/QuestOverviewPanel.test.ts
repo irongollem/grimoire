@@ -14,7 +14,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestBeats: () => ({ data: { value: mocks.beats }, isLoading: { value: false } }),
   useQuestBeatEdges: () => ({ data: { value: mocks.edges }, isLoading: { value: false } }),
+  useQuestBeatEdgeGates: () => ({ data: { value: [] }, isLoading: { value: false } }),
+  useQuestConsequences: () => ({ data: { value: [] }, isLoading: { value: false } }),
   useCreateQuestBeatWithRoute: () => ({ mutateAsync: mocks.createBeat }),
+}));
+vi.mock("@/composables/quests/useQuests", () => ({
+  useQuestObjectives: () => ({ data: { value: [] }, isLoading: { value: false } }),
 }));
 vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),

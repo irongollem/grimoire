@@ -14,6 +14,8 @@
   <section class="space-y-3" aria-label="Quest overview">
     <QuestOverviewMetadata :quest="quest" />
 
+    <QuestConsistencyPanel v-if="consistencyReady" :findings="consistencyFindings" />
+
     <LoadingSpinner v-if="beatsQuery.isLoading.value || edgesQuery.isLoading.value" class="mx-auto my-12" />
 
     <section v-else-if="!beats.length" class="space-y-3 rounded-lg border border-dashed border-border bg-card p-4 text-center" aria-label="No opening beat yet">
@@ -42,11 +44,20 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useCreateQuestBeatWithRoute, useQuestBeatEdges, useQuestBeats } from "@/composables/quests/useQuestFlow";
+import {
+  useCreateQuestBeatWithRoute,
+  useQuestBeatEdgeGates,
+  useQuestBeatEdges,
+  useQuestBeats,
+  useQuestConsequences,
+} from "@/composables/quests/useQuestFlow";
+import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { rootBeatIds } from "@/lib/quests/graph";
+import { deriveQuestConsistency } from "@/lib/quests/consistency";
 import type { Quest } from "@/types/quest.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import QuestConsistencyPanel from "./QuestConsistencyPanel.vue";
 import QuestOverviewLifecycle from "./QuestOverviewLifecycle.vue";
 import QuestOverviewMetadata from "./QuestOverviewMetadata.vue";
 
@@ -56,6 +67,13 @@ const route = useRoute();
 const router = useRouter();
 const beatsQuery = useQuestBeats(questId);
 const edgesQuery = useQuestBeatEdges(questId);
+// Objectives are already loaded by QuestOverviewLifecycle on this same
+// surface — same composable, same query key, so this shares its cache rather
+// than firing a second request. Consequences and gates are not loaded
+// anywhere on Overview today; the consistency check is the first reason to.
+const objectivesQuery = useQuestObjectives(questId);
+const consequencesQuery = useQuestConsequences(questId);
+const gatesQuery = useQuestBeatEdgeGates(questId);
 const createBeatWithRoute = useCreateQuestBeatWithRoute();
 const creating = ref(false);
 const createError = ref("");
@@ -64,6 +82,24 @@ const beats = computed(() => beatsQuery.data.value ?? []);
 const edges = computed(() => edgesQuery.data.value ?? []);
 const rootIds = computed(() => new Set(rootBeatIds(beats.value, edges.value)));
 const roots = computed(() => beats.value.filter((beat) => rootIds.value.has(beat.id)));
+
+// Held back until every input has loaded at least once, so the panel never
+// flashes a finding derived from a partially-loaded quest (e.g. "objective
+// never raised" before its raising consequence has arrived).
+const consistencyReady = computed(() => (
+  !beatsQuery.isLoading.value
+  && !edgesQuery.isLoading.value
+  && !objectivesQuery.isLoading.value
+  && !consequencesQuery.isLoading.value
+  && !gatesQuery.isLoading.value
+));
+const consistencyFindings = computed(() => deriveQuestConsistency({
+  beats: beats.value,
+  edges: edges.value,
+  objectives: objectivesQuery.data.value ?? [],
+  consequences: consequencesQuery.data.value ?? [],
+  gates: gatesQuery.data.value ?? [],
+}));
 
 function workLinkFor(beatId: string) {
   return { query: { ...route.query, view: "work", beat: beatId } };
