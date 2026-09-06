@@ -50,10 +50,10 @@ describe("QuestRunOutcomeStrip", () => {
 
   it("forwards a submitted improvisation without deciding when the form closes", async () => {
     const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [], improviseOpen: true } });
+    // A title is all the improv panel asks for now (#824) — the reason field
+    // moved behind "Add details" and the database falls back to the title.
     await wrapper.find("input").setValue("The bridge collapses");
-    const reasonInputs = wrapper.findAll("input");
-    await reasonInputs[1]!.setValue("A d20 came up 1");
-    await wrapper.findAll("button").find((button) => button.text() === "Create & run")!.trigger("click");
+    await wrapper.findAll("button").find((button) => button.text() === "Capture & run")!.trigger("click");
     expect(wrapper.emitted("improv")).toHaveLength(1);
     // Closing is the parent's call (a failed mutation must leave the form open).
     expect(wrapper.emitted("update:improviseOpen")).toBeUndefined();
