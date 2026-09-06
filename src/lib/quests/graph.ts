@@ -1,7 +1,7 @@
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 
 type GraphEdge = Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id">;
-type GraphBeat = Pick<QuestBeat, "id" | "kind">;
+type GraphBeat = Pick<QuestBeat, "id" | "kind" | "is_improvised">;
 
 function outgoingByBeat(edges: GraphEdge[]): Map<string, string[]> {
   const outgoing = new Map<string, string[]>();
@@ -40,11 +40,18 @@ export function getReachableBeatIds(startBeatId: string, edges: GraphEdge[]): st
  * place — the party can pick the thread up at the tavern or at the docks —
  * so this returns every root rather than inventing a single winner. An empty
  * result is equally legitimate: a pure cycle, or no beats authored yet.
+ *
+ * Improvised beats are excluded, and that exclusion is load-bearing rather
+ * than tidy. `improvise_quest_runtime` defaults `p_keep_edge` to false, so a
+ * beat named at the table mid-session has no incoming edge — which under the
+ * rule above would make the quest sprout a second "opening" the moment the
+ * party went off script. An improvisation is by definition something that
+ * happened part-way through a story, never an entrance to it.
  */
 export function rootBeatIds(beats: readonly GraphBeat[], edges: GraphEdge[]): string[] {
   const hasIncoming = new Set(edges.map((edge) => edge.target_beat_id));
   return beats
-    .filter((beat) => beat.kind !== "archived" && !hasIncoming.has(beat.id))
+    .filter((beat) => beat.kind !== "archived" && !beat.is_improvised && !hasIncoming.has(beat.id))
     .map((beat) => beat.id);
 }
 

@@ -24,7 +24,7 @@ describe("quest beat graph traversal", () => {
 });
 
 describe("quest beat graph roots", () => {
-  const beat = (id: string, kind = "neutral") => ({ id, kind });
+  const beat = (id: string, kind = "neutral", is_improvised = false) => ({ id, kind, is_improvised });
 
   it("treats a beat with no incoming edge as the root", () => {
     const edges = [edge("a", "b"), edge("b", "c")];
@@ -34,6 +34,15 @@ describe("quest beat graph roots", () => {
   it("returns every root when the party can start from more than one place", () => {
     const edges = [edge("tavern", "cave")];
     expect(rootBeatIds([beat("tavern"), beat("docks"), beat("cave")], edges)).toEqual(["tavern", "docks"]);
+  });
+
+  // `improvise_quest_runtime` defaults `p_keep_edge` to false, so a beat named
+  // at the table has no incoming edge. Without this the quest would sprout a
+  // second "opening" the moment the party went off script — an improvisation
+  // happens part-way through a story, it is never an entrance to one.
+  it("never treats an improvised beat as an opening", () => {
+    const edges = [edge("a", "b")];
+    expect(rootBeatIds([beat("a"), beat("b"), beat("aside", "neutral", true)], edges)).toEqual(["a"]);
   });
 
   it("returns none for a pure cycle", () => {
@@ -51,7 +60,7 @@ describe("quest beat graph roots", () => {
 });
 
 describe("quest beat story order", () => {
-  const beat = (id: string, kind = "neutral") => ({ id, kind });
+  const beat = (id: string, kind = "neutral", is_improvised = false) => ({ id, kind, is_improvised });
 
   it("walks a linear chain start to finish", () => {
     const edges = [edge("a", "b"), edge("b", "c")];
