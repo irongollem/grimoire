@@ -104,7 +104,7 @@ and no rule about which wins:
 
 | Generation one holds                         | Generation two also holds                                                            | Reconciled by                                                                                 |
 | -------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `quests.reward_*` (coins, pools, items, art) | `quest_beat_loot` rows with `source_type = 'quest_reward'`                           | **resolved by #799** — the quest-level columns are dropped; `quest_beat_loot` is the only home |
+| `quests.reward_*` (coins, pools, items, art) | `loot_placements` rows with `source_type = 'quest_reward'`                           | **resolved by #799** — the quest-level columns are dropped; `loot_placements` (renamed from `quest_beat_loot` by #830, when rooms gained the same verb) is the only home |
 | `quest_refs`                                 | `quest_beat_attachments`                                                             | a trigger syncs attachment → ref; nothing syncs back, and removing a placement leaves the ref |
 
 `quest_triggers` (fired _from_ an objective) and `quest_objective_effects` (fired _to_ one)
@@ -339,6 +339,33 @@ quest and no beat, the one shape that kind of row is allowed). Denormalised
 title snapshots so history survives edits. No UPDATE/DELETE policies, and both
 are revoked from `authenticated`/`anon`.
 
+### `loot_placements` — what a beat or a room *holds* (#830)
+
+Renamed from `quest_beat_loot` when a site room gained the same verb. Keyed by
+**where**: `beat_id` + `quest_id` (set together) **or** `location_id`, exactly
+one, enforced by `num_nonnulls(beat_id, location_id) = 1`. A room-homed row
+carries no quest at all.
+
+**Do not merge this into `quest_consequences`.** They are the same shape at a
+glance and three measurable things apart:
+
+| | `loot_placements` | `quest_consequences` |
+| --- | --- | --- |
+| fires from | a **human**, at a moment the graph cannot see | the **engine**, on a condition |
+| how often | **once ever** (`dispatched_at`, immutability trigger) | **once per transition** |
+| needs the runtime | no — `dispatch_loot` checks only `is_campaign_dm` | yes — `transition_id` is NOT NULL |
+
+The tell that the split is real rather than arbitrary: those axes put a *room's*
+loot on the loot side without being asked. The verbs are **holds** and **does** —
+a beat *holds* loot the way a chest does, and *does* consequences. Do not build a
+combined "Outcomes" surface over the two: a single heading is exactly how the
+next reader notices loot is missing from the action enum and adds `drop_loot`
+for consistency.
+
+Dropping a room's loot **is** looting the room — `dispatch_loot` appends the
+`looted` fact itself. One way only: a drop implies looted, never the reverse,
+since a DM narrating an empty room may still mark it looted by hand.
+
 ### `quest_consequences` and `quest_consequence_events` — one rule engine (#794)
 
 One rule: **when this becomes that, do this.** Replaces `quest_objective_effects`
@@ -350,11 +377,51 @@ event.
 `quest_consequences` is the rule: exactly one **condition** (`on_beat_id`,
 `on_edge_id`, `on_objective_id` + `on_objective_status` ∈
 `pending`/`complete`/`failed`, or `on_quest_settled`), an **`after_days`**
-delay, and an **`action`** ∈ `raise`/`reveal`/`complete`/`fail` (a ledger verb,
-needs `target_objective_id`) or `create_calendar_event`/`send_broadcast` (a
-world action, needs `action_payload`). Authored by `QuestConsequencesPanel.vue`
-— `scope="beat"` on a beat authors the first two condition kinds,
-`scope="quest"` on the overview authors the last two.
+delay, and an **`action`**:
+
+| action | kind | needs |
+| --- | --- | --- |
+| `raise` `reveal` `complete` `fail` | ledger verb | `target_objective_id` |
+| `create_calendar_event` `send_broadcast` | world action | `action_payload` |
+| `shift_npc_relationship` (#831) | world action | `target_npc_id` + `action_payload.step` |
+| `unlock_quest` (#836) | world action | `target_quest_id` |
+
+Authored by `QuestConsequencesPanel.vue` — `scope="beat"` on a beat authors the
+first two condition kinds, `scope="quest"` on the overview authors the last two.
+
+**The family is "outcomes", not "rewards", and the word matters.** A reward is
+positive by construction; a relationship shift is *signed* — charm the lady and
+it goes up, embarrass yourself trying and it goes down. Framing the family as
+rewards quietly excludes half the cases a DM needs (the guild has marked you,
+the shrine is now watched). The corollary is the rule of thumb behind both new
+actions: **a free-text field is what you reach for when the system has no verb
+for the thing.** "This NPC now helps you" only felt like prose because there
+was no action for it — and `npc_relationship` was sitting right there. Ask the
+same question of the next one (a faction's standing, a shop's stock) before
+adding a `notes` column.
+
+**Two decisions inside `shift_npc_relationship` that look arbitrary and are
+not.** It clamps at both ends rather than wrapping or raising, so a rule firing
+on an already-`helpful` NPC is a no-op. And `unknown` is skipped entirely: it is
+a member of `npc_relationship` but **not a rung on the ladder**, so shifting
+from "we have not established this" is meaningless and mapping it to
+`indifferent` would invent a stance the DM never set. Every path either shifts
+and records `previous_relationship`, or does neither — so undo has a value to
+restore or nothing to do, and nothing downstream reads a NULL and guesses.
+
+**`unlock_quest` promotes `undiscovered` → `rumor` and nothing else.** That was
+the one rung with no trigger: arrival already moves `rumor` → `active`, but
+nothing moved a quest *out* of `undiscovered` except a DM editing it. It
+promotes to `rumor` rather than `active` because the party has *caused* the
+sequel, not met it. Undo restores the previous status **only if the quest is
+still `rumor`** — a party that has since picked it up must not be yanked back
+into hiding by an unrelated step-back.
+
+**`unlock_quest` deliberately leaves `parent_quest_id` alone.** "Unlocked by"
+and "child of" are different relations: one trigger can legitimately open both a
+sequel *and* something unrelated, which is exactly what the maintainer's own
+campaign does. Merging them would make every unlocked quest a child of its
+trigger, and that is very hard to undo once data exists.
 
 `quest_consequence_events` is the append-only log every rule fires into:
 `private.apply_quest_consequences` runs it from both `assert_quest_objective_status`
