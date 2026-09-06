@@ -32,7 +32,8 @@
          Zoom/pan applied via translate + scale around origin (0,0). -->
     <div
       ref="mapContainer"
-      class="relative w-fit max-w-full mx-auto"
+      class="relative max-w-full mx-auto"
+      :class="imageFailed ? 'w-full' : 'w-fit'"
       :style="{
         transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
         transformOrigin: '0 0',
@@ -46,13 +47,32 @@
         between the two visibly jumps.
       -->
       <img
+        v-if="!imageFailed"
         :src="mapUrl"
         class="rounded-lg pointer-events-none"
         :class="[MAP_IMAGE_SIZING, compact ? MAP_IMAGE_COMPACT_SIZING : '']"
         draggable="false"
         alt="Location map"
         @load="onImageLoad"
+        @error="onImageError"
       />
+
+      <!--
+        Quiet placeholder for a map that failed to load (#828) — a deleted
+        asset, a CDN blip, an offline client. This is a missing picture, not a
+        crash: no retry button, no toast, no error colour. `w-full` on the
+        container (above) keeps this at a sane, fixed-aspect footprint instead
+        of collapsing to the browser's tiny broken-image glyph, so surrounding
+        layout doesn't jump.
+      -->
+      <div
+        v-else
+        class="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/20 text-muted-foreground aspect-video w-full"
+        :class="compact ? MAP_IMAGE_COMPACT_SIZING : ''"
+      >
+        <IconMap class="h-7 w-7" aria-hidden="true" />
+        <span class="text-caption italic">Map unavailable</span>
+      </div>
 
       <!--
         Overlay content (pins, region shapes, click-to-place catchers, …)
@@ -60,8 +80,16 @@
         the same way the image does — a child positioned with `%` coordinates
         stays anchored to the picture at any scale without knowing `scale`
         itself.
+
+        Deliberately withheld while `imageFailed` — do NOT "restore" this for
+        the failure branch. Every consumer (pins, traced regions, the
+        player's explored-room overlay) positions itself in image *fractions*
+        against `imageNaturalWidth`/`imageNaturalHeight` below, which stay 0
+        when the image never loaded. Rendering the slot against unmeasured
+        dimensions doesn't give you "overlays, but a bit off" — it gives you
+        overlays computed from zero, which is worse than no overlay at all.
       -->
-      <slot />
+      <slot v-if="!imageFailed" />
     </div>
 
     <!-- Zoom controls overlay (always-reachable; keyboard-accessible) -->
@@ -100,6 +128,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { IconMap } from "@/lib/icons";
 import { MAP_IMAGE_COMPACT_SIZING, MAP_IMAGE_SIZING } from "@/lib/locations/mapZoom";
 
 const { mapUrl, compact, placing = false } = defineProps<{
@@ -418,10 +447,21 @@ function resetZoom() {
 const imageNaturalWidth = ref(0);
 const imageNaturalHeight = ref(0);
 
+// True once the current `mapUrl` has fired an `error` event (#828) — a
+// deleted asset, a CDN blip, an offline client. Drives the quiet placeholder
+// above and is exposed below so a consumer with a better fallback (the
+// player's explored-room list, today) can render one instead of nothing.
+const imageFailed = ref(false);
+
 function onImageLoad(e: Event) {
   const img = e.target as HTMLImageElement;
   imageNaturalWidth.value = img.naturalWidth;
   imageNaturalHeight.value = img.naturalHeight;
+  imageFailed.value = false;
+}
+
+function onImageError() {
+  imageFailed.value = true;
 }
 
 watch(
@@ -429,6 +469,10 @@ watch(
   () => {
     imageNaturalWidth.value = 0;
     imageNaturalHeight.value = 0;
+    // A DM who fixes a broken URL shouldn't have to reload the page — a new
+    // `mapUrl` gets a fresh attempt, and the placeholder only comes back if
+    // that attempt also errors.
+    imageFailed.value = false;
   },
 );
 
@@ -460,5 +504,9 @@ defineExpose({
   swallowClick: installClickSwallow,
   imageNaturalWidth,
   imageNaturalHeight,
+  /** True while the map image has failed to load (#828). A parent with a
+   *  better fallback than the frame's own quiet placeholder — the player's
+   *  explored-room list, today — reads this to keep showing it. */
+  imageFailed,
 });
 </script>

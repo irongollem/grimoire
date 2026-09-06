@@ -121,4 +121,21 @@ describe("PlayerSiteMap", () => {
     expect(wrapper.find("section").exists()).toBe(true);
     expect(wrapper.find("canvas").exists()).toBe(false);
   });
+
+  it("still lists explored rooms when the map image fails to load (#828)", async () => {
+    mocks.site.data.value = site();
+    mocks.rooms.data.value = [room({ name: "Flooded Nave" })];
+    const wrapper = mount(PlayerSiteMap, { props: { siteLocationId: "site-1" } });
+
+    await wrapper.find("img").trigger("error");
+
+    // The map itself gives way to MapFrame's own placeholder…
+    expect(wrapper.find("img").exists()).toBe(false);
+    // …and the room-cell canvas can't draw against an unmeasured image…
+    expect(wrapper.find("canvas").exists()).toBe(false);
+    // …but the room list is a sibling of the frame, not slotted content, so
+    // it never depended on the picture loading in the first place.
+    expect(wrapper.find("section").exists()).toBe(true);
+    expect(wrapper.text()).toContain("Flooded Nave");
+  });
 });

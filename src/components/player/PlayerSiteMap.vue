@@ -6,11 +6,19 @@
     <div class="p-3 flex flex-col gap-3">
       <MapFrame ref="frameRef" :map-url="renderableSite!.mapUrl" compact>
         <canvas
-          v-if="renderableSite!.calibration"
+          v-if="renderableSite!.calibration && !mapFailed"
           ref="canvasEl"
           class="pointer-events-none absolute inset-0 h-full w-full"
         />
       </MapFrame>
+      <!--
+        Deliberately a sibling of `MapFrame`, not slotted content — it is the
+        fallback #828 asked for. `MapFrame` withholds its slot entirely when
+        the map image fails to load (nothing left to anchor the room-cell
+        overlay above to), but a player who explored three rooms should still
+        see their names, so this list renders from `exploredRooms` alone and
+        never depends on the picture having loaded.
+      -->
       <ul class="flex flex-col gap-1">
         <li
           v-for="room in exploredRooms"
@@ -89,6 +97,12 @@ const frameRef = ref<InstanceType<typeof MapFrame> | null>(null);
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 const imageNaturalWidth = computed(() => frameRef.value?.imageNaturalWidth ?? 0);
 const imageNaturalHeight = computed(() => frameRef.value?.imageNaturalHeight ?? 0);
+/** #828: true once the frame's map image has failed to load. Gates the
+ *  room-cell canvas above — `imageNaturalWidth`/`imageNaturalHeight` stay 0
+ *  in that state so `renderOverlay` already draws nothing, but skipping the
+ *  mount keeps a ResizeObserver from ever being attached to a canvas that
+ *  has no image to size itself against. */
+const mapFailed = computed(() => frameRef.value?.imageFailed ?? false);
 
 // Same resize-and-redraw idiom as `MapRegionsLayer`'s canvas: the canvas is
 // sized in CSS to exactly cover the rendered image box, so observing the
