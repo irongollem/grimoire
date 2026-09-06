@@ -15,15 +15,18 @@ import type { Monster } from "@/types/monster.types";
  * 'e.monster.stat_block.challenge_rating')` opening an unrevealed creature.
  */
 function monster(statBlock: Monster["stat_block"] | null): Monster {
+  // The double cast is the point of this file rather than a shortcut around
+  // it: the fixture reproduces what `get_player_visible_monsters` actually
+  // sends, and `Monster` says that shape cannot exist. A single `as Monster`
+  // is rejected precisely because the types do not overlap — which is the bug
+  // (#842) stated by the compiler.
   return {
     id: "m1",
     name: "Grell",
     size: "Medium",
     monster_type: "aberration",
-    // The cast is the point of this file: it reproduces what the player
-    // projection actually sends, which the type says cannot happen.
-    stat_block: statBlock as Monster["stat_block"],
-  } as Monster;
+    stat_block: statBlock,
+  } as unknown as Monster;
 }
 
 const CR_UNKNOWN = "???";
@@ -38,7 +41,7 @@ describe("MonsterFormCard", () => {
   });
 
   it("withholds AC and HP until the DM reveals the stats", () => {
-    const revealed = { challenge_rating: "3", armor_class: 12, hit_points: "22" } as Monster["stat_block"];
+    const revealed = { challenge_rating: "3", armor_class: 12, hit_points: "22" } as unknown as Monster["stat_block"];
     const hidden = mount(MonsterFormCard, {
       props: { monster: monster(null), name: "Grell", imageUrl: null, revealStats: false },
     });
@@ -55,7 +58,7 @@ describe("MonsterFormCard", () => {
   it("shows the real challenge rating once it has one", () => {
     const wrapper = mount(MonsterFormCard, {
       props: {
-        monster: monster({ challenge_rating: "1/4" } as Monster["stat_block"]),
+        monster: monster({ challenge_rating: "1/4" } as unknown as Monster["stat_block"]),
         name: "Kobold",
         imageUrl: null,
         revealStats: true,
