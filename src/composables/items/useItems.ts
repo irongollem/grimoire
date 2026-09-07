@@ -1,3 +1,4 @@
+import { reportHandledError } from "@/lib/observability/sentry";
 import { computed, isRef } from "vue";
 import type { Ref, ComputedRef } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
@@ -301,7 +302,18 @@ export function useItem(id: Ref<string> | ComputedRef<string> | string) {
  * Fire-and-forget on purpose, exactly like queueNpcEmbedding: the item is
  * already saved, so a failed embed is not worth a toast, a spinner or a
  * delayed mutation — the row simply stays unembedded and the next backfill
- * sweep collects it. The edge function short-circuits when the embed text's
+ * sweep collects it.
+ *
+ * That last sentence is only true of a row that never had a vector (#846). A
+ * row that already had one keeps the **old** one when this fails: it is not
+ * unembedded, it is wrong, and retrieval goes on matching it against text the
+ * DM has since rewritten. It is also invisible to the "index unembedded
+ * content" offer, which lists rows with no vector at all — a stale row has
+ * one. Only the admin batch backfill compares hashes and repairs it.
+ *
+ * The failure is now reported to Sentry rather than swallowed, so we can find
+ * out how often this actually happens before choosing between #846's three
+ * candidate fixes. Still silent to the DM, which is the part that was right. The edge function short-circuits when the embed text's
  * hash is unchanged, so a save that only touched art or dm_notes costs no API
  * call at all.
  *
@@ -312,7 +324,7 @@ export function useItem(id: Ref<string> | ComputedRef<string> | string) {
 export function queueItemEmbedding(id: string): void {
   void supabase.functions
     .invoke("embed-content", { body: { mode: "single", entity: "item", id } })
-    .catch(() => { /* non-fatal — see above */ });
+    .catch((error) => reportHandledError(error, "queueItemEmbedding", { id }));
 }
 
 export function useCreateItem() {

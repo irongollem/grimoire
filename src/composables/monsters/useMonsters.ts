@@ -1,3 +1,4 @@
+import { reportHandledError } from "@/lib/observability/sentry";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { storeToRefs } from "pinia";
@@ -357,7 +358,7 @@ export function useMonster(id: Ref<string>) {
 function queueMonsterEmbedding(id: string): void {
   void supabase.functions
     .invoke("embed-monsters", { body: { mode: "single", monster_id: id } })
-    .catch(() => { /* non-fatal — see above */ });
+    .catch((error) => reportHandledError(error, "queueMonsterEmbedding", { id }));
 }
 
 export function useCreateMonster() {

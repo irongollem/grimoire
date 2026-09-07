@@ -134,6 +134,29 @@ export function initErrorTracking(app: App, router: Router): void {
 }
 
 /**
+ * Report an error the app has already handled, so it is silent to the user and
+ * visible to us.
+ *
+ * Written for the embed-on-write hooks (#846). Those are fire-and-forget by
+ * design — the row is saved either way and a toast about a background embed
+ * would be noise — but `.catch(() => {})` made the failure invisible to
+ * everyone, including us. A row that already had a vector keeps its old one
+ * when the call fails, so retrieval quietly matches on text the DM has since
+ * rewritten, and nothing anywhere says it happened.
+ *
+ * This does not fix that; it measures it. #846 has three candidate fixes with
+ * quite different costs, and which is worth building depends on whether this
+ * happens once a month or once a minute — a question nothing could answer
+ * while the failures were being swallowed.
+ *
+ * Transient network failures are already filtered by IGNORED above, so what
+ * reaches the inbox is the kind worth reading.
+ */
+export function reportHandledError(error: unknown, where: string, extra?: Record<string, unknown>): void {
+  Sentry.captureException(error, { tags: { handled_at: where }, extra });
+}
+
+/**
  * Attach (or clear) the account id on subsequent events.
  *
  * The id alone — never email or username, which `dataCollection.userInfo:

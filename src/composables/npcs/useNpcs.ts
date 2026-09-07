@@ -1,3 +1,4 @@
+import { reportHandledError } from "@/lib/observability/sentry";
 import { computed, isRef, ref } from "vue";
 import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
@@ -169,7 +170,7 @@ export function useNpc(id: string | Ref<string>) {
 export function queueNpcEmbedding(id: string): void {
   void supabase.functions
     .invoke("embed-content", { body: { mode: "single", entity: "npc", id } })
-    .catch(() => { /* non-fatal — see above */ });
+    .catch((error) => reportHandledError(error, "queueNpcEmbedding", { id }));
 }
 
 export function useCreateNpc() {
