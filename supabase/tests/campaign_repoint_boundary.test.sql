@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(15);
 
 -- A campaign-scoped row must not be movable into a campaign you do not belong to.
 --
@@ -167,6 +167,67 @@ select matches(
     where n.nspname = 'public' and p.proname = 'guard_campaign_member_self_update'),
   'new\.campaign_id is distinct from old\.campaign_id',
   'and that trigger still pins campaign_id against a repoint');
+
+-- ── document_imports: the same gap, aimed at a service-role reader ──────────
+--
+-- The INSERT policy has required `private.is_campaign_dm(campaign_id)` since the
+-- table was created; the UPDATE `with check` never did, from 20260824214506
+-- until 20260907065132. A `document_imports` row is not passive data — it is a
+-- work order that `supabase/functions/import-extract` executes with the service
+-- role, reading the named campaign's BYOK keys and spending its credits. So the
+-- repoint here aims someone else's credentials at an attacker-controlled import.
+--
+-- This one is why the structural assertion below had to be rewritten: the older
+-- guard only inspected tables whose SELECT is campaign-wide, and document_imports
+-- is read owner-only. The attacker never needed a campaign-wide read — the row
+-- being walked in is their own.
+
+select lives_ok(
+  $$ insert into public.document_imports
+       (id, user_id, campaign_id, source_kind, source_paths, display_name, page_count,
+        rights_attested_at, source_text)
+     values ('77730000-0000-4000-8000-000000000600', '77730000-0000-4000-8000-000000000001',
+             '77730000-0000-4000-8000-000000000010', 'text', '{}', 'Pasted page', 1,
+             now(), 'A page of prose.') $$,
+  'a DM may queue a pasted import in their own campaign');
+
+select throws_ok(
+  $$ update public.document_imports
+        set campaign_id = '77730000-0000-4000-8000-000000000011'
+      where id = '77730000-0000-4000-8000-000000000600' $$,
+  '42501', null,
+  'but cannot re-aim it at a campaign they are not the DM of');
+
+-- Structural guard: **an UPDATE must re-check what its own INSERT checked.**
+--
+-- Calibrated against the table's own INSERT policy rather than against a fixed
+-- idea of which tables are exposed. The previous form asked instead whether the
+-- table's SELECT admits a whole campaign, and that precondition is what let
+-- document_imports, npc_sets and class_feature_options sit open for six weeks
+-- while this file passed: all three are read owner-only, so none was ever
+-- examined. A table that thought campaign membership worth asserting once is the
+-- table that must assert it on every verb — whoever can read it back.
+--
+-- `coalesce(with_check, qual)` because an UPDATE policy with no `with check`
+-- silently falls back to its `USING` clause, which constrains ownership while
+-- leaving campaign_id free. Two of the three found here were that shape.
+select is(
+  (select coalesce(string_agg(format('%s.%s', u.tablename, u.policyname), ', ' order by u.tablename), '')
+     from pg_policies u
+    where u.schemaname = 'public'
+      and u.cmd = 'UPDATE'
+      and coalesce(u.with_check, u.qual) !~ 'is_campaign_dm\(campaign_id\)|is_campaign_member\(campaign_id\)'
+      -- Excluded by construction for the reason given above; the two assertions
+      -- that follow are what keep that exclusion honest.
+      and u.tablename <> 'campaign_members'
+      and exists (
+        select 1 from pg_policies i
+         where i.schemaname = 'public'
+           and i.tablename = u.tablename
+           and i.cmd = 'INSERT'
+           and i.with_check ~ 'is_campaign_dm\(campaign_id\)|is_campaign_member\(campaign_id\)')),
+  '',
+  'every table whose INSERT asserts campaign membership re-asserts it on UPDATE');
 
 select * from finish();
 rollback;
