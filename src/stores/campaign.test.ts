@@ -44,13 +44,22 @@ describe("switchUserMode — the lens decides which campaign may be restored", (
     expect(localStorage.getItem(DM_SLOT)).toBeNull();
   });
 
-  it("restores blindly when the lens is unknown, so a failed lookup costs nothing", () => {
+  // Reversed by #845. This used to assert the opposite — that an unknown lens
+  // restores blindly so "a failed lookup costs nothing". It does cost
+  // something: a lookup that failed says nothing about whether the campaign is
+  // allowed, and restoring on it puts the DM shell on a campaign the account
+  // may only play in. That is the bug the guard exists to stop, reachable
+  // through a network blip. Failing closed costs one click instead.
+  it("refuses an unverifiable campaign rather than restoring it unchecked", () => {
     localStorage.setItem(DM_SLOT, "my-campaign");
     const store = useCampaignStore();
 
     store.switchUserMode("player", "dm", {});
 
-    expect(store.activeCampaignId).toBe("my-campaign");
+    expect(store.activeCampaignId).toBeNull();
+    // And the slot is dropped, so the next switch does not retry a campaign
+    // this lens has never been able to confirm.
+    expect(localStorage.getItem(DM_SLOT)).toBeNull();
   });
 
   it("files the outgoing campaign under the mode being left, not the one entered", () => {

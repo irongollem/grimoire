@@ -180,7 +180,20 @@ export const useCampaignStore = defineStore("campaign", () => {
     clearActiveCampaign();
     const remembered = localStorage.getItem(MODE_STORAGE_KEY[to]);
     if (!remembered) return;
-    if (campaignsInTargetLens && !campaignsInTargetLens.has(remembered)) {
+
+    // Fails closed when the lens is unknown, and that is a deliberate reversal
+    // (#845). This used to restore blindly on a failed lookup, reasoning that a
+    // network blip should not cost the user their remembered campaign. But a
+    // lookup that failed is not evidence the campaign is allowed — it is the
+    // absence of evidence, and restoring on it reproduces the exact bug this
+    // guard exists to stop: a DM slot holding a campaign the account only plays
+    // in, putting the DM shell on someone else's game.
+    //
+    // The asymmetry decides it. Failing closed costs one click to re-pick a
+    // campaign, on the rare occasion a request fails. Failing open costs the
+    // reported bug, silently, and looks to the user like they have been handed
+    // someone else's campaign.
+    if (!campaignsInTargetLens || !campaignsInTargetLens.has(remembered)) {
       localStorage.removeItem(MODE_STORAGE_KEY[to]);
       return;
     }
