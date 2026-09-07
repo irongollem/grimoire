@@ -5,8 +5,10 @@ import type {
   Quest,
   QuestBeat,
   QuestBeatEdge,
+  QuestBeatTransition,
   QuestConsequence,
   QuestObjective,
+  QuestRuntimeState,
 } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
@@ -14,6 +16,8 @@ const mocks = vi.hoisted(() => ({
   edges: [] as QuestBeatEdge[],
   consequences: [] as QuestConsequence[],
   objectives: [] as QuestObjective[],
+  transitions: [] as QuestBeatTransition[],
+  runtimeState: null as QuestRuntimeState | null,
   assertRuntime: vi.fn(),
   activeCampaignId: "campaign-1" as string | null,
 }));
@@ -22,6 +26,8 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestBeats: () => ({ data: { value: mocks.beats }, isLoading: { value: false } }),
   useQuestBeatEdges: () => ({ data: { value: mocks.edges }, isLoading: { value: false } }),
   useQuestConsequences: () => ({ data: { value: mocks.consequences } }),
+  useQuestBeatTransitionsForQuest: () => ({ data: { value: mocks.transitions } }),
+  useQuestRuntimeState: () => ({ data: { value: mocks.runtimeState } }),
   useAssertQuestRuntime: () => ({ mutateAsync: mocks.assertRuntime }),
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
@@ -57,8 +63,41 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
   };
 }
 
+function transition(overrides: Partial<QuestBeatTransition> & { to_beat_id: string; created_at: string }): QuestBeatTransition {
+  return {
+    id: `t-${overrides.to_beat_id}-${overrides.created_at}`,
+    campaign_id: "campaign-1",
+    from_quest_id: "quest-1",
+    from_beat_id: null,
+    to_quest_id: "quest-1",
+    transition_kind: "forward",
+    reason: null,
+    runtime_version: 1,
+    from_quest_title: null,
+    from_beat_title: null,
+    to_quest_title: "The Unseen",
+    to_beat_title: null,
+    provenance: {},
+    created_by: "dm",
+    ...overrides,
+  };
+}
+
+function runtimeState(overrides: Partial<QuestRuntimeState> = {}): QuestRuntimeState {
+  return {
+    campaign_id: "campaign-1", quest_id: "quest-1", current_beat_id: null, status: "idle",
+    visit_stack: [], visit_index: 0, return_stack: [], version: 1, updated_by: "dm",
+    created_at: "now", updated_at: "now",
+    ...overrides,
+  };
+}
+
 function mountPanel() {
   return mount(QuestBackfillPanel, { props: { quest } });
+}
+
+function findButton(wrapper: ReturnType<typeof mountPanel>, label: string) {
+  return wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label);
 }
 
 describe("QuestBackfillPanel", () => {
@@ -67,6 +106,8 @@ describe("QuestBackfillPanel", () => {
     mocks.edges = [];
     mocks.consequences = [];
     mocks.objectives = [];
+    mocks.transitions = [];
+    mocks.runtimeState = null;
     mocks.activeCampaignId = "campaign-1";
     mocks.assertRuntime.mockReset();
   });
@@ -74,7 +115,7 @@ describe("QuestBackfillPanel", () => {
   it("shows an empty state when the quest has no beats to backfill", () => {
     const wrapper = mountPanel();
     expect(wrapper.text()).toContain("Write a beat in Story flow");
-    expect(wrapper.findAllComponents({ name: "AppButton" }).some((b) => b.props("label") === "Record")).toBe(false);
+    expect(findButton(wrapper, "Mark as played")).toBeUndefined();
   });
 
   // The point of a backfill is that the order is the story's order, not the
@@ -88,36 +129,121 @@ describe("QuestBackfillPanel", () => {
     expect(items[1]).toContain("The Drowned Vault");
   });
 
-  it("disables Record until at least one beat is selected", () => {
-    mocks.beats = [beat("a", "The Flooded Hall")];
+  it("shows each row's own state, derived from the transition log and the cursor", () => {
+    mocks.beats = [beat("a", "The Flooded Hall"), beat("b", "The Drowned Vault"), beat("c", "The Sunken Shrine")];
+    mocks.edges = [edge("a", "b"), edge("b", "c")];
+    mocks.transitions = [
+      transition({ to_beat_id: "a", transition_kind: "forward", created_at: "2026-01-01T00:00:00Z" }),
+      transition({ to_beat_id: "b", transition_kind: "assert", reason: "Session 4", created_at: "2026-01-02T00:00:00Z" }),
+    ];
+    mocks.runtimeState = runtimeState({ current_beat_id: "b", status: "paused" });
     const wrapper = mountPanel();
-    const recordButton = wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Record")!;
-    expect(recordButton.props("disabled")).toBe(true);
+    const items = wrapper.findAll("li").map((li) => li.text());
+
+    expect(items[0]).toContain("Played");
+    expect(items[1]).toContain("The party is here");
+    expect(items[2]).toContain("Not played");
   });
 
-  it("submits selected beats in story order with the reason and cursor-placement toggle", async () => {
-    mocks.beats = [beat("b", "The Drowned Vault"), beat("a", "The Flooded Hall")];
+  it("labels the cursor's beat as playing now while the runtime is running", () => {
+    mocks.beats = [beat("a", "The Flooded Hall")];
+    mocks.runtimeState = runtimeState({ current_beat_id: "a", status: "running" });
+    const wrapper = mountPanel();
+    expect(wrapper.text()).toContain("Playing now");
+  });
+
+  it("selects only unplayed beats on 'Select all'", async () => {
+    mocks.beats = [beat("a", "The Flooded Hall"), beat("b", "The Drowned Vault")];
     mocks.edges = [edge("a", "b")];
-    mocks.assertRuntime.mockResolvedValue({ asserted: 2, beats: ["The Flooded Hall", "The Drowned Vault"], cursor_placed: true, current_beat_id: "b" });
+    mocks.transitions = [transition({ to_beat_id: "a", transition_kind: "forward", created_at: "2026-01-01T00:00:00Z" })];
     const wrapper = mountPanel();
 
-    const selectAll = wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Select all")!;
-    await selectAll.trigger("click");
-    await wrapper.find('input[placeholder="Session name or note — why these rows exist…"]').setValue("Session 4 recap");
+    await findButton(wrapper, "Select all")!.trigger("click");
 
-    const recordButton = wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Record")!;
-    await recordButton.trigger("click");
+    expect(wrapper.text()).toContain("1 of 2 selected");
+  });
+
+  it("disables both actions until at least one beat is selected", () => {
+    mocks.beats = [beat("a", "The Flooded Hall")];
+    const wrapper = mountPanel();
+    expect(findButton(wrapper, "Mark as played")!.props("disabled")).toBe(true);
+    expect(findButton(wrapper, "Mark as played and put the party here")!.props("disabled")).toBe(true);
+  });
+
+  it("names the last selected beat in the place-the-party action's label", async () => {
+    mocks.beats = [beat("b", "The Drowned Vault"), beat("a", "The Flooded Hall")];
+    mocks.edges = [edge("a", "b")];
+    const wrapper = mountPanel();
+
+    await findButton(wrapper, "Select all")!.trigger("click");
+
+    expect(findButton(wrapper, "Mark as played and put the party at “The Drowned Vault”")).toBeDefined();
+  });
+
+  it("warns when a selected beat is already in the record", async () => {
+    mocks.beats = [beat("a", "The Flooded Hall")];
+    mocks.transitions = [transition({ to_beat_id: "a", transition_kind: "forward", created_at: "2026-01-01T00:00:00Z" })];
+    const wrapper = mountPanel();
+
+    await wrapper.find('input[type="checkbox"]').setValue(true);
+
+    expect(wrapper.text()).toContain("1 of these is already in the record; recording it again appends a second entry.");
+  });
+
+  it("does not warn when every selected beat is unplayed", async () => {
+    mocks.beats = [beat("a", "The Flooded Hall")];
+    const wrapper = mountPanel();
+
+    await wrapper.find('input[type="checkbox"]').setValue(true);
+
+    expect(wrapper.text()).not.toContain("already in the record");
+  });
+
+  it("marks as played without placing the cursor when 'Mark as played' is used", async () => {
+    mocks.beats = [beat("b", "The Drowned Vault"), beat("a", "The Flooded Hall")];
+    mocks.edges = [edge("a", "b")];
+    mocks.assertRuntime.mockResolvedValue({ asserted: 2, beats: ["The Flooded Hall", "The Drowned Vault"], cursor_placed: false, current_beat_id: null });
+    const wrapper = mountPanel();
+
+    await findButton(wrapper, "Select all")!.trigger("click");
+    await wrapper.find('input[placeholder="Session 11"]').setValue("Session 4 recap");
+    await findButton(wrapper, "Mark as played")!.trigger("click");
     await flushPromises();
 
     expect(mocks.assertRuntime).toHaveBeenCalledWith({
       campaignId: "campaign-1",
       questId: "quest-1",
       beatIds: ["a", "b"],
-      placeCursor: true,
+      placeCursor: false,
       reason: "Session 4 recap",
     });
-    expect(wrapper.text()).toContain('Recorded 2 beats: "The Flooded Hall", "The Drowned Vault"');
-    expect(wrapper.text()).toContain('The party is now placed at "The Drowned Vault"');
+    expect(wrapper.text()).toContain("Recorded 2 beats as played in Session 4 recap.");
+    expect(wrapper.text()).not.toContain('"The Flooded Hall"');
+  });
+
+  it("places the cursor when the named action is used", async () => {
+    mocks.beats = [beat("a", "The Flooded Hall")];
+    mocks.assertRuntime.mockResolvedValue({ asserted: 1, beats: ["The Flooded Hall"], cursor_placed: true, current_beat_id: "a" });
+    const wrapper = mountPanel();
+
+    await wrapper.find('input[type="checkbox"]').setValue(true);
+    await findButton(wrapper, "Mark as played and put the party at “The Flooded Hall”")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.assertRuntime).toHaveBeenCalledWith(expect.objectContaining({ placeCursor: true }));
+    expect(wrapper.text()).toContain("Recorded 1 beat as played.");
+  });
+
+  it("clears the selection and reason after a successful record", async () => {
+    mocks.beats = [beat("a", "The Flooded Hall")];
+    mocks.assertRuntime.mockResolvedValue({ asserted: 1, beats: ["The Flooded Hall"], cursor_placed: false, current_beat_id: null });
+    const wrapper = mountPanel();
+
+    await wrapper.find('input[type="checkbox"]').setValue(true);
+    await findButton(wrapper, "Mark as played")!.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("0 of 1 selected");
   });
 
   it("previews only the consequence rules attached directly to a selected beat's arrival", async () => {
@@ -140,7 +266,6 @@ describe("QuestBackfillPanel", () => {
     mocks.beats = [beat("a", "The Flooded Hall")];
     const wrapper = mountPanel();
     await wrapper.find('input[type="checkbox"]').setValue(true);
-    const recordButton = wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Record")!;
-    expect(recordButton.props("disabled")).toBe(true);
+    expect(findButton(wrapper, "Mark as played")!.props("disabled")).toBe(true);
   });
 });

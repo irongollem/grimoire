@@ -26,20 +26,24 @@
 
       <ol class="max-h-72 space-y-1 overflow-y-auto rounded-md border border-border p-2">
         <li v-for="(beatRow, index) in orderedBeats" :key="beatRow.id">
-          <AppCheckbox v-model="selectedBeatIds" :value="beatRow.id" label-role="body" align="start">
+          <AppCheckbox v-model="selectedBeatIds" :value="beatRow.id" label-role="body" label-layout="row" align="start">
             <span class="min-w-0 flex-1">
               <span class="mr-1 text-caption text-muted-foreground">{{ index + 1 }}.</span>
               <span class="font-semibold text-foreground">{{ beatRow.title || "Untitled beat" }}</span>
-              <span class="ml-1 text-caption uppercase text-muted-foreground">{{ beatRow.kind }}</span>
+              <span class="ml-1 text-caption text-muted-foreground">{{ beatRow.kind }}</span>
             </span>
+            <span class="shrink-0 text-caption" :class="stateClass(beatRow.id)">{{ stateLabel(beatRow.id) }}</span>
           </AppCheckbox>
         </li>
       </ol>
 
-      <AppInput v-model="reason" placeholder="Session name or note — why these rows exist…" />
-      <AppCheckbox v-model="placeCursor" label-role="caption" label="Place the party at the last selected beat" />
+      <label class="block space-y-1">
+        <span class="text-caption text-muted-foreground">Which session did this happen in?</span>
+        <AppInput v-model="reason" placeholder="Session 11" />
+      </label>
 
       <section v-if="selectedBeatIds.length" class="space-y-1 rounded-md border border-dashed border-border p-2" aria-label="What this will move">
+        <p v-if="alreadyInRecordWarning" class="text-caption text-tone-caution">{{ alreadyInRecordWarning }}</p>
         <p class="text-caption font-semibold text-foreground">This will move:</p>
         <ul v-if="previewLines.length" class="space-y-0.5">
           <li v-for="line in previewLines" :key="line.key" class="text-caption text-muted-foreground">
@@ -51,18 +55,28 @@
         </p>
       </section>
 
-      <div class="flex items-center justify-between gap-3">
+      <div class="space-y-2">
         <p v-if="resultSummary" class="text-caption text-tone-success">{{ resultSummary }}</p>
         <p v-else-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
-        <span v-else />
-        <AppButton
-          label="Record"
-          variant="primary"
-          size="sm"
-          :disabled="!selectedBeatIds.length || !campaignId"
-          :loading="submitting"
-          @click="submit"
-        />
+
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <AppButton
+            label="Mark as played"
+            variant="outline"
+            size="sm"
+            :disabled="!selectedBeatIds.length || !campaignId"
+            :loading="submitting && pendingPlaceCursor === false"
+            @click="submit(false)"
+          />
+          <AppButton
+            :label="placeCursorLabel"
+            variant="primary"
+            size="sm"
+            :disabled="!selectedBeatIds.length || !campaignId"
+            :loading="submitting && pendingPlaceCursor === true"
+            @click="submit(true)"
+          />
+        </div>
       </div>
     </template>
   </section>
@@ -73,14 +87,18 @@ import { computed, ref } from "vue";
 import {
   useAssertQuestRuntime,
   useQuestBeatEdges,
+  useQuestBeatTransitionsForQuest,
   useQuestBeats,
   useQuestConsequences,
+  useQuestRuntimeState,
   type QuestAssertRuntimeResult,
 } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
 import { storyBeatOrder } from "@/lib/quests/graph";
 import { describeQuestConsequenceAction } from "@/lib/quests/consequences";
+import { deriveBeatRecordStates, describeBeatRecordState, type BeatRecordKind, type BeatRecordState } from "@/lib/quests/backfill";
+import { timeAgo } from "@/lib/utils";
 import type { Quest } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
@@ -100,6 +118,14 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
  * stays paused) — only `transition_quest_runtime` can start a session. See
  * `src/lib/quests/board.ts`'s `isLive` and `SessionRail.vue`, both keyed
  * strictly on `status === "running"`, which this RPC never sets.
+ *
+ * Every row shows its own state before anything is ticked — "the party is
+ * here", "played · 3d ago", "recorded · Session 4", "not played" — derived in
+ * `src/lib/quests/backfill.ts` from the transition log and the cursor, never
+ * guessed from the checkbox list. That is the panel's own feedback loop: a
+ * DM who just recorded a run of beats sees them turn from "not played" to
+ * "recorded" in place, rather than a cleared list and a banner they have to
+ * take on faith — the report from real use of the first version, 7 Sep 2026.
  */
 const { quest } = defineProps<{ quest: Quest }>();
 const questId = computed(() => quest.id);
@@ -111,12 +137,17 @@ const beatsQuery = useQuestBeats(questId);
 const edgesQuery = useQuestBeatEdges(questId);
 const consequencesQuery = useQuestConsequences(questId);
 const { data: objectivesData } = useQuestObjectives(questId);
+const runtimeQuery = useQuestRuntimeState(questId);
+const transitionsQuery = useQuestBeatTransitionsForQuest(questId);
 const assertRuntime = useAssertQuestRuntime();
 
 const beats = computed(() => beatsQuery.data.value ?? []);
 const edges = computed(() => edgesQuery.data.value ?? []);
 const consequences = computed(() => consequencesQuery.data.value ?? []);
 const objectives = computed(() => objectivesData.value ?? []);
+const transitions = computed(() => transitionsQuery.data.value ?? []);
+const currentBeatId = computed(() => runtimeQuery.data.value?.current_beat_id ?? null);
+const runtimeStatus = computed(() => runtimeQuery.data.value?.status ?? null);
 
 const beatsById = computed(() => new Map(beats.value.map((beatRow) => [beatRow.id, beatRow])));
 // Reuses the graph's own root/reachability traversal (src/lib/quests/graph.ts)
@@ -129,15 +160,48 @@ const orderedBeats = computed(() => orderedBeatIds.value.flatMap((id) => {
   return beatRow ? [beatRow] : [];
 }));
 
+const recordStates = computed(() => deriveBeatRecordStates({
+  questId: questId.value,
+  beatIds: orderedBeatIds.value,
+  transitions: transitions.value,
+  currentBeatId: currentBeatId.value,
+}));
+
+function stateFor(beatId: string): BeatRecordState {
+  return recordStates.value[beatId] ?? { kind: "unplayed", at: null, note: null };
+}
+
+function stateLabel(beatId: string): string {
+  return describeBeatRecordState(stateFor(beatId), runtimeStatus.value, timeAgo);
+}
+
+const STATE_CLASS: Record<BeatRecordKind, string> = {
+  here: "text-primary font-semibold",
+  recorded: "text-tone-caution",
+  played: "text-muted-foreground",
+  unplayed: "text-foreground",
+};
+
+function stateClass(beatId: string): string {
+  return STATE_CLASS[stateFor(beatId).kind];
+}
+
 const selectedBeatIds = ref<string[]>([]);
 const reason = ref("");
-const placeCursor = ref(true);
 const submitting = ref(false);
+const pendingPlaceCursor = ref<boolean | null>(null);
 const error = ref("");
 const result = ref<QuestAssertRuntimeResult | null>(null);
+const lastReason = ref("");
 
+// Only the beats with nothing recorded yet — a played or recorded beat can
+// still be ticked by hand (a party can loop back through a beat), but "select
+// all" should not silently pile a second entry onto everything already in the
+// log.
 function selectAll() {
-  selectedBeatIds.value = orderedBeats.value.map((beatRow) => beatRow.id);
+  selectedBeatIds.value = orderedBeats.value
+    .filter((beatRow) => stateFor(beatRow.id).kind === "unplayed")
+    .map((beatRow) => beatRow.id);
 }
 
 // Selection order is whatever order the checkboxes were clicked in; submission
@@ -146,6 +210,33 @@ function selectAll() {
 const beatIdsInSubmitOrder = computed(() => {
   const selected = new Set(selectedBeatIds.value);
   return orderedBeatIds.value.filter((id) => selected.has(id));
+});
+
+const lastSelectedBeatTitle = computed(() => {
+  const lastId = beatIdsInSubmitOrder.value[beatIdsInSubmitOrder.value.length - 1];
+  return lastId ? beatsById.value.get(lastId)?.title || "Untitled beat" : "";
+});
+
+const placeCursorLabel = computed(() =>
+  lastSelectedBeatTitle.value
+    ? `Mark as played and put the party at “${lastSelectedBeatTitle.value}”`
+    : "Mark as played and put the party here",
+);
+
+// The missing warning from the first version: ticking a beat that already has
+// a played or recorded entry — or is where the party currently stands — used
+// to record a silent second entry. Now the preview says so before Record is
+// ever pressed.
+const alreadyInRecordCount = computed(() =>
+  beatIdsInSubmitOrder.value.filter((id) => stateFor(id).kind !== "unplayed").length,
+);
+
+const alreadyInRecordWarning = computed(() => {
+  const count = alreadyInRecordCount.value;
+  if (!count) return "";
+  const isAre = count === 1 ? "is" : "are";
+  const itThem = count === 1 ? "it" : "them";
+  return `${count} of these ${isAre} already in the record; recording ${itThem} again appends a second entry.`;
 });
 
 function objectiveLabel(id: string | null): string {
@@ -182,31 +273,33 @@ const resultSummary = computed(() => {
   if (!result.value) return "";
   const count = result.value.asserted;
   const noun = count === 1 ? "beat" : "beats";
-  const titles = result.value.beats.map((title) => `"${title}"`).join(", ");
-  const lastTitle = result.value.beats[result.value.beats.length - 1];
-  const placed = result.value.cursor_placed && lastTitle ? ` The party is now placed at "${lastTitle}".` : "";
-  return `Recorded ${count} ${noun}: ${titles}.${placed}`;
+  const sessionPart = lastReason.value ? ` in ${lastReason.value}` : "";
+  return `Recorded ${count} ${noun} as played${sessionPart}.`;
 });
 
-async function submit() {
+async function submit(placeCursor: boolean) {
   if (!beatIdsInSubmitOrder.value.length || !campaignId.value) return;
   submitting.value = true;
+  pendingPlaceCursor.value = placeCursor;
   error.value = "";
   result.value = null;
+  const reasonAtSubmit = reason.value.trim();
   try {
     result.value = await assertRuntime.mutateAsync({
       campaignId: campaignId.value,
       questId: questId.value,
       beatIds: beatIdsInSubmitOrder.value,
-      placeCursor: placeCursor.value,
+      placeCursor,
       reason: reason.value,
     });
+    lastReason.value = reasonAtSubmit;
     selectedBeatIds.value = [];
     reason.value = "";
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Could not record this history";
   } finally {
     submitting.value = false;
+    pendingPlaceCursor.value = null;
   }
 }
 </script>
