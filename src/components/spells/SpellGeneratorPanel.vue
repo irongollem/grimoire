@@ -205,7 +205,14 @@ async function generateAndCreate() {
   });
   if (!result) return;
 
-  const created = await createSpell(spellInsertFromAi(result));
+  const created = await createSpell({
+    ...spellInsertFromAi(result),
+    // spellInsertFromAi is a pure AI→shape adapter with no campaign awareness;
+    // stamp the same default SpellDetail.vue's manual create path uses (#596)
+    // so an AI-generated spell lands in the DM's current campaign rather than
+    // "every campaign" by accident. No active campaign is genuinely global.
+    campaign_id: campaign.activeCampaignId ?? null,
+  });
 
   if (ui.spellGeneratorOpen) {
     ui.spellGeneratorOpen = false;

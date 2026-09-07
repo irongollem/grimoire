@@ -79,10 +79,18 @@ export function getPinnableDescendants(
 const QUERY_KEY = "locations";
 
 async function fetchLocations(campaignId: string, parentId: string | null): Promise<Location[]> {
+  // `campaign_id IS NULL` means "every campaign" everywhere else DM content is
+  // scoped (items, spells, species, monsters, traps, puzzles) — this table had
+  // never picked that convention up, which is why the handful of existing
+  // global locations were invisible in the Atlas even though RLS and the FK
+  // layer both already treat a null campaign_id as legitimate (#596). Widening
+  // the filter is what makes CampaignScopeField's "General" option actually
+  // show the location anywhere, rather than just accepting the write and then
+  // hiding the row.
   let query = supabase
     .from("locations")
     .select("*")
-    .eq("campaign_id", campaignId);
+    .or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
 
   query = parentId === null ? query.is("parent_id", null) : query.eq("parent_id", parentId);
 
@@ -97,10 +105,13 @@ async function fetchLocations(campaignId: string, parentId: string | null): Prom
 }
 
 async function fetchAllLocations(campaignId: string): Promise<Location[]> {
+  // See fetchLocations above: global (campaign_id null) locations must be
+  // included here too, or the flat list this feeds (search, pickers, the
+  // location tree) disagrees with the Atlas about which locations exist.
   const { data, error } = await supabase
     .from("locations")
     .select("*")
-    .eq("campaign_id", campaignId)
+    .or(`campaign_id.eq.${campaignId},campaign_id.is.null`)
     .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
   if (error) throw error;
@@ -275,8 +286,17 @@ export function useCreateLocation() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: (loc: Omit<LocationInsert, "campaign_id">) =>
-      createLocation({ ...loc, campaign_id: campaign.activeCampaignId! }),
+    // `campaign_id` is optional here on purpose, and its absence means
+    // something different from an explicit `null`: most callers (the
+    // generator panels, room creation) have no opinion and get the active
+    // campaign, same as before #596. LocationEditor's CampaignScopeField can
+    // now pass an explicit `null` to opt a location into every campaign — that
+    // choice must survive, not get coerced back to "current campaign" by `??`.
+    mutationFn: (loc: Omit<LocationInsert, "campaign_id"> & { campaign_id?: string | null }) =>
+      createLocation({
+        ...loc,
+        campaign_id: loc.campaign_id !== undefined ? loc.campaign_id : campaign.activeCampaignId ?? null,
+      }),
     onSuccess: (loc) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queueLocationEmbedding(loc.id);

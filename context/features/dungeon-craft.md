@@ -289,6 +289,8 @@ A sticky panel on the right side of the detail shows:
 
 Roll tables are stored with an optional `campaign_id`. Tables belonging to the active campaign, plus global tables (campaign_id = null), are shown together. The populate action seeds example tables into the current campaign.
 
+The inline editor (`RollTableDetailView`) carries a `CampaignScopeField` (#596) alongside Tags — before this it had no scope control at all, and a new table's `campaign_id` was hardcoded to `null`. A new table now defaults to the active campaign instead; editing an existing one, including an already-global one, keeps whatever scope it already has. The AI generator (`RollTableGeneratorPanel`, below) already stamped the active campaign and is unaffected.
+
 ### AI-Assisted Roll Table Generator
 
 The "Generate" button on the Roll Tables tab opens a slide-in panel (`RollTableGeneratorPanel`, mounted in `DefaultLayout`) driven by `useRollTableGeneration.ts` (text-only generator, registered with the AI badge). The DM provides:
@@ -313,6 +315,10 @@ Loot tables define probabilistic hoards — each entry has its own independent d
 ### Route
 
 `/loot-tables/new` and `/loot-tables/:id`. Unlike Roll Tables, Loot Tables navigate to their own pages rather than using inline editing.
+
+### Campaign scoping
+
+Loot tables are stored with an optional `campaign_id`; `useLootTables()` shows tables belonging to the active campaign plus global tables (`campaign_id = null`) together, same as Roll Tables above. The editor (`LootTableDetailView`) carries a `CampaignScopeField` (#596) alongside Tags — before this it had no scope control at all, and a new table's `campaign_id` was hardcoded to `null`. A new table now defaults to the active campaign instead; editing an existing one, including an already-global one, keeps whatever scope it already has.
 
 ### Entry types
 

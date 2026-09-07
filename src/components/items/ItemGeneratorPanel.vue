@@ -277,6 +277,11 @@ async function generateAndCreate() {
     curse_description: result.curse_description ?? null,
     is_arcane_focus: false,
     ai_provenance: result.ai_provenance ?? null,
+    // Matches ItemDetail.vue's manual-create default (#596): an AI-generated
+    // item is DM content for the campaign the DM is looking at, not a fresh
+    // "available everywhere" default. No active campaign is a genuine
+    // "no campaign yet" case, so it stays global rather than inventing one.
+    campaign_id: campaign.activeCampaignId ?? null,
   });
 
   if (ui.itemGeneratorOpen) {

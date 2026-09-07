@@ -182,6 +182,8 @@
           <TagInput v-model="form.tags" />
         </div>
 
+        <CampaignScopeField v-model="form.campaign_id" />
+
         <div class="space-y-1.5">
           <label class="text-eyebrow font-semibold text-muted-foreground">Linked Monsters</label>
           <div v-if="form.monster_ids.length" class="flex flex-wrap gap-1.5">
@@ -237,9 +239,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
 import { IconClose, IconDelete, IconEdit, IconMonster } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
+import { useCampaignStore } from "@/stores/campaign";
 import {
   useLootTable,
   useCreateLootTable,
@@ -273,6 +277,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import LootTableEntryEditor from "@/components/dungeon-features/LootTableEntryEditor.vue";
 import LootTableRollPanel from "@/components/dungeon-features/LootTableRollPanel.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 
 const route   = useRoute();
 const router  = useRouter();
@@ -287,8 +292,13 @@ const table     = computed(() => tableQuery.data.value ?? null);
 const loading   = computed(() => !isNew.value && tableQuery.isLoading.value);
 
 // ── Form state ─────────────────────────────────────────────────────────────
+// A new table defaults to the active campaign rather than "every campaign"
+// (#596) — global stays available via CampaignScopeField below, it just has
+// to be chosen rather than falling out by default. No active campaign is a
+// genuine "nothing to scope to yet" case.
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 const form = ref<LootTableInsert>({
-  campaign_id: null,
+  campaign_id: activeCampaignId.value ?? null,
   name: "",
   description: null,
   cr_tier: "any" as LootCrTier,

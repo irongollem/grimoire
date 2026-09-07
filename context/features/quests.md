@@ -186,6 +186,26 @@ importer. **It is player-facing and rendered raw** — never put a DM secret in 
 
 Carries `unique (id, campaign_id)` — the composite every beat-side FK targets.
 
+**`campaign_id` is nullable on the column but not in practice, and #596 leaves
+it that way.** `useCreateQuest()` already stamped the active campaign before
+that story (`campaign.activeCampaignId!`, no caller opt-out) and still does —
+so unlike items/spells/species/locations, there was no accidental-global
+default to flip here. #596 also asked for a `CampaignScopeField` "available in
+every campaign" control on quests, and that part was **not** added: a quest's
+entire beat graph — `quest_beats`, `quest_beat_edges`, `quest_runtime_state`,
+`loot_placements` — is keyed through composite `(…, campaign_id)` FKs back to
+this row, and `get_player_visible_quests` (migration `20260906225258`)
+explicitly filters `where q.campaign_id is not null` before every other
+predicate — a quest with no campaign can never reach a player, deliberately,
+not as an oversight. `fetchQuests` (`useQuests.ts`) matches with a plain
+`.eq("campaign_id", campaignId)`, so it would be invisible DM-side too. Adding
+a scope toggle here would let a DM pick an option that quietly breaks the
+quest for everyone; the fix that made global visible again for locations does
+not apply, because here the invisibility is policy, not a missed filter. A
+"quest template reusable across campaigns" is a real, different feature — it
+would need its own copy-on-attach mechanism, not a shared row with a null
+campaign_id — and is out of scope for #596.
+
 ### `quest_objectives`
 
 `description`, `sort_order`, `is_player_visible`, `status` (`dormant` |

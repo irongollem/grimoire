@@ -152,6 +152,7 @@ Filterable by text search and size (Tiny / Small / Medium / Large). Each species
 - `is_shapeshifter` flag — enables the shapeshifter disguise feature for any character of this species
 - Subraces (list) — drives the Variant dropdown in character creation
 - Traits — rich-text descriptions
+- **Scope** (`CampaignScopeField`, #596) — "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — *active campaign name*". New species default to the active campaign; editing an existing species — including one that's already general — never moves it, no matter which campaign happens to be active. Before #596 every new species defaulted to general regardless of the DM's intent, which is what the per-campaign gating in the paragraph below was built to filter down from.
 
 **Shared SRD species (#303):** the core species per edition come from the shared `library_species` table (public read, admin write; seeded by `npm run seed-library-species`; mapper in `src/lib/library/open5eSpeciesImport.ts`). `useAllSpecies()` merges shared rows (slug ids) with the user's own; a per-user row shadows its shared counterpart by source identity (or lowercase name for pre-versioning imports). Species references (`party_members.species_id`/`disguise_species_id`, `campaigns.disabled_species_ids`) are **text** since migration `20260724000003` and hold either a custom uuid or an `library_species` slug — players can pick shared species directly in character creation without any cloning.
 
@@ -186,7 +187,7 @@ Lists both imported SRD classes (`system_classes` table, read-only) and custom c
 
 **Custom Class Editor** (`CustomClassEditorView.vue`) — full-featured class designer:
 
-1. **Identity** — class name, hit die (d6/d8/d10/d12), primary ability, subclass-granting level, campaign scope (all campaigns or one specific campaign)
+1. **Identity** — class name, hit die (d6/d8/d10/d12), primary ability, subclass-granting level, campaign scope (a dropdown of the DM's own campaigns, plus "All my campaigns") — new classes default to the active campaign rather than "all my campaigns" (#596); editing an existing class keeps whatever scope it already has
 2. **Proficiencies** — saving throw checkboxes (STR/DEX/CON/INT/WIS/CHA), armor proficiency tags, weapon proficiency tags
 3. **Features per Level** — assign any ability from the Abilities compendium to any level 1–20 via entity combobox chips
 4. **Ability Score Increase Levels** — configure which levels grant ASI (defaults: 4, 8, 12, 16, 19)
@@ -207,7 +208,7 @@ Filterable by text search and by class name. Lists both SRD-imported and custom 
 - Features per Level
 - Wizard Steps
 - Resource Pools
-- Campaign scope
+- Campaign scope — same default-to-active-campaign flip as the Custom Class Editor (#596)
 
 ### Abilities Tab
 
@@ -218,6 +219,8 @@ The Abilities compendium is the shared library of named features used by both cl
 **"Sync from Open5e"** runs two operations: first imports Open5e features (`useImportOpen5eFeatures`), then backfills descriptions for any system features that lack them (`useBackfillSystemFeatureDescriptions`). The button label reports `N added`, `M updated`, and `K descriptions filled`.
 
 Features are linked to classes/archetypes by UUID reference stored in the `features` JSONB column of `custom_classes` / `custom_subclasses`.
+
+A custom feature (`FeatureDetail`) carries the same campaign-scope dropdown as classes/archetypes, with the same #596 default: a new feature defaults to the active campaign rather than "all my campaigns"; editing an existing one leaves its stored scope alone. `ArchetypeList`'s "Load example" seed features are the one deliberate exception — those three sample features are meant to be usable from every campaign and pass `campaign_id: null` explicitly, same as `ClassList`'s "Duplicate" fork of a system class.
 
 ---
 

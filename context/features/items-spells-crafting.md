@@ -41,7 +41,7 @@ Each card is the shared `EntityGridCard`. The item card is deliberately the lean
 
 **Open5e import layer (#554)** — every v2 fetch across items/spells/monsters/etc. goes through shared helpers in `src/lib/library/open5eApi.ts`: `rulesetForDocument()` maps a document's gamesystem to `2014`/`2024`/`null`, `fetchSupported5eDocumentKeys()` lists every 5e-gamesystem document (excluding non-5e gamesystems like a5e), and `fetchAllFromDocuments()` scopes a list fetch to those keys via `document__key__in`. Plain `document__key` is silently ignored on `/v2/items`, `/v2/weapons`, and `/v2/magicitems` — those endpoints otherwise return the full unfiltered cross-publisher set with no error — so `document__key__in` is the only filter used against any v2 endpoint, with a stray-document assertion (`fetchAllFromDocuments` throws if a returned record's document key isn't in the requested set) guarding against that failure mode recurring.
 
-**AI Generator** — "Generate" button opens `ItemGeneratorPanel`, an AI-assisted item creation wizard.
+**AI Generator** — "Generate" button opens `ItemGeneratorPanel`, an AI-assisted item creation wizard. Also stamps the active campaign onto the generated item (#596) — this path built its own insert payload rather than going through `ItemDetail`'s form, so it had kept minting general items after #597 flipped the manual editor's default.
 
 **Item Detail editor** (`/vault/:id?edit=true`) — a two-column form:
 
@@ -207,7 +207,7 @@ The Spellbook is the DM's master spell compendium, holding both imported SRD spe
 
 **Import from Open5e** — "Sync from Open5e" button. A source picker popover (lazy-loaded from `useOpen5eDocuments`, stored in localStorage as `grimoire:spell-import-sources`) allows selecting specific sourcebooks before importing; leaving all unchecked imports everything. Import is upsert-based: new spells inserted, existing `open5e_import` spells updated for source/classes metadata only (images never overwritten). Reports "N added, N updated".
 
-**AI Generator** — "Generate" button opens `SpellGeneratorPanel`.
+**AI Generator** — "Generate" button opens `SpellGeneratorPanel`. Stamps the active campaign onto the generated spell (#596) via the same fix as the item generator — `spellInsertFromAi()` is a pure AI-output adapter with no campaign awareness, so the panel adds `campaign_id` itself rather than teaching the adapter about campaigns.
 
 **Spell Detail editor** (`/spells/:id?edit=true`) — a three-column layout on wide screens:
 
@@ -222,6 +222,7 @@ The Spellbook is the DM's master spell compendium, holding both imported SRD spe
   - **Mechanics block**: Attack/Targeting type (Melee Spell Attack, Ranged Spell Attack, Saving Throw, Utility/No Attack), save attribute and "effect on successful save" (for saving throws); damage rolls (multi-roll `DiceInput`); area of effect (shape + size)
   - Spell description — rich text editor
   - Higher level effects — rich text editor
+  - **Scope** (`CampaignScopeField`, #596) — "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — *active campaign name*" (`campaign_id = active`). New spells default to the active campaign; editing an existing spell never moves it off its stored scope, even a general one. `useAllSpells()` filters custom rows to `!campaign_id || campaign_id === activeCampaignId` — SRD/library spells are always general.
 - **Right column** — class list (multi-select checkboxes for all spellcasting classes)
 - **Spell Level Advisor modal** — wizard that appears for new spells. Asks school, effect type, intensity/damage dice, target count, and save type; outputs a suggested spell level and pre-fills mechanical fields.
 
@@ -315,7 +316,7 @@ Not every discipline maps to an artisan's tool. Herbalism, Poisoncraft and Forge
 
 **Reveal control** — `AudienceRevealControl` on each recipe card controls which player characters can see the recipe in their portal. This can be changed directly from the list without entering the editor, and `RecipeSheet` and `RecipeEditor` carry the same control (#741).
 
-**Starter recipe import** — "Import Starter Recipes" button imports a built-in set of starter recipes (idempotent).
+**Starter recipe import** — "Import Starter Recipes" button imports a built-in set of starter recipes (idempotent). The gear/provisions/ammunition items it mints as recipe outputs are deliberately left with `campaign_id: null` (#596 did not flip this one) — the existing-item lookup that keeps a second import idempotent is scoped by `user_id` alone, not by campaign, so if a second campaign's import stamped its own copy of "Torch" with that campaign's id, the crafting recipe in campaign two would resolve to an item invisible in campaign two's own Vault. Global is the correct scope for this basic universal gear, not an oversight.
 
 **Recipe editor** (`/crafting/:id`) — a focused form:
 
@@ -461,6 +462,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 | `source_title`      | string      |                                                        |
 | `source_url`        | string      |                                                        |
 | `open5e_import`     | boolean     | true for Open5e-sourced spells                         |
+| `campaign_id`       | uuid        | null = general (all campaigns); set = scoped to that campaign |
 
 ### CraftingRecipe (`crafting_recipes` table)
 

@@ -72,7 +72,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
+import { useCampaignStore } from "@/stores/campaign";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -103,7 +105,10 @@ const form = ref({
   description: null as string | null,
 });
 
-const campaignScope = ref("all");
+// Same default flip as CustomClassEditorView (#596): a new class feature
+// defaults to the active campaign rather than "all my campaigns" by accident.
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+const campaignScope = ref(activeCampaignId.value ?? "all");
 
 watch(
   () => props.feature,

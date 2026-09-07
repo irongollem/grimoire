@@ -68,21 +68,8 @@
           />
         </div>
 
-        <!-- Campaign-only flag -->
-        <div
-          v-if="!isShared && campaignStore.activeCampaignId"
-          class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-1"
-        >
-          <AppCheckbox
-            :model-value="campaignId === campaignStore.activeCampaignId"
-            label="Campaign-only"
-            @update:model-value="toggleCampaignSpecific"
-          />
-          <p class="text-caption text-muted-foreground italic">
-            Restrict this spell to <strong>{{ campaignStore.activeCampaign?.name }}</strong>.
-            It won't appear in other campaigns.
-          </p>
-        </div>
+        <!-- Scope -->
+        <CampaignScopeField v-if="!isShared" v-model="campaignId" />
       </div>
 
       <!-- ── Core spell fields ──────────────────────────────────────────── -->
@@ -232,6 +219,7 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, reactive, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
 import SpellGenerateDialog from "@/ai/SpellGenerateDialog.vue";
@@ -247,7 +235,7 @@ import type { SpellAiGenerated } from "@/ai/types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
 import { useCampaignStore } from "@/stores/campaign";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
@@ -276,6 +264,8 @@ import { parseDamageExpression, type DamageRoll } from "@/lib/dice/dice";
 const props = defineProps<{ spell: Spell | null; isShared?: boolean }>();
 const router = useRouter();
 
+const campaignStore = useCampaignStore();
+const { activeCampaignId } = storeToRefs(campaignStore);
 const { mutateAsync: upsertLibraryArt } = useUpsertLibrarySpellArt();
 const isShared = computed(() => !!props.isShared);
 
@@ -309,8 +299,21 @@ const aiContext = computed(() =>
   ]),
 );
 const tags = ref<string[]>(props.spell?.tags ?? []);
-// Campaign-only flag: null = universal/library spell, set = exclusive to that campaign.
-const campaignId = ref<string | null>(props.spell?.campaign_id ?? null);
+// Scope: null = every campaign, set = exclusive to that campaign. Editing an
+// existing spell keeps its stored scope, including a stored null — which
+// `props.spell ? props.spell.campaign_id : …` preserves. Chaining `??`
+// instead (`props.spell?.campaign_id ?? activeCampaignId.value`) would be
+// wrong: an existing global spell's campaign_id is legitimately null, and
+// `??` can't distinguish that from "no spell yet", so it would silently
+// re-scope the spell into whichever campaign happens to be active next time
+// someone opens and saves it — and most spells are global today (#596). A
+// new spell (no props.spell) defaults to the active campaign instead of
+// "every campaign" by accident — global is still available via
+// CampaignScopeField, just no longer the silent default. No active campaign
+// is a genuine "nothing to scope to yet" case.
+const campaignId = ref<string | null>(
+  props.spell ? props.spell.campaign_id : activeCampaignId.value ?? null,
+);
 
 // When SRD art loads asynchronously, sync art fields from the updated prop
 watch(
@@ -602,14 +605,7 @@ async function confirmDelete() {
 }
 
 // ── AI generation ─────────────────────────────────────────────────────────────
-const campaignStore = useCampaignStore();
 const isAiEnabled = computed(() => campaignStore.isAiEnabled);
-
-function toggleCampaignSpecific() {
-  const id = campaignStore.activeCampaignId;
-  if (!id) return;
-  campaignId.value = campaignId.value === id ? null : id;
-}
 const showGenerateDialog = ref(false);
 
 function onAiGenerated(result: SpellAiGenerated) {
