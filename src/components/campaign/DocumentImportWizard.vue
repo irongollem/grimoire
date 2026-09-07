@@ -189,7 +189,7 @@
  * DM selected.
  */
 import { computed, ref, watch } from "vue";
-import { supabase, getCurrentUser } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import AppButton from "@/components/common/AppButton.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import WizardStepIndicator from "@/components/common/WizardStepIndicator.vue";
@@ -202,28 +202,16 @@ import {
   normalizeMonsterMatchRows,
   type EntityMatch,
 } from "@/lib/documentImport/entityMatching";
-import {
-  buildImportPlan,
-  buildImportRunReport,
-  resolveLinks,
-  type ImportRowOutcome,
-  type ImportRunReport,
-  type LinkedRow,
-  type LinkResolution,
-  type NameLookupRow,
-} from "@/lib/documentImport/importPlan";
-import { resolveEncounterCombatants } from "@/lib/documentImport/normalize";
-import { isQuotaExceeded } from "@/lib/quotaError";
-import { writeQuestSpine, type WriteQuestSpineDeps } from "@/lib/quests/spineWrite";
+import { sanitizeEntities, type UsableEntity } from "@/lib/documentImport/sanitizeEntities";
+import { useDocumentImportRunner } from "@/composables/campaign/useDocumentImportRunner";
+import type { ImportRunReport } from "@/lib/documentImport/importPlan";
 import {
   IMPORT_ENTITY_KINDS,
   type DocumentImport,
   type DocumentImportStatus,
   type ExtractedEntity,
-  type ImportConfidence,
   type ImportEntityKind,
 } from "@/types/documentImport.types";
-import type { EncounterInsert } from "@/types/encounter.types";
 import { IconWarning, IconCircleCheck, IconExternalLink } from "@/lib/icons";
 
 const { importRow } = defineProps<{ importRow: DocumentImport }>();
@@ -245,23 +233,6 @@ const LIST_ROUTES: Record<ImportEntityKind, string> = {
   quests: "/quests",
   factions: "/factions",
   encounters: "/encounters",
-};
-
-/** Which other kinds a source kind's cross-entity references resolve
- *  against — mirrors (only the shape of) importPlan.ts's own `LINK_TARGETS`,
- *  which isn't exported; the resolution algorithm itself still comes from
- *  `resolveLinks`, this only tells the wizard which lookups to fetch first.
- *
- *  `encounters` lists both targets its own combatant resolution needs
- *  (`npcs`, for a named individual) alongside the one `resolveLinks` itself
- *  consumes (`locations`, for `encounter_location_name`) — see the encounters
- *  block in `runImport` below, which reuses this same `lookups.npcs` fetch
- *  rather than issuing a second one. */
-const LINK_LOOKUP_TARGETS: Partial<Record<ImportEntityKind, ImportEntityKind[]>> = {
-  npcs: ["factions"],
-  locations: ["locations"],
-  quests: ["npcs", "locations"],
-  encounters: ["locations", "npcs"],
 };
 
 // ── Step position ─────────────────────────────────────────────────────────────
@@ -295,13 +266,6 @@ const currentKind = computed<ImportEntityKind | null>(() =>
 const currentEntry = computed(() => (currentKind.value ? getEntityKindEntry(currentKind.value) : null));
 
 // ── Per-step review state ────────────────────────────────────────────────────
-
-interface UsableEntity {
-  ref: string;
-  page: number | null;
-  confidence: ImportConfidence;
-  data: Record<string, unknown>;
-}
 
 const usableEntities = ref<UsableEntity[]>([]);
 const droppedCount = ref(0);
@@ -403,42 +367,6 @@ function setLinkChoice(ref: string, value: boolean): void {
   linkChoiceByRef.value.set(ref, value);
 }
 
-/**
- * `importRow.extracted` is untrusted model output (documentImport.types.ts
- * header) — a missing kind, a non-array value, or an entity missing its
- * heading field must not reach the review grid at all rather than rendering
- * broken or throwing. Anything dropped is counted so the DM isn't left
- * wondering why a step looks short.
- */
-function sanitizeEntities(raw: unknown, displayField: "name" | "title"): { entities: UsableEntity[]; dropped: number } {
-  if (!Array.isArray(raw)) return { entities: [], dropped: 0 };
-  const entities: UsableEntity[] = [];
-  let dropped = 0;
-  for (const item of raw) {
-    if (!item || typeof item !== "object") {
-      dropped++;
-      continue;
-    }
-    const rec = item as Record<string, unknown>;
-    const rawData = rec.data;
-    if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) {
-      dropped++;
-      continue;
-    }
-    const dataRec = rawData as Record<string, unknown>;
-    const heading = dataRec[displayField];
-    if (typeof heading !== "string" || heading.trim() === "") {
-      dropped++;
-      continue;
-    }
-    const ref = typeof rec.ref === "string" && rec.ref.length > 0 ? rec.ref : crypto.randomUUID();
-    const page = typeof rec.page === "number" ? rec.page : null;
-    const confidence: ImportConfidence = rec.confidence === "partial" ? "partial" : "complete";
-    entities.push({ ref, page, confidence, data: dataRec });
-  }
-  return { entities, dropped };
-}
-
 watch(
   currentKind,
   (kind) => {
@@ -503,37 +431,6 @@ function advanceDisplayedStep(): void {
 /** Never includes `source_paths` — the UPDATE policy re-checks it, and
  *  omitting the key entirely (rather than sending it back unchanged) is the
  *  documented-safe way to leave it alone. */
-
-/**
- * `writeQuestSpine`'s four writes, done with the wizard's own plain Supabase
- * inserts rather than the TanStack mutations `useCreateQuestFromHook` injects.
- * The wizard imports in batches outside any component's query cache and does
- * its own invalidation at the end of a step, so going through the mutation
- * composables here would fire one cache round-trip per beat.
- */
-const questSpineDeps: WriteQuestSpineDeps = {
-  createBeat: async (beat) => {
-    const { data, error } = await supabase.from("quest_beats").insert(beat).select().single();
-    if (error) throw error;
-    return data;
-  },
-  createBeatEdge: async (edge) => {
-    const { data, error } = await supabase.from("quest_beat_edges").insert(edge).select().single();
-    if (error) throw error;
-    return data;
-  },
-  createObjective: async (objective) => {
-    const { data, error } = await supabase.from("quest_objectives").insert(objective).select().single();
-    if (error) throw error;
-    return data;
-  },
-  createConsequence: async (consequence) => {
-    const { data, error } = await supabase.from("quest_consequences").insert(consequence).select().single();
-    if (error) throw error;
-    return data;
-  },
-};
-
 async function persistCount(kind: ImportEntityKind, count: number): Promise<void> {
   const nextCounts = { ...localCounts.value, [kind]: count };
   const allDone = IMPORT_ENTITY_KINDS.every((k) => nextCounts[k] !== undefined);
@@ -602,43 +499,9 @@ async function skipStep(): Promise<void> {
   }
 }
 
-// ── Link resolution ──────────────────────────────────────────────────────────
-
-async function fetchNameLookup(targetKind: ImportEntityKind, campaignId: string): Promise<NameLookupRow[]> {
-  const targetEntry = getEntityKindEntry(targetKind);
-  const { data, error } = await supabase
-    .from(targetEntry.table)
-    .select(`id, ${targetEntry.displayField}`)
-    .eq("campaign_id", campaignId);
-  if (error || !data) return [];
-  return (data as Record<string, unknown>[]).map((row) => ({
-    id: String(row.id ?? ""),
-    name: String(row[targetEntry.displayField] ?? ""),
-  }));
-}
-
-/** Best-effort: a link write failing doesn't undo the row it points from,
- *  which already landed and is already counted as imported. */
-async function applyLinkResolution(resolution: Extract<LinkResolution, { status: "resolved" }>): Promise<void> {
-  const { apply, sourceId, targetId } = resolution;
-  try {
-    if (apply.kind === "fk_update") {
-      await supabase.from(apply.table).update({ [apply.column]: targetId }).eq("id", sourceId);
-    } else {
-      const user = getCurrentUser();
-      if (!user) return;
-      await supabase.from(apply.table).insert({
-        user_id: user.id,
-        [apply.sourceColumn]: sourceId,
-        [apply.targetColumn]: targetId,
-      });
-    }
-  } catch {
-    // See doc comment above.
-  }
-}
-
 // ── Import ────────────────────────────────────────────────────────────────────
+
+const { runKind } = useDocumentImportRunner();
 
 async function runImport(): Promise<void> {
   const kind = currentKind.value;
@@ -649,12 +512,6 @@ async function runImport(): Promise<void> {
   isImporting.value = true;
   errorMessage.value = null;
   try {
-    // Needed for `user_id` on every inserted row — see the insert below for why
-    // the mappers cannot supply it. Fail loudly rather than inserting rows the
-    // database is guaranteed to reject.
-    const user = getCurrentUser();
-    if (!user) throw new Error("You must be signed in to import.");
-
     const entitiesForPlan = usableEntities.value.map((e) => ({
       ref: e.ref,
       page: e.page,
@@ -674,171 +531,13 @@ async function runImport(): Promise<void> {
     // `mapEntity` switch does (documented there — microsoft/TypeScript#33014).
     // `entitiesForPlan` was already validated at runtime, against this exact
     // kind's registry entry, by `sanitizeEntities`.
-    const plan = buildImportPlan(
+    const { report, unresolvedLinkNames: unresolved } = await runKind(
+      importRow,
       kind,
       entitiesForPlan as unknown as ExtractedEntity<typeof kind>[],
       selectedRefs.value,
-      importRow.campaign_id,
-      provenance,
       refsLinkedToExisting,
     );
-
-    // Row by row (never a single batched insert) so a mid-batch quota
-    // rejection can be attributed to the row that tripped it and every row
-    // ahead of it is still known to have landed.
-    const outcomes: ImportRowOutcome[] = [];
-    for (const planned of plan) {
-      // `planned.row` is a union of all eight Insert shapes (the table itself
-      // is only known at runtime, via `entry.table`) — postgrest-js's
-      // `.insert()` can't type-check a call whose argument could be any one
-      // of eight unrelated row shapes, so it's widened here rather than
-      // fighting that inference. The row's actual shape was already decided,
-      // correctly, by `buildImportPlan`/`mapEntity` above.
-      //
-      // `user_id` is added HERE and not by the mapper, because every
-      // `<Entity>Insert` type omits it by construction — it is the caller's
-      // identity, not a property of the extracted entity. Every other write
-      // path in the app does the same (`useFactions` and friends all spread
-      // `{ ...payload, user_id: user.id }`). Leaving it off is not a type
-      // error anywhere, and it is rejected twice over at the database: the
-      // column is NOT NULL on all eight tables, and each table's RLS insert
-      // policy checks `auth.uid() = user_id`. It cost a full round of green
-      // typecheck, lint, build and 3,801 tests to find that out by running it.
-      const { data: inserted, error } = await supabase
-        .from(entry.table)
-        .insert({ ...(planned.row as Record<string, unknown>), user_id: user.id })
-        .select("id")
-        .single();
-      if (error) {
-        if (isQuotaExceeded(error)) {
-          outcomes.push({ ref: planned.ref, status: "quota_exceeded" });
-          break; // retrying the rest would fail identically — see importPlan.ts
-        }
-        outcomes.push({ ref: planned.ref, status: "failed", message: error.message });
-        continue;
-      }
-      outcomes.push({ ref: planned.ref, status: "inserted", id: (inserted as { id: string }).id });
-    }
-
-    const report = buildImportRunReport(kind, plan, outcomes);
-
-    const linkedRows: LinkedRow[] = [];
-    for (const outcome of outcomes) {
-      if (outcome.status !== "inserted") continue;
-      const planned = plan.find((p) => p.ref === outcome.ref);
-      if (planned) linkedRows.push({ id: outcome.id, links: planned.links });
-    }
-
-    const lookupTargets = LINK_LOOKUP_TARGETS[kind] ?? [];
-    const lookups: Partial<Record<ImportEntityKind, NameLookupRow[]>> = {};
-    for (const targetKind of lookupTargets) {
-      lookups[targetKind] = await fetchNameLookup(targetKind, importRow.campaign_id);
-    }
-
-    const resolutions = resolveLinks(kind, linkedRows, lookups);
-    const unresolved: string[] = [];
-    for (const resolution of resolutions) {
-      if (resolution.status === "unresolved") {
-        unresolved.push(resolution.name);
-        continue;
-      }
-      await applyLinkResolution(resolution);
-    }
-
-    // A second pass like the link resolution above, for the same reason: every
-    // beat needs the quest's own id, which does not exist until here.
-    //
-    // This used to insert a single hardcoded "Opening beat" holding all of a
-    // quest's prose — the generation-one shape, which survived #793 by moving
-    // from `quests.description` onto one beat rather than being deleted. An
-    // adventure page is already written as events with branches, so #829 lands
-    // the whole graph instead, through the same `writeQuestSpine` the AI hook
-    // generator uses. One writer for `quest_beats`, not two.
-    if (kind === "quests") {
-      for (const outcome of outcomes) {
-        if (outcome.status !== "inserted") continue;
-        const spine = plan.find((p) => p.ref === outcome.ref)?.questSpine;
-        if (!spine) continue;
-        try {
-          await writeQuestSpine(
-            {
-              questId: outcome.id,
-              campaignId: importRow.campaign_id,
-              beats: spine.beats,
-              routes: spine.routes,
-              objectives: spine.objectives,
-            },
-            questSpineDeps,
-          );
-        } catch {
-          // Best-effort, like the link writes above: the quest already landed
-          // and is already counted as imported. `writeQuestSpine` is itself
-          // partial-failure tolerant, so this only catches a total failure.
-        }
-      }
-    }
-
-    // A second pass like the two above, and for the same reason — a
-    // combatant's real id can't exist until the encounter row it lives inside
-    // does — but this one doesn't go through `resolveLinks`/`LINK_TARGETS`
-    // like `encounter_location_name` just did: a combatant name resolves
-    // against *either* `npcs` or `monsters`/`library_monsters`, never one
-    // fixed target, which is exactly what that map cannot express (see
-    // `EntityLinks.encounter_location_name`'s own doc comment in normalize.ts).
-    // `resolveEncounterCombatants` is the pure resolver; this block only
-    // fetches the two candidate sets it needs and applies the result.
-    if (kind === "encounters") {
-      // `planned.row` is typed as the eight-way Insert union (see the comment
-      // above the main insert call), so it's narrowed here the same way —
-      // through `unknown` rather than a direct `as`, since the cast target
-      // doesn't overlap enough with every other member of that union for
-      // TypeScript to accept it directly. The row's actual shape was already
-      // decided, correctly, by `mapExtractedEncounter`.
-      const insertedEncounters: { id: string; row: EncounterInsert }[] = [];
-      for (const outcome of outcomes) {
-        if (outcome.status !== "inserted") continue;
-        const planned = plan.find((p) => p.ref === outcome.ref);
-        if (planned) insertedEncounters.push({ id: outcome.id, row: planned.row as unknown as EncounterInsert });
-      }
-
-      // Every combatant name across every encounter in this run, deduped, in
-      // one `resolve_monster_references` call — never one lookup per card,
-      // same rule `loadEntityMatches` follows for the monsters/items steps.
-      const allCombatantNames = [
-        ...new Set(
-          insertedEncounters.flatMap((inserted) =>
-            inserted.row.combatants.map((combatant) => combatant.custom_name).filter((name): name is string => name !== null),
-          ),
-        ),
-      ];
-      const monsterMatchRows = allCombatantNames.length > 0
-        ? await fetchMatchRows("resolve_monster_references", importRow.campaign_id, allCombatantNames)
-        : [];
-      const monsterMatches = new Map(
-        normalizeMonsterMatchRows(monsterMatchRows).map((row) => [row.queryName, row.match] as const),
-      );
-      // Reuses the same fetch `resolveLinks` above just consumed — `encounters`
-      // is declared with `npcs` in `LINK_LOOKUP_TARGETS` for exactly this.
-      const npcLookup = lookups.npcs ?? [];
-
-      for (const inserted of insertedEncounters) {
-        const resolvedCombatants = resolveEncounterCombatants(inserted.row.combatants, npcLookup, monsterMatches);
-        // A combatant left with neither id is a real, meaningful outcome —
-        // never silently dropped — so it's reported the same way an
-        // unresolved FK link is, in the same result banner.
-        unresolved.push(
-          ...resolvedCombatants
-            .filter((combatant) => !combatant.monster_id && !combatant.npc_id && combatant.custom_name)
-            .map((combatant) => combatant.custom_name as string),
-        );
-        try {
-          await supabase.from("encounters").update({ combatants: resolvedCombatants }).eq("id", inserted.id);
-        } catch {
-          // Best-effort, like the link writes and quest-spine write above:
-          // the encounter already landed and is already counted as imported.
-        }
-      }
-    }
 
     // `imported_counts[kind]` is what the final summary step and the resume
     // check read — see this file's own header. A linked entity never became

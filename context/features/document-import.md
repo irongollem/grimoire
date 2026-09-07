@@ -7,7 +7,15 @@ wizard reviews every entity before anything reaches a content table. **DM-only**
 
 Lives at **Campaign Settings → Import Document** (`/campaign/settings?tab=import`).
 
-Issues #353, #769, #829 and #840.
+**A second door, since #839:** `/quests/new`'s "Paste a page" mode
+(`QuestPasteImportPanel.vue`) runs the exact same extraction and the exact
+same insert/link/spine machinery, through **one compact confirmation**
+instead of a step per kind — sized for "I want this one quest," not "I have
+a chapter PDF." See that story's own section below and
+`context/features/quests.md`'s "Three ways to start a quest." The settings
+wizard is unchanged and still the way to bulk-import a whole chapter.
+
+Issues #353, #769, #829, #840 and #839.
 
 ---
 
@@ -41,10 +49,21 @@ Eight kinds, in **dependency order** (`IMPORT_ENTITY_KINDS`):
 | `pageCount.ts` | PDF page counting via `pdf-lib`; rejects mixed PDF+image and multi-PDF selections |
 | `normalize.ts` | The **one** place an extracted payload becomes an `<Entity>Insert` |
 | `importPlan.ts` | Selection → ordered inserts, partial-failure accounting, link resolution |
+| `sanitizeEntities.ts` | Validates one kind's raw `extracted[kind]` array into renderable entities, dropping malformed ones — shared by the wizard and the compact review (#839) |
+| `runImportKind.ts` | One kind's full run — insert loop, link resolution, quest-spine write, encounter combatant resolution — with every side effect injected (`RunImportKindDeps`), so both review surfaces share this instead of forking it (#839) |
+| `questPasteReview.ts` | Pure helpers for the compact review only: pick the headline quest, summarize the other kinds found, derive a default staging-row name |
+
+**Composable** (`src/composables/campaign/`) — `useDocumentImportRunner.ts` is
+`runImportKind.ts`'s Supabase-backed half (real inserts, lookups, RPC calls);
+`DocumentImportWizard.vue` and `QuestPasteImportPanel.vue` both call its
+`runKind`/`finalizeImport` rather than each wiring their own.
 
 **UI** (`src/components/campaign/`) — `DocumentImportTab.vue`,
 `DocumentImportWizard.vue`, `DocumentImportEntityCard.vue` (one generic card
-driven by field shape, not eight per-kind templates).
+driven by field shape, not eight per-kind templates), `DocumentImportPasteStep.vue`
+(the settings paste source step) and `DocumentPasteEditor.vue` (the rich
+paste-capture box itself, shared with `QuestPasteImportPanel.vue` in
+`src/components/quests/`).
 
 **Server** (`supabase/functions/`) — `import-extract/index.ts`,
 `import-extract/extractionSchema.ts`, `_shared/documentGen.ts`.
@@ -202,20 +221,23 @@ same way it pins `factions` before `npcs`.
 archers and two warriors" is two `CombatantDef`s (`count: 3`, `count: 2`),
 never five rows.
 
-**Combatant resolution is a second pass the wizard runs, not `resolveLinks`.**
-`EntityLinks`/`LINK_TARGETS` (importPlan.ts) give every named field exactly
-one fixed target table — which is why `encounter_location_name` is its own
-`EntityLinks` field rather than reusing quests' `location_name` (a different
-FK column, `encounters.location_id` vs `quests.location_id`). A combatant name
-has no *single* fixed target at all: it might resolve against this campaign's
-`npcs` (a named individual, tried first — more specific than a creature kind)
-or against `monsters`/`library_monsters` via `resolve_monster_references`
-(#837). `normalize.ts`'s `mapExtractedEncounter` builds every combatant slot
-with its name preserved as `custom_name` and both ids null; `resolveEncounterCombatants`
-is the pure second-pass resolver, called from `DocumentImportWizard.vue`'s
-`runImport` once it has fetched both candidate sets — the same "resolve after
-the row exists" idiom as an FK link, just for an array field instead of a
-scalar column.
+**Combatant resolution is a second pass `runImportKind.ts` runs, not
+`resolveLinks`.** `EntityLinks`/`LINK_TARGETS` (importPlan.ts) give every named
+field exactly one fixed target table — which is why `encounter_location_name`
+is its own `EntityLinks` field rather than reusing quests' `location_name` (a
+different FK column, `encounters.location_id` vs `quests.location_id`). A
+combatant name has no *single* fixed target at all: it might resolve against
+this campaign's `npcs` (a named individual, tried first — more specific than a
+creature kind) or against `monsters`/`library_monsters` via
+`resolve_monster_references` (#837). `normalize.ts`'s `mapExtractedEncounter`
+builds every combatant slot with its name preserved as `custom_name` and both
+ids null; `resolveEncounterCombatants` is the pure second-pass resolver,
+called from `runImportKind`'s own `kind === "encounters"` branch once it has
+fetched both candidate sets (through the injected `resolveMonsterNames`/
+`fetchNameLookup` deps — see the "One quest, compact review" section below for
+why this moved out of `DocumentImportWizard.vue` itself) — the same "resolve
+after the row exists" idiom as an FK link, just for an array field instead of
+a scalar column.
 
 A combatant matching neither stays in the row as a named stub (both ids null,
 `custom_name` kept) — never silently dropped — and its name is surfaced in the
@@ -227,6 +249,64 @@ DM links it by hand in the encounter's own combatant search afterward.
 *wizard* that encounters exist, but the extractor only knows what its system
 prompt (a database row, not code) tells it to look for. Without the rewrite it
 kept returning exactly the seven kinds it always had.
+
+### One quest, compact review (#839)
+
+Pasting a page was originally reachable only from Campaign Settings, behind a
+title ("Document Import") and a seven-then-eight-step wizard. Fine for "I have
+a chapter PDF"; wrong for "I'm looking at my quest list and want to add this
+one" — the common case, and what #829 was actually built for. #839 adds a
+second door: `/quests/new`'s "Paste a page" mode
+(`QuestPasteImportPanel.vue`), a `SegmentedControl` option inside
+`QuestFlowStarter.vue` alongside typing a quest by hand.
+
+**Same extraction, not a second contract.** The paste box, the `document_imports`
+row, the extraction call, the mappers, `buildImportPlan`, `writeQuestSpine`,
+the link resolvers — none of it forked. What changed is the review: instead of
+a step per `IMPORT_ENTITY_KINDS` entry, the DM sees the extracted quest as the
+headline (editable title + premise, a beat count, a note when the page
+described more than one quest — only the first is used, the rest wait for the
+full wizard) plus **one** block of per-kind checkboxes for everything else the
+page yielded ("18 Locations", "11 NPCs", …), defaulted **on**. Unticking
+everything but leaves just the quest; two clicks either way.
+
+**The shared logic moved so it has exactly one copy.** `DocumentImportWizard.vue`'s
+`runImport()` used to own the insert loop, link resolution, quest-spine write
+and encounter combatant resolution inline. That's now `runImportKind.ts`
+(pure, deps injected — same shape as `spineWrite.ts`) plus
+`useDocumentImportRunner.ts` (the Supabase wiring for those deps). Both
+review surfaces call `runKind`; the wizard runs it once per step the DM
+confirms, the compact review runs it once per kind it has anything to do,
+in `IMPORT_ENTITY_KINDS` order, inside one confirm action. `sanitizeEntities.ts`
+(dropping a malformed extracted entity) moved out the same way, for the same
+reason.
+
+**One import in flight per campaign, enforced by convention, not the schema.**
+Nothing in the database stops two `document_imports` rows from being
+`pending`/`extracting`/`review` at once, but every reader (`useActiveDocumentImport`,
+ordered by `created_at desc`, `limit(1)`) only ever shows the newest one. So
+`QuestPasteImportPanel.vue` refuses to start a *second* paste while the query
+already returns a row — it shows that row's name and points the DM at
+Document Import instead — rather than risk silently orphaning whatever the
+DM had in flight there. Its own row is tracked locally (`myRowId`, mirrored to
+`sessionStorage` so a reload or a mode-switch back to "Type it" and back still
+resumes it); a hard refresh mid-extraction loses that and the DM is sent to
+Document Import to finish the same row there instead — accepted, not a bug,
+for a flow meant to be finished in one sitting.
+
+**No per-entity link-to-existing choice in the compact review.** #837/#838's
+"this monster already exists, link instead of duplicating" is a wizard-only
+feature — `runImportKind`'s `linkedRefs` parameter is simply always empty from
+the compact review, so every toggled-on entity is created fresh. A DM who
+wants that de-duplication has the full wizard; the compact review optimizes
+for speed on the common single-quest case, and a possible duplicate monster
+is a smaller cost than a review surface with a per-entity decision on it.
+
+**A quest created here that already had a parent id** (a sub-quest, via
+`QuestFlowStarter`'s own `parentId` prop) gets a follow-up
+`update({ parent_quest_id })` after `runKind` inserts it — `mapExtractedQuest`
+always produces `parent_quest_id: null`, correctly, since a printed page has
+no way to know it is being imported as anyone's sub-quest.
 
 ### `import-documents` is NOT in the `BUCKETS` registry
 
@@ -374,4 +454,6 @@ thing — see #353 for the full recipe:
 
 To exercise the wizard without spending anything, insert a `document_imports` row
 with `status = 'review'` and hand-written `extracted` jsonb. That covers the whole
-review-and-import path including the quota trigger.
+review-and-import path including the quota trigger. The same trick exercises the
+compact review at `/quests/new` → "Paste a page" — it reads the same table, so a
+row with an `extracted.quests` entry lands it on the headline-quest view.

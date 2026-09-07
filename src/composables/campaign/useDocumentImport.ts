@@ -140,7 +140,11 @@ async function removeImportObjects(paths: string[]): Promise<void> {
  */
 const ACTIVE_STATUSES: DocumentImportStatus[] = ["pending", "extracting", "review", "failed"];
 
-function activeImportKey(campaignId: string | null) {
+/** Exported so `useDocumentImportRunner.ts` can invalidate the same query
+ *  once it finalizes a row it drove through review itself — it never
+ *  imports the mutation hooks below (they carry more than it needs), just
+ *  this key. */
+export function activeImportKey(campaignId: string | null) {
   return ["document-imports", "active", campaignId] as const;
 }
 

@@ -494,6 +494,22 @@ Vue Flow view-model wrappers only.
 | `/quests/:id`               | `QuestDetailView.vue`                           |
 | `/quests/:id/beats/:beatId` | `views/quests/QuestBeatDetailView.vue`          |
 
+**Three ways to start a quest**, all reachable without leaving the quest list:
+typing one (`QuestFlowStarter.vue`'s own form — title, starting lane, optional
+premise), generating one (`QuestGeneratorPanel.vue`, opened from the list's
+"Generate" button), and — since #839 — pasting a page from a book
+(`QuestPasteImportPanel.vue`, a `SegmentedControl` mode inside
+`QuestFlowStarter.vue` itself). The paste mode does **not** run a second
+extraction contract; it drives the same `document_imports` row and the same
+`useDocumentImportRunner`/`runImportKind` machinery
+`DocumentImportWizard.vue` uses (see `context/features/document-import.md`),
+just through one compact confirmation instead of a step per entity kind. The
+quest lands first (same `?view=overview` landing `createFlow` already used);
+anything else the page yielded (locations, NPCs, monsters…) is a per-group
+toggle in that same confirmation, defaulted on. The full step-per-kind wizard
+in Campaign Settings → Document Import is unchanged and still the way to
+bulk-import a whole chapter.
+
 `/quests/:id` has two peer surfaces behind a `SegmentedControl`, selected by
 `?view=`:
 

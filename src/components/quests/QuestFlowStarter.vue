@@ -2,37 +2,54 @@
   <section class="mx-auto w-full max-w-2xl space-y-5 rounded-xl border border-border bg-card p-5" aria-labelledby="new-flow-heading">
     <div>
       <p class="text-label font-bold uppercase tracking-wider text-primary">New quest</p>
-      <h2 id="new-flow-heading" class="font-cinzel text-lg font-bold text-foreground">Name the quest and what it is about</h2>
-      <p class="mt-1 text-body text-muted-foreground">The overview opens next — the quest's premise, stakes, rewards, and the material that spans the whole story. Build the beats from there once you know what the quest is.</p>
+      <h2 id="new-flow-heading" class="font-cinzel text-lg font-bold text-foreground">
+        {{ startMode === "paste" ? "Paste a page from your book" : "Name the quest and what it is about" }}
+      </h2>
+      <p class="mt-1 text-body text-muted-foreground">
+        <template v-if="startMode === 'paste'">
+          Copy a page from an adventure book — the quest lands with its story beats already wired, and anything
+          else on the page (locations, NPCs, monsters…) comes along too if you want it.
+        </template>
+        <template v-else>
+          The overview opens next — the quest's premise, stakes, rewards, and the material that spans the whole
+          story. Build the beats from there once you know what the quest is.
+        </template>
+      </p>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
+    <SegmentedControl v-model="startMode" :options="START_MODE_OPTIONS" />
+
+    <template v-if="startMode === 'type'">
+      <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
+        <label class="grid gap-1.5">
+          <span class="text-label-lg font-semibold text-muted-foreground">Quest title</span>
+          <AppInput v-model="title" size="lg" placeholder="The road beneath the lake…" @keydown.enter="createFlow" />
+        </label>
+        <label class="grid gap-1.5">
+          <span class="text-label-lg font-semibold text-muted-foreground">Starting lane</span>
+          <AppSelect v-model="status" size="lg" block aria-label="Starting quest lane">
+            <option v-for="candidate in QUEST_STATUSES" :key="candidate" :value="candidate">{{ QUEST_STATUS_LABELS[candidate] }}</option>
+          </AppSelect>
+        </label>
+      </div>
+
       <label class="grid gap-1.5">
-        <span class="text-label-lg font-semibold text-muted-foreground">Quest title</span>
-        <AppInput v-model="title" size="lg" placeholder="The road beneath the lake…" @keydown.enter="createFlow" />
+        <span class="text-label-lg font-semibold text-muted-foreground">Premise <span class="font-normal">(optional)</span></span>
+        <AppInput
+          v-model="summary"
+          :maxlength="QUEST_SUMMARY_MAX"
+          placeholder="Players see this verbatim — the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
+        />
       </label>
-      <label class="grid gap-1.5">
-        <span class="text-label-lg font-semibold text-muted-foreground">Starting lane</span>
-        <AppSelect v-model="status" size="lg" block aria-label="Starting quest lane">
-          <option v-for="candidate in QUEST_STATUSES" :key="candidate" :value="candidate">{{ QUEST_STATUS_LABELS[candidate] }}</option>
-        </AppSelect>
-      </label>
-    </div>
 
-    <label class="grid gap-1.5">
-      <span class="text-label-lg font-semibold text-muted-foreground">Premise <span class="font-normal">(optional)</span></span>
-      <AppInput
-        v-model="summary"
-        :maxlength="QUEST_SUMMARY_MAX"
-        placeholder="Players see this verbatim — the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
-      />
-    </label>
+      <p v-if="error" role="alert" class="rounded-md border border-destructive/40 p-2 text-caption text-destructive">{{ error }}</p>
+      <div class="flex flex-wrap justify-end gap-2">
+        <AppButton to="/quests" label="Cancel" variant="subtle" :disabled="saving" />
+        <AppButton label="Create quest" variant="primary" :loading="saving" :disabled="!title.trim()" @click="createFlow" />
+      </div>
+    </template>
 
-    <p v-if="error" role="alert" class="rounded-md border border-destructive/40 p-2 text-caption text-destructive">{{ error }}</p>
-    <div class="flex flex-wrap justify-end gap-2">
-      <AppButton to="/quests" label="Cancel" variant="subtle" :disabled="saving" />
-      <AppButton label="Create quest" variant="primary" :loading="saving" :disabled="!title.trim()" @click="createFlow" />
-    </div>
+    <QuestPasteImportPanel v-else :parent-id="parentId ?? null" />
   </section>
 </template>
 
@@ -45,8 +62,23 @@ import { QUEST_STATUSES, QUEST_STATUS_LABELS, type QuestStatus } from "@/types/q
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import QuestPasteImportPanel from "@/components/quests/QuestPasteImportPanel.vue";
+import { IconClipboard, IconEdit } from "@/lib/icons";
 
 const { parentId = null } = defineProps<{ parentId?: string | null }>();
+
+/** A third way to start a quest, beside typing one (below) and generating
+ *  one (`QuestGeneratorPanel.vue`, opened from the quest list) — pasting a
+ *  page from a book (#839). See `QuestPasteImportPanel.vue`'s own header for
+ *  why this reuses the settings importer's extraction rather than forking
+ *  it. */
+type StartMode = "type" | "paste";
+const startMode = ref<StartMode>("type");
+const START_MODE_OPTIONS: SegmentedOption<StartMode>[] = [
+  { value: "type", label: "Type it", icon: IconEdit },
+  { value: "paste", label: "Paste a page", icon: IconClipboard },
+];
 const router = useRouter();
 const createQuest = useCreateQuest();
 const title = ref("");

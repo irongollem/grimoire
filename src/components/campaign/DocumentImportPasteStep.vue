@@ -1,28 +1,6 @@
 <template>
   <div class="space-y-4">
-    <div>
-      <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">Paste the page text</label>
-      <!--
-        Native RichTextEditor, not a plain <textarea> — and this is the
-        opposite case from CLAUDE.md's "native <textarea> for AI-prompt
-        fields" exception, not a violation of it. That exception exists
-        because a prompt box's markup would be noise the model never asked
-        for. Here the box holds the SOURCE DOCUMENT, not a prompt: the whole
-        feature depends on a real ⌘C off a published page carrying HTML
-        structure (headings, boxed text, tables) that a flat textarea would
-        throw away on paste — see sourceHtml.ts's file header. A rich editor
-        is also what lets the DM see and trim what landed before spending
-        credits, which a plain textarea showing raw markdown would not.
-      -->
-      <div @paste.capture="onEditorPasteCapture">
-        <RichTextEditor
-          :key="editorKey"
-          v-model="content"
-          size="lg"
-          placeholder="Copy the whole page from your source and paste it here…"
-        />
-      </div>
-    </div>
+    <DocumentPasteEditor ref="pasteEditorRef" v-model="content" />
 
     <template v-if="charCount === 0">
       <p class="text-caption text-muted-foreground italic">Paste some text to see its page count and cost.</p>
@@ -86,32 +64,13 @@
  * (editor wiring, its own count/cost/validation block, its own name/rights
  * footer) is a full mini-form in its own right — not a small addition.
  *
- * ── Why the paste handler intercepts in the capture phase ─────────────────
- *
- * `RichTextEditor.vue` is frozen for this story (see its own file — it
- * exposes no "insert HTML" command, and its `modelValue` prop is read only
- * once, at mount, not watched — so there is no way to hand it new content
- * after the fact except through a real edit or its own internal paste
- * handling). Its internal `handlePaste`/ProseMirror listener is attached
- * directly to the contenteditable DOM node, which is the paste event's
- * actual target — so a normal (bubble-phase) listener on a wrapper around it
- * would only ever run *after* that internal handling already happened.
- * Registering in the **capture** phase (`@paste.capture`) runs this handler
- * first, and calling `stopPropagation()` (not just `preventDefault()`) stops
- * the event from ever reaching RichTextEditor's own listener at all — so
- * normalization fully replaces its handling for an HTML paste rather than
- * running alongside it and doubling the inserted content.
- *
- * Once normalized HTML is converted to Tiptap content (`sourceHtmlToTiptapContent`),
- * it is appended to the current document and the editor is remounted via a
- * bumped `:key` — the only way to hand it fresh initial content, for the
- * same "modelValue is mount-only" reason above. A plain-text-only paste (no
- * `text/html` flavour on the clipboard) is left alone here and falls through
- * to RichTextEditor's own existing markdown/plain-text paste handling, which
- * is already reasonable for that case.
+ * The editor itself — the tricky, load-bearing paste-capture handling that
+ * turns a real ⌘C off a source page into Tiptap content — lives in
+ * `DocumentPasteEditor.vue` (#839), shared with the compact create-quest
+ * paste review so a second caller reuses it rather than re-deriving it.
  */
 import { computed, ref } from "vue";
-import RichTextEditor from "@/components/common/RichTextEditor.vue";
+import DocumentPasteEditor from "@/components/campaign/DocumentPasteEditor.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
@@ -122,7 +81,6 @@ import { useToast } from "@/composables/useToast";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useCreateDocumentImport, useImportCost } from "@/composables/campaign/useDocumentImport";
 import { pagesForText, validateTextImport, type UploadValidationResult } from "@/lib/documentImport/limits";
-import { sourceHtmlToTiptapContent } from "@/lib/tiptap/sourceHtml";
 import { tiptapToMarkdown } from "@/lib/tiptap/tiptapToMarkdown";
 
 function pageLabel(count: number): string {
@@ -136,33 +94,7 @@ const createImport = useCreateDocumentImport();
 // ── Paste editor state ───────────────────────────────────────────────────
 
 const content = ref<string>("");
-/** Bumped to force RichTextEditor to remount with `content` as fresh initial
- *  content — see the file header on why a plain v-model set doesn't do it. */
-const editorKey = ref(0);
-
-function onEditorPasteCapture(event: ClipboardEvent) {
-  const dt = event.clipboardData;
-  if (!dt) return;
-  const html = dt.getData("text/html");
-  if (!html) return; // plain-text-only paste — let RichTextEditor handle it natively
-  event.preventDefault();
-  event.stopPropagation();
-
-  const newBlocks = sourceHtmlToTiptapContent(html);
-  let existingBlocks: unknown[] = [];
-  if (content.value) {
-    try {
-      const parsed: unknown = JSON.parse(content.value);
-      if (parsed && typeof parsed === "object" && Array.isArray((parsed as { content?: unknown }).content)) {
-        existingBlocks = (parsed as { content: unknown[] }).content;
-      }
-    } catch {
-      // Malformed existing content shouldn't block a paste — start fresh.
-    }
-  }
-  content.value = JSON.stringify({ type: "doc", content: [...existingBlocks, ...newBlocks] });
-  editorKey.value++;
-}
+const pasteEditorRef = ref<InstanceType<typeof DocumentPasteEditor> | null>(null);
 
 // ── Page count / cost / validation ───────────────────────────────────────
 
@@ -201,8 +133,7 @@ const canSubmit = computed(
 );
 
 function resetForm() {
-  content.value = "";
-  editorKey.value++;
+  pasteEditorRef.value?.reset();
   displayName.value = "";
   rightsAttested.value = false;
   submitError.value = null;
