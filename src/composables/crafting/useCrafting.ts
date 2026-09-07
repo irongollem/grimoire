@@ -427,7 +427,15 @@ export function useAttemptCraft() {
       /** primary ingredient's carried_by (for re-adding as ruined). Carries both
        *  reference columns: the ruined row must point at whichever the original
        *  used, and a library reference in item_id is the 22P02 of #815. */
-      primaryInventoryItem: { item_id: string | null; library_item_id: string | null; name: string; carried_by: string | null; campaign_id: string };
+      /**
+       * The item a failed attempt ruins — **null when the recipe consumes
+       * nothing**. A recipe with tools and time but no material is legitimate
+       * (`RecipeEditor` requires an output, never an ingredient), and there is
+       * then no ingredient to spoil. It was typed non-nullable and the caller
+       * satisfied that with a `!`, so such a recipe crashed on the first
+       * dereference instead of crafting.
+       */
+      primaryInventoryItem: { item_id: string | null; library_item_id: string | null; name: string; carried_by: string | null; campaign_id: string } | null;
       modifierBonuses: number[];
       abilityMod: number;
       profBonus: number;
@@ -495,8 +503,11 @@ export function useAttemptCraft() {
               };
             })
           : [];
+      // `primaryInventoryItem` guards the ruin as well as the outcome: with
+      // nothing consumed there is nothing to ruin, so a failed attempt on a
+      // material-free recipe costs the time and leaves no wreckage.
       const ruinedRow =
-        outcome === "ruin"
+        outcome === "ruin" && primaryInventoryItem
           ? {
               campaign_id: primaryInventoryItem.campaign_id,
               item_id: primaryInventoryItem.item_id,

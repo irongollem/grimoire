@@ -1,3 +1,4 @@
+import { stripRetiredQuestColumns } from "@/lib/quests/retiredQuestColumns";
 import { ref } from "vue";
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
@@ -536,19 +537,11 @@ async function executeImport(
     await batchInsert(
       "quests",
       sortedQuests.map((q) => {
-        // A backup taken before #793 (description/notes → opening beat) or
-        // #799 (quest-level rewards → the beat that grants them, and
-        // flow_enabled_at) may still carry these keys; the columns are gone
-        // from the live table, so a raw `...q` spread would send PostgREST
-        // "column does not exist" and fail the whole restore.
-        const {
-          description: _description, notes: _notes,
-          rewards: _rewards, reward_pp: _rewardPp, reward_gp: _rewardGp,
-          reward_ep: _rewardEp, reward_sp: _rewardSp, reward_cp: _rewardCp,
-          reward_item_ids: _rewardItemIds, reward_currency_pools: _rewardCurrencyPools,
-          reward_art_objects: _rewardArtObjects, flow_enabled_at: _flowEnabledAt,
-          ...quest
-        } = q;
+        // A backup taken before #793 or #799 still carries columns the live
+        // table no longer has, and a raw spread would fail the whole restore.
+        // Shared with the world-bundle importer, which had the same job and a
+        // shorter list — see `retiredQuestColumns`.
+        const quest = stripRetiredQuestColumns(q);
         return {
           ...quest,
           id: r(q.id, idMap),

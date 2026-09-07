@@ -200,6 +200,14 @@ const suggestedTitle    = ref<string | null>(null);
 const suggestedSession  = ref<number | null>(null);
 const titleField        = ref("");
 const sessionField      = ref<number | null>(null);
+
+/**
+ * What the previous generation wrote into the title and session fields, so a
+ * regenerate can tell an untouched field from one the DM edited. Initialised to
+ * the fields' own starting values so the very first generation may fill them.
+ */
+const lastGeneratedTitle = ref(titleField.value);
+const lastGeneratedSession = ref(sessionField.value);
 const aiProvenance      = ref<AiProvenance | null>(null);
 const error             = ref("");
 
@@ -276,8 +284,20 @@ async function generate() {
     suggestedTitle.value   = heading.title;
     suggestedSession.value = heading.sessionNum;
     // The DM's own title wins the field; the model's is offered beneath it.
-    titleField.value   = props.noteTitle?.trim() || heading.title || "";
-    sessionField.value = props.noteSessionNum ?? heading.sessionNum;
+    //
+    // "Their own" includes a title they typed *here*, which is why these are
+    // guarded rather than assigned. "Write again" runs this same function, so
+    // an unguarded assignment silently replaced whatever the DM had typed in
+    // the preview with the new generation's heading — they go back to edit the
+    // facts, regenerate, and their title is gone with no diff and no prompt.
+    // Only a field still holding exactly what the last generation put there is
+    // safe to overwrite.
+    const nextTitle   = props.noteTitle?.trim() || heading.title || "";
+    const nextSession = props.noteSessionNum ?? heading.sessionNum;
+    if (titleField.value === lastGeneratedTitle.value) titleField.value = nextTitle;
+    if (sessionField.value === lastGeneratedSession.value) sessionField.value = nextSession;
+    lastGeneratedTitle.value   = nextTitle;
+    lastGeneratedSession.value = nextSession;
     aiProvenance.value = result.ai_provenance ?? null;
     step.value = "preview";
   } catch (e) {

@@ -1,3 +1,4 @@
+import { stripRetiredQuestColumns } from "@/lib/quests/retiredQuestColumns";
 import { ref } from "vue";
 import type { Ref } from "vue";
 import { computed } from "vue";
@@ -831,10 +832,12 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
   if (includeTypes.has("quests") && bundle.quests?.length) {
     const sorted = sortByHierarchy(bundle.quests, "parent_quest_id");
     await batchInsert("quests", sorted.map((q) => {
-      // A bundle exported before the description/notes → opening-beat
-      // migration (#793) may still carry these keys; the columns are gone,
-      // so a raw `...q` spread would send PostgREST "column does not exist."
-      const { description: _description, notes: _notes, ...quest } = q;
+      // A bundle carries no version field, so every one has to be treated as
+      // possibly older than the schema. This stripped only #793's two keys and
+      // never picked up #799's ten, so any bundle holding a quest with reward
+      // columns failed the whole insert. The list is shared now — see
+      // `retiredQuestColumns`.
+      const quest = stripRetiredQuestColumns(q);
       return {
         ...quest,
         id: idMap.get(q.id as string) ?? crypto.randomUUID(),

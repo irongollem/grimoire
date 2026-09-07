@@ -1,3 +1,4 @@
+import { itemRefColumns } from "@/lib/itemRef";
 import { ref, computed, watch, effectScope } from "vue";
 import { supabase } from "@/lib/supabase";
 import { createRealtimeChannel, type RealtimeChannelHandle } from "@/lib/realtimeChannel";
@@ -422,11 +423,18 @@ export function useCampaignMessages() {
     if (data) _optimisticPush(data as CampaignMessage);
   }
 
+  /**
+   * `itemId` is a catalogue *reference*, not necessarily a vault uuid — pass
+   * `inventoryItemRef(row)` for an inventory row rather than `row.item_id`,
+   * or the library half of the reference is dropped on the floor.
+   * `itemRefColumns` puts it in whichever column it belongs to, the same way
+   * every other write path does.
+   */
   async function sendItemDrop(itemName: string, itemId: string | null, quantity: number, rarity: string | null, senderName?: string, imageUrl?: string | null, description?: string | null, isContainer?: boolean) {
     const cid = campaign.activeCampaignId;
     if (!cid || !auth.user?.id) return;
     const metadata: ItemDropMetadata = {
-      item_id: itemId, item_name: itemName, item_rarity: rarity, quantity,
+      ...itemRefColumns(itemId), item_name: itemName, item_rarity: rarity, quantity,
       is_container: isContainer ?? false,
       quantity_remaining: quantity,
       claims: [],

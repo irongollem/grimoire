@@ -320,7 +320,9 @@ const modifierBonuses = computed(() => {
 function resolveIngredientConsumption(): {
   consumption: { id: string; qty: number }[];
   primaryId: string;
-  primaryItem: PartyInventoryItem;
+  /** Null when the recipe requires no ingredients — nothing is consumed, so
+   *  there is no item for a failed attempt to ruin. */
+  primaryItem: PartyInventoryItem | null;
 } {
   const consumption: { id: string; qty: number }[] = [];
   let primaryId = "";
@@ -356,7 +358,10 @@ function resolveIngredientConsumption(): {
     }
   }
 
-  return { consumption, primaryId, primaryItem: primaryItem! };
+  // Not `primaryItem!`. The loop above runs once per required ingredient, so a
+  // recipe with none leaves this null — and the `!` turned that into a crash at
+  // the first property read rather than a case the caller could handle.
+  return { consumption, primaryId, primaryItem };
 }
 
 const outcomeLabel = computed(() => {
@@ -416,16 +421,19 @@ async function attempt() {
       outputItemNames: resolvedOutputNames,
       ingredientConsumption: consumption,
       primaryIngredientInventoryId: primaryId,
-      primaryInventoryItem: {
-        // Was `primaryItem.item_id ?? ""` — an empty string is not an id, and
-        // craft_apply nullifs it anyway. Pass both columns as they really are so
-        // the ruined row keeps a library reference instead of losing it.
-        item_id: primaryItem.item_id,
-        library_item_id: primaryItem.library_item_id,
-        name: primaryItem.name || primaryItemDef?.name || "Item",
-        carried_by: primaryItem.carried_by,
-        campaign_id: primaryItem.campaign_id,
-      },
+      // Null when the recipe consumes nothing — there is no item to ruin.
+      primaryInventoryItem: primaryItem
+        ? {
+            // Was `primaryItem.item_id ?? ""` — an empty string is not an id, and
+            // craft_apply nullifs it anyway. Pass both columns as they really are so
+            // the ruined row keeps a library reference instead of losing it.
+            item_id: primaryItem.item_id,
+            library_item_id: primaryItem.library_item_id,
+            name: primaryItem.name || primaryItemDef?.name || "Item",
+            carried_by: primaryItem.carried_by,
+            campaign_id: primaryItem.campaign_id,
+          }
+        : null,
       modifierBonuses: modifierBonuses.value,
       abilityMod: abilityMod.value,
       profBonus: effectiveProfBonus.value,

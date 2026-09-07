@@ -117,7 +117,9 @@ async function remove(item: NpcInventoryItem) {
 }
 
 async function dropToChat(item: NpcInventoryItem) {
-  await sendItemDrop(item.name, item.item_id, item.quantity, null, props.npcName ?? undefined);
+  // `inventoryItemRef`, not `item.item_id`: a library-sourced row keeps its
+  // reference in the other column, and reading the raw one dropped it.
+  await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, null, props.npcName ?? undefined);
   await removeItem({ id: item.id, npcId: props.npcId });
 }
 </script>

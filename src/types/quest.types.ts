@@ -1,3 +1,4 @@
+import type { NpcRelationship } from "@/types/npc.types";
 import type { AiProvenance } from "@/ai/provenance";
 
 export type QuestStatus =
@@ -249,6 +250,22 @@ export interface QuestConsequenceEvent {
   performed_on_day: number | null;
   calendar_event_id: string | null;
   message_id: string | null;
+  /**
+   * The undo record for the two actions added after this interface was written
+   * — a disposition shift (#831) and a quest unlock (#836). Both store what the
+   * value *was*, because both are relative moves: undoing "improve by two" has
+   * to restore the stance it started from, not compute an inverse. Null for
+   * every other action, and for a row logged before the action existed.
+   *
+   * They were missing here until the #825 review. Nothing broke, because the
+   * one real reader (`useDueConsequences`) declares its own narrower row type
+   * — but an audit-trail surface reading this interface would have been unable
+   * to see either field, with the compiler agreeing it did not exist.
+   */
+  target_npc_id: string | null;
+  previous_relationship: NpcRelationship | null;
+  target_quest_id: string | null;
+  previous_quest_status: QuestStatus | null;
   undone_at: string | null;
   seq: number;
   created_at: string;

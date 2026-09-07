@@ -20,9 +20,18 @@
 // (0,0) corresponds to; see that field's docstring in `location.types.ts`
 // for why the two can differ (bake padding).
 //
-// Serves locations, encounters, play and cartographer — a lone utility used
-// by three-or-more features belongs at the root of `lib/` per CLAUDE.md's
-// Module Placement table, not under `lib/locations/` or `lib/battlemap/`.
+// Placed at the root of `lib/` on the strength of who will import it, which is
+// a weaker claim than the rule wants and is written down as such. Today the
+// callers are locations (`MapRegionsLayer`, `lib/locations/siteMap`) and play
+// (`PlayerSiteMap`) — two feature areas, not the three-or-more that CLAUDE.md's
+// Module Placement table asks for. Encounters and the cartographer are the
+// other intended callers and have not been wired up: this shipped as #805's
+// first slice, pure maths ahead of its consumers.
+//
+// So: if the remaining #805 slices land, the claim becomes true and this stays.
+// If they are dropped, this belongs in `lib/locations/` and should be moved
+// rather than left sitting at the root on a promise. Noted during the #825
+// review, where the original comment claimed four consumers it did not have.
 
 import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration } from "@/types/location.types";
