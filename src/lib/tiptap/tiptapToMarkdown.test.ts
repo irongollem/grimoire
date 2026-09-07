@@ -177,4 +177,24 @@ describe("tiptapToMarkdown — round trip with markdownToTiptap", () => {
     // structure should be lost.
     expect(parseMarkdown(md)).toEqual(parseMarkdown(source));
   });
+
+  // A blockquote with two paragraphs. The separator used to be `">\n"`, which
+  // appended a stray `>` to the previous line — `> First para>` — and rendered
+  // as a literal angle bracket inside the quote. Single-paragraph quotes hid
+  // it, and those are the common case for a read-aloud box.
+  it("separates blockquote paragraphs with a quoted blank line, not a stray marker", () => {
+    const doc = {
+      type: "doc",
+      content: [{
+        type: "blockquote",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "First para" }] },
+          { type: "paragraph", content: [{ type: "text", text: "Second para" }] },
+        ],
+      }],
+    };
+    const md = tiptapToMarkdown(doc);
+    expect(md).toBe("> First para\n>\n> Second para");
+    expect(md).not.toContain("para>");
+  });
 });

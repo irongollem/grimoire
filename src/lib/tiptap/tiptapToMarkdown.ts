@@ -127,7 +127,14 @@ function blockToMarkdown(node: JsonRecord): string | null {
       if (!inner.length) return null;
       return inner
         .map((block) => block.split("\n").map((line) => `> ${line}`).join("\n"))
-        .join(">\n");
+        // `"\n>\n"`, not `">\n"`. Each block is already `> `-prefixed on every
+        // line, so the separator only has to supply the blank quoted line
+        // between them. Joining on `">\n"` welded a stray `>` onto the end of
+        // the previous block's last line — `> First para>` — which renders as
+        // a literal `>` inside the quote. Only bites a blockquote holding more
+        // than one block, which is why it survived: the read-aloud boxes that
+        // motivated this are usually a single paragraph.
+        .join("\n>\n");
     }
     case "bulletList":
       return listToMarkdown(node, false);

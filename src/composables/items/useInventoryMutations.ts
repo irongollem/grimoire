@@ -142,7 +142,12 @@ export function useInventoryMutations({
       : null;
     await sendItemDrop(
       inv.name,
-      inv.item_id,
+      // `ref`, not `inv.item_id` — it is resolved two lines up and was then
+      // ignored here. A library-sourced row keeps its reference in
+      // `library_item_id`, so passing the raw column dropped it and the claim
+      // landed as unlinked free text. Third instance of the same miss; the
+      // other two were in PartyInventoryInline and NpcInventorySection.
+      ref,
       inv.quantity,
       linkedItem?.rarity ?? null,
     );

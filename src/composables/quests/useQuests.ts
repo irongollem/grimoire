@@ -349,6 +349,17 @@ export function useAssertQuestObjectiveStatus() {
       queryClient.invalidateQueries({ queryKey: [OBJECTIVES_KEY, questId] });
       queryClient.invalidateQueries({ queryKey: [CONSEQUENCE_EVENTS_KEY] });
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      // Asserting a status runs `private.apply_quest_consequences`, and an
+      // `unlock_quest` rule promotes a *different* quest — so the objectives
+      // key above, scoped to this one, cannot cover what changed. The board
+      // summarises every quest's status, which is exactly where that promotion
+      // shows. Same omission as `useQuestRuntimeCommand` had: the caches a
+      // consequence can reach are wider than the row the DM clicked.
+      // The board key is a literal because `BEATS_KEY` lives in useQuestFlow
+      // and importing it here would make these two modules circular. Prefix
+      // matching means the campaign id on the real key does not need repeating.
+      queryClient.invalidateQueries({ queryKey: ["quest_beats", "board"] });
+      queryClient.invalidateQueries({ queryKey: [QUESTS_KEY] });
     },
     onError: (e) => toast.error(toast.fromError(e)),
   });

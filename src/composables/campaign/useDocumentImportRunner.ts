@@ -165,11 +165,23 @@ export function useDocumentImportRunner() {
     return runImportKind({ kind, entities, selectedRefs, linkedRefs, campaignId: importRow.campaign_id, provenance }, deps);
   }
 
-  /** Marks a row done — `imported_counts` merged with whatever the caller
-   *  already knew (a row a wizard partly reviewed before this ran keeps
-   *  those counts) — and invalidates the active-row query so a mounted
-   *  surface reading it (either door) drops it immediately rather than on
-   *  its next poll. */
+  /**
+   * Marks a row done and invalidates the active-row query, so a mounted
+   * surface reading it (either door) drops it immediately rather than on its
+   * next poll.
+   *
+   * `imported_counts` is **overwritten**, not merged. This said "merged with
+   * whatever the caller already knew" and the code never did that — a comment
+   * describing a safeguard nobody wrote, which is worse than none, because the
+   * next reader stops looking.
+   *
+   * Overwrite is correct for the one caller there is: `QuestPasteImportPanel`
+   * tallies a single run and passes the complete counts for it. If a second
+   * door ever finalizes a row another door partly imported, this needs to read
+   * the existing counts and merge them — and that is the moment to write the
+   * merge, not before, since a merge on a single-run tally can only mask a
+   * double-count.
+   */
   async function finalizeImport(importRowId: string, importedCounts: Partial<Record<ImportEntityKind, number>>): Promise<void> {
     const { error } = await supabase
       .from("document_imports")

@@ -846,6 +846,18 @@ async function executeImport(
         quest_id: r(qc.quest_id, idMap),
         on_objective_id: r(qc.on_objective_id, idMap),
         target_objective_id: r(qc.target_objective_id, idMap),
+        // Added by #831 and #836 after this block was written, and both carry
+        // a foreign key — so leaving them unremapped does not dangle quietly,
+        // it either violates the FK and fails the whole restore, or (when the
+        // originals still exist) silently points the restored campaign's rule
+        // at the *original* campaign's NPC or quest.
+        //
+        // `on_beat_id` and `on_edge_id` are the only uuid columns left off this
+        // list, and deliberately: `resolveQuestConsequences` filters beat- and
+        // edge-scoped rules out entirely, because this backup format has never
+        // carried the beat graph and there would be nothing to point them at.
+        target_npc_id: r(qc.target_npc_id, idMap),
+        target_quest_id: r(qc.target_quest_id, idMap),
       })),
     );
 
