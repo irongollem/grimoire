@@ -33,7 +33,7 @@ import {
   type FactionItemWithItem,
 } from "@/composables/factions/useFactions";
 import { useItems } from "@/composables/items/useItems";
-import { inventoryItemRef, itemRefColumns } from "@/lib/inventory/itemRef";
+import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
 
 const props = defineProps<{ factionId: string }>();

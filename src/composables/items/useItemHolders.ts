@@ -1,7 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
-import { itemRefColumns } from "@/lib/inventory/itemRef";
+import { itemRefColumns } from "@/lib/itemRef";
 
 export interface ItemHolder {
   type: "npc" | "party_member" | "shop";
@@ -21,7 +21,7 @@ export function useItemHolders(itemId: MaybeRefOrGetter<string>) {
 
       // The id's own shape says which column references it — a vault (uuid)
       // item can only ever be named by item_id, a library (text) item only by
-      // library_item_id. See src/lib/inventory/itemRef.ts.
+      // library_item_id. See src/lib/itemRef.ts.
       const refColumn = itemRefColumns(id).item_id ? "item_id" : "library_item_id";
 
       const [npcRes, partyRes, shopRes] = await Promise.all([

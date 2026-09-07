@@ -20,7 +20,7 @@ import type { Location } from "@/types/location.types";
 import type { Item } from "@/types/item.types";
 import type { Deity } from "@/types/deity.types";
 import { normalizeLibraryItem } from "@/composables/items/useItems";
-import type { ItemRefColumns } from "@/lib/inventory/itemRef";
+import type { ItemRefColumns } from "@/lib/itemRef";
 
 // ── Factions CRUD ──────────────────────────────────────────────────────────────
 

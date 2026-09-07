@@ -64,13 +64,24 @@ export interface DueConsequenceRow {
  */
 export const CONSEQUENCE_HORIZON_DAYS = 14;
 
+/**
+ * `action_payload` is jsonb, so the casts below assert a shape nothing has
+ * validated — a row written by an older migration, or by hand, can be missing
+ * the field the type promises. Both payload types declare their field as a
+ * plain `string`, which makes a `?? ""` dead code against the *declared* type
+ * while silently rendering `Calendar event: ""` for the row that is actually
+ * malformed. The absence marker says so instead, the same way an unrated
+ * creature reads "CR ???" rather than "CR ".
+ */
+const UNKNOWN_PAYLOAD_FIELD = "???";
+
 function summarize(action: QuestConsequenceAction, payload: ConsequenceEventRow["action_payload"]): string {
   if (action === "create_calendar_event") {
-    const p = payload as CalendarEventConsequencePayload;
-    return `Calendar event: "${p.title ?? ""}"`;
+    const p = payload as Partial<CalendarEventConsequencePayload>;
+    return `Calendar event: "${p.title || UNKNOWN_PAYLOAD_FIELD}"`;
   }
-  const p = payload as BroadcastConsequencePayload;
-  return `Broadcast: "${p.message ?? ""}"`;
+  const p = payload as Partial<BroadcastConsequencePayload>;
+  return `Broadcast: "${p.message || UNKNOWN_PAYLOAD_FIELD}"`;
 }
 
 /**

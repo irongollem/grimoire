@@ -235,7 +235,7 @@ import {
   useRemoveStoreItem,
 } from "@/composables/items/useStoreItems";
 import type { StoreItem } from "@/composables/items/useStoreItems";
-import { inventoryItemRef, itemRefColumns } from "@/lib/inventory/itemRef";
+import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES, RARITY_PRICE_HINTS } from "@/types/item.types";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";

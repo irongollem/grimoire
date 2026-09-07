@@ -16,7 +16,7 @@ import type {
 } from "@/types/crafting.types";
 import { queueItemEmbedding } from "@/composables/items/useItems";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import { inventoryItemRef } from "@/lib/inventory/itemRef";
+import { inventoryItemRef } from "@/lib/itemRef";
 import type { StarterRecipeDef } from "@/data/starterRecipes";
 
 const RECIPES_KEY    = "crafting-recipes";

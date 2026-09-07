@@ -2,17 +2,13 @@
   <div class="flex flex-col gap-3">
     <!-- Existing ways out -->
     <div v-if="doors.length" class="flex flex-col gap-1.5">
-      <div
+      <PlacementRow
         v-for="view in doors"
         :key="view.door.id"
-        class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2"
+        :to="`/locations/${view.otherRoomId}`"
+        :name="view.otherRoomName"
       >
-        <div class="flex items-center gap-2">
-          <RouterLink
-            :to="`/locations/${view.otherRoomId}`"
-            class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
-          >{{ view.otherRoomName }}</RouterLink>
-
+        <template #actions>
           <AppButton
             variant="ghost"
             size="xs"
@@ -49,29 +45,19 @@
             class="shrink-0"
             @click="removeDoor(view.door.id)"
           />
-        </div>
-        <AppInput
+        </template>
+        <PlacementNoteInput
           v-if="view.door.starts_locked"
-          :model-value="view.door.lock_note ?? ''"
-          :model-modifiers="{ lazy: true }"
-          type="text"
-          tone="bare"
-          size="xs"
+          :model-value="view.door.lock_note"
           placeholder="What opens it — e.g. the brass key"
-          class="px-0 text-caption"
-          @update:model-value="(value) => onLockNoteCommit(view.door, value as string)"
+          @commit="(value) => onLockNoteCommit(view.door, value)"
         />
-        <AppInput
+        <PlacementNoteInput
           :model-value="view.door.label"
-          :model-modifiers="{ lazy: true }"
-          type="text"
-          tone="bare"
-          size="xs"
           placeholder="Label — e.g. iron grille"
-          class="px-0 text-caption"
-          @update:model-value="(value) => onLabelCommit(view.door, value as string)"
+          @commit="(value) => onLabelCommit(view.door, value)"
         />
-      </div>
+      </PlacementRow>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">No ways out yet — add one below.</p>
 
@@ -137,10 +123,11 @@
  * Nothing here should ever be renamed to `is_locked` or `is_discovered`.
  */
 import { computed, ref } from "vue";
-import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
+import PlacementRow from "@/components/locations/PlacementRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconClose, IconHide, IconLock } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";

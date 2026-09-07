@@ -76,7 +76,7 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/items/useNpcInventory";
 import { useItems } from "@/composables/items/useItems";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
-import { inventoryItemRef, itemRefColumns } from "@/lib/inventory/itemRef";
+import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import type { NpcInventoryItem } from "@/types/npc-inventory.types";
 
 /** `npcName` is the players' name for this NPC — an unrevealed alter ego's

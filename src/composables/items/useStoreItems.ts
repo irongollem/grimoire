@@ -4,8 +4,8 @@ import type { Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { Item } from "@/types/item.types";
 import { usePlayerVisibleItems, normalizeLibraryItem } from "@/composables/items/useItems";
-import { inventoryItemRef } from "@/lib/inventory/itemRef";
-import type { ItemRefColumns } from "@/lib/inventory/itemRef";
+import { inventoryItemRef } from "@/lib/itemRef";
+import type { ItemRefColumns } from "@/lib/itemRef";
 
 export interface StoreItem extends ItemRefColumns {
   id: string;

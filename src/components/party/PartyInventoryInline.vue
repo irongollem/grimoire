@@ -192,7 +192,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { PartyMember } from "@/types/party.types";
-import { itemRefColumns } from "@/lib/inventory/itemRef";
+import { itemRefColumns } from "@/lib/itemRef";
 
 const { party } = defineProps<{ party: PartyMember[] }>();
 

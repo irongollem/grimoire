@@ -103,7 +103,7 @@ import ItemRow from "./ItemRow.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
-import { inventoryItemRef } from "@/lib/inventory/itemRef";
+import { inventoryItemRef } from "@/lib/itemRef";
 
 const props = defineProps<{
   label: string;

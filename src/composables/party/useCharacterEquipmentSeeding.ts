@@ -4,7 +4,7 @@ import { CLASS_EQUIPMENT } from "@/data/classEquipment";
 import type { CharacterFormState } from "@/rules/characterCreation";
 import type { BundleItemEntry } from "@/types/item.types";
 import type { PartyInventoryInsert, PartyInventoryItem } from "@/types/inventory.types";
-import { itemRefColumns } from "@/lib/inventory/itemRef";
+import { itemRefColumns } from "@/lib/itemRef";
 
 /** Vault item data needed for equipment seeding. */
 export interface VaultEntry { id: string; bundle_items: BundleItemEntry[] | null }

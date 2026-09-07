@@ -2,20 +2,18 @@
   <div class="flex flex-col gap-3">
     <!-- Placed at -->
     <div v-if="placements?.length" class="flex flex-col gap-1.5">
-      <div
+      <PlacementRow
         v-for="p in placements"
         :key="p.id"
-        class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2"
+        :to="`/locations/${p.location_id}`"
+        :name="p.location?.name ?? '???'"
       >
-        <div class="flex items-center gap-2">
+        <template v-if="p.location" #badge>
           <span
-            v-if="p.location"
             class="inline-flex shrink-0 items-center rounded bg-muted/40 px-1.5 py-0.5 font-cinzel text-2xs font-bold uppercase tracking-wide text-muted-foreground"
           >{{ LOCATION_TYPE_LABELS[p.location.location_type] }}</span>
-          <RouterLink
-            :to="`/locations/${p.location_id}`"
-            class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
-          >{{ p.location?.name ?? "???" }}</RouterLink>
+        </template>
+        <template #actions>
           <AppButton
             variant="ghost"
             tone="danger"
@@ -25,18 +23,13 @@
             class="shrink-0"
             @click="removePlacement(p.id)"
           />
-        </div>
-        <AppInput
-          :model-value="p.note ?? ''"
-          :model-modifiers="{ lazy: true }"
-          type="text"
-          tone="bare"
-          size="xs"
+        </template>
+        <PlacementNoteInput
+          :model-value="p.note"
           placeholder="Note — what it's doing in this room…"
-          class="px-0 text-caption"
-          @update:model-value="(value) => onNoteCommit(p, value as string)"
+          @commit="(value) => onNoteCommit(p, value)"
         />
-      </div>
+      </PlacementRow>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">Not placed anywhere yet.</p>
 
@@ -49,7 +42,7 @@
           placeholder="Pick a location…"
         >
           <template #option="{ opt }">
-            <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 12}px` }">{{ opt.name }}</span>
+            <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 0.75}rem` }">{{ opt.name }}</span>
           </template>
         </EntityCombobox>
         <AppButton
@@ -83,9 +76,9 @@
  * toast rather than being pre-validated client-side.
  */
 import { computed, ref } from "vue";
-import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
+import PlacementRow from "@/components/locations/PlacementRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconClose } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";

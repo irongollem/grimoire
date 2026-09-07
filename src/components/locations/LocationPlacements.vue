@@ -2,22 +2,16 @@
   <div class="flex flex-col gap-3">
     <!-- Placed entries -->
     <div v-if="placements?.length" class="flex flex-col gap-1.5">
-      <div
-        v-for="p in placements"
-        :key="p.id"
-        class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2"
-      >
-        <div class="flex items-center gap-2">
+      <PlacementRow v-for="p in placements" :key="p.id" :to="hrefOf(p)" :name="nameOf(p)">
+        <template #badge>
           <span
             class="inline-flex shrink-0 items-center gap-1 rounded bg-muted/40 px-1.5 py-0.5 font-cinzel text-2xs font-bold uppercase tracking-wide text-muted-foreground"
           >
             <component :is="KIND_ICON[kindOf(p)]" class="h-3 w-3" />
             {{ LOCATION_PLACEMENT_KIND_LABELS[kindOf(p)] }}
           </span>
-          <RouterLink
-            :to="hrefOf(p)"
-            class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
-          >{{ nameOf(p) }}</RouterLink>
+        </template>
+        <template #actions>
           <AppButton
             variant="ghost"
             tone="danger"
@@ -27,18 +21,13 @@
             class="shrink-0"
             @click="removePlacement(p.id)"
           />
-        </div>
-        <AppInput
-          :model-value="p.note ?? ''"
-          :model-modifiers="{ lazy: true }"
-          type="text"
-          tone="bare"
-          size="xs"
+        </template>
+        <PlacementNoteInput
+          :model-value="p.note"
           placeholder="Note — what it's doing in this room…"
-          class="px-0 text-caption"
-          @update:model-value="(value) => onNoteCommit(p, value as string)"
+          @commit="(value) => onNoteCommit(p, value)"
         />
-      </div>
+      </PlacementRow>
     </div>
     <p v-else class="text-caption text-muted-foreground italic">Nothing prepared here yet.</p>
 
@@ -82,9 +71,9 @@
  * room; it does not delete the trap/feature/table itself.
  */
 import { computed, ref, watch } from "vue";
-import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
+import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
+import PlacementRow from "@/components/locations/PlacementRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";

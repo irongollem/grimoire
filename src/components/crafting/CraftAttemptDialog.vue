@@ -196,7 +196,7 @@ import type { CraftingRecipe, CraftingOutput, CraftingModifier, CraftingAttemptR
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
-import { inventoryItemRef } from "@/lib/inventory/itemRef";
+import { inventoryItemRef } from "@/lib/itemRef";
 
 const POOR_INGREDIENTS_PENALTY = -2;
 

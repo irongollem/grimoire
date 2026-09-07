@@ -199,7 +199,7 @@ import type { DisciplineConfig } from "@/lib/crafting-disciplines";
 import { canonicalToolName, hasToolProficiency } from "@/rules/toolProficiency";
 import { usePlayerCraftingRecipes, useAllRecipeIngredients, useAllRecipeModifiers, useAllRecipeOutputs, useCraftableOutputItems } from "@/composables/crafting/useCrafting";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
-import { inventoryItemRef } from "@/lib/inventory/itemRef";
+import { inventoryItemRef } from "@/lib/itemRef";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { useParty } from "@/composables/party/useParty";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";

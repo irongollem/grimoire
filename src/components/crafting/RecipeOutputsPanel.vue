@@ -76,8 +76,8 @@ import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { IconDelete, IconSearch } from "@/lib/icons";
-import { inventoryItemRef } from "@/lib/inventory/itemRef";
-import type { ItemRefColumns } from "@/lib/inventory/itemRef";
+import { inventoryItemRef } from "@/lib/itemRef";
+import type { ItemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
 
 interface OutputEntry extends ItemRefColumns {

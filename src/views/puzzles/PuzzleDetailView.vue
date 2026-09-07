@@ -244,7 +244,7 @@
                   @update:model-value="form.location_id = $event || null"
                 >
                   <template #option="{ opt }">
-                    <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 12}px` }">{{ opt.name }}</span>
+                    <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 0.75}rem` }">{{ opt.name }}</span>
                   </template>
                 </EntityCombobox>
               </div>

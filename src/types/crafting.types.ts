@@ -42,7 +42,7 @@ export interface CraftingOutput {
   id: string;
   recipe_id: string;
   // At most one of these is set — a DB check constraint enforces it. Resolve
-  // through `src/lib/inventory/itemRef.ts`, never by reading a column directly.
+  // through `src/lib/itemRef.ts`, never by reading a column directly.
   item_id: string | null; // the owner's own items row (uuid)
   library_item_id: string | null; // shared library content (text id) — #819
   quantity: number;
@@ -54,7 +54,7 @@ export interface CraftingIngredient {
   id: string;
   recipe_id: string;
   /** Specific item required. Exactly one of item_id / library_item_id / tags
-   *  must be set — resolve via `src/lib/inventory/itemRef.ts`. */
+   *  must be set — resolve via `src/lib/itemRef.ts`. */
   item_id: string | null;
   /** Shared library content required (text id) — #819. */
   library_item_id: string | null;

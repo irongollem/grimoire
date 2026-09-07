@@ -30,7 +30,7 @@ import {
 } from "@/rules/characterCreation";
 import { useCharacterEquipmentSeeding, type VaultEntry } from "@/composables/party/useCharacterEquipmentSeeding";
 import { useCharacterBackgroundSelection } from "@/composables/party/useCharacterBackgroundSelection";
-import { itemRefColumns } from "@/lib/inventory/itemRef";
+import { itemRefColumns } from "@/lib/itemRef";
 
 // ── Equipment-seeding row builders (pure — no I/O) ──────────────────────────
 // Extracted so the create-character hot path (save(), below) can batch these

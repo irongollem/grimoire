@@ -228,7 +228,7 @@ import {
 } from "@/lib/crafting-disciplines";
 import { useUiStore } from "@/stores/ui";
 import { useItems } from "@/composables/items/useItems";
-import { itemRefColumns, sameItemRef } from "@/lib/inventory/itemRef";
+import { itemRefColumns, sameItemRef } from "@/lib/itemRef";
 import {
   useCreateRecipe,
   useUpdateRecipe,

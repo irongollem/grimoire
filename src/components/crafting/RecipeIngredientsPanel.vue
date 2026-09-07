@@ -113,7 +113,7 @@
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd, IconDelete, IconSearch, IconTag } from "@/lib/icons";
-import { inventoryItemRef } from "@/lib/inventory/itemRef";
+import { inventoryItemRef } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
 
 interface IngredientEntry {

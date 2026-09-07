@@ -8,7 +8,7 @@ import {
   useAddInventoryItem,
   useUpdateInventoryItem,
 } from "@/composables/items/usePartyInventory";
-import { inventoryItemRef } from "@/lib/inventory/itemRef";
+import { inventoryItemRef } from "@/lib/itemRef";
 
 interface UseInventorySlotsOptions {
   equippedItems: ComputedRef<PartyInventoryItem[]>;

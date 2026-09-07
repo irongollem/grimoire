@@ -306,13 +306,15 @@ function pinStyle(pin: MapPinType, hovered: boolean, pinned: boolean, mapScale: 
   let tx: string;
   let originX: string;
   if (hovered) {
-    // Overlap the dot by 6px (half dot width) so the pill covers the hover
-    // zone, preventing flutter when the cursor entered from the far side.
+    // Overlap the dot by half its width (it is w-3 = 0.75rem) so the pill
+    // covers the hover zone, preventing flutter when the cursor entered from
+    // the far side. In rem, so it keeps tracking the dot when the root font
+    // size changes — a px offset would drift off a dot that scales.
     if (pin.x > 0.5) {
-      tx = "calc(-100% + 6px)";
+      tx = "calc(-100% + 0.375rem)";
       originX = "right";
     } else {
-      tx = "-6px";
+      tx = "-0.375rem";
       originX = "left";
     }
   } else {
@@ -327,10 +329,10 @@ function pinStyle(pin: MapPinType, hovered: boolean, pinned: boolean, mapScale: 
     // Touch-opened: park the pill clearly above (or below) the finger so the
     // Go/Watch buttons aren't under the hand that just tapped.
     if (pin.y < 0.25) {
-      ty = "calc(100% + 24px)";
+      ty = "calc(100% + 1.5rem)";
       originY = "top";
     } else {
-      ty = "calc(-100% - 24px)";
+      ty = "calc(-100% - 1.5rem)";
       originY = "bottom";
     }
   } else {

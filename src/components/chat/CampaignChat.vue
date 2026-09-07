@@ -122,7 +122,7 @@ import ChatPanelContent from "./ChatPanelContent.vue";
 import type { RollResult } from "@/lib/dice/dice";
 import type { ItemDropMetadata, CurrencyDropMetadata, VendorOfferMetadata, PlayerOfferMetadata, LootChestMetadata } from "@/types/chat.types";
 import { toCP, fromCP } from "@/rules/currency";
-import { itemRefColumns } from "@/lib/inventory/itemRef";
+import { itemRefColumns } from "@/lib/itemRef";
 
 const { contained = false, hideTab = false } = defineProps<{ contained?: boolean; hideTab?: boolean }>();
 

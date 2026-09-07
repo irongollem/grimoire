@@ -1,6 +1,6 @@
 import { ref, computed, type Ref, type ComputedRef } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
-import { inventoryItemRef, itemRefColumns } from "@/lib/inventory/itemRef";
+import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import {
   useAddInventoryItem,
   useAddInventoryItems,
