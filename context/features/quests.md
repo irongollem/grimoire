@@ -642,12 +642,36 @@ return target, and the most recent **100** transitions — the cockpit polls it)
 `get_quest_beat_loot` by #830 when rooms gained the same verb — see
 `loot_placements` above), `get_player_visible_quest_beats`,
 `get_player_visible_quests`, `assert_quest_objective_status` (#794 — the DM
-asserting a status with no cursor movement), `perform_quest_consequence`
+asserting a status with no cursor movement), `assert_quest_runtime` (#796 — see
+**Record what already happened** below), `perform_quest_consequence`
 (#794 — performs one already-logged, delayed world-action event on a date the
 client computed; see "one rule engine" above) and
 `get_player_visible_site_state` (#798 — the inside of a site as the party knows
 it; see below).
 
+
+### Record what already happened — the backfill panel
+
+`QuestBackfillPanel.vue`, mounted inside `QuestOverviewLifecycle` on the quest's
+Overview. The DM ticks the beats the party already played, optionally names the
+session, and records them: consequences are applied and the cursor can be placed
+at the last one — without ever starting a session. *"Backfilling ten sessions of
+history should not mean performing them."*
+
+It exists because the graph arrived after most campaigns did. A DM adopting the
+beat model mid-campaign has a played history and an empty runtime, and the only
+other way to reconcile them was to walk the cockpit through beats the table had
+already lived — writing a transition log that claims tonight's session replayed
+the whole quest.
+
+Backed by `assert_quest_runtime`, which is DM-gated like the rest and reasons
+from the transition log rather than the cursor, so corrections **append as
+recorded rather than as played** and re-running one is not a second playthrough.
+
+Undocumented until the #825 review, which is worth noting rather than quietly
+fixing: this is a real DM-facing surface with its own `SECURITY DEFINER` RPC,
+and the runtime list above enumerated every other one — including
+`archive_quest_beat`, which does far less.
 **Two of these changed in #798.** `get_player_visible_quest_beats` now also
 returns `staged_at_location_id`, populated **only for revealed beats** — a
 rumored beat's staging would pin a scene on the player's map before they have
