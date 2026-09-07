@@ -491,8 +491,16 @@ Vue Flow view-model wrappers only.
 | --------------------------- | ----------------------------------------------- |
 | `/quests`                   | `views/quests/QuestsView.vue` → `QuestList.vue` |
 | `/quests/new`               | `QuestDetailView.vue` → `QuestFlowStarter.vue`  |
-| `/quests/:id`               | `QuestDetailView.vue`                           |
+| `/quests/:id` (child of `/quests`) | `QuestDetailView.vue`                    |
 | `/quests/:id/beats/:beatId` | `views/quests/QuestBeatDetailView.vue`          |
+
+`/quests/:id` nests under `/quests` (#844) the same way NPCs and monsters nest
+under their grids — `QuestsView` keeps the log mounted and renders
+`<RouterView />` after it; `QuestDetailView` decides whether it is the modal or
+the full screen, via `useDetailModal` fed by `useQuestDetailSurface`. `/quests/new`
+and the beats route stay top-level siblings on purpose: creating a quest is the
+full editor at every width, and a beat is a full-screen surface in its own
+right, neither of which has a list to sit over.
 
 **Three ways to start a quest**, all reachable without leaving the quest list:
 typing one (`QuestFlowStarter.vue`'s own form — title, starting lane, optional
@@ -511,7 +519,14 @@ in Campaign Settings → Document Import is unchanged and still the way to
 bulk-import a whole chapter.
 
 `/quests/:id` has two peer surfaces behind a `SegmentedControl`, selected by
-`?view=`:
+`?view=`. Only one of the two is a glance: on tablet and up, Overview is
+`useDetailModal`'s popover over the log (`QuestDetailModal.vue`, thin over
+`QuestOverviewPanel` the same way `NpcDetailModal` wraps the NPC sheet), while
+Work is a commitment — the graph is a fixed-viewport canvas and the cockpit is
+a live session — so `useQuestDetailSurface`'s `takesWholeScreen` forces it to
+the full screen regardless of width. `SegmentedControl` still switches between
+them inline wherever the full screen is already showing (a phone, at every
+`view`; desktop while `view === "work"`).
 
 - **Overview** — `QuestOverviewPanel` → metadata (title, premise/`summary`,
   status, giver, location, parent, tags, sharing — one autosaved editor per
@@ -739,29 +754,29 @@ there.
 
 ---
 
-## One departure worth a decision
+## A departure that used to need a decision
 
 `QuestFlowStarter` sends a newly created quest to `/quests/:id?view=overview` — the
-new record's own detail page. The post-mutation navigation rule says create should
-go to the list and explicitly forbids the detail page, and `/quests/:id` is a
-standalone route, so it does not qualify for the nested-detail carve-out that NPCs
-and monsters have.
+new record's own detail page, and it is not alone: `QuestGeneratorPanel` does it
+twice (lines 420 and 431) and `QuestPasteImportPanel` once (line 517). A fourth,
+`QuestGraphDesigner:283`, targets a *beat* rather than the quest, so it is a
+different route and not part of this question. The post-mutation navigation rule
+says create should go to the list and explicitly forbids the detail page; the carve-out
+that lets NPCs and monsters target their own id after a mutation is earned by
+*route nesting*, and until [#844](https://github.com/irongollem/grimoire/issues/844)
+`/quests/:id` was a standalone route, so none of these four qualified for it.
+A conventions review during epic #780 flagged this, and the epic itself added
+the fourth call site rather than resolving it.
 
-It is deliberate rather than an oversight: the graph-first lifecycle means New Quest
-creates a lightweight shell whose entire point is to open in the designer, and
-bouncing to a list to click straight back in would be worse. But it is **not
-currently written down as a sanctioned exception**, which means the next reader is
-entitled to "fix" it. Either bless it in CLAUDE.md's Sanctioned Exceptions or change
-it — this doc records the state, it does not settle it.
-
-**Now tracked as [#844](https://github.com/irongollem/grimoire/issues/844).** The
-prediction above came true during epic #780: a conventions review flagged it as a
-Post-Mutation Navigation violation, and the epic itself added a fifth call site
-(`QuestPasteImportPanel`). The issue lays out the three options — nest `/quests/:id`
-under its list the way NPCs and monsters are, bless it as a sanctioned exception, or
-send all five to the list — and recommends the first, because the NPC carve-out is
-earned by *route nesting* rather than by argument, and quests can simply have the
-same structure. Until it is settled, leave the five call sites alone.
+**Resolved by #844, option 1: `/quests/:id` now nests under `/quests`**, the
+same structure NPCs and monsters use (`useDetailModal`, fed by
+`useQuestDetailSurface`'s `takesWholeScreen` — see the DM-surfaces section
+above). That earns the carve-out honestly instead of arguing for an exception:
+all four call sites are correct exactly as they stand, and none of them needed
+to change. The asymmetry the other two options would have accepted — bless a
+quest-shaped exception in CLAUDE.md, or send all four to the plain list and
+make a freshly hooked quest as hard to get back into as filing a new NPC —
+never had to be chosen between.
 
 ## In flight: the redesign
 

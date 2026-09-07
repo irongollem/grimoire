@@ -16,8 +16,13 @@ import { useRoute, useRouter } from "vue-router";
  * rendering behind.
  *
  * @param listPath where closing lands — the list route this detail belongs to.
+ * @param takesWholeScreen an extra full-screen condition, for an entity whose
+ *   detail has more than one surface and only some of them are a glance. A
+ *   quest's overview is a glance; its story-flow graph and run cockpit are a
+ *   commitment the same way editing is, so they take the whole screen too.
+ *   Omit it and only editing (and mobile) force the full screen, as before.
  */
-export function useDetailModal(listPath: string) {
+export function useDetailModal(listPath: string, takesWholeScreen?: () => boolean) {
   const route = useRoute();
   const router = useRouter();
 
@@ -25,6 +30,9 @@ export function useDetailModal(listPath: string) {
   // full-screen takeover, tablets and up get the desktop treatment.
   const isMobile = useMediaQuery("(max-width: 767px)");
   const isEditing = computed(() => route.query.edit === "true");
+
+  /** Either reason a detail surface refuses to be a dismissable popover. */
+  const fullscreen = computed(() => isEditing.value || (takesWholeScreen?.() ?? false));
 
   /**
    * A detail route is matched *under* the list route. Structural rather than a
@@ -34,7 +42,7 @@ export function useDetailModal(listPath: string) {
   const hasDetail = computed(() => route.matched.length > 1);
 
   /** The detail is a panel over the list, rather than a screen of its own. */
-  const asModal = computed(() => hasDetail.value && !isMobile.value && !isEditing.value);
+  const asModal = computed(() => hasDetail.value && !isMobile.value && !fullscreen.value);
 
   /**
    * The list renders when it is the destination, and stays rendered behind an

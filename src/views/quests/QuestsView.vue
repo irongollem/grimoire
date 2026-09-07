@@ -1,5 +1,6 @@
 <template>
   <ListPageLayout
+    v-if="showList"
     title="Quest Log"
     description="Track active quests, side jobs, and completed adventures"
   >
@@ -92,6 +93,16 @@
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="quests" />
+
+  <!--
+    The detail route for one quest. On tablet and up it is a modal teleported
+    over the log above, which is why the log is still rendered alongside it;
+    on a phone, and whenever the quest's story-flow graph or run cockpit is
+    open at any width, it takes the screen and the branch above renders
+    nothing. `useDetailModal` (fed by `useQuestDetailSurface`) owns that
+    decision for both halves.
+  -->
+  <RouterView />
 </template>
 
 <script setup lang="ts">
@@ -107,12 +118,21 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import QuestList from "@/components/quests/QuestList.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
+import { useDetailModal } from "@/composables/useDetailModal";
+import { useQuestDetailSurface } from "@/composables/quests/useQuestDetailSurface";
 import { useUiStore } from "@/stores/ui";
 import { useAllQuests, useCampaignQuestRefs, useQuestFilterEntities } from "@/composables/quests/useQuests";
 import { useQuestBoardSummaries } from "@/composables/quests/useQuestFlow";
 import { countQuestBoardFilters } from "@/lib/quests/board";
 
 const ui = useUiStore();
+
+// False only while the nested detail route has taken the whole screen — the
+// story-flow graph, the run cockpit, or (below `md`) any open quest at all. An
+// open overview modal keeps this true, which is what leaves the log — and its
+// scroll position and revealed page — untouched underneath.
+const { takesWholeScreen } = useQuestDetailSurface();
+const { showList } = useDetailModal("/quests", () => takesWholeScreen.value);
 const { data: entityOptions } = useQuestFilterEntities();
 const { data: allQuests } = useAllQuests();
 const { data: campaignRefs } = useCampaignQuestRefs();
