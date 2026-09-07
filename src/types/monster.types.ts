@@ -127,7 +127,21 @@ export interface DiscoveredMonster {
   monster_id: string | null;   // custom monster FK
   library_monster_id: string | null;     // SRD monster stable ID e.g. "srd_aboleth"
   visible_to: string[] | null; // null = whole party (legacy); array = specific party_member_ids
-  reveal_stats: boolean;       // false = name/art/CR only; true = full stat block
+  /**
+   * Whether the party may see this creature's numbers. **False withholds the
+   * challenge rating too** — `get_player_visible_monsters` nulls the whole
+   * `stat_block`, and the CR lives inside it, so the bestiary shows "CR ???".
+   *
+   * An earlier revision of this comment said "false = name/art/CR only", which
+   * the code has never done. The behaviour was right and the comment was wrong:
+   * CR is a spoiler, decided 7 Sep 2026 (#842). Pinned by
+   * `supabase/tests/monster_stat_reveal.test.sql`, so passing "just the CR"
+   * through — which that comment invited — now fails rather than leaking.
+   *
+   * What players do get before the reveal is the name and the art: they met the
+   * thing, they just have not measured it.
+   */
+  reveal_stats: boolean;
   discovered_at: string;
 }
 
