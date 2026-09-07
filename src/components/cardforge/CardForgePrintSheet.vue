@@ -137,6 +137,11 @@ function backOrder(chunk: (CardSubject | null)[]): (CardSubject | null)[] {
 }
 
 @media print {
+  /* The app's dark canvas must not become ink outside the cards. */
+  html,
+  body {
+    background: white !important;
+  }
   /* Hide app shell chrome so only the card sheets print */
   aside,
   header,
@@ -184,6 +189,7 @@ function backOrder(chunk: (CardSubject | null)[]): (CardSubject | null)[] {
    */
   .print-sheet {
     display: grid;
+    background: white;
     width: 210mm;
     height: 296.9mm;
     max-height: 296.9mm;
