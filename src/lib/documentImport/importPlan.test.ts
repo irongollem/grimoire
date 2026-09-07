@@ -31,6 +31,7 @@ const SAMPLE_ENTITY_DATA: { [K in ImportEntityKind]: ExtractedPayloadMap[K] } = 
   spells: { name: "Test Spell" },
   quests: { title: "Test Quest" },
   factions: { name: "Test Faction" },
+  encounters: { name: "Test Encounter" },
 };
 
 function entity<K extends ImportEntityKind>(
@@ -286,6 +287,27 @@ describe("resolveLinks", () => {
       targetId: "loc-1",
       apply: { kind: "fk_update", table: "quests", column: "location_id" },
     });
+  });
+
+  it("resolves an encounter's room against locations, on its own FK column (#840)", () => {
+    // Named `encounter_location_name` rather than reusing quests' own
+    // `location_name` — LINK_TARGETS has one fixed apply target per field,
+    // and an encounter's room updates a different column (encounters.location_id).
+    const rows: LinkedRow[] = [{ id: "enc-1", links: { encounter_location_name: "M3. River Cavern" } }];
+    const result = resolveLinks("encounters", rows, {
+      locations: [{ id: "loc-1", name: "M3. River Cavern" }],
+    });
+
+    expect(result).toEqual([
+      {
+        status: "resolved",
+        sourceId: "enc-1",
+        field: "encounter_location_name",
+        name: "M3. River Cavern",
+        targetId: "loc-1",
+        apply: { kind: "fk_update", table: "encounters", column: "location_id" },
+      },
+    ]);
   });
 
   it("skips a link field that was never captured for a row", () => {

@@ -7,11 +7,14 @@ import {
   mapExtractedSpell,
   mapExtractedQuest,
   mapExtractedFaction,
+  mapExtractedEncounter,
+  resolveEncounterCombatants,
   ENTITY_MAPPERS,
 } from "@/lib/documentImport/normalize";
 import { IMPORT_ENTITY_KINDS, PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type { MonsterStatBlock } from "@/types/monster.types";
+import type { CombatantDef } from "@/types/encounter.types";
 
 const CAMPAIGN_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -644,6 +647,123 @@ describe("mapExtractedFaction", () => {
     const long = "shadow ".repeat(150).trim();
     const { row } = mapExtractedFaction({ name: "X", description: long }, CAMPAIGN_ID, PROVENANCE);
     expect((row.description as string).endsWith("…")).toBe(true);
+  });
+});
+
+// ── Encounters ───────────────────────────────────────────────────────────────
+
+describe("mapExtractedEncounter", () => {
+  it("maps a full payload correctly, one combatant slot per entry never per creature", () => {
+    const { row, links } = mapExtractedEncounter(
+      {
+        name: "M3. River Cavern",
+        description: "The rats scatter into the water if the fight turns against them.",
+        location_name: "M3. River Cavern",
+        combatants: [
+          { name: "Giant rat", count: 2 },
+          { name: "Grallak Kur", count: 1 },
+        ],
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+
+    expect(row.name).toBe("M3. River Cavern");
+    expect(row.description).toBe("The rats scatter into the water if the fight turns against them.");
+    expect(row.campaign_id).toBe(CAMPAIGN_ID);
+    expect(row.ai_provenance).toBe(PROVENANCE);
+    // The room is a name, never a resolved FK, at this stage — same deferred
+    // idiom as every other cross-entity reference (file header).
+    expect(row.location_id).toBeNull();
+    expect(links.encounter_location_name).toBe("M3. River Cavern");
+
+    // Two entries, not three — `count` is what lets "two giant rats" stay one slot.
+    expect(row.combatants).toHaveLength(2);
+    expect(row.combatants[0]).toMatchObject({ monster_id: null, npc_id: null, count: 2, faction_id: "enemy", custom_name: "Giant rat" });
+    expect(row.combatants[1]).toMatchObject({ monster_id: null, npc_id: null, count: 1, faction_id: "enemy", custom_name: "Grallak Kur" });
+    // Every slot gets its own real id, not a placeholder or a shared one.
+    expect(row.combatants[0]!.id).not.toBe(row.combatants[1]!.id);
+    expect(row.combatants[0]!.id.length).toBeGreaterThan(0);
+  });
+
+  it("maps a name-only payload to a valid row with schema defaults", () => {
+    const { row, links } = mapExtractedEncounter({ name: "Unnamed Skirmish" }, CAMPAIGN_ID, PROVENANCE);
+
+    expect(row.description).toBeNull();
+    expect(row.combatants).toEqual([]);
+    expect(row.party_member_ids).toEqual([]);
+    expect(row.companion_ids).toEqual([]);
+    expect(row.party_member_factions).toEqual({});
+    expect(row.item_ids).toEqual([]);
+    expect(row.trap_ids).toEqual([]);
+    expect(row.reward_currency_pools).toEqual([]);
+    expect(row.art_objects).toEqual([]);
+    expect(row.location_id).toBeNull();
+    expect(row.is_finished).toBe(false);
+    expect(row.lair_enabled).toBe(false);
+    expect(row.lair_owner_def_id).toBeNull();
+    expect(row.audio_theme).toBeNull();
+    expect(row.factions.length).toBeGreaterThan(0); // a fresh encounter still gets the default faction set
+    expect(links).toEqual({});
+  });
+
+  it("clamps an out-of-range count into the 1..20 range the builder's UI enforces", () => {
+    const { row } = mapExtractedEncounter(
+      { name: "X", combatants: [{ name: "A horde of rats", count: 500 }, { name: "A lone scout", count: 0 }] },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(row.combatants[0]!.count).toBe(20);
+    expect(row.combatants[1]!.count).toBe(1);
+  });
+
+  it("never fabricates a name for a combatant, leaving custom_name null for a blank one", () => {
+    const { row } = mapExtractedEncounter(
+      { name: "X", combatants: [{ name: "   ", count: 1 }] },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(row.combatants[0]!.custom_name).toBeNull();
+  });
+});
+
+describe("resolveEncounterCombatants", () => {
+  function stub(customName: string | null): CombatantDef {
+    return { id: "slot-1", monster_id: null, npc_id: null, count: 1, faction_id: "enemy", custom_name: customName };
+  }
+
+  it("prefers a named-individual NPC match over a monster match for the same name", () => {
+    const [resolved] = resolveEncounterCombatants(
+      [stub("Grallak Kur")],
+      [{ id: "npc-1", name: "Grallak Kur" }],
+      new Map([["Grallak Kur", { targetId: "monster-1" }]]),
+    );
+    expect(resolved).toMatchObject({ npc_id: "npc-1", monster_id: null, custom_name: null });
+  });
+
+  it("falls back to the monster match when no NPC shares the name", () => {
+    const [resolved] = resolveEncounterCombatants(
+      [stub("Giant rat")],
+      [{ id: "npc-1", name: "Grallak Kur" }],
+      new Map([["Giant rat", { targetId: "monster-1" }]]),
+    );
+    expect(resolved).toMatchObject({ npc_id: null, monster_id: "monster-1", custom_name: null });
+  });
+
+  it("matches an NPC name case-insensitively", () => {
+    const [resolved] = resolveEncounterCombatants([stub("grallak kur")], [{ id: "npc-1", name: "Grallak Kur" }], new Map());
+    expect(resolved).toMatchObject({ npc_id: "npc-1" });
+  });
+
+  it("keeps the custom_name and both ids null when neither resolves, rather than dropping the slot", () => {
+    const [resolved] = resolveEncounterCombatants([stub("A mysterious foe")], [], new Map());
+    expect(resolved).toMatchObject({ npc_id: null, monster_id: null, custom_name: "A mysterious foe" });
+  });
+
+  it("passes an already-resolved combatant through unchanged", () => {
+    const already: CombatantDef = { id: "slot-1", monster_id: "monster-9", npc_id: null, count: 3, faction_id: "enemy", custom_name: null };
+    const [resolved] = resolveEncounterCombatants([already], [{ id: "npc-1", name: "Anything" }], new Map());
+    expect(resolved).toBe(already);
   });
 });
 

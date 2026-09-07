@@ -155,7 +155,7 @@
 
 <script setup lang="ts">
 /**
- * The document importer's (#353 chunk 3) seven-step review wizard: one step
+ * The document importer's (#353 chunk 3) eight-step review wizard: one step
  * per `IMPORT_ENTITY_KINDS` entry, then a summary. All the mapping and
  * link-resolution logic already lives in `src/lib/documentImport/` — this
  * component's own job is orchestration: which step is showing, what the DM
@@ -212,6 +212,7 @@ import {
   type LinkResolution,
   type NameLookupRow,
 } from "@/lib/documentImport/importPlan";
+import { resolveEncounterCombatants } from "@/lib/documentImport/normalize";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { writeQuestSpine, type WriteQuestSpineDeps } from "@/lib/quests/spineWrite";
 import {
@@ -222,6 +223,7 @@ import {
   type ImportConfidence,
   type ImportEntityKind,
 } from "@/types/documentImport.types";
+import type { EncounterInsert } from "@/types/encounter.types";
 import { IconWarning, IconCircleCheck, IconExternalLink } from "@/lib/icons";
 
 const { importRow } = defineProps<{ importRow: DocumentImport }>();
@@ -242,16 +244,24 @@ const LIST_ROUTES: Record<ImportEntityKind, string> = {
   spells: "/spells",
   quests: "/quests",
   factions: "/factions",
+  encounters: "/encounters",
 };
 
 /** Which other kinds a source kind's cross-entity references resolve
  *  against — mirrors (only the shape of) importPlan.ts's own `LINK_TARGETS`,
  *  which isn't exported; the resolution algorithm itself still comes from
- *  `resolveLinks`, this only tells the wizard which lookups to fetch first. */
+ *  `resolveLinks`, this only tells the wizard which lookups to fetch first.
+ *
+ *  `encounters` lists both targets its own combatant resolution needs
+ *  (`npcs`, for a named individual) alongside the one `resolveLinks` itself
+ *  consumes (`locations`, for `encounter_location_name`) — see the encounters
+ *  block in `runImport` below, which reuses this same `lookups.npcs` fetch
+ *  rather than issuing a second one. */
 const LINK_LOOKUP_TARGETS: Partial<Record<ImportEntityKind, ImportEntityKind[]>> = {
   npcs: ["factions"],
   locations: ["locations"],
   quests: ["npcs", "locations"],
+  encounters: ["locations", "npcs"],
 };
 
 // ── Step position ─────────────────────────────────────────────────────────────
@@ -678,10 +688,10 @@ async function runImport(): Promise<void> {
     // ahead of it is still known to have landed.
     const outcomes: ImportRowOutcome[] = [];
     for (const planned of plan) {
-      // `planned.row` is a union of all seven Insert shapes (the table itself
+      // `planned.row` is a union of all eight Insert shapes (the table itself
       // is only known at runtime, via `entry.table`) — postgrest-js's
       // `.insert()` can't type-check a call whose argument could be any one
-      // of seven unrelated row shapes, so it's widened here rather than
+      // of eight unrelated row shapes, so it's widened here rather than
       // fighting that inference. The row's actual shape was already decided,
       // correctly, by `buildImportPlan`/`mapEntity` above.
       //
@@ -691,7 +701,7 @@ async function runImport(): Promise<void> {
       // path in the app does the same (`useFactions` and friends all spread
       // `{ ...payload, user_id: user.id }`). Leaving it off is not a type
       // error anywhere, and it is rejected twice over at the database: the
-      // column is NOT NULL on all seven tables, and each table's RLS insert
+      // column is NOT NULL on all eight tables, and each table's RLS insert
       // policy checks `auth.uid() = user_id`. It cost a full round of green
       // typecheck, lint, build and 3,801 tests to find that out by running it.
       const { data: inserted, error } = await supabase
@@ -764,6 +774,68 @@ async function runImport(): Promise<void> {
           // Best-effort, like the link writes above: the quest already landed
           // and is already counted as imported. `writeQuestSpine` is itself
           // partial-failure tolerant, so this only catches a total failure.
+        }
+      }
+    }
+
+    // A second pass like the two above, and for the same reason — a
+    // combatant's real id can't exist until the encounter row it lives inside
+    // does — but this one doesn't go through `resolveLinks`/`LINK_TARGETS`
+    // like `encounter_location_name` just did: a combatant name resolves
+    // against *either* `npcs` or `monsters`/`library_monsters`, never one
+    // fixed target, which is exactly what that map cannot express (see
+    // `EntityLinks.encounter_location_name`'s own doc comment in normalize.ts).
+    // `resolveEncounterCombatants` is the pure resolver; this block only
+    // fetches the two candidate sets it needs and applies the result.
+    if (kind === "encounters") {
+      // `planned.row` is typed as the eight-way Insert union (see the comment
+      // above the main insert call), so it's narrowed here the same way —
+      // through `unknown` rather than a direct `as`, since the cast target
+      // doesn't overlap enough with every other member of that union for
+      // TypeScript to accept it directly. The row's actual shape was already
+      // decided, correctly, by `mapExtractedEncounter`.
+      const insertedEncounters: { id: string; row: EncounterInsert }[] = [];
+      for (const outcome of outcomes) {
+        if (outcome.status !== "inserted") continue;
+        const planned = plan.find((p) => p.ref === outcome.ref);
+        if (planned) insertedEncounters.push({ id: outcome.id, row: planned.row as unknown as EncounterInsert });
+      }
+
+      // Every combatant name across every encounter in this run, deduped, in
+      // one `resolve_monster_references` call — never one lookup per card,
+      // same rule `loadEntityMatches` follows for the monsters/items steps.
+      const allCombatantNames = [
+        ...new Set(
+          insertedEncounters.flatMap((inserted) =>
+            inserted.row.combatants.map((combatant) => combatant.custom_name).filter((name): name is string => name !== null),
+          ),
+        ),
+      ];
+      const monsterMatchRows = allCombatantNames.length > 0
+        ? await fetchMatchRows("resolve_monster_references", importRow.campaign_id, allCombatantNames)
+        : [];
+      const monsterMatches = new Map(
+        normalizeMonsterMatchRows(monsterMatchRows).map((row) => [row.queryName, row.match] as const),
+      );
+      // Reuses the same fetch `resolveLinks` above just consumed — `encounters`
+      // is declared with `npcs` in `LINK_LOOKUP_TARGETS` for exactly this.
+      const npcLookup = lookups.npcs ?? [];
+
+      for (const inserted of insertedEncounters) {
+        const resolvedCombatants = resolveEncounterCombatants(inserted.row.combatants, npcLookup, monsterMatches);
+        // A combatant left with neither id is a real, meaningful outcome —
+        // never silently dropped — so it's reported the same way an
+        // unresolved FK link is, in the same result banner.
+        unresolved.push(
+          ...resolvedCombatants
+            .filter((combatant) => !combatant.monster_id && !combatant.npc_id && combatant.custom_name)
+            .map((combatant) => combatant.custom_name as string),
+        );
+        try {
+          await supabase.from("encounters").update({ combatants: resolvedCombatants }).eq("id", inserted.id);
+        } catch {
+          // Best-effort, like the link writes and quest-spine write above:
+          // the encounter already landed and is already counted as imported.
         }
       }
     }

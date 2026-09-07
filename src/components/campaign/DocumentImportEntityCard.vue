@@ -126,7 +126,7 @@
  *   an array of objects, or anything nested two levels deep (a statblock's
  *     actions/traits, `skills`, `spellcasting`) -> a read-only summary line;
  *     editing that shape fully belongs in the entity's own editor after
- *     import, not in a seven-step review wizard
+ *     import, not in an eight-step review wizard
  *
  * `data` is untrusted extractor output (documentImport.types.ts header) —
  * this card never assumes a field exists or has the type the interface

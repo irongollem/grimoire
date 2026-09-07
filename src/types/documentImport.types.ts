@@ -2,7 +2,7 @@
  * The document importer's extraction contract (#353).
  *
  * A DM uploads a PDF or a batch of page photos; an AI pass reads it and returns
- * game entities; a seven-step wizard reviews them before anything lands in a
+ * game entities; an eight-step wizard reviews them before anything lands in a
  * content table. This file is the shape that pass returns and every downstream
  * consumer — extractor prompt, review card, mapper, wizard — reads.
  *
@@ -45,18 +45,19 @@ import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult 
 // ── Entity kinds ─────────────────────────────────────────────────────────────
 
 /**
- * The seven kinds, in wizard order — which is a **dependency order**, not a
+ * The eight kinds, in wizard order — which is a **dependency order**, not a
  * presentation preference. Each kind is imported in turn, and a cross-entity
  * link can only resolve against rows that already exist, so a kind must come
  * after everything it points at:
  *
- *   factions  ← nothing
- *   monsters  ← nothing
- *   npcs      ← factions          (`faction_name`)
- *   locations ← locations         (`parent_name`, resolved within the step)
- *   items     ← nothing
- *   spells    ← nothing
- *   quests    ← npcs, locations   (`giver_npc_name`, `location_name`)
+ *   factions   ← nothing
+ *   monsters   ← nothing
+ *   npcs       ← factions          (`faction_name`)
+ *   locations  ← locations         (`parent_name`, resolved within the step)
+ *   items      ← nothing
+ *   spells     ← nothing
+ *   quests     ← npcs, locations   (`giver_npc_name`, `location_name`)
+ *   encounters ← monsters, npcs, locations (`combatants[].name`, `location_name`)
  *
  * `factions` leads for that reason alone. An earlier revision of this list put
  * it last — which reads more naturally, since monsters and NPCs are what a DM
@@ -64,6 +65,12 @@ import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult 
  * could never resolve: by the time factions existed, the NPC step was long past.
  * Nothing failed, nothing errored; the link was simply always dropped, and it
  * took importing a real document to notice.
+ *
+ * `encounters` trails everything for the same reason `quests` trails `npcs`
+ * and `locations`: a proposed encounter (#840) names the room it happens in
+ * and the creatures fighting in it, and both references only resolve against
+ * rows earlier steps have already produced — combatants against `monsters`
+ * and `npcs`, the room against `locations`.
  *
  * `document_import_dependency_order.test.ts` pins this against the link fields
  * declared below, so adding a link to a payload without reordering fails.
@@ -76,6 +83,7 @@ export const IMPORT_ENTITY_KINDS = [
   "items",
   "spells",
   "quests",
+  "encounters",
 ] as const;
 
 export type ImportEntityKind = (typeof IMPORT_ENTITY_KINDS)[number];
@@ -267,8 +275,42 @@ export interface ExtractedFaction {
 }
 
 /**
+ * A room's occupants, when they add up to a fight (#840). Deliberately the
+ * last kind: it names creatures from `monsters`/`npcs` and a room from
+ * `locations`, all resolved by name against rows those earlier steps already
+ * produced — see the ordering note on `IMPORT_ENTITY_KINDS`.
+ *
+ * `encounters` needed no schema change at all — `encounters.combatants`
+ * (jsonb `CombatantDef[]`) already has `count`, so "three archers" is one
+ * combatant with `count: 3`, never three rows, and `encounters.location_id`
+ * already is the room link. See `CombatantDef` (encounter.types.ts).
+ */
+export interface ExtractedEncounter {
+  name: string;
+  /** Paraphrased, capped — same prose rule as every other descriptive field. */
+  description?: string;
+  /**
+   * Name of the room this fight happens in, resolved against this same
+   * document's `locations` at import — same deferred-FK idiom as
+   * `ExtractedQuest.location_name`.
+   */
+  location_name?: string;
+  /**
+   * The creatures in the fight, one entry per creature kind or named
+   * individual — never one entry per creature. Each `name` is matched at
+   * import against this same extraction's `monsters` and `npcs` entries (an
+   * NPC name first, since a named individual is more specific than a
+   * creature kind; `resolve_monster_references` (#837) next) to fill a real
+   * `monster_id`/`npc_id` on the resulting `CombatantDef`. A name matching
+   * neither imports as a named stub the DM can link by hand — never dropped,
+   * since an unresolved creature name is meaningful and must stay visible.
+   */
+  combatants?: { name: string; count: number }[];
+}
+
+/**
  * Kind → payload. A map rather than a union so `ExtractedEntity<K>` and the
- * mapper table can both index it by kind and stay exhaustive: adding an eighth
+ * mapper table can both index it by kind and stay exhaustive: adding a ninth
  * kind to `IMPORT_ENTITY_KINDS` without adding it here is a compile error, not
  * a silently-skipped wizard step.
  */
@@ -280,6 +322,7 @@ export interface ExtractedPayloadMap {
   spells: ExtractedSpell;
   quests: ExtractedQuest;
   factions: ExtractedFaction;
+  encounters: ExtractedEncounter;
 }
 
 // ── Envelope ─────────────────────────────────────────────────────────────────
@@ -336,8 +379,24 @@ export type DocumentImportStatus = (typeof DOCUMENT_IMPORT_STATUSES)[number];
  * `extracted` is typed as `ExtractionResult` here while the column is opaque
  * jsonb, which is the deliberate arrangement recorded in that migration: the
  * shape lives in TypeScript because a SQL copy of it would drift the first time
- * a payload gained a field. Readers must therefore treat it as untrusted —
- * `parseExtractionResult` is the one place that validates it.
+ * a payload gained a field.
+ *
+ * Readers must therefore treat it as untrusted, and there is **no single
+ * validating gate** — an earlier revision of this comment named a
+ * `parseExtractionResult` that has never existed, which is worse than saying
+ * nothing, because it tells the next reader a check happened somewhere. What
+ * actually holds:
+ *
+ *   * the provider is constrained by `EXTRACTION_SCHEMA` with `strict: true`,
+ *     so a well-formed response cannot carry an unknown key or omit a declared
+ *     one (`supabase/functions/import-extract/extractionSchema.ts`);
+ *   * the edge function checks the envelope before persisting, and passes the
+ *     per-entity `data` through rather than re-walking it;
+ *   * every mapper in `normalize.ts` treats each field as absent-by-default,
+ *     which is why they read `payload.x` with a fallback rather than asserting.
+ *
+ * So the safety is per-field and distributed, not a gate. Do not add one on the
+ * strength of this comment alone — decide whether it is wanted first.
  */
 export interface DocumentImport {
   id: string;

@@ -130,11 +130,13 @@ const TEXT_SOURCE_GUIDANCE =
 // honest: the entity *envelope* (ref/page/confidence/data) is validated
 // because that shape is what the rest of the pipeline keys on, but individual
 // `data` fields are passed through as-is rather than re-validated field by
-// field a second time — a further, deeper validation pass belongs to the
-// wizard's own `parseExtractionResult` (named in that same header comment),
-// which is the one place downstream that actually consumes those fields.
+// field a second time. An earlier version of this comment deferred that to a
+// wizard-side `parseExtractionResult` — which has never existed. What the
+// client actually relies on is the structured-output schema above plus
+// per-field absence handling in every `normalize.ts` mapper; see the
+// `DocumentImport.extracted` comment in documentImport.types.ts.
 
-const ENTITY_KINDS = ["monsters", "npcs", "locations", "items", "spells", "quests", "factions"] as const;
+const ENTITY_KINDS = ["monsters", "npcs", "locations", "items", "spells", "quests", "factions", "encounters"] as const;
 
 interface SanitizedEntity {
   ref: string;
@@ -518,7 +520,7 @@ serve(withCors(async (req: Request) => {
   // mean a DM who was later demoted to player could still spend credits
   // extracting into a campaign they no longer run. `generate-trap` checks bare
   // membership because a player generating a trap draft is harmless; an import
-  // writes monsters, NPCs, locations, quests and factions, which is DM work.
+  // writes monsters, NPCs, locations, quests, factions and encounters, which is DM work.
   if (campaign.user_id !== userId) {
     const { data: membership } = await admin
       .from("campaign_members").select("role")

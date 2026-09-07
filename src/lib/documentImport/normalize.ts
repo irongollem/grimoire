@@ -20,19 +20,32 @@
  *
  * ── Why cross-entity name references never become uuids here ────────────────
  *
- * `ExtractedNpc.faction_name`, `ExtractedLocation.parent_name`, and
- * `ExtractedQuest.giver_npc_name` / `location_name` name another entity in
- * the same document, which may not have a row yet — the wizard imports kinds
- * in `IMPORT_ENTITY_KINDS` order, but even within a kind, insert order isn't
+ * `ExtractedNpc.faction_name`, `ExtractedLocation.parent_name`,
+ * `ExtractedQuest.giver_npc_name` / `location_name`, and
+ * `ExtractedEncounter.location_name` name another entity in the same
+ * document, which may not have a row yet — the wizard imports kinds in
+ * `IMPORT_ENTITY_KINDS` order, but even within a kind, insert order isn't
  * guaranteed to match reference order. Resolving them here would mean
  * silently dropping a link whenever the referent hasn't been inserted yet,
  * which is worse than always deferring the resolution. So a mapper leaves
  * the FK column null and returns the raw name in `links`; a second pass over
  * the *already-inserted* rows for that document does the name → id lookup.
+ *
+ * `ExtractedEncounter.combatants` names entities too (#840) but does NOT go
+ * through `EntityLinks`/`links` — each combatant needs one of *two* possible
+ * target tables (`monsters`/`library_monsters` via `resolve_monster_references`,
+ * or this campaign's `npcs`) depending on which one the name actually
+ * resolves to, and `EntityLinks` only ever describes one fixed target per
+ * field. `mapExtractedEncounter` below builds every combatant slot with its
+ * name preserved as `custom_name` and both ids null; `resolveEncounterCombatants`
+ * is the second pass, called by the wizard once it has fetched both
+ * candidate sets, exactly like `resolveLinks` but for an array field instead
+ * of a scalar FK column.
  */
 import type { AiProvenance } from "@/ai/provenance";
 import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult } from "@/ai/types";
 import type {
+  ExtractedEncounter,
   ExtractedFaction,
   ExtractedItem,
   ExtractedLocation,
@@ -44,6 +57,8 @@ import type {
   ImportEntityKind,
 } from "@/types/documentImport.types";
 import { PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
+import type { CombatantDef, EncounterInsert } from "@/types/encounter.types";
+import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { FactionInsert } from "@/types/faction.types";
 import type { ItemInsert } from "@/types/item.types";
 import { ITEM_RARITIES, ITEM_TYPES } from "@/types/item.types";
@@ -68,6 +83,7 @@ export interface ImportRowMap {
   spells: SpellInsert;
   quests: QuestInsert;
   factions: FactionInsert;
+  encounters: EncounterInsert;
 }
 
 /**
@@ -84,6 +100,14 @@ export interface EntityLinks {
   giver_npc_name?: string;
   /** Quest → location, by name. */
   location_name?: string;
+  /**
+   * Encounter → room, by name. Named distinctly from Quest's `location_name`
+   * above rather than reusing it: `LINK_TARGETS` (importPlan.ts) is a flat
+   * map keyed by field name across every kind, one fixed `apply` target per
+   * key, and this kind's location link targets a different column
+   * (`encounters.location_id` vs `quests.location_id`).
+   */
+  encounter_location_name?: string;
 }
 
 /**
@@ -597,6 +621,126 @@ export function mapExtractedFaction(
   return { row, links: {} };
 }
 
+// ── Encounters ───────────────────────────────────────────────────────────────
+
+/**
+ * Mirrors the 1..20 range `EncounterCombatants.vue`'s own +/- control
+ * enforces — same convention as `lib/encounters/resolveGeneratedCombatants.ts`'s
+ * `clampCount`, duplicated rather than imported since that module lives in a
+ * different feature folder for a three-line clamp. An extracted count outside
+ * that range is clamped rather than producing a combatant slot the builder's
+ * own UI has no way to represent.
+ */
+function clampCombatantCount(count: number): number {
+  if (!Number.isFinite(count)) return 1;
+  return Math.min(20, Math.max(1, Math.round(count)));
+}
+
+export function mapExtractedEncounter(
+  payload: ExtractedEncounter,
+  campaignId: string,
+  provenance: AiProvenance,
+): MappedEntity<"encounters"> {
+  // Every combatant slot is built here with a name and a count but no id —
+  // resolving `monster_id`/`npc_id` needs a database lookup, which this pure
+  // mapper cannot perform (file header). `resolveEncounterCombatants` below
+  // is the second pass the wizard runs once the encounter row itself exists.
+  const combatants: CombatantDef[] = (payload.combatants ?? []).map((combatant) => ({
+    id: crypto.randomUUID(),
+    monster_id: null,
+    npc_id: null,
+    count: clampCombatantCount(combatant.count),
+    // Room occupants a chapter extracts as a fight read as hostile by
+    // default — the same default `resolveGeneratedCombatants.ts` uses for an
+    // AI-generated combatant. The DM can retint any of them in the builder.
+    faction_id: "enemy",
+    custom_name: combatant.name.trim().length > 0 ? combatant.name.trim() : null,
+  }));
+
+  const row: EncounterInsert = {
+    campaign_id: campaignId,
+    name: payload.name,
+    description: capProse(payload.description),
+    party_member_ids: [], // schema default '{}'; the party isn't known at import time
+    companion_ids: [], // schema default '{}'
+    party_member_factions: {}, // schema default '{}'
+    combatants,
+    factions: [...DEFAULT_FACTIONS],
+    item_ids: [], // not extracted — #840 deliberately doesn't wire loot or traps
+    trap_ids: [], // not extracted — see file header
+    reward_currency_pools: [], // schema default '{}'; not extracted
+    art_objects: [], // schema default '{}'; not extracted
+    location_id: null, // resolved from links.encounter_location_name in a second pass, see file header
+    is_finished: false, // schema default
+    events: [], // schema default '[]'; not extracted
+    lair_enabled: false, // schema default
+    lair_owner_def_id: null, // schema default
+    audio_theme: null, // column default; no audio is requested
+    ai_provenance: provenance,
+  };
+  return { row, links: { encounter_location_name: payload.location_name } };
+}
+
+/**
+ * Resolves each proposed combatant's name to a real `monster_id`/`npc_id`,
+ * after the encounter's own row already exists (#840) — the same
+ * "second pass over an already-inserted row" idiom `resolveLinks`
+ * (importPlan.ts) uses for a plain FK column, extended here because a
+ * combatant slot isn't a single named field: it's one entry in an array the
+ * pure mapper above could only build with a name.
+ *
+ * NPCs are tried first: a named individual ("Grallak Kur") is more specific
+ * than a creature kind, and `resolve_monster_references` (#837) has no
+ * reason to know about NPCs at all — it only searches `monsters` and
+ * `library_monsters`. A combatant matching neither keeps its `custom_name`
+ * and both ids null, which is a real, reviewable state the wizard surfaces
+ * as an unresolved name — never silently dropped, and never guessed at.
+ *
+ * A combatant that already carries an id (or never had a name to resolve —
+ * `custom_name` null) passes through unchanged, so this is safe to call with
+ * a full `combatants` array rather than only the unresolved slice.
+ *
+ * `npcLookup` and `monsterMatches` are typed structurally rather than
+ * imported from importPlan.ts (`NameLookupRow`) / entityMatching.ts
+ * (`EntityMatch`) — this module sits *below* both in the import graph
+ * (importPlan.ts imports `ENTITY_MAPPERS` from here), so importing back from
+ * either for a two-field shape would be a cycle for no real gain. The
+ * wizard's own `NameLookupRow[]` and `Map<string, EntityMatch>` already
+ * satisfy these parameter types structurally.
+ */
+export function resolveEncounterCombatants(
+  combatants: readonly CombatantDef[],
+  npcLookup: readonly { id: string; name: string }[],
+  monsterMatches: ReadonlyMap<string, { targetId: string }>,
+): CombatantDef[] {
+  return combatants.map((combatant) => {
+    const name = combatant.custom_name;
+    if (!name) return combatant; // already resolved, or never had a name to resolve
+
+    const npc = findEncounterCandidateByName(npcLookup, name);
+    if (npc) return { ...combatant, npc_id: npc.id, monster_id: null, custom_name: null };
+
+    const monster = monsterMatches.get(name);
+    if (monster) return { ...combatant, monster_id: monster.targetId, npc_id: null, custom_name: null };
+
+    return combatant;
+  });
+}
+
+/**
+ * Case-insensitive name match — mirrors importPlan.ts's own `findByName`
+ * (same rule as `matchSettingRowIds`). Duplicated rather than imported: see
+ * `resolveEncounterCombatants`'s doc comment for why this module doesn't
+ * import from importPlan.ts.
+ */
+function findEncounterCandidateByName<T extends { name: string }>(
+  candidates: readonly T[],
+  name: string,
+): T | undefined {
+  const needle = name.trim().toLowerCase();
+  return candidates.find((c) => c.name.trim().toLowerCase() === needle);
+}
+
 // ── Dispatcher ───────────────────────────────────────────────────────────────
 
 type EntityMapper<K extends ImportEntityKind> = (
@@ -625,4 +769,5 @@ export const ENTITY_MAPPERS = {
   spells: mapExtractedSpell,
   quests: mapExtractedQuest,
   factions: mapExtractedFaction,
+  encounters: mapExtractedEncounter,
 } satisfies { [K in ImportEntityKind]: EntityMapper<K> };

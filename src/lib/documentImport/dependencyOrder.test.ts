@@ -32,6 +32,10 @@ const LINK_DEPENDENCIES: Readonly<Record<ImportEntityKind, readonly ImportEntity
   monsters: [],
   items: [],
   spells: [],
+  // `ExtractedEncounter.location_name` (the room) and `.combatants[].name`
+  // (each resolved against `monsters`/`npcs`, #837 and the campaign's own NPCs
+  // respectively) — see #840 and the ordering note on IMPORT_ENTITY_KINDS.
+  encounters: ["monsters", "npcs", "locations"],
 };
 
 describe("IMPORT_ENTITY_KINDS dependency order", () => {
@@ -61,5 +65,13 @@ describe("IMPORT_ENTITY_KINDS dependency order", () => {
     // a future reordering "for readability" would reintroduce it.
     const kinds: readonly string[] = IMPORT_ENTITY_KINDS;
     expect(kinds.indexOf("factions")).toBeLessThan(kinds.indexOf("npcs"));
+  });
+
+  it("puts encounters last", () => {
+    // #840's own design decision, named explicitly for the same reason as the
+    // factions/npcs pairing above: an encounter's combatants and room all name
+    // rows from every other kind, so nothing may come after it.
+    const kinds: readonly string[] = IMPORT_ENTITY_KINDS;
+    expect(kinds.indexOf("encounters")).toBe(kinds.length - 1);
   });
 });

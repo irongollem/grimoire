@@ -1,13 +1,13 @@
 # Document Import
 
 A DM supplies source material — a PDF, a batch of page photos, or **text pasted
-straight in** — an AI pass extracts game entities from it, and a seven-step
+straight in** — an AI pass extracts game entities from it, and an eight-step
 wizard reviews every entity before anything reaches a content table. **DM-only**
 — there is no player-facing surface at all.
 
 Lives at **Campaign Settings → Import Document** (`/campaign/settings?tab=import`).
 
-Issues #353, #769 and #829.
+Issues #353, #769, #829 and #840.
 
 ---
 
@@ -21,8 +21,8 @@ Issues #353, #769 and #829.
 | Review | One step per entity kind — select, edit, import or skip | `DocumentImportWizard.vue` |
 | Link | Second pass resolves cross-entity references by name | `importPlan.ts` |
 
-Seven kinds, in **dependency order** (`IMPORT_ENTITY_KINDS`):
-`factions → monsters → npcs → locations → items → spells → quests`.
+Eight kinds, in **dependency order** (`IMPORT_ENTITY_KINDS`):
+`factions → monsters → npcs → locations → items → spells → quests → encounters`.
 
 ---
 
@@ -32,7 +32,7 @@ Seven kinds, in **dependency order** (`IMPORT_ENTITY_KINDS`):
 
 | File | Owns |
 | --- | --- |
-| `documentImport.types.ts` | The extraction contract — seven narrow payloads, review envelope, `ExtractionResult`, `DocumentImport` row type |
+| `documentImport.types.ts` | The extraction contract — eight narrow payloads, review envelope, `ExtractionResult`, `DocumentImport` row type |
 | `entityKinds.ts` | Per-kind registry: target table, labels, `displayField`, `quotaResource` |
 | `limits.ts` | Page caps (10 free / 50 Pro), MIME allowlist, per-object and per-import byte caps, and the characters→pages conversion for a pasted import |
 | `../tiptap/sourceHtml.ts` | Normalises pasted HTML so structure survives into Tiptap — `aside`/hinted classes → blockquote, noise stripped |
@@ -44,7 +44,7 @@ Seven kinds, in **dependency order** (`IMPORT_ENTITY_KINDS`):
 
 **UI** (`src/components/campaign/`) — `DocumentImportTab.vue`,
 `DocumentImportWizard.vue`, `DocumentImportEntityCard.vue` (one generic card
-driven by field shape, not seven per-kind templates).
+driven by field shape, not eight per-kind templates).
 
 **Server** (`supabase/functions/`) — `import-extract/index.ts`,
 `import-extract/extractionSchema.ts`, `_shared/documentGen.ts`.
@@ -189,6 +189,45 @@ tourmalines, a geode and a carved figurine are chapter-specific and genuinely
 new. "Rock dog figurine" did **not** match "Figurine of Wondrous Power", which a
 looser matcher would have.
 
+### A room's occupants propose an encounter, never create one silently (#840)
+
+`encounters` is the eighth kind, and deliberately the **last** one:
+`ExtractedEncounter.location_name` names a room from `locations`, and each
+`combatants[].name` names a creature from `monsters` or `npcs` — all three
+earlier steps, all resolved by name. `dependencyOrder.test.ts` pins this the
+same way it pins `factions` before `npcs`.
+
+**No schema change.** `encounters.location_id` was already the room link and
+`combatants` (jsonb `CombatantDef[]`) already carries `count`, so "three
+archers and two warriors" is two `CombatantDef`s (`count: 3`, `count: 2`),
+never five rows.
+
+**Combatant resolution is a second pass the wizard runs, not `resolveLinks`.**
+`EntityLinks`/`LINK_TARGETS` (importPlan.ts) give every named field exactly
+one fixed target table — which is why `encounter_location_name` is its own
+`EntityLinks` field rather than reusing quests' `location_name` (a different
+FK column, `encounters.location_id` vs `quests.location_id`). A combatant name
+has no *single* fixed target at all: it might resolve against this campaign's
+`npcs` (a named individual, tried first — more specific than a creature kind)
+or against `monsters`/`library_monsters` via `resolve_monster_references`
+(#837). `normalize.ts`'s `mapExtractedEncounter` builds every combatant slot
+with its name preserved as `custom_name` and both ids null; `resolveEncounterCombatants`
+is the pure second-pass resolver, called from `DocumentImportWizard.vue`'s
+`runImport` once it has fetched both candidate sets — the same "resolve after
+the row exists" idiom as an FK link, just for an array field instead of a
+scalar column.
+
+A combatant matching neither stays in the row as a named stub (both ids null,
+`custom_name` kept) — never silently dropped — and its name is surfaced in the
+same "couldn't match a reference to…" banner an unresolved FK link uses. The
+DM links it by hand in the encounter's own combatant search afterward.
+
+**The prompt had to be taught the eighth kind explicitly** (migration
+`20260907000546`) — a JSON Schema property and a TypeScript type teach the
+*wizard* that encounters exist, but the extractor only knows what its system
+prompt (a database row, not code) tells it to look for. Without the rewrite it
+kept returning exactly the seven kinds it always had.
+
 ### `import-documents` is NOT in the `BUCKETS` registry
 
 Deliberate. `src/lib/storage/buckets.ts` has tests asserting every registered
@@ -284,10 +323,10 @@ constraining INSERT alone was bypassable). Regression cover in
 
 ## Quota behaviour
 
-Five kinds are quota-limited (`monsters`, `npcs`, `locations`, `quests`,
-`factions`); `items` and `spells` are not. `enforce_quota` is a **BEFORE INSERT
-trigger**, so a free user importing forty monsters gets some rows and then a
-throw *partway*.
+Six kinds are quota-limited (`monsters`, `npcs`, `locations`, `quests`,
+`factions`, `encounters`); `items` and `spells` are not. `enforce_quota` is a
+**BEFORE INSERT trigger**, so a free user importing forty monsters gets some
+rows and then a throw *partway*.
 
 Rows are therefore inserted **one at a time** — a single batched insert cannot say
 which landed — and `buildImportRunReport` distinguishes *imported* / *refused* /

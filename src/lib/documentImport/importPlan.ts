@@ -46,6 +46,7 @@
  */
 import type { AiProvenance } from "@/ai/provenance";
 import type {
+  ExtractedEncounter,
   ExtractedEntity,
   ExtractedFaction,
   ExtractedItem,
@@ -109,6 +110,8 @@ function mapEntity<K extends ImportEntityKind>(
       return ENTITY_MAPPERS.quests(data as ExtractedQuest, campaignId, provenance) as MappedEntity<K>;
     case "factions":
       return ENTITY_MAPPERS.factions(data as ExtractedFaction, campaignId, provenance) as MappedEntity<K>;
+    case "encounters":
+      return ENTITY_MAPPERS.encounters(data as ExtractedEncounter, campaignId, provenance) as MappedEntity<K>;
   }
 }
 
@@ -236,7 +239,7 @@ interface LinkTarget {
 /**
  * Every raw-name field `EntityLinks` (normalize.ts) can carry, and what
  * resolving it means. Keyed by field name with `satisfies Record<keyof
- * EntityLinks, …>` so a fifth link field added to `EntityLinks` without an
+ * EntityLinks, …>` so a sixth link field added to `EntityLinks` without an
  * entry here is a compile error, the same exhaustiveness idiom entityKinds.ts
  * uses for `ImportEntityKind` itself.
  */
@@ -260,6 +263,14 @@ const LINK_TARGETS = {
     sourceKind: "quests",
     targetKind: "locations",
     apply: { kind: "fk_update", table: "quests", column: "location_id" },
+  },
+  // Named `encounter_location_name` rather than reusing `location_name`
+  // above — this map has exactly one fixed `apply` target per field name, and
+  // an encounter's room link needs a different one (`encounters.location_id`).
+  encounter_location_name: {
+    sourceKind: "encounters",
+    targetKind: "locations",
+    apply: { kind: "fk_update", table: "encounters", column: "location_id" },
   },
 } as const satisfies Record<keyof EntityLinks, LinkTarget>;
 

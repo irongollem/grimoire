@@ -217,6 +217,22 @@ const FACTION_DATA = obj({
   description: NULLABLE_STRING,
 });
 
+// A room's occupants, when they add up to a fight (#840). Mirrors
+// `ExtractedEncounter` — `combatants` is `{ name, count }` pairs, one per
+// creature kind or named individual, never one per creature: `count` is what
+// lets "three archers" be a single entry instead of three.
+const ENCOUNTER_COMBATANT = obj({
+  name: { type: "string" },
+  count: { type: "integer" },
+});
+
+const ENCOUNTER_DATA = obj({
+  name: { type: "string" },
+  description: NULLABLE_STRING,
+  location_name: NULLABLE_STRING,
+  combatants: nullableArrayOf(ENCOUNTER_COMBATANT),
+});
+
 function entityArray(dataSchema: Record<string, unknown>): Record<string, unknown> {
   return nullableArrayOf(
     obj({ ref: { type: "string" }, page: NULLABLE_INTEGER, confidence: CONFIDENCE, data: dataSchema }),
@@ -231,6 +247,7 @@ const EXTRACTION_SCHEMA = obj({
   spells: entityArray(SPELL_DATA),
   quests: entityArray(QUEST_DATA),
   factions: entityArray(FACTION_DATA),
+  encounters: entityArray(ENCOUNTER_DATA),
 });
 
 export { EXTRACTION_SCHEMA };

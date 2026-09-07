@@ -16,15 +16,17 @@ import { IMPORT_ENTITY_KINDS, type ImportEntityKind } from "@/types/documentImpo
  * Resource keys `public.check_quota` validates against, restricted to the
  * ones an entity kind can actually pass it. The full server-side allowlist
  * (supabase/migrations/20260809222131_route_admin_gates_through_is_app_admin.sql:199-202)
- * also covers campaigns, encounters, scriptorium_documents, notes, sounds,
- * soundboard_pages, soundboard_playlists, deities, pantheons and puzzle_rooms
- * — none of which a document import creates.
+ * also covers campaigns, scriptorium_documents, notes, sounds, soundboard_pages,
+ * soundboard_playlists, deities, pantheons and puzzle_rooms — none of which a
+ * document import creates. `encounters` moved off that "not created" list in
+ * #840: a proposed encounter is a real `encounters` row like any other, and
+ * `encounters_enforce_quota` (initial_schema_squashed.sql) already gates it.
  */
-export type ImportQuotaResource = "monsters" | "npcs" | "locations" | "quests" | "factions";
+export type ImportQuotaResource = "monsters" | "npcs" | "locations" | "quests" | "factions" | "encounters";
 
 export interface EntityKindEntry {
   readonly kind: ImportEntityKind;
-  /** Target content table. Equal to `kind` for all seven today, but recorded
+  /** Target content table. Equal to `kind` for all eight today, but recorded
    *  explicitly rather than derived — a table rename must not silently follow
    *  the kind name. */
   readonly table: string;
@@ -106,6 +108,14 @@ const registry = {
     labelPlural: "Factions",
     displayField: "name",
     quotaResource: "factions",
+  },
+  encounters: {
+    kind: "encounters",
+    table: "encounters",
+    labelSingular: "Encounter",
+    labelPlural: "Encounters",
+    displayField: "name",
+    quotaResource: "encounters",
   },
 } as const satisfies Record<ImportEntityKind, EntityKindEntry>;
 

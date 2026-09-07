@@ -331,6 +331,7 @@ const KIND_LABELS: Record<ImportEntityKind, string> = {
   spells: "Spells",
   quests: "Quests",
   factions: "Factions",
+  encounters: "Encounters",
 };
 
 function pageLabel(count: number): string {
