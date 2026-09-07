@@ -62,6 +62,18 @@
   --color-tone-arcane: var(--tone-arcane);
   --color-tone-caution: var(--tone-caution);
 
+  /* ── Ink variants (Quest Manager Redesign, 8 Sep 2026) ───────────────────
+     The tone tokens are surface strength: as TEXT on parchment `--tone-success`
+     reads at about 2.6:1. These are the same hues pulled toward the theme's
+     foreground, so tone-coloured text clears 4.5:1 on Tome and Grimoire alike —
+     darker on a light ground, lighter on a dark one, with no per-theme value to
+     maintain. Use `text-ink-*` for words, keep `bg-tone-*` / `border-tone-*`
+     for fills and borders. */
+  --color-ink-success: color-mix(in oklab, var(--tone-success) 62%, var(--foreground));
+  --color-ink-info: color-mix(in oklab, var(--tone-info) 62%, var(--foreground));
+  --color-ink-arcane: color-mix(in oklab, var(--tone-arcane) 62%, var(--foreground));
+  --color-ink-caution: color-mix(in oklab, var(--tone-caution) 62%, var(--foreground));
+
   /* ── Entity ramps (#742) ─────────────────────────────────────────────────
      Two ordered scales that carry meaning by position: how an NPC feels about
      the party, and how dangerous a monster is. Unlike the tones above these
