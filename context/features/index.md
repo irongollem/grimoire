@@ -15,7 +15,7 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | File                                                     | What it covers                                                                                                                                   |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [campaign-notes-calendar.md](campaign-notes-calendar.md) | Dashboard, Session Notes, Player Journal, Faerûn Calendar, timeline, AI Chronicler image gen                                                     |
-| [world-building.md](world-building.md)                   | Atlas/Locations (17 types, hierarchical), Factions + relations, Pantheons & Deities, shared AI retrieval grounding                               |
+| [world-building.md](world-building.md)                   | Atlas/Locations (18 types, hierarchical), Factions + relations, Pantheons & Deities, shared AI retrieval grounding                               |
 | [quests.md](quests.md)                                   | Quests: the beat/objective model, story-flow graph, run cockpit, runtime cursor + RPCs, player journal — and the redesign in flight (#780)      |
 | [npcs.md](npcs.md)                                       | NPC list, full detail sheet, force-directed Relationship Web, NPC Generator, player visibility                                                   |
 | [party-characters.md](party-characters.md)               | Party Tracker, full D&D 5e character sheet, Character Codex, Hall of Heroes, shapeshifter disguise                                               |
@@ -138,7 +138,7 @@ a heading never appears over an empty grid.
 
 ### World-Building
 
-- **Atlas** — hierarchical location tree (World → Plane → Continent → Region → Country → City → District → Building → Room); 17 type taxonomy; map pinning with descendant surfacing; store/tavern inventory; per-field player visibility
+- **Atlas** — hierarchical location tree (World → Plane → Continent → Region → Country → City → District → Building → Room); 18 type taxonomy; map pinning with descendant surfacing; store/tavern inventory; per-field player visibility
 - **Quest Log** — kanban board + list view; 5 status tiers; `quest_refs` junction for NPC/location/monster/encounter linking; reward currency pools; Scriptorium export; player quest view filters undiscovered quests
 - **Factions** — directional relations (8 types including secret variants); per-player visibility or membership-based access; known-member reveal gated by RLS
 

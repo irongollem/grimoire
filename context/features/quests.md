@@ -208,7 +208,8 @@ consequence engine watching it.
 enum** — conventionally `combat` / `social` / `explore` / `discovery` / `neutral`,
 plus the tombstone `archived`), `presentation_hint`, `canvas_x/y`,
 `is_improvised`, `improv_reviewed_at`, `read_aloud`, `how_it_plays`, `outcomes`,
-`consequences`, `conversion_source_type/_id`.
+`consequences`. (`conversion_source_type/_id` were here until #799 dropped them —
+see **Dead residue** above.)
 
 `kind` still does two jobs at once: a presentation hint, and an `archived`
 tombstone every runtime query has to filter out. It used to do a third — an
@@ -271,8 +272,9 @@ Build mode joins the same shape client-side, in
 
 ### `quest_beat_attachments`
 
-Typed placements: `encounter`, `quest_ref`, `npc`, `faction`,
-`item`, `monster`, `sound`, `audio_scene`, `playlist`, `note`, `handout`.
+Typed placements: `encounter`, `npc`, `faction`, `item`, `monster`, `sound`,
+`audio_scene`, `playlist`, `note`, `handout` — ten, and the CHECK admits exactly
+those.
 Polymorphic `ref_id text`, validated by
 `private.validate_quest_beat_attachment()` rather than an FK. `'objective'` was
 a member of this CHECK until #793 dropped it along with the overview beat it
@@ -286,8 +288,8 @@ _existed_, never that it sat inside the root. Production held **zero** non-empty
 `room_ids` arrays across every attachment type for the whole life of the
 feature.
 
-`quest_ref` is allowed by the CHECK but deliberately absent from the panel's
-`supportedTypes`, so it cannot be created from the UI.
+`quest_ref` was allowed by the CHECK and offered by no UI — a beat pointing at a
+pointer. #799 removed it at zero rows; see **Dead residue** above.
 
 ### `quest_beats.staged_at_location_id` — where a beat happens
 

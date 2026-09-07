@@ -4,7 +4,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(5);
+select plan(7);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -78,6 +78,40 @@ select ok(
   (select not (to_jsonb(b) ?| array['edges', 'source_beat_id', 'target_beat_id', 'title'])
    from public.get_player_visible_quest_beats('65900000-0000-4000-8000-000000000010') b limit 1),
   'the projection still exposes no edge or DM-authored fields'
+);
+
+-- ── An improvisation is not an opening (#825) ──────────────────────────────
+--
+-- `improvise_quest_runtime` creates a beat with no incoming edge by default
+-- (`p_keep_edge` is false), which is exactly the shape the depth walk called a
+-- root. So a scene invented at the table took depth 0 and, once revealed,
+-- sorted above every beat the party had actually played — the players' recap
+-- opening on the thing that happened last.
+--
+-- The client's `rootBeatIds` had always excluded improvised beats and said why;
+-- only this projection disagreed, so the DM's graph and the player journal told
+-- different stories and no gate could see it.
+
+reset role;
+insert into public.quest_beats (id, quest_id, campaign_id, title, reveal_text, visibility, kind, is_improvised, canvas_x, updated_at)
+values ('65900000-0000-4000-8000-000000000044', '65900000-0000-4000-8000-000000000030', '65900000-0000-4000-8000-000000000010',
+        'Off script', 'The innkeeper drew a knife', 'revealed', 'social', true, 960, '2026-08-10T17:00:00Z');
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '65900000-0000-4000-8000-000000000002', true);
+
+select isnt(
+  (select story_order from public.get_player_visible_quest_beats('65900000-0000-4000-8000-000000000010') where id = '65900000-0000-4000-8000-000000000044'),
+  0,
+  'an improvised beat with no incoming edge is not treated as an opening'
+);
+
+-- The positive half: it still reaches the player, and trails rather than
+-- vanishing. `coalesce(d.depth, 1000000)` is the "wired to nothing" position.
+select is(
+  (select story_order from public.get_player_visible_quest_beats('65900000-0000-4000-8000-000000000010') where id = '65900000-0000-4000-8000-000000000044'),
+  1000000,
+  'it is still shown, trailing the authored spine rather than opening it'
 );
 
 select * from finish();

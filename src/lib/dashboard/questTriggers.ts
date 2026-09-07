@@ -1,4 +1,5 @@
-import type { CalendarEventConsequencePayload, BroadcastConsequencePayload, QuestConsequenceAction } from "@/types/quest.types";
+import type { QuestConsequenceAction, QuestConsequenceActionPayload } from "@/types/quest.types";
+import { describeWorldConsequenceAction } from "@/lib/quests/consequences";
 import type { CalendarToday } from "@/lib/calendar/upcoming";
 import { addDays, daysFromTo } from "@/lib/calendar/dayMath";
 import type { CalendarAdapter } from "@/types/calendar.types";
@@ -37,7 +38,10 @@ export interface ConsequenceEventRow {
   fires_on_month: number;
   fires_on_day: number;
   action: QuestConsequenceAction;
-  action_payload: CalendarEventConsequencePayload | BroadcastConsequencePayload;
+  // The whole payload union, not the two shapes this widget originally
+  // fetched: it now asks for every world action, and a relationship shift
+  // carries `{ step }` rather than a title or a message.
+  action_payload: QuestConsequenceActionPayload;
   /** `null` when the quest itself is gone — the event row outlives it via
    *  `on delete cascade` on `quest_id` only in the sense that the row cascades
    *  away too, but a row fetched in the same request as its quest's delete can
@@ -65,23 +69,16 @@ export interface DueConsequenceRow {
 export const CONSEQUENCE_HORIZON_DAYS = 14;
 
 /**
- * `action_payload` is jsonb, so the casts below assert a shape nothing has
- * validated — a row written by an older migration, or by hand, can be missing
- * the field the type promises. Both payload types declare their field as a
- * plain `string`, which makes a `?? ""` dead code against the *declared* type
- * while silently rendering `Calendar event: ""` for the row that is actually
- * malformed. The absence marker says so instead, the same way an unrated
- * creature reads "CR ???" rather than "CR ".
+ * One line for the widget, from the same describer the rule editor and the
+ * backfill preview use.
+ *
+ * It had its own copy of the if/else chain, and inherited the same defect: a
+ * `shift_npc_relationship` or `unlock_quest` row rendered as an empty
+ * broadcast. Delegating means a ninth action is described once, in the place
+ * the compiler already guards.
  */
-const UNKNOWN_PAYLOAD_FIELD = "???";
-
 function summarize(action: QuestConsequenceAction, payload: ConsequenceEventRow["action_payload"]): string {
-  if (action === "create_calendar_event") {
-    const p = payload as Partial<CalendarEventConsequencePayload>;
-    return `Calendar event: "${p.title || UNKNOWN_PAYLOAD_FIELD}"`;
-  }
-  const p = payload as Partial<BroadcastConsequencePayload>;
-  return `Broadcast: "${p.message || UNKNOWN_PAYLOAD_FIELD}"`;
+  return describeWorldConsequenceAction(action, payload);
 }
 
 /**

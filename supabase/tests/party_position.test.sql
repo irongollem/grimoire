@@ -28,6 +28,21 @@ insert into public.party_members (id, user_id, campaign_id, name, current_locati
   ('78600000-0000-4000-8000-000000000032', '78600000-0000-4000-8000-000000000001', '78600000-0000-4000-8000-000000000010', 'Redundantly pinned', '78600000-0000-4000-8000-000000000020');
 
 -- The derivation, expressed the way the client must express it.
+--
+-- Read what this does and does not pin, because the shape is misleading. There
+-- is no `effective_position` view in the database: the derivation lives in
+-- `src/lib/partyPosition.ts` and is pinned by `partyPosition.test.ts`. The four
+-- assertions below therefore run against a view *this file* defines, so no
+-- change to any production object can fail them — established by mutation
+-- testing during the #825 review, where this was the only new pgTAP file with
+-- that property.
+--
+-- They still earn their place: they state the contract the client owes in the
+-- language of the schema, and they fail if `party_members.current_location_id`
+-- or `campaigns.current_location_id` stops existing or stops being nullable.
+-- What they do NOT do is notice the client drifting away from the contract —
+-- only the vitest file can. Do not add a case here expecting it to guard the
+-- derivation; add it there.
 create temporary view effective_position as
   select pm.id, coalesce(pm.current_location_id, c.current_location_id) as location_id
     from public.party_members pm

@@ -49,4 +49,38 @@ describe("describeQuestConsequenceAction", () => {
       objectiveLabel,
     )).toBe('Broadcast: "The cult notices"');
   });
+
+  // The two actions added after the describer was written (#831, #836). Both
+  // fell through its if/else chain to the broadcast branch and rendered as
+  // `Broadcast: ""` — an empty, apparently-broken rule — in the rule editor,
+  // the backfill preview and the dashboard widget alike. Nothing failed,
+  // because no case here had ever named them. Found by the #825 review.
+  it("describes a relationship shift by direction and distance, not as a broadcast", () => {
+    expect(describeQuestConsequenceAction(
+      row({ action: "shift_npc_relationship", target_objective_id: null, action_payload: { step: 2 } }),
+      objectiveLabel,
+    )).toBe("Improve an NPC's disposition by 2 steps");
+
+    expect(describeQuestConsequenceAction(
+      row({ action: "shift_npc_relationship", target_objective_id: null, action_payload: { step: -1 } }),
+      objectiveLabel,
+    )).toBe("Worsen an NPC's disposition by 1 step");
+  });
+
+  it("describes a quest unlock by its own label", () => {
+    expect(describeQuestConsequenceAction(
+      row({ action: "unlock_quest", target_objective_id: null, action_payload: {} }),
+      objectiveLabel,
+    )).toBe("Unlock a quest");
+  });
+
+  // `action_payload` is jsonb: a row can be missing the field its type
+  // promises. An absent value must read as absent rather than as an empty
+  // string, which is indistinguishable from a rule someone left blank.
+  it("marks a missing payload field rather than rendering an empty one", () => {
+    expect(describeQuestConsequenceAction(
+      row({ action: "send_broadcast", target_objective_id: null, action_payload: {} }),
+      objectiveLabel,
+    )).toBe('Broadcast: "???"');
+  });
 });

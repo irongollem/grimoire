@@ -41,4 +41,34 @@ describe("splitQuestSummary", () => {
     expect(splitQuestSummary("Who rang the bell? The parish wants to know."))
       .toEqual({ head: "Who rang the bell?", tail: "The parish wants to know." });
   });
+
+  // A first sentence longer than the column's own CHECK. Nothing upstream caps
+  // it — the text is an AI extraction or a pasted adventure page — so before
+  // #825 this reached `quests.summary` unchanged and the insert died on
+  // `quests_summary_is_one_line`, taking the whole import with it.
+  it("keeps no summary when the first sentence exceeds the column cap, rather than truncating or failing", () => {
+    const long = `${"a".repeat(QUEST_SUMMARY_MAX + 1)}. And a second sentence.`;
+    const { head, tail } = splitQuestSummary(long);
+    expect(head).toBeNull();
+    expect(tail).toBe(long);
+  });
+
+  it("still keeps a first sentence exactly at the cap", () => {
+    const exact = `${"a".repeat(QUEST_SUMMARY_MAX - 1)}.`;
+    const { head, tail } = splitQuestSummary(exact);
+    expect(head).toBe(exact);
+    expect(head!.length).toBe(QUEST_SUMMARY_MAX);
+    expect(tail).toBe("");
+  });
+
+  // The likeliest shape of all, and the one that got missed: pasting a PDF or
+  // a web page wraps sentences across lines, and `[^.!?]*` happily matches the
+  // break. `quests.summary` forbids one outright, so this reached the database
+  // and was rejected.
+  it("collapses a sentence the source wrapped across lines", () => {
+    const { head, tail } = splitQuestSummary("The party must find\nthe lost sword. Then return it.");
+    expect(head).toBe("The party must find the lost sword.");
+    expect(head).not.toMatch(/[\n\r]/);
+    expect(tail).toBe("Then return it.");
+  });
 });

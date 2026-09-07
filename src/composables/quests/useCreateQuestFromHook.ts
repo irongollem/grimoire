@@ -2,6 +2,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCreateQuest, useCreateObjective, useCreateQuestRef } from "@/composables/quests/useQuests";
 import { useCreateQuestBeat, useCreateQuestBeatEdge, useCreateQuestConsequence } from "@/composables/quests/useQuestFlow";
 import { resolveGeneratedEntities, type ResolvedEntity } from "@/ai/resolveGeneratedEntities";
+import { splitQuestSummary } from "@/lib/quests/summary";
 import { writeQuestSpine } from "@/lib/quests/spineWrite";
 import type { QuestHookResult } from "@/ai/types";
 import type { AiProvenance } from "@/ai/provenance";
@@ -74,9 +75,33 @@ export function useCreateQuestFromHook() {
   async function createFromHook(input: CreateQuestFromHookInput): Promise<CreateQuestFromHookResult> {
     const { hook, giverNpcId, locationId, entityPools, aiProvenance } = input;
 
+    // The model is *told* to return a one-line summary, and that instruction is
+    // not a guarantee — `quests.summary` is capped at 280 characters and
+    // forbids a newline, so an overrun reached the database as a raw 23514 and
+    // aborted the whole generate. The document importer already splits the
+    // same field the same way (`mapExtractedQuest`); doing it here too means
+    // both AI write paths obey the column instead of only the one that was
+    // audited when the constraint landed.
+    const { head: summaryHead, tail: summaryTail } = splitQuestSummary(hook.summary);
+
+    // Nothing is dropped: the overflow becomes the opening beat's prose, which
+    // is where a paragraph belonged in the first place.
+    // `hook.beats` is genuinely optional — a hook may arrive with no spine at
+    // all — so it stays undefined when there is no overflow to place, rather
+    // than being flattened to an empty array it never was.
+    const spineBeats = !summaryTail
+      ? hook.beats
+      : hook.beats && hook.beats.length > 0
+        ? hook.beats.map((beat, i) =>
+            i === 0
+              ? { ...beat, dm_content: beat.dm_content ? `${summaryTail}\n\n${beat.dm_content}` : summaryTail }
+              : beat,
+          )
+        : [{ key: "summary-overflow", title: hook.title, kind: "neutral" as const, dm_content: summaryTail }];
+
     const quest = await createQuest({
       title: hook.title,
-      summary: hook.summary,
+      summary: summaryHead,
       tags: hook.tags,
       status: "active",
       giver_npc_id: giverNpcId || null,
@@ -96,7 +121,7 @@ export function useCreateQuestFromHook() {
       {
         questId: quest.id,
         campaignId: campaign.activeCampaignId!,
-        beats: hook.beats,
+        beats: spineBeats,
         routes: hook.routes,
         objectives: hook.objectives,
       },

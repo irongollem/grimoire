@@ -45,6 +45,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
 import { formatDaysUntil, type CalendarToday } from "@/lib/calendar/upcoming";
 import { deriveDueConsequenceRows, type ConsequenceEventRow } from "@/lib/dashboard/questTriggers";
+import { QUEST_CONSEQUENCE_WORLD_ACTIONS } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 
@@ -82,7 +83,13 @@ const { data: rawRows, isLoading } = useQuery({
       .eq("campaign_id", campaignId.value!)
       .is("performed_at", null)
       .is("undone_at", null)
-      .in("action", ["create_calendar_event", "send_broadcast"]);
+      // The whole world-action set, not the two it started with. This was a
+      // hardcoded pair, so the two actions added later (#831, #836) never
+      // appeared as "about to fire" — `useDueConsequences` performed them on
+      // time, but the dashboard that exists to warn a DM stayed silent about
+      // them. Reading the exported set means the next action is included by
+      // being added to it.
+      .in("action", [...QUEST_CONSEQUENCE_WORLD_ACTIONS]);
     if (error) throw error;
     return data as unknown as ConsequenceEventRow[];
   },

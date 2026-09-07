@@ -104,7 +104,7 @@ export const TIER_COLORS: Record<LocationTier, string> = Object.fromEntries(
 ) as Record<LocationTier, string>;
 
 /**
- * Whether an arbitrary value is one of the 17 location types. `LOCATION_TYPE_TIER`
+ * Whether an arbitrary value is one of the 18 location types. `LOCATION_TYPE_TIER`
  * is keyed by every one of them, so membership in it *is* the check — which keeps
  * callers holding loosely-typed data (realtime payloads) from having to assert a
  * shape they cannot actually see.

@@ -39,9 +39,32 @@ export function splitQuestSummary(text: string | null | undefined): { head: stri
   const trimmed = text.trim();
   if (!trimmed) return { head: null, tail: "" };
   const match = trimmed.match(/^[^.!?]*[.!?]/);
-  if (!match) return { head: trimmed, tail: "" };
-  return {
-    head: match[0].trim(),
-    tail: trimmed.slice(match[0].length).trim(),
-  };
+  const rawHead = match ? match[0].trim() : trimmed;
+  const tail = match ? trimmed.slice(match[0].length).trim() : "";
+
+  // `[^.!?]*` matches newlines, so a sentence the source wrapped across two
+  // lines arrived here with the break still in it — and the column forbids one
+  // (`summary !~ E'[\n\r]'`). That is not a rare shape: it is what pasting a
+  // PDF or a web page gives you, which is the whole input path of #829.
+  // Collapsing the run of whitespace is normalisation rather than truncation —
+  // a wrapped sentence means the same thing on one line — so unlike the
+  // over-length case below, nothing is withheld from the summary.
+  const head = rawHead.replace(/\s+/g, " ");
+
+  // A first sentence can itself be longer than the column allows, and nothing
+  // upstream prevents it: the text is an AI extraction or a pasted page, and
+  // `mapExtractedQuest` inserted this value straight into `quests.summary`.
+  // The result was a raw `23514` from `quests_summary_is_one_line` that
+  // aborted the whole import — the failure this module was written to stop,
+  // arriving by a different door.
+  //
+  // It is not truncated, because this module's whole premise is that a cut
+  // sentence is a lie. A "sentence" longer than the cap is not a summary line;
+  // it is prose, and prose belongs on the opening beat. So the quest keeps no
+  // summary and the entire text travels as `tail` — the DM sees it in full and
+  // can write their own one-liner, rather than losing the import to an error
+  // or gaining a summary that stops mid-clause.
+  if (head.length > QUEST_SUMMARY_MAX) return { head: null, tail: trimmed };
+
+  return { head, tail };
 }

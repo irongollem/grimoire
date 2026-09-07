@@ -15,7 +15,7 @@ Route: `/locations` (list), `/locations/new`, `/locations/:id`, `/locations/:id?
 **List page** (`LocationsView.vue`)
 
 - Title: "Atlas", subtitle: "Continents, cities, dungeons, and every place in between"
-- Filter bar: free-text search + type dropdown (all 17 location types)
+- Filter bar: free-text search + type dropdown (all 18 location types)
 - Action buttons: **New Location** (primary), **Populate Setting** (bulk-inserts preset locations for the campaign's setting/calendar, e.g. Faerûn), **Populate Planes** (bulk-inserts the 21 standard D&D cosmological planes). Both populate buttons are idempotent — they skip names that already exist and report how many were added.
 - Body rendered by `AtlasExplorer.vue`
 
@@ -72,7 +72,7 @@ The detail page follows the sheet + editor convention: existing locations show a
 
 **Location editor fields:**
 
-- **Name** (required), **Type** (one of 17 types, see below), **Sigil/Emblem image** (portrait aspect, uploaded to `location-images` bucket)
+- **Name** (required), **Type** (one of 18 types, see below), **Sigil/Emblem image** (portrait aspect, uploaded to `location-images` bucket)
 - **Parent** — `EntityCombobox` picking any other location; setting this places the location in the hierarchy
 - **Child locations** — inline tag-style list of existing children; an inline search box lets the DM re-parent existing locations OR create a new child (navigates to `/locations/new?parent=id&name=…`)
 - **Tags** — `TagInput` component
@@ -104,12 +104,12 @@ The detail page follows the sheet + editor convention: existing locations show a
 - **Currently Here** — party members whose `current_location_id` equals this location; links to party member detail
 - **Move a party member here** — available in edit mode via an `EntityCombobox` + "Move here" button
 
-**Location type taxonomy** (17 types). Two independent axes — do not conflate them:
+**Location type taxonomy** (18 types). Two independent axes — do not conflate them:
 
 *By pinnability* (drives map pin recursion and store inventory):
 
 - *Vague containers* (not useful as single map pins): World, Plane, Continent, Region, Country
-- *Concrete place types*: City, Town, Village, District, Building, Dungeon, Wilderness, Other
+- *Concrete place types*: City, Town, Village, District, Building, Grounds, Dungeon, Wilderness, Other
 - *Store types* (support inventory): Store, Tavern, Inn
 - *Room* — excluded from pinning entirely (#807). `getPinnableDescendants()` skips a `room` child outright rather than offering it as a pin candidate: a room is placed by a traced region on its site's floor plan (`location_map_regions`), never by a pin. This is a pinnability exclusion, not a recursion one, so it lives beside the `VAGUE_LOCATION_TYPES` walk rather than inside that set — a room is already a concrete leaf, just not a mappable point on this axis.
 
@@ -121,13 +121,13 @@ The detail page follows the sheet + editor convention: existing locations show a
 | `land`       | Continent, Region, Country, Wilderness  |
 | `settlement` | City, Town, Village                     |
 | `district`   | District                                |
-| `site`       | Building, Dungeon, Store, Tavern, Inn   |
+| `site`       | Building, Dungeon, Grounds, Store, Tavern, Inn |
 | `interior`   | Room                                    |
 | *(none)*     | Other — the escape hatch claims no tier |
 
-`venue` is gone: a tavern is a building, one of the five types with a floor plan. `wilderness` moved to `land`, beside continent/region/country, where "no floor plan, children placed by pins" actually describes it. `district` earned its own rung: its children are buildings on a geography map, not traced rooms.
+`venue` is gone: a tavern is a building, one of the six types with a floor plan (`grounds` joined them in #817). `wilderness` moved to `land`, beside continent/region/country, where "no floor plan, children placed by pins" actually describes it. `district` earned its own rung: its children are buildings on a geography map, not traced rooms.
 
-**`LOCATION_TYPE_COLORS` is a tier ramp, not a palette of kinds.** It runs cool-to-warm along that ladder (violet → blue → teal → lime → amber → rust), which reads as distance; within a tier, lightness steps by enclosure, darkest = most enclosed. `land` runs continent → region → country → wilderness, lightest last: wilderness is the least enclosed thing on the ladder. `site` now steps five types instead of three — dungeon (underground, windowless) darkest, then building, then store/tavern/inn lightest — so Dungeon reads darkest of the whole ramp. Dungeon and Wilderness no longer share a hue family; under the old ladder they did, which was the bug #810 fixed — they are not the same kind of map, whatever their footprint on the page. The type label already says what a place is; colour now says what kind of map it gets. Do not reshuffle it back into a red-for-dungeons rainbow. `LOCATION_TYPE_LABELS` declaration order is likewise ladder order, because both type dropdowns (DM and player) iterate it to build their options.
+**`LOCATION_TYPE_COLORS` is a tier ramp, not a palette of kinds.** It runs cool-to-warm along that ladder (violet → blue → teal → lime → amber → rust), which reads as distance; within a tier, lightness steps by enclosure, darkest = most enclosed. `land` runs continent → region → country → wilderness, lightest last: wilderness is the least enclosed thing on the ladder. `site` now steps six types instead of three — dungeon (underground, windowless) darkest, then building and grounds, then store/tavern/inn lightest — so Dungeon reads darkest of the whole ramp. Dungeon and Wilderness no longer share a hue family; under the old ladder they did, which was the bug #810 fixed — they are not the same kind of map, whatever their footprint on the page. The type label already says what a place is; colour now says what kind of map it gets. Do not reshuffle it back into a red-for-dungeons rainbow. `LOCATION_TYPE_LABELS` declaration order is likewise ladder order, because both type dropdowns (DM and player) iterate it to build their options.
 
 **DM and player share one colour system by construction**, not by discipline: `LOCATION_TYPE_COLORS` / `LOCATION_TYPE_LABELS` in `types/location.types.ts` are the single source, imported by `LocationMap`, `LocationSheet`, `LocationHierarchyPanel`, `AtlasTreeRow`, `AtlasPlacePane`, `PlayerLocationCard`, `PlayerLocationDialog`, `PlayerLocationsView` and `AssetInsertPanel`. There is no second map anywhere — keep it that way rather than adding a player-side variant. `AtlasScaleRail` derives its tier swatches from the same record via `TIER_REPRESENTATIVE_TYPE`, so a rung can never drift from the places it stands for.
 
@@ -277,9 +277,11 @@ Collapse/detail open state is persisted in `useUiStore` (`atlasChildrenOpen`, `a
 ## Quest Log
 
 **Moved.** Quests are documented in [quests.md](quests.md) — the model (beats are
-events, objectives are state), the current two-generation schema, every DM and
-player surface, the runtime RPCs, and the redesign in flight under
-[#780](https://github.com/irongollem/grimoire/issues/780).
+events, objectives are state), the schema, every DM and player surface, and the
+runtime RPCs. [#780](https://github.com/irongollem/grimoire/issues/780) collapsed
+the two generations into that one model and deleted the older one outright, so
+there is no longer a second schema to describe; read quests.md for the whole of
+it.
 
 What stays here: quests reference Atlas locations through `quests.location_id` and
 typed `quest_refs` rows, and the AI quest generator's retrieval grounding is
@@ -450,7 +452,7 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 | Field                   | Type             | Notes                                                                                                                                                                   |
 | ----------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                  | string           | Required                                                                                                                                                                |
-| `location_type`         | enum (17 values) | World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Store, Tavern, Inn, Room, Dungeon, Wilderness, Other                                 |
+| `location_type`         | enum (18 values) | World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Grounds, Store, Tavern, Inn, Room, Dungeon, Wilderness, Other                        |
 | `parent_id`             | uuid FK          | Null = top-level                                                                                                                                                        |
 | `description`           | Tiptap JSON      | DM-only unless `is_description_shared`                                                                                                                                  |
 | `notes`                 | text             | (currently unused in UI)                                                                                                                                                |

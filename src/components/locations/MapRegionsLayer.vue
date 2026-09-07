@@ -124,7 +124,14 @@ watch(
  *  than amber, so it doesn't read as "look here"), untraced nearly invisible. */
 function regionFillColor(region: LocationMapRegion): string {
   if (mode === "run") {
-    if (region.space_location_id === partyRoomId) return "rgba(96, 165, 250, 0.55)";
+    // `partyRoomId` guarded first: both sides are nullable, and a party that has
+    // not entered a room yet is null on one side while every *unbound* region is
+    // null on the other. Comparing them raw made `null === null` true, so on a
+    // fresh site every shape the DM had traced but not yet bound to a room lit
+    // up in party-blue at once — several places claiming to hold the party, a
+    // state one party cannot be in. The `!space_location_id` line below shows
+    // the nullability was known; it just sat one line too late to help.
+    if (partyRoomId !== null && region.space_location_id === partyRoomId) return "rgba(96, 165, 250, 0.55)";
     if (!region.space_location_id) return "rgba(255, 255, 255, 0.04)";
     const reachable = !reachableRoomIds || reachableRoomIds.has(region.space_location_id);
     return reachable ? "rgba(74, 222, 128, 0.28)" : "rgba(120, 113, 108, 0.35)";
@@ -179,7 +186,13 @@ function renderOverlay(): void {
         : pending && pending.regionId === region.id
           ? pending.cells
           : region.cells;
-    const isHighlighted = mode === "run" ? region.space_location_id === partyRoomId : region.id === activeRegionId.value;
+    // Same null-versus-null trap as `regionFillColor` — the outline has to agree
+    // with the fill, or an unbound shape gets a party ring around a colour that
+    // says it is untraced.
+    const isHighlighted =
+      mode === "run"
+        ? partyRoomId !== null && region.space_location_id === partyRoomId
+        : region.id === activeRegionId.value;
     ctx.fillStyle = regionFillColor(region);
     for (const key of cells) {
       const rect = cellRectInImageFractions(key, cal, w, h);

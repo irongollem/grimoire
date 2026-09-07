@@ -710,6 +710,14 @@ export function useQuestRuntimeCommand() {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
       queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
       queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
+      // The board summarises the cursor, so a played move changes it. It was
+      // missing here while `useAssertQuestRuntime` below invalidated it and
+      // called it "the same caches a played move invalidates" — a parity its
+      // sibling did not actually have. With a 60s `staleTime` and no refetch
+      // on focus, advancing a beat and returning to the quest board inside
+      // that minute showed the previous beat as current, contradicting the
+      // cockpit the DM had just used.
+      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board"] });
     },
   });
 }
@@ -803,7 +811,10 @@ export function useQuestRuntimeImprovise() {
     },
     onSuccess: ({ context }, input) => {
       queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId, input.questId], context);
-      queryClient.setQueryData([RUNTIME_KEY, input.campaignId], context.state);
+      // Three parts, matching `useQuestRuntimeState`'s key and the line above.
+      // It wrote a two-part key, which no query reads, so the optimistic update
+      // landed nowhere and the cursor moved only once the refetch came back.
+      queryClient.setQueryData([RUNTIME_KEY, input.campaignId, input.questId], context.state);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
