@@ -1,24 +1,14 @@
 <template>
-  <div
-    v-if="show"
-    class="rounded-lg border border-border bg-card px-4 py-4 flex flex-col gap-3"
-    role="status"
-  >
-    <div class="flex flex-col gap-1">
-      <span class="font-cinzel text-label-lg font-semibold text-foreground">
-        You are not the DM of any campaign
-      </span>
-      <p class="text-caption text-muted-foreground">
-        This is the DM view, so everything here is empty. If you came to play in someone
-        else's game, switch to Player — your character and their campaign are there. To run
-        one of your own, use <span class="text-foreground">Create Campaign</span> at the top of
-        the sidebar.
-      </p>
-    </div>
-    <div class="flex flex-wrap items-center gap-2">
+  <NoticeCard v-if="show" title="You are not the DM of any campaign">
+    This is the DM view, so everything here is empty. If you came to play in someone
+    else's game, switch to Player — your character and their campaign are there. To run
+    one of your own, use <span class="text-foreground">Create Campaign</span> at the top of
+    the sidebar.
+
+    <template #actions>
       <AppButton variant="primary" size="sm" label="Switch to Player" @click="toPlayer" />
-    </div>
-  </div>
+    </template>
+  </NoticeCard>
 </template>
 
 <script setup lang="ts">
@@ -47,9 +37,11 @@
  */
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import NoticeCard from "@/components/common/NoticeCard.vue";
 import { useUiStore } from "@/stores/ui";
 import { useModeSwitch } from "@/composables/useModeSwitch";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
+import { lensRefusal } from "@/router/lens";
 
 const ui = useUiStore();
 const { switchMode } = useModeSwitch();
@@ -58,8 +50,17 @@ const { data: dmCampaigns, isSuccess } = useDmCampaigns();
 // `length === 0` on the optional directly, rather than coalescing a missing
 // list to zero: `undefined` means "not answered yet", which must not render as
 // "you DM nothing". Only a resolved, genuinely empty list shows this.
+//
+// Silent while `CampaignLensNotice` is speaking (#847), because in that state
+// both are true and the specific one subsumes this: the lens fence has just
+// closed the campaign *and named it*, and the two cards otherwise stack with
+// the same "Switch to Player" button twice.
 const show = computed(
-  () => ui.userMode === "dm" && isSuccess.value && dmCampaigns.value?.length === 0,
+  () =>
+    ui.userMode === "dm" &&
+    isSuccess.value &&
+    dmCampaigns.value?.length === 0 &&
+    !lensRefusal.value,
 );
 
 async function toPlayer() {

@@ -127,6 +127,55 @@ is genuinely for the active campaign and genuinely disagrees: a null membership,
 a row for another campaign, or a mode not yet chosen all mean "don't know", and
 not knowing is never grounds to clear.
 
+**The lens fence (#847).** Choosing a hat is the paragraph above; the fence is
+the other half — *once a hat is chosen, the active campaign must be one where
+that role actually holds*. It lives in `src/router/lens.ts` and runs in the
+route guard, after the mode redirects have settled:
+
+| Piece                            | What it is                                                                 |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `routeLens(to)`                  | which lens a route's campaign belongs to, or `null` for routes holding none |
+| `lensContradicts(lens, role)`    | the rule, in one place — also what `App.vue`'s watcher now expresses         |
+| `knownRoleInCampaign(id)`        | the role already loaded, no request                                          |
+| `resolveRoleInCampaign(qc, id)`  | that, else one cached `campaign_members` select; `{ fresh: true }` skips both |
+| `lensRefusal`                    | why the last campaign was closed, rendered by `CampaignLensNotice`           |
+
+Four decisions in it are worth not undoing:
+
+- **The lens set is derived, not opted into.** A `meta.requiresCampaignLens`
+  flag on ~110 DM routes fails open for the 111th. `routeLens` classifies
+  instead, and `router/lens.test.ts` pins the *whole* set of unfenced routes
+  (the auth shell, the unauthenticated harnesses, the 404, `/admin`) — so a
+  campaign surface that slips out of the fence fails the suite rather than
+  going quiet.
+- **An unresolved role is never grounds to act**, which is deliberately the
+  opposite of `switchUserMode`'s fail-closed on the same unknown (#845). There,
+  refusing an unverifiable campaign costs one click on an explicit user action;
+  here it would cost a DM their live campaign for one dropped request, on every
+  navigation, mid-session at the table.
+- **A contradiction is re-confirmed against the server before anything closes.**
+  A cached role is enough to say "carry on" and is not evidence enough to act
+  on: once co-DM ships (#590), the account whose cached role still reads
+  `player` is precisely the one just promoted.
+- **It is written over the lens, not for the DM alone.** The rule is symmetric,
+  and the DM-only spelling is the hole #590 would walk into.
+
+It is defence in depth and not the boundary. RLS is the boundary and it holds —
+measured as a player, `private.is_campaign_dm()` answers false, every DM read
+returns zero rows, self-promotion is refused by
+`guard_campaign_member_self_update` and `start_campaign_session` raises, all
+pinned by `supabase/tests/player_is_not_a_dm.test.sql`. But each of those zeroes
+is RLS working alone, and this repo has shipped all three shapes that take that
+away: an RPC that forgot its guard (`grab_item_drop`), a view that lost
+`security_invoker` (`ai_generation_costs`), a predicate that returned NULL
+(`get_user_ledger`).
+
+Closing a campaign silently would repeat the failure #845 was reported as, so
+`CampaignLensNotice` (mounted on `DashboardView` and `PlayerHomeView`) says
+which hat the campaign belongs to and offers the one click that opens it again.
+It clears on unmount, which makes it explain the navigation that just happened
+rather than follow the user around.
+
 Creating a campaign from the player shell is a lens change and goes through
 `switchMode("dm")` — pushing at `/dashboard` with the mode ref still on
 `"player"` only got the router guard to bounce it back to `/play/home` with a DM

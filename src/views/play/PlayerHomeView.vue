@@ -8,6 +8,9 @@
       </p>
     </div>
 
+    <!-- Why the campaign you had open isn't, when the lens fence closed it (#847). -->
+    <CampaignLensNotice />
+
     <!-- Your characters -->
     <section data-tour="character-pool" class="space-y-3">
       <div class="flex items-center justify-between gap-3">
@@ -109,6 +112,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CharacterPoolCard from "@/components/play/CharacterPoolCard.vue";
+import CampaignLensNotice from "@/components/campaign/CampaignLensNotice.vue";
 import { useCharacterPool } from "@/composables/party/useCharacterPool";
 import { usePlayerCampaigns } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";

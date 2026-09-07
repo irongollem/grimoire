@@ -71,6 +71,7 @@
          EmbedMissingContentCard (campaign AI settings) already tracks. Shown
          above the grid in both modes: it is not part of the arrangeable
          board and customizing it is not a reason to hide it. -->
+    <CampaignLensNotice class="mb-4" />
     <NoDmCampaignsNotice class="mb-4" />
     <EmbedMissingContentBanner class="mb-4" />
 
@@ -188,6 +189,7 @@ import DashboardCustomizeFrame from "@/components/dashboard/DashboardCustomizeFr
 import DashboardShelf from "@/components/dashboard/DashboardShelf.vue";
 import DashboardWidgetSettingsModal from "@/components/dashboard/DashboardWidgetSettingsModal.vue";
 import EmbedMissingContentBanner from "@/components/campaign/EmbedMissingContentBanner.vue";
+import CampaignLensNotice from "@/components/campaign/CampaignLensNotice.vue";
 import NoDmCampaignsNotice from "@/components/campaign/NoDmCampaignsNotice.vue";
 import { WIDGET_COMPONENTS } from "@/components/dashboard/widgetComponents";
 import { useDashboardLayout } from "@/composables/dashboard/useDashboardLayout";

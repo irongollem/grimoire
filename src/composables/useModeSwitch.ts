@@ -45,8 +45,9 @@ export function useModeSwitch() {
 
     campaignStore.switchUserMode(ui.userMode, target, {
       rememberCurrentCampaign: options.rememberCurrentCampaign ?? true,
-      // A failed lookup leaves the set undefined, which restores as before —
-      // a network blip must not cost the user their remembered campaign.
+      // A failed lookup leaves the set undefined, and the store then refuses
+      // to restore anything: an unverifiable campaign costs one click to
+      // re-pick, where restoring it unchecked costs the reported bug (#845).
       campaignsInTargetLens: memberships
         ? new Set(memberships.filter((m) => m.role === target).map((m) => m.campaign_id))
         : undefined,

@@ -55,6 +55,7 @@ import { useCampaignById } from "@/composables/campaign/useCampaigns";
 import { usePullToRefresh } from "@/composables/usePullToRefresh";
 import { createRealtimeHeal } from "@/lib/realtimeHeal";
 import { supabase } from "@/lib/supabase";
+import { knownRoleInCampaign, lensContradicts } from "@/router/lens";
 
 const auth = useAuthStore();
 
@@ -86,12 +87,21 @@ const ui = useUiStore();
 // and genuinely contradicts the lens: a null membership, a row for some other
 // campaign (a `refreshMembership` still in flight) or a mode not yet chosen
 // all mean "don't know", and not knowing is never grounds to clear.
+//
+// The rule itself lives in `router/lens.ts`, which is where the route guard
+// takes it from too (#847). The two are not duplicates: the guard resolves the
+// role authoritatively and can explain itself, but it only runs on navigation,
+// and switching campaigns from the sidebar switcher is not a navigation. This
+// covers that, and covers it synchronously. `auth.membership` stays in the
+// dependency list because `knownRoleInCampaign` reads it.
 watch(
   [() => ui.userMode, () => auth.membership, () => campaignStore.activeCampaignId],
-  ([mode, membership, activeId]) => {
+  ([mode, , activeId]) => {
     if (mode !== "dm" && mode !== "player") return;
-    if (!activeId || membership?.campaign_id !== activeId) return;
-    if (membership.role !== mode) campaignStore.clearActiveCampaign();
+    if (!activeId) return;
+    if (lensContradicts(mode, knownRoleInCampaign(activeId))) {
+      campaignStore.clearActiveCampaign();
+    }
   },
   { immediate: true },
 );

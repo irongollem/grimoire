@@ -4,6 +4,7 @@ import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia, setActivePinia } from "pinia";
 import NoDmCampaignsNotice from "./NoDmCampaignsNotice.vue";
 import { useUiStore } from "@/stores/ui";
+import { lensRefusal } from "@/router/lens";
 
 /**
  * #845. A player who clicks "DM" lands on a dashboard where every widget is
@@ -43,6 +44,7 @@ beforeEach(() => {
   setActivePinia(createPinia());
   mocks.campaigns = undefined;
   mocks.isSuccess = false;
+  lensRefusal.value = null;
 });
 
 describe("NoDmCampaignsNotice", () => {
@@ -82,6 +84,22 @@ describe("NoDmCampaignsNotice", () => {
     useUiStore().userMode = "player";
     mocks.campaigns = [];
     mocks.isSuccess = true;
+    const wrapper = render();
+    await flushPromises();
+
+    expect(wrapper.text()).toBe("");
+  });
+});
+
+// #847. Both conditions are true at once when the lens fence closes the only
+// campaign a player-lens account had open; the specific card names it and
+// carries the same button, so this one stands down rather than stacking.
+describe("NoDmCampaignsNotice deferring to the lens notice", () => {
+  it("stays silent while a lens refusal is being explained", async () => {
+    useUiStore().userMode = "dm";
+    mocks.campaigns = [];
+    mocks.isSuccess = true;
+    lensRefusal.value = { lens: "dm", role: "player" };
     const wrapper = render();
     await flushPromises();
 

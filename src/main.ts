@@ -43,7 +43,11 @@ const router = createRouter({
   },
 });
 
-setupRouterGuard(router);
+// The query client goes in because the guard's lens fence (#847) resolves the
+// caller's role in the active campaign from `campaign_members`, sharing
+// `useModeSwitch`'s cache entry so the check is a cache hit rather than a
+// round trip on every navigation.
+setupRouterGuard(router, queryClient);
 
 // A deploy strands already-open pages: the fresh service worker deletes the
 // old build's cache on activate, so the old page's next lazy route import
