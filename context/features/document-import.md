@@ -134,6 +134,61 @@ Not a special text-only code path. All three provider block builders in
 into a text call for free, with the source embedded in the instruction. Verified
 against the builders rather than assumed; no provider code changed for #829.
 
+### An extracted creature or item links to what you already own (#837, #838)
+
+The importer used to create every entity fresh, so a DM who owned a "Giant Rat"
+got a second one — and an extracted creature had **no stat block at all**, because
+an adventure prints the name and refers you to an appendix. In a digital edition
+that name is a link, and a link does not survive a paste. The row it created was
+unusable: no AC, no HP, no actions, so it could not go into an encounter, which is
+the thing a DM imports a dungeon chapter *to do*.
+
+Two RPCs resolve a name against what the app already holds:
+
+```
+public.resolve_monster_references(p_campaign_id uuid, p_names text[])
+public.resolve_item_references(p_campaign_id uuid, p_names text[])
+```
+
+**The caller's own vault first, then the shared library.** That order is
+correctness, not preference: a DM who has already built their own grell wants
+*theirs*, with their notes and art. A campaign hit fills the uuid column, a
+library hit the text one — shared content is keyed by a stable text id
+(`srd_owlbear`-style), so the two cannot share a column. An unmatched name is
+simply **absent**, which the importer reads as "create it fresh".
+
+**Name matching, not vectors — and that is deliberate.** Both corpora are 100%
+embedded and a similarity search is the obvious reach. Measured on a real
+chapter, a plain name match resolved **seven creatures out of seven**: three from
+the library, four from the DM's own vault, including a book-specific "Icewind
+Kobold" and a typo'd "Mind FLayer". It costs nothing, needs no embedding call
+before the lookup, and is legible — a DM reviewing "we matched your grell" can
+see why. Vectors remain the fallback for a renamed variant, and belong in the
+edge function where an embedding can be computed.
+
+The normalisation is `private.normalize_entity_name` and is deliberately naive —
+a lookup key, not an English stemmer. It drops a leading article, de-pluralises
+the last word **and** the head noun of an "X of Y" name (`"Potions of healing"` →
+`Potion of Healing`, which is how most magic items are named), and matches a
+qualifier through a **whole-word suffix anchor** so `"Icewind kobold"` finds
+`Kobold` while `"rat"` never finds `"pirate"`. A wrong singularisation costs a
+missed match, never a wrong one.
+
+**No `pg_trgm`.** Fuzzy matching would want it and the advisor baseline already
+carries one `extension_in_public` finding not worth growing for a match this
+narrow.
+
+In the wizard, a matched entity links **by default**, with a per-entity checkbox
+to create fresh instead. A linked entity produces **no insert at all** —
+`buildImportPlan` drops it before planning — so it cannot duplicate and never
+touches quota, and the result reads "3 created, 4 linked" rather than folding the
+linked ones into a smaller-looking number.
+
+On the same chapter, all five extracted *items* correctly resolved to nothing:
+tourmalines, a geode and a carved figurine are chapter-specific and genuinely
+new. "Rock dog figurine" did **not** match "Figurine of Wondrous Power", which a
+looser matcher would have.
+
 ### `import-documents` is NOT in the `BUCKETS` registry
 
 Deliberate. `src/lib/storage/buckets.ts` has tests asserting every registered
