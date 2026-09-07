@@ -5,6 +5,7 @@ import { requireAdmin } from "../_shared/requireAdmin.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildMonsterEmbedText, monsterEmbedHash, type EmbeddableMonster } from "../_shared/monsterEmbedText.ts";
 import {
   EmbeddingProviderConfigError,
@@ -46,15 +47,22 @@ import {
  * the unchanged-hash/model short-circuit fires, since no provider call was
  * made and there is nothing to log.
  *
- * NO checkRateLimit: the shared `ai_generation` bucket exists to throttle
- * expensive, user-visible generations (see generate-encounter/index.ts).
- * Spending it here would let ordinary monster editing — mode: "single"
- * fires on every save — exhaust a DM's generation budget for something they
- * didn't ask for and never see. The guards that DO apply instead: auth +
- * ownership (mode: "single" verifies monsters.user_id === auth.uid()), the
- * unchanged-hash/model short-circuit below (most saves make no provider
- * call at all — only a changed monster or a provider swap does), and the
- * per-entity quota that already caps how many monsters a user can create.
+ * NOT the shared `ai_generation` bucket: that one throttles expensive,
+ * user-visible generations (see generate-encounter/index.ts), and spending it
+ * here would let ordinary monster editing — mode: "single" fires on every
+ * save — exhaust a DM's generation budget for something they didn't ask for
+ * and never see. This uses its own `entity_embedding` bucket instead, counted
+ * past the short-circuit so it measures embeddings bought rather than saves
+ * attempted.
+ *
+ * It previously had no limit at all, justified partly by "the per-entity quota
+ * that already caps how many monsters a user can create". That holds on free
+ * (3 monsters, 10 NPCs, 10 locations) and not on Pro, whose `quotas` is `{}` —
+ * so a Pro account editing in a loop had no ceiling of any kind. The other
+ * guards named there do still apply and still carry most of the weight: auth +
+ * ownership (mode: "single" verifies monsters.user_id === auth.uid()) and the
+ * unchanged-hash/model short-circuit below, which means most saves make no
+ * provider call at all.
  */
 
 const admin = createClient(
@@ -370,6 +378,15 @@ async function handleSingle(req: Request, body: { monster_id?: unknown }): Promi
   // Short-circuit: no API call, no write, when nothing has actually changed.
   if (!isEmbeddingStale(stored, { sourceHash: hash, model: provider.model })) {
     return json({ embedded: false, monster_id: monsterId, source_hash: hash, reason: "unchanged" });
+  }
+
+  // Counted here, past the short-circuit, so the bucket measures embeddings
+  // actually bought rather than saves attempted — see the same placement and
+  // the same reasoning in embed-content/index.ts. Shares the `entity_embedding`
+  // bucket with it deliberately: it is one daily ceiling on what an account can
+  // spend of ours, not one per edge function.
+  if (!(await checkRateLimit(admin, user.id, "entity_embedding"))) {
+    return json({ error: "rate_limited", monster_id: monsterId }, 429);
   }
 
   let vectors: number[][];

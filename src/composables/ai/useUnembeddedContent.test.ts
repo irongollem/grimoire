@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   invokeCalls: [] as InvokeCall[],
   rpcCalls: 0,
   failIds: new Set<string>(),
+  rateLimitIds: new Set<string>(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -26,6 +27,7 @@ vi.mock("@/lib/supabase", () => ({
       invoke: vi.fn(async (fn: string, opts: { body: Record<string, unknown> }) => {
         mocks.invokeCalls.push({ fn, body: opts.body });
         const id = (opts.body.id ?? opts.body.monster_id) as string;
+        if (mocks.rateLimitIds.has(id)) return { data: { error: "rate_limited" }, error: null };
         if (mocks.failIds.has(id)) return { data: null, error: new Error("embed failed") };
         return { data: { ok: true }, error: null };
       }),
@@ -66,6 +68,7 @@ beforeEach(() => {
   mocks.invokeCalls = [];
   mocks.rpcCalls = 0;
   mocks.failIds = new Set();
+  mocks.rateLimitIds = new Set();
 });
 
 describe("useUnembeddedContent", () => {
@@ -92,7 +95,7 @@ describe("useUnembeddedContent", () => {
 
     const result = await api().indexAll();
 
-    expect(result).toEqual({ indexed: 2, failed: 1 });
+    expect(result).toEqual({ indexed: 2, failed: 1, remaining: 0 });
     // All three were attempted -- the failure on i2 did not short-circuit i3.
     expect(mocks.invokeCalls.map((c) => c.body.id)).toEqual(["i1", "i2", "i3"]);
     expect(api().progress.value).toEqual({ done: 3, total: 3 });
@@ -137,5 +140,24 @@ describe("useUnembeddedContent", () => {
     await api().indexAll();
 
     expect(mocks.rpcCalls).toBeGreaterThan(rpcCallsAtMount);
+  });
+
+  // A 429 is the account's daily ceiling, not this row's problem — every
+  // remaining row would hit it too. Grinding through them to report a
+  // thousand failures would be both slower and a lie: nothing is lost, the
+  // rows stay listed, and tomorrow's run finishes them.
+  it("stops at the daily ceiling instead of failing every remaining row", async () => {
+    mocks.countsData = [{ kind: "item", missing: 3, ids: ["i1", "i2", "i3"] }];
+    mocks.rateLimitIds = new Set(["i2"]);
+    const { api } = open();
+    await flushPromises();
+
+    const result = await api().indexAll();
+
+    // i2 was rejected and i3 never tried — both are still unindexed, so
+    // `remaining` is 2, not 1. The rejected row is not "done".
+    expect(result).toEqual({ indexed: 1, failed: 0, remaining: 2 });
+    // i3 was never attempted — that is the whole point of stopping.
+    expect(mocks.invokeCalls.map((c) => c.body.id)).toEqual(["i1", "i2"]);
   });
 });

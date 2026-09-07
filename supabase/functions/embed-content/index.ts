@@ -5,6 +5,7 @@ import { requireAdmin } from "../_shared/requireAdmin.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { recordFreeGeneration } from "../_shared/credits.ts";
+import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { buildFactionEmbedText, buildItemEmbedText, buildLocationEmbedText, buildNoteEmbedText, buildNpcEmbedText, entityEmbedHash } from "../_shared/entityEmbedText.ts";
 import {
   EmbeddingProviderConfigError,
@@ -50,15 +51,10 @@ import {
  * row. Single mode writes one row per actual embed, and none at all when the
  * unchanged-hash/model short-circuit fires.
  *
- * NO checkRateLimit: same rationale as embed-monsters. The shared
- * `ai_generation` bucket throttles expensive, user-visible generations —
- * spending it here would let ordinary NPC/faction/location/note editing
- * (mode: "single" fires on every save) exhaust a DM's generation budget for
- * something they didn't ask for and never see. The guards that DO apply
- * instead: auth + ownership (mode: "single" verifies row.user_id ===
- * auth.uid()), the unchanged-hash/model short-circuit below (most saves make
- * no provider call at all), and the per-entity quota that already caps how
- * many NPCs/factions/locations/notes a user can create.
+ * Rate limited on its own `entity_embedding` bucket rather than the shared
+ * `ai_generation` one, and counted past the unchanged-hash short-circuit so it
+ * bounds embeddings actually bought — see embed-monsters/index.ts and
+ * _shared/rate-limit.ts for the reasoning, which is identical.
  */
 
 const admin = createClient(
@@ -477,6 +473,19 @@ async function handleSingle(req: Request, body: { entity?: unknown; id?: unknown
   // Short-circuit: no API call, no write, when nothing has actually changed.
   if (!isEmbeddingStale(stored, { sourceHash: hash, model: provider.model })) {
     return json({ embedded: false, entity, id, source_hash: hash, reason: "unchanged" });
+  }
+
+  // Rate limit here rather than at the top of the handler, and this placement
+  // is the whole point: most saves reach the short-circuit above and make no
+  // provider call at all, so counting *requests* would burn a DM's daily
+  // allowance on work that costs nothing. Counting past this line means the
+  // bucket measures embeddings actually bought, which is what the number in
+  // RATE_LIMITS claims to bound.
+  //
+  // Its own bucket, not `ai_generation` — see rate-limit.ts for why sharing
+  // that one would spend a DM's generation budget on a background save.
+  if (!(await checkRateLimit(admin, user.id, "entity_embedding"))) {
+    return json({ error: "rate_limited", entity, id }, 429);
   }
 
   let vectors: number[][];

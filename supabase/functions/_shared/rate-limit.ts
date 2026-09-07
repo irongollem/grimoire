@@ -26,6 +26,30 @@ export const RATE_LIMITS = {
   // A denied request costs the subject a wait, never the right: Art. 12(3)
   // allows a month, and this resets in an hour.
   data_export:   { action: "data_export",   limit: 5,  windowSeconds: 3_600 },
+  /**
+   * Embedding (#841 follow-up). Deliberately its own bucket rather than a
+   * share of `ai_generation`: embed-on-write fires on every entity save, so
+   * spending the generation budget here would exhaust a DM's quota on
+   * something they never asked for and never see — the reason embed-content
+   * and embed-monsters previously carried *no* limit at all.
+   *
+   * Those functions justified having none by pointing at the per-entity quota
+   * "that already caps how many monsters a user can create". That is true on
+   * free (10 NPCs, 10 locations, 3 monsters) and false on Pro, whose `quotas`
+   * is `{}` — so a Pro account editing in a loop had no ceiling whatsoever.
+   *
+   * The money at risk was never the point: `text-embedding-3-small` is $0.02
+   * per 1M tokens, production's entire 2,891-entity corpus cost under one euro
+   * cent, and a joker would need ~3.3M embeds to spend €10 of ours. What this
+   * bounds is a runaway loop — a broken client, a script — and it replaces
+   * "unbounded" with a number.
+   *
+   * 2,000 a day is far above any real use: the largest single campaign here
+   * has ~200 unindexed rows, and a heavy prep day saves a few dozen entities.
+   * A corpus bigger than 2,000 finishes the next day, which the client says
+   * out loud rather than reporting as failure.
+   */
+  entity_embedding: { action: "entity_embedding", limit: 2_000, windowSeconds: 86_400 },
 } as const;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;

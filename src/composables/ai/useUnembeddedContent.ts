@@ -62,6 +62,8 @@ export const UNEMBEDDED_KIND_LABELS: Record<UnembeddedKind, string> = {
 export interface IndexAllResult {
   indexed: number;
   failed: number;
+  /** Left undone because the daily allowance ran out mid-run; 0 otherwise. */
+  remaining: number;
 }
 
 async function fetchCounts(campaignId: string): Promise<UnembeddedCountRow[]> {
@@ -80,11 +82,26 @@ async function fetchCounts(campaignId: string): Promise<UnembeddedCountRow[]> {
  * (useMonsters.ts), just awaited here instead of fire-and-forget, so a
  * failure can be counted rather than silently swallowed.
  */
+/** Thrown when the daily embedding allowance is spent — see RATE_LIMITS. */
+class RateLimitedError extends Error {}
+
 async function embedRow(kind: UnembeddedKind, id: string): Promise<void> {
-  const { error } =
+  const { data, error } =
     kind === "monster"
       ? await supabase.functions.invoke("embed-monsters", { body: { mode: "single", monster_id: id } })
       : await supabase.functions.invoke("embed-content", { body: { mode: "single", entity: kind, id } });
+
+  // A 429 is not a failure of this row — it is the account's daily ceiling,
+  // and every remaining row would hit it too. Distinguished so the loop can
+  // stop and say so, rather than grinding through a thousand more calls to
+  // report a thousand mysterious failures. `functions.invoke` surfaces a
+  // non-2xx as `error` with the body on `data`, so both are checked.
+  const payload = (data ?? null) as { error?: unknown } | null;
+  const rateLimited =
+    payload?.error === "rate_limited" ||
+    (error !== null && /rate.?limit|429/i.test(error.message ?? ""));
+  if (rateLimited) throw new RateLimitedError("rate_limited");
+
   if (error) throw error;
 }
 
@@ -119,9 +136,9 @@ export function useUnembeddedContent() {
    * the normal outcome, not an exceptional one worth aborting the rest over.
    */
   async function indexAll(): Promise<IndexAllResult> {
-    if (isRunning.value) return { indexed: 0, failed: 0 };
+    if (isRunning.value) return { indexed: 0, failed: 0, remaining: 0 };
     const campaignId = campaign.activeCampaignId;
-    if (!campaignId) return { indexed: 0, failed: 0 };
+    if (!campaignId) return { indexed: 0, failed: 0, remaining: 0 };
 
     isRunning.value = true;
     progressDone.value = 0;
@@ -137,18 +154,34 @@ export function useUnembeddedContent() {
       const jobs = fresh.flatMap((row) => row.ids.map((id) => ({ kind: row.kind, id })));
       progressTotal.value = jobs.length;
 
+      // Counted, not derived. An earlier cut computed `indexed` as
+      // "attempted minus failed", which quietly counted the rate-limited row
+      // as indexed — it was attempted, and it was not a failure. Three
+      // outcomes need three counters.
+      let indexed = 0;
       let failed = 0;
       for (const job of jobs) {
         try {
           await embedRow(job.kind, job.id);
-        } catch {
+          indexed += 1;
+        } catch (e) {
+          // The ceiling applies to the account, not the row, so continuing
+          // would just spend the rest of the list on certain rejections.
+          if (e instanceof RateLimitedError) break;
           failed += 1;
         } finally {
           progressDone.value += 1;
         }
       }
 
-      const result: IndexAllResult = { indexed: jobs.length - failed, failed };
+      const result: IndexAllResult = {
+        indexed,
+        failed,
+        // Everything still without a vector: the row the ceiling rejected and
+        // every row after it. Not lost — they stay listed, and tomorrow's run
+        // picks them up.
+        remaining: jobs.length - indexed - failed,
+      };
       lastResult.value = result;
       return result;
     } finally {

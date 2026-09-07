@@ -74,7 +74,20 @@ const buttonLabel = computed(() => {
 // simply re-runs indexAll() against whatever is still unembedded.
 const partialResultMessage = computed(() => {
   const result = lastResult.value;
-  if (!result || result.failed === 0) return null;
+  if (!result) return null;
+
+  // Two different outcomes, and telling them apart is the point. A daily
+  // ceiling is not a failure and must not read as one: nothing is lost, the
+  // rest is still listed above, and tomorrow's run finishes it. Saying
+  // "1,800 failed" for a limit that worked exactly as intended would send a
+  // DM hunting a problem that does not exist.
+  if (result.remaining > 0) {
+    return `Indexed ${result.indexed}. The daily indexing allowance is spent, so ${result.remaining} `
+      + `${result.remaining === 1 ? "row is" : "rows are"} still waiting — they stay listed here and can be `
+      + `indexed tomorrow.`;
+  }
+
+  if (result.failed === 0) return null;
   return `Indexed ${result.indexed}, ${result.failed} failed — click Index these again to retry the rest.`;
 });
 
