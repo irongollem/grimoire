@@ -8,6 +8,14 @@
     cockpit are a commitment (a fixed-viewport canvas, a live session), and
     `takesWholeScreen` tells `useDetailModal` to give those the whole screen —
     on every width, not only mobile's.
+
+    The one exception is a surface switch made *inside* the quest: flipping
+    this control from Story flow or Run session back to Overview must keep the
+    whole screen rather than dropping the DM onto the quest log with a modal
+    open over it. `selectView` marks that with `ui.questFullScreenId`, which
+    `takesWholeScreen` also honours, and which is forgotten the moment the DM
+    leaves this quest — so opening a *different* quest from the log is still
+    the ordinary modal.
   -->
   <QuestDetailModal v-if="asModal" :id="id" @close="close" />
 
@@ -57,11 +65,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuest } from "@/composables/quests/useQuests";
 import { useQuestDetailSurface, type QuestDetailSurface } from "@/composables/quests/useQuestDetailSurface";
 import { useDetailModal } from "@/composables/useDetailModal";
+import { useUiStore } from "@/stores/ui";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
@@ -74,6 +83,7 @@ import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 
 const route     = useRoute();
 const router    = useRouter();
+const ui        = useUiStore();
 const isNew     = computed(() => route.name === "quest-new");
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId  = computed(() => (route.query.parent as string | undefined));
@@ -101,9 +111,32 @@ const viewOptions = computed(() => [
 ]);
 
 function selectView(next: QuestDetailSurface) {
+  // A switch made through this control while the quest already has the whole
+  // screen — Story flow or Run session — must keep it, all the way back to
+  // Overview: that is a surface change made *inside* the quest, not a new
+  // navigation to a screen the DM never asked to see, so it must not drop them
+  // onto the quest list with a modal open over it. `asModal` is false in
+  // exactly that case (and on mobile, where the flag is harmless: nothing
+  // there is ever a modal anyway). Arriving on the overview as today's modal —
+  // opened fresh from the list — leaves the flag untouched, so the *next*
+  // quest opened from the log is still a modal.
+  if (!asModal.value) ui.questFullScreenId = id.value;
   const { view: _view, overview: _overview, mode: _mode, ...query } = route.query;
   void router.replace({ query: { ...query, view: next } });
 }
+
+// The flag names one quest. Leaving it — for another quest's id, or by
+// unmounting this view entirely (back to `/quests`) — must forget it, or the
+// next quest opened from the log would wrongly skip its modal too.
+watch(id, (next, previous) => {
+  if (previous && previous !== next && ui.questFullScreenId === previous) {
+    ui.questFullScreenId = null;
+  }
+});
+
+onUnmounted(() => {
+  if (ui.questFullScreenId === id.value) ui.questFullScreenId = null;
+});
 
 const { data: quest, isLoading: questLoading } = useQuest(id);
 const isLoading = computed(() => !isNew.value && questLoading.value);

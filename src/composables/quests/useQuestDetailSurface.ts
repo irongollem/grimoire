@@ -27,6 +27,12 @@ export function useQuestDetailSurface() {
   // same one-line check.
   const isNew = computed(() => route.name === "quest-new");
 
+  // The id `ui.questFullScreenId` is compared against. Read straight off the
+  // route rather than threaded in as a parameter: `QuestDetailView` resolves
+  // it the same way for its own `useQuest` lookup, and a quest with no row yet
+  // never reaches `takesWholeScreen`'s flag branch anyway.
+  const questId = computed(() => route.params.id as string | undefined);
+
   /**
    * The cockpit is showing — either because the link asked for it, or because a
    * session is running and the cockpit is the session's default surface.
@@ -55,8 +61,20 @@ export function useQuestDetailSurface() {
     return isRunning.value ? "work" : "overview";
   });
 
-  /** The graph designer and the run cockpit are both a commitment, never a modal. */
-  const takesWholeScreen = computed(() => view.value === "work");
+  /**
+   * The graph designer and the run cockpit are always a commitment. The
+   * overview joins them only when the DM reached it by switching *away* from
+   * one of those two with the in-quest `SegmentedControl` — tracked by
+   * `ui.questFullScreenId`, which `QuestDetailView.selectView` sets to this
+   * quest's id on exactly that switch and clears on leaving the quest.
+   * Without this, clicking "Overview" from the run cockpit or story flow
+   * dropped the DM onto the quest list with a modal open over it — a surface
+   * switch made *inside* a quest, which must never look like new navigation to
+   * one the DM never asked to see.
+   */
+  const takesWholeScreen = computed(() =>
+    view.value === "work" || (questId.value !== undefined && ui.questFullScreenId === questId.value),
+  );
 
   return { view, isRunning, takesWholeScreen };
 }

@@ -135,6 +135,59 @@ describe("QuestDetailView", () => {
     expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "beat-1", view: "work" } });
   });
 
+  // The fix this file exists for: switching the SegmentedControl on a
+  // full-screen surface (Story flow / Run session) back to Overview must keep
+  // the whole screen rather than dropping the DM onto the quest log with a
+  // modal open over it — "no weird navigation to a screen with a modal open."
+  it("keeps the whole screen when the segmented control switches away from a full-screen surface", () => {
+    mocks.route.query = { view: "work" };
+    const cockpit = mountView();
+
+    cockpit.findComponent({ name: "SegmentedControl" }).vm.$emit("update:modelValue", "overview");
+    expect(ui.questFullScreenId).toBe("quest-1");
+
+    // Simulate the navigation `router.replace` (mocked, so a no-op) would have
+    // landed: a fresh mount with the same quest id, now on `view=overview`.
+    mocks.route.query = { view: "overview" };
+    const overview = mountView();
+    expect(overview.findComponent(QuestDetailModal).exists()).toBe(false);
+    expect(overview.findComponent(QuestOverviewPanel).exists()).toBe(true);
+  });
+
+  // Opening a quest fresh from the list must be unaffected by the mechanism
+  // above — the flag starts at `null`, so the overview is the ordinary modal.
+  it("still opens fresh from the list as a modal on desktop", () => {
+    const wrapper = mountView();
+
+    expect(wrapper.findComponent(QuestDetailModal).exists()).toBe(true);
+    expect(ui.questFullScreenId).toBe(null);
+  });
+
+  it("forgets the full-screen quest when the route moves to a different one", async () => {
+    const wrapper = mountView();
+    ui.questFullScreenId = "quest-1";
+
+    // Mutating `mocks.route` directly would bypass the proxy the mounted
+    // instance actually depends on and never notify it (`reactive()` caches
+    // one proxy per target, so this is the same object `useRoute()` returned).
+    reactive(mocks.route).params = { id: "quest-2" };
+    await wrapper.vm.$nextTick();
+
+    expect(ui.questFullScreenId).toBe(null);
+  });
+
+  // Leaving the quest by any route — not just to a sibling quest id — must
+  // forget it too, or the next quest opened from the log would wrongly skip
+  // its modal.
+  it("forgets the full-screen quest on unmount", () => {
+    const wrapper = mountView();
+    ui.questFullScreenId = "quest-1";
+
+    wrapper.unmount();
+
+    expect(ui.questFullScreenId).toBe(null);
+  });
+
   // `?overview=true` and `?mode=details` are what the drawer left behind, in
   // bookmarks, attachment adapters and return-to paths. They still land on the
   // overview surface. Narrow throughout: the point under test is the query
