@@ -25,6 +25,38 @@ Same rule forward in time: no "we'll refactor later", no "we'll extract this whe
 
 "I noticed it and left it" is never an option. If you are unsure which exit applies, fix it.
 
+## The Design Is The Spec — read it before you touch quest work
+
+**There is a design.** The quest system was designed deliberately, in Claude Design, before the epic was written, and the epic was built around it. It is a 14-board canvas:
+
+> **Quest System Redesign** — https://claude.ai/code/artifact/30dd83c5-1688-4848-b168-86e9af9ae34e
+
+Boards: `Main` `Today` `Site` `SiteEditor` `Graph` `Runner` `Prep` `Player` `Plan` `Cutover` `Gaps` `DirectionA` `DirectionB` `DirectionC`.
+
+**Read it first. Not the code, not the screenshots, not `art-src/quest design.zip`** — that zip is an older export of a subset and is not the source of truth. The canvas is.
+
+Its content is not in the DOM; it lives in the `appifact-doc` state block. To read it:
+
+```python
+# after Artifact action:"read" saves the page to a local file
+import re, json, pathlib
+s   = pathlib.Path(SAVED_HTML).read_text(errors="replace")
+raw = re.search(r'<script[^>]*id="appifact-doc"[^>]*>(.*?)</script>', s, re.S).group(1)
+for name, src in json.loads(raw)["content"]["files"].items():
+    pathlib.Path(name).write_text(src)   # 14 .dc.html boards + canvas.json
+```
+
+**The model, in the design's own words** (`Runner`): *"beats read the ledger, the DM never wires a branch at the table."* If a surface makes the DM wire a branch by hand, it contradicts the design — that is not a missing feature, it is the inverse of the thing.
+
+**How this went wrong, so it does not repeat.** Epic #780 shipped the data model and reviewed it thoroughly — seven review slices, a cloud review, ~25 defects fixed, all gates green. Every one of those passes compared the code **against itself**. None compared it against this canvas. The result: the primitives all landed and none of the composition did, and the maintainer's verdict after five minutes of real use was that it felt exactly as clunky as before. Worse, a session then *invented a parallel redesign* from screenshots, and filed #835 as an open question about whether the party can hold several positions — which the `Runner` board already answers (*"Also open — 1 other chain… the party is in one place and on as many quests as you like"*). Do not theorise about a decision that is already drawn.
+
+### The four rules for this work
+
+1. **No legacy.** Never maintain a surpassed path. Update every caller so only the modern flow exists. A "safe" fallback that rebuilds the old shape **is** the legacy path.
+2. **Do not design for compatibility.** The shape of the existing data is not an input to the design.
+3. **Build the good system first.** Only once it exists do you work out how to migrate the old data into it. Not the other way round, and not both at once.
+4. **The system before its neighbours.** Design and build the quest system itself first. Co-DM (#590), the per-campaign lens guard (#847), the consequence matrix (#835) and anything else adjacent waits until the system it hangs off is right — several of them may dissolve or change shape once it is.
+
 ## The Overseer Pattern — the default for any significant story
 
 **Any significant story — an issue-sized feature, a multi-file refactor, anything with more than one natural work package — is executed as overseer + executors by default.** The session's model orchestrates and reviews; cheaper subagents type. This is not an optimization to reach for when asked; it is how work runs here unless one of the two exits below applies. The full procedure (story slicing, spec template, waves, gates) is the **`/overseer` skill — invoke it when starting such a story.** Its inversion — a sonnet lead consulting Fable/Opus subagents at isolated judgment moments — is the *advisor pattern*, defined there too.
