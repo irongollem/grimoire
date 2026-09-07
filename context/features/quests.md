@@ -754,6 +754,15 @@ currently written down as a sanctioned exception**, which means the next reader 
 entitled to "fix" it. Either bless it in CLAUDE.md's Sanctioned Exceptions or change
 it — this doc records the state, it does not settle it.
 
+**Now tracked as [#844](https://github.com/irongollem/grimoire/issues/844).** The
+prediction above came true during epic #780: a conventions review flagged it as a
+Post-Mutation Navigation violation, and the epic itself added a fifth call site
+(`QuestPasteImportPanel`). The issue lays out the three options — nest `/quests/:id`
+under its list the way NPCs and monsters are, bless it as a sanctioned exception, or
+send all five to the list — and recommends the first, because the NPC carve-out is
+earned by *route nesting* rather than by argument, and quests can simply have the
+same structure. Until it is settled, leave the five call sites alone.
+
 ## In flight: the redesign
 
 **[EPIC #780](https://github.com/irongollem/grimoire/issues/780)** collapses the
