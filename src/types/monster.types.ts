@@ -94,6 +94,30 @@ export interface Monster extends VersionedContentMetadata {
   open5e_import?: boolean;     // true when the row was upserted by Open5e sync
 }
 
+/**
+ * What a *player* receives, which is not a `Monster` (#842).
+ *
+ * `get_player_visible_monsters` returns `stat_block` as **null** whenever the
+ * DM has not revealed a creature's stats — the gate is `reveal_stats`, and
+ * withholding is the whole point of that column. `monsters.stat_block` is NOT
+ * NULL, so `Monster` is accurate for a row and wrong for a projection.
+ *
+ * That mismatch is not academic: three users hit `null is not an object
+ * (evaluating 'monster.stat_block.challenge_rating')` in production, and
+ * nothing could fail to compile because the type promised a stat block was
+ * always there.
+ *
+ * So player surfaces take this type instead, and the compiler tells their
+ * authors what a DM-surface author never has to think about. The alternative —
+ * optional-chaining `stat_block` at all ~30 call sites — would silence the
+ * distinction rather than express it, and leave the next player surface to
+ * rediscover it the same way.
+ */
+export type PlayerVisibleMonster = Omit<Monster, "stat_block"> & {
+  stat_block: MonsterStatBlock | null;
+};
+
+
 export type MonsterInsert = Omit<Monster, "id" | "user_id" | "created_at" | "updated_at">;
 export type MonsterUpdate = Partial<MonsterInsert>;
 

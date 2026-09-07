@@ -7,7 +7,7 @@ import { useLibraryMonsterArt } from "@/composables/library/useLibraryMonsterArt
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
-import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
+import type { Monster, MonsterInsert, MonsterUpdate, PlayerVisibleMonster } from "@/types/monster.types";
 import { useToast } from "@/composables/useToast";
 import { deleteByPublicUrl } from "@/lib/storage";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -212,7 +212,7 @@ export function usePlayerVisibleMonsters() {
     staleTime: Infinity,
   });
 
-  const data = computed<Monster[]>(() => {
+  const data = computed<PlayerVisibleMonster[]>(() => {
     // Open5e imports are legacy in the monsters table — those surface via
     // library_monsters instead, so drop them from the custom side (same rule as
     // useAllMonsters).
