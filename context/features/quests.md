@@ -550,6 +550,16 @@ the full screen regardless of width. `SegmentedControl` still switches between
 them inline wherever the full screen is already showing (a phone, at every
 `view`; desktop while `view === "work"`).
 
+**A surface switch made inside the quest never changes whether it is a modal.**
+Switching from Story flow or Run session back to Overview with that control
+keeps the whole screen: `QuestDetailView.selectView` sets `ui.questFullScreenId`
+to the quest whenever the switch is made from a full-screen surface, and
+`useQuestDetailSurface.takesWholeScreen` honours it alongside `view === "work"`.
+The flag is forgotten when the route moves to another quest or the view unmounts,
+so opening a quest fresh from the log is still the modal. Before this (8 Sep
+2026) clicking Overview from the cockpit dropped the DM onto the quest list with
+a popover over it — a navigation they never asked for.
+
 - **Overview** — `QuestOverviewPanel` → metadata (title, premise/`summary`,
   status, giver, location, parent, tags, sharing — one autosaved editor per
   field), then either a "Write the opening beat" empty state (no beats yet) or
@@ -677,6 +687,20 @@ Overview. The DM ticks the beats the party already played, optionally names the
 session, and records them: consequences are applied and the cursor can be placed
 at the last one — without ever starting a session. *"Backfilling ten sessions of
 history should not mean performing them."*
+
+**Every row shows its own state before anything is ticked** — "Playing now" /
+"The party is here", "Played · 3d ago", "Recorded · Session 4", "Not played" —
+derived in `lib/quests/backfill.ts` (`deriveBeatRecordStates`) from the
+transition log and the cursor: the newest transition *to* a beat decides, an
+`assert` reads as recorded, a table kind as played, and the cursor's beat wins.
+That is the panel's feedback: after recording, the rows change state in place
+rather than a cleared list and a banner. "Select all" picks only unplayed
+beats, and ticking a beat already in the record shows a warning that recording
+it again appends a second entry. The single Record button became two actions
+that say what they do — **Mark as played** (`placeCursor: false`) and **Mark as
+played and put the party at “<last selected>”** (`placeCursor: true`). The
+first version (7 Sep 2026) had none of this: boxes cleared on success with no
+visible change, and re-recording duplicated history silently.
 
 It exists because the graph arrived after most campaigns did. A DM adopting the
 beat model mid-campaign has a played history and an empty runtime, and the only
