@@ -397,10 +397,17 @@ async function attempt() {
   const primaryItemDef = props.allItems.find((i) => i.id === (primaryItem ? inventoryItemRef(primaryItem) : null));
 
   try {
+    // A ref whose name cannot be resolved is left OUT of the map rather than
+    // mapped to "". This is payload, not display: an empty string travels to
+    // `attemptCraft` and renders as a nameless item, where an absent key lets
+    // the consumer apply its own fallback. The display path two computeds
+    // above already does this correctly with `?? "item"` — the difference is
+    // that one is a label and this is data.
     const resolvedOutputNames: Record<string, string> = {};
     for (const o of props.outputs) {
       const ref = inventoryItemRef(o);
-      if (ref) resolvedOutputNames[ref] = resolveOutputName(ref) ?? "";
+      const name = ref ? resolveOutputName(ref) : undefined;
+      if (ref && name) resolvedOutputNames[ref] = name;
     }
 
     const res = await attemptCraft({
