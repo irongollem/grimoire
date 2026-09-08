@@ -29,6 +29,7 @@
     "supabase/functions/_shared/provenance/**/*.ts",
     "supabase/functions/_shared/mcp/**/*.ts",
     "supabase/functions/_shared/observability/scrub.ts",
-    "supabase/functions/_shared/observability/sentryEdge.ts"
+    "supabase/functions/_shared/observability/sentryEdge.ts",
+    "supabase/functions/_shared/ics.ts"
   ]
 }

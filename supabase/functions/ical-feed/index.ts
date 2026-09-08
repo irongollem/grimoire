@@ -1,41 +1,37 @@
+// Public ICS feed consumed by players' calendar apps (Google / Apple / Outlook).
+//
+// Those clients can't attach a Supabase JWT when subscribing to an ICS URL, so
+// JWT verification is turned off at the gateway via
+// `[functions.ical-feed] verify_jwt = false` in `supabase/config.toml`
+// (per-function `config.toml` files inside the function directory are NOT read
+// by `supabase functions deploy`). Security is the random per-campaign
+// `ical_token` in the URL path.
+//
+// WHAT IT CARRIES, AND WHY THAT CHANGED. The feed used to be confirmed
+// sessions only. That is the state a calendar is *for*, but it is not when
+// players look: most of the party opens Grimoire on session day, so a date the
+// DM suggested on Tuesday reached nobody until it was already settled — the
+// suggestion was invisible during the only window in which answering it does
+// any good. Proposed dates are now published too, as TENTATIVE, TRANSPARENT
+// (they must not book the evening out) and labelled in the SUMMARY, which is
+// the only marker that survives a month-view truncation. See _shared/ics.ts.
+//
+// Both states are the same `session_proposals` row and so share one UID: a
+// client that stored the suggestion replaces it when the DM confirms, rather
+// than leaving the player with two evenings booked. Cancelled rows are simply
+// not emitted, and a subscribed calendar is replaced wholesale on each poll,
+// so dropping one is how it disappears.
+//
+// Still never published: notes on cancelled or past sessions, per-player
+// availability, or anything else a campaign member has not already been shown.
+// The token is shared by the whole party, so the feed must hold nothing that
+// distinguishes one member from another — the per-player RSVP path is the
+// emailed invitation instead (see session-rsvp).
 import { withErrorReporting } from "../_shared/observability/report.ts";
 import { createClient } from "@supabase/supabase-js";
+import { buildSessionFeed, type IcsSessionEvent } from "../_shared/ics.ts";
 
-// This function is public — calendar clients (Google / Apple / Outlook) can't
-// attach a Supabase JWT when subscribing to an ICS URL. JWT verification is
-// turned off at the gateway via `[functions.ical-feed] verify_jwt = false`
-// in `supabase/config.toml` (per-function `config.toml` files inside the
-// function directory are NOT read by `supabase functions deploy`). Security
-// is enforced by the random per-campaign `ical_token` in the URL path —
-// we only return CONFIRMED sessions to holders of the right token, and we
-// never leak draft / private scheduling state.
-
-// Max line length per RFC 5545 §3.1 (75 octets, not chars — close enough for ASCII)
-const LINE_MAX = 75;
-
-function foldLine(line: string): string {
-  if (line.length <= LINE_MAX) return line;
-  const parts: string[] = [];
-  parts.push(line.slice(0, LINE_MAX));
-  let offset = LINE_MAX;
-  while (offset < line.length) {
-    parts.push(" " + line.slice(offset, offset + LINE_MAX - 1));
-    offset += LINE_MAX - 1;
-  }
-  return parts.join("\r\n");
-}
-
-function escapeText(s: string): string {
-  return s
-    .replace(/\\/g, "\\\\")
-    .replace(/;/g, "\\;")
-    .replace(/,/g, "\\,")
-    .replace(/\n/g, "\\n");
-}
-
-function formatDtstamp(date: Date): string {
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-}
+const RESPOND_URL = "https://app.dungeongrimoire.com/play/settings";
 
 interface SessionRow {
   id: string;
@@ -44,6 +40,7 @@ interface SessionRow {
   proposed_date: string;
   proposed_time: string | null;
   duration_minutes: number;
+  status: "proposed" | "confirmed";
   updated_at: string;
 }
 
@@ -82,13 +79,14 @@ Deno.serve(withErrorReporting(async (req: Request) => {
     return new Response("Not Found", { status: 404 });
   }
 
-  // Fetch confirmed sessions — only future ones (today inclusive)
+  // Confirmed and proposed, future only (today inclusive). Cancelled is
+  // excluded by the filter, not by an afterthought — see the header note.
   const todayIso = new Date().toISOString().slice(0, 10);
   const { data: sessions, error: sessErr } = await supabase
     .from("session_proposals")
-    .select("id, title, notes, proposed_date, proposed_time, duration_minutes, updated_at")
+    .select("id, title, notes, proposed_date, proposed_time, duration_minutes, status, updated_at")
     .eq("campaign_id", campaign.id)
-    .eq("status", "confirmed")
+    .in("status", ["confirmed", "proposed"])
     .gte("proposed_date", todayIso)
     .order("proposed_date", { ascending: true });
 
@@ -111,59 +109,22 @@ Deno.serve(withErrorReporting(async (req: Request) => {
     return new Response(null, { status: 304, headers: { ETag: etag, "Last-Modified": lastModified } });
   }
 
-  const now = new Date();
-  const dtstamp = formatDtstamp(now);
+  const events: IcsSessionEvent[] = rows.map((s) => ({
+    id: s.id,
+    title: s.title,
+    notes: s.notes,
+    date: s.proposed_date,
+    time: s.proposed_time,
+    durationMinutes: s.duration_minutes,
+    status: s.status,
+  }));
 
-  const lines: string[] = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Grimoire//DnD Campaign Manager//EN",
-    "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
-    foldLine(`X-WR-CALNAME:${escapeText(campaign.name)} — Sessions`),
-  ];
-
-  for (const s of rows) {
-    const dateStr = s.proposed_date.replace(/-/g, "");
-    let dtstart: string;
-    let dtend: string;
-
-    if (s.proposed_time) {
-      const timeStr = s.proposed_time.replace(/:/g, "").slice(0, 4) + "00";
-      dtstart = `DTSTART:${dateStr}T${timeStr}`;
-      // Default session length: 4 hours — endDate may roll over to next calendar day
-      const [h, m] = s.proposed_time.split(":").map(Number);
-      const endDate = new Date(`${s.proposed_date}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`);
-      endDate.setMinutes(endDate.getMinutes() + (s.duration_minutes ?? 240));
-      const pad2 = (n: number) => String(n).padStart(2, "0");
-      const endDateStr = `${endDate.getFullYear()}${pad2(endDate.getMonth() + 1)}${pad2(endDate.getDate())}`;
-      const endTimeStr = `${pad2(endDate.getHours())}${pad2(endDate.getMinutes())}00`;
-      dtend = `DTEND:${endDateStr}T${endTimeStr}`;
-    } else {
-      dtstart = `DTSTART;VALUE=DATE:${dateStr}`;
-      // All-day: end is next calendar day
-      const d = new Date(s.proposed_date + "T00:00:00");
-      d.setDate(d.getDate() + 1);
-      const nextDay = d.toISOString().slice(0, 10).replace(/-/g, "");
-      dtend = `DTEND;VALUE=DATE:${nextDay}`;
-    }
-
-    lines.push(
-      "BEGIN:VEVENT",
-      `UID:${s.id}@grimoire`,
-      `DTSTAMP:${dtstamp}`,
-      dtstart,
-      dtend,
-      foldLine(`SUMMARY:${escapeText(campaign.name)} — ${escapeText(s.title)}`),
-      ...(s.notes ? [foldLine(`DESCRIPTION:${escapeText(s.notes)}`)] : []),
-      "STATUS:CONFIRMED",
-      "END:VEVENT",
-    );
-  }
-
-  lines.push("END:VCALENDAR");
-
-  const body = lines.join("\r\n");
+  const body = buildSessionFeed({
+    campaignName: campaign.name,
+    events,
+    now: new Date(),
+    respondUrl: RESPOND_URL,
+  });
 
   return new Response(body, {
     status: 200,

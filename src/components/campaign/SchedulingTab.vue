@@ -2,20 +2,11 @@
   <div class="space-y-6">
     <!-- ── Upcoming confirmed sessions ─────────────────────────────────── -->
     <div v-if="confirmed.length > 0">
-      <div class="flex items-center justify-between mb-3">
-        <h3
-          class="text-label-lg font-semibold text-muted-foreground uppercase"
-        >
-          Upcoming Sessions
-        </h3>
-        <AppButton
-          variant="subtle"
-          size="xs"
-          :icon="IconDownload"
-          label="Export iCal"
-          @click="exportIcal"
-        />
-      </div>
+      <h3
+        class="text-label-lg font-semibold text-muted-foreground uppercase mb-3"
+      >
+        Upcoming Sessions
+      </h3>
       <div class="space-y-2">
         <div
           v-for="p in confirmed"
@@ -52,10 +43,14 @@
     <!-- ── Proposed dates ───────────────────────────────────────────────── -->
     <div>
       <h3
-        class="text-label-lg font-semibold text-muted-foreground uppercase mb-3"
+        class="text-label-lg font-semibold text-muted-foreground uppercase mb-1"
       >
         Proposed Dates
       </h3>
+      <p class="text-caption text-muted-foreground mb-3">
+        These go out to the party's subscribed calendars straight away, marked as
+        suggestions, so nobody has to open Grimoire to see them.
+      </p>
 
       <div
         v-if="proposed.length === 0"
@@ -235,7 +230,8 @@
       </h3>
       <p class="text-caption text-muted-foreground">
         Subscribe once and your calendar app will automatically receive future
-        session updates.
+        session updates — confirmed dates as normal events, and dates you have
+        only suggested as tentative ones that leave the evening free.
       </p>
 
       <!-- URL field + copy -->
@@ -271,6 +267,15 @@
           :href="webcalUrl"
           :icon="IconAddEvent"
           label="Subscribe in Calendar App"
+        />
+
+        <AppButton
+          variant="subtle"
+          size="sm"
+          :icon="IconDownload"
+          tooltip="A one-off snapshot of the same events — it will not update"
+          label="Download .ics"
+          @click="exportIcal"
         />
 
         <AppButton
@@ -315,6 +320,7 @@ import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroa
 import { notifyProposalCreated } from "@/composables/campaign/useEmailNotify";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import type { SessionProposal } from "@/types/scheduling.types";
+import { buildSessionFeed, type IcsSessionEvent } from "@edge-shared/ics.ts";
 
 const { activeThemeId } = useTheme();
 const isDark = computed(() => activeThemeId.value === "grimoire");
@@ -507,32 +513,35 @@ async function regenerateToken() {
 
 // ── iCal export ───────────────────────────────────────────────────────────────
 
+// Built by the same module the subscribed feed uses (`@edge-shared/ics.ts`), so
+// the file a DM downloads and the feed a player subscribes to are byte-for-byte
+// the same events. They used to be two hand-rolled builders and had drifted:
+// this one emitted no DTEND, no DTSTAMP and no text escaping, so a session
+// titled "Ambush, at last" exported a file some clients refused outright.
+
+function toIcsEvent(p: SessionProposal): IcsSessionEvent {
+  return {
+    id: p.id,
+    title: p.title,
+    notes: p.notes,
+    date: p.proposed_date,
+    time: p.proposed_time,
+    durationMinutes: p.duration_minutes,
+    status: p.status === "confirmed" ? "confirmed" : "proposed",
+  };
+}
+
 function exportIcal() {
-  const sessions = confirmed.value;
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Grimoire//DnD Campaign Manager//EN",
-    "CALSCALE:GREGORIAN",
-  ];
-  for (const p of sessions) {
-    const dateStr = p.proposed_date.replace(/-/g, "");
-    const dtProp = p.proposed_time
-      ? `DTSTART:${dateStr}T${p.proposed_time.replace(/:/g, "")}00`
-      : `DTSTART;VALUE=DATE:${dateStr}`;
-    lines.push(
-      "BEGIN:VEVENT",
-      `UID:${p.id}@grimoire`,
-      dtProp,
-      `SUMMARY:${p.title}`,
-      ...(p.notes ? [`DESCRIPTION:${p.notes}`] : []),
-      "END:VEVENT",
-    );
-  }
-  lines.push("END:VCALENDAR");
-  const blob = new Blob([lines.join("\r\n")], {
-    type: "text/calendar;charset=utf-8",
+  const events = [...confirmed.value, ...proposed.value]
+    .sort((a, b) => a.proposed_date.localeCompare(b.proposed_date))
+    .map(toIcsEvent);
+  const body = buildSessionFeed({
+    campaignName: campaignData.value?.name ?? "Grimoire",
+    events,
+    now: new Date(),
+    respondUrl: `${window.location.origin}/play/settings`,
   });
+  const blob = new Blob([body], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
