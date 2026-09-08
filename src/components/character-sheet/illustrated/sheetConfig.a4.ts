@@ -7,7 +7,7 @@ import type { SizeConfig } from "./sheetTypes";
 export const A4: SizeConfig = {
   classic: {
     front: {
-      plate: "front-classic.png",
+      plate: "front-classic.webp",
       fields: [
         { section: "name", box: [9.5, 7.4, 82.5, 4] },
         { section: "abilities", box: [7.6, 16.4, 19.4, 38.2] },
@@ -32,7 +32,7 @@ export const A4: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-classic.png",
+      plate: "back-classic.webp",
       fields: [
         {
           section: "appearance",
@@ -60,7 +60,7 @@ export const A4: SizeConfig = {
   },
   adventure: {
     front: {
-      plate: "front-adventure.png",
+      plate: "front-adventure.webp",
       fields: [
         { section: "name", box: [24.6, 8.3, 59.4, 3.7] },
         { section: "abilities", box: [10, 18.799999999999997, 19.4, 38.2] },
@@ -85,7 +85,7 @@ export const A4: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-adventure.png",
+      plate: "back-adventure.webp",
       fields: [
         { section: "appearance", box: [10, 9, 35.2, 21] },
         {
@@ -118,7 +118,7 @@ export const A4: SizeConfig = {
   },
   gothic: {
     front: {
-      plate: "front-gothic.png",
+      plate: "front-gothic.webp",
       fields: [
         { section: "name", box: [18, 7.4, 72.7, 4.6] },
         { section: "abilities", box: [6.8, 18.4, 19.2, 38.4] },
@@ -143,7 +143,7 @@ export const A4: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-gothic.png",
+      plate: "back-gothic.webp",
       fields: [
         {
           section: "appearance",
@@ -170,7 +170,7 @@ export const A4: SizeConfig = {
   },
   fairy: {
     front: {
-      plate: "front-fairy.png",
+      plate: "front-fairy.webp",
       fields: [
         { section: "name", box: [14, 7.4, 77.6, 4.9] },
         { section: "abilities", box: [7.6, 16.4, 19.4, 38.2] },
@@ -199,7 +199,7 @@ export const A4: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-fairy.png",
+      plate: "back-fairy.webp",
       fields: [
         {
           section: "appearance",
@@ -237,7 +237,7 @@ export const A4: SizeConfig = {
   },
   sumie: {
     front: {
-      plate: "front-sumie.png",
+      plate: "front-sumie.webp",
       fields: [
         { section: "name", box: [27.2, 8.5, 57.2, 4] },
         { section: "abilities", box: [9.4, 19.2, 17.6, 39.8] },
@@ -262,7 +262,7 @@ export const A4: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-sumie.png",
+      plate: "back-sumie.webp",
       fields: [
         {
           section: "appearance",
