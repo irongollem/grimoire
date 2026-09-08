@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(26);
 
--- Cover for the mail-app RSVP path (20260831082156).
+-- Cover for the mail-app RSVP path (20260908084110).
 --
 -- Two properties carry the whole design and both are easy to lose to a later
 -- "tidy-up": the token must not be readable from the browser by anyone, DM
