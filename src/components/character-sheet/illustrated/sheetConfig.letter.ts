@@ -7,7 +7,7 @@ import type { SizeConfig } from "./sheetTypes";
 export const LETTER: SizeConfig = {
   classic: {
     front: {
-      plate: "front-classic.png",
+      plate: "front-classic.webp",
       fields: [
         { section: "name", box: [9.5, 6.9, 50, 3.9] },
         { section: "abilities", box: [7.6, 13.3, 19.4, 40.5] },
@@ -32,7 +32,7 @@ export const LETTER: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-classic.png",
+      plate: "back-classic.webp",
       fields: [
         { section: "appearance", box: [8, 8.9, 26, 22.5] },
         { section: "backstory", box: [36.9, 9, 32, 22.6] },
@@ -54,7 +54,7 @@ export const LETTER: SizeConfig = {
   },
   adventure: {
     front: {
-      plate: "front-adventure.png",
+      plate: "front-adventure.webp",
       fields: [
         { section: "name", box: [27, 8.8, 56.4, 3.6] },
         { section: "abilities", box: [10, 19.3, 19.5, 39.3] },
@@ -79,7 +79,7 @@ export const LETTER: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-adventure.png",
+      plate: "back-adventure.webp",
       fields: [
         { section: "appearance", box: [10, 9, 36.2, 22.3] },
         { section: "backstory", box: [51, 11.7, 42, 21.3] },
@@ -109,7 +109,7 @@ export const LETTER: SizeConfig = {
   },
   gothic: {
     front: {
-      plate: "front-gothic.png",
+      plate: "front-gothic.webp",
       fields: [
         { section: "name", box: [17.5, 8.2, 60, 4] },
         { section: "abilities", box: [7.7, 18.9, 18.4, 40.1] },
@@ -134,7 +134,7 @@ export const LETTER: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-gothic.png",
+      plate: "back-gothic.webp",
       fields: [
         {
           section: "appearance",
@@ -167,7 +167,7 @@ export const LETTER: SizeConfig = {
   },
   fairy: {
     front: {
-      plate: "front-fairy.png",
+      plate: "front-fairy.webp",
       fields: [
         { section: "name", box: [14, 7.4, 76.8, 4.3] },
         { section: "abilities", box: [8, 18.5, 18.9, 40.9] },
@@ -196,7 +196,7 @@ export const LETTER: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-fairy.png",
+      plate: "back-fairy.webp",
       fields: [
         {
           section: "appearance",
@@ -228,7 +228,7 @@ export const LETTER: SizeConfig = {
   },
   sumie: {
     front: {
-      plate: "front-sumie.png",
+      plate: "front-sumie.webp",
       fields: [
         { section: "name", box: [28.5, 9.2, 57.4, 3.7] },
         { section: "abilities", box: [9.8, 20.7, 17.1, 42] },
@@ -257,7 +257,7 @@ export const LETTER: SizeConfig = {
       ],
     },
     back: {
-      plate: "back-sumie.png",
+      plate: "back-sumie.webp",
       fields: [
         {
           section: "appearance",

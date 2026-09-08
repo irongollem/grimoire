@@ -1,9 +1,24 @@
 <!--
   IllustratedSheet.vue — one illustrated character-sheet page (front OR back) for
   one theme + page size. The artwork (frame, section boxes, printed labels) is a
-  baked PNG "plate"; live character data is laid over it as absolutely-positioned,
+  baked WebP "plate"; live character data is laid over it as absolutely-positioned,
   overflow-clamped value-only fields driven by the pure-data config in
   sheetConfig.{a4,letter}.ts. Labels are NEVER rendered here — they're on the plate.
+
+  THE PLATES ARE WEBP q95, NOT PNG, AND THAT COSTS NO PRINT QUALITY.
+  They were 20 PNGs totalling 49 MB — 65% of the whole build output, and all of it
+  inside swPlugin's 3 MB precache cutoff, so every first visit downloaded the lot.
+  Lossy looks alarming for line art with printed labels on it, so it was measured
+  end-to-end rather than argued: useCharacterSheetPdf rasterises this page through
+  html2canvas at scale 2 and re-encodes it with `toDataURL("image/jpeg", 0.92)`, so
+  what reaches the PDF is a JPEG either way. Against a lossless final raster that
+  JPEG step alone scores SSIM ~0.989; from a q95 plate the same output scores ~0.982.
+  The plate is also upscaled 1055 -> 1588 px on the way (the source has never been
+  print-resolution), and that softening dominates anything the encoder does — at 4x
+  zoom on the gothic "ATTACK" lettering the two are indistinguishable.
+  So: do not "restore" PNG for fidelity. The fidelity ceiling is the JPEG re-encode
+  in the export path, not this file. Re-cut plates from the art source if you ever
+  need sharper print output; a bigger PNG here cannot buy it.
 
   Markup + CSS ported from the design handoff mockups (Sheet Front/Back Illustrated).
 -->
@@ -210,9 +225,9 @@ const {
   fieldsOverride?: FieldSpec[] | null;
 }>();
 
-// All plate PNGs, resolved to hashed build URLs. Keyed by their /src path so the
+// All plates, resolved to hashed build URLs. Keyed by their /src path so the
 // active (pageSize, plate) pair is a plain lookup — no dynamic new URL() needed.
-const plateModules = import.meta.glob("/src/assets/sheets/**/*.png", {
+const plateModules = import.meta.glob("/src/assets/sheets/**/*.webp", {
   eager: true,
   import: "default",
 }) as Record<string, string>;
