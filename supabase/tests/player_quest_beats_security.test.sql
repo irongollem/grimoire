@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(33);
 
 select has_function('public', 'get_player_visible_quest_beats', array['uuid', 'uuid', 'uuid'], 'player beats use a dedicated projection');
 select hasnt_function('public', 'get_player_visible_quest_beat_history', array['uuid', 'uuid'], 'visit history adds no second security-definer endpoint');
@@ -119,6 +119,29 @@ select set_config('request.jwt.claim.sub', '67400000-0000-4000-8000-000000000004
 select is((select count(*)::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 0, 'non-member attackers receive no beats');
 select is(coalesce((select sum(jsonb_array_length(visits))::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010')), 0), 0, 'non-member attackers receive no visit history');
 select is((select count(*)::integer from public.quest_refs), 0, 'non-member attackers cannot enumerate quest references');
+
+
+-- ── #850: the projection reads by thread ────────────────────────────────────
+-- Player A again: the quest's beats belong to its Main thread (every quest is
+-- born with one), nothing is happening now, and nothing has paid out yet.
+select set_config('request.jwt.claim.sub', '67400000-0000-4000-8000-000000000002', true);
+select ok(
+  (select to_jsonb(b) ?& array['thread_id', 'thread_label', 'is_current', 'payoff']
+     from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') b limit 1),
+  'the projection carries the thread and payoff columns'
+);
+select is(
+  (select count(distinct b.thread_id)::integer from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') b),
+  1, 'a quest with no parallel thread shows one column'
+);
+select ok(
+  (select bool_and(b.thread_label = 'Main') from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') b),
+  'and that column is Main'
+);
+select ok(
+  (select bool_and(not b.is_current and b.payoff = '[]'::jsonb) from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') b),
+  'nothing is happening now and nothing has paid out before any cursor or rule has moved'
+);
 
 select * from finish();
 rollback;

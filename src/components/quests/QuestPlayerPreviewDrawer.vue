@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div class="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-labelledby="quest-preview-heading">
       <button type="button" class="absolute inset-0 bg-black/60" aria-label="Close player preview" @click="emit('close')" />
-      <aside class="relative flex h-full w-full max-w-xl flex-col border-l border-border bg-background shadow-2xl">
+      <aside class="relative flex h-full w-full flex-col border-l border-border bg-background shadow-2xl" :class="hasMultipleThreads ? 'max-w-5xl' : 'max-w-xl'">
         <header class="flex shrink-0 items-start gap-3 border-b border-border p-4">
           <div class="min-w-0 flex-1">
             <p class="text-label font-bold uppercase tracking-wider text-primary">Saved player projection</p>
@@ -47,6 +47,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useParty } from "@/composables/party/useParty";
 import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
+import { groupPlayerBeatsByThread } from "@/lib/quests/playerThreads";
 import { useUiStore } from "@/stores/ui";
 import type { QuestBeatVisibility } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
@@ -75,6 +76,10 @@ const audience = computed(() => audienceOptions.value.find((member) => member.id
 const previewAudienceId = computed(() => audienceId.value || null);
 const beatsQuery = usePlayerQuestBeats(computed(() => props.questId), previewAudienceId);
 const beats = computed(() => beatsQuery.data.value ?? []);
+// Widens the drawer once there is more than one thread to read side by side —
+// a single narrow column is fine for a linear quest, but two thread columns
+// squeezed into max-w-xl would wrap every card to one word per line.
+const hasMultipleThreads = computed(() => groupPlayerBeatsByThread(beats.value).length > 1);
 
 watch(audienceOptions, (options) => {
   if (!options.some((member) => member.id === audienceId.value)) audienceId.value = options[0]?.id ?? "";

@@ -1,7 +1,10 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import PlayerQuestStoryThread from "./PlayerQuestStoryThread.vue";
 import type { PlayerQuestBeat } from "@/types/quest.types";
+
+const mocks = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("vue-router", () => ({ useRouter: () => ({ push: mocks.push }) }));
 
 function beat(overrides: Partial<PlayerQuestBeat> = {}): PlayerQuestBeat {
   return {
@@ -17,86 +20,79 @@ function beat(overrides: Partial<PlayerQuestBeat> = {}): PlayerQuestBeat {
     visits: [{ visit_id: "visit-a", visited_at: "2026-08-10T12:00:00Z" }],
     updated_at: "2026-08-10T12:00:00Z",
     staged_at_location_id: null,
+    thread_id: "thread-main",
+    thread_label: "Main",
+    is_current: false,
+    payoff: [],
     ...overrides,
   };
 }
 
 describe("PlayerQuestStoryThread", () => {
-  // Revealing beats in whatever order you click them used to reorder the recap,
-  // because an unvisited beat's only timestamp is the moment of the click.
-  it("follows the authored flow rather than the order the DM revealed things", () => {
+  it("groups revealed and rumored beats into one column per thread, Main first", () => {
     const wrapper = mount(PlayerQuestStoryThread, {
       props: {
         beats: [
-          beat({ id: "keep", player_text: "Last the keep.", story_order: 2, visits: [], updated_at: "2026-08-10T14:00:00Z" }),
-          beat({ id: "gate", player_text: "First the gate.", story_order: 0, visits: [], updated_at: "2026-08-10T15:00:00Z" }),
-          beat({ id: "bridge", player_text: "Then the bridge.", story_order: 1, visits: [], updated_at: "2026-08-10T16:00:00Z" }),
+          beat({ id: "vault-1", story_order: 1, thread_id: "thread-vault", thread_label: "The Drowned Vault", player_text: "A drowned strongroom." }),
+          beat({ id: "petition-1", story_order: 0, player_text: "Maerin asked for help." }),
         ],
       },
     });
 
-    expect(wrapper.findAll("ol[aria-label='Revealed quest history'] li").map((event) => event.text()))
-      .toEqual([
-        expect.stringContaining("First the gate."),
-        expect.stringContaining("Then the bridge."),
-        expect.stringContaining("Last the keep."),
-      ]);
+    const eyebrows = wrapper.findAll("h4").map((h) => h.text());
+    expect(eyebrows).toEqual(["Main", "Also following — The Drowned Vault"]);
+    expect(wrapper.text()).toContain("Maerin asked for help.");
+    expect(wrapper.text()).toContain("A drowned strongroom.");
   });
 
-  // Split into one entry per visit, a loop back put a beat's second entry ahead
-  // of scenes already played, reading as though the party never left.
-  it("folds repeat visits into the beat's own place in the story", () => {
+  it("renders a rumoured beat's card with the Rumoured: prefix and its rumor_text-backed player_text", () => {
+    const wrapper = mount(PlayerQuestStoryThread, {
+      props: { beats: [beat({ visibility: "rumored", player_text: "The almoner keeps a second ledger." })] },
+    });
+
+    expect(wrapper.find("em").text()).toBe("Rumoured:");
+    expect(wrapper.text()).toContain("The almoner keeps a second ledger.");
+  });
+
+  it("marks the current beat with a happening-now chip", () => {
+    const wrapper = mount(PlayerQuestStoryThread, {
+      props: { beats: [beat({ is_current: true }), beat({ id: "other", story_order: 1, is_current: false })] },
+    });
+
+    expect(wrapper.text()).toContain("happening now");
+    // Only the current beat's card carries the marker.
+    const articles = wrapper.findAll("article");
+    expect(articles[0]!.text()).toContain("happening now");
+    expect(articles[1]!.text()).not.toContain("happening now");
+  });
+
+  it("shows a knowledge payoff chip with its granted text", () => {
+    const wrapper = mount(PlayerQuestStoryThread, {
+      props: { beats: [beat({ payoff: [{ kind: "knowledge", text: "The tithe's true collector" }] })] },
+    });
+
+    expect(wrapper.text()).toContain("The tithe's true collector");
+  });
+
+  it("renders claimable loot as a clickable chip that opens chat, and claimed loot as a dimmed static chip", async () => {
     const wrapper = mount(PlayerQuestStoryThread, {
       props: {
         beats: [
-          beat({ id: "gate", player_text: "The gate opened.", story_order: 0, visits: [
-            { visit_id: "v1", visited_at: "2026-08-10T12:00:00Z" },
-            { visit_id: "v3", visited_at: "2026-08-10T16:00:00Z" },
-          ] }),
-          beat({ id: "bridge", player_text: "The bridge held.", story_order: 1, visits: [{ visit_id: "v2", visited_at: "2026-08-10T13:00:00Z" }] }),
+          beat({
+            payoff: [
+              { kind: "loot", label: "the second ledger", state: "claimable", claimed_by: null, message_id: "msg-1" },
+              { kind: "loot", label: "80 gp", state: "claimed", claimed_by: "Hero A", message_id: "msg-2" },
+            ],
+          }),
         ],
       },
     });
 
-    const events = wrapper.findAll("ol[aria-label='Revealed quest history'] li");
-    expect(events).toHaveLength(2);
-    expect(events[0]!.text()).toContain("Returned to this moment 2 times");
-    expect(events[1]!.text()).not.toContain("Returned");
-    // The earliest visit dates the moment; a later return does not move it.
-    expect(wrapper.findAll("time").map((time) => time.attributes("datetime")))
-      .toEqual(["2026-08-10T12:00:00Z", "2026-08-10T13:00:00Z"]);
-  });
-
-  // "This moment was revealed without further public details" is a card that
-  // says nothing. The DM already sees the empty reveal as a prep gap.
-  it("omits a revealed beat that has no player copy", () => {
-    const wrapper = mount(PlayerQuestStoryThread, {
-      props: { beats: [beat({ id: "blank", player_text: null }), beat({ id: "told", player_text: "The door gave way.", story_order: 1 })] },
-    });
-
-    const events = wrapper.findAll("ol[aria-label='Revealed quest history'] li");
-    expect(events).toHaveLength(1);
-    expect(events[0]!.text()).toContain("The door gave way.");
-    expect(wrapper.text()).not.toContain("without further public details");
-  });
-
-  it("keeps rumors distinct and provides deliberate copy for a partially revealed quest", () => {
-    const wrapper = mount(PlayerQuestStoryThread, {
-      props: { beats: [beat({ id: "rumor", visibility: "rumored", player_text: "Whispers mention a silver door.", visits: [] })] },
-    });
-    expect(wrapper.get("#quest-rumors-heading").text()).toBe("Rumors");
-    expect(wrapper.text()).toContain("Whispers mention a silver door.");
-    expect(wrapper.text()).toContain("No confirmed story moments have been revealed yet.");
-  });
-
-  it("shows saved reveal text even before Run mode records a visit", () => {
-    const wrapper = mount(PlayerQuestStoryThread, {
-      props: { beats: [beat({ visits: [], player_text: "The chokepoint is open." })] },
-    });
-
-    expect(wrapper.text()).toContain("The chokepoint is open.");
-    expect(wrapper.get("ol[aria-label='Revealed quest history']").element.tagName).toBe("OL");
-    expect(wrapper.text()).not.toContain("No confirmed story moments");
+    expect(wrapper.text()).toContain("80 gp · claimed");
+    const claimButton = wrapper.findAll("button").find((button) => button.text().includes("Claim: the second ledger"));
+    expect(claimButton).toBeTruthy();
+    await claimButton!.trigger("click");
+    expect(mocks.push).toHaveBeenCalledWith("/play/chat");
   });
 
   it("never renders hidden or DM-only fields from a malformed client object", () => {
@@ -106,20 +102,48 @@ describe("PlayerQuestStoryThread", () => {
       dm_content: "SECRET DM LEAD",
       read_aloud: "SECRET READ ALOUD",
       how_it_plays: "SECRET GUIDANCE",
-      edge_label: "SECRET EDGE LABEL",
     } as PlayerQuestBeat;
     const wrapper = mount(PlayerQuestStoryThread, { props: { beats: [malformed] } });
     expect(wrapper.text()).not.toMatch(/LEAKED|SECRET/);
+    expect(wrapper.text()).toContain("No confirmed story moments have been revealed yet.");
+  });
+
+  it("shows deliberate empty-state copy when nothing is visible yet", () => {
+    const wrapper = mount(PlayerQuestStoryThread, { props: { beats: [] } });
+    expect(wrapper.text()).toContain("No confirmed story moments have been revealed yet.");
     expect(wrapper.find("ol").exists()).toBe(false);
   });
 
-  it("uses a labelled section, heading hierarchy, list, article, and time semantics", () => {
+  it("orders beats within a column by story_order, not array position", () => {
+    const wrapper = mount(PlayerQuestStoryThread, {
+      props: {
+        beats: [
+          beat({ id: "keep", player_text: "Last the keep.", story_order: 2 }),
+          beat({ id: "gate", player_text: "First the gate.", story_order: 0 }),
+          beat({ id: "bridge", player_text: "Then the bridge.", story_order: 1 }),
+        ],
+      },
+    });
+
+    expect(wrapper.findAll("article").map((article) => article.text())).toEqual([
+      expect.stringContaining("First the gate."),
+      expect.stringContaining("Then the bridge."),
+      expect.stringContaining("Last the keep."),
+    ]);
+  });
+
+  it("renders the two verbatim footnotes from the frame", () => {
+    const wrapper = mount(PlayerQuestStoryThread, { props: { beats: [beat()] } });
+    expect(wrapper.text()).toContain("A hidden beat is absent — no greyed row, no locked tease.");
+    expect(wrapper.text()).toContain("A thread exists for players only once its first beat is revealed — so opening a layer in secret stays secret.");
+    expect(wrapper.get("code").text()).toBe("rumor_text");
+  });
+
+  it("uses a labelled section, heading hierarchy, list, and article semantics", () => {
     const wrapper = mount(PlayerQuestStoryThread, { props: { beats: [beat()] } });
     expect(wrapper.get("section[aria-labelledby='quest-story-heading']").attributes("aria-labelledby")).toBe("quest-story-heading");
     expect(wrapper.get("h3#quest-story-heading").text()).toBe("Story so far");
-    expect(wrapper.get("h4").text()).toBe("Confirmed journey");
+    expect(wrapper.get("ol").attributes("aria-label")).toBe("Main story so far");
     expect(wrapper.get("article").element.tagName).toBe("ARTICLE");
-    expect(wrapper.get("time").attributes("datetime")).toBe("2026-08-10T12:00:00Z");
-    expect(wrapper.findAll("button, a, [tabindex]")).toHaveLength(0);
   });
 });

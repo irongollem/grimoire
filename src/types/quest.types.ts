@@ -760,7 +760,57 @@ export interface PlayerQuestBeat {
    * revealed row is also normal: most beats don't stage anywhere at all.
    */
   staged_at_location_id: string | null;
+  /**
+   * The thread this beat belongs to on the player journal (#850 story J): the
+   * thread whose transition first walked into it, or — for a beat foreshadowed
+   * ahead of the party — the live thread whose cursor can still reach it by
+   * walking edges forward. A thread with no revealed beat of its own folds
+   * into "Main" here, so an opened-in-secret layer never gets its own column
+   * before the party has heard the first word of it. Always populated: the
+   * RPC's own Main thread is the fallback of last resort.
+   */
+  thread_id: string;
+  /** The label of {@link PlayerQuestBeat.thread_id} — players see this, never
+   *  a thread letter (those are a DM-cockpit device, `src/lib/quests/threads.ts`). */
+  thread_label: string;
+  /** True when a live (non-closed, non-merged) thread's cursor stands exactly
+   *  on this beat right now — the "happening now" marker. */
+  is_current: boolean;
+  /**
+   * What this beat paid out, in the order it happened: knowledge the party
+   * learned here (a `grant_knowledge` rule's journal entry) and loot dropped
+   * from here, once dispatched. Always `[]` on a rumored beat — a payoff is
+   * something that happened, and a rumored beat hasn't happened yet.
+   */
+  payoff: PlayerQuestBeatPayoffEntry[];
 }
+
+/** One knowledge grant the party read out of this beat's transitions
+ *  (`grant_knowledge` → `player_journal_entries`, #852). */
+export interface PlayerQuestBeatKnowledgePayoff {
+  kind: "knowledge";
+  text: string;
+}
+
+/**
+ * One loot placement dispatched from this beat (`loot_placements`, #830),
+ * collapsed from `get_loot_placements`' four-rung delivery ladder
+ * (held/message_removed/claimed/partially_claimed/chat) to the two states a
+ * player acts on. `claimed_by` is populated only once `state` is `"claimed"`
+ * — while a placement is still `claimable`, who (if anyone) has claimed part
+ * of it is chat's story to tell, not the journal's. `message_id` is the
+ * `campaign_messages` row to open for the claim, when the chat surface wires
+ * up a jump-to-message (`ChatPanelContent`'s existing `focusMessageId` prop).
+ */
+export interface PlayerQuestBeatLootPayoff {
+  kind: "loot";
+  label: string;
+  state: "claimable" | "claimed";
+  claimed_by: string | null;
+  message_id: string | null;
+}
+
+export type PlayerQuestBeatPayoffEntry = PlayerQuestBeatKnowledgePayoff | PlayerQuestBeatLootPayoff;
 
 export interface PlayerQuestBeatAttachmentSummary {
   attachment_id: string;
@@ -790,11 +840,25 @@ export type QuestBeatAttachmentType =
   | "faction"
   | "item"
   | "monster"
+  | "check"
   | "sound"
   | "audio_scene"
   | "playlist"
   | "note"
   | "handout";
+
+/**
+ * Metadata for a `check`-type attachment. Unlike every other attachment type,
+ * `ref_id` is the stable literal `"check"` rather than a row id — the check
+ * carries its own data instead of pointing at one, so there is nothing to look
+ * up and nothing that can go missing (#850 story K).
+ */
+export interface QuestCheckAttachmentMetadata {
+  skill: string;
+  dc: number;
+  contested_by?: string | null;
+  note?: string | null;
+}
 
 export interface QuestBeatAttachment {
   id: string;
