@@ -7,7 +7,7 @@ Rumors used to render as chips and active quests as rows, which said they were
     in the dot and the trailing label, never in the shape of the row. See #759.
   -->
   <RouterLink
-    :to="row.runLink ? { path: `/quests/${row.id}`, query: { mode: 'run' } } : `/quests/${row.id}`"
+    :to="row.runLink ? { path: `/quests/${row.id}`, query: { view: 'run' } } : `/quests/${row.id}`"
     class="flex items-start gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 group"
   >
     <span

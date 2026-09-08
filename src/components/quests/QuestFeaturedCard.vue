@@ -154,7 +154,7 @@ function segmentClass(segment: QuestBeatSegment, tone: ThreadTone) {
 const resumeRunTo = computed(() => ({
   path: `/quests/${quest.id}`,
   query: {
-    mode: "run",
+    view: "run",
     ...(summary.primaryThreadId ? { thread: summary.primaryThreadId } : {}),
   },
 }));

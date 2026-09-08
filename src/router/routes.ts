@@ -707,28 +707,6 @@ export const routes: RouteRecordRaw[] = [
     name: "quests",
     component: () => import("@/views/quests/QuestsView.vue"),
     meta: { requiresAuth: true, title: "Quest Log" },
-    // `:id` is a *child* so the log stays mounted while one quest is open: on
-    // tablet and up the overview is a modal over the list, the same treatment
-    // NPCs get and for the same reason — remounting the log underneath it would
-    // throw away scroll position and the revealed page of the infinite scroll.
-    // A quest has a second detail surface the NPC sheet doesn't, though: the
-    // story-flow graph and the run cockpit are a fixed-viewport canvas and a
-    // live session, not a glance, so `useQuestDetailSurface` tells
-    // `useDetailModal` to take the whole screen for those the same way
-    // `?edit=true` does elsewhere. Only the overview is small enough to stay a
-    // popover. See `useDetailModal`.
-    children: [
-      {
-        path: ":id",
-        name: "quest-detail",
-        component: () => import("@/views/quests/QuestDetailView.vue"),
-        // fullscreenMobile: the mobile screen is a full-screen takeover with its
-        // own top + bottom bars, so the global AppTopBar / DmBottomNav are
-        // suppressed on phones to avoid two stacked, overlapping bars. Meta is
-        // merged across matched records, so nesting does not hide it.
-        meta: { requiresAuth: true, title: "Quest", fullscreenMobile: true },
-      },
-    ],
   },
   {
     path: "/quests/new",
@@ -738,6 +716,22 @@ export const routes: RouteRecordRaw[] = [
     // editor at every width, so there is no list to sit over. Static segments
     // outrank the `:id` param, so this still wins the match.
     meta: { requiresAuth: true, title: "New Quest" },
+  },
+  {
+    path: "/quests/:id",
+    name: "quest-detail",
+    component: () => import("@/views/quests/QuestDetailView.vue"),
+    // Also NOT nested: a quest is a full page with three permanent tabs
+    // (Overview, Story flow, Run), never a modal over the log — "i utterly
+    // dont like the quest in a modal. its too much data and inconsistent."
+    // This used to be a child of `/quests` so the overview could pop over the
+    // list the way an NPC's sheet does, but a quest holds far more state than
+    // a glance can carry, and the story-flow graph and the run cockpit were
+    // already full-screen commitments under that scheme — the modal only ever
+    // covered one of three surfaces. `/quests/new` above still wins the match
+    // against this `:id` (static segments outrank dynamic ones), so ordering
+    // still matters even without the nesting.
+    meta: { requiresAuth: true, title: "Quest" },
   },
   {
     path: "/quests/:id/beats/:beatId",

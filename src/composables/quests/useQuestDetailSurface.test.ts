@@ -4,13 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   route: {
     name: "quest-detail" as string,
-    params: { id: "quest-1" } as Record<string, string>,
     query: {} as Record<string, string>,
   },
   // A plain box, not a `ref`: each case reads the computeds immediately after
   // building them, so nothing here needs to be reactive across a mutation.
   dmMode: "prep" as "prep" | "play",
-  questFullScreenId: null as string | null,
 }));
 
 vi.mock("vue-router", () => ({
@@ -19,7 +17,6 @@ vi.mock("vue-router", () => ({
 vi.mock("@/stores/ui", () => ({
   useUiStore: () => ({
     get dmMode() { return mocks.dmMode; },
-    get questFullScreenId() { return mocks.questFullScreenId; },
   }),
 }));
 
@@ -33,93 +30,63 @@ function run<T>(fn: () => T): T {
   return result;
 }
 
-function at(options: {
-  name?: string;
-  query?: Record<string, string>;
-  running?: boolean;
-  id?: string;
-  fullScreenId?: string | null;
-}) {
+function at(options: { name?: string; query?: Record<string, string>; running?: boolean }) {
   mocks.route.name = options.name ?? "quest-detail";
-  mocks.route.params = { id: options.id ?? "quest-1" };
   mocks.route.query = options.query ?? {};
   mocks.dmMode = options.running ? "play" : "prep";
-  mocks.questFullScreenId = options.fullScreenId ?? null;
   return run(() => useQuestDetailSurface());
 }
 
 describe("useQuestDetailSurface", () => {
   it("defaults to the overview when nothing is running", () => {
-    const { view, isRunning, takesWholeScreen } = at({});
+    const { view, isRunning } = at({});
 
     expect(view.value).toBe("overview");
     expect(isRunning.value).toBe(false);
-    expect(takesWholeScreen.value).toBe(false);
   });
 
-  it("opens on work when ?view=work is explicit", () => {
-    const { view, takesWholeScreen } = at({ query: { view: "work" } });
-
-    expect(view.value).toBe("work");
-    expect(takesWholeScreen.value).toBe(true);
-  });
-
-  it("treats ?overview=true as the overview surface", () => {
-    const { view } = at({ query: { overview: "true" } });
+  it("opens on the overview when ?view=overview is explicit", () => {
+    const { view, isRunning } = at({ query: { view: "overview" } });
 
     expect(view.value).toBe("overview");
+    expect(isRunning.value).toBe(false);
   });
 
-  it("treats ?mode=details as the overview surface", () => {
-    const { view } = at({ query: { mode: "details" } });
+  it("opens on story flow when ?view=work is explicit", () => {
+    const { view, isRunning } = at({ query: { view: "work" } });
 
-    expect(view.value).toBe("overview");
+    expect(view.value).toBe("work");
+    expect(isRunning.value).toBe(false);
   });
 
-  it("defaults to work while a session is running", () => {
-    const { view, isRunning, takesWholeScreen } = at({ running: true });
+  // `?view=run` is what QuestChainRow, QuestRunOpenChains and the dashboard
+  // widgets generate on every "open this chain" link — a tab choice, not a
+  // broadcast switch. See #758.
+  it("opens on the run cockpit when ?view=run is explicit, even without a live session", () => {
+    const { view, isRunning } = at({ query: { view: "run" } });
+
+    expect(view.value).toBe("run");
+    expect(isRunning.value).toBe(true);
+  });
+
+  it("defaults to the run cockpit while a session is running", () => {
+    const { view, isRunning } = at({ running: true });
 
     expect(isRunning.value).toBe(true);
-    expect(view.value).toBe("work");
-    expect(takesWholeScreen.value).toBe(true);
+    expect(view.value).toBe("run");
   });
 
-  // `?mode=run` is what QuestChainRow and QuestRunOpenChains generate on every
-  // "open this chain" link — a surface choice, not a broadcast switch. See #758.
-  it("opens on work from a run link even without a live session", () => {
-    const { view, isRunning } = at({ query: { mode: "run" } });
-
-    expect(isRunning.value).toBe(true);
-    expect(view.value).toBe("work");
-  });
-
-  it("never runs a quest that has no row yet, whatever the link asks for", () => {
-    const { isRunning, view } = at({ name: "quest-new", running: true, query: { mode: "run" } });
+  it("lets an explicit overview link win even while a session is running", () => {
+    const { view, isRunning } = at({ running: true, query: { view: "overview" } });
 
     expect(isRunning.value).toBe(false);
     expect(view.value).toBe("overview");
   });
 
-  it("lets an explicit overview bookmark win even while a session is running", () => {
-    const { view, isRunning } = at({ running: true, query: { overview: "true" } });
+  it("never defaults a quest that has no row yet onto the run cockpit", () => {
+    const { view, isRunning } = at({ name: "quest-new", running: true });
 
-    expect(isRunning.value).toBe(true);
+    expect(isRunning.value).toBe(false);
     expect(view.value).toBe("overview");
-  });
-
-  // The flag `QuestDetailView.selectView` sets on an in-quest surface switch —
-  // covers the overview reached that way, not just `?view=work` above.
-  it("takes the whole screen on the overview when the store flag names this quest", () => {
-    const { view, takesWholeScreen } = at({ fullScreenId: "quest-1" });
-
-    expect(view.value).toBe("overview");
-    expect(takesWholeScreen.value).toBe(true);
-  });
-
-  it("ignores the flag when it names a different quest", () => {
-    const { view, takesWholeScreen } = at({ id: "quest-2", fullScreenId: "quest-1" });
-
-    expect(view.value).toBe("overview");
-    expect(takesWholeScreen.value).toBe(false);
   });
 });

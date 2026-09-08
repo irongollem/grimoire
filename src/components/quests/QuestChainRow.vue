@@ -1,6 +1,6 @@
 <template>
   <RouterLink
-    :to="{ path: `/quests/${chain.quest_id}`, query: { mode: 'run' } }"
+    :to="{ path: `/quests/${chain.quest_id}`, query: { view: 'run' } }"
     class="flex items-start gap-2 rounded-lg p-2 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
   >
     <IconParty

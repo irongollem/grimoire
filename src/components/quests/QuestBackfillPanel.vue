@@ -114,7 +114,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
  * must never share the cockpit's surface or its "start a session" affordances.
  *
  * Nothing here can make the quest look live: it never touches `ui.dmMode`,
- * never navigates with `?mode=run`, and `assert_quest_runtime` itself is
+ * never navigates with `?view=run`, and `assert_quest_runtime` itself is
  * documented to leave `status` exactly as it found it (idle stays idle, paused
  * stays paused) — only `transition_quest_runtime` can start a session. See
  * `src/lib/quests/board.ts`'s `isLive` and `SessionRail.vue`, both keyed

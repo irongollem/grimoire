@@ -4,12 +4,15 @@ import { routes } from "./routes";
 
 /**
  * The list routes that nest their detail so it can present as a modal over the
- * grid (#743; quests joined under #844). Nesting puts a dynamic segment in the
- * same position as the static siblings each list already had — Vue Router
- * scores static above dynamic so the siblings still win, but that is a
- * property of the router rather than of this file. If it ever stopped
- * holding, `/npcs/web` would quietly render the sheet for an NPC whose id is
- * the string "web".
+ * grid (#743). Nesting puts a dynamic segment in the same position as the
+ * static siblings each list already had — Vue Router scores static above
+ * dynamic so the siblings still win, but that is a property of the router
+ * rather than of this file. If it ever stopped holding, `/npcs/web` would
+ * quietly render the sheet for an NPC whose id is the string "web".
+ *
+ * Quests left this list with epic #850: a quest is a full page with three
+ * permanent tabs, never a modal over the log, so `/quests/:id` is asserted
+ * separately below rather than here.
  */
 const NESTED_LISTS = [
   {
@@ -29,16 +32,6 @@ const NESTED_LISTS = [
     list: { path: "/monsters", name: "monsters" },
     detail: { name: "monster-detail", sample: "/monsters/7c4f1b2d-0000-4000-8000-000000000000" },
     siblings: [{ path: "/monsters/new", name: "monster-new" }],
-  },
-  {
-    // #844: the overview is the glance and gets the same nesting; the
-    // story-flow graph and the run cockpit take the whole screen regardless,
-    // via `useQuestDetailSurface`'s `takesWholeScreen` rather than a route
-    // shape, so there is nothing route-level to assert about them here.
-    label: "quests",
-    list: { path: "/quests", name: "quests" },
-    detail: { name: "quest-detail", sample: "/quests/3b9c1a4e-0000-4000-8000-000000000000" },
-    siblings: [{ path: "/quests/new", name: "quest-new" }],
   },
 ];
 

@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   improvise: vi.fn(),
   refetch: vi.fn(),
   replace: vi.fn(),
-  route: { query: { mode: "run" } as Record<string, string> },
+  route: { query: { view: "run" } as Record<string, string> },
   activeCampaignId: "c1" as string | null,
 }));
 

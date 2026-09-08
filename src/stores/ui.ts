@@ -240,21 +240,6 @@ export const useUiStore = defineStore("ui", () => {
     return questFlowSelection.value?.questId === questId ? questFlowSelection.value : null;
   }
 
-  /**
-   * The one quest currently pinned to full screen because the DM switched
-   * surfaces *inside* it — the `SegmentedControl` on the story-flow page or the
-   * run cockpit, back to Overview. Read by `useQuestDetailSurface.takesWholeScreen`
-   * so that switch keeps the whole screen it already had, rather than dropping
-   * the overview onto the quest log as a modal — "no weird navigation to a
-   * screen with a modal open."
-   *
-   * Opening a quest fresh from the list is unaffected: this starts at `null`,
-   * so the overview is a modal exactly as it always was. `QuestDetailView`
-   * clears it when the route's quest id changes to a different quest and on
-   * unmount, so leaving the quest resets the next one opened from the list.
-   */
-  const questFullScreenId = ref<string | null>(null);
-
   function resetQuestsFilters() {
     questsSearch.value = "";
     questsPartyFilter.value = false;
@@ -1071,7 +1056,6 @@ export const useUiStore = defineStore("ui", () => {
     questsPrepGapsFilter,
     questFlowSelection,
     questFlowSelectionFor,
-    questFullScreenId,
     questsLootFilter,
     questsHasActiveFilters,
     resetQuestsFilters,

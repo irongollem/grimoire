@@ -87,16 +87,16 @@ describe("QuestRunContainedTool", () => {
 
   it("opens the authoritative encounter runner with an exact Run return path", () => {
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("encounter", { ref_id: "encounter-1" }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      props: { attachment: attachment("encounter", { ref_id: "encounter-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
       global,
     });
     const run = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Open full-screen");
-    expect(run?.props("to")).toBe("/encounters/encounter-1/run?returnTo=%2Fquests%2Fq1%3Fmode%3Drun%26beat%3Db1");
+    expect(run?.props("to")).toBe("/encounters/encounter-1/run?returnTo=%2Fquests%2Fq1%3Fview%3Drun%26beat%3Db1");
   });
 
   it("replaces the encounter summary while the authoritative runner is focused", async () => {
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("encounter", { ref_id: "encounter-1" }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      props: { attachment: attachment("encounter", { ref_id: "encounter-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
       global,
     });
 
@@ -111,7 +111,7 @@ describe("QuestRunContainedTool", () => {
 
   it("fires an attached sound through the shared playback subsystem", async () => {
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("sound", { ref_id: "sound-1" }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      props: { attachment: attachment("sound", { ref_id: "sound-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
       global,
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Play cue")!.trigger("click");
@@ -125,7 +125,7 @@ describe("QuestRunContainedTool", () => {
     mocks.playlists.value = [{ id: `${type}-1`, name: "Prepared audio", playlist_type: playlistType }];
     mocks.tracks.value = [{ id: "track-1" }];
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment(type, { ref_id: `${type}-1` }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      props: { attachment: attachment(type, { ref_id: `${type}-1` }), returnTo: "/quests/q1?view=run&beat=b1" },
       global,
     });
 
@@ -137,7 +137,7 @@ describe("QuestRunContainedTool", () => {
   it("shows an entity quick view and closes back to the beat", async () => {
     mocks.npc.value = { name: "Mira", occupation: "Guide", status: "alive", personality: "Never wastes a word." };
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("npc", { ref_id: "npc-1", label: "Mira" }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      props: { attachment: attachment("npc", { ref_id: "npc-1", label: "Mira" }), returnTo: "/quests/q1?view=run&beat=b1" },
       global,
     });
     expect(wrapper.text()).toContain("Guide · alive");
@@ -148,7 +148,7 @@ describe("QuestRunContainedTool", () => {
   it("renders an attached note body and gates unrelated queries", () => {
     mocks.note.value = { title: "Bell lore", category: "lore", tags: ["bell"], content: "note-body" };
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("note", { ref_id: "note-1" }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      props: { attachment: attachment("note", { ref_id: "note-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
       global,
     });
     expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("note-body");
@@ -170,7 +170,7 @@ describe("QuestRunContainedTool", () => {
           compact_detail: "Contested by Deception",
           metadata: { skill: "Insight", dc: 15, contested_by: "Deception" },
         }),
-        returnTo: "/quests/q1?mode=run&beat=b1",
+        returnTo: "/quests/q1?view=run&beat=b1",
       },
       global,
     });
@@ -186,7 +186,7 @@ describe("QuestRunContainedTool", () => {
     const wrapper = shallowMount(QuestRunContainedTool, {
       props: {
         attachment: attachment("check", { ref_id: "check", metadata: { skill: "Athletics", dc: 12 } }),
-        returnTo: "/quests/q1?mode=run&beat=b1",
+        returnTo: "/quests/q1?view=run&beat=b1",
       },
       global,
     });
@@ -198,7 +198,7 @@ describe("QuestRunContainedTool", () => {
   it("renders an attached Scriptorium handout body", () => {
     mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, content: "handout-body" };
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?mode=run&beat=b1" },
+      props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
       global,
     });
     expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("handout-body");

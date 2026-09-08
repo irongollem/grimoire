@@ -132,7 +132,7 @@ describe("QuestFeaturedCard", () => {
 
     const resume = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Resume run");
     const storyFlow = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Story flow");
-    expect(resume?.props("to")).toMatchObject({ path: "/quests/quest-a", query: { mode: "run", thread: "thread-a" } });
+    expect(resume?.props("to")).toMatchObject({ path: "/quests/quest-a", query: { view: "run", thread: "thread-a" } });
     expect(storyFlow?.props("to")).toMatchObject({ path: "/quests/quest-a", query: { view: "work" } });
   });
 });

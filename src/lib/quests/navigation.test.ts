@@ -17,13 +17,13 @@ describe("quest return navigation", () => {
 });
 
 describe("questSurfaceReturnTo", () => {
-  it("always names the surface it returns to, so the overview modal is never the fallback", () => {
+  it("always names the surface it returns to, so the overview is never the fallback", () => {
     expect(questSurfaceReturnTo("q", "b", "work")).toBe("/quests/q?view=work&beat=b");
-    expect(questSurfaceReturnTo("q", "b", "run")).toBe("/quests/q?mode=run&beat=b");
+    expect(questSurfaceReturnTo("q", "b", "run")).toBe("/quests/q?view=run&beat=b");
   });
 
   it("labels the back button by destination", () => {
-    expect(questReturnLabel("/quests/q?mode=run&beat=b")).toBe("Back to the session");
+    expect(questReturnLabel("/quests/q?view=run&beat=b")).toBe("Back to the session");
     expect(questReturnLabel("/quests/q?view=work&beat=b")).toBe("Back to story flow");
   });
 });
