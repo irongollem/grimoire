@@ -26,6 +26,7 @@
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconReveal } from "@/lib/icons";
+import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
 import { QUEST_BEAT_KIND_LABELS, type QuestBeat } from "@/types/quest.types";
 
@@ -35,6 +36,6 @@ const emit = defineEmits<{ preview: [] }>();
 const kindEyebrow = computed(() => `${QUEST_BEAT_KIND_LABELS[beat.kind as keyof typeof QUEST_BEAT_KIND_LABELS] ?? beat.kind} · ${beat.visibility}`);
 const openTo = computed(() => ({
   path: `/quests/${beat.quest_id}/beats/${beat.id}`,
-  query: { returnTo: `/quests/${beat.quest_id}?beat=${beat.id}` },
+  query: { returnTo: questSurfaceReturnTo(beat.quest_id, beat.id, "work") },
 }));
 </script>

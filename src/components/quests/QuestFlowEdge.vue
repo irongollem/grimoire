@@ -35,6 +35,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Position } from "@vue-flow/core";
+
+// Two roots (the path and the teleported label), so VueFlow's edge attributes
+// (`sourceNode`, `label`, `style`, …) have nowhere to fall through to and Vue
+// warned on every render. Everything this edge draws comes through its props.
+defineOptions({ inheritAttrs: false });
 import { IconLayers, IconLock } from "@/lib/icons";
 import type { QuestFlowEdgeData } from "@/lib/quests/flow";
 import { describeQuestRouteGate, questRouteGateLabel } from "@/lib/quests/gates";

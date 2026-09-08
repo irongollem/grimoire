@@ -168,6 +168,7 @@ import {
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput } from "@/lib/quests/presentation";
 import { deriveQuestRouteGates } from "@/lib/quests/gates";
 import { summarizeQuestBeatLoot } from "@/lib/quests/loot";
@@ -388,7 +389,7 @@ const savePositions = useDebounceFn(flushPositions, 300, { maxWait: 1000 });
 
 function onCommand(command: QuestGraphCommand) {
   if (command.type === "open" && isMobile.value) {
-    void router.push({ path: `/quests/${questId}/beats/${command.beatId}`, query: { returnTo: `/quests/${questId}?beat=${command.beatId}` } });
+    void router.push({ path: `/quests/${questId}/beats/${command.beatId}`, query: { returnTo: questSurfaceReturnTo(questId, command.beatId, "work") } });
     return;
   }
   if (command.type === "select" || command.type === "open") { selectedBeatId.value = command.beatId; selectedEdgeId.value = null; }

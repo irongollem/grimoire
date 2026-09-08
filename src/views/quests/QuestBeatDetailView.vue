@@ -15,7 +15,7 @@
 
     <div v-if="isLoading" class="flex justify-center py-16"><LoadingSpinner /></div>
     <div v-else-if="beat" class="mx-auto flex w-full max-w-6xl flex-col gap-3 pb-12">
-      <AppButton :to="returnTo" label="Back to story flow" size="sm" variant="subtle" class="self-start" />
+      <AppButton :to="returnTo" :label="returnLabel" size="sm" variant="subtle" class="self-start" />
 
       <div class="grid min-w-0 gap-3 lg:grid-cols-2">
         <div class="flex min-w-0 flex-col gap-3">
@@ -130,7 +130,7 @@ import {
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { useConfirm } from "@/composables/useConfirm";
-import { safeQuestReturnTo } from "@/lib/quests/navigation";
+import { questReturnLabel, questSurfaceReturnTo, safeQuestReturnTo } from "@/lib/quests/navigation";
 import { isSiteType } from "@/lib/locations/tiers";
 import { threadBadge } from "@/lib/quests/threads";
 import { deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
@@ -177,7 +177,8 @@ const beat = computed(() => beatQuery.data.value?.quest_id === questId.value ? b
 const attachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));
 const loot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));
 const isLoading = computed(() => questLoading.value || beatQuery.isLoading.value || attachmentsQuery.isLoading.value || lootQuery.isLoading.value);
-const returnTo = computed(() => safeQuestReturnTo(route.query.returnTo, `/quests/${questId.value}?beat=${beatId.value}`));
+const returnTo = computed(() => safeQuestReturnTo(route.query.returnTo, questSurfaceReturnTo(questId.value, beatId.value, "work")));
+const returnLabel = computed(() => questReturnLabel(returnTo.value));
 
 // ── Eyebrow: kind · thread letter (only when a live thread stands here) · party here|— ──
 

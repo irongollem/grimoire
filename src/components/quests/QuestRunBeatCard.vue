@@ -61,6 +61,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType, QuestCheckAttachmentMetadata } from "@/types/quest.types";
+import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import type { ThreadBadge } from "@/lib/quests/threads";
 import { deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
 import AppButton from "@/components/common/AppButton.vue";
@@ -88,7 +89,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ "open-attachment": [attachment: QuestBeatAttachmentSummary]; reveal: [] }>();
 
-const runReturn = computed(() => `/quests/${props.anchorQuestId}?beat=${props.beat.id}`);
+const runReturn = computed(() => questSurfaceReturnTo(props.anchorQuestId, props.beat.id, "run"));
 const editUrl = computed(() => ({
   path: `/quests/${props.beat.quest_id}/beats/${props.beat.id}`,
   query: { returnTo: runReturn.value },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { safeQuestReturnTo, withQuestReturnTo } from "./navigation";
+import { questReturnLabel, questSurfaceReturnTo, safeQuestReturnTo, withQuestReturnTo } from "./navigation";
 
 describe("quest return navigation", () => {
   it("keeps local beat return URLs and rejects external redirects", () => {
@@ -12,5 +12,18 @@ describe("quest return navigation", () => {
     expect(withQuestReturnTo("/quests/q?edit=true", "/quests/q/beats/b")).toBe(
       "/quests/q?edit=true&returnTo=%2Fquests%2Fq%2Fbeats%2Fb",
     );
+  });
+
+});
+
+describe("questSurfaceReturnTo", () => {
+  it("always names the surface it returns to, so the overview modal is never the fallback", () => {
+    expect(questSurfaceReturnTo("q", "b", "work")).toBe("/quests/q?view=work&beat=b");
+    expect(questSurfaceReturnTo("q", "b", "run")).toBe("/quests/q?mode=run&beat=b");
+  });
+
+  it("labels the back button by destination", () => {
+    expect(questReturnLabel("/quests/q?mode=run&beat=b")).toBe("Back to the session");
+    expect(questReturnLabel("/quests/q?view=work&beat=b")).toBe("Back to story flow");
   });
 });
