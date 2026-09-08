@@ -4,41 +4,109 @@ import tailwindcss from "@tailwindcss/vite";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { visualizer } from "rollup-plugin-visualizer";
 import path from "path";
-import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 /**
  * Hand-rolled service worker builder.
  *
- * After `closeBundle` (when Vite has finished writing `dist/`), walks the
- * output directory, builds a precache manifest of same-origin assets, hashes
- * the concatenated filename+size list to derive a cache-busting name, and
- * substitutes both into `scripts/sw-template.js` before writing the final
- * `dist/sw.js`. The template itself never ships — it's read off disk at
- * build time only.
+ * After `closeBundle` (when Vite has finished writing `dist/`), derives the
+ * precache manifest, hashes the concatenated filename+size list to get a
+ * cache-busting name, and substitutes both into `scripts/sw-template.js`
+ * before writing the final `dist/sw.js`. The template itself never ships —
+ * it's read off disk at build time only.
+ *
+ * PRECACHE THE SHELL, NOT THE BUILD. This used to walk all of `dist/` and
+ * precache every file under 3 MB, which meant a first visit downloaded
+ * **36.4 MB** before the app was usable: 26.1 MB of art (150 files — every
+ * sheet plate, every Cardforge deck back, every Scriptorium watercolour) and
+ * 9.8 MB across 449 JS chunks. Someone who never printed a sheet or opened
+ * Cardforge paid for all of it.
+ *
+ * The JS half was the worse bug, because it silently undid work done
+ * elsewhere: `model-viewer` (0.98 MB), `documents` (0.97 MB) and `pdf`
+ * (0.57 MB) are lazy routes, and `useCharacterSheetPdf` goes out of its way
+ * to import jspdf + html2canvas only "once a user actually exports a sheet".
+ * Precaching every emitted chunk fetched them on install anyway, so the code
+ * splitting bought nothing. A route-level lazy import is worthless if the
+ * service worker downloads the chunk before anyone asks for it.
+ *
+ * So the precache is now exactly the boot shell — what `index.html` itself
+ * references — and everything else is cached at runtime on first real use
+ * (see `scripts/sw-template.js`). That is ~2.3 MB rather than 36.4 MB. The
+ * cost is honest and bounded: offline, a route the user has never visited is
+ * unavailable until they open it once online. Booting offline still works.
  *
  * Replaces vite-plugin-pwa, which was the only blocker keeping us on
  * vite@^7 (its peer dep range caps there and the package has been stale
  * for 5 months with no vite 8 support).
  */
 function swPlugin(): Plugin {
-  // Matches the old VitePWA `globPatterns`. Everything WebP-converted, so
-  // image/* restricted to webp + the few static pngs/svgs/ico we ship.
-  const PRECACHE_EXTS = /\.(js|css|html|ico|png|svg|webp|webmanifest)$/i;
-  const MAX_BYTES = 3 * 1024 * 1024; // skip anything bigger to keep cache lean
+  /**
+   * Ceiling for the whole precache. Not a tuning knob — a tripwire. The old
+   * policy decayed silently because nothing failed as the number grew; a
+   * budget that breaks the build is the only kind that survives. Raise it
+   * deliberately, with a reason, or move the asset out of the boot path.
+   */
+  const SHELL_BUDGET_BYTES = 4 * 1024 * 1024;
 
-  function walkDist(root: string, prefix = ""): string[] {
+  /**
+   * The shell is what `index.html` asks the browser for in order to boot:
+   * the entry script, its static modulepreloads, the stylesheets, the
+   * favicons and the manifest.
+   *
+   * Selected by `rel`, deliberately, rather than by size. `apple-touch-icon`
+   * is the reason: it is referenced from `index.html` like everything else
+   * here and is 2.56 MB (1024x1024, where iOS asks for 180x180 — see #864),
+   * so a size filter would drop it for the right outcome and the wrong
+   * reason, and would silently re-admit it the day someone resized it. It is
+   * home-screen art the OS fetches when a user installs the app; it has no
+   * part in booting, so it is excluded by role and cached at runtime if it is
+   * ever actually requested.
+   */
+  const SHELL_LINK_RELS = new Set(["modulepreload", "preload", "stylesheet", "icon", "manifest"]);
+
+  function shellFromIndexHtml(html: string): string[] {
+    // index.html is not referenced by itself, but it is the navigation
+    // fallback the fetch handler serves offline, so it is always in.
+    const refs = new Set<string>(["/index.html"]);
+
+    for (const [, src] of html.matchAll(/<script\b[^>]*\bsrc="(\/[^"]+)"/gi)) {
+      refs.add(src);
+    }
+    for (const [, tag] of html.matchAll(/<link\b([^>]*)>/gi)) {
+      const rel = tag.match(/\brel="([^"]+)"/i)?.[1]?.toLowerCase().trim();
+      const href = tag.match(/\bhref="(\/[^"]+)"/i)?.[1];
+      if (!rel || !href) continue;
+      // `rel` may carry multiple space-separated tokens ("icon shortcut").
+      if (rel.split(/\s+/).some((token) => SHELL_LINK_RELS.has(token))) refs.add(href);
+    }
+    return [...refs].sort();
+  }
+
+  /**
+   * Everything copied verbatim out of `public/`, as served paths.
+   *
+   * The service worker needs this to tell an immutable asset from a mutable
+   * one, and the filename cannot answer that question. Vite's content hash
+   * looks like `-DXiZtau7.webp`, but `public/assets/cardforge/loot-backs/
+   * dragons-watch-tc.webp` matches any `-[8 chars].ext` rule too, as do
+   * `alchemists-wheel-tc.webp` and `scriptorium/corder-ornament.webp`. The
+   * build already knows the answer exactly, so it passes it down instead of
+   * making the worker guess.
+   *
+   * This also fixes a latent bug in the worker's copy-forward path, which
+   * treated every `/assets/` URL as content-hashed: a changed public file
+   * that kept its name was copied forward from the previous deploy's cache
+   * forever.
+   */
+  function walkPublic(root: string, prefix = ""): string[] {
     const result: string[] = [];
     for (const entry of readdirSync(root, { withFileTypes: true })) {
-      // Skip the SW itself and the source-map sidecar files
-      if (entry.name === "sw.js" || entry.name.endsWith(".map")) continue;
       const full = path.join(root, entry.name);
       const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) {
-        result.push(...walkDist(full, rel));
-      } else if (PRECACHE_EXTS.test(entry.name)) {
-        if (statSync(full).size <= MAX_BYTES) result.push("/" + rel);
-      }
+      if (entry.isDirectory()) result.push(...walkPublic(full, rel));
+      else result.push("/" + rel);
     }
     return result;
   }
@@ -53,25 +121,48 @@ function swPlugin(): Plugin {
         "utf8",
       );
 
-      const files = walkDist(distDir).sort();
-      // Hash the filename list + sizes so any asset change bumps the cache
-      // name, forcing clients to refetch the shell on the next deploy.
+      const html = readFileSync(path.join(distDir, "index.html"), "utf8");
+      const files = shellFromIndexHtml(html).filter((f) =>
+        existsSync(path.join(distDir, f.slice(1))),
+      );
+      const mutable = walkPublic(path.resolve(import.meta.dirname, "public")).sort();
+
+      // Hash the filename list + sizes so any shell change bumps the cache
+      // name, forcing clients to refetch it on the next deploy. Runtime-cached
+      // assets are content-hashed (immutable) or revalidated in the
+      // background, so neither needs to participate in this.
       const hasher = createHash("sha256");
+      let shellBytes = 0;
       for (const f of files) {
+        const size = statSync(path.join(distDir, f.slice(1))).size;
+        shellBytes += size;
         hasher.update(f);
-        hasher.update(String(statSync(path.join(distDir, f.slice(1))).size));
+        hasher.update(String(size));
       }
       const cacheName = "grimoire-" + hasher.digest("hex").slice(0, 8);
+
+      if (shellBytes > SHELL_BUDGET_BYTES) {
+        const mb = (n: number) => (n / 1024 / 1024).toFixed(1) + " MB";
+        throw new Error(
+          `service-worker shell is ${mb(shellBytes)}, over the ${mb(SHELL_BUDGET_BYTES)} budget. ` +
+            `Every first visit pays this before the app is usable. Move the asset out of index.html's ` +
+            `boot path so it is cached on demand, or raise SHELL_BUDGET_BYTES in vite.config.ts with a reason.`,
+        );
+      }
 
       // replaceAll — the template's doc comment mentions the placeholder
       // tokens before the code uses them, so first-occurrence replace would
       // rewrite the comment and leave the real const declarations untouched.
       const sw = template
         .replaceAll("__PRECACHE__",   JSON.stringify(files))
+        .replaceAll("__MUTABLE__",    JSON.stringify(mutable))
         .replaceAll("__CACHE_NAME__", cacheName);
       writeFileSync(path.join(distDir, "sw.js"), sw);
 
-      this.info?.(`SW built: ${files.length} precached, cache=${cacheName}`);
+      this.info?.(
+        `SW built: ${files.length} precached (${(shellBytes / 1024 / 1024).toFixed(1)} MB shell), ` +
+          `${mutable.length} mutable, cache=${cacheName}`,
+      );
     },
   };
 }
