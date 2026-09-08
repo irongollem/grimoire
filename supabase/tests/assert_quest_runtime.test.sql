@@ -26,24 +26,23 @@ set local grimoire.bypass_quota = 'on';
 
 select has_function(
   'public', 'assert_quest_runtime',
-  array['uuid', 'uuid', 'uuid[]', 'boolean', 'text'],
+  array['uuid', 'uuid', 'uuid', 'uuid[]', 'boolean', 'text'],
   'assert_quest_runtime exists with the documented signature'
 );
 
 select ok(
-  has_function_privilege('authenticated', 'public.assert_quest_runtime(uuid, uuid, uuid[], boolean, text)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.assert_quest_runtime(uuid, uuid, uuid, uuid[], boolean, text)', 'EXECUTE'),
   'authenticated can execute assert_quest_runtime'
 );
 
 select ok(
-  not has_function_privilege('anon', 'public.assert_quest_runtime(uuid, uuid, uuid[], boolean, text)', 'EXECUTE'),
+  not has_function_privilege('anon', 'public.assert_quest_runtime(uuid, uuid, uuid, uuid[], boolean, text)', 'EXECUTE'),
   'anon has no grant at all — the function is off its RPC surface entirely'
 );
 
 select throws_ok(
   $$select public.assert_quest_runtime(
-      '00000000-0000-0000-0000-000000000000'::uuid,
-      '00000000-0000-0000-0000-000000000000'::uuid,
+      '00000000-0000-0000-0000-000000000000'::uuid, '00000000-0000-0000-0000-000000000000'::uuid, (select id from public.quest_threads where quest_id = '00000000-0000-0000-0000-000000000000' and label = 'Main'),
       '{}'::uuid[])$$,
   'Authentication required',
   'a caller with no session is refused before any lookup — auth.uid() is checked first'
@@ -89,8 +88,7 @@ select set_config('request.jwt.claims',
 
 select throws_ok(
   $$select public.assert_quest_runtime(
-      '79600000-0000-4000-8000-000000000010'::uuid,
-      '79600000-0000-4000-8000-0000000a0001'::uuid,
+      '79600000-0000-4000-8000-000000000010'::uuid, '79600000-0000-4000-8000-0000000a0001'::uuid, (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-0000000a0001' and label = 'Main'),
       '{}'::uuid[])$$,
   'Not authorized',
   'a campaign member who is not the DM cannot assert anything'
@@ -101,8 +99,7 @@ select set_config('request.jwt.claims',
 
 select throws_ok(
   $$select public.assert_quest_runtime(
-      '79600000-0000-4000-8000-000000000010'::uuid,
-      '79600000-0000-4000-8000-0000000b0001'::uuid,
+      '79600000-0000-4000-8000-000000000010'::uuid, '79600000-0000-4000-8000-0000000b0001'::uuid, (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-0000000b0001' and label = 'Main'),
       '{}'::uuid[])$$,
   'P0002', 'Quest not found in this campaign',
   'a quest that belongs to a different campaign than the one named is refused'
@@ -115,8 +112,7 @@ select throws_ok(
 
 select throws_ok(
   $$select public.assert_quest_runtime(
-      '79600000-0000-4000-8000-000000000010'::uuid,
-      '79600000-0000-4000-8000-0000000a0001'::uuid,
+      '79600000-0000-4000-8000-000000000010'::uuid, '79600000-0000-4000-8000-0000000a0001'::uuid, (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-0000000a0001' and label = 'Main'),
       null)$$,
   '22023', 'Nothing to assert',
   'a null beat array is refused'
@@ -124,8 +120,7 @@ select throws_ok(
 
 select throws_ok(
   $$select public.assert_quest_runtime(
-      '79600000-0000-4000-8000-000000000010'::uuid,
-      '79600000-0000-4000-8000-0000000a0001'::uuid,
+      '79600000-0000-4000-8000-000000000010'::uuid, '79600000-0000-4000-8000-0000000a0001'::uuid, (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-0000000a0001' and label = 'Main'),
       '{}'::uuid[])$$,
   '22023', 'Nothing to assert',
   'an empty beat array is refused the same way a null one is'
@@ -150,8 +145,7 @@ select set_config('request.jwt.claims',
 
 select throws_ok(
   $$select public.assert_quest_runtime(
-      '79600000-0000-4000-8000-000000000010'::uuid,
-      '79600000-0000-4000-8000-0000000d0001'::uuid,
+      '79600000-0000-4000-8000-000000000010'::uuid, '79600000-0000-4000-8000-0000000d0001'::uuid, (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-0000000d0001' and label = 'Main'),
       array[
         '79600000-0000-4000-8000-0000000d0011'::uuid,
         '79600000-0000-4000-8000-0000000b0002'::uuid,
@@ -196,8 +190,7 @@ select set_config('request.jwt.claims',
 create temporary table assert_result_e(payload jsonb);
 insert into assert_result_e
 select public.assert_quest_runtime(
-  '79600000-0000-4000-8000-000000000010'::uuid,
-  '79600000-0000-4000-8000-0000000e0001'::uuid,
+  '79600000-0000-4000-8000-000000000010'::uuid, '79600000-0000-4000-8000-0000000e0001'::uuid, (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-0000000e0001' and label = 'Main'),
   array[
     '79600000-0000-4000-8000-0000000e0011'::uuid,
     '79600000-0000-4000-8000-0000000e0012'::uuid,
@@ -254,8 +247,9 @@ insert into public.quest_beats (id, quest_id, campaign_id, title)
 values ('79600000-0000-4000-8000-0000000f0011', '79600000-0000-4000-8000-0000000f0001', '79600000-0000-4000-8000-000000000010', 'F1');
 -- status defaults to 'idle' with no cursor — the natural resting state of a
 -- quest nobody has started yet.
-insert into public.quest_runtime_state (campaign_id, quest_id)
-values ('79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-0000000f0001');
+insert into public.quest_runtime_state (campaign_id, quest_id, thread_id)
+values ('79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-0000000f0001',
+  (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-0000000f0001' and label = 'Main'));
 
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -263,8 +257,7 @@ select set_config('request.jwt.claims',
 
 select lives_ok(
   $$select public.assert_quest_runtime(
-      '79600000-0000-4000-8000-000000000010'::uuid,
-      '79600000-0000-4000-8000-0000000f0001'::uuid,
+      '79600000-0000-4000-8000-000000000010'::uuid, '79600000-0000-4000-8000-0000000f0001'::uuid, (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-0000000f0001' and label = 'Main'),
       array['79600000-0000-4000-8000-0000000f0011'::uuid])$$,
   'asserting onto an idle quest with an existing runtime row succeeds'
 );
@@ -311,13 +304,13 @@ select set_config('request.jwt.claims',
 
 select lives_ok(
   $$select public.transition_quest_runtime(
-      '79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-000000010001', 'start', 0,
+      '79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-000000010001', (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-000000010001' and label = 'Main'), 'start', 0,
       '79600000-0000-4000-8000-000000010011')$$,
   'the party plays into the start beat'
 );
 select lives_ok(
   $$select public.transition_quest_runtime(
-      '79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-000000010001', 'advance', 1,
+      '79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-000000010001', (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-000000010001' and label = 'Main'), 'advance', 1,
       p_edge_id => '79600000-0000-4000-8000-000000010021')$$,
   'and advances into X, a PLAYED arrival'
 );
@@ -329,15 +322,14 @@ select is(
 
 select lives_ok(
   $$select public.assert_quest_runtime(
-      '79600000-0000-4000-8000-000000000010'::uuid,
-      '79600000-0000-4000-8000-000000010001'::uuid,
+      '79600000-0000-4000-8000-000000000010'::uuid, '79600000-0000-4000-8000-000000010001'::uuid, (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-000000010001' and label = 'Main'),
       array['79600000-0000-4000-8000-000000010012'::uuid])$$,
   'the DM later re-asserts the same beat X — a correction layered on top of the real arrival'
 );
 
 select lives_ok(
   $$select public.transition_quest_runtime(
-      '79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-000000010001', 'previous', 3)$$,
+      '79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-000000010001', (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-000000010001' and label = 'Main'), 'previous', 3)$$,
   'stepping back from X is allowed'
 );
 
@@ -384,7 +376,7 @@ select set_config('request.jwt.claims',
 
 select lives_ok(
   $$select public.transition_quest_runtime(
-      '79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-000000020001', 'start', 0,
+      '79600000-0000-4000-8000-000000000010', '79600000-0000-4000-8000-000000020001', (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-000000020001' and label = 'Main'), 'start', 0,
       '79600000-0000-4000-8000-000000020011')$$,
   'the party is playing, currently at P'
 );
@@ -392,8 +384,7 @@ select lives_ok(
 create temporary table assert_result_h(payload jsonb);
 insert into assert_result_h
 select public.assert_quest_runtime(
-  '79600000-0000-4000-8000-000000000010'::uuid,
-  '79600000-0000-4000-8000-000000020001'::uuid,
+  '79600000-0000-4000-8000-000000000010'::uuid, '79600000-0000-4000-8000-000000020001'::uuid, (select id from public.quest_threads where quest_id = '79600000-0000-4000-8000-000000020001' and label = 'Main'),
   array['79600000-0000-4000-8000-000000020012'::uuid],
   false, 'Prep note, do not move the party');
 

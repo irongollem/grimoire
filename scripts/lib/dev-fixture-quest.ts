@@ -219,11 +219,15 @@ function buildFixtureQuest(dbUrl: string, campaignId: string, ownerId: string): 
 
       -- Mid-chain: one step past the opening, sitting on the gated fork, so
       -- the Runner opens onto a quest already in progress.
+      -- On the quest's Main thread: every quest is born with one (the
+      -- create_quest_main_thread trigger), and a cursor belongs to a thread.
       insert into public.quest_runtime_state (
-        campaign_id, quest_id, current_beat_id, status, visit_stack, visit_index, return_stack
+        campaign_id, quest_id, thread_id, current_beat_id, status, visit_stack, visit_index, return_stack
       )
       values (
-        ${quote(campaignId)}, v_quest_id, v_beat_road, 'running',
+        ${quote(campaignId)}, v_quest_id,
+        (select id from public.quest_threads where quest_id = v_quest_id and label = 'Main'),
+        v_beat_road, 'running',
         jsonb_build_array(
           jsonb_build_object('beat_id', v_beat_open),
           jsonb_build_object('beat_id', v_beat_road)

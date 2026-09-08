@@ -5,15 +5,15 @@ select plan(66);
 
 select has_function(
   'public', 'transition_quest_runtime',
-  array['uuid', 'uuid', 'text', 'bigint', 'uuid', 'uuid', 'text', 'boolean', 'jsonb'],
-  'runtime movement has one atomic command boundary, scoped to a quest'
+  array['uuid', 'uuid', 'uuid', 'text', 'bigint', 'uuid', 'uuid', 'text', 'boolean', 'jsonb', 'uuid[]', 'uuid[]', 'uuid[]'],
+  'runtime movement has one atomic command boundary, scoped to a thread'
 );
-select has_function('public', 'get_quest_runtime_context', array['uuid', 'uuid'], 'runtime selectors have one server-authorized projection per chain');
+select has_function('public', 'get_quest_runtime_context', array['uuid', 'uuid', 'uuid'], 'runtime selectors have one server-authorized projection per thread');
 select has_function('public', 'get_campaign_live_quests', array['uuid'], 'the open chains are a set, not a single row');
 select has_function('public', 'end_campaign_quest_session', array['uuid'], 'closing the table is its own command');
 select has_function('public', 'search_quest_runtime_jump_targets', array['uuid', 'uuid', 'text', 'integer'], 'jump picker is scoped to the chain it moves');
 select has_column('public', 'quest_runtime_state', 'quest_id', 'the cursor belongs to a quest');
-select col_is_pk('public', 'quest_runtime_state', array['campaign_id', 'quest_id'], 'one cursor per quest, not per campaign');
+select col_is_pk('public', 'quest_runtime_state', array['campaign_id', 'quest_id', 'thread_id'], 'one cursor per thread, not per quest');
 select hasnt_column('public', 'quest_runtime_state', 'current_quest_id', 'the quest is the key, so it cannot also be a mutable column');
 select ok(not has_table_privilege('authenticated', 'public.quest_runtime_state', 'INSERT'), 'clients cannot split cursor creation from history');
 select ok(not has_table_privilege('authenticated', 'public.quest_beat_transitions', 'INSERT'), 'clients cannot forge runtime history');
@@ -70,7 +70,7 @@ select is(
 
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', 'start', 0,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main'), 'start', 0,
     '66800000-0000-4000-8000-000000000030'
   ) -> 'current' ->> 'title',
   'A', 'start enters the chosen beat');
@@ -81,14 +81,14 @@ select is((select count(*)::integer from public.quest_beat_transitions where cam
 
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', 'advance', 1,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main'), 'advance', 1,
     p_edge_id => '66800000-0000-4000-8000-000000000040'
   ) -> 'current' ->> 'title',
   'B', 'advance follows an authored outgoing edge');
 select is((select provenance ->> 'edge_id' from public.quest_beat_transitions where runtime_version = 2), '66800000-0000-4000-8000-000000000040', 'advance snapshots its authored route');
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', 'advance', 2,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main'), 'advance', 2,
     p_edge_id => '66800000-0000-4000-8000-000000000041'
   ) -> 'current' ->> 'title',
   'A', 'authored cycles remain navigable');
@@ -97,11 +97,11 @@ select is((select jsonb_array_length(visit_stack) from public.quest_runtime_stat
 
 -- Back is undo, and it retraces the order the party actually walked rather than
 -- the authored order: a 1-2-3-4 flow played 1-3-4-2 steps back 2-4-3-1.
-select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', 'previous', 3) -> 'current' ->> 'title', 'B', 'previous follows the actual prior visit');
-select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', 'previous', 4) -> 'current' ->> 'title', 'A', 'repeated previous walks farther back without ping-ponging');
+select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main'), 'previous', 3) -> 'current' ->> 'title', 'B', 'previous follows the actual prior visit');
+select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main'), 'previous', 4) -> 'current' ->> 'title', 'A', 'repeated previous walks farther back without ping-ponging');
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', 'advance', 5,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main'), 'advance', 5,
     p_edge_id => '66800000-0000-4000-8000-000000000042'
   ) -> 'current' ->> 'title',
   'C', 'advancing after previous creates a new visited path');
@@ -111,7 +111,7 @@ select is((select jsonb_array_length(visit_stack) from public.quest_runtime_stat
   where quest_id = '66800000-0000-4000-8000-000000000020'), 2, 'a new path truncates abandoned forward visit state');
 
 select throws_ok(
-  $$ select public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', 'pause', 5) $$,
+  $$ select public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main'), 'pause', 5) $$,
   '40001', 'Quest runtime changed; expected version 5, current version 6',
   'a stale co-DM command fails instead of overwriting the winner');
 
@@ -119,7 +119,7 @@ select throws_ok(
 
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', 'start', 0,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'start', 0,
     '66800000-0000-4000-8000-000000000033'
   ) -> 'current' ->> 'title',
   'Side scene', 'a second quest runs without disturbing the first');
@@ -133,7 +133,7 @@ select is((select version from public.quest_runtime_state
 -- visit_stack[index-1] and took whatever quest sat there, so stepping back
 -- inside the side quest silently returned to the main one.
 select throws_ok(
-  $$ select public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', 'previous', 1) $$,
+  $$ select public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'previous', 1) $$,
   'P0001', 'There is no previous visited beat',
   'back cannot step out of the chain it is in and land in another quest');
 
@@ -146,7 +146,7 @@ select is(
 
 select throws_ok(
   $$ select public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', 'jump', 1,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'jump', 1,
     '66800000-0000-4000-8000-000000000030', p_reason => 'Reaching across'
   ) $$,
   'P0001', 'Target beat is not eligible in this quest',
@@ -154,31 +154,31 @@ select throws_ok(
 
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', 'jump', 1,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'jump', 1,
     '66800000-0000-4000-8000-000000000034',
     p_reason => 'Players chased the courier', p_push_return => true
   ) -> 'current' ->> 'title',
   'Improvised scene', 'jump moves within the chain');
 select is(
-  public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021') -> 'return_target' ->> 'beat_id',
+  public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main')) -> 'return_target' ->> 'beat_id',
   '66800000-0000-4000-8000-000000000033', 'a within-quest jump still saves an explicit return point');
 select is((select visibility from public.quest_beats where id = '66800000-0000-4000-8000-000000000034'), 'hidden', 'navigation never changes player visibility');
-select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', 'return', 2) -> 'current' ->> 'title', 'Side scene', 'return restores the saved beat');
+select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'return', 2) -> 'current' ->> 'title', 'Side scene', 'return restores the saved beat');
 
 select throws_ok(
   $$ select public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', 'improv', 3,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'improv', 3,
     '66800000-0000-4000-8000-000000000033', p_reason => 'Unexpected scene'
   ) $$,
   'P0001', 'Target beat is not eligible in this quest',
   'improv cannot mislabel a normal authored beat');
 
-select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', 'pause', 3) -> 'state' ->> 'status', 'paused', 'pause is an explicit history-producing command');
-select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', 'resume', 4) -> 'state' ->> 'status', 'running', 'resume is explicit and retains the current beat');
+select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'pause', 3) -> 'state' ->> 'status', 'paused', 'pause is an explicit history-producing command');
+select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'resume', 4) -> 'state' ->> 'status', 'running', 'resume is explicit and retains the current beat');
 
 -- ── Ending one chain, and ending the night ───────────────────────────────────
 
-select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', 'end', 5) -> 'state' ->> 'status', 'ended', 'end closes one chain explicitly');
+select is(public.transition_quest_runtime('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000021' and label = 'Main'), 'end', 5) -> 'state' ->> 'status', 'ended', 'end closes one chain explicitly');
 select is((select current_beat_id from public.quest_runtime_state
   where quest_id = '66800000-0000-4000-8000-000000000021'), null::uuid, 'ending a chain clears its own cursor');
 -- Bug 2: the campaign-wide `end` nulled the single cursor, so closing the side
@@ -225,29 +225,29 @@ insert into public.quest_beat_edge_gates (edge_id, quest_id, campaign_id, object
 
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'start', 0,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main'), 'start', 0,
     '66800000-0000-4000-8000-000000000060'
   ) -> 'current' ->> 'title',
   'Gate start', 'the gate quest starts at its opening beat');
 
 select is(
-  (select jsonb_array_length(public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing')),
+  (select jsonb_array_length(public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main')) -> 'outgoing')),
   2, 'outgoing lists both authored routes from the gate beat');
 select ok(
   (select bool_and(not (elem ? 'label')) from jsonb_array_elements(
-    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main')) -> 'outgoing'
   ) elem),
   'outgoing routes no longer carry the free-text label'
 );
 select is(
   (select elem -> 'gate' ->> 'required_status' from jsonb_array_elements(
-    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main')) -> 'outgoing'
   ) elem where elem ->> 'beat_id' = '66800000-0000-4000-8000-000000000061'),
   'complete', 'a gated route in outgoing carries its required objective status'
 );
 select is(
   (select elem -> 'gate' ->> 'is_open' from jsonb_array_elements(
-    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main')) -> 'outgoing'
   ) elem where elem ->> 'beat_id' = '66800000-0000-4000-8000-000000000061'),
   'false', 'the gate reads closed while the objective has not reached the required status'
 );
@@ -256,20 +256,20 @@ select is(
 -- absent one. `jsonb_typeof` (not `is null`) is how you tell the two apart.
 select is(
   (select jsonb_typeof(elem -> 'gate') from jsonb_array_elements(
-    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main')) -> 'outgoing'
   ) elem where elem ->> 'beat_id' = '66800000-0000-4000-8000-000000000062'),
   'null', 'an ungated route in outgoing carries a null gate — absent means always open'
 );
 select is(
   (select elem -> 'effects' from jsonb_array_elements(
-    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050') -> 'outgoing'
+    public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main')) -> 'outgoing'
   ) elem where elem ->> 'beat_id' = '66800000-0000-4000-8000-000000000061'),
   '[]'::jsonb, 'a route with no consequence rule exposes an empty effects list'
 );
 
 select throws_ok(
   $$ select public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'advance', 1,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main'), 'advance', 1,
     p_edge_id => '66800000-0000-4000-8000-000000000070'
   ) $$,
   '23514', 'That route needs "Find the key" to be complete, and it is pending',
@@ -277,21 +277,21 @@ select throws_ok(
 
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'advance', 1,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main'), 'advance', 1,
     p_edge_id => '66800000-0000-4000-8000-000000000071'
   ) -> 'current' ->> 'title',
   'Ungated destination', 'a route with no gate is unaffected by a closed gate elsewhere in the quest');
 
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'jump', 2,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main'), 'jump', 2,
     '66800000-0000-4000-8000-000000000061', p_reason => 'DM ruling: skip the key hunt'
   ) -> 'current' ->> 'title',
   'Gated destination', 'jump still overrides a closed gate — the deliberate override the DM needs at the table');
 
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'jump', 3,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main'), 'jump', 3,
     '66800000-0000-4000-8000-000000000060', p_reason => 'Return to the fork'
   ) -> 'current' ->> 'title',
   'Gate start', 'jumping back sets up a fresh advance attempt through the same gate');
@@ -305,7 +305,7 @@ select is(
 
 select is(
   public.transition_quest_runtime(
-    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', 'advance', 4,
+    '66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000050', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000050' and label = 'Main'), 'advance', 4,
     p_edge_id => '66800000-0000-4000-8000-000000000070'
   ) -> 'current' ->> 'title',
   'Gated destination', 'advance succeeds once the objective reaches the status the gate requires');
@@ -327,7 +327,7 @@ select is((select count(*)::integer from public.quest_runtime_state
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '66800000-0000-4000-8000-000000000002', true);
 select throws_ok(
-  $$ select public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020') $$,
+  $$ select public.get_quest_runtime_context('66800000-0000-4000-8000-000000000010', '66800000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '66800000-0000-4000-8000-000000000020' and label = 'Main')) $$,
   'P0001', 'Not authorized', 'an outsider cannot inspect the DM runtime');
 select throws_ok(
   $$ select public.get_campaign_live_quests('66800000-0000-4000-8000-000000000010') $$,

@@ -81,7 +81,7 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', '79400000-0000-4000-8000-000000a00001', true);
 
 select lives_ok($$select public.transition_quest_runtime(
-  '79400000-0000-4000-8000-000000a00010', '79400000-0000-4000-8000-000000a00030', 'start', 0,
+  '79400000-0000-4000-8000-000000a00010', '79400000-0000-4000-8000-000000a00030', (select id from public.quest_threads where quest_id = '79400000-0000-4000-8000-000000a00030' and label = 'Main'), 'start', 0,
   '79400000-0000-4000-8000-000000a00041')$$,
   'entering the fork runs the beat''s consequences');
 
@@ -111,7 +111,7 @@ select lives_ok(
 );
 
 select lives_ok($$select public.transition_quest_runtime(
-  '79400000-0000-4000-8000-000000a00010', '79400000-0000-4000-8000-000000a00030', 'advance', 1, null,
+  '79400000-0000-4000-8000-000000a00010', '79400000-0000-4000-8000-000000a00030', (select id from public.quest_threads where quest_id = '79400000-0000-4000-8000-000000a00030' and label = 'Main'), 'advance', 1, null,
   '79400000-0000-4000-8000-000000a00062')$$,
   'taking the branch runs the edge''s consequences');
 
@@ -155,7 +155,7 @@ select is(
 -- Stepping back at a table is a correction, so what the step forward decided
 -- must come undone with it, not linger as a state the DM cannot see.
 select lives_ok($$select public.transition_quest_runtime(
-  '79400000-0000-4000-8000-000000a00010', '79400000-0000-4000-8000-000000a00030', 'previous', 2)$$,
+  '79400000-0000-4000-8000-000000a00010', '79400000-0000-4000-8000-000000a00030', (select id from public.quest_threads where quest_id = '79400000-0000-4000-8000-000000a00030' and label = 'Main'), 'previous', 2)$$,
   'stepping back is allowed after a consequence fired');
 
 select is(
@@ -303,7 +303,7 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claim.sub', '79400000-0000-4000-8000-000000c00001', true);
 
 select lives_ok($$select public.transition_quest_runtime(
-  '79400000-0000-4000-8000-000000c00010', '79400000-0000-4000-8000-000000c00030', 'start', 0,
+  '79400000-0000-4000-8000-000000c00010', '79400000-0000-4000-8000-000000c00030', (select id from public.quest_threads where quest_id = '79400000-0000-4000-8000-000000c00030' and label = 'Main'), 'start', 0,
   '79400000-0000-4000-8000-000000c00041')$$,
   'the cascade runs the beat rule, then the objective-became rule it unlocks');
 
@@ -367,7 +367,7 @@ select set_config('request.jwt.claim.sub', '79400000-0000-4000-8000-000000d00001
 
 select throws_ok(
   $$select public.transition_quest_runtime(
-      '79400000-0000-4000-8000-000000d00010', '79400000-0000-4000-8000-000000d00030', 'start', 0,
+      '79400000-0000-4000-8000-000000d00010', '79400000-0000-4000-8000-000000d00030', (select id from public.quest_threads where quest_id = '79400000-0000-4000-8000-000000d00030' and label = 'Main'), 'start', 0,
       '79400000-0000-4000-8000-000000d00041')$$,
   'consequence cascade exceeded 8 rounds on quest 79400000-0000-4000-8000-000000d00030 — check for a rule loop',
   'a DM-authored rule loop raises rather than running forever'

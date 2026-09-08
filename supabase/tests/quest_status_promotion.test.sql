@@ -35,13 +35,13 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 -- ── The ratchet turns one way ───────────────────────────────────────────────
 
 select lives_ok($$ select public.transition_quest_runtime(
-  '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000020', 'start', 0,
+  '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '75600000-0000-4000-8000-000000000020' and label = 'Main'), 'start', 0,
   '75600000-0000-4000-8000-000000000030') $$, 'a rumoured quest can be entered');
 select is((select status::text from public.quests where id = '75600000-0000-4000-8000-000000000020'),
   'active', 'arriving in a rumoured quest promotes it to the Active lane');
 
 select lives_ok($$ select public.transition_quest_runtime(
-  '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000021', 'start', 0,
+  '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '75600000-0000-4000-8000-000000000021' and label = 'Main'), 'start', 0,
   '75600000-0000-4000-8000-000000000031') $$, 'an undiscovered quest can be entered');
 select is((select status::text from public.quests where id = '75600000-0000-4000-8000-000000000021'),
   'active', 'arriving in an undiscovered quest promotes it too');
@@ -49,13 +49,13 @@ select is((select status::text from public.quests where id = '75600000-0000-4000
 -- A callback, a revisit or a flashback must not silently reopen a verdict the
 -- DM already delivered. This is the half of the rule that is easy to omit.
 select lives_ok($$ select public.transition_quest_runtime(
-  '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000022', 'start', 0,
+  '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000022', (select id from public.quest_threads where quest_id = '75600000-0000-4000-8000-000000000022' and label = 'Main'), 'start', 0,
   '75600000-0000-4000-8000-000000000032') $$, 'a completed quest can still be revisited');
 select is((select status::text from public.quests where id = '75600000-0000-4000-8000-000000000022'),
   'completed', 'revisiting a completed quest never reopens it');
 
 select lives_ok($$ select public.transition_quest_runtime(
-  '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000023', 'start', 0,
+  '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000023', (select id from public.quest_threads where quest_id = '75600000-0000-4000-8000-000000000023' and label = 'Main'), 'start', 0,
   '75600000-0000-4000-8000-000000000033') $$, 'a failed quest can still be revisited');
 select is((select status::text from public.quests where id = '75600000-0000-4000-8000-000000000023'),
   'failed', 'revisiting a failed quest never reopens it');
@@ -65,7 +65,7 @@ select is((select status::text from public.quests where id = '75600000-0000-4000
 select is(
   (select status::text from public.quests where id = '75600000-0000-4000-8000-000000000020'
     and exists (select 1 from public.transition_quest_runtime(
-      '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000020', 'end', 1) t(x))),
+      '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '75600000-0000-4000-8000-000000000020' and label = 'Main'), 'end', 1) t(x))),
   'active', 'ending a chain leaves its quest active rather than demoting it');
 
 select * from finish();

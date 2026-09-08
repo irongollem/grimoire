@@ -116,8 +116,10 @@ insert into public.quest_beat_edges (id, quest_id, campaign_id, source_beat_id, 
   ('65800000-0000-4000-8000-000000000080', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000042', '65800000-0000-4000-8000-000000000041');
 
 select lives_ok($$
-  insert into public.quest_runtime_state (campaign_id, quest_id, current_beat_id)
-  values ('65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000030', '65800000-0000-4000-8000-000000000040');
+  insert into public.quest_runtime_state (campaign_id, quest_id, thread_id, current_beat_id)
+  values ('65800000-0000-4000-8000-000000000010', '65800000-0000-4000-8000-000000000030',
+    (select id from public.quest_threads where quest_id = '65800000-0000-4000-8000-000000000030' and label = 'Main'),
+    '65800000-0000-4000-8000-000000000040');
   insert into public.quest_beat_transitions (
     campaign_id, from_quest_id, from_beat_id, to_quest_id, to_beat_id, transition_kind
   ) values (
