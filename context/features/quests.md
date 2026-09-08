@@ -50,6 +50,49 @@ Four consequences worth stating, because each one is a rule about where things g
 - **A dungeon needs no beats inside it.** Walking into room four changes nothing;
   finding the ledger changes everything. Rooms are places, not events.
 
+### Threads, parallel routes and payoff (#850)
+
+A quest held exactly one cursor for as long as generation two existed, and a
+route could only ever mean "go here instead of there." The Quest Manager
+Redesign (`Quest Manager Redesign.html`, frame `01 Delta`) names the three
+places that broke down at the table: a quest can only hold one cursor, a route
+cannot say "and also," and a payoff is split across two panels that don't know
+about each other. This is additive to the model above — a beat is still an
+event, an objective is still state — the fix is that a story can now run more
+than one cursor through that same ledger at once.
+
+- **A quest holds N live cursors.** Each is a **thread** (`quest_threads`) —
+  its own `quest_runtime_state` row, its own place in the story. A quest is
+  born with one, "Main"; a parallel route or the thread bar's "Open a thread"
+  opens another. Nothing closes a thread silently: the DM does it, from the
+  Threads panel, the thread bar, or the cockpit.
+- **A route's `route_kind` says whether it forks or forks off.** `choice`
+  moves the cursor and strands every sibling choice, the same as before.
+  `parallel` spawns a new thread at its target and leaves the current thread's
+  cursor exactly where it was — the layer appears without abandoning the tree.
+  Gates apply to both kinds alike. The invariant the composer enforces: **a
+  parallel route may never be the only way out of a beat** — a beat needs a
+  choice route before it can afford to spend one on a parallel.
+- **A beat's `converge_mode` says how it receives several threads.** `any`
+  (the default, and every beat's behaviour before this epic) lets every
+  arriving thread proceed on its own. `all` parks each arriving thread
+  (`waiting`) until every one of the beat's authored incoming routes has been
+  walked by a live or waiting thread, then merges them into the earliest
+  arrival and fires the beat's arrival rules exactly once.
+- **A payoff can be held instead of fired.** The Advance dialog lets the DM
+  untick a consequence before submitting; a held rule still logs its event
+  (`held_at` set) but performs nothing, and sits in the cockpit's Held payoff
+  panel and the quest card's "Held payoff — not yet fired" until the DM fires
+  it from the log.
+- **Three verbs the system had no word for, so knowledge, favours and
+  milestones stopped living as prose in `outcomes`:** `grant_knowledge` writes
+  a shared `player_journal_entries` row (category `discovery`) — the party
+  journal the players already read; `owe_favor` writes `npc_favors`, pinned to
+  the NPC; `award_milestone` writes `party_milestones`, on the party screen,
+  announced to the table by the same broadcast the engine already fires. Same
+  table (`quest_consequences`), same delay, same event log, same undo as every
+  other verb.
+
 ### The site
 
 A dungeon is a place in the **Atlas**, not part of a story. What is explored,
@@ -136,7 +179,7 @@ pointer, admitted by the CHECK and offered by no UI — went too, at zero rows.
 | Surface              | Component                                                                    | What it says an objective is                                                                    |
 | --------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | A checklist you tick | Inline in `QuestOverviewLifecycle.vue` (Overview › Quest lifecycle)          | a to-do the DM asserts via `assert_quest_objective_status` — the mark cycles dormant → pending → complete → failed |
-| A rule you author    | `QuestConsequencesPanel.vue`, `scope="beat"` (beat inspector, beat page) and `scope="quest"` (quest overview) | one `quest_consequences` row: a beat/edge condition (beat scope) or an objective-became/quest-settled condition (quest scope), doing one of the four ledger verbs or the two world actions alike |
+| A rule you author    | `QuestPayoffPanel.vue`'s quick-adds (beat scope, beat page) and `QuestRulesPanel.vue` (quest scope, quest overview — this row's component was `QuestConsequencesPanel.vue` before the Quest Manager Redesign split it in two) | one `quest_consequences` row: a beat/edge condition (beat scope) or an objective-became/quest-settled condition (quest scope), doing one of the four ledger verbs or one of the seven world actions alike |
 
 Until #794 the second row showed only _reveal / complete / fail_ and no status at all —
 `quest_objective_effects` couldn't raise a dormant objective or watch one settle. One
@@ -227,9 +270,19 @@ consequence engine watching it.
 `visibility` (`hidden` | `rumored` | `revealed`), `kind` (**open text, not an
 enum** — conventionally `combat` / `social` / `explore` / `discovery` / `neutral`,
 plus the tombstone `archived`), `presentation_hint`, `canvas_x/y`,
-`is_improvised`, `improv_reviewed_at`, `read_aloud`, `how_it_plays`, `outcomes`,
-`consequences`. (`conversion_source_type/_id` were here until #799 dropped them —
-see **Dead residue** above.)
+`is_improvised`, `improv_reviewed_at`, `read_aloud`, `how_it_plays`,
+`converge_mode` (`any` | `all`, #850 — see "Threads, parallel routes and
+payoff" above). (`conversion_source_type/_id` were here until #799 dropped them
+— see **Dead residue** above.)
+
+**`outcomes` and `consequences` are gone (#850).** Both existed because the
+system had no verb for knowledge, favours or milestones; it has the verbs now
+(`grant_knowledge`, `owe_favor`, `award_milestone` on `quest_consequences`),
+so a free-text column that used to carry that prose is no longer needed. The
+migration folded each non-blank value into trailing paragraphs of
+`how_it_plays`, under a bold "Outcomes" or "Consequences" label, before
+dropping the columns — nothing a DM had written was lost, it just moved into
+the one prose field a beat still has.
 
 `kind` still does two jobs at once: a presentation hint, and an `archived`
 tombstone every runtime query has to filter out. It used to do a third — an
@@ -255,9 +308,20 @@ cycle-safe. Also carries `unique (id, quest_id, campaign_id)`, the composite
 `label` (DM-only free text) was dropped by the same migration. Production had
 44 edges and only 5 labels, none of which named an outcome — they named how a
 fork got decided at the table ("1-5 on a d6," "Agree"). The five were carried
-onto the source beat's `outcomes` field (already rendered above the branch
-cards in `QuestRunBeatCard.vue`); the other 39 forks needed no text because the
-target beat's title already was the outcome.
+onto the source beat's `outcomes` field at the time; that field is itself gone
+now (#850, folded into `how_it_plays` — see `quest_beats` above), so the five
+strings live in the beat's read-aloud/prose today rather than in a dedicated
+field. The other 39 forks needed no text because the target beat's title
+already was the outcome.
+
+**`route_kind` and `thread_label` (#850).** `route_kind` is `choice` (default)
+or `parallel` — see "Threads, parallel routes and payoff" in the model above.
+`thread_label` is the name a `parallel` route gives the thread it opens
+("shown to the DM and on the player thread," frame `02 Story flow`'s Selected
+route panel); it is null on a `choice` edge. Neither column reopens the
+one-route-per-pair question #795 closed: a parallel route is still a single
+edge from source to target, it just spawns a thread instead of moving the
+existing one.
 
 ### `quest_beat_edge_gates` — whether a route is open (#795)
 
@@ -281,24 +345,36 @@ required status, and the current one — so a route the ledger says is shut
 genuinely cannot be advanced through. Jump remains the deliberate override; it
 already demands a reason and does not consult the gate at all.
 
-`get_quest_runtime_context`'s `outgoing` entries carry `gate` (the same four
-fields joined server-side: `objective_id`, `objective`, `required_status`,
-`current_status`, `is_open`, or `null`) and `effects` (`quest_consequences`
-rows keyed by `on_edge_id`, read rather than duplicated — see #794 above).
-Build mode joins the same shape client-side, in
+`get_quest_runtime_context(campaign, quest, thread)`'s `outgoing` entries carry
+`gate` (the same four fields joined server-side: `objective_id`, `objective`,
+`required_status`, `current_status`, `is_open`, or `null`), `effects`
+(`quest_consequences` rows keyed by `on_edge_id`, read rather than duplicated
+— see #794 above), and, since #850, `route_kind`, `thread_label`,
+`converge_mode`, `site` and `payoff`/`loot` — see **The runtime** below for the
+full shape. Build mode joins the gate shape client-side, in
 `lib/quests/gates.ts#deriveQuestRouteGates`, against `useQuestObjectives` —
 `QuestBeatEdge.gate`/`QuestRuntimeChoice.gate` are typed identically
 (`QuestRouteGate`) so both surfaces read the same fields.
 
 ### `quest_beat_attachments`
 
-Typed placements: `encounter`, `npc`, `faction`, `item`, `monster`, `sound`,
-`audio_scene`, `playlist`, `note`, `handout` — ten, and the CHECK admits exactly
-those.
+Typed placements: `encounter`, `npc`, `faction`, `item`, `monster`, `check`,
+`sound`, `audio_scene`, `playlist`, `note`, `handout` — eleven, and the CHECK
+admits exactly those.
 Polymorphic `ref_id text`, validated by
 `private.validate_quest_beat_attachment()` rather than an FK. `'objective'` was
 a member of this CHECK until #793 dropped it along with the overview beat it
 was backfilled onto (see above).
+
+**`check` (#850) carries its own data instead of pointing at a row.** A skill
+check ("Insight DC 15 · Contested by Deception") is prepared on a beat and
+rolled at the table (the cockpit's `Roll Insight` action, first in the beat
+card's action row). Its `ref_id` is the literal string `'check'` — there is no
+row to reference — and the actual content lives in `metadata`: `skill`
+(required, non-blank), `dc` (required, a numeric string), `contested_by` and
+`note` (both optional). `private.validate_quest_beat_attachment()` validates
+the shape directly rather than casting `ref_id` to a uuid, because the cast
+handler's error message ("must be a valid UUID") would mislead for a DC.
 
 `'location_set'` was a member of this CHECK until #797 replaced it with
 `quest_beats.staged_at_location_id` (below). It carried `metadata.room_ids`, a
@@ -340,13 +416,46 @@ clones **the staged place and everything beneath it** — the old attachment onl
 cloned rooms that happened to be listed in `room_ids`, so a room the DM forgot
 to list stayed behind with the previous owner.
 
+### `quest_threads` — one live cursor of a quest (#850)
+
+`id`, `campaign_id`, `quest_id`, `label` (1-80 chars, e.g. "Main", "The
+petition"), `status` (`live` | `waiting` | `closed` | `merged`),
+`opened_by_edge_id` (the parallel route that opened it, null for Main or a
+manually-opened thread), `parent_thread_id`, `merged_into_thread_id`,
+`created_by`, `created_at`, `closed_at`. `unique (id, quest_id, campaign_id)`
+is the composite `quest_runtime_state` targets.
+
+A quest is born with one thread, "Main" — an `after insert on quests` trigger
+(`private.create_quest_main_thread`, mirroring the precedent
+`create_quest_overview_beat` set) — so `start` always has a thread to point
+at, and every quest that predates this migration was backfilled the same way.
+`status` progresses `live` → `waiting` (parked at a `converge_mode: 'all'`
+beat, waiting for the rest) → `live` again on merge, or → `closed`/`merged`
+when the DM ends it or a converge folds it into another. Nothing here closes
+on its own; RLS is a single `private.is_campaign_dm` policy.
+
+`src/lib/quests/threads.ts` is where every surface's letter and tone agreement
+lives: `orderThreads` (live/waiting first, then closed, then merged; oldest
+first within a group — so the first thread a quest ever had keeps letter A for
+as long as it lives), `threadLetter` (A, B, C… wrapping to AA past Z),
+`threadTone` (gold/info/arcane by order, wrapping at three), and
+`threadBadges`/`threadBadge` that combine them. Every surface that paints a
+thread — the story flow's swimlanes and party chips, the cockpit's thread bar,
+the quest card's spines, the player journal's columns — reads through this
+module rather than choosing a letter or colour locally.
+
 ### `quest_runtime_state` — the cursor
 
-PK `(campaign_id, quest_id)` since `20260822224306` (#755): **one cursor per
-chain**, because a party is routinely mid-progress on several. Holds
-`current_beat_id`, `visit_stack` (undo semantics — moving forward from a rewound
-position truncates), `visit_index`, `return_stack`, `status`
-(`idle`/`running`/`paused`/`ended`) and `version` for optimistic concurrency.
+PK `(campaign_id, quest_id, thread_id)` since `20260907232245` (#850,
+superseding the `(campaign_id, quest_id)` PK #755 gave it): **one cursor per
+thread**, because a quest now holds as many live cursors as the story has
+open at once — there is no thread-less cursor left. Holds `current_beat_id`,
+`visit_stack` (undo semantics — moving forward from a rewound position
+truncates), `visit_index`, `return_stack`, `status`
+(`idle`/`running`/`paused`/`waiting`/`ended` — `waiting` added by #850 for a
+thread parked at a converge-all beat, distinct from `paused`: the story
+stopped it, not the DM, and it resumes on its own when the last sibling
+arrives) and `version` for optimistic concurrency.
 
 The cursor tracks **narrative position in a chain, not where the party is
 standing** — its own migration header says so. Clients have no insert/update/delete
@@ -357,7 +466,16 @@ grant; it moves only through the RPCs.
 `transition_kind`: `enter`, `forward`, `previous`, `jump`, `return`, `improv`,
 `pause`, `resume`, `end`, and `assert` (#794 — the DM saying "this already
 happened" via `assert_quest_objective_status`, with no cursor movement: a
-quest and no beat, the one shape that kind of row is allowed). Denormalised
+quest and no beat, the one shape that kind of row is allowed). `thread_id`
+(#850) names which thread walked — nullable, because an `assert` row and a
+handful of pre-#850 rows carry none. `seq`, a `generated always as identity`
+column (#850), is the arrival tiebreak a converge-all merge needs:
+`created_at` is the transaction's start time, so two threads that each write
+their own arrival transition inside the same wall-clock transaction can share
+one exactly (#787 hit the identical shape for `quest_consequence_events` and
+fixed it the same way). `private.settle_thread_arrival` orders by `seq`, never
+by `created_at`, when it picks which waiting thread survives a merge.
+Denormalised
 title snapshots so history survives edits. No UPDATE/DELETE policies, and both
 are revoked from `authenticated`/`anon`.
 
@@ -368,8 +486,8 @@ Renamed from `quest_beat_loot` when a site room gained the same verb. Keyed by
 one, enforced by `num_nonnulls(beat_id, location_id) = 1`. A room-homed row
 carries no quest at all.
 
-**Do not merge this into `quest_consequences`.** They are the same shape at a
-glance and three measurable things apart:
+**Do not merge this table into `quest_consequences`.** They are the same shape
+at a glance and three measurable things apart:
 
 | | `loot_placements` | `quest_consequences` |
 | --- | --- | --- |
@@ -379,10 +497,20 @@ glance and three measurable things apart:
 
 The tell that the split is real rather than arbitrary: those axes put a *room's*
 loot on the loot side without being asked. The verbs are **holds** and **does** —
-a beat *holds* loot the way a chest does, and *does* consequences. Do not build a
-combined "Outcomes" surface over the two: a single heading is exactly how the
-next reader notices loot is missing from the action enum and adds `drop_loot`
-for consistency.
+a beat *holds* loot the way a chest does, and *does* consequences.
+
+**The Quest Manager Redesign overturned the surface half of that guidance, not
+the data-model half.** This doc used to say "do not build a combined Outcomes
+surface over the two" — and the design built exactly that: `QuestPayoffPanel.vue`
+(beat page, frame `03 Inspector`) is one list rendering both a beat's
+`quest_consequences` rows and its `loot_placements` rows, because at the table
+"what this beat gives" is one question a DM asks once, not two panels to check
+separately. What the old warning got right, and what still holds, is the
+_tables_: they stay two mechanisms with the three axes above, `derivePayoffRows`
+(`src/lib/quests/payoff.ts`) merely reads both and renders one list — nothing
+was added to either table's action enum to make this work, and a `drop_loot`
+action on `quest_consequences` would still be the wrong fix for the same
+reason it always was. See **The beat page** under DM surfaces below.
 
 Dropping a room's loot **is** looting the room — `dispatch_loot` appends the
 `looted` fact itself. One way only: a drop implies looted, never the reverse,
@@ -406,16 +534,18 @@ successful dispatch so a location-homed caller can invalidate its own
 `location_state` cache; the component itself has no idea what a room is.
 
 What stays **per-surface** is the "prepare a new entry" form, because the two
-homes do not offer the same kinds: `QuestBeatLootPanel.vue` offers item and
-currency only (a beat's chest loot arrives via `source_type = 'encounter_loot'`
-from the encounter resolver, never authored by hand here); `LocationLootPanel.vue`
-(world-building.md, "Loot" on a room) additionally offers rolling a loot table
-into a held `loot_chest` — `source_type = 'loot_table'` — reusing
-`rollLootTable()` and the `LootChestAtom`/`LootChestMetadata` shapes the
-direct-to-chat `LootTableRollPanel` already established, but holding the roll
-in `loot_placements.payload` instead of posting it immediately. That is a
-difference in kind, not a few prop values, so the two forms are separate files
-rather than one component branching on a home type.
+homes do not offer the same kinds: a beat's loot quick-adds (`item` and
+`riches`, inside `QuestPayoffPanel.vue`'s eight quick-adds — see **The beat
+page** below) offer item and currency only (a beat's chest loot arrives via
+`source_type = 'encounter_loot'` from the encounter resolver, never authored
+by hand here); `LocationLootPanel.vue` (world-building.md, "Loot" on a room)
+additionally offers rolling a loot table into a held `loot_chest` —
+`source_type = 'loot_table'` — reusing `rollLootTable()` and the
+`LootChestAtom`/`LootChestMetadata` shapes the direct-to-chat
+`LootTableRollPanel` already established, but holding the roll in
+`loot_placements.payload` instead of posting it immediately. That is a
+difference in kind, not a few prop values, so the two forms stay separate
+rather than one control branching on a home type.
 
 ### `quest_consequences` and `quest_consequence_events` — one rule engine (#794)
 
@@ -436,9 +566,29 @@ delay, and an **`action`**:
 | `create_calendar_event` `send_broadcast` | world action | `action_payload` |
 | `shift_npc_relationship` (#831) | world action | `target_npc_id` + `action_payload.step` |
 | `unlock_quest` (#836) | world action | `target_quest_id` |
+| `grant_knowledge` (#850) | world action | `action_payload.text` |
+| `owe_favor` (#850) | world action | `target_npc_id` + `action_payload.text` |
+| `award_milestone` (#850) | world action | `action_payload.text` |
 
-Authored by `QuestConsequencesPanel.vue` — `scope="beat"` on a beat authors the
-first two condition kinds, `scope="quest"` on the overview authors the last two.
+The three #850 verbs join the family exactly like `shift_npc_relationship` and
+`unlock_quest` did: same table, same `after_days` delay, same event log, same
+undo. `owe_favor` shares `shift_npc_relationship`'s NPC-pair constraint
+(`quest_consequences_npc_pair`) — `target_npc_id` is required for either
+action and forbidden for every other one, extended by #850 from a
+single-action check.
+
+**Authored on two surfaces now, since the beat scope moved.** A beat/edge
+condition (`on_beat_id` or `on_edge_id`) is authored from the beat page's
+Payoff list (`QuestPayoffPanel.vue`'s quick-adds — see **The beat page** under
+DM surfaces) rather than a standalone editor. An objective-became or
+quest-settled condition (`on_objective_id`/`on_objective_status`, or
+`on_quest_settled`) is still authored from the quest overview, in
+`QuestRulesPanel.vue` — the component this doc used to call
+`QuestConsequencesPanel.vue`, before the Quest Manager Redesign folded its
+`scope="beat"` half into the Payoff list and left it with exactly one scope
+(so the `scope` prop and its beat-only branches are gone, not kept as dead
+code paths). Both surfaces still share the same action half: the four ledger
+verbs and the now-seven world actions, plus the delay field.
 
 **The family is "outcomes", not "rewards", and the word matters.** A reward is
 positive by construction; a relationship shift is *signed* — charm the lady and
@@ -479,7 +629,28 @@ trigger, and that is very hard to undo once data exists.
 and `transition_quest_runtime`, in the same transaction as the write that made
 the condition true — which is what lets `previous` undo a rule's effect by
 replaying the event's `previous_status`/`previous_is_player_visible`, and by
-handle (`calendar_event_id`, `message_id`) for a world action.
+handle for a world action: `calendar_event_id`, `message_id`, and — since
+#850 — `journal_entry_id`, `favor_id`, `milestone_id` for the three new verbs.
+Every handle follows the same pattern `calendar_event_id`/`message_id` set:
+the row a verb wrote, so undo deletes by handle rather than re-deriving what
+to remove.
+
+**`held_at` (#850) is the Advance dialog's "hold this back" tick.** A rule the
+DM unticks before submitting still logs an event — the record that this beat
+or route carried it — with `held_at` set and nothing performed: no objective
+moved, no journal entry written, no calendar event created. The cockpit's
+Held payoff panel (`QuestRunHeldPayoff.vue`) and the quest card's "Held
+payoff — not yet fired" read `held_at is not null and performed_at is null`.
+Firing a held event from the log calls the same `perform_quest_consequence`
+a due delayed action uses, which clears `held_at` alongside setting
+`performed_at` — the one function performs both a due delayed row and a held
+one, distinguished only by which column got it there. A held **ledger** verb
+is the one case `perform_quest_consequence` records
+`previous_status`/`previous_is_player_visible` **at fire time** rather than at
+log time (a normal ledger verb moves the objective inline, in
+`apply_quest_consequences`, so its previous state is already known when the
+event is written) — which is what lets `previous` undo it correctly however
+long it sat held.
 
 **The database cannot compute a delayed action's due date itself.**
 Per-calendar leap and intercalary rules live only in `src/lib/dayMath.ts`
@@ -492,10 +663,61 @@ one place that watches for that — a watcher on the campaign store's own today
 fields, not on any one "set today" call site, closes the bug where aging a
 campaign forward from `DetailsTab`'s "Current Year" field fired nothing.
 
-A ledger verb applies **immediately** regardless of `after_days` — only the
-two world actions are ever deferred; `perform_quest_consequence` does not
-know how to perform a ledger verb. `after_days` on a ledger-verb row is
-authored intent, not (yet) an enforced wait.
+A ledger verb applies **immediately** regardless of `after_days` when it is
+not held — only the (now seven) world actions are ever deferred by
+`perform_quest_consequence`, which does not know how to perform a ledger verb
+that fired inline. `after_days` on a ledger-verb row is authored intent, not
+(yet) an enforced wait. The one exception is a **held** ledger verb (#850,
+`held_at` above): holding defers it regardless of `after_days`, since holding
+means the DM chose not to let it fire with the transition at all.
+
+### `npc_favors` — what an NPC owes the party (#850)
+
+`id`, `campaign_id`, `npc_id`, `quest_id` (nullable — set when the favour came
+from a quest rule, null for one the DM typed straight onto the NPC), `text`
+(1-500 chars), `source_event_id` (the `quest_consequence_events` row that
+wrote it, when one did), `settled_at`, `created_by`, timestamps. Written by
+the `owe_favor` consequence or directly by the DM. `settled_at` marks a favour
+repaid; a settled row is never deleted — it is the record that it happened,
+the same way a completed objective is never un-completed by removing its row.
+RLS is DM-only (`npc_favors_dm_all`).
+
+`useNpcFavors(npcId)` / `useCreateNpcFavor` / `useSettleNpcFavor` /
+`useDeleteNpcFavor` (`src/composables/npcs/useNpcFavors.ts`) are the data
+layer; `NpcFavorsSection.vue` is the surface — the "Favours owed" block on
+the NPC sheet's Relations tab (`NpcTabContent.vue`), unsettled favours first
+with a Settle button, settled ones struck under a divider, and an inline add
+for a favour the DM types straight onto the NPC (`quest_id` null).
+
+### `party_milestones` — what the party earned (#850)
+
+`id`, `campaign_id`, `quest_id` (nullable, same rule as `npc_favors.quest_id`),
+`text` (1-500 chars), `source_event_id`, `created_by`, timestamps. Written by
+the `award_milestone` consequence or directly by the DM. RLS is DM-write,
+**member-read** (`party_milestones_member_select`, `private.is_campaign_member`)
+— unlike `npc_favors`, this table is meant for players to see, so every
+campaign member can select it directly.
+
+**Both realtime and the doorbell, because they cover different writes.**
+`party_milestones` joins the `supabase_realtime` publication, which carries
+inserts and updates live — an award reaches the party screen without a
+refetch. It also gets `party_milestones_signal_delete`, an `after delete`
+trigger calling `public.signal_campaign_change()` — the campaign_sync
+doorbell (`20260904230420`) — because a realtime channel never reliably sees
+a delete the way it sees an insert or update; every table on the doorbell
+covers its deletes this way rather than relying on the publication for them.
+`campaignSyncTables.test.ts` (the live-sync registry test) now also reads
+doorbell triggers wired by later migrations, so a table born after the
+doorbell was introduced can be registered without editing history.
+`award_milestone` also posts a 🏅 `campaign_messages` broadcast, so the table
+hears about it in chat as well as seeing it appear on the party screen.
+
+`usePartyMilestones()` / `useCreatePartyMilestone` / `useDeletePartyMilestone`
+(`src/composables/party/usePartyMilestones.ts`) are the data layer;
+`PartyMilestonesPanel.vue` is the surface — a card on the party page
+(`PartyView.vue`, between the tracker and the group portrait), newest first,
+each row naming the quest it came from, with an inline add for one the DM
+grants by hand.
 
 ### The rest
 
@@ -564,8 +786,9 @@ a popover over it — a navigation they never asked for.
   status, giver, location, parent, tags, sharing — one autosaved editor per
   field), then either a "Write the opening beat" empty state (no beats yet) or
   a read-only list of the graph's root beat(s) linking into Work, then
-  lifecycle (objectives, consequences, sub-quests, calendar). A beat's own
-  content is edited in exactly one place — the Work-tab inspector or
+  lifecycle (objectives, quest-wide consequences via `QuestRulesPanel` — see
+  below, sub-quests, calendar, and the backfill panel). A beat's own content is
+  edited in exactly one place — the Work-tab story flow's rail, or
   `QuestBeatDetailView` — never here; this surface no longer embeds a second
   beat editor (it did, for the `is_overview` beat, before #793).
 - **Work** — the **story flow** (`QuestGraphDesigner` + `QuestFlowCanvas`, with
@@ -582,37 +805,230 @@ document. Binding containment to `view === "work"` gave the cockpit the canvas's
 contract and made its body an unscrollable `overflow:hidden` box at `lg` and wider
 (#776). The binding is `showsGraph`, and it must stay that way.
 
-**The cockpit** (`QuestRunCockpit`, #820) expresses three concerns rather than
-one long form: `QuestRunSitePanel` (where the party physically is — a compact
-sibling of `SiteRunSurface`, reading `campaigns.current_location_id` directly
-rather than the running beat's `staged_at_location_id`, because where the party
-*is* is a fact about the world, not about the quest currently running — the two
-legitimately differ, and the panel shows where the party stands), the beat card plus a rail
-(`QuestRunObjectivesLedger`, `QuestRunPath`, `QuestRunOpenChains`), and
-`QuestRunOutcomeStrip` — one card per outgoing route plus "Something else…"
-(improvise, opening inline in the same column via `v-model:improvise-open`
-rather than a separate panel). The strip is docked to the bottom of the rail
-column with `mt-auto` inside a stretched grid row — **in normal document
-flow, never `sticky` or `fixed`** — which is the #776 fix and the reason it
-must not regress back into a floating bar. `QuestRunControls` now holds only
-the session-wide commands an outcome strip doesn't own: Previous, Jump,
-Pause/Resume, End — also unsticky, in flow. The jump panel and the contained
-tool overlay still render in flow above these. Runtime context, live chains
-and runtime state all poll at 5s; every command carries `expectedVersion`.
+### The story flow (frame `02 Story flow`)
 
-Clicking a room in `QuestRunSitePanel` moves the party and marks it explored
-in the same click SiteRunSurface uses (one write to
-`campaigns.current_location_id`; the arrival trigger does the rest) — no
-reason prompt, and nothing written to `quest_beat_transitions`. That is the
-whole distinction the epic is named for: walking around a dungeon is not a
-story transition, and only `QuestRunOutcomeStrip`'s Choose or `QuestRunControls`'
-Jump ever move a quest's cursor.
+`QuestGraphDesigner` + `QuestFlowCanvas` compose the graph; a rail beside it
+(`min-w-64`/`24rem` column) reads whatever is selected without leaving the
+canvas.
 
-`QuestRunContainedTool` opens an attachment in place: encounters embed
-`EncounterRunSurface`, audio calls the Soundboard, objectives get a next-status
-button, notes and handouts render their bodies.
+- **Swimlanes** (`QuestFlowSwimlanes.vue`, geometry in `lib/quests/swimlanes.ts`)
+  are dashed rectangles drawn behind the nodes, one per live or waiting thread,
+  transformed with the canvas viewport — framing every beat that thread has
+  visited plus wherever its cursor stands now. A thread with nothing to show
+  yet gets no lane at all rather than a lane the size of a point. The tag
+  reads "party is here" for the oldest live thread, "still running" for every
+  other live one, "waiting" for a parked thread.
+- **The wire draws its own kind** (`QuestFlowEdge.vue`): solid gold for
+  `choice`, a blue double-rail for `parallel`, dashed grey for a closed gate.
+  Every edge labels itself rather than carrying DM-authored text — the
+  target beat's title is the route's outcome (see `quest_beat_edges` above).
+- **A node carries a chip per live thread standing on it** (`QuestFlowNode.vue`),
+  plus payoff, loot, converge and site facts, so the graph reads as a state
+  board rather than a static flowchart.
+- **The rail** (`QuestGraphDesigner.vue`) shows, in order: `QuestThreadsPanel`
+  (every thread, its current beat, a Focus button, and Close thread for a live
+  one — closing is the DM's call here or in the cockpit, nothing closes
+  itself); then, mutually exclusive, `QuestRoutePanel` (a selected edge — its
+  `route_kind`/`thread_label` as writable fields, its gate, its payoff, Save/Delete)
+  or `QuestSelectedBeatPanel` (a selected beat with no edge selected — prep-gap,
+  payoff, loot, converge and site chips, "Open beat", "Preview as players");
+  then `QuestGraphOutline` underneath, always present, one row per beat with
+  its thread and state.
+- **"Add parallel route"** opens the beat composer already carrying
+  `parallel: true`. The invariant it and `QuestRoutePanel` both enforce: **a
+  parallel route may never be the only way out of a beat** — the Parallel
+  option is disabled, with a tooltip explaining why, until the beat already
+  has a `choice` route.
+
+**Deletes the beat inspector as a sidebar form.** `QuestBeatInspector.vue` — a
+1,500-pixel scrolling form that used to live in this same rail slot — is gone;
+everything it did either moved into `QuestSelectedBeatPanel`'s summary chips
+(prep gaps, payoff, loot, converge, site) or belongs on the beat page now (see
+below), which is the actual inspector.
+
+### The beat page (frame `03 Inspector`)
+
+`QuestBeatDetailView.vue` (`/quests/:id/beats/:beatId`), two columns.
+
+**Left column** — `Beat` (kind, staged-at location with a site room count,
+visibility, each saved on the spot as soon as it changes — no separate Save
+button), the read-aloud block, then `QuestBeatFields` for the prose;
+`QuestBeatAttachmentsPanel` for placements (needed/optional marks, the eleven
+attachment types including `check`); `QuestBeatSitePanel` for the site (choose
+or change which site this beat is staged at, or the "This beat can become a
+crawl" empty state when nothing is chosen yet).
+
+**Right column** — `QuestBeatRoutesPanel` ("Routes out": one card per outgoing
+edge, its `route_kind` badge, its thread label if parallel, a site chip if the
+target is staged at a room-bearing site, "Add route"); `QuestPayoffPanel`
+("Payoff": this beat's `quest_consequences` and `loot_placements` rows as
+**one list**, each row tagged `auto` (fires from the engine) or `you dispatch`
+(a human action) — see "Threads, parallel routes and payoff" above for why the
+tables stay separate while the surface does not — with **eight quick-adds**:
+Item, Riches (loot); Influence, Knowledge, Quest, Favour, Milestone, Event
+(consequences, one button per action the DM might reach for without opening a
+condition form first).
+
+**Deletes** `QuestBeatLootPanel.vue` and the beat-scoped half of
+`QuestConsequencesPanel.vue`; the quest-scoped half survives, renamed
+`QuestRulesPanel.vue`, mounted on the overview inside `QuestOverviewLifecycle`
+exactly where the old panel was.
+
+### The run cockpit (frame `04 Run`)
+
+`QuestRunCockpit.vue` runs **one thread at a time**: the route names which one
+(`?thread=`, or the thread bar switching it), defaulting to the quest's oldest
+live thread. Below the header:
+
+- **`QuestThreadBar`** — one pill per thread the quest holds (live/waiting
+  selectable, closed/merged shown dimmed for context but not clickable), and
+  "Open a thread" (a beat picker, a label, an optional reason — the manual
+  open path, distinct from a parallel route's automatic one). Switching
+  threads is **pure navigation**: no cursor moves, nothing is recorded.
+- The current beat: normally `QuestRunBeatCard` (chips, read-aloud, how it
+  plays, one action button per placement — `Roll Insight` first when the beat
+  carries a `check`) plus `QuestRunHeldPayoff` (loot sitting in
+  `loot_placements` with `delivery_state: "held"`, and `quest_consequence_events`
+  rows with `held_at` set — both quest-wide, not beat-scoped, since a payoff
+  held three beats ago is still the DM's to dispatch today). **When the
+  current beat is staged at a site with rooms, this column becomes
+  `QuestSiteHandoff` instead** — see below.
+- **`QuestRunSessionPanel`** — Previous, Jump, Pause/Resume, End: the
+  session-wide commands, kept apart from "what happens next," which are
+  outcomes of the current beat rather than of the table. Replaces
+  `QuestRunControls`, which was a bar docked to the foot of the whole cockpit;
+  this is a card in the left column now, under Held payoff.
+- The rail: `QuestRunObjectivesLedger` (gate hints), `QuestRunStorySoFar`
+  (this thread's own path, replacing `QuestRunPath`, which read a narrower,
+  undifferentiated shape), `QuestRunOpenChains` (other open chains, **sibling
+  threads of this quest listed first**, per the design's "Also open" rule),
+  and `QuestRunOutcomeStrip` docked to the bottom of the rail column with
+  `mt-auto` inside a stretched grid row — **in normal document flow, never
+  `sticky` or `fixed`** (the #776 fix; regressing this back into a floating
+  bar is the thing not to do).
+- **`QuestRunOutcomeStrip`'s Choose no longer transitions on its own click.**
+  It opens `QuestAdvanceDialog` preselected on the chosen route — the dialog
+  is "the only place a thread is created" now (see below). "Something else…"
+  opens the same dialog with its improvise option selected.
+
+Runtime context, live chains and runtime state all poll at 5s; every command
+carries `expectedVersion`. `QuestRunContainedTool` opens an attachment in
+place: encounters embed `EncounterRunSurface`, audio calls the Soundboard,
+objectives get a next-status button, notes and handouts render their bodies.
 Despite the name it is also the prep-time viewer, mounted from
 `QuestBeatAttachmentsPanel`.
+
+**Deletes** the path panel (`QuestRunPath.vue`), the site strip
+(`QuestRunSitePanel.vue` — "where the party physically is" as a panel
+separate from the running beat; the site handoff below is the only place the
+cockpit now shows rooms), the run controls bar (`QuestRunControls.vue`), the
+run beat editor (`QuestRunBeatEditor.vue`), the loot prepare form in Run, and
+`QuestRunTally.vue` (this doc used to note it was unused but present; it is
+simply gone now).
+
+### The Advance dialog (frame `05 Advance`)
+
+`QuestAdvanceDialog.vue` — "one dialog carries the whole model: the route
+taken, the routes that also open, and which payoffs go out now." One submit
+plans the whole transaction (`planAdvance`, `src/lib/quests/advance.ts`)
+before sending it as a single `transition_quest_runtime` call (or
+`improvise_quest_runtime`, for the open-ended option):
+
+1. **The route taken** — a radio over every `choice` route out of the current
+   beat, or "Something else happened" (names an improvised beat in this
+   thread; a required title, everything else — kind, reason, DM lead, reveal
+   text, push-return, keep-edge — behind an "Add details" toggle, copied
+   inline from the deleted `QuestRunImprovPanel.vue`).
+2. **Also opens** — every `parallel` route off the beat, ticked by default:
+   each spawns its own thread in the same transaction, labelled by the edge's
+   `thread_label`. Unticking prepares the layer without opening it yet. Absent
+   for the improvise option — an improvised beat has no authored parallel
+   routes to spawn.
+3. **Payoff from this route** — every `quest_consequences` row on the chosen
+   route/target, ticked to fire with the transition, unticked to **hold**
+   (logs the event with `held_at` set — see `quest_consequence_events`
+   above); every loot row on the target, ticked to dispatch to chat with the
+   move, unticked to stay in the cockpit until dispatched later.
+
+The footer previews the plan before submitting: which thread letters will
+still be live after this transition (existing ones plus one per spawn), how
+many consequences fire, how many loot rows stay held. A `40001` (version
+conflict — another device moved this thread first) surfaces as "The session
+moved on another device — reopen to advance," via
+`isVersionConflictError`.
+
+### Site handoff (frame `06 Site`)
+
+When the cockpit's current beat is staged at a site with rooms,
+`QuestSiteHandoff.vue` takes over the left column: numbered rooms with their
+states (cleared, party-here, unwritten — a dashed row with a "Fill" button
+that opens an inline `RichTextEditor`, the design's "prep gap" state), the
+site's floor plan (`LocationMap`, run-mode), the room card (read-aloud,
+"Room cleared", `LocationPlacements`), and the room's own payoff
+(`LootPlacementList`, "a room's payoff uses the same two mechanisms as a
+beat's, logged against the beat that owns the site"). Other threads the quest
+holds are listed as "paused, not closed" with a Switch button. Three exits,
+all emits the cockpit owns: "Show map to players" (toggles
+`is_map_shared`), "Leave site" (dismisses the handoff for this visit; nothing
+here writes `quest_runtime_state`), "Advance beat" (opens `QuestAdvanceDialog`
+the normal way).
+
+**One room list, two surfaces.** `SiteRoomList.vue`
+(`src/components/locations/`) is the room list itself — numbered rows,
+click-to-move, the unwritten/Fill affordance, a loot chip — shared verbatim
+between `QuestSiteHandoff` and `SiteRunSurface`'s Atlas Run action. Before
+this epic each surface carried its own copy of the click-to-move and
+unreachable-link logic; now there is exactly one implementation of "can the
+party reach this room," so the two can never quietly disagree again. Pure
+derivations shared by both callers (which rooms are unwritten, a room's list
+caption, the party's ordinal position, which rooms hold loot) live in
+`src/lib/quests/siteHandoff.ts`.
+
+### The quest log (frame `07 Log`)
+
+The Kanban view of `/quests` (`QuestKanbanBoard.vue`, behind the list/kanban
+toggle — the plain grid list is untouched by this epic).
+
+- **`QuestFeaturedCard`** — full width above the groups, rendered only when at
+  least one quest has a live thread. Premise, an "In session" badge, a
+  beats-visited / threads-live statblock, **one spine row per live thread**
+  (a segment bar reading done/here/gap/upcoming, the thread's own letter and
+  tone), prep-gap chips (one per kind, with a count — "the only alarm" the
+  card raises), a "Payoff prepared" chip, Resume run (into the thread that is
+  actually running), Story flow.
+- **Three groups**, replacing the old five-lane kanban's presentation without
+  changing how a card is dropped onto one: **Active** (`active`/`rumor`),
+  **"Undiscovered — waiting to be unlocked"** (`undiscovered`), **Settled**
+  (`completed`/`failed`).
+- **`QuestBoardCard`** (every group) now draws **one spine row per live
+  thread** the same way the featured card does, rather than a single
+  undifferentiated segment bar — a quest can hold more than one cursor, and
+  the card has to answer "where is this quest" for each. A quest with no live
+  thread yet still shows a plain readiness spine (no thread to attribute it
+  to). An undiscovered quest with no beats says so ("no beats yet"); one with
+  a rule that unlocks it names the beat, or says "Held payoff — not yet
+  fired" when the trigger is a condition with no single beat to name. A
+  settled quest shows how its run actually ended ("Session 4 · ledger
+  settled" or "one thread closed unfinished"), read from the `end` transition's
+  own reason where the DM typed a session number, never a guessed date.
+- **The header line** — "N active · N threads live across N quests · N prep
+  gaps" — is whole-campaign, not filtered by whatever search or facet is
+  active; it is the table's overall state, not a count of the current view.
+
+`src/lib/quests/board.ts#deriveQuestBoardSummaries` computes all of this
+per-thread, keyed by `QuestBoardThreadSummary` (id, label, status, current
+beat title, its own beat-segment reading) — every card and the featured card
+alike read `threadBadges()` (`lib/quests/threads.ts`) over that array for the
+letter and tone, never choosing one locally.
+
+### What went
+
+Named once so nobody goes looking for them: `QuestBeatInspector.vue`,
+`QuestBeatLootPanel.vue`, `QuestRunBeatEditor.vue`, `QuestRunControls.vue`,
+`QuestRunImprovPanel.vue`, `QuestRunPath.vue`, `QuestRunSitePanel.vue`,
+`QuestRunTally.vue`. `QuestConsequencesPanel.vue` was renamed rather than
+deleted — it is `QuestRulesPanel.vue` now, with its beat-scope branches
+removed rather than kept dead.
 
 ---
 
@@ -632,10 +1048,37 @@ also show `quest.description` — a DM-authored field with no visibility gate of
 its own — until #793 removed the column; the story thread is the player
 projection now, and it is already visibility-gated per beat.
 
-`PlayerQuestStoryThread` renders a dashed **Rumors** block for `rumored` beats and
-a **Confirmed journey** timeline for `revealed` ones, ordered by `story_order`
-rather than reveal time — narrative order, not the order the DM happened to
-disclose things.
+**`PlayerQuestStoryThread` reads by thread now (#850, frame `08 Player`):
+"revealed beats only, grouped by thread so parallel actually reads as
+parallel."** `get_player_visible_quest_beats` carries four new columns —
+`thread_id`, `thread_label`, `is_current` (a live/waiting thread stands on
+this beat right now), `payoff` (knowledge granted and loot dropped here,
+`revealed` beats only) — and `groupPlayerBeatsByThread`
+(`src/lib/quests/playerThreads.ts`) turns that flat, already-resolved list
+into ordered columns purely on the client: it does not re-derive thread
+identity or re-fold anything, since the RPC already did that in SQL.
+
+- **A thread exists for players only once its first beat is revealed.** Until
+  then it folds into Main — a layer opened in secret stays secret, and there
+  is no "column 3" hinting at a thread the party has never heard from.
+- **Columns**, Main first (or whichever thread's earliest beat comes soonest,
+  for a malformed/pre-#850 cache with no Main row): the primary column's
+  eyebrow is its bare label, every other column reads "Also following —
+  `<label>`".
+- **One ordered list per column, not two separate blocks.** A rumoured beat
+  renders inline as "_Rumoured:_ `rumor_text`"; a revealed one renders
+  `reveal_text` plain — both in the same `story_order` sequence, which
+  replaces this doc's older description of a dashed Rumors block sitting
+  above a separate Confirmed-journey timeline. `story_order`, not reveal
+  time, is still the ordering rule (see the "do not fix" note below).
+- **Payoff chips** sit under a beat that carries any: a knowledge chip per
+  `grant_knowledge` event fired from a transition into that beat, and a loot
+  chip per dispatched `loot_placements` row on it — claimable loot links to
+  `/play/chat`, where the actual claim button lives; **held** loot (not yet
+  dispatched) never appears here, since that is DM prep, not yet part of the
+  party's story.
+- **"happening now"** marks the one beat in a column a live or waiting thread
+  currently stands on (`is_current`).
 
 Containment is in two places, and the split matters:
 
@@ -646,6 +1089,12 @@ Containment is in two places, and the split matters:
   than an empty entry. The RPC still returns that row — the drop is presentation,
   not a security boundary, and the boundary above is what stops the DM's title
   leaking.
+
+**Threads and cursors stay DM-only tables** (`quest_threads`,
+`quest_runtime_state`, `quest_beat_transitions` each carry a single
+`private.is_campaign_dm()` policy) — this projection is the one door a
+player-facing client has to any of it, the same door beat visibility already
+goes through.
 
 The runtime cursor is invisible to players — `quest_runtime_state` has a single
 `private.is_campaign_dm()` policy.
@@ -662,23 +1111,77 @@ DM-gated `SECURITY DEFINER` with `set search_path = public, private`, **except
 caller's own RLS (it still revokes from `public`/`anon` and grants only to
 `authenticated`):
 
-`get_quest_runtime_context` (returns state, current beat, previous, outgoing edges,
-return target, and the most recent **100** transitions — the cockpit polls it),
-`get_campaign_live_quests`, `transition_quest_runtime` (commands: `start`,
-`advance`, `previous`, `jump`, `return`, `improv`, `pause`, `resume`, `end`),
-`improvise_quest_runtime`, `search_quest_runtime_jump_targets`,
-`end_campaign_quest_session`, `archive_quest_beat`, `create_quest_beat_with_route`,
-`dispatch_loot`, `get_loot_placements` (renamed from `dispatch_quest_beat_loot` /
-`get_quest_beat_loot` by #830 when rooms gained the same verb — see
-`loot_placements` above), `get_player_visible_quest_beats`,
-`get_player_visible_quests`, `assert_quest_objective_status` (#794 — the DM
-asserting a status with no cursor movement), `assert_quest_runtime` (#796 — see
-**Record what already happened** below), `perform_quest_consequence`
-(#794 — performs one already-logged, delayed world-action event on a date the
-client computed; see "one rule engine" above) and
-`get_player_visible_site_state` (#798 — the inside of a site as the party knows
-it; see below).
+**Every runtime RPC is thread-scoped since #850** — the lock, the version and
+the cursor all belong to a thread, named by `p_thread_id` on every call.
+There is no thread-less read path left anywhere in this list.
 
+`transition_quest_runtime(campaign, quest, thread, command, expected_version,
+target_beat_id?, edge_id?, reason?, push_return?, provenance?,
+spawn_edge_ids?, hold_consequence_ids?, dispatch_loot_ids?)` — commands
+`start`, `advance`, `previous`, `jump`, `return`, `improv`, `pause`, `resume`,
+`end`, same as before #850, now against one named thread. `advance` walks a
+`choice` route on that thread; `p_spawn_edge_ids` walks each named `parallel`
+route by **spawning a thread** in the same transaction — its own cursor,
+`enter` transition and arrival rules — while the calling thread's cursor does
+not move. Arriving at a `converge_mode: 'all'` beat parks the thread
+(`private.settle_thread_arrival`): once every one of the beat's authored
+incoming routes has been walked by a live-or-waiting thread, the earliest
+arrival (by `seq`, never `created_at` — two threads can write their arrival
+transition inside the same transaction and tie on timestamp) survives as the
+running cursor, every other waiting thread there is folded into it
+(`merged`), and the beat's arrival rules fire exactly once, on the
+survivor's _original_ arrival transition. A parked thread's own route rules
+still fire immediately on walking — the route's rules are the route's, only
+the beat's arrival rules wait for the merge. `p_hold_consequence_ids` logs a
+rule with `held_at` set instead of performing it; `p_dispatch_loot_ids`
+dispatches loot on the target as part of the same move.
+
+`open_quest_thread(campaign, quest, beat, label, reason?)` /
+`close_quest_thread(campaign, quest, thread, reason?)` — the thread bar's
+manual open/close. Opening writes a fresh thread and cursor with no parent
+edge and runs the beat's arrival rules exactly like any other arrival;
+closing delegates to the `end` command when the thread has a live cursor
+(which also stamps `quest_threads`), and refuses a thread that has already
+merged.
+
+`get_quest_runtime_context(campaign, quest, thread)` — one thread's state,
+current beat, previous, outgoing edges (each carrying `route_kind`,
+`thread_label`, `converge_mode`, `site`, `gate`, `effects`, `payoff`, `loot`),
+return target, the most recent **100** transitions (the cockpit polls it),
+plus — since #850 — `thread` (this thread's own summary), `threads` (every
+sibling thread of the quest, each with its own current beat and status), and
+`held` (the quest's held-but-not-fired payoff events).
+
+`get_campaign_live_quests` — one row **per open thread**, running first, each
+carrying `thread_id`/`thread_label`/`thread_status` and a `sibling_count` (how
+many threads that thread's quest currently has open).
+
+`improvise_quest_runtime`, `search_quest_runtime_jump_targets`,
+`end_campaign_quest_session` (pauses every running **thread** at its beat;
+a `waiting` thread — parked for a merge — is left waiting, since the story
+parked it, not the DM closing the table), `archive_quest_beat(beat_id,
+p_replacements)` — `p_replacements` is `[{thread_id, beat_id | null}]`: every
+thread whose cursor stands on the beat being archived must be named (a null
+`beat_id` ends that thread instead of moving it), or the call raises `23514`
+naming the thread. This replaced a single `p_expected_runtime_version` scalar,
+which cannot describe "every thread currently on this beat" once a beat can
+hold more than one — the `for update` read inside the function's own loop is
+the concurrency guard now, catching a thread that arrived after the caller
+loaded the page.
+
+`create_quest_beat_with_route`, `dispatch_loot`, `get_loot_placements`
+(renamed from `dispatch_quest_beat_loot` / `get_quest_beat_loot` by #830 when
+rooms gained the same verb — see `loot_placements` above),
+`get_player_visible_quest_beats` (thread-aware since #850 — see **Player
+surfaces** above), `get_player_visible_quests`,
+`assert_quest_objective_status` (#794 — the DM asserting a status with no
+cursor movement), `assert_quest_runtime` (#796, thread-scoped by #850 — see
+**Record what already happened** below), `perform_quest_consequence` (#794 —
+performs one already-logged event: a due delayed world action on a date the
+client computed, **or**, since #850, a held event fired from the log,
+including the three new verbs and a held ledger verb; see "one rule engine"
+above) and `get_player_visible_site_state` (#798 — the inside of a site as
+the party knows it; see below).
 
 ### Record what already happened — the backfill panel
 
@@ -687,6 +1190,14 @@ Overview. The DM ticks the beats the party already played, optionally names the
 session, and records them: consequences are applied and the cursor can be placed
 at the last one — without ever starting a session. *"Backfilling ten sessions of
 history should not mean performing them."*
+
+**Thread-scoped since #850, defaulting to the quest's first live thread.**
+The panel records against one named thread (`useQuestThreads`, the first
+`status: 'live'` row) — every quest still has exactly one until a parallel
+route or the thread bar opens a second, so this has not yet needed a thread
+picker of its own; a quest with more than one live thread when the panel is
+opened backfills against whichever one happens to sort first, which is worth
+knowing before relying on it for a multi-thread quest.
 
 **Every row shows its own state before anything is ticked** — "Playing now" /
 "The party is here", "Played · 3d ago", "Recorded · Session 4", "Not played" —
@@ -743,10 +1254,12 @@ Semantics not to re-litigate (from #755):
   position drops the abandoned entries. `quest_beat_transitions` stays the
   authoritative log — do **not** rebuild the back path from it, which would make it
   un-rewindable.
-- **A command names exactly one chain.** Reaching another quest is navigation to
-  its own Run URL, not a runtime write.
-- **Ending is per chain.** `end_campaign_quest_session` pauses every running chain
-  at its beat rather than clearing it, and is called by `end_campaign_session`.
+- **A command names exactly one thread of one chain.** Reaching another quest
+  is navigation to its own Run URL, not a runtime write.
+- **Ending is per thread.** `end_campaign_quest_session` pauses every running
+  thread at its beat rather than clearing it (a `waiting` thread is left
+  waiting — the story parked it, not the DM), and is called by
+  `end_campaign_session`.
 - **Nesting is a sort hint.** A parent's cursor never aggregates its children's.
 
 `promote_quest_on_cursor_arrival` ratchets `quests.status` `undiscovered|rumor →
@@ -811,8 +1324,6 @@ there.
 
 - **`quest_beats.kind` is open text, deliberately.** It is a presentation hint and
   explicitly does not constrain attachments. Do not narrow it to an enum.
-- **`QuestRunTally` is not used by the cockpit.** Its `QuestRun*` name is a
-  leftover; the consumers are `QuestGraphDesigner` and `QuestGraphOutline`.
 - **The player thread orders by `story_order`, not by reveal time.** Narrative
   order is the intent; the rationale is in the component.
 - **Quests have no save-triggered navigation at all.** Metadata and beat fields
@@ -821,6 +1332,31 @@ there.
   autosaving field — there is no save event to hang it on.
 - **`?mode=run` may choose a surface but must never start a session.** Writing
   `ui.dmMode` as a side effect of a link was a defect, fixed in #758.
+- **The cursor is per thread — never add a thread-less read path.**
+  `quest_runtime_state`'s PK is `(campaign_id, quest_id, thread_id)`; there is
+  no "default thread" special case anywhere in the RPCs, and a new surface
+  that reads or writes runtime state without naming a thread is reading the
+  wrong shape, not filling a gap.
+- **`apply_quest_consequences`'s `p_hold` array is how a rule gets held, not a
+  second code path.** A held rule runs through the same condition-matching
+  loop as every other rule; it just logs the event with `held_at` set and
+  returns before performing it, and before seeding the cascade with an
+  objective that never actually moved. Do not special-case "held" outside
+  this function.
+- **The `seq` tiebreak on `quest_beat_transitions` is not decorative.** Two
+  threads can write their own arrival transition inside the same wall-clock
+  transaction, so `created_at` can tie between them; `seq`
+  (`generated always as identity`) is the one column that says which arrival
+  actually happened first, and a converge-all merge depends on it being right.
+  Anything that orders arrivals by `created_at` instead will occasionally pick
+  the wrong survivor.
+- **The Payoff panel is one list over two tables, on purpose.** `QuestPayoffPanel.vue`
+  merges `quest_consequences` and `loot_placements` at the surface because
+  that is one question at the table ("what does this beat give"), but the
+  tables stay separate — see "Threads, parallel routes and payoff" in the
+  model and the `loot_placements` section in the data model above for the
+  three axes that make the split real. Do not fold them into one table
+  because the surface reads as one list.
 
 ---
 
@@ -848,21 +1384,39 @@ quest-shaped exception in CLAUDE.md, or send all four to the plain list and
 make a freshly hooked quest as hard to get back into as filing a new NPC —
 never had to be chosen between.
 
-## In flight: the redesign
+## Design source
 
-**[EPIC #780](https://github.com/irongollem/grimoire/issues/780)** collapses the
-two generations into the model at the top of this doc and makes the dungeon a place
-in the Atlas. Read the epic before starting any quest work — it carries the model
-definition and the **deletion manifest**, which is its acceptance test.
+The DM surfaces described above implement **`quests/Quest Manager Redesign.html`**,
+in the Grimoire project on Claude Design, read through the design-sync tool —
+frames `01 Delta` · `02 Story flow` · `03 Inspector` · `04 Run` · `05 Advance`
+· `06 Site` · `07 Log` · `08 Player`. That file is the surface spec for the DM
+and player surfaces sections above: it is an _incremental_ redesign of what
+epic #780 shipped (keep beats, routes, gates, the one consequence mechanism,
+loot placements, the site surface) that names the three things the shipped
+model still could not say — a quest can only hold one cursor, a route cannot
+say "and also," a payoff is split across two panels — and redraws the six
+surfaces around them. [EPIC #850](https://github.com/irongollem/grimoire/issues/850)
+implemented it; read that epic for the story-by-story breakdown and the wave
+gates it shipped under.
 
-Phases: **0** the cockpit containment bug (#776) and this doc (#782); **1** the
-dungeon standalone (#783–#791) — _ships with zero references to quest tables_;
-**2** the ledger (#792–#796), where the legacy dies; **3** the join (#797–#799).
+**It supersedes the surface half of an earlier, fourteen-board canvas** (the
+"Quest System Redesign" canvas cited from `CLAUDE.md`) — that canvas's _model_
+page (beats are events, objectives are state) is unchanged and still the
+opening section of this doc; only its surface boards are superseded, by the
+file above. Do not treat the fourteen-board canvas as the current surface
+spec for anything DM- or player-facing; treat it as where the model
+originated, and the Quest Manager Redesign as where the surfaces that render
+it are defined now.
 
-The rule the whole plan rests on: **every change is measured by what it removes.**
-Generation two forked because it shipped beside its predecessor and nothing was
-ever deleted. If a step cannot delete its predecessor yet, that is the signal it is
-not ready to be built — not a reason to build it beside.
+**[EPIC #780](https://github.com/irongollem/grimoire/issues/780)** is the
+epic that collapsed two generations into the model at the top of this doc and
+made the dungeon a place in the Atlas — the schema and engine #850 builds on.
+Its own deletion manifest and phase history (0 the cockpit containment bug and
+this doc; 1 the dungeon standalone; 2 the ledger; 3 the join) are historical
+record now rather than open work, but the rule it shipped under still applies
+to every change in this file: **every change is measured by what it
+removes.** A step that cannot delete its predecessor yet is not ready to be
+built — not a reason to build it beside.
 
 ## DM Manual
 
