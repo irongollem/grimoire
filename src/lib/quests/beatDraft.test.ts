@@ -17,11 +17,11 @@ describe("quest beat draft", () => {
     });
   });
 
-  it("changing kind preserves narrative and attachments-independent state", () => {
+  it("treats a changed title as a different draft from the one it started as", () => {
     const before = questBeatToDraft(beat);
-    const after = { ...before, kind: "combat" };
+    const after = { ...before, title: "A different choice" };
     expect(questBeatDraftToUpdate(after)).toMatchObject({
-      kind: "combat", dm_content: "lead", read_aloud: "speech", how_it_plays: "talk",
+      title: "A different choice", dm_content: "lead", read_aloud: "speech", how_it_plays: "talk",
     });
     expect(questBeatDraftsEqual(before, after)).toBe(false);
   });

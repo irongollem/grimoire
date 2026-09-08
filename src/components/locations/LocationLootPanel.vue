@@ -64,7 +64,7 @@
 
 <script setup lang="ts">
 /**
- * A room's loot (#830) — the location-homed sibling of `QuestBeatLootPanel`.
+ * A room's loot (#830) — the location-homed sibling of the beat's `QuestPayoffPanel`.
  * The list half (entries, drop/remove, status) is shared verbatim via
  * `LootPlacementList`; what differs here is the "prepare" form, which is not
  * a props-driven variation of the beat's — a room can roll a loot table into

@@ -8,14 +8,8 @@ const mocks = vi.hoisted(() => ({ update: vi.fn() }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.update }),
 }));
-vi.mock("@/composables/locations/useLocations", () => ({
-  useLocationTree: () => ({ locationOptions: { value: [
-    { id: "loc-1", name: "Moon Temple", depth: 0 },
-    { id: "loc-2", name: "Crypt", depth: 1 },
-  ] } }),
-}));
 
-const stubs = { RichTextEditor: true, MentionTextarea: true, EntityCombobox: true };
+const stubs = { RichTextEditor: true, MentionTextarea: true };
 
 const beat = (): QuestBeat => ({
   id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", title: "The bargain",
@@ -37,7 +31,7 @@ describe("QuestBeatFields", () => {
 
   it("keeps a blank title local and resumes autosave with the pending draft", async () => {
     const wrapper = mount(QuestBeatFields, {
-      props: { beat: beat(), compact: true },
+      props: { beat: beat() },
       global: { stubs },
     });
     const title = wrapper.findAll("input")[0]!;
@@ -65,7 +59,7 @@ describe("QuestBeatFields", () => {
   // of the word being typed every time an autosave landed mid-sentence.
   it("leaves the typed text alone when the save normalises it", async () => {
     const wrapper = mount(QuestBeatFields, {
-      props: { beat: beat(), compact: true },
+      props: { beat: beat() },
       global: { stubs },
     });
     const title = wrapper.findAll("input")[0]!;
@@ -80,30 +74,9 @@ describe("QuestBeatFields", () => {
     expect(wrapper.text()).toContain("Saved");
   });
 
-  // The composer creates beats from a fixed list of kinds; this editor used to
-  // offer free text, so the same field had two vocabularies.
-  it("offers the shared kind list without discarding a kind it does not know", () => {
-    const shared = mount(QuestBeatFields, {
-      props: { beat: beat(), compact: true },
-      global: { stubs },
-    });
-    const kind = shared.findAll("select")[0]!;
-    expect(kind.findAll("option").map((option) => option.attributes("value")))
-      .toEqual(["neutral", "combat", "social", "explore", "discovery"]);
-    expect((kind.element as HTMLSelectElement).value).toBe("social");
-
-    const imported = mount(QuestBeatFields, {
-      props: { beat: { ...beat(), kind: "heist" }, compact: true },
-      global: { stubs },
-    });
-    const importedKind = imported.findAll("select")[0]!;
-    expect(importedKind.findAll("option").map((option) => option.attributes("value"))).toContain("heist");
-    expect((importedKind.element as HTMLSelectElement).value).toBe("heist");
-  });
-
   it("ignores its own saved row echoing back through the beat prop", async () => {
     const wrapper = mount(QuestBeatFields, {
-      props: { beat: beat(), compact: true },
+      props: { beat: beat() },
       global: { stubs },
     });
     const title = wrapper.findAll("input")[0]!;
@@ -121,60 +94,12 @@ describe("QuestBeatFields", () => {
     expect((title.element as HTMLInputElement).value).toBe("Renamed elsewhere");
   });
 
-  it("stages the beat at a location immediately, without waiting for the debounced draft", async () => {
-    const wrapper = mount(QuestBeatFields, {
-      props: { beat: beat(), compact: true },
-      global: { stubs },
-    });
-    const combo = wrapper.findComponent({ name: "EntityCombobox" });
-    combo.vm.$emit("update:modelValue", "loc-1");
-    await flushPromises();
-
-    expect(mocks.update).toHaveBeenCalledWith({
-      id: "beat-1",
-      questId: "quest-1",
-      update: { staged_at_location_id: "loc-1" },
-    });
-  });
-
-  it("clears staging back to unstaged", async () => {
-    const wrapper = mount(QuestBeatFields, {
-      props: { beat: { ...beat(), staged_at_location_id: "loc-1" }, compact: true },
-      global: { stubs },
-    });
-    const combo = wrapper.findComponent({ name: "EntityCombobox" });
-    combo.vm.$emit("update:modelValue", "");
-    await flushPromises();
-
-    expect(mocks.update).toHaveBeenCalledWith({
-      id: "beat-1",
-      questId: "quest-1",
-      update: { staged_at_location_id: null },
-    });
-  });
-
-  // Staging and the debounced draft both write the same row and share its
-  // optimistic-concurrency version. If the staging save did not fold its
-  // returned `updated_at` back into that shared version, the draft's next
-  // autosave would compare against a version the staging write already moved
-  // past and fail with a false "changed in another window" — caused entirely
-  // by the beat's own other control.
-  it("keeps the debounced draft's optimistic-concurrency version in sync after a staging change", async () => {
-    const wrapper = mount(QuestBeatFields, {
-      props: { beat: beat(), compact: true },
-      global: { stubs },
-    });
-    const combo = wrapper.findComponent({ name: "EntityCombobox" });
-    combo.vm.$emit("update:modelValue", "loc-1");
-    await flushPromises();
-
-    const title = wrapper.findAll("input")[0]!;
-    await title.setValue("A better bargain");
-    await vi.advanceTimersByTimeAsync(2100);
-    await flushPromises();
-
-    expect(mocks.update).toHaveBeenCalledTimes(2);
-    const titleSaveInput = mocks.update.mock.calls[1]![0] as { expectedUpdatedAt?: string };
-    expect(titleSaveInput.expectedUpdatedAt).toBe("version-2");
+  // Kind, visibility and staged location moved to the Beat panel's own inline
+  // rows on the beat page — each saved immediately there, not through this
+  // draft — so this editor no longer renders or autosaves them at all.
+  it("no longer offers kind, visibility or staged-location controls", () => {
+    const wrapper = mount(QuestBeatFields, { props: { beat: beat() }, global: { stubs } });
+    expect(wrapper.find("select").exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
   });
 });

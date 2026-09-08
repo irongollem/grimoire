@@ -1,17 +1,26 @@
 <template>
-  <section class="space-y-3 rounded-lg border border-border bg-card p-3" aria-label="Beat attachments">
-    <div class="flex items-center gap-2">
-      <div>
-        <h3 class="font-cinzel text-sm font-bold text-foreground">Prepared material</h3>
-        <p class="text-caption text-muted-foreground">Place existing campaign material here; its specialist editor stays authoritative.</p>
-        <p class="text-caption text-muted-foreground">Mark what the beat cannot run without — a needed placement counts as a prep gap if its material is later deleted.</p>
-      </div>
-    </div>
+  <section class="space-y-3 rounded-xl border border-border bg-card p-3" aria-label="Placements">
+    <header class="flex items-center gap-2">
+      <h3 class="font-cinzel text-sm font-bold text-foreground">Placements</h3>
+      <span class="ml-auto font-fell text-caption text-muted-foreground">NPCs, monsters, encounters, rolls</span>
+    </header>
 
     <ul v-if="attachments.length" class="space-y-1.5">
       <li v-for="attachment in attachments" :key="attachment.id" class="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-border p-2 text-caption">
-        <span class="rounded bg-muted px-1.5 py-0.5 uppercase text-muted-foreground">{{ adapterLabel(attachment.attachment_type) }}</span>
-        <span class="min-w-0 flex-1 truncate" :class="attachment.prep_gap ? 'text-tone-caution' : 'text-foreground'">{{ attachment.label }}</span>
+        <span
+          class="flex h-4 w-4 shrink-0 items-center justify-center rounded"
+          :class="attachment.is_required
+            ? (attachment.target_exists ? 'bg-tone-success text-white' : 'border border-dashed border-tone-caution text-ink-caution')
+            : 'border border-border text-transparent'"
+        >
+          <IconCheck v-if="attachment.is_required && attachment.target_exists" class="h-2.5 w-2.5" />
+          <IconWarning v-else-if="attachment.is_required" class="h-2.5 w-2.5" />
+          <span class="sr-only">{{ attachment.is_required ? (attachment.target_exists ? 'Required, present' : 'Required, missing — prep gap') : 'Optional' }}</span>
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="truncate font-cinzel text-label-lg font-bold text-foreground">{{ attachment.label }}</p>
+          <p class="truncate text-muted-foreground">{{ attachment.compact_detail || (attachment.is_required ? '' : 'Optional fallback — kept out of the prep-gap count') }}</p>
+        </div>
         <AppButton
           :label="attachment.is_required ? 'Needed' : 'Optional'"
           :title="attachment.is_required
@@ -25,7 +34,8 @@
           :disabled="!!updatingId && updatingId !== attachment.id"
           @click="setRequired(attachment, !attachment.is_required)"
         />
-        <AppButton v-if="attachment.target_exists" label="Open" size="xs" variant="subtle" @click="opened = attachment" />
+        <AppButton v-if="attachment.target_exists" label="Edit" size="xs" variant="subtle" @click="opened = attachment" />
+        <AppButton v-else label="Attach" size="xs" @click="attachmentType = attachment.attachment_type" />
         <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === attachment.id" @click="remove(attachment.id)" />
       </li>
     </ul>
@@ -75,6 +85,7 @@ import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
 import { withQuestReturnTo } from "@/lib/quests/navigation";
+import { IconCheck, IconWarning } from "@/lib/icons";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";

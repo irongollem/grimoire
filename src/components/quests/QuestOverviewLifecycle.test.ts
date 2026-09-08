@@ -68,10 +68,10 @@ function mountLifecycle() {
     global: {
       stubs: {
         // Isolate this component's own ledger/lifecycle logic from its
-        // children's — QuestConsequencesPanel, QuestBackfillPanel and
+        // children's — QuestRulesPanel, QuestBackfillPanel and
         // EntityCalendarSection have their own composables and their own test
         // files.
-        QuestConsequencesPanel: true,
+        QuestRulesPanel: true,
         QuestBackfillPanel: true,
         EntityCalendarSection: true,
         QuestSidebarPanels: true,
@@ -104,7 +104,7 @@ describe("QuestOverviewLifecycle", () => {
     mocks.objectives = [objective({ id: "obj-1", description: "Find the missing miller" })];
     const wrapper = mountLifecycle();
     expect(wrapper.text()).toContain("Find the missing miller");
-    expect(wrapper.findComponent({ name: "QuestConsequencesPanel" }).props("scope")).toBe("quest");
+    expect(wrapper.findComponent({ name: "QuestRulesPanel" }).exists()).toBe(true);
     expect(wrapper.findComponent({ name: "QuestBeatLootPanel" }).exists()).toBe(false);
     expect(wrapper.findComponent({ name: "QuestBeatAttachmentsPanel" }).exists()).toBe(false);
   });

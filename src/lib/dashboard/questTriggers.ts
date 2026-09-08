@@ -11,7 +11,7 @@ import type { CalendarAdapter } from "@/types/calendar.types";
  * A `quest_consequences` row is a DM-authored rule — "when [this beat is
  * reached / this objective becomes that / the quest settles], N days later,
  * [create a calendar event / send a broadcast / move an objective]"
- * (`QuestConsequencesPanel.vue`). The moment its condition fires, the engine
+ * (`QuestPayoffPanel.vue` on a beat, `QuestRulesPanel.vue` on the quest). The moment its condition fires, the engine
  * logs a `quest_consequence_events` row and, for the two *world* actions,
  * performs it immediately unless `after_days > 0` — see that table's own
  * column comment. So a pending world-action event (`performed_at is null`) is

@@ -31,7 +31,7 @@ export function isLedgerConsequenceAction(action: QuestConsequenceAction): boole
 /**
  * One line describing what a consequence rule does — `Complete "Kill the
  * dragon"`, or `Calendar event: "The bridge collapses"`. Shared by the rule
- * editor (`QuestConsequencesPanel`) and the backfill preview
+ * editors (`QuestPayoffPanel` on a beat, `QuestRulesPanel` on the quest) and the backfill preview
  * (`QuestBackfillPanel`, #796), which both need to turn a `quest_consequences`
  * row into the same sentence a DM reads at a glance — extracted rather than
  * grown a second time, since the two already differ only in how they resolve

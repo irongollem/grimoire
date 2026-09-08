@@ -1,50 +1,15 @@
 <template>
-  <section class="space-y-4" :aria-label="compact ? 'Beat inspector fields' : 'Full beat editor fields'">
-    <div class="grid gap-3" :class="compact ? '' : 'md:grid-cols-2'">
-      <label class="space-y-1 text-caption font-semibold text-foreground">
-        Title
-        <AppInput
-          v-model="draft.title"
-          placeholder="What happens in this beat?"
-          :aria-invalid="!!titleError"
-          :aria-describedby="titleError ? 'quest-beat-title-error' : undefined"
-        />
-        <span v-if="titleError" id="quest-beat-title-error" role="alert" class="block text-caption font-normal text-destructive">{{ titleError }}</span>
-      </label>
-      <label class="space-y-1 text-caption font-semibold text-foreground">
-        Kind
-        <AppSelect v-model="kind">
-          <option v-for="option in kindOptions" :key="option" :value="option">{{ kindLabel(option) }}</option>
-        </AppSelect>
-      </label>
-      <label class="space-y-1 text-caption font-semibold text-foreground">
-        Presentation
-        <AppInput v-model="draft.presentation_hint" placeholder="Tense negotiation, montage…" />
-      </label>
-      <label class="space-y-1 text-caption font-semibold text-foreground">
-        Player visibility
-        <AppSelect v-model="draft.visibility">
-          <option value="hidden">Hidden</option>
-          <option value="rumored">Rumored</option>
-          <option value="revealed">Revealed</option>
-        </AppSelect>
-      </label>
-      <label class="space-y-1 text-caption font-semibold text-foreground">
-        Staged at
-        <EntityCombobox v-model="stagedLocationId" :options="locationOptions" placeholder="Where does this beat happen?">
-          <template #option="{ opt }">
-            <span :style="{ paddingLeft: `${(opt as LocationOption).depth * 0.75}rem` }">{{ opt.name }}</span>
-          </template>
-        </EntityCombobox>
-        <span v-if="stagingSaving" class="block text-caption font-normal text-muted-foreground">Saving…</span>
-        <span v-else-if="stagingError" role="alert" class="block text-caption font-normal text-destructive">{{ stagingError }}</span>
-      </label>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-2">
-      <AppButton label="Preview as players" size="sm" variant="subtle" @click="emit('preview', { draftVisibility: draft.visibility, savedVisibility: beat.visibility, unsaved: dirty })" />
-      <span class="text-caption text-muted-foreground">Uses saved player data; DM fields never enter the preview.</span>
-    </div>
+  <section class="space-y-4" aria-label="Beat editor fields">
+    <label class="block space-y-1 text-caption font-semibold text-foreground">
+      Title
+      <AppInput
+        v-model="draft.title"
+        placeholder="What happens in this beat?"
+        :aria-invalid="!!titleError"
+        :aria-describedby="titleError ? 'quest-beat-title-error' : undefined"
+      />
+      <span v-if="titleError" id="quest-beat-title-error" role="alert" class="block text-caption font-normal text-destructive">{{ titleError }}</span>
+    </label>
 
     <AppCheckbox
       v-if="beat.is_improvised"
@@ -56,21 +21,19 @@
 
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       DM lead
-      <RichTextEditor v-model="draft.dm_content" :sticky-toolbar="!compact" placeholder="What should the DM know first?" />
+      <RichTextEditor v-model="draft.dm_content" sticky-toolbar placeholder="What should the DM know first?" />
     </label>
 
-    <template v-if="!compact">
-      <label class="block space-y-1 text-caption font-semibold text-foreground">
-        Read aloud or paraphrase
-        <RichTextEditor v-model="draft.read_aloud" size="md" placeholder="Player-safe boxed text…" />
-      </label>
-      <label class="block space-y-1 text-caption font-semibold text-foreground">
-        How it plays
-        <RichTextEditor v-model="draft.how_it_plays" size="md" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" />
-      </label>
-    </template>
+    <label class="block space-y-1 text-caption font-semibold text-foreground">
+      Read aloud or paraphrase
+      <RichTextEditor v-model="draft.read_aloud" size="md" placeholder="Player-safe boxed text…" />
+    </label>
+    <label class="block space-y-1 text-caption font-semibold text-foreground">
+      How it plays
+      <RichTextEditor v-model="draft.how_it_plays" size="md" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" />
+    </label>
 
-    <div class="grid gap-3" :class="compact ? '' : 'md:grid-cols-2'">
+    <div class="grid gap-3 md:grid-cols-2">
       <label class="space-y-1 text-caption font-semibold text-foreground">
         Rumor copy
         <MentionTextarea v-model="draft.rumor_text" :rows="3" placeholder="Exactly what players may see while rumored…" />
@@ -96,27 +59,17 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useDebounceFn } from "@vueuse/core";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
-import { useLocationTree } from "@/composables/locations/useLocations";
 import { questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "@/lib/quests/beatDraft";
-import { QUEST_BEAT_KINDS, QUEST_BEAT_KIND_LABELS, type QuestBeat } from "@/types/quest.types";
-import type { Location } from "@/types/location.types";
+import type { QuestBeat } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
-import AppSelect from "@/components/common/AppSelect.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 
-type LocationOption = Location & { depth: number };
-
-const { beat, compact = false } = defineProps<{ beat: QuestBeat; compact?: boolean }>();
-const emit = defineEmits<{
-  saved: [beat: QuestBeat];
-  preview: [context: { draftVisibility: QuestBeat["visibility"]; savedVisibility: QuestBeat["visibility"]; unsaved: boolean }];
-}>();
+const { beat } = defineProps<{ beat: QuestBeat }>();
+const emit = defineEmits<{ saved: [beat: QuestBeat] }>();
 const updateBeat = useUpdateQuestBeat();
-const { locationOptions } = useLocationTree();
 const draft = reactive(questBeatToDraft(beat));
 let baseline = questBeatToDraft(beat);
 const activeBeatId = ref(beat.id);
@@ -125,69 +78,13 @@ const dirty = ref(false);
 const saving = ref(false);
 const saveError = ref("");
 const titleError = computed(() => dirty.value && !draft.title.trim() ? "Give this beat a title before it is saved." : "");
-// The composer offers these five, so this offered free text and the two drifted.
-// A kind the list does not know is kept as an option rather than dropped: a
-// generated or imported beat may carry its own word for the scene, and the save
-// path already treats blank as "neutral", so blank shows as neutral here too.
-const kind = computed({
-  get: () => draft.kind || "neutral",
-  set: (value: string) => { draft.kind = value; },
-});
-const kindOptions = computed<string[]>(() => (QUEST_BEAT_KINDS as readonly string[]).includes(kind.value)
-  ? [...QUEST_BEAT_KINDS]
-  : [...QUEST_BEAT_KINDS, kind.value]);
-function kindLabel(option: string) {
-  return QUEST_BEAT_KIND_LABELS[option as (typeof QUEST_BEAT_KINDS)[number]] ?? option;
-}
 let hydrating = false;
-
-// Staging saves immediately, outside the debounced draft above: picking a
-// place is one discrete action, not something typed through a pause, so there
-// is no keystroke to protect and no reason to wait out `saveLater`. It reads
-// `beat.staged_at_location_id` straight from the prop rather than mirroring it
-// into a ref — a selection is instantaneous, so there is no live text to lose
-// to an echo, and on failure the getter simply reverts to the still-unchanged
-// prop value with no extra bookkeeping.
-//
-// EntityCombobox's model is a plain `string` ("" means unselected, see its
-// own `clear()`), so "" and `null` both mean "unstaged" and are translated at
-// this boundary rather than anywhere staged_at_location_id is stored.
-const stagingSaving = ref(false);
-const stagingError = ref("");
-const stagedLocationId = computed<string>({
-  get: () => beat.staged_at_location_id ?? "",
-  set: (nextId) => { void setStagedLocation(nextId); },
-});
-
-async function setStagedLocation(nextId: string) {
-  const targetBeatId = beat.id;
-  const current = beat.staged_at_location_id ?? "";
-  if (nextId === current) return;
-  stagingSaving.value = true;
-  stagingError.value = "";
-  try {
-    const saved = await updateBeat.mutateAsync({
-      id: targetBeatId,
-      questId: beat.quest_id,
-      update: { staged_at_location_id: nextId || null },
-    });
-    // The debounced draft's own optimistic-concurrency check compares against
-    // this same `version` ref (see `saveNow` below) — without updating it here
-    // too, its next autosave would compare against a row this write already
-    // moved past and fail with a false "changed in another window".
-    if (targetBeatId === activeBeatId.value) version.value = saved.updated_at;
-  } catch (caught) {
-    stagingError.value = caught instanceof Error ? caught.message : "Could not change where this beat is staged";
-  } finally {
-    stagingSaving.value = false;
-  }
-}
 
 // Our own autosave echoes straight back through this prop — first the optimistic
 // write, then the refetch `onSettled` triggers — and the row it carries is the
-// *normalised* one: title trimmed, blank `kind` defaulted, blank prose nulled.
-// Re-seeding the draft from that deletes characters out from under the caret
-// mid-sentence, so only a genuinely newer row from elsewhere may replace live text.
+// *normalised* one: title trimmed, blank prose nulled. Re-seeding the draft
+// from that deletes characters out from under the caret mid-sentence, so only
+// a genuinely newer row from elsewhere may replace live text.
 watch(() => beat, (nextBeat) => {
   const isEcho = nextBeat.updated_at === version.value;
   if (nextBeat.id === activeBeatId.value && (dirty.value || saving.value || isEcho)) return;

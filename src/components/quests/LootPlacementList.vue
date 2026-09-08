@@ -33,14 +33,14 @@
 /**
  * The half of a loot surface that is genuinely home-agnostic: the entries
  * list, drop/remove actions, and claim status. Extracted from
- * `QuestBeatLootPanel` when rooms gained the same "hold, then drop" verb
+ * the beat's loot panel (now `QuestPayoffPanel`) when rooms gained the same "hold, then drop" verb
  * (#830) — every action here authorises off `entry.campaign_id`, a field
  * every home (beat or room) carries, so a beat panel and a room panel share
  * this byte-for-byte instead of diverging.
  *
  * What stays per-surface is the "prepare a new entry" form: a room can roll
  * a loot-table chest into existence and a beat cannot, which is a difference
- * in kind, not in a few prop values — see `QuestBeatLootPanel` and
+ * in kind, not in a few prop values — see `QuestPayoffPanel` and
  * `LocationLootPanel`.
  *
  * Emits `dropped` after a successful dispatch so a location-homed caller can

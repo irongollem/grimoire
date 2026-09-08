@@ -18,8 +18,8 @@
 
     <!-- The one ledger, owned by the quest: every objective's live state, in
          one place. A beat only ever declares the rules that move an entry
-         here — see QuestConsequencesPanel (scope="beat") — it never holds one
-         of its own. -->
+         here — see the Payoff list on the beat page (`QuestPayoffPanel.vue`)
+         — it never holds one of its own. -->
     <section class="rounded-lg border border-border bg-card overflow-hidden" aria-label="Objectives">
       <div class="px-3 py-2 border-b border-border bg-muted/20">
         <span class="text-label-lg font-semibold text-muted-foreground">
@@ -100,7 +100,7 @@
       </div>
     </section>
 
-    <QuestConsequencesPanel scope="quest" :quest-id="quest.id" />
+    <QuestRulesPanel :quest-id="quest.id" />
     <QuestBackfillPanel :quest="quest" />
     <QuestSidebarPanels
       :is-new="false"
@@ -142,7 +142,7 @@ import { formatQuestForScriptorium } from "@/lib/scriptorium/scriptoriumImport";
 import type { Quest, QuestObjective } from "@/types/quest.types";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 import QuestSidebarPanels from "./QuestSidebarPanels.vue";
-import QuestConsequencesPanel from "./QuestConsequencesPanel.vue";
+import QuestRulesPanel from "./QuestRulesPanel.vue";
 import QuestBackfillPanel from "./QuestBackfillPanel.vue";
 
 const props = defineProps<{ quest: Quest }>();

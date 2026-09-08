@@ -34,7 +34,7 @@
     </section>
 
     <!-- Loot — held here until a DM drops it to chat (#830). Same
-         hold-then-drop verb `QuestBeatLootPanel` gives a beat; dropping it
+         hold-then-drop verb `QuestPayoffPanel` gives a beat; dropping it
          is what flips Progress's Looted fact above, so this sits right after
          it. No location-type gate — a shop till or a shrine can hold loot as
          well as a dungeon room — but it does need a campaign, since dropped

@@ -1,10 +1,16 @@
 import type { QuestBeat, QuestBeatUpdate } from "@/types/quest.types";
 
+/**
+ * `QuestBeatFields.vue`'s own field set: the prose an editor types through a
+ * pause. `kind`, `presentation_hint`, `visibility` and `staged_at_location_id`
+ * are edited elsewhere now — as inline rows in the Beat panel on the beat
+ * page (Quest Manager Redesign frame `03 Inspector`), each saved immediately
+ * rather than debounced — so they never belonged in this draft to begin with
+ * once that move landed; keeping them here would have been the surpassed
+ * path this draft used to be.
+ */
 export interface QuestBeatDraft {
   title: string;
-  kind: string;
-  presentation_hint: string;
-  visibility: QuestBeat["visibility"];
   dm_content: string;
   read_aloud: string;
   how_it_plays: string;
@@ -16,9 +22,6 @@ export interface QuestBeatDraft {
 export function questBeatToDraft(beat: QuestBeat): QuestBeatDraft {
   return {
     title: beat.title,
-    kind: beat.kind,
-    presentation_hint: beat.presentation_hint ?? "",
-    visibility: beat.visibility,
     dm_content: beat.dm_content ?? "",
     read_aloud: beat.read_aloud ?? "",
     how_it_plays: beat.how_it_plays ?? "",
@@ -39,9 +42,6 @@ export function questBeatDraftToUpdate(draft: QuestBeatDraft, savedReviewedAt: s
   const nullable = (value: string) => value || null;
   return {
     title: draft.title.trim(),
-    kind: draft.kind.trim() || "neutral",
-    presentation_hint: nullable(draft.presentation_hint.trim()),
-    visibility: draft.visibility,
     dm_content: nullable(draft.dm_content),
     read_aloud: nullable(draft.read_aloud),
     how_it_plays: nullable(draft.how_it_plays),

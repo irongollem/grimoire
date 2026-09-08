@@ -1,16 +1,9 @@
 <template>
-  <section
-    class="space-y-2 rounded-lg border border-border bg-card p-3"
-    :aria-label="scope === 'beat' ? 'Consequences decided here' : 'Quest consequences'"
-  >
+  <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Quest consequences">
     <div>
-      <h3 class="font-cinzel text-sm font-bold text-foreground">
-        {{ scope === "beat" ? "Consequences decided here" : "Consequences" }}
-      </h3>
+      <h3 class="font-cinzel text-sm font-bold text-foreground">Consequences</h3>
       <p class="text-caption text-muted-foreground">
-        {{ scope === "beat"
-          ? "Running the session applies these. Attach one to the beat and it fires on arrival; attach it to a branch and it fires only if the party takes that road."
-          : "When an objective becomes a status, or the whole ledger settles, do this — optionally after a delay." }}
+        When an objective becomes a status, or the whole ledger settles, do this — optionally after a delay.
       </p>
     </div>
 
@@ -24,29 +17,19 @@
         <AppButton label="Remove" size="xs" variant="subtle" :loading="removingId === row.id" @click="remove(row.id)" />
       </li>
     </ul>
-    <p v-else class="text-caption italic text-muted-foreground">
-      {{ scope === "beat" ? "Nothing here changes anything yet." : "No quest-wide consequences yet." }}
-    </p>
+    <p v-else class="text-caption italic text-muted-foreground">No quest-wide consequences yet.</p>
 
     <div class="grid min-w-0 gap-2 sm:grid-cols-2">
       <!-- Condition -->
-      <template v-if="scope === 'beat'">
-        <AppSelect v-model="conditionEdgeId" class="min-w-0 sm:col-span-2" aria-label="When this fires">
-          <option value="">On arriving at this beat</option>
-          <option v-for="edge in outgoing" :key="edge.id" :value="edge.id">On taking the route to {{ beatTitle(edge.target_beat_id) }}</option>
+      <AppSelect v-model="conditionKind" class="min-w-0" aria-label="Condition" @change="conditionObjectiveId = ''">
+        <option value="settled">When the quest settles</option>
+        <option value="objective">When an objective becomes…</option>
+      </AppSelect>
+      <template v-if="conditionKind === 'objective'">
+        <EntityCombobox v-model="conditionObjectiveId" class="min-w-0" :options="objectiveOptions" placeholder="Which objective…" />
+        <AppSelect v-model="conditionObjectiveStatus" class="min-w-0 sm:col-span-2" aria-label="Becomes">
+          <option v-for="status in QUEST_CONSEQUENCE_OBJECTIVE_STATUSES" :key="status" :value="status">…becomes {{ QUEST_OBJECTIVE_STATUS_LABELS[status] }}</option>
         </AppSelect>
-      </template>
-      <template v-else>
-        <AppSelect v-model="conditionKind" class="min-w-0" aria-label="Condition" @change="conditionObjectiveId = ''">
-          <option value="settled">When the quest settles</option>
-          <option value="objective">When an objective becomes…</option>
-        </AppSelect>
-        <template v-if="conditionKind === 'objective'">
-          <EntityCombobox v-model="conditionObjectiveId" class="min-w-0" :options="objectiveOptions" placeholder="Which objective…" />
-          <AppSelect v-model="conditionObjectiveStatus" class="min-w-0 sm:col-span-2" aria-label="Becomes">
-            <option v-for="status in QUEST_CONSEQUENCE_OBJECTIVE_STATUSES" :key="status" :value="status">…becomes {{ QUEST_OBJECTIVE_STATUS_LABELS[status] }}</option>
-          </AppSelect>
-        </template>
       </template>
 
       <!-- Delay -->
@@ -127,8 +110,6 @@ import {
   QUEST_CONSEQUENCE_OBJECTIVE_STATUSES,
   QUEST_CONSEQUENCE_WORLD_ACTIONS,
   NPC_RELATIONSHIP_LADDER,
-  type QuestBeat,
-  type QuestBeatEdge,
   type QuestConsequence,
   type QuestConsequenceAction,
   type QuestConsequenceActionPayload,
@@ -145,31 +126,24 @@ import { describeQuestConsequenceAction, isLedgerConsequenceAction, QUEST_CONSEQ
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 
 /**
- * The one consequence editor (#794). Mounted twice, on disjoint rows of the
- * same `quest_consequences` table:
+ * The quest-wide half of the one consequence editor (#794): rules that fire
+ * when an objective becomes a status, or when the whole ledger settles.
+ * Mounted once, on the quest overview (`QuestOverviewLifecycle`).
  *
- * - `scope="beat"`, on a beat (inspector + beat page): authors arrival
- *   (`on_beat_id`) and branch (`on_edge_id`) conditions — a beat owns both its
- *   own arrival rule and the rules on every road out of it.
- * - `scope="quest"`, on the quest overview (`QuestOverviewLifecycle`): authors
- *   objective-became (`on_objective_id` + `on_objective_status`) and
- *   quest-settled (`on_quest_settled`) conditions.
+ * The beat-scoped half — arrival and branch conditions, authored on a beat —
+ * moved into the Payoff list on the beat page (`QuestPayoffPanel.vue`,
+ * Quest Manager Redesign frame `03 Inspector`) when the loot panel and this
+ * editor's beat scope folded into one "what this beat gives" list. This file
+ * used to be `QuestConsequencesPanel.vue` and take a `scope` prop; there is
+ * now exactly one scope, so the prop and its beat-only branches are gone
+ * rather than kept as dead code paths nothing selects anymore.
  *
- * Both scopes share the same action half: the four ledger verbs and the two
- * world actions, plus the delay field — `quest_triggers` and
+ * Both scopes still share the same action half: the four ledger verbs and the
+ * two world actions, plus the delay field — `quest_triggers` and
  * `quest_objective_effects` used to split that in half by scope; one table,
  * one editor now.
  */
-const { scope, questId, beat, edges = [], beats = [] } = defineProps<{
-  scope: "beat" | "quest";
-  questId: string;
-  /** Required (and only meaningful) for `scope="beat"`. */
-  beat?: QuestBeat;
-  edges?: QuestBeatEdge[];
-  /** Named for the target beat title a branch condition now reads instead of
-   *  the free-text label that used to be an edge's own field (#795). */
-  beats?: QuestBeat[];
-}>();
+const { questId } = defineProps<{ questId: string }>();
 
 const CALENDAR_EVENT_TYPES = Object.keys(EVENT_TYPE_COLORS) as CalendarEventType[];
 
@@ -204,18 +178,10 @@ const consequencesQuery = useQuestConsequences(computed(() => questId));
 const createConsequence = useCreateQuestConsequence();
 const deleteConsequence = useDeleteQuestConsequence();
 
-const outgoing = computed(() => scope === "beat" && beat ? edges.filter((edge) => edge.source_beat_id === beat.id) : []);
-const outgoingIds = computed(() => new Set(outgoing.value.map((edge) => edge.id)));
-
-// A beat's rows are its own arrival plus every branch leaving it; a quest's
-// rows are everything else — the two lists never overlap.
-const rows = computed(() => {
-  const all = consequencesQuery.data.value ?? [];
-  if (scope === "beat") {
-    return all.filter((row) => row.on_beat_id === beat?.id || (row.on_edge_id !== null && outgoingIds.value.has(row.on_edge_id)));
-  }
-  return all.filter((row) => row.on_objective_id !== null || row.on_quest_settled);
-});
+// Objective-became and quest-settled rules only — a beat/edge rule from the
+// flow lives in the Payoff list instead.
+const rows = computed(() => (consequencesQuery.data.value ?? [])
+  .filter((row) => row.on_objective_id !== null || row.on_quest_settled));
 
 const objectiveOptions = computed(() => (objectives.value ?? []).map((objective) => ({ id: objective.id, name: objective.description })));
 function objectiveFor(id: string | null) {
@@ -227,14 +193,9 @@ function objectiveLabel(id: string | null): string {
   return objectiveFor(id)?.description ?? "Objective removed";
 }
 
-function beatTitle(id: string): string {
-  return beats.find((row) => row.id === id)?.title || "Missing beat";
-}
-
 // ── Condition form ───────────────────────────────────────────────────────────
 
-const conditionEdgeId = ref(""); // "" = arrival at the beat itself (scope="beat")
-const conditionKind = ref<"settled" | "objective">("settled"); // scope="quest"
+const conditionKind = ref<"settled" | "objective">("settled");
 const conditionObjectiveId = ref("");
 const conditionObjectiveStatus = ref<QuestConsequenceObjectiveStatus>("complete");
 
@@ -288,7 +249,7 @@ const RELATIONSHIP_STEPS = [
 // the database's no-self-reference check — so that objective is dropped from
 // the target picker rather than offered and then rejected.
 const targetOptions = computed(() => {
-  if (scope === "quest" && conditionKind.value === "objective" && conditionObjectiveId.value) {
+  if (conditionKind.value === "objective" && conditionObjectiveId.value) {
     return objectiveOptions.value.filter((option) => option.id !== conditionObjectiveId.value);
   }
   return objectiveOptions.value;
@@ -299,7 +260,7 @@ watch(targetOptions, (options) => {
 });
 
 const canAdd = computed(() => {
-  if (scope === "quest" && conditionKind.value === "objective" && !conditionObjectiveId.value) return false;
+  if (conditionKind.value === "objective" && !conditionObjectiveId.value) return false;
   if (isLedgerAction(action.value)) return !!targetObjectiveId.value;
   if (action.value === "create_calendar_event") return !!calendarTitle.value.trim();
   if (action.value === "shift_npc_relationship") return !!targetNpcId.value && relationshipStep.value !== 0;
@@ -313,11 +274,6 @@ const canAdd = computed(() => {
 // ── Display ──────────────────────────────────────────────────────────────────
 
 function conditionLabel(row: QuestConsequence): string {
-  if (row.on_beat_id) return "on arrival";
-  if (row.on_edge_id) {
-    const edge = outgoing.value.find((candidate) => candidate.id === row.on_edge_id);
-    return `on taking the route to "${edge ? beatTitle(edge.target_beat_id) : "a removed beat"}"`;
-  }
   if (row.on_quest_settled) return "when the quest settles";
   return `when "${objectiveLabel(row.on_objective_id)}" becomes ${QUEST_OBJECTIVE_STATUS_LABELS[row.on_objective_status!].toLowerCase()}`;
 }
@@ -333,7 +289,6 @@ function actionSummary(row: QuestConsequence): string {
 // ── Mutations ────────────────────────────────────────────────────────────────
 
 function resetForm() {
-  conditionEdgeId.value = "";
   conditionKind.value = "settled";
   conditionObjectiveId.value = "";
   targetObjectiveId.value = "";
@@ -350,7 +305,6 @@ function resetForm() {
 
 async function add() {
   if (!canAdd.value) return;
-  if (scope === "beat" && !beat) return;
   adding.value = true;
   error.value = "";
   try {
@@ -369,11 +323,11 @@ async function add() {
                 : {};
     const insert: QuestConsequenceInsert = {
       quest_id: questId,
-      on_beat_id: scope === "beat" && !conditionEdgeId.value ? beat!.id : null,
-      on_edge_id: scope === "beat" && conditionEdgeId.value ? conditionEdgeId.value : null,
-      on_objective_id: scope === "quest" && conditionKind.value === "objective" ? conditionObjectiveId.value : null,
-      on_objective_status: scope === "quest" && conditionKind.value === "objective" ? conditionObjectiveStatus.value : null,
-      on_quest_settled: scope === "quest" && conditionKind.value === "settled",
+      on_beat_id: null,
+      on_edge_id: null,
+      on_objective_id: conditionKind.value === "objective" ? conditionObjectiveId.value : null,
+      on_objective_status: conditionKind.value === "objective" ? conditionObjectiveStatus.value : null,
+      on_quest_settled: conditionKind.value === "settled",
       after_days: afterDays.value || 0,
       action: action.value,
       target_objective_id: isLedgerAction(action.value) ? targetObjectiveId.value : null,
