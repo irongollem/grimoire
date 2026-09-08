@@ -41,17 +41,31 @@
           class="flex min-h-40 flex-1 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2 transition-colors"
           :class="dragOverGroup === group.key && draggedQuestId ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''"
         >
-          <QuestBoardCard
-            v-for="quest in group.quests"
-            :key="quest.id"
-            :quest="quest"
-            :party="party"
-            :summary="summaries?.[quest.id]"
-            :dragging="draggedQuestId === quest.id"
-            @dragstart="startDrag"
-            @dragend="endDrag"
-            @move="moveQuest(quest.id, $event)"
-          />
+          <template v-for="(section, index) in group.sections" :key="section.key">
+            <!-- A rumour is its own stage of the lifecycle (undiscovered →
+                 rumoured → active → settled). It folds into Active on the
+                 board because the party is already living with it, but it is
+                 named, not hidden behind a chip. -->
+            <div
+              v-if="section.heading && (section.quests.length || index > 0)"
+              class="flex items-center gap-2 pt-1"
+              :class="index > 0 && 'mt-1 border-t border-border/60 pt-2'"
+            >
+              <span class="text-label uppercase tracking-wide text-ink-arcane">{{ section.heading }}</span>
+              <span class="text-caption text-muted-foreground">{{ section.caption }}</span>
+            </div>
+            <QuestBoardCard
+              v-for="quest in section.quests"
+              :key="quest.id"
+              :quest="quest"
+              :party="party"
+              :summary="summaries?.[quest.id]"
+              :dragging="draggedQuestId === quest.id"
+              @dragstart="startDrag"
+              @dragend="endDrag"
+              @move="moveQuest(quest.id, $event)"
+            />
+          </template>
 
           <div v-if="!group.quests.length" class="flex flex-1 items-center justify-center px-4 py-8 text-center">
             <p v-if="group.unfilteredCount" class="font-fell text-sm italic text-muted-foreground">{{ group.unfilteredCount }} {{ group.shortLabel }} quest{{ group.unfilteredCount === 1 ? '' : 's' }} filtered out.</p>
@@ -120,11 +134,23 @@ const GROUP_DEFINITIONS: readonly QuestGroupDefinition[] = [
   { key: "settled", heading: "Settled", shortLabel: "settled", icon: IconCheck, statuses: ["completed", "failed"], primaryStatus: "completed" },
 ];
 
-const groups = computed(() => GROUP_DEFINITIONS.map((definition) => ({
-  ...definition,
-  quests: quests.filter((quest) => definition.statuses.includes(quest.status)),
-  unfilteredCount: (allQuests ?? quests).filter((quest) => definition.statuses.includes(quest.status)).length,
-})));
+const groups = computed(() => GROUP_DEFINITIONS.map((definition) => {
+  const inGroup = quests.filter((quest) => definition.statuses.includes(quest.status));
+  // Active carries its rumoured quests under their own heading; every other
+  // group is one unlabelled run of cards.
+  const sections = definition.key === "active"
+    ? [
+        { key: "active", heading: null, caption: null, quests: inGroup.filter((quest) => quest.status === "active") },
+        { key: "rumor", heading: "Rumoured", caption: "heard of, not yet begun", quests: inGroup.filter((quest) => quest.status === "rumor") },
+      ].filter((section) => section.quests.length > 0 || section.key === "active")
+    : [{ key: definition.key, heading: null, caption: null, quests: inGroup }];
+  return {
+    ...definition,
+    quests: inGroup,
+    sections,
+    unfilteredCount: (allQuests ?? quests).filter((quest) => definition.statuses.includes(quest.status)).length,
+  };
+}));
 
 const liveQuests = computed(() => quests
   .map((quest) => ({ quest, summary: summaries?.[quest.id] }))

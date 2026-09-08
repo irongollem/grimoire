@@ -106,6 +106,27 @@ describe("QuestKanbanBoard", () => {
     expect(wrapper.getComponent(QuestFeaturedCard).props("quest").id).toBe("1");
   });
 
+  // The rumour is a stage of the lifecycle (undiscovered → rumoured → active →
+  // settled). It folds into Active because the party already lives with it,
+  // but it is named there, and the card can confirm it.
+  it("lists rumoured quests under their own heading inside Active, with a Confirm action", async () => {
+    const wrapper = mount(QuestKanbanBoard, {
+      props: { quests: [quest("1", "active"), quest("2", "rumor")] },
+      global,
+    });
+    const active = wrapper.findAll("section")[0]!;
+    expect(active.text()).toContain("Rumoured");
+    expect(active.text()).toContain("heard of, not yet begun");
+    const rumourCard = wrapper.findAllComponents(QuestBoardCard).find((card) => card.props("quest").id === "2")!;
+    await rumourCard.findAll("button").find((button) => button.text() === "Confirm")!.trigger("click");
+    expect(wrapper.emitted("move")).toEqual([[{ id: "2", status: "active" }]]);
+  });
+
+  it("shows no Rumoured heading when nothing is rumoured", () => {
+    const wrapper = mount(QuestKanbanBoard, { props: { quests: [quest("1", "active")] }, global });
+    expect(wrapper.findAll("section")[0]!.text()).not.toContain("Rumoured");
+  });
+
   it("promotes a dropped quest to the target group's primary status", async () => {
     const wrapper = mount(QuestKanbanBoard, {
       props: { quests: [quest("1", "rumor")] },

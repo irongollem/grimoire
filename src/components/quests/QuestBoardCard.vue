@@ -193,6 +193,19 @@
           size="xs"
           variant="subtle"
         />
+        <!-- A rumour is a real stage, not a chip: the party has heard of the
+             quest and not begun it. Confirming it is the DM's call (the party
+             arriving at its first beat does the same thing automatically). -->
+        <AppButton
+          v-if="quest.status === 'rumor'"
+          label="Confirm"
+          :tooltip="`The party takes it up — ${quest.title || 'this quest'} becomes active`"
+          size="xs"
+          variant="tinted"
+          tone="arcane"
+          emphasis="soft"
+          @click="emit('move', 'active')"
+        />
         <AppButton
           v-if="previousStatus"
           :icon="IconChevronLeft"
