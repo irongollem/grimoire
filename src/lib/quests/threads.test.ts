@@ -48,6 +48,14 @@ describe("threadTone", () => {
       expect(tone.bg).toMatch(/^bg-(primary|tone-)/);
     }
   });
+
+  it("gives the swimlane wash a much fainter fill than a badge background", () => {
+    for (const index of [0, 1, 2]) {
+      const tone = threadTone(index);
+      expect(tone.bgFaint).toMatch(/^bg-(primary|tone-\w+)\/5$/);
+      expect(tone.bgFaint).not.toBe(tone.bg);
+    }
+  });
 });
 
 describe("threadBadges", () => {

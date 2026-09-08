@@ -41,6 +41,24 @@
           <QuestFlowEdge v-bind="slotProps" />
         </template>
       </VueFlow>
+      <!-- Story flow frame's canvas legend: the same three colours the wires
+           and edge pills already draw with, so the key and the graph can
+           never disagree. `pointer-events: none` — it must never steal a
+           node drag or a canvas pan. -->
+      <div class="quest-flow-legend" aria-hidden="true">
+        <span class="quest-flow-legend__item">
+          <svg width="24" height="6" viewBox="0 0 24 6"><path d="M0 3h24" stroke="var(--primary)" stroke-width="2" /></svg>
+          <span class="text-eyebrow text-muted-foreground">choice</span>
+        </span>
+        <span class="quest-flow-legend__item">
+          <svg width="24" height="9" viewBox="0 0 24 9"><path d="M0 2.5h24M0 6.5h24" stroke="var(--color-tone-info)" stroke-width="1.5" /></svg>
+          <span class="text-eyebrow text-muted-foreground">parallel</span>
+        </span>
+        <span class="quest-flow-legend__item">
+          <svg width="24" height="6" viewBox="0 0 24 6"><path d="M0 3h24" stroke="var(--muted-foreground)" stroke-width="1.6" stroke-dasharray="5 4" /></svg>
+          <span class="text-eyebrow text-muted-foreground">gated / cut off</span>
+        </span>
+      </div>
     </div>
     <div class="quest-flow-outline"><QuestGraphOutline :beats="beats" :presentations="presentations" :selected-beat-id="selectedBeatId" :editable="editable" @command="emit('command', $event)" /></div>
   </div>
@@ -176,6 +194,21 @@ defineExpose({ fitGraph, focusCurrent });
 .quest-flow-shell { min-width: 0; }
 .quest-flow-canvas { position: relative; height: min(70vh, 48rem); min-height: 28rem; border: 1px solid var(--border); border-radius: .75rem; overflow: hidden; background: var(--background); }
 .quest-flow-outline { display: none; }
+.quest-flow-legend {
+  position: absolute;
+  left: 1.5rem;
+  bottom: 0.875rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.9375rem;
+  padding: 0.5rem 0.6875rem;
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  background: var(--card);
+  pointer-events: none;
+}
+.quest-flow-legend__item { display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap; }
 /* Choice is the default wire: a solid primary stroke, thicker once visited. */
 :deep(.vue-flow__edge-path) { stroke: var(--primary); stroke-width: .1rem; }
 :deep(.vue-flow__edge.is-visited .vue-flow__edge-path) { stroke-width: .16rem; }

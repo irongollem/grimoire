@@ -20,7 +20,7 @@
   <path v-if="showRail" :d="path" class="quest-flow-edge-rail nodrag nopan" aria-hidden="true" />
   <EdgeLabelRenderer>
     <span
-      class="quest-flow-edge-label nodrag nopan"
+      class="quest-flow-edge-label text-eyebrow nodrag nopan"
       :class="labelClass"
       :title="labelTooltip"
       :style="{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }"
@@ -90,7 +90,11 @@ const labelTooltip = computed(() => gate.value ? describeQuestRouteGate(gate.val
 const labelClass = computed(() => ({
   "is-gate": kindLabel.value === "gate",
   "is-parallel": kindLabel.value === "parallel",
+  // A choice route that is still open reads as the "pri" pill (Story flow
+  // frame): gold border and text. A stranded sibling drops the accent
+  // entirely — the default muted pill — which is why this is checked first.
   "is-stranded": kindLabel.value === "choice" && Boolean(data?.stranded),
+  "is-choice": kindLabel.value === "choice" && !data?.stranded,
 }));
 // The double-rail look is the "open, parallel" state only — a closed gate or
 // a stranded target already reads as dashed muted-foreground, and drawing
@@ -112,16 +116,17 @@ const labelY = computed(() => sourceY + (route.value[2] - sourceY) * 2 * LABEL_T
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.2rem 0.45rem;
+  padding: 0.1875rem 0.5625rem;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--card);
-  color: var(--primary);
-  font-size: 0.75rem;
-  line-height: 1;
+  color: var(--muted-foreground);
   pointer-events: all;
 }
+/* An open choice route is the "pri" pill in the Story flow frame — gold
+   border and text. Stranded siblings and gates keep the muted default. */
+.quest-flow-edge-label.is-choice { border-color: color-mix(in oklab, var(--primary) 55%, transparent); color: var(--primary); }
+.quest-flow-edge-label.is-parallel { border-color: color-mix(in oklab, var(--color-tone-info) 55%, transparent); color: var(--color-ink-info); }
+.quest-flow-edge-label.is-gate { border-color: var(--muted-foreground); color: var(--muted-foreground); }
 .quest-flow-edge-label.is-stranded { color: var(--muted-foreground); }
-.quest-flow-edge-label.is-parallel { color: var(--color-ink-info); }
-.quest-flow-edge-label.is-gate { color: var(--muted-foreground); }
 </style>

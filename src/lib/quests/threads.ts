@@ -57,16 +57,22 @@ export function threadLetter(index: number): string {
 export interface ThreadTone {
   text: string;
   bg: string;
+  /** A much fainter fill (~5%) than `bg` — the swimlane's own wash, not a
+   *  badge background. `bg` reads at 10-15% because a badge needs its tone
+   *  to carry the icon it sits behind; a swimlane covers hundreds of square
+   *  pixels of canvas, so the same strength would tint the beats inside it. */
+  bgFaint: string;
   border: string;
   dot: string;
-  /** For inline styles that need the raw colour (a swimlane's SVG stroke). */
+  /** For inline styles that need the raw colour (a swimlane's SVG stroke,
+   *  or a `color-mix()` border/fill at a strength no Tailwind class covers). */
   cssVar: string;
 }
 
 const TONES: readonly ThreadTone[] = [
-  { text: "text-primary", bg: "bg-primary/10", border: "border-primary", dot: "bg-primary", cssVar: "var(--primary)" },
-  { text: "text-ink-info", bg: "bg-tone-info/15", border: "border-tone-info", dot: "bg-ink-info", cssVar: "var(--color-ink-info)" },
-  { text: "text-ink-arcane", bg: "bg-tone-arcane/15", border: "border-tone-arcane", dot: "bg-ink-arcane", cssVar: "var(--color-ink-arcane)" },
+  { text: "text-primary", bg: "bg-primary/10", bgFaint: "bg-primary/5", border: "border-primary", dot: "bg-primary", cssVar: "var(--primary)" },
+  { text: "text-ink-info", bg: "bg-tone-info/15", bgFaint: "bg-tone-info/5", border: "border-tone-info", dot: "bg-ink-info", cssVar: "var(--color-ink-info)" },
+  { text: "text-ink-arcane", bg: "bg-tone-arcane/15", bgFaint: "bg-tone-arcane/5", border: "border-tone-arcane", dot: "bg-ink-arcane", cssVar: "var(--color-ink-arcane)" },
 ];
 
 export function threadTone(index: number): ThreadTone {

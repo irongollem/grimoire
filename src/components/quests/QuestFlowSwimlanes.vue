@@ -4,10 +4,17 @@
       v-for="lane in lanes"
       :key="lane.threadId"
       class="quest-flow-swimlane"
-      :class="lane.tone.border"
-      :style="{ left: `${lane.x}px`, top: `${lane.y}px`, width: `${lane.w}px`, height: `${lane.h}px` }"
+      :class="lane.tone.bgFaint"
+      :style="{
+        left: `${lane.x}px`, top: `${lane.y}px`, width: `${lane.w}px`, height: `${lane.h}px`,
+        borderColor: `color-mix(in oklab, ${lane.tone.cssVar} 38%, transparent)`,
+      }"
     >
-      <span class="quest-flow-swimlane__tag" :class="lane.tone.text">
+      <span
+        class="quest-flow-swimlane__tag"
+        :class="lane.tone.text"
+        :style="{ borderColor: `color-mix(in oklab, ${lane.tone.cssVar} 52%, transparent)` }"
+      >
         <IconNavigate class="h-3 w-3" aria-hidden="true" />
         {{ lane.letter }} — {{ lane.label }} · {{ lane.stateLabel }}
       </span>
@@ -35,20 +42,23 @@ const layerStyle = computed(() => ({
 
 <style scoped>
 .quest-flow-swimlanes { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
-.quest-flow-swimlane { position: absolute; border: 0.1rem dashed; border-radius: 1rem; opacity: .55; }
+.quest-flow-swimlane { position: absolute; border: 0.1rem dashed; border-radius: .75rem; }
 .quest-flow-swimlane__tag {
   position: absolute;
-  top: -1.15rem;
-  left: 0.5rem;
+  top: -0.6875rem;
+  left: 0.875rem;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  background: var(--background);
+  border: 0.0625rem solid;
+  border-radius: 999px;
+  padding: 0.125rem 0.5625rem;
   font-family: var(--font-cinzel);
-  font-size: 0.7rem;
+  font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .04em;
+  letter-spacing: .05em;
   white-space: nowrap;
-  opacity: 1;
 }
 </style>

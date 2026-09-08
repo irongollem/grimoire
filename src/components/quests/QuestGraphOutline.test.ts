@@ -41,5 +41,17 @@ describe("QuestGraphOutline", () => {
     expect(wrapper.text()).toContain("Thread A · visited");
     expect(wrapper.text()).toContain("Thread A · current · 1 prep gap");
     expect(wrapper.text()).toContain("Cut off by a choice");
+
+    // Story flow frame: a flat row draws a state mark first — a filled check
+    // square once visited, a thread-toned dot on the current beat, an
+    // outlined square (and a dimmed row) once cut off.
+    const rows = wrapper.findAll("li");
+    expect(rows[0]!.find("svg").exists()).toBe(true); // visited: check icon
+    expect(rows[0]!.classes()).not.toContain("opacity-60");
+    expect(rows[1]!.find(".bg-primary").exists()).toBe(true); // current: thread A's dot
+    expect(rows[1]!.classes()).toContain("pl-3.5");
+    expect(rows[2]!.classes()).toContain("opacity-60");
+    expect(rows[2]!.classes()).toContain("pl-3.5");
+    expect(rows[2]!.find(".border-border").exists()).toBe(true); // stranded: outlined square
   });
 });

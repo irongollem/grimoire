@@ -8,7 +8,7 @@
       <li
         v-for="row in rows"
         :key="row.badge.thread.id"
-        class="flex items-center gap-2 rounded-md border bg-background p-2"
+        class="group flex items-center gap-2 rounded-md border bg-background p-2"
         :class="row.badge.tone.border"
       >
         <span class="h-2 w-2 shrink-0 rounded-full" :class="row.badge.tone.dot" aria-hidden="true" />
@@ -17,7 +17,17 @@
           <p class="truncate text-caption text-muted-foreground">{{ row.caption }}</p>
         </div>
         <AppButton label="Focus" size="xs" variant="subtle" @click="emit('focus', row.badge.thread.id)" />
-        <AppButton v-if="row.badge.thread.status === 'live'" label="Close thread" size="xs" variant="destructive" @click="closeThread(row.badge.thread.id, row.badge.thread.label)" />
+        <AppButton
+          v-if="row.badge.thread.status === 'live'"
+          :icon="IconClose"
+          aria-label="Close thread"
+          tooltip="Close thread"
+          size="icon-xs"
+          variant="ghost"
+          tone="danger"
+          class="shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+          @click="closeThread(row.badge.thread.id, row.badge.thread.label)"
+        />
       </li>
     </ul>
     <p class="mt-2 text-caption text-muted-foreground">Closing a thread is your call, here or in the cockpit — nothing closes on its own.</p>
@@ -27,6 +37,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { IconClose } from "@/lib/icons";
 import { useCloseQuestThread } from "@/composables/quests/useQuestThreads";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";

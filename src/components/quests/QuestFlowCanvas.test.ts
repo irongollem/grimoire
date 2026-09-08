@@ -72,3 +72,15 @@ describe("QuestFlowCanvas viewport persistence", () => {
     expect(wrapper.emitted("viewport-change")).toBeUndefined();
   });
 });
+
+describe("QuestFlowCanvas legend", () => {
+  // Story flow frame: a small legend pinned over the canvas names the three
+  // route strokes the wires themselves draw, so a DM never has to guess what
+  // a dashed grey line means.
+  it("names choice, parallel, and gated/cut off", () => {
+    const wrapper = mountCanvas();
+    expect(wrapper.text()).toContain("choice");
+    expect(wrapper.text()).toContain("parallel");
+    expect(wrapper.text()).toContain("gated / cut off");
+  });
+});
