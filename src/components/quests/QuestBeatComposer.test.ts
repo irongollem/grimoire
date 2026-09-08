@@ -20,4 +20,17 @@ describe("QuestBeatComposer", () => {
     await wrapper.get("form").trigger("submit");
     expect(wrapper.emitted("submit")?.[0]?.[0]).toEqual({ title: "The bargain", kind: "social" });
   });
+
+  it("asks for a thread label in parallel mode and refuses to submit without one", async () => {
+    const wrapper = mount(QuestBeatComposer, { props: { sourceBeatId: "source", parallel: true } });
+    expect(wrapper.text()).toContain("Add parallel route");
+    const inputs = wrapper.findAll("input");
+    await inputs[0]!.setValue("Rumour: the Drowned Vault");
+    await wrapper.get("form").trigger("submit");
+    expect(wrapper.emitted("submit")).toBeUndefined();
+
+    await inputs[1]!.setValue("The Drowned Vault");
+    await wrapper.get("form").trigger("submit");
+    expect(wrapper.emitted("submit")?.[0]?.[0]).toEqual({ title: "Rumour: the Drowned Vault", kind: "neutral", threadLabel: "The Drowned Vault" });
+  });
 });

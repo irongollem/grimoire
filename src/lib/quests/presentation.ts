@@ -3,6 +3,8 @@ import type {
   QuestBeatAttachmentSummary,
   QuestBeatEdge,
   QuestBeatTransition,
+  QuestConsequence,
+  QuestConvergeMode,
   QuestRuntimeState,
 } from "@/types/quest.types";
 
@@ -10,6 +12,51 @@ export interface QuestBeatLootSummary {
   total: number;
   undispatched: number;
   unclaimed: number;
+}
+
+/** The cursor fields a presentation actually reads. A full `QuestRuntimeState`
+ *  row satisfies this, and so does a lighter-weight row built off
+ *  `QuestRuntimeContext.threads` (`QuestThreadCursor`) for a quest showing
+ *  more than one live thread at once — this is the shape both can share. */
+export type QuestBeatRuntimeCursor = Pick<QuestRuntimeState, "quest_id" | "thread_id" | "current_beat_id">;
+
+/** What the story flow canvas needs to draw a beat's `site · N rooms` /
+ *  `rooms X–Y empty` facts, keyed by `staged_at_location_id`. `unwrittenRooms`
+ *  is 1-based positions in the room list's own display order — the same
+ *  order `SiteRoomsPanel` numbers them in — so the label reads the way the
+ *  DM already sees the room list. */
+export interface QuestBeatSiteInput {
+  locationId: string;
+  name: string;
+  roomCount: number;
+  unwrittenRooms: number[];
+}
+
+export interface QuestBeatSitePresentation {
+  name: string;
+  roomCount: number;
+  /** Null when every room already has a description. */
+  emptyRoomLabel: string | null;
+}
+
+/** Collapses consecutive room positions into ranges ("rooms 4–6 empty"); a
+ *  scattered set reads as a comma list ("rooms 2, 4–5 empty"). Null input
+ *  (nothing unwritten) has nothing to say, so the caller never renders the
+ *  chip at all rather than a chip that says "0 empty". */
+export function formatUnwrittenRoomsLabel(unwrittenRooms: number[]): string | null {
+  if (!unwrittenRooms.length) return null;
+  const sorted = [...unwrittenRooms].sort((a, b) => a - b);
+  const ranges: string[] = [];
+  let start = sorted[0]!;
+  let prev = start;
+  for (let index = 1; index <= sorted.length; index += 1) {
+    const current = sorted[index];
+    if (current === prev + 1) { prev = current; continue; }
+    ranges.push(start === prev ? `${start}` : `${start}–${prev}`);
+    if (current !== undefined) { start = current; prev = current; }
+  }
+  const word = sorted.length === 1 ? "room" : "rooms";
+  return `${word} ${ranges.join(", ")} empty`;
 }
 
 export type QuestBeatPrepGapKind = "guidance" | "player_copy" | "attachment" | "improv_review" | "connection";
@@ -46,6 +93,18 @@ export interface QuestBeatPresentation {
    *  can legitimately be the arrival point for more than one of them before
    *  they merge, so this is a list rather than a single id. */
   currentThreadIds: string[];
+  /** `quest_consequences` rows conditioned on arriving at this beat, plus
+   *  loot still waiting to be dispatched from it — the story flow's combined
+   *  "what this beat gives" count (frame `02 Story flow`). */
+  payoffCount: number;
+  /** True when a rule on this beat promotes another quest out of `undiscovered`. */
+  unlocksQuest: boolean;
+  /** `null` unless the beat has two or more incoming routes — a single
+   *  incoming route has nothing to converge, so the mode is not worth saying. */
+  convergeLabel: QuestConvergeMode | null;
+  /** Set when the beat is staged at a location that actually holds rooms —
+   *  a location with none is just a place, not yet a site worth a room chip. */
+  site: QuestBeatSitePresentation | null;
 }
 
 export interface QuestReachTally {
@@ -115,10 +174,17 @@ export interface QuestBeatPresentationInput {
   beats: QuestBeat[];
   edges: QuestBeatEdge[];
   attachments: QuestBeatAttachmentSummary[];
-  /** One cursor per quest the party has open — several chains run at once. */
-  runtime?: QuestRuntimeState[];
+  /** One cursor per thread the party has open — several chains, and several
+   *  threads within one chain, run at once. */
+  runtime?: QuestBeatRuntimeCursor[];
   transitions?: QuestBeatTransition[];
   lootByBeat?: Record<string, QuestBeatLootSummary>;
+  /** Only the rules conditioned on arrival (`on_beat_id`) matter here — a
+   *  route's own rules are the edge's business, not the node's. */
+  consequences?: QuestConsequence[];
+  /** Keyed by `staged_at_location_id`. Absent for a beat staged nowhere, or
+   *  staged somewhere that has never had its rooms fetched. */
+  sites?: Record<string, QuestBeatSiteInput>;
 }
 
 /** Shared source for Build, board and Run beat status. It only combines
@@ -131,6 +197,17 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
     attachments.set(attachment.beat_id, list);
   }
   const connected = new Set(input.edges.flatMap((edge) => [edge.source_beat_id, edge.target_beat_id]));
+  const incomingCountByBeat = new Map<string, number>();
+  for (const edge of input.edges) {
+    incomingCountByBeat.set(edge.target_beat_id, (incomingCountByBeat.get(edge.target_beat_id) ?? 0) + 1);
+  }
+  const consequencesByBeat = new Map<string, QuestConsequence[]>();
+  for (const consequence of input.consequences ?? []) {
+    if (!consequence.on_beat_id) continue;
+    const list = consequencesByBeat.get(consequence.on_beat_id) ?? [];
+    list.push(consequence);
+    consequencesByBeat.set(consequence.on_beat_id, list);
+  }
   const visited = new Set((input.transitions ?? []).map((transition) => transition.to_beat_id));
   // Connectivity is a per-quest question. The board passes campaign-wide beats
   // through here, so counting `input.beats` directly would make every quest
@@ -183,6 +260,9 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       : outsideTheRun ? "unplayed"
       : reachableAhead.has(beat.id) ? "ahead"
       : "stranded";
+    const beatConsequences = consequencesByBeat.get(beat.id) ?? [];
+    const incomingCount = incomingCountByBeat.get(beat.id) ?? 0;
+    const siteInput = beat.staged_at_location_id ? input.sites?.[beat.staged_at_location_id] : undefined;
     result[beat.id] = {
       prepGapCount: prepGaps.length,
       prepGaps,
@@ -194,6 +274,12 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       isDisconnected,
       reach,
       currentThreadIds,
+      payoffCount: beatConsequences.length + loot.undispatched,
+      unlocksQuest: beatConsequences.some((consequence) => consequence.action === "unlock_quest"),
+      convergeLabel: incomingCount >= 2 ? beat.converge_mode : null,
+      site: siteInput && siteInput.roomCount > 0
+        ? { name: siteInput.name, roomCount: siteInput.roomCount, emptyRoomLabel: formatUnwrittenRoomsLabel(siteInput.unwrittenRooms) }
+        : null,
     };
   }
   return result;

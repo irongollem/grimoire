@@ -6,18 +6,12 @@ import type { QuestBeat } from "@/types/quest.types";
 const beat = (id: string): QuestBeat => ({ id, quest_id: "q", campaign_id: "c", title: id, dm_content: null, read_aloud: null, how_it_plays: null, converge_mode: "any", rumor_text: null, reveal_text: null, visibility: "hidden", kind: "neutral", presentation_hint: null, canvas_x: 0, canvas_y: 0, is_improvised: false, staged_at_location_id: null, improv_reviewed_at: null, created_by: "dm", created_at: "now", updated_at: "now" });
 
 describe("QuestGraphOutline", () => {
-  it("offers create, open, link, and delete without the canvas", async () => {
+  it("offers open, link, and delete without the canvas — creation lives on the header's own Add beat button now", async () => {
     const wrapper = mount(QuestGraphOutline, { props: { beats: [beat("a"), beat("b")], selectedBeatId: "a" } });
-    const buttons = wrapper.findAll("button");
-    // The label and the payload both track the selection: with a beat selected
-    // the button chains from it ("Add next beat"), and only reads "Add beat"
-    // when there is nothing to chain from.
-    await buttons.find((button) => button.text() === "Add next beat")!.trigger("click");
     await wrapper.findAll("li")[1]!.find("button").trigger("click");
-    await buttons.find((button) => button.text() === "Link")!.trigger("click");
-    await buttons.find((button) => button.text() === "Delete")!.trigger("click");
+    await wrapper.findAll("button").find((button) => button.text() === "Link")!.trigger("click");
+    await wrapper.findAll("button").find((button) => button.attributes("aria-label") === "Remove beat")!.trigger("click");
     const commands = wrapper.emitted("command")!.map((event) => event[0]);
-    expect(commands).toContainEqual({ type: "create", sourceBeatId: "a" });
     expect(commands).toContainEqual({ type: "open", beatId: "b" });
     expect(commands).toContainEqual({ type: "link", sourceBeatId: "a", targetBeatId: "b" });
     expect(commands).toContainEqual({ type: "delete-beat", beatId: "a" });
@@ -25,8 +19,27 @@ describe("QuestGraphOutline", () => {
 
   it("keeps selection available while hiding later authoring actions in read mode", () => {
     const wrapper = mount(QuestGraphOutline, { props: { beats: [beat("a")], selectedBeatId: "a", editable: false } });
-    expect(wrapper.text()).not.toContain("Add beat");
-    expect(wrapper.text()).not.toContain("Delete");
+    expect(wrapper.findAll("button").some((button) => button.attributes("aria-label") === "Remove beat")).toBe(false);
     expect(wrapper.text()).toContain("a");
+  });
+
+  it("names the thread standing on the current beat, the one that visited an earlier beat, and says a stranded beat was cut off by a choice", () => {
+    const threads = [{ id: "main", status: "live" as const, created_at: "2026-09-01T00:00:00Z", label: "The petition", opened_by_edge_id: null }];
+    const presentations = {
+      a: { reach: "visited", currentThreadIds: [], prepGapCount: 0 } as never,
+      b: { reach: "current", currentThreadIds: ["main"], prepGapCount: 1 } as never,
+      c: { reach: "stranded", currentThreadIds: [], prepGapCount: 0 } as never,
+    };
+    const wrapper = mount(QuestGraphOutline, {
+      props: {
+        beats: [beat("a"), beat("b"), beat("c")],
+        presentations,
+        threads,
+        transitions: [{ to_beat_id: "a", thread_id: "main" } as never],
+      },
+    });
+    expect(wrapper.text()).toContain("Thread A · visited");
+    expect(wrapper.text()).toContain("Thread A · current · 1 prep gap");
+    expect(wrapper.text()).toContain("Cut off by a choice");
   });
 });

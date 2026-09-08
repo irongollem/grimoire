@@ -1,6 +1,7 @@
 <template>
   <div class="quest-flow-shell">
     <div ref="canvasEl" class="quest-flow-canvas" aria-label="Quest beat graph editor">
+      <QuestFlowSwimlanes :lanes="swimlanes" :viewport="flow.viewport.value" />
       <VueFlow
         :id="graphId"
         v-model:nodes="nodes"
@@ -27,6 +28,8 @@
             :selected="slotProps.id === selectedBeatId"
             :current="slotProps.id === currentBeatId"
             :presentation="slotProps.data.presentation"
+            :gated="slotProps.data.isGated"
+            :threads="threads"
             :editable="editable"
             @select="emit('command', { type: 'select', beatId: slotProps.id })"
             @open="emit('command', { type: 'open', beatId: slotProps.id })"
@@ -50,20 +53,30 @@ import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import QuestFlowNode from "./QuestFlowNode.vue";
 import QuestFlowEdge from "./QuestFlowEdge.vue";
+import QuestFlowSwimlanes from "./QuestFlowSwimlanes.vue";
 import QuestGraphOutline from "./QuestGraphOutline.vue";
 import { moveBeatCommand, toQuestFlowGraph, type QuestGraphCommand } from "@/lib/quests/flow";
 import { prefersReducedMotion } from "@/lib/motion";
 import { viewportShowsAnyNode } from "@/lib/quests/viewport";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
+import { deriveSwimlanes, type SwimlaneRuntimeCursor, type SwimlaneTransition } from "@/lib/quests/swimlanes";
+import type { ThreadLike } from "@/lib/quests/threads";
 import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.types";
 
-const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, selectedBeatId = null, currentBeatId = null, fitOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; selectedBeatId?: string | null; currentBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
+// A beat card is 15rem (240px) wide; it has no fixed height (its content
+// grows the grid), so this is a deliberate approximation covering a beat with
+// a party chip, an eyebrow, a title and one row of facts — the swimlane only
+// needs to fully enclose the node, not hug it exactly.
+const SWIMLANE_NODE_SIZE = { width: 240, height: 150 };
+
+const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, threads = [], runtime = [], transitions = [], selectedBeatId = null, currentBeatId = null, fitOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; threads?: ThreadLike[]; runtime?: SwimlaneRuntimeCursor[]; transitions?: SwimlaneTransition[]; selectedBeatId?: string | null; currentBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
 const emit = defineEmits<{ command: [command: QuestGraphCommand]; "viewport-change": [viewport: ViewportTransform] }>();
 const flow = useVueFlow(graphId);
 const canvasEl = ref<HTMLElement | null>(null);
 const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds, edgeGates));
 const nodes = computed({ get: () => graph.value.nodes, set: () => undefined });
 const flowEdges = computed({ get: () => graph.value.edges, set: () => undefined });
+const swimlanes = computed(() => deriveSwimlanes({ threads, runtime, transitions, beats, nodeSize: SWIMLANE_NODE_SIZE }));
 let pendingConnectionSource: string | null = null;
 let connectionCompleted = false;
 
@@ -161,11 +174,21 @@ defineExpose({ fitGraph, focusCurrent });
 
 <style scoped>
 .quest-flow-shell { min-width: 0; }
-.quest-flow-canvas { height: min(70vh, 48rem); min-height: 28rem; border: 1px solid var(--border); border-radius: .75rem; overflow: hidden; background: var(--background); }
+.quest-flow-canvas { position: relative; height: min(70vh, 48rem); min-height: 28rem; border: 1px solid var(--border); border-radius: .75rem; overflow: hidden; background: var(--background); }
 .quest-flow-outline { display: none; }
-:deep(.vue-flow__edge-path) { stroke: var(--muted-foreground); }
-:deep(.vue-flow__edge.is-visited .vue-flow__edge-path) { stroke: var(--primary); stroke-width: 2.5; }
-:deep(.vue-flow__edge.is-closed .vue-flow__edge-path) { stroke-dasharray: 4 3; }
+/* Choice is the default wire: a solid primary stroke, thicker once visited. */
+:deep(.vue-flow__edge-path) { stroke: var(--primary); stroke-width: .1rem; }
+:deep(.vue-flow__edge.is-visited .vue-flow__edge-path) { stroke-width: .16rem; }
+/* Parallel draws as a two-rail track — the thick tone-info stroke here, and
+   the thin background-coloured groove drawn by `QuestFlowEdge`'s own
+   `.quest-flow-edge-rail` path on top of it. */
+:deep(.vue-flow__edge.is-parallel .vue-flow__edge-path) { stroke: var(--color-tone-info); stroke-width: .35rem; }
+:deep(.vue-flow__edge .quest-flow-edge-rail) { fill: none; stroke: var(--background); stroke-width: .1rem; pointer-events: none; }
+/* Gated-closed and stranded both read as "not open right now," regardless of
+   route kind — placed last so it wins over the parallel rule above when an
+   edge is both. */
+:deep(.vue-flow__edge.is-closed .vue-flow__edge-path),
+:deep(.vue-flow__edge.is-stranded .vue-flow__edge-path) { stroke: var(--muted-foreground); stroke-width: .1rem; stroke-dasharray: 4 3; }
 :deep(.vue-flow__edge-text) { fill: var(--foreground); }
 :deep(.vue-flow__edge-textbg) { fill: var(--card); }
 :deep(.vue-flow__handle) { background: var(--primary); border-color: var(--card); width: .65rem; height: .65rem; }

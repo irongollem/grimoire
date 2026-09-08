@@ -27,7 +27,7 @@ describe("quest flow adapter", () => {
   });
 
   it("maps shared presentation and visited-route state without changing domain rows", () => {
-    const presentation = { isCurrent: true, isVisited: true, isReady: false, isDisconnected: false, reach: "current", prepGapCount: 1, prepGaps: [{ kind: "guidance", label: "Add DM guidance" }], handoutCount: 1, loot: { total: 1, undispatched: 1, unclaimed: 0 }, currentThreadIds: [] } satisfies QuestBeatPresentation;
+    const presentation = { isCurrent: true, isVisited: true, isReady: false, isDisconnected: false, reach: "current", prepGapCount: 1, prepGaps: [{ kind: "guidance", label: "Add DM guidance" }], handoutCount: 1, loot: { total: 1, undispatched: 1, unclaimed: 0 }, currentThreadIds: [], payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null } satisfies QuestBeatPresentation;
     const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b" }] as QuestBeatEdge[];
     const graph = toQuestFlowGraph([beat("a", 0, 0), beat("b", 1, 1)], edges, { a: presentation }, new Set(["e"]));
     expect(graph.nodes[0]!.data!.presentation).toBe(presentation);
@@ -45,5 +45,28 @@ describe("quest flow adapter", () => {
   it("retains selection across refreshed row objects and clears deleted beats", () => {
     expect(retainSelectedBeatId("a", [beat("a", 50, 60)])).toBe("a");
     expect(retainSelectedBeatId("a", [beat("b", 50, 60)])).toBeNull();
+  });
+
+  it("draws route kind and the opened thread's label into the edge, and the target's own title as the fallback", () => {
+    const edges = [
+      { id: "choice", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", thread_label: null },
+      { id: "parallel", source_beat_id: "a", target_beat_id: "b", route_kind: "parallel", thread_label: "The Drowned Vault" },
+    ] as QuestBeatEdge[];
+    const graph = toQuestFlowGraph([beat("a", 0, 0), beat("b", 1, 1)], edges);
+    expect(graph.edges[0]!.class).toBe("quest-flow-route");
+    expect(graph.edges[0]!.data).toMatchObject({ routeKind: "choice", threadLabel: null, targetTitle: "b" });
+    expect(graph.edges[1]!.class).toBe("quest-flow-route is-parallel");
+    expect(graph.edges[1]!.data).toMatchObject({ routeKind: "parallel", threadLabel: "The Drowned Vault", targetTitle: "b" });
+  });
+
+  it("flags an edge into a beat the run has cut off, and flags that beat as gated when a route in is closed", () => {
+    const presentation = { isCurrent: false, isVisited: false, isReady: true, isDisconnected: false, reach: "stranded", prepGapCount: 0, prepGaps: [], handoutCount: 0, loot: { total: 0, undispatched: 0, unclaimed: 0 }, currentThreadIds: [], payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null } satisfies QuestBeatPresentation;
+    const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", thread_label: null }] as QuestBeatEdge[];
+    const closedGate = { objective_id: "o1", objective: "Save the princess", required_status: "complete", current_status: "pending", is_open: false } as const;
+    const graph = toQuestFlowGraph([beat("a", 0, 0), beat("b", 1, 1)], edges, { b: presentation }, new Set(), { e: closedGate });
+    expect(graph.edges[0]!.class).toBe("quest-flow-route is-closed is-stranded");
+    expect(graph.edges[0]!.data).toMatchObject({ stranded: true });
+    expect(graph.nodes[1]!.data!.isGated).toBe(true);
+    expect(graph.nodes[0]!.data!.isGated).toBe(false);
   });
 });

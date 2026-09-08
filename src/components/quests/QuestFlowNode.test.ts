@@ -41,6 +41,7 @@ describe("QuestFlowNode", () => {
           isDisconnected: true,
           reach: "visited",
           currentThreadIds: [],
+          payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null,
         },
       },
       global: { stubs: { Handle: true } },
@@ -66,6 +67,7 @@ describe("QuestFlowNode", () => {
           isReady: true, isCurrent: false, isVisited: false, isDisconnected: false,
           reach: "stranded",
           currentThreadIds: [],
+          payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null,
         },
       },
       global: { stubs: { Handle: true } },
@@ -89,6 +91,7 @@ describe("QuestFlowNode", () => {
           isReady: true, isCurrent: false, isVisited: false, isDisconnected: false,
           reach: "ahead",
           currentThreadIds: [],
+          payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null,
         },
       },
       global: { stubs: { Handle: true } },
@@ -97,6 +100,57 @@ describe("QuestFlowNode", () => {
     expect(wrapper.text()).not.toContain("Cut off");
     expect(wrapper.text()).not.toContain("Visited");
     expect(wrapper.get("article").classes()).not.toContain("is-stranded");
+  });
+
+  it("draws a kind · visibility eyebrow, and the payoff/converge/site/unlock facts", () => {
+    const wrapper = mount(QuestFlowNode, {
+      props: {
+        title: "Descend the Drowned Vault",
+        kind: "explore",
+        visibility: "hidden",
+        gated: false,
+        presentation: {
+          prepGapCount: 0, prepGaps: [], handoutCount: 0,
+          loot: { total: 0, undispatched: 0, unclaimed: 0 },
+          isReady: true, isCurrent: false, isVisited: false, isDisconnected: false,
+          reach: "ahead", currentThreadIds: [],
+          payoffCount: 2, unlocksQuest: true, convergeLabel: "all",
+          site: { name: "The Drowned Vault", roomCount: 6, emptyRoomLabel: "rooms 4–6 empty" },
+        },
+      },
+      global: { stubs: { Handle: true } },
+    });
+    expect(wrapper.text()).toContain("Explore · hidden");
+    expect(wrapper.text()).toContain("2 payoffs");
+    expect(wrapper.text()).toContain("converge · all");
+    expect(wrapper.text()).toContain("site · 6 rooms");
+    expect(wrapper.text()).toContain("rooms 4–6 empty");
+    expect(wrapper.text()).toContain("unlocks a quest");
+    expect(wrapper.text()).not.toContain("Ready");
+  });
+
+  it("draws one party chip per thread standing on the beat, and a dashed border when a route in is gated", () => {
+    const threads = [
+      { id: "main", status: "live" as const, created_at: "2026-09-01T00:00:00Z", label: "The petition" },
+      { id: "vault", status: "live" as const, created_at: "2026-09-03T00:00:00Z", label: "The Drowned Vault" },
+    ];
+    const wrapper = mount(QuestFlowNode, {
+      props: {
+        title: "Testify before the Guild", kind: "social", visibility: "hidden", gated: true, threads,
+        presentation: {
+          prepGapCount: 0, prepGaps: [], handoutCount: 0,
+          loot: { total: 0, undispatched: 0, unclaimed: 0 },
+          isReady: true, isCurrent: true, isVisited: false, isDisconnected: false,
+          reach: "current", currentThreadIds: ["main", "vault"],
+          payoffCount: 0, unlocksQuest: false, convergeLabel: null, site: null,
+        },
+      },
+      global: { stubs: { Handle: true } },
+    });
+    expect(wrapper.text()).toContain("Party is here · A");
+    expect(wrapper.text()).toContain("Party is here · B");
+    expect(wrapper.get("article").classes()).toContain("is-gated");
+    expect(wrapper.get("article").classes()).toContain("is-current");
   });
 
   it("offers an atomic add-next action from the card", async () => {

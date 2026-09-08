@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { deriveQuestBeatPrepGaps, deriveQuestBeatPresentations, forwardReachableBeatIds, tallyQuestReach, visitedRouteEdgeIds } from "./presentation";
-import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatTransition } from "@/types/quest.types";
+import { deriveQuestBeatPrepGaps, deriveQuestBeatPresentations, formatUnwrittenRoomsLabel, forwardReachableBeatIds, tallyQuestReach, visitedRouteEdgeIds } from "./presentation";
+import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatTransition, QuestConsequence } from "@/types/quest.types";
 
 const beat = (id: string, visibility: QuestBeat["visibility"] = "hidden") => ({
   id, quest_id: "q", campaign_id: "c", title: id, visibility,
@@ -170,5 +170,88 @@ describe("quest beat presentation", () => {
   it("marks route history without looping on cycles or convergence", () => {
     const edges = [edge("ab", "a", "b"), edge("bc", "b", "c"), edge("ca", "c", "a"), edge("dc", "d", "c")];
     expect([...visitedRouteEdgeIds(edges, [transition("a", "b"), transition("b", "c"), transition("c", "a")])]).toEqual(["ab", "bc", "ca"]);
+  });
+
+  it("counts a beat's payoffs as its own arrival rules plus loot still held, and flags an unlock rule", () => {
+    const unlock = { id: "c1", on_beat_id: "b", action: "unlock_quest" } as QuestConsequence;
+    const reveal = { id: "c2", on_beat_id: "b", action: "reveal" } as QuestConsequence;
+    const onARoute = { id: "c3", on_beat_id: null, on_edge_id: "ab", action: "raise" } as QuestConsequence;
+    const result = deriveQuestBeatPresentations({
+      beats: [beat("a"), beat("b")],
+      edges: [edge("ab", "a", "b")],
+      attachments: [],
+      consequences: [unlock, reveal, onARoute],
+      lootByBeat: { b: { total: 2, undispatched: 2, unclaimed: 0 } },
+    });
+    expect(result.b!.payoffCount).toBe(4); // two on-beat rules + two loot held
+    expect(result.b!.unlocksQuest).toBe(true);
+    expect(result.a!.payoffCount).toBe(0);
+    expect(result.a!.unlocksQuest).toBe(false);
+  });
+
+  it("only names a converge mode once two or more routes actually arrive", () => {
+    const single = deriveQuestBeatPresentations({
+      beats: [beat("a"), beat("b")],
+      edges: [edge("ab", "a", "b")],
+      attachments: [],
+    });
+    expect(single.b!.convergeLabel).toBeNull();
+
+    const merged = deriveQuestBeatPresentations({
+      beats: [{ ...beat("a") }, { ...beat("b") }, { ...beat("c"), converge_mode: "all" } as QuestBeat],
+      edges: [edge("ac", "a", "c"), edge("bc", "b", "c")],
+      attachments: [],
+    });
+    expect(merged.c!.convergeLabel).toBe("all");
+  });
+
+  it("reports a staged site's room count and only mentions unwritten rooms when there are any", () => {
+    const staged = { ...beat("dungeon"), staged_at_location_id: "loc-1" } as QuestBeat;
+    const withGaps = deriveQuestBeatPresentations({
+      beats: [staged],
+      edges: [],
+      attachments: [],
+      sites: { "loc-1": { locationId: "loc-1", name: "The Drowned Vault", roomCount: 6, unwrittenRooms: [4, 5, 6] } },
+    });
+    expect(withGaps.dungeon!.site).toEqual({ name: "The Drowned Vault", roomCount: 6, emptyRoomLabel: "rooms 4–6 empty" });
+
+    const complete = deriveQuestBeatPresentations({
+      beats: [staged],
+      edges: [],
+      attachments: [],
+      sites: { "loc-1": { locationId: "loc-1", name: "The Drowned Vault", roomCount: 6, unwrittenRooms: [] } },
+    });
+    expect(complete.dungeon!.site!.emptyRoomLabel).toBeNull();
+
+    // A location with no rooms at all is just a place, not a site fact worth a chip.
+    const roomless = deriveQuestBeatPresentations({
+      beats: [staged],
+      edges: [],
+      attachments: [],
+      sites: { "loc-1": { locationId: "loc-1", name: "A quiet hamlet", roomCount: 0, unwrittenRooms: [] } },
+    });
+    expect(roomless.dungeon!.site).toBeNull();
+
+    // Unstaged, or staged somewhere never looked up.
+    const unstaged = deriveQuestBeatPresentations({ beats: [beat("a")], edges: [], attachments: [] });
+    expect(unstaged.a!.site).toBeNull();
+  });
+});
+
+describe("formatUnwrittenRoomsLabel", () => {
+  it("collapses a contiguous run into a range", () => {
+    expect(formatUnwrittenRoomsLabel([4, 5, 6])).toBe("rooms 4–6 empty");
+  });
+
+  it("uses the singular for exactly one room", () => {
+    expect(formatUnwrittenRoomsLabel([4])).toBe("room 4 empty");
+  });
+
+  it("mixes ranges and singles for a scattered set, sorted regardless of input order", () => {
+    expect(formatUnwrittenRoomsLabel([5, 2, 4])).toBe("rooms 2, 4–5 empty");
+  });
+
+  it("says nothing when every room is written", () => {
+    expect(formatUnwrittenRoomsLabel([])).toBeNull();
   });
 });

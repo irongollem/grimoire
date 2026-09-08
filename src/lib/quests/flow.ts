@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@vue-flow/core";
-import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatEdge, QuestRouteGate, QuestRouteKind } from "@/types/quest.types";
 import type { QuestBeatPresentation } from "./presentation";
 
 export interface QuestFlowNodeData {
@@ -8,9 +8,27 @@ export interface QuestFlowNodeData {
   kind: string;
   visibility: string;
   presentation?: QuestBeatPresentation;
+  /** True when at least one incoming route is currently closed by a gate —
+   *  drawn as a dashed muted border, independent of the wire itself (a beat
+   *  can be gated from one route and open from another). */
+  isGated: boolean;
 }
 export type QuestFlowNode = Node<QuestFlowNodeData>;
-export type QuestFlowEdge = Edge<{ edgeId: string; visited: boolean; gate: QuestRouteGate | null }>;
+export interface QuestFlowEdgeData {
+  edgeId: string;
+  visited: boolean;
+  gate: QuestRouteGate | null;
+  routeKind: QuestRouteKind;
+  threadLabel: string | null;
+  /** The route's destination, for the self-labelling pill's fallback text —
+   *  a parallel route with no authored `thread_label` still has something to
+   *  say ("opens <target title>"), and a choice route always names its target. */
+  targetTitle: string;
+  /** The target beat's own reach is `stranded` — the run has walked past the
+   *  last junction that could still lead here. */
+  stranded: boolean;
+}
+export type QuestFlowEdge = Edge<QuestFlowEdgeData>;
 
 export type QuestGraphCommand =
   | { type: "select" | "open" | "delete-beat"; beatId: string }
@@ -26,6 +44,13 @@ export function toQuestFlowGraph(
   visitedEdgeIds: ReadonlySet<string> = new Set(),
   routeGates: Record<string, QuestRouteGate> = {},
 ) {
+  const beatsById = new Map(beats.map((beat) => [beat.id, beat]));
+  const gatedClosedTargetIds = new Set(
+    edges.filter((edge) => {
+      const gate = routeGates[edge.id];
+      return gate && !gate.is_open;
+    }).map((edge) => edge.target_beat_id),
+  );
   const nodes: QuestFlowNode[] = beats.map((beat) => ({
     id: beat.id,
     type: "questBeat",
@@ -36,10 +61,12 @@ export function toQuestFlowGraph(
       kind: beat.kind,
       visibility: beat.visibility,
       presentation: presentations[beat.id],
+      isGated: gatedClosedTargetIds.has(beat.id),
     },
   }));
   const flowEdges: QuestFlowEdge[] = edges.map((edge) => {
     const gate = routeGates[edge.id] ?? null;
+    const stranded = presentations[edge.target_beat_id]?.reach === "stranded";
     return {
       id: edge.id,
       source: edge.source_beat_id,
@@ -49,8 +76,18 @@ export function toQuestFlowGraph(
         "quest-flow-route",
         visitedEdgeIds.has(edge.id) && "is-visited",
         gate && !gate.is_open && "is-closed",
+        edge.route_kind === "parallel" && "is-parallel",
+        stranded && "is-stranded",
       ].filter(Boolean).join(" "),
-      data: { edgeId: edge.id, visited: visitedEdgeIds.has(edge.id), gate },
+      data: {
+        edgeId: edge.id,
+        visited: visitedEdgeIds.has(edge.id),
+        gate,
+        routeKind: edge.route_kind,
+        threadLabel: edge.thread_label,
+        targetTitle: beatsById.get(edge.target_beat_id)?.title || "Untitled beat",
+        stranded,
+      },
     };
   });
   return { nodes, edges: flowEdges };
