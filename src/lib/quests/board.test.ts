@@ -207,6 +207,39 @@ describe("deriveQuestBoardSummaries", () => {
     ]);
   });
 
+  // Frame "07 Log" draws one spine per thread: a beat is "done" on a
+  // thread's spine only when that thread walked it, so a layer opened last
+  // session reads as one beat in rather than inheriting Main's progress.
+  it("reads each thread's spine from that thread's own transitions", () => {
+    const beats = [
+      { id: "beat-a", quest_id: "quest-a", title: "Arrival", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
+      { id: "beat-b", quest_id: "quest-a", title: "Road", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
+      { id: "beat-c", quest_id: "quest-a", title: "Side chamber", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
+    ] as never[];
+    const summaries = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      runtime: [
+        { quest_id: "quest-a", thread_id: "main", current_beat_id: "beat-b", status: "running" },
+        { quest_id: "quest-a", thread_id: "side", current_beat_id: "beat-c", status: "running" },
+      ] as never[],
+      transitions: [
+        { to_quest_id: "quest-a", to_beat_id: "beat-a", thread_id: "main" },
+        { to_quest_id: "quest-a", to_beat_id: "beat-b", thread_id: "main" },
+        { to_quest_id: "quest-a", to_beat_id: "beat-c", thread_id: "side" },
+      ] as never[],
+      threads: [
+        { id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "live", created_at: "2026-08-01T00:00:00Z" },
+        { id: "side", quest_id: "quest-a", campaign_id: "campaign-1", label: "Side", status: "live", created_at: "2026-08-05T00:00:00Z" },
+      ] as never[],
+    });
+    const byId = Object.fromEntries(summaries["quest-a"]!.threads.map((thread) => [thread.id, thread.beatSegments]));
+    expect(byId.main).toEqual(["done", "here", "gap"]);
+    expect(byId.side).toEqual(["gap", "gap", "here"]);
+  });
+
   // Story I (#850): the card has to answer "where is this quest" for more
   // than one cursor, and the log's groups need the facts a "07 Log"-style
   // caption reads off.

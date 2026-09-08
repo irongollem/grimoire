@@ -119,21 +119,39 @@ export interface QuestBoardFilterCounts {
   pendingLoot: number;
 }
 
-/** A thread's own beat segments — "here" means *this* thread's cursor, not any
- *  thread's, so two threads standing on different beats of the same converge
- *  target don't both claim every beat between them. */
+/** A thread's own beat segments — "here" means *this* thread's cursor and
+ *  "done" means *this* thread walked there, not any thread's. Frame `07 Log`
+ *  draws one spine per thread precisely so a layer opened last session reads
+ *  as one beat in, not as far along as Main; two threads standing on
+ *  different beats of the same converge target don't both claim every beat
+ *  between them either. A transition logged before threads existed
+ *  (`thread_id` null) counts for every thread — it was the one cursor. */
 function beatSegmentsForThread(
   beats: QuestBeat[],
   presentations: Record<string, QuestBeatPresentation>,
   threadId: string | null,
+  visitedByThread: Map<string | null, Set<string>>,
 ): QuestBeatSegment[] {
+  const own = visitedByThread.get(threadId);
+  const shared = visitedByThread.get(null);
   return beats.map((beat) => {
     const presentation = presentations[beat.id];
     if (threadId && presentation?.currentThreadIds.includes(threadId)) return "here";
-    if (presentation?.isVisited) return "done";
+    if (own?.has(beat.id) || shared?.has(beat.id)) return "done";
     if (presentation && !presentation.isReady) return "gap";
     return "upcoming";
   });
+}
+
+function visitedBeatsByThread(transitions: readonly QuestBeatTransition[]): Map<string | null, Set<string>> {
+  const byThread = new Map<string | null, Set<string>>();
+  for (const transition of transitions) {
+    if (!transition.to_beat_id) continue;
+    const set = byThread.get(transition.thread_id) ?? new Set<string>();
+    set.add(transition.to_beat_id);
+    byThread.set(transition.thread_id, set);
+  }
+  return byThread;
 }
 
 export function deriveQuestBoardSummaries(input: {
@@ -163,6 +181,7 @@ export function deriveQuestBoardSummaries(input: {
     runtimeByQuest.set(row.quest_id, rows);
   }
   const threadById = new Map((input.threads ?? []).map((thread) => [thread.id, thread]));
+  const visitedByThread = visitedBeatsByThread(input.transitions ?? []);
   const threadsByQuest = new Map<string, QuestThread[]>();
   for (const thread of input.threads ?? []) {
     const list = threadsByQuest.get(thread.quest_id) ?? [];
@@ -207,7 +226,7 @@ export function deriveQuestBoardSummaries(input: {
         label: thread?.label ?? "Main",
         status: thread?.status ?? "live",
         currentBeatTitle: current?.title ?? null,
-        beatSegments: beatSegmentsForThread(beats, presentations, cursor.thread_id),
+        beatSegments: beatSegmentsForThread(beats, presentations, cursor.thread_id, visitedByThread),
         created_at: thread?.created_at ?? "",
       };
     });
@@ -266,7 +285,7 @@ export function deriveQuestBoardSummaries(input: {
       isLive: liveThreadCount > 0,
       runtimeStatus: primaryCursor?.status ?? null,
       currentBeatTitle: primary?.currentBeatTitle ?? null,
-      beatSegments: primary?.beatSegments ?? beatSegmentsForThread(beats, presentations, null),
+      beatSegments: primary?.beatSegments ?? beatSegmentsForThread(beats, presentations, null, visitedByThread),
       prepGapCount: beats.reduce((total, beat) => total + (presentations[beat.id]?.prepGapCount ?? 0), 0),
       undispatchedLootCount: loot.undispatched,
       unclaimedLootCount: loot.unclaimed,
