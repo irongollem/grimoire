@@ -101,7 +101,7 @@ const { asModal, close } = useDetailModal("/quests", () => takesWholeScreen.valu
  * stop scrolling around it; the cockpit is an ordinary long document and must
  * not inherit that. Binding this to `view === "work"` gave the cockpit the
  * canvas's contract, so at `lg` and wider its body became `overflow:hidden` —
- * a scroll container that cannot be scrolled — and `QuestRunControls`'
+ * a scroll container that cannot be scrolled — and the run controls'
  * `sticky bottom-2` bar pinned over content nobody could reach past. See #776.
  */
 const showsGraph = computed(() => !isNew.value && view.value === "work" && !isRunning.value);

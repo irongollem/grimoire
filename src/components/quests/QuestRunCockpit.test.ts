@@ -1,12 +1,14 @@
 import { flushPromises, shallowMount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunCockpit from "./QuestRunCockpit.vue";
-import QuestRunControls from "./QuestRunControls.vue";
+import QuestRunSessionPanel from "./QuestRunSessionPanel.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 import QuestRunOpenChains from "./QuestRunOpenChains.vue";
+import QuestThreadBar from "./QuestThreadBar.vue";
+import QuestAdvanceDialog from "./QuestAdvanceDialog.vue";
 
 const mocks = vi.hoisted(() => ({
   context: { value: null as Record<string, unknown> | null },
@@ -15,33 +17,43 @@ const mocks = vi.hoisted(() => ({
   targets: { value: [] as Array<Record<string, unknown>> },
   quests: { value: [] as Array<Record<string, unknown>> },
   liveQuests: { value: [] as Array<Record<string, unknown>> },
+  objectives: { value: [] as Array<Record<string, unknown>> },
+  consequences: { value: [] as Array<Record<string, unknown>> },
+  locations: { value: [] as Array<Record<string, unknown>> },
+  threads: { value: [{ id: "thread-1", status: "live", label: "Main", created_at: "2026-01-01T00:00:00Z" }] as Array<Record<string, unknown>> },
   mutateAsync: vi.fn(),
   updateBeat: vi.fn(),
   improvise: vi.fn(),
   refetch: vi.fn(),
   replace: vi.fn(),
   route: { query: { mode: "run" } as Record<string, string> },
+  activeCampaignId: "c1" as string | null,
 }));
 
 vi.mock("vue-router", () => ({ useRoute: () => mocks.route, useRouter: () => ({ replace: mocks.replace }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn(async () => true) }) }));
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
-vi.mock("@/composables/quests/useQuests", () => ({ useQuests: () => ({ data: mocks.quests }) }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: mocks.activeCampaignId }) }));
+vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: mocks.locations }) }));
+vi.mock("@/composables/quests/useQuests", () => ({
+  useQuests: () => ({ data: mocks.quests }),
+  useQuestObjectives: () => ({ data: mocks.objectives }),
+}));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestRuntimeContext: () => ({ data: mocks.context, isLoading: { value: false }, error: { value: null }, refetch: mocks.refetch }),
   useQuestRuntimeCommand: () => ({ mutateAsync: mocks.mutateAsync }),
   useQuestBeats: () => ({ data: mocks.beats }),
   useQuestBeatEdges: () => ({ data: mocks.edges }),
-  useQuests: () => ({ data: mocks.quests }),
   useQuestBeatAttachmentSummaries: () => ({ data: { value: [] } }),
   useLootPlacements: () => ({ data: { value: [] } }),
+  useQuestConsequences: () => ({ data: mocks.consequences }),
   useQuestRuntimeJumpTargets: () => ({ data: mocks.targets }),
   useCampaignLiveQuests: () => ({ data: mocks.liveQuests }),
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.updateBeat }),
   useQuestRuntimeImprovise: () => ({ mutateAsync: mocks.improvise }),
 }));
 vi.mock("@/composables/quests/useQuestThreads", () => ({
-  useQuestThreads: () => ({ data: { value: [{ id: "thread-1", status: "live" }] } }),
+  useQuestThreads: () => ({ data: mocks.threads }),
 }));
 
 const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Opening", kind: "social" };
@@ -49,9 +61,12 @@ const runningContext = () => ({
   state: { campaign_id: "c1", quest_id: "q1", current_beat_id: "b1", status: "running", version: 4 },
   current: beat,
   previous: { beat_id: "b0" },
-  outgoing: [{ edge_id: "e1", quest_id: "q1", beat_id: "b2", gate: null, effects: [], beat_title: "Next", beat_kind: "neutral" }],
+  outgoing: [{ edge_id: "e1", quest_id: "q1", beat_id: "b2", gate: null, effects: [], beat_title: "Next", beat_kind: "neutral", route_kind: "choice", thread_label: null, converge_mode: "any", site: null, payoff: [], loot: [] }],
   return_target: null,
   path_so_far: [],
+  thread: { id: "thread-1", label: "Main", status: "live", created_at: "2026-01-01T00:00:00Z" },
+  threads: [{ id: "thread-1", label: "Main", status: "live", created_at: "2026-01-01T00:00:00Z", current_beat_id: "b1", current_beat_title: "Opening", runtime_status: "running", version: 4 }],
+  held: [],
 });
 
 describe("QuestRunCockpit", () => {
@@ -62,7 +77,12 @@ describe("QuestRunCockpit", () => {
     mocks.targets.value = [];
     mocks.quests.value = [];
     mocks.liveQuests.value = [];
+    mocks.objectives.value = [];
+    mocks.consequences.value = [];
+    mocks.locations.value = [];
+    mocks.threads.value = [{ id: "thread-1", status: "live", label: "Main", created_at: "2026-01-01T00:00:00Z" }];
     mocks.route.query = {};
+    mocks.activeCampaignId = "c1";
     mocks.mutateAsync.mockReset();
     mocks.mutateAsync.mockImplementation(async () => mocks.context.value);
     mocks.refetch.mockReset();
@@ -101,30 +121,54 @@ describe("QuestRunCockpit", () => {
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "start", targetBeatId: "b1" }));
   });
 
-  it("routes previous, branch, pause, resume, and jump through versioned commands", async () => {
+  it("routes previous, pause, resume and jump through versioned commands, from the session panel", async () => {
     mocks.context.value = runningContext();
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
-    const controls = wrapper.findComponent(QuestRunControls);
-    controls.vm.$emit("previous");
-    wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("advance", "e1");
-    controls.vm.$emit("pause");
+    const session = wrapper.findComponent(QuestRunSessionPanel);
+    session.vm.$emit("previous");
+    session.vm.$emit("pause");
     await wrapper.vm.$nextTick();
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "previous", expectedVersion: 4 }));
-    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "advance", edgeId: "e1" }));
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "pause" }));
     await flushPromises();
 
-    controls.vm.$emit("jump");
+    session.vm.$emit("jump");
     await wrapper.vm.$nextTick();
     wrapper.findComponent(QuestRunJumpPanel).vm.$emit("jump", { quest_id: "q1", beat_id: "b9" }, "A detour", true);
     await wrapper.vm.$nextTick();
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "jump", questId: "q1", targetBeatId: "b9", pushReturn: true }));
-    expect(mocks.mutateAsync).not.toHaveBeenCalledWith(expect.objectContaining({ targetQuestId: expect.anything() }));
 
     mocks.context.value = { ...runningContext(), state: { ...runningContext().state, status: "paused" } };
     const paused = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
-    paused.findComponent(QuestRunControls).vm.$emit("resume");
+    paused.findComponent(QuestRunSessionPanel).vm.$emit("resume");
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "resume" }));
+  });
+
+  // The Advance dialog (story G) is "the only place a thread is created" in
+  // the redesign — Choosing a route no longer transitions on its own click.
+  // It opens the dialog preselected on that route instead of calling the
+  // runtime command directly.
+  it("opens the Advance dialog preselected on the chosen route instead of transitioning directly", async () => {
+    mocks.context.value = runningContext();
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("choose", "e1");
+    await wrapper.vm.$nextTick();
+    expect(mocks.mutateAsync).not.toHaveBeenCalledWith(expect.objectContaining({ command: "advance" }));
+    const dialog = wrapper.findComponent(QuestAdvanceDialog);
+    expect(dialog.props("open")).toBe(true);
+    expect(dialog.props("preselectedEdgeId")).toBe("e1");
+    expect(dialog.props("improvise")).toBe(false);
+  });
+
+  it("opens the Advance dialog with its improvise option selected from Something else…", async () => {
+    mocks.context.value = runningContext();
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("something-else");
+    await wrapper.vm.$nextTick();
+    const dialog = wrapper.findComponent(QuestAdvanceDialog);
+    expect(dialog.props("open")).toBe(true);
+    expect(dialog.props("improvise")).toBe(true);
+    expect(dialog.props("preselectedEdgeId")).toBeUndefined();
   });
 
   it("canonicalizes a refreshed Run URL to the persisted current beat", () => {
@@ -132,6 +176,14 @@ describe("QuestRunCockpit", () => {
     mocks.route.query = { beat: "stale-beat", panel: "notes" };
     shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     expect(mocks.replace).toHaveBeenCalledWith({ query: { beat: "b1", panel: "notes" } });
+  });
+
+  it("switches thread by writing ?thread= to the route, not by moving any cursor", () => {
+    mocks.context.value = runningContext();
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    wrapper.findComponent(QuestThreadBar).vm.$emit("switch", "thread-2");
+    expect(mocks.replace).toHaveBeenCalledWith({ query: { thread: "thread-2" } });
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
   });
 
   it("opens a beat attachment in the lazy contained surface", async () => {
@@ -199,13 +251,10 @@ describe("QuestRunCockpit", () => {
     expect(wrapper.findComponent(QuestPlayerPreviewDrawer).props("visibleTo")).toEqual(["anchor-player"]);
   });
 
-  // #853, interim: until the cockpit has its own thread switcher, it runs the
-  // first live thread this quest holds — which is every quest's only thread
-  // until a parallel route or the thread bar opens a second one.
-  it("passes the quest's first live thread through to every runtime command", async () => {
+  it("defaults to the quest's oldest live thread and passes it through to every runtime command", async () => {
     mocks.context.value = runningContext();
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
-    wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("advance", "e1");
+    wrapper.findComponent(QuestRunSessionPanel).vm.$emit("previous");
     await wrapper.vm.$nextTick();
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ threadId: "thread-1" }));
   });
@@ -221,5 +270,4 @@ describe("QuestRunCockpit", () => {
       expect.objectContaining({ quest_id: "q2", runtime_status: "paused" }),
     ]);
   });
-
 });

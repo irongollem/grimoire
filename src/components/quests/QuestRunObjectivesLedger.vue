@@ -16,10 +16,13 @@
         >
           <template #icon><QuestObjectiveStatusMark :status="objective.status" /></template>
         </AppButton>
-        <span
-          class="flex-1 text-caption leading-snug"
-          :class="objective.status === 'complete' ? 'text-muted-foreground line-through' : objective.status === 'failed' ? 'text-muted-foreground' : 'text-foreground'"
-        >{{ objective.description }}</span>
+        <span class="flex-1">
+          <span
+            class="block text-caption leading-snug"
+            :class="objective.status === 'complete' ? 'text-muted-foreground line-through' : objective.status === 'failed' ? 'text-muted-foreground' : 'text-foreground'"
+          >{{ objective.description }}</span>
+          <span class="block text-caption text-muted-foreground">{{ captionFor(objective) }}</span>
+        </span>
       </li>
     </ul>
     <p v-else class="text-caption italic text-muted-foreground">No objectives raised yet.</p>
@@ -36,24 +39,46 @@
  * second editor. Prep-time actions — adding an objective, hiding it from
  * players — stay on the overview's lifecycle panel; mid-session the DM only
  * ever needs to say a status just changed.
+ *
+ * Each row's caption names its status plus, when it applies, what taking a
+ * gated route unlocks ("gates <target>") and which sibling thread's beat
+ * raised it ("· Thread B") — the ledger's own hints for reading several
+ * threads' worth of state in one panel (#853, story F).
  */
 import { computed } from "vue";
 import { useAssertQuestObjectiveStatus, useQuestObjectives } from "@/composables/quests/useQuests";
-import { nextObjectiveStatus, countObjectivesComplete, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
-import type { QuestObjective } from "@/types/quest.types";
+import { useQuestConsequences } from "@/composables/quests/useQuestFlow";
+import { countObjectivesComplete, nextObjectiveStatus, QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
+import { objectiveGateTargets, objectiveThreadHint } from "@/lib/quests/run";
+import type { QuestObjective, QuestRuntimeChoice, QuestThreadCursor } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 
-const { questId } = defineProps<{ questId: string }>();
+const { questId, threadId, outgoing, threads } = defineProps<{
+  questId: string;
+  threadId: string;
+  outgoing: QuestRuntimeChoice[];
+  threads: QuestThreadCursor[];
+}>();
 const { data } = useQuestObjectives(computed(() => questId));
 const objectives = computed(() => data.value ?? []);
 const doneCount = computed(() => countObjectivesComplete(objectives.value));
 const { mutateAsync: assertStatus } = useAssertQuestObjectiveStatus();
+const consequencesQuery = useQuestConsequences(computed(() => questId));
 
 function statusTooltip(objective: QuestObjective): string {
   const label = QUEST_OBJECTIVE_STATUS_LABELS[objective.status];
   const next = QUEST_OBJECTIVE_STATUS_LABELS[nextObjectiveStatus(objective.status)];
   return `${label} — click for ${next.toLowerCase()}`;
+}
+
+function captionFor(objective: QuestObjective): string {
+  const parts = [objective.status as string];
+  const gates = objectiveGateTargets(objective.id, outgoing);
+  if (gates.length) parts.push(`gates ${gates.join(", ")}`);
+  const hint = objectiveThreadHint(objective.id, consequencesQuery.data.value ?? [], threads, threadId);
+  if (hint) parts.push(`Thread ${hint}`);
+  return parts.join(" · ");
 }
 
 async function toggle(objective: QuestObjective) {

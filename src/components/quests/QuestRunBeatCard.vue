@@ -1,23 +1,20 @@
 <template>
   <article class="space-y-4 rounded-xl border border-border bg-background p-4" aria-label="Current quest beat">
-    <header class="flex flex-wrap items-start gap-2">
-      <div class="min-w-0 flex-1">
-        <p class="text-label font-bold uppercase tracking-wider text-primary">Current beat · {{ beat.kind }}</p>
-        <h2 class="font-cinzel text-xl font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h2>
-      </div>
-      <div class="flex gap-2">
-        <AppButton
-          v-if="beat.visibility !== 'revealed'"
-          :label="beat.visibility === 'rumored' ? 'Reveal fully' : 'Reveal to players'"
-          size="sm"
-          variant="primary"
-          @click="emit('reveal')"
-        />
-        <span v-else class="self-center text-caption text-elven-green">Visible to players</span>
-        <AppButton label="Notes & outcomes" size="sm" variant="subtle" @click="emit('edit-beat')" />
-        <AppButton :to="editUrl" label="Full prep" size="sm" variant="subtle" />
-      </div>
-    </header>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <span
+        class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-label uppercase"
+        :class="[threadBadge.tone.bg, threadBadge.tone.text]"
+      >
+        <span class="h-1.5 w-1.5 animate-pulse rounded-full" :class="threadBadge.tone.dot" />
+        Party is here · Thread {{ threadBadge.letter }}
+      </span>
+      <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ beat.kind }}</span>
+      <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ beat.visibility }}</span>
+      <span v-if="placeName" class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ placeName }}</span>
+      <span v-for="gap in prepGaps" :key="gap.label" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ gap.label }}</span>
+    </div>
+
+    <h2 class="font-cinzel text-xl font-bold text-foreground">{{ beat.title || "Untitled beat" }}</h2>
 
     <div v-if="beat.is_improvised && !beat.improv_reviewed_at" class="rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
       Improvised at the table · needs post-session review. You can still run, attach material, take notes, and reveal it now.
@@ -28,59 +25,88 @@
       <RichTextViewer :content="beat.read_aloud" />
     </section>
 
-    <section v-if="beat.dm_content || beat.how_it_plays" class="space-y-3 rounded-lg border border-border bg-card p-3">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Run this moment</h3>
+    <section v-if="beat.dm_content || beat.how_it_plays" class="space-y-3">
       <RichTextViewer v-if="beat.dm_content" :content="beat.dm_content" />
       <div v-if="beat.how_it_plays">
-        <p class="mb-1 text-caption font-semibold text-muted-foreground">How it plays</p>
+        <p class="mb-1 text-body font-bold text-foreground">How it plays.</p>
         <RichTextViewer :content="beat.how_it_plays" />
       </div>
     </section>
 
-    <section class="space-y-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">In this room</h3>
-      <div v-if="attachments.length" class="grid gap-2 sm:grid-cols-2">
-        <div v-for="attachment in attachments" :key="attachment.id" class="flex items-center gap-2 rounded-lg border border-border bg-card p-2">
-          <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ attachment.attachment_type.replace('_', ' ') }}</span>
-          <span class="min-w-0 flex-1 truncate text-caption" :class="attachment.prep_gap ? 'text-tone-caution' : 'text-foreground'">{{ attachment.label }}</span>
-          <AppButton v-if="attachment.target_exists" label="Quick view" size="xs" variant="subtle" @click="emit('open-attachment', attachment)" />
-        </div>
-      </div>
-      <!-- Empty is a real answer, not a hidden section: it is what points the
-           DM at the improvise card in the outcome strip below (#820). -->
-      <p v-else class="text-caption italic text-muted-foreground">Nothing prepared here — type what happens below.</p>
-    </section>
-
-    <div v-if="readinessGaps.length" class="rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
-      <p class="font-semibold">Run anyway—{{ readinessGaps.length }} prep gap{{ readinessGaps.length === 1 ? '' : 's' }}</p>
-      <ul class="mt-1 list-disc pl-4"><li v-for="gap in readinessGaps" :key="gap">{{ gap }}</li></ul>
+    <div class="flex flex-wrap gap-2">
+      <AppButton
+        v-for="attachment in attachments"
+        :key="attachment.id"
+        :label="attachment.label"
+        :icon="attachmentIcon(attachment.attachment_type)"
+        size="sm"
+        variant="subtle"
+        :disabled="!attachment.target_exists"
+        :tooltip="attachment.target_exists ? undefined : 'Not prepared yet'"
+        @click="emit('open-attachment', attachment)"
+      />
+      <AppButton label="Edit beat" :icon="IconEdit" :to="editUrl" size="sm" variant="subtle" />
+      <AppButton
+        v-if="beat.visibility !== 'revealed'"
+        :label="beat.visibility === 'rumored' ? 'Reveal fully' : 'Reveal to players'"
+        size="sm"
+        variant="primary"
+        @click="emit('reveal')"
+      />
+      <span v-else class="self-center text-caption text-elven-green">Visible to players</span>
     </div>
-
-    <QuestBeatLootPanel v-if="loot.length" :beat="beat" :loot="loot" @dirty="emit('dirty', $event)" />
   </article>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { QuestBeat, QuestBeatAttachmentSummary, LootPlacement } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
+import type { ThreadBadge } from "@/lib/quests/threads";
 import { deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
-import QuestBeatLootPanel from "./QuestBeatLootPanel.vue";
+import {
+  IconDocument,
+  IconEdit,
+  IconEncounter,
+  IconFaction,
+  IconMonster,
+  IconMusic,
+  IconMusicNote,
+  IconNote,
+  IconPackage,
+  IconUserRound,
+} from "@/lib/icons";
 
 const props = defineProps<{
   anchorQuestId: string;
   beat: QuestBeat;
   attachments: QuestBeatAttachmentSummary[];
-  loot: LootPlacement[];
+  threadBadge: ThreadBadge;
+  placeName: string | null;
 }>();
-const emit = defineEmits<{ dirty: [dirty: boolean]; "open-attachment": [attachment: QuestBeatAttachmentSummary]; "edit-beat": []; reveal: [] }>();
+const emit = defineEmits<{ "open-attachment": [attachment: QuestBeatAttachmentSummary]; reveal: [] }>();
 
 const runReturn = computed(() => `/quests/${props.anchorQuestId}?beat=${props.beat.id}`);
 const editUrl = computed(() => ({
   path: `/quests/${props.beat.quest_id}/beats/${props.beat.id}`,
   query: { returnTo: runReturn.value },
 }));
-const readinessGaps = computed(() => deriveQuestBeatPrepGaps(props.beat, props.attachments).map((gap) => gap.label));
+const prepGaps = computed(() => deriveQuestBeatPrepGaps(props.beat, props.attachments));
 
+const ATTACHMENT_ICONS: Record<QuestBeatAttachmentType, typeof IconEncounter> = {
+  encounter: IconEncounter,
+  npc: IconUserRound,
+  faction: IconFaction,
+  item: IconPackage,
+  monster: IconMonster,
+  sound: IconMusicNote,
+  audio_scene: IconMusic,
+  playlist: IconMusicNote,
+  note: IconNote,
+  handout: IconDocument,
+};
+function attachmentIcon(type: QuestBeatAttachmentType) {
+  return ATTACHMENT_ICONS[type];
+}
 </script>

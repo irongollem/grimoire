@@ -9,7 +9,7 @@ import type { Quest, QuestBeatTransition, QuestTransitionKind } from "@/types/qu
  * denormalized titles), and until now nothing outside Build mode's route
  * highlighting (`visitedRouteEdgeIds`, src/lib/quests/presentation.ts:194)
  * ever read it. Nothing in the app turns a row into a sentence either:
- * `QuestRunPath.vue` prints the destination beat title next to the raw
+ * `QuestRunStorySoFar.vue` prints the destination beat title next to the raw
  * `transition_kind` as an uppercase badge (e.g. "FORWARD"), it never composes
  * a phrase — so there was no existing wording to reuse, and `phraseTransition`
  * below is the first one.

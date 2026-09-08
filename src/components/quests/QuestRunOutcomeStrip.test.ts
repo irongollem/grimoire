@@ -18,72 +18,77 @@ const outgoing = [
 ];
 
 describe("QuestRunOutcomeStrip", () => {
-  it("emits the selected authored branch instead of guessing a next beat", async () => {
-    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing, improviseOpen: false } });
+  it("emits an intent to open the Advance dialog on the chosen route, rather than transitioning itself", async () => {
+    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing } });
     const branch = wrapper.findAll("article").find((card) => card.text().includes("Bridge"));
     await branch!.findAll("button").find((button) => button.text() === "Choose")!.trigger("click");
-    expect(wrapper.emitted("advance")).toEqual([["e1"]]);
+    expect(wrapper.emitted("choose")).toEqual([["e1"]]);
   });
 
   it("keeps reveal separate from choosing a hidden destination", async () => {
-    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: outgoing.slice(0, 1), improviseOpen: false } });
-    const reveal = wrapper.findAll("button").find((button) => button.text() === "Reveal to players");
+    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: outgoing.slice(0, 1) } });
+    const reveal = wrapper.findAll("button").find((button) => button.text() === "Reveal");
     await reveal!.trigger("click");
     expect(wrapper.emitted("reveal")).toEqual([["b2"]]);
-    expect(wrapper.emitted("advance")).toBeUndefined();
+    expect(wrapper.emitted("choose")).toBeUndefined();
     expect(wrapper.text()).toContain("Visited");
     expect(wrapper.text()).toContain("1 gap");
+    expect(wrapper.text()).toContain("choice");
+  });
+
+  it("renders a parallel route as an opens-alongside card with no choose action", () => {
+    const parallel = { ...outgoing[0]!, route_kind: "parallel" as const, thread_label: "The sealed crypt" };
+    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [parallel] } });
+    expect(wrapper.text()).toContain("opens alongside");
+    expect(wrapper.text()).toContain("Ticked by default — advancing also spawns Thread The sealed crypt.");
+    expect(wrapper.findAll("button").some((button) => button.text() === "Choose")).toBe(false);
   });
 
   it("offers the improvise card even at an authored dead end", () => {
-    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [], improviseOpen: false } });
+    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [] } });
     expect(wrapper.text()).toContain("Something else…");
   });
 
-  it("keeps improvise available beside authored branch choices, disabled while paused", () => {
-    const running = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing, improviseOpen: false } });
-    const runningButton = running.findAll("button").find((button) => button.text() === "Something else…");
-    expect(runningButton?.attributes("disabled")).toBeUndefined();
+  // The Advance dialog (story G) owns improvising now — including its own
+  // form — so this strip only has to announce the intent and let the disabled
+  // state track the same "running" gate every other action here uses.
+  it("emits an intent to open the Advance dialog's improvise option, disabled while paused", async () => {
+    const running = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing } });
+    await running.findAll("button").find((button) => button.text() === "Something else…")!.trigger("click");
+    expect(running.emitted("something-else")).toHaveLength(1);
 
-    const paused = mount(QuestRunOutcomeStrip, { props: { status: "paused", outgoing, improviseOpen: false } });
+    const paused = mount(QuestRunOutcomeStrip, { props: { status: "paused", outgoing } });
     const pausedButton = paused.findAll("button").find((button) => button.text() === "Something else…");
     expect(pausedButton?.attributes("disabled")).toBeDefined();
   });
 
-  it("opens the improvise form in this same column via the shared model, not a separate panel", async () => {
-    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [], improviseOpen: false } });
-    await wrapper.findAll("button").find((button) => button.text() === "Something else…")!.trigger("click");
-    expect(wrapper.emitted("update:improviseOpen")).toEqual([[true]]);
-  });
-
-  it("forwards a submitted improvisation without deciding when the form closes", async () => {
-    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [], improviseOpen: true } });
-    // A title is all the improv panel asks for now (#824) — the reason field
-    // moved behind "Add details" and the database falls back to the title.
-    await wrapper.find("input").setValue("The bridge collapses");
-    await wrapper.findAll("button").find((button) => button.text() === "Capture & run")!.trigger("click");
-    expect(wrapper.emitted("improv")).toHaveLength(1);
-    // Closing is the parent's call (a failed mutation must leave the form open).
-    expect(wrapper.emitted("update:improviseOpen")).toBeUndefined();
-  });
-
-  it("disables Choose on a closed route and keeps the reason visible", async () => {
+  it("disables Choose on a closed route and shows what it still needs", async () => {
     const gated = [{ ...outgoing[0]!, gate: closedGate }];
-    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: gated, improviseOpen: false } });
+    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: gated } });
     const card = wrapper.find("article");
-    expect(card.text()).toContain("Closed — needs “Clear the checkpoint” to be completed, currently open");
+    expect(card.text()).toContain("needs “Clear the checkpoint” completed");
     const chooseButton = card.findAll("button").find((button) => button.text() === "Choose");
     expect(chooseButton?.attributes("disabled")).toBeDefined();
     await chooseButton!.trigger("click");
-    expect(wrapper.emitted("advance")).toBeUndefined();
+    expect(wrapper.emitted("choose")).toBeUndefined();
   });
 
-  it("shows an open gate's reason and leaves Choose enabled", () => {
+  it("shows an open gate as ready and leaves Choose enabled", () => {
     const openGate = { ...closedGate, current_status: "complete" as const, is_open: true };
     const gated = [{ ...outgoing[0]!, gate: openGate }];
-    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: gated, improviseOpen: false } });
-    expect(wrapper.text()).toContain("Open — “Clear the checkpoint” is completed");
+    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: gated } });
+    expect(wrapper.text()).toContain("ready — “Clear the checkpoint” is completed");
     const chooseButton = wrapper.findAll("button").find((button) => button.text() === "Choose");
     expect(chooseButton?.attributes("disabled")).toBeUndefined();
+  });
+
+  it("prefers a route's own payoff over its gate condition when both exist", () => {
+    const payoffChoice = {
+      ...outgoing[0]!,
+      gate: { ...closedGate, is_open: true },
+      payoff: [{ consequence_id: "c1", action: "reveal" as const, target_objective_id: "o1", target_objective: "Testify before the Guild", target_npc_id: null, target_npc: null, target_quest_id: null, target_quest: null, action_payload: {}, after_days: 0, on_edge: true }],
+    };
+    const wrapper = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing: [payoffChoice] } });
+    expect(wrapper.text()).toContain("reveal · Testify before the Guild");
   });
 });
