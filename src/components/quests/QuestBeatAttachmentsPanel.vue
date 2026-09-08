@@ -57,16 +57,6 @@
       <AppInput v-model="quickEncounterName" class="min-w-0" placeholder="Quick encounter name…" />
       <AppButton label="Create & place" size="sm" variant="subtle" :disabled="!quickEncounterName.trim()" :loading="quickCreating" @click="quickCreateEncounter" />
     </div>
-    <fieldset v-if="attachmentType === 'location_set' && refId && roomOptions.length" class="space-y-1 rounded-md border border-dashed border-border p-2">
-      <legend class="px-1 text-caption font-medium text-foreground">Rooms included</legend>
-      <p class="text-caption text-muted-foreground">The selected location is the root. Choose the rooms needed for this beat.</p>
-      <AppCheckbox
-        v-for="room in roomOptions" :key="room.id"
-        v-model="selectedRoomIds"
-        :value="room.id"
-        :label="room.name"
-      />
-    </fieldset>
     <p v-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
   </section>
 </template>
@@ -76,12 +66,10 @@ import { computed, ref, watch } from "vue";
 import { useCreateQuestBeatAttachment, useDeleteQuestBeatAttachment, useSetQuestBeatAttachmentRequired } from "@/composables/quests/useQuestFlow";
 import { useCreateEncounter, useEncounters } from "@/composables/encounters/useEncounters";
 import { useAllFactions } from "@/composables/factions/useFactions";
-import { useAllLocations } from "@/composables/locations/useLocations";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useItems } from "@/composables/items/useItems";
 import { useMonsters } from "@/composables/monsters/useMonsters";
-import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useScriptoriumDocuments } from "@/composables/scriptorium/useScriptorium";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
@@ -90,20 +78,18 @@ import { withQuestReturnTo } from "@/lib/quests/navigation";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import QuestRunContainedTool from "./QuestRunContainedTool.vue";
 
 const props = defineProps<{ beat: QuestBeat; attachments: QuestBeatAttachmentSummary[] }>();
-const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "objective", "location_set", "npc", "faction", "item", "monster", "sound", "audio_scene", "playlist", "note", "handout"];
+const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "npc", "faction", "item", "monster", "sound", "audio_scene", "playlist", "note", "handout"];
 const attachmentType = ref<QuestBeatAttachmentType>("encounter");
 const refId = ref("");
 const adding = ref(false);
 const quickCreating = ref(false);
 const quickEncounterName = ref("");
-const selectedRoomIds = ref<string[]>([]);
 const opened = ref<QuestBeatAttachmentSummary | null>(null);
 const removingId = ref("");
 const updatingId = ref("");
@@ -113,8 +99,6 @@ const deleteAttachment = useDeleteQuestBeatAttachment();
 const updateRequired = useSetQuestBeatAttachmentRequired();
 const createEncounter = useCreateEncounter();
 const { data: encounters } = useEncounters();
-const { data: objectives } = useQuestObjectives(computed(() => props.beat.quest_id));
-const { data: locations } = useAllLocations();
 const { data: npcs } = useNpcs();
 const { data: factions } = useAllFactions();
 const { data: items } = useItems();
@@ -126,8 +110,6 @@ const { data: documents } = useScriptoriumDocuments();
 
 const options = computed<Array<{ id: string; name: string }>>(() => ({
   encounter: (encounters.value ?? []).map((row) => ({ id: row.id, name: row.name })),
-  objective: (objectives.value ?? []).map((row) => ({ id: row.id, name: row.description })),
-  location_set: (locations.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   npc: (npcs.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   faction: (factions.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   item: (items.value ?? []).filter((row) => !!row.user_id).map((row) => ({ id: row.id, name: row.name })),
@@ -137,29 +119,9 @@ const options = computed<Array<{ id: string; name: string }>>(() => ({
   playlist: (playlists.value ?? []).filter((row) => row.playlist_type === "music").map((row) => ({ id: row.id, name: row.name })),
   note: (notes.value ?? []).map((row) => ({ id: row.id, name: row.title })),
   handout: (documents.value ?? []).map((row) => ({ id: row.id, name: row.title })),
-  quest_ref: [],
 }[attachmentType.value]));
-const roomOptions = computed(() => {
-  if (!refId.value) return [];
-  const rows = locations.value ?? [];
-  const descendantIds = new Set<string>();
-  let parentIds = new Set([refId.value]);
-  while (parentIds.size) {
-    const nextParents = new Set<string>();
-    for (const location of rows) {
-      if (location.parent_id && parentIds.has(location.parent_id) && !descendantIds.has(location.id)) {
-        descendantIds.add(location.id);
-        nextParents.add(location.id);
-      }
-    }
-    parentIds = nextParents;
-  }
-  return rows.filter((location) => descendantIds.has(location.id)).map((location) => ({ id: location.id, name: location.name }));
-});
 const createUrl = computed(() => withQuestReturnTo(({
   encounter: "/encounters/new",
-  objective: `/quests/${props.beat.quest_id}?view=overview`,
-  location_set: "/locations/new",
   npc: "/npcs/new",
   faction: "/factions/new",
   item: "/vault/new",
@@ -169,11 +131,9 @@ const createUrl = computed(() => withQuestReturnTo(({
   playlist: "/soundboard",
   note: "/notes/new",
   handout: "/scriptorium/new",
-  quest_ref: `/quests/${props.beat.quest_id}?view=overview`,
 })[attachmentType.value], `/quests/${props.beat.quest_id}/beats/${props.beat.id}`));
 
-watch(attachmentType, () => { refId.value = ""; selectedRoomIds.value = []; error.value = ""; });
-watch(refId, () => { selectedRoomIds.value = []; });
+watch(attachmentType, () => { refId.value = ""; error.value = ""; });
 
 function adapterLabel(type: QuestBeatAttachmentType) {
   return QUEST_BEAT_ATTACHMENT_ADAPTERS[type].label;
@@ -190,7 +150,7 @@ async function add() {
       campaign_id: props.beat.campaign_id,
       attachment_type: attachmentType.value,
       ref_id: refId.value,
-      metadata: attachmentType.value === "location_set" ? { room_ids: selectedRoomIds.value } : {},
+      metadata: {},
     });
     refId.value = "";
   } catch (caught) {

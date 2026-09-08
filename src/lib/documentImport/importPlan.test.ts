@@ -31,6 +31,7 @@ const SAMPLE_ENTITY_DATA: { [K in ImportEntityKind]: ExtractedPayloadMap[K] } = 
   spells: { name: "Test Spell" },
   quests: { title: "Test Quest" },
   factions: { name: "Test Faction" },
+  encounters: { name: "Test Encounter" },
 };
 
 function entity<K extends ImportEntityKind>(
@@ -111,6 +112,34 @@ describe("buildImportPlan", () => {
   it("produces an empty plan when nothing is selected", () => {
     const entities = [entity<"items">("i1", { name: "Sword" })];
     expect(buildImportPlan("items", entities, [], CAMPAIGN_ID, PROVENANCE)).toEqual([]);
+  });
+
+  it("excludes a selected-but-linked entity from the plan (#837/#838)", () => {
+    const entities = [
+      entity<"monsters">("m1", { name: "Kobold" }),
+      entity<"monsters">("m2", { name: "Owlbear" }),
+    ];
+    const plan = buildImportPlan(
+      "monsters",
+      entities,
+      ["m1", "m2"],
+      CAMPAIGN_ID,
+      PROVENANCE,
+      new Set(["m1"]),
+    );
+    expect(plan.map((p) => p.ref)).toEqual(["m2"]);
+  });
+
+  it("treats an unselected entity as excluded even when it is also linked", () => {
+    const entities = [entity<"items">("i1", { name: "Potion of Healing" })];
+    const plan = buildImportPlan("items", entities, [], CAMPAIGN_ID, PROVENANCE, new Set(["i1"]));
+    expect(plan).toEqual([]);
+  });
+
+  it("defaults to linking nothing when linkedRefs is omitted", () => {
+    const entities = [entity<"monsters">("m1", { name: "Kobold" })];
+    const plan = buildImportPlan("monsters", entities, ["m1"], CAMPAIGN_ID, PROVENANCE);
+    expect(plan.map((p) => p.ref)).toEqual(["m1"]);
   });
 });
 
@@ -258,6 +287,27 @@ describe("resolveLinks", () => {
       targetId: "loc-1",
       apply: { kind: "fk_update", table: "quests", column: "location_id" },
     });
+  });
+
+  it("resolves an encounter's room against locations, on its own FK column (#840)", () => {
+    // Named `encounter_location_name` rather than reusing quests' own
+    // `location_name` — LINK_TARGETS has one fixed apply target per field,
+    // and an encounter's room updates a different column (encounters.location_id).
+    const rows: LinkedRow[] = [{ id: "enc-1", links: { encounter_location_name: "M3. River Cavern" } }];
+    const result = resolveLinks("encounters", rows, {
+      locations: [{ id: "loc-1", name: "M3. River Cavern" }],
+    });
+
+    expect(result).toEqual([
+      {
+        status: "resolved",
+        sourceId: "enc-1",
+        field: "encounter_location_name",
+        name: "M3. River Cavern",
+        targetId: "loc-1",
+        apply: { kind: "fk_update", table: "encounters", column: "location_id" },
+      },
+    ]);
   });
 
   it("skips a link field that was never captured for a row", () => {

@@ -141,7 +141,10 @@ export interface FactionLocation {
 export interface FactionItem {
   id: string;
   faction_id: string;
-  item_id: string;
+  // At most one of these is set — a DB check constraint enforces it. Resolve
+  // through `src/lib/itemRef.ts`, never by reading a column directly.
+  item_id: string | null; // the owner's own items row (uuid)
+  library_item_id: string | null; // shared library content (text id) — #819
   notes: string | null;
   user_id: string;
 }

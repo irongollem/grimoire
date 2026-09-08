@@ -187,11 +187,19 @@
               placeholder="/assets/placeholders/monster.webp"
             />
             <!-- Left, not right: the mini badge owns bottom-right here. -->
+            <!--
+              `stat_block` is optional-chained because the player projection
+              nulls it whole when the DM has not revealed a creature's stats
+              (`get_player_visible_monsters`, gated on `reveal_stats`). Opening
+              the lightbox on an unrevealed monster used to crash the page —
+              `crBg`/`crText` have always handled a missing CR, rendering
+              "CR ???"; only these call sites assumed one was there.
+            -->
             <span
               v-if="lightbox?.monster"
               class="absolute bottom-2 left-2 px-2 py-0.5 rounded font-cinzel text-2xs font-bold text-white"
-              :class="crBg(lightbox.monster.stat_block.challenge_rating)"
-            >CR {{ crText(lightbox.monster.stat_block.challenge_rating) }}</span>
+              :class="crBg(lightbox.monster.stat_block?.challenge_rating)"
+            >CR {{ crText(lightbox.monster.stat_block?.challenge_rating) }}</span>
           </MiniPortraitOverlay>
         </div>
 
@@ -203,7 +211,12 @@
             </p>
           </div>
 
-          <template v-if="lightbox?.monster && (lightbox.revealStats ?? activeTab === 'forms')">
+          <!--
+            The stat block is checked alongside `revealStats` because only
+            one of the two is something this template can know. They move
+            together in the projection; assuming so is what crashed here.
+          -->
+          <template v-if="lightbox?.monster?.stat_block && (lightbox.revealStats ?? activeTab === 'forms')">
             <div class="flex gap-4 font-cinzel text-sm">
               <div class="text-center">
                 <p class="text-2xs text-muted-foreground tracking-wider">AC</p>
@@ -293,7 +306,7 @@ import { crBg, crText } from "@/lib/monsterDisplay";
 import { rollParsed } from "@/lib/dice/roller";
 import type { RollMode } from "@/lib/dice/roller";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
-import type { DiscoveredMonster, Monster } from "@/types/monster.types";
+import type { DiscoveredMonster, PlayerVisibleMonster } from "@/types/monster.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -306,8 +319,11 @@ import MonsterFormCard from "@/components/monsters/MonsterFormCard.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
-interface BestiaryEntry { discovery: DiscoveredMonster; monster: Monster | null }
-interface FormEntry { monster: Monster; name: string; imageUrl: string | null }
+// `PlayerVisibleMonster`, not `Monster` (#842): everything on this view comes
+// from `usePlayerVisibleMonsters`, whose projection nulls `stat_block` for a
+// creature the DM has not revealed. The compiler now says so at every site.
+interface BestiaryEntry { discovery: DiscoveredMonster; monster: PlayerVisibleMonster | null }
+interface FormEntry { monster: PlayerVisibleMonster; name: string; imageUrl: string | null }
 
 const ui = useUiStore();
 const auth = useAuthStore();
@@ -354,7 +370,7 @@ function isVisibleToPreviewMember(d: DiscoveredMonster): boolean {
 
 const resolved = computed<BestiaryEntry[]>(() =>
   (discoveries.value ?? []).filter(isVisibleToPreviewMember).map((d) => {
-    let monster: Monster | null = null;
+    let monster: PlayerVisibleMonster | null = null;
     if (allMonsters.value) {
       if (d.library_monster_id)    monster = allMonsters.value.find((m) => m.id === d.library_monster_id) ?? null;
       else if (d.monster_id) monster = allMonsters.value.find((m) => m.id === d.monster_id) ?? null;
@@ -378,7 +394,7 @@ const maxWildshapeCr = computed(() => calcWildshapeMaxCr(member.value?.level ?? 
 
 const maxWildshapeCrDisplay = computed(() => calcWildshapeCrDisplay(maxWildshapeCr.value));
 
-function isEligibleBeast(m: Monster): boolean {
+function isEligibleBeast(m: PlayerVisibleMonster): boolean {
   if (!isDruid.value) return false;
   return isEligibleWildshapeForm(m, member.value?.level ?? 1, maxWildshapeCr.value);
 }
@@ -444,7 +460,7 @@ const eligibleBeastForms = computed<FormEntry[]>(() => {
       !pinnedMonsterIds.value.has(m.id),
     )
     .map((m) => ({ monster: m, name: m.name, imageUrl: m.image_url ?? null }))
-    .sort((a, b) => parseCr(a.monster.stat_block.challenge_rating) - parseCr(b.monster.stat_block.challenge_rating));
+    .sort((a, b) => parseCr(a.monster.stat_block?.challenge_rating) - parseCr(b.monster.stat_block?.challenge_rating));
 });
 
 const pinnedForms  = computed(() => pinnedFormMonsters.value);
@@ -452,7 +468,7 @@ const eligibleForms = computed(() => eligibleBeastForms.value);
 const wildForms    = computed(() => [...pinnedForms.value, ...eligibleForms.value]);
 
 // DM preview: toggle pin
-function togglePin(monster: Monster) {
+function togglePin(monster: PlayerVisibleMonster) {
   const memberId = ui.dmPreviewPartyMemberId;
   if (!memberId) return;
   const existing = (playerPinnedForms.value ?? []).find((p) =>
@@ -463,7 +479,7 @@ function togglePin(monster: Monster) {
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 interface LightboxState {
-  monster: Monster | null;
+  monster: PlayerVisibleMonster | null;
   name: string;
   imageUrl: string | null;
   revealStats: boolean | null;
@@ -480,7 +496,7 @@ const lightboxMiniSourceId = computed(() => {
   return m && !m.is_shared ? m.id : "";
 });
 
-function openLightbox(monster: Monster | null, discovery: DiscoveredMonster | null) {
+function openLightbox(monster: PlayerVisibleMonster | null, discovery: DiscoveredMonster | null) {
   if (!monster && !discovery) return;
   if (discovery) markRead({ entityType: "discovery", entityId: discovery.id });
   lastRoll.value = null;

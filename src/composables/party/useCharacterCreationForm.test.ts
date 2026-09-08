@@ -11,8 +11,8 @@ const CARRIER = "member-1";
 describe("partitionBundleEntries", () => {
   it("routes plain items to a batched row and resolves their vault item_id", () => {
     const vaultMap = new Map<string, VaultEntry>([
-      ["greataxe", { id: "item-axe", bundle_items: null }],
-      ["javelin", { id: "item-javelin", bundle_items: null }],
+      ["greataxe", { id: "11111111-1111-4111-8111-111111111111", bundle_items: null }],
+      ["javelin", { id: "22222222-2222-4222-8222-222222222222", bundle_items: null }],
     ]);
     const { plainRows, packEntries } = partitionBundleEntries(
       [{ name: "Greataxe" }, { name: "Javelin", quantity: 4 }],
@@ -23,14 +23,14 @@ describe("partitionBundleEntries", () => {
     expect(packEntries).toEqual([]);
     expect(plainRows).toEqual([
       {
-        item_id: "item-axe", name: "Greataxe", quantity: 1,
+        item_id: "11111111-1111-4111-8111-111111111111", library_item_id: null, name: "Greataxe", quantity: 1,
         carried_by: CARRIER, location: "backpack",
         slot: null, is_container: false, container_id: null,
         is_attuned: false, is_equipped: false, notes: null,
         current_charges: null, is_identified: true, is_ruined: false, sort_order: 0,
       },
       {
-        item_id: "item-javelin", name: "Javelin", quantity: 4,
+        item_id: "22222222-2222-4222-8222-222222222222", library_item_id: null, name: "Javelin", quantity: 4,
         carried_by: CARRIER, location: "backpack",
         slot: null, is_container: false, container_id: null,
         is_attuned: false, is_equipped: false, notes: null,
@@ -41,8 +41,8 @@ describe("partitionBundleEntries", () => {
 
   it("routes entries with bundle_items to packEntries instead of batching them", () => {
     const vaultMap = new Map<string, VaultEntry>([
-      ["explorer's pack", { id: "item-pack", bundle_items: [{ name: "Bedroll", quantity: 1 }] }],
-      ["rapier", { id: "item-rapier", bundle_items: null }],
+      ["explorer's pack", { id: "55555555-5555-4555-8555-555555555555", bundle_items: [{ name: "Bedroll", quantity: 1 }] }],
+      ["rapier", { id: "44444444-4444-4444-8444-444444444444", bundle_items: null }],
     ]);
     const { plainRows, packEntries } = partitionBundleEntries(
       [{ name: "Rapier" }, { name: "Explorer's Pack" }],
@@ -67,11 +67,11 @@ describe("partitionBundleEntries", () => {
 
   it("treats an entry whose vault match has an empty bundle_items array as plain", () => {
     const vaultMap = new Map<string, VaultEntry>([
-      ["dagger", { id: "item-dagger", bundle_items: [] }],
+      ["dagger", { id: "33333333-3333-4333-8333-333333333333", bundle_items: [] }],
     ]);
     const { plainRows, packEntries } = partitionBundleEntries([{ name: "Dagger" }], vaultMap, CARRIER);
     expect(packEntries).toEqual([]);
-    expect(plainRows[0].item_id).toBe("item-dagger");
+    expect(plainRows[0].item_id).toBe("33333333-3333-4333-8333-333333333333");
   });
 });
 

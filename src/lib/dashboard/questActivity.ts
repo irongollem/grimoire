@@ -30,7 +30,10 @@ export interface QuestActivityRow {
   occurredAt: string;
 }
 
-const TRANSITION_VERBS: Record<QuestTransitionKind, string> = {
+// `assert` is handled separately in `phraseTransition`, before this table is
+// ever consulted — it is not a move (see the type guard there), so it is
+// excluded here rather than given a verb that would never fit "from X to Y".
+const TRANSITION_VERBS: Record<Exclude<QuestTransitionKind, "assert">, string> = {
   enter: "Entered",
   forward: "Advanced",
   previous: "Stepped back",
@@ -58,7 +61,16 @@ const TRANSITION_VERBS: Record<QuestTransitionKind, string> = {
  * the run started or stopped exactly there.
  */
 function phraseTransition(transition: QuestBeatTransition): string {
-  const { from_beat_title: from, to_beat_title: to, transition_kind: kind } = transition;
+  const { from_beat_title: from, to_beat_title: to, transition_kind: kind, reason } = transition;
+  // An assertion is a DM saying "this already happened," not a move (#796) —
+  // `assert_quest_objective_status` writes one with no beat at all (both
+  // titles null), and `assert_quest_runtime` writes one with only a `to` beat,
+  // never a "from X to Y" pair. Worded as "Recorded", never a play verb, so
+  // the feed reads honestly next to moves the party actually made.
+  if (kind === "assert") {
+    if (to !== null) return `Recorded reaching "${to}"`;
+    return reason ? `Recorded: ${reason}` : "Recorded a ledger change";
+  }
   if (to === null) return `Ended at "${from}"`;
   if (from === null) return `Entered "${to}"`;
   return `${TRANSITION_VERBS[kind]} from "${from}" to "${to}"`;

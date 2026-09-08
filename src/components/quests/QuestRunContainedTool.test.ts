@@ -4,10 +4,6 @@ import QuestRunContainedTool from "./QuestRunContainedTool.vue";
 import type { QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
-  locations: { value: [
-    { id: "root", name: "Drowned Abbey", location_type: "dungeon", description: "root-body", notes: "Mind the tide.", parent_id: null },
-    { id: "room-1", name: "Crypt", location_type: "room", description: "room-body", notes: null, parent_id: "root" },
-  ] },
   sounds: { value: [{ id: "sound-1", name: "Thunder", category: "effects", source_type: "url", file_url: "thunder.mp3", storage_path: null }] },
   playlists: { value: [] as Array<{ id: string; name: string; playlist_type: "ambient" | "music" }> },
   tracks: { value: [] as Array<Record<string, unknown>> },
@@ -18,18 +14,15 @@ const mocks = vi.hoisted(() => ({
   handout: { value: undefined as Record<string, unknown> | undefined },
   soundEnabled: null as (() => boolean) | null,
   playlistEnabled: null as (() => boolean) | null,
-  objectiveQuestId: { value: "" },
   monsterId: { value: "" },
   noteId: { value: "" },
   handoutId: { value: "" },
   trigger: vi.fn(),
   playPlaylist: vi.fn(),
   stopPlaylist: vi.fn(),
-  updateObjective: vi.fn(),
 }));
 
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
-vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: mocks.locations }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpc: () => ({ data: mocks.npc }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useFaction: () => ({ data: mocks.faction }) }));
 vi.mock("@/composables/items/useItems", () => ({ useItems: () => ({ data: { value: [] } }) }));
@@ -66,14 +59,6 @@ vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({
   playPlaylist: mocks.playPlaylist,
   stopPlaylist: mocks.stopPlaylist,
 }) }));
-vi.mock("@/composables/quests/useQuests", () => ({
-  useQuestObjectives: (questId: { value: string }) => {
-    mocks.objectiveQuestId = questId;
-    return { data: { value: [] } };
-  },
-  useUpdateObjective: () => ({ mutateAsync: mocks.updateObjective }),
-}));
-
 function attachment(type: QuestBeatAttachmentType, overrides: Partial<QuestBeatAttachmentSummary> = {}): QuestBeatAttachmentSummary {
   return {
     id: "a1", beat_id: "b1", quest_id: "q1", campaign_id: "c1", attachment_type: type,
@@ -119,18 +104,6 @@ describe("QuestRunContainedTool", () => {
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Encounter summary")!.trigger("click");
     expect(wrapper.findComponent({ name: "EncounterRunSurface" }).exists()).toBe(false);
     expect(wrapper.text()).toContain("Focused encounter state stays in the existing Encounter Runner.");
-  });
-
-  it("shows only the rooms prepared for the beat", () => {
-    const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("location_set", { ref_id: "root", metadata: { room_ids: ["room-1"] } }), returnTo: "/quests/q1?mode=run&beat=b1" },
-      global,
-    });
-    expect(wrapper.text()).toContain("Crypt");
-    expect(wrapper.text()).toContain("1 prepared room");
-    expect(wrapper.text()).toContain("Mind the tide.");
-    const bodies = wrapper.findAllComponents({ name: "RichTextViewer" }).map((viewer) => viewer.props("content"));
-    expect(bodies).toEqual(["root-body", "room-body"]);
   });
 
   it("fires an attached sound through the shared playback subsystem", async () => {
@@ -180,7 +153,6 @@ describe("QuestRunContainedTool", () => {
     expect(mocks.noteId.value).toBe("note-1");
     expect(mocks.handoutId.value).toBe("");
     expect(mocks.monsterId.value).toBe("");
-    expect(mocks.objectiveQuestId.value).toBe("");
     expect(mocks.soundEnabled?.()).toBe(false);
     expect(mocks.playlistEnabled?.()).toBe(false);
   });

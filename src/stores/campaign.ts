@@ -153,11 +153,24 @@ export const useCampaignStore = defineStore("campaign", () => {
     player: "grimoire_active_campaign_player",
   };
 
+  /**
+   * `campaignsInTargetLens` is the set of campaign ids the account holds in the
+   * `to` role — the caller reads it from `campaign_members` and hands it in,
+   * because the store has no way to ask. A remembered id outside that set is
+   * dropped rather than restored: the DM slot could be holding a campaign this
+   * account only plays in, either written there by the unscoped campaign list
+   * this fix replaces, or by an earlier build. Restoring it put the DM shell on
+   * someone else's campaign, which is the bug. Omit the set to restore blindly.
+   */
   function switchUserMode(
     from: "dm" | "player" | "",
     to: "dm" | "player",
-    rememberCurrentCampaign = true,
+    options: {
+      rememberCurrentCampaign?: boolean;
+      campaignsInTargetLens?: ReadonlySet<string>;
+    } = {},
   ) {
+    const { rememberCurrentCampaign = true, campaignsInTargetLens } = options;
     if (from && activeCampaignId.value && rememberCurrentCampaign) {
       localStorage.setItem(MODE_STORAGE_KEY[from], activeCampaignId.value);
     }
@@ -166,7 +179,25 @@ export const useCampaignStore = defineStore("campaign", () => {
     }
     clearActiveCampaign();
     const remembered = localStorage.getItem(MODE_STORAGE_KEY[to]);
-    if (remembered) activeCampaignId.value = remembered;
+    if (!remembered) return;
+
+    // Fails closed when the lens is unknown, and that is a deliberate reversal
+    // (#845). This used to restore blindly on a failed lookup, reasoning that a
+    // network blip should not cost the user their remembered campaign. But a
+    // lookup that failed is not evidence the campaign is allowed — it is the
+    // absence of evidence, and restoring on it reproduces the exact bug this
+    // guard exists to stop: a DM slot holding a campaign the account only plays
+    // in, putting the DM shell on someone else's game.
+    //
+    // The asymmetry decides it. Failing closed costs one click to re-pick a
+    // campaign, on the rare occasion a request fails. Failing open costs the
+    // reported bug, silently, and looks to the user like they have been handed
+    // someone else's campaign.
+    if (!campaignsInTargetLens || !campaignsInTargetLens.has(remembered)) {
+      localStorage.removeItem(MODE_STORAGE_KEY[to]);
+      return;
+    }
+    activeCampaignId.value = remembered;
   }
 
   // Tri-state: only an explicit `true` counts as on. `null` (never chosen)

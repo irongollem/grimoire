@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(29);
 
 select has_function('public', 'get_player_visible_quest_beats', array['uuid', 'uuid', 'uuid'], 'player beats use a dedicated projection');
 select hasnt_function('public', 'get_player_visible_quest_beat_history', array['uuid', 'uuid'], 'visit history adds no second security-definer endpoint');
@@ -43,9 +43,9 @@ insert into public.quest_beats (
   ('67400000-0000-4000-8000-000000000043', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'Improvised secret', 'Improvised DM', null, 'Improvised reveal', null, null, 'hidden', true),
   ('67400000-0000-4000-8000-000000000044', '67400000-0000-4000-8000-000000000031', '67400000-0000-4000-8000-000000000010', 'B scene', 'B DM', null, 'B reveal', null, null, 'revealed', false);
 
-insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id, label) values
-  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000042', 'Secret betrayal route'),
-  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000041', 'Visible destination but DM-only edge');
+insert into public.quest_beat_edges (quest_id, campaign_id, source_beat_id, target_beat_id) values
+  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000042'),
+  ('67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', '67400000-0000-4000-8000-000000000040', '67400000-0000-4000-8000-000000000041');
 
 insert into public.quest_objectives (id, quest_id, description, is_player_visible) values
   ('67400000-0000-4000-8000-000000000050', '67400000-0000-4000-8000-000000000030', 'Visible objective', true),
@@ -56,11 +56,17 @@ insert into public.npcs (id, user_id, campaign_id, name) values
 insert into public.quest_refs (id, quest_id, ref_type, ref_id, is_player_visible) values
   ('67400000-0000-4000-8000-000000000070', '67400000-0000-4000-8000-000000000030', 'npc', '67400000-0000-4000-8000-000000000060', true),
   ('67400000-0000-4000-8000-000000000071', '67400000-0000-4000-8000-000000000030', 'npc', '67400000-0000-4000-8000-000000000061', false);
+-- 'objective' stopped being a valid attachment type in #793 (#792 already
+-- removed it client-side), and #799 retired 'quest_ref' too (a beat pointing
+-- at a pointer, offered by no UI, zero rows in production). 'npc' is the
+-- surviving vehicle for the same security point: get_player_visible_quest_beats
+-- gates an 'npc' attachment's summary on a matching quest_refs row (same
+-- quest, ref_type = 'npc', ref_id = the npc's own id) having
+-- is_player_visible = true — so the attachment's ref_id below is the npc id,
+-- not a quest_refs row id.
 insert into public.quest_beat_attachments (id, beat_id, quest_id, campaign_id, attachment_type, ref_id, role) values
-  ('67400000-0000-4000-8000-000000000080', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'objective', '67400000-0000-4000-8000-000000000050', 'goal'),
-  ('67400000-0000-4000-8000-000000000081', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'objective', '67400000-0000-4000-8000-000000000051', 'secret'),
-  ('67400000-0000-4000-8000-000000000082', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'quest_ref', '67400000-0000-4000-8000-000000000070', 'ally'),
-  ('67400000-0000-4000-8000-000000000083', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'quest_ref', '67400000-0000-4000-8000-000000000071', 'traitor');
+  ('67400000-0000-4000-8000-000000000082', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'npc', '67400000-0000-4000-8000-000000000060', 'ally'),
+  ('67400000-0000-4000-8000-000000000083', '67400000-0000-4000-8000-000000000041', '67400000-0000-4000-8000-000000000030', '67400000-0000-4000-8000-000000000010', 'npc', '67400000-0000-4000-8000-000000000061', 'traitor');
 
 insert into public.quest_beat_transitions (
   id, campaign_id, to_quest_id, to_beat_id, transition_kind, runtime_version, to_quest_title, to_beat_title, provenance, created_at
@@ -79,7 +85,10 @@ select is((select player_text from public.get_player_visible_quest_beats('674000
 select is((select player_text from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000041'), 'Reveal B', 'revealed beats expose only reveal text');
 select ok((select not (to_jsonb(b) ?| array['title', 'dm_content', 'read_aloud', 'how_it_plays']) from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') b limit 1), 'projection contains no DM narrative fields');
 select is(jsonb_array_length((select attachments from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000040')), 0, 'rumors do not expose attachment summaries');
-select is(jsonb_array_length((select attachments from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000041')), 2, 'revealed beats include only explicitly visible attachment summaries');
+-- Only one attachment (npc -> visible npc ref) now clears the visibility
+-- filter: the other npc's ref is hidden, and the 'objective' arm this count
+-- used to include no longer exists (#793).
+select is(jsonb_array_length((select attachments from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000041')), 1, 'revealed beats include only explicitly visible attachment summaries');
 select ok((select attachments::text not like '%Secret objective%' and attachments::text not like '%000000000061%' from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000041'), 'attachment summaries contain no hidden label or target id');
 select is(jsonb_array_length((select visits from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000040')), 1, 'history includes actual visits only when their destination beat is visible');
 select ok((select not ((visits->0) ?| array['from_beat_id', 'to_beat_title', 'transition_kind', 'provenance']) from public.get_player_visible_quest_beats('67400000-0000-4000-8000-000000000010') where id = '67400000-0000-4000-8000-000000000040'), 'history exposes no origin, topology, DM snapshots, or provenance');
@@ -87,6 +96,10 @@ select is((select count(*)::integer from public.quest_beats), 0, 'raw beat searc
 select is((select count(*)::integer from public.quest_beat_edges), 0, 'raw edge search cannot enumerate topology');
 select is((select count(*)::integer from public.quest_beat_attachments), 0, 'raw attachment search cannot enumerate hidden counts');
 select is((select count(*)::integer from public.quest_beat_transitions), 0, 'raw history cannot enumerate hidden visits');
+-- #795 put a new table on the player-reachable PostgREST surface. A gate names
+-- an objective that may be hidden, so it belongs in the enumeration sweep this
+-- file exists to be — the behaviour is already correct; it was simply unpinned.
+select is((select count(*)::integer from public.quest_beat_edge_gates), 0, 'raw gate search cannot enumerate route conditions or hidden objectives');
 select is((select count(*)::integer from public.quest_objectives), 1, 'existing objective queries keep their own visibility gate');
 select is((select count(*)::integer from public.quest_refs), 1, 'existing reference queries keep their own visibility gate');
 

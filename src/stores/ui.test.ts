@@ -62,3 +62,27 @@ describe("quest filter state", () => {
     expect(useUiStore().questsIsKanban).toBe(false);
   });
 });
+
+describe("Atlas explorer layout", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  it("opens on the tree expanded, and remembers a fold across navigation and reload", async () => {
+    const first = useUiStore();
+    expect(first.locationsTreeCollapsed).toBe(false);
+
+    first.locationsTreeCollapsed = true;
+    await nextTick();
+
+    // Same navigation-survives-in-memory guarantee `locationsExpandedIds` gets.
+    expect(useUiStore().locationsTreeCollapsed).toBe(true);
+
+    // And unlike the ephemeral filters above, this is a layout preference —
+    // a fresh session (reload, new tab) should still open with the fold kept,
+    // the same idiom `questsIsKanban` uses.
+    setActivePinia(createPinia());
+    expect(useUiStore().locationsTreeCollapsed).toBe(true);
+  });
+});

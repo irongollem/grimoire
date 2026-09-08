@@ -1,9 +1,12 @@
 <template>
   <!-- AI Style — Preset Picker modal -->
+  <!-- No backdrop dismiss: this holds a freeform prompt and, once Generate is
+       pressed, a paid render in flight. See AppModal's `backdropDismiss`. -->
   <AppModal
     :open="showPicker"
     size="md"
     labelled-by="ai-style-picker-title"
+    :backdrop-dismiss="false"
     @close="$emit('closePicker')"
   >
     <!-- Scrolls for the same reason as the result panel below: the preset grid
@@ -76,11 +79,18 @@
   </AppModal>
 
   <!-- AI Style — Result preview modal -->
+  <!--
+    The styled map is a blob URL held in memory by `useMapExport` and nothing
+    reopens this panel — only a fresh generation sets `showResult`. So closing
+    it is the end of that render, and it cost credits: the backdrop cannot do
+    it at all, and Escape or Close asks first.
+  -->
   <AppModal
     :open="showResult"
     size="md"
     labelled-by="ai-style-result-title"
-    @close="$emit('closeResult')"
+    :backdrop-dismiss="false"
+    @close="requestCloseResult"
   >
     <!--
       The body scrolls, which the hand-rolled panel never did: a square preview
@@ -138,6 +148,7 @@ import AppModal from "@/components/common/AppModal.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useConfirm } from "@/composables/useConfirm";
 
 interface Preset {
   id: string;
@@ -183,7 +194,7 @@ const {
   byok: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   closePicker: [];
   closeResult: [];
   generate: [];
@@ -197,6 +208,24 @@ defineEmits<{
 
 const { affordable } = useAiCredits();
 const canAfford = computed(() => affordable(credits, byok));
+
+const { confirm } = useConfirm();
+
+/**
+ * Escape on the result panel. Nothing reopens it and the styled map is a blob
+ * URL that was never uploaded, so closing is the end of a paid render — worth
+ * one question. "Back" is the labelled exit for anyone who means it.
+ */
+async function requestCloseResult() {
+  if (
+    await confirm("This styled map has not been saved or downloaded. Closing discards it, and re-rendering costs credits.", {
+      title: "Discard styled map",
+      confirmLabel: "Discard",
+    })
+  ) {
+    emit("closeResult");
+  }
+}
 
 const atlasLocationId = defineModel<string>("atlasLocationId", { default: "" });
 </script>

@@ -1,4 +1,4 @@
-import type { Monster } from "@/types/monster.types";
+import type { PlayerVisibleMonster } from "@/types/monster.types";
 import { parseCr } from "@/lib/utils";
 
 // Shared wild shape eligibility rules. These live here (not inlined per-view) so the
@@ -26,8 +26,14 @@ export function wildshapeCrDisplay(cr: number): string {
  * Whether a monster is a legal wild shape form for a druid of the given level:
  * a beast within the CR cap; below level 8 a druid cannot take forms with a fly or
  * swim speed.
+ *
+ * Takes `PlayerVisibleMonster` because this runs on the player's own bestiary,
+ * where an unrevealed creature arrives with a null `stat_block` (#842) — which
+ * the body below has always handled, optional-chaining it twice. The parameter
+ * type was the only part that claimed otherwise. A full `Monster` still
+ * satisfies it, so every DM caller is unaffected.
  */
-export function isEligibleWildshapeForm(monster: Monster, level: number, maxCr: number): boolean {
+export function isEligibleWildshapeForm(monster: PlayerVisibleMonster, level: number, maxCr: number): boolean {
   if ((monster.monster_type ?? "").toLowerCase() !== "beast") return false;
   if (parseCr(monster.stat_block?.challenge_rating) > maxCr) return false;
   if (level < 8) {

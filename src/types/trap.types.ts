@@ -37,6 +37,40 @@ export type TrapResetType = typeof TRAP_RESET_TYPES[number];
 export const TRAP_SAVE_TYPES = ["STR", "DEX", "CON", "INT", "WIS", "CHA"] as const;
 export type TrapSaveType = typeof TRAP_SAVE_TYPES[number];
 
+/** How this trap draws on a site map (#804) — what it IS, not which pack
+ *  asset to use. Matches the CHECK constraint on `traps.hazard_glyph`
+ *  (migration 20260906200347). Deliberately short and app-level: a drawing
+ *  hint, not a taxonomy of hazards — see `trap_type` for the mechanical
+ *  classification this is NOT a substitute for. */
+export const HAZARD_GLYPHS = [
+  "pit",
+  "pressure_plate",
+  "tripwire",
+  "falling_block",
+  "dart_wall",
+  "blade",
+  "flame_jet",
+  "glyph",
+  "net",
+  "alarm",
+  "collapsing_floor",
+] as const;
+export type HazardGlyph = (typeof HAZARD_GLYPHS)[number];
+
+export const HAZARD_GLYPH_LABELS: Record<HazardGlyph, string> = {
+  pit:              "Pit",
+  pressure_plate:   "Pressure Plate",
+  tripwire:         "Tripwire",
+  falling_block:    "Falling Block",
+  dart_wall:        "Dart Wall",
+  blade:            "Blade",
+  flame_jet:        "Flame Jet",
+  glyph:            "Glyph / Rune",
+  net:              "Net",
+  alarm:            "Alarm",
+  collapsing_floor: "Collapsing Floor",
+};
+
 export interface DamageEntry {
   dice: string;
   type: string;
@@ -58,6 +92,9 @@ export interface Trap {
   name: string;
   description: string | null;
   trap_type: TrapType;
+  /** How this trap draws on a site map (#804). Null = renderer falls back to
+   *  a generic hazard marker — never an empty cell. */
+  hazard_glyph: HazardGlyph | null;
   cr: string | null;
   trigger_type: TrapTrigger | null;
   detection_dc: number | null;

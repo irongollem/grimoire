@@ -150,6 +150,7 @@ async function addToStash() {
     const owned = await ensureOwnedItem(props.item);
     await addInventoryItem({
       item_id: owned.id,
+      library_item_id: null,
       name: props.item.name,
       quantity: 1,
       carried_by: null,
@@ -176,6 +177,7 @@ async function assignToPlayer(member: PartyMember) {
     const owned = await ensureOwnedItem(props.item);
     await addInventoryItem({
       item_id: owned.id,
+      library_item_id: null,
       name: props.item.name,
       quantity: 1,
       carried_by: member.id,

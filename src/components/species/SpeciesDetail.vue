@@ -46,17 +46,8 @@
             label-class="italic"
         />
 
-        <!-- Campaign-specific flag -->
-        <div v-if="campaignStore.activeCampaignId" class="rounded-md border border-border/60 bg-muted/20 p-3 space-y-1">
-          <AppCheckbox
-            :model-value="form.campaign_id === campaignStore.activeCampaignId"
-            label="Campaign-only"
-            @update:model-value="toggleCampaignSpecific"
-          />
-          <p class="text-caption text-muted-foreground italic pl-6">
-            Restrict this species to <strong>{{ campaignStore.activeCampaign?.name }}</strong>. It won't appear in other campaigns.
-          </p>
-        </div>
+        <!-- Scope -->
+        <CampaignScopeField v-model="form.campaign_id" />
       </div>
 
       <!-- Right: Fields -->
@@ -220,6 +211,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRouter } from "vue-router";
 import { useCreateSpecies, useUpdateSpecies, useDeleteSpecies } from "@/composables/rules/useSpecies";
@@ -228,6 +220,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import TraitSection from "@/components/npcs/TraitSection.vue";
 import SpeciesSpellGrants from "@/components/species/SpeciesSpellGrants.vue";
@@ -241,6 +234,7 @@ const props = defineProps<{ species?: Species | null }>();
 const router = useRouter();
 const { confirm } = useConfirm();
 const campaignStore = useCampaignStore();
+const { activeCampaignId } = storeToRefs(campaignStore);
 const { mutateAsync: createSpecies } = useCreateSpecies();
 const { mutateAsync: updateSpecies } = useUpdateSpecies();
 const { mutate: deleteSpecies } = useDeleteSpecies();
@@ -319,14 +313,19 @@ function makeForm(s?: Species | null) {
     avg_height: s?.avg_height ?? "",
     avg_weight: s?.avg_weight ?? "",
     grantedSpells: (s?.granted_spells ?? []).map((g) => ({ ...g })),
-    campaign_id: s?.campaign_id ?? null as string | null,
+    // Editing an existing species keeps whatever scope it already has —
+    // including a stored `null` (global), which `s ? s.campaign_id : …`
+    // preserves. `s?.campaign_id ?? activeCampaignId.value` would be wrong
+    // here: for an *existing* global species `s.campaign_id` is legitimately
+    // null, and `??` can't tell "no species yet" apart from "species has no
+    // campaign", so it would silently re-scope the species into whichever
+    // campaign happens to be active the next time someone saves it. A new
+    // species (no `s`) defaults to the active campaign (#596) rather than
+    // "every campaign" — global stays available via CampaignScopeField, it
+    // just has to be chosen. No active campaign is a genuine "nothing to
+    // scope to yet" case.
+    campaign_id: (s ? s.campaign_id : activeCampaignId.value ?? null) as string | null,
   };
-}
-
-function toggleCampaignSpecific() {
-  const id = campaignStore.activeCampaignId;
-  if (!id) return;
-  form.campaign_id = form.campaign_id === id ? null : id;
 }
 
 const form = reactive(makeForm(props.species));

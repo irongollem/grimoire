@@ -1,4 +1,4 @@
-import type { Location } from "@/types/location.types";
+import type { Location, LocationType } from "@/types/location.types";
 import { tierIndex } from "./tiers";
 
 export interface AtlasIndex {
@@ -18,11 +18,36 @@ export interface AtlasRow {
   descendantCount: number;
 }
 
-function compare(a: Location, b: Location): number {
-  // Scale first, then name. A region's cities should precede its taverns —
-  // alphabetical alone is what made the old flat list unreadable.
-  const byScale = tierIndex(a.location_type) - tierIndex(b.location_type);
-  return byScale !== 0 ? byScale : a.name.localeCompare(b.name);
+/**
+ * Canonical sibling order: scale first, then the DM's manual `sort_order`
+ * (nulls last — "no order claimed yet"), then name. A region's cities should
+ * precede its taverns regardless of arrangement; within one scale, an
+ * unordered sibling falls to the bottom rather than jumping alphabetically
+ * ahead of arranged ones.
+ *
+ * Typed against the three fields it actually reads rather than a whole
+ * `Location`, which every `Location` satisfies structurally. That lets realtime
+ * cache splicing (`campaignRealtimeWorld.ts`) share this one implementation by
+ * narrowing its loosely-typed payload honestly, instead of asserting it is a
+ * `Location` — an assertion nothing checks and a missing column would break.
+ */
+export interface SiblingOrder {
+  location_type: LocationType;
+  sort_order: number | null;
+  name: string;
+}
+
+export function compareSiblings(a: SiblingOrder, b: SiblingOrder): number {
+  const byTier = tierIndex(a.location_type) - tierIndex(b.location_type);
+  if (byTier !== 0) return byTier;
+
+  if (a.sort_order !== b.sort_order) {
+    if (a.sort_order === null) return 1;
+    if (b.sort_order === null) return -1;
+    return a.sort_order - b.sort_order;
+  }
+
+  return a.name.localeCompare(b.name);
 }
 
 /**
@@ -52,7 +77,7 @@ export function buildAtlasIndex(locations: readonly Location[]): AtlasIndex {
   }
 
   const sortIds = (ids: string[]) =>
-    ids.sort((a, b) => compare(byId.get(a)!, byId.get(b)!));
+    ids.sort((a, b) => compareSiblings(byId.get(a)!, byId.get(b)!));
   for (const ids of childIds.values()) sortIds(ids);
   sortIds(rootIds);
 

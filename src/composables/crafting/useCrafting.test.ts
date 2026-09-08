@@ -34,10 +34,36 @@ describe("buildStarterRecipeChildRows", () => {
     expect(outputRows.map((r) => r.recipe_id)).toEqual(["recipe-a", "recipe-b"]);
   });
 
-  it("drops outputs whose item wasn't found/created in the vault", () => {
+  it("drops outputs whose item wasn't found/created in the vault or the library", () => {
     const defs = [recipe({ outputs: [{ name: "Torch", quantity: 3 }, { name: "Unknown Thing", quantity: 1 }] })];
     const { outputRows } = buildStarterRecipeChildRows(defs, ["recipe-a"], new Map([["Torch", "item-torch"]]));
-    expect(outputRows).toEqual([{ recipe_id: "recipe-a", item_id: "item-torch", quantity: 3 }]);
+    expect(outputRows).toEqual([{ recipe_id: "recipe-a", item_id: "item-torch", library_item_id: null, quantity: 3 }]);
+  });
+
+  it("falls back to a shared library reference when the vault map has no match (#819)", () => {
+    // The motivating case: "Stitch Leather Armour" outputs "Leather Armour",
+    // which only ever existed as library_items — the vault map is empty for it.
+    const defs = [recipe({ name: "Stitch Leather Armour", outputs: [{ name: "Leather Armour", quantity: 1 }] })];
+    const { outputRows } = buildStarterRecipeChildRows(
+      defs,
+      ["recipe-a"],
+      new Map(), // nothing in the vault
+      new Map([["Leather Armour", "srd_grimoire_bundled_leather_armour"]]),
+    );
+    expect(outputRows).toEqual([
+      { recipe_id: "recipe-a", item_id: null, library_item_id: "srd_grimoire_bundled_leather_armour", quantity: 1 },
+    ]);
+  });
+
+  it("prefers an existing vault item over the library when a name resolves to both", () => {
+    const defs = [recipe({ outputs: [{ name: "Torch", quantity: 3 }] })];
+    const { outputRows } = buildStarterRecipeChildRows(
+      defs,
+      ["recipe-a"],
+      new Map([["Torch", "item-torch"]]),
+      new Map([["Torch", "srd_grimoire_bundled_torch"]]),
+    );
+    expect(outputRows).toEqual([{ recipe_id: "recipe-a", item_id: "item-torch", library_item_id: null, quantity: 3 }]);
   });
 
   it("carries ingredient tags/quantity through untouched with item_id null", () => {

@@ -66,6 +66,43 @@ function buildCampaignContext(setting: string | null | undefined): string {
 // ── Text response contract ───────────────────────────────────────────────────
 
 /**
+ * One beat in a hook's story spine (#822). The "quest" system prompt row
+ * (`ai_system_prompts`, rewritten in migration
+ * `20260906175050_rewrite_quest_generator_prompt`) asks for this directly —
+ * it is not a schema extension layered on afterward the way
+ * npcs/locations/factions below are.
+ */
+interface QuestSpineBeatAiResult {
+  /** Model-invented local id, used only to join `routes`/objective
+   *  `raised_by` fields to this beat within the same hook. Never reaches the
+   *  database. */
+  key: string;
+  title: string;
+  dm_content: string;
+  /** Unvalidated model output — anything other than one of the five real
+   *  beat kinds is normalized to "neutral" client-side, never trusted as-is. */
+  kind: string;
+}
+
+/** A directed edge between two of a hook's `beats`, referenced by `key`. */
+interface QuestSpineRouteAiResult {
+  from: string;
+  to: string;
+}
+
+/**
+ * One concrete goal the party is pursuing (epic #780: an objective is state,
+ * not an event). `raised_by` names the `key` of the beat where the party
+ * learns of it — the client resolves this into `pending` vs. `dormant`
+ * objective rows and `quest_consequences` "raise" rows. See
+ * src/lib/quests/spine.ts.
+ */
+interface QuestObjectiveAiResult {
+  description: string;
+  raised_by?: string | null;
+}
+
+/**
  * One AI-generated quest hook. This function does not validate individual
  * hook fields — only that `hooks` itself is a non-empty array (see the parse
  * guard in the handler) — so this interface documents the expected shape
@@ -74,13 +111,17 @@ function buildCampaignContext(setting: string | null | undefined): string {
  * SCHEMA_EXTENSION_INSTRUCTION below); they are OPTIONAL on purpose — a hook
  * that weaves in none of the offered entities is still a valid hook, and
  * downstream (the client's hook-to-record resolver) must tolerate a missing
- * array rather than reject the hook for lacking one.
+ * array rather than reject the hook for lacking one. `beats`/`routes` are
+ * optional for the same reason: a malformed or partial response can still
+ * omit them, and the client creates the quest and its objectives regardless
+ * rather than manufacturing a beat to paper over the gap (#822).
  */
 interface QuestHookAiResult {
   title: string;
   summary: string;
-  hook_description: string;
-  objectives: string[];
+  beats?: QuestSpineBeatAiResult[];
+  routes?: QuestSpineRouteAiResult[];
+  objectives: QuestObjectiveAiResult[];
   tags: string[];
   npcs?: string[];
   locations?: string[];
@@ -98,6 +139,14 @@ interface QuestGenerationResult {
 // explicit callout, a general-purpose "here are some names you can use"
 // block tends to get treated as flavor rather than as fields the model is
 // expected to echo back in a structured way the client can resolve by name.
+//
+// The beats/routes/objectives shape above is NOT handled this way (#822) —
+// unlike this grounding instruction, it is not orthogonal to what the prompt
+// already asks for, it replaces the wrong thing the prompt used to ask for
+// (five prose strings under "objectives" that were actually describing story
+// beats, with no real objective and no graph anywhere). That only fits in
+// the DB row itself, rewritten in migration
+// `20260906175050_rewrite_quest_generator_prompt`.
 const SCHEMA_EXTENSION_INSTRUCTION =
   "\n\nIn addition to the fields already described, each hook object must also include " +
   '"npcs", "locations", and "factions" arrays — plain string arrays of the exact names of ' +
@@ -297,11 +346,14 @@ serve(withCors(async (req: Request) => {
       model: textModel,
       system: systemContent,
       user: userContent,
-      // Five hooks' worth of title/summary/hook_description/objectives/tags
-      // plus the npcs/locations/factions arrays this function adds to the
-      // schema — several times the payload of generate-encounter's single
-      // object, hence the larger budget than its 1200.
-      maxTokens: 3000,
+      // Five hooks' worth of title/summary/tags, the npcs/locations/factions
+      // arrays, and (#822) a 3-5 beat spine with a dm_content paragraph per
+      // beat plus routes and per-objective raised_by fields — several times
+      // the payload of generate-encounter's single object, hence the larger
+      // budget than its 1200. Raised from 3000 when the spine was folded
+      // into the base prompt: up to 5 beats x 5 hooks of narration is the
+      // single largest contributor to this budget.
+      maxTokens: 6000,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);

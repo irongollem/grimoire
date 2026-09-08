@@ -72,20 +72,22 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
+import { useCampaignStore } from "@/stores/campaign";
 import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useCreateFeature, useUpdateFeature, useDeleteFeature } from "@/composables/rules/useFeatures";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { FEATURE_TYPES, FEATURE_TYPE_LABELS } from "@/types/feature.types";
 import type { ClassFeature } from "@/types/feature.types";
 
 const props = defineProps<{ feature: ClassFeature | null }>();
 
 const router = useRouter();
-const { data: campaignList } = useCampaigns();
+const { data: campaignList } = useDmCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
 
 const { mutateAsync: create } = useCreateFeature();
@@ -103,7 +105,10 @@ const form = ref({
   description: null as string | null,
 });
 
-const campaignScope = ref("all");
+// Same default flip as CustomClassEditorView (#596): a new class feature
+// defaults to the active campaign rather than "all my campaigns" by accident.
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+const campaignScope = ref(activeCampaignId.value ?? "all");
 
 watch(
   () => props.feature,

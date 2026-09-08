@@ -44,15 +44,18 @@
       </section>
     </div>
 
-    <section v-if="attachments.length" class="space-y-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Prepared material</h3>
-      <div class="grid gap-2 sm:grid-cols-2">
+    <section class="space-y-2">
+      <h3 class="font-cinzel text-sm font-bold text-foreground">In this room</h3>
+      <div v-if="attachments.length" class="grid gap-2 sm:grid-cols-2">
         <div v-for="attachment in attachments" :key="attachment.id" class="flex items-center gap-2 rounded-lg border border-border bg-card p-2">
           <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ attachment.attachment_type.replace('_', ' ') }}</span>
           <span class="min-w-0 flex-1 truncate text-caption" :class="attachment.prep_gap ? 'text-tone-caution' : 'text-foreground'">{{ attachment.label }}</span>
           <AppButton v-if="attachment.target_exists" label="Quick view" size="xs" variant="subtle" @click="emit('open-attachment', attachment)" />
         </div>
       </div>
+      <!-- Empty is a real answer, not a hidden section: it is what points the
+           DM at the improvise card in the outcome strip below (#820). -->
+      <p v-else class="text-caption italic text-muted-foreground">Nothing prepared here — type what happens below.</p>
     </section>
 
     <div v-if="readinessGaps.length" class="rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
@@ -66,7 +69,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatLoot } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatAttachmentSummary, LootPlacement } from "@/types/quest.types";
 import { deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
@@ -76,7 +79,7 @@ const props = defineProps<{
   anchorQuestId: string;
   beat: QuestBeat;
   attachments: QuestBeatAttachmentSummary[];
-  loot: QuestBeatLoot[];
+  loot: LootPlacement[];
 }>();
 const emit = defineEmits<{ dirty: [dirty: boolean]; "open-attachment": [attachment: QuestBeatAttachmentSummary]; "edit-beat": []; reveal: [] }>();
 

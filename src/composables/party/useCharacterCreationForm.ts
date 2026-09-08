@@ -30,6 +30,7 @@ import {
 } from "@/rules/characterCreation";
 import { useCharacterEquipmentSeeding, type VaultEntry } from "@/composables/party/useCharacterEquipmentSeeding";
 import { useCharacterBackgroundSelection } from "@/composables/party/useCharacterBackgroundSelection";
+import { itemRefColumns } from "@/lib/itemRef";
 
 // ── Equipment-seeding row builders (pure — no I/O) ──────────────────────────
 // Extracted so the create-character hot path (save(), below) can batch these
@@ -47,7 +48,7 @@ function buildPlainEquipmentRow(
   carrierId: string,
 ): Omit<PartyInventoryInsert, "campaign_id"> {
   return {
-    item_id: itemId, name, quantity,
+    ...itemRefColumns(itemId), name, quantity,
     carried_by: carrierId, location: "backpack",
     slot: null, is_container: false, container_id: null,
     is_attuned: false, is_equipped: false, notes: null,
@@ -278,6 +279,8 @@ export function useCharacterCreationForm() {
     tool_proficiencies:  [...(m?.tool_proficiencies ?? [])],
     languages:           [...(m?.languages ?? [])],
     weapon_masteries:    [...(m?.weapon_masteries ?? [])],
+    // #786: an override, not the member's location — null means "with the
+    // party". Carried through unmodified; nothing in this form edits it.
     current_location_id: m?.current_location_id ?? null,
     carry_capacity_override: m?.carry_capacity_override ?? null,
     class_resources:  m?.class_resources ?? {},

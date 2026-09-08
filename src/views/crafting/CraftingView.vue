@@ -72,7 +72,7 @@
           with all three tags still fits on one row below the name.
         -->
         <div
-          v-for="recipe in disciplineRecipes"
+          v-for="recipe in visibleRecipes"
           :key="recipe.id"
           class="rounded-lg border border-border bg-card px-4 py-3 flex items-start gap-3 hover:border-border/80 transition-colors"
         >
@@ -142,6 +142,8 @@
           </div>
         </div>
       </div>
+
+      <div ref="sentinelRef" />
     </div>
   </ListPageLayout>
 </template>
@@ -160,6 +162,8 @@ import { CRAFTING_DISCIPLINES, getDiscipline } from "@/lib/crafting-disciplines"
 import { useCraftingRecipes, useDeleteRecipe, useImportStarterRecipes, useUpdateRecipe, useRevealAllRecipes } from "@/composables/crafting/useCrafting";
 import { useCampaignMembers } from "@/composables/campaign/useCampaignMembers";
 import { useConfirm } from "@/composables/useConfirm";
+import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
+import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useUiStore } from "@/stores/ui";
 import { useAuthStore } from "@/stores/auth";
 import type { CraftingRecipe } from "@/types/crafting.types";
@@ -226,6 +230,14 @@ const disciplineRecipes = computed(() =>
     ? (recipes.value ?? [])
     : (recipes.value ?? []).filter((r) => r.discipline === ui.workshopActiveTab),
 );
+
+// Same unbounded render as the player Workshop (see PlayerCraftingView) over
+// the same recipe list. These rows are lighter than the player's cards, so the
+// standard 48 is enough. Scroll restore is wired here and not there because
+// this list navigates out to `/crafting/:id` and back.
+const { savedCount, linkCount } = useScrollRestore("crafting-recipes");
+const { visibleItems: visibleRecipes, sentinelRef, visibleCount } = useInfiniteScroll(disciplineRecipes, 48, savedCount);
+linkCount(visibleCount);
 
 async function remove(recipe: CraftingRecipe) {
   const ok = await confirm(`Delete "${recipe.name}"? This cannot be undone.`, { title: "Delete Recipe" });

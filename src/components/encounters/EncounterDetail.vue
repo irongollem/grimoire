@@ -373,7 +373,11 @@ const deleteEncounter = useDeleteEncounter();
 
 const { runningStates, isEncounterRunning, firstRunning } =
   useRunningEncounters();
-const { endLive } = useEncounterLive(props.encounter?.id ?? "");
+// A getter, not a plain string. This previously passed `props.encounter?.id ?? ""`
+// — evaluated once at setup — so the composable's id watcher could never fire,
+// and the "reload state when the id changes" behaviour its own comment promises
+// was dead at the only call site (#833).
+const { endLive } = useEncounterLive(() => props.encounter?.id ?? null);
 
 const thisIsLive = computed(
   () => !!props.encounter && isEncounterRunning(props.encounter.id),

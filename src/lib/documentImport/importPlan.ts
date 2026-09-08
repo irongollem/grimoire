@@ -46,6 +46,7 @@
  */
 import type { AiProvenance } from "@/ai/provenance";
 import type {
+  ExtractedEncounter,
   ExtractedEntity,
   ExtractedFaction,
   ExtractedItem,
@@ -57,17 +58,21 @@ import type {
   ExtractedSpell,
   ImportEntityKind,
 } from "@/types/documentImport.types";
-import { ENTITY_MAPPERS, type EntityLinks, type ImportRowMap, type MappedEntity } from "./normalize";
+import { ENTITY_MAPPERS, type EntityLinks, type ImportRowMap, type MappedEntity, type QuestSpinePayload } from "./normalize";
 
 // ── Building the plan ────────────────────────────────────────────────────────
 
 /** One row to insert, still carrying the `ref` it came from so the caller can
  *  correlate a later Supabase result (or error) back to the review card that
- *  produced it, and the raw-name `links` a second pass will try to resolve. */
+ *  produced it, the raw-name `links` a second pass will try to resolve, and
+ *  (quests only) the story spine that same second pass writes once the quest
+ *  has an id — beats, the routes between them, and the objectives they
+ *  raise (#829). */
 export interface PlannedInsert<K extends ImportEntityKind = ImportEntityKind> {
   ref: string;
   row: ImportRowMap[K];
   links: EntityLinks;
+  questSpine?: QuestSpinePayload;
 }
 
 /**
@@ -105,6 +110,8 @@ function mapEntity<K extends ImportEntityKind>(
       return ENTITY_MAPPERS.quests(data as ExtractedQuest, campaignId, provenance) as MappedEntity<K>;
     case "factions":
       return ENTITY_MAPPERS.factions(data as ExtractedFaction, campaignId, provenance) as MappedEntity<K>;
+    case "encounters":
+      return ENTITY_MAPPERS.encounters(data as ExtractedEncounter, campaignId, provenance) as MappedEntity<K>;
   }
 }
 
@@ -114,6 +121,19 @@ function mapEntity<K extends ImportEntityKind>(
  * `selectedRefs` accepts anything iterable of ref strings — a `Set` built from
  * checkbox state is the expected caller shape, but the order it iterates in is
  * never what decides plan order (see file header): `entities`' own order does.
+ *
+ * `linkedRefs` (#837/#838) names entities the DM chose to link to an existing
+ * campaign or library row instead of creating a new one — resolved ahead of
+ * time by `resolve_monster_references` / `resolve_item_references` and
+ * defaulted-to-link by the wizard, with the DM able to switch any one of them
+ * back to "create new" per `entityMatching.ts`. A linked entity produces no
+ * insert at all: the row it would have duplicated already exists, so there is
+ * nothing for this module to plan. It is still filtered on `selectedRefs`
+ * first — deselecting a card means "skip it entirely," not "force-create it,"
+ * so a ref can be linked and unselected at once with the same "not planned"
+ * result as being merely unselected. The caller counts linked entities
+ * separately from `PlannedInsert`s (see `DocumentImportWizard.vue`), since
+ * this module's whole job is deciding what to *insert*.
  */
 export function buildImportPlan<K extends ImportEntityKind>(
   kind: K,
@@ -121,13 +141,14 @@ export function buildImportPlan<K extends ImportEntityKind>(
   selectedRefs: Iterable<string>,
   campaignId: string,
   provenance: AiProvenance,
+  linkedRefs: ReadonlySet<string> = new Set(),
 ): PlannedInsert<K>[] {
   const selected = new Set(selectedRefs);
   return entities
-    .filter((entity) => selected.has(entity.ref))
+    .filter((entity) => selected.has(entity.ref) && !linkedRefs.has(entity.ref))
     .map((entity) => {
-      const { row, links } = mapEntity(kind, entity.data, campaignId, provenance);
-      return { ref: entity.ref, row, links };
+      const { row, links, questSpine } = mapEntity(kind, entity.data, campaignId, provenance);
+      return { ref: entity.ref, row, links, questSpine };
     });
 }
 
@@ -218,7 +239,7 @@ interface LinkTarget {
 /**
  * Every raw-name field `EntityLinks` (normalize.ts) can carry, and what
  * resolving it means. Keyed by field name with `satisfies Record<keyof
- * EntityLinks, …>` so a fifth link field added to `EntityLinks` without an
+ * EntityLinks, …>` so a sixth link field added to `EntityLinks` without an
  * entry here is a compile error, the same exhaustiveness idiom entityKinds.ts
  * uses for `ImportEntityKind` itself.
  */
@@ -242,6 +263,14 @@ const LINK_TARGETS = {
     sourceKind: "quests",
     targetKind: "locations",
     apply: { kind: "fk_update", table: "quests", column: "location_id" },
+  },
+  // Named `encounter_location_name` rather than reusing `location_name`
+  // above — this map has exactly one fixed `apply` target per field name, and
+  // an encounter's room link needs a different one (`encounters.location_id`).
+  encounter_location_name: {
+    sourceKind: "encounters",
+    targetKind: "locations",
+    apply: { kind: "fk_update", table: "encounters", column: "location_id" },
   },
 } as const satisfies Record<keyof EntityLinks, LinkTarget>;
 

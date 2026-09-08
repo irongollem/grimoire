@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@vue-flow/core";
-import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.types";
 import type { QuestBeatPresentation } from "./presentation";
 
 export interface QuestFlowNodeData {
@@ -7,11 +7,10 @@ export interface QuestFlowNodeData {
   title: string;
   kind: string;
   visibility: string;
-  isOverview: boolean;
   presentation?: QuestBeatPresentation;
 }
 export type QuestFlowNode = Node<QuestFlowNodeData>;
-export type QuestFlowEdge = Edge<{ edgeId: string; visited: boolean }>;
+export type QuestFlowEdge = Edge<{ edgeId: string; visited: boolean; gate: QuestRouteGate | null }>;
 
 export type QuestGraphCommand =
   | { type: "select" | "open" | "delete-beat"; beatId: string }
@@ -25,6 +24,7 @@ export function toQuestFlowGraph(
   edges: QuestBeatEdge[],
   presentations: Record<string, QuestBeatPresentation> = {},
   visitedEdgeIds: ReadonlySet<string> = new Set(),
+  routeGates: Record<string, QuestRouteGate> = {},
 ) {
   const nodes: QuestFlowNode[] = beats.map((beat) => ({
     id: beat.id,
@@ -35,21 +35,24 @@ export function toQuestFlowGraph(
       title: beat.title,
       kind: beat.kind,
       visibility: beat.visibility,
-      isOverview: beat.is_overview,
       presentation: presentations[beat.id],
     },
   }));
-  const flowEdges: QuestFlowEdge[] = edges.map((edge) => ({
-    id: edge.id,
-    source: edge.source_beat_id,
-    target: edge.target_beat_id,
-    label: edge.label || undefined,
-    type: "questRoute",
-    class: visitedEdgeIds.has(edge.id)
-      ? "quest-flow-route is-visited"
-      : "quest-flow-route",
-    data: { edgeId: edge.id, visited: visitedEdgeIds.has(edge.id) },
-  }));
+  const flowEdges: QuestFlowEdge[] = edges.map((edge) => {
+    const gate = routeGates[edge.id] ?? null;
+    return {
+      id: edge.id,
+      source: edge.source_beat_id,
+      target: edge.target_beat_id,
+      type: "questRoute",
+      class: [
+        "quest-flow-route",
+        visitedEdgeIds.has(edge.id) && "is-visited",
+        gate && !gate.is_open && "is-closed",
+      ].filter(Boolean).join(" "),
+      data: { edgeId: edge.id, visited: visitedEdgeIds.has(edge.id), gate },
+    };
+  });
   return { nodes, edges: flowEdges };
 }
 

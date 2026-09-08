@@ -1,3 +1,4 @@
+import { stripRetiredQuestColumns } from "@/lib/quests/retiredQuestColumns";
 import { ref } from "vue";
 import type { Ref } from "vue";
 import { computed } from "vue";
@@ -686,6 +687,9 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
         id: idMap.get(si.id as string) ?? crypto.randomUUID(),
         user_id: userId,
         location_id: rCamp(si.location_id, idMap),
+        // library_item_id kept as-is via the spread (#819) — it names shared
+        // content by a stable id every account resolves the same way, unlike
+        // item_id's importer-owned uuid.
       })));
     }
   }
@@ -813,6 +817,8 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
             ...fi, id: idMap.get(fi.id as string) ?? crypto.randomUUID(), user_id: userId,
             faction_id: rCamp(fi.faction_id, idMap),
             // item_id: rLib so importer's library items are preserved
+            // library_item_id kept as-is via the spread (#819) — same reasoning
+            // as store_items above: it's a stable id, not an importer-owned uuid.
           }))) : Promise.resolve(),
       bundle.faction_relations?.length
         ? batchInsert("faction_relations", bundle.faction_relations.map((fr) => ({
@@ -825,16 +831,24 @@ async function executeImport(opts: ImportBundleOptions): Promise<ImportResult> {
 
   if (includeTypes.has("quests") && bundle.quests?.length) {
     const sorted = sortByHierarchy(bundle.quests, "parent_quest_id");
-    await batchInsert("quests", sorted.map((q) => ({
-      ...q,
-      id: idMap.get(q.id as string) ?? crypto.randomUUID(),
-      campaign_id: campaignId,
-      user_id: userId,
-      parent_quest_id: rCamp(q.parent_quest_id, idMap),
-      giver_npc_id: rCamp(q.giver_npc_id, idMap),
-      location_id: rCamp(q.location_id, idMap),
-      player_visible_to: [],
-    })));
+    await batchInsert("quests", sorted.map((q) => {
+      // A bundle carries no version field, so every one has to be treated as
+      // possibly older than the schema. This stripped only #793's two keys and
+      // never picked up #799's ten, so any bundle holding a quest with reward
+      // columns failed the whole insert. The list is shared now — see
+      // `retiredQuestColumns`.
+      const quest = stripRetiredQuestColumns(q);
+      return {
+        ...quest,
+        id: idMap.get(q.id as string) ?? crypto.randomUUID(),
+        campaign_id: campaignId,
+        user_id: userId,
+        parent_quest_id: rCamp(q.parent_quest_id, idMap),
+        giver_npc_id: rCamp(q.giver_npc_id, idMap),
+        location_id: rCamp(q.location_id, idMap),
+        player_visible_to: [],
+      };
+    }));
     if (bundle.quest_objectives?.length) {
       await batchInsert("quest_objectives", bundle.quest_objectives.map((obj) => ({
         ...obj,

@@ -2,7 +2,7 @@
   <Teleport to="body">
     <div
       v-if="state.visible"
-      class="fixed inset-0 z-[60]"
+      class="fixed inset-0 z-60"
       @click="dismiss"
       @contextmenu.prevent="dismiss"
     >

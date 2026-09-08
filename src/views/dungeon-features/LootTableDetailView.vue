@@ -125,6 +125,12 @@
             </div>
           </div>
 
+          <!-- Placed In -->
+          <div class="flex flex-col gap-1.5">
+            <h3 class="text-eyebrow font-semibold text-muted-foreground">Placed In</h3>
+            <EntityPlacements kind="loot_table" :entity-id="table.id" />
+          </div>
+
           <!-- DM notes -->
           <p v-if="table.notes" class="text-body text-muted-foreground italic border-t border-border pt-3">{{ table.notes }}</p>
         </template>
@@ -176,6 +182,8 @@
           <TagInput v-model="form.tags" />
         </div>
 
+        <CampaignScopeField v-model="form.campaign_id" />
+
         <div class="space-y-1.5">
           <label class="text-eyebrow font-semibold text-muted-foreground">Linked Monsters</label>
           <div v-if="form.monster_ids.length" class="flex flex-wrap gap-1.5">
@@ -217,92 +225,25 @@
         </template><!-- end edit mode -->
       </div>
 
-      <!-- ── Right: roll panel ────────────────────────────────────────────── -->
-      <div class="self-start">
-        <div class="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
-          <h3 class="font-cinzel text-sm font-bold tracking-wider text-foreground">Roll loot</h3>
-          <AppButton
-            variant="primary"
-            size="md"
-            :disabled="!form.entries.length || entriesError !== null"
-            :tooltip="entriesError ?? undefined"
-            :icon="IconDiceRoll"
-            label="Roll"
-            @click="onRoll"
-          />
-
-          <div v-if="lastRoll" class="rounded-md border border-border bg-muted/40 p-3 flex flex-col gap-2">
-            <span class="text-eyebrow font-semibold text-muted-foreground">Drops</span>
-            <ul v-if="lastRoll.length" class="flex flex-col gap-1.5">
-              <li v-for="r in lastRoll" :key="r.entry_id" class="flex items-center gap-2">
-                <template v-if="r.type === 'item'">
-                  <span class="font-cinzel text-sm font-bold text-primary shrink-0 w-7 text-right">{{ r.qty }}×</span>
-                  <span class="text-body text-foreground truncate">{{ r.item_name }}</span>
-                </template>
-                <template v-else-if="r.type === 'currency'">
-                  <span class="font-cinzel text-sm font-bold text-amber-400 shrink-0 w-7 text-right">💰</span>
-                  <span class="text-body text-foreground truncate">
-                    {{ r.currency_label ? r.currency_label + ': ' : '' }}{{ formatCoinParts(r.pp, r.gp, r.ep, r.sp, r.cp).join(', ') || '0 GP' }}
-                  </span>
-                </template>
-                <template v-else-if="r.type === 'unresolved'">
-                  <span class="font-cinzel text-sm font-bold text-amber-500 shrink-0 w-7 text-right" title="This entry hit but produced no loot">⚠</span>
-                  <span class="text-body text-muted-foreground truncate italic">
-                    {{ r.wanted }} — {{ unresolvedReasonLabel(r.reason) }}
-                  </span>
-                </template>
-              </li>
-            </ul>
-            <p v-else class="text-caption text-muted-foreground italic">
-              Empty — no entries hit. Better luck next room.
-            </p>
-          </div>
-
-          <p class="text-caption-sm text-muted-foreground italic">
-            {{ form.entries.length }} entries · {{ summaryDropPercent }}% expected hit rate
-          </p>
-
-          <!-- Drop in chat -->
-          <div v-if="!isNew" class="border-t border-border pt-3 flex flex-col gap-2">
-            <AppButton
-              variant="tinted"
-              tone="primary"
-              emphasis="outline"
-              size="md"
-              :disabled="!form.entries.length || entriesError !== null"
-              :tooltip="entriesError ?? 'Roll the table and post a chest in chat'"
-              :icon="IconPackageOpen"
-              label="Drop chest in chat"
-              @click="dropDialogOpen = true"
-            />
-          </div>
-        </div>
-      </div>
+      <!-- ── Right: roll + drop-in-chat ───────────────────────────────────── -->
+      <LootTableRollPanel
+        :table="asLootTableRow"
+        :items-by-id="itemsById"
+        :entries-error="entriesError"
+        :is-new="isNew"
+        :summary-drop-percent="summaryDropPercent"
+      />
     </div>
-
-    <!-- ── Drop dialog ─────────────────────────────────────────────────────── -->
-    <LootTableDropDialog
-      :open="dropDialogOpen"
-      :atoms="dropPreviewAtoms"
-      :unresolved="dropPreviewUnresolved"
-      :claims-dice="claimsDice"
-      :chest-image-url="chestImageUrl"
-      :effective-cap="effectiveCap"
-      :dropping="dropping"
-      @close="closeDropDialog"
-      @drop="onDrop"
-      @reroll="reroll"
-      @update:claims-dice="claimsDice = $event"
-      @update:chest-image-url="chestImageUrl = $event"
-    />
   </PageHeader>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
-import { IconClose, IconDelete, IconDiceRoll, IconEdit, IconMonster, IconPackageOpen } from '@/lib/icons';
+import { IconClose, IconDelete, IconEdit, IconMonster } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
+import { useCampaignStore } from "@/stores/campaign";
 import {
   useLootTable,
   useCreateLootTable,
@@ -311,13 +252,13 @@ import {
 } from "@/composables/dungeon-features/useLootTables";
 import { useItems } from "@/composables/items/useItems";
 import { useMonsters } from "@/composables/monsters/useMonsters";
-import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import {
   LOOT_CR_TIERS,
   LOOT_CR_TIER_LABELS,
   validateEntries,
   type LootCrTier,
   type LootEntryType,
+  type LootTable,
   type LootTableInsert,
 } from "@/types/lootTable.types";
 import {
@@ -325,14 +266,6 @@ import {
   ITEM_RARITY_LABELS,
 } from "@/types/item.types";
 import { formatCoinParts } from "@/rules/currency";
-import type { LootChestAtom, LootChestMetadata } from "@/types/chat.types";
-import {
-  rollLootTable,
-  unresolvedReasonLabel,
-  type RolledLootEntry,
-  type RolledUnresolvedEntry,
-} from "@/lib/dungeon-features/lootTableRoll";
-import { parseExpression, rollExpression } from "@/lib/dice/dice";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -342,7 +275,9 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import LootTableEntryEditor from "@/components/dungeon-features/LootTableEntryEditor.vue";
-import LootTableDropDialog from "@/components/dungeon-features/LootTableDropDialog.vue";
+import LootTableRollPanel from "@/components/dungeon-features/LootTableRollPanel.vue";
+import EntityPlacements from "@/components/locations/EntityPlacements.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 
 const route   = useRoute();
 const router  = useRouter();
@@ -357,8 +292,13 @@ const table     = computed(() => tableQuery.data.value ?? null);
 const loading   = computed(() => !isNew.value && tableQuery.isLoading.value);
 
 // ── Form state ─────────────────────────────────────────────────────────────
+// A new table defaults to the active campaign rather than "every campaign"
+// (#596) — global stays available via CampaignScopeField below, it just has
+// to be chosen rather than falling out by default. No active campaign is a
+// genuine "nothing to scope to yet" case.
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 const form = ref<LootTableInsert>({
-  campaign_id: null,
+  campaign_id: activeCampaignId.value ?? null,
   name: "",
   description: null,
   cr_tier: "any" as LootCrTier,
@@ -456,27 +396,23 @@ function removeEntry(idx: number) {
   form.value.entries.splice(idx, 1);
 }
 
-// ── Roll panel ─────────────────────────────────────────────────────────────
-const lastRoll = ref<RolledLootEntry[] | null>(null);
-function onRoll() {
-  lastRoll.value = rollLootTable(
-    {
-      id: id.value,
-      user_id: "",
-      campaign_id: form.value.campaign_id,
-      name: form.value.name,
-      description: form.value.description,
-      cr_tier: form.value.cr_tier,
-      entries: form.value.entries,
-      tags: form.value.tags,
-      notes: form.value.notes,
-      monster_ids: form.value.monster_ids,
-      created_at: "",
-      updated_at: "",
-    },
-    itemsById.value,
-  );
-}
+// The table as it would be persisted right now (including unsaved edits) —
+// the single shape LootTableRollPanel rolls against for both the roll button
+// and the drop-in-chat preview.
+const asLootTableRow = computed<LootTable>(() => ({
+  id: id.value,
+  user_id: "",
+  campaign_id: form.value.campaign_id,
+  name: form.value.name,
+  description: form.value.description,
+  cr_tier: form.value.cr_tier,
+  entries: form.value.entries,
+  tags: form.value.tags,
+  notes: form.value.notes,
+  monster_ids: form.value.monster_ids,
+  created_at: "",
+  updated_at: "",
+}));
 
 // ── Save / Delete ──────────────────────────────────────────────────────────
 const { mutateAsync: createTable } = useCreateLootTable();
@@ -509,114 +445,6 @@ async function onDelete() {
     await removeTable(id.value);
   } finally {
     isDeleting.value = false;
-  }
-}
-
-// ── Drop-in-chat dialog ─────────────────────────────────────────────────────
-const dropDialogOpen    = ref(false);
-const claimsDice        = ref("1");
-const claimsRolled      = ref<number | null>(1);
-const chestImageUrl     = ref<string | null>(null);
-const dropping          = ref(false);
-
-function rollClaims() {
-  const raw = claimsDice.value.trim();
-  if (!raw) { claimsRolled.value = null; return; }
-  const n = Number(raw);
-  if (Number.isInteger(n) && n >= 0) { claimsRolled.value = n; return; }
-  const parsed = parseExpression(raw);
-  if (!parsed) { claimsRolled.value = null; return; }
-  claimsRolled.value = Math.max(0, Math.floor(rollExpression(parsed)));
-}
-
-const dropPreview = ref<RolledLootEntry[]>([]);
-watch(dropDialogOpen, (open) => {
-  if (open) reroll();
-});
-
-watch(claimsDice, rollClaims);
-
-function reroll() {
-  const transient = {
-    id: id.value, user_id: "", campaign_id: form.value.campaign_id,
-    name: form.value.name, description: form.value.description,
-    cr_tier: form.value.cr_tier, entries: form.value.entries,
-    tags: form.value.tags, notes: form.value.notes,
-    monster_ids: form.value.monster_ids,
-    created_at: "", updated_at: "",
-  };
-  dropPreview.value = rollLootTable(transient, itemsById.value);
-  rollClaims();
-}
-
-const dropPreviewAtoms = computed<LootChestAtom[]>(() => {
-  const atoms: LootChestAtom[] = [];
-  for (const r of dropPreview.value) {
-    if (r.type === "item") {
-      const item = itemsById.value.get(r.item_id);
-      for (let i = 0; i < r.qty; i++) {
-        atoms.push({
-          atom_id:        crypto.randomUUID(),
-          type:           "item",
-          item_id:        r.item_id,
-          item_name:      r.item_name,
-          item_image_url: r.item_image_url ?? null,
-          item_rarity:    item?.rarity ?? null,
-          item_is_container: item?.tags.includes("container") ?? false,
-        });
-      }
-    } else if (r.type === "currency") {
-      atoms.push({
-        atom_id:        crypto.randomUUID(),
-        type:           "currency",
-        currency_label: r.currency_label ?? null,
-        pp: r.pp, gp: r.gp, ep: r.ep, sp: r.sp, cp: r.cp,
-      });
-    }
-    // "unresolved" entries hit but produced no loot — surfaced separately (below),
-    // never turned into a claimable atom.
-  }
-  return atoms;
-});
-
-// Entries that hit but resolved to nothing — shown to the DM so they know the
-// chest under-delivers before dropping it (issue #487). Not persisted to the
-// player-facing chest.
-const dropPreviewUnresolved = computed<RolledUnresolvedEntry[]>(() =>
-  dropPreview.value.filter((r): r is RolledUnresolvedEntry => r.type === "unresolved"),
-);
-
-const effectiveCap = computed<number | null>(() => {
-  if (claimsRolled.value === null) return null;
-  return Math.min(claimsRolled.value, dropPreviewAtoms.value.length);
-});
-
-function closeDropDialog() {
-  dropDialogOpen.value = false;
-  dropping.value = false;
-}
-
-const { sendLootChest } = useCampaignMessages();
-
-async function onDrop() {
-  const cap = effectiveCap.value;
-  if (!cap) return;
-
-  const metadata: LootChestMetadata = {
-    loot_table_id:   id.value || null,
-    loot_table_name: form.value.name || "Loot",
-    chest_image_url: chestImageUrl.value,
-    rolled_atoms:    dropPreviewAtoms.value,
-    claims:          [],
-    claims_total:    cap,
-  };
-
-  dropping.value = true;
-  try {
-    await sendLootChest(metadata);
-    closeDropDialog();
-  } finally {
-    dropping.value = false;
   }
 }
 </script>

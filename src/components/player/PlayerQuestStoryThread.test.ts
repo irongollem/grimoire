@@ -16,6 +16,7 @@ function beat(overrides: Partial<PlayerQuestBeat> = {}): PlayerQuestBeat {
     attachments: [],
     visits: [{ visit_id: "visit-a", visited_at: "2026-08-10T12:00:00Z" }],
     updated_at: "2026-08-10T12:00:00Z",
+    staged_at_location_id: null,
     ...overrides,
   };
 }

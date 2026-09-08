@@ -13,10 +13,10 @@
           {{ item.quantity > 1 ? `${item.quantity}× ` : "" }}{{ item.name }}
         </span>
         <AppButton
-          v-if="item.item_id"
+          v-if="inventoryItemRef(item)"
           variant="link"
           size="inline-xs"
-          :to="`/vault/${item.item_id}`"
+          :to="`/vault/${inventoryItemRef(item)}`"
           tooltip="View in vault"
           label="Vault"
           class="shrink-0"
@@ -74,11 +74,17 @@ import { IconAdd, IconDelete, IconLoot } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { useNpcInventory, useAddNpcInventoryItem, useRemoveNpcInventoryItem } from "@/composables/items/useNpcInventory";
-import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useItems } from "@/composables/items/useItems";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import type { NpcInventoryItem } from "@/types/npc-inventory.types";
 
-const props = defineProps<{ npcId: string; npcName?: string }>();
+/** `npcName` is the players' name for this NPC — an unrevealed alter ego's
+ *  cover, never the true name behind it. It is the chat `sender_name` on the
+ *  drop, so a parent passing `npc.name` raw spoils the disguise. Nullable:
+ *  `getNpcDisplayName` is honestly null for a player projection, and the drop
+ *  then falls back to the DM's own sender name rather than inventing one. */
+const props = defineProps<{ npcId: string; npcName?: string | null }>();
 
 const { data: rawItems } = useNpcInventory(props.npcId);
 const items = computed(() => rawItems.value ?? []);
@@ -86,7 +92,6 @@ const { mutateAsync: addItem } = useAddNpcInventoryItem();
 const { mutateAsync: removeItem } = useRemoveNpcInventoryItem();
 const { sendItemDrop } = useCampaignMessages();
 const { data: vaultItems } = useItems();
-const { ensureOwnedItem } = useEnsureOwnedItem();
 
 const selectedVaultId = ref("");
 const adding = ref(false);
@@ -97,8 +102,10 @@ async function addFromVault() {
   if (!vaultItem) return;
   adding.value = true;
   try {
-    const owned = await ensureOwnedItem(vaultItem);
-    await addItem({ npc_id: props.npcId, item_id: owned.id, name: owned.name, quantity: 1, notes: null });
+    // The picker offers vault items and shared library content in one list —
+    // itemRefColumns routes to whichever column the picked id actually is
+    // (#819), rather than cloning library content into the vault first.
+    await addItem({ npc_id: props.npcId, ...itemRefColumns(vaultItem.id), name: vaultItem.name, quantity: 1, notes: null });
     selectedVaultId.value = "";
   } finally {
     adding.value = false;
@@ -110,7 +117,9 @@ async function remove(item: NpcInventoryItem) {
 }
 
 async function dropToChat(item: NpcInventoryItem) {
-  await sendItemDrop(item.name, item.item_id, item.quantity, null, props.npcName);
+  // `inventoryItemRef`, not `item.item_id`: a library-sourced row keeps its
+  // reference in the other column, and reading the raw one dropped it.
+  await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, null, props.npcName ?? undefined);
   await removeItem({ id: item.id, npcId: props.npcId });
 }
 </script>

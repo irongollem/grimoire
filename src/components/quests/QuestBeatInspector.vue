@@ -25,8 +25,8 @@
     <section class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Outgoing branches">
       <h3 class="font-cinzel text-sm font-bold text-foreground">Outgoing branches</h3>
       <ul v-if="outgoing.length" class="space-y-1 text-caption">
-        <li v-for="edge in outgoing" :key="edge.id" class="flex gap-2">
-          <span class="text-muted-foreground">{{ edge.label || "Continue" }} →</span>
+        <li v-for="edge in outgoing" :key="edge.id" class="flex items-center gap-2">
+          <span class="text-muted-foreground">→</span>
           <span class="font-semibold text-foreground">{{ beatTitle(edge.target_beat_id) }}</span>
         </li>
       </ul>
@@ -34,7 +34,7 @@
     </section>
 
     <div id="beat-attachments"><QuestBeatAttachmentsPanel :beat="beat" :attachments="attachments" /></div>
-    <QuestBeatObjectivesPanel :beat="beat" :edges="edges" />
+    <QuestConsequencesPanel scope="beat" :quest-id="beat.quest_id" :beat="beat" :edges="edges" :beats="beats" />
     <div id="beat-loot"><QuestBeatLootPanel :beat="beat" :loot="loot" /></div>
   </aside>
 </template>
@@ -42,10 +42,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { deriveQuestBeatPrepGaps, type QuestBeatPresentation, type QuestBeatPrepGapKind } from "@/lib/quests/presentation";
-import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatLoot } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, LootPlacement } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestBeatAttachmentsPanel from "./QuestBeatAttachmentsPanel.vue";
-import QuestBeatObjectivesPanel from "./QuestBeatObjectivesPanel.vue";
+import QuestConsequencesPanel from "./QuestConsequencesPanel.vue";
 import QuestBeatFields from "./QuestBeatFields.vue";
 import QuestBeatLootPanel from "./QuestBeatLootPanel.vue";
 
@@ -54,7 +54,7 @@ const props = defineProps<{
   beats: QuestBeat[];
   edges: QuestBeatEdge[];
   attachments: QuestBeatAttachmentSummary[];
-  loot: QuestBeatLoot[];
+  loot: LootPlacement[];
   presentation?: QuestBeatPresentation;
 }>();
 const emit = defineEmits<{

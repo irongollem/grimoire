@@ -95,11 +95,13 @@ import SuspensionBanner from "@/components/billing/SuspensionBanner.vue";
 import AiUseNoticeGate from "@/components/campaign/AiUseNoticeGate.vue";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
 import { useAudioThemeTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
+import { usePartyAmbience } from "@/composables/campaign/usePartyAmbience";
 import { useAuthStore } from "@/stores/auth";
 import { useCampaignPresence } from "@/composables/campaign/useCampaignPresence";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
+import { useDueConsequences } from "@/composables/quests/useDueConsequences";
 import { usePartyLive } from "@/composables/party/useParty";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { usePlan } from "@/composables/billing/usePlan";
 import { initPlaceholderFocalPoints } from "@/lib/placeholderFocalPoints";
@@ -141,13 +143,23 @@ useCampaignPresence();
 useCampaignLiveSync();
 usePartyLive();
 
+// Fires any quest consequence whose in-world date has arrived, whichever of
+// the campaign's two "today" writers moved it there (#794).
+useDueConsequences();
+
 // Listens for encounters and locations asking for a theme. Mounted here rather
 // than on the soundboard page because the DM is looking at the encounter when
 // it fires, not at the board.
 useAudioThemeTriggers();
 
+// Keeps ambience following the party's actual position for the length of a
+// session (#790), rather than whatever the DM has open in the Atlas. App-level
+// like the listener above: the party's position is campaign-wide state, not a
+// per-route concern.
+usePartyAmbience();
+
 const { isPro } = useSubscription();
-const { data: campaigns } = useCampaigns();
+const { data: campaigns } = useDmCampaigns();
 const { data: freePlan } = usePlan("free");
 
 const campaignLimit = computed(() => freePlan.value?.quotas.campaigns ?? 1);

@@ -196,6 +196,7 @@ import type { CraftingRecipe, CraftingOutput, CraftingModifier, CraftingAttemptR
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
+import { inventoryItemRef } from "@/lib/itemRef";
 
 const POOR_INGREDIENTS_PENALTY = -2;
 
@@ -205,7 +206,7 @@ const props = defineProps<{
   /** Output items produced on success */
   outputs: CraftingOutput[];
   /** Required ingredients from the recipe definition */
-  requiredIngredients: { item_id: string | null; tags: string[] | null; quantity: number }[];
+  requiredIngredients: { item_id: string | null; library_item_id: string | null; tags: string[] | null; quantity: number }[];
   modifiers: CraftingModifier[];
   /** Player's full inventory (carried items) */
   inventory: PartyInventoryItem[];
@@ -258,11 +259,12 @@ const ingredientSlots = computed(() =>
   props.requiredIngredients.map((req) => {
     let itemName: string;
     let available: number;
+    const ref = inventoryItemRef(req);
 
-    if (req.item_id) {
-      itemName = props.allItems.find((i) => i.id === req.item_id)?.name ?? "Unknown item";
+    if (ref) {
+      itemName = props.allItems.find((i) => i.id === ref)?.name ?? "Unknown item";
       available = props.inventory
-        .filter((inv) => inv.item_id === req.item_id && !inv.is_ruined)
+        .filter((inv) => inventoryItemRef(inv) === ref && !inv.is_ruined)
         .reduce((sum, inv) => sum + inv.quantity, 0);
     } else {
       // Tag-based: any non-ruined inventory item whose vault item has ALL required tags
@@ -272,14 +274,16 @@ const ingredientSlots = computed(() =>
       available = props.inventory
         .filter((inv) => {
           if (inv.is_ruined) return false;
-          const def = props.allItems.find((i) => i.id === inv.item_id);
+          const def = props.allItems.find((i) => i.id === inventoryItemRef(inv));
           return req.tags!.every((t) => def?.tags?.includes(t) ?? false);
         })
         .reduce((sum, inv) => sum + inv.quantity, 0);
     }
 
     return {
-      item_id: req.item_id,
+      // Holds the resolved reference (either column, whichever is set) — the
+      // template only needs it to tell "a specific item" from "tag-based".
+      item_id: ref,
       tags: req.tags,
       itemName,
       needed: req.quantity,
@@ -316,7 +320,9 @@ const modifierBonuses = computed(() => {
 function resolveIngredientConsumption(): {
   consumption: { id: string; qty: number }[];
   primaryId: string;
-  primaryItem: PartyInventoryItem;
+  /** Null when the recipe requires no ingredients — nothing is consumed, so
+   *  there is no item for a failed attempt to ruin. */
+  primaryItem: PartyInventoryItem | null;
 } {
   const consumption: { id: string; qty: number }[] = [];
   let primaryId = "";
@@ -327,14 +333,15 @@ function resolveIngredientConsumption(): {
 
   for (const req of props.requiredIngredients) {
     let remaining = req.quantity;
-    const matchingItems = req.item_id
+    const ref = inventoryItemRef(req);
+    const matchingItems = ref
       ? props.inventory
-          .filter((inv) => inv.item_id === req.item_id && eligible(inv))
+          .filter((inv) => inventoryItemRef(inv) === ref && eligible(inv))
           .sort((a, b) => b.quantity - a.quantity)
       : props.inventory
           .filter((inv) => {
             if (!eligible(inv)) return false;
-            const def = props.allItems.find((i) => i.id === inv.item_id);
+            const def = props.allItems.find((i) => i.id === inventoryItemRef(inv));
             return req.tags!.every((t) => def?.tags?.includes(t) ?? false);
           })
           .sort((a, b) => b.quantity - a.quantity);
@@ -351,7 +358,10 @@ function resolveIngredientConsumption(): {
     }
   }
 
-  return { consumption, primaryId, primaryItem: primaryItem! };
+  // Not `primaryItem!`. The loop above runs once per required ingredient, so a
+  // recipe with none leaves this null — and the `!` turned that into a crash at
+  // the first property read rather than a case the caller could handle.
+  return { consumption, primaryId, primaryItem };
 }
 
 const outcomeLabel = computed(() => {
@@ -361,13 +371,14 @@ const outcomeLabel = computed(() => {
   return "Failure";
 });
 
-function resolveOutputName(itemId: string): string | undefined {
-  return props.allItems.find((i) => i.id === itemId)?.name ?? props.outputNameMap?.get(itemId);
+function resolveOutputName(ref: string): string | undefined {
+  return props.allItems.find((i) => i.id === ref)?.name ?? props.outputNameMap?.get(ref);
 }
 
 const outputNames = computed(() =>
   props.outputs.map((o) => {
-    const name = resolveOutputName(o.item_id) ?? "item";
+    const ref = inventoryItemRef(o);
+    const name = (ref ? resolveOutputName(ref) : undefined) ?? "item";
     return o.quantity > 1 ? `${o.quantity}× ${name}` : name;
   }),
 );
@@ -388,12 +399,20 @@ async function attempt() {
   attemptError.value = null;
 
   const { consumption, primaryId, primaryItem } = resolveIngredientConsumption();
-  const primaryItemDef = props.allItems.find((i) => i.id === primaryItem?.item_id);
+  const primaryItemDef = props.allItems.find((i) => i.id === (primaryItem ? inventoryItemRef(primaryItem) : null));
 
   try {
+    // A ref whose name cannot be resolved is left OUT of the map rather than
+    // mapped to "". This is payload, not display: an empty string travels to
+    // `attemptCraft` and renders as a nameless item, where an absent key lets
+    // the consumer apply its own fallback. The display path two computeds
+    // above already does this correctly with `?? "item"` — the difference is
+    // that one is a label and this is data.
     const resolvedOutputNames: Record<string, string> = {};
     for (const o of props.outputs) {
-      if (o.item_id) resolvedOutputNames[o.item_id] = resolveOutputName(o.item_id) ?? "";
+      const ref = inventoryItemRef(o);
+      const name = ref ? resolveOutputName(ref) : undefined;
+      if (ref && name) resolvedOutputNames[ref] = name;
     }
 
     const res = await attemptCraft({
@@ -402,12 +421,19 @@ async function attempt() {
       outputItemNames: resolvedOutputNames,
       ingredientConsumption: consumption,
       primaryIngredientInventoryId: primaryId,
-      primaryInventoryItem: {
-        item_id: primaryItem.item_id ?? "",
-        name: primaryItem.name || primaryItemDef?.name || "Item",
-        carried_by: primaryItem.carried_by,
-        campaign_id: primaryItem.campaign_id,
-      },
+      // Null when the recipe consumes nothing — there is no item to ruin.
+      primaryInventoryItem: primaryItem
+        ? {
+            // Was `primaryItem.item_id ?? ""` — an empty string is not an id, and
+            // craft_apply nullifs it anyway. Pass both columns as they really are so
+            // the ruined row keeps a library reference instead of losing it.
+            item_id: primaryItem.item_id,
+            library_item_id: primaryItem.library_item_id,
+            name: primaryItem.name || primaryItemDef?.name || "Item",
+            carried_by: primaryItem.carried_by,
+            campaign_id: primaryItem.campaign_id,
+          }
+        : null,
       modifierBonuses: modifierBonuses.value,
       abilityMod: abilityMod.value,
       profBonus: effectiveProfBonus.value,

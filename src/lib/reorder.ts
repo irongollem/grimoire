@@ -7,10 +7,13 @@ export interface ReorderEntry {
 }
 
 /**
- * The 5 per-table reorder RPCs — see
- * supabase/migrations/20260730000008_reorder_sort_order_rpc.sql. Each is a
+ * The per-table reorder RPCs — the first 5 from
+ * supabase/migrations/20260730000008_reorder_sort_order_rpc.sql, each a
  * SECURITY DEFINER function that re-derives the caller from auth.uid() and
- * verifies ownership of every id before writing anything.
+ * verifies ownership of every id before writing anything. `reorder_locations`
+ * (20260904014714) is SECURITY INVOKER instead — the table's own UPDATE
+ * policy is the authorization there — but takes the same `p_ids`/`p_orders`
+ * shape, so it fits this one call surface without a special case.
  *
  * The obvious `upsert(rows, { onConflict: "id" })` was tried and rejected:
  * sending only `{ id, sort_order }` violates NOT NULL on every other column
@@ -23,7 +26,8 @@ export type ReorderRpc =
   | "reorder_player_journal_entries"
   | "reorder_soundboard_pages"
   | "reorder_sounds"
-  | "reorder_party_inventory";
+  | "reorder_party_inventory"
+  | "reorder_locations";
 
 /**
  * Turns a drag-reordered list of ids into {id, sort_order} pairs, where an

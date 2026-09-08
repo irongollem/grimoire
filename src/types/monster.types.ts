@@ -94,6 +94,30 @@ export interface Monster extends VersionedContentMetadata {
   open5e_import?: boolean;     // true when the row was upserted by Open5e sync
 }
 
+/**
+ * What a *player* receives, which is not a `Monster` (#842).
+ *
+ * `get_player_visible_monsters` returns `stat_block` as **null** whenever the
+ * DM has not revealed a creature's stats — the gate is `reveal_stats`, and
+ * withholding is the whole point of that column. `monsters.stat_block` is NOT
+ * NULL, so `Monster` is accurate for a row and wrong for a projection.
+ *
+ * That mismatch is not academic: three users hit `null is not an object
+ * (evaluating 'monster.stat_block.challenge_rating')` in production, and
+ * nothing could fail to compile because the type promised a stat block was
+ * always there.
+ *
+ * So player surfaces take this type instead, and the compiler tells their
+ * authors what a DM-surface author never has to think about. The alternative —
+ * optional-chaining `stat_block` at all ~30 call sites — would silence the
+ * distinction rather than express it, and leave the next player surface to
+ * rediscover it the same way.
+ */
+export type PlayerVisibleMonster = Omit<Monster, "stat_block"> & {
+  stat_block: MonsterStatBlock | null;
+};
+
+
 export type MonsterInsert = Omit<Monster, "id" | "user_id" | "created_at" | "updated_at">;
 export type MonsterUpdate = Partial<MonsterInsert>;
 
@@ -103,7 +127,21 @@ export interface DiscoveredMonster {
   monster_id: string | null;   // custom monster FK
   library_monster_id: string | null;     // SRD monster stable ID e.g. "srd_aboleth"
   visible_to: string[] | null; // null = whole party (legacy); array = specific party_member_ids
-  reveal_stats: boolean;       // false = name/art/CR only; true = full stat block
+  /**
+   * Whether the party may see this creature's numbers. **False withholds the
+   * challenge rating too** — `get_player_visible_monsters` nulls the whole
+   * `stat_block`, and the CR lives inside it, so the bestiary shows "CR ???".
+   *
+   * An earlier revision of this comment said "false = name/art/CR only", which
+   * the code has never done. The behaviour was right and the comment was wrong:
+   * CR is a spoiler, decided 7 Sep 2026 (#842). Pinned by
+   * `supabase/tests/monster_stat_reveal.test.sql`, so passing "just the CR"
+   * through — which that comment invited — now fails rather than leaking.
+   *
+   * What players do get before the reveal is the name and the art: they met the
+   * thing, they just have not measured it.
+   */
+  reveal_stats: boolean;
   discovered_at: string;
 }
 

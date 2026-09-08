@@ -79,6 +79,7 @@ function inv(overrides: Partial<PartyInventoryItem> = {}): PartyInventoryItem {
     campaign_id: "c1",
     user_id: "u1",
     item_id: "item-1",
+    library_item_id: null,
     name: "Dagger",
     quantity: 1,
     carried_by: "pm-1",

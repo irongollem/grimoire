@@ -2,8 +2,6 @@ import { computed, isRef, ref, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
 import { summarizeQuestBeatAttachment } from "@/lib/quests/attachments";
-import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
-import type { QuestObjectiveStatus } from "@/types/quest.types";
 import { deriveQuestBoardSummaries, type QuestBoardSummary } from "@/lib/quests/board";
 import { toQuestRuntimeRpcArgs, type QuestRuntimeCommandInput } from "@/lib/quests/runtime";
 import { useCampaignStore } from "@/stores/campaign";
@@ -13,6 +11,7 @@ import type {
   PlayerQuestBeatVisit,
   QuestBeat,
   QuestBeatEdge,
+  QuestBeatEdgeGate,
   QuestBeatEdgeInsert,
   QuestBeatInsert,
   QuestBeatTransition,
@@ -20,18 +19,20 @@ import type {
   QuestBeatAttachment,
   QuestBeatAttachmentInsert,
   QuestBeatAttachmentSummary,
-  QuestBeatLoot,
-  QuestBeatLootInsert,
+  LootPlacement,
+  LootPlacementInsert,
+  QuestConsequenceObjectiveStatus,
   CampaignLiveQuest,
   QuestRuntimeContext,
   QuestRuntimeJumpTarget,
-  QuestObjectiveEffect,
-  QuestObjectiveEffectInsert,
+  QuestConsequence,
+  QuestConsequenceInsert,
   QuestRuntimeState,
 } from "@/types/quest.types";
 
 const BEATS_KEY = "quest_beats";
 const EDGES_KEY = "quest_beat_edges";
+const EDGE_GATES_KEY = "quest_beat_edge_gates";
 const RUNTIME_KEY = "quest_runtime_state";
 const RUNTIME_CONTEXT_KEY = "quest_runtime_context";
 const TRANSITIONS_KEY = "quest_beat_transitions";
@@ -41,8 +42,8 @@ const TRANSITIONS_KEY = "quest_beat_transitions";
  *  server-side, so the client has to be told its runtime views are stale. */
 export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANSITIONS_KEY] as const;
 const ATTACHMENTS_KEY = "quest_beat_attachments";
-const LOOT_KEY = "quest_beat_loot";
-const OBJECTIVE_EFFECTS_KEY = "quest_objective_effects";
+const LOOT_KEY = "loot_placements";
+const CONSEQUENCES_KEY = "quest_consequences";
 
 /** Player projections are audience-keyed. An authored beat change can alter
  * every audience's safe DTO, so invalidating only the authored quest key leaves
@@ -85,6 +86,26 @@ async function fetchEdges(questId: string): Promise<QuestBeatEdge[]> {
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as QuestBeatEdge[];
+}
+
+async function fetchEdgeGates(questId: string): Promise<QuestBeatEdgeGate[]> {
+  const { data, error } = await supabase
+    .from("quest_beat_edge_gates")
+    .select("*")
+    .eq("quest_id", questId);
+  if (error) throw error;
+  return (data ?? []) as QuestBeatEdgeGate[];
+}
+
+/** Raw gate rows for a quest's routes. `deriveQuestRouteGates` joins these
+ *  against `useQuestObjectives`' rows to say whether each is open. */
+export function useQuestBeatEdgeGates(questId: string | Ref<string>) {
+  const id = asRef(questId);
+  return useQuery({
+    queryKey: computed(() => [EDGE_GATES_KEY, id.value]),
+    queryFn: () => fetchEdgeGates(id.value),
+    enabled: () => !!id.value,
+  });
 }
 
 export function useQuestBeats(questId: string | Ref<string>) {
@@ -137,9 +158,6 @@ async function fetchAttachmentTargets(
   const targets = new Map<string, AttachmentTarget>();
   const definitions = [
     ["encounter", "encounters", "id, name", "name"],
-    ["objective", "quest_objectives", "id, description, status", "description"],
-    ["quest_ref", "quest_refs", "id, ref_type", "ref_type"],
-    ["location_set", "locations", "id, name", "name"],
     ["npc", "npcs", "id, name", "name"],
     ["faction", "factions", "id, name", "name"],
     ["item", "items", "id, name", "name"],
@@ -159,8 +177,7 @@ async function fetchAttachmentTargets(
     for (const raw of data ?? []) {
       const row = raw as unknown as Record<string, unknown>;
       const id = String(row.id);
-      const detail = type === "objective" ? QUEST_OBJECTIVE_STATUS_LABELS[row.status as QuestObjectiveStatus] ?? "Open" : null;
-      targets.set(`${type}:${id}`, { label: String(row[labelKey] ?? "Untitled"), detail });
+      targets.set(`${type}:${id}`, { label: String(row[labelKey] ?? "Untitled"), detail: null });
     }
   }));
   return targets;
@@ -175,30 +192,44 @@ export function useQuestBeatAttachments(questId: string | Ref<string>) {
   });
 }
 
-/** Quest-scoped and campaign-scoped callers share one aggregate RPC. That RPC
- * joins dispatch messages once, so cards never fetch claim state one by one. */
-export function useQuestBeatLoot(questId?: string | Ref<string>) {
+export interface LootPlacementFilter {
+  questId?: string | Ref<string>;
+  /** A room's loot (#830). Mutually meaningful with `questId` cleared — a
+   *  location-homed row has no quest — but the RPC accepts either, both, or
+   *  neither filter and narrows whichever is passed. */
+  locationId?: string | Ref<string>;
+}
+
+/** Quest-scoped, location-scoped, and campaign-scoped callers share one
+ * aggregate RPC. That RPC joins dispatch messages once, so cards never fetch
+ * claim state one by one. Both filters are optional and independent: pass
+ * `questId` for a beat's story flow, `locationId` for a room's loot panel
+ * (#830), or neither for the whole campaign (`useQuestBoardSummaries`, which
+ * calls the RPC directly rather than through this composable). */
+export function useLootPlacements(filter: LootPlacementFilter = {}) {
   const campaign = useCampaignStore();
-  const id = questId === undefined ? ref("") : asRef(questId);
+  const questIdRef = filter.questId === undefined ? ref("") : asRef(filter.questId);
+  const locationIdRef = filter.locationId === undefined ? ref("") : asRef(filter.locationId);
   return useQuery({
-    queryKey: computed(() => [LOOT_KEY, campaign.activeCampaignId, id.value || "all"]),
-    queryFn: async (): Promise<QuestBeatLoot[]> => {
-      const { data, error } = await supabase.rpc("get_quest_beat_loot", {
+    queryKey: computed(() => [LOOT_KEY, campaign.activeCampaignId, questIdRef.value || "all", locationIdRef.value || "all"]),
+    queryFn: async (): Promise<LootPlacement[]> => {
+      const { data, error } = await supabase.rpc("get_loot_placements", {
         p_campaign_id: campaign.activeCampaignId!,
-        p_quest_id: id.value || null,
+        p_quest_id: questIdRef.value || null,
+        p_location_id: locationIdRef.value || null,
       });
       if (error) throw error;
-      return (data ?? []) as QuestBeatLoot[];
+      return (data ?? []) as LootPlacement[];
     },
     enabled: () => !!campaign.activeCampaignId,
   });
 }
 
-export function useCreateQuestBeatLoot() {
+export function useCreateLootPlacement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (entry: QuestBeatLootInsert) => {
-      const { data, error } = await supabase.from("quest_beat_loot").insert(entry).select().single();
+    mutationFn: async (entry: LootPlacementInsert) => {
+      const { data, error } = await supabase.from("loot_placements").insert(entry).select().single();
       if (error) throw error;
       return data;
     },
@@ -209,11 +240,11 @@ export function useCreateQuestBeatLoot() {
   });
 }
 
-export function useDeleteQuestBeatLoot() {
+export function useDeleteLootPlacement() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { id: string; campaignId: string }) => {
-      const { data, error } = await supabase.from("quest_beat_loot").delete().eq("id", input.id).is("dispatched_at", null).select("id").maybeSingle();
+      const { data, error } = await supabase.from("loot_placements").delete().eq("id", input.id).is("dispatched_at", null).select("id").maybeSingle();
       if (error) throw error;
       if (!data) throw new Error("Only held loot can be removed; dispatched chat keeps its provenance.");
     },
@@ -224,13 +255,16 @@ export function useDeleteQuestBeatLoot() {
   });
 }
 
-export function useDispatchQuestBeatLoot() {
+/** `dispatch_loot` authorises per entry on that row's own `campaign_id`
+ * (#830), so it takes a batch of entry ids rather than a beat id — "drop
+ * all" on a beat means "every held entry currently shown for that beat,"
+ * gathered client-side by the caller. */
+export function useDispatchLoot() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { beatId: string; entryId?: string | null; campaignId: string }) => {
-      const { data, error } = await supabase.rpc("dispatch_quest_beat_loot", {
-        p_beat_id: input.beatId,
-        p_entry_id: input.entryId ?? null,
+    mutationFn: async (input: { entryIds: string[]; campaignId: string }) => {
+      const { data, error } = await supabase.rpc("dispatch_loot", {
+        p_entry_ids: input.entryIds,
       });
       if (error) throw error;
       return data;
@@ -274,7 +308,7 @@ export function useQuestBoardSummaries() {
         supabase.from("quest_beat_attachments").select("*").eq("campaign_id", campaignId).order("sort_order").order("created_at"),
         supabase.from("quest_runtime_state").select("*").eq("campaign_id", campaignId),
         supabase.from("quest_beat_transitions").select("*").eq("campaign_id", campaignId).order("created_at"),
-        supabase.rpc("get_quest_beat_loot", { p_campaign_id: campaignId, p_quest_id: null }),
+        supabase.rpc("get_loot_placements", { p_campaign_id: campaignId, p_quest_id: null, p_location_id: null }),
       ]);
       const error = [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult]
         .find((result) => result.error)?.error;
@@ -292,7 +326,7 @@ export function useQuestBoardSummaries() {
         attachments,
         runtime: (runtimeResult.data ?? []) as QuestRuntimeState[],
         transitions: (transitionsResult.data ?? []) as QuestBeatTransition[],
-        loot: (lootResult.data ?? []) as QuestBeatLoot[],
+        loot: (lootResult.data ?? []) as LootPlacement[],
       });
     },
     enabled: () => !!campaign.activeCampaignId,
@@ -376,7 +410,6 @@ export interface CreateQuestBeatWithRouteInput {
   canvasX: number;
   canvasY: number;
   sourceBeatId?: string;
-  edgeLabel?: string;
 }
 
 export async function createQuestBeatWithRoute(input: CreateQuestBeatWithRouteInput): Promise<QuestBeat> {
@@ -387,7 +420,6 @@ export async function createQuestBeatWithRoute(input: CreateQuestBeatWithRouteIn
     p_canvas_x: input.canvasX,
     p_canvas_y: input.canvasY,
     p_source_beat_id: input.sourceBeatId ?? null,
-    p_edge_label: input.edgeLabel ?? "",
   });
   if (error) throw error;
   return data as QuestBeat;
@@ -451,6 +483,7 @@ export function useDeleteQuestBeat() {
     onSuccess: (_result, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
       void invalidatePlayerQuestBeatProjections(queryClient);
     },
   });
@@ -483,6 +516,7 @@ export function useArchiveQuestBeat() {
     onSettled: (_data, _error, input) => {
       queryClient.invalidateQueries({ queryKey: [BEATS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [ATTACHMENTS_KEY, input.questId] });
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
       queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
@@ -514,6 +548,8 @@ export function useDeleteQuestBeatEdge() {
     },
     onSuccess: (_result, input) => {
       queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] });
+      // The gate FK cascades with the edge; the cache should follow.
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
     },
   });
 }
@@ -521,12 +557,53 @@ export function useDeleteQuestBeatEdge() {
 export function useUpdateQuestBeatEdge() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; questId: string; update: Partial<Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id" | "label">> }) => {
+    mutationFn: async (input: { id: string; questId: string; update: Partial<Pick<QuestBeatEdge, "source_beat_id" | "target_beat_id">> }) => {
       const { data, error } = await supabase.from("quest_beat_edges").update(input.update).eq("id", input.id).select().single();
       if (error) throw error;
       return data as QuestBeatEdge;
     },
     onSettled: (_data, _error, input) => queryClient.invalidateQueries({ queryKey: [EDGES_KEY, input.questId] }),
+  });
+}
+
+/**
+ * Sets or replaces a route's gate. `edge_id` is the gate table's primary key,
+ * so this is a plain upsert rather than an insert-then-update dance — editing
+ * an already-gated route just overwrites the one row.
+ */
+export function useSetQuestBeatEdgeGate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { edgeId: string; questId: string; campaignId: string; objectiveId: string; status: QuestConsequenceObjectiveStatus }) => {
+      const { data, error } = await supabase
+        .from("quest_beat_edge_gates")
+        .upsert({ edge_id: input.edgeId, quest_id: input.questId, campaign_id: input.campaignId, objective_id: input.objectiveId, status: input.status })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as QuestBeatEdgeGate;
+    },
+    onSuccess: (_data, input) => {
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
+    },
+  });
+}
+
+/**
+ * Removes a route's gate so the route goes back to always open. This is a
+ * distinct mutation from setting one — "no gate" is a real state to reach,
+ * not the fallback you get from clearing a field back to empty.
+ */
+export function useClearQuestBeatEdgeGate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { edgeId: string; questId: string }) => {
+      const { error } = await supabase.from("quest_beat_edge_gates").delete().eq("edge_id", input.edgeId);
+      if (error) throw error;
+    },
+    onSuccess: (_result, input) => {
+      queryClient.invalidateQueries({ queryKey: [EDGE_GATES_KEY, input.questId] });
+    },
   });
 }
 
@@ -633,6 +710,69 @@ export function useQuestRuntimeCommand() {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
       queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
       queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
+      // The board summarises the cursor, so a played move changes it. It was
+      // missing here while `useAssertQuestRuntime` below invalidated it and
+      // called it "the same caches a played move invalidates" — a parity its
+      // sibling did not actually have. With a 60s `staleTime` and no refetch
+      // on focus, advancing a beat and returning to the quest board inside
+      // that minute showed the previous beat as current, contradicting the
+      // cockpit the DM had just used.
+      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board"] });
+    },
+  });
+}
+
+export interface QuestAssertRuntimeInput {
+  campaignId: string;
+  questId: string;
+  /** In story order — the order beats are applied and chained from. */
+  beatIds: string[];
+  placeCursor: boolean;
+  reason?: string;
+}
+
+export interface QuestAssertRuntimeResult {
+  asserted: number;
+  /** Titles of the beats just asserted, in the order applied. */
+  beats: string[];
+  cursor_placed: boolean;
+  current_beat_id: string | null;
+}
+
+/**
+ * Records beats as already played, without playing through them (#796): the
+ * prep-time counterpart to {@link useQuestRuntimeCommand}. It appends one
+ * `assert` transition per beat, fires each beat's arrival consequences exactly
+ * as playing through would, and optionally places the cursor at the last one —
+ * but it never sets `status = 'running'`. Fixing the record must not light the
+ * session rail; only the verb machine (`transition_quest_runtime`) starts a
+ * session. See `supabase/migrations/20260906093154_prep_can_assert_the_cursor.sql`.
+ */
+export function useAssertQuestRuntime() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: QuestAssertRuntimeInput): Promise<QuestAssertRuntimeResult> => {
+      const { data, error } = await supabase.rpc("assert_quest_runtime", {
+        p_campaign_id: input.campaignId,
+        p_quest_id: input.questId,
+        p_beat_ids: input.beatIds,
+        p_place_cursor: input.placeCursor,
+        p_reason: input.reason?.trim() || null,
+      });
+      if (error) throw error;
+      return data as QuestAssertRuntimeResult;
+    },
+    onSuccess: () => {
+      // The cursor and the log — the same caches a played move invalidates.
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
+      queryClient.invalidateQueries({ queryKey: [RUNTIME_CONTEXT_KEY] });
+      queryClient.invalidateQueries({ queryKey: [TRANSITIONS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board"] });
+      // Consequences can move objectives, log events, and touch the calendar —
+      // same set `useAssertQuestObjectiveStatus` invalidates for the same reason.
+      queryClient.invalidateQueries({ queryKey: ["quest_objectives"] });
+      queryClient.invalidateQueries({ queryKey: ["quest_consequence_events"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
     },
   });
 }
@@ -665,14 +805,16 @@ export function useQuestRuntimeImprovise() {
         p_reason: input.reason,
         p_push_return: input.pushReturn,
         p_keep_edge: input.keepEdge,
-        p_edge_label: "Improvised",
       });
       if (error) throw error;
       return data as { context: QuestRuntimeContext; beat: QuestBeat };
     },
     onSuccess: ({ context }, input) => {
       queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId, input.questId], context);
-      queryClient.setQueryData([RUNTIME_KEY, input.campaignId], context.state);
+      // Three parts, matching `useQuestRuntimeState`'s key and the line above.
+      // It wrote a two-part key, which no query reads, so the optimistic update
+      // landed nowhere and the cursor moved only once the refetch came back.
+      queryClient.setQueryData([RUNTIME_KEY, input.campaignId, input.questId], context.state);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
@@ -774,53 +916,59 @@ export function usePlayerQuestBeatHistory(questId?: string | Ref<string>, previe
 
 
 /**
- * The rules that let the flow decide an objective: arriving at a beat, or taking
- * one branch out of it, can reveal, complete or fail it.
+ * One rule table for the whole quest: arrival at a beat, taking a branch, an
+ * objective becoming a status, or the ledger settling, each doing one of the
+ * four ledger verbs or one of the two world actions (#794). Replaces
+ * `useQuestObjectiveEffects` (beat/edge → ledger verb only) and the deleted
+ * `useQuestTriggers`/`useCreateQuestTrigger`/`useDeleteQuestTrigger`
+ * (ledger/settled → world action only) — two ends of the same sentence.
  *
- * Applied inside `transition_quest_runtime` rather than here, so the objective
- * moves in the same transaction as the party — and so stepping back can undo it,
- * which needs the state each rule overwrote.
+ * Beat/edge conditions are applied inside `transition_quest_runtime`;
+ * objective/settled conditions inside `assert_quest_objective_status` as well
+ * — both call `private.apply_quest_consequences` server-side, in the same
+ * transaction as the write that made the condition true, so stepping back can
+ * undo what a rule did.
  */
-export function useQuestObjectiveEffects(questId: string | Ref<string>) {
+export function useQuestConsequences(questId: string | Ref<string>) {
   const id = asRef(questId);
   return useQuery({
-    queryKey: computed(() => [OBJECTIVE_EFFECTS_KEY, id.value]),
-    queryFn: async (): Promise<QuestObjectiveEffect[]> => {
+    queryKey: computed(() => [CONSEQUENCES_KEY, id.value]),
+    queryFn: async (): Promise<QuestConsequence[]> => {
       const { data, error } = await supabase
-        .from("quest_objective_effects")
+        .from("quest_consequences")
         .select("*")
         .eq("quest_id", id.value)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as QuestObjectiveEffect[];
+      return (data ?? []) as QuestConsequence[];
     },
     enabled: () => !!id.value,
   });
 }
 
-export function useCreateQuestObjectiveEffect() {
+export function useCreateQuestConsequence() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: QuestObjectiveEffectInsert): Promise<QuestObjectiveEffect> => {
-      const { data, error } = await supabase.from("quest_objective_effects").insert(input).select().single();
+    mutationFn: async (input: QuestConsequenceInsert): Promise<QuestConsequence> => {
+      const { data, error } = await supabase.from("quest_consequences").insert(input).select().single();
       if (error) throw error;
-      return data as QuestObjectiveEffect;
+      return data as QuestConsequence;
     },
-    onSuccess: (_effect, input) => {
-      queryClient.invalidateQueries({ queryKey: [OBJECTIVE_EFFECTS_KEY, input.quest_id] });
+    onSuccess: (_row, input) => {
+      queryClient.invalidateQueries({ queryKey: [CONSEQUENCES_KEY, input.quest_id] });
     },
   });
 }
 
-export function useDeleteQuestObjectiveEffect() {
+export function useDeleteQuestConsequence() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { id: string; questId: string }) => {
-      const { error } = await supabase.from("quest_objective_effects").delete().eq("id", input.id);
+      const { error } = await supabase.from("quest_consequences").delete().eq("id", input.id);
       if (error) throw error;
     },
     onSuccess: (_result, input) => {
-      queryClient.invalidateQueries({ queryKey: [OBJECTIVE_EFFECTS_KEY, input.questId] });
+      queryClient.invalidateQueries({ queryKey: [CONSEQUENCES_KEY, input.questId] });
     },
   });
 }

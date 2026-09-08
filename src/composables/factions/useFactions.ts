@@ -19,6 +19,8 @@ import type { PartyMember } from "@/types/party.types";
 import type { Location } from "@/types/location.types";
 import type { Item } from "@/types/item.types";
 import type { Deity } from "@/types/deity.types";
+import { normalizeLibraryItem } from "@/composables/items/useItems";
+import type { ItemRefColumns } from "@/lib/itemRef";
 
 // ── Factions CRUD ──────────────────────────────────────────────────────────────
 
@@ -549,9 +551,22 @@ export function useRemoveFactionLocation() {
 
 // ── Faction Items ──────────────────────────────────────────────────────────────
 
+/** `item` is a subset — never the full `dm_notes`/`description` row — resolved
+ *  from whichever of `items`/`library_items` the row actually references
+ *  (#819: a faction can now hold shared content, not just a vault item). */
 export interface FactionItemWithItem extends FactionItem {
   item: Pick<Item, "id" | "name" | "item_type" | "rarity">;
 }
+
+type ItemPreview = Pick<Item, "id" | "name" | "item_type" | "rarity">;
+interface RawFactionItemRow extends FactionItem {
+  item: ItemPreview | null;
+  library_item: ItemPreview | null;
+}
+
+// Both FKs are ON DELETE CASCADE, so a row referencing either can't outlive
+// its target — this is defensive only, never the expected case in practice.
+const UNRESOLVED_ITEM_PREVIEW: ItemPreview = { id: "", name: "???", item_type: "gear", rarity: "mundane" };
 
 export function useFactionItems(factionId: string) {
   return useQuery({
@@ -559,11 +574,14 @@ export function useFactionItems(factionId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("faction_items")
-        .select("*, item:items(id, name, item_type, rarity)")
+        .select("*, item:items(id, name, item_type, rarity), library_item:library_items(id, name, item_type, rarity)")
         .eq("faction_id", factionId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data as FactionItemWithItem[];
+      return (data as unknown as RawFactionItemRow[]).map(({ library_item, ...row }) => ({
+        ...row,
+        item: row.item ?? (library_item ? normalizeLibraryItem(library_item) : UNRESOLVED_ITEM_PREVIEW),
+      })) as FactionItemWithItem[];
     },
     enabled: !!factionId,
   });
@@ -572,11 +590,12 @@ export function useFactionItems(factionId: string) {
 export function useAddFactionItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: {
-      faction_id: string;
-      item_id: string;
-      notes?: string;
-    }) => {
+    mutationFn: async (
+      payload: ItemRefColumns & {
+        faction_id: string;
+        notes?: string;
+      },
+    ) => {
       const user = getCurrentUser();
       const { error } = await supabase
         .from("faction_items")

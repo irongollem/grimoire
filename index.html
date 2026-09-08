@@ -14,6 +14,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Dungeon Grimoire</title>
     <meta name="description" content="D&D campaign manager for Dungeon Masters and players" />
+
+    <!-- Share/unfurl tags. Deliberately generic: vercel.json rewrites every
+         path to this one file, and no unfurler runs the JS that would set
+         per-route tags, so the whole subdomain shares a single card. The link
+         that makes this worth having is /join/<token>, which is what a DM
+         pastes into Discord to invite players; without these it expands to
+         nothing.
+
+         og:image points at the marketing site's card rather than a copy of it,
+         so regenerating it there (npm run og) updates this too and the two can
+         never drift apart. Cross-origin image URLs are fine for Open Graph.
+
+         Note there is no `robots: noindex` meta here on purpose: the app is
+         already kept out of search by robots.txt, and it is not settled that
+         every card fetcher ignores noindex, so adding one risks suppressing
+         the previews this exists to produce. -->
+    <meta property="og:site_name" content="Dungeon Grimoire" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Dungeon Grimoire" />
+    <meta property="og:description" content="D&D campaign manager for Dungeon Masters and players. Free to start, and always free for your players." />
+    <meta property="og:image" content="https://dungeongrimoire.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Dungeon Grimoire: the all-in-one D&D 5e toolkit for Dungeon Masters" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Dungeon Grimoire" />
+    <meta name="twitter:description" content="D&D campaign manager for Dungeon Masters and players. Free to start, and always free for your players." />
+    <meta name="twitter:image" content="https://dungeongrimoire.com/og.png" />
     <!-- @page must be in the static HTML head — Safari ignores @page rules
          injected later by JS/component stylesheets -->
     <style>

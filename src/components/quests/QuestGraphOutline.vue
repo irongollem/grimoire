@@ -19,7 +19,7 @@
           </span>
         </button>
         <AppButton v-if="editable && selectedBeatId && selectedBeatId !== beat.id" label="Link" size="xs" variant="subtle" @click="emit('command', { type: 'link', sourceBeatId: selectedBeatId, targetBeatId: beat.id })" />
-        <AppButton v-if="editable && !beat.is_overview" label="Delete" size="xs" variant="destructive" @click="emit('command', { type: 'delete-beat', beatId: beat.id })" />
+        <AppButton v-if="editable" label="Delete" size="xs" variant="destructive" @click="emit('command', { type: 'delete-beat', beatId: beat.id })" />
       </li>
     </ol>
   </section>

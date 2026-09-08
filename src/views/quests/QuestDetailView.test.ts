@@ -3,6 +3,7 @@ import { shallowMount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import QuestDetailView from "./QuestDetailView.vue";
+import QuestDetailModal from "@/components/quests/QuestDetailModal.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
 import QuestOverviewPanel from "@/components/quests/QuestOverviewPanel.vue";
@@ -13,13 +14,27 @@ const mocks = vi.hoisted(() => ({
     name: "quest-detail",
     params: { id: "quest-1" },
     query: {} as Record<string, string>,
+    // Two matched records — `/quests` and its `:id` child — mirrors real
+    // navigation now that the detail route nests under the list (#844).
+    matched: [{}, {}] as unknown[],
   },
   replace: vi.fn(),
+  // A plain box, not a `ref`: each mount reads it once via `useDetailModal`,
+  // so nothing here needs to be reactive within a single mounted instance —
+  // only across the separate `mountView()` calls a test makes.
+  narrow: { value: false },
 }));
 
 vi.mock("vue-router", () => ({
   useRoute: () => reactive(mocks.route),
   useRouter: () => ({ replace: mocks.replace }),
+}));
+// Partial mock, not a full replacement: `useUiStore` (constructed for real
+// below, via pinia) reaches into `@vueuse/core` for `useLocalStorage` too, and
+// a full replacement here would take that down with it.
+vi.mock("@vueuse/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vueuse/core")>()),
+  useMediaQuery: () => mocks.narrow,
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuest: () => ({
@@ -41,23 +56,26 @@ describe("QuestDetailView", () => {
     mocks.route.name = "quest-detail";
     mocks.route.params = { id: "quest-1" };
     mocks.route.query = {};
+    mocks.route.matched = [{}, {}];
+    mocks.narrow.value = false;
     ui.sessionRunning = false;
     mocks.replace.mockReset();
   });
 
-  // Preparing a quest starts from its premise; running one starts from where the
-  // party is standing. The overview is a peer of the working surface, not an
-  // overlay above it, so exactly one of them is mounted.
-  it("opens Prep on the overview and Play on the session", async () => {
+  // The overview is a glance, so on tablet and up it is `useDetailModal`'s
+  // popover over the quest log — the same treatment an NPC sheet gets nested
+  // under its grid (#844). The cockpit is a live session, never a popover, so
+  // it takes the whole screen regardless of how the surface was reached.
+  it("opens Prep as a modal over the log, and Play across the whole screen", async () => {
     const wrapper = mountView();
-    expect(wrapper.findComponent(QuestOverviewPanel).exists()).toBe(true);
-    expect(wrapper.findComponent(QuestGraphDesigner).exists()).toBe(false);
+    expect(wrapper.findComponent(QuestDetailModal).exists()).toBe(true);
+    expect(wrapper.findComponent(QuestRunCockpit).exists()).toBe(false);
 
     ui.sessionRunning = true;
     await wrapper.vm.$nextTick();
 
     expect(wrapper.findComponent(QuestRunCockpit).exists()).toBe(true);
-    expect(wrapper.findComponent(QuestOverviewPanel).exists()).toBe(false);
+    expect(wrapper.findComponent(QuestDetailModal).exists()).toBe(false);
   });
 
   it("switches surfaces through the view query, per mode", async () => {
@@ -71,10 +89,17 @@ describe("QuestDetailView", () => {
 
     mocks.route.query = { view: "overview" };
     const overview = mountView();
-    expect(overview.findComponent(QuestOverviewPanel).exists()).toBe(true);
+    // Overview is the glance, so it renders as the modal rather than as an
+    // inline panel — the working surfaces above never do, which is the point.
+    expect(overview.findComponent(QuestDetailModal).exists()).toBe(true);
   });
 
+  // The toggle still matters on a phone, where there is no modal to retreat
+  // into — both surfaces render full-screen there, and this control is how a
+  // DM moves between them. Forcing narrow here isolates that path from the
+  // desktop modal wiring the previous two cases already cover.
   it("records the chosen surface without disturbing the rest of the query", async () => {
+    mocks.narrow.value = true;
     mocks.route.query = { beat: "beat-1" };
     const wrapper = mountView();
 
@@ -111,8 +136,11 @@ describe("QuestDetailView", () => {
   });
 
   // `?overview=true` and `?mode=details` are what the drawer left behind, in
-  // bookmarks, attachment adapters and return-to paths. They still land here.
+  // bookmarks, attachment adapters and return-to paths. They still land on the
+  // overview surface. Narrow throughout: the point under test is the query
+  // translation, which the desktop modal-wiring cases above already cover.
   it("carries legacy Details, edit and overview links onto the overview surface", async () => {
+    mocks.narrow.value = true;
     mocks.route.query = { mode: "details" };
     const details = mountView();
     await details.vm.$nextTick();

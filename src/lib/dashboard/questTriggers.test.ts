@@ -1,28 +1,29 @@
 import type { CalendarAdapter } from "@/types/calendar.types";
 import { describe, it, expect } from "vitest";
 import type { CalendarToday } from "@/lib/calendar/upcoming";
-import { deriveQuestTriggerDueRows, TRIGGER_HORIZON_DAYS, type ScheduledTriggerRow } from "./questTriggers";
+import { deriveDueConsequenceRows, CONSEQUENCE_HORIZON_DAYS, type ConsequenceEventRow } from "./questTriggers";
 
 const TODAY: CalendarToday = { year: 1495, month: 3, day: 10 };
 
 /** Just the fields the join reads — see `downtimeQueue.test.ts` for why a
  *  full row is not spelled out on every case. */
-function scheduled(overrides: Partial<ScheduledTriggerRow> & { id: string }): ScheduledTriggerRow {
+function pending(overrides: Partial<ConsequenceEventRow> & { id: string }): ConsequenceEventRow {
   return {
-    fire_year: TODAY.year,
-    fire_month: TODAY.month,
-    fire_day: TODAY.day,
-    fired_at: null,
+    after_days: 0,
+    fires_on_year: TODAY.year,
+    fires_on_month: TODAY.month,
+    fires_on_day: TODAY.day,
+    action: "create_calendar_event",
+    action_payload: { title: "The bridge collapses", event_type: "deadline", description: "No more crossing." },
     quest: { id: "quest-1", title: "The Sunken Keep" },
-    trigger: { trigger_type: "quest_complete", offset_days: 0, objective: null },
     ...overrides,
   };
 }
 
 /**
  * Harptos in miniature — twelve 30-day months plus a festival after month 6,
- * so a span that crosses it is one day longer than the old 12x30 arithmetic
- * would have said. That difference is #766 in a fixture.
+ * so a span that crosses it is one day longer than naive 12x30 arithmetic
+ * would say (#766).
  */
 const TEST_ADAPTER: CalendarAdapter = {
   id: "test",
@@ -40,138 +41,66 @@ const TEST_ADAPTER: CalendarAdapter = {
   formatDate: () => "",
 };
 
-describe("deriveQuestTriggerDueRows", () => {
-  it("returns nothing for no triggers", () => {
-    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, [], TODAY)).toEqual([]);
+describe("deriveDueConsequenceRows", () => {
+  it("returns nothing for no pending events", () => {
+    expect(deriveDueConsequenceRows(TEST_ADAPTER, [], TODAY)).toEqual([]);
   });
 
-  it("excludes a trigger that already fired", () => {
-    const rows = [scheduled({ id: "s1", fired_at: "2026-08-01T00:00:00Z" })];
-    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
+  it("excludes an event whose fire date is beyond the horizon", () => {
+    const rows = [pending({ id: "e1", after_days: CONSEQUENCE_HORIZON_DAYS + 1 })];
+    expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
-  it("excludes a time trigger whose fire date is beyond the horizon", () => {
-    const rows = [
-      scheduled({
-        id: "s1",
-        fire_day: TODAY.day + TRIGGER_HORIZON_DAYS + 1,
-        trigger: { trigger_type: "quest_complete", offset_days: TRIGGER_HORIZON_DAYS + 1, objective: null },
-      }),
-    ];
-    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
-  });
-
-  it("includes a time trigger inside the horizon, with the right countdown", () => {
-    const rows = [
-      scheduled({
-        id: "s1",
-        fire_day: TODAY.day + 5,
-        trigger: { trigger_type: "quest_complete", offset_days: 5, objective: null },
-      }),
-    ];
-    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
+  it("includes an event inside the horizon, with the right countdown", () => {
+    const rows = [pending({ id: "e1", after_days: 5 })];
+    const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
     expect(result).toEqual([
       {
-        scheduledId: "s1",
+        eventId: "e1",
         questId: "quest-1",
         questTitle: "The Sunken Keep",
-        waitingFor: "Quest complete",
-        kind: "time",
+        waitingFor: 'Calendar event: "The bridge collapses"',
         daysUntil: 5,
       },
     ]);
   });
 
-  it("includes an event trigger, described by its condition rather than a countdown", () => {
-    const rows = [
-      scheduled({
-        id: "s1",
-        trigger: {
-          trigger_type: "objective_done",
-          offset_days: 0,
-          objective: { description: "Investigate the ruins" },
-        },
-      }),
-    ];
-    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
-    expect(result).toEqual([
-      {
-        scheduledId: "s1",
-        questId: "quest-1",
-        questTitle: "The Sunken Keep",
-        waitingFor: "Objective done: Investigate the ruins",
-        kind: "event",
-        daysUntil: 0,
-      },
-    ]);
+  it("describes a broadcast by its message", () => {
+    const rows = [pending({
+      id: "e1",
+      after_days: 2,
+      action: "send_broadcast",
+      action_payload: { message: "The bells of the city toll in mourning." },
+    })];
+    const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
+    expect(result[0]!.waitingFor).toBe("Broadcast: \"The bells of the city toll in mourning.\"");
   });
 
-  it("never horizon-excludes an event trigger, unlike a time trigger", () => {
-    // offset_days 0 means the fire date is the day it was scheduled, which is
-    // always today-or-earlier -- so daysUntil can never exceed the horizon in
-    // practice, but the exemption is asserted directly here rather than left
-    // to that coincidence.
-    const rows = [
-      scheduled({
-        id: "s1",
-        fire_day: TODAY.day - 40,
-        trigger: { trigger_type: "quest_complete", offset_days: 0, objective: null },
-      }),
-    ];
-    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
+  it("always includes an already-overdue event, ignoring the horizon", () => {
+    const rows = [pending({ id: "e1", fires_on_day: TODAY.day - 40, after_days: 0 })];
+    const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
     expect(result).toHaveLength(1);
-    expect(result[0].kind).toBe("event");
+    expect(result[0]!.daysUntil).toBeLessThan(0);
   });
 
-  it("drops a scheduled trigger whose quest is gone, rather than rendering it nameless", () => {
-    const rows = [scheduled({ id: "s1", quest: null })];
-    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
-  });
-
-  it("drops a dangling scheduled row whose trigger was deleted", () => {
-    const rows = [scheduled({ id: "s1", trigger: null })];
-    expect(deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
-  });
-
-  it("falls back to a marker for an objective_done trigger with no objective description", () => {
-    const rows = [
-      scheduled({
-        id: "s1",
-        trigger: { trigger_type: "objective_done", offset_days: 0, objective: null },
-      }),
-    ];
-    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
-    expect(result[0].waitingFor).toBe("Objective done: ??? (removed)");
+  it("drops an event whose quest is gone, rather than rendering it nameless", () => {
+    const rows = [pending({ id: "e1", quest: null })];
+    expect(deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY)).toEqual([]);
   });
 
   it("falls back to a title marker for a quest with an empty title", () => {
-    const rows = [scheduled({ id: "s1", quest: { id: "quest-1", title: "" } })];
-    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
-    expect(result[0].questTitle).toBe("Untitled Quest");
+    const rows = [pending({ id: "e1", quest: { id: "quest-1", title: "" } })];
+    const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
+    expect(result[0]!.questTitle).toBe("Untitled Quest");
   });
 
   it("sorts soonest-first, ties broken by quest title", () => {
     const rows = [
-      scheduled({
-        id: "later",
-        quest: { id: "q1", title: "Zebra Quest" },
-        fire_day: TODAY.day + 10,
-        trigger: { trigger_type: "quest_complete", offset_days: 10, objective: null },
-      }),
-      scheduled({
-        id: "tie-b",
-        quest: { id: "q2", title: "Bravo Quest" },
-        fire_day: TODAY.day + 3,
-        trigger: { trigger_type: "quest_complete", offset_days: 3, objective: null },
-      }),
-      scheduled({
-        id: "tie-a",
-        quest: { id: "q3", title: "Alpha Quest" },
-        fire_day: TODAY.day + 3,
-        trigger: { trigger_type: "quest_complete", offset_days: 3, objective: null },
-      }),
+      pending({ id: "later", quest: { id: "q1", title: "Zebra Quest" }, after_days: 10 }),
+      pending({ id: "tie-b", quest: { id: "q2", title: "Bravo Quest" }, after_days: 3 }),
+      pending({ id: "tie-a", quest: { id: "q3", title: "Alpha Quest" }, after_days: 3 }),
     ];
-    const result = deriveQuestTriggerDueRows(TEST_ADAPTER, rows, TODAY);
-    expect(result.map((r) => r.scheduledId)).toEqual(["tie-a", "tie-b", "later"]);
+    const result = deriveDueConsequenceRows(TEST_ADAPTER, rows, TODAY);
+    expect(result.map((r) => r.eventId)).toEqual(["tie-a", "tie-b", "later"]);
   });
 });

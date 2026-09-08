@@ -307,18 +307,10 @@
                 <p class="font-cinzel text-xs font-semibold truncate">{{ c.name }}</p>
                 <p class="text-caption text-muted-foreground italic truncate">{{ c.setting }}</p>
               </div>
-              <span
-                class="text-label px-1.5 py-0.5 rounded shrink-0"
-                :class="campaignRoleMap.get(c.id) === 'dm'
-                  ? 'bg-amber-500/15 text-amber-400'
-                  : 'bg-primary/15 text-primary'"
-              >
-                {{ campaignRoleMap.get(c.id) === 'dm' ? 'DM' : 'Player' }}
-              </span>
             </AppButton>
 
             <p v-if="campaigns.length === 0" class="text-body text-muted-foreground italic px-3 py-2">
-              No campaigns found.
+              You haven't joined a campaign yet.
             </p>
           </div>
 
@@ -369,8 +361,8 @@ import { prefersReducedMotion } from "@/lib/motion";
 import { useAuthStore } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCampaigns, useCampaignById } from "@/composables/campaign/useCampaigns";
-import { useMyMemberships } from "@/composables/campaign/useCampaignMembers";
+import { usePlayerCampaigns, useCampaignById } from "@/composables/campaign/useCampaigns";
+import { useModeSwitch } from "@/composables/useModeSwitch";
 import { useParty, usePartyLive } from "@/composables/party/useParty";
 import { useCampaignLiveSync } from "@/composables/campaign/useCampaignLiveSync";
 import { usePlayerRemovalGuard } from "@/composables/play/usePlayerRemovalGuard";
@@ -416,6 +408,7 @@ watch(campaignData, (c) => {
 }, { immediate: true });
 
 const router = useRouter();
+const { switchMode } = useModeSwitch();
 const { data: partyMembers } = useParty();
 
 watch(
@@ -525,21 +518,18 @@ const showNewCampaignModal = ref(false);
 const newCampaignMounted = useLazyMount(showNewCampaignModal);
 const showCampaignPaywall = ref(false);
 
-const { data: campaignList } = useCampaigns();
+// The player lens lists the campaigns this account *plays in* — never one it
+// DMs. The sheet used to list every campaign RLS returned and badge each one
+// DM or Player, which let the player shell hand you sideways into a campaign
+// the other lens owns (#729 says the mode decides which campaigns are in view).
+const { data: campaignList } = usePlayerCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
-const { data: myMemberships } = useMyMemberships();
-const campaignRoleMap = computed(() => {
-  const map = new Map<string, string>();
-  for (const m of myMemberships.value ?? []) map.set(m.campaign_id, m.role);
-  return map;
-});
 const { canCreate: canCreateCampaign } = useQuota("campaigns");
 
 async function switchCampaign(c: Campaign) {
   showCampaignSheet.value = false;
   campaign.switchToCampaign(c);
   await auth.refreshMembership(c.id);
-  if (auth.isDM) router.push({ name: "dashboard" });
 }
 
 function startCreateCampaign() {
@@ -548,10 +538,17 @@ function startCreateCampaign() {
   showNewCampaignModal.value = true;
 }
 
+// Creating a campaign from the player shell makes you its DM, so it is a lens
+// change and has to go through useModeSwitch — pushing at /dashboard while the
+// mode ref still said "player" only got the router guard to bounce you back to
+// /play/home with a DM campaign active under the player lens. Mode first, then
+// the campaign: switchMode swaps the per-mode memory, so hydrating the new
+// campaign before it would file it under the lens being left.
 async function onCampaignCreated(c: Campaign) {
+  await switchMode("dm", { navigate: false });
   campaign.switchToCampaign(c);
   await auth.refreshMembership(c.id);
-  if (auth.isDM) router.push({ name: "dashboard" });
+  await router.push({ name: "dashboard" });
 }
 
 watch(() => route.path, () => { showMore.value = false; });

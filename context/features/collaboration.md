@@ -82,6 +82,56 @@ routes additionally require a real membership; the `playerStandalone` routes
 (pool, character create/edit, pickers) exist precisely for the
 member-of-nothing player.
 
+**Which campaigns a lens may see — and the bug that came of leaving it
+implicit.** "Which of their campaigns are in view" was documented as a property
+of the mode long before anything enforced it. `campaigns_member_select` lets a
+member read the campaign row of every campaign they are in, so `select * from
+campaigns` returns the ones the account DMs *and* the ones it merely plays in,
+indistinguishable. The DM sidebar auto-selected `list[0]` from that mixture, so
+a player who flipped to DM mode could land on the DM shell of somebody else's
+game — and, once there, the id was written to the DM slot in localStorage and
+came back on every boot. RLS held: `npcs`, `quests`, `locations`, `encounters`
+and `monsters` are owner-only or player-visibility-gated, `campaigns` itself is
+owner-only for writes, and the BYOK vault refuses a blob the caller does not own
+(`callerOwnsBlob`), so the shell came up empty rather than leaking. What it cost
+was trust, plus a free account reading as over its campaign quota for campaigns
+it had only joined (`check_quota` counts owned rows).
+
+The lens is now enforced in the query, not at each call site. Every campaign
+list goes through `fetchCampaignsAs(role, archived)` in `useCampaigns.ts`, which
+inner-joins `campaign_members` on the caller's own row and filters by role:
+
+| Composable              | Lens   | Used by                                                     |
+| ----------------------- | ------ | ----------------------------------------------------------- |
+| `useDmCampaigns`        | DM     | sidebar switcher, scope fields, homebrew editors, transfer, danger zone, downgrade trigger |
+| `useDmArchivedCampaigns`| DM     | the switcher's Archived section                              |
+| `useAllDmCampaigns`     | DM     | the downgrade picker (archived included, matching the quota) |
+| `usePlayerCampaigns`    | Player | `PlayerHomeView`, the player shell's campaign sheet, post-join hydration |
+
+`campaign_members.role` is the scope because it is the column
+`private.is_campaign_dm()` reads, so the list cannot disagree with what RLS will
+permit. Exactly one `dm` row exists per campaign and it is always the owner
+(`create_dm_membership` on insert, flipped atomically by
+`transfer_campaign_ownership`), so "campaigns I DM" and `campaigns.user_id = me`
+are the same set — the membership join is used because it scopes both lenses
+with one shape.
+
+Two entry points sit outside the lists and are guarded separately.
+`switchUserMode()` takes `campaignsInTargetLens` and drops a remembered id the
+target lens does not hold, so a DM slot poisoned by an earlier build is
+discarded rather than restored; `useModeSwitch` resolves that set from
+`campaign_members` before the swap. And `App.vue` clears `activeCampaignId` when
+the membership loaded for it contradicts the mode — the boot path, for
+localStorage written before this was enforced. It acts only on a membership that
+is genuinely for the active campaign and genuinely disagrees: a null membership,
+a row for another campaign, or a mode not yet chosen all mean "don't know", and
+not knowing is never grounds to clear.
+
+Creating a campaign from the player shell is a lens change and goes through
+`switchMode("dm")` — pushing at `/dashboard` with the mode ref still on
+`"player"` only got the router guard to bounce it back to `/play/home` with a DM
+campaign active under the player lens.
+
 There are two roles:
 
 **DM (`role = 'dm'`)**
@@ -177,9 +227,11 @@ What the RPC does, in order:
    NPCs, factions and locations that quest content references (campaign-scoped rows of
    these kinds simply move in step 4, ids intact, so they need nothing). NPC clones pull
    their `linked_monster_id` stat block and `scriptorium_doc_id` handout into the
-   monster/doc clone sets so the copy resolves; location clones include `location_set`
-   `room_ids`, get `parent_location_id` remapped clone-to-clone and `source_map_id`
-   nulled (the Cartographer deep-link rule); faction clones are shallow — `faction_*`
+   monster/doc clone sets so the copy resolves; location clones follow a beat's
+   `staged_at_location_id` **and everything beneath it** (#797 — the previous
+   `metadata.room_ids` array only cloned rooms the DM had remembered to list, so a
+   dungeon could arrive at its new owner missing rooms), get `parent_id` remapped
+   clone-to-clone and `source_map_id` nulled (the Cartographer deep-link rule); faction clones are shallow — `faction_*`
    junction rows are campaign relations and stay put. No disposition question is asked
    for any of these: originals are global, stay with their author, and lose nothing. Separately, `delete_campaign_with_homebrew` once disposed of left-behind rows
    with an owner-less `where campaign_id = …`; `20260809000004` confines each
@@ -261,18 +313,35 @@ The `/join/:token` route has no `requiresAuth` guard — it is accessible before
 Real-time updates are handled by two complementary systems, both implemented as singleton composables with reference counting (safe to call from multiple layouts simultaneously).
 
 **`useCampaignLiveSync`** (`src/composables/campaign/useCampaignLiveSync.ts`)
-Subscribes to Supabase `postgres_changes` for these tables (filtered by `campaign_id`):
+Subscribes to Supabase `postgres_changes`, filtered by `campaign_id`, for every table in its `SYNC_TABLES` registry — read the list there rather than restating it here; it has grown from 7 tables to 28 and a copy in this file goes stale silently.
 
-- `notes`, `quests`, `locations`, `factions`, `puzzle_rooms`, `calendar_events`, `player_journal`
+An insert or update on any of them triggers a TanStack Query cache invalidation (or an exact-row cache edit) for the matching query key. Both the DM's `DefaultLayout` and the player's `PlayerLayout` mount this composable, so both sides see updates without polling.
 
-Any insert/update/delete on these tables triggers a TanStack Query cache invalidation for the matching query key. Both the DM's `DefaultLayout` and the player's `PlayerLayout` mount this composable, so both sides see updates instantly without polling.
-
-**DELETE payloads carry only the primary key — never build on anything else.** Two Supabase constraints combine here, and both are easy to forget because a handler that violates them fails silently rather than erroring:
+**A filtered subscription never receives a DELETE at all.** Two Supabase constraints combine, and the second one used to be written down here backwards:
 
 1. RLS is enabled on every synced table, and *"when RLS is enabled and `replica identity` is set to `full` on a table, the `old` record contains only the primary key(s)"*. Raising `REPLICA IDENTITY` to `FULL` does **not** buy back the other columns — it only inflates the WAL. Migration `20260730000005` reverted all 25 tables that had tried this.
-2. *"Delete events are not filterable."* A `filter: campaign_id=eq.X` is honoured for INSERT/UPDATE but ignored for DELETE, so **every** subscriber receives **every** delete on that table, app-wide.
+2. The `filter: campaign_id=eq.X` is **not** ignored for DELETE. It is applied, to a payload that has been trimmed to the primary key — so it can never match, and the event is dropped.
 
-So a delete handler gets one id, possibly for a row in another campaign. Match on the primary key — which is inherently safe, since a foreign id simply isn't in the local cache — and if the handler needs to know anything else about the deleted row (who it belonged to, what it pointed at), it must either re-read authoritatively or invalidate broadly. `applyRealtimeRow` (`src/lib/campaignLiveSync/realtimeCache.ts`) already does this correctly: it keys on `change.old.id` and only consults `matches()` for non-deletes. Three hand-written handlers did not, and had never worked (#580).
+This section previously claimed the opposite of (2): that the filter was ignored and therefore *every* subscriber received *every* delete app-wide. Measured on the local stack, with a filtered and an unfiltered handler on the same channel, the delete arrived on exactly one of them — the unfiltered one. The consequence of the wrong version is worse than a doc error: every delete handler in `useCampaignLiveSync` was written to be careful about foreign ids, and none of them had ever run. Deleting a party-inventory item left it on screen for every other player until a page refresh, and the same was true of notes, quests, NPCs and locations.
+
+So: **do not write a DELETE handler on a campaign-filtered subscription.** It is unreachable code. Use the doorbell below. `applyRealtimeRow` (`src/lib/campaignLiveSync/realtimeCache.ts`) still keys deletes on `change.old.id` and only consults `matches()` for non-deletes, which remains the right shape for any *unfiltered* subscription — but nothing feeds it deletes today.
+
+### The `campaign_sync` doorbell
+
+Migration `20260904230420` adds one row per campaign — `campaign_id`, `changed_table`, `updated_at` — and a statement-level `AFTER DELETE` trigger on every table in `SYNC_TABLES` (plus `party_inventory`) that upserts into it. An UPDATE carries its full new record, so `campaign_id=eq.X` matches; the client reads `changed_table`, maps it through `SIGNAL_KEYS`, and invalidates that query key.
+
+It is a doorbell, not a log: one row per campaign, upserted in place, nothing to prune. And it is deliberately a signal rather than a copy of the row — the client already knows how to read its own data correctly (RLS, embeds, redacted projections), so telling it to read again is both smaller and impossible to get subtly wrong.
+
+Two things ride it beyond deletes:
+
+- **`store_items` for every event.** That table has no `campaign_id`, only `location_id`, so it could not join the campaign-filtered channel for inserts or updates either, and was absent from the registry entirely (#811). Its three triggers derive the campaign through `locations`.
+- **The player-visible item projection.** A store row and a party-inventory row each carry only an `item_id`; the name behind it comes from `get_player_visible_items`. So both map to `["items"]` as well as their own key — refresh one without the other and a newly stocked shop lists "Unknown item".
+
+`campaignSyncTables.test.ts` holds the trigger list in the migration and the two client registries to the same set of tables, so a table added to one and not the others fails the suite instead of going quietly un-synced.
+
+**What a member learns from it, and why that is accepted.** The doorbell carries a table name and a timestamp — no ids, no content — to every member of the campaign. A few of the 29 tables are not player-readable at all (`loot_placements` is `is_campaign_dm`; `discovered_monsters` and the downtime tables are partly DM-only), so a player can infer *"the DM just deleted something in loot_placements"*. That is spoiler-shaped metadata rather than a data leak, and it is kept deliberately: filtering DM-only tables out of the signal would also drop the player-visible deletions in the tables that are only *partly* DM-only, which is the failure this whole mechanism exists to end. Revisit it if a table is ever added whose mere name is a spoiler.
+
+Ten of the triggered tables have a *nullable* `campaign_id` (general-scope rows owned by a user rather than a campaign). Deleting one of those signals nothing — there is no campaign to signal — which is why a general vault item deleted by the DM is the one case still needing a reload.
 
 **Realtime is the primary read path.** HTTP reads are deliberately confined to three cases: initial load, genuine gap recovery, and the query shapes explicitly derived for it. Anything else re-fetching over HTTP is a bug — it means a subscription that should have carried the change is either missing or not trusted, and adding a poll on top hides that rather than fixing it.
 
@@ -309,6 +378,10 @@ All access control is enforced via PostgreSQL Row-Level Security — the client 
 **`join_campaign_via_invite` function:**
 
 - Declared `security definer`, runs with elevated privileges to atomically validate the token and insert the membership. The caller gets no direct write access to `campaign_members` — they can only go through this function.
+
+**`campaign_sync` policies:**
+
+- `campaign_sync_member_select` — the campaign's own members may read it, and that is the *only* policy on the table. There are deliberately no insert/update/delete policies: every write comes from the `SECURITY DEFINER` triggers described under [the doorbell](#the-campaign_sync-doorbell), so a client that could forge a signal — and force every other client at the table into a refetch loop — has no way in. Listed here for the reader who expects every table's policy shape in this section; the reasoning lives with the mechanism.
 
 **Campaign data tables:**
 

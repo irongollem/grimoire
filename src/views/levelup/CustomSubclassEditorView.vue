@@ -98,7 +98,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
+import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -113,7 +115,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { toPlainText } from "@/ai/utils";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
 import { useAllSpells } from "@/composables/spells/useSpells";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useAllSystemClasses, useAllCustomClasses } from "@/composables/rules/useCustomClasses";
 import type { CustomStep, CustomResource } from "@/levelup/customTypes";
 
@@ -131,7 +133,7 @@ function onCancel() {
 }
 
 const { data: existing } = useCustomSubclass(id);
-const { data: campaignList } = useCampaigns();
+const { data: campaignList } = useDmCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
 const { data: allFeatures } = useAllFeatures();
 
@@ -183,7 +185,10 @@ const form = ref<FormState>({
   hp_per_level: null,
 });
 
-const campaignScope = ref<string>("all");
+// Same default flip as CustomClassEditorView (#596): a new subclass defaults
+// to the active campaign rather than "all my campaigns" by accident.
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+const campaignScope = ref<string>(activeCampaignId.value ?? "all");
 
 watch(existing, (val) => {
   if (!val) return;

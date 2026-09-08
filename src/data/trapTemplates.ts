@@ -1,5 +1,11 @@
 import type { TrapInsert } from "@/types/trap.types";
 
+// #804 — hazard_glyph is how each template's TYPICAL example draws on a map.
+// A few (Sphere of Annihilation, Flooding Room, Hampering Mushrooms, Swinging
+// Log Trap) have no honest match in the eleven-value enum and stay null —
+// that's the enum being deliberately short working as intended, not an
+// oversight to "complete" later.
+
 /** Classic dungeon trap presets based on PHB/DMG archetypes. Campaign scope is
  *  not a property of a template — `usePopulateTraps` seeds them global. */
 export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" | "campaign_id">[] = [
@@ -7,6 +13,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Hidden Pit",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: "pit",
     cr: "1/4",
     trigger_type: "Pressure Plate",
     detection_dc: 15,
@@ -27,6 +34,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Spiked Pit",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: "pit",
     cr: "1/2",
     trigger_type: "Pressure Plate",
     detection_dc: 15,
@@ -50,6 +58,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Poison Needle",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: "dart_wall",
     cr: "1/4",
     trigger_type: "Other",
     detection_dc: 20,
@@ -73,6 +82,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Poison Darts",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: "dart_wall",
     cr: "1",
     trigger_type: "Pressure Plate",
     detection_dc: 15,
@@ -96,6 +106,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Rolling Sphere",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: "falling_block",
     cr: "3",
     trigger_type: "Tripwire",
     detection_dc: 15,
@@ -116,6 +127,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Collapsing Roof",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: "falling_block",
     cr: "2",
     trigger_type: "Tripwire",
     detection_dc: 15,
@@ -136,6 +148,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Falling Net",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: "net",
     cr: "0",
     trigger_type: "Tripwire",
     detection_dc: 10,
@@ -156,6 +169,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Fire-Breathing Statue",
     description: null,
     trap_type: "Magical",
+    hazard_glyph: "flame_jet",
     cr: "4",
     trigger_type: "Magic Sensor",
     detection_dc: 15,
@@ -176,6 +190,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Sphere of Annihilation",
     description: null,
     trap_type: "Magical",
+    hazard_glyph: null,
     cr: "10",
     trigger_type: "Proximity",
     detection_dc: 20,
@@ -196,6 +211,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Flooding Room",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: null,
     cr: "1",
     trigger_type: "Manual",
     detection_dc: 15,
@@ -216,6 +232,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Glyph of Warding",
     description: null,
     trap_type: "Magical",
+    hazard_glyph: "glyph",
     cr: "3",
     trigger_type: "Visual",
     detection_dc: 15,
@@ -236,6 +253,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Alarm Bell Tripwire",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: "alarm",
     cr: "0",
     trigger_type: "Tripwire",
     detection_dc: 12,
@@ -256,6 +274,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Hampering Mushrooms",
     description: null,
     trap_type: "Environmental",
+    hazard_glyph: null,
     cr: "1/4",
     trigger_type: "Proximity",
     detection_dc: 12,
@@ -276,6 +295,7 @@ export const TRAP_TEMPLATES: Omit<TrapInsert, "image_url" | "image_focal_point" 
     name: "Swinging Log Trap",
     description: null,
     trap_type: "Mechanical",
+    hazard_glyph: null,
     cr: "1/4",
     trigger_type: "Tripwire",
     detection_dc: 13,

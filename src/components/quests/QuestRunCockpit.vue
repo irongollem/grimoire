@@ -10,6 +10,8 @@
       </div>
     </header>
 
+    <QuestRunSitePanel />
+
     <div v-if="contextQuery.isLoading.value" class="flex justify-center py-16"><LoadingSpinner /></div>
     <div v-else-if="contextQuery.error.value" class="rounded-xl border border-destructive/40 p-4">
       <p class="text-body text-destructive">The session position could not be loaded. Nothing was changed.</p>
@@ -20,7 +22,14 @@
       <div v-if="context.state.status === 'paused'" class="rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3 text-caption text-tone-caution">
         Session paused. Prep remains available; resume when the table is ready.
       </div>
-      <div class="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      <!-- The three concerns, side by side: the current beat (concern 2), and
+           a rail carrying the objectives ledger and story so far, ending in
+           the outcome strip (concern 3) — docked to the bottom of this
+           column via `mt-auto`, in normal flow. No `items-start` here on
+           purpose: the column must stretch to the beat card's height for
+           `mt-auto` to have anywhere to push the strip down to (#776's fix,
+           which must not regress into a sticky bar again). -->
+      <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <QuestRunBeatCard
           :anchor-quest-id="anchorQuestId"
           :beat="currentBeat"
@@ -31,14 +40,26 @@
           @edit-beat="beatEditorOpen = true"
           @reveal="revealBeat(currentBeat.id)"
         />
-        <div class="space-y-3">
+        <div class="flex flex-col gap-3">
+          <QuestRunObjectivesLedger :quest-id="anchorQuestId" />
           <QuestRunPath :path="context.path_so_far" />
           <QuestRunOpenChains :chains="otherOpenChains" />
+          <div class="mt-auto">
+            <QuestRunOutcomeStrip
+              v-model:improvise-open="improvOpen"
+              :status="context.state.status"
+              :outgoing="branchChoices"
+              :disabled="transitioning"
+              @advance="(edgeId) => command('advance', { edgeId })"
+              @reveal="revealBeat"
+              @preview="openPreview"
+              @improv="improvise"
+            />
+          </div>
         </div>
       </div>
 
       <QuestRunJumpPanel v-if="jumpOpen" v-model="jumpSearch" :targets="rankedJumpTargets" @close="jumpOpen = false" @jump="jump" />
-      <QuestRunImprovPanel v-if="improvOpen" @close="improvOpen = false" @submit="improvise" />
       <QuestRunContainedTool
         v-if="selectedAttachment"
         :attachment="selectedAttachment"
@@ -49,14 +70,9 @@
       <QuestRunControls
         :status="context.state.status"
         :has-previous="!!context.previous"
-        :outgoing="branchChoices"
         :disabled="transitioning"
         @previous="command('previous')"
-        @advance="(edgeId) => command('advance', { edgeId })"
-        @reveal="revealBeat"
-        @preview="openPreview"
         @jump="jumpOpen = !jumpOpen"
-        @improv="improvOpen = !improvOpen"
         @pause="command('pause')"
         @resume="command('resume')"
         @end="endSession"
@@ -97,7 +113,8 @@ import { useHotkeys } from "@/composables/useHotkeys";
 import {
   useCampaignLiveQuests,
   useQuestBeatAttachmentSummaries,
-  useQuestBeatLoot,
+  useQuestBeatEdges,
+  useLootPlacements,
   useQuestBeats,
   useQuestRuntimeCommand,
   useQuestRuntimeContext,
@@ -106,7 +123,8 @@ import {
   useUpdateQuestBeat,
 } from "@/composables/quests/useQuestFlow";
 import { useQuests } from "@/composables/quests/useQuests";
-import { rankQuestJumpTargets, type RankedQuestJumpTarget } from "@/lib/quests/run";
+import { rootBeatIds } from "@/lib/quests/graph";
+import { rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarget } from "@/lib/quests/run";
 import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
@@ -114,9 +132,11 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestRunControls from "./QuestRunControls.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
-import QuestRunImprovPanel from "./QuestRunImprovPanel.vue";
+import QuestRunObjectivesLedger from "./QuestRunObjectivesLedger.vue";
 import QuestRunOpenChains from "./QuestRunOpenChains.vue";
+import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
 import QuestRunPath from "./QuestRunPath.vue";
+import QuestRunSitePanel from "./QuestRunSitePanel.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 import QuestRunToolLoadError from "./QuestRunToolLoadError.vue";
 
@@ -139,10 +159,11 @@ const questId = computed(() => anchorQuestId);
 const contextQuery = useQuestRuntimeContext(questId);
 const runtimeCommand = useQuestRuntimeCommand();
 const beatsQuery = useQuestBeats(questId);
+const edgesQuery = useQuestBeatEdges(questId);
 const questsQuery = useQuests();
 const liveQuestsQuery = useCampaignLiveQuests();
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
-const lootQuery = useQuestBeatLoot(questId);
+const lootQuery = useLootPlacements({ questId });
 const jumpSearch = ref("");
 const debouncedJumpSearch = refDebounced(jumpSearch, 250);
 const jumpTargetsQuery = useQuestRuntimeJumpTargets(questId, debouncedJumpSearch);
@@ -166,7 +187,15 @@ const currentBeat = computed(() => {
   return (beatsQuery.data.value ?? []).find((beat) => beat.id === snapshot.id) ?? snapshot;
 });
 const runReturn = computed(() => `/quests/${anchorQuestId}?beat=${context.value?.current?.id ?? ""}`);
-const startOptions = computed(() => (beatsQuery.data.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
+// The opening beat is a graph root (#793) — a beat with no incoming route —
+// computed here rather than read off a stored flag. A quest can legitimately
+// open from more than one place (the party can start at the tavern or the
+// docks), so every root is ranked first rather than one being guessed at;
+// only a *sole* root gets picked for the DM automatically, below.
+const rootIds = computed(() => new Set(rootBeatIds(beatsQuery.data.value ?? [], edgesQuery.data.value ?? [])));
+const startOptions = computed(() => [...(beatsQuery.data.value ?? [])]
+  .sort((a, b) => Number(rootIds.value.has(b.id)) - Number(rootIds.value.has(a.id)))
+  .map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const currentLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const previewBeat = computed(() => (beatsQuery.data.value ?? []).find((beat) => beat.id === previewBeatId.value) ?? context.value?.current ?? null);
@@ -202,6 +231,15 @@ const rankedJumpTargets = computed(() => rankQuestJumpTargets(
   (jumpTargetsQuery.data.value ?? []).filter((target) => target.beat_id !== context.value?.current?.id),
   recentBeatIds.value,
 ));
+
+// Runs got started on the overview beat by default before #793, because the
+// picker offered every beat in `created_at` order with nothing selected. A
+// sole root is the honest default now; several roots still leave the choice
+// to the DM rather than guess which one the party actually took.
+watch(rootIds, (roots) => {
+  if (startBeatId.value) return;
+  if (roots.size === 1) startBeatId.value = [...roots][0]!;
+}, { immediate: true });
 
 watch(() => context.value?.current?.id, (beatId) => {
   containedDirty.value = false;
@@ -292,9 +330,9 @@ async function confirmLeavingDraft() {
 
 useHotkeys(computed(() => [
   { combo: "alt+arrowleft", description: "Previous quest beat", handler: () => void command("previous") },
-  { combo: "alt+arrowright", description: "Advance to the only next beat", handler: () => {
-    const edge = context.value?.outgoing.length === 1 ? context.value.outgoing[0] : null;
-    if (edge) void command("advance", { edgeId: edge.edge_id });
+  { combo: "alt+arrowright", description: "Advance to the only open route", handler: () => {
+    const edgeId = context.value ? soleOpenOutgoingEdgeId(context.value.outgoing) : null;
+    if (edgeId) void command("advance", { edgeId });
   } },
   { combo: "j", description: "Jump to another quest beat", handler: () => { jumpOpen.value = true; } },
 ]), { layer: "page", enabled: computed(() => context.value?.state?.status === "running" && !transitioning.value && !jumpOpen.value && !improvOpen.value && !selectedAttachment.value && !beatEditorOpen.value) });

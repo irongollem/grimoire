@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
+import { storeToRefs } from "pinia";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import {
   type DungeonMap,
@@ -6,10 +7,16 @@ import {
   type DungeonMapUpdate,
   emptyLayers,
 } from "@/types/dungeonMap.types";
+import { allowedCampaignScoped } from "@/lib/campaignContentGating";
+import { useCampaignStore } from "@/stores/campaign";
 import type { Ref } from "vue";
 import { computed, isRef, ref } from "vue";
 
-const QUERY_KEY = "dungeon-maps";
+// Matches the table name exactly — `useDeleteCampaign` invalidates every
+// HOMEBREW_TABLES entry by that literal string (see useCampaigns.ts), so a
+// query key that drifts from the table name silently stops being refreshed
+// after a promote/delete disposition.
+const QUERY_KEY = "dungeon_maps";
 
 async function fetchDungeonMaps(): Promise<DungeonMap[]> {
   const { data, error } = await supabase
@@ -41,6 +48,9 @@ async function createDungeonMap(map: Partial<DungeonMapInsert> & { name: string 
     default_pack_id: map.default_pack_id ?? null,
     tags: map.tags ?? [],
     notes: map.notes ?? null,
+    // NULL = available in every campaign; unset defaults to that rather than
+    // silently inheriting whatever campaign happens to be active (#789).
+    campaign_id: map.campaign_id ?? null,
     user_id: user.id,
   };
   const { data, error } = await supabase
@@ -68,8 +78,18 @@ async function deleteDungeonMap(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Null-means-global scoping (#789), same rule as `useMonsters`/`useTraps`:
+ *  maps with `campaign_id === null` are available everywhere, plus whatever
+ *  is scoped to the active campaign. */
 export function useDungeonMaps() {
-  return useQuery({ queryKey: [QUERY_KEY], queryFn: fetchDungeonMaps });
+  const query = useQuery({ queryKey: [QUERY_KEY], queryFn: fetchDungeonMaps });
+  const { activeCampaignId } = storeToRefs(useCampaignStore());
+  const data = computed(() => {
+    const maps = query.data.value;
+    if (!maps) return maps;
+    return allowedCampaignScoped(maps, activeCampaignId.value);
+  });
+  return { ...query, data };
 }
 
 export function useDungeonMap(id: string | Ref<string>) {

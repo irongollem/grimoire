@@ -24,6 +24,7 @@ function inv(over: Partial<PartyInventoryItem>): PartyInventoryItem {
     id: "inv-1",
     campaign_id: "c1",
     user_id: "u1",
+    library_item_id: null,
     item_id: "shield-1",
     name: "Shield",
     quantity: 1,

@@ -28,10 +28,9 @@
             :current="slotProps.id === currentBeatId"
             :presentation="slotProps.data.presentation"
             :editable="editable"
-            :deletable="!slotProps.data.isOverview"
             @select="emit('command', { type: 'select', beatId: slotProps.id })"
             @open="emit('command', { type: 'open', beatId: slotProps.id })"
-            @delete="editable && !slotProps.data.isOverview && emit('command', { type: 'delete-beat', beatId: slotProps.id })"
+            @delete="editable && emit('command', { type: 'delete-beat', beatId: slotProps.id })"
             @create-next="createNext(slotProps.id)"
           />
         </template>
@@ -56,13 +55,13 @@ import { moveBeatCommand, toQuestFlowGraph, type QuestGraphCommand } from "@/lib
 import { prefersReducedMotion } from "@/lib/motion";
 import { viewportShowsAnyNode } from "@/lib/quests/viewport";
 import type { QuestBeatPresentation } from "@/lib/quests/presentation";
-import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.types";
 
-const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), selectedBeatId = null, currentBeatId = null, fitOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; selectedBeatId?: string | null; currentBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
+const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, selectedBeatId = null, currentBeatId = null, fitOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; selectedBeatId?: string | null; currentBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
 const emit = defineEmits<{ command: [command: QuestGraphCommand]; "viewport-change": [viewport: ViewportTransform] }>();
 const flow = useVueFlow(graphId);
 const canvasEl = ref<HTMLElement | null>(null);
-const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds));
+const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds, edgeGates));
 const nodes = computed({ get: () => graph.value.nodes, set: () => undefined });
 const flowEdges = computed({ get: () => graph.value.edges, set: () => undefined });
 let pendingConnectionSource: string | null = null;
@@ -166,6 +165,7 @@ defineExpose({ fitGraph, focusCurrent });
 .quest-flow-outline { display: none; }
 :deep(.vue-flow__edge-path) { stroke: var(--muted-foreground); }
 :deep(.vue-flow__edge.is-visited .vue-flow__edge-path) { stroke: var(--primary); stroke-width: 2.5; }
+:deep(.vue-flow__edge.is-closed .vue-flow__edge-path) { stroke-dasharray: 4 3; }
 :deep(.vue-flow__edge-text) { fill: var(--foreground); }
 :deep(.vue-flow__edge-textbg) { fill: var(--card); }
 :deep(.vue-flow__handle) { background: var(--primary); border-color: var(--card); width: .65rem; height: .65rem; }

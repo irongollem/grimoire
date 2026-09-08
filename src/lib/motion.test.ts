@@ -9,10 +9,41 @@ import {
   captureFlipPositions,
   playFlipTransition,
   FLIP_MOVE_THRESHOLD_PX,
+  cardTurnStyle,
+  CARD_TURN_MS,
   type FlipSnapshot,
 } from "./motion";
 
 const PANEL = { top: 100, left: 200, width: 400, height: 300 };
+
+/**
+ * Runs `body` as if the OS had reduce-motion on, and puts `matchMedia` back
+ * afterwards however the body exits.
+ *
+ * Shared rather than written per test on purpose: two blocks had the same
+ * twelve-line stub, which is the exact duplication `motion.ts` exists to stop
+ * — and a reduce-motion double that drifts between tests is worse than none,
+ * because both still pass while checking different things.
+ */
+function withReducedMotion(body: () => void): void {
+  const original = window.matchMedia;
+  window.matchMedia = ((query: string) =>
+    ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList) as typeof window.matchMedia;
+  try {
+    body();
+  } finally {
+    window.matchMedia = original;
+  }
+}
 
 describe("originTransform", () => {
   it("moves the panel onto the origin's centre and shrinks it to the origin's width", () => {
@@ -145,6 +176,31 @@ describe("captureFlipPositions", () => {
   });
 });
 
+describe("cardTurnStyle", () => {
+  it("rotates a played card a half turn and leaves an unplayed one square on", () => {
+    expect(cardTurnStyle(true).transform).toBe("rotateY(180deg)");
+    // Explicitly rotateY(0deg) rather than "none": the card has to travel back
+    // when a draw is cancelled, and a transition needs two transforms to
+    // interpolate between.
+    expect(cardTurnStyle(false).transform).toBe("rotateY(0deg)");
+  });
+
+  it("takes long enough to be seen rotating rather than swapping faces", () => {
+    expect(CARD_TURN_MS).toBeGreaterThan(400);
+    expect(cardTurnStyle(true).transitionDuration).toBe(`${CARD_TURN_MS}ms`);
+  });
+
+  it("keeps the back face under reduced motion, and only drops the travel", () => {
+    withReducedMotion(() => {
+      const style = cardTurnStyle(true);
+      expect(style.transitionDuration).toBe("0ms");
+      // The rotation is state, not decoration — a reader who asked for less
+      // motion must still end up looking at the back of a played card.
+      expect(style.transform).toBe("rotateY(180deg)");
+    });
+  });
+});
+
 describe("playFlipTransition", () => {
   it("does not throw when Web Animations is unavailable", () => {
     // happy-dom has no `animate`, same as the real test DOM the rest of the
@@ -159,19 +215,7 @@ describe("playFlipTransition", () => {
   });
 
   it("is a no-op under prefers-reduced-motion, without touching the DOM at all", () => {
-    const original = window.matchMedia;
-    window.matchMedia = ((query: string) =>
-      ({
-        matches: true,
-        media: query,
-        onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        dispatchEvent: () => false,
-      }) as MediaQueryList) as typeof window.matchMedia;
-    try {
+    withReducedMotion(() => {
       const el = document.createElement("div");
       document.body.append(el);
       const getRect = vi.fn(() => ({ left: 0, top: 0 }) as DOMRect);
@@ -182,9 +226,7 @@ describe("playFlipTransition", () => {
       // asked the OS for no motion never pays for the layout read either.
       expect(getRect).not.toHaveBeenCalled();
       el.remove();
-    } finally {
-      window.matchMedia = original;
-    }
+    });
   });
 
   it("is a safe no-op when a captured element has since left the document", () => {

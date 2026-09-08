@@ -124,6 +124,12 @@ const LOCATION_DATA = obj({
   name: { type: "string" },
   location_type: NULLABLE_STRING,
   description: NULLABLE_STRING,
+  // A keyed area's boxed text. Most of the read-aloud prose in an adventure
+  // chapter belongs to rooms rather than to narrative beats (14 of 17 blocks in
+  // the reference chapter), so a location extracted without this loses the most
+  // directly useful text on the page. It leads `locations.description` and
+  // never `player_summary` — transcribed prose stays DM-only.
+  read_aloud: NULLABLE_STRING,
   notes: NULLABLE_STRING,
   parent_name: NULLABLE_STRING,
 });
@@ -161,12 +167,45 @@ const SPELL_DATA = obj({
   classes: NULLABLE_STRING_ARRAY,
 });
 
+// A quest is a graph, not a blob (#829). Mirrors `ExtractedQuest`, which in
+// turn reuses the generator's `QuestSpineBeatResult`/`QuestSpineRouteResult`/
+// `QuestObjectiveResult` — one spine shape, two producers.
+//
+// `description`, `notes` and `rewards` are gone rather than deprecated.
+// `quests.description`/`.notes` were dropped by #793 (their prose now lives on
+// a beat) and `quests.rewards` by #799 (loot belongs to the beat that grants
+// it). `rewards` in particular had gone on being *asked of the model* long
+// after `mapExtractedQuest` stopped reading it — a field extracted, paid for
+// in tokens, and dropped on the floor.
+const QUEST_BEAT = obj({
+  key: { type: "string" },
+  title: { type: "string" },
+  kind: { type: "string", enum: ["neutral", "combat", "social", "explore", "discovery"] },
+  dm_content: NULLABLE_STRING,
+  // Boxed text, verbatim from the page. The one field where a published
+  // adventure hands the extractor a real typographic signal instead of asking
+  // it to judge — see the prompt's read-aloud guidance in index.ts.
+  read_aloud: NULLABLE_STRING,
+});
+
+const QUEST_ROUTE = obj({
+  from: { type: "string" },
+  to: { type: "string" },
+});
+
+const QUEST_OBJECTIVE = obj({
+  description: { type: "string" },
+  // The `key` of the beat that opens this objective, which is what lets an
+  // unreached branch land `dormant` instead of `pending`.
+  raised_by: NULLABLE_STRING,
+});
+
 const QUEST_DATA = obj({
   title: { type: "string" },
   summary: NULLABLE_STRING,
-  description: NULLABLE_STRING,
-  rewards: NULLABLE_STRING,
-  notes: NULLABLE_STRING,
+  beats: nullableArrayOf(QUEST_BEAT),
+  routes: nullableArrayOf(QUEST_ROUTE),
+  objectives: nullableArrayOf(QUEST_OBJECTIVE),
   giver_npc_name: NULLABLE_STRING,
   location_name: NULLABLE_STRING,
 });
@@ -176,6 +215,22 @@ const FACTION_DATA = obj({
   faction_type: NULLABLE_STRING,
   alignment: NULLABLE_STRING,
   description: NULLABLE_STRING,
+});
+
+// A room's occupants, when they add up to a fight (#840). Mirrors
+// `ExtractedEncounter` — `combatants` is `{ name, count }` pairs, one per
+// creature kind or named individual, never one per creature: `count` is what
+// lets "three archers" be a single entry instead of three.
+const ENCOUNTER_COMBATANT = obj({
+  name: { type: "string" },
+  count: { type: "integer" },
+});
+
+const ENCOUNTER_DATA = obj({
+  name: { type: "string" },
+  description: NULLABLE_STRING,
+  location_name: NULLABLE_STRING,
+  combatants: nullableArrayOf(ENCOUNTER_COMBATANT),
 });
 
 function entityArray(dataSchema: Record<string, unknown>): Record<string, unknown> {
@@ -192,6 +247,7 @@ const EXTRACTION_SCHEMA = obj({
   spells: entityArray(SPELL_DATA),
   quests: entityArray(QUEST_DATA),
   factions: entityArray(FACTION_DATA),
+  encounters: entityArray(ENCOUNTER_DATA),
 });
 
 export { EXTRACTION_SCHEMA };

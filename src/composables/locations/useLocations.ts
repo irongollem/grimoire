@@ -10,6 +10,7 @@ import { deleteByPublicUrl } from "@/lib/storage";
 import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
 import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
+import { persistReorder, toReorderEntries } from "@/lib/reorder";
 
 /** A location enriched with the chain of vague-container names we traversed
  *  to reach it, starting with the outermost region and ending with the
@@ -50,6 +51,15 @@ export function getPinnableDescendants(
     const children = byParent.get(parentId) ?? [];
     for (const child of children) {
       if (result.length >= MAX_RESULTS) break;
+      // A room is placed by a traced region on its site's floor plan
+      // (location_map_regions), never by a pin (#807) — a site can be both
+      // pinned on ITS parent's map and hold rooms of its own, but the rooms
+      // themselves aren't pin candidates. This is a pinnability exclusion,
+      // not a recursion one, so it does not belong in VAGUE_LOCATION_TYPES
+      // (which controls walking *through* a container to reach concrete
+      // descendants) — a room is already a concrete leaf, just not a
+      // mappable point on this axis.
+      if (child.location_type === "room") continue;
       const isVague = VAGUE_LOCATION_TYPES.has(child.location_type);
       const grandchildren = byParent.get(child.id) ?? [];
       // Only recurse through vague containers at most 3 levels deep to avoid
@@ -69,28 +79,40 @@ export function getPinnableDescendants(
 const QUERY_KEY = "locations";
 
 async function fetchLocations(campaignId: string, parentId: string | null): Promise<Location[]> {
+  // `campaign_id IS NULL` means "every campaign" everywhere else DM content is
+  // scoped (items, spells, species, monsters, traps, puzzles) — this table had
+  // never picked that convention up, which is why the handful of existing
+  // global locations were invisible in the Atlas even though RLS and the FK
+  // layer both already treat a null campaign_id as legitimate (#596). Widening
+  // the filter is what makes CampaignScopeField's "General" option actually
+  // show the location anywhere, rather than just accepting the write and then
+  // hiding the row.
   let query = supabase
     .from("locations")
     .select("*")
-    .eq("campaign_id", campaignId)
+    .or(`campaign_id.eq.${campaignId},campaign_id.is.null`);
+
+  query = parentId === null ? query.is("parent_id", null) : query.eq("parent_id", parentId);
+
+  // Sibling order: the DM's manual sort_order (nulls last, i.e. "no order
+  // claimed yet"), then name. `compareSiblings` in lib/locations/tree adds
+  // scale on top of this client-side, for views that mix tiers.
+  const { data, error } = await query
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
-
-  if (parentId === null) {
-    query = query.is("parent_id", null);
-  } else {
-    query = query.eq("parent_id", parentId);
-  }
-
-  const { data, error } = await query;
   if (error) throw error;
   return data as Location[];
 }
 
 async function fetchAllLocations(campaignId: string): Promise<Location[]> {
+  // See fetchLocations above: global (campaign_id null) locations must be
+  // included here too, or the flat list this feeds (search, pickers, the
+  // location tree) disagrees with the Atlas about which locations exist.
   const { data, error } = await supabase
     .from("locations")
     .select("*")
-    .eq("campaign_id", campaignId)
+    .or(`campaign_id.eq.${campaignId},campaign_id.is.null`)
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
   if (error) throw error;
   return data as Location[];
@@ -141,13 +163,23 @@ async function deleteLocation(id: string): Promise<void> {
 
 // ── Public composables ─────────────────────────────────────────────────────────
 
-/** List root locations (parent_id IS NULL) or children of a specific parent. */
-export function useLocations(parentId: string | null = null) {
+/**
+ * List root locations (parent_id IS NULL) or children of a specific parent.
+ *
+ * `parentId` accepts a plain value or a `Ref`. A plain value is enough for a
+ * component that is remounted per-location (a route-keyed detail page); a
+ * `Ref` is what a component needs when it is *reused* across locations
+ * instead — `AtlasPlacePane` never remounts `LocationDetailSections` when the
+ * selection changes, so `SiteRoomsPanel` needs the query to react to its own
+ * `locationId` prop rather than freezing on whichever parent mounted first.
+ */
+export function useLocations(parentId: string | null | Ref<string | null> = null) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
+  const parentIdRef = isRef(parentId) ? parentId : ref(parentId);
   return useQuery({
-    queryKey: computed(() => [QUERY_KEY, campaignId.value, parentId]),
-    queryFn: () => fetchLocations(campaignId.value!, parentId),
+    queryKey: computed(() => [QUERY_KEY, campaignId.value, parentIdRef.value]),
+    queryFn: () => fetchLocations(campaignId.value!, parentIdRef.value),
     enabled: () => !!campaignId.value,
   });
 }
@@ -254,8 +286,17 @@ export function useCreateLocation() {
   const queryClient = useQueryClient();
   const campaign = useCampaignStore();
   return useMutation({
-    mutationFn: (loc: Omit<LocationInsert, "campaign_id">) =>
-      createLocation({ ...loc, campaign_id: campaign.activeCampaignId! }),
+    // `campaign_id` is optional here on purpose, and its absence means
+    // something different from an explicit `null`: most callers (the
+    // generator panels, room creation) have no opinion and get the active
+    // campaign, same as before #596. LocationEditor's CampaignScopeField can
+    // now pass an explicit `null` to opt a location into every campaign — that
+    // choice must survive, not get coerced back to "current campaign" by `??`.
+    mutationFn: (loc: Omit<LocationInsert, "campaign_id"> & { campaign_id?: string | null }) =>
+      createLocation({
+        ...loc,
+        campaign_id: loc.campaign_id !== undefined ? loc.campaign_id : campaign.activeCampaignId ?? null,
+      }),
     onSuccess: (loc) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queueLocationEmbedding(loc.id);
@@ -382,6 +423,34 @@ export function useDeleteLocation() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: ["quests"] });
     },
+    onError: (e) => toast.error(toast.fromError(e)),
+  });
+}
+
+async function reorderLocations(orderedIds: string[]): Promise<void> {
+  await persistReorder("reorder_locations", toReorderEntries(orderedIds));
+}
+
+/**
+ * Persist a drag-reordered sibling set (e.g. a site's rooms, in
+ * `SiteRoomsPanel`) via the `reorder_locations` RPC.
+ *
+ * Every id must belong to the same `parent_id`, and the set must be COMPLETE —
+ * the RPC rejects a subset, because naming 2 of 3 siblings is how two rows end
+ * up claiming the same position. Top-level siblings (`parent_id` null) count as
+ * one set and are orderable like any other.
+ *
+ * This docstring previously claimed the RPC rejected partial sets when it did
+ * not: the check only proved every named id existed and was visible, which says
+ * nothing about completeness. Both the check and this sentence were wrong
+ * together, which is why neither caught the other.
+ */
+export function useReorderLocations() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: reorderLocations,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
     onError: (e) => toast.error(toast.fromError(e)),
   });
 }

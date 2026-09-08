@@ -104,11 +104,16 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1.5 min-w-0">
             <span
-              v-if="item.item_id && catalogItemMap.get(item.item_id)"
+              v-if="catalogFor(item)"
               class="shrink-0 w-2 h-2 rounded-full"
-              :class="RARITY_SURFACE_BG[catalogItemMap.get(item.item_id)!.rarity]"
-              :title="catalogItemMap.get(item.item_id)!.rarity"
+              :class="RARITY_SURFACE_BG[catalogFor(item)!.rarity]"
+              :title="catalogFor(item)!.rarity"
             />
+            <!-- The link stays keyed on `item_id`: `/vault/:id` renders a vault
+                 row, and shared library content has no page there. The badge and
+                 the type label above and below do resolve either reference,
+                 because the catalogue map holds vault rows by uuid and library
+                 rows by text id in one map. -->
             <RouterLink
               v-if="item.item_id"
               :to="`/vault/${item.item_id}`"
@@ -116,9 +121,9 @@
             >{{ item.name }}</RouterLink>
             <p v-else class="text-body text-foreground leading-tight truncate">{{ item.name }}</p>
             <span
-              v-if="item.item_id && catalogItemMap.get(item.item_id)"
+              v-if="catalogFor(item)"
               class="hidden sm:inline font-cinzel text-2xs text-muted-foreground/60 shrink-0"
-            >{{ ITEM_TYPE_LABELS[catalogItemMap.get(item.item_id)!.item_type] }}</span>
+            >{{ ITEM_TYPE_LABELS[catalogFor(item)!.item_type] }}</span>
           </div>
           <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ item.notes }}</p>
         </div>
@@ -192,6 +197,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { PartyMember } from "@/types/party.types";
+import { inventoryItemRef, itemRefColumns, type ItemRefColumns } from "@/lib/itemRef";
 
 const { party } = defineProps<{ party: PartyMember[] }>();
 
@@ -282,7 +288,7 @@ async function submitAddItem() {
     carried_by: newItem.carried_by || null,
     notes: newItem.notes.trim() || null,
     is_attuned: newItem.isAttuned,
-    item_id: newItem.selectedItemId,
+    ...itemRefColumns(newItem.selectedItemId),
     is_equipped: false,
     location: 'backpack',
     slot: null,
@@ -314,9 +320,21 @@ async function removeItem(id: string) {
   await removeInventoryItem(id);
 }
 
-async function dropInventoryItemToChat(item: { id: string; name: string; quantity: number; item_id: string | null }) {
+/**
+ * The catalogue entry behind a row, by whichever reference it carries. Keying
+ * on `item_id` alone showed a library-sourced item with no rarity dot and no
+ * type label — present in the vault, blank in the party's pack.
+ */
+function catalogFor(row: ItemRefColumns): Item | undefined {
+  const ref = inventoryItemRef(row);
+  return ref ? catalogItemMap.value.get(ref) : undefined;
+}
+
+async function dropInventoryItemToChat(item: { id: string; name: string; quantity: number } & ItemRefColumns) {
   const linked = item.item_id ? catalogItemMap.value.get(item.item_id) : undefined;
-  await sendItemDrop(item.name, item.item_id, item.quantity, linked?.rarity ?? null);
+  // The resolved reference, so a library item does not arrive in chat as
+  // unlinked free text.
+  await sendItemDrop(item.name, inventoryItemRef(item), item.quantity, linked?.rarity ?? null);
   await removeInventoryItem(item.id);
 }
 

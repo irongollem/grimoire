@@ -55,6 +55,9 @@ export interface DungeonMapLayers {
 export interface DungeonMap {
   id: string;
   user_id: string;
+  /** NULL = available in every campaign; set = only visible when that campaign
+   *  is active. The DM picks, per map (#789) — existing rows stay null. */
+  campaign_id: string | null;
   name: string;
   description: string | null;
   layers: DungeonMapLayers;

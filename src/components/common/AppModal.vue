@@ -166,6 +166,14 @@ const {
    * away the only keyboard way out, which for a keyboard user is a trap rather
    * than a safeguard.
    *
+   * **Turn it off for any modal holding paid output** — a generation in flight,
+   * or a finished one waiting to be accepted or discarded. The cost of a stray
+   * click there is not a reopened dialog, it is credits: the Chronicler's recap
+   * and the cartographer's styled map are both unrecoverable in-memory drafts
+   * that a backdrop click used to throw away silently. Escape and the panel's
+   * own controls still close it, and a modal holding a *finished* draft should
+   * confirm on that route rather than just closing.
+   *
    * A plain `boolean` rather than a nullable "inherit from `dismissable`",
    * because Vue casts an absent boolean prop to `false` rather than leaving it
    * undefined — so a `??` fallback here would read as "off" on every caller

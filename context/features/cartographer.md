@@ -474,6 +474,23 @@ A cell whose `pack_id` is no longer available (pack deleted, never loaded) rende
 
 ---
 
+## Campaign scope (#789)
+
+`dungeon_maps` carries a nullable `campaign_id` with the dual-state semantics `monsters`, `traps` and `puzzles` already use since #597: **NULL means available in every campaign**, set means visible only when that campaign is active. The DM picks per map, via the shared `CampaignScopeField` in the inspector — the same control `TrapEditor` uses, not a second one. The list filters through `allowedCampaignScoped`, exactly as `useMonsters` and `useTraps` do.
+
+**Existing maps were not backfilled and must stay null.** Every map drawn before this existed was drawn without the choice available, so assigning one would invent an intent its author never expressed.
+
+Three things that are easy to get wrong here, all of which cost something real:
+
+- **The FK is `NO ACTION`, deliberately.** `CASCADE` destroys a map the DM spent an evening drawing as a side effect of deleting the campaign it happened to be scoped to; `SET NULL` silently promotes campaign-exclusive work to universal. So the app asks, and `NO ACTION` is what guarantees it asked — any delete path skipping `delete_campaign_with_homebrew` fails loudly instead of quietly picking one of the two wrong answers.
+- **That guarantee only holds while the counting layer knows the same table set as the function.** `campaignHomebrewDisposition.ts` must list `maps`, or a campaign whose only scoped content is maps reports "no homebrew", the picker never appears, and `DangerZoneTab` sends its default — which is `delete`. The FK cannot save that case, because the function *does* delete the rows.
+- **The query key is the table name verbatim** (`dungeon_maps`, not `dungeon-maps`). `useDeleteCampaign` invalidates generically over `Object.values(HOMEBREW_TABLES)`, so a hyphenated key invalidates a cache nothing reads and the map list goes stale after any disposition.
+
+**Transfer is a separate flow and deliberately excludes maps.** `TransferOwnershipPanel` hand-picks monsters and traps for its "what moves with the campaign" summary; its copy states that Cartographer maps stay with the outgoing DM. Adding `maps` to `HOMEBREW_TABLES` does not change that, and should not. Note the consequence tracked in #801: a scoped map whose campaign is transferred keeps pointing at a campaign its owner no longer owns.
+
+Cover: `supabase/tests/dungeon_maps_campaign_scope.test.sql`, which is also the repo's first regression test for `20260809000004`'s owner confinement.
+
+
 ## Editor UX (`src/views/cartographer/CartographerEditor.vue`)
 
 ### Layout
@@ -808,6 +825,52 @@ Pure functions, fully unit-tested:
 - `public/cartographer/stone-dungeon/v1/manifest.json` — `schema_version` bumped to 2; `wallRoundJoint` slots declared (use placeholder art until WebP lands).
 - `src/views/cartographer/CartographerEditorView.vue` — two new tools wired into TOOLS, pointer handlers, inspector panels; round-corner rendering branch in `render()`; fine-rotation `[` / `]` hotkeys.
 
+### Schema v3 — a hazard says how it looks ([#804](https://github.com/irongollem/grimoire/issues/804))
+
+23 new **optional** categories: eleven `hazard*` plus `hazardGeneric`, ten
+`feature*` plus `featureGeneric`. Optional throughout, so every v2 pack stays
+valid and simply falls back.
+
+**A trap does not point at a pack asset.** `traps.hazard_glyph` and
+`dungeon_features.feature_glyph` say what the thing *is* — pit, pressure plate,
+falling block — and the renderer decides how to draw that under whichever pack
+is loaded, the same separation `location_type` → colour uses. Pointing a content
+row at a pack category would make the trap undrawable the moment a DM loads a
+pack lacking that art. Both columns are `text` + CHECK rather than a Postgres
+enum, because the list grows as packs gain art and `alter type … add value`
+cannot run in a transaction block alongside other statements.
+
+**The glyph resolves live**, never persisted onto the map: editing a trap's
+glyph updates every map it appears on. Same rule as the colour ramp.
+
+**The two `*Generic` categories are load-bearing.** A null glyph is a legitimate
+state — most content has no honest match in a deliberately short list — and must
+still draw something rather than leaving an empty cell.
+
+**The placeholder matters more than the art here.** Most packs will have no
+hazard tiles for a long time, so the procedural placeholder is what a DM
+actually sees, and a pit must be distinguishable from a boulder *as a
+placeholder*. `hazardPlaceholders.ts` and `featurePlaceholders.ts` give each
+glyph its own silhouette, and their tests assert the drawing trace is unique
+across categories even under an identical colour — shape-only distinctness,
+which is the property that was asked for.
+
+**The version warning changed with this bump.** `validatePack` now warns only
+when a pack is *newer* than the runtime. A pack older than the runtime is
+silent: every bump so far has added only optional categories, and the
+required-category check already catches a genuinely incomplete pack. Without
+this, v3 would have made every existing v2 pack start warning — which trains a
+reader to ignore warnings.
+
+**The link tool reaches traps and features now.** `CellMetadata` has carried
+`trap_id` and `feature_id` since the Cartographer shipped, but the inspector
+only ever wired `note_id` and `encounter_id` — so the glyph renderer had no way
+to be reached by clicking. Both pickers now exist beside the other two.
+
+**Puzzles need no third path.** `puzzle_rooms` carries `location_id` and
+`dungeon_feature_id`: a puzzle on a feature draws as that feature's glyph, and
+one on a location is the room itself, which has no cell to mark.
+
 #### Open items
 
 - Real bundled WebP art for `wallRoundJoint` on Stone Dungeon and other packs — existing bundled manifests still fall back to the placeholder. M7 now provides the production generation and QA loop; regenerating the fundamental bundled catalogue is a separate content-production pass after the customer workflow is proven.
@@ -886,6 +949,15 @@ A credit-gated "✦ AI Style" button in the view-mode export bar. The DM bakes a
    - **Back** — returns to Style Picker
 
 All outputs include a `dungeongrimoire.com` watermark via a fixed prompt suffix.
+
+**Neither modal dismisses on a backdrop click**, and Escape on the result asks
+first. The styled map is a blob URL held in `useMapExport` and nothing reopens
+that panel — only a fresh generation sets `showResult` — so closing it is the
+end of a paid render, and it was never uploaded anywhere to recover it from. A
+stray click beside the panel used to do that silently. The rule is general (see
+`AppModal`'s `backdropDismiss` docstring) and pinned by
+`src/components/common/appModalPaidBackdrop.test.ts`, which fails if any modal
+that prices, shows or runs a generation ships without the prop.
 
 #### Prompt composition
 

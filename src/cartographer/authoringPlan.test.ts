@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, slotMechanics, upsertManifestSlot, type PackArtBible } from "./authoringPlan";
+import { TILE_PACK_SCHEMA } from "./packSchema";
 
 const bible: PackArtBible = {
   visual_medium: "painterly fantasy game art",
@@ -30,7 +31,7 @@ describe("createGenerationPlan", () => {
     expect(plan.jobs).toHaveLength(20);
     expect(plan.jobs.filter((job) => job.slot.category === "floor")).toHaveLength(8);
     expect(plan.jobs.filter((job) => job.slot.category === "solidBlock")).toHaveLength(4);
-    expect(plan.schema_version).toBe(2);
+    expect(plan.schema_version).toBe(TILE_PACK_SCHEMA.version);
     expect(plan.authoring).toEqual({
       default_mode: "interactive-imagegen",
       requires_openai_api_key: false,

@@ -56,10 +56,6 @@
             />
             <AppButton variant="subtle" size="sm" label="Cancel" @click="showTodayEditor = false" />
           </div>
-          <p
-            v-if="triggersFireMessage"
-            class="text-caption text-primary italic"
-          >{{ triggersFireMessage }}</p>
         </div>
       </div>
 
@@ -115,8 +111,6 @@ import { IconAdd, IconCalendarDays, IconPopulate } from '@/lib/icons';
 import { useCalendarStore } from "@/stores/calendar";
 import { useCampaignStore } from "@/stores/campaign";
 import { useSetCampaignToday } from "@/composables/campaign/useCampaigns";
-import { fireDueTriggers } from "@/composables/quests/useQuests";
-import { useQueryClient } from "@tanstack/vue-query";
 import { SETTING_BUNDLES } from "@/data/bundles/index";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
@@ -137,7 +131,6 @@ const CALENDAR_VIEW_OPTIONS = [
 
 const calendar = useCalendarStore();
 const campaignStore = useCampaignStore();
-const queryClient = useQueryClient();
 const view = computed(() => calendar.view);
 
 const monthTitle = computed(() => {
@@ -149,7 +142,6 @@ const monthTitle = computed(() => {
 
 const showTodayEditor = ref(false);
 const settingToday = ref(false);
-const triggersFireMessage = ref("");
 
 const todayForm = ref({
   year:  campaignStore.todayYear,
@@ -172,18 +164,18 @@ function toggleTodayEditor() {
     };
   }
   showTodayEditor.value = !showTodayEditor.value;
-  triggersFireMessage.value = "";
 }
 
 const { mutateAsync: setToday } = useSetCampaignToday();
 
+// Any consequence due on the new date fires on its own — see useDueConsequences,
+// mounted once in DefaultLayout, which watches the campaign store's own today
+// fields rather than this button specifically (#794).
 async function saveToday() {
   const campaignId = campaignStore.activeCampaignId;
   if (!campaignId) return;
 
   settingToday.value = true;
-  triggersFireMessage.value = "";
-
   try {
     await setToday({
       id: campaignId,
@@ -191,20 +183,7 @@ async function saveToday() {
       month: todayForm.value.month,
       day: todayForm.value.day,
     });
-
-    const count = await fireDueTriggers(campaignId, {
-      year: todayForm.value.year,
-      month: todayForm.value.month,
-      day: todayForm.value.day,
-    });
-
-    if (count > 0) {
-      triggersFireMessage.value = `⚡ ${count} scheduled consequence${count > 1 ? "s" : ""} triggered!`;
-      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
-      queryClient.invalidateQueries({ queryKey: ["quest_trigger_scheduled"] });
-    } else {
-      showTodayEditor.value = false;
-    }
+    showTodayEditor.value = false;
   } finally {
     settingToday.value = false;
   }

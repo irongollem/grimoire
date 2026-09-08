@@ -1,3 +1,4 @@
+import { inventoryItemRef } from "@/lib/itemRef";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useUpdateInventoryItem, useRemoveInventoryItem } from "@/composables/items/usePartyInventory";
 import { consumeOneFromStack } from "@/composables/encounters/useAmmoConsumption";
@@ -23,7 +24,10 @@ export function useThrownWeapon() {
     // Land one on the ground — a normal recoverable chat drop anyone can grab.
     await sendItemDrop(
       inv.name,
-      inv.item_id,
+      // The resolved reference, not the raw column: a library-sourced weapon
+      // keeps its catalogue link in `library_item_id`, and passing `item_id`
+      // put it on the ground as unlinked free text.
+      inventoryItemRef(inv),
       1,
       item?.rarity ?? "mundane",
       senderName,

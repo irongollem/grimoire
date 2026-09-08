@@ -85,16 +85,6 @@
           :options="locationOptions"
           placeholder="Set location…"
         />
-        <AppButton
-          v-if="auth.isDM && currentLocationId"
-          variant="ghost"
-          tone="primary"
-          size="inline-xs"
-          class="self-start"
-          :disabled="syncLocation.isPending.value"
-          :label="syncLocation.isPending.value ? 'Syncing…' : 'Sync to party →'"
-          @click="syncLocationToParty"
-        />
       </div>
 
     </div>
@@ -105,8 +95,6 @@
 import { computed, reactive, ref } from "vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useSetCampaignToday, useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
-import { useParty, useSyncPartyLocation } from "@/composables/party/useParty";
-import { useAuthStore } from "@/stores/auth";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCalendarStore } from "@/stores/calendar";
 import AppButton from "@/components/common/AppButton.vue";
@@ -118,14 +106,11 @@ import DashboardWidget from "../DashboardWidget.vue";
 /** Where and when the campaign currently is. Distinct from the *live* session
  *  (#758): this is in-world time and place, which advances whether or not the
  *  table is sitting. */
-const auth = useAuthStore();
 const campaign = useCampaignStore();
 const calendarStore = useCalendarStore();
 const { data: locations } = useAllLocations();
-const { data: party } = useParty();
 const setToday = useSetCampaignToday();
 const setLocation = useSetCampaignLocation();
-const syncLocation = useSyncPartyLocation();
 
 const calendarMonths = computed(() => calendarStore.adapter.months);
 
@@ -195,10 +180,4 @@ const currentLocationId = computed({
     setLocation.mutate({ id: campaign.activeCampaignId, locationId: val || null });
   },
 });
-
-function syncLocationToParty() {
-  const memberIds = (party.value ?? []).map((m) => m.id);
-  const locationId = campaign.activeCampaign?.current_location_id ?? null;
-  syncLocation.mutate({ memberIds, locationId });
-}
 </script>

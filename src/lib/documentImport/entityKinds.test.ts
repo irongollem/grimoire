@@ -21,7 +21,7 @@ describe("ENTITY_KIND_REGISTRY", () => {
     expect(Object.isFrozen(ENTITY_KIND_REGISTRY)).toBe(true);
   });
 
-  it("targets the same-named table for all seven kinds", () => {
+  it("targets the same-named table for all eight kinds", () => {
     for (const kind of IMPORT_ENTITY_KINDS) {
       expect(ENTITY_KIND_REGISTRY[kind].table).toBe(kind);
     }
@@ -36,8 +36,8 @@ describe("ENTITY_KIND_REGISTRY", () => {
     }
   });
 
-  it("marks exactly monsters, npcs, locations, quests and factions as quota-limited", () => {
-    const quotaLimited: ImportEntityKind[] = ["monsters", "npcs", "locations", "quests", "factions"];
+  it("marks exactly monsters, npcs, locations, quests, factions and encounters as quota-limited", () => {
+    const quotaLimited: ImportEntityKind[] = ["monsters", "npcs", "locations", "quests", "factions", "encounters"];
     const unlimited: ImportEntityKind[] = ["items", "spells"];
 
     for (const kind of quotaLimited) {
@@ -67,7 +67,7 @@ describe("getEntityKindEntry", () => {
 });
 
 describe("listEntityKindsInWizardOrder", () => {
-  it("returns all seven entries in the same order as IMPORT_ENTITY_KINDS", () => {
+  it("returns all eight entries in the same order as IMPORT_ENTITY_KINDS", () => {
     const ordered = listEntityKindsInWizardOrder();
     expect(ordered.map((entry) => entry.kind)).toEqual([...IMPORT_ENTITY_KINDS]);
   });

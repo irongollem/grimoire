@@ -226,7 +226,7 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
-import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useItems } from "@/composables/items/useItems";
 import {
   useStoreItems,
   useAddStoreItem,
@@ -235,6 +235,7 @@ import {
   useRemoveStoreItem,
 } from "@/composables/items/useStoreItems";
 import type { StoreItem } from "@/composables/items/useStoreItems";
+import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import type { Item } from "@/types/item.types";
 import { ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, ITEM_TYPES, RARITY_PRICE_HINTS } from "@/types/item.types";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
@@ -246,7 +247,6 @@ const locationIdRef = computed(() => props.locationId);
 
 const { data: items } = useStoreItems(locationIdRef);
 const { data: allItems } = useItems();
-const { ensureOwnedItem } = useEnsureOwnedItem();
 const { mutate: add } = useAddStoreItem();
 const { mutate: addMany, isPending: isFilling } = useAddStoreItems();
 const { mutate: update } = useUpdateStoreItem(locationIdRef);
@@ -257,7 +257,9 @@ const { sendVendorOffer } = useCampaignMessages();
 const search = ref("");
 const dropdownOpen = ref(false);
 
-const existingItemIds = computed(() => new Set((items.value ?? []).map((si) => si.item_id)));
+const existingItemIds = computed(() =>
+  new Set((items.value ?? []).map((si) => inventoryItemRef(si)).filter((id): id is string => id !== null)),
+);
 
 const searchResults = computed(() => {
   const q = search.value.toLowerCase().trim();
@@ -266,11 +268,12 @@ const searchResults = computed(() => {
     .slice(0, 10);
 });
 
-async function addItem(item: Item) {
+function addItem(item: Item) {
   search.value = "";
   dropdownOpen.value = false;
-  const owned = await ensureOwnedItem(item);
-  add({ location_id: props.locationId, item_id: owned.id });
+  // Library content is referenced directly (#819) rather than cloned into
+  // the vault first — itemRefColumns routes to whichever column applies.
+  add({ location_id: props.locationId, ...itemRefColumns(item.id) });
 }
 
 function onSearchBlur() {
@@ -315,7 +318,7 @@ const fillPool = computed(() =>
 );
 const fillPoolSize = computed(() => fillPool.value.length);
 
-async function quickFill() {
+function quickFill() {
   const pool = [...fillPool.value];
   // Fisher-Yates shuffle then take fillCount
   for (let i = pool.length - 1; i > 0; i--) {
@@ -326,11 +329,8 @@ async function quickFill() {
   const count = Math.min(Math.max(1, Math.floor(fillCount.value || 1)), 20);
   const picks = pool.slice(0, count);
   if (picks.length === 0) return;
-  // Srd rows in the pool must become user-owned rows before the FK insert —
-  // clone each (idempotent, so repeat picks of the same srd item just resolve
-  // to the same owned row) before handing the batch to addMany.
-  const owned = await Promise.all(picks.map((item) => ensureOwnedItem(item)));
-  addMany(owned.map((item) => ({ location_id: props.locationId, item_id: item.id })));
+  // Library rows reference directly now (#819) — no clone-to-vault step.
+  addMany(picks.map((item) => ({ location_id: props.locationId, ...itemRefColumns(item.id) })));
 }
 
 // ── Vendor offer form ───────────────────────────────────────────────────────────

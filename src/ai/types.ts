@@ -240,13 +240,82 @@ export interface LocationAiGenerated extends LocationAiResult {
   map_url: string | null;
 }
 
+/**
+ * One beat in a generated hook's story spine (#822). The generator's own
+ * system prompt (`ai_system_prompts`, generator_type="quest") asks for this
+ * directly now — this is not an addition layered on top of an older shape.
+ * `key` is a model-invented local identifier used only to join `routes` and
+ * each objective's `raised_by` to this beat — it never reaches the database.
+ * `kind` is unvalidated model output: anything other than one of
+ * `QUEST_BEAT_KINDS` is normalized to "neutral" before it is written (see
+ * src/lib/quests/spine.ts).
+ */
+export interface QuestSpineBeatResult {
+  key: string;
+  title: string;
+  /** Plain text — convert to Tiptap JSON via toTiptapJson() before storing */
+  dm_content: string;
+  /**
+   * The passage a DM reads out at the table, plain text, distinct from the
+   * `dm_content` guidance around it. Optional because the two producers differ
+   * in what they can honestly supply, not because there are two shapes:
+   *
+   * - The **generator** leaves it empty. Invented prose has no boxed text, and
+   *   asking a model to write some produces read-aloud copy for a scene the DM
+   *   has not yet agreed to.
+   * - The **importer** (#829) fills it, because a published adventure marks its
+   *   boxed text explicitly — D&D Beyond emits `<aside class="read-aloud-text">`
+   *   — so this is transcription rather than invention.
+   *
+   * Adding it here rather than to an importer-only beat type is deliberate:
+   * `quest_beats.read_aloud` is one column with one meaning, and a second beat
+   * shape for the second producer is exactly the fork epic #780 exists to undo.
+   */
+  read_aloud?: string;
+  kind: string;
+}
+
+/** A directed route between two of a hook's `beats`, referenced by `key`. */
+export interface QuestSpineRouteResult {
+  from: string;
+  to: string;
+}
+
+/**
+ * One concrete goal the party is pursuing — what epic #780 means by
+ * "objective" (state), as distinct from a beat (an event). `raised_by` names
+ * the `key` of the beat where the party learns of (or becomes able to
+ * pursue) this goal: the one named by the hook's first/opening beat lands
+ * `pending`; one named only by a later beat lands `dormant`, since the party
+ * hasn't been sent down that branch yet; one left unwired (absent, blank, or
+ * naming a beat the hook never declared) lands `pending` too — conservative,
+ * so the DM never loses an objective the model forgot to wire in. See
+ * deriveObjectiveStatuses in src/lib/quests/spine.ts.
+ */
+export interface QuestObjectiveResult {
+  description: string;
+  raised_by?: string | null;
+}
+
 export interface QuestHookResult {
   title: string;
+  /** Player-facing, one sentence, plain text — mirrors the database's own
+   *  `quests_summary_is_one_line` check (<=280 chars, no line breaks; see
+   *  QUEST_SUMMARY_MAX in src/lib/quests/summary.ts). */
   summary: string;
-  /** Plain text — convert to Tiptap JSON via toTiptapJson() before storing */
-  hook_description: string;
-  /** 2–4 actionable objective strings */
-  objectives: string[];
+  /**
+   * 3-5 beats forming the hook's story spine (#822) — replacing the single
+   * "Opening beat" + flat all-`pending`-objectives shape the generator used
+   * to produce. Optional because a malformed or partial response can still
+   * omit it; when that happens the quest and its objectives are still
+   * created, with no beat manufactured to paper over the gap — see
+   * useCreateQuestFromHook.
+   */
+  beats?: QuestSpineBeatResult[];
+  /** Routes between `beats`, referenced by key. Optional for the same reason
+   *  `beats` is. */
+  routes?: QuestSpineRouteResult[];
+  objectives: QuestObjectiveResult[];
   tags: string[];
   /**
    * Names of campaign NPCs/locations/factions the hook references, resolved

@@ -69,10 +69,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { IconArchive } from '@/lib/icons'
-import { useAllCampaigns, useArchiveCampaign } from '@/composables/campaign/useCampaigns'
+import { useAllDmCampaigns, useArchiveCampaign } from '@/composables/campaign/useCampaigns'
 import { useCampaignStore } from '@/stores/campaign'
 import AppButton from '@/components/common/AppButton.vue'
 import AppModal from '@/components/common/AppModal.vue'
@@ -82,11 +82,27 @@ defineProps<{ show: boolean; campaignLimit: number }>()
 
 const router = useRouter()
 const campaignStore = useCampaignStore()
-const { data: campaignData } = useAllCampaigns()
+const { data: campaignData } = useAllDmCampaigns()
 const { mutateAsync: archiveCampaign, isPending: isArchiving } = useArchiveCampaign()
 
 const allCampaigns = computed(() => campaignData.value ?? [])
-const selected = ref<string | null>(allCampaigns.value[0]?.id ?? null)
+
+/**
+ * Which campaign the DM keeps. Seeded from the list rather than at setup: this
+ * modal is mounted unconditionally by `DefaultLayout` — only its `:open` is
+ * gated — so its setup runs at app boot, long before `useAllDmCampaigns`
+ * resolves. Reading `allCampaigns.value[0]` there always saw an empty array and
+ * left the picker permanently unselected, with the confirm button disabled
+ * until the DM clicked a row by hand.
+ *
+ * `watch` rather than a `computed`, because this is a default the DM then
+ * overrides; it fills only while nothing is chosen, and never moves a choice
+ * they have already made.
+ */
+const selected = ref<string | null>(null)
+watch(allCampaigns, (campaigns) => {
+  if (selected.value === null) selected.value = campaigns[0]?.id ?? null
+}, { immediate: true })
 const selectedCampaign = computed(() => allCampaigns.value.find(c => c.id === selected.value))
 
 async function confirm() {

@@ -1,3 +1,4 @@
+import { reportHandledError } from "@/lib/observability/sentry";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, type Ref } from "vue";
 import { storeToRefs } from "pinia";
@@ -7,7 +8,7 @@ import { useLibraryMonsterArt } from "@/composables/library/useLibraryMonsterArt
 import { allowedCampaignScoped } from "@/lib/campaignContentGating";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
-import type { Monster, MonsterInsert, MonsterUpdate } from "@/types/monster.types";
+import type { Monster, MonsterInsert, MonsterUpdate, PlayerVisibleMonster } from "@/types/monster.types";
 import { useToast } from "@/composables/useToast";
 import { deleteByPublicUrl } from "@/lib/storage";
 import { isUuid } from "@/lib/library/contentIdentity";
@@ -212,7 +213,7 @@ export function usePlayerVisibleMonsters() {
     staleTime: Infinity,
   });
 
-  const data = computed<Monster[]>(() => {
+  const data = computed<PlayerVisibleMonster[]>(() => {
     // Open5e imports are legacy in the monsters table — those surface via
     // library_monsters instead, so drop them from the custom side (same rule as
     // useAllMonsters).
@@ -357,7 +358,7 @@ export function useMonster(id: Ref<string>) {
 function queueMonsterEmbedding(id: string): void {
   void supabase.functions
     .invoke("embed-monsters", { body: { mode: "single", monster_id: id } })
-    .catch(() => { /* non-fatal — see above */ });
+    .catch((error) => reportHandledError(error, "queueMonsterEmbedding", { id }));
 }
 
 export function useCreateMonster() {

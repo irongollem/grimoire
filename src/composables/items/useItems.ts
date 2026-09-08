@@ -1,3 +1,4 @@
+import { reportHandledError } from "@/lib/observability/sentry";
 import { computed, isRef } from "vue";
 import type { Ref, ComputedRef } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
@@ -77,6 +78,29 @@ async function deleteItem(item: Item): Promise<void> {
   await deleteByPublicUrl(item.image_url, item.mundane_image_url);
 }
 
+/**
+ * Reshapes a raw `library_items` row into the `Item` shape every consumer
+ * (Vault, stores, crafting, factions, NPC inventory, …) already expects.
+ * `library_items` carries no `user_id`/`campaign_id`/`dm_notes`/`spell_ids`/
+ * document-item columns — leaving those `undefined` reads as "has content" to
+ * a `content !== null` check (feather badge on every SRD item), so every
+ * reader of a library row must go through this rather than casting the raw
+ * row directly. Exported for the other tables that now embed `library_items`
+ * (#819) — `useStoreItems.ts` in particular.
+ */
+export function normalizeLibraryItem(row: Record<string, unknown>): Item {
+  return {
+    ...row,
+    user_id: "",
+    campaign_id: null,
+    dm_notes: null,
+    spell_ids: [],
+    content: null,
+    content_player_writable: false,
+    content_updated_at: null,
+  } as unknown as Item;
+}
+
 async function fetchLibraryItems(enabledSlugs: string[], ruleset: RulesetKey): Promise<Item[]> {
   // Edition-neutral grimoire-bundled gear is always visible; enabled campaign
   // sources add to it. Array-form `.in()` (not a string-interpolated
@@ -89,21 +113,7 @@ async function fetchLibraryItems(enabledSlugs: string[], ruleset: RulesetKey): P
     .or(`ruleset.is.null,ruleset.eq.${ruleset}`)
     .order("name", { ascending: true });
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    ...row,
-    user_id: "",
-    campaign_id: null,
-    dm_notes: null,
-    // library_items carries no spell_ids column — the field only exists on
-    // user-authored items with linked spells (e.g. a homebrew staff).
-    spell_ids: [],
-    // Nor the document-item columns: shared catalog rows are never documents.
-    // Without these the raw row leaves them undefined, which reads as "has
-    // content" to `content !== null` checks (feather badge on every SRD item).
-    content: null,
-    content_player_writable: false,
-    content_updated_at: null,
-  })) as Item[];
+  return (data ?? []).map(normalizeLibraryItem);
 }
 
 
@@ -238,6 +248,22 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     (ui.dmPreviewMode ? baseQuery.isLoading.value : projectionQuery.isLoading.value),
   );
 
+  /**
+   * Re-run the projection now, ignoring `staleTime: Infinity`.
+   *
+   * That staleTime makes the projection a snapshot taken when the page loaded,
+   * and for a *player* nothing else ever ends it: the only invalidation is the
+   * `items` realtime reducer, `items` is owner-only under RLS so a player's
+   * subscription never receives those events, and the tables that widen the
+   * projection from the outside (`store_items`) are not campaign-scoped and so
+   * are not on the live-sync channel at all. A caller that can tell the
+   * snapshot is behind — it holds a row whose item the projection does not
+   * know — has to be able to say so. See `useSharedStoreItems`.
+   */
+  async function refetch(): Promise<void> {
+    await (ui.dmPreviewMode ? baseQuery.refetch() : projectionQuery.refetch());
+  }
+
   const data = computed(() => {
     const items = rawItems.value;
     const defaults = artDefaults.data.value;
@@ -257,7 +283,7 @@ export function usePlayerVisibleItems(getOptions?: () => UseItemsOptions) {
     });
   });
 
-  return { data, isLoading };
+  return { data, isLoading, refetch };
 }
 
 export function useItem(id: Ref<string> | ComputedRef<string> | string) {
@@ -276,7 +302,18 @@ export function useItem(id: Ref<string> | ComputedRef<string> | string) {
  * Fire-and-forget on purpose, exactly like queueNpcEmbedding: the item is
  * already saved, so a failed embed is not worth a toast, a spinner or a
  * delayed mutation — the row simply stays unembedded and the next backfill
- * sweep collects it. The edge function short-circuits when the embed text's
+ * sweep collects it.
+ *
+ * That last sentence is only true of a row that never had a vector (#846). A
+ * row that already had one keeps the **old** one when this fails: it is not
+ * unembedded, it is wrong, and retrieval goes on matching it against text the
+ * DM has since rewritten. It is also invisible to the "index unembedded
+ * content" offer, which lists rows with no vector at all — a stale row has
+ * one. Only the admin batch backfill compares hashes and repairs it.
+ *
+ * The failure is now reported to Sentry rather than swallowed, so we can find
+ * out how often this actually happens before choosing between #846's three
+ * candidate fixes. Still silent to the DM, which is the part that was right. The edge function short-circuits when the embed text's
  * hash is unchanged, so a save that only touched art or dm_notes costs no API
  * call at all.
  *
@@ -287,7 +324,7 @@ export function useItem(id: Ref<string> | ComputedRef<string> | string) {
 export function queueItemEmbedding(id: string): void {
   void supabase.functions
     .invoke("embed-content", { body: { mode: "single", entity: "item", id } })
-    .catch(() => { /* non-fatal — see above */ });
+    .catch((error) => reportHandledError(error, "queueItemEmbedding", { id }));
 }
 
 export function useCreateItem() {
@@ -346,18 +383,7 @@ export function useResolvedItem(id: Ref<string>) {
       if (sharedError) throw sharedError;
       if (!shared) throw new Error("Item not found");
       return {
-        item: {
-          ...shared,
-          user_id: "",
-          campaign_id: null,
-          dm_notes: null,
-          spell_ids: [],
-          // Same patch as fetchLibraryItems: these columns don't exist on
-          // library_items, and undefined would read as "has content".
-          content: null,
-          content_player_writable: false,
-          content_updated_at: null,
-        } as Item,
+        item: normalizeLibraryItem(shared),
         isShared: true,
       };
     },

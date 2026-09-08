@@ -82,7 +82,16 @@ When a party member with `disguise_species_id` set is in disguise, the DM sees a
 
 ### Member Locations
 
-Each member card shows their current location (linked to `/locations/:id`) or "Location unknown" if `current_location_id` is null. The `locationNameMap` is resolved from `useAllLocations`.
+Each member card shows their **effective** location, linked to `/locations/:id`.
+
+**Position is derived, not stored** ([#786](https://github.com/irongollem/grimoire/issues/786), migration `20260904133304`). `campaigns.current_location_id` is where the party is and is authoritative; `party_members.current_location_id` is an **override**, and **NULL means "with the party"** rather than "unknown". A member's position is `effectiveLocationId(member, campaignLocation)` — their override if they have one, otherwise the campaign's — exported from `src/lib/partyPosition.ts` and used by every reader.
+
+Consequences worth not undoing:
+
+- **Moving the party is one write** to the campaign, and everyone without an override comes along. Nothing propagates to member rows, so nothing can drift. The old "Sync to party" button on the dashboard's Session widget is gone: it existed only because nothing propagated, and a DM who forgot it left the whole party pinned to last session's location.
+- **An override is visually distinct at rest**, not on hover — a member who stayed behind or scouted ahead is the exception worth seeing at a glance.
+- **Clearing an override is "rejoin the party"**, not "clear location". That is what it means, and the wording matters because null is now a real state rather than missing data.
+- Backup, restore and world-bundle export carry the raw column through unchanged rather than deriving it — an override is data, and resolving it on export would lose it.
 
 ### DM Member Detail
 
@@ -123,7 +132,7 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 
 ### Location Tab
 
-- Sets `current_location_id` via entity combobox
+- Sets `current_location_id` via entity combobox — an **override**; empty means "with the party"
 
 ---
 
@@ -143,6 +152,7 @@ Filterable by text search and size (Tiny / Small / Medium / Large). Each species
 - `is_shapeshifter` flag — enables the shapeshifter disguise feature for any character of this species
 - Subraces (list) — drives the Variant dropdown in character creation
 - Traits — rich-text descriptions
+- **Scope** (`CampaignScopeField`, #596) — "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — *active campaign name*". New species default to the active campaign; editing an existing species — including one that's already general — never moves it, no matter which campaign happens to be active. Before #596 every new species defaulted to general regardless of the DM's intent, which is what the per-campaign gating in the paragraph below was built to filter down from.
 
 **Shared SRD species (#303):** the core species per edition come from the shared `library_species` table (public read, admin write; seeded by `npm run seed-library-species`; mapper in `src/lib/library/open5eSpeciesImport.ts`). `useAllSpecies()` merges shared rows (slug ids) with the user's own; a per-user row shadows its shared counterpart by source identity (or lowercase name for pre-versioning imports). Species references (`party_members.species_id`/`disguise_species_id`, `campaigns.disabled_species_ids`) are **text** since migration `20260724000003` and hold either a custom uuid or an `library_species` slug — players can pick shared species directly in character creation without any cloning.
 
@@ -177,7 +187,7 @@ Lists both imported SRD classes (`system_classes` table, read-only) and custom c
 
 **Custom Class Editor** (`CustomClassEditorView.vue`) — full-featured class designer:
 
-1. **Identity** — class name, hit die (d6/d8/d10/d12), primary ability, subclass-granting level, campaign scope (all campaigns or one specific campaign)
+1. **Identity** — class name, hit die (d6/d8/d10/d12), primary ability, subclass-granting level, campaign scope (a dropdown of the DM's own campaigns, plus "All my campaigns") — new classes default to the active campaign rather than "all my campaigns" (#596); editing an existing class keeps whatever scope it already has
 2. **Proficiencies** — saving throw checkboxes (STR/DEX/CON/INT/WIS/CHA), armor proficiency tags, weapon proficiency tags
 3. **Features per Level** — assign any ability from the Abilities compendium to any level 1–20 via entity combobox chips
 4. **Ability Score Increase Levels** — configure which levels grant ASI (defaults: 4, 8, 12, 16, 19)
@@ -198,7 +208,7 @@ Filterable by text search and by class name. Lists both SRD-imported and custom 
 - Features per Level
 - Wizard Steps
 - Resource Pools
-- Campaign scope
+- Campaign scope — same default-to-active-campaign flip as the Custom Class Editor (#596)
 
 ### Abilities Tab
 
@@ -209,6 +219,8 @@ The Abilities compendium is the shared library of named features used by both cl
 **"Sync from Open5e"** runs two operations: first imports Open5e features (`useImportOpen5eFeatures`), then backfills descriptions for any system features that lack them (`useBackfillSystemFeatureDescriptions`). The button label reports `N added`, `M updated`, and `K descriptions filled`.
 
 Features are linked to classes/archetypes by UUID reference stored in the `features` JSONB column of `custom_classes` / `custom_subclasses`.
+
+A custom feature (`FeatureDetail`) carries the same campaign-scope dropdown as classes/archetypes, with the same #596 default: a new feature defaults to the active campaign rather than "all my campaigns"; editing an existing one leaves its stored scope alone. `ArchetypeList`'s "Load example" seed features are the one deliberate exception — those three sample features are meant to be usable from every campaign and pass `campaign_id: null` explicitly, same as `ClassList`'s "Duplicate" fork of a system class.
 
 ---
 
@@ -580,7 +592,7 @@ Fonts: the illustrated themes need EB Garamond + Shippori Mincho (added to the `
 | `portrait_focal_point`          | jsonb  | `{x,y}` 0–1 normalised                                 |
 | `carry_capacity_override`       | text   | Expression or fixed number                             |
 | `notes`                         | jsonb  | Tiptap rich text                                       |
-| `current_location_id`           | uuid   | FK → locations table                                   |
+| `current_location_id`           | uuid   | FK → locations. **Override**: NULL = with the party (#786) |
 | `disguise_species_id`           | uuid   | FK → species (shapeshifter disguise)                   |
 | `disguise_race`                 | text   | Display race string for disguise                       |
 | `disguise_subrace`              | text   | Display subrace string for disguise                    |

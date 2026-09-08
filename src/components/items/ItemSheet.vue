@@ -286,7 +286,7 @@ import WeaponMasteryBadge from "@/components/items/WeaponMasteryBadge.vue";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
 import { useLootTablesByItem } from "@/composables/dungeon-features/useLootTables";
 import { useItemHolders } from "@/composables/items/useItemHolders";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import {
@@ -306,7 +306,7 @@ const props = defineProps<{
 
 const containedIn = useLootTablesByItem(computed(() => props.item.id));
 const { data: holders } = useItemHolders(computed(() => props.item.id));
-const { data: allCampaigns } = useCampaigns();
+const { data: allCampaigns } = useDmCampaigns();
 
 const sheetArtTab = ref<'identified' | 'mundane'>('identified');
 

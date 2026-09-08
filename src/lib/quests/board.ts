@@ -3,7 +3,7 @@ import type {
   QuestBeat,
   QuestBeatAttachmentSummary,
   QuestBeatEdge,
-  QuestBeatLoot,
+  LootPlacement,
   QuestBeatTransition,
   QuestRef,
   QuestRuntimeState,
@@ -57,7 +57,7 @@ export function deriveQuestBoardSummaries(input: {
   beats: QuestBeat[];
   edges: QuestBeatEdge[];
   attachments: QuestBeatAttachmentSummary[];
-  loot: QuestBeatLoot[];
+  loot: LootPlacement[];
   runtime?: QuestRuntimeState[];
   transitions?: QuestBeatTransition[];
 }) {
@@ -68,7 +68,9 @@ export function deriveQuestBoardSummaries(input: {
     if (row.current_beat_id) cursorByQuest.set(row.quest_id, row);
   }
   const questIds = new Set(input.beats.map((beat) => beat.quest_id));
-  for (const row of input.loot) questIds.add(row.quest_id);
+  // A room-homed row (#830) carries no quest_id — it belongs to no quest's
+  // board summary, so it must not be added as a bogus quest id here.
+  for (const row of input.loot) if (row.quest_id) questIds.add(row.quest_id);
   const result: Record<string, QuestBoardSummary> = {};
 
   for (const questId of questIds) {

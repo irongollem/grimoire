@@ -16,6 +16,35 @@ Every tab has a **text search** field and at least one **type/filter** selector.
 
 ---
 
+## Anchoring material to a place
+
+Until [#788](https://github.com/irongollem/grimoire/issues/788) only puzzles could say where they were (`puzzle_rooms.location_id`, migration `20260720000002`). Traps, features, roll tables and loot tables carried no location at all — a trap reached play solely through `encounters.trap_ids`, which meant it needed a *fight* to exist, so a corridor could not have one.
+
+**`location_placements`** (migration `20260904054806`) fixes that, and is a **join table rather than a `location_id` column on each entry**. The reason is in the data: `encounters.trap_ids` is a `uuid[]`, so traps were already reusable across encounters, and `dungeon_features` is a user-scoped catalogue of reusable fixtures — the same one secret door template can be dropped into several rooms. A column would force one placement per template and quietly turn a reusable thing single-use. Placing a catalogue entry somewhere is a many-to-many fact and needs a row.
+
+It is deliberately **not** a polymorphic `(kind, ref_id)` pair. That is the shape of `quest_beat_attachments`, whose text `ref_id` cannot carry a foreign key and therefore needs a trigger to validate what the database should have been enforcing — and which epic [#780](https://github.com/irongollem/grimoire/issues/780) is removing. Here each kind has a real column with a real FK and a real cascade, and a check constrains a row to exactly one of them (an *exclusive arc*). Adding a fifth kind later is a nullable column plus one name in the check.
+
+- `num_nonnulls(trap_id, dungeon_feature_id, roll_table_id, loot_table_id) = 1`.
+- **Per-kind partial uniques** on `(location_id, <kind>_id)`: the same entry twice in one room is a mistake every time, the same entry in two rooms is the point. A single composite unique would permit the first, because NULLs are distinct.
+- **No `campaign_id`.** `locations` already owns which campaign a place is in, and a second copy is the duplication #780 exists to remove; the insert policy joins for it. The other three policies are owner-scoped, exactly as `puzzle_rooms`' are.
+- `note` is what the entry is doing *here* — "pressure plate, triggers the portcullis at the far end". The catalogue entry says what the trap *is*.
+- Puzzles keep their existing `location_id` column and are **not** part of this table. A puzzle is an instance, not a template.
+
+Cover: `supabase/tests/location_placements.test.sql`.
+
+**The reverse direction** (`EntityPlacements.vue`, `useEntityPlacements`, [#802](https://github.com/irongollem/grimoire/issues/802)). #788 built placement from the *location* only, so from a trap's own page there was no sign it was placed anywhere. A "Placed In" panel now sits on the trap and feature sheets and the roll- and loot-table detail views: every location the entity sits in, its placement note, inline remove, and a location picker so a DM authoring a trap can drop it into a room without navigating there first.
+
+Both directions invalidate each other's query key — a placement made from either side shows up on the other without a reload.
+
+**Puzzles are not part of this and must not be moved into it.** `puzzle_rooms` keeps its own `location_id` / `dungeon_feature_id` columns, surfaced as navigable links in `PuzzleDetailView` since `01f6ed72`. A puzzle is an *instance*, not a reusable template placed in several rooms, so the join table is the wrong shape for it.
+
+**What co-DMs actually get, stated plainly.** `location_placements` and `locations` are both owner-scoped on SELECT, and the insert policy requires the placed entity to be the caller's own. Follow that through and a cross-DM placement cannot exist at all: DM B cannot place DM A's trap (the entity check refuses it), and DM A cannot place their own trap into DM B's room (B's room is invisible to A's picker). So the reverse panel is not hiding real rows — there are none to hide.
+
+What it does mean is that in a co-DM campaign this whole mechanism behaves as **per-DM private prep layered over a nominally shared world**. Two DMs prepping the same dungeon each see only their own placements of their own catalogue entries, never a merged view. That is inherited from the same "authored possessions are owner-scoped" decision as `traps` and `puzzle_rooms`, and it is deliberate — but it is the kind of thing that would surprise a co-DM pair expecting one shared prep space, so it is written down rather than discovered.
+
+
+---
+
 ## Dungeon Features (Secret Doors, Hazards, Enigmas)
 
 ### What they are
@@ -55,6 +84,12 @@ The sheet displays whichever DCs are populated in large numerals.
 ### Contents / What's Inside
 
 A rich-text field describing what the feature guards — gold, relics, a hidden stairway. Rendered in view mode with the full RichTextViewer.
+
+### Campaign scope
+
+Dungeon features gained a nullable `campaign_id` (#800) — the same null-is-global rule as monsters, traps, puzzles and dungeon maps (#597, #789): unset is available in every campaign, a set value only while that campaign is active. The `CampaignScopeField` control in the Identity card sets it directly; new features default to the active campaign. Existing rows were deliberately not backfilled, for the same reason as traps and puzzles — a feature's original campaign can't be recovered from the data, and a wrong guess is worse than leaving it visible everywhere until the DM re-scopes it by hand. `usePopulateDungeonFeatures`'s seeded templates stay global regardless of the active campaign, for the same not-already-present reason as `usePopulateTraps`.
+
+A puzzle's `dungeon_feature_id` anchor resolves against the unscoped feature list (`useDungeonFeatures(() => ({ includeAllScopes: true }))` in `PuzzleDetailView`), so a feature doesn't drop its anchor badge after a later re-scope — same pattern as an encounter's `trap_ids`. The combobox that *sets* the anchor uses a second, scoped call instead, so it only offers this campaign's own features. `LocationPlacements`' "Add" picker also calls the scoped default, but names for already-placed rows resolve through `location_placements`' own embedded join rather than this composable, so they are unaffected by scope either way.
 
 ---
 
@@ -254,6 +289,8 @@ A sticky panel on the right side of the detail shows:
 
 Roll tables are stored with an optional `campaign_id`. Tables belonging to the active campaign, plus global tables (campaign_id = null), are shown together. The populate action seeds example tables into the current campaign.
 
+The inline editor (`RollTableDetailView`) carries a `CampaignScopeField` (#596) alongside Tags — before this it had no scope control at all, and a new table's `campaign_id` was hardcoded to `null`. A new table now defaults to the active campaign instead; editing an existing one, including an already-global one, keeps whatever scope it already has. The AI generator (`RollTableGeneratorPanel`, below) already stamped the active campaign and is unaffected.
+
 ### AI-Assisted Roll Table Generator
 
 The "Generate" button on the Roll Tables tab opens a slide-in panel (`RollTableGeneratorPanel`, mounted in `DefaultLayout`) driven by `useRollTableGeneration.ts` (text-only generator, registered with the AI badge). The DM provides:
@@ -278,6 +315,10 @@ Loot tables define probabilistic hoards — each entry has its own independent d
 ### Route
 
 `/loot-tables/new` and `/loot-tables/:id`. Unlike Roll Tables, Loot Tables navigate to their own pages rather than using inline editing.
+
+### Campaign scoping
+
+Loot tables are stored with an optional `campaign_id`; `useLootTables()` shows tables belonging to the active campaign plus global tables (`campaign_id = null`) together, same as Roll Tables above. The editor (`LootTableDetailView`) carries a `CampaignScopeField` (#596) alongside Tags — before this it had no scope control at all, and a new table's `campaign_id` was hardcoded to `null`. A new table now defaults to the active campaign instead; editing an existing one, including an already-global one, keeps whatever scope it already has.
 
 ### Entry types
 
@@ -323,9 +364,13 @@ Tables carry an optional CR tier for filtering: `Any`, `CR 0–4`, `CR 5–10`, 
 
 **Resolution guard** (`src/ai/resolveGeneratedLoot.ts` + tests): the model returns item _names_; every entry is resolved against the merged `useItems` catalogue. Resolved item entries route through `useEnsureOwnedItem` at create time (a library slug id is not a valid `LootEntry.item_id` uuid — the clone is the same one the manual picker performs). Unresolved names are surfaced struck-through with a reason and left out of the created table: never dropped silently, never written as stub item rows (#337). Duplicate item entries are surfaced rather than merged. Malformed-but-recoverable values are repaired, not rejected (drop chance clamped to 1–100, dice wins over `fixed_qty`, unknown `item_type_filter` dropped while the entry survives) — entry validation itself stays in `validateEntries`, the single client-side validation point.
 
-**Embed-on-write**: `queueItemEmbedding` (`useItems.ts`) fires `embed-content` (`mode: "single"`, entity `item`) after create/update, after the downtime seed-reward mint, and after a library→owned clone. The clone is embedded despite being byte-identical to its already-embedded library twin, because the twin is only retrievable while its source stays enabled — without it, an item visible in the Vault would be invisible to loot retrieval. `library_item` is **batch-only** (`supportsSingle: false`): shared content has no `user_id` to authorize a single-mode call against, and it only changes on an admin import.
+**Embed-on-write**: `queueItemEmbedding` (`useItems.ts`) fires `embed-content` (`mode: "single"`, entity `item`) after create/update, after the downtime seed-reward mint, after a library→owned clone, and after the starter-recipe import mints the gear its outputs need (`useCrafting.ts` — a bulk insert that bypasses `useCreateItem`, so the hook has to be called at the insert; the burst stays small because only names that resolve to neither the vault nor `library_items` are minted at all). The library→owned clone is embedded despite being byte-identical to its already-embedded library twin, because the twin is only retrievable while its source stays enabled — without it, an item visible in the Vault would be invisible to loot retrieval. A vault item written over the **MCP server** is embedded too, by `queueEmbedding()` in `_shared/mcp/tools.ts`, driven by each entity's `embedOnWrite` in the MCP registry — see combat-encounters.md for why that one is awaited rather than fire-and-forget. `library_item` is **batch-only** (`supportsSingle: false`): shared content has no `user_id` to authorize a single-mode call against, and it only changes on an admin import.
 
-**Storage**: measured before building, per #599's multiplier — `library_monster_embeddings` is 52 MB across 3,541 rows (~15 KB/row incl. HNSW), so 1,717 library items + 2,015 items ≈ 56 MB on a 211 MB database. Both new targets are in `useEmbeddingBackfill`'s `EMBED_TARGETS`; **the backfill must be run once after deploy** or retrieval finds nothing and every generation falls back to ungrounded.
+Every one of those is a hand-placed call, and that is the standing fragility: the hook lives in the write paths rather than in the table, so a *new* way to mint an item starts life unembedded and **nothing fails** — the row saves, the Vault shows it, and only the generator quietly doesn't know about it. #841 is the one hole left open: `transfer_campaign_ownership` clones items and NPCs in SQL, where no client hook can reach. The decision there is deliberately **not** to re-embed on transfer — a handed-over campaign is not settled content, and the new DM will prune and merge it against what they already own — so they get an offer to index it rather than having the spend and the corpus decision made for them.
+
+**Storage**: measured before building, per #599's multiplier — `library_monster_embeddings` is 52 MB across 3,541 rows (~15 KB/row incl. HNSW), so 1,717 library items + 2,015 items ≈ 56 MB on a 211 MB database. Both targets are in `useEmbeddingBackfill`'s `EMBED_TARGETS`, and **the backfill was not run at deploy time** — so for a month this generator ran ungrounded on every vault in the app and nothing said so. Measured 6 Sep 2026: 3 of 2,018 `items` and 0 of 1,717 `library_items` had vectors, against 100% for all six other corpora. #838 ran it: both are at 100% now (39 batch calls, 318,796 input tokens, ~$0.006 of `text-embedding-3-small`, 0 credits charged — `entity_embedding` is a recorded free generation).
+
+The failure was silent by construction, and that is the part to carry forward. A corpus with no vectors is not an error state: `match_*` simply returns nothing, the candidate block is dropped, `grounded: false` comes back, and the generator produces perfectly plausible loot that just never mentions anything the DM owns. **After any deploy that adds an embedded corpus, check coverage rather than trusting that the button was pressed** — the query is one `count(*)` per side table against its source, and it is the only thing that can tell you.
 
 The system prompt is `ai_system_prompts.generator_type = 'loot'`; the credit cost is `loot_generation` (1 credit); `loot_tables.ai_provenance` was added by the same migration (the table was not in EPIC #611's original 13 because no loot generator existed then).
 
@@ -378,6 +423,7 @@ The editor blocks saving when any entry has a drop_chance outside 1–100, an It
 | Field                  | Type                        | Notes                                                                                                                               |
 | ---------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                 | string                      | Required                                                                                                                            |
+| `campaign_id`          | uuid\|null                  | NULL = every campaign, set = only that campaign; never backfilled (#800)                                                            |
 | `feature_type`         | DungeonFeatureType          | Secret Door / Hidden Passage / Treasure Chest / Hidden Cache / Concealed Alcove / Moving Wall / Other                               |
 | `perception_dc`        | number\|null                |                                                                                                                                     |
 | `investigation_dc`     | number\|null                |                                                                                                                                     |

@@ -22,6 +22,16 @@ export interface ItemDropClaim {
 
 export interface ItemDropMetadata {
   item_id: string | null;
+  /**
+   * The shared-library half of the reference (#815/#819). `claim_item_drop`
+   * and `grab_item_drop` have read both columns out of this metadata since
+   * migration `20260906185016`, but the send path only ever wrote `item_id`,
+   * so a library-sourced item dropped to chat arrived with both null and was
+   * claimed as unlinked free text — no art, tags, rarity or stats, and no
+   * error anywhere. Optional because messages sent before this carry neither
+   * key.
+   */
+  library_item_id?: string | null;
   item_name: string;
   item_rarity: string | null;
   /** Container flag captured from the sender's item at drop time. Absent on

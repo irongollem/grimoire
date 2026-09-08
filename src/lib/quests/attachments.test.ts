@@ -21,8 +21,8 @@ const attachment = (overrides: Partial<QuestBeatAttachment> = {}): QuestBeatAtta
 describe("quest beat attachment adapters", () => {
   it("declares a Run action, contained surface, and specialist escape hatch for every type", () => {
     for (const adapter of Object.values(QUEST_BEAT_ATTACHMENT_ADAPTERS)) {
-      expect(adapter.runAction).toMatch(/^(run|view|play|manage)$/);
-      expect(adapter.containedSurface).toMatch(/^(encounter|atlas|entity|audio|document|objective)$/);
+      expect(adapter.runAction).toMatch(/^(run|view|play)$/);
+      expect(adapter.containedSurface).toMatch(/^(encounter|entity|audio|document)$/);
       expect(adapter.summary(attachment({ attachment_type: adapter.type }), { label: "Ready" }).label).toBe("Ready");
       expect(adapter.fullEditorTo("target", "quest")).toEqual(expect.any(String));
     }

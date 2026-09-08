@@ -8,6 +8,8 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useDeckBacks, useCreateDeckBack, useDeleteDeckBack } from "@/composables/downtime/useDowntime";
+import { useDowntimeRewardName } from "@/composables/downtime/useDowntimeRewardName";
+import { isResolvableRewardType } from "@/lib/downtime/downtimeReward";
 import { DOWNTIME_ACTIVITIES, getDowntimeActivity } from "@/data/downtimeActivities";
 import type { DowntimeDeckBack, DowntimeRewardType } from "@/types/downtime.types";
 
@@ -15,6 +17,7 @@ const { data: backs } = useDeckBacks();
 const { data: npcs } = useNpcs();
 const { data: items } = useItems();
 const { data: notes } = useNotes();
+const { rewardName: resolveRewardName } = useDowntimeRewardName();
 const { ensureOwnedItem } = useEnsureOwnedItem();
 const createBack = useCreateDeckBack();
 const deleteBack = useDeleteDeckBack();
@@ -66,18 +69,16 @@ const consumed = computed(() => (backs.value ?? []).filter((b) => b.consumed_at 
  * Resolve a back's linked entity name across every reward type. A deleted target
  * must read as absent, not vanish silently.
  */
+/**
+ * The pile always renders *something*, so absence becomes a marker here rather
+ * than a null. Which marker matters: a kind this DM surface resolves and cannot
+ * find really is deleted, while spell/quest/faction backs (which other tools can
+ * create) were never looked up — calling those deleted would be a guess.
+ */
 function rewardName(type: DowntimeRewardType, id: string): string {
-  switch (type) {
-    case "item":
-      return items.value?.find((i) => i.id === id)?.name ?? "??? (deleted)";
-    case "note":
-      return notes.value?.find((n) => n.id === id)?.title ?? "??? (deleted)";
-    case "npc":
-      return npcs.value?.find((n) => n.id === id)?.name ?? "??? (deleted)";
-    default:
-      // spell/quest/faction backs can exist from other tools; name unknown here.
-      return "??? (linked)";
-  }
+  const name = resolveRewardName(type, id);
+  if (name) return name;
+  return isResolvableRewardType(type) ? "??? (deleted)" : "??? (linked)";
 }
 
 function activityTitle(key: string): string {

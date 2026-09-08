@@ -39,6 +39,12 @@ standalone-capable routes (`play-home`, character create/edit, the species and
 background pickers) carry `meta.playerStandalone` and work with no membership
 at all; everything else under `/play` redirects a role-less player to Home.
 
+Both player-shell campaign lists — Home's "Your Campaigns" and the hamburger's
+Campaigns sheet — read `usePlayerCampaigns()`, so they show only campaigns this
+account plays in. The sheet used to list every campaign RLS returned and badge
+each one DM or Player, which handed the player shell a sideways route into a
+campaign the other lens owns; see the lens section of `collaboration.md`.
+
 All nav items defined in `src/lib/playerNav.ts`:
 
 | Route             | Label     | Description                                                                     |
@@ -145,15 +151,64 @@ Only quests that the DM has explicitly shared with the player appear (via `usePl
 - Completed
 - Failed
 
-Each quest card shows title, status badge, optional summary text, and rewards (with gold star icon). Clicking navigates to the quest detail view, which shows:
+Each quest card shows title, status badge, optional summary text, and rewards (with gold star icon). Clicking navigates to the quest detail view.
 
-- Title, status badge
-- Quest giver (NPC name, tappable to open NPC lightbox)
-- Location (if set)
-- Objectives list with completion checkboxes
-- Full rich text description
-- Reward text
-- Player notes widget
+### The journal answers three questions, in order (#798)
+
+The detail view is not a metadata sheet. It is ordered by what a player actually
+needs, and the order is the design:
+
+1. **What do we need to do?** — the objectives ledger
+2. **What has already happened?** — the story thread of revealed beats
+3. **Where can I put my own thinking?** — the per-quest notes widget
+
+The site map sits between the thread and the notes; the reference sections
+(rewards, key NPCs, key locations, creatures) follow underneath. They are still
+useful, they are just no longer what the page leads with.
+
+**The objectives are the DM's own rows**, not a copy — the same
+`quest_objectives` the DM ticks, read through `quest_objectives_player_select`
+(`is_player_visible and private.is_quest_player_visible(quest_id)`). Two rules
+about status:
+
+- **A failed objective stays visible, shown as failed.** It must not vanish;
+  "we lost that one" is a thing a party needs to remember.
+- **A dormant objective never appears**, and needs no filter to make that true.
+  `quest_objectives_dormant_is_hidden CHECK (status <> 'dormant' OR NOT
+  is_player_visible)` from #792 makes the combination unstorable, so the policy's
+  visibility test excludes dormant transitively. #798 deliberately did **not**
+  add `status <> 'dormant'` to the policy: it would be unreachable code inside a
+  security boundary, and the CHECK is the stronger rule because it stops the row
+  existing rather than stopping it being read.
+
+### The map fills in
+
+`get_player_visible_site_state(p_site_location_id uuid)` returns one row per
+traced region whose space the party has **explored**, carrying the region's
+`cells` geometry plus the `cleared` / `looted` facts the party established
+themselves. Only possible because #787 made the site remember what was explored.
+
+Three things about it that are load-bearing:
+
+- **Unexplored rooms are absent from the payload, not flagged in it.** That
+  absence is the feature. Filtering on the client would put the unexplored rooms
+  in the network tab, which is the same as printing them.
+- **It checks both ends of a region.** The caller is bound to the *site's*
+  campaign, and the room must belong to that same campaign
+  (`space.campaign_id = site.campaign_id`). Nothing in the schema guarantees
+  those match — see #827 — and without the predicate a DM running two tables
+  could show one campaign's rooms to another's players. Found by exploit during
+  the #798 audit, not by review.
+- **An unshared map withholds the geometry too.** Coordinates are a floor plan;
+  returning regions for a site whose `is_map_shared` is false would leak the
+  layout without the picture.
+
+Like every other player read of the Atlas it is a `SECURITY DEFINER` projection
+rather than an RLS path — players have no direct read on `locations`,
+`location_map_regions` or `location_state`. It therefore authorizes internally,
+which matters more than usual here: `location_state` is a view with
+`security_invoker = true`, so inside a definer function it resolves as the
+definer and sees every campaign's rows.
 
 ## Player Inventory
 

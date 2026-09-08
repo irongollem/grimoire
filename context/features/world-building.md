@@ -1,8 +1,8 @@
-# World-Building: Atlas, Quests, Factions & Pantheons
+# World-Building: Atlas, Factions & Pantheons
 
 ## Overview
 
-Three interconnected modules for tracking the physical and political geography of a campaign: **Atlas** manages the location hierarchy and maps, **Quest Log** tracks adventures and objectives, and **Factions** models the organisations that shape the world. All three support granular player visibility — the DM controls what each player sees in the `/play/*` portal.
+Two interconnected modules for tracking the physical and political geography of a campaign: **Atlas** manages the location hierarchy and maps, and **Factions** models the organisations that shape the world. Both support granular player visibility — the DM controls what each player sees in the `/play/*` portal. Quests used to live here too and now have their own doc: [quests.md](quests.md).
 
 ---
 
@@ -15,7 +15,7 @@ Route: `/locations` (list), `/locations/new`, `/locations/:id`, `/locations/:id?
 **List page** (`LocationsView.vue`)
 
 - Title: "Atlas", subtitle: "Continents, cities, dungeons, and every place in between"
-- Filter bar: free-text search + type dropdown (all 17 location types)
+- Filter bar: free-text search + type dropdown (all 18 location types)
 - Action buttons: **New Location** (primary), **Populate Setting** (bulk-inserts preset locations for the campaign's setting/calendar, e.g. Faerûn), **Populate Planes** (bulk-inserts the 21 standard D&D cosmological planes). Both populate buttons are idempotent — they skip names that already exist and report how many were added.
 - Body rendered by `AtlasExplorer.vue`
 
@@ -28,11 +28,17 @@ Two panes from `lg` up, master/detail swap below it. This replaced a flat alphab
 - **Scale rail** (`AtlasScaleRail.vue`) — the six tiers as rungs; the selection's tier is lit, tiers occupied by its subtree are at half strength, and unauthored tiers are dim, so a gap in a world is visible without opening every node.
 - **The full read-only body**, via the shared `LocationDetailSections.vue` (below) — description, related locations, store, people, encounters, party. The pane is not a preview of the detail page; it renders the same content.
 
-**`LocationDetailSections.vue` — shared by the sheet and the pane.** Holds the six sections that are *about* a place rather than *where it sits*: Description, Related Locations, Store, People in the Area, Encounters Here, Currently Here. Self-contained (does its own queries; TanStack dedupes against the caller's). Each caller keeps what genuinely differs — breadcrumb, identity, sub-locations, map placement, and the Atlas's scale rail and tier groups.
+**`LocationDetailSections.vue` — shared by the sheet and the pane.** Holds the nine sections that are *about* a place rather than *where it sits*: Description, Related Locations, Ways out, Store, Rooms, Prepared Here, People in the Area, Encounters Here, Currently Here. Three of those are always present rather than gated on content, so the body itself is no longer conditional; the pane asks `hasSubstance` instead when it needs to know whether a place is genuinely empty. Self-contained (does its own queries; TanStack dedupes against the caller's). Each caller keeps what genuinely differs — breadcrumb, identity, sub-locations, map placement, and the Atlas's scale rail and tier groups.
 
 It exists because the Atlas pane needed the same sections the sheet already had, and a second copy drifts within a release: the sheet's People card grid and the pane's People list were already two designs for one thing before the extraction. `LocationSheet` went 403 → 217 lines.
 
-`hasContent` is `defineExpose`d so a caller can tell "no sections rendered" from "no sub-places". The Atlas pane pairs it with its child-group count, because *Nothing inside X yet* is wrong above a tavern's stocked store — a venue has no sub-places by nature.
+**Five sibling panels, deliberately not extracted.** `LocationDetailSections` now mounts `StoreInventory`, `SiteRoomsPanel`, `LocationPlacements`, `LocationDoors` and `LocationStateControls`. They look related because they share two idioms the app already had — the bordered list row (`rounded-md border border-border bg-card px-3 py-2`) and the dashed inline-add box ending in an `AppButton` — not because this work duplicated anything. Their interaction models genuinely differ: commerce pricing, drag reorder, a kind-typed exclusive-arc picker, a directional graph edge with three authored flags, and a flat row of state toggles.
+
+The map itself — and the room-shapes list that rides alongside it — is deliberately **not** one of these six: #807 removed the `SiteMapView` panel this section used to list here, because it rendered `map_url` a second time. Map placement genuinely differs per caller (the sheet's own section, the Atlas pane's mode toggle, the run surface's composed layout), so `LocationMap.vue` — the caller-owned composite — carries the regions canvas and `SiteMapRegionList` with it instead. See "Clickable rooms on a site's map" below.
+
+**The trigger for extracting, when it comes:** a *third* near-identical "list of typed relations with an `EntityCombobox` add-box" panel. Two is a coincidence of shared idiom; three is a recipe. Extracting at two would produce a slot-heavy component configured differently at each of its two call sites — the over-abstraction the granularity rule is not aiming at.
+
+`hasSubstance` is `defineExpose`d so a caller can tell "this place is genuinely empty" from "merely childless". It deliberately excludes the always-present editing panels (Rooms, Prepared Here, Ways out) — those make the *body* unconditional, and folding them in would have retired that message everywhere. It also excludes a room's `related_location_ids` specifically, since Ways out replaces that section there (see below) and a stray link set before the place became a room must not claim substance the body no longer renders. The Atlas pane pairs `hasSubstance` with its child-group count, because *Nothing inside X yet* is wrong above a tavern's stocked store — a venue has no sub-places by nature.
 
 **Descending and rising between maps** (`AtlasMapZoom.vue`, `lib/locations/mapZoom.ts`). A pin's *watch* action, when this place and the child both have a non-battle map, moves between them as a continued zoom rather than a page change — the thing an atlas actually does. A matching **Up to `<parent>`** control sits on the map itself, because rising is the reverse of the gesture that got you there and belongs where that gesture happened. Both fall back to plain selection when either end has no map, and under `prefers-reduced-motion`.
 
@@ -66,7 +72,7 @@ The detail page follows the sheet + editor convention: existing locations show a
 
 **Location editor fields:**
 
-- **Name** (required), **Type** (one of 17 types, see below), **Sigil/Emblem image** (portrait aspect, uploaded to `location-images` bucket)
+- **Name** (required), **Type** (one of 18 types, see below), **Sigil/Emblem image** (portrait aspect, uploaded to `location-images` bucket)
 - **Parent** — `EntityCombobox` picking any other location; setting this places the location in the hierarchy
 - **Child locations** — inline tag-style list of existing children; an inline search box lets the DM re-parent existing locations OR create a new child (navigates to `/locations/new?parent=id&name=…`)
 - **Tags** — `TagInput` component
@@ -98,32 +104,132 @@ The detail page follows the sheet + editor convention: existing locations show a
 - **Currently Here** — party members whose `current_location_id` equals this location; links to party member detail
 - **Move a party member here** — available in edit mode via an `EntityCombobox` + "Move here" button
 
-**Location type taxonomy** (17 types). Two independent axes — do not conflate them:
+**Location type taxonomy** (18 types). Two independent axes — do not conflate them:
 
 *By pinnability* (drives map pin recursion and store inventory):
 
 - *Vague containers* (not useful as single map pins): World, Plane, Continent, Region, Country
-- *Concrete place types*: City, Town, Village, District, Building, Dungeon, Wilderness, Other
+- *Concrete place types*: City, Town, Village, District, Building, Grounds, Dungeon, Wilderness, Other
 - *Store types* (support inventory): Store, Tavern, Inn
-- *Other*: Room
+- *Room* — excluded from pinning entirely (#807). `getPinnableDescendants()` skips a `room` child outright rather than offering it as a pin candidate: a room is placed by a traced region on its site's floor plan (`location_map_regions`), never by a pin. This is a pinnability exclusion, not a recursion one, so it lives beside the `VAGUE_LOCATION_TYPES` walk rather than inside that set — a room is already a concrete leaf, just not a mappable point on this axis.
 
-*By scale* (`lib/locations/tiers.ts`) — the ladder the Atlas groups, sorts and colours by:
+*By map kind* (`lib/locations/tiers.ts`) — the ladder the Atlas groups, sorts and colours by. This axis used to claim to encode *size* ("type says what a place is; tier says how big it is"), and never actually did — the ladder was auto-generated, so nobody had checked. `venue` encoded function ("has an inventory"), not scale; `wilderness` had no scale at all — production has a `wilderness` (Icewind Dale) that itself contains 9 villages and 4 regions, so a size-based ladder read that as a place smaller than its own contents. [#810](https://github.com/irongollem/grimoire/issues/810) redefined the axis to say what it actually needs to say: **what kind of map a place has, and therefore how its children get placed on it** — pins down through `district`, traced regions on a floor plan at `site`.
 
-| Tier          | Types                                   |
-| ------------- | --------------------------------------- |
-| `cosmic`      | World, Plane                            |
-| `continental` | Continent, Region, Country              |
-| `settlement`  | City, Town, Village                     |
-| `site`        | Dungeon, District, Building, Wilderness |
-| `venue`       | Store, Tavern, Inn                      |
-| `interior`    | Room                                    |
-| *(none)*      | Other — the escape hatch claims no scale |
+| Tier         | Types                                   |
+| ------------ | ---------------------------------------- |
+| `cosmic`     | World, Plane                            |
+| `land`       | Continent, Region, Country, Wilderness  |
+| `settlement` | City, Town, Village                     |
+| `district`   | District                                |
+| `site`       | Building, Dungeon, Grounds, Store, Tavern, Inn |
+| `interior`   | Room                                    |
+| *(none)*     | Other — the escape hatch claims no tier |
 
-**`LOCATION_TYPE_COLORS` is a scale ramp, not a palette of kinds.** It runs cool-to-warm along that ladder (violet → blue → teal → lime → amber → rust), which reads as distance; within a tier, lightness steps by enclosure, darkest = most enclosed. That is why Dungeon and Wilderness share a hue family despite feeling like opposites — they are the same *scale*, and scale is the only thing the colour channel now encodes. The type label already says what a place is; colour says how big. Do not reshuffle it back into a red-for-dungeons rainbow. `LOCATION_TYPE_LABELS` declaration order is likewise scale order, because both type dropdowns (DM and player) iterate it to build their options.
+`venue` is gone: a tavern is a building, one of the six types with a floor plan (`grounds` joined them in #817). `wilderness` moved to `land`, beside continent/region/country, where "no floor plan, children placed by pins" actually describes it. `district` earned its own rung: its children are buildings on a geography map, not traced rooms.
+
+**`LOCATION_TYPE_COLORS` is a tier ramp, not a palette of kinds.** It runs cool-to-warm along that ladder (violet → blue → teal → lime → amber → rust), which reads as distance; within a tier, lightness steps by enclosure, darkest = most enclosed. `land` runs continent → region → country → wilderness, lightest last: wilderness is the least enclosed thing on the ladder. `site` now steps six types instead of three — dungeon (underground, windowless) darkest, then building and grounds, then store/tavern/inn lightest — so Dungeon reads darkest of the whole ramp. Dungeon and Wilderness no longer share a hue family; under the old ladder they did, which was the bug #810 fixed — they are not the same kind of map, whatever their footprint on the page. The type label already says what a place is; colour now says what kind of map it gets. Do not reshuffle it back into a red-for-dungeons rainbow. `LOCATION_TYPE_LABELS` declaration order is likewise ladder order, because both type dropdowns (DM and player) iterate it to build their options.
 
 **DM and player share one colour system by construction**, not by discipline: `LOCATION_TYPE_COLORS` / `LOCATION_TYPE_LABELS` in `types/location.types.ts` are the single source, imported by `LocationMap`, `LocationSheet`, `LocationHierarchyPanel`, `AtlasTreeRow`, `AtlasPlacePane`, `PlayerLocationCard`, `PlayerLocationDialog`, `PlayerLocationsView` and `AssetInsertPanel`. There is no second map anywhere — keep it that way rather than adding a player-side variant. `AtlasScaleRail` derives its tier swatches from the same record via `TIER_REPRESENTATIVE_TYPE`, so a rung can never drift from the places it stands for.
 
 **Hierarchy**: unlimited depth; parent/child relationship is a single `parent_id` FK. The `useLocationTree` composable builds a depth-annotated flat list for indented combobox display across the app. `getPinnableDescendants()` recurses through vague containers to surface pinnable leaves (capped at 60 per map).
+
+**Sites and rooms** (`SiteRoomsPanel.vue`, migration `20260904014714`, [#783](https://github.com/irongollem/grimoire/issues/783)). A **site-tier** place — building, dungeon, store, tavern, inn: the five types with a floor plan (redefined by [#810](https://github.com/irongollem/grimoire/issues/810)) — gets a Rooms panel, gated by `isSiteType()` in `lib/locations/tiers.ts`. `STORE_LOCATION_TYPES` (store, tavern, inn) is now a strict *subset* of `site`, not a separate tier: before #810, "venue" sat alongside "site" as its own rung, so a tavern got a Store panel and a dungeon got a Rooms panel from two disjoint type sets. Under this ladder a tavern gets both — its taproom's stock and its guest rooms are not mutually exclusive — and district/wilderness lose the Rooms panel entirely, since neither has a floor plan.
+
+Rooms are ordinary `room`-typed **direct children**. There is deliberately no membership table: `parent_id` already owns that fact, and a second writer for it is the shape [#780](https://github.com/irongollem/grimoire/issues/780) exists to remove. A `building` nested inside a site is not a room of it — it is a child *site* with its own panel.
+
+- **Order** is `locations.sort_order integer`, nullable. NULL means "no order claimed" and sorts **last**, so the Atlas keeps its name ordering until a DM arranges something. Siblings sort by **tier, then `sort_order` nulls-last, then name** — one comparator, `compareSiblings` in `lib/locations/tree.ts`, used by the tree, the queries and realtime cache splicing alike. The ordinal a room displays is derived from its position; there is no stored number column, because a stored label sorts "10" before "2".
+- **`sort_order` is not content.** It is absent from the `locations_updated_at` WHEN list on purpose: rearranging rooms must not bump "last edited" or invalidate the location's embedding source hash.
+- **Reordering** goes through `reorder_locations(uuid[], integer[])`, `SECURITY INVOKER` so the table's own UPDATE policy is the authorization. It demands every id of exactly one sibling set — partial reorders are how two rows end up claiming one position — and checks the affected row count, because RLS skips rows silently rather than raising.
+- **Where a room may live** is enforced by `locations_room_parent_guard`, via `private.location_can_hold_rooms` — now exactly the site tier: building, dungeon, store, tavern, inn, and — since [#817](https://github.com/irongollem/grimoire/issues/817) — `grounds`, the unroofed site a garden or courtyard needs. Before [#810](https://github.com/irongollem/grimoire/issues/810) this deliberately allowed a *wider* set than the panel showed (site tier plus venue tier), on the reasoning that "renting a room above a tavern is ordinary, and a check that rejects it would be hit by a real DM at a real table — where a panel appears and what the data permits are different questions and must not share one predicate." **That principle is deleted on purpose, not merely superseded.** Under this ladder "site" is defined as precisely the types with a floor plan, so a room above a tavern is exactly as valid as one in a dungeon *because a tavern is site-tier now*, not because the guard was deliberately widened past the panel — `location_can_hold_rooms` and `isSiteType()` are the same predicate by construction, and they cannot drift apart the way a panel gate and a data constraint maintained separately eventually would. What the guard still forbids is a room inside a room, a room under a world/region/continent/district/wilderness, and a top-level room. A place that already holds rooms also cannot change into a type that cannot hold them. Cover: `supabase/tests/location_room_parent_guard.test.sql`.
+- **On a site, `AtlasPlacePane` stops grouping `room` children into an Interiors tile**, because the panel below already lists them — in the DM's manual order rather than scale-then-name. Two lists of the same rooms in two different orders is worse than either.
+
+**Room flow** (`location_doors`, migration `20260904061014`, [#785](https://github.com/irongollem/grimoire/issues/785)). `parent_id` says a room is *inside* a site; nothing said a room *connects* to another room, so "the nave opens onto the reliquary, but the abbot's cell is barred from the outside" lived only in the DM's head.
+
+`related_location_ids` is **not** that mechanism and is not being made into one. It is a bare `uuid[]` with no meaning to its order, no type and no direction, and it earns its keep at map scale — trade routes, tunnels, connected districts. A crawl needs direction, a name, and a reason a door will not open.
+
+- A door has a `label` (free text: "iron grille", "collapsed stair" — an enum of passage kinds is a taxonomy nobody asked for, and the label is read aloud rather than branched on), `is_one_way`, `starts_locked` with a `lock_note`, and `is_secret`.
+- **Authored prep only.** `starts_locked` and `is_secret` are what the DM prepared. Whether the party has since opened or found it is *play* state and belongs to the durable-site-state log in [#787](https://github.com/irongollem/grimoire/issues/787), keyed on the room. A live `is_locked` here would give that fact two homes, one of them without provenance or undo.
+- `location_doors_endpoint_guard` requires **both ends to be rooms sharing one parent**. Without it a "door" could join two rooms in different dungeons, or a room to a continent, and every consumer would have to re-derive what a valid connection is — exactly the hole `metadata.room_ids` left by validating only that an id existed.
+- Unique on `(from, to, label)` rather than the pair, because two rooms may genuinely have two connections — a main door and a secret crawlspace. Same rule, and same reason, as `quest_beat_edges`.
+- **On a room, "Related Locations" defers to "Ways out".** Two lists of what a place connects to, in two different mechanisms, is the duplication the Interiors tier group had before #783. Every non-room type keeps Related Locations unchanged.
+
+Cover: `supabase/tests/location_doors.test.sql`.
+
+**Client side** (`useLocationDoors.ts`, `LocationDoors.vue`). The "Ways out" panel on a room mirrors `SiteRoomsPanel` / `LocationPlacements`'s shape — self-contained, always-editable, keyed off scalar props (`roomId`, `parentId`) rather than a route param. It always creates a door with `from_location_id` = the room it's mounted on; the composable then merges that room's outgoing doors with any *bidirectional* incoming door (`to_location_id` = this room, `is_one_way = false`) into one list told from this room's point of view — `doorsFromRoomPerspective`, the one piece of real logic here and the thing its colocated test covers. A one-way door leading *into* a room is deliberately dropped from that room's list: it is not a way out of it. The picker restricts candidates to sibling rooms (same `parent_id`, type `room`, excluding self) rather than re-deriving the endpoint guard client-side; a rejection from the trigger still surfaces as a toast. Each row's label is inline-editable (same lazy-commit `AppInput` pattern as `LocationPlacements`' note); the three flags and `lock_note` are set at add time only and shown afterward as read-only markers, not live toggles — editing an authored flag is a delete-and-recreate, not a switch to flip.
+
+**Durable site state** (`location_state_events` + the `location_state` view, migration `20260904062741`, [#787](https://github.com/irongollem/grimoire/issues/787)). What is explored, cleared and looted is a fact about the **world**, not about the quest that happened to be running. A party is in one place and on many quests at once, and two chains routinely converge on the same vault — so if this hung off a beat, the two would hold contradictory ideas of the same rooms. It hangs off the room, and a party returning four sessions later on a different chain finds the reliquary still looted.
+
+An append-only **log**, not booleans on `locations`, for three reasons:
+
+1. "Looted three weeks ago" is a claim someone will need to take back, and undo against a boolean is just another write with no record that the first one happened.
+2. Provenance — who said so, and when — is the difference between state a DM trusts and state they second-guess.
+3. A later story may want to know which quest a fact was asserted during. On a log that is `alter table add column`; on a boolean it is a backfill that cannot be done, because the information was never kept. Worth recording that #797 shipped **without** taking this: a beat stages at a place, but site state stays a fact about the world and deliberately does not record which chain was open when it changed — the reason the state hangs off the room in the first place.
+
+**Undo is appending the opposite assertion.** UPDATE and DELETE are revoked from `authenticated`, exactly as on `quest_beat_transitions`.
+
+- **Absent is not false.** A location with no rows for a fact has never had anything said about it; that is different from an explicit `false`, and the UI must not collapse them. "We have not been there" and "we went and it was empty" are different sentences.
+- **Ordering is `seq bigint generated always as identity`, not `created_at`.** This was a real defect caught by its own test before it shipped: `created_at` defaults to `now()`, which is *transaction* time, so two assertions written in one transaction carry an identical timestamp and the tiebreak fell to a random uuid — "the newest assertion wins" passed or failed by coin flip. `created_at` stays, because it is what a DM reads; the sequence is what orders.
+- **The view is `security_invoker = true`,** and that is not optional. A view without it executes as its owner and RLS is evaluated against the *executing* role, so it would hand every caller every DM's site state — the `ai_generation_costs` leak (`20260828202800`). `supabase/tests/view_security_invoker.test.sql` asserts this structurally for every view; this migration's own test pins it for this one.
+- Deliberately **not** recorded: a session id. `campaign_session_state` has `UNIQUE (campaign_id)`, so there is one row per campaign reused across every evening and its id never changes — storing it would say nothing about which session a fact belongs to. (`encounter_state.session_id` has the same limitation.)
+- Not room-only: a district can be cleared and a whole dungeon looted. The panel decides where it is worth showing.
+
+Cover: `supabase/tests/location_state_events.test.sql`.
+
+**Readable by every DM of the campaign**, not only the author — deliberately wider than the neighbouring content tables. `traps`, `puzzle_rooms` and `location_placements` are owner-scoped on select because they are authored *possessions*; a trap you wrote is yours. This is not that. It records what happened to a shared world, and two co-DMs each seeing only their own assertions would mean the vault is looted for one of them and pristine for the other — the split-brain the story exists to prevent.
+
+**Client side** (`useLocationState.ts`, `LocationStateControls.vue`). Three toggles on any location; clicking appends the opposite of the current value, or `true` from unknown. The three states are visually distinct at rest rather than on hover, because "never said" and "said no" are different sentences: unknown is a neutral outline, explicit false a soft danger pill, explicit true a strong success pill. Provenance — who asserted it and when — is on the tooltip. `useLocationStateForRooms` batches the whole rooms panel into one `.in()` query rather than one per row, and `SiteRoomsPanel` shows read-only glyphs for explicit-true assertions only, so an unasserted room stays visually quiet.
+
+**A room can hold and drop loot, the same as a beat** ([#830](https://github.com/irongollem/grimoire/issues/830) — full mechanism, `loot_placements`, in [quests.md](quests.md)). `LocationLootPanel.vue` is the "Loot" section on any location that has a campaign (`LocationDetailSections.vue`, right after Progress — dropping loot is what flips this section's Looted pill, so they sit together) and again inline on the current room in `SiteRunSurface.vue`'s live run, the same two places `QuestBeatLootPanel` shows up for a beat. It shares its entries list with the beat panel (`LootPlacementList.vue`) but has its own prepare form, because a room can additionally roll a loot table into a held chest, which a beat has no use for. `dispatch_loot` records the room's `looted` fact server-side as part of the drop; the panel only invalidates the `location_state` query cache afterward so `LocationStateControls` picks it up without a reload — it never writes the fact itself.
+
+**Arrival** (`mark_arrival_explored`, migration `20260904135558`, [#790](https://github.com/irongollem/grimoire/issues/790)). Moving the party now fires something. A trigger on `campaigns.current_location_id` records the party's **first** arrival at a place as an `explored` assertion in the #787 log.
+
+It deliberately does **not** add an arrivals table. "The party has been here" and "this place is explored" are the same fact, and a second store for one fact is the shape [#780](https://github.com/irongollem/grimoire/issues/780) exists to remove.
+
+- **First arrival only.** The log answers *has* the party been here, not how many times, and a row per visit would bury a DM's own assertions under machine noise. Per-visit history is a different fact and would want its own row shape, not a flood of duplicates here.
+- **The guard reads the newest assertion, not mere existence.** A DM who explicitly marks a place un-explored has *said something*, so walking back in re-asserts it.
+- **`is distinct from`, not `<>`,** in the trigger's `WHEN`. The first move is from NULL, where `<>` evaluates to NULL — the trigger would have silently skipped the one arrival every fresh campaign is guaranteed to have.
+- **Fails safe.** With no authenticated user the trigger returns without writing, rather than failing the update: a party that cannot move is far worse than a missing log row.
+- `SECURITY INVOKER` and revoked from `public`, `anon` and `authenticated`, so it adds nothing to the advisor's definer count and stays off the PostgREST surface.
+
+Cover: `supabase/tests/party_arrival.test.sql`.
+
+**Clickable spaces on a site's map** (`location_map_regions`, migration `20260904142401`, [#784](https://github.com/irongollem/grimoire/issues/784), [#805](https://github.com/irongollem/grimoire/issues/805), [#807](https://github.com/irongollem/grimoire/issues/807) and [#818](https://github.com/irongollem/grimoire/issues/818), epic [#780](https://github.com/irongollem/grimoire/issues/780)). A site-tier place can show its map with clickable spaces traced onto it: the **image** (`locations.map_url` — a Cartographer bake, an uploaded scan, a photo of a hand-drawn page) with **regions** over it (`location_map_regions` rows, each a set of grid cells bound to a child location). A DM can trace clickable spaces straight onto a scanned page without ever opening the Cartographer.
+
+**One map surface, two layers (#807).** #784 and #805 built this as its own view (`SiteMapView.vue`), stacked *underneath* the ordinary pin map (`LocationMap.vue`) in `LocationDetailSections` — so a site-tier place rendered `map_url` twice, once with pins and once with regions, and a room could be both pinned on the parent's map and traced on this one at the same time. #807 deleted `SiteMapView` and moved its canvas into `MapRegionsLayer.vue`, a sibling of `MapPinsLayer.vue` mounted inside the same `MapFrame.vue` slot `LocationMap.vue` already used for pins — so the image, the zoom/pan, and the client-point → image-fraction conversion (`MapFrame`'s `toImageFraction`, extended with the frame's own `imageNaturalWidth`/`imageNaturalHeight` so no second `<img>` has to duplicate that reading) are each one implementation shared by both layers, not two. Rooms lost their pin eligibility in the same change — see "By pinnability" above — so a room is now designated on its parent's map by exactly one mechanism, a region, never both.
+
+- **The grid is anchored to the image, never to what has been traced on it.** Cells are resolved through `locations.grid_calibration` by `src/lib/gridCalibration.ts` — `gridExtent` for the extent, and `cellAtImageFraction` / `cellRectInImageFractions`, which are exact inverses so a cell you can click is a cell you can draw in the same place. #784 originally derived the extent from the union of the painted map and the traced regions, which meant **tracing a shape resized the coordinate space the shape was traced in**: the map visibly shrank, and — the dangerous half — the picture was re-stretched under every earlier region, so they silently stopped lining up with the features they were traced over. A grid over *nothing* has no intrinsic extent, which is why the extent had to come from its contents; anchoring to the image removes the need. `resolveGridBounds`, `DEFAULT_GRID_BOUNDS`, `regionsBoundingBox`, `GRID_PADDING_CELLS`, `cellAtPoint` and `fitTilePx` are gone.
+- **`grid_calibration` was already the answer, and is now shared.** It predates this work (`GridCalibrationDialog.vue` + `src/lib/battlemap/gridCalibration.ts`, built for battle maps) but was never VTT-specific in practice: `useMapExport` writes one on *every* Save to Atlas regardless of `is_battle_map`. Converging on it means a DM who traces rooms on a scan and later ticks "Battle map" is not asked to calibrate the same picture twice. It gained `origin_cell_x/y` because the bake insets the drawing by `DEFAULT_BAKE_PADDING_CELLS`, so a baked image's cell (0,0) is not the map's — without recording that offset a region traced on a bake could not be matched to the `CellMetadata` authored underneath it.
+- **Three states, and no invented default.** No `map_url` → no map surface at all, just a prompt. An image but no calibration → the map, read-only, with one action to calibrate. Both → the grid and tracing. A guessed calibration is deliberately *not* seeded: `!!grid_calibration` also gates the VTT (`EncounterRunner.vue`, `PlayerEncounterPanel.vue`), so a made-up value would silently switch those on at the wrong scale.
+- **Gated on presence, not on tier (#807).** [#810](https://github.com/irongollem/grimoire/issues/810) widened the site tier to include store, tavern and inn, so gating this apparatus on `isSiteType()` alone would grow every shop a "Room shapes" list, empty and permanent, since most venues will never trace a single room. `LocationMap.vue` instead shows the canvas overlay, the calibration prompt and `SiteMapRegionList` only once the site actually **has** a room or a region (`rooms.length > 0 || regions.length > 0`) — a presence question, not a taxonomy one. This isn't a dead end: a room is added first through the always-present `SiteRoomsPanel` (unconditional on site tier), and the apparatus reveals itself the moment one exists.
+- **The binding is relational; the geometry is not.** `space_location_id` is a real FK (cascade), `cells` is a jsonb array of `CellKey` strings — the same split `location_placements` and `location_doors` make, and deliberately not the shape `metadata.room_ids` left behind. `site_location_id` is required even on an unbound region, because a DM traces shapes off the page first and names them second; `space_location_id` null means exactly "traced but not yet named", not broken. A partial unique index allows only one *bound* region per space while several unbound ones coexist; a trigger (`guard_location_map_region_space`) rejects binding to something that is not a child of the site it is drawn on, or that has no footprint on this map.
+- **A region binds to any addressable space, not only a room** ([#818](https://github.com/irongollem/grimoire/issues/818)). A room, or a *nested site* — a `grounds` courtyard inside a dungeon occupies an area of the dungeon's floor plan exactly as a room does, and tracing its footprint to click through into it is the same descent a pin already gives, drawn as a polygon instead of a point. The column was called `room_location_id` until #818 and was renamed rather than stretched: a name that says `room` while holding a `grounds` id is the kind of thing that gets misread later. `bindableSpaces()` in `lib/locations/tiers.ts` mirrors the guard's type half so the picker never offers what the database will refuse — the database stays the authority, and a rejection still surfaces as a toast.
+- **There is no second image column, and an earlier draft's `underlay_url` was removed before it shipped.** `map_url` already *is* the picture of a place whatever its provenance, and `is_map_shared` already decides whether players see it. Two columns meant this panel reported "no map yet" on a site that plainly had one, because it consulted only its own field — the same two-answers-to-one-question shape the epic exists to remove. Regions overlay `map_url`; the location editor owns that field, and this layer has no uploader of its own.
+- **There is no live Cartographer canvas here any more, and that is deliberate.** #784 rendered `dungeon_maps.layers` live, over the image, and the migration header called that "the point". It was not: `map_url` and `source_map_id` are written together by Save to Atlas, so **the bake already is the render**, and drawing the tiles over their own bake shows the same picture except when the map was edited without re-baking — for which the answer is re-baking. Deleted with it: `useSiteMapRuntimes.ts`, `layersBoundingBox`, `collectUsedPackRefs`, and `renderMap`'s `transparentBackground` option (the engine is back to an unconditional opaque ground, untouched by the Atlas). What #789 needs from the Cartographer is cell *data* — keys joining `CellMetadata` — not a second renderer.
+- **Client side** (`MapRegionsLayer.vue`, `SiteMapRegionList.vue`, `useLocationMapRegions.ts`, `src/lib/gridCalibration.ts`, `src/lib/locations/siteMap.ts`, `src/types/locationMapRegion.types.ts`). `MapRegionsLayer` is mounted by `LocationMap.vue` — the one composite, alongside `MapPinsLayer` — for site-tier locations with the presence gate above satisfied; each caller (`LocationSheet`, `AtlasPlacePane`, `SiteRunSurface`) fetches its own `rooms`/`regions`/`calibration` and passes them in, the same way each already passed `pins`. `SiteMapRegionList` (the "Room shapes"/"Untitled shapes" CRUD list) is mounted by `LocationMap.vue` too, in browse mode only — mirroring how the pins layer's own "Unplaced children" list already lived inside `LocationMap.vue` rather than in a caller. The image renders through `MAP_IMAGE_SIZING` — the shared constant every layer uses — so none of them can disagree about its size; `siteMap.ts` is down to `toggleCell` and `isCellOnImageGrid`.
+- **Tracing is drag-to-paint.** The direction locks on the first cell touched — already in the region means the whole stroke erases, otherwise it paints — so dragging back over a cell cannot flicker it. Cells render live during the stroke, and the release commits **one** mutation rather than one round trip per cell. Because `useUpdateLocationMapRegion` invalidates rather than writing through, the committed cells are held in a local optimistic ref until the refetch carries them back; without it the shape snapped to its pre-drag state for one round trip, which is the same "nothing happened until later" the drag was built to fix.
+- **Interaction otherwise**: with no region selected, clicking a bound region's cell navigates to that room; clicking an unbound region's cell selects it for naming. Deliberately a grid, not a freeform polygon tool. Rooms with no region yet are still listed (not hidden), so a site is usable before it is fully traced.
+- **Pointer handling survives `MapFrame`'s pan/pinch capture without changing it.** `MapFrame` calls `setPointerCapture` on itself for most gestures, which retargets a descendant's own `pointermove`/`pointerup` listeners away from it — the same problem `MapPinsLayer`'s pin-drag already solved by listening on `window` instead of on the pin element. `MapRegionsLayer` uses the same idiom: `pointerdown` starts locally (captured or not, the initial event still reaches it), then `window`-level `pointermove`/`pointerup` track the rest of the gesture — a drag-to-paint stroke when a region is being traced, or a plain tap-to-navigate otherwise. This needed nothing new from the frame's gesture code — only an additive exposure, `imageNaturalWidth`/`imageNaturalHeight` (read off the frame's own `<img>`, so no second image element has to duplicate that measurement).
+
+Cover: `src/lib/locations/siteMap.test.ts` (grid bounds, click-to-cell mapping, cell toggling, pack-ref collection — the pure logic only; rendering itself is exercised by `src/cartographer/renderMap.test.ts`, unchanged by this feature).
+
+**The site runner** (`SiteRunSurface.vue`, `lib/locations/siteRun.ts`, [#791](https://github.com/irongollem/grimoire/issues/791), epic #780, Phase 1). One surface to run a dungeon at the table with **no quest open at all** — everything it needs already existed from #783–#790; this phase composes it. Three zones: **the place** (the map, via `LocationMap.vue`'s `run-mode`, plus a plain click-to-move room list — the list is what makes a site runnable before any of it is traced, since the map only mounts once `map_url` exists); **the current room** (description, `LocationStateControls`, `LocationPlacements`, `LocationDoors`, all composed inline — the DM never navigates away to reach any of it); **context** (rooms explored, doors still locked, at a glance).
+
+- **Clicking a room moves the party in one click, no confirmation.** That is the whole point of the phase — see the click-count bar in the issue. It is one write to `campaigns.current_location_id` via the existing `useSetCampaignLocation`; the arrival trigger (`mark_arrival_explored`, #790) records `explored` on its own, so this surface never writes `location_state_events` directly.
+- **`MapRegionsLayer` takes a `mode` prop (`"browse"` default, `"run"`), and `LocationMap.vue` forwards it from its own `run-mode` boolean, rather than either component forking (#807; before the delete, this was `SiteMapView`'s own `mode` prop).** Browse mode is unchanged. Run mode swaps click behaviour (a bound region moves the party instead of navigating to it), swaps the region palette (party-here blue, reachable green, unreachable stone-grey, untraced nearly invisible — repurposing browse mode's three tracing colours rather than adding a fourth), and — since `LocationMap.vue` only mounts `SiteMapRegionList` outside run mode — hides the editing-only room-shapes list entirely, the same way it always did: a DM at the table shouldn't be prompted to trace.
+- **Reachability is deliberately simple and lives in a pure module**, not the component: `reachableRoomIds` in `lib/locations/siteRun.ts` walks the site's door graph (`useSiteDoors` — an all-doors-of-one-site query, distinct from `useLocationDoors`'s single-room perspective), dropping any `starts_locked` door from the graph in both directions and respecting `is_one_way`. It does not weigh a locked door against a live "has this since been picked" fact, because no such fact exists yet — `starts_locked` is authored prep (#785), not play state, and #787's durable-site-state log was deliberately not extended to doors. A room the party can't currently reach is still clickable — it "selects without moving" by falling back to plain navigation to its own sheet, so the DM can look without relocating anyone.
+- **`partyRoomInSite`** (same module) answers "which of this site's rooms, if any, is the party in" from `campaigns.current_location_id` — `null` both when nobody knows where the party is and when the party is at the site itself or elsewhere entirely, which the surface treats identically: no current room to render.
+- **Out of scope on purpose**: anything about open quest chains. The ticket's original text mentioned them; that is #797's job, not this phase's — this surface has zero references to any `quest_*` table or component.
+
+Cover: `src/lib/locations/siteRun.test.ts` (reachability graph, party-room derivation — pure logic only).
+
+**Ambience follows the party during a session** (`usePartyAmbience`, mounted once in `DefaultLayout`). `locations.audio_theme` had existed since July 2026 driven by exactly one thing: a location *sheet* being open. So during a live session, clicking any location in the Atlas hijacked the table's ambience — the music followed what the DM was browsing rather than where the party was.
+
+- **Gated on a running session.** Following the party is a *play* behaviour; a DM tidying the Atlas on a Tuesday must not start music by changing a dropdown. Outside a session, sheet-driven preview is unchanged and worth keeping.
+- **`sourceId` is `party:${locationId}`, not a constant.** `useAudioThemeTriggers` dedupes ambient owners by `sourceId` (`:193`), so a literal `"party"` would have been a no-op after the first move and the theme would silently stop changing. The per-location id is what makes the request-then-release crossfade work across moves, and it keeps a namespace distinct from the sheet's `location:${id}` so the two producers cannot steal the slot from each other.
+- **Request-then-release ordering is load-bearing** in both producers: releasing first hands the slot back to whatever preceded the old location and then immediately takes it again, which is audible as a stop-start between two rooms that should cross over.
+- Starting a session with a sheet open hands the slot over immediately rather than leaving a stray scene playing; ending one resumes the preview.
+
+Widening `locations` at all means recreating `get_player_visible_locations`, which `returns setof locations` and lists every column positionally; `20260818081308` learned that the hard way and says so in its header.
 
 **Bulk seeding**: `SETTING_LOCATIONS` data maps calendar IDs to preset location arrays (e.g. Faerûn towns). `PLANAR_LOCATIONS` covers the 21 cosmological planes. Both use a two-pass insert: all records first, then parent links resolved by name.
 
@@ -153,7 +259,16 @@ Collapse/detail open state is persisted in `useUiStore` (`atlasChildrenOpen`, `a
   - Pin token images are **re-hydrated from live shared child data** (`PlayerLocationDetailPanel` `sharedChildren` map): the denormalised `child_image_url` snapshot in `map_pins` goes stale when a child's image is later replaced (its old storage file is deleted → 404), which players saw as broken pin images (#502). Shared children resolve their current image; unshared children fall back to the snapshot. `LocationMap` also hides any pin image that fails to load, falling back to the child's initial letter
   - Compact / Full-size toggle
 - Full description (only when `is_description_shared = true`)
-- **Wares** (store/tavern/inn with `is_inventory_shared = true`) — rendered via `PlayerStoreWares`
+- **Wares** (store/tavern/inn with `is_inventory_shared = true`) — rendered via `PlayerStoreWares`.
+  A store row carries only an `item_id`; the name behind it comes from the
+  `get_player_visible_items` projection, because players have no read path to `items`
+  (owner-only RLS since `20260711000014`). Those are two caches with different lifetimes —
+  the rows refetch on remount, the projection is `staleTime: Infinity` and, for a player,
+  is invalidated by nothing (`items` realtime events are owner-gated, and `store_items` is
+  not on the live-sync channel, #811). A shop revealed mid-session therefore listed its
+  whole stock as "Unknown item" until a hard reload. `useSharedStoreItems` now refetches
+  the projection once per unresolved `item_id`; the "not yet revealed" placeholder is the
+  in-flight state only, never a steady one.
 - **People in the Area** (when `is_npcs_shared = true`) — NPC cards showing display name, race, occupation (shapeshifter disguise respected via `getNpcDisplayName`)
 - **Player notes widget** — personal notes tied to this location entity
 
@@ -161,134 +276,16 @@ Collapse/detail open state is persisted in `useUiStore` (`atlasChildrenOpen`, `a
 
 ## Quest Log
 
-### DM View
+**Moved.** Quests are documented in [quests.md](quests.md) — the model (beats are
+events, objectives are state), the schema, every DM and player surface, and the
+runtime RPCs. [#780](https://github.com/irongollem/grimoire/issues/780) collapsed
+the two generations into that one model and deleted the older one outright, so
+there is no longer a second schema to describe; read quests.md for the whole of
+it.
 
-Route: `/quests` (list), `/quests/new`, `/quests/:id`, `/quests/:id?edit=true`
-
-**List page** (`QuestsView.vue` + `QuestList.vue`)
-
-- Filter bar: text search (title, summary, tags), **Shared with party**, **Prep gaps**, and **Loot pending** toggles, plus a searchable NPC/location/faction facet. Filters compose with AND semantics and show result counts where the data is already available. State lives in session-scoped refs in `useUiStore`, so it survives navigation but not a reload — a DM returning weeks later must not meet a board silently emptied by a forgotten facet; **Clear** resets the entire composition. Entity matching includes primary giver/location and typed `quest_refs`, including user-owned global material, loaded once per campaign rather than once per card. Prep and loot facets consume the same batched board summaries as the cards and remain inert until that data has loaded.
-- **View toggle**: list view ↔ Kanban board (preference stored in `ui.questsIsKanban`, persists session)
-- **List view**: responsive card grid (1–4 columns), status colour bar at top of each card, summary excerpt, tags (up to 2), time-ago stamp
-- **Kanban board**: five horizontally scrollable status lanes (Undiscovered, Rumor, Active, Completed, Failed), implemented by `QuestKanbanBoard.vue`. Cards are draggable between lanes and carry compact previous/next-lane controls as the keyboard/touch alternative; either route updates `status` through `useUpdateQuest`, and moving to Completed still schedules quest-completion consequences. Empty lanes distinguish a truly empty status from quests hidden by the active filters, while empty non-terminal lanes retain a New Quest action. `QuestBoardCard.vue` is the atomic card boundary and renders title, hook, tags, explicitly labelled player-sharing overflow, last-touched time, current beat, graph progress, prep gaps, and pending loot from its optional batched `QuestBoardSummary`. The list view consumes the same filters; status remains the single canonical board grouping.
-
-**Beat graph foundation** (`quest_beats`, `quest_beat_edges`, `quest_runtime_state`, `quest_beat_transitions`; `useQuestFlow.ts`): a beat is a general narrative moment, not a renamed combat encounter. Authored content and directed routes live separately from the live cursors and append-only navigation history. Beat kinds are extensible presentation hints (initially Combat / Social / Explore / Discovery / Neutral), never attachment constraints. Cycles are valid and client traversal in `lib/quests/graph.ts` is cycle-safe. New and improvised beats default hidden; player access uses `get_player_visible_quest_beats`, which returns explicit rumor/reveal copy and exposes no DM title/content fallback. Prep readiness is deliberately not stored on a beat: later attachment work derives it from linked payload requirements.
-
-**Beat attachments** (`quest_beat_attachments`; `lib/quests/attachments.ts`): typed placements point at existing encounters, objectives, quest refs, Atlas location/room sets, NPCs, factions, individual sounds, ambient audio scenes, music playlists, notes, and Scriptorium handouts. Scenes and playlists reuse the same Soundboard records/playback engine but remain distinct preparation choices and are validated against their ambient/music subtype. The adapter contract supplies compact summary data and the route back to each full editor. Required links whose polymorphic target was deleted resolve as prep gaps instead of throwing; optional missing links remain informational. Summaries batch once per attachment type, never once per beat/card. Server validation rejects cross-quest objectives and cross-campaign material. Encounter/NPC/faction/location placements also create the normal quest-level ref, preserving existing filters and reverse lookups; changing or removing a beat placement never deletes the authoritative entity or broader quest ref.
-
-**Graph adapter** (`lib/quests/flow.ts`, `QuestFlowCanvas.vue`, `QuestGraphOutline.vue`): Build mode uses `@vue-flow/core` 1.48.2 (MIT, Vue 3.3+; no plugin packages) behind domain mapping and command types, so persistence never receives library nodes. Core provides pan/zoom, touch dragging, selection, connection ports, and fit-on-open; the custom beat node and edge styling use Grimoire tokens. Narrow screens default to the ordered outline, which exposes equivalent create/open/link/delete actions and remains the screen-reader/keyboard fallback. Canvas motion respects reduced-motion preferences. Dependency review on 2026-08-10: package last updated 2026-01-28, unpacked core size ~1.29 MB; it remains isolated to the lazy-loaded quest designer path.
-
-**Build graph state** (`QuestGraphDesigner.vue`, `lib/quests/presentation.ts`): `?mode=build` loads beats, edges, typed attachment summaries, the campaign cursor, and quest history in a bounded set of queries. One shared presentation selector derives readiness, visibility-adjacent display, visited/current emphasis, route history, and disconnected staging state for reuse by Build, board, and Run; it accepts beat-loot counts from #661 without inventing a second loot state machine. Node positions save to authoritative beat coordinates after a short debounce with optimistic query-cache rollback. Viewport is a per-browser, per-quest preference: first open fits the graph, later opens restore it, and `?focus=current` recenters when returning from Run.
-
-**Graph-first quest lifecycle** (`20260810202052`, `QuestFlowStarter.vue`): every quest now enters the story-flow model. The migration backfills a hidden overview from existing summary/description content and unconnected combat staging beats for encounter refs, while preserving objectives, triggers, rewards, refs, sharing, subquests, and all quest metadata. It never infers narrative edges. Board/list cards and direct quest URLs open Build mode; Details/Edit is the secondary surface for preserved quest-level fields, and Run is available from a prepared graph. New Quest creates a lightweight flow-enabled shell and immediately opens the designer.
-
-**Quest overview beat** (`20260810214210`, `20260810220934`, `20260810231919`, `QuestOverviewDrawer.vue`, `QuestOverviewMetadata.vue`): each quest owns exactly one `is_overview` beat, created by an `after insert on quests` trigger and pinned by a partial unique index. It is a beat-plus — it shares the beat fields, attachment adapters, and loot workflow while carrying whole-story context — so quest-wide material, objectives, and legacy rewards live on it as ordinary placements, and the quest row keeps only lifecycle metadata (status, hierarchy, sharing, tags). It is deliberately never wired into the edge graph, which is why `deriveQuestBeatPresentations` exempts it from the disconnected-staging prep gap and `search_quest_runtime_jump_targets` withholds it as a Run destination. Nothing recreates it — the trigger fires only on quest insert — so `private.protect_quest_overview_beat()` (`20260810231919`) refuses to archive, demote, or delete it for every caller including `archive_quest_beat`; a cascade from the quest or campaign still passes, because by then the parent row is already gone. Regression cover: `supabase/tests/quest_overview_beat.test.sql`.
-
-**Graph authoring** (`QuestBeatComposer.vue`, `lib/quests/mutations.ts`): Add-next, empty-canvas connection drops, and the ordered outline open a client-local composer; no row exists until a non-empty title is submitted. Beat creation followed by route creation uses visible compensating rollback if the route fails, avoiding a migration/RPC whose real UTC version would sort behind the earlier counter-named quest migrations. Branching, convergence, cycles, source/target reconnection, and DM-only route labels use existing edge constraints; self-links and exact duplicates fail predictably. Concurrent co-DM route/label/position writes are last-write-wins, while unique/FK constraints remain authoritative. Removing a beat is a history-preserving soft archive: its beat-owned routes and placements are detached, authoritative entities/chat/inventory remain, and current beats require a replacement or explicit runtime end before removal.
-
-**Run cockpit** (`QuestRunCockpit.vue`, `QuestRunContainedTool.vue`): the quest's runtime cursor supports history-based Previous, explicit branch choice, within-quest Jump/Return, and a Something else path that remains available beside authored branches. Improv atomically creates a hidden beat and visit event, with optional return point and authored edge. Runtime hardening lives in `20260810231919` rather than in the migrations it amends, so environments that already applied the quest-flow batch pick the fixes up instead of diverging from history: `search_quest_runtime_jump_targets` excludes each quest's overview beat (it sits outside the edge graph, so parking the cursor there would leave the cockpit with no outgoing branches), and `get_quest_runtime_context` returns the most recent 100 transitions rather than the whole campaign history, because the cockpit polls it every 5 seconds; the full log stays readable from `quest_beat_transitions` itself. Attachments open in a lazy contained overlay: encounters reuse the focused Encounter Runner, audio calls the Soundboard, objectives update in place, entity records provide compact context, notes and Scriptorium handouts render their authoritative bodies, and Atlas sets render the selected root/room prep. Only the selected attachment type is queried; full specialist routes remain an escape hatch carrying the exact Run return URL.
-
-**Per-quest runtime cursors** (`20260822224306`, #755): `quest_runtime_state` is keyed `(campaign_id, quest_id)` — one cursor per chain, not one per campaign. The cursor tracks *narrative position in a chain*, not where the party is standing, and a party is routinely mid-progress on several at once: a main quest suspended on "find out who the killer is" while a side chain runs end to end, or two givers whose quests converge on the same cave so both advance in the same scene. The single cursor could represent neither, and produced three bugs it closes: `previous` read `visit_stack[index-1]` and took whatever quest sat there, so stepping back inside a side quest silently returned to the main one; `end` nulled the cursor, discarding the suspended quest's position with the finished one's; and the cockpit, mounted per-quest from its route, read the campaign cursor, so opening Run on quest A while the cursor sat in quest B rendered B's beat, branches, attachments and loot under A's URL.
-
-This is a strict generalisation, not a mode. A dungeon crawl whose beats are rooms is nearly always one quest — the N=1 case, behaviourally identical to before minus the Previous bug — so there is no toggle. Consequences worth not re-litigating:
-
-- **Back is undo, truncation included.** Navigating forward from a rewound position drops the abandoned entries, so a party that played a 1→2→3→4 flow in the order 1-3-4-2 steps back 2-4-3-1, and a DM who rewinds to re-read a beat then advances loses the skipped entry from the *back path only*. That is intended: Back means "undo my last navigation", Jump means "take me there" and records why. `quest_beat_transitions` stays the authoritative log, so nothing is lost. Do **not** rebuild the back path from it — that makes the path un-rewindable.
-- **A command names exactly one chain.** `p_target_quest_id` is gone from `transition_quest_runtime`; `jump` moves the cursor within its quest, and reaching another quest is navigation to that quest's own Run URL — no runtime write, no reason prompt. `search_quest_runtime_jump_targets` is scoped to match, which is why `rankQuestJumpTargets` lost its current/side/campaign grouping.
-- **`return_stack` travelled onto the per-quest row.** Cross-quest return stopped needing a stack once each quest remembers itself; within-quest jump still needs one. There is deliberately no campaign-scoped focus pointer — the `/quests/:id?mode=run` route already *is* the focus.
-- **Ending is per chain**, with `end_campaign_quest_session` pausing every running chain at its beat rather than clearing it. `get_campaign_live_quests` returns the open set, feeding the cockpit's "Also open" rail (`QuestRunOpenChains.vue`) and, later, the dashboard (#756).
-- **Nesting stays a sort hint.** A parent's cursor never aggregates its children's progress, and sub-quests get an ordinary row like any other quest.
-
-Players are unaffected: `quest_runtime_state` has one RLS policy gated on `private.is_campaign_dm()`, and `get_player_visible_quest_beats` exposes no cursor field. The cursor was invisible to players before and remains so. Two indirect couplings predate this and are unchanged — entering a beat writes a transition that the player projection folds into `visits`, and a wired `quest_objective_effects` row can flip an objective to `is_player_visible` on arrival. Regression cover: `supabase/tests/quest_runtime_navigation.test.sql` (52 assertions, including that Back cannot leave its chain and that ending one chain preserves another's position).
-
-**Quest editor fields** (two-column layout on desktop):
-*Left column:*
-
-- **Title** (required), **Status** selector (Undiscovered / Active / On Hold / Completed / Failed, colour-coded), **Player visibility toggle**, Save/Cancel/Delete/Scriptorium buttons
-- **Summary** — plain text, short description
-- **Quest Giver** — NPC combobox
-- **Location** — Location combobox (primary location for this quest)
-- **Part of Quest** — parent quest combobox (supports sub-quest nesting)
-- **Reward Notes** — freetext (XP, reputation, favours…)
-- **Reward Currency** — five-coin grid (PP/GP/EP/SP/CP); "Drop to Chat" button sends the currency pool as a chat message; integrated with `EncounterLoot` component for full loot management (items + multiple currency pools + art objects)
-- **Tags** — `TagInput`
-- **Description** — `RichTextEditor` (full narrative/context)
-- **DM Notes** — separate `RichTextEditor` (session notes, reminders — never shown to players)
-
-*Right column:*
-
-- **Objectives panel** — inline add/remove; each objective has a checkbox (toggle `is_done`) and a visibility toggle (Eye/EyeOff, controls `is_player_visible`). Objectives can only be added after the quest is saved.
-- **Reward panel** — `EncounterLoot` component (items, currency pools, art objects, "Drop pool to chat" and "Drop item to chat" buttons)
-- **Linked Encounters** — combobox to attach encounters; each linked ref has its own `is_player_visible` toggle
-
-**Quest sheet (view mode) — read-only sections:**
-
-- Status badge (colour-coded), Edit/Delete action bar
-- Summary text
-- Meta row: quest giver (links to NPC), primary location (links to location), parent quest (links to quest), tags
-- Description (Tiptap, rendered via `RichTextViewer`)
-- DM Notes (dimmed heading, rendered via `RichTextViewer`)
-- Objectives with interactive check/uncheck and visibility toggle (no edit mode required for these)
-- Rewards — coin text + item chips (link to vault) + freetext rewards note
-- Linked Encounters (section + count)
-- Key NPCs (grid, links to NPC detail)
-- Key Locations (chip links to location detail)
-- Creatures / Monsters (chip links)
-- Sub-quests (list with status badge + link)
-- **Scriptorium export** button — creates a Scriptorium document from this quest's content
-
-**Quest nesting**: `parent_quest_id` supports one level of official nesting (sub-quests shown on parent sheet). No depth limit in the schema.
-
-**AI quest generator** (`QuestGeneratorPanel.vue`, `src/ai/useQuestGeneration.ts`, `supabase/functions/generate-quest/index.ts`):
-
-- Opened via the **Generate** button (`Wand2` icon) on the Quest Log list page
-- Always mounted in `DefaultLayout.vue` so background generation survives navigation
-- Inputs: party average level (auto-calculated from `useParty()`) + optional Quest Giver and Location comboboxes (passed to the model as constraints AND prefilled onto the created quest's `giver_npc_id`/`location_id`) + optional theme textarea
-- Campaign setting context is automatically injected (`buildCampaignContext()` client-side; the edge function builds the same block server-side)
-- Produces 3–5 quest hooks, each with: title, summary, full DM narrative description (stored as Tiptap JSON), objectives, tags — and, on the server path, `npcs`/`locations`/`factions` name arrays (see Retrieval grounding below)
-- User picks a hook → quest record + all objectives created immediately, plus `quest_refs` rows for every hook-referenced NPC/location that resolved to a real record (skipping the giver/location already stored as FK columns; `is_player_visible: false`). Factions resolve to chips only — `quest_refs.ref_type` has no `faction` member.
-- Pro feature (paywall-gated). Generation runs server-side (`generate-quest`) on platform credits or the campaign's BYOK-cloud key, mirroring `generate-encounter`'s split; only local-key mode still runs the old client-side path, ungrounded by policy (BYOK-local is a legacy tier, not a parity target — see the comment in `useQuestGeneration.ts`).
-
-**Retrieval grounding (#600).** The quest generator was the first generator after the #595 bestiary to be grounded in the DM's own content; the roll-table generator (dungeon-craft.md) was the second, consuming the same corpora through `supabase/functions/_shared/campaignEntityRetrieval.ts`; the Chronicler (campaign-notes-calendar.md) was the third, adding a fourth corpus — the DM's `notes` (`note_embeddings`, migration `20260804000001`, embed text = title, category/"Session N", tags, then content truncated at 4000 chars since a note's substance IS its content; only the DM-authored `notes` table, never the player-authored `entity_notes`/`player_journal_entries`/`npc_player_notes`, per #599's exclusion rule). All note categories are embedded, but `match_campaign_notes` takes a `p_categories` predicate and the Chronicler passes `['session']` only — spoiler containment for player-facing prose; see campaign-notes-calendar.md. The mechanism is a deliberate replay of combat-encounters.md's "Monster retrieval" section — read that for the full rationale (side tables not columns, one vendor platform-wide, `SECURITY INVOKER` + service-role-only RPCs, graceful degradation); this section is the canonical home for the campaign-entity specifics, and later grounded generators should point here rather than re-document them.
-
-- **Corpus**: three embedding side tables — `npc_embeddings`, `faction_embeddings`, `location_embeddings` (migration `20260803000004`), each `vector(1536)` + `embedding_model` + `source_hash`, HNSW cosine index, `on delete cascade`, RLS enabled with zero policies (service-role only). No `library_*` twin exists for these — they are entirely DM-authored.
-- **Embed text formats** (`supabase/functions/_shared/entityEmbedText.ts` — format changes invalidate every stored `source_hash` for that entity type and force a full re-embed): NPC = name, race/occupation/alignment, tags, then Tiptap-flattened appearance/personality/backstory each truncated at 500 chars (NPC `notes` deliberately excluded — session scratch, not identity). Faction = name, type/alignment, tags, description. Location = name, type, tags, `player_summary`, description (`notes` excluded — dead column). Shared string utilities live in `embedTextUtil.ts` and are frozen — changing them re-embeds every entity type at once.
-- **Embed-on-write**: `queueNpcEmbedding`/`queueFactionEmbedding`/`queueLocationEmbedding` fire-and-forget `embed-content` (`mode: "single"`) after every create/update in `useNpcs`/`useFactions`/`useLocations`, including the bulk populate paths that bypass the mutation hooks. Ownership is enforced server-side (`row.user_id === auth.uid()`); an unchanged source hash short-circuits with no provider call. The admin backfill (`useEmbeddingBackfill.ts`, five targets) covers pre-existing rows and vendor switches.
-- **Retrieval** (`generate-quest`): the composed prompt is embedded once (recorded delta-0 as `entity_embedding`, after the rate-limit gate — same spend-protection ordering as `generate-encounter`), then `match_campaign_npcs`/`_locations`/`_factions` return 12/10/8 candidates. Scope predicate, in the RPC `WHERE` before ranking: rows in the active campaign (any author, so co-DM content counts) plus the campaign OWNER's global (`campaign_id IS NULL`) rows — mirroring the list views' null-means-global semantics, and stable under #596's planned default flip. Unembedded rows are appended by recency (caps 8/6/4) so brand-new entities are never invisible during the embed window.
-- **Offer**: candidates enter the prompt as `npc|Name|occupation` / `location|Name|type` / `faction|Name|type` lines inside a `---BEGIN CAMPAIGN ENTITIES---` block — fixed ~30 lines regardless of corpus size, so prompt cost does not scale with DM engagement.
-- **Resolve** (`src/ai/resolveGeneratedEntities.ts` — moved out of `lib/quests/` when the roll-table generator became its second consumer): hook name arrays are matched trim/case-insensitively against the client's own entity pools. Matched names render as clickable chips (`GeneratedEntityChips` in `components/common/`, shared with the roll-table panel); unmatched names render as dashed "new" chips — surfaced, never silently dropped, per the #337/#595 resolution-guard principle.
-- **Fallback**: any retrieval failure (no vendor, provider down, RPC error, zero candidates) drops the entity block and generates exactly what the pre-#600 client path sent. Retrieval can cost grounding, never the feature.
-- **Not documented here**: the loot generator (#602, dungeon-craft.md) is a fourth consumer of this pattern but does NOT use `campaignEntityRetrieval.ts` — items span two corpora and need a rarity/attunement *constraint band* applied in the RPC `WHERE` before ranking, which the single-corpus entity RPCs have no parameter for. It has its own sibling module (`_shared/itemRetrieval.ts`); read dungeon-craft.md's "AI loot generator" section for the band rationale before adding a band to anything else.
-
-**Ref system** (`quest_refs` table): quests maintain a set of typed references (NPC / Location / Monster / Encounter), each with an `is_player_visible` flag that controls what the player portal shows. This is separate from the primary giver NPC and primary location fields.
-
-**Status lifecycle:** Undiscovered → Active → On Hold / Completed / Failed. Undiscovered quests exist in the DM's log but are excluded from the player portal query (`usePlayerVisibleQuests` filters on `player_visible_to IS NOT NULL`).
-
-**Consequences (quest triggers):** DM configures time-delayed consequences in the quest editor (right column, "Consequences" panel). Each trigger has a condition (`quest_complete` or `objective_done` + which objective), an `offset_days` delay, and an action (`create_calendar_event` with title + event_type, or `send_broadcast` with message). When the condition fires, a `quest_trigger_scheduled` entry is created with `fire_date = today + offset_days`. When the DM advances the in-game date to ≥ fire_date via the calendar "Today" button, pending triggers execute: calendar events are created at the fire date, broadcasts are sent to the campaign chat. Composable helpers: `scheduleQuestTriggers()`, `fireDueTriggers()` in `useQuests.ts`.
-
-**In-game "today" date:** Stored as `current_year`, `current_month`, `current_day` on the `campaigns` table. The DM sets it via the calendar page's "Today: [date]" button (top-right actions area). Changing the date posts a `📅 The date is now…` announcement to the campaign chat and fires any pending consequences. Players see the current date in the player portal top bar (read-only). Live-synced to all connected clients via `useCampaignLiveSync` (watches `campaigns` table for `UPDATE` events).
-
-### Player View
-
-Route: `/play/quests` (list), `/play/quests/:id` (detail)
-
-**Quest list** (`PlayerQuestsView.vue`)
-
-- Shows only quests where `player_visible_to` is non-null (the DM has explicitly shared the quest)
-- Grouped into four sections: Active, On Hold, Completed, Failed (Undiscovered never appears)
-- Each entry: title, status badge (colour-coded), summary excerpt, rewards hint (gold star icon + rewards text)
-- Clicking navigates to the detail view
-
-**Quest detail** (`PlayerQuestDetailView.vue`)
-
-- Title + colour-coded status badge
-- Meta row: quest giver name (clickable → NPC lightbox modal), primary location name
-- Summary text
-- **Objectives** — only objectives with `is_player_visible = true` are shown; checkboxes are read-only (state display only); progress counter (done/total)
-- **Rewards** — shown when quest has rewards text, items, or currency (freetext only in the current player view)
-- **Key NPCs** — only refs with `is_player_visible = true`; clicking opens an NPC lightbox modal (portrait shown if in `player_visible_fields`; name, race, occupation shown per field permissions; includes a personal notes widget)
-- **Key Locations** — only player-visible refs; display only (no click-through)
-- **Creatures** — only player-visible refs; display only
-- **Player notes widget** — personal notes for this quest
+What stays here: quests reference Atlas locations through `quests.location_id` and
+typed `quest_refs` rows, and the AI quest generator's retrieval grounding is
+described below because three other generators share it.
 
 ---
 
@@ -418,16 +415,27 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 
 ---
 
+## Retrieval Grounding for AI Generators (#600)
+
+**Retrieval grounding (#600).** The quest generator was the first generator after the #595 bestiary to be grounded in the DM's own content; the roll-table generator (dungeon-craft.md) was the second, consuming the same corpora through `supabase/functions/_shared/campaignEntityRetrieval.ts`; the Chronicler (campaign-notes-calendar.md) was the third, adding a fourth corpus — the DM's `notes` (`note_embeddings`, migration `20260804000001`, embed text = title, category/"Session N", tags, then content truncated at 4000 chars since a note's substance IS its content; only the DM-authored `notes` table, never the player-authored `entity_notes`/`player_journal_entries`/`npc_player_notes`, per #599's exclusion rule). All note categories are embedded, but `match_campaign_notes` takes a `p_categories` predicate and the Chronicler passes `['session']` only — spoiler containment for player-facing prose; see campaign-notes-calendar.md. The mechanism is a deliberate replay of combat-encounters.md's "Monster retrieval" section — read that for the full rationale (side tables not columns, one vendor platform-wide, `SECURITY INVOKER` + service-role-only RPCs, graceful degradation); this section is the canonical home for the campaign-entity specifics, and later grounded generators should point here rather than re-document them.
+
+- **Corpus**: three embedding side tables — `npc_embeddings`, `faction_embeddings`, `location_embeddings` (migration `20260803000004`), each `vector(1536)` + `embedding_model` + `source_hash`, HNSW cosine index, `on delete cascade`, RLS enabled with zero policies (service-role only). No `library_*` twin exists for these — they are entirely DM-authored.
+- **Embed text formats** (`supabase/functions/_shared/entityEmbedText.ts` — format changes invalidate every stored `source_hash` for that entity type and force a full re-embed): NPC = name, race/occupation/alignment, tags, then Tiptap-flattened appearance/personality/backstory each truncated at 500 chars (NPC `notes` deliberately excluded — session scratch, not identity). Faction = name, type/alignment, tags, description. Location = name, type, tags, `player_summary`, description (`notes` excluded — dead column). Shared string utilities live in `embedTextUtil.ts` and are frozen — changing them re-embeds every entity type at once.
+- **Embed-on-write**: `queueNpcEmbedding`/`queueFactionEmbedding`/`queueLocationEmbedding` fire-and-forget `embed-content` (`mode: "single"`) after every create/update in `useNpcs`/`useFactions`/`useLocations`, including the bulk populate paths that bypass the mutation hooks. Ownership is enforced server-side (`row.user_id === auth.uid()`); an unchanged source hash short-circuits with no provider call. The admin backfill (`useEmbeddingBackfill.ts`, five targets) covers pre-existing rows and vendor switches.
+- **Retrieval** (`generate-quest`): the composed prompt is embedded once (recorded delta-0 as `entity_embedding`, after the rate-limit gate — same spend-protection ordering as `generate-encounter`), then `match_campaign_npcs`/`_locations`/`_factions` return 12/10/8 candidates. Scope predicate, in the RPC `WHERE` before ranking: rows in the active campaign (any author, so co-DM content counts) plus the campaign OWNER's global (`campaign_id IS NULL`) rows — mirroring the list views' null-means-global semantics, and stable under #596's planned default flip. Unembedded rows are appended by recency (caps 8/6/4) so brand-new entities are never invisible during the embed window.
+- **Offer**: candidates enter the prompt as `npc|Name|occupation` / `location|Name|type` / `faction|Name|type` lines inside a `---BEGIN CAMPAIGN ENTITIES---` block — fixed ~30 lines regardless of corpus size, so prompt cost does not scale with DM engagement.
+- **Resolve** (`src/ai/resolveGeneratedEntities.ts` — moved out of `lib/quests/` when the roll-table generator became its second consumer): hook name arrays are matched trim/case-insensitively against the client's own entity pools. Matched names render as clickable chips (`GeneratedEntityChips` in `components/common/`, shared with the roll-table panel); unmatched names render as dashed "new" chips — surfaced, never silently dropped, per the #337/#595 resolution-guard principle.
+- **Fallback**: any retrieval failure (no vendor, provider down, RPC error, zero candidates) drops the entity block and generates exactly what the pre-#600 client path sent. Retrieval can cost grounding, never the feature.
+- **Not documented here**: the loot generator (#602, dungeon-craft.md) is a fourth consumer of this pattern but does NOT use `campaignEntityRetrieval.ts` — items span two corpora and need a rarity/attunement *constraint band* applied in the RPC `WHERE` before ranking, which the single-corpus entity RPCs have no parameter for. It has its own sibling module (`_shared/itemRetrieval.ts`); read dungeon-craft.md's "AI loot generator" section for the band rationale before adding a band to anything else.
+
+---
+
 ## Key Capabilities / USPs
 
 - **Unlimited location hierarchy** with breadcrumb navigation at every level; parent/child wiring can be done at creation or retroactively from any location's editor.
 - **Interactive map pinning**: DM drops pins onto uploaded map images and links each to a child location. The pin picker recurses through vague container types (regions/continents) to surface concrete towns without flattening the hierarchy.
 - **Granular per-player visibility**: all three modules use a `player_visible_to: string[]` array of party member UUIDs — the DM selects which specific players see each item (not just a global "visible" flag).
 - **Layered location sharing**: four independent toggles (summary, full description, linked NPCs, inventory/store wares) give the DM fine-grained control over what each revealed location exposes.
-- **Quest objective visibility**: each individual objective has its own `is_player_visible` toggle, so the DM can reveal objectives one at a time.
-- **Quest ref system**: a typed reference table (`quest_refs`) links quests to NPCs, locations, monsters, and encounters with individual player-visibility flags, separate from the primary giver NPC / location links.
-- **Quest Kanban board** with atomic cards, drag-and-drop status changes, persistent evidence-based filters, and a persisted List/Kanban view toggle.
-- **Sub-quests**: quests support `parent_quest_id` for nesting (displayed on parent's sheet as a sub-quest list).
 - **Faction relationship graph**: bidirectional inter-faction relations with 8 relation types (Allied → Secret Enemy), queried as outgoing + incoming so both sides see the link.
 - **Faction member roster** distinguishes NPC members (with role + lifecycle status) from PC members (party characters), and exposes them to players who belong to the faction.
 - **Setting seed data**: Atlas and Factions both ship "Populate Setting" buttons that bulk-seed campaign-appropriate locations/factions from static data keyed by `calendar_id`.
@@ -444,7 +452,7 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 | Field                   | Type             | Notes                                                                                                                                                                   |
 | ----------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`                  | string           | Required                                                                                                                                                                |
-| `location_type`         | enum (17 values) | World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Store, Tavern, Inn, Room, Dungeon, Wilderness, Other                                 |
+| `location_type`         | enum (18 values) | World, Plane, Continent, Region, Country, City, Town, Village, District, Building, Grounds, Store, Tavern, Inn, Room, Dungeon, Wilderness, Other                        |
 | `parent_id`             | uuid FK          | Null = top-level                                                                                                                                                        |
 | `description`           | Tiptap JSON      | DM-only unless `is_description_shared`                                                                                                                                  |
 | `notes`                 | text             | (currently unused in UI)                                                                                                                                                |
@@ -460,67 +468,11 @@ catches it; `20260818081308` had to rebuild the function for exactly this reason
 | `is_inventory_shared`   | boolean          | Store/tavern/inn only                                                                                                                                                   |
 | `npc_owner_id`          | uuid FK          | Proprietor NPC                                                                                                                                                          |
 | `related_location_ids`  | uuid[]           | Non-hierarchical links to other locations (trade routes, tunnels, connected districts); shown in editor as inline chip picker and in sheet as "Related Locations" chips |
+| `campaign_id`           | uuid, nullable   | null = general (all campaigns), set = scoped to that campaign — see "Scope" below                                                                                       |
 
-### Quest (`quests` table)
+**Scope (`CampaignScopeField`, #596).** `LocationEditor` now offers the same "General — all campaigns" / "Campaign — *active campaign name*" toggle items/spells/species/monsters/traps/puzzles already had; a new location defaults to the active campaign, and editing an existing one — including an already-general one — never moves it regardless of which campaign is active. This is a bigger change here than for those other entities: `fetchLocations`/`fetchAllLocations` (`useLocations.ts`) had never read `campaign_id IS NULL` as "every campaign" at all, unlike every sibling table — they filtered with `.eq("campaign_id", campaignId)`, which never matches NULL. RLS and the FK layer already treated a null `campaign_id` as legitimate (a room can lose its campaign and the loot-placement FK is built to notice), so the gap was purely that the Atlas's own queries never looked for it. Both fetchers were widened to `.or("campaign_id.eq.<id>,campaign_id.is.null")` (matching `useQuestFilterEntities`'s existing location lookup, which had already special-cased this) so a general location is actually visible somewhere, not just accepted by the write path and then silently hidden. `useGlobalSearch`'s location query picked up the same widening.
 
-| Field                        | Type        | Notes                                                             |
-| ---------------------------- | ----------- | ----------------------------------------------------------------- |
-| `title`                      | string      | Required                                                          |
-| `status`                     | enum        | undiscovered, active, on_hold, completed, failed                  |
-| `summary`                    | string      | Short description                                                 |
-| `description`                | Tiptap JSON | Full narrative                                                    |
-| `notes`                      | Tiptap JSON | DM-only session notes                                             |
-| `giver_npc_id`               | uuid FK     | Primary quest giver NPC                                           |
-| `location_id`                | uuid FK     | Primary location                                                  |
-| `parent_quest_id`            | uuid FK     | For sub-quests                                                    |
-| `rewards`                    | string      | Freetext reward description                                       |
-| `reward_pp/gp/ep/sp/cp`      | integer     | Coin reward amounts                                               |
-| `reward_item_ids`            | uuid[]      | Item FK array                                                     |
-| `reward_currency_pools`      | JSONB       | Multiple named currency pools                                     |
-| `reward_art_objects`         | JSONB       | Art object rewards                                                |
-| `tags`                       | string[]    |                                                                   |
-| `player_visible_to`          | uuid[]      | Null = not yet shared; non-null = shared with those party members |
-| `started_at` / `resolved_at` | timestamp   |                                                                   |
-
-### QuestObjective (`quest_objectives` table)
-
-| Field               | Type    | Notes                                 |
-| ------------------- | ------- | ------------------------------------- |
-| `description`       | string  | Objective text                        |
-| `is_done`           | boolean | Togglable in both view and edit modes |
-| `is_player_visible` | boolean | Per-objective visibility toggle       |
-| `sort_order`        | integer | Display order                         |
-
-### QuestRef (`quest_refs` table)
-
-| Field               | Type    | Notes                             |
-| ------------------- | ------- | --------------------------------- |
-| `ref_type`          | enum    | npc, location, monster, encounter |
-| `ref_id`            | uuid    | ID of the referenced entity       |
-| `is_player_visible` | boolean | Individual ref visibility         |
-
-### QuestTrigger (`quest_triggers` table)
-
-| Field            | Type   | Notes                                                                   |
-| ---------------- | ------ | ----------------------------------------------------------------------- |
-| `quest_id`       | uuid   | Parent quest (cascade delete)                                           |
-| `objective_id`   | uuid?  | Set when `trigger_type = objective_done`                                |
-| `trigger_type`   | enum   | `quest_complete`, `objective_done`                                      |
-| `offset_days`    | int    | Days after condition fires before action executes                       |
-| `action_type`    | enum   | `create_calendar_event`, `send_broadcast`                               |
-| `action_payload` | JSONB  | `{title, event_type}` for calendar; `{message}` for broadcast           |
-
-### QuestTriggerScheduled (`quest_trigger_scheduled` table)
-
-| Field         | Type      | Notes                                           |
-| ------------- | --------- | ----------------------------------------------- |
-| `trigger_id`  | uuid      | FK → quest_triggers (cascade delete)            |
-| `quest_id`    | uuid      | Denormalised for fast lookup                    |
-| `campaign_id` | uuid      | For querying all pending triggers for a campaign|
-| `fire_year`   | int       | Computed fire date (today + offset_days)        |
-| `fire_month`  | int       |                                                 |
-| `fire_day`    | int       |                                                 |
-| `fired_at`    | timestamp | null = pending; set when fired                  |
+No migration reassigns the small number of locations that already carried a null `campaign_id` from before this fix — they simply become visible again, in every campaign, which is the documented behaviour for every other general-scoped entity in this app.
 
 ### Faction (`factions` table)
 

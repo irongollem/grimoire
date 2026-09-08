@@ -3,7 +3,7 @@
     <div class="flex items-start gap-3">
       <div class="min-w-0 flex-1">
         <h3 class="font-cinzel text-sm font-bold text-foreground">Quest identity</h3>
-        <p class="text-caption text-muted-foreground">Whole-story fields. Narrative preparation lives on the overview beat below.</p>
+        <p class="text-caption text-muted-foreground">What the quest is, rather than what happens in it. The story itself lives in its beats.</p>
       </div>
       <span class="text-caption" :class="saveError ? 'text-destructive' : 'text-muted-foreground'">
         {{ saveError || (saving ? "Saving…" : "Saved") }}
@@ -18,6 +18,19 @@
           tone="card"
           size="body"
           placeholder="Untitled Quest"
+          @blur="saveMetadata"
+          @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+        />
+      </label>
+
+      <label class="flex flex-col gap-1 sm:col-span-2">
+        <span class="text-label font-semibold text-muted-foreground">Premise</span>
+        <AppInput
+          v-model="summary"
+          tone="card"
+          size="body"
+          :maxlength="QUEST_SUMMARY_MAX"
+          placeholder="Players see this verbatim — the blurb that tells you what the quest is without opening it. One sentence, no DM secrets."
           @blur="saveMetadata"
           @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
         />
@@ -74,8 +87,9 @@ import TagInput from "@/components/common/TagInput.vue";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useNpcs } from "@/composables/npcs/useNpcs";
-import { scheduleQuestTriggers, useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
+import { useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
+import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type Quest, type QuestStatus } from "@/types/quest.types";
 
 const props = defineProps<{ quest: Quest }>();
@@ -86,6 +100,7 @@ const { data: allQuests } = useAllQuests();
 const { mutateAsync: updateQuest } = useUpdateQuest();
 
 const title = ref("");
+const summary = ref("");
 const status = ref<QuestStatus>("undiscovered");
 const giverNpcId = ref("");
 const locationId = ref("");
@@ -103,6 +118,7 @@ const parentQuestOptions = computed(() => (allQuests.value ?? [])
 
 function syncFromQuest() {
   title.value = props.quest.title ?? "";
+  summary.value = props.quest.summary ?? "";
   status.value = props.quest.status;
   giverNpcId.value = props.quest.giver_npc_id ?? "";
   locationId.value = props.quest.location_id ?? "";
@@ -123,7 +139,6 @@ async function saveMetadata() {
     saveQueued = true;
     return;
   }
-  const previousStatus = props.quest.status;
   const wasShared = (props.quest.player_visible_to?.length ?? 0) > 0;
   saving.value = true;
   saveError.value = "";
@@ -133,6 +148,7 @@ async function saveMetadata() {
       id: props.quest.id,
       update: {
         title: nextTitle,
+        summary: summary.value.trim() || null,
         status: status.value,
         giver_npc_id: giverNpcId.value || null,
         location_id: locationId.value || null,
@@ -141,13 +157,6 @@ async function saveMetadata() {
         player_visible_to: playerVisibleTo.value,
       },
     });
-    if (previousStatus !== "completed" && status.value === "completed" && campaign.activeCampaignId) {
-      void scheduleQuestTriggers(props.quest.id, "quest_complete", null, {
-        year: campaign.todayYear,
-        month: campaign.todayMonth,
-        day: campaign.todayDay,
-      }, campaign.activeCampaignId);
-    }
     if (!wasShared && playerVisibleTo.value.length && campaign.activeCampaignId) {
       void sendCampaignAnnouncement(campaign.activeCampaignId, `📋 Quest shared: "${nextTitle}"`, {
         entity_type: "quest",

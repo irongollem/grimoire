@@ -25,7 +25,7 @@ export interface OptionalCategoryDef {
 export type CategoryDef = RandomCategoryDef | DirectionalCategoryDef | OptionalCategoryDef;
 
 export const TILE_PACK_SCHEMA = {
-  version: 2,
+  version: 3,
   categories: {
     floor:          { kind: "random",      min: 8,  max: 16 },
     wallSegmentH:   { kind: "random",      min: 2,  max: 6  },
@@ -49,6 +49,39 @@ export const TILE_PACK_SCHEMA = {
     objectStatue:   { kind: "optional",    min: 0,  max: 4  },
     objectPillar:   { kind: "optional",    min: 0,  max: 4  },
     objectBrazier:  { kind: "optional",    min: 0,  max: 4  },
+    // Schema v3 (#804): trap hazard glyphs — drawing hints for
+    // `traps.hazard_glyph`. All optional, so a v2 pack stays valid; most
+    // packs will render these via the procedural placeholder (see
+    // hazardPlaceholders.ts) for a long time before real art exists.
+    hazardPit:             { kind: "optional", min: 0, max: 4 },
+    hazardPressurePlate:   { kind: "optional", min: 0, max: 4 },
+    hazardTripwire:        { kind: "optional", min: 0, max: 4 },
+    hazardFallingBlock:    { kind: "optional", min: 0, max: 4 },
+    hazardDartWall:        { kind: "optional", min: 0, max: 4 },
+    hazardBlade:           { kind: "optional", min: 0, max: 4 },
+    hazardFlameJet:        { kind: "optional", min: 0, max: 4 },
+    hazardGlyph:           { kind: "optional", min: 0, max: 4 },
+    hazardNet:             { kind: "optional", min: 0, max: 4 },
+    hazardAlarm:           { kind: "optional", min: 0, max: 4 },
+    hazardCollapsingFloor: { kind: "optional", min: 0, max: 4 },
+    // Drawn for a placed trap whose hazard_glyph is null — still a marker,
+    // never an empty cell (see cartographer/glyphs.ts).
+    hazardGeneric:         { kind: "optional", min: 0, max: 4 },
+    // Schema v3 (#804): dungeon feature glyphs — drawing hints for
+    // `dungeon_features.feature_glyph`. Same contract as the hazard set above.
+    featureSecretDoor:     { kind: "optional", min: 0, max: 4 },
+    featureHiddenPassage:  { kind: "optional", min: 0, max: 4 },
+    featureCache:          { kind: "optional", min: 0, max: 4 },
+    featureMovingWall:     { kind: "optional", min: 0, max: 4 },
+    featureLever:          { kind: "optional", min: 0, max: 4 },
+    featureAltar:          { kind: "optional", min: 0, max: 4 },
+    featureFountain:       { kind: "optional", min: 0, max: 4 },
+    featureStatue:         { kind: "optional", min: 0, max: 4 },
+    featureRubble:         { kind: "optional", min: 0, max: 4 },
+    featureInscription:    { kind: "optional", min: 0, max: 4 },
+    // Drawn for a placed feature whose feature_glyph is null — same rule as
+    // hazardGeneric above.
+    featureGeneric:        { kind: "optional", min: 0, max: 4 },
   },
 } as const satisfies { version: number; categories: Record<string, CategoryDef> };
 

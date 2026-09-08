@@ -5,7 +5,7 @@ import { ITEM_RARITIES } from "@/types/item.types";
 import { MONSTER_TYPES } from "@/types/monster.types";
 
 /**
- * Tests for the two text helpers `normalize.ts` shares across all seven
+ * Tests for the two text helpers `normalize.ts` shares across all eight
  * mappers. Split out from `normalize.test.ts` because these cover a different
  * thing: the mapper tests assert a payload becomes the right row, while these
  * assert the two primitives every one of those mappers leans on. That split is

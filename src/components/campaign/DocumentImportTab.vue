@@ -31,7 +31,7 @@
 
       <div class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-2">
         <div class="flex items-center gap-2 text-body text-foreground">
-          <component :is="pendingRow.source_kind === 'pdf' ? IconDocument : IconImages" class="h-4 w-4 text-muted-foreground shrink-0" />
+          <component :is="sourceKindIcon(pendingRow.source_kind)" class="h-4 w-4 text-muted-foreground shrink-0" />
           <span>{{ pageLabel(pendingRow.page_count) }}</span>
         </div>
         <template v-if="costLoading">
@@ -132,12 +132,12 @@
       </div>
     </template>
 
-    <!-- ── Upload step ──────────────────────────────────────────────────────── -->
+    <!-- ── Upload / paste step ──────────────────────────────────────────────── -->
     <template v-else>
       <div>
         <h3 class="font-cinzel text-sm font-semibold text-foreground">Document Import</h3>
         <p class="text-body text-muted-foreground italic mt-1">
-          Import from a PDF or page photos.
+          Import from a PDF, page photos, or pasted text.
         </p>
       </div>
 
@@ -146,88 +146,93 @@
         <template v-else>Free plan: up to {{ FREE_PAGE_LIMIT }} pages per import — Pro raises this to {{ PRO_PAGE_LIMIT }}.</template>
       </p>
 
-      <div>
-        <AppButton
-          variant="outline"
-          size="md"
-          :label="selectedFiles.length ? 'Choose different files' : 'Choose a PDF or photos'"
-          :icon="IconUpload"
-          @click="openFilePicker"
-        />
-        <input
-          ref="fileInputRef"
-          type="file"
-          multiple
-          :accept="ACCEPTED_MIME_TYPES.join(',')"
-          class="hidden"
-          @change="onFilesPicked"
-        />
-      </div>
+      <SegmentedControl v-model="sourceMode" :options="SOURCE_MODE_OPTIONS" />
 
-      <!-- Selected files -->
-      <div v-if="selectedFiles.length" class="rounded-md border border-border divide-y divide-border">
-        <div
-          v-for="(file, index) in selectedFiles"
-          :key="`${file.name}-${index}`"
-          class="flex items-center gap-2 px-3 py-2"
-        >
-          <component
-            :is="file.type === 'application/pdf' ? IconDocument : IconImages"
-            class="h-4 w-4 text-muted-foreground shrink-0"
+      <DocumentImportPasteStep v-if="sourceMode === 'paste'" />
+      <template v-else>
+        <div>
+          <AppButton
+            variant="outline"
+            size="md"
+            :label="selectedFiles.length ? 'Choose different files' : 'Choose a PDF or photos'"
+            :icon="IconUpload"
+            @click="openFilePicker"
           />
-          <span class="text-body text-foreground truncate flex-1">{{ file.name }}</span>
-          <span class="text-caption text-muted-foreground shrink-0">{{ formatBytes(file.size) }}</span>
-          <AppButton variant="ghost" size="icon-xs" :icon="IconClose" aria-label="Remove file" @click="removeFile(index)" />
+          <input
+            ref="fileInputRef"
+            type="file"
+            multiple
+            :accept="ACCEPTED_MIME_TYPES.join(',')"
+            class="hidden"
+            @change="onFilesPicked"
+          />
         </div>
-      </div>
 
-      <!-- Count / cost / caps -->
-      <template v-if="counting">
-        <p class="text-caption text-muted-foreground italic">Reading document…</p>
+        <!-- Selected files -->
+        <div v-if="selectedFiles.length" class="rounded-md border border-border divide-y divide-border">
+          <div
+            v-for="(file, index) in selectedFiles"
+            :key="`${file.name}-${index}`"
+            class="flex items-center gap-2 px-3 py-2"
+          >
+            <component
+              :is="file.type === 'application/pdf' ? IconDocument : IconImages"
+              class="h-4 w-4 text-muted-foreground shrink-0"
+            />
+            <span class="text-body text-foreground truncate flex-1">{{ file.name }}</span>
+            <span class="text-caption text-muted-foreground shrink-0">{{ formatBytes(file.size) }}</span>
+            <AppButton variant="ghost" size="icon-xs" :icon="IconClose" aria-label="Remove file" @click="removeFile(index)" />
+          </div>
+        </div>
+
+        <!-- Count / cost / caps -->
+        <template v-if="counting">
+          <p class="text-caption text-muted-foreground italic">Reading document…</p>
+        </template>
+        <template v-else-if="countResult && !countResult.ok">
+          <p class="text-caption text-destructive">{{ countResult.message }}</p>
+        </template>
+        <ProFeatureGate v-else-if="pageCapUpsell" :message="pageCapUpsell.message" />
+        <p v-else-if="validationFailure" class="text-caption text-destructive">{{ validationFailure.message }}</p>
+        <div v-else-if="countResult?.ok" class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-2">
+          <p class="text-body text-foreground">{{ pageLabel(countResult.pageCount) }}</p>
+          <template v-if="costLoading">
+            <p class="text-caption text-muted-foreground italic">Calculating cost…</p>
+          </template>
+          <template v-else-if="costErrored || !costEstimate">
+            <p class="text-caption text-muted-foreground italic">Price unavailable</p>
+          </template>
+          <template v-else>
+            <GenerationCostBadge :credits="costEstimate.totalCredits" />
+            <p class="text-caption text-muted-foreground">
+              {{ costEstimate.baseCredits }} base + {{ costEstimate.perPageCredits }} × {{ costEstimate.pageCount }} pages
+            </p>
+          </template>
+        </div>
+
+        <!-- Display name -->
+        <div>
+          <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">Name *</label>
+          <AppInput v-model="displayName" tone="muted" size="body" placeholder="e.g. Chapter 3 notes" />
+        </div>
+
+        <!-- Rights attestation -->
+        <AppCheckbox v-model="rightsAttested" size="md" label="I have the right to use this material." />
+
+        <p v-if="uploadError" class="text-caption text-destructive">{{ uploadError }}</p>
+
+        <div class="flex justify-end pt-2">
+          <AppButton
+            variant="primary"
+            size="md"
+            label="Upload"
+            :icon="IconUpload"
+            :loading="createImport.isPending.value"
+            :disabled="!canSubmitUpload"
+            @click="submitUpload"
+          />
+        </div>
       </template>
-      <template v-else-if="countResult && !countResult.ok">
-        <p class="text-caption text-destructive">{{ countResult.message }}</p>
-      </template>
-      <ProFeatureGate v-else-if="pageCapUpsell" :message="pageCapUpsell.message" />
-      <p v-else-if="validationFailure" class="text-caption text-destructive">{{ validationFailure.message }}</p>
-      <div v-else-if="countResult?.ok" class="rounded-md border border-border bg-muted/30 px-4 py-3 space-y-2">
-        <p class="text-body text-foreground">{{ pageLabel(countResult.pageCount) }}</p>
-        <template v-if="costLoading">
-          <p class="text-caption text-muted-foreground italic">Calculating cost…</p>
-        </template>
-        <template v-else-if="costErrored || !costEstimate">
-          <p class="text-caption text-muted-foreground italic">Price unavailable</p>
-        </template>
-        <template v-else>
-          <GenerationCostBadge :credits="costEstimate.totalCredits" />
-          <p class="text-caption text-muted-foreground">
-            {{ costEstimate.baseCredits }} base + {{ costEstimate.perPageCredits }} × {{ costEstimate.pageCount }} pages
-          </p>
-        </template>
-      </div>
-
-      <!-- Display name -->
-      <div>
-        <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">Name *</label>
-        <AppInput v-model="displayName" tone="muted" size="body" placeholder="e.g. Chapter 3 notes" />
-      </div>
-
-      <!-- Rights attestation -->
-      <AppCheckbox v-model="rightsAttested" size="md" label="I have the right to use this material." />
-
-      <p v-if="uploadError" class="text-caption text-destructive">{{ uploadError }}</p>
-
-      <div class="flex justify-end pt-2">
-        <AppButton
-          variant="primary"
-          size="md"
-          label="Upload"
-          :icon="IconUpload"
-          :loading="createImport.isPending.value"
-          :disabled="!canSubmitUpload"
-          @click="submitUpload"
-        />
-      </div>
     </template>
   </div>
 </template>
@@ -260,9 +265,25 @@
  * `localOutcome` therefore covers completion reported by the wizard and the
  * defensive case where a row disappears while extraction is in flight. The
  * `failedView` / `completeView` computeds check the live row first.
+ *
+ * ── File size (#829) ─────────────────────────────────────────────────────
+ *
+ * This file was already past the 600-line soft cap before the "paste text"
+ * source was added, so per CLAUDE.md that addition's own substance had to be
+ * split out rather than inlined here — see `DocumentImportPasteStep.vue`,
+ * which owns the paste editor, its count/cost/validation, and its own
+ * name/rights/submit footer entirely. What's left in *this* file for that
+ * feature is only the source picker (`SegmentedControl` + `sourceMode`) and
+ * a one-line icon lookup for a row's `source_kind` — wiring, not a feature,
+ * and inlining that sliver would not have made the split real. The
+ * remaining overage is five other already-cohesive states of one state
+ * machine (pending/extracting/failed/complete/upload); breaking those apart
+ * further would trade this file's length for prop/emit plumbing between
+ * pieces that all read the same `activeImport` row, which is a worse trade.
  */
 import { computed, ref, watch } from "vue";
 import {
+  IconClipboard,
   IconClose,
   IconDelete,
   IconDocument,
@@ -277,7 +298,9 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
+import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import DocumentImportWizard from "@/components/campaign/DocumentImportWizard.vue";
+import DocumentImportPasteStep from "@/components/campaign/DocumentImportPasteStep.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useSubscription } from "@/composables/billing/useSubscription";
@@ -298,7 +321,7 @@ import {
   PRO_PAGE_LIMIT,
   type UploadValidationResult,
 } from "@/lib/documentImport/limits";
-import { IMPORT_ENTITY_KINDS, type DocumentImport, type ImportEntityKind } from "@/types/documentImport.types";
+import { IMPORT_ENTITY_KINDS, type DocumentImport, type DocumentImportSourceKind, type ImportEntityKind } from "@/types/documentImport.types";
 
 const KIND_LABELS: Record<ImportEntityKind, string> = {
   monsters: "Monsters",
@@ -308,6 +331,7 @@ const KIND_LABELS: Record<ImportEntityKind, string> = {
   spells: "Spells",
   quests: "Quests",
   factions: "Factions",
+  encounters: "Encounters",
 };
 
 function pageLabel(count: number): string {
@@ -316,6 +340,12 @@ function pageLabel(count: number): string {
 
 function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function sourceKindIcon(kind: DocumentImportSourceKind) {
+  if (kind === "text") return IconClipboard;
+  if (kind === "pdf") return IconDocument;
+  return IconImages;
 }
 
 const { confirm } = useConfirm();
@@ -418,6 +448,19 @@ const currentPageCount = computed<number>(() => {
   return countResult.value?.ok ? countResult.value.pageCount : 0;
 });
 const { estimate: costEstimate, isLoading: costLoading, isError: costErrored } = useImportCost(currentPageCount);
+
+// ── Source picker (#829) — upload vs. paste ──────────────────────────────────
+// The paste mode's own state, editor, and submit flow live entirely in
+// DocumentImportPasteStep.vue (see that file's header for why it's a sibling
+// component rather than a branch inlined here); this tab owns only which of
+// the two is showing.
+
+type ImportSourceMode = "upload" | "paste";
+const sourceMode = ref<ImportSourceMode>("upload");
+const SOURCE_MODE_OPTIONS: SegmentedOption<ImportSourceMode>[] = [
+  { value: "upload", label: "Upload", icon: IconUpload },
+  { value: "paste", label: "Paste text", icon: IconClipboard },
+];
 
 // ── Upload step: file selection ───────────────────────────────────────────────
 

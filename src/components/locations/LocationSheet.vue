@@ -35,6 +35,17 @@
         :disabled="isDeleting"
         @click="onDelete"
       />
+      <!-- The site runner (#791, epic #780) — one surface to run a dungeon
+           at the table. Site-tier only: a room's own sheet has nothing to
+           run, and every other tier has no rooms to move a party between. -->
+      <AppButton
+        v-if="isSiteType(location.location_type)"
+        variant="outline"
+        size="md"
+        :icon="IconPlay"
+        label="Run"
+        @click="router.push({ query: { ...route.query, run: 'true' } })"
+      />
       <AppButton
         variant="primary"
         size="md"
@@ -74,7 +85,8 @@
       </div>
     </div>
 
-    <!-- Map -->
+    <!-- Map — pins and, on a site-tier place, traced room regions, both on
+         the one rendering of `location.map_url` (#807). -->
     <section v-if="location.map_url" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Map</h2>
       <LocationMap
@@ -83,19 +95,25 @@
         :children="mapPinnableChildren"
         mode="view"
         :show-hidden-pins="true"
+        :location-id="location.id"
+        :show-regions="isSiteType(location.location_type)"
+        :regions="siteRegions"
+        :spaces="siteSpaces"
+        :calibration="location.grid_calibration"
+        v-model:active-region-id="activeRegionId"
         @pin-click="onPinClick"
       />
     </section>
 
     <!-- Sub-locations — read-only list linking into each child. -->
-    <section v-if="children?.length" class="flex flex-col gap-2">
+    <section v-if="subLocations.length" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Sub-locations
-        <span class="font-fell font-normal text-muted-foreground">({{ children.length }})</span>
+        <span class="font-fell font-normal text-muted-foreground">({{ subLocations.length }})</span>
       </h2>
       <div class="flex flex-wrap gap-2">
         <RouterLink
-          v-for="child in children"
+          v-for="child in subLocations"
           :key="child.id"
           :to="`/locations/${child.id}`"
           class="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 hover:border-primary/50 transition-colors"
@@ -118,15 +136,18 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
-import { IconDelete, IconEdit } from '@/lib/icons';
+import { IconDelete, IconEdit, IconPlay } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
+import { useUiStore } from "@/stores/ui";
 import {
   useLocations,
   useAllLocations,
   useDeleteLocation,
   getPinnableDescendants,
 } from "@/composables/locations/useLocations";
+import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
+import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import { visibleTags } from "@/lib/locations/tags";
 import type { Location } from "@/types/location.types";
@@ -140,6 +161,7 @@ const props = defineProps<{ location: Location }>();
 const route   = useRoute();
 const router  = useRouter();
 const { confirm } = useConfirm();
+const ui = useUiStore();
 
 // ── Ancestor chain, same as editor ──────────────────────────────────────────
 const { data: allLocations } = useAllLocations();
@@ -170,6 +192,40 @@ const mapPinnableChildren = computed(() => {
   return getPinnableDescendants(props.location.id, allLocations.value);
 });
 
+// ── Site regions (#807) — only ever queried for a site-tier place; the
+//    empty-string id below keeps the query disabled everywhere else. ────────
+const activeRegionId = ref<string | null>(null);
+const isSite = computed(() => isSiteType(props.location.location_type));
+const siteRegionsQuery = useLocationMapRegions(
+  computed(() => (isSite.value ? props.location.id : "")),
+);
+const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
+// Every child that can carry a shape on this map — a room, or a nested site
+// such as a courtyard inside a dungeon (#818). The database decides this; the
+// helper exists so the picker never offers what the guard would refuse.
+const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
+
+/**
+ * Sub-locations, minus the rooms — a site's rooms are owned by the Rooms panel
+ * below (`SiteRoomsPanel`, via `LocationDetailSections`), which numbers and
+ * orders them, and by the traced regions on the map above.
+ *
+ * Without this a dungeon lists every room twice on one page: once here as a
+ * plain child and once as a numbered room. #783 made exactly this cut in the
+ * Atlas tree's "Interiors" group for the same reason; this list was simply
+ * missed, and stayed invisible while rooms were also pinnable, because the
+ * pins made the duplication look like three views of one thing rather than
+ * two lists of the same thing.
+ *
+ * Only on a place that *has* the Rooms panel: everywhere else a room-typed
+ * child has no other home, and hiding it would lose it.
+ */
+const subLocations = computed(() =>
+  isSite.value
+    ? (children.value ?? []).filter((l) => l.location_type !== "room")
+    : (children.value ?? []),
+);
+
 // ── Delete ──────────────────────────────────────────────────────────────────
 const { mutateAsync: deleteLocation } = useDeleteLocation();
 const isDeleting = ref(false);
@@ -195,31 +251,43 @@ function onPinClick(childId: string) {
 // leaving it says the opposite. A release always names the location being
 // *left* — naming the one being entered would have a DM walking between two
 // themed rooms cancel the audio they just started.
-function requestAmbience(loc: Location): void {
-  if (!loc.audio_theme) return;
-  requestAudioTheme({
-    sourceId: `location:${loc.id}`,
-    theme: loc.audio_theme,
-    slot: "ambient",
-    label: loc.name,
-    kind: "location",
-  });
+//
+// Only while no session is running (#790). Mid-session, ambience follows
+// where the party actually *is* — see `usePartyAmbience`, mounted app-level —
+// not whatever the DM happens to have open in the Atlas: that used to hijack
+// the table's music the moment a DM clicked a different location while
+// browsing. With no session running this is unchanged, and that is
+// deliberate: it is the prep-time preview of the room the DM is looking at.
+//
+// `heldSourceId` (rather than deriving straight from `props.location.id`)
+// is what lets one function answer both triggers below: a location change
+// and a session starting or ending mid-browse must produce the exact same
+// request-then-release behaviour, including the case where a session starts
+// while this sheet is already open — the slot must be handed to the party
+// immediately rather than left playing whatever the DM last browsed.
+const heldSourceId = ref<string | null>(null);
+
+function syncAmbience(loc: Location): void {
+  const previous = heldSourceId.value;
+  const theme = ui.sessionRunning ? null : loc.audio_theme;
+  const next = theme ? `location:${loc.id}` : null;
+  if (previous === next) return;
+  // Request first, release second, and the order is load-bearing. The new
+  // owner takes the ambient slot synchronously, so the release that follows
+  // is recognised as stale and ignored. Releasing first would instead hand
+  // the slot back to whatever preceded it and then immediately take it again
+  // — an audible stop-start between two rooms that should simply cross over.
+  if (theme) {
+    requestAudioTheme({ sourceId: `location:${loc.id}`, theme, slot: "ambient", label: loc.name, kind: "location" });
+  }
+  if (previous) releaseAudioTheme(previous);
+  heldSourceId.value = next;
 }
 
-watch(
-  () => props.location.id,
-  (_id, previousId) => {
-    // Request first, release second, and the order is load-bearing. The new
-    // location takes ownership of the ambient slot synchronously, so the
-    // release that follows is recognised as stale and ignored. Releasing first
-    // would instead hand the slot back to whatever preceded the old location
-    // and then immediately take it again — an audible stop-start between two
-    // rooms that should simply cross over.
-    requestAmbience(props.location);
-    if (previousId) releaseAudioTheme(`location:${previousId}`);
-  },
-  { immediate: true },
-);
+watch(() => props.location.id, () => syncAmbience(props.location), { immediate: true });
+watch(() => ui.sessionRunning, () => syncAmbience(props.location));
 
-onUnmounted(() => releaseAudioTheme(`location:${props.location.id}`));
+onUnmounted(() => {
+  if (heldSourceId.value) releaseAudioTheme(heldSourceId.value);
+});
 </script>

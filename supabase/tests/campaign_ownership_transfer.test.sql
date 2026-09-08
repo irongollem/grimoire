@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(83);
+select plan(82);
 
 select has_function(
   'public',
@@ -742,13 +742,14 @@ select is(
   'the original npc is untouched and still owned by the outgoing DM'
 );
 
--- ── Scenario 3: location_set attachment with a parent location and a room ──
--- Both are global locations; the attachment's ref_id is the parent, and
--- metadata->room_ids lists the room. Both must clone, both references in the
--- attachment must repoint, the room clone's parent_id must remap to the
--- parent CLONE (clone-to-clone), and both clones' source_map_id must be
--- nulled (the parent had a real Cartographer deep-link before transfer, to
--- make that null-out assertion mean something rather than trivially holding).
+-- ── Scenario 3: a beat staged at a global site with a room under it ────────
+-- Both are global locations. The beat stages at the parent (#797); the room is
+-- reached by descent rather than by a hand-listed id array. Both must clone,
+-- the beat's staged_at_location_id must repoint at the parent clone, the room
+-- clone's parent_id must remap to the parent CLONE (clone-to-clone), and both
+-- clones' source_map_id must be nulled (the parent had a real Cartographer
+-- deep-link before transfer, so that assertion means something rather than
+-- trivially holding).
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password,
   raw_app_meta_data, raw_user_meta_data
@@ -784,18 +785,11 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select lives_ok(
   $$
-    insert into public.quest_beat_attachments (id, beat_id, quest_id, campaign_id, attachment_type, ref_id, metadata)
-    values (
-      '73300000-0000-4000-8000-000000000316',
-      '73300000-0000-4000-8000-000000000314',
-      '73300000-0000-4000-8000-000000000313',
-      '73300000-0000-4000-8000-000000000310',
-      'location_set',
-      '73300000-0000-4000-8000-000000000311',
-      jsonb_build_object('room_ids', jsonb_build_array('73300000-0000-4000-8000-000000000312'))
-    )
+    update public.quest_beats
+       set staged_at_location_id = '73300000-0000-4000-8000-000000000311'
+     where id = '73300000-0000-4000-8000-000000000314'
   $$,
-  'the outgoing DM can place their own global location set on a beat before transfer'
+  'the outgoing DM can stage a beat at their own global site before transfer'
 );
 
 select lives_ok(
@@ -805,7 +799,7 @@ select lives_ok(
     false,
     'promote'
   ) $$,
-  'a transfer clones a beat-attached location set, its parent and its room'
+  'a transfer clones the site a beat stages at, and the room beneath it'
 );
 
 reset role;
@@ -823,14 +817,9 @@ select is(
   'exactly one clone of the room location exists for the new owner'
 );
 select is(
-  (select ref_id from public.quest_beat_attachments where id = '73300000-0000-4000-8000-000000000316'),
-  (select id::text from public.locations where user_id = '73300000-0000-4000-8000-000000000302' and name = 'Quest ref parent location'),
-  'the attachment ref_id is repointed at the parent clone'
-);
-select is(
-  (select metadata->'room_ids' from public.quest_beat_attachments where id = '73300000-0000-4000-8000-000000000316'),
-  (select jsonb_build_array(id::text) from public.locations where user_id = '73300000-0000-4000-8000-000000000302' and name = 'Quest ref room location'),
-  'the attachment''s room_ids array is rebuilt to point at the room clone'
+  (select staged_at_location_id from public.quest_beats where id = '73300000-0000-4000-8000-000000000314'),
+  (select id from public.locations where user_id = '73300000-0000-4000-8000-000000000302' and name = 'Quest ref parent location'),
+  'the beat''s staging is repointed at the parent clone, not left across accounts'
 );
 select is(
   (select parent_id from public.locations where user_id = '73300000-0000-4000-8000-000000000302' and name = 'Quest ref room location'),

@@ -5,5 +5,20 @@
   "editor.quickSuggestions": {
     "strings": "on"
   },
-  "tailwindCSS.experimental.classRegex": [["cn\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]]
+  "tailwindCSS.experimental.classRegex": [["cn\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]],
+
+  // This repo has no formatter — no Prettier dependency, no config, no format
+  // script. `oxlint` lints and does not reflow. So a globally-installed
+  // formatter running on save here is not enforcing a project rule, it is
+  // importing a foreign one: it reflows this codebase's deliberately long
+  // template lines to 80 columns, one file at a time, with no decision ever
+  // having been made. Turned off for the workspace rather than left to whoever
+  // happens to open a file.
+  //
+  // If a formatter is ever wanted, it wants adopting on purpose — a config
+  // whose printWidth matches what is already here (~120+, not 80), the whole
+  // tree done in one commit, and a CI check so it stays true. Half-formatted
+  // is worse than either end.
+  "editor.formatOnSave": false,
+  "editor.formatOnPaste": false
 }

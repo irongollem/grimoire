@@ -4,7 +4,7 @@ section: World Building
 section_order: 3
 order: 1
 summary: Track and manage quests with Kanban or list view, objectives, rewards, and consequences.
-keywords: quest, quests, kanban, objectives, reward, trigger, consequence, sub-quest, player visibility
+keywords: quest, quests, kanban, objectives, reward, trigger, consequence, sub-quest, player visibility, story flow, branch, gate, route
 ---
 
 ## Quest views
@@ -31,12 +31,13 @@ Your view preference persists for the session.
 Click **New Quest** and fill in:
 
 - **Title** — the quest's name (required).
-- **Summary** — one or two sentences players see in the portal.
-- **Description** — full rich text body with DM notes, backstory, lore.
+- **Summary** — one or two sentences players see in the portal; this is the quest's premise, and it stays editable from the Overview tab afterward.
 - **Quest Giver** — link an NPC from your tracker.
 - **Primary Location** — the main location associated with this quest.
 - **Parent Quest** — if this is a sub-quest, link it to the parent here.
 - **Tags** — freeform labels for filtering.
+
+Once the quest exists, open its **Overview** tab and write the **opening beat** — the DM-facing narrative, backstory and lore that used to live in a Description field here. It's an ordinary beat, authored the same way as any other, and you connect it to whatever comes next from **Story Flow**.
 
 ## Objectives
 
@@ -72,23 +73,37 @@ Players can add their own **notes** to any quest visible to them. There are two 
 - **Party notes** — shared with the full party.
 - **Personal notes** — private to the individual player.
 
-## Quest Consequences (Triggers)
+## Story Flow branches
 
-Triggers let you automate what happens when a quest milestone is reached. Each trigger has:
+In **Story Flow**, click a route between two beats to edit it. A route can carry
+a **gate**: an objective and the status it must stand in ("Open while an
+objective is completed / open / failed") for the route to be open. Pick
+**No gate** to make the route always open — the default, and what most routes
+should stay, since the fork is usually already decided at the table rather than
+by the ledger.
 
-**Trigger types:**
+A closed route shows greyed out on the canvas and, in the Run cockpit, its
+**Choose** button is disabled with the reason shown ("Closed — needs … to be
+…, currently …"). **Jump** still reaches a closed beat directly — it is the
+deliberate override for when the table decides something the ledger doesn't
+know about, and it always asks for a reason.
 
-- `quest_complete` — fires when the quest status changes to Completed.
-- `objective_done` — fires when a specific objective is checked.
+## Quest Consequences
 
-**Action types:**
+Consequences let you automate what happens when something in a quest becomes true — one mechanism covers both the story flow and the objective checklist. Each consequence has a **condition**, an optional **delay**, and an **action**.
 
-- `create_calendar_event` — automatically adds an event to the campaign calendar with an optional offset in in-game days.
-- `send_broadcast` — posts a message to the campaign chat when the trigger fires.
+**Conditions** — exactly one:
 
-**Fire Once toggle** — prevents the trigger from repeating if the objective is unchecked and re-checked.
+- On a beat (in Story Flow) — fires the moment the party arrives, or the moment they take a specific branch out of it.
+- On the quest overview — fires when a named objective becomes Open, Completed or Failed, or when the whole objective ledger settles (nothing left open).
 
-Triggers fire automatically when the DM advances the in-world date past the offset deadline, or immediately if no offset is set.
+**Actions:**
+
+- **Raise / Reveal to players / Complete / Fail** — moves another objective. Raise wakes a not-yet-raised objective; Reveal also makes it visible to players.
+- **Create calendar event** — adds an event to the campaign calendar.
+- **Send broadcast** — posts a message to the campaign chat.
+
+**Delay** — an optional number of in-world days between the condition firing and the action happening. Zero fires immediately; a calendar event or broadcast with a delay fires the moment you advance the in-world date past its target, wherever in the app you change that date.
 
 ## Scriptorium export
 

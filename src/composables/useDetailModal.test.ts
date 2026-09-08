@@ -25,11 +25,11 @@ function run<T>(fn: () => T): T {
   return result;
 }
 
-function at(options: { detail: boolean; editing?: boolean; narrow?: boolean }) {
+function at(options: { detail: boolean; editing?: boolean; narrow?: boolean; takesWholeScreen?: () => boolean }) {
   mocks.route.matched = options.detail ? [{}, {}] : [{}];
   mocks.route.query = options.editing ? { edit: "true" } : {};
   mocks.narrow.value = !!options.narrow;
-  return run(() => useDetailModal("/npcs"));
+  return run(() => useDetailModal("/npcs", options.takesWholeScreen));
 }
 
 beforeEach(() => {
@@ -72,5 +72,28 @@ describe("useDetailModal", () => {
     close();
 
     expect(mocks.replace).toHaveBeenCalledWith("/npcs");
+  });
+
+  // The optional second parameter is for an entity with more than one detail
+  // surface, where only some of them are a glance — a quest's story-flow graph
+  // and run cockpit, for instance. It must behave exactly like editing.
+  it("gives a caller-named surface the whole screen, same as editing", () => {
+    const { asModal, showList } = at({ detail: true, takesWholeScreen: () => true });
+
+    expect(asModal.value).toBe(false);
+    expect(showList.value).toBe(false);
+  });
+
+  it("leaves the modal alone when the caller's surface is not the whole-screen one", () => {
+    const { asModal, showList } = at({ detail: true, takesWholeScreen: () => false });
+
+    expect(asModal.value).toBe(true);
+    expect(showList.value).toBe(true);
+  });
+
+  it("omitting the parameter changes nothing — only editing and mobile force the full screen", () => {
+    const { asModal } = at({ detail: true });
+
+    expect(asModal.value).toBe(true);
   });
 });

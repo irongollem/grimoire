@@ -174,7 +174,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
+import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -188,7 +190,7 @@ import CustomClassSpellSlots from "@/components/levelup/CustomClassSpellSlots.vu
 import CustomClassStepsEditor from "@/components/levelup/CustomClassStepsEditor.vue";
 import CustomClassResources from "@/components/levelup/CustomClassResources.vue";
 import { useAllFeatures } from "@/composables/rules/useFeatures";
-import { useCampaigns } from "@/composables/campaign/useCampaigns";
+import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
 import type { CustomStep, CustomResource, HitDie, CasterType, PreparedAbility } from "@/levelup/customTypes";
 
 const route = useRoute();
@@ -205,7 +207,7 @@ function onCancel() {
 }
 
 const { data: existing } = useCustomClass(id);
-const { data: campaignList } = useCampaigns();
+const { data: campaignList } = useDmCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
 const { data: allFeatures } = useAllFeatures();
 
@@ -269,7 +271,14 @@ const form = ref<FormState>({
   resources: [],
 });
 
-const campaignScope = ref<string>("all");
+// Same default flip as items/spells/species/locations (#596): a new custom
+// class defaults to the DM's active campaign rather than "all my campaigns",
+// so a homebrew class written for one grimdark campaign doesn't quietly show
+// up in a lighthearted one. "All my campaigns" stays one dropdown choice away
+// for the homebrew that genuinely belongs everywhere. No active campaign is a
+// genuine "nothing to scope to yet" case, so it falls back to "all".
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+const campaignScope = ref<string>(activeCampaignId.value ?? "all");
 
 watch(existing, (val) => {
   if (!val) return;

@@ -707,23 +707,44 @@ export const routes: RouteRecordRaw[] = [
     name: "quests",
     component: () => import("@/views/quests/QuestsView.vue"),
     meta: { requiresAuth: true, title: "Quest Log" },
+    // `:id` is a *child* so the log stays mounted while one quest is open: on
+    // tablet and up the overview is a modal over the list, the same treatment
+    // NPCs get and for the same reason — remounting the log underneath it would
+    // throw away scroll position and the revealed page of the infinite scroll.
+    // A quest has a second detail surface the NPC sheet doesn't, though: the
+    // story-flow graph and the run cockpit are a fixed-viewport canvas and a
+    // live session, not a glance, so `useQuestDetailSurface` tells
+    // `useDetailModal` to take the whole screen for those the same way
+    // `?edit=true` does elsewhere. Only the overview is small enough to stay a
+    // popover. See `useDetailModal`.
+    children: [
+      {
+        path: ":id",
+        name: "quest-detail",
+        component: () => import("@/views/quests/QuestDetailView.vue"),
+        // fullscreenMobile: the mobile screen is a full-screen takeover with its
+        // own top + bottom bars, so the global AppTopBar / DmBottomNav are
+        // suppressed on phones to avoid two stacked, overlapping bars. Meta is
+        // merged across matched records, so nesting does not hide it.
+        meta: { requiresAuth: true, title: "Quest", fullscreenMobile: true },
+      },
+    ],
   },
   {
     path: "/quests/new",
     name: "quest-new",
     component: () => import("@/views/quests/QuestDetailView.vue"),
+    // Deliberately NOT nested under /quests: creating a quest is the full
+    // editor at every width, so there is no list to sit over. Static segments
+    // outrank the `:id` param, so this still wins the match.
     meta: { requiresAuth: true, title: "New Quest" },
-  },
-  {
-    path: "/quests/:id",
-    name: "quest-detail",
-    component: () => import("@/views/quests/QuestDetailView.vue"),
-    meta: { requiresAuth: true, title: "Quest" },
   },
   {
     path: "/quests/:id/beats/:beatId",
     name: "quest-beat-detail",
     component: () => import("@/views/quests/QuestBeatDetailView.vue"),
+    // Also NOT nested: a beat is a full-screen surface in its own right, not a
+    // glance over the quest it belongs to.
     meta: { requiresAuth: true, title: "Quest Beat" },
   },
 

@@ -77,7 +77,7 @@ export const WIDGET_COMPONENTS: Record<DashboardWidgetId, Component> = {
   "soundboard-scenes": SoundboardScenesWidget,
   "initiative-mini": InitiativeMiniWidget,
   "monster-pull": MonsterPullWidget,
-  "quest-triggers": QuestTriggersWidget,
+  "quest-consequences": QuestTriggersWidget,
   "shared-journal": SharedJournalWidget,
   "encounter-gaps": EncounterGapsWidget,
   "store-restock": StoreRestockWidget,

@@ -42,6 +42,26 @@ export function pageLimitFor(isPro: boolean): number {
 }
 
 /**
+ * Characters per page for a pasted-text import (#829). Mirrors the literal
+ * `3500` baked into migration 20260906213100's shape CHECK —
+ * `page_count >= ceil(char_length(source_text)::numeric / 3500)` — which is
+ * the thing that actually enforces the page cap on a paste: without it, a
+ * client could send `page_count = 1` alongside a megabyte of text and the
+ * cap above would never fire. The two constants must therefore agree.
+ *
+ * `pagesForText` rounds up to match the migration's `ceil(...)`. A client
+ * that instead rounded *down* would understate its own page count and fail
+ * that CHECK rather than silently under-paying — the direction this kind of
+ * client/server mismatch should break in.
+ */
+export const TEXT_CHARS_PER_PAGE = 3500;
+
+/** The page count a pasted-text import declares. See `TEXT_CHARS_PER_PAGE`. */
+export function pagesForText(charCount: number): number {
+  return Math.max(1, Math.ceil(charCount / TEXT_CHARS_PER_PAGE));
+}
+
+/**
  * Mirrors the `import-documents` bucket's per-object `file_size_limit`
  * (migration 20260824204224): 25 MB, enough for a chapter-sized PDF or any
  * single page photo. This one is a real database constraint — the upload is
@@ -115,6 +135,25 @@ export type UploadValidationResult =
   | { ok: false; reason: UploadValidationFailureReason; message: string };
 
 /**
+ * The free/Pro page-cap check, shared by `validateUpload` and
+ * `validateTextImport` — including its two different-audience messages
+ * ("upgrade to Pro" on free, a hard ceiling on Pro).
+ */
+function checkPageCap(pageCount: number, isPro: boolean): UploadValidationResult {
+  const limit = pageLimitFor(isPro);
+  if (pageCount > limit) {
+    return {
+      ok: false,
+      reason: "too_many_pages",
+      message: isPro
+        ? `That document has ${pageCount} pages. The limit is ${limit} pages per import.`
+        : `That document has ${pageCount} pages. Free accounts are limited to ${limit} pages per import — upgrade to Pro for up to ${PRO_PAGE_LIMIT}.`,
+    };
+  }
+  return { ok: true };
+}
+
+/**
  * Pre-flight validation for a document upload, run before the object ever
  * reaches storage or the extractor.
  *
@@ -146,16 +185,16 @@ export function validateUpload(candidate: UploadCandidate): UploadValidationResu
     };
   }
 
-  const limit = pageLimitFor(candidate.isPro);
-  if (candidate.pageCount > limit) {
-    return {
-      ok: false,
-      reason: "too_many_pages",
-      message: candidate.isPro
-        ? `That document has ${candidate.pageCount} pages. The limit is ${limit} pages per import.`
-        : `That document has ${candidate.pageCount} pages. Free accounts are limited to ${limit} pages per import — upgrade to Pro for up to ${PRO_PAGE_LIMIT}.`,
-    };
-  }
+  return checkPageCap(candidate.pageCount, candidate.isPro);
+}
 
-  return { ok: true };
+/**
+ * Pre-flight validation for a pasted-text import (#829), run before the row
+ * is even created. Mirrors `validateUpload`'s page-cap check exactly (same
+ * `pageLimitFor`, same discriminated result, same upsell-vs-ceiling
+ * messages) — a paste just has no mime type or byte size to check, since
+ * `pagesForText`/the migration's shape CHECK are what bound its size instead.
+ */
+export function validateTextImport(charCount: number, isPro: boolean): UploadValidationResult {
+  return checkPageCap(pagesForText(charCount), isPro);
 }

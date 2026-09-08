@@ -1,11 +1,22 @@
 import type { DungeonFeatureInsert } from "@/types/dungeonFeature.types";
 
-/** Classic dungeon feature presets inspired by DMG / SRD archetypes. */
-export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" | "image_focal_point">[] = [
+// #804 — feature_glyph is how each template's TYPICAL example draws on a
+// map, picked from the distinguishing visual DESCRIBED in the entry (not
+// mechanically derived from `feature_type` — e.g. the three Hidden Cache
+// templates get three different glyphs because a flagstone, a statue and a
+// waterfall look nothing alike). Treasure Chest templates stay null: a
+// visible chest is already the existing `objectChest` pack category, not a
+// concealed-feature glyph, and the enum has no "chest" value to force.
+
+/** Classic dungeon feature presets inspired by DMG / SRD archetypes. Campaign
+ *  scope is not a property of a template — `usePopulateDungeonFeatures` seeds
+ *  them global. */
+export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" | "image_focal_point" | "campaign_id">[] = [
   // ── Secret Doors ────────────────────────────────────────────────────────────
   {
     name: "Sliding Stone Panel",
     feature_type: "Secret Door",
+    feature_glyph: "secret_door",
     perception_dc: 15,
     investigation_dc: 10,
     arcana_dc: null,
@@ -19,6 +30,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Rotating Bookshelf",
     feature_type: "Secret Door",
+    feature_glyph: "secret_door",
     perception_dc: 15,
     investigation_dc: 12,
     arcana_dc: null,
@@ -32,6 +44,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Candlestick Lever",
     feature_type: "Secret Door",
+    feature_glyph: "secret_door",
     perception_dc: 13,
     investigation_dc: 10,
     arcana_dc: null,
@@ -45,6 +58,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Keyword-Sealed Door",
     feature_type: "Secret Door",
+    feature_glyph: "secret_door",
     perception_dc: 18,
     investigation_dc: 15,
     arcana_dc: 12,
@@ -58,6 +72,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Mirror Portal",
     feature_type: "Secret Door",
+    feature_glyph: "secret_door",
     perception_dc: 20,
     investigation_dc: 18,
     arcana_dc: 14,
@@ -73,6 +88,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Crawlspace Behind Tapestry",
     feature_type: "Hidden Passage",
+    feature_glyph: "hidden_passage",
     perception_dc: 12,
     investigation_dc: 8,
     arcana_dc: null,
@@ -86,6 +102,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Sewage Tunnel Access",
     feature_type: "Hidden Passage",
+    feature_glyph: "hidden_passage",
     perception_dc: 10,
     investigation_dc: 10,
     arcana_dc: null,
@@ -99,6 +116,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Chimney Shaft",
     feature_type: "Hidden Passage",
+    feature_glyph: "hidden_passage",
     perception_dc: 14,
     investigation_dc: 12,
     arcana_dc: null,
@@ -114,6 +132,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Iron-Banded Chest",
     feature_type: "Treasure Chest",
+    feature_glyph: null,
     perception_dc: null,
     investigation_dc: 12,
     arcana_dc: null,
@@ -127,6 +146,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Mimic's Favourite Shape",
     feature_type: "Treasure Chest",
+    feature_glyph: null,
     perception_dc: 18,
     investigation_dc: 18,
     arcana_dc: null,
@@ -142,6 +162,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Loose Flagstone Cache",
     feature_type: "Hidden Cache",
+    feature_glyph: "cache",
     perception_dc: 15,
     investigation_dc: 12,
     arcana_dc: null,
@@ -155,6 +176,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Hollowed Statue",
     feature_type: "Hidden Cache",
+    feature_glyph: "statue",
     perception_dc: 18,
     investigation_dc: 14,
     arcana_dc: null,
@@ -168,6 +190,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Behind the Waterfall",
     feature_type: "Hidden Cache",
+    feature_glyph: "fountain",
     perception_dc: 14,
     investigation_dc: 10,
     arcana_dc: null,
@@ -183,6 +206,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Priest's Hole",
     feature_type: "Concealed Alcove",
+    feature_glyph: "hidden_passage",
     perception_dc: 16,
     investigation_dc: 13,
     arcana_dc: null,
@@ -196,6 +220,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Recessed Weapon Rack",
     feature_type: "Concealed Alcove",
+    feature_glyph: "cache",
     perception_dc: 14,
     investigation_dc: 10,
     arcana_dc: null,
@@ -211,6 +236,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Counterweight Portcullis Wall",
     feature_type: "Moving Wall",
+    feature_glyph: "moving_wall",
     perception_dc: 13,
     investigation_dc: 10,
     arcana_dc: null,
@@ -224,6 +250,7 @@ export const DUNGEON_FEATURE_TEMPLATES: Omit<DungeonFeatureInsert, "image_url" |
   {
     name: "Puzzle-Lock Moving Wall",
     feature_type: "Moving Wall",
+    feature_glyph: "moving_wall",
     perception_dc: 15,
     investigation_dc: 12,
     arcana_dc: null,

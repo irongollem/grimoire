@@ -1,8 +1,21 @@
 <template>
+  <!--
+    Reading on tablet and up is a modal over the quest log — this route is
+    nested under `/quests`, so the log is mounted right behind it and keeps its
+    scroll position and revealed page while a DM checks on a quest.
+    `useQuestDetailSurface` is what makes that safe to do at all: the overview
+    is a glance and gets the modal, but the story-flow graph and the run
+    cockpit are a commitment (a fixed-viewport canvas, a live session), and
+    `takesWholeScreen` tells `useDetailModal` to give those the whole screen —
+    on every width, not only mobile's.
+  -->
+  <QuestDetailModal v-if="asModal" :id="id" @close="close" />
+
   <PageHeader
+    v-else
     :title="quest?.title || (isNew ? 'New Quest' : 'Loading…')"
     :description="quest ? QUEST_STATUS_LABELS[quest.status] : undefined"
-    :contained="showsFlow"
+    :contained="showsGraph"
   >
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -47,7 +60,8 @@
 import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useQuest } from "@/composables/quests/useQuests";
-import { useUiStore } from "@/stores/ui";
+import { useQuestDetailSurface, type QuestDetailSurface } from "@/composables/quests/useQuestDetailSurface";
+import { useDetailModal } from "@/composables/useDetailModal";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
@@ -55,45 +69,32 @@ import QuestFlowStarter from "@/components/quests/QuestFlowStarter.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
 import QuestOverviewPanel from "@/components/quests/QuestOverviewPanel.vue";
+import QuestDetailModal from "@/components/quests/QuestDetailModal.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
-
-type QuestDetailSurface = "overview" | "work";
 
 const route     = useRoute();
 const router    = useRouter();
-const ui        = useUiStore();
 const isNew     = computed(() => route.name === "quest-new");
-
-/**
- * The cockpit is showing — either because the link asked for it, or because a
- * session is running and the cockpit is the session's default surface.
- *
- * `?mode=run` is *not* a legacy bookmark: `QuestChainRow` and
- * `QuestRunOpenChains` generate it every time a DM opens a chain. It used to be
- * honoured by writing `ui.dmMode = "play"` and then stripping itself from the
- * query — so opening a chain from the dashboard silently switched broadcasting
- * on, and every NPC revealed afterwards announced itself to the players with
- * nothing to connect the two. A link that says "run this quest" may choose the
- * surface; it may not start broadcasting to the table. See #758.
- */
-const runRequested = computed(() => route.query.mode === "run");
-const isRunning = computed(() => !isNew.value && (runRequested.value || ui.dmMode === "play"));
 const id        = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId  = computed(() => (route.query.parent as string | undefined));
 
+const { view, isRunning, takesWholeScreen } = useQuestDetailSurface();
+
+// `asModal` and `close` are the same reasoning QuestsView uses to decide
+// whether to keep drawing the log, so the two can never disagree about which
+// of them the user is looking at.
+const { asModal, close } = useDetailModal("/quests", () => takesWholeScreen.value);
+
 /**
- * Prep opens on the overview and Play opens on the cockpit. Preparing a quest
- * starts from its premise; running one starts from where the party is standing.
- * `?overview=true` and `?mode=details` are the links the drawer left behind —
- * across saved bookmarks, attachment adapters and return-to paths — and they
- * still mean the same surface.
+ * Containment belongs to the *graph*, not to the work tab. The canvas is a
+ * fixed-viewport surface that manages its own scrolling, so `PageHeader` must
+ * stop scrolling around it; the cockpit is an ordinary long document and must
+ * not inherit that. Binding this to `view === "work"` gave the cockpit the
+ * canvas's contract, so at `lg` and wider its body became `overflow:hidden` —
+ * a scroll container that cannot be scrolled — and `QuestRunControls`'
+ * `sticky bottom-2` bar pinned over content nobody could reach past. See #776.
  */
-const view = computed<QuestDetailSurface>(() => {
-  if (route.query.view === "overview" || route.query.overview === "true" || route.query.mode === "details") return "overview";
-  if (route.query.view === "work") return "work";
-  return isRunning.value ? "work" : "overview";
-});
-const showsFlow = computed(() => !isNew.value && view.value === "work");
+const showsGraph = computed(() => !isNew.value && view.value === "work" && !isRunning.value);
 const viewOptions = computed(() => [
   { value: "overview" as const, label: "Overview" },
   { value: "work" as const, label: isRunning.value ? "Run session" : "Story flow" },
@@ -112,8 +113,8 @@ const isLoading = computed(() => !isNew.value && questLoading.value);
 // one — none of them touches the global mode.
 //
 // `?mode=run` is deliberately absent here: it is still generated, so it stays
-// in the query and drives `runRequested` for as long as the DM is on that
-// surface. `selectView` clears it when they leave.
+// in the query and drives `isRunning` (via `useQuestDetailSurface`) for as
+// long as the DM is on that surface. `selectView` clears it when they leave.
 watch(
   () => [route.query.mode, route.query.edit] as const,
   ([mode, edit]) => {

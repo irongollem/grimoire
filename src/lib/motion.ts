@@ -239,6 +239,37 @@ export function railTransition(duration = REVEAL_MS) {
 }
 
 /**
+ * A card turning over — a real rotation about its own vertical axis, not a
+ * cross-fade between two faces.
+ *
+ * Distinct from the FLIP technique below despite the shared word: that one is
+ * First-Last-Invert-Play, a reorder; this one is a playing card.
+ *
+ * Slower than any other motion here — a panel's short hop is 260ms and a grid
+ * reorder 220ms — because a turn has to be *seen to rotate*. Under about 400ms
+ * the two faces read as an instant swap, which is precisely the "nothing
+ * happened" a turn is being used to cure. It is also the only motion in this
+ * module that carries state rather than decorating a change: a face-down card
+ * is what "this one is in play" looks like, so it is allowed the time to say so.
+ */
+export const CARD_TURN_MS = 520;
+
+/**
+ * Inline style for the 3D layer of a two-faced card. Its parent owns the
+ * perspective; its two children are `backface-hidden`, the back pre-rotated.
+ *
+ * Reduce-motion zeroes the duration rather than dropping the turn, because the
+ * rotation is not the point — the resting face is. A reader who asked for less
+ * motion must still end up looking at the back of a card that has been played.
+ */
+export function cardTurnStyle(turned: boolean): Record<string, string> {
+  return {
+    transform: turned ? "rotateY(180deg)" : "rotateY(0deg)",
+    transitionDuration: prefersReducedMotion() ? "0ms" : `${CARD_TURN_MS}ms`,
+  };
+}
+
+/**
  * FLIP for a grid reorder: the elements are already in the DOM on both sides
  * of a list mutation, and this makes the jump from "before" to "after"
  * legible instead of a hard cut.

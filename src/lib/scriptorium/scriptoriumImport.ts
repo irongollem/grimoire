@@ -643,7 +643,6 @@ const questFormatter: AssetFormatter<{
       locationName && `<strong>Location</strong> ${locationName}`,
       quest.started_at && `<strong>Started</strong> ${quest.started_at.slice(0, 10)}`,
       quest.resolved_at && `<strong>Resolved</strong> ${quest.resolved_at.slice(0, 10)}`,
-      quest.rewards && `<strong>Rewards</strong> ${quest.rewards}`,
     ].filter(Boolean) as string[];
 
     if (metaRows.length) {
@@ -663,14 +662,6 @@ const questFormatter: AssetFormatter<{
         html += `<li>${obj.description}${done}</li>\n`;
       });
       html += `</ul>\n`;
-    }
-
-    // Notes (Tiptap JSON)
-    if (quest.notes) {
-      const notesHtml = tiptapJsonToHtml(quest.notes);
-      if (notesHtml) {
-        html += `<h2>Notes</h2>\n${notesHtml}`;
-      }
     }
 
     return {

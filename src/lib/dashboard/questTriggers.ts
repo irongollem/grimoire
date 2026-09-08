@@ -1,144 +1,118 @@
-import type { TriggerType } from "@/types/quest.types";
+import type { QuestConsequenceAction, QuestConsequenceActionPayload } from "@/types/quest.types";
+import { describeWorldConsequenceAction } from "@/lib/quests/consequences";
 import type { CalendarToday } from "@/lib/calendar/upcoming";
-import { daysFromTo } from "@/lib/calendar/dayMath";
+import { addDays, daysFromTo } from "@/lib/calendar/dayMath";
 import type { CalendarAdapter } from "@/types/calendar.types";
 
 /**
- * The "about to fire" join for the "Quest triggers due" widget (#764).
+ * The "about to fire" join for the "Quest consequences due" widget (#764,
+ * reworked for #794).
  *
- * A `quest_trigger` is a DM-authored consequence — "when [quest completes /
- * objective X is done], N days later, [create a calendar event / send a
- * broadcast]" (`QuestTriggersPanel.vue`, the "Consequences" list). It only
- * becomes a *scheduled* fire instance — a `quest_trigger_scheduled` row —
- * once its qualifying event has actually happened: `scheduleQuestTriggers`
- * (src/composables/quests/useQuests.ts:541) is called from the three places a quest
- * completes or an objective is checked off, and stamps a `fire_year/month/day`
- * computed from the in-world day it fired on plus `offset_days`. So every row
- * this module ever sees already cleared its condition — "waiting for the
- * event" and "waiting for the date" are the same list, at two different
- * distances from now, which is why one widget covers both:
+ * A `quest_consequences` row is a DM-authored rule — "when [this beat is
+ * reached / this objective becomes that / the quest settles], N days later,
+ * [create a calendar event / send a broadcast / move an objective]"
+ * (`QuestConsequencesPanel.vue`). The moment its condition fires, the engine
+ * logs a `quest_consequence_events` row and, for the two *world* actions,
+ * performs it immediately unless `after_days > 0` — see that table's own
+ * column comment. So a pending world-action event (`performed_at is null`) is
+ * always a real, still-outstanding wait; nothing with zero delay ever reaches
+ * this widget, because it was already performed in the same transaction that
+ * logged it.
  *
- * - `offset_days > 0` ("time" trigger) — a real calendar wait remains. Shown
- *   with a countdown, and dropped once that countdown exceeds the horizon —
- *   a fire date three story arcs out is not "about to fire".
- * - `offset_days === 0` ("event" trigger) — nothing left to wait on; its fire
- *   date is the day it was scheduled, which can only be today or earlier. A
- *   countdown here would always read "Today" and say nothing, so this widget
- *   describes it by the condition that just fired it instead, and never
- *   horizon-excludes it — it is already as close as a row gets.
- *
- * Kept pure and apart from the widget for the usual dashboard reason (see
- * `dmScreenCard.ts`, `downtimeQueue.ts`): the join, the due/horizon check and
- * the "gone" guards are cheap to test here and expensive to test through a
- * mounted card.
-  */
-
-/**
- * One `quest_trigger_scheduled` row as the widget fetches it: the scheduled
- * row's own date fields plus its trigger and quest, embedded in a single
- * Supabase query (mirroring the `trigger:quest_triggers(*)` embed
- * `fireDueTriggers` already selects — useQuests.ts:667-668 — extended with
- * the `quest` and `objective` embeds this widget also needs).
- *
- * `trigger`/`quest` are `null` when the row they reference is gone: a
- * dangling scheduled row (its trigger was deleted — the same case
- * `fireDueTriggers`'s own `FiringTrigger` guard exists for, useQuests.ts:582)
- * or an orphaned one (its quest was deleted). Both are dropped rather than
- * rendered — see `deriveQuestTriggerDueRows`.
+ * Ledger verbs (`raise`/`reveal`/`complete`/`fail`) are deliberately excluded
+ * here even though their events can also sit with `performed_at is null`
+ * forever — `private.apply_quest_consequences` moves the objective the
+ * instant the condition fires, regardless of `after_days`, and
+ * `perform_quest_consequence` never touches a ledger verb. Showing one of
+ * those rows as "about to fire" would describe something that already
+ * happened as still pending.
  */
-export interface ScheduledTriggerRow {
+
+/** One `quest_consequence_events` row as the widget fetches it, restricted to
+ *  the two world actions and already filtered to `performed_at is null` and
+ *  `undone_at is null` at the query. */
+export interface ConsequenceEventRow {
   id: string;
-  fire_year: number;
-  fire_month: number;
-  fire_day: number;
-  fired_at: string | null;
+  after_days: number;
+  fires_on_year: number;
+  fires_on_month: number;
+  fires_on_day: number;
+  action: QuestConsequenceAction;
+  // The whole payload union, not the two shapes this widget originally
+  // fetched: it now asks for every world action, and a relationship shift
+  // carries `{ step }` rather than a title or a message.
+  action_payload: QuestConsequenceActionPayload;
+  /** `null` when the quest itself is gone — the event row outlives it via
+   *  `on delete cascade` on `quest_id` only in the sense that the row cascades
+   *  away too, but a row fetched in the same request as its quest's delete can
+   *  still race here, so the join is treated as possibly missing. */
   quest: { id: string; title: string } | null;
-  trigger: {
-    trigger_type: TriggerType;
-    offset_days: number;
-    /** Only set for an `objective_done` trigger, and only when the objective
-     *  it names still exists — `quest_triggers.objective_id` cascades on
-     *  delete, so in practice this is null exactly when `trigger_type` is
-     *  `quest_complete`, but a missing description is handled the same way
-     *  a missing quest title is: a marker, never a blank line. */
-    objective: { description: string } | null;
-  } | null;
 }
 
-export interface QuestTriggerDueRow {
-  scheduledId: string;
+export interface DueConsequenceRow {
+  eventId: string;
   questId: string;
   questTitle: string;
-  /** What the trigger is waiting for — "Quest complete" or "Objective done:
-   *  <description>". Shown on every row regardless of kind; for an `event`
-   *  row it doubles as the "how close" answer, since there is no countdown
-   *  worth printing. */
+  /** What is about to happen — "Calendar event: "…"" or "Broadcast: "…"". */
   waitingFor: string;
-  kind: "time" | "event";
   /** Whole in-world days from campaign-today to the fire date. Zero or
-   *  negative means already due. Meaningful for both kinds (an `event` row
-   *  is always <= 0 by construction) but the horizon only ever excludes
-   *  `time` rows — see the module doc comment. */
+   *  negative means already due. */
   daysUntil: number;
 }
 
 /**
  * Two in-world weeks: enough to cover the next session or two of prep without
- * turning "about to fire" into "everything scheduled, ever" — a trigger set
- * three story arcs out belongs on the quest's own Consequences list, not on
- * a glance-at-the-table dashboard card.
+ * turning "about to fire" into "everything scheduled, ever" — a consequence
+ * set three story arcs out belongs on the quest's own consequence list, not
+ * on a glance-at-the-table dashboard card.
  */
-export const TRIGGER_HORIZON_DAYS = 14;
-
+export const CONSEQUENCE_HORIZON_DAYS = 14;
 
 /**
- * Every unfired scheduled trigger that is due now or within the horizon,
- * earliest first (ties broken by quest title so equal-day rows have a stable
- * order). `event` rows are exempt from the horizon check — see the module
- * doc comment — and always sort at or before any `time` row for the same
- * day, since `daysUntil` for an `event` row is never positive.
+ * One line for the widget, from the same describer the rule editor and the
+ * backfill preview use.
+ *
+ * It had its own copy of the if/else chain, and inherited the same defect: a
+ * `shift_npc_relationship` or `unlock_quest` row rendered as an empty
+ * broadcast. Delegating means a ninth action is described once, in the place
+ * the compiler already guards.
  */
-export function deriveQuestTriggerDueRows(
+function summarize(action: QuestConsequenceAction, payload: ConsequenceEventRow["action_payload"]): string {
+  return describeWorldConsequenceAction(action, payload);
+}
+
+/**
+ * Every pending world-action event whose `fires_on + after_days` is due now
+ * or within the horizon, earliest first (ties broken by quest title so
+ * equal-day rows have a stable order).
+ */
+export function deriveDueConsequenceRows(
   adapter: CalendarAdapter,
-  rows: readonly ScheduledTriggerRow[],
+  rows: readonly ConsequenceEventRow[],
   today: CalendarToday,
-  horizonDays: number = TRIGGER_HORIZON_DAYS,
-): QuestTriggerDueRow[] {
-  const due: QuestTriggerDueRow[] = [];
+  horizonDays: number = CONSEQUENCE_HORIZON_DAYS,
+): DueConsequenceRow[] {
+  const due: DueConsequenceRow[] = [];
 
   for (const row of rows) {
-    if (row.fired_at !== null) continue;
-    const trigger = row.trigger;
-    if (!trigger) continue;
     const quest = row.quest;
     if (!quest) continue;
 
-    // The same `dayMath` the scheduler and `fireDueTriggers` now use (#766).
-    // This module used to reproduce their old 12x30-day formula on purpose,
-    // so the card could not disagree with the code that actually fires the
-    // trigger. Now that they ask the campaign's calendar, so does this — and
-    // the reason for agreeing has not changed, only what they agree on.
-    const daysUntil = daysFromTo(
+    const fireDate = addDays(
       adapter,
-      today,
-      { year: row.fire_year, month: row.fire_month, day: row.fire_day },
+      { year: row.fires_on_year, month: row.fires_on_month, day: row.fires_on_day },
+      row.after_days,
     );
-    // A fire date the calendar cannot place is one nobody can act on, and
-    // `fireDueTriggers` will not fire it either.
+    const daysUntil = daysFromTo(adapter, today, fireDate);
+    // A fire date the calendar cannot place is one nobody can act on.
     if (daysUntil === undefined) continue;
-    const kind: QuestTriggerDueRow["kind"] = trigger.offset_days === 0 ? "event" : "time";
-    if (kind === "time" && daysUntil > horizonDays) continue;
-
-    const waitingFor = trigger.trigger_type === "quest_complete"
-      ? "Quest complete"
-      : `Objective done: ${trigger.objective?.description ?? "??? (removed)"}`;
+    if (daysUntil > horizonDays) continue;
 
     due.push({
-      scheduledId: row.id,
+      eventId: row.id,
       questId: quest.id,
       questTitle: quest.title || "Untitled Quest",
-      waitingFor,
-      kind,
+      waitingFor: summarize(row.action, row.action_payload),
       daysUntil,
     });
   }

@@ -8,6 +8,9 @@ import {
   PRO_PAGE_LIMIT,
   pageLimitFor,
   validateUpload,
+  TEXT_CHARS_PER_PAGE,
+  pagesForText,
+  validateTextImport,
   type UploadCandidate,
 } from "./limits";
 
@@ -129,6 +132,52 @@ describe("validateUpload — MIME type", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.reason).toBe("unsupported_type");
+    }
+  });
+});
+
+describe("pagesForText", () => {
+  it("rounds up to the next whole page", () => {
+    expect(pagesForText(1)).toBe(1);
+    expect(pagesForText(TEXT_CHARS_PER_PAGE)).toBe(1);
+    expect(pagesForText(TEXT_CHARS_PER_PAGE + 1)).toBe(2);
+  });
+
+  it("never returns fewer than 1 page, even for zero characters", () => {
+    expect(pagesForText(0)).toBe(1);
+  });
+});
+
+describe("validateTextImport — page boundary mirrors the migration's shape CHECK", () => {
+  // The migration binds page_count to char_length(source_text) at
+  // TEXT_CHARS_PER_PAGE per page, so a Pro account's 50-page cap works out to
+  // exactly 175,000 characters (50 * 3500).
+  const PRO_CHAR_LIMIT = PRO_PAGE_LIMIT * TEXT_CHARS_PER_PAGE;
+
+  it("passes a Pro paste at exactly 175,000 characters (50 pages)", () => {
+    expect(pagesForText(PRO_CHAR_LIMIT)).toBe(PRO_PAGE_LIMIT);
+    expect(validateTextImport(PRO_CHAR_LIMIT, true)).toEqual({ ok: true });
+  });
+
+  it("fails a Pro paste one character past 175,000", () => {
+    expect(pagesForText(PRO_CHAR_LIMIT + 1)).toBe(PRO_PAGE_LIMIT + 1);
+    const result = validateTextImport(PRO_CHAR_LIMIT + 1, true);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe("too_many_pages");
+  });
+
+  it("passes a free-plan paste exactly at the free page limit", () => {
+    const charLimit = FREE_PAGE_LIMIT * TEXT_CHARS_PER_PAGE;
+    expect(validateTextImport(charLimit, false)).toEqual({ ok: true });
+  });
+
+  it("fails a free-plan paste one page over the free limit, with an upsell message", () => {
+    const oneCharPastTheLimit = FREE_PAGE_LIMIT * TEXT_CHARS_PER_PAGE + 1;
+    const result = validateTextImport(oneCharPastTheLimit, false);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe("too_many_pages");
+      expect(result.message).toMatch(/pro/i);
     }
   });
 });

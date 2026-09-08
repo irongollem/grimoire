@@ -181,6 +181,7 @@
         v-if="!viewMode"
         ref="inspectorPanelRef"
         :name="name"
+        :campaign-id="campaignId"
         :current-pack-id="currentPackId"
         :bundled-packs="selectablePacks"
         :loaded-pack-ids="loadedPackIds"
@@ -193,18 +194,25 @@
         :annotation-text="annotationText"
         :linked-note-id="linkedNoteId"
         :linked-encounter-id="linkedEncounterId"
+        :linked-trap-id="linkedTrapId"
+        :linked-feature-id="linkedFeatureId"
         :note-options="noteOptions"
         :encounter-options="encounterOptions"
+        :trap-options="trapOptions"
+        :feature-options="featureOptions"
         :active-template-shape="activeTemplateShape"
         :template-shapes="TEMPLATE_SHAPES"
         :cave-radius="caveRadius"
         @update:name="name = $event"
+        @update:campaign-id="campaignId = $event"
         @update:current-pack-id="currentPackId = $event"
         @update:active-object-category="activeObjectCategory = $event as ObjectCategory"
         @update:stamp-rotation="stampRotation = $event"
         @update:annotation-text="annotationText = $event"
         @update:linked-note-id="linkedNoteId = $event"
         @update:linked-encounter-id="linkedEncounterId = $event"
+        @update:linked-trap-id="linkedTrapId = $event"
+        @update:linked-feature-id="linkedFeatureId = $event"
         @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
         @update:cave-radius="caveRadius = $event"
       />
@@ -214,7 +222,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from "vue";
-import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import {
   IconSave,
@@ -256,30 +264,35 @@ import {
   useDeleteDungeonMap,
 } from "@/composables/cartographer/useDungeonMaps";
 import { useConfirm } from "@/composables/useConfirm";
+import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
 import { useNotes } from "@/composables/notes/useNotes";
 import { useEncounters } from "@/composables/encounters/useEncounters";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
+import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { useMapExport } from "@/composables/cartographer/useMapExport";
 import { loadUserPack, useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
-import { useAllLocations, useUpdateLocationMapUrl, useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
-import { bakeMap, bakeMapAsPng, bakeMapForAI, computeBakedDimensions } from "@/cartographer/bake";
+import { useAllLocations } from "@/composables/locations/useLocations";
+import { bakeMapAsPng } from "@/cartographer/bake";
+import type { Tool } from "@/cartographer/tools";
+import { zoomAtPoint } from "@/cartographer/viewport";
+import { resolveKeyAction } from "@/cartographer/keymap";
 import { CARTOGRAPHER_STYLE_PRESETS } from "@/cartographer/stylePresets";
-import { uploadToBucket } from "@/lib/storage";
-import { getCurrentUser, supabase } from "@/lib/supabase";
 import {
   emptyLayers,
   cellKey,
   type CellKey,
   type DungeonMap,
   type DungeonMapLayers,
-  type EdgeSeg,
-  type EdgeSegType,
   type CellMetadata,
 } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory, OBJECT_CATEGORIES, type ObjectCategory } from "@/cartographer/packSchema";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
+import { renderMap } from "@/cartographer/renderMap";
+import { resolveCellGlyphs } from "@/cartographer/glyphs";
+import { pickVariant } from "@/cartographer/tileVariants";
+import * as paintOps from "@/cartographer/paintOps";
+import type { PaintContext } from "@/cartographer/paintOps";
 import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill, boundaryEdges } from "@/cartographer/floodFill";
@@ -333,6 +346,10 @@ const deleteMutation = useDeleteDungeonMap();
 const { confirm } = useConfirm();
 
 const name = ref("Untitled Map");
+// NULL = available in every campaign; new maps default to the active
+// campaign, existing ones keep whatever scope they already have (#789) — the
+// watch below overwrites this from the loaded map's own campaign_id.
+const campaignId = ref<string | null>(activeCampaignId.value);
 const layers = ref<DungeonMapLayers>(emptyLayers());
 const currentPackId = ref(DEFAULT_PACK_ID);
 const packLoadError = ref<string | null>(null);
@@ -342,47 +359,44 @@ const loadedPackIds = computed(() => new Set(loadedRuntimes.value.keys()));
 const dirty = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
-const baking = ref(false);
 
-// M5 — Save to Atlas
-const showAtlasModal = ref(false);
-const atlasLocationId = ref("");
-const atlasError = ref<string | null>(null);
+// Location picker source for both the Atlas-save and AI-styler modals.
 const { data: allLocationsData } = useAllLocations();
 const locationOptions = computed(() =>
   (allLocationsData.value ?? []).map((l) => ({ id: l.id, name: l.name })),
 );
-const atlasTargetHasMap = computed(() =>
-  !!atlasLocationId.value &&
-  !!(allLocationsData.value ?? []).find((l) => l.id === atlasLocationId.value)?.map_url,
-);
-const updateLocationMapUrl = useUpdateLocationMapUrl();
-const updateLocationGridCalibration = useUpdateLocationGridCalibration();
 
-// M8 — AI Map Styler
-// Map restyle renders square (1024×1024) via OpenAI → flat cost, no size scaling.
-const { costOf: costOfCredits } = useAiCredits();
-const { imageMultiplierFor: mapImageMultiplierFor } = useProviderConfig();
-const styleByok = computed(() => !!mapStyleCampaign.decryptedOpenAiKey);
-const { logImageGeneration } = useImageGenerationLog();
-const styleCost = computed(
-  () => Math.round(costOfCredits("map_style_generation") * mapImageMultiplierFor("openai") * 100) / 100,
-);
-const showStylePicker = ref(false);
-const showStyleResult = ref(false);
-const selectedPresetId = ref("playable");
-const stylePromptSuffix = ref("");
-const styleGenerating = ref(false);
-const styleResultBlob = ref<Blob | null>(null);
-const styleResultUrl = ref<string | null>(null);
-const styleError = ref<string | null>(null);
-const styleAtlasLocationId = ref("");
-const styleAtlasError = ref<string | null>(null);
-const styleAtlasSaving = ref(false);
-const styleAtlasTargetHasMap = computed(() =>
-  !!styleAtlasLocationId.value &&
-  !!(allLocationsData.value ?? []).find((l) => l.id === styleAtlasLocationId.value)?.map_url,
-);
+// M5 (Save to Atlas) + M8 (AI Map Styler) — export cluster, see useMapExport.
+const {
+  baking,
+  showAtlasModal,
+  atlasLocationId,
+  atlasError,
+  atlasTargetHasMap,
+  showStylePicker,
+  showStyleResult,
+  selectedPresetId,
+  stylePromptSuffix,
+  styleGenerating,
+  styleResultUrl,
+  styleError,
+  styleAtlasLocationId,
+  styleAtlasError,
+  styleAtlasSaving,
+  styleAtlasTargetHasMap,
+  styleByok,
+  styleCost,
+  onSaveToAtlas,
+  onGenerateStyle,
+  onRetryStyle,
+  onDownloadStyled,
+  onSaveStyledToAtlas,
+} = useMapExport({
+  buildMap: () => (loadedMap.value ? { ...loadedMap.value, layers: layers.value, metadata: metadata.value } : null),
+  runtimes: () => loadedRuntimes.value,
+  mapName: () => name.value,
+  glyphs: () => cellGlyphs.value,
+});
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
@@ -396,16 +410,11 @@ const hoveredEdge = ref<CellEdge | null>(null);
 const isPanning = ref(false);
 const isPainting = ref(false);
 let lastPointer: { x: number; y: number } | null = null;
-// Tracks edges already written during the current drag, so dragging over the
-// same edge doesn't re-randomise its variant.
-let edgesPaintedInStroke = new Set<string>();
-// Direction lock: once the first edge of a drag is placed, every subsequent
-// edge in the stroke must match the same direction. Prevents accidental
-// perpendicular walls when the cursor passes near a cell corner.
-let strokeDirection: "H" | "V" | null = null;
+// Mutable per-stroke state (edge dedup + direction lock) — see StrokeState in
+// src/cartographer/paintOps.ts for what each field replaces and why.
+let strokeState = paintOps.createStrokeState();
 
 // Tools
-type Tool = "floor" | "eraser" | "pan" | "wall" | "door" | "solid" | "rect" | "line" | "fill" | "wrap" | "stamp" | "annotate" | "link" | "template" | "cave";
 interface ToolDef {
   id: Tool;
   label: string;
@@ -494,6 +503,21 @@ const encounterOptions = computed(() =>
   (encountersData.value ?? []).map((e) => ({ id: e.id, name: e.name })),
 );
 
+// #804 — hazard/feature glyph resolution. `includeAllScopes` because a cell's
+// trap_id/feature_id must keep resolving even after its target is scoped out
+// of the active campaign, same rule useLocationPlacements documents.
+const { data: allTrapsData } = useTraps(() => ({ includeAllScopes: true }));
+const { data: allFeaturesData } = useDungeonFeatures(() => ({ includeAllScopes: true }));
+const trapsById = computed(() => new Map((allTrapsData.value ?? []).map((t) => [t.id, t])));
+const featuresById = computed(() => new Map((allFeaturesData.value ?? []).map((f) => [f.id, f])));
+// The pickers offer the same rows the glyph resolver reads. `includeAllScopes`
+// is right for both here: a trap is homebrew content that may legitimately be
+// personal rather than campaign-scoped, and offering a narrower list than the
+// resolver can render would let a DM see a glyph they cannot re-select.
+const trapOptions = computed(() => (allTrapsData.value ?? []).map((t) => ({ id: t.id, name: t.name })));
+const featureOptions = computed(() => (allFeaturesData.value ?? []).map((f) => ({ id: f.id, name: f.name })));
+const cellGlyphs = computed(() => resolveCellGlyphs(metadata.value, trapsById.value, featuresById.value));
+
 // Writable computeds for the inspector's link pickers
 const linkedNoteId = computed({
   get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.note_id ?? "") : ""),
@@ -510,6 +534,24 @@ const linkedEncounterId = computed({
     if (!selectedCell.value) return;
     const k = cellKey(...selectedCell.value);
     metadata.value[k] = { ...metadata.value[k], encounter_id: id || undefined };
+    dirty.value = true;
+  },
+});
+const linkedTrapId = computed({
+  get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.trap_id ?? "") : ""),
+  set: (id: string) => {
+    if (!selectedCell.value) return;
+    const k = cellKey(...selectedCell.value);
+    metadata.value[k] = { ...metadata.value[k], trap_id: id || undefined };
+    dirty.value = true;
+  },
+});
+const linkedFeatureId = computed({
+  get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.feature_id ?? "") : ""),
+  set: (id: string) => {
+    if (!selectedCell.value) return;
+    const k = cellKey(...selectedCell.value);
+    metadata.value[k] = { ...metadata.value[k], feature_id: id || undefined };
     dirty.value = true;
   },
 });
@@ -588,6 +630,7 @@ function cloneLayers(src: DungeonMapLayers | null | undefined): DungeonMapLayers
 watch(loadedMap, (m) => {
   if (m) {
     name.value = m.name;
+    campaignId.value = m.campaign_id;
     layers.value = cloneLayers(m.layers);
     metadata.value = JSON.parse(JSON.stringify(m.metadata ?? {})) as Record<CellKey, CellMetadata>;
     currentPackId.value = m.default_pack_id ?? DEFAULT_PACK_ID;
@@ -599,44 +642,41 @@ watch(loadedMap, (m) => {
 }, { immediate: true });
 
 // ── Deterministic variant picking ──────────────────────────────────────────
+// hash32/pickVariant live in src/cartographer/tileVariants.ts; see its
+// colocated test for why these seed strings must never change.
 
-function hash32(s: string): number {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
+const mapKey = computed(() => mapId.value || "new");
 
 function pickFloorVariant(x: number, y: number): number {
-  const count = floorVariantCount.value || 1;
-  return hash32(`${mapId.value || "new"}|floor|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, "floor", x, y, floorVariantCount.value);
 }
 
 function pickWallVariant(x: number, y: number, side: "N" | "W"): number {
   if (!packRuntime.value) return 0;
   const category = side === "N" ? "wallSegmentH" : "wallSegmentV";
-  const count = packRuntime.value.variantCount(category) || 1;
-  return hash32(`${mapId.value || "new"}|${category}|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, category, x, y, packRuntime.value.variantCount(category));
 }
 
 function pickSolidVariant(x: number, y: number): number {
   if (!packRuntime.value) return 0;
-  const count = packRuntime.value.variantCount("solidBlock") || 1;
-  return hash32(`${mapId.value || "new"}|solid|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, "solid", x, y, packRuntime.value.variantCount("solidBlock"));
 }
 
 function pickDoorVariant(x: number, y: number, category: PackCategory): number {
   if (!packRuntime.value) return 0;
-  const count = packRuntime.value.variantCount(category) || 1;
-  return hash32(`${mapId.value || "new"}|${category}|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, category, x, y, packRuntime.value.variantCount(category));
 }
 
 function activePackVersion(): number {
   return packRuntime.value?.manifest.pack_version
     ?? selectablePacks.value.find((pack) => pack.pack_id === currentPackId.value)?.pack_version
     ?? 1;
+}
+
+// Mutation context handed to paintOps functions — `layers` is the same
+// reactive object as layers.value, so writes through it stay reactive.
+function paintContext(): PaintContext {
+  return { layers: layers.value, packId: currentPackId.value, packVersion: activePackVersion() };
 }
 
 // ── Undo/redo helpers ──────────────────────────────────────────────────────
@@ -673,26 +713,6 @@ function redoEdit(): void {
 }
 
 // ── Geometry helpers ───────────────────────────────────────────────────────
-
-// Classifies the wallJoint type at an intersection. Returns null when no joint
-// is needed (fewer than 2 walls, or 2 collinear walls that don't form a corner).
-function classifyJoint(wH: boolean, eH: boolean, nV: boolean, sV: boolean): string | null {
-  const count = [wH, eH, nV, sV].filter(Boolean).length;
-  if (count === 4) return "CROSS";
-  if (count === 3) {
-    if (!nV) return "T_N";
-    if (!eH) return "T_E";
-    if (!sV) return "T_S";
-    if (!wH) return "T_W";
-  }
-  if (count === 2) {
-    if (nV && eH) return "L_NE";
-    if (sV && eH) return "L_SE";
-    if (sV && wH) return "L_SW";
-    if (nV && wH) return "L_NW";
-  }
-  return null; // 0, 1, or 2 collinear walls — no joint
-}
 
 function cellsInRect(ax: number, ay: number, bx: number, by: number): Array<[number, number]> {
   const x0 = Math.min(ax, bx), x1 = Math.max(ax, bx);
@@ -767,167 +787,64 @@ function centerMap(): void {
 
 function paintSolidAt(x: number, y: number): void {
   if (!packRuntime.value) return;
-  const k = cellKey(x, y);
   const variant = pickSolidVariant(x, y);
-  if (layers.value.solidBlock[k]?.variant === variant) return;
-  layers.value.solidBlock[k] = { pack_id: currentPackId.value, pack_version: activePackVersion(), variant };
-  dirty.value = true;
+  if (paintOps.paintSolidAt(paintContext(), x, y, variant)) dirty.value = true;
 }
 
 function eraseSolidAt(x: number, y: number): void {
-  const k = cellKey(x, y);
-  if (!layers.value.solidBlock[k]) return;
-  const next = { ...layers.value.solidBlock };
-  delete next[k];
-  layers.value.solidBlock = next;
-  dirty.value = true;
+  if (paintOps.eraseSolidAt(paintContext(), x, y)) dirty.value = true;
 }
 
 // ── Object stamp tool ─────────────────────────────────────────────────────
 
 function pickObjectVariant(cat: ObjectCategory, x: number, y: number): number {
   if (!packRuntime.value) return 0;
-  const count = packRuntime.value.variantCount(cat) || 1;
-  return hash32(`${mapId.value || "new"}|${cat}|${x}|${y}`) % count;
+  return pickVariant(mapKey.value, cat, x, y, packRuntime.value.variantCount(cat));
 }
 
 function paintObjectAt(x: number, y: number): void {
-  const k = cellKey(x, y);
   const variant = pickObjectVariant(activeObjectCategory.value, x, y);
-  layers.value.object[k] = {
-    pack_id: currentPackId.value,
-    pack_version: activePackVersion(),
-    category: activeObjectCategory.value,
-    variant,
-    ...(stampRotation.value ? { rotation: stampRotation.value } : {}),
-  };
-  dirty.value = true;
+  const changed = paintOps.paintObjectAt(
+    paintContext(), x, y, activeObjectCategory.value, variant, stampRotation.value,
+  );
+  if (changed) dirty.value = true;
 }
 
 function eraseObjectAt(x: number, y: number): void {
-  const k = cellKey(x, y);
-  if (!layers.value.object[k]) return;
-  const next = { ...layers.value.object };
-  delete next[k];
-  layers.value.object = next;
-  dirty.value = true;
+  if (paintOps.eraseObjectAt(paintContext(), x, y)) dirty.value = true;
 }
 
 // ── Wall placement (edge-based, NW ownership) ──────────────────────────────
 
-function edgeDirection(side: "N" | "E" | "S" | "W"): "H" | "V" {
-  return side === "N" || side === "S" ? "H" : "V";
-}
-
 function paintWallAtCellEdge(edge: CellEdge): void {
-  const dir = edgeDirection(edge.side);
-  // Direction lock: first paint of a stroke commits H or V; later perpendicular
-  // edges are ignored. Single clicks (no later moves) are unaffected.
-  if (isPainting.value) {
-    if (strokeDirection === null) strokeDirection = dir;
-    else if (strokeDirection !== dir) return;
-  }
-
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const strokeKey = `${canon.x},${canon.y},${canon.side}`;
-  if (edgesPaintedInStroke.has(strokeKey)) return;
-
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey] ?? {};
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  // Preserve doors. For walls, skip only if same pack — different pack restyling the edge.
-  if (existing && (existing.type !== "wall" || existing.pack_id === currentPackId.value)) {
-    edgesPaintedInStroke.add(strokeKey);
-    return;
-  }
-
-  const seg: EdgeSeg = {
-    pack_id: currentPackId.value,
-    pack_version: activePackVersion(),
-    type: "wall",
-    variant: pickWallVariant(canon.x, canon.y, canon.side),
-  };
-
-  layers.value.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
-
-  edgesPaintedInStroke.add(strokeKey);
-  dirty.value = true;
+  const variant = pickWallVariant(canon.x, canon.y, canon.side);
+  strokeState.active = isPainting.value;
+  if (paintOps.paintWallAtCellEdge(paintContext(), edge, strokeState, variant)) dirty.value = true;
 }
 
 // Writes a wall edge directly, skipping stroke tracking. Used by wrap-walls,
 // rectangle perimeter, and shift+click — operations that aren't "strokes".
 function setWallEdgeIfEmpty(edge: CellEdge): void {
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey] ?? {};
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  if (existing) return; // preserve existing walls/doors
-  const seg: EdgeSeg = {
-    pack_id: currentPackId.value,
-    pack_version: activePackVersion(),
-    type: "wall",
-    variant: pickWallVariant(canon.x, canon.y, canon.side),
-  };
-  layers.value.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
-  dirty.value = true;
+  const variant = pickWallVariant(canon.x, canon.y, canon.side);
+  if (paintOps.setWallEdgeIfEmpty(paintContext(), edge, variant)) dirty.value = true;
 }
 
 // ── Door tool (edge-based) ─────────────────────────────────────────────────
 
 function paintDoorAtEdge(edge: CellEdge): void {
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const strokeKey = `${canon.x},${canon.y},${canon.side}`;
-  if (edgesPaintedInStroke.has(strokeKey)) return;
-
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey] ?? {};
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  const isH = canon.side === "N";
-
-  let newType: EdgeSegType;
-  let variant: number;
-  if (existing?.type === "doorClosed") {
-    newType = "doorOpen";
-    variant = existing.variant; // same door model, now open
-  } else if (existing?.type === "doorOpen") {
-    newType = "doorClosed";
-    variant = existing.variant;
-  } else {
-    newType = "doorClosed";
-    const cat: PackCategory = isH ? "doorClosedH" : "doorClosedV";
-    variant = pickDoorVariant(canon.x, canon.y, cat);
-  }
-
-  const seg: EdgeSeg = { pack_id: currentPackId.value, pack_version: activePackVersion(), type: newType, variant };
-  layers.value.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
-  edgesPaintedInStroke.add(strokeKey);
-  dirty.value = true;
+  const cat: PackCategory = canon.side === "N" ? "doorClosedH" : "doorClosedV";
+  const newDoorVariant = pickDoorVariant(canon.x, canon.y, cat);
+  if (paintOps.paintDoorAtEdge(paintContext(), edge, strokeState, newDoorVariant)) dirty.value = true;
 }
 
 // Right-click on door edge: revert to plain wall (preserves the edge, removes door).
 function removeDoorAtEdge(edge: CellEdge): void {
   const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey];
-  if (!ownerCell) return;
-  const existing = canon.side === "N" ? ownerCell.wallN : ownerCell.wallW;
-  if (!existing || existing.type === "wall") return;
-  const seg: EdgeSeg = {
-    pack_id: currentPackId.value,
-    pack_version: activePackVersion(),
-    type: "wall",
-    variant: pickWallVariant(canon.x, canon.y, canon.side),
-  };
-  layers.value.floor[ownerKey] = canon.side === "N"
-    ? { ...ownerCell, wallN: seg }
-    : { ...ownerCell, wallW: seg };
-  dirty.value = true;
+  const wallVariant = pickWallVariant(canon.x, canon.y, canon.side);
+  if (paintOps.removeDoorAtEdge(paintContext(), edge, wallVariant)) dirty.value = true;
 }
 
 // ── One-shot actions ───────────────────────────────────────────────────────
@@ -991,30 +908,8 @@ function paintCaveAt(cx: number, cy: number): void {
 }
 
 function eraseWallAtCellEdge(edge: CellEdge): void {
-  const dir = edgeDirection(edge.side);
-  if (isPainting.value) {
-    if (strokeDirection === null) strokeDirection = dir;
-    else if (strokeDirection !== dir) return;
-  }
-
-  const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
-  const ownerKey = cellKey(canon.x, canon.y);
-  const ownerCell = layers.value.floor[ownerKey];
-  if (!ownerCell) return;
-  if (canon.side === "N" && !ownerCell.wallN) return;
-  if (canon.side === "W" && !ownerCell.wallW) return;
-  const next = { ...ownerCell };
-  if (canon.side === "N") delete next.wallN;
-  else delete next.wallW;
-  // If the cell is now empty (no floor, no walls), drop it from the map.
-  if (!next.floor && !next.wallN && !next.wallW) {
-    const newFloor = { ...layers.value.floor };
-    delete newFloor[ownerKey];
-    layers.value.floor = newFloor;
-  } else {
-    layers.value.floor[ownerKey] = next;
-  }
-  dirty.value = true;
+  strokeState.active = isPainting.value;
+  if (paintOps.eraseWallAtCellEdge(paintContext(), edge, strokeState)) dirty.value = true;
 }
 
 
@@ -1069,274 +964,28 @@ function render(): void {
   const { dpr } = devicePixelDims();
   const tileCSS = BASE_TILE_SIZE * zoom.value;
   const tilePx = tileCSS * dpr;
+  const bounds = visibleCellBounds();
 
-  ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = "rgb(20, 18, 16)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const { minX, minY, maxX, maxY } = visibleCellBounds();
-
-  const rt = (pid: string): TilePackRuntime | null =>
-    loadedRuntimes.value.get(pid) ?? packRuntime.value ?? null;
-
-  // Floor layer
-  if (loadedRuntimes.value.size > 0) {
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const k = cellKey(x, y);
-        const cell = layers.value.floor[k];
-        if (!cell?.floor) continue;
-        const drawX = x * tilePx - viewportOffset.value.x;
-        const drawY = y * tilePx - viewportOffset.value.y;
-        const r = rt(cell.floor.pack_id);
-        if (!r) continue;
-        const tile = r.getTile("floor", cell.floor.variant);
-        ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
-      }
-    }
-  }
-
-  // SolidBlock layer — full-cell thick walls rendered above the floor
-  if (loadedRuntimes.value.size > 0) {
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const solid = layers.value.solidBlock[cellKey(x, y)];
-        if (!solid) continue;
-        const drawX = x * tilePx - viewportOffset.value.x;
-        const drawY = y * tilePx - viewportOffset.value.y;
-        const r = rt(solid.pack_id);
-        if (!r) continue;
-        const tile = r.getTile("solidBlock", solid.variant);
-        ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
-      }
-    }
-  }
-
-  // Grid overlay
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = minX; x <= maxX + 1; x++) {
-    const px = x * tilePx - viewportOffset.value.x;
-    ctx.moveTo(px, 0);
-    ctx.lineTo(px, canvas.height);
-  }
-  for (let y = minY; y <= maxY + 1; y++) {
-    const py = y * tilePx - viewportOffset.value.y;
-    ctx.moveTo(0, py);
-    ctx.lineTo(canvas.width, py);
-  }
-  ctx.stroke();
-
-  // Edge walls — drawn AFTER the grid so walls visually mask the gridline
-  // they sit on. The wall tile is 128×128 with the painted strip in the
-  // CENTER (vertically for H, horizontally for V). We shift the tile by
-  // half a tile so the strip lands ON the gridline, straddling both
-  // adjacent cells equally. NW ownership: cell stores wallN/wallW.
-  if (loadedRuntimes.value.size > 0) {
-    const halfTile = tilePx / 2;
-    for (let y = minY; y <= maxY + 1; y++) {
-      for (let x = minX; x <= maxX + 1; x++) {
-        const cell = layers.value.floor[cellKey(x, y)];
-        if (!cell) continue;
-        const drawX = x * tilePx - viewportOffset.value.x;
-        const drawY = y * tilePx - viewportOffset.value.y;
-        if (cell.wallN) {
-          const seg = cell.wallN;
-          const r = rt(seg.pack_id);
-          if (r) {
-            const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedH"
-              : seg.type === "doorOpen" ? "doorOpenH" : "wallSegmentH";
-            const tile = r.getTile(cat, seg.variant);
-            ctx.drawImage(tile.source, drawX, drawY - halfTile, tilePx, tilePx);
-          }
-        }
-        if (cell.wallW) {
-          const seg = cell.wallW;
-          const r = rt(seg.pack_id);
-          if (r) {
-            const cat: PackCategory = seg.type === "doorClosed" ? "doorClosedV"
-              : seg.type === "doorOpen" ? "doorOpenV" : "wallSegmentV";
-            const tile = r.getTile(cat, seg.variant);
-            ctx.drawImage(tile.source, drawX - halfTile, drawY, tilePx, tilePx);
-          }
-        }
-      }
-    }
-
-    // Corner joints — fill / tile the gap at every grid intersection where H and
-    // V wall strips meet. Uses the pack's optional wallJoint directional art when
-    // available; falls back to a programmatic filled square otherwise.
-    // Match tile strip width: actual extracted assets use ~35/128 of tile height.
-    const thickness = tilePx * (35 / 128);
-    const halfThick = thickness / 2;
-    for (let jy = minY; jy <= maxY + 1; jy++) {
-      for (let jx = minX; jx <= maxX + 1; jx++) {
-        const wH = !!layers.value.floor[cellKey(jx - 1, jy)]?.wallN;
-        const eH = !!layers.value.floor[cellKey(jx, jy)]?.wallN;
-        const nV = !!layers.value.floor[cellKey(jx, jy - 1)]?.wallW;
-        const sV = !!layers.value.floor[cellKey(jx, jy)]?.wallW;
-        if (!(wH || eH) || !(nV || sV)) continue;
-        const cornerX = jx * tilePx - viewportOffset.value.x;
-        const cornerY = jy * tilePx - viewportOffset.value.y;
-        const side = classifyJoint(wH, eH, nV, sV);
-        // Check all four adjacent walls for pack ownership — avoids falling back to
-        // currentPackId and having corners change style when the active pack switches.
-        const jointPackId =
-          layers.value.floor[cellKey(jx, jy)]?.wallN?.pack_id ??
-          layers.value.floor[cellKey(jx - 1, jy)]?.wallN?.pack_id ??
-          layers.value.floor[cellKey(jx, jy)]?.wallW?.pack_id ??
-          layers.value.floor[cellKey(jx, jy - 1)]?.wallW?.pack_id ??
-          currentPackId.value;
-        const jointRt = rt(jointPackId);
-
-        // M6 schema v2: wallRoundJoint — drawn at full tile size centered on the corner.
-        // Only honoured when the pack ships REAL art for it — procedural placeholders
-        // fall through to the standard wallJoint handling so rectangular rooms don't
-        // unexpectedly grow rounded corners before real round-corner art exists.
-        if (side?.startsWith("L_") && jointRt && jointRt.variantCount("wallRoundJoint", side) > 0) {
-          const roundTile = jointRt.getTile("wallRoundJoint", 0, side);
-          if (!roundTile.isPlaceholder) {
-            ctx.drawImage(roundTile.source, cornerX - tilePx / 2, cornerY - tilePx / 2, tilePx, tilePx);
-            continue;
-          }
-        }
-
-        // Prefer directional tile, fall back to generic (no side), then procedural square.
-        const directional = side && jointRt && jointRt.variantCount("wallJoint", side) > 0
-          ? jointRt.getTile("wallJoint", 0, side) : null;
-        const generic = !directional?.source && jointRt
-          ? jointRt.getTile("wallJoint", 0) : null;
-        const jointTile = directional ?? generic;
-        if (jointTile && !jointTile.isPlaceholder) {
-          ctx.drawImage(jointTile.source, cornerX - halfThick, cornerY - halfThick, thickness, thickness);
-        } else {
-          // Fallback square: use pack palette colour (wallJoint → wallSegmentH → stone default).
-          const pal = jointRt?.manifest.palette;
-          const [r, g, b] = pal?.wallJoint ?? pal?.wallSegmentH ?? [40, 36, 32];
-          ctx.fillStyle = `rgb(${r},${g},${b})`;
-          ctx.fillRect(cornerX - halfThick, cornerY - halfThick, thickness, thickness);
-        }
-      }
-    }
-  }
-
-  // Object layer — stamps drawn above walls
-  if (loadedRuntimes.value.size > 0) {
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const obj = layers.value.object[cellKey(x, y)];
-        if (!obj) continue;
-        const drawX = x * tilePx - viewportOffset.value.x;
-        const drawY = y * tilePx - viewportOffset.value.y;
-        const objRt = rt(obj.pack_id);
-        if (!objRt) continue;
-        const tile = objRt.getTile(obj.category as PackCategory, obj.variant);
-        const rotation = (obj as { rotation?: number }).rotation ?? 0;
-        if (rotation) {
-          ctx.save();
-          ctx.translate(drawX + tilePx / 2, drawY + tilePx / 2);
-          ctx.rotate((rotation * Math.PI) / 180);
-          ctx.drawImage(tile.source, -tilePx / 2, -tilePx / 2, tilePx, tilePx);
-          ctx.restore();
-        } else {
-          ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
-        }
-      }
-    }
-  }
-
-  // Annotation layer — text labels centered in each cell
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  for (let y = minY; y <= maxY; y++) {
-    for (let x = minX; x <= maxX; x++) {
-      const ann = layers.value.annotation[cellKey(x, y)];
-      if (!ann?.text) continue;
-      const drawX = x * tilePx - viewportOffset.value.x;
-      const drawY = y * tilePx - viewportOffset.value.y;
-      const fontSize = Math.max(9, Math.round(tilePx * 0.16));
-      ctx.font = `bold ${fontSize}px sans-serif`;
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      ctx.fillText(ann.text, drawX + tilePx / 2 + 1, drawY + tilePx / 2 + 1, tilePx - 8);
-      ctx.fillStyle = "rgba(255,240,180,0.95)";
-      ctx.fillText(ann.text, drawX + tilePx / 2, drawY + tilePx / 2, tilePx - 8);
-    }
-  }
-
-  // Entity link indicator — small blue dot in top-right corner when a cell has links
-  const dotR = Math.max(4, tilePx * 0.07);
-  for (let y = minY; y <= maxY; y++) {
-    for (let x = minX; x <= maxX; x++) {
-      const meta = metadata.value[cellKey(x, y)];
-      if (!meta?.note_id && !meta?.encounter_id) continue;
-      const drawX = x * tilePx - viewportOffset.value.x;
-      const drawY = y * tilePx - viewportOffset.value.y;
-      ctx.fillStyle = "rgba(80,180,255,0.9)";
-      ctx.beginPath();
-      ctx.arc(drawX + tilePx - dotR * 2, drawY + dotR * 2, dotR, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // Selected-cell highlight (link + annotate tools)
-  if (selectedCell.value && (activeTool.value === "link" || activeTool.value === "annotate")) {
-    const [sx, sy] = selectedCell.value;
-    const drawX = sx * tilePx - viewportOffset.value.x;
-    const drawY = sy * tilePx - viewportOffset.value.y;
-    ctx.strokeStyle = "rgba(80,180,255,0.85)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(drawX + 1, drawY + 1, tilePx - 2, tilePx - 2);
-  }
-
-  // Origin marker
-  const ox = 0 - viewportOffset.value.x;
-  const oy = 0 - viewportOffset.value.y;
-  ctx.strokeStyle = "rgba(200, 160, 60, 0.5)";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(ox, oy, tilePx, tilePx);
-
-  // Rect / line drag preview
-  if (previewCells.value.size > 0) {
-    ctx.fillStyle = "rgba(140, 220, 140, 0.25)";
-    for (const key of previewCells.value) {
-      const [xs, ys] = (key as string).split(",");
-      const px = Number(xs) * tilePx - viewportOffset.value.x;
-      const py = Number(ys) * tilePx - viewportOffset.value.y;
-      ctx.fillRect(px, py, tilePx, tilePx);
-    }
-  }
-
-  if (!viewMode.value) {
-    // Cell-hover highlight (only when the active tool targets cells)
-    if (hoverCell.value && (activeTool.value === "floor" || activeTool.value === "cave" || activeTool.value === "template" || (activeTool.value === "eraser" && !hoveredEdge.value))) {
-      const [hx, hy] = hoverCell.value;
-      const drawX = hx * tilePx - viewportOffset.value.x;
-      const drawY = hy * tilePx - viewportOffset.value.y;
-      ctx.strokeStyle = activeTool.value === "eraser" ? "rgba(220, 80, 80, 0.6)" : "rgba(255, 255, 255, 0.35)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(drawX, drawY, tilePx, tilePx);
-    }
-
-    // Edge-hover highlight (wall / door / edge-aware eraser tools)
-    if (hoveredEdge.value) {
-      const { x, y, side } = hoveredEdge.value;
-      const baseX = x * tilePx - viewportOffset.value.x;
-      const baseY = y * tilePx - viewportOffset.value.y;
-      const isErase = activeTool.value === "eraser";
-      ctx.strokeStyle = isErase ? "rgba(220, 80, 80, 0.85)" : "rgba(255, 220, 100, 0.85)";
-      ctx.lineWidth = Math.max(3, tilePx * 0.08);
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      switch (side) {
-        case "N": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX + tilePx, baseY); break;
-        case "S": ctx.moveTo(baseX, baseY + tilePx);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-        case "W": ctx.moveTo(baseX, baseY);             ctx.lineTo(baseX, baseY + tilePx); break;
-        case "E": ctx.moveTo(baseX + tilePx, baseY);    ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
-      }
-      ctx.stroke();
-    }
-  }
+  renderMap({
+    ctx,
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    tilePx,
+    viewportOffset: viewportOffset.value,
+    bounds,
+    layers: layers.value,
+    metadata: metadata.value,
+    glyphs: cellGlyphs.value,
+    runtimes: loadedRuntimes.value,
+    fallbackRuntime: packRuntime.value,
+    currentPackId: currentPackId.value,
+    activeTool: activeTool.value,
+    viewMode: viewMode.value,
+    hoveredEdge: hoveredEdge.value,
+    hoverCell: hoverCell.value,
+    selectedCell: selectedCell.value,
+    previewCells: previewCells.value,
+  });
 }
 
 let rafId = 0;
@@ -1348,7 +997,7 @@ function scheduleRender(): void {
   });
 }
 
-watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells, metadata, selectedCell, viewMode], () => scheduleRender(), { deep: true });
+watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells, metadata, selectedCell, viewMode, cellGlyphs], () => scheduleRender(), { deep: true });
 
 // ── Pointer interaction ────────────────────────────────────────────────────
 
@@ -1359,29 +1008,12 @@ function getLocalPointer(ev: PointerEvent): { x: number; y: number } {
 
 function paintCell(x: number, y: number): void {
   if (!packRuntime.value) return;
-  const k = cellKey(x, y);
-  const existing = layers.value.floor[k];
   const variant = pickFloorVariant(x, y);
-  if (existing?.floor?.pack_id === currentPackId.value && existing?.floor?.variant === variant) return;
-  layers.value.floor[k] = {
-    ...existing,
-    floor: {
-      pack_id: currentPackId.value,
-      pack_version: activePackVersion(),
-      variant,
-    },
-  };
-  dirty.value = true;
+  if (paintOps.paintCell(paintContext(), x, y, variant)) dirty.value = true;
 }
 
 function eraseCell(x: number, y: number): void {
-  const k = cellKey(x, y);
-  if (layers.value.floor[k]) {
-    const next = { ...layers.value.floor };
-    delete next[k];
-    layers.value.floor = next;
-    dirty.value = true;
-  }
+  if (paintOps.eraseCell(paintContext(), x, y)) dirty.value = true;
 }
 
 function onPointerDown(ev: PointerEvent): void {
@@ -1428,8 +1060,7 @@ function onPointerDown(ev: PointerEvent): void {
   // Shift+click with the wall brush: wrap all 4 edges of the clicked cell.
   if (activeTool.value === "wall" && ev.shiftKey && ev.button === 0) {
     const before = snapshotStr();
-    edgesPaintedInStroke = new Set<string>();
-    strokeDirection = null;
+    strokeState = paintOps.createStrokeState();
     for (const side of ["N", "E", "S", "W"] as const)
       paintWallAtCellEdge({ x: cx, y: cy, side });
     const after = snapshotStr();
@@ -1464,8 +1095,7 @@ function onPointerDown(ev: PointerEvent): void {
   // Stroke-based tools.
   isPainting.value = true;
   canvasEl.value?.setPointerCapture(ev.pointerId);
-  edgesPaintedInStroke = new Set<string>();
-  strokeDirection = null;
+  strokeState = paintOps.createStrokeState();
   strokeSnapshot = snapshotStr();
 
   // Rect / line / template tools: record drag start; first cell is the preview seed.
@@ -1512,7 +1142,7 @@ function onPointerMove(ev: PointerEvent): void {
     let edge = detectHoveredEdge(world.x, world.y, tilePixelSize(), EDGE_HOVER_THRESHOLD);
     // If a stroke has locked its direction, suppress highlights for the
     // perpendicular axis — visual feedback matches what will actually paint.
-    if (edge && isPainting.value && strokeDirection !== null && edgeDirection(edge.side) !== strokeDirection) {
+    if (edge && isPainting.value && strokeState.direction !== null && paintOps.edgeDirection(edge.side) !== strokeState.direction) {
       edge = null;
     }
     hoveredEdge.value = edge;
@@ -1595,28 +1225,16 @@ function onPointerUp(ev: PointerEvent): void {
 }
 
 function onWheel(ev: WheelEvent): void {
-  const factor = ev.deltaY < 0 ? 1.1 : 1 / 1.1;
-  // 5%–400% zoom range: small enough to scan an 80×80 dungeon at a glance,
-  // large enough to paint tile-by-tile.
-  const next = Math.max(0.05, Math.min(4, zoom.value * factor));
-  // Zoom around the cursor
   const rect = canvasEl.value!.getBoundingClientRect();
-  const cx = ev.clientX - rect.left;
-  const cy = ev.clientY - rect.top;
   const { dpr } = devicePixelDims();
-  const worldX = viewportOffset.value.x + cx * dpr;
-  const worldY = viewportOffset.value.y + cy * dpr;
-  const scale = next / zoom.value;
-  viewportOffset.value = {
-    x: worldX - (worldX - viewportOffset.value.x) * scale - cx * dpr + cx * dpr,
-    y: worldY - (worldY - viewportOffset.value.y) * scale - cy * dpr + cy * dpr,
-  };
-  // Simpler: keep cursor over same world point
-  viewportOffset.value = {
-    x: worldX * scale - cx * dpr,
-    y: worldY * scale - cy * dpr,
-  };
-  zoom.value = next;
+  const next = zoomAtPoint(
+    { zoom: zoom.value, offset: viewportOffset.value },
+    { x: ev.clientX - rect.left, y: ev.clientY - rect.top },
+    dpr,
+    ev.deltaY,
+  );
+  viewportOffset.value = next.offset;
+  zoom.value = next.zoom;
 }
 
 // ── Save / cancel ──────────────────────────────────────────────────────────
@@ -1633,6 +1251,7 @@ async function onSave(): Promise<void> {
       default_pack_id: currentPackId.value as string,
       tags: (loadedMap.value as DungeonMap | null)?.tags ?? [],
       notes: null as unknown,
+      campaign_id: campaignId.value,
     };
     if (isNew.value) {
       const result = await createMutation.mutateAsync(payload);
@@ -1675,54 +1294,12 @@ function onDone(): void {
   router.push("/cartographer");
 }
 
-async function onSaveToAtlas(): Promise<void> {
-  if (baking.value || !atlasLocationId.value || !loadedMap.value) return;
-  atlasError.value = null;
-  baking.value = true;
-  try {
-    const map = { ...loadedMap.value, layers: layers.value, metadata: metadata.value };
-    const blob = await bakeMap(map, loadedRuntimes.value);
-    const user = getCurrentUser();
-    if (!user) throw new Error("Not authenticated");
-    const url = await uploadToBucket({
-      bucket: "locationImages",
-      blob,
-      userId: user.id,
-      contentType: "image/webp",
-    });
-    if (!url) throw new Error("Upload failed");
-    await updateLocationMapUrl.mutateAsync({
-      id: atlasLocationId.value,
-      mapUrl: url,
-      sourceMapId: loadedMap.value.id,
-    });
-    // Auto-populate VTT grid calibration: the bake produces an image where
-    // every column is one 5-ft cell at BASE_TILE_SIZE px and cell (0,0) sits
-    // at the image's top-left, so cells_per_image_width == cols.
-    const dims = computeBakedDimensions(map);
-    await updateLocationGridCalibration.mutateAsync({
-      id: atlasLocationId.value,
-      calibration: {
-        cells_per_image_width: dims.cols,
-        origin_x_pct: 0,
-        origin_y_pct: 0,
-      },
-    });
-    showAtlasModal.value = false;
-    atlasLocationId.value = "";
-  } catch (e) {
-    atlasError.value = e instanceof Error ? e.message : "Something went wrong";
-  } finally {
-    baking.value = false;
-  }
-}
-
 async function onDownloadPng(): Promise<void> {
   if (baking.value || !loadedMap.value) return;
   baking.value = true;
   try {
     const map = { ...loadedMap.value, layers: layers.value, metadata: metadata.value };
-    const blob = await bakeMapAsPng(map, loadedRuntimes.value);
+    const blob = await bakeMapAsPng(map, loadedRuntimes.value, {}, cellGlyphs.value);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -1731,96 +1308,6 @@ async function onDownloadPng(): Promise<void> {
     URL.revokeObjectURL(url);
   } finally {
     baking.value = false;
-  }
-}
-
-async function onGenerateStyle(): Promise<void> {
-  if (styleGenerating.value || !loadedMap.value) return;
-  styleError.value = null;
-  styleGenerating.value = true;
-  try {
-    const map = { ...loadedMap.value, layers: layers.value, metadata: metadata.value };
-    const pngBlob = await bakeMapForAI(map, loadedRuntimes.value);
-    // Convert PNG blob to base64
-    const ab = await pngBlob.arrayBuffer();
-    const bytes = new Uint8Array(ab);
-    let bin = "";
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    const image_b64 = btoa(bin);
-
-    const { data, error } = await supabase.functions.invoke("style-map", {
-      body: {
-        campaign_id: loadedMap.value.id, // placeholder — edge fn doesn't use it for map auth
-        image_b64,
-        preset_id: selectedPresetId.value,
-        map_name: name.value,
-        map_description: loadedMap.value.description,
-        prompt_suffix: stylePromptSuffix.value.trim() || null,
-      },
-    });
-    if (error || !data?.image_b64) throw new Error(error?.message ?? data?.error ?? "Generation failed");
-
-    const resultBytes = Uint8Array.from(atob(data.image_b64 as string), (c) => c.charCodeAt(0));
-    styleResultBlob.value = new Blob([resultBytes], { type: "image/webp" });
-    if (styleResultUrl.value) URL.revokeObjectURL(styleResultUrl.value);
-    styleResultUrl.value = URL.createObjectURL(styleResultBlob.value);
-    showStylePicker.value = false;
-    showStyleResult.value = true;
-  } catch (e) {
-    styleError.value = e instanceof Error ? e.message : "Something went wrong";
-  } finally {
-    styleGenerating.value = false;
-  }
-}
-
-async function onRetryStyle(): Promise<void> {
-  if (styleResultUrl.value) URL.revokeObjectURL(styleResultUrl.value);
-  styleResultBlob.value = null;
-  styleResultUrl.value = null;
-  showStyleResult.value = false;
-  await onGenerateStyle();
-}
-
-function onDownloadStyled(): void {
-  if (!styleResultBlob.value) return;
-  const url = URL.createObjectURL(styleResultBlob.value);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${name.value || "map"}-styled.webp`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-async function onSaveStyledToAtlas(): Promise<void> {
-  if (styleAtlasSaving.value || !styleAtlasLocationId.value || !styleResultBlob.value || !loadedMap.value) return;
-  styleAtlasError.value = null;
-  styleAtlasSaving.value = true;
-  try {
-    const user = getCurrentUser();
-    if (!user) throw new Error("Not authenticated");
-    const url = await uploadToBucket({
-      bucket: "locationImages",
-      blob: styleResultBlob.value,
-      userId: user.id,
-      contentType: "image/webp",
-    });
-    if (!url) throw new Error("Upload failed");
-    await updateLocationMapUrl.mutateAsync({
-      id: styleAtlasLocationId.value,
-      mapUrl: url,
-      sourceMapId: loadedMap.value.id,
-    });
-    // Log the restyled map to the Gallery, linked back to the location.
-    void logImageGeneration({
-      kind: "map", imageUrl: url, prompt: `${name.value || "Map"} — ${selectedPresetId.value} style`,
-      targetId: styleAtlasLocationId.value, targetColumn: "map_url",
-    });
-    showStyleResult.value = false;
-    styleAtlasLocationId.value = "";
-  } catch (e) {
-    styleAtlasError.value = e instanceof Error ? e.message : "Something went wrong";
-  } finally {
-    styleAtlasSaving.value = false;
   }
 }
 
@@ -1838,10 +1325,34 @@ async function onDelete(): Promise<void> {
   }
 }
 
-onBeforeRouteLeave((_to, _from, next) => {
-  if (!dirty.value || saving.value || deleting.value || viewMode.value) return next();
-  const ok = window.confirm("Unsaved changes will be lost. Leave anyway?");
-  next(ok);
+// The three suppressing conditions are carried over verbatim from the guard
+// this replaced, and none of them is redundant with `dirty`:
+//
+// - `saving`/`deleting` cover this component's own navigations for their whole
+//   duration. `onDelete` does clear `dirty` before its `router.push`, but only
+//   once the mutation resolves; the flag covers the window before that.
+// - `viewMode` is a computed over `route.query.edit`, not a state that clears
+//   anything. The canvas is not editable there, so a `dirty` left over from an
+//   earlier edit session must not raise a prompt.
+//
+// Folding them into `isDirty` rather than calling `allowLeave()` on each exit
+// path keeps the whole rule in one place and leaves no flag to forget to set.
+useUnsavedGuard({
+  isDirty: () => dirty.value && !saving.value && !deleting.value && !viewMode.value,
+  // Unlike NoteEditor, this component *is* the route component — nothing mounts
+  // it behind a `v-if` on `?edit=true`. So toggling that query (the browser's
+  // Back button leaving edit mode) keeps the editor mounted with its layers and
+  // metadata untouched, and there is nothing to discard. Saying so matters
+  // because the guard now registers onBeforeRouteUpdate as well as
+  // onBeforeRouteLeave: the hand-rolled leave-only guard this replaced never
+  // saw that transition at all, so without this the swap would have introduced
+  // a prompt where none belongs.
+  survives: (to) => to.name === route.name && to.params.id === route.params.id,
+  ask: () =>
+    confirm("Unsaved changes will be lost. Leave anyway?", {
+      title: "Discard changes",
+      confirmLabel: "Discard",
+    }),
 });
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -1854,55 +1365,28 @@ function onResize(): void {
 
 function onKeyDown(ev: KeyboardEvent): void {
   const target = ev.target as HTMLElement | null;
-  if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
-    return;
-  }
+  const action = resolveKeyAction(
+    {
+      key: ev.key,
+      ctrlKey: ev.ctrlKey,
+      metaKey: ev.metaKey,
+      altKey: ev.altKey,
+      shiftKey: ev.shiftKey,
+      targetIsTextEntry: !!target
+        && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable),
+    },
+    { activeTool: activeTool.value, tools: TOOLS },
+  );
+  if (!action) return;
 
-  // Undo / redo — must check before the blanket Ctrl guard below.
-  if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === "z") {
-    if (ev.shiftKey) redoEdit(); else undoEdit();
-    ev.preventDefault();
-    return;
+  switch (action.kind) {
+    case "undo": undoEdit(); break;
+    case "redo": redoEdit(); break;
+    case "center": centerMap(); break;
+    case "rotateStamp": stampRotation.value = (stampRotation.value + action.delta) % 360; break;
+    case "selectTool": activeTool.value = action.tool; break;
   }
-
-  // Leave all other OS shortcuts alone.
-  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-
-  const key = ev.key.toLowerCase();
-  if (key === "c") {
-    centerMap();
-    ev.preventDefault();
-    return;
-  }
-
-  // Q/E: rotate stamp by 90° CCW/CW. M6: [/] for ±1° fine rotation.
-  if (activeTool.value === "stamp") {
-    if (key === "q") {
-      stampRotation.value = (stampRotation.value + 270) % 360;
-      ev.preventDefault();
-      return;
-    }
-    if (key === "e") {
-      stampRotation.value = (stampRotation.value + 90) % 360;
-      ev.preventDefault();
-      return;
-    }
-    if (key === "[") {
-      stampRotation.value = (stampRotation.value + 359) % 360;
-      ev.preventDefault();
-      return;
-    }
-    if (key === "]") {
-      stampRotation.value = (stampRotation.value + 1) % 360;
-      ev.preventDefault();
-      return;
-    }
-  }
-  const tool = TOOLS.find((t) => t.shortcut === key);
-  if (tool && !tool.disabled) {
-    activeTool.value = tool.id;
-    ev.preventDefault();
-  }
+  ev.preventDefault();
 }
 
 onMounted(async () => {

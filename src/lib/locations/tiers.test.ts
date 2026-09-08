@@ -3,6 +3,7 @@ import {
   LOCATION_TIERS,
   LOCATION_TYPE_TIER,
   groupByTier,
+  isSiteType,
   occupiedTiers,
   tierIndex,
   tierOf,
@@ -38,6 +39,7 @@ function loc(name: string, location_type: LocationType): Location {
     era_start: null,
     era_end: null,
     audio_theme: null,
+    sort_order: null,
     created_at: "",
     updated_at: "",
   };
@@ -58,11 +60,13 @@ describe("tier assignment", () => {
   });
 
   it("orders the ladder from cosmic down to interior", () => {
+    // One type per rung, chained through all six: cosmic < land < settlement
+    // < district < site < interior.
     expect(tierIndex("world")).toBeLessThan(tierIndex("continent"));
     expect(tierIndex("continent")).toBeLessThan(tierIndex("city"));
-    expect(tierIndex("city")).toBeLessThan(tierIndex("building"));
-    expect(tierIndex("building")).toBeLessThan(tierIndex("tavern"));
-    expect(tierIndex("tavern")).toBeLessThan(tierIndex("room"));
+    expect(tierIndex("city")).toBeLessThan(tierIndex("district"));
+    expect(tierIndex("district")).toBeLessThan(tierIndex("building"));
+    expect(tierIndex("building")).toBeLessThan(tierIndex("room"));
   });
 
   it("sorts the unscaled type last", () => {
@@ -70,12 +74,47 @@ describe("tier assignment", () => {
     expect(tierOf("other")).toBeNull();
   });
 
-  it("puts a dungeon and a wilderness at the same scale as a building", () => {
-    // They read as opposites but are the same *size* of place, which is the
-    // only thing this axis encodes. See the colour ramp comment.
+  it("shares a tier between dungeon and building, but not wilderness", () => {
+    // A dungeon and a building both have a floor plan, so they get the same
+    // kind of map — the same *tier* now means that, not "the same size".
+    // A wilderness has no floor plan at all: it moved to `land`, alongside
+    // continent/region/country, where "pins all the way down" belongs.
     expect(tierOf("dungeon")).toBe("site");
-    expect(tierOf("wilderness")).toBe("site");
     expect(tierOf("building")).toBe("site");
+    expect(tierOf("wilderness")).toBe("land");
+  });
+});
+
+describe("isSiteType", () => {
+  it("agrees with the tier map for every location type", () => {
+    for (const type of Object.keys(LOCATION_TYPE_TIER) as LocationType[]) {
+      expect(isSiteType(type)).toBe(LOCATION_TYPE_TIER[type] === "site");
+    }
+  });
+
+  // Deliberately a *closed* set rather than a list of things that are true.
+  // The previous version named five types and asserted each was a site, which
+  // says nothing about a sixth — and a sixth duly arrived (`grounds`, #817)
+  // without failing anything. An equality check is what makes this test notice
+  // the next one, and it is also the mirror of
+  // `private.location_can_hold_rooms`, which must hold the same set.
+  it("is exactly the types with a floor plan", () => {
+    const sites = (Object.keys(LOCATION_TYPE_TIER) as LocationType[]).filter(isSiteType);
+    expect(new Set(sites)).toEqual(
+      new Set<LocationType>(["building", "dungeon", "grounds", "store", "tavern", "inn"]),
+    );
+  });
+
+  it("excludes geography and interiors", () => {
+    // district and wilderness are the two types that moved off `site` in #810:
+    // a district's children are buildings on a geography map, and a wilderness
+    // has no floor plan at all. `grounds` is the counter-case — unroofed, but
+    // still a floor plan you can trace (#817).
+    expect(isSiteType("district")).toBe(false);
+    expect(isSiteType("wilderness")).toBe(false);
+    expect(isSiteType("room")).toBe(false);
+    expect(isSiteType("city")).toBe(false);
+    expect(isSiteType("other")).toBe(false);
   });
 });
 
@@ -88,24 +127,34 @@ describe("colour ramp", () => {
     }
   });
 
-  it("keeps each tier in one hue family", () => {
-    // Same tier → same dominant channel relationship. A rainbow-by-kind
-    // palette breaks this, which is the regression this guards.
-    const hue = (hex: string) => {
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-      return { r, g, b };
-    };
-    const settlement = ["city", "town", "village"] as const;
-    for (const type of settlement) {
-      const { r, g, b } = hue(LOCATION_TYPE_COLORS[type]);
-      expect(g).toBeGreaterThan(r); // teal family: green-dominant over red
-      expect(b).toBeGreaterThan(r);
-    }
-    const venue = ["store", "tavern", "inn"] as const;
-    for (const type of venue) {
-      const { r, g, b } = hue(LOCATION_TYPE_COLORS[type]);
-      expect(r).toBeGreaterThan(b); // amber family: warm
-      expect(g).toBeGreaterThan(b);
+  /** Hue angle in degrees (0–360), for comparing colours within one family. */
+  function hueAngle(hex: string): number {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const delta = max - min;
+    if (delta === 0) return 0;
+    let h: number;
+    if (max === r) h = ((g - b) / delta) % 6;
+    else if (max === g) h = (b - r) / delta + 2;
+    else h = (r - g) / delta + 4;
+    h *= 60;
+    return h < 0 ? h + 360 : h;
+  }
+
+  it("keeps every tier in one hue family", () => {
+    // Iterates every rung rather than naming two, so the next rung added to
+    // the ladder — or a colour reshuffled off its family — can't slip past
+    // this test unnoticed the way the old venue/site pairing did.
+    for (const tier of LOCATION_TIERS) {
+      const types = (Object.keys(LOCATION_TYPE_TIER) as LocationType[]).filter(
+        (t) => LOCATION_TYPE_TIER[t] === tier,
+      );
+      const hues = types.map((t) => hueAngle(LOCATION_TYPE_COLORS[t]));
+      const spread = Math.max(...hues) - Math.min(...hues);
+      expect(spread).toBeLessThan(25);
     }
   });
 });
@@ -117,7 +166,7 @@ describe("groupByTier", () => {
       loc("Waterdeep", "city"),
       loc("Faerûn", "continent"),
     ]);
-    expect(groups.map((g) => g.tier)).toEqual(["continental", "settlement", "venue"]);
+    expect(groups.map((g) => g.tier)).toEqual(["land", "settlement", "site"]);
   });
 
   it("puts unplaced last, however the input was ordered", () => {
@@ -144,7 +193,7 @@ describe("groupByTier", () => {
 describe("occupiedTiers", () => {
   it("reports only tiers that are actually authored", () => {
     const present = occupiedTiers([loc("Waterdeep", "city"), loc("Faerûn", "continent")]);
-    expect([...present].sort()).toEqual(["continental", "settlement"]);
+    expect([...present].sort()).toEqual(["land", "settlement"]);
   });
 
   it("never counts the unscaled type as occupying a rung", () => {

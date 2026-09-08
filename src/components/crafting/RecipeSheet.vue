@@ -69,7 +69,7 @@
       <div class="p-4">
         <div v-if="outputs?.length" class="space-y-1.5">
           <div v-for="out in outputs" :key="out.id" class="flex items-center justify-between gap-2">
-            <span class="text-body text-foreground">{{ itemById(out.item_id)?.name ?? "Unknown item" }}</span>
+            <span class="text-body text-foreground">{{ itemById(inventoryItemRef(out))?.name ?? "Unknown item" }}</span>
             <span class="font-cinzel text-xs text-muted-foreground shrink-0">× {{ out.quantity }}</span>
           </div>
         </div>
@@ -88,7 +88,7 @@
             <div class="flex items-center gap-2 min-w-0">
               <span v-if="idx === 0" class="text-label text-primary shrink-0">PRIMARY</span>
               <span class="text-body text-foreground truncate">
-                <template v-if="ing.item_id">{{ itemById(ing.item_id)?.name ?? "Unknown item" }}</template>
+                <template v-if="inventoryItemRef(ing)">{{ itemById(inventoryItemRef(ing))?.name ?? "Unknown item" }}</template>
                 <span v-else class="italic text-muted-foreground">
                   any <template v-if="ing.tags?.length === 1">"{{ ing.tags[0] }}"</template>
                   <template v-else-if="ing.tags">{{ ing.tags.join(" + ") }}</template>
@@ -126,6 +126,7 @@ import { useDeleteRecipe, useRecipeIngredients, useRecipeOutputs, useRecipeModif
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { useItems } from "@/composables/items/useItems";
+import { inventoryItemRef } from "@/lib/itemRef";
 import { getDiscipline } from "@/lib/crafting-disciplines";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import type { CraftingRecipe } from "@/types/crafting.types";
@@ -149,8 +150,8 @@ const { data: outputs } = useRecipeOutputs(computed(() => props.recipe.id));
 const { data: ingredients } = useRecipeIngredients(computed(() => props.recipe.id));
 const { data: modifiers } = useRecipeModifiers(computed(() => props.recipe.id));
 
-function itemById(id: string) {
-  return allItems.value?.find((i) => i.id === id);
+function itemById(id: string | null) {
+  return id ? allItems.value?.find((i) => i.id === id) : undefined;
 }
 
 async function handleDelete() {

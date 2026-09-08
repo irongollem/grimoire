@@ -234,6 +234,9 @@ async function generateAndCreate() {
     campaign_id:        campaign.activeCampaignId,
     name:               result.name,
     trap_type:          result.trap_type,
+    // AI generation doesn't suggest a map glyph (#804) — the DM picks one in
+    // the editor afterward; null renders as the generic hazard marker.
+    hazard_glyph:       null,
     trigger_type:       result.trigger_type ?? null,
     description:        toTiptapJson(result.description),
     effect_description: result.effect_description ?? null,

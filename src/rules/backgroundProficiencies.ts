@@ -1,5 +1,6 @@
 import type { Background } from "@/types/background.types";
 import { SKILLS, type SkillProficiencies } from "@/types/party.types";
+import { canonicalToolName } from "@/rules/toolProficiency";
 
 export interface ProfForm {
   skill_proficiencies: SkillProficiencies;
@@ -23,8 +24,17 @@ export function applyBackgroundProfs(form: ProfForm, bg: Background): void {
       form.skill_proficiencies[key] = "proficient";
     }
   }
+  // Canonicalise before pushing so a new character's tool_proficiencies stays
+  // clean even when the background's own row is dirty (Open5e import prose,
+  // homebrew free text). "Of your choice"/"no additional" prose names no real
+  // tool and is dropped rather than stored as a literal, unusable string.
   for (const tool of bg.tool_proficiencies ?? []) {
-    if (!form.tool_proficiencies.includes(tool)) form.tool_proficiencies.push(tool);
+    const canonical = canonicalToolName(tool);
+    if (!canonical) continue;
+    const alreadyPresent = form.tool_proficiencies.some(
+      (existing) => canonicalToolName(existing)?.toLowerCase() === canonical.toLowerCase(),
+    );
+    if (!alreadyPresent) form.tool_proficiencies.push(canonical);
   }
   for (const lang of bg.languages ?? []) {
     if (!form.languages.includes(lang)) form.languages.push(lang);

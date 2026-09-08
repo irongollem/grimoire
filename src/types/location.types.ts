@@ -16,6 +16,7 @@ export type LocationType =
   | "inn"
   | "room"
   | "dungeon"
+  | "grounds"
   | "wilderness"
   | "other";
 
@@ -42,11 +43,11 @@ export const VAGUE_LOCATION_TYPES = new Set<LocationType>([
 ]);
 
 /**
- * Declaration order is **scale order**, matching the ladder in
- * `lib/locations/tiers`. Both type dropdowns — the DM Atlas and the player
- * portal — build their options by iterating this record, so the order here is
- * the order a user reads, and an alphabetical or arbitrary sort would put a
- * broom closet between two continents.
+ * Declaration order is **ladder order**, matching `lib/locations/tiers`. Both
+ * type dropdowns — the DM Atlas and the player portal — build their options
+ * by iterating this record, so the order here is the order a user reads, and
+ * an alphabetical or arbitrary sort would put a broom closet between two
+ * continents.
  */
 export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   world: "World",
@@ -55,16 +56,17 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
   continent: "Continent",
   region: "Region",
   country: "Country",
+  wilderness: "Wilderness",
 
   city: "City",
   town: "Town",
   village: "Village",
 
-  dungeon: "Dungeon",
   district: "District",
-  building: "Building",
-  wilderness: "Wilderness",
 
+  building: "Building",
+  dungeon: "Dungeon",
+  grounds: "Grounds",
   store: "Store",
   tavern: "Tavern",
   inn: "Inn",
@@ -75,28 +77,34 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
 };
 
 /**
- * Type colours are a **scale ramp, not a palette of kinds** — do not reshuffle
+ * Type colours are a **tier ramp, not a palette of kinds** — do not reshuffle
  * these into "a red for dungeons, a green for forests". That was the previous
  * scheme, and it meant colour carried no information the type label did not
- * already carry, while the one thing a DM cannot read from a label — how big
- * this place is relative to that one — went unencoded entirely.
+ * already carry, while the one thing a DM cannot read from a label — what
+ * kind of map this place gets, and how its children sit on it — went
+ * unencoded entirely.
  *
- * The ramp runs cool-to-warm along the scale ladder in `lib/locations/tiers`,
- * which reads as distance: the far and cosmic are cold, the near and enclosed
- * are warm.
+ * The ramp runs cool-to-warm along the ladder in `lib/locations/tiers`, which
+ * reads as distance: the far and cosmic are cold, the near and enclosed are
+ * warm.
  *
  *   cosmic      violet   — the void
- *   continental blue     — lands seen from above
+ *   land        blue     — no floor plan, seen from above (continent, region,
+ *                          country, wilderness — pins all the way down)
  *   settlement  teal     — where people gather
- *   site        lime     — a place you can walk around
- *   venue       amber    — hearth-light, a room you can stand in
+ *   district    lime     — geography one step in: still pins, not a floor plan
+ *   site        amber    — a floor plan; hearth-light, walls you can trace
  *   interior    rust     — fully enclosed
- *   other       grey     — no scale claimed
+ *   other       grey     — no tier claimed
  *
- * Within a tier, lightness steps by **enclosure**, darkest = most enclosed. So
- * `dungeon` is the darkest site and `wilderness` the lightest, which is why
- * they sit in the same hue family despite feeling like opposites — they are
- * the same *scale*, and that is what this channel now means.
+ * Within a tier, lightness steps by **enclosure**, darkest = most enclosed.
+ * `land` runs continent → region → country → wilderness, lightest last:
+ * `wilderness` is the least enclosed thing on the ladder. `site` now steps
+ * five types instead of three — dungeon (underground, windowless) darkest,
+ * then building, then store/tavern/inn lightest — so `dungeon` reads darkest
+ * of the whole ramp. `dungeon` and `wilderness` no longer share a hue family;
+ * under the old ladder they did, which was the bug (#810) — they are not the
+ * same kind of map, whatever their footprint on the page.
  *
  * Values stay 6-digit hex: several call sites append an alpha pair
  * (`LOCATION_TYPE_COLORS[t] + "22"`) to derive a tint.
@@ -108,16 +116,17 @@ export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
   continent: "#1d4ed8",
   region: "#3b82f6",
   country: "#60a5fa",
+  wilderness: "#93c5fd",
 
   city: "#0f766e",
   town: "#14b8a6",
   village: "#2dd4bf",
 
-  dungeon: "#3f6212",
   district: "#4d7c0f",
-  building: "#65a30d",
-  wilderness: "#84cc16",
 
+  building: "#92400e",
+  dungeon: "#78350f",
+  grounds: "#a16207",
   store: "#b45309",
   tavern: "#d97706",
   inn: "#f59e0b",
@@ -201,11 +210,20 @@ export interface Location {
   era_start: number | null;
   era_end: number | null;
   /**
-   * Theme label requested from the soundboard when this location is opened;
-   * resolves against ambient playlists tagged with it. Null = leave audio
-   * alone.
+   * Theme label requested from the soundboard when this location is opened
+   * for prep-time preview (`LocationSheet`), or when the party actually
+   * arrives here during a session (`usePartyAmbience`, #790); resolves
+   * against ambient playlists tagged with it. Null = leave audio alone.
    */
   audio_theme: string | null;
+  /**
+   * Manual order among siblings; `null` sorts last ("no order claimed yet").
+   * Written only by the `reorder_locations` RPC — ordinary saves never touch
+   * it, so rearranging siblings doesn't bump `updated_at` or invalidate the
+   * embedding source hash. See `lib/locations/tree`'s `compareSiblings` for
+   * the full sort key (tier, then this, then name).
+   */
+  sort_order: number | null;
   ai_provenance?: AiProvenance | null;
   created_at: string;
   updated_at: string;
@@ -222,15 +240,38 @@ export interface GridCalibration {
    * underlying grid does the visual work. Defaults to 0.35 when omitted.
    */
   grid_opacity?: number;
+  /**
+   * The map-cell coordinate — in the authoring tool's own cell space, e.g.
+   * a Cartographer `DungeonMap`'s `CellKey` (`src/types/dungeonMap.types.ts`)
+   * — that corresponds to image cell (0,0): the cell whose top-left corner
+   * sits at (`origin_x_pct`, `origin_y_pct`).
+   *
+   * Exists because a baked map image is not a 1:1 crop of the authored map:
+   * `src/cartographer/bake.ts` pads the painted bounding box by
+   * `DEFAULT_BAKE_PADDING_CELLS` (3) cells on every side, so image cell (0,0)
+   * is that *padded* corner, not the map's own (0,0) — it is map cell
+   * `(minX - padding, minY - padding)`. Without this offset, anything that
+   * resolves a traced/painted region back to its authored map cell
+   * (encounters, traps, features keyed by `CellKey`) would silently drift by
+   * the padding amount.
+   *
+   * Optional, defaulting to (0, 0) so every calibration written before this
+   * field existed — including the ones `useMapExport.ts` already wrote with
+   * an implicit (0,0) — keeps resolving exactly as it did before.
+   */
+  origin_cell_x?: number;
+  origin_cell_y?: number;
 }
 
 export const DEFAULT_GRID_OPACITY = 0.35;
 
 export type LocationInsert = Omit<
   Location,
-  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme"
+  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme" | "sort_order"
 > & {
   /** Omit to take the column default of null — no audio is requested. */
   audio_theme?: string | null;
+  /** Omit to take the column default of null — the DM hasn't arranged this yet. */
+  sort_order?: number | null;
 };
 export type LocationUpdate = Partial<LocationInsert>;

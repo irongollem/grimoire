@@ -74,18 +74,8 @@
         {{ quest.summary }}
       </p>
 
-      <!-- Full narrative description (rich text) -->
-      <RichTextViewer
-        v-if="quest.description"
-        :content="quest.description"
-        class="font-fell text-foreground leading-relaxed"
-      />
-
-      <!-- Existing quests stay unchanged until the DM authors at least one
-           player-visible beat. The thread is a projection, never the graph. -->
-      <PlayerQuestStoryThread v-if="playerBeats?.length" :beats="playerBeats" />
-
-      <!-- Objectives -->
+      <!-- Objectives — "what do we need to do?" leads, ahead of the story
+           thread and the map (#798). -->
       <div
         v-if="visibleObjectives.length"
         class="rounded-lg border border-border bg-card overflow-hidden"
@@ -122,38 +112,21 @@
         </div>
       </div>
 
-      <!-- Rewards -->
-      <div
-        v-if="
-          quest.rewards || quest.reward_item_ids?.length || hasCurrencyReward
-        "
-        class="rounded-lg border border-border bg-card overflow-hidden"
-      >
-        <div
-          class="px-3 py-2 border-b border-border bg-muted/20 flex items-center justify-between"
-        >
-          <span
-            class="text-label-lg font-semibold text-muted-foreground"
-            >Rewards</span
-          >
-        </div>
-        <div class="p-3 flex flex-col gap-2">
-          <p v-if="quest.rewards" class="text-body text-foreground">
-            {{ quest.rewards }}
-          </p>
-          <p v-if="hasCurrencyReward" class="text-body text-foreground">
-            {{ currencyParts.join(", ") }}
-          </p>
-          <div v-if="quest.reward_item_ids?.length" class="flex flex-wrap gap-1.5">
-            <span
-              v-for="itemId in quest.reward_item_ids"
-              :key="itemId"
-              class="text-body text-foreground bg-muted/40 rounded px-2 py-0.5"
-              >{{ itemName(itemId) }}</span
-            >
-          </div>
-        </div>
-      </div>
+      <!-- Story thread — "what has already happened?" (#798). Existing quests
+           stay unchanged until the DM authors at least one player-visible
+           beat: the thread is a projection, never the graph. -->
+      <PlayerQuestStoryThread v-if="playerBeats?.length" :beats="playerBeats" />
+
+      <!-- The site map, filling in as the party explores it (#798). -->
+      <PlayerSiteMap v-if="siteLocationId" :site-location-id="siteLocationId" />
+
+      <!-- Notes — "where can I put my own thinking?" (#798). -->
+      <PlayerNotesWidget
+        v-if="quest"
+        entity-type="quest"
+        :entity-id="quest.id"
+        placeholder="Jot down your thoughts, clues, suspicions…"
+      />
 
       <!-- Key NPCs -->
       <div
@@ -245,14 +218,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Notes -->
-      <PlayerNotesWidget
-        v-if="quest"
-        entity-type="quest"
-        :entity-id="quest.id"
-        placeholder="Jot down your thoughts, clues, suspicions…"
-      />
     </template>
   </div>
 
@@ -303,7 +268,6 @@ import AppModal from "@/components/common/AppModal.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import QuestObjectiveStatusMark from "@/components/quests/QuestObjectiveStatusMark.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
   usePlayerVisibleQuest,
   useQuestObjectives,
@@ -313,14 +277,15 @@ import { useMarkRead } from "@/composables/play/useReadItems";
 import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useSharedLocations } from "@/composables/locations/useLocations";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
-import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { usePlayerQuestBeats } from "@/composables/quests/useQuestFlow";
 import { getNpcDisplayName, getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
+import { resolveQuestSiteLocationId } from "@/lib/quests/playerSite";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_COLORS } from "@/types/quest.types";
 import type { PlayerNpc } from "@/types/npc.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import PlayerQuestStoryThread from "@/components/player/PlayerQuestStoryThread.vue";
+import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -341,7 +306,6 @@ const { data: questRefs } = useQuestRefs(questId);
 const { data: npcs } = useSharedNpcs();
 const { data: locations } = useSharedLocations();
 const { data: allMonsters } = usePlayerVisibleMonsters();
-const { data: allItems } = usePlayerVisibleItems();
 
 // NPC lightbox
 const selectedNpc = ref<PlayerNpc | null>(null);
@@ -371,6 +335,24 @@ const primaryLocationName = computed(
       ?.name ?? null,
 );
 
+// The quest's own `location_id` — already the "where this quest happens"
+// field the meta row above links out to, gated the same way that link is, on
+// the location actually being shared with this player. This is the fallback
+// `resolveQuestSiteLocationId` falls back to, second in line, for a quest
+// with no revealed staged beat yet (or none at all).
+const questSiteFallbackId = computed(() => {
+  const id = quest.value?.location_id;
+  return id && sharedLocationIds.value.has(id) ? id : null;
+});
+
+/** The site to draw the filling-in map for (#798) — see
+ *  `resolveQuestSiteLocationId`'s own docstring for the full precedence and
+ *  why "most recently revealed" means highest `story_order`, not reveal
+ *  time. */
+const siteLocationId = computed(() =>
+  resolveQuestSiteLocationId(playerBeats.value ?? [], questSiteFallbackId.value),
+);
+
 // Refs grouped by type — only show player-visible ones
 const visibleRefs = computed(() =>
   (questRefs.value ?? []).filter((r) => r.is_player_visible),
@@ -385,19 +367,13 @@ const linkedMonsterRefs = computed(() =>
   visibleRefs.value.filter((r) => r.ref_type === "monster"),
 );
 
-// Currency reward
-const hasCurrencyReward = computed(
-  () =>
-    (quest.value?.reward_pp ?? 0) +
-      (quest.value?.reward_gp ?? 0) +
-      (quest.value?.reward_ep ?? 0) +
-      (quest.value?.reward_sp ?? 0) +
-      (quest.value?.reward_cp ?? 0) >
-    0,
-);
-
+// The DB's RLS policy already excludes a `dormant` objective (an untaken
+// branch) from what a player can read at all (#798). Filtered again here so
+// the intent is legible on this side too, and so a future policy change
+// can't silently leak one back in. A `failed` objective is never excluded —
+// "we lost that one" is something the party needs to keep seeing.
 const visibleObjectives = computed(() =>
-  (objectives.value ?? []).filter((o) => o.is_player_visible),
+  (objectives.value ?? []).filter((o) => o.is_player_visible && o.status !== "dormant"),
 );
 const doneCount = computed(
   () => countObjectivesComplete(visibleObjectives.value),
@@ -414,24 +390,4 @@ function locationName2(id: string) {
 function monsterName(id: string) {
   return (allMonsters.value ?? []).find((m) => m.id === id)?.name ?? "???";
 }
-function itemName(id: string) {
-  return (allItems.value ?? []).find((i) => i.id === id)?.name ?? "???";
-}
-
-// Currency reward, formatted as e.g. "12 gp, 4 sp"
-const currencyParts = computed(() => {
-  if (!quest.value) return [];
-  const q = quest.value;
-  return (
-    [
-      ["pp", q.reward_pp],
-      ["gp", q.reward_gp],
-      ["ep", q.reward_ep],
-      ["sp", q.reward_sp],
-      ["cp", q.reward_cp],
-    ] as const
-  )
-    .filter(([, amount]) => amount > 0)
-    .map(([label, amount]) => `${amount} ${label}`);
-});
 </script>

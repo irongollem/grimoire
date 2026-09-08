@@ -14,7 +14,9 @@ import type {
   CraftingOutputInsert,
   CraftingAttemptResult,
 } from "@/types/crafting.types";
+import { queueItemEmbedding } from "@/composables/items/useItems";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
+import { inventoryItemRef } from "@/lib/itemRef";
 import type { StarterRecipeDef } from "@/data/starterRecipes";
 
 const RECIPES_KEY    = "crafting-recipes";
@@ -415,14 +417,25 @@ export function useAttemptCraft() {
       recipe: CraftingRecipe;
       /** Output items to add to inventory on success */
       outputs: CraftingOutput[];
-      /** Resolved names for each output item (item_id → display name) */
+      /** Resolved names for each output (ref id → display name) — the ref may
+       *  be either item_id or library_item_id, see inventoryItemRef. */
       outputItemNames: Record<string, string>;
       /** party_inventory rows to consume, each with the quantity the recipe uses */
       ingredientConsumption: { id: string; qty: number }[];
       /** primary ingredient's inventory id — ruined on critical fail */
       primaryIngredientInventoryId: string;
-      /** primary ingredient's carried_by (for re-adding as ruined) */
-      primaryInventoryItem: { item_id: string; name: string; carried_by: string | null; campaign_id: string };
+      /** primary ingredient's carried_by (for re-adding as ruined). Carries both
+       *  reference columns: the ruined row must point at whichever the original
+       *  used, and a library reference in item_id is the 22P02 of #815. */
+      /**
+       * The item a failed attempt ruins — **null when the recipe consumes
+       * nothing**. A recipe with tools and time but no material is legitimate
+       * (`RecipeEditor` requires an output, never an ingredient), and there is
+       * then no ingredient to spoil. It was typed non-nullable and the caller
+       * satisfied that with a `!`, so such a recipe crashed on the first
+       * dereference instead of crafting.
+       */
+      primaryInventoryItem: { item_id: string | null; library_item_id: string | null; name: string; carried_by: string | null; campaign_id: string } | null;
       modifierBonuses: number[];
       abilityMod: number;
       profBonus: number;
@@ -478,19 +491,27 @@ export function useAttemptCraft() {
       // ingredients with nothing created.
       const successRows =
         outcome === "success"
-          ? outputs.map((output) => ({
-              campaign_id: recipe.campaign_id,
-              item_id: output.item_id,
-              name: output.item_id ? (outputItemNames[output.item_id] ?? "") : "",
-              quantity: output.quantity,
-              carried_by: partyMemberId,
-            }))
+          ? outputs.map((output) => {
+              const ref = inventoryItemRef(output);
+              return {
+                campaign_id: recipe.campaign_id,
+                item_id: output.item_id,
+                library_item_id: output.library_item_id,
+                name: ref ? (outputItemNames[ref] ?? "") : "",
+                quantity: output.quantity,
+                carried_by: partyMemberId,
+              };
+            })
           : [];
+      // `primaryInventoryItem` guards the ruin as well as the outcome: with
+      // nothing consumed there is nothing to ruin, so a failed attempt on a
+      // material-free recipe costs the time and leaves no wreckage.
       const ruinedRow =
-        outcome === "ruin"
+        outcome === "ruin" && primaryInventoryItem
           ? {
               campaign_id: primaryInventoryItem.campaign_id,
               item_id: primaryInventoryItem.item_id,
+              library_item_id: primaryInventoryItem.library_item_id,
               name: `Ruined: ${primaryInventoryItem.name}`,
               carried_by: primaryInventoryItem.carried_by,
             }
@@ -517,6 +538,10 @@ export function useAttemptCraft() {
 
 // ── Starter recipe import ────────────────────────────────────────────────────
 
+/** A starter-recipe output row, resolved against exactly one of the vault or
+ *  the shared library — see {@link buildStarterRecipeChildRows}. */
+type OutputRow = { recipe_id: string; item_id: string | null; library_item_id: string | null; quantity: number };
+
 /**
  * Correlates each starter-recipe definition with its freshly-inserted recipe
  * id by array position (see useImportStarterRecipes: a single bulk
@@ -530,9 +555,17 @@ export function buildStarterRecipeChildRows(
   defs: StarterRecipeDef[],
   recipeIds: string[],
   outputItemIdByName: Map<string, string>,
+  /** Shared `library_items` fallback (#819) — a starter-recipe output whose
+   *  name isn't in the caller's vault (e.g. never auto-created there, or the
+   *  name exists only as grimoire-bundled library content, as
+   *  "Leather Armour" does for "Stitch Leather Armour") resolves here instead
+   *  of being dropped. Vault takes priority when both would match, so an
+   *  account that already owns an item by that name keeps behaving exactly as
+   *  before. Optional/defaulted so existing callers are unaffected. */
+  libraryItemIdByName: Map<string, string> = new Map(),
 ): {
   ingredientRows: { recipe_id: string; item_id: null; tags: string[]; quantity: number }[];
-  outputRows: { recipe_id: string; item_id: string; quantity: number }[];
+  outputRows: OutputRow[];
   modifierRows: { recipe_id: string; description: string; bonus: number }[];
 } {
   const ingredientRows = defs.flatMap((def, i) =>
@@ -541,13 +574,13 @@ export function buildStarterRecipeChildRows(
     })),
   );
   const outputRows = defs.flatMap((def, i) =>
-    def.outputs
-      .map((o) => ({
-        recipe_id: recipeIds[i],
-        item_id: outputItemIdByName.get(o.name) ?? null,
-        quantity: o.quantity,
-      }))
-      .filter((o): o is { recipe_id: string; item_id: string; quantity: number } => o.item_id !== null),
+    def.outputs.flatMap((o): OutputRow[] => {
+      const vaultId = outputItemIdByName.get(o.name);
+      if (vaultId) return [{ recipe_id: recipeIds[i], item_id: vaultId, library_item_id: null, quantity: o.quantity }];
+      const libraryId = libraryItemIdByName.get(o.name);
+      if (libraryId) return [{ recipe_id: recipeIds[i], item_id: null, library_item_id: libraryId, quantity: o.quantity }];
+      return [];
+    }),
   );
   const modifierRows = defs.flatMap((def, i) =>
     (def.modifiers ?? []).map((m) => ({ recipe_id: recipeIds[i], description: m.description, bonus: m.bonus })),
@@ -564,7 +597,7 @@ export function buildStarterRecipeChildRows(
  */
 export interface RecipeChildWriters {
   insertIngredients: (rows: { recipe_id: string; item_id: null; tags: string[]; quantity: number }[]) => PromiseLike<{ error: unknown }>;
-  insertOutputs: (rows: { recipe_id: string; item_id: string; quantity: number }[]) => PromiseLike<{ error: unknown }>;
+  insertOutputs: (rows: OutputRow[]) => PromiseLike<{ error: unknown }>;
   insertModifiers: (rows: { recipe_id: string; description: string; bonus: number }[]) => PromiseLike<{ error: unknown }>;
   deleteRecipes: (ids: string[]) => PromiseLike<unknown>;
 }
@@ -585,6 +618,10 @@ export async function seedRecipeChildren(
   recipeIds: string[],
   outputItemIdByName: Map<string, string>,
   writers: RecipeChildWriters,
+  /** See {@link buildStarterRecipeChildRows} — optional/defaulted so existing
+   *  callers are unaffected. Appended after `writers` rather than inserted
+   *  before it so every pre-#819 call site keeps compiling unchanged. */
+  libraryItemIdByName: Map<string, string> = new Map(),
 ): Promise<void> {
   try {
     if (recipeIds.length !== toImport.length) {
@@ -592,7 +629,7 @@ export async function seedRecipeChildren(
     }
 
     const { ingredientRows, outputRows, modifierRows } =
-      buildStarterRecipeChildRows(toImport, recipeIds, outputItemIdByName);
+      buildStarterRecipeChildRows(toImport, recipeIds, outputItemIdByName, libraryItemIdByName);
 
     if (ingredientRows.length > 0) {
       const { error } = await writers.insertIngredients(ingredientRows);
@@ -629,21 +666,40 @@ export function useImportStarterRecipes() {
       const { STARTER_RECIPES } = await import("@/data/starterRecipes");
       const { GEAR } = await import("@/data/gear");
       const { PROVISIONS } = await import("@/data/provisions");
+      // Ammunition belongs here too: "Whittle Arrow Shafts" and "Carve Crossbow
+      // Bolts" output "Arrows (20)" / "Crossbow Bolts (20)", which live in
+      // ammunition.ts and in neither of the two lists above. Without it those
+      // names resolve to nothing, `buildStarterRecipeChildRows` drops the output
+      // row, and the recipe imports cleanly but crafts into thin air.
+      const { AMMUNITION } = await import("@/data/ammunition");
       const user = getCurrentUser();
       const campaignId = campaign.activeCampaignId!;
 
-      // 1. Ensure all output items exist in the vault (insert missing ones)
+      // 1. Ensure all output items exist in the vault OR the shared library
+      // (insert only the ones resolvable by neither). A name the vault
+      // already owns keeps resolving there unchanged; a name that's only
+      // ever existed as grimoire-bundled library content (#819 — "Leather
+      // Armour" for "Stitch Leather Armour" is the case that motivated this)
+      // now references that instead of minting a redundant personal copy.
       const outputNames = [...new Set(STARTER_RECIPES.flatMap((r) => r.outputs.map((o) => o.name)))];
-      const { data: existingItems } = await supabase
-        .from("items")
-        .select("id, name")
-        .eq("user_id", user!.id)
-        .in("name", outputNames);
+      const [{ data: existingItems }, { data: libraryItems, error: libraryError }] = await Promise.all([
+        supabase
+          .from("items")
+          .select("id, name")
+          .eq("user_id", user!.id)
+          .in("name", outputNames),
+        supabase
+          .from("library_items")
+          .select("id, name")
+          .in("name", outputNames),
+      ]);
+      if (libraryError) throw libraryError;
       const existingByName = new Map((existingItems ?? []).map((i: { id: string; name: string }) => [i.name, i.id]));
+      const libraryByName = new Map((libraryItems ?? []).map((i: { id: string; name: string }) => [i.name, i.id]));
 
-      const missing = outputNames.filter((n) => !existingByName.has(n));
+      const missing = outputNames.filter((n) => !existingByName.has(n) && !libraryByName.has(n));
       if (missing.length > 0) {
-        const toInsert = [...GEAR, ...PROVISIONS]
+        const toInsert = [...GEAR, ...PROVISIONS, ...AMMUNITION]
           .filter((g) => missing.includes(g.name))
           .map((g) => ({ curse_description: null, ...g, user_id: user!.id }));
         if (toInsert.length > 0) {
@@ -652,7 +708,16 @@ export function useImportStarterRecipes() {
             .insert(toInsert)
             .select("id, name");
           if (error) throw error;
-          (inserted ?? []).forEach((i: { id: string; name: string }) => existingByName.set(i.name, i.id));
+          (inserted ?? []).forEach((i: { id: string; name: string }) => {
+            existingByName.set(i.name, i.id);
+            // These are real vault items and must be embedded like any other
+            // (#838) — a bulk insert bypasses useCreateItem, which is where the
+            // embed-on-write hook normally lives, so it has to be called here.
+            // The burst is bounded by construction: only names that resolve to
+            // neither the vault nor library_items reach this branch, which is a
+            // handful of the 162 starter outputs rather than all of them.
+            queueItemEmbedding(i.id);
+          });
         }
       }
 
@@ -695,7 +760,7 @@ export function useImportStarterRecipes() {
         insertOutputs: (rows) => supabase.from("crafting_recipe_outputs").insert(rows),
         insertModifiers: (rows) => supabase.from("crafting_recipe_modifiers").insert(rows),
         deleteRecipes: (ids) => supabase.from("crafting_recipes").delete().in("id", ids),
-      });
+      }, libraryByName);
 
       return toImport.length;
     },

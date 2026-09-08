@@ -118,6 +118,19 @@ export const CRAFTING_DISCIPLINES: DisciplineConfig[] = [
     workspaceLabel: "Scriptorium or proper writing desk available",
   },
   {
+    id: "forgery",
+    label: "Forgery",
+    // No forgery glyph exists yet in CRAFTING_GLYPHS (generated from a 14-discipline
+    // art sheet) — reusing the scribing glyph as a deliberate placeholder until one
+    // is generated. Do not hand-edit craftingGlyphs.generated.ts to add one.
+    icon: IconCraftScribing,
+    tools: ["Forgery Kit"],
+    ability: "dex",
+    description: "Counterfeit seals, papers, and documents convincing enough to survive casual scrutiny.",
+    workspaceBonus: 2,
+    workspaceLabel: "Private workroom with good light available",
+  },
+  {
     id: "brewing",
     label: "Brewing",
     icon: IconCraftBrewing,

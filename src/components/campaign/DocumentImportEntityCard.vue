@@ -38,6 +38,14 @@
       </AppButton>
     </div>
 
+    <!-- A resolved existing-content match (#837/#838) — shown collapsed too,
+         since "link instead of duplicate" is as consequential a choice as
+         selection itself. -->
+    <div v-if="match" class="flex flex-wrap items-center gap-2 border-t border-border bg-muted/20 px-3 py-2">
+      <AppButton as="span" variant="tinted" :tone="matchTone" size="xs" :label="matchBadgeLabel" />
+      <AppCheckbox v-model="linkToExisting" size="sm" label="Link to existing instead of creating new" />
+    </div>
+
     <div v-if="expanded" :id="regionId" class="space-y-3 border-t border-border p-3">
       <template v-for="(row, idx) in rows" :key="row.kind === 'header' ? `header-${row.label}` : `${row.field.sectionKey}.${row.field.key}`">
         <h4
@@ -118,12 +126,19 @@
  *   an array of objects, or anything nested two levels deep (a statblock's
  *     actions/traits, `skills`, `spellcasting`) -> a read-only summary line;
  *     editing that shape fully belongs in the entity's own editor after
- *     import, not in a seven-step review wizard
+ *     import, not in an eight-step review wizard
  *
  * `data` is untrusted extractor output (documentImport.types.ts header) —
  * this card never assumes a field exists or has the type the interface
  * declares; every read goes through `classify`/`fieldValue`, which fall back
  * to a safe default instead of throwing.
+ *
+ * `match` (#837/#838) is the odd one out: it is never read from `data` and
+ * never edited here. It is the wizard's own finding — "this name already
+ * resolves to a real monster/item you or the shared library already has" —
+ * and this card's only job with it is to show it and let the DM flip
+ * `linkToExisting` per entity. `entityMatching.ts` owns what counts as a
+ * match; this component just renders whatever it was handed.
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -131,16 +146,22 @@ import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import { IconChevronDown } from "@/lib/icons";
+import type { ButtonTone } from "@/components/common/appButtonVariants";
 import type { EntityKindEntry } from "@/lib/documentImport/entityKinds";
+import type { EntityMatch } from "@/lib/documentImport/entityMatching";
 import type { ImportConfidence } from "@/types/documentImport.types";
 
-const { entry, entityRef, page, confidence } = defineProps<{
+const { entry, entityRef, page, confidence, match = null } = defineProps<{
   entry: EntityKindEntry;
   /** The extraction's stable `ref` for this entity — used only to build a
    *  collision-safe id for the expand region, never persisted from here. */
   entityRef: string;
   page: number | null;
   confidence: ImportConfidence;
+  /** A resolved existing-content match for this entity (monsters/items
+   *  only), or `null` when the wizard found none — in which case this card
+   *  shows nothing about linking at all, same as before #837/#838. */
+  match?: EntityMatch | null;
 }>();
 
 const selected = defineModel<boolean>("selected", { required: true });
@@ -148,9 +169,24 @@ const selected = defineModel<boolean>("selected", { required: true });
  *  see the file header — the parent widens it back to the real payload type
  *  when it builds the import plan. */
 const data = defineModel<Record<string, unknown>>("data", { required: true });
+/** Whether the DM wants this entity linked to `match` rather than created
+ *  fresh. Meaningless (and never read by the wizard) when `match` is null —
+ *  the parent only listens to this alongside a non-null match. Defaults to
+ *  `false` only because a model needs *some* default; the wizard is the one
+ *  that decides the real default (link, when a match exists) when it seeds
+ *  this per entity. */
+const linkToExisting = defineModel<boolean>("linkToExisting", { default: false });
 
 const expanded = ref(false);
 const regionId = computed(() => `import-entity-${entityRef.replace(/[^a-zA-Z0-9_-]/g, "-")}`);
+
+const matchTone = computed<ButtonTone>(() => (match?.source === "campaign" ? "success" : "info"));
+const matchBadgeLabel = computed(() => {
+  if (!match) return "";
+  const owner = match.source === "campaign" ? "your" : "the library's";
+  const approximate = match.matchKind === "contains" ? " — approximate match" : "";
+  return `Matches ${owner} "${match.matchedName}"${approximate}`;
+});
 
 const heading = computed(() => {
   const v = data.value[entry.displayField];

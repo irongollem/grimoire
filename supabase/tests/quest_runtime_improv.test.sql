@@ -1,12 +1,20 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(15);
+select plan(16);
 
 select has_function(
   'public', 'improvise_quest_runtime',
-  array['uuid', 'uuid', 'bigint', 'text', 'text', 'text', 'text', 'text', 'boolean', 'boolean', 'text'],
+  array['uuid', 'uuid', 'bigint', 'text', 'text', 'text', 'text', 'text', 'boolean', 'boolean'],
   'five-second improv has one atomic RPC'
+);
+-- #795 dropped and recreated this function without its trailing p_edge_label
+-- argument. `create or replace` with a changed signature creates a silent
+-- second overload rather than replacing the original — pin that exactly one
+-- survives.
+select is(
+  (select count(*)::integer from pg_proc where proname = 'improvise_quest_runtime' and pronamespace = 'public'::regnamespace),
+  1, 'exactly one overload of improvise_quest_runtime exists'
 );
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data) values
@@ -46,10 +54,14 @@ select lives_ok($$ select public.transition_quest_runtime('67100000-0000-4000-80
 select lives_ok($$
   select public.improvise_quest_runtime(
     '67100000-0000-4000-8000-000000000010', '67100000-0000-4000-8000-000000000020', 3, 'Kept detour', 'social', null, null,
-    'The table made it canon', false, true, 'Follow the new ally'
+    'The table made it canon', false, true
   )
 $$, 'DM can keep the improvised route in the authored graph');
-select is((select label from public.quest_beat_edges where campaign_id = '67100000-0000-4000-8000-000000000010'), 'Follow the new ally', 'kept improv edge has explicit authored meaning');
+select is(
+  (select count(*)::integer from public.quest_beat_edges e join public.quest_beats b on b.id = e.target_beat_id
+    where e.campaign_id = '67100000-0000-4000-8000-000000000010' and b.title = 'Kept detour'),
+  1, 'kept improv edge is recorded in the authored graph'
+);
 select throws_ok($$
   select public.improvise_quest_runtime(
     '67100000-0000-4000-8000-000000000010', '67100000-0000-4000-8000-000000000020', 3, 'Stale attempt', 'neutral', null, null,

@@ -1,3 +1,4 @@
+import type { NpcRelationship } from "@/types/npc.types";
 import type { AiProvenance } from "@/ai/provenance";
 
 export type QuestStatus =
@@ -37,38 +38,39 @@ export interface Quest {
   campaign_id: string | null;
   parent_quest_id: string | null;
   title: string;
+  /**
+   * The blurb that lets you tell what a quest is without opening it. One
+   * line, by CHECK (`quests_summary_is_one_line`, migration `20260906160921`)
+   * — not prose, which belongs on a beat. Shown on the DM quest card, the
+   * kanban board, the player quest log and the player quest page, and matched
+   * by quest search. Player-facing: never put a DM secret here (#799). See
+   * `QUEST_SUMMARY_MAX` (`src/lib/quests/summary.ts`) for the enforced cap.
+   */
   summary: string | null;
   status: QuestStatus;
   giver_npc_id: string | null;
   location_id: string | null;
-  rewards: string | null;
-  reward_pp: number;
-  reward_gp: number;
-  reward_ep: number;
-  reward_sp: number;
-  reward_cp: number;
   tags: string[];
-  description: string | null; // Tiptap JSON — full narrative
-  notes: string | null; // Tiptap JSON — DM session notes
   player_visible_to: string[];
-  reward_item_ids: string[];
-  reward_currency_pools: RewardCurrencyPool[];
-  reward_art_objects?: import("@/types/encounter.types").ArtObject[];
   started_at: string | null;
   resolved_at: string | null;
   ai_provenance?: AiProvenance | null;
-  flow_enabled_at?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestInsert = Omit<
-  Quest,
-  "id" | "user_id" | "created_at" | "updated_at" | "flow_enabled_at"
-> & { flow_enabled_at?: string | null };
+export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at">;
 export type QuestUpdate = Partial<QuestInsert>;
 
-export type QuestObjectiveStatus = "pending" | "complete" | "failed";
+/**
+ * `dormant` -> `pending` (raised) -> `complete` | `failed`, with `dormant`
+ * reachable again from `pending` when a branch closes an objective off
+ * without resolving it. A `dormant` objective belongs to a branch the party
+ * has not been sent down yet — it is a stored fact the ledger carries, not a
+ * derived "not reachable from here" (see migration `20260905101454`), and the
+ * database refuses `dormant` + `is_player_visible` together.
+ */
+export type QuestObjectiveStatus = "dormant" | "pending" | "complete" | "failed";
 
 export interface QuestObjective {
   id: string;
@@ -83,20 +85,192 @@ export interface QuestObjective {
   sort_order: number;
 }
 
-/** A place in the flow that decides an objective. See `quest_objective_effects`. */
-export interface QuestObjectiveEffect {
+/**
+ * `raise` lifts an objective out of `dormant` and does nothing to one already
+ * settled. It is deliberately not `reveal`: raising makes the objective live
+ * for the DM, revealing tells the party — an objective is routinely one
+ * without the other.
+ *
+ * The **world actions** are everything else — what a beat does to the campaign
+ * rather than to its own quest. One vocabulary for both ends of a consequence
+ * (#794): `quest_triggers` fired *from* an objective becoming something, and
+ * `quest_objective_effects` fired *to* one; `quest_consequences` replaces both.
+ *
+ * `shift_npc_relationship` (#831) and `unlock_quest` (#836) joined that family
+ * rather than needing mechanisms of their own, and the reason is worth keeping:
+ * both are caused by a beat, both can be delayed, and both land as durable
+ * state on a row that already exists. A free-text "reward" field is what you
+ * reach for when the system has no verb for the thing — the fix is usually to
+ * add the verb.
+ *
+ * Note the family is **not** "rewards". A reward is positive by construction;
+ * a relationship shift is signed — charm the lady and it goes up, embarrass
+ * yourself trying and it goes down. Loot is the odd one out for always being a
+ * gain, and it is not in this list at all: it lives in `loot_placements`,
+ * because a consequence fires from the engine once per transition while loot
+ * fires from a human once ever. See that table's comment before merging them.
+ */
+export type QuestConsequenceAction =
+  | "raise"
+  | "reveal"
+  | "complete"
+  | "fail"
+  | "create_calendar_event"
+  | "send_broadcast"
+  | "shift_npc_relationship"
+  | "unlock_quest";
+
+export const QUEST_CONSEQUENCE_LEDGER_ACTIONS: readonly QuestConsequenceAction[] = ["raise", "reveal", "complete", "fail"];
+export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] = [
+  "create_calendar_event",
+  "send_broadcast",
+  "shift_npc_relationship",
+  "unlock_quest",
+];
+
+/**
+ * The reaction ladder, in order, as `shift_npc_relationship` walks it. Excludes
+ * `unknown`, which is a member of `npc_relationship` but **not a rung**:
+ * shifting from "we have not established this" is meaningless, and treating it
+ * as `indifferent` would invent a stance the DM never set. A shift from
+ * `unknown` is a no-op, decided in the migration rather than left to a caller.
+ */
+export const NPC_RELATIONSHIP_LADDER = ["hostile", "unfriendly", "indifferent", "friendly", "helpful"] as const;
+
+/** The three statuses a `quest_consequences.on_objective_status` condition can
+ *  name — never `dormant`, which nothing "becomes" on purpose (it is the
+ *  starting state a `raise` rule lifts an objective out of). */
+export type QuestConsequenceObjectiveStatus = "pending" | "complete" | "failed";
+export const QUEST_CONSEQUENCE_OBJECTIVE_STATUSES: readonly QuestConsequenceObjectiveStatus[] = ["pending", "complete", "failed"];
+
+export interface CalendarEventConsequencePayload {
+  title: string;
+  event_type: string;
+  description?: string;
+}
+
+export interface BroadcastConsequencePayload {
+  message: string;
+}
+
+/**
+ * How far along the ladder to move, signed (#831). Relative rather than
+ * absolute because a stance is *earned*: "set to helpful" throws away how it
+ * got there, and composes worse when two beats both move the same NPC. Clamped
+ * at both ends by the database, so a rule firing on an already-helpful NPC is a
+ * no-op rather than a wrap round to hostile.
+ */
+export interface RelationshipShiftConsequencePayload {
+  step: number;
+}
+
+export type QuestConsequenceActionPayload =
+  | CalendarEventConsequencePayload
+  | BroadcastConsequencePayload
+  | RelationshipShiftConsequencePayload
+  | Record<string, never>;
+
+/**
+ * One rule: when this becomes that, do this. Exactly one condition family is
+ * set — `on_beat_id` (arrival), `on_edge_id` (taking that branch),
+ * `on_objective_id` + `on_objective_status` (an objective became that status),
+ * or `on_quest_settled` (the whole ledger has nothing pending left) — enforced
+ * by `quest_consequences_one_condition` in the database, not here.
+ *
+ * Replaces `quest_objective_effects` (event → state) and `quest_triggers`
+ * (state → world action), which were two ends of the same sentence and never
+ * composed (#794). See `supabase/migrations/20260905215424_one_consequence_mechanism.sql`.
+ */
+export interface QuestConsequence {
   id: string;
   quest_id: string;
-  objective_id: string;
-  /** Exactly one of these is set: arrival at a beat, or taking one branch. */
-  trigger_beat_id: string | null;
-  trigger_edge_id: string | null;
-  effect: "reveal" | "complete" | "fail";
+  on_beat_id: string | null;
+  on_edge_id: string | null;
+  on_objective_id: string | null;
+  on_objective_status: QuestConsequenceObjectiveStatus | null;
+  on_quest_settled: boolean;
+  /** In-world days between the condition firing and the action performing.
+   *  Zero performs inside the same transaction as the condition. Honoured for
+   *  the two world actions; a ledger verb applies immediately regardless —
+   *  see `private.apply_quest_consequences`. */
+  after_days: number;
+  action: QuestConsequenceAction;
+  /** Required for a ledger verb, forbidden for a world action — the other
+   *  objective a ledger verb moves. Never the same objective named by
+   *  `on_objective_id` (no self-reference). */
+  target_objective_id: string | null;
+  /** The NPC a `shift_npc_relationship` rule moves (#831). Set exactly when
+   *  the action is that one, enforced by `quest_consequences_npc_pair`. */
+  target_npc_id: string | null;
+  /**
+   * The quest an `unlock_quest` rule promotes out of `undiscovered` (#836).
+   *
+   * Deliberately **not** `parent_quest_id`: "unlocked by" and "child of" are
+   * different relations. One trigger can legitimately open both a sequel and
+   * something unrelated, so belonging stays an authoring choice made separately.
+   */
+  target_quest_id: string | null;
+  action_payload: QuestConsequenceActionPayload;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestObjectiveEffectInsert = Omit<QuestObjectiveEffect, "id" | "created_at" | "updated_at">;
+export type QuestConsequenceInsert = Omit<QuestConsequence, "id" | "created_at" | "updated_at">;
+
+/**
+ * The append-only log of every consequence that fired: `quest_consequence_events`.
+ * DM-only (`private.is_campaign_dm`) — a player's objective/verb/previous-visibility
+ * history is not theirs to read (see #798 for the player-facing projection).
+ *
+ * A row with `performed_at is null and undone_at is null and after_days > 0` is
+ * waiting for its in-world date — the database logs it and names the day it
+ * fired on (`fires_on_year/month/day`); the client, the one place per-calendar
+ * arithmetic lives (`src/lib/calendar/dayMath.ts`), decides when
+ * `fires_on + after_days` has arrived and calls `perform_quest_consequence`.
+ * See `useDueConsequences`.
+ */
+export interface QuestConsequenceEvent {
+  id: string;
+  campaign_id: string;
+  quest_id: string;
+  transition_id: string;
+  consequence_id: string | null;
+  action: QuestConsequenceAction;
+  target_objective_id: string | null;
+  previous_status: QuestObjectiveStatus | null;
+  previous_is_player_visible: boolean | null;
+  action_payload: QuestConsequenceActionPayload;
+  after_days: number;
+  fires_on_year: number | null;
+  fires_on_month: number | null;
+  fires_on_day: number | null;
+  performed_at: string | null;
+  performed_on_year: number | null;
+  performed_on_month: number | null;
+  performed_on_day: number | null;
+  calendar_event_id: string | null;
+  message_id: string | null;
+  /**
+   * The undo record for the two actions added after this interface was written
+   * — a disposition shift (#831) and a quest unlock (#836). Both store what the
+   * value *was*, because both are relative moves: undoing "improve by two" has
+   * to restore the stance it started from, not compute an inverse. Null for
+   * every other action, and for a row logged before the action existed.
+   *
+   * They were missing here until the #825 review. Nothing broke, because the
+   * one real reader (`useDueConsequences`) declares its own narrower row type
+   * — but an audit-trail surface reading this interface would have been unable
+   * to see either field, with the compiler agreeing it did not exist.
+   */
+  target_npc_id: string | null;
+  previous_relationship: NpcRelationship | null;
+  target_quest_id: string | null;
+  previous_quest_status: QuestStatus | null;
+  undone_at: string | null;
+  seq: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export type QuestObjectiveInsert = Omit<QuestObjective, "id">;
 export type QuestObjectiveUpdate = Partial<
@@ -137,22 +311,28 @@ export interface QuestBeat {
   visibility: QuestBeatVisibility;
   kind: QuestBeatKind;
   presentation_hint: string | null;
+  /**
+   * Where this beat happens. Singular: a beat is one event in one place; a
+   * scene spanning two places is two beats. Any location qualifies — being a
+   * *site* with a floor plan is what unlocks the run cockpit's room surface,
+   * not a precondition for naming the place (`isSiteType`, `lib/locations/tiers.ts`).
+   * Replaces the `location_set` attachment and its unenforceable
+   * `metadata.room_ids` list (#797, migration `20260906113143`).
+   */
+  staged_at_location_id: string | null;
   canvas_x: number;
   canvas_y: number;
   is_improvised: boolean;
-  is_overview: boolean;
   improv_reviewed_at: string | null;
-  conversion_source_type?: "legacy_overview" | "legacy_encounter_ref" | null;
-  conversion_source_id?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "conversion_source_type" | "conversion_source_id"> & {
+export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at" | "updated_at" | "staged_at_location_id"> & {
   id?: string;
-  conversion_source_type?: QuestBeat["conversion_source_type"];
-  conversion_source_id?: string | null;
+  /** Omit to take the column default of null — stage it after creation. */
+  staged_at_location_id?: string | null;
 };
 export type QuestBeatUpdate = Partial<Omit<QuestBeatInsert, "quest_id" | "campaign_id">>;
 
@@ -162,12 +342,66 @@ export interface QuestBeatEdge {
   campaign_id: string;
   source_beat_id: string;
   target_beat_id: string;
-  label: string;
   created_by: string | null;
   created_at: string;
+  /**
+   * Not a column here — `quest_beat_edge_gates` is a separate child table so
+   * that deleting an objective can drop the gate and keep the route, which a
+   * `set null` on two columns could not do without a trigger (#795).
+   * Populated client-side by `deriveQuestRouteGates`, joining that table
+   * against `quest_objectives`: `undefined` before that join has run, `null`
+   * once it has and no gate exists. Absence is real "always open," never a
+   * coerced default.
+   */
+  gate?: QuestRouteGate | null;
 }
 
-export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at">;
+export type QuestBeatEdgeInsert = Omit<QuestBeatEdge, "id" | "created_by" | "created_at" | "gate">;
+
+/**
+ * This route is open while its objective stands in the given status; absent
+ * means always open. A child row rather than columns on the edge (#795): the
+ * FK cascades when the objective is deleted, dropping the gate and keeping
+ * the route.
+ */
+export interface QuestBeatEdgeGate {
+  edge_id: string;
+  quest_id: string;
+  campaign_id: string;
+  objective_id: string;
+  status: QuestConsequenceObjectiveStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuestBeatEdgeGateInsert = Omit<QuestBeatEdgeGate, "created_at" | "updated_at">;
+
+/**
+ * A gate as read for display: the objective it names, the status the route
+ * needs, the status the objective is actually in, and whether that makes the
+ * route open right now. Shared by Build mode (`QuestBeatEdge.gate`, joined
+ * client-side against `quest_objectives` by `deriveQuestRouteGates`) and Run
+ * mode (`QuestRuntimeChoice.gate`, joined server-side by
+ * `get_quest_runtime_context`) so both surfaces read the same fields.
+ */
+export interface QuestRouteGate {
+  objective_id: string;
+  objective: string;
+  required_status: QuestConsequenceObjectiveStatus;
+  current_status: QuestObjectiveStatus;
+  is_open: boolean;
+}
+
+/**
+ * What taking a route does — read from `quest_consequences.on_edge_id`
+ * (#794), never stored on the edge itself (#795). `objective` is null for a
+ * world action, which has no `target_objective_id`.
+ */
+export interface QuestRouteEffect {
+  action: QuestConsequenceAction;
+  objective: string | null;
+  after_days: number;
+}
 
 /**
  * One quest's live cursor. Keyed `(campaign_id, quest_id)`: a party is routinely
@@ -191,7 +425,7 @@ export interface QuestRuntimeState {
 
 export type QuestRuntimeStatus = "idle" | "running" | "paused" | "ended";
 export type QuestRuntimeCommand = "start" | "advance" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
-export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
+export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end" | "assert";
 
 /** A place in one chain. The quest is the cursor row's own key, so an entry
  * carries only the beat — a quest_id inside it could only ever disagree. */
@@ -201,11 +435,12 @@ export interface QuestRuntimePosition {
 
 export interface QuestRuntimeChoice {
   edge_id: string;
-  label: string;
   quest_id: string;
   beat_id: string;
   beat_title: string;
   beat_kind: string;
+  gate: QuestRouteGate | null;
+  effects: QuestRouteEffect[];
 }
 
 export interface QuestRuntimeJumpTarget {
@@ -276,11 +511,20 @@ export interface PlayerQuestBeat {
   attachments: PlayerQuestBeatAttachmentSummary[];
   visits: PlayerQuestBeatVisitSummary[];
   updated_at: string;
+  /**
+   * Where this beat happens (`quest_beats.staged_at_location_id`, #797),
+   * mirrored to players by `get_player_visible_quest_beats` (#798). Populated
+   * only when `visibility === "revealed"` — a rumored beat's staging would
+   * pin a scene on the map before the party has had it, so the RPC withholds
+   * it server-side and this is `null` on every rumored row. `null` on a
+   * revealed row is also normal: most beats don't stage anywhere at all.
+   */
+  staged_at_location_id: string | null;
 }
 
 export interface PlayerQuestBeatAttachmentSummary {
   attachment_id: string;
-  type: "objective" | QuestRefType;
+  type: QuestRefType;
   ref_id: string;
   label?: string;
   role?: string;
@@ -302,9 +546,6 @@ export interface PlayerQuestBeatVisitSummary {
 
 export type QuestBeatAttachmentType =
   | "encounter"
-  | "objective"
-  | "quest_ref"
-  | "location_set"
   | "npc"
   | "faction"
   | "item"
@@ -343,35 +584,46 @@ export interface QuestBeatAttachmentSummary extends QuestBeatAttachment {
   full_editor_to: string | null;
 }
 
-export type QuestBeatLootKind = "item" | "currency" | "loot_chest";
-export type QuestBeatLootSource = "prepared" | "quest_reward" | "encounter_loot";
-export type QuestBeatLootDeliveryState = "held" | "chat" | "partially_claimed" | "claimed" | "message_removed";
+export type LootPlacementKind = "item" | "currency" | "loot_chest";
+export type LootPlacementSource = "prepared" | "quest_reward" | "encounter_loot" | "loot_table";
+export type LootPlacementDeliveryState = "held" | "chat" | "partially_claimed" | "claimed" | "message_removed";
 
-export interface QuestBeatLoot {
+/**
+ * Loot a beat or a room *holds*, until a DM drops it to chat (#830). Renamed
+ * from `QuestBeatLoot`/`quest_beat_loot` when rooms gained the same verb —
+ * a row has exactly one home: `beat_id` + `quest_id` together, or
+ * `location_id` alone (`loot_placements_one_home`,
+ * `loot_placements_beat_pair` in the database). Never assume a beat home; a
+ * `location_id` row deliberately carries `beat_id`/`quest_id` as `null`.
+ */
+export interface LootPlacement {
   id: string;
-  beat_id: string;
-  quest_id: string;
+  beat_id: string | null;
+  quest_id: string | null;
+  /** The room that holds this loot, exclusive with `beat_id` (#830). A DM
+   *  standing in a room drops it directly; no quest cursor is involved. */
+  location_id: string | null;
   campaign_id: string;
-  kind: QuestBeatLootKind;
+  kind: LootPlacementKind;
   item_id: string | null;
   quantity: number;
   label: string;
   payload: Record<string, unknown>;
-  source_type: QuestBeatLootSource;
+  source_type: LootPlacementSource;
   source_id: string | null;
   sort_order: number;
   dispatch_message_id: string | null;
   dispatched_at: string | null;
-  delivery_state: QuestBeatLootDeliveryState;
+  delivery_state: LootPlacementDeliveryState;
   quantity_remaining: number;
   claimed_by_names: string[];
   handed_out_this_session: boolean;
 }
 
-export type QuestBeatLootInsert = Omit<
-  QuestBeatLoot,
-  "id" | "dispatch_message_id" | "dispatched_at" | "delivery_state" | "quantity_remaining" | "claimed_by_names" | "handed_out_this_session"
-> & Partial<Pick<QuestBeatLoot, "quantity" | "label" | "payload" | "source_type" | "source_id" | "sort_order">>;
+export type LootPlacementInsert = Omit<
+  LootPlacement,
+  "id" | "dispatch_message_id" | "dispatched_at" | "delivery_state" | "quantity_remaining" | "claimed_by_names" | "handed_out_this_session" | "location_id"
+> & Partial<Pick<LootPlacement, "quantity" | "label" | "payload" | "source_type" | "source_id" | "sort_order" | "location_id">>;
 
 export interface RewardCurrencyPool {
   id: string;
@@ -406,45 +658,3 @@ export type QuestRefInsert = Omit<QuestRef, "id" | "is_player_visible"> & {
   is_player_visible?: boolean;
 };
 
-export type TriggerType = "quest_complete" | "objective_done";
-export type TriggerActionType = "create_calendar_event" | "send_broadcast";
-
-export interface CalendarEventTriggerPayload {
-  title: string;
-  event_type: string;
-  description?: string;
-}
-
-export interface BroadcastTriggerPayload {
-  message: string;
-}
-
-export interface QuestTrigger {
-  id: string;
-  user_id: string;
-  quest_id: string;
-  objective_id: string | null;
-  trigger_type: TriggerType;
-  offset_days: number;
-  action_type: TriggerActionType;
-  action_payload: CalendarEventTriggerPayload | BroadcastTriggerPayload;
-  created_at: string;
-  updated_at: string;
-}
-
-export type QuestTriggerInsert = Omit<QuestTrigger, "id" | "user_id" | "created_at" | "updated_at">;
-export type QuestTriggerUpdate = Partial<Omit<QuestTriggerInsert, "quest_id">>;
-
-export interface QuestTriggerScheduled {
-  id: string;
-  user_id: string;
-  campaign_id: string;
-  trigger_id: string;
-  quest_id: string;
-  fire_year: number;
-  fire_month: number;
-  fire_day: number;
-  fired_at: string | null;
-  created_at: string;
-  updated_at: string;
-}

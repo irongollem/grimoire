@@ -2,7 +2,7 @@
  * The document importer's extraction contract (#353).
  *
  * A DM uploads a PDF or a batch of page photos; an AI pass reads it and returns
- * game entities; a seven-step wizard reviews them before anything lands in a
+ * game entities; an eight-step wizard reviews them before anything lands in a
  * content table. This file is the shape that pass returns and every downstream
  * consumer — extractor prompt, review card, mapper, wizard — reads.
  *
@@ -40,22 +40,24 @@
  */
 import type { AiProvenance } from "@/ai/provenance";
 import type { MonsterStatBlock } from "@/types/monster.types";
+import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult } from "@/ai/types";
 
 // ── Entity kinds ─────────────────────────────────────────────────────────────
 
 /**
- * The seven kinds, in wizard order — which is a **dependency order**, not a
+ * The eight kinds, in wizard order — which is a **dependency order**, not a
  * presentation preference. Each kind is imported in turn, and a cross-entity
  * link can only resolve against rows that already exist, so a kind must come
  * after everything it points at:
  *
- *   factions  ← nothing
- *   monsters  ← nothing
- *   npcs      ← factions          (`faction_name`)
- *   locations ← locations         (`parent_name`, resolved within the step)
- *   items     ← nothing
- *   spells    ← nothing
- *   quests    ← npcs, locations   (`giver_npc_name`, `location_name`)
+ *   factions   ← nothing
+ *   monsters   ← nothing
+ *   npcs       ← factions          (`faction_name`)
+ *   locations  ← locations         (`parent_name`, resolved within the step)
+ *   items      ← nothing
+ *   spells     ← nothing
+ *   quests     ← npcs, locations   (`giver_npc_name`, `location_name`)
+ *   encounters ← monsters, npcs, locations (`combatants[].name`, `location_name`)
  *
  * `factions` leads for that reason alone. An earlier revision of this list put
  * it last — which reads more naturally, since monsters and NPCs are what a DM
@@ -63,6 +65,12 @@ import type { MonsterStatBlock } from "@/types/monster.types";
  * could never resolve: by the time factions existed, the NPC step was long past.
  * Nothing failed, nothing errored; the link was simply always dropped, and it
  * took importing a real document to notice.
+ *
+ * `encounters` trails everything for the same reason `quests` trails `npcs`
+ * and `locations`: a proposed encounter (#840) names the room it happens in
+ * and the creatures fighting in it, and both references only resolve against
+ * rows earlier steps have already produced — combatants against `monsters`
+ * and `npcs`, the room against `locations`.
  *
  * `document_import_dependency_order.test.ts` pins this against the link fields
  * declared below, so adding a link to a payload without reordering fails.
@@ -75,6 +83,7 @@ export const IMPORT_ENTITY_KINDS = [
   "items",
   "spells",
   "quests",
+  "encounters",
 ] as const;
 
 export type ImportEntityKind = (typeof IMPORT_ENTITY_KINDS)[number];
@@ -140,6 +149,23 @@ export interface ExtractedLocation {
   /** Free text as printed ("a walled city"); the mapper resolves it to `location_type_enum`. */
   location_type?: string;
   description?: string;
+  /**
+   * The boxed text for a keyed area, read out when the party first enters.
+   *
+   * It leads `locations.description` and pointedly NOT `player_summary`:
+   * transcribed publisher prose must never reach a player-visible field. See
+   * the note in `mapExtractedLocation` — this is the bound on the one exception
+   * to the extractor's summarise-don't-copy policy.
+   *
+   * This exists because of where the boxed text in an adventure chapter
+   * actually lives. Measured on the reference chapter: of 17 read-aloud
+   * blocks, 3 belonged to narrative beats and **14 to keyed rooms**. Extracting
+   * rooms without it would discard the majority of the most directly useful
+   * prose on the page — the part a DM would otherwise retype at the table.
+   *
+   * Same prose cap and same private lock as `ExtractedQuest.read_aloud`.
+   */
+  read_aloud?: string;
   notes?: string;
   /**
    * Name of another location in the same document. The mapper cannot resolve
@@ -185,12 +211,57 @@ export interface ExtractedSpell {
   classes?: string[];
 }
 
+/**
+ * A quest as a *graph*, not a prose blob (#829).
+ *
+ * The beat/route/objective shape is imported from the AI generator's contract
+ * rather than redeclared, and that is the point: `quest_beats` is one table
+ * with one meaning, so its two producers — the hook generator (#822) and this
+ * importer — emit the same spine and share `src/lib/quests/spine.ts` to plan
+ * the writes. A parallel importer-only beat type would be the second quest
+ * generation epic #780 exists to delete.
+ *
+ * ── Why an adventure page suits this and a generated hook barely does ───────
+ *
+ * Published adventures are already written as events with branches, and they
+ * mark boxed text typographically — so `read_aloud` here is transcription,
+ * where for the generator it would be invention. See `QuestSpineBeatResult`.
+ *
+ * ── read_aloud is prose, and obeys the prose rule above ─────────────────────
+ *
+ * Boxed text is protected expression in exactly the way this file's header
+ * describes — more purely so than a statblock, which is mostly unprotectable
+ * fact. It therefore goes through `capProse` like every other descriptive
+ * field, with no carve-out for being useful. What makes transcribing it
+ * defensible is not the cap but the lock: per `project_content_licensing` and
+ * #353, imported material stays private to the importing account, is never
+ * promoted to `library_*`, and is never reused as seed or training data.
+ */
 export interface ExtractedQuest {
   title: string;
+  /**
+   * One line, player-facing. Not the page — `quests_summary_is_one_line`
+   * (migration 20260906160921) caps this at 280 characters with no line
+   * breaks, and `splitQuestSummary` sends the remainder to the opening beat
+   * rather than truncating. A cut sentence is a lie (#799).
+   */
   summary?: string;
-  description?: string;
-  rewards?: string;
-  notes?: string;
+  /**
+   * The scenes the page describes, in source order. Absent or empty is not an
+   * error and never manufactures a placeholder beat: a page that yields no
+   * usable spine imports as a quest with no beats, which the DM can then
+   * author by hand. Inventing an "Opening beat" to fill the hole is how the
+   * generation-one shape would survive its own deletion (#822).
+   */
+  beats?: QuestSpineBeatResult[];
+  /** Directed edges between `beats`, by `key`. Optional for the same reason. */
+  routes?: QuestSpineRouteResult[];
+  /**
+   * The ledger of what the party is trying to do. `raised_by` names the beat
+   * that opens each one, which is what lets `deriveObjectiveStatuses` land a
+   * branch the party has not reached yet as `dormant` rather than `pending`.
+   */
+  objectives?: QuestObjectiveResult[];
   /** Names, resolved against the same import's NPCs and locations at insert. */
   giver_npc_name?: string;
   location_name?: string;
@@ -204,8 +275,42 @@ export interface ExtractedFaction {
 }
 
 /**
+ * A room's occupants, when they add up to a fight (#840). Deliberately the
+ * last kind: it names creatures from `monsters`/`npcs` and a room from
+ * `locations`, all resolved by name against rows those earlier steps already
+ * produced — see the ordering note on `IMPORT_ENTITY_KINDS`.
+ *
+ * `encounters` needed no schema change at all — `encounters.combatants`
+ * (jsonb `CombatantDef[]`) already has `count`, so "three archers" is one
+ * combatant with `count: 3`, never three rows, and `encounters.location_id`
+ * already is the room link. See `CombatantDef` (encounter.types.ts).
+ */
+export interface ExtractedEncounter {
+  name: string;
+  /** Paraphrased, capped — same prose rule as every other descriptive field. */
+  description?: string;
+  /**
+   * Name of the room this fight happens in, resolved against this same
+   * document's `locations` at import — same deferred-FK idiom as
+   * `ExtractedQuest.location_name`.
+   */
+  location_name?: string;
+  /**
+   * The creatures in the fight, one entry per creature kind or named
+   * individual — never one entry per creature. Each `name` is matched at
+   * import against this same extraction's `monsters` and `npcs` entries (an
+   * NPC name first, since a named individual is more specific than a
+   * creature kind; `resolve_monster_references` (#837) next) to fill a real
+   * `monster_id`/`npc_id` on the resulting `CombatantDef`. A name matching
+   * neither imports as a named stub the DM can link by hand — never dropped,
+   * since an unresolved creature name is meaningful and must stay visible.
+   */
+  combatants?: { name: string; count: number }[];
+}
+
+/**
  * Kind → payload. A map rather than a union so `ExtractedEntity<K>` and the
- * mapper table can both index it by kind and stay exhaustive: adding an eighth
+ * mapper table can both index it by kind and stay exhaustive: adding a ninth
  * kind to `IMPORT_ENTITY_KINDS` without adding it here is a compile error, not
  * a silently-skipped wizard step.
  */
@@ -217,6 +322,7 @@ export interface ExtractedPayloadMap {
   spells: ExtractedSpell;
   quests: ExtractedQuest;
   factions: ExtractedFaction;
+  encounters: ExtractedEncounter;
 }
 
 // ── Envelope ─────────────────────────────────────────────────────────────────
@@ -247,7 +353,13 @@ export type ExtractionResult = {
 
 // ── The staging row ──────────────────────────────────────────────────────────
 
-export const DOCUMENT_IMPORT_SOURCE_KINDS = ["pdf", "images"] as const;
+/**
+ * How the source reached us. `pdf` and `images` arrive as objects in the
+ * `import-documents` bucket; `text` (#829) is pasted straight in and carries no
+ * storage object at all — `document_imports_source_shape_check` binds each kind
+ * to its own `source_paths` cardinality and to whether `source_text` is set.
+ */
+export const DOCUMENT_IMPORT_SOURCE_KINDS = ["pdf", "images", "text"] as const;
 
 export type DocumentImportSourceKind = (typeof DOCUMENT_IMPORT_SOURCE_KINDS)[number];
 
@@ -267,8 +379,24 @@ export type DocumentImportStatus = (typeof DOCUMENT_IMPORT_STATUSES)[number];
  * `extracted` is typed as `ExtractionResult` here while the column is opaque
  * jsonb, which is the deliberate arrangement recorded in that migration: the
  * shape lives in TypeScript because a SQL copy of it would drift the first time
- * a payload gained a field. Readers must therefore treat it as untrusted —
- * `parseExtractionResult` is the one place that validates it.
+ * a payload gained a field.
+ *
+ * Readers must therefore treat it as untrusted, and there is **no single
+ * validating gate** — an earlier revision of this comment named a
+ * `parseExtractionResult` that has never existed, which is worse than saying
+ * nothing, because it tells the next reader a check happened somewhere. What
+ * actually holds:
+ *
+ *   * the provider is constrained by `EXTRACTION_SCHEMA` with `strict: true`,
+ *     so a well-formed response cannot carry an unknown key or omit a declared
+ *     one (`supabase/functions/import-extract/extractionSchema.ts`);
+ *   * the edge function checks the envelope before persisting, and passes the
+ *     per-entity `data` through rather than re-walking it;
+ *   * every mapper in `normalize.ts` treats each field as absent-by-default,
+ *     which is why they read `payload.x` with a fallback rather than asserting.
+ *
+ * So the safety is per-field and distributed, not a gate. Do not add one on the
+ * strength of this comment alone — decide whether it is wanted first.
  */
 export interface DocumentImport {
   id: string;

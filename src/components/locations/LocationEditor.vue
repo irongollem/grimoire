@@ -150,6 +150,9 @@
           </div>
         </div>
 
+        <!-- Scope -->
+        <CampaignScopeField v-model="campaignId" />
+
         <!-- Compact calendar pins -->
         <EntityCalendarSection
           compact
@@ -250,8 +253,10 @@
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
 import { ref, computed, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { useRoute, useRouter } from "vue-router";
+import { useCampaignStore } from "@/stores/campaign";
 import { IconTag, IconClock, IconWind } from '@/lib/icons';
 import EntityEditorActionBar from "@/components/common/EntityEditorActionBar.vue";
 import EntityImageBlock from "@/components/common/EntityImageBlock.vue";
@@ -259,6 +264,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import ThemeInput from "@/components/common/ThemeInput.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import LocationHierarchyPanel from "@/components/locations/LocationHierarchyPanel.vue";
@@ -396,6 +402,24 @@ const eraStart = ref<number | null>(props.location?.era_start ?? null);
 const eraEnd = ref<number | null>(props.location?.era_end ?? null);
 const audioTheme = ref<string | null>(props.location?.audio_theme ?? null);
 
+// ── Scope ──────────────────────────────────────────────────────────────────────
+// Editing an existing location keeps its stored scope, including a stored
+// null — which `props.location ? props.location.campaign_id : …` preserves.
+// `props.location?.campaign_id ?? activeCampaignId.value` would be wrong: an
+// existing global location's campaign_id is legitimately null, and `??`
+// can't tell that apart from "no location yet", so it would silently
+// re-scope the location into whichever campaign happens to be active next
+// time someone opens and saves it. A new location (no props.location)
+// defaults to the active campaign (#596) rather than "every campaign" — the
+// null-means-global read path now actually surfaces the location again once
+// the DM opts into it via CampaignScopeField, instead of silently hiding it
+// (see fetchLocations/fetchAllLocations). No active campaign is a genuine
+// "nothing to scope to yet" case.
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+const campaignId = ref<string | null>(
+  props.location ? props.location.campaign_id : activeCampaignId.value ?? null,
+);
+
 // ── Ambient theme suggestions — every label already in use, so a DM re-uses
 // existing playlist tags instead of guessing at spelling. ──────────────────
 const { data: playlists } = usePlaylists();
@@ -529,6 +553,7 @@ function buildPayload() {
     source_map_id: props.location?.source_map_id ?? null,
     grid_calibration: props.location?.grid_calibration ?? null,
     ai_provenance: aiProvenance.value,
+    campaign_id: campaignId.value,
   };
 }
 

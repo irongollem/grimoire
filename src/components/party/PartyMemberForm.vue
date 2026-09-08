@@ -241,6 +241,10 @@ const form = reactive<
   tool_proficiencies: [...(props.member?.tool_proficiencies ?? [])],
   languages: [...(props.member?.languages ?? [])],
   weapon_masteries: [...(props.member?.weapon_masteries ?? [])],
+  // #786: an override, not the member's location — null means "with the
+  // party". No control here edits it; it's set via LocationResidents' "Move
+  // here", a calendar travel event, or cleared via "Rejoin the party".
+  // Carried through unmodified on save.
   current_location_id: props.member?.current_location_id ?? null,
   carry_capacity_override: props.member?.carry_capacity_override ?? null,
   class_resources: props.member?.class_resources ?? {},

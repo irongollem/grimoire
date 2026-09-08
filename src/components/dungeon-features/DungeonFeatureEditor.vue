@@ -57,8 +57,18 @@
               </AppSelect>
             </div>
             <div class="col-span-2">
+              <label class="block text-label-lg font-semibold text-muted-foreground mb-1">How it draws on the map</label>
+              <AppSelect v-model="form.feature_glyph" size="body" weight="normal" block>
+                <option :value="null">Generic feature marker</option>
+                <option v-for="g in FEATURE_GLYPHS" :key="g" :value="g">{{ FEATURE_GLYPH_LABELS[g] }}</option>
+              </AppSelect>
+            </div>
+            <div class="col-span-2">
               <label class="block text-label-lg font-semibold text-muted-foreground mb-1">Tags</label>
               <TagInput v-model="form.tags" />
+            </div>
+            <div class="col-span-2">
+              <CampaignScopeField v-model="form.campaign_id" />
             </div>
           </div>
         </div>
@@ -145,6 +155,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { storeToRefs } from "pinia";
 import { IconDelete, IconSave } from '@/lib/icons';
 import {
   useCreateDungeonFeature,
@@ -152,10 +163,17 @@ import {
   useDeleteDungeonFeature,
 } from "@/composables/dungeon-features/useDungeonFeatures";
 import { useConfirm } from "@/composables/useConfirm";
-import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TRIGGERS } from "@/types/dungeonFeature.types";
-import type { DungeonFeature, DungeonFeatureTrigger } from "@/types/dungeonFeature.types";
+import { useCampaignStore } from "@/stores/campaign";
+import {
+  DUNGEON_FEATURE_TYPES,
+  DUNGEON_FEATURE_TRIGGERS,
+  FEATURE_GLYPHS,
+  FEATURE_GLYPH_LABELS,
+} from "@/types/dungeonFeature.types";
+import type { DungeonFeature, DungeonFeatureTrigger, FeatureGlyph } from "@/types/dungeonFeature.types";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import TagInput from "@/components/common/TagInput.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -166,6 +184,7 @@ const props = defineProps<{ feature: DungeonFeature | null; isNew: boolean }>();
 const route  = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm();
+const { activeCampaignId } = storeToRefs(useCampaignStore());
 
 const createMut = useCreateDungeonFeature();
 const updateMut = useUpdateDungeonFeature();
@@ -175,6 +194,11 @@ const saving = ref(false);
 const blankForm = () => ({
   name: "",
   feature_type: "Secret Door" as (typeof DUNGEON_FEATURE_TYPES)[number],
+  feature_glyph: null as FeatureGlyph | null,
+  // New features default to the active campaign; existing ones keep whatever
+  // scope they already have (#800) — this only matters for the pre-load
+  // (isNew) case, since the watch below overwrites it from `f.campaign_id`.
+  campaign_id: (activeCampaignId.value ?? null) as string | null,
   description: null as string | null,
   perception_dc: null as number | null,
   investigation_dc: null as number | null,
@@ -197,6 +221,8 @@ watch(
       Object.assign(form.value, {
         name: f.name,
         feature_type: f.feature_type,
+        feature_glyph: f.feature_glyph,
+        campaign_id: f.campaign_id,
         description: f.description
           ? typeof f.description === "string" ? f.description : JSON.stringify(f.description)
           : null,

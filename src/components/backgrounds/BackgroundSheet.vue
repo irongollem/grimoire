@@ -394,6 +394,7 @@ async function grantEquipment() {
       if (!item.name.trim() || item.quantity < 1) continue;
       await addItem({
         item_id: null,
+        library_item_id: null,
         name: item.name,
         quantity: item.quantity,
         carried_by: selectedMemberId.value || null,

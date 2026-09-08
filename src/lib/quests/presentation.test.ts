@@ -48,18 +48,15 @@ describe("quest beat presentation", () => {
     ]);
   });
 
-  it("scopes connectivity per quest and never stages the quest-level overview beat", () => {
-    const overview = { ...beat("overview"), is_overview: true } as QuestBeat;
+  it("scopes connectivity per quest", () => {
     const result = deriveQuestBeatPresentations({
       // Campaign-wide input, as the board passes it: quest "q" has two wired
       // flow beats, quest "other" has a single beat that cannot be connected.
-      beats: [overview, beat("a"), beat("b"), { ...beat("lonely"), quest_id: "other" } as QuestBeat],
+      beats: [beat("a"), beat("b"), { ...beat("lonely"), quest_id: "other" } as QuestBeat],
       edges: [edge("ab", "a", "b")],
       attachments: [],
     });
 
-    expect(result.overview.isDisconnected).toBe(false);
-    expect(result.overview.prepGaps).toEqual([]);
     expect(result.lonely.isDisconnected).toBe(false);
     expect(result.a.isDisconnected).toBe(false);
   });
@@ -129,16 +126,14 @@ describe("quest beat presentation", () => {
     // b -> a -> side is still walkable, so the untaken branch is not cut off.
     expect(looping.side.reach).toBe("ahead");
 
-    const overview = { ...beat("overview"), is_overview: true } as QuestBeat;
     const elsewhere = deriveQuestBeatPresentations({
-      beats: [overview, beat("a"), beat("b"), { ...beat("other"), quest_id: "other-quest" } as QuestBeat],
+      beats: [beat("a"), beat("b"), { ...beat("other"), quest_id: "other-quest" } as QuestBeat],
       edges: [edge("ab", "a", "b")],
       attachments: [],
       runtime: [{ quest_id: "q", current_beat_id: "a" }] as never[],
       transitions: [transition(null, "a")],
     });
-    // The quest-level overview and another quest's beats are not "cut off".
-    expect(elsewhere.overview.reach).toBe("unplayed");
+    // Another quest's beats, with no cursor of their own, are not "cut off".
     expect(elsewhere.other.reach).toBe("unplayed");
 
     // No run in progress at all: nothing is ahead of or behind anybody.

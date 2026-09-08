@@ -3,6 +3,7 @@ import { computed } from "vue";
 import type { Ref } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { ItemEntry, ItemEntryInsert, ItemEntryUpdate } from "@/types/item.types";
+import { isUuid } from "@/lib/library/contentIdentity";
 
 const QUERY_KEY = "item-entries";
 
@@ -30,7 +31,18 @@ export function useItemEntries(itemId: Ref<string | undefined>, campaignId: Ref<
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, itemId.value, campaignId.value]),
     queryFn: () => fetchItemEntries(itemId.value!, campaignId.value!),
-    enabled: () => !!itemId.value && !!campaignId.value,
+    // `isUuid`, not merely "is set". `item_entries.item_id` is `uuid NOT NULL`
+    // with no `library_item_id` companion, so shared-library content cannot
+    // have entries at all — and a library id is *text* (`srd_…`). Guarding on
+    // presence alone let that text reach a uuid column, where Postgres answers
+    // `22P02 invalid input syntax for type uuid`, an unhandled throw that took
+    // the whole inventory grid down for a player who simply owned a library
+    // item. Seen in production (DUNGEON-GRIMOIRE-7).
+    //
+    // Declining here rather than at each call site because this is the module
+    // that knows the column's type; a caller only knows it holds an item
+    // reference, and both callers pass one that may be either kind.
+    enabled: () => !!itemId.value && isUuid(itemId.value) && !!campaignId.value,
   });
 }
 

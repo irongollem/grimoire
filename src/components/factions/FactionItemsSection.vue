@@ -32,18 +32,20 @@ import {
   useRemoveFactionItem,
   type FactionItemWithItem,
 } from "@/composables/factions/useFactions";
-import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
+import { useItems } from "@/composables/items/useItems";
+import { inventoryItemRef, itemRefColumns } from "@/lib/itemRef";
 import EntityLinkSection from "@/components/common/EntityLinkSection.vue";
 
 const props = defineProps<{ factionId: string }>();
 
 const { data: entries }  = useFactionItems(props.factionId);
 const { data: allItems } = useItems();
-const { ensureOwnedItem } = useEnsureOwnedItem();
 const addMut    = useAddFactionItem();
 const removeMut = useRemoveFactionItem();
 
-const linkedIds = computed(() => new Set((entries.value ?? []).map((e) => e.item_id)));
+const linkedIds = computed(() =>
+  new Set((entries.value ?? []).map((e) => inventoryItemRef(e)).filter((id): id is string => id !== null)),
+);
 const availableItems = computed(() =>
   (allItems.value ?? []).filter((i) => !linkedIds.value.has(i.id)),
 );
@@ -57,9 +59,10 @@ async function add() {
   if (!picked) return;
   adding.value = true;
   try {
-    // Library items are shared rows; linking one has to mint the DM's own copy first.
-    const owned = await ensureOwnedItem(picked);
-    await addMut.mutateAsync({ faction_id: props.factionId, item_id: owned.id });
+    // Shared library content is referenced directly (#819), never cloned into
+    // the DM's own vault first — itemRefColumns routes to whichever column
+    // the picked id's shape calls for.
+    await addMut.mutateAsync({ faction_id: props.factionId, ...itemRefColumns(picked.id) });
     newItemId.value = "";
   } finally {
     adding.value = false;

@@ -1,3 +1,4 @@
+import { stripRetiredQuestColumns } from "@/lib/quests/retiredQuestColumns";
 import { ref } from "vue";
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
@@ -15,7 +16,7 @@ import { disposeHomebrewAndDeleteCampaign } from "@/composables/campaign/useCamp
 type Row = Record<string, any>;
 
 export interface GrimoireBackup {
-  version: "1";
+  version: "1" | "2";
   file_type: "backup";
   exported_at: string;
   campaign: Row;
@@ -40,8 +41,22 @@ export interface GrimoireBackup {
   quests: Row[];
   quest_objectives: Row[];
   quest_refs: Row[];
-  quest_triggers: Row[];
-  quest_trigger_scheduled: Row[];
+  /**
+   * v2+ (#794): the merged consequence rule table, replacing `quest_triggers`
+   * / `quest_trigger_scheduled` below. Present exactly when `version ===
+   * "2"`. Excludes any rule conditioned on a beat or edge (`on_beat_id` /
+   * `on_edge_id` non-null) — this backup format has never carried the
+   * beats/flow system (`quest_beats`, `quest_beat_edges`, ...), so a beat- or
+   * edge-scoped rule has no beat to import against and would either dangle or
+   * violate the FK. Only objective-became and quest-settled rules travel;
+   * see the fetch in `buildExport`.
+   */
+  quest_consequences?: Row[];
+  /** v1 only — the two tables #794 dropped from the schema. Present exactly
+   *  when `version === "1"`; see `resolveQuestConsequences` for how they map
+   *  onto `quest_consequences` shape on import. */
+  quest_triggers?: Row[];
+  quest_trigger_scheduled?: Row[];
   encounters: Row[];
   discovered_monsters: Row[];
   party_inventory: Row[];
@@ -92,6 +107,24 @@ async function qByIds(table: string, field: string, ids: string[]): Promise<Row[
   return (data ?? []) as Row[];
 }
 
+/**
+ * `quest_consequences` for these quests, excluding any rule conditioned on a
+ * beat or edge — this backup format has never carried the beats/flow system,
+ * so a beat-/edge-scoped rule has nothing to import against on the other end.
+ * See the field comment on `GrimoireBackup.quest_consequences`.
+ */
+async function qQuestConsequences(questIds: string[]): Promise<Row[]> {
+  if (questIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("quest_consequences")
+    .select("*")
+    .in("quest_id", questIds)
+    .is("on_beat_id", null)
+    .is("on_edge_id", null);
+  if (error) throw error;
+  return (data ?? []) as Row[];
+}
+
 // ── Export ───────────────────────────────────────────────────────────────────
 
 /** Sensitive campaign fields that must be stripped before export. */
@@ -131,7 +164,6 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     npcPcNotes,
     npcInventory,
     npcRelationships,
-    questTriggerScheduled,
     chroniclerImages,
     entityNotes,
   ] = await Promise.all([
@@ -162,7 +194,6 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByCampaign("npc_pc_notes", campaignId),
     qByCampaign("npc_inventory", campaignId),
     qByCampaign("npc_relationships", campaignId),
-    qByCampaign("quest_trigger_scheduled", campaignId),
     qByCampaign("chronicler_images", campaignId),
     qByCampaign("entity_notes", campaignId),
   ]);
@@ -185,7 +216,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     factionRelations,
     questObjectives,
     questRefs,
-    questTriggers,
+    questConsequences,
     recipeIngredients,
     recipeModifiers,
     recipeOutputs,
@@ -202,7 +233,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     qByIds("faction_relations", "faction_id", factionIds),
     qByIds("quest_objectives", "quest_id", questIds),
     qByIds("quest_refs", "quest_id", questIds),
-    qByIds("quest_triggers", "quest_id", questIds),
+    qQuestConsequences(questIds),
     qByIds("crafting_recipe_ingredients", "recipe_id", recipeIds),
     qByIds("crafting_recipe_modifiers", "recipe_id", recipeIds),
     qByIds("crafting_recipe_outputs", "recipe_id", recipeIds),
@@ -236,7 +267,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
   };
 
   return {
-    version: "1",
+    version: "2",
     file_type: "backup",
     exported_at: new Date().toISOString(),
     campaign: campaignExport,
@@ -261,8 +292,7 @@ async function buildExport(campaignId: string): Promise<GrimoireBackup> {
     quests,
     quest_objectives: questObjectives,
     quest_refs: questRefs,
-    quest_triggers: questTriggers,
-    quest_trigger_scheduled: questTriggerScheduled,
+    quest_consequences: questConsequences,
     encounters,
     discovered_monsters: discoveredMonsters,
     party_inventory: partyInventory,
@@ -309,6 +339,49 @@ function remapMapPins(pins: unknown, map: IdMap): unknown {
   }));
 }
 
+/**
+ * Every consequence row this backup will insert, in `quest_consequences`
+ * shape regardless of which version wrote the file (#794).
+ *
+ * A v1 backup predates the merge and carries its rules as `quest_triggers`
+ * instead: `objective_done` becomes an `on_objective_id` +
+ * `on_objective_status: 'complete'` condition (the only status an old
+ * `objective_done` trigger could ever have meant), `quest_complete` becomes
+ * `on_quest_settled`, and `offset_days` becomes `after_days` unchanged. An
+ * `objective_done` trigger with no `objective_id` had no condition and could
+ * never fire — dropped here, the same as the migration's own backfill drops
+ * it, rather than imported as a rule with nothing to watch.
+ *
+ * Throws rather than defaulting to `[]` when the field its own `version`
+ * promises is missing: that is a malformed file, not an empty campaign, and
+ * importing it as the latter would silently drop every consequence with no
+ * record that anything was lost.
+ */
+function resolveQuestConsequences(backup: GrimoireBackup): Row[] {
+  if (backup.version === "2") {
+    if (!backup.quest_consequences) throw new Error("Malformed backup: a v2 file must carry quest_consequences.");
+    return backup.quest_consequences;
+  }
+  if (!backup.quest_triggers) throw new Error("Malformed backup: a v1 file must carry quest_triggers.");
+  return backup.quest_triggers
+    .filter((t) => t.trigger_type === "quest_complete" || t.objective_id != null)
+    .map((t) => ({
+      id: t.id,
+      quest_id: t.quest_id,
+      on_beat_id: null,
+      on_edge_id: null,
+      on_objective_id: t.trigger_type === "objective_done" ? t.objective_id : null,
+      on_objective_status: t.trigger_type === "objective_done" ? "complete" : null,
+      on_quest_settled: t.trigger_type === "quest_complete",
+      after_days: t.offset_days,
+      action: t.action_type,
+      target_objective_id: null,
+      action_payload: t.action_payload,
+      created_at: t.created_at,
+      updated_at: t.updated_at,
+    }));
+}
+
 /** Build a Map<oldId → newId> for all entities that have their own UUID id column. */
 function buildIdMap(backup: GrimoireBackup): IdMap {
   const entityArrays: Row[][] = [
@@ -333,8 +406,7 @@ function buildIdMap(backup: GrimoireBackup): IdMap {
     backup.quests,
     backup.quest_objectives,
     backup.quest_refs,
-    backup.quest_triggers,
-    backup.quest_trigger_scheduled,
+    resolveQuestConsequences(backup),
     backup.encounters,
     backup.discovered_monsters,
     backup.party_inventory,
@@ -464,17 +536,23 @@ async function executeImport(
     const sortedQuests = sortByHierarchy(backup.quests, "parent_quest_id");
     await batchInsert(
       "quests",
-      sortedQuests.map((q) => ({
-        ...q,
-        id: r(q.id, idMap),
-        campaign_id: newCampaignId,
-        user_id: userId,
-        parent_quest_id: r(q.parent_quest_id, idMap),
-        giver_npc_id: r(q.giver_npc_id, idMap),
-        location_id: r(q.location_id, idMap),
-        player_visible_to: rArr(q.player_visible_to, idMap),
-        // reward_item_ids kept as-is (user-library refs)
-      })),
+      sortedQuests.map((q) => {
+        // A backup taken before #793 or #799 still carries columns the live
+        // table no longer has, and a raw spread would fail the whole restore.
+        // Shared with the world-bundle importer, which had the same job and a
+        // shorter list — see `retiredQuestColumns`.
+        const quest = stripRetiredQuestColumns(q);
+        return {
+          ...quest,
+          id: r(q.id, idMap),
+          campaign_id: newCampaignId,
+          user_id: userId,
+          parent_quest_id: r(q.parent_quest_id, idMap),
+          giver_npc_id: r(q.giver_npc_id, idMap),
+          location_id: r(q.location_id, idMap),
+          player_visible_to: rArr(q.player_visible_to, idMap),
+        };
+      }),
     );
 
     // 7. Quest objectives (needed before triggers)
@@ -757,25 +835,29 @@ async function executeImport(
           : (qr.ref_id as string),
       })),
     );
+    // `quest_consequences` carries no `user_id` of its own — RLS gates through
+    // the quest it belongs to. See `resolveQuestConsequences` for the v1→v2
+    // translation and why beat/edge-scoped rules never reach this array.
     await batchInsert(
-      "quest_triggers",
-      backup.quest_triggers.map((qt) => ({
-        ...qt,
-        id: r(qt.id, idMap),
-        user_id: userId,
-        quest_id: r(qt.quest_id, idMap),
-        objective_id: r(qt.objective_id, idMap),
-      })),
-    );
-    await batchInsert(
-      "quest_trigger_scheduled",
-      backup.quest_trigger_scheduled.map((qts) => ({
-        ...qts,
-        id: r(qts.id, idMap),
-        user_id: userId,
-        campaign_id: newCampaignId,
-        trigger_id: r(qts.trigger_id, idMap),
-        quest_id: r(qts.quest_id, idMap),
+      "quest_consequences",
+      resolveQuestConsequences(backup).map((qc) => ({
+        ...qc,
+        id: r(qc.id, idMap),
+        quest_id: r(qc.quest_id, idMap),
+        on_objective_id: r(qc.on_objective_id, idMap),
+        target_objective_id: r(qc.target_objective_id, idMap),
+        // Added by #831 and #836 after this block was written, and both carry
+        // a foreign key — so leaving them unremapped does not dangle quietly,
+        // it either violates the FK and fails the whole restore, or (when the
+        // originals still exist) silently points the restored campaign's rule
+        // at the *original* campaign's NPC or quest.
+        //
+        // `on_beat_id` and `on_edge_id` are the only uuid columns left off this
+        // list, and deliberately: `resolveQuestConsequences` filters beat- and
+        // edge-scoped rules out entirely, because this backup format has never
+        // carried the beat graph and there would be nothing to point them at.
+        target_npc_id: r(qc.target_npc_id, idMap),
+        target_quest_id: r(qc.target_quest_id, idMap),
       })),
     );
 
@@ -918,7 +1000,7 @@ export function parseBackupFile(file: File): Promise<GrimoireBackup> {
           reject(new Error("Invalid file type. This appears to be a world bundle (.grimoire), not a campaign backup."));
           return;
         }
-        if (json.version !== "1") {
+        if (json.version !== "1" && json.version !== "2") {
           reject(new Error(`Unsupported backup version: ${json.version}`));
           return;
         }

@@ -7,11 +7,14 @@ import {
   mapExtractedSpell,
   mapExtractedQuest,
   mapExtractedFaction,
+  mapExtractedEncounter,
+  resolveEncounterCombatants,
   ENTITY_MAPPERS,
 } from "@/lib/documentImport/normalize";
 import { IMPORT_ENTITY_KINDS, PROSE_FIELD_LIMIT } from "@/types/documentImport.types";
 import type { AiProvenance } from "@/ai/provenance";
 import type { MonsterStatBlock } from "@/types/monster.types";
+import type { CombatantDef } from "@/types/encounter.types";
 
 const CAMPAIGN_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -197,6 +200,54 @@ describe("mapExtractedNpc", () => {
 // ── Locations ────────────────────────────────────────────────────────────────
 
 describe("mapExtractedLocation", () => {
+  // #829. Most of the read-aloud prose in an adventure chapter belongs to keyed
+  // rooms rather than to narrative beats — 14 of 17 blocks in the reference
+  // chapter — so a location extracted without this discards the most directly
+  // useful text on the page.
+  it("leads a keyed area's description with its boxed text", () => {
+    const { row } = mapExtractedLocation(
+      {
+        name: "M3. River Cavern",
+        description: "Two giant rats lair here; the river exits through a narrow fissure.",
+        read_aloud: "An underground river flows through the far side of this cavern.",
+        parent_name: "The Gem Mine",
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+
+    expect(row.description).toBe(
+      "An underground river flows through the far side of this cavern.\n\n"
+        + "Two giant rats lair here; the river exits through a narrow fissure.",
+    );
+  });
+
+  // The bound on the one exception to summarise-don't-copy: boxed text is
+  // transcribed rather than paraphrased, so it must never land anywhere a
+  // player can read it. `player_summary` is player-facing by definition.
+  it("never puts transcribed boxed text in a player-visible field", () => {
+    const { row } = mapExtractedLocation(
+      { name: "M3. River Cavern", read_aloud: "An underground river flows through the far side." },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+
+    expect(row.player_summary).toBeNull();
+    expect(row.is_description_shared).toBe(false);
+    expect(row.player_visible_to).toEqual([]);
+    expect(row.description).toBe("An underground river flows through the far side.");
+  });
+
+  it("keeps the DM prose alone when the source had no boxed text", () => {
+    const { row } = mapExtractedLocation(
+      { name: "A Crossroads", description: "Three roads meet." },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(row.description).toBe("Three roads meet.");
+    expect(row.player_summary).toBeNull();
+  });
+
   it("maps a full payload correctly", () => {
     const { row, links } = mapExtractedLocation(
       {
@@ -409,14 +460,26 @@ describe("mapExtractedSpell", () => {
 // ── Quests ───────────────────────────────────────────────────────────────────
 
 describe("mapExtractedQuest", () => {
-  it("maps a full payload correctly", () => {
-    const { row, links } = mapExtractedQuest(
+  it("maps a full payload, carrying the spine rather than flattening it to prose", () => {
+    const { row, links, questSpine } = mapExtractedQuest(
       {
         title: "The Sunken Bell",
         summary: "Recover a bell lost when the old cathedral flooded.",
-        description: "The party must dive into the flooded crypt beneath the cathedral.",
-        rewards: "500 gp and the gratitude of the parish",
-        notes: "The bell is cursed.",
+        beats: [
+          { key: "b1", title: "The parish asks", kind: "social", dm_content: "Father Corvin is evasive." },
+          {
+            key: "b2",
+            title: "Into the crypt",
+            kind: "explore",
+            dm_content: "The water is waist-deep and rising.",
+            read_aloud: "Cold black water laps at the chancel steps.",
+          },
+        ],
+        routes: [{ from: "b1", to: "b2" }],
+        objectives: [
+          { description: "Find the bell", raised_by: "b1" },
+          { description: "Discover what drowned the bellringer", raised_by: "b2" },
+        ],
         giver_npc_name: "Father Corvin",
         location_name: "The Flooded Cathedral",
       },
@@ -426,9 +489,13 @@ describe("mapExtractedQuest", () => {
 
     expect(row.title).toBe("The Sunken Bell");
     expect(row.summary).toBe("Recover a bell lost when the old cathedral flooded.");
-    expect(row.description).toBe("The party must dive into the flooded crypt beneath the cathedral.");
-    expect(row.rewards).toBe("500 gp and the gratitude of the parish");
-    expect(row.notes).toBe("The bell is cursed.");
+    // `quests.rewards` and the currency/item reward columns are gone (#799) —
+    // loot now reaches players through the beat that grants it
+    // (`loot_placements`), never the quest header.
+    expect(row).not.toHaveProperty("rewards");
+    // Gone with #793; their prose lives on beats now.
+    expect(row).not.toHaveProperty("description");
+    expect(row).not.toHaveProperty("notes");
     expect(row.status).toBe("undiscovered");
     expect(row.campaign_id).toBe(CAMPAIGN_ID);
     expect(row.ai_provenance).toBe(PROVENANCE);
@@ -437,37 +504,107 @@ describe("mapExtractedQuest", () => {
     expect(row.location_id).toBeNull();
     expect(links.giver_npc_name).toBe("Father Corvin");
     expect(links.location_name).toBe("The Flooded Cathedral");
+
+    // The whole point of #829: a graph arrives as a graph.
+    expect(questSpine?.beats).toHaveLength(2);
+    expect(questSpine?.routes).toEqual([{ from: "b1", to: "b2" }]);
+    expect(questSpine?.objectives).toHaveLength(2);
+    // Boxed text stays on its own field rather than being folded into the DM
+    // prose — the distinction a published adventure hands us for free.
+    expect(questSpine?.beats[1]?.read_aloud).toBe("Cold black water laps at the chancel steps.");
+    expect(questSpine?.beats[1]?.dm_content).toBe("The water is waist-deep and rising.");
   });
 
-  it("maps a name-only payload to a valid row with schema defaults", () => {
-    const { row, links } = mapExtractedQuest({ title: "A Rumor" }, CAMPAIGN_ID, PROVENANCE);
+  it("maps a name-only payload to a valid row with schema defaults, and no spine to write", () => {
+    const { row, links, questSpine } = mapExtractedQuest({ title: "A Rumor" }, CAMPAIGN_ID, PROVENANCE);
 
     expect(row.status).toBe("undiscovered");
-    expect(row.reward_pp).toBe(0);
-    expect(row.reward_gp).toBe(0);
-    expect(row.reward_ep).toBe(0);
-    expect(row.reward_sp).toBe(0);
-    expect(row.reward_cp).toBe(0);
-    expect(row.reward_currency_pools).toEqual([]);
-    expect(row.reward_item_ids).toEqual([]);
+    expect(row).not.toHaveProperty("rewards");
+    expect(row).not.toHaveProperty("reward_pp");
+    expect(row).not.toHaveProperty("reward_currency_pools");
+    expect(row).not.toHaveProperty("reward_item_ids");
     expect(row.tags).toEqual([]);
     expect(row.player_visible_to).toEqual([]);
     expect(row.giver_npc_id).toBeNull();
     expect(row.location_id).toBeNull();
     expect(links).toEqual({});
+    expect(questSpine).toBeUndefined();
   });
 
-  it("caps summary/description/notes on a word boundary but never invents a status", () => {
-    const long = "peril ".repeat(150).trim();
-    const { row } = mapExtractedQuest(
-      { title: "X", summary: long, description: long, notes: long },
+  // #822, restated for the importer: a response with no usable spine imports as
+  // a quest with no beats. Nothing is manufactured to fill the hole, because a
+  // fabricated "Opening beat" is how the generation-one shape would survive its
+  // own deletion.
+  it("mints no placeholder beat when the model returned none", () => {
+    const { questSpine } = mapExtractedQuest(
+      { title: "X", summary: "Find the lost sword.", beats: [], routes: [], objectives: [] },
       CAMPAIGN_ID,
       PROVENANCE,
     );
-    expect((row.summary as string).endsWith("…")).toBe(true);
-    expect((row.description as string).endsWith("…")).toBe(true);
-    expect((row.notes as string).endsWith("…")).toBe(true);
-    expect(row.status).toBe("undiscovered");
+    expect(questSpine).toBeUndefined();
+  });
+
+  it("keeps objectives even when the model gave no beats to raise them", () => {
+    const { questSpine } = mapExtractedQuest(
+      { title: "X", objectives: [{ description: "Survive the night" }] },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(questSpine?.beats).toEqual([]);
+    expect(questSpine?.objectives).toHaveLength(1);
+  });
+
+  // The regression this guards (#799): `summary` used to run through the same
+  // 600-character `capProse` cut as a backstory, so a five-sentence adventure
+  // blurb got truncated mid-sentence into the one-line column instead of
+  // split. This asserts the fix reassembles losslessly, not merely that the
+  // row's summary looks short.
+  it("splits a multi-sentence summary at its first sentence rather than truncating it", () => {
+    const summary = "A farmer's daughter vanished near the old mill. The miller swears he heard singing at midnight. "
+      + "Something pale has been seen wading the millpond.";
+    const { row, questSpine } = mapExtractedQuest({ title: "X", summary }, CAMPAIGN_ID, PROVENANCE);
+
+    expect(row.summary).toBe("A farmer's daughter vanished near the old mill.");
+    // No beats came back, so one is minted to hold the remainder — the narrow
+    // exception documented on `mapExtractedQuest`. Losing the text instead
+    // would be the #799 regression all over again.
+    expect(questSpine?.beats).toHaveLength(1);
+    expect(questSpine?.beats[0]?.dm_content).toBe(
+      "The miller swears he heard singing at midnight. Something pale has been seen wading the millpond.",
+    );
+    // No word from the original summary is lost between the two fields.
+    expect(`${row.summary} ${questSpine?.beats[0]?.dm_content}`).toBe(summary);
+  });
+
+  it("prepends the summary's overflow to the first beat's prose, rather than replacing it", () => {
+    const { row, questSpine } = mapExtractedQuest(
+      {
+        title: "X",
+        summary: "The party is hired to clear the old mill. It has stood empty for a decade.",
+        beats: [
+          { key: "b1", title: "Arrival", kind: "neutral", dm_content: "The mill sits half-swallowed by ivy." },
+          { key: "b2", title: "Inside", kind: "explore", dm_content: "Something moves upstairs." },
+        ],
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+
+    expect(row.summary).toBe("The party is hired to clear the old mill.");
+    expect(questSpine?.beats[0]?.dm_content).toBe(
+      "It has stood empty for a decade.\n\nThe mill sits half-swallowed by ivy.",
+    );
+    // Only the first beat is touched.
+    expect(questSpine?.beats[1]?.dm_content).toBe("Something moves upstairs.");
+  });
+
+  it("does not mint an overflow beat when the summary is a single sentence", () => {
+    const { questSpine } = mapExtractedQuest(
+      { title: "X", summary: "Find the lost sword." },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(questSpine).toBeUndefined();
   });
 });
 
@@ -510,6 +647,123 @@ describe("mapExtractedFaction", () => {
     const long = "shadow ".repeat(150).trim();
     const { row } = mapExtractedFaction({ name: "X", description: long }, CAMPAIGN_ID, PROVENANCE);
     expect((row.description as string).endsWith("…")).toBe(true);
+  });
+});
+
+// ── Encounters ───────────────────────────────────────────────────────────────
+
+describe("mapExtractedEncounter", () => {
+  it("maps a full payload correctly, one combatant slot per entry never per creature", () => {
+    const { row, links } = mapExtractedEncounter(
+      {
+        name: "M3. River Cavern",
+        description: "The rats scatter into the water if the fight turns against them.",
+        location_name: "M3. River Cavern",
+        combatants: [
+          { name: "Giant rat", count: 2 },
+          { name: "Grallak Kur", count: 1 },
+        ],
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+
+    expect(row.name).toBe("M3. River Cavern");
+    expect(row.description).toBe("The rats scatter into the water if the fight turns against them.");
+    expect(row.campaign_id).toBe(CAMPAIGN_ID);
+    expect(row.ai_provenance).toBe(PROVENANCE);
+    // The room is a name, never a resolved FK, at this stage — same deferred
+    // idiom as every other cross-entity reference (file header).
+    expect(row.location_id).toBeNull();
+    expect(links.encounter_location_name).toBe("M3. River Cavern");
+
+    // Two entries, not three — `count` is what lets "two giant rats" stay one slot.
+    expect(row.combatants).toHaveLength(2);
+    expect(row.combatants[0]).toMatchObject({ monster_id: null, npc_id: null, count: 2, faction_id: "enemy", custom_name: "Giant rat" });
+    expect(row.combatants[1]).toMatchObject({ monster_id: null, npc_id: null, count: 1, faction_id: "enemy", custom_name: "Grallak Kur" });
+    // Every slot gets its own real id, not a placeholder or a shared one.
+    expect(row.combatants[0]!.id).not.toBe(row.combatants[1]!.id);
+    expect(row.combatants[0]!.id.length).toBeGreaterThan(0);
+  });
+
+  it("maps a name-only payload to a valid row with schema defaults", () => {
+    const { row, links } = mapExtractedEncounter({ name: "Unnamed Skirmish" }, CAMPAIGN_ID, PROVENANCE);
+
+    expect(row.description).toBeNull();
+    expect(row.combatants).toEqual([]);
+    expect(row.party_member_ids).toEqual([]);
+    expect(row.companion_ids).toEqual([]);
+    expect(row.party_member_factions).toEqual({});
+    expect(row.item_ids).toEqual([]);
+    expect(row.trap_ids).toEqual([]);
+    expect(row.reward_currency_pools).toEqual([]);
+    expect(row.art_objects).toEqual([]);
+    expect(row.location_id).toBeNull();
+    expect(row.is_finished).toBe(false);
+    expect(row.lair_enabled).toBe(false);
+    expect(row.lair_owner_def_id).toBeNull();
+    expect(row.audio_theme).toBeNull();
+    expect(row.factions.length).toBeGreaterThan(0); // a fresh encounter still gets the default faction set
+    expect(links).toEqual({});
+  });
+
+  it("clamps an out-of-range count into the 1..20 range the builder's UI enforces", () => {
+    const { row } = mapExtractedEncounter(
+      { name: "X", combatants: [{ name: "A horde of rats", count: 500 }, { name: "A lone scout", count: 0 }] },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(row.combatants[0]!.count).toBe(20);
+    expect(row.combatants[1]!.count).toBe(1);
+  });
+
+  it("never fabricates a name for a combatant, leaving custom_name null for a blank one", () => {
+    const { row } = mapExtractedEncounter(
+      { name: "X", combatants: [{ name: "   ", count: 1 }] },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(row.combatants[0]!.custom_name).toBeNull();
+  });
+});
+
+describe("resolveEncounterCombatants", () => {
+  function stub(customName: string | null): CombatantDef {
+    return { id: "slot-1", monster_id: null, npc_id: null, count: 1, faction_id: "enemy", custom_name: customName };
+  }
+
+  it("prefers a named-individual NPC match over a monster match for the same name", () => {
+    const [resolved] = resolveEncounterCombatants(
+      [stub("Grallak Kur")],
+      [{ id: "npc-1", name: "Grallak Kur" }],
+      new Map([["Grallak Kur", { targetId: "monster-1" }]]),
+    );
+    expect(resolved).toMatchObject({ npc_id: "npc-1", monster_id: null, custom_name: null });
+  });
+
+  it("falls back to the monster match when no NPC shares the name", () => {
+    const [resolved] = resolveEncounterCombatants(
+      [stub("Giant rat")],
+      [{ id: "npc-1", name: "Grallak Kur" }],
+      new Map([["Giant rat", { targetId: "monster-1" }]]),
+    );
+    expect(resolved).toMatchObject({ npc_id: null, monster_id: "monster-1", custom_name: null });
+  });
+
+  it("matches an NPC name case-insensitively", () => {
+    const [resolved] = resolveEncounterCombatants([stub("grallak kur")], [{ id: "npc-1", name: "Grallak Kur" }], new Map());
+    expect(resolved).toMatchObject({ npc_id: "npc-1" });
+  });
+
+  it("keeps the custom_name and both ids null when neither resolves, rather than dropping the slot", () => {
+    const [resolved] = resolveEncounterCombatants([stub("A mysterious foe")], [], new Map());
+    expect(resolved).toMatchObject({ npc_id: null, monster_id: null, custom_name: "A mysterious foe" });
+  });
+
+  it("passes an already-resolved combatant through unchanged", () => {
+    const already: CombatantDef = { id: "slot-1", monster_id: "monster-9", npc_id: null, count: 3, faction_id: "enemy", custom_name: null };
+    const [resolved] = resolveEncounterCombatants([already], [{ id: "npc-1", name: "Anything" }], new Map());
+    expect(resolved).toBe(already);
   });
 });
 

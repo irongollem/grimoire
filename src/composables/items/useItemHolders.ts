@@ -1,6 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { itemRefColumns } from "@/lib/itemRef";
 
 export interface ItemHolder {
   type: "npc" | "party_member" | "shop";
@@ -18,20 +19,25 @@ export function useItemHolders(itemId: MaybeRefOrGetter<string>) {
       const id = toValue(itemId);
       if (!id) return [];
 
+      // The id's own shape says which column references it — a vault (uuid)
+      // item can only ever be named by item_id, a library (text) item only by
+      // library_item_id. See src/lib/itemRef.ts.
+      const refColumn = itemRefColumns(id).item_id ? "item_id" : "library_item_id";
+
       const [npcRes, partyRes, shopRes] = await Promise.all([
         supabase
           .from("npc_inventory")
           .select("npc_id, quantity, npc:npcs(id, name)")
-          .eq("item_id", id),
+          .eq(refColumn, id),
         supabase
           .from("party_inventory")
           .select("carried_by, quantity, party_member:party_members!carried_by(id, name)")
-          .eq("item_id", id)
+          .eq(refColumn, id)
           .not("carried_by", "is", null),
         supabase
           .from("store_items")
           .select("location_id, location:locations(id, name)")
-          .eq("item_id", id),
+          .eq(refColumn, id),
       ]);
 
       const holders: ItemHolder[] = [];

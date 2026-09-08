@@ -102,6 +102,24 @@ export interface EntityDef {
   /** Writable fields for `create`/`update`. Omit to keep the entity read-only. */
   create?: CreateDef;
   /**
+   * The semantic-search corpus this entity feeds, or omitted when it has none
+   * (spells, quests, traps, … are not embedded). `create`/`update` queue the
+   * written row for embedding through it, exactly as the app's own mutations
+   * do via `queueItemEmbedding` and its siblings.
+   *
+   * Without this an entity written over MCP is real in the vault but invisible
+   * to every retrieval-backed generator until an admin happens to run the
+   * backfill — which is the whole shape of #838: the embed-on-write hook lives
+   * in the Vue mutations, so every write path that does not go through them
+   * silently skips it.
+   *
+   * Monsters have their own edge function (#595) whose single mode takes
+   * `monster_id`; everything else shares embed-content's `entity` + `id`
+   * (#600/#602). That is why this carries the function name rather than a bare
+   * flag.
+   */
+  embedOnWrite?: EmbedOnWriteTarget;
+  /**
    * Image columns exposable as MCP image blocks via `get_image`, keyed by a
    * short `which` selector (e.g. "portrait", "map"). Insertion order matters:
    * the first entry is the default when the caller omits `which`. Omit for
@@ -109,6 +127,11 @@ export interface EntityDef {
    */
   imageFields?: Record<string, string>;
 }
+
+/** Which embedding edge function owns an entity's corpus — see `EntityDef.embedOnWrite`. */
+export type EmbedOnWriteTarget =
+  | { fn: "embed-monsters" }
+  | { fn: "embed-content"; entity: "npc" | "faction" | "location" | "note" | "item" };
 
 // Enum value-lists. `QUEST_STATUS` and `LOCATION_TYPE` mirror real DB enums
 // (quest_status_enum, location_type_enum); the rest mirror the `as const`
@@ -311,6 +334,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     ],
     extraListColumns: ["alignment", "status"],
     campaignScope: "owned",
+    embedOnWrite: { fn: "embed-content", entity: "npc" },
     imageFields: {
       portrait: "portrait_url",
       disguise: "disguise_portrait_url",
@@ -365,6 +389,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     ],
     extraListColumns: ["size", "alignment"],
     campaignScope: "shared",
+    embedOnWrite: { fn: "embed-monsters" },
     imageFields: { image: "image_url" },
     create: {
       fields: {
@@ -481,6 +506,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     searchFields: ["name", "description", "item_type", "rarity"],
     extraListColumns: ["item_type", "rarity"],
     campaignScope: "shared",
+    embedOnWrite: { fn: "embed-content", entity: "item" },
     imageFields: { image: "image_url", mundane: "mundane_image_url" },
     create: {
       fields: {
@@ -560,6 +586,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     searchFields: ["name", "description", "notes", "player_summary"],
     extraListColumns: ["location_type", "parent_id"],
     campaignScope: "owned",
+    embedOnWrite: { fn: "embed-content", entity: "location" },
     imageFields: { image: "image_url", map: "map_url" },
     create: {
       fields: {
@@ -637,6 +664,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     searchFields: ["name", "description", "faction_type", "alignment"],
     extraListColumns: ["faction_type", "alignment"],
     campaignScope: "owned",
+    embedOnWrite: { fn: "embed-content", entity: "faction" },
     imageFields: { emblem: "emblem_url" },
     create: {
       fields: {
@@ -810,6 +838,7 @@ export const ENTITY_REGISTRY: Record<string, EntityDef> = {
     searchFields: ["title", "content", "category"],
     extraListColumns: ["category", "session_num"],
     campaignScope: "owned",
+    embedOnWrite: { fn: "embed-content", entity: "note" },
     create: {
       fields: {
         title: { type: "text", required: true },

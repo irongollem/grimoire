@@ -2,7 +2,7 @@
   <!--
     The scale rail.
 
-    An atlas is fundamentally about zoom, and the 17 location types are a ladder
+    An atlas is fundamentally about zoom, and the 18 location types are a ladder
     of scales rather than a flat set of kinds. This rail makes that ladder the
     one persistent piece of furniture on the page: it says how far down you are
     standing, and — by dimming rungs nothing occupies — where a world thins out.

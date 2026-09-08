@@ -11,6 +11,11 @@
       />
     </div>
 
+    <CampaignScopeField
+      :model-value="campaignId"
+      @update:model-value="$emit('update:campaignId', $event)"
+    />
+
     <div>
       <label class="block text-eyebrow text-muted-foreground mb-1">
         Tile Pack
@@ -143,6 +148,30 @@
             @update:model-value="$emit('update:linkedEncounterId', $event)"
           />
         </div>
+        <!--
+          #804: a cell can carry a trap or feature, and now draws its glyph —
+          but nothing could set either until this. `CellMetadata` has held both
+          fields since the Cartographer shipped while only note and encounter
+          were ever wired, so the renderer had no way to be reached.
+        -->
+        <div>
+          <span class="block text-label text-muted-foreground mb-0.5">Trap</span>
+          <EntityCombobox
+            :model-value="linkedTrapId"
+            :options="trapOptions"
+            placeholder="Search traps…"
+            @update:model-value="$emit('update:linkedTrapId', $event)"
+          />
+        </div>
+        <div>
+          <span class="block text-label text-muted-foreground mb-0.5">Feature</span>
+          <EntityCombobox
+            :model-value="linkedFeatureId"
+            :options="featureOptions"
+            placeholder="Search features…"
+            @update:model-value="$emit('update:linkedFeatureId', $event)"
+          />
+        </div>
       </div>
     </div>
     <div v-else-if="activeTool === 'link'">
@@ -195,6 +224,7 @@ import { ref } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 
@@ -219,6 +249,7 @@ interface EntityOption {
 
 defineProps<{
   name: string;
+  campaignId: string | null;
   currentPackId: string;
   bundledPacks: readonly BundledPack[];
   loadedPackIds: Set<string>;
@@ -231,8 +262,12 @@ defineProps<{
   annotationText: string;
   linkedNoteId: string;
   linkedEncounterId: string;
+  linkedTrapId: string;
+  linkedFeatureId: string;
   noteOptions: EntityOption[];
   encounterOptions: EntityOption[];
+  trapOptions: EntityOption[];
+  featureOptions: EntityOption[];
   activeTemplateShape: string;
   templateShapes: TemplateShape[];
   caveRadius: number;
@@ -240,12 +275,15 @@ defineProps<{
 
 defineEmits<{
   "update:name": [value: string];
+  "update:campaignId": [id: string | null];
   "update:currentPackId": [id: string];
   "update:activeObjectCategory": [cat: string];
   "update:stampRotation": [deg: number];
   "update:annotationText": [text: string];
   "update:linkedNoteId": [id: string];
   "update:linkedEncounterId": [id: string];
+  "update:linkedTrapId": [id: string];
+  "update:linkedFeatureId": [id: string];
   "update:activeTemplateShape": [shape: string];
   "update:caveRadius": [size: number];
 }>();

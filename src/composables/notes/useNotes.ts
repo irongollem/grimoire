@@ -1,3 +1,4 @@
+import { reportHandledError } from "@/lib/observability/sentry";
 import { computed, type Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
@@ -87,7 +88,7 @@ export function useNote(id: Ref<string>) {
 export function queueNoteEmbedding(id: string): void {
   void supabase.functions
     .invoke("embed-content", { body: { mode: "single", entity: "note", id } })
-    .catch(() => { /* non-fatal — see above */ });
+    .catch((error) => reportHandledError(error, "queueNoteEmbedding", { id }));
 }
 
 export function useCreateNote() {

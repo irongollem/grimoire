@@ -12,14 +12,14 @@
       </section>
 
       <QuestBeatAttachmentsPanel :beat="beat" :attachments="attachments" />
-      <QuestBeatObjectivesPanel :beat="beat" :edges="edgesQuery.data.value ?? []" />
+      <QuestConsequencesPanel scope="beat" :quest-id="beat.quest_id" :beat="beat" :edges="edgesQuery.data.value ?? []" :beats="beatsQuery.data.value ?? []" />
       <QuestBeatLootPanel :beat="beat" :loot="loot" />
 
       <section class="rounded-lg border border-border bg-card p-3">
         <h2 class="font-cinzel text-sm font-bold text-foreground">Outgoing branches</h2>
         <ul v-if="outgoing.length" class="mt-2 space-y-1 text-caption">
           <li v-for="edge in outgoing" :key="edge.id">
-            <span class="text-muted-foreground">{{ edge.label || "Continue" }} → </span>
+            <span class="text-muted-foreground">→ </span>
             <strong>{{ beatTitle(edge.target_beat_id) }}</strong>
           </li>
         </ul>
@@ -34,13 +34,13 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useQuest } from "@/composables/quests/useQuests";
-import { useQuestBeat, useQuestBeatAttachmentSummaries, useQuestBeatEdges, useQuestBeatLoot, useQuestBeats } from "@/composables/quests/useQuestFlow";
+import { useQuestBeat, useQuestBeatAttachmentSummaries, useQuestBeatEdges, useLootPlacements, useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { safeQuestReturnTo } from "@/lib/quests/navigation";
 import PageHeader from "@/components/common/PageHeader.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import QuestBeatAttachmentsPanel from "@/components/quests/QuestBeatAttachmentsPanel.vue";
-import QuestBeatObjectivesPanel from "@/components/quests/QuestBeatObjectivesPanel.vue";
+import QuestConsequencesPanel from "@/components/quests/QuestConsequencesPanel.vue";
 import QuestBeatFields from "@/components/quests/QuestBeatFields.vue";
 import QuestBeatLootPanel from "@/components/quests/QuestBeatLootPanel.vue";
 
@@ -52,7 +52,7 @@ const beatQuery = useQuestBeat(beatId);
 const beatsQuery = useQuestBeats(questId);
 const edgesQuery = useQuestBeatEdges(questId);
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questId);
-const lootQuery = useQuestBeatLoot(questId);
+const lootQuery = useLootPlacements({ questId });
 const beat = computed(() => beatQuery.data.value?.quest_id === questId.value ? beatQuery.data.value : null);
 const attachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));
 const loot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.beat_id === beatId.value));

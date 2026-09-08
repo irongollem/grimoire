@@ -41,7 +41,7 @@ Each card is the shared `EntityGridCard`. The item card is deliberately the lean
 
 **Open5e import layer (#554)** — every v2 fetch across items/spells/monsters/etc. goes through shared helpers in `src/lib/library/open5eApi.ts`: `rulesetForDocument()` maps a document's gamesystem to `2014`/`2024`/`null`, `fetchSupported5eDocumentKeys()` lists every 5e-gamesystem document (excluding non-5e gamesystems like a5e), and `fetchAllFromDocuments()` scopes a list fetch to those keys via `document__key__in`. Plain `document__key` is silently ignored on `/v2/items`, `/v2/weapons`, and `/v2/magicitems` — those endpoints otherwise return the full unfiltered cross-publisher set with no error — so `document__key__in` is the only filter used against any v2 endpoint, with a stray-document assertion (`fetchAllFromDocuments` throws if a returned record's document key isn't in the requested set) guarding against that failure mode recurring.
 
-**AI Generator** — "Generate" button opens `ItemGeneratorPanel`, an AI-assisted item creation wizard.
+**AI Generator** — "Generate" button opens `ItemGeneratorPanel`, an AI-assisted item creation wizard. Also stamps the active campaign onto the generated item (#596) — this path built its own insert payload rather than going through `ItemDetail`'s form, so it had kept minting general items after #597 flipped the manual editor's default.
 
 **Item Detail editor** (`/vault/:id?edit=true`) — a two-column form:
 
@@ -207,7 +207,7 @@ The Spellbook is the DM's master spell compendium, holding both imported SRD spe
 
 **Import from Open5e** — "Sync from Open5e" button. A source picker popover (lazy-loaded from `useOpen5eDocuments`, stored in localStorage as `grimoire:spell-import-sources`) allows selecting specific sourcebooks before importing; leaving all unchecked imports everything. Import is upsert-based: new spells inserted, existing `open5e_import` spells updated for source/classes metadata only (images never overwritten). Reports "N added, N updated".
 
-**AI Generator** — "Generate" button opens `SpellGeneratorPanel`.
+**AI Generator** — "Generate" button opens `SpellGeneratorPanel`. Stamps the active campaign onto the generated spell (#596) via the same fix as the item generator — `spellInsertFromAi()` is a pure AI-output adapter with no campaign awareness, so the panel adds `campaign_id` itself rather than teaching the adapter about campaigns.
 
 **Spell Detail editor** (`/spells/:id?edit=true`) — a three-column layout on wide screens:
 
@@ -222,6 +222,7 @@ The Spellbook is the DM's master spell compendium, holding both imported SRD spe
   - **Mechanics block**: Attack/Targeting type (Melee Spell Attack, Ranged Spell Attack, Saving Throw, Utility/No Attack), save attribute and "effect on successful save" (for saving throws); damage rolls (multi-roll `DiceInput`); area of effect (shape + size)
   - Spell description — rich text editor
   - Higher level effects — rich text editor
+  - **Scope** (`CampaignScopeField`, #596) — "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — *active campaign name*" (`campaign_id = active`). New spells default to the active campaign; editing an existing spell never moves it off its stored scope, even a general one. `useAllSpells()` filters custom rows to `!campaign_id || campaign_id === activeCampaignId` — SRD/library spells are always general.
 - **Right column** — class list (multi-select checkboxes for all spellcasting classes)
 - **Spell Level Advisor modal** — wizard that appears for new spells. Asks school, effect type, intensity/damage dice, target count, and save type; outputs a suggested spell level and pre-fills mechanical fields.
 
@@ -299,7 +300,7 @@ Mutation errors from these RPCs surface via toasts (`useCharacterSpells` mutatio
 
 The Workshop is where the DM creates crafting recipes and controls which players can see them.
 
-**List view** — tabbed by crafting discipline. All recipes are shown in an "All" tab; individual discipline tabs filter the list. Mobile-responsive cards truncate the name and collapse discipline/proficiency/tools badges to icons only.
+**List view** — tabbed by crafting discipline. All recipes are shown in an "All" tab; individual discipline tabs filter the list. Mobile-responsive cards truncate the name and collapse discipline/proficiency/tools badges to icons only. The list is paged in on scroll via `useInfiniteScroll` (48 at a time) with `useScrollRestore` keyed `crafting-recipes`, so returning from `/crafting/:id` lands where you left off.
 
 **Crafting disciplines** — defined in `src/lib/crafting-disciplines.ts`. Each discipline has:
 
@@ -309,9 +310,13 @@ The Workshop is where the DM creates crafting recipes and controls which players
 - A workspace bonus (standard modifier for having a proper workspace)
 - A workspace label shown in the attempt dialog
 
+Not every discipline maps to an artisan's tool. Herbalism, Poisoncraft and Forgery key off kits, which is deliberate: the point of a discipline is that *some* proficiency unlocks it, and a Charlatan's Forgery Kit is as real a qualification as a smith's hammer. Forgery currently reuses `IconCraftScribing` because `CRAFTING_GLYPHS` is generated from a 14-discipline art sheet and no forgery glyph exists yet — replace it by adding art and regenerating, never by hand-editing `craftingGlyphs.generated.ts`.
+
+**Starter recipe data invariants** — `src/data/starterRecipes.test.ts` asserts three things, each because it shipped broken and nothing failed: no duplicate recipe names (the whole `painting` block was once duplicated, so every DM who imported got doubled cards); every output names an item that actually exists in `gear.ts`, `provisions.ts` or `ammunition.ts` (`buildStarterRecipeChildRows` silently *drops* an output it cannot resolve, so the recipe imports fine and then crafts into nothing); and every `discipline` is a real id. Note the third list — ammunition was missing from the importer's lookup, which is why the two arrow/bolt recipes produced nothing.
+
 **Reveal control** — `AudienceRevealControl` on each recipe card controls which player characters can see the recipe in their portal. This can be changed directly from the list without entering the editor, and `RecipeSheet` and `RecipeEditor` carry the same control (#741).
 
-**Starter recipe import** — "Import Starter Recipes" button imports a built-in set of starter recipes (idempotent).
+**Starter recipe import** — "Import Starter Recipes" button imports a built-in set of starter recipes (idempotent). The gear/provisions/ammunition items it mints as recipe outputs are deliberately left with `campaign_id: null` (#596 did not flip this one) — the existing-item lookup that keeps a second import idempotent is scoped by `user_id` alone, not by campaign, so if a second campaign's import stamped its own copy of "Torch" with that campaign's id, the crafting recipe in campaign two would resolve to an item invisible in campaign two's own Vault. Global is the correct scope for this basic universal gear, not an oversight.
 
 **Recipe editor** (`/crafting/:id`) — a focused form:
 
@@ -335,6 +340,8 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 **Discipline tabs** — only disciplines with at least one accessible recipe are shown. Tabs where the character lacks the required tool proficiency show a "NO PROF" badge and use dimmer styling.
 
+**Paging** — the grid mounts 24 cards and pages the rest in on scroll (`useInfiniteScroll`); switching tabs resets to the first page. The page size is deliberately smaller than the 48 used elsewhere: a recipe card is ~5ms of mount work, so a campaign with 184 shared recipes rendered as one unbroken ~980ms task in a production build on a fast desktop. On a low-end Chromebook that was several seconds during which the browser answers no input at all — not even a reload — and Chrome killed the renderer with an out-of-memory error, which is what the freeze was originally reported as. Do not render the full list "because it is only a few hundred": the cost is linear and there is no cap on recipes per campaign.
+
 **Recipe cards** — each card shows:
 
 - Name and discipline badge (when viewing "All")
@@ -348,6 +355,8 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 **Discipline header** (when a specific discipline is active) — shows the discipline description, the ability score used (e.g. "Uses INT (+2) + Proficiency (+3)") or a note that no proficiency bonus applies.
 
 **Ingredient matching** — specific-item ingredients matched by `item_id`; tag-based ingredients matched by checking ALL required tags against the vault item's tag array. Ruined items are excluded from counts. Party stash items are included.
+
+**Tool-proficiency matching goes through `src/rules/toolProficiency.ts` — never compare the strings directly.** `party_members.tool_proficiencies` is free text fed from three places (the sheet's picker, Open5e background prose, hand-written homebrew), and the exact `includes()` this replaced meant a background granted proficiencies that toggled nothing: production held four spellings of the herbalism kit (`"herbalism kit"`, `"Herbalism kit"`, `"Herbalism Kit"`, `"Herbalist kit"`), lowercase `"Alchemist's supplies"`, the fragment `"or Disguise Kit."`, and `"No additional tool proficiencies"` stored as though it were a proficiency. `canonicalToolName` resolves those against `TOOL_PROFICIENCY_GROUPS`, returns `null` for prose that names no tool, and passes homebrew and armour/weapon entries through untouched. Because it canonicalises on *read* as well as write, existing dirty rows started matching without a backfill.
 
 **CraftAttemptDialog** — modal that opens when "Attempt Craft" is clicked:
 
@@ -453,6 +462,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 | `source_title`      | string      |                                                        |
 | `source_url`        | string      |                                                        |
 | `open5e_import`     | boolean     | true for Open5e-sourced spells                         |
+| `campaign_id`       | uuid        | null = general (all campaigns); set = scoped to that campaign |
 
 ### CraftingRecipe (`crafting_recipes` table)
 
@@ -495,10 +505,15 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 ### PartyInventoryItem (`party_inventory` table)
 
-| Field           | Notes                                             |
-| --------------- | ------------------------------------------------- |
-| `item_id`       | FK to vault item (null for ad-hoc items)          |
-| `name`          | display name                                      |
+**A row references its catalogue entry through one of two columns, and nothing outside `src/lib/inventory/itemRef.ts` should read either directly.** `item_id` is a uuid FK to the owner's own `items` row; `library_item_id` is a text FK to shared `library_items`. A check constraint allows at most one, and both-null is legal — that is free-text loot with no catalogue entry at all.
+
+The second column exists because `item_id` predates the shared library: `library_items.id` is text, so until #815 a player picking anything shared got `invalid input syntax for type uuid` and the entire catalogue was selectable but unaddable. Note the shape of the workaround that grew instead — `useEnsureOwnedItem` copies a library row into the caller's vault, which is where 673 shadow rows on one long-standing account came from. Reference shared content; do not copy it. Use `inventoryItemRef(row)` to read and `itemRefColumns(pickedId)` to write, and remember that a row carrying a library reference must keep it through a stack split or an equip, or the link vanishes while the row still looks right.
+
+| Field             | Notes                                             |
+| ----------------- | ------------------------------------------------- |
+| `item_id`         | FK to the owner's vault item (uuid)               |
+| `library_item_id` | FK to shared library content (text) — #815        |
+| `name`            | display name                                      |
 | `quantity`      |                                                   |
 | `carried_by`    | party member id; null = party stash               |
 | `location`      | equipped, backpack, belt, container, stored       |

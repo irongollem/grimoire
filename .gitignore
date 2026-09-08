@@ -64,6 +64,17 @@ art-src/
 # Vite's isolated localdb env contains only the Supabase CLI's public defaults.
 !config/env/localdb/.env
 
+# Bun lockfile. This project is npm: CI runs `npm ci` with `cache: npm`
+# (.github/workflows/test.yml), package-lock.json is the authoritative tree, and
+# package.json's `allowScripts` field — six deliberate install-script verdicts,
+# reasoned out in docs/npm-install-scripts.md — is an npm feature that bun does
+# not read (it uses `trustedDependencies` instead). A tracked bun.lock therefore
+# adds a second, unvalidated dependency tree that CI never checks, and it was
+# removed for that reason. Ignored rather than merely deleted so a local
+# `bun install` cannot quietly commit it back.
+bun.lock
+bun.lockb
+
 # graphify knowledge-graph output. Not committed, for two reasons beyond size:
 # every node carries a `source_location` and the manifest a `scan_root`, so the
 # files are full of absolute local paths (/Users/<name>/...) — and this repo is

@@ -728,6 +728,26 @@ export const useUiStore = defineStore("ui", () => {
   const locationsSelectedId = ref<string | null>(null);
   const locationsPaneMode = ref<"places" | "map">("places");
 
+  // Whether the tree column is folded away, giving its width to the place
+  // pane. Desktop-only in effect (there is no tree/pane split below `lg` to
+  // fold — AtlasExplorer swaps the two panes instead), but the flag itself is
+  // stored unconditionally rather than as a derived value: it is a durable
+  // layout preference, the same idiom as `entityListLayout`/`questsIsKanban`,
+  // not a list filter, so `useLocalStorage` is the right call rather than a
+  // plain ref that resets on reload.
+  const locationsTreeCollapsed = useLocalStorage("grimoire:atlas:treeCollapsed", false);
+
+  // The place the Atlas was left on. Selection itself lives in the URL
+  // (`/locations?at=<id>`) so that Back walks the trail of places visited, and
+  // that is worth keeping — but it means leaving the Atlas by the sidebar and
+  // returning through a bare `/locations` dropped the place you were looking
+  // at. This remembers it so arriving with no `at` can restore one.
+  //
+  // Stored, not session state: coming back to the map you were reading is the
+  // same kind of durable preference as the tree's fold, and it should survive a
+  // reload rather than only a Back.
+  const locationsLastSelectedId = useLocalStorage<string | null>("grimoire:atlas:lastSelected", null);
+
   function rememberExpanded(ids: string[]) {
     locationsExpandedIds.value = ids.slice(-EXPANDED_CAP);
   }
@@ -910,6 +930,30 @@ export const useUiStore = defineStore("ui", () => {
     npcsFilterSortBy.value = "location";
   }
 
+  // Transfer-ownership embedding offer banner (#841). Dismissing the
+  // dashboard banner (EmbedMissingContentBanner) must not re-nag on every
+  // visit, but the permanent settings-tab card (EmbedMissingContentCard) has
+  // no dismissal at all -- "index later" already has an answer there (leave
+  // the button unclicked), so only the banner needs this.
+  //
+  // Keyed by campaign id, not a single flag: the offer is inherently
+  // per-campaign, so a DM running several campaigns who dismisses the banner
+  // on one transferred campaign must still see it on another that separately
+  // needs indexing. A plain boolean here would hide the second campaign's
+  // banner the moment the first was dismissed.
+  const dismissedEmbedOfferBanners = useLocalStorage<Record<string, boolean>>(
+    "grimoire:embed-offer-dismissed",
+    {},
+  );
+
+  function isEmbedOfferBannerDismissed(campaignId: string): boolean {
+    return dismissedEmbedOfferBanners.value[campaignId] === true;
+  }
+
+  function dismissEmbedOfferBanner(campaignId: string) {
+    dismissedEmbedOfferBanners.value = { ...dismissedEmbedOfferBanners.value, [campaignId]: true };
+  }
+
   return {
     // Notes
     notesFilterCategory,
@@ -947,6 +991,10 @@ export const useUiStore = defineStore("ui", () => {
     activeNpcId,
     npcGeneratorOpen,
     resetNpcsFilters,
+
+    // Transfer-ownership embedding offer banner (#841)
+    isEmbedOfferBannerDismissed,
+    dismissEmbedOfferBanner,
 
     // NPC relationship web
     npcWebSearch,
@@ -1187,7 +1235,9 @@ export const useUiStore = defineStore("ui", () => {
     resetLocationsFilters,
     locationsExpanded,
     locationsSelectedId,
+    locationsLastSelectedId,
     locationsPaneMode,
+    locationsTreeCollapsed,
     toggleLocationExpanded,
     revealLocationPath,
     collapseAllLocations,

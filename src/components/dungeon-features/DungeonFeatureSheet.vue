@@ -114,6 +114,16 @@
         <RichTextViewer :content="feature.notes" />
       </div>
     </div>
+
+    <!-- Placed In -->
+    <div class="rounded-lg border border-border bg-card overflow-hidden">
+      <div class="px-3 py-2 border-b border-border bg-muted/20">
+        <span class="text-label-lg font-semibold text-muted-foreground">Placed In</span>
+      </div>
+      <div class="p-4">
+        <EntityPlacements kind="dungeon_feature" :entity-id="feature.id" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -127,6 +137,7 @@ import type { DungeonFeature } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import EntityPlacements from "@/components/locations/EntityPlacements.vue";
 
 const props  = defineProps<{ feature: DungeonFeature }>();
 const route  = useRoute();

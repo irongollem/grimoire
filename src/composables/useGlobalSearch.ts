@@ -42,8 +42,10 @@ async function searchAll(query: string, campaignId: string | null): Promise<Sear
     supabase.from("spells").select("id, name").ilike("name", q).not("open5e_import", "eq", true).limit(LIMIT),
     supabase.from("library_spells").select("id, name").ilike("name", q).limit(LIMIT),
     supabase.from("items").select("id, name").ilike("name", q).limit(LIMIT),
+    // `.or` rather than `.eq` — a location with campaign_id null is meant to
+    // be visible in every campaign (#596), same as items/spells/species below.
     campaignId
-      ? supabase.from("locations").select("id, name").eq("campaign_id", campaignId).ilike("name", q).limit(LIMIT)
+      ? supabase.from("locations").select("id, name").or(`campaign_id.eq.${campaignId},campaign_id.is.null`).ilike("name", q).limit(LIMIT)
       : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
     campaignId
       ? supabase.from("quests").select("id, title").eq("campaign_id", campaignId).ilike("title", q).limit(LIMIT)

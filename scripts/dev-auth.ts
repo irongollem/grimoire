@@ -54,6 +54,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { parseArgs } from "node:util";
 import { quote, sql } from "./lib/dev-db.ts";
 import { ensureFixtureContent } from "./lib/dev-fixture-content.ts";
+import { ensureFixtureQuest } from "./lib/dev-fixture-quest.ts";
 
 /** Local-only, deliberately boring, never valid anywhere but this machine. */
 const DEV_PASSWORD = "grimoire-local-dev";
@@ -214,12 +215,24 @@ async function main() {
   if (player.passwordChanged) changed.push(PLAYER_EMAIL);
   const beasts = ensureFixtureBestiary(stack.DB_URL, fixtureId);
   const content = ensureFixtureContent(stack.DB_URL, fixtureId);
+  // After the player, not before: it shares the quest with the party member
+  // ensureFixturePlayer just claimed.
+  const quest = ensureFixtureQuest(stack.DB_URL, fixtureId);
 
   const inventory = [
     `${cloned} locations`,
     `${party} party members`,
     `${beasts} monsters`,
     ...Object.entries(content).map(([name, n]) => `${n} ${name}`),
+    ...(quest
+      ? [
+          `1 quest (${quest.beats} beats, ${quest.edges} edges, ${quest.gates} gates, ` +
+            `${quest.objectives} objectives incl. ${quest.dormantObjectives} dormant, ` +
+            `${quest.consequences} consequences` +
+            (quest.hasRuntimeState ? ", runtime mid-chain" : "") +
+            ")",
+        ]
+      : []),
   ].join(", ");
 
   console.log(`Local sign-in ready — password for all three: ${DEV_PASSWORD}\n`);
@@ -293,6 +306,35 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
     select id as old_id, gen_random_uuid() as new_id
       from public.locations where campaign_id = ${quote(sourceId)};
 
+    -- Depth, so the clone inserts parents before their children.
+    --
+    -- guard_location_room_parent checks that a room's parent EXISTS, and the
+    -- trigger fires per row inside the INSERT ... SELECT. Without an order the
+    -- planner is free to emit a room before the building it sits in, and the
+    -- guard then rejects a perfectly valid tree with "A room must sit inside a
+    -- building, dungeon, store, tavern or inn" — a message that sends you
+    -- hunting for a mistyped location when the real fault is row order.
+    --
+    -- Roots are rows with no parent, plus rows whose parent lives outside the
+    -- campaign being cloned (those land with a null parent_id anyway, because
+    -- the left join to _id_map finds nothing).
+    create temporary table _loc_depth on commit drop as
+    with recursive d as (
+      select l.id, 0 as depth
+        from public.locations l
+       where l.campaign_id = ${quote(sourceId)}
+         and (l.parent_id is null
+              or not exists (select 1 from public.locations p
+                              where p.id = l.parent_id
+                                and p.campaign_id = ${quote(sourceId)}))
+      union all
+      select c.id, d.depth + 1
+        from public.locations c
+        join d on c.parent_id = d.id
+       where c.campaign_id = ${quote(sourceId)}
+    )
+    select id, depth from d;
+
     insert into public.locations (
       id, user_id, campaign_id, parent_id, name, location_type, description, notes,
       tags, image_url, map_url, map_pins, is_map_shared, player_visible_to,
@@ -331,7 +373,8 @@ function cloneRichestCampaign(dbUrl: string, ownerId: string): number {
       join _id_map m on m.old_id = l.id
       cross join _new_campaign n
       left join _id_map pm on pm.old_id = l.parent_id
-     where l.campaign_id = ${quote(sourceId)};
+     where l.campaign_id = ${quote(sourceId)}
+     order by (select depth from _loc_depth where _loc_depth.id = l.id) nulls first;
 
     -- NPCs, so the fixture can exercise "People in the Area" and anything else
     -- that reads people through a location. A fixture that holds places but no
