@@ -70,8 +70,8 @@
           <template v-if="activeQuickAdd === 'influence'">
             <EntityCombobox v-if="npcOptions.length" v-model="targetNpcId" :options="npcOptions" placeholder="Which NPC…" />
             <p v-else class="text-caption italic text-muted-foreground">No NPCs in this campaign yet.</p>
-            <AppSelect v-if="npcOptions.length" v-model.number="relationshipStep" aria-label="How far to shift">
-              <option v-for="step in RELATIONSHIP_STEPS" :key="step.value" :value="step.value">{{ step.label }}</option>
+            <AppSelect v-if="npcOptions.length" v-model="relationshipShiftKey" aria-label="What happens to their stance">
+              <option v-for="option in RELATIONSHIP_SHIFT_OPTIONS" :key="option.key" :value="option.key">{{ option.label }}</option>
             </AppSelect>
           </template>
           <template v-else-if="activeQuickAdd === 'knowledge'">
@@ -116,7 +116,8 @@ import { useItems } from "@/composables/items/useItems";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { drawerTransition } from "@/lib/motion";
 import { derivePayoffRows, type PayoffIcon, type PayoffRow, type PayoffTone } from "@/lib/quests/payoff";
-import { NPC_RELATIONSHIP_LADDER, type QuestBeat, type QuestBeatEdge, type QuestConsequence, type QuestConsequenceActionPayload, type QuestConsequenceInsert, type LootPlacement } from "@/types/quest.types";
+import { type QuestBeat, type QuestBeatEdge, type QuestConsequence, type QuestConsequenceActionPayload, type QuestConsequenceInsert, type LootPlacement } from "@/types/quest.types";
+import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, relationshipShiftPayload } from "@/lib/quests/consequences";
 import { EVENT_TYPE_COLORS, type CalendarEventType } from "@/types/calendar.types";
 import {
   IconAward, IconCalendar, IconCheck, IconCoins, IconHand, IconInvite, IconPackage, IconQuest, IconScrollText, IconSend,
@@ -221,7 +222,7 @@ const createConsequence = useCreateQuestConsequence();
 const conditionEdgeId = ref("");
 const afterDays = ref(0);
 const targetNpcId = ref("");
-const relationshipStep = ref(1);
+const relationshipShiftKey = ref(DEFAULT_RELATIONSHIP_SHIFT_KEY);
 const targetQuestId = ref("");
 const knowledgeText = ref("");
 const favorText = ref("");
@@ -240,20 +241,12 @@ const unlockableQuestOptions = computed(() => (undiscoveredQuests.value ?? [])
   .filter((quest) => quest.id !== beat.quest_id)
   .map((quest) => ({ id: quest.id, name: quest.title })));
 
-const MAX_RELATIONSHIP_STEP = NPC_RELATIONSHIP_LADDER.length - 1;
-const RELATIONSHIP_STEPS = [
-  ...Array.from({ length: MAX_RELATIONSHIP_STEP }, (_, i) => MAX_RELATIONSHIP_STEP - i),
-  ...Array.from({ length: MAX_RELATIONSHIP_STEP }, (_, i) => -(i + 1)),
-].map((value) => ({
-  value,
-  label: `${Math.abs(value)} ${Math.abs(value) === 1 ? "rung" : "rungs"} ${value > 0 ? "friendlier" : "colder"}`,
-}));
 
 function resetQuickAddFields() {
   itemId.value = ""; label.value = ""; quantity.value = 1;
   for (const coin of COINS) currency[coin] = 0;
   conditionEdgeId.value = ""; afterDays.value = 0;
-  targetNpcId.value = ""; relationshipStep.value = 1; targetQuestId.value = "";
+  targetNpcId.value = ""; relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY; targetQuestId.value = "";
   knowledgeText.value = ""; favorText.value = ""; milestoneText.value = "";
   calendarTitle.value = ""; calendarType.value = "quest";
   error.value = "";
@@ -275,7 +268,7 @@ const canAdd = computed(() => {
   switch (activeQuickAdd.value) {
     case "item": return !!itemId.value && quantity.value > 0;
     case "riches": return COINS.some((coin) => currency[coin] > 0);
-    case "influence": return !!targetNpcId.value && relationshipStep.value !== 0;
+    case "influence": return !!targetNpcId.value && relationshipShiftPayload(relationshipShiftKey.value) !== null;
     case "knowledge": return !!knowledgeText.value.trim();
     case "quest": return !!targetQuestId.value;
     case "favor": return !!targetNpcId.value && !!favorText.value.trim();
@@ -307,7 +300,7 @@ async function submit() {
     } else {
       const action = { influence: "shift_npc_relationship", knowledge: "grant_knowledge", quest: "unlock_quest", favor: "owe_favor", milestone: "award_milestone", event: "create_calendar_event" }[activeQuickAdd.value] as QuestConsequenceInsert["action"];
       const payload: QuestConsequenceActionPayload = activeQuickAdd.value === "influence"
-        ? { step: relationshipStep.value }
+        ? relationshipShiftPayload(relationshipShiftKey.value)!
         : activeQuickAdd.value === "knowledge"
           ? { text: knowledgeText.value.trim() }
           : activeQuickAdd.value === "favor"

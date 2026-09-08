@@ -8,7 +8,8 @@ import type {
   QuestConsequenceAction,
   RelationshipShiftConsequencePayload,
 } from "@/types/quest.types";
-import { QUEST_CONSEQUENCE_LEDGER_ACTIONS } from "@/types/quest.types";
+import { NPC_RELATIONSHIP_LADDER, QUEST_CONSEQUENCE_LEDGER_ACTIONS, type NpcStance } from "@/types/quest.types";
+import { NPC_RELATIONSHIP_LABELS } from "@/types/npc.types";
 
 export const QUEST_CONSEQUENCE_ACTION_LABELS: Record<QuestConsequenceAction, string> = {
   raise: "Raise",
@@ -85,11 +86,15 @@ export function describeWorldConsequenceAction(
       const payload = actionPayload as Partial<RelationshipShiftConsequencePayload>;
       // Signed, and the sign is the whole point — "shifts a disposition" alone
       // does not tell a DM which way the rule moves it.
-      if (typeof payload.step !== "number" || payload.step === 0) {
+      if ("to" in payload && typeof payload.to === "string") {
+        return `An NPC becomes ${NPC_RELATIONSHIP_LABELS[payload.to].toLowerCase()}`;
+      }
+      const step = "step" in payload ? payload.step : undefined;
+      if (typeof step !== "number" || step === 0) {
         return `${QUEST_CONSEQUENCE_ACTION_LABELS[action]} (${UNKNOWN_PAYLOAD_FIELD})`;
       }
-      const steps = Math.abs(payload.step) === 1 ? "step" : "steps";
-      return `${payload.step > 0 ? "Improve" : "Worsen"} an NPC's disposition by ${Math.abs(payload.step)} ${steps}`;
+      const steps = Math.abs(step) === 1 ? "step" : "steps";
+      return `${step > 0 ? "Improve" : "Worsen"} an NPC's disposition by ${Math.abs(step)} ${steps}`;
     }
     case "grant_knowledge": {
       const payload = actionPayload as Partial<KnowledgeConsequencePayload>;
@@ -115,4 +120,42 @@ export function describeWorldConsequenceAction(
       return unhandled;
     }
   }
+}
+
+/**
+ * The one option list both authoring panels (`QuestPayoffPanel`,
+ * `QuestRulesPanel`) offer for a stance shift: the five absolute stances
+ * first — "becomes helpful" is what a DM reaches for at the table — then the
+ * relative rungs, which compose when two beats both move the same NPC.
+ * A select rather than a number field: the scale is five rungs, so "four
+ * friendlier" is the whole range and a free number invites a 7 the database
+ * would silently clamp. Keys are strings so one `<select>` can carry both
+ * shapes; `relationshipShiftPayload` turns the chosen key back into a payload.
+ */
+export const RELATIONSHIP_SHIFT_OPTIONS: readonly { key: string; label: string }[] = [
+  ...[...NPC_RELATIONSHIP_LADDER].reverse().map((stance) => ({ key: `to:${stance}`, label: `Becomes ${NPC_RELATIONSHIP_LABELS[stance].toLowerCase()}` })),
+  ...Array.from({ length: NPC_RELATIONSHIP_LADDER.length - 1 }, (_, i) => NPC_RELATIONSHIP_LADDER.length - 1 - i),
+  ...Array.from({ length: NPC_RELATIONSHIP_LADDER.length - 1 }, (_, i) => -(i + 1)),
+].map((entry) => typeof entry === "number"
+  ? { key: `step:${entry}`, label: `${Math.abs(entry)} ${Math.abs(entry) === 1 ? "rung" : "rungs"} ${entry > 0 ? "friendlier" : "colder"}` }
+  : entry);
+
+export const DEFAULT_RELATIONSHIP_SHIFT_KEY = "to:friendly";
+
+export function relationshipShiftPayload(key: string): RelationshipShiftConsequencePayload | null {
+  const [kind, value] = key.split(":");
+  if (kind === "to" && (NPC_RELATIONSHIP_LADDER as readonly string[]).includes(value ?? "")) return { to: value as NpcStance };
+  if (kind === "step") {
+    const step = Number(value);
+    if (Number.isInteger(step) && step !== 0) return { step };
+  }
+  return null;
+}
+
+/** Whether a shift reads as a gain (green) or a cost: an absolute stance is a
+ *  gain when it lands on the friendly half of the ladder, a step when it is
+ *  positive. */
+export function relationshipShiftIsGain(payload: Partial<RelationshipShiftConsequencePayload>): boolean {
+  if ("to" in payload && typeof payload.to === "string") return payload.to === "friendly" || payload.to === "helpful";
+  return "step" in payload && typeof payload.step === "number" && payload.step > 0;
 }

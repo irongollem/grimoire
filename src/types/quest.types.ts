@@ -166,9 +166,15 @@ export interface BroadcastConsequencePayload {
  * at both ends by the database, so a rule firing on an already-helpful NPC is a
  * no-op rather than a wrap round to hostile.
  */
-export interface RelationshipShiftConsequencePayload {
-  step: number;
-}
+export type RelationshipShiftConsequencePayload =
+  | { step: number }
+  /** The absolute form (migration `20260908064822`): "becomes helpful". A DM
+   *  naming the stance outright, which the step cannot say and which is the
+   *  only form that reaches an NPC still at `unknown`. */
+  | { to: NpcStance };
+
+/** A rung of the ladder — every stance but `unknown`, which nothing "becomes". */
+export type NpcStance = (typeof NPC_RELATIONSHIP_LADDER)[number];
 
 /**
  * The three verbs the design's diagnosis names directly (migration

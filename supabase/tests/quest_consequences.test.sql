@@ -10,7 +10,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(59);
 
 -- Six scenarios, six DM fixtures. request.jwt.claim.sub survives both a role
 -- change and a scenario boundary, so a later scenario's fixture inserts (run
@@ -583,6 +583,46 @@ select is((select result from shift_probe where label = 'hostile {"step":-3}'), 
   'stepping past the bottom clamps rather than wrapping');
 select is((select result from shift_probe where label = 'unknown {"step":2}'), 'unknown/null',
   'unknown is not a rung: the shift is a no-op and records nothing for undo to restore');
+
+-- The absolute form (`20260908064822`): "becomes helpful" states the stance
+-- outright, so it applies from `unknown` too, and records what was there —
+-- `unknown` included — for undo.
+create temp table stance_probe(label text, result text) on commit drop;
+do $do$
+declare v_ev uuid; v_rel text; v_prev text; v_case record;
+begin
+  for v_case in
+    select * from (values ('unknown', '{"to":"helpful"}'), ('indifferent', '{"to":"helpful"}'), ('helpful', '{"to":"helpful"}')) v(start_rel, payload)
+  loop
+    update public.npcs set relationship = v_case.start_rel::public.npc_relationship where id = '79400000-0000-4000-8000-000000f00070';
+    insert into public.quest_consequence_events (campaign_id, quest_id, transition_id, action, target_npc_id, action_payload, after_days, fires_on_year, fires_on_month, fires_on_day)
+    values ('79400000-0000-4000-8000-000000f00010', '79400000-0000-4000-8000-000000f00030', '79400000-0000-4000-8000-000000f00090', 'shift_npc_relationship', '79400000-0000-4000-8000-000000f00070', v_case.payload::jsonb, 0, 1492, 1, 1)
+    returning id into v_ev;
+    perform private.perform_quest_consequence(v_ev, 1492, 1, 1);
+    select relationship::text into v_rel from public.npcs where id = '79400000-0000-4000-8000-000000f00070';
+    select previous_relationship::text into v_prev from public.quest_consequence_events where id = v_ev;
+    insert into stance_probe values (v_case.start_rel, v_rel || '/' || coalesce(v_prev, 'null'));
+  end loop;
+end
+$do$;
+
+select is((select result from stance_probe where label = 'unknown'), 'helpful/unknown',
+  'a stated stance applies from unknown, and records unknown so undo can put it back');
+select is((select result from stance_probe where label = 'indifferent'), 'helpful/indifferent',
+  'indifferent to helpful in one rule — the reward the maintainer asked for');
+select is((select result from stance_probe where label = 'helpful'), 'helpful/null',
+  'landing where the NPC already stands records nothing, so undo is a no-op');
+
+select throws_ok(
+  $$insert into public.quest_consequences (quest_id, on_quest_settled, action, target_npc_id, action_payload)
+    values ('79400000-0000-4000-8000-000000f00030', true, 'shift_npc_relationship', '79400000-0000-4000-8000-000000f00070', '{"to":"unknown"}')$$,
+  '23514', null,
+  'a rule cannot say an NPC becomes unknown — that is not a rung');
+select throws_ok(
+  $$insert into public.quest_consequences (quest_id, on_quest_settled, action, target_npc_id, action_payload)
+    values ('79400000-0000-4000-8000-000000f00030', true, 'shift_npc_relationship', '79400000-0000-4000-8000-000000f00070', '{}')$$,
+  '23514', null,
+  'a shift rule carries either a stance or a step');
 
 -- The unlock promotes exactly one rung, and only from `undiscovered`.
 do $do$

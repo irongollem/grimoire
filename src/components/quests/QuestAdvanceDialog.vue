@@ -224,7 +224,7 @@ import type {
 } from "@/types/quest.types";
 import { isVersionConflictError, planAdvance, type PlanAdvanceResult } from "@/lib/quests/advance";
 import { routeCondition } from "@/lib/quests/ledger";
-import { describeQuestConsequenceAction } from "@/lib/quests/consequences";
+import { describeQuestConsequenceAction, relationshipShiftIsGain } from "@/lib/quests/consequences";
 import { useQuestRuntimeCommand, useQuestRuntimeImprovise } from "@/composables/quests/useQuestFlow";
 import { drawerTransition } from "@/lib/motion";
 import {
@@ -398,9 +398,8 @@ function payoffTone(entry: QuestRoutePayoff): { bg: string; text: string } {
   // Signed, like the rule editor's own tone map (QuestConsequencesPanel.vue):
   // a positive shift reads as a gain, a negative one as a cost — the same
   // action either way, painted by the sign the DM actually set.
-  if (entry.action === "shift_npc_relationship") {
-    const step = (entry.action_payload as Partial<RelationshipShiftConsequencePayload>).step;
-    if (typeof step === "number" && step > 0) return TONE_CLASSES.success;
+  if (entry.action === "shift_npc_relationship" && relationshipShiftIsGain(entry.action_payload as Partial<RelationshipShiftConsequencePayload>)) {
+    return TONE_CLASSES.success;
   }
   return TONE_CLASSES[PAYOFF_TONE[entry.action]];
 }

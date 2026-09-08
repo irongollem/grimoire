@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeQuestConsequenceAction, isLedgerConsequenceAction } from "./consequences";
+import { describeQuestConsequenceAction, describeWorldConsequenceAction, isLedgerConsequenceAction, RELATIONSHIP_SHIFT_OPTIONS, relationshipShiftIsGain, relationshipShiftPayload } from "./consequences";
 import type { QuestConsequence } from "@/types/quest.types";
 
 const row = (overrides: Partial<QuestConsequence>): Pick<QuestConsequence, "action" | "target_objective_id" | "action_payload"> => ({
@@ -108,5 +108,27 @@ describe("describeQuestConsequenceAction", () => {
       row({ action: "send_broadcast", target_objective_id: null, action_payload: {} }),
       objectiveLabel,
     )).toBe('Broadcast: "???"');
+  });
+
+});
+
+describe("relationship shift options", () => {
+  it("offers the five stances first, then the signed rungs, and reads a key back into a payload", () => {
+    expect(RELATIONSHIP_SHIFT_OPTIONS.slice(0, 5).map((o) => o.label)).toEqual([
+      "Becomes helpful", "Becomes friendly", "Becomes indifferent", "Becomes unfriendly", "Becomes hostile",
+    ]);
+    expect(RELATIONSHIP_SHIFT_OPTIONS[5]).toEqual({ key: "step:4", label: "4 rungs friendlier" });
+    expect(relationshipShiftPayload("to:helpful")).toEqual({ to: "helpful" });
+    expect(relationshipShiftPayload("step:-2")).toEqual({ step: -2 });
+    expect(relationshipShiftPayload("step:0")).toBeNull();
+    expect(relationshipShiftPayload("to:unknown")).toBeNull();
+  });
+
+  it("describes both forms and reads a friendly landing as a gain", () => {
+    expect(describeWorldConsequenceAction("shift_npc_relationship", { to: "helpful" })).toBe("An NPC becomes helpful");
+    expect(describeWorldConsequenceAction("shift_npc_relationship", { step: -1 })).toBe("Worsen an NPC's disposition by 1 step");
+    expect(relationshipShiftIsGain({ to: "friendly" })).toBe(true);
+    expect(relationshipShiftIsGain({ to: "unfriendly" })).toBe(false);
+    expect(relationshipShiftIsGain({ step: 2 })).toBe(true);
   });
 });

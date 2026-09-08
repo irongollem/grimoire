@@ -61,8 +61,8 @@
       <template v-else-if="action === 'shift_npc_relationship'">
         <EntityCombobox v-if="npcOptions.length" v-model="targetNpcId" class="min-w-0 sm:col-span-2" :options="npcOptions" placeholder="Which NPC…" />
         <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">No NPCs in this campaign yet.</p>
-        <AppSelect v-if="npcOptions.length" v-model.number="relationshipStep" class="min-w-0 sm:col-span-2" aria-label="How far to shift">
-          <option v-for="step in RELATIONSHIP_STEPS" :key="step.value" :value="step.value">{{ step.label }}</option>
+        <AppSelect v-if="npcOptions.length" v-model="relationshipShiftKey" class="min-w-0 sm:col-span-2" aria-label="What happens to their stance">
+          <option v-for="option in RELATIONSHIP_SHIFT_OPTIONS" :key="option.key" :value="option.key">{{ option.label }}</option>
         </AppSelect>
       </template>
       <template v-else-if="action === 'unlock_quest'">
@@ -109,7 +109,6 @@ import {
   QUEST_CONSEQUENCE_LEDGER_ACTIONS,
   QUEST_CONSEQUENCE_OBJECTIVE_STATUSES,
   QUEST_CONSEQUENCE_WORLD_ACTIONS,
-  NPC_RELATIONSHIP_LADDER,
   type QuestConsequence,
   type QuestConsequenceAction,
   type QuestConsequenceActionPayload,
@@ -122,7 +121,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconLightning } from "@/lib/icons";
-import { describeQuestConsequenceAction, isLedgerConsequenceAction, QUEST_CONSEQUENCE_ACTION_LABELS } from "@/lib/quests/consequences";
+import { DEFAULT_RELATIONSHIP_SHIFT_KEY, RELATIONSHIP_SHIFT_OPTIONS, describeQuestConsequenceAction, isLedgerConsequenceAction, QUEST_CONSEQUENCE_ACTION_LABELS, relationshipShiftPayload } from "@/lib/quests/consequences";
 import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 
 /**
@@ -208,7 +207,7 @@ const calendarTitle = ref("");
 const calendarType = ref<string>("quest");
 const broadcastMessage = ref("");
 const targetNpcId = ref("");
-const relationshipStep = ref(1);
+const relationshipShiftKey = ref(DEFAULT_RELATIONSHIP_SHIFT_KEY);
 const targetQuestId = ref("");
 const knowledgeText = ref("");
 const favorText = ref("");
@@ -233,17 +232,6 @@ const unlockableQuestOptions = computed(() =>
     .map((quest) => ({ id: quest.id, name: quest.title })),
 );
 
-// The ladder as signed offsets. A select rather than a number field: the scale
-// is five rungs, so "two friendlier" is the whole range in one direction and a
-// free number invites a 7 the database would silently clamp.
-const MAX_RELATIONSHIP_STEP = NPC_RELATIONSHIP_LADDER.length - 1;
-const RELATIONSHIP_STEPS = [
-  ...Array.from({ length: MAX_RELATIONSHIP_STEP }, (_, i) => MAX_RELATIONSHIP_STEP - i),
-  ...Array.from({ length: MAX_RELATIONSHIP_STEP }, (_, i) => -(i + 1)),
-].map((value) => ({
-  value,
-  label: `${Math.abs(value)} ${Math.abs(value) === 1 ? "rung" : "rungs"} ${value > 0 ? "friendlier" : "colder"}`,
-}));
 
 // A ledger verb cannot target the same objective its own condition names —
 // the database's no-self-reference check — so that objective is dropped from
@@ -263,7 +251,7 @@ const canAdd = computed(() => {
   if (conditionKind.value === "objective" && !conditionObjectiveId.value) return false;
   if (isLedgerAction(action.value)) return !!targetObjectiveId.value;
   if (action.value === "create_calendar_event") return !!calendarTitle.value.trim();
-  if (action.value === "shift_npc_relationship") return !!targetNpcId.value && relationshipStep.value !== 0;
+  if (action.value === "shift_npc_relationship") return !!targetNpcId.value && relationshipShiftPayload(relationshipShiftKey.value) !== null;
   if (action.value === "unlock_quest") return !!targetQuestId.value;
   if (action.value === "grant_knowledge") return !!knowledgeText.value.trim();
   if (action.value === "owe_favor") return !!targetNpcId.value && !!favorText.value.trim();
@@ -296,7 +284,7 @@ function resetForm() {
   calendarTitle.value = "";
   broadcastMessage.value = "";
   targetNpcId.value = "";
-  relationshipStep.value = 1;
+  relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY;
   targetQuestId.value = "";
   knowledgeText.value = "";
   favorText.value = "";
@@ -313,7 +301,7 @@ async function add() {
       : action.value === "send_broadcast"
         ? { message: broadcastMessage.value.trim() }
         : action.value === "shift_npc_relationship"
-          ? { step: relationshipStep.value }
+          ? relationshipShiftPayload(relationshipShiftKey.value)!
           : action.value === "grant_knowledge"
             ? { text: knowledgeText.value.trim() }
             : action.value === "owe_favor"

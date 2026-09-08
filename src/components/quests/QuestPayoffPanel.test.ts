@@ -105,7 +105,7 @@ describe("QuestPayoffPanel", () => {
     const wrapper = mountPanel();
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Influence")!.trigger("click");
     wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "npc-1");
-    await wrapper.findAll("select").at(-1)!.setValue("-1");
+    await wrapper.findAll("select").at(-1)!.setValue("step:-1");
     await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
     await flushPromises();
 
@@ -116,6 +116,25 @@ describe("QuestPayoffPanel", () => {
       action: "shift_npc_relationship",
       target_npc_id: "npc-1",
       action_payload: { step: -1 },
+    }));
+  });
+
+  // The stance form the maintainer asked for: "indifferent to helpful" is a
+  // stance stated outright, and the default, since it is what a DM reaches
+  // for at the table.
+  it("authors an absolute stance by default — the NPC becomes friendly", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Influence")!.trigger("click");
+    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "npc-1");
+    await flushPromises();
+    expect(wrapper.findAll("select").at(-1)!.text()).toContain("Becomes helpful");
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({
+      action: "shift_npc_relationship",
+      target_npc_id: "npc-1",
+      action_payload: { to: "friendly" },
     }));
   });
 
