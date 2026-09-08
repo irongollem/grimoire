@@ -40,6 +40,13 @@ const summary: QuestBoardSummary = {
   unclaimedLootCount: 0,
   threads: [],
   liveThreadCount: 1,
+  primaryThreadId: null,
+  prepGaps: [],
+  hasPayoffPrepared: false,
+  convergesInto: [],
+  unlockedBy: null,
+  heldPayoffCount: 0,
+  settledCaption: null,
 };
 
 const global = { stubs: { RouterLink: RouterLinkStub } };
@@ -111,5 +118,63 @@ describe("QuestBoardCard", () => {
     expect(wrapper.text()).not.toContain("Open");
     expect(wrapper.get('[aria-label="Move The Salt-Drowned Bell to Completed"]').attributes("aria-label")).toContain("Completed");
     expect(wrapper.find('[aria-label="Move The Salt-Drowned Bell to another status"]').exists()).toBe(false);
+  });
+
+  it("flags a rumoured quest without hiding its live chip", () => {
+    const wrapper = mount(QuestBoardCard, {
+      props: { quest: quest({ status: "rumor" }), summary },
+      global,
+    });
+    expect(wrapper.text()).toContain("Rumoured");
+    expect(wrapper.text()).toContain("Party is here");
+  });
+
+  it("draws one spine row per live thread instead of the single-thread seam", () => {
+    const withThreads: QuestBoardSummary = {
+      ...summary,
+      threads: [
+        { id: "t-a", label: "Main", status: "live", currentBeatTitle: "Confront Ser Vallis", beatSegments: ["done", "here", "upcoming"], created_at: "2026-08-01T00:00:00Z" },
+        { id: "t-b", label: "Vault", status: "live", currentBeatTitle: "Room 2", beatSegments: ["here", "upcoming", "upcoming"], created_at: "2026-08-05T00:00:00Z" },
+      ],
+    };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest(), summary: withThreads }, global });
+
+    expect(wrapper.find('[aria-label="4 prepared story beats"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("A");
+    expect(wrapper.text()).toContain("B");
+  });
+
+  it("names what an undiscovered quest is waiting on", () => {
+    const noBeats: QuestBoardSummary = { ...summary, isLive: false, beatSegments: [], unlockedBy: "The Vault's Keeper" };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest({ status: "undiscovered" }), summary: noBeats }, global });
+
+    expect(wrapper.text()).toContain("Unlocked by The Vault's Keeper");
+    expect(wrapper.text()).toContain("no beats yet");
+    const draftBeats = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Draft beats");
+    expect(draftBeats?.props("to")).toMatchObject({ path: "/quests/quest-1", query: { view: "work" } });
+  });
+
+  it("reads a held, unnamed unlock rule as a caption of its own", () => {
+    const held: QuestBoardSummary = { ...summary, isLive: false, heldPayoffCount: 1 };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest({ status: "undiscovered" }), summary: held }, global });
+    expect(wrapper.text()).toContain("Held payoff — not yet fired");
+    expect(wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Draft beats")).toBeUndefined();
+  });
+
+  it("dims a settled quest and states how the run actually ended", () => {
+    const settled: QuestBoardSummary = { ...summary, isLive: false, settledCaption: "Session 19 · ledger settled" };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest({ status: "completed" }), summary: settled }, global });
+
+    expect(wrapper.text()).toContain("Session 19 · ledger settled");
+    expect(wrapper.get("article").classes()).toContain("opacity-[0.72]");
+  });
+
+  it("names the quest a route out of this one actually landed on", () => {
+    const converging: QuestBoardSummary = { ...summary, convergesInto: ["The Tithe of Ashmouth"] };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest(), summary: converging }, global });
+
+    expect(wrapper.text()).toContain("Converges into");
+    expect(wrapper.text()).toContain("The Tithe of Ashmouth");
+    expect(wrapper.text()).toContain("links out");
   });
 });

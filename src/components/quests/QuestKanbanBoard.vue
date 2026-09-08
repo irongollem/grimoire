@@ -1,83 +1,91 @@
 <template>
-  <div
-    class="grid snap-x snap-mandatory grid-flow-col auto-cols-[minmax(17.5rem,1fr)] gap-0 overflow-x-auto rounded-lg border border-border bg-muted/20"
-    aria-label="Quest board"
-  >
-    <section
-      v-for="column in columns"
-      :key="column.status"
-      class="flex min-h-72 snap-start flex-col border-r border-border last:border-r-0"
-      :aria-labelledby="`quest-lane-${column.status}`"
-      @dragover.prevent="dragOverStatus = column.status"
-      @dragleave="onColumnDragLeave(column.status, $event)"
-      @drop.prevent="dropOn(column.status)"
-    >
-      <header class="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-card px-3 py-3">
-        <span class="h-2 w-2 shrink-0 rounded-sm" :style="{ backgroundColor: column.color }" aria-hidden="true" />
-        <h2
-          :id="`quest-lane-${column.status}`"
-          class="font-cinzel text-label-lg font-bold uppercase tracking-widest text-foreground"
-        >
-          {{ column.label }}
-        </h2>
-        <span
-          class="ml-auto rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground"
-          :aria-label="`${column.quests.length} quests in ${column.label}`"
-        >
-          {{ column.quests.length }} {{ column.quests.length === 1 ? "quest" : "quests" }}
-        </span>
-      </header>
+  <div class="flex flex-col gap-4">
+    <!-- The quest (or quests) the table is actually in right now, full width
+         above the groups (frame `07 Log`) — a quest with more than one live
+         thread needs its own spine per cursor, which a lane card has no room
+         for. -->
+    <QuestFeaturedCard
+      v-for="entry in liveQuests"
+      :key="entry.quest.id"
+      :quest="entry.quest"
+      :summary="entry.summary"
+    />
 
-      <div
-        class="flex min-h-40 flex-1 flex-col gap-3 p-3 transition-colors"
-        :class="dragOverStatus === column.status && draggedQuestId ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''"
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Quest board">
+      <section
+        v-for="group in groups"
+        :key="group.key"
+        class="flex min-h-72 flex-col gap-2"
+        :aria-labelledby="`quest-group-${group.key}`"
+        @dragover.prevent="dragOverGroup = group.key"
+        @dragleave="onGroupDragLeave(group.key, $event)"
+        @drop.prevent="dropOn(group.key)"
       >
-        <QuestBoardCard
-          v-for="quest in column.quests"
-          :key="quest.id"
-          :quest="quest"
-          :party="party"
-          :summary="summaries?.[quest.id]"
-          :dragging="draggedQuestId === quest.id"
-          @dragstart="startDrag"
-          @dragend="endDrag"
-          @move="moveQuest(quest.id, $event)"
-        />
+        <header class="flex items-center gap-2">
+          <component :is="group.icon" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <h2
+            :id="`quest-group-${group.key}`"
+            class="font-cinzel text-label-lg font-bold uppercase tracking-widest text-foreground"
+          >
+            {{ group.heading }}
+          </h2>
+          <span
+            class="ml-auto rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground"
+            :aria-label="`${group.quests.length} quests in ${group.shortLabel}`"
+          >
+            {{ group.quests.length }} {{ group.quests.length === 1 ? "quest" : "quests" }}
+          </span>
+        </header>
 
-        <div v-if="!column.quests.length" class="flex flex-1 items-center justify-center px-4 py-8 text-center">
-          <p v-if="column.unfilteredCount" class="font-fell text-sm italic text-muted-foreground">{{ column.unfilteredCount }} {{ column.label.toLowerCase() }} quest{{ column.unfilteredCount === 1 ? '' : 's' }} filtered out.</p>
-          <p v-else class="font-fell text-sm italic text-muted-foreground">No {{ column.label.toLowerCase() }} quests.</p>
+        <div
+          class="flex min-h-40 flex-1 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2 transition-colors"
+          :class="dragOverGroup === group.key && draggedQuestId ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''"
+        >
+          <QuestBoardCard
+            v-for="quest in group.quests"
+            :key="quest.id"
+            :quest="quest"
+            :party="party"
+            :summary="summaries?.[quest.id]"
+            :dragging="draggedQuestId === quest.id"
+            @dragstart="startDrag"
+            @dragend="endDrag"
+            @move="moveQuest(quest.id, $event)"
+          />
+
+          <div v-if="!group.quests.length" class="flex flex-1 items-center justify-center px-4 py-8 text-center">
+            <p v-if="group.unfilteredCount" class="font-fell text-sm italic text-muted-foreground">{{ group.unfilteredCount }} {{ group.shortLabel }} quest{{ group.unfilteredCount === 1 ? '' : 's' }} filtered out.</p>
+            <p v-else class="font-fell text-sm italic text-muted-foreground">No {{ group.shortLabel }} quests.</p>
+          </div>
         </div>
-
-        <AppButton
-          v-if="column.status !== 'completed' && column.status !== 'failed'"
-          to="/quests/new"
-          :icon="IconAdd"
-          :label="`New ${column.label.toLowerCase()} quest`"
-          variant="subtle"
-          size="sm"
-          class="mt-auto border-dashed bg-card/60"
-          block
-        />
-      </div>
-    </section>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { IconAdd } from "@/lib/icons";
+/**
+ * Frame `07 Log`: three groups replace the five-lane kanban's presentation.
+ * The lane *statuses* underneath are unchanged — `QUEST_STATUSES` still has
+ * five rungs, and `QuestBoardCard`'s own prev/next arrows still walk all of
+ * them one at a time — only how they are grouped and dropped onto changes.
+ *
+ * Deleted here: the per-status "New … quest" quick-add button each of the
+ * five lanes carried. It assumed one status per drop target, which a group
+ * spanning two statuses (`active`+`rumor`, `completed`+`failed`) no longer
+ * gives it an honest answer for, and the mockup does not carry one either —
+ * the page-level "New quest" action already covers it.
+ */
+import { computed, ref, type Component } from "vue";
+import { IconCheck, IconLock, IconQuest } from "@/lib/icons";
 import type { QuestBoardSummary } from "@/lib/quests/board";
 import type { PartyMember } from "@/types/party.types";
 import {
-  QUEST_STATUSES,
-  QUEST_STATUS_COLORS,
-  QUEST_STATUS_LABELS,
   type Quest,
   type QuestStatus,
 } from "@/types/quest.types";
-import AppButton from "@/components/common/AppButton.vue";
 import QuestBoardCard from "./QuestBoardCard.vue";
+import QuestFeaturedCard from "./QuestFeaturedCard.vue";
 
 const { quests, allQuests, party = [], summaries } = defineProps<{
   quests: Quest[];
@@ -91,15 +99,36 @@ const emit = defineEmits<{
 }>();
 
 const draggedQuestId = ref<string | null>(null);
-const dragOverStatus = ref<QuestStatus | null>(null);
+const dragOverGroup = ref<QuestGroupKey | null>(null);
 
-const columns = computed(() => QUEST_STATUSES.map((status) => ({
-  status,
-  label: QUEST_STATUS_LABELS[status],
-  color: QUEST_STATUS_COLORS[status],
-  quests: quests.filter((quest) => quest.status === status),
-  unfilteredCount: (allQuests ?? quests).filter((quest) => quest.status === status).length,
+type QuestGroupKey = "active" | "undiscovered" | "settled";
+
+interface QuestGroupDefinition {
+  key: QuestGroupKey;
+  heading: string;
+  shortLabel: string;
+  icon: Component;
+  statuses: readonly QuestStatus[];
+  /** The status a drop onto this group's zone sets — never `rumor`/`failed`,
+   *  which stay reachable only through the card's own ladder arrows. */
+  primaryStatus: QuestStatus;
+}
+
+const GROUP_DEFINITIONS: readonly QuestGroupDefinition[] = [
+  { key: "active", heading: "Active", shortLabel: "active", icon: IconQuest, statuses: ["active", "rumor"], primaryStatus: "active" },
+  { key: "undiscovered", heading: "Undiscovered — waiting to be unlocked", shortLabel: "undiscovered", icon: IconLock, statuses: ["undiscovered"], primaryStatus: "undiscovered" },
+  { key: "settled", heading: "Settled", shortLabel: "settled", icon: IconCheck, statuses: ["completed", "failed"], primaryStatus: "completed" },
+];
+
+const groups = computed(() => GROUP_DEFINITIONS.map((definition) => ({
+  ...definition,
+  quests: quests.filter((quest) => definition.statuses.includes(quest.status)),
+  unfilteredCount: (allQuests ?? quests).filter((quest) => definition.statuses.includes(quest.status)).length,
 })));
+
+const liveQuests = computed(() => quests
+  .map((quest) => ({ quest, summary: summaries?.[quest.id] }))
+  .filter((entry): entry is { quest: Quest; summary: QuestBoardSummary } => entry.summary?.isLive === true));
 
 function startDrag(id: string) {
   draggedQuestId.value = id;
@@ -107,20 +136,29 @@ function startDrag(id: string) {
 
 function endDrag() {
   draggedQuestId.value = null;
-  dragOverStatus.value = null;
+  dragOverGroup.value = null;
 }
 
-function onColumnDragLeave(status: QuestStatus, event: DragEvent) {
+function onGroupDragLeave(key: QuestGroupKey, event: DragEvent) {
   const related = event.relatedTarget as HTMLElement | null;
-  if (!(event.currentTarget as HTMLElement | null)?.contains(related) && dragOverStatus.value === status) {
-    dragOverStatus.value = null;
+  if (!(event.currentTarget as HTMLElement | null)?.contains(related) && dragOverGroup.value === key) {
+    dragOverGroup.value = null;
   }
 }
 
-function dropOn(status: QuestStatus) {
+function dropOn(key: QuestGroupKey) {
   const id = draggedQuestId.value;
   endDrag();
-  if (id) moveQuest(id, status);
+  if (!id) return;
+  const quest = quests.find((candidate) => candidate.id === id);
+  const group = groups.value.find((candidate) => candidate.key === key);
+  if (!quest || !group) return;
+  // Dropping onto the group a card already belongs to (e.g. a `rumor` quest
+  // dropped back onto Active) must not silently reassign it to the group's
+  // primary status — that would demote a confirmed `active` reading of a
+  // rumoured quest to something the DM never asked for.
+  if (group.statuses.includes(quest.status)) return;
+  moveQuest(id, group.primaryStatus);
 }
 
 function moveQuest(id: string, status: QuestStatus) {

@@ -45,6 +45,13 @@ const ready: QuestBoardSummary = {
   unclaimedLootCount: 0,
   threads: [],
   liveThreadCount: 0,
+  primaryThreadId: null,
+  prepGaps: [],
+  hasPayoffPrepared: false,
+  convergesInto: [],
+  unlockedBy: null,
+  heldPayoffCount: 0,
+  settledCaption: null,
 };
 
 describe("filterQuestBoard", () => {
@@ -175,8 +182,8 @@ describe("deriveQuestBoardSummaries", () => {
       { id: "beat-b", quest_id: "quest-a", title: "Side chamber" },
     ] as QuestBeat[];
     const threads = [
-      { id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "live" },
-      { id: "side", quest_id: "quest-a", campaign_id: "campaign-1", label: "The lost heir", status: "live" },
+      { id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "live", created_at: "2026-08-01T00:00:00Z" },
+      { id: "side", quest_id: "quest-a", campaign_id: "campaign-1", label: "The lost heir", status: "live", created_at: "2026-08-05T00:00:00Z" },
     ] as never[];
     const summaries = deriveQuestBoardSummaries({
       beats,
@@ -193,9 +200,130 @@ describe("deriveQuestBoardSummaries", () => {
     expect(summary.isLive).toBe(true);
     expect(summary.liveThreadCount).toBe(1);
     expect(summary.currentBeatTitle).toBe("Arrival");
+    expect(summary.primaryThreadId).toBe("main");
     expect(summary.threads).toEqual([
-      { id: "side", label: "The lost heir", status: "live", currentBeatTitle: "Side chamber", beatSegments: expect.any(Array) },
-      { id: "main", label: "Main", status: "live", currentBeatTitle: "Arrival", beatSegments: expect.any(Array) },
+      { id: "side", label: "The lost heir", status: "live", currentBeatTitle: "Side chamber", beatSegments: expect.any(Array), created_at: "2026-08-05T00:00:00Z" },
+      { id: "main", label: "Main", status: "live", currentBeatTitle: "Arrival", beatSegments: expect.any(Array), created_at: "2026-08-01T00:00:00Z" },
     ]);
+  });
+
+  // Story I (#850): the card has to answer "where is this quest" for more
+  // than one cursor, and the log's groups need the facts a "07 Log"-style
+  // caption reads off.
+  it("names every concrete prep gap, not just the count", () => {
+    const beats = [
+      { id: "beat-a", quest_id: "quest-a", title: "Arrival", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
+      { id: "beat-b", quest_id: "quest-a", title: "Vault", dm_content: null, how_it_plays: null, visibility: "hidden", is_improvised: false },
+    ] as QuestBeat[];
+    const summaries = deriveQuestBoardSummaries({
+      beats,
+      edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }] as never[],
+      attachments: [{ beat_id: "beat-b", attachment_type: "handout", label: "Vallis stat block", prep_gap: true }] as never[],
+      loot: [],
+    });
+    expect(summaries["quest-a"]!.prepGaps).toEqual(["Add DM guidance", "Replace Vallis stat block"]);
+  });
+
+  it("reads payoff as prepared from undispatched loot alone", () => {
+    const beats = [{ id: "beat-a", quest_id: "quest-a", title: "Arrival", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false }] as QuestBeat[];
+    const summaries = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [{ beat_id: "beat-a", quest_id: "quest-a", delivery_state: "held" }] as never[],
+    });
+    expect(summaries["quest-a"]!.hasPayoffPrepared).toBe(true);
+  });
+
+  it("reads payoff as prepared from an unfired rule on a beat the party has not reached", () => {
+    const beats = [
+      { id: "beat-a", quest_id: "quest-a", title: "Arrival", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
+      { id: "beat-b", quest_id: "quest-a", title: "Reveal", dm_content: "Ready", how_it_plays: null, visibility: "hidden", is_improvised: false },
+    ] as QuestBeat[];
+    const withRule = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      transitions: [{ to_beat_id: "beat-a" }] as never[],
+      consequences: [{ id: "c1", quest_id: "quest-a", on_beat_id: "beat-b", action: "reveal", target_objective_id: "obj-1" }] as never[],
+    });
+    expect(withRule["quest-a"]!.hasPayoffPrepared).toBe(true);
+
+    // The same rule sitting on the beat the party is already standing on has
+    // nothing left to prepare — it already fired.
+    const alreadyVisited = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      transitions: [{ to_beat_id: "beat-b" }] as never[],
+      consequences: [{ id: "c1", quest_id: "quest-a", on_beat_id: "beat-b", action: "reveal", target_objective_id: "obj-1" }] as never[],
+    });
+    expect(alreadyVisited["quest-a"]!.hasPayoffPrepared).toBe(false);
+  });
+
+  it("names the beat behind an unlock_quest rule, and holds the rest as unnamed", () => {
+    const beats = [
+      { id: "beat-source", quest_id: "quest-source", title: "The Vault's Keeper" },
+    ] as QuestBeat[];
+    const summaries = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      consequences: [
+        { id: "c1", quest_id: "quest-source", on_beat_id: "beat-source", action: "unlock_quest", target_quest_id: "quest-locked" },
+        { id: "c2", quest_id: "quest-other", on_objective_id: "obj-1", action: "unlock_quest", target_quest_id: "quest-locked-2" },
+      ] as never[],
+    });
+    expect(summaries["quest-locked"]!.unlockedBy).toBe("The Vault's Keeper");
+    expect(summaries["quest-locked"]!.heldPayoffCount).toBe(0);
+    expect(summaries["quest-locked-2"]!.unlockedBy).toBeNull();
+    expect(summaries["quest-locked-2"]!.heldPayoffCount).toBe(1);
+  });
+
+  it("reads convergesInto off an actual cross-quest transition landing on a converge-all beat", () => {
+    const beats = [
+      { id: "beat-source", quest_id: "quest-a", title: "Closing scene", converge_mode: "any" },
+      { id: "beat-target", quest_id: "quest-b", title: "The main hall", converge_mode: "all" },
+    ] as QuestBeat[];
+    const summaries = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      transitions: [
+        { from_quest_id: "quest-a", from_beat_id: "beat-source", to_quest_id: "quest-b", to_beat_id: "beat-target", to_quest_title: "The Tithe of Ashmouth", transition_kind: "forward" },
+      ] as never[],
+    });
+    expect(summaries["quest-a"]!.convergesInto).toEqual(["The Tithe of Ashmouth"]);
+    expect(summaries["quest-b"]!.convergesInto).toEqual([]);
+  });
+
+  it("reads the settled caption off the last end transition's session note and thread statuses", () => {
+    const beats = [{ id: "beat-a", quest_id: "quest-a", title: "Arrival" }] as QuestBeat[];
+    const withSessionAndOpenThread = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      transitions: [{ from_quest_id: "quest-a", transition_kind: "end", reason: "Session 19, wrapped early", created_at: "2026-08-01T00:00:00Z" }] as never[],
+      threads: [{ id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "waiting" }] as never[],
+    });
+    expect(withSessionAndOpenThread["quest-a"]!.settledCaption).toBe("Session 19 · one thread closed unfinished");
+
+    const settledNoSession = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      transitions: [{ from_quest_id: "quest-a", transition_kind: "end", reason: null, created_at: "2026-08-01T00:00:00Z" }] as never[],
+      threads: [{ id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "closed" }] as never[],
+    });
+    expect(settledNoSession["quest-a"]!.settledCaption).toBe("ledger settled");
+
+    const neverEnded = deriveQuestBoardSummaries({ beats, edges: [], attachments: [], loot: [] });
+    expect(neverEnded["quest-a"]!.settledCaption).toBeNull();
   });
 });

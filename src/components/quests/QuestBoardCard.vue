@@ -3,7 +3,8 @@
     class="group relative flex flex-col rounded-lg border bg-card p-3 shadow-sm transition-[border-color,box-shadow,transform,opacity] motion-safe:hover:-translate-y-px hover:border-primary/50 hover:shadow-lg"
     :class="[
       dragging ? 'opacity-40' : '',
-      summary?.isLive ? 'border-primary ring-2 ring-primary/15' : 'border-border',
+      isSettled ? 'opacity-[0.72]' : '',
+      quest.status === 'undiscovered' ? 'border-dashed border-border' : summary?.isLive ? 'border-primary ring-2 ring-primary/15' : 'border-border',
     ]"
     :draggable="draggable"
     @dragstart="onDragStart"
@@ -16,6 +17,15 @@
       >
         {{ quest.title || "Untitled Quest" }}
       </RouterLink>
+      <!-- A rumoured quest is still shown among the active ones (the party has
+           heard of it, it just is not confirmed) — this is the one fact that
+           distinguishes it there. -->
+      <span
+        v-if="quest.status === 'rumor'"
+        class="inline-flex shrink-0 items-center gap-1 rounded bg-tone-arcane/15 px-1.5 py-0.5 text-label uppercase text-ink-arcane"
+      >
+        Rumoured
+      </span>
       <!-- Same words and same glyph as the graph node and the outline: one
            vocabulary for one fact, so a DM never has to learn that "Live" here
            and "Party is here" there mean the same thing. -->
@@ -44,8 +54,37 @@
       {{ quest.summary }}
     </p>
 
+    <!-- Undiscovered: what it is waiting on, since there is nothing to run yet. -->
+    <p v-if="undiscoveredCaption" class="mt-2 text-caption text-muted-foreground">
+      {{ undiscoveredCaption }}
+    </p>
+
+    <!-- Settled: how the run actually ended, not merely that it did. -->
+    <p v-if="summary?.settledCaption" class="mt-2 text-caption text-muted-foreground">
+      {{ summary.settledCaption }}
+    </p>
+
+    <!-- One spine row per live thread — a quest can hold more than one cursor
+         (#853), and the card has to answer "where is this quest" for each. -->
+    <div v-if="threadBadgesList.length" class="mt-3 flex flex-col gap-1.5">
+      <div v-for="badge in threadBadgesList" :key="badge.thread.id" class="flex items-center gap-1.5">
+        <span
+          class="inline-flex w-16 shrink-0 items-center justify-center rounded px-1 py-0.5 text-label font-semibold uppercase"
+          :class="[badge.tone.bg, badge.tone.text]"
+        >{{ badge.letter }}</span>
+        <span
+          v-for="(segment, index) in badge.thread.beatSegments"
+          :key="index"
+          class="h-1 flex-1 rounded-full"
+          :class="segmentClass(segment, badge.tone)"
+          aria-hidden="true"
+        />
+      </div>
+    </div>
+    <!-- No active cursor yet: the readiness spine still says how prepared the
+         quest is, just without a thread to attribute it to. -->
     <div
-      v-if="summary?.beatSegments.length"
+      v-else-if="summary?.beatSegments.length"
       class="mt-3 flex items-center gap-1"
       :aria-label="`${summary.beatSegments.length} prepared story beats`"
     >
@@ -66,6 +105,13 @@
       <span>Current: <strong class="font-fell text-sm font-semibold text-foreground">{{ summary.currentBeatTitle }}</strong></span>
     </div>
 
+    <!-- This quest's own route out has actually landed on another quest's
+         converge-all beat — the story flows into it, distinct from
+         `parent_quest_id`'s "belongs to that arc". -->
+    <p v-if="summary?.convergesInto.length" class="mt-2 text-caption text-muted-foreground">
+      Converges into <strong class="text-foreground">{{ summary.convergesInto[0] }}</strong> · mode <code>all</code>
+    </p>
+
     <div v-if="hasSummaryChips" class="mt-2 flex flex-wrap gap-1">
       <span
         v-if="summary!.prepGapCount"
@@ -80,6 +126,13 @@
       >
         <IconLoot class="h-3 w-3" aria-hidden="true" />
         {{ lootLabel }}
+      </span>
+      <span
+        v-if="summary!.convergesInto.length"
+        class="inline-flex items-center gap-1 rounded bg-primary/15 px-1.5 py-0.5 text-label text-primary"
+      >
+        <IconNetwork class="h-3 w-3" aria-hidden="true" />
+        links out
       </span>
       <span
         v-if="summary && !summary.prepGapCount && !summary.undispatchedLootCount && !summary.unclaimedLootCount"
@@ -130,6 +183,16 @@
       </div>
 
       <div class="flex min-w-0 items-center gap-1.5">
+        <!-- The one action an undiscovered quest with nothing on its board
+             actually needs: somewhere to start writing it. -->
+        <AppButton
+          v-if="needsFirstBeat"
+          :to="storyFlowTo"
+          :icon="IconEdit"
+          label="Draft beats"
+          size="xs"
+          variant="subtle"
+        />
         <AppButton
           v-if="previousStatus"
           :icon="IconChevronLeft"
@@ -169,12 +232,15 @@ import {
   IconCheck,
   IconChevronLeft,
   IconChevronRight,
+  IconEdit,
   IconLoot,
+  IconNetwork,
   IconParty,
   IconWarning,
 } from "@/lib/icons";
 import { timeAgo } from "@/lib/utils";
 import type { QuestBoardSummary, QuestBeatSegment } from "@/lib/quests/board";
+import { threadBadges, type ThreadTone } from "@/lib/quests/threads";
 import type { PartyMember } from "@/types/party.types";
 import {
   QUEST_STATUSES,
@@ -211,6 +277,30 @@ const nextStatus = computed<QuestStatus | null>(() => QUEST_STATUSES[statusIndex
 const hasSummaryChips = computed(() => summary !== undefined);
 const showAction = computed(() => !["completed", "failed"].includes(quest.status));
 const actionTo = computed(() => `/quests/${quest.id}`);
+const isSettled = computed(() => quest.status === "completed" || quest.status === "failed");
+const storyFlowTo = computed(() => ({ path: `/quests/${quest.id}`, query: { view: "work" } }));
+
+// `QuestBoardThreadSummary` satisfies `ThreadLike`, so the letter and tone
+// this card paints a thread with are the same ones the cockpit and the graph
+// assign it — centralised in `threads.ts`, never chosen locally.
+const threadBadgesList = computed(() => threadBadges(summary?.threads ?? []));
+
+// "no beats yet" only reads true once a summary actually exists: without one
+// (graph data still loading) this would flash the button on every card.
+const hasNoBeats = computed(() => summary !== undefined && summary.beatSegments.length === 0);
+const needsFirstBeat = computed(() => quest.status === "undiscovered" && hasNoBeats.value);
+
+/** "Unlocked by …" and "no beats yet" compose onto one line when both are
+ *  true (the frame's own example); a held, unnamed rule stands alone. */
+const undiscoveredCaption = computed(() => {
+  if (quest.status !== "undiscovered" || !summary) return null;
+  const parts: string[] = [];
+  if (summary.unlockedBy) parts.push(`Unlocked by ${summary.unlockedBy}`);
+  if (hasNoBeats.value) parts.push("no beats yet");
+  if (parts.length) return parts.join(" · ");
+  if (summary.heldPayoffCount) return "Held payoff — not yet fired";
+  return null;
+});
 
 const lootLabel = computed(() => {
   if (!summary) return "";
@@ -224,13 +314,11 @@ function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
 }
 
-function segmentClass(segment: QuestBeatSegment) {
-  return {
-    done: "bg-tone-success",
-    here: "bg-primary",
-    gap: "quest-board-segment-gap",
-    upcoming: "bg-muted",
-  }[segment];
+function segmentClass(segment: QuestBeatSegment, tone?: ThreadTone) {
+  if (segment === "done") return "bg-tone-success";
+  if (segment === "here") return tone?.dot ?? "bg-primary";
+  if (segment === "gap") return "quest-board-segment-gap";
+  return "bg-muted";
 }
 
 function onDragStart(event: DragEvent) {

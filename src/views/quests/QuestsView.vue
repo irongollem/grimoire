@@ -2,7 +2,7 @@
   <ListPageLayout
     v-if="showList"
     title="Quest Log"
-    description="Track active quests, side jobs, and completed adventures"
+    :description="headerLine"
   >
     <template #title-suffix>
       <ManualHelpLink page="quest-log" />
@@ -149,4 +149,35 @@ const filterCounts = computed(() => countQuestBoardFilters(
   { refs: campaignRefs.value ?? [], summaries: boardSummaries.value },
 ));
 const { showPaywall, handleNew } = useCreateGate("quests", "/quests/new");
+
+/**
+ * Frame `07 Log`'s header line: "N active · N threads live across N quests ·
+ * N prep gaps". Deliberately whole-campaign, not filtered — this is the
+ * table's overall state, not a count of what the current search happens to
+ * show, so it reads off `allQuests`/`boardSummaries` directly rather than
+ * `filterCounts` (which composes with whatever filters are active).
+ *
+ * The mockup's line also names a next-session date ("… before Thursday").
+ * No such field exists anywhere in the data — `SessionProposal.proposed_date`
+ * is the nearest thing and is not "the next session" — so it is left out
+ * rather than invented.
+ */
+const headerLine = computed(() => {
+  const quests = allQuests.value ?? [];
+  const summaries = boardSummaries.value;
+  const activeCount = quests.filter((quest) => quest.status === "active").length;
+  let threadsLive = 0;
+  let questsWithLiveThread = 0;
+  let prepGapsTotal = 0;
+  for (const quest of quests) {
+    const summary = summaries?.[quest.id];
+    if (!summary) continue;
+    if (summary.liveThreadCount > 0) {
+      threadsLive += summary.liveThreadCount;
+      questsWithLiveThread += 1;
+    }
+    prepGapsTotal += summary.prepGapCount;
+  }
+  return `${activeCount} active · ${threadsLive} thread${threadsLive === 1 ? "" : "s"} live across ${questsWithLiveThread} quest${questsWithLiveThread === 1 ? "" : "s"} · ${prepGapsTotal} prep gap${prepGapsTotal === 1 ? "" : "s"}`;
+});
 </script>

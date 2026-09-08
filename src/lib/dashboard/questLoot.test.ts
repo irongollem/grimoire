@@ -31,6 +31,13 @@ const summary = (undispatched: number, unclaimed: number): QuestBoardSummary => 
   unclaimedLootCount: unclaimed,
   threads: [],
   liveThreadCount: 0,
+  primaryThreadId: null,
+  prepGaps: [],
+  hasPayoffPrepared: false,
+  convergesInto: [],
+  unlockedBy: null,
+  heldPayoffCount: 0,
+  settledCaption: null,
 });
 
 describe("deriveQuestLootRows", () => {

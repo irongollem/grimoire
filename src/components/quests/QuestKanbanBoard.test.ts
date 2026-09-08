@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
+import type { QuestBoardSummary } from "@/lib/quests/board";
 import type { Quest } from "@/types/quest.types";
 import QuestBoardCard from "./QuestBoardCard.vue";
+import QuestFeaturedCard from "./QuestFeaturedCard.vue";
 import QuestKanbanBoard from "./QuestKanbanBoard.vue";
 
 function quest(id: string, status: Quest["status"]): Quest {
@@ -27,17 +29,19 @@ function quest(id: string, status: Quest["status"]): Quest {
 const global = { stubs: { RouterLink: RouterLinkStub } };
 
 describe("QuestKanbanBoard", () => {
-  it("preserves all five persisted quest statuses", () => {
+  it("groups the five persisted statuses into three visual groups", () => {
     const wrapper = mount(QuestKanbanBoard, {
-      props: { quests: [quest("1", "active"), quest("2", "failed")] },
+      props: { quests: [quest("1", "active"), quest("2", "failed"), quest("3", "rumor")] },
       global,
     });
 
     const headings = wrapper.findAll("h2").map((heading) => heading.text());
-    expect(headings).toEqual(["Undiscovered", "Rumor", "Active", "Completed", "Failed"]);
-    expect(wrapper.findAllComponents(QuestBoardCard)).toHaveLength(2);
-    expect(wrapper.find('[aria-label="1 quests in Active"]').text()).toBe("1 quest");
-    expect(wrapper.find('[aria-label="0 quests in Rumor"]').text()).toBe("0 quests");
+    expect(headings).toEqual(["Active", "Undiscovered — waiting to be unlocked", "Settled"]);
+    // active + rumor both land in the Active group.
+    expect(wrapper.findAllComponents(QuestBoardCard)).toHaveLength(3);
+    expect(wrapper.find('[aria-label="2 quests in active"]').text()).toBe("2 quests");
+    expect(wrapper.find('[aria-label="1 quests in settled"]').text()).toBe("1 quest");
+    expect(wrapper.find('[aria-label="0 quests in undiscovered"]').text()).toBe("0 quests");
   });
 
   it("forwards the card's keyboard status move as a board mutation", () => {
@@ -60,13 +64,67 @@ describe("QuestKanbanBoard", () => {
     expect(wrapper.emitted("move")).toBeUndefined();
   });
 
-  it("distinguishes an empty lane from quests hidden by filters", () => {
-    const allQuests = [quest("1", "active"), quest("2", "active")];
+  it("distinguishes an empty group from quests hidden by filters", () => {
+    const allQuests = [quest("1", "completed"), quest("2", "failed")];
     const wrapper = mount(QuestKanbanBoard, {
       props: { quests: [], allQuests },
       global,
     });
-    expect(wrapper.text()).toContain("2 active quests filtered out.");
-    expect(wrapper.text()).toContain("No failed quests.");
+    expect(wrapper.text()).toContain("2 settled quests filtered out.");
+    expect(wrapper.text()).toContain("No undiscovered quests.");
+  });
+
+  it("features every quest with a live thread above the groups", () => {
+    const summaries: Record<string, QuestBoardSummary> = {
+      "1": {
+        isLive: true,
+        runtimeStatus: "running",
+        currentBeatTitle: "Confront Ser Vallis",
+        beatSegments: ["done", "here"],
+        prepGapCount: 0,
+        undispatchedLootCount: 0,
+        unclaimedLootCount: 0,
+        threads: [{ id: "t-a", label: "Main", status: "live", currentBeatTitle: "Confront Ser Vallis", beatSegments: ["done", "here"], created_at: "2026-08-01T00:00:00Z" }],
+        liveThreadCount: 1,
+        primaryThreadId: "t-a",
+        prepGaps: [],
+        hasPayoffPrepared: false,
+        convergesInto: [],
+        unlockedBy: null,
+        heldPayoffCount: 0,
+        settledCaption: null,
+      },
+    };
+    const wrapper = mount(QuestKanbanBoard, {
+      props: { quests: [quest("1", "active"), quest("2", "active")], summaries },
+      global,
+    });
+
+    expect(wrapper.findAllComponents(QuestFeaturedCard)).toHaveLength(1);
+    expect(wrapper.getComponent(QuestFeaturedCard).props("quest").id).toBe("1");
+  });
+
+  it("promotes a dropped quest to the target group's primary status", async () => {
+    const wrapper = mount(QuestKanbanBoard, {
+      props: { quests: [quest("1", "rumor")] },
+      global,
+    });
+
+    wrapper.getComponent(QuestBoardCard).vm.$emit("dragstart", "1");
+    const settledSection = wrapper.findAll("section")[2]!;
+    await settledSection.trigger("drop");
+    expect(wrapper.emitted("move")).toEqual([[{ id: "1", status: "completed" }]]);
+  });
+
+  it("does not reassign a quest dropped back onto the group it already belongs to", async () => {
+    const wrapper = mount(QuestKanbanBoard, {
+      props: { quests: [quest("1", "rumor")] },
+      global,
+    });
+
+    wrapper.getComponent(QuestBoardCard).vm.$emit("dragstart", "1");
+    const activeSection = wrapper.findAll("section")[0]!;
+    await activeSection.trigger("drop");
+    expect(wrapper.emitted("move")).toBeUndefined();
   });
 });
