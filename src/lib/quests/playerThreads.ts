@@ -33,6 +33,19 @@ export interface PlayerQuestThreadColumn {
 }
 
 /**
+ * A revealed beat with no reveal copy is what the cockpit's "add reveal copy —
+ * players see nothing without it" chip promises: nothing. It stays in the
+ * journal only while it is the moment happening now, or once it paid
+ * something out — a chip row with no words is still a fact; an empty card is
+ * not. A rumour with no text keeps its row (the template says a rumour is
+ * circulating), because "there is a rumour" is itself the information.
+ */
+function hasSomethingToShow(beat: PlayerQuestBeat): boolean {
+  if (beat.visibility === "rumored") return true;
+  return !!beat.player_text || beat.is_current || beat.payoff.length > 0;
+}
+
+/**
  * Ordered columns, Main first. Beats already filtered to rumored/revealed by
  * the RPC; this is defensive the same way `PlayerQuestStoryThread` has always
  * been about malformed cache data, never a second visibility gate.
@@ -43,7 +56,7 @@ export interface PlayerQuestThreadColumn {
  * carries no `created_at` for its thread, only its own `thread_id`/`thread_label`).
  */
 export function groupPlayerBeatsByThread(beats: readonly PlayerQuestBeat[]): PlayerQuestThreadColumn[] {
-  const safeBeats = beats.filter((beat) => beat.visibility === "rumored" || beat.visibility === "revealed");
+  const safeBeats = beats.filter((beat) => (beat.visibility === "rumored" || beat.visibility === "revealed") && hasSomethingToShow(beat));
   if (safeBeats.length === 0) return [];
 
   const byThread = new Map<string, PlayerQuestBeat[]>();

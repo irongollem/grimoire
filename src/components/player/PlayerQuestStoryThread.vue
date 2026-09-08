@@ -28,12 +28,19 @@
               class="min-w-0 rounded-lg border p-3"
               :class="beat.is_current ? [column.tone.border, 'border-2 bg-card'] : 'border-border bg-muted/20'"
             >
-              <p class="font-fell text-body leading-relaxed text-foreground">
-                <em v-if="beat.visibility === 'rumored'">Rumoured:</em>
-                {{ ' ' }}{{ beat.player_text }}
+              <p v-if="beat.visibility === 'rumored'" class="font-fell text-body leading-relaxed text-foreground">
+                <em>Rumoured:</em>
+                {{ ' ' }}{{ beat.player_text || "a rumour is circulating, but its details have not been shared yet." }}
+              </p>
+              <p v-else-if="beat.player_text" class="font-fell text-body leading-relaxed text-foreground">
+                {{ beat.player_text }}
               </p>
 
-              <div v-if="beat.is_current || beat.payoff.length" class="mt-2.5 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
+              <div
+                v-if="beat.is_current || beat.payoff.length"
+                class="flex flex-wrap items-center gap-2"
+                :class="(beat.visibility === 'rumored' || beat.player_text) && 'mt-2.5 border-t border-border/60 pt-2'"
+              >
                 <span v-if="beat.is_current" class="flex items-center gap-1.5 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">
                   <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full" :class="[column.tone.dot, !reducedMotion && 'animate-pulse']" />
                   happening now
@@ -67,13 +74,6 @@
         </ol>
       </div>
     </div>
-
-    <p class="text-caption text-muted-foreground">
-      A rumoured beat shows <code class="rounded bg-muted px-1 py-0.5 text-2xs text-foreground">rumor_text</code>, never the DM content. A hidden beat is absent — no greyed row, no locked tease.
-    </p>
-    <p class="text-caption text-muted-foreground">
-      A thread exists for players only once its first beat is revealed — so opening a layer in secret stays secret.
-    </p>
   </section>
 </template>
 

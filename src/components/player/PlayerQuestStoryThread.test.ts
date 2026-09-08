@@ -132,11 +132,28 @@ describe("PlayerQuestStoryThread", () => {
     ]);
   });
 
-  it("renders the two verbatim footnotes from the frame", () => {
+  // The frame's footnotes ("A rumoured beat shows rumor_text…", "A thread
+  // exists for players only once…") are the designer's annotations about the
+  // projection, addressed to whoever builds it. They are not player copy.
+  it("does not print the frame's annotations at the player", () => {
     const wrapper = mount(PlayerQuestStoryThread, { props: { beats: [beat()] } });
-    expect(wrapper.text()).toContain("A hidden beat is absent — no greyed row, no locked tease.");
-    expect(wrapper.text()).toContain("A thread exists for players only once its first beat is revealed — so opening a layer in secret stays secret.");
-    expect(wrapper.get("code").text()).toBe("rumor_text");
+    expect(wrapper.text()).not.toContain("rumor_text");
+    expect(wrapper.text()).not.toContain("A thread exists for players");
+    expect(wrapper.find("code").exists()).toBe(false);
+  });
+
+  it("shows a wordless current beat as a chip row with no empty paragraph, and skips a wordless idle one", () => {
+    const wrapper = mount(PlayerQuestStoryThread, {
+      props: { beats: [beat({ id: "now", player_text: null, is_current: true }), beat({ id: "idle", player_text: null, story_order: 1 })] },
+    });
+    expect(wrapper.findAll("article")).toHaveLength(1);
+    expect(wrapper.find("article p").exists()).toBe(false);
+    expect(wrapper.text()).toContain("happening now");
+  });
+
+  it("says a rumour is circulating when the rumour has no text yet", () => {
+    const wrapper = mount(PlayerQuestStoryThread, { props: { beats: [beat({ visibility: "rumored", player_text: null })] } });
+    expect(wrapper.text()).toContain("a rumour is circulating");
   });
 
   it("uses a labelled section, heading hierarchy, list, and article semantics", () => {

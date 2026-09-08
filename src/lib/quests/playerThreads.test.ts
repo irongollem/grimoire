@@ -106,4 +106,18 @@ describe("groupPlayerBeatsByThread", () => {
     expect(columns[0]!.threadId).toBe("thread-a");
     expect(columns[0]!.isPrimary).toBe(true);
   });
+
+  it("drops a revealed beat with no reveal copy unless it is happening now or paid something out", () => {
+    const columns = groupPlayerBeatsByThread([
+      beat({ id: "wordless", player_text: null, story_order: 0 }),
+      beat({ id: "now", player_text: null, is_current: true, story_order: 1 }),
+      beat({ id: "paid", player_text: "", story_order: 2, payoff: [{ kind: "knowledge", text: "The vault was sealed from inside." }] }),
+      beat({ id: "rumour", visibility: "rumored", player_text: null, story_order: 3 }),
+    ]);
+    expect(columns[0]!.beats.map((b) => b.id)).toEqual(["now", "paid", "rumour"]);
+  });
+
+  it("returns no columns when every revealed beat is wordless and idle", () => {
+    expect(groupPlayerBeatsByThread([beat({ player_text: null })])).toEqual([]);
+  });
 });

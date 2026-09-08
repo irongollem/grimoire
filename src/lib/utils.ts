@@ -244,6 +244,8 @@ export function extractTiptapText(json: string | null | undefined, maxLength = 1
     walk(doc);
     return texts.join(" ").slice(0, maxLength);
   } catch {
-    return json.slice(0, maxLength);
+    // Not Tiptap JSON. A few rows (three in production) still hold HTML from
+    // before the editor switched; a caption must never print their tags.
+    return json.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
   }
 }

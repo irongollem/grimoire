@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cn, deepEqual } from "./utils";
+import { cn, deepEqual, extractTiptapText } from "./utils";
 
 describe("cn", () => {
   // The #552 typography roles are custom `@utility` classes, so stock
@@ -78,5 +78,17 @@ describe("deepEqual", () => {
     };
     expect(deepEqual(doc, same)).toBe(true);
     expect(deepEqual(doc, edited)).toBe(false);
+  });
+});
+
+describe("extractTiptapText", () => {
+  it("reads the text out of Tiptap JSON", () => {
+    const doc = JSON.stringify({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Frost rimes every surface." }] }] });
+    expect(extractTiptapText(doc)).toBe("Frost rimes every surface.");
+  });
+
+  it("strips the tags off an HTML description instead of printing them", () => {
+    expect(extractTiptapText("<p>Frost rimes <em>every</em> surface.</p>", 60)).toBe("Frost rimes every surface.");
+    expect(extractTiptapText("<p></p>", 1)).toBe("");
   });
 });
