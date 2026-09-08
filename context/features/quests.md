@@ -564,7 +564,7 @@ delay, and an **`action`**:
 | --- | --- | --- |
 | `raise` `reveal` `complete` `fail` | ledger verb | `target_objective_id` |
 | `create_calendar_event` `send_broadcast` | world action | `action_payload` |
-| `shift_npc_relationship` (#831) | world action | `target_npc_id` + `action_payload.step` |
+| `shift_npc_relationship` (#831, `to` since `20260908064822`) | world action | `target_npc_id` + `action_payload.step` **or** `action_payload.to` |
 | `unlock_quest` (#836) | world action | `target_quest_id` |
 | `grant_knowledge` (#850) | world action | `action_payload.text` |
 | `owe_favor` (#850) | world action | `target_npc_id` + `action_payload.text` |
@@ -609,6 +609,20 @@ from "we have not established this" is meaningless and mapping it to
 `indifferent` would invent a stance the DM never set. Every path either shifts
 and records `previous_relationship`, or does neither — so undo has a value to
 restore or nothing to do, and nothing downstream reads a NULL and guesses.
+
+**The absolute form, `to` (`20260908064822`).** The maintainer's example of
+the reward a table actually hands out is "indifferent to helpful" — a stance
+*stated*, which a signed step cannot say, and which the step form silently
+skipped whenever the NPC still sat at the default `unknown`. `action_payload.to`
+names one of the five rungs (never `unknown`); it applies from any stance,
+`unknown` included, and records the previous value so `previous` restores
+it exactly. Both forms stay: two beats that each nudge the same NPC still
+compose through `step`, which "set to helpful" cannot do. A CHECK on
+`quest_consequences` pins the payload to one shape or the other, coalesced
+on both arms because a payload with neither key made each comparison NULL
+and a NULL check passes. The one option list both authoring panels offer
+(`RELATIONSHIP_SHIFT_OPTIONS`, `src/lib/quests/consequences.ts`) puts the
+five stances first and defaults to "Becomes friendly".
 
 **`unlock_quest` promotes `undiscovered` → `rumor` and nothing else.** That was
 the one rung with no trigger: arrival already moves `rumor` → `active`, but
