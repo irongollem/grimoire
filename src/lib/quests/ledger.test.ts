@@ -37,6 +37,7 @@ const gate = (overrides: Partial<QuestRouteGate> = {}): QuestRouteGate => ({
 
 const choice = (edgeId: string, beatId: string, title: string, g: QuestRouteGate | null = null): QuestRuntimeChoice => ({
   edge_id: edgeId, quest_id: "q1", beat_id: beatId, beat_title: title, beat_kind: "social", gate: g, effects: [],
+  route_kind: "choice", thread_label: null, converge_mode: "any", site: null, payoff: [], loot: [],
 });
 
 describe("ledger verbs", () => {
@@ -49,7 +50,10 @@ describe("ledger verbs", () => {
   });
 
   it("treats every world action as no ledger verb at all", () => {
-    for (const action of ["create_calendar_event", "send_broadcast", "shift_npc_relationship", "unlock_quest"] as const) {
+    for (const action of [
+      "create_calendar_event", "send_broadcast", "shift_npc_relationship", "unlock_quest",
+      "grant_knowledge", "owe_favor", "award_milestone",
+    ] as const) {
       expect(ledgerVerbOf(action)).toBeNull();
     }
   });
@@ -195,5 +199,22 @@ describe("storySpine", () => {
       currentBeatId: null, outgoing: [], consequences: [], objectives: [],
     });
     expect(spine).toEqual([{ beatId: "gone", title: "A lost scene", state: "played", note: "" }]);
+  });
+
+  // #853: several threads can share one quest's transition log. A spine
+  // scoped to one thread reads as that thread's own story, not every thread's
+  // rows interleaved — but a thread-less `assert` row still counts, since it
+  // was never any thread's move to begin with.
+  it("scopes played rows to one thread, keeping thread-less asserts", () => {
+    const mixed = [
+      { to_quest_id: "q1", to_beat_id: "b1", to_beat_title: "The King's plea", thread_id: "main" },
+      { to_quest_id: "q1", to_beat_id: "b2", to_beat_title: "The ransom note", thread_id: "side" },
+      { to_quest_id: "q1", to_beat_id: "b4", to_beat_title: "Confront the Baron", thread_id: null },
+    ];
+    const spine = storySpine({
+      questId: "q1", beats, transitions: mixed, currentBeatId: "b3",
+      outgoing: [], consequences: [], objectives: [], threadId: "main",
+    });
+    expect(spine.map((row) => row.beatId)).toEqual(["b1", "b4", "b3"]);
   });
 });

@@ -8,8 +8,6 @@ export interface QuestBeatDraft {
   dm_content: string;
   read_aloud: string;
   how_it_plays: string;
-  outcomes: string;
-  consequences: string;
   rumor_text: string;
   reveal_text: string;
   improv_reviewed: boolean;
@@ -24,8 +22,6 @@ export function questBeatToDraft(beat: QuestBeat): QuestBeatDraft {
     dm_content: beat.dm_content ?? "",
     read_aloud: beat.read_aloud ?? "",
     how_it_plays: beat.how_it_plays ?? "",
-    outcomes: beat.outcomes ?? "",
-    consequences: beat.consequences ?? "",
     rumor_text: beat.rumor_text ?? "",
     reveal_text: beat.reveal_text ?? "",
     improv_reviewed: !!beat.improv_reviewed_at,
@@ -49,8 +45,6 @@ export function questBeatDraftToUpdate(draft: QuestBeatDraft, savedReviewedAt: s
     dm_content: nullable(draft.dm_content),
     read_aloud: nullable(draft.read_aloud),
     how_it_plays: nullable(draft.how_it_plays),
-    outcomes: nullable(draft.outcomes),
-    consequences: nullable(draft.consequences),
     rumor_text: nullable(draft.rumor_text.trim()),
     reveal_text: nullable(draft.reveal_text.trim()),
     improv_reviewed_at: draft.improv_reviewed

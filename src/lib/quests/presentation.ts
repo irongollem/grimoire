@@ -41,6 +41,11 @@ export interface QuestBeatPresentation {
   isVisited: boolean;
   isDisconnected: boolean;
   reach: QuestBeatReach;
+  /** The threads (#853) currently standing at this beat — empty when none is.
+   *  A quest can hold several live threads at once, and a converge-all beat
+   *  can legitimately be the arrival point for more than one of them before
+   *  they merge, so this is a list rather than a single id. */
+  currentThreadIds: string[];
 }
 
 export interface QuestReachTally {
@@ -139,15 +144,23 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
   // without the quest check every other quest's beats would read as cut off.
   //
   // Several chains can be live at once (a suspended main quest beside the side
-  // quest being walked, or two quests converging on one cave), so this is a
-  // cursor *per quest* and each one contributes its own forward reach.
-  const cursorByQuest = new Map<string, string>();
+  // quest being walked, or two quests converging on one cave), and a single
+  // quest can now hold several live threads at once (#853) — so this is a
+  // cursor *per thread*, keyed by quest only to answer "does this quest have a
+  // run in progress at all", and each thread's beat contributes its own
+  // forward reach.
+  const questsWithCursor = new Set<string>();
+  const threadIdsByBeat = new Map<string, string[]>();
   for (const row of input.runtime ?? []) {
-    if (row.current_beat_id) cursorByQuest.set(row.quest_id, row.current_beat_id);
+    if (!row.current_beat_id) continue;
+    questsWithCursor.add(row.quest_id);
+    const threadIds = threadIdsByBeat.get(row.current_beat_id) ?? [];
+    threadIds.push(row.thread_id);
+    threadIdsByBeat.set(row.current_beat_id, threadIds);
   }
-  const currentBeatIds = new Set(cursorByQuest.values());
+  const currentBeatIds = new Set(threadIdsByBeat.keys());
   const reachableAhead = new Set<string>();
-  for (const beatId of cursorByQuest.values()) {
+  for (const beatId of currentBeatIds) {
     for (const id of forwardReachableBeatIds(beatId, input.edges)) reachableAhead.add(id);
   }
   const result: Record<string, QuestBeatPresentation> = {};
@@ -158,11 +171,12 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       && !connected.has(beat.id);
     const prepGaps = deriveQuestBeatPrepGaps(beat, placed, { isDisconnected });
     const loot = input.lootByBeat?.[beat.id] ?? { total: 0, undispatched: 0, unclaimed: 0 };
-    const isCurrent = currentBeatIds.has(beat.id);
+    const currentThreadIds = threadIdsByBeat.get(beat.id) ?? [];
+    const isCurrent = currentThreadIds.length > 0;
     const isVisited = visited.has(beat.id);
     // A staging beat is unwired rather than cut off — calling it "stranded"
     // would report the same fact twice under a scarier name.
-    const outsideTheRun = !cursorByQuest.has(beat.quest_id)
+    const outsideTheRun = !questsWithCursor.has(beat.quest_id)
       || isDisconnected;
     const reach: QuestBeatReach = isCurrent ? "current"
       : isVisited ? "visited"
@@ -179,6 +193,7 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       isVisited,
       isDisconnected,
       reach,
+      currentThreadIds,
     };
   }
   return result;

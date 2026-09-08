@@ -196,6 +196,57 @@ describe("QuestConsequencesPanel — beat scope", () => {
     expect(options.map((option) => option.id)).toEqual(["quest-sequel"]);
   });
 
+  // #853: the three payoff verbs — knowledge, favour, milestone — each need
+  // their own form branch or the action select silently falls through.
+  it("authors a knowledge grant from its own text field", async () => {
+    const wrapper = mountBeatPanel();
+    await wrapper.findAll("select")[1]!.setValue("grant_knowledge");
+    await wrapper.find('input[placeholder="What do the players learn…"]').setValue("The cult meets at midnight.");
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: "grant_knowledge",
+      target_objective_id: null,
+      target_npc_id: null,
+      target_quest_id: null,
+      action_payload: { text: "The cult meets at midnight." },
+    }));
+  });
+
+  it("authors a favor owed to a chosen NPC, with its own text field", async () => {
+    const wrapper = mountBeatPanel();
+    await wrapper.findAll("select")[1]!.setValue("owe_favor");
+    comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "npc-1");
+    await wrapper.find('input[placeholder="What do they owe the party…"]').setValue("A favor, unspecified.");
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: "owe_favor",
+      target_npc_id: "npc-1",
+      target_objective_id: null,
+      target_quest_id: null,
+      action_payload: { text: "A favor, unspecified." },
+    }));
+  });
+
+  it("authors a milestone from its own text field", async () => {
+    const wrapper = mountBeatPanel();
+    await wrapper.findAll("select")[1]!.setValue("award_milestone");
+    await wrapper.find('input[placeholder="What did the party earn…"]').setValue("Renown among the dockworkers.");
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: "award_milestone",
+      target_objective_id: null,
+      target_npc_id: null,
+      target_quest_id: null,
+      action_payload: { text: "Renown among the dockworkers." },
+    }));
+  });
+
   it("lists the rules that belong to this beat and ignores the rest of the quest", () => {
     mocks.rows = [
       consequence({ id: "c-1", on_beat_id: "beat-fork", action: "reveal", target_objective_id: "obj-1" }),

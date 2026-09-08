@@ -29,6 +29,8 @@ const summary = (undispatched: number, unclaimed: number): QuestBoardSummary => 
   prepGapCount: 0,
   undispatchedLootCount: undispatched,
   unclaimedLootCount: unclaimed,
+  threads: [],
+  liveThreadCount: 0,
 });
 
 describe("deriveQuestLootRows", () => {

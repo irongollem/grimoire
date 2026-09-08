@@ -118,7 +118,10 @@ export type QuestConsequenceAction =
   | "create_calendar_event"
   | "send_broadcast"
   | "shift_npc_relationship"
-  | "unlock_quest";
+  | "unlock_quest"
+  | "grant_knowledge"
+  | "owe_favor"
+  | "award_milestone";
 
 export const QUEST_CONSEQUENCE_LEDGER_ACTIONS: readonly QuestConsequenceAction[] = ["raise", "reveal", "complete", "fail"];
 export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] = [
@@ -126,6 +129,9 @@ export const QUEST_CONSEQUENCE_WORLD_ACTIONS: readonly QuestConsequenceAction[] 
   "send_broadcast",
   "shift_npc_relationship",
   "unlock_quest",
+  "grant_knowledge",
+  "owe_favor",
+  "award_milestone",
 ];
 
 /**
@@ -164,10 +170,35 @@ export interface RelationshipShiftConsequencePayload {
   step: number;
 }
 
+/**
+ * The three verbs the design's diagnosis names directly (migration
+ * `20260907232245`): "knowledge, favours and milestones have no verb, so they
+ * end up as prose in `outcomes`." Same shape for all three — one line of text
+ * — because what differs between them is *where* the row lands
+ * (`player_journal_entries` / `npc_favors` / `party_milestones`), not what a
+ * DM types.
+ */
+export interface KnowledgeConsequencePayload {
+  text: string;
+}
+
+/** `owe_favor` also requires `target_npc_id` (`quest_consequences_npc_pair`,
+ *  alongside `shift_npc_relationship`) — the favour is pinned to that NPC's page. */
+export interface FavorConsequencePayload {
+  text: string;
+}
+
+export interface MilestoneConsequencePayload {
+  text: string;
+}
+
 export type QuestConsequenceActionPayload =
   | CalendarEventConsequencePayload
   | BroadcastConsequencePayload
   | RelationshipShiftConsequencePayload
+  | KnowledgeConsequencePayload
+  | FavorConsequencePayload
+  | MilestoneConsequencePayload
   | Record<string, never>;
 
 /**
@@ -268,9 +299,66 @@ export interface QuestConsequenceEvent {
   previous_quest_status: QuestStatus | null;
   undone_at: string | null;
   seq: number;
+  /**
+   * Set when the DM held this payoff back in the Advance dialog instead of
+   * letting it fire (#853). Cleared when it is fired from the log. The three
+   * rows a fired verb can point at — never more than one of the three set —
+   * are the destinations `grant_knowledge`/`owe_favor`/`award_milestone`
+   * write to; a row logged before those verbs existed, or logged for any
+   * other action, carries all three `null`.
+   */
+  held_at: string | null;
+  journal_entry_id: string | null;
+  favor_id: string | null;
+  milestone_id: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * What an NPC owes the party (#853, `npc_favors`). Written by the `owe_favor`
+ * consequence or by hand on the NPC sheet; settled, never deleted, once
+ * repaid — `settled_at` is the record that it happened, not a row to clear.
+ * Lives here rather than in `npc.types.ts`: this is quest payoff pinned to an
+ * NPC, the same reason `QuestConsequenceEvent` lives here and not on the NPC.
+ */
+export interface NpcFavor {
+  id: string;
+  campaign_id: string;
+  npc_id: string;
+  quest_id: string | null;
+  text: string;
+  source_event_id: string | null;
+  settled_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type NpcFavorInsert = Omit<NpcFavor, "id" | "created_at" | "updated_at" | "settled_at" | "created_by"> & {
+  created_by?: string | null;
+};
+
+/**
+ * A milestone the party earned — renown, a promise kept, a threshold crossed
+ * (#853, `party_milestones`). Written by the `award_milestone` consequence or
+ * by hand on the party screen. Lives here rather than in `party.types.ts` for
+ * the same reason `NpcFavor` lives here: it is quest payoff, not party state.
+ */
+export interface PartyMilestone {
+  id: string;
+  campaign_id: string;
+  quest_id: string | null;
+  text: string;
+  source_event_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PartyMilestoneInsert = Omit<PartyMilestone, "id" | "created_at" | "updated_at" | "created_by"> & {
+  created_by?: string | null;
+};
 
 export type QuestObjectiveInsert = Omit<QuestObjective, "id">;
 export type QuestObjectiveUpdate = Partial<
@@ -296,6 +384,9 @@ export const QUEST_BEAT_KIND_LABELS: Record<(typeof QUEST_BEAT_KINDS)[number], s
   discovery: "Discovery",
 };
 
+/** How a beat receives several arriving threads (#853). */
+export type QuestConvergeMode = "any" | "all";
+
 export interface QuestBeat {
   id: string;
   quest_id: string;
@@ -303,14 +394,25 @@ export interface QuestBeat {
   title: string;
   dm_content: string | null;
   read_aloud: string | null;
+  /**
+   * `outcomes`/`consequences` are gone (migration `20260907232245`): a beat's
+   * prose columns for "what usually happens" and "what changes later" folded
+   * into this field as trailing paragraphs, and the three world verbs
+   * (`grant_knowledge`/`owe_favor`/`award_milestone`) replace the part that
+   * was actually a mechanism rather than guidance.
+   */
   how_it_plays: string | null;
-  outcomes: string | null;
-  consequences: string | null;
   rumor_text: string | null;
   reveal_text: string | null;
   visibility: QuestBeatVisibility;
   kind: QuestBeatKind;
   presentation_hint: string | null;
+  /**
+   * `any`: every arriving thread proceeds on its own. `all`: the beat holds
+   * each arriving thread until every incoming route has been walked, then
+   * merges them into one cursor (#853's converge beat).
+   */
+  converge_mode: QuestConvergeMode;
   /**
    * Where this beat happens. Singular: a beat is one event in one place; a
    * scene spanning two places is two beats. Any location qualifies — being a
@@ -336,6 +438,10 @@ export type QuestBeatInsert = Omit<QuestBeat, "id" | "created_by" | "created_at"
 };
 export type QuestBeatUpdate = Partial<Omit<QuestBeatInsert, "quest_id" | "campaign_id">>;
 
+/** `choice` moves the cursor (its siblings become unreachable); `parallel`
+ *  spawns a thread and leaves the current cursor alone. Gates apply to both. */
+export type QuestRouteKind = "choice" | "parallel";
+
 export interface QuestBeatEdge {
   id: string;
   quest_id: string;
@@ -344,6 +450,10 @@ export interface QuestBeatEdge {
   target_beat_id: string;
   created_by: string | null;
   created_at: string;
+  route_kind: QuestRouteKind;
+  /** The label a `parallel` route gives the thread it opens — shown to the DM
+   *  and on the player thread. Null on a `choice`. */
+  thread_label: string | null;
   /**
    * Not a column here — `quest_beat_edge_gates` is a separate child table so
    * that deleting an objective can drop the gate and keep the route, which a
@@ -404,14 +514,48 @@ export interface QuestRouteEffect {
 }
 
 /**
- * One quest's live cursor. Keyed `(campaign_id, quest_id)`: a party is routinely
- * mid-progress on several chains at once — a main quest suspended while a side
- * chain runs, or two quests converging on the same cave — so "where the party
- * is" is a set of positions, not one.
+ * One thread's status (#853). `live`: has a running/paused cursor. `waiting`:
+ * parked at a converge-all beat until every incoming route has been walked.
+ * `merged`: folded into another thread at such a beat. `closed`: ended by the
+ * DM or by the quest.
+ */
+export type QuestThreadStatus = "live" | "waiting" | "closed" | "merged";
+
+/**
+ * One live cursor of a quest (#853, `quest_threads`). A quest holds as many as
+ * the story has open at once; a parallel route spawns one, a converge-all beat
+ * merges them. Every quest that predates threads has exactly one, named "Main".
+ */
+export interface QuestThread {
+  id: string;
+  campaign_id: string;
+  quest_id: string;
+  label: string;
+  status: QuestThreadStatus;
+  /** The parallel route that opened this thread, when one did. Null for a
+   *  thread opened by hand or for the Main thread. */
+  opened_by_edge_id: string | null;
+  parent_thread_id: string | null;
+  merged_into_thread_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  closed_at: string | null;
+  updated_at: string;
+}
+
+export type QuestThreadInsert = Omit<QuestThread, "id" | "created_by" | "created_at" | "closed_at" | "updated_at">;
+
+/**
+ * One quest's live cursor. Keyed `(campaign_id, quest_id, thread_id)`: a party
+ * is routinely mid-progress on several chains at once — a main quest suspended
+ * while a side chain runs, two quests converging on the same cave, or now a
+ * single quest running several threads at once (#853) — so "where the party
+ * is" is a set of positions, not one, and not even one per quest.
  */
 export interface QuestRuntimeState {
   campaign_id: string;
   quest_id: string;
+  thread_id: string;
   current_beat_id: string | null;
   return_stack: QuestRuntimePosition[];
   visit_stack: QuestRuntimePosition[];
@@ -423,7 +567,10 @@ export interface QuestRuntimeState {
   updated_at: string;
 }
 
-export type QuestRuntimeStatus = "idle" | "running" | "paused" | "ended";
+/** `waiting`: parked at a converge-all beat. Not `paused` — the DM did not
+ *  stop it, the story did, and it resumes on its own when the last thread
+ *  arrives (#853). */
+export type QuestRuntimeStatus = "idle" | "running" | "paused" | "waiting" | "ended";
 export type QuestRuntimeCommand = "start" | "advance" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end";
 export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "return" | "improv" | "pause" | "resume" | "end" | "assert";
 
@@ -431,6 +578,45 @@ export type QuestTransitionKind = "enter" | "forward" | "previous" | "jump" | "r
  * carries only the beat — a quest_id inside it could only ever disagree. */
 export interface QuestRuntimePosition {
   beat_id: string;
+}
+
+/** The place a route leads, when it leads anywhere physical — joined
+ *  server-side so a branch card can say "opens onto a site" without a
+ *  second round trip. */
+export interface QuestRouteSite {
+  location_id: string;
+  name: string;
+  room_count: number;
+}
+
+/**
+ * One payoff a route carries, read from `quest_consequences` the same way
+ * `QuestRouteEffect` always has — but resolved to names, not just ids, and
+ * carrying `on_edge` so the Advance dialog can tell a route's own payoff from
+ * one that fires on arrival at the beat it leads to.
+ */
+export interface QuestRoutePayoff {
+  consequence_id: string;
+  action: QuestConsequenceAction;
+  target_objective_id: string | null;
+  target_objective: string | null;
+  target_npc_id: string | null;
+  target_npc: string | null;
+  target_quest_id: string | null;
+  target_quest: string | null;
+  action_payload: QuestConsequenceActionPayload;
+  after_days: number;
+  on_edge: boolean;
+}
+
+/** Loot a route's destination beat holds, offered in the Advance dialog
+ *  alongside its payoff so a DM decides both in one place. */
+export interface QuestRouteLoot {
+  id: string;
+  kind: LootPlacementKind;
+  label: string;
+  quantity: number;
+  item_id: string | null;
 }
 
 export interface QuestRuntimeChoice {
@@ -441,6 +627,12 @@ export interface QuestRuntimeChoice {
   beat_kind: string;
   gate: QuestRouteGate | null;
   effects: QuestRouteEffect[];
+  route_kind: QuestRouteKind;
+  thread_label: string | null;
+  converge_mode: QuestConvergeMode;
+  site: QuestRouteSite | null;
+  payoff: QuestRoutePayoff[];
+  loot: QuestRouteLoot[];
 }
 
 export interface QuestRuntimeJumpTarget {
@@ -452,7 +644,10 @@ export interface QuestRuntimeJumpTarget {
   is_improvised: boolean;
 }
 
-/** A chain the party currently has open. Running first, then paused. */
+/** A chain the party currently has open. Running first, then paused. Now one
+ *  row per thread (#853) — `sibling_count` says how many other threads this
+ *  quest currently holds, so a list of chains can say "and 2 more" without a
+ *  second query. */
 export interface CampaignLiveQuest {
   quest_id: string;
   quest_title: string;
@@ -463,6 +658,41 @@ export interface CampaignLiveQuest {
   runtime_status: QuestRuntimeStatus;
   version: number;
   updated_at: string;
+  thread_id: string;
+  thread_label: string;
+  thread_status: QuestThreadStatus;
+  sibling_count: number;
+}
+
+/** One thread as `get_quest_runtime_context` lists it under `threads[]`: the
+ *  thread row plus where it currently stands, so a thread switcher needs no
+ *  second query per thread. `runtime_status` is null for a thread with no
+ *  cursor row yet (freshly opened, not yet started). */
+export interface QuestThreadCursor extends QuestThread {
+  current_beat_id: string | null;
+  current_beat_title: string | null;
+  runtime_status: QuestRuntimeStatus | null;
+  version: number;
+}
+
+/**
+ * A payoff the DM held back in the Advance dialog instead of letting it fire
+ * (#853) — logged (`quest_consequence_events.held_at`) but not performed.
+ * Offered back later so the DM can fire it from the log when the story
+ * catches up to it.
+ */
+export interface QuestHeldPayoff {
+  event_id: string;
+  consequence_id: string | null;
+  action: QuestConsequenceAction;
+  target_objective_id: string | null;
+  target_npc_id: string | null;
+  target_quest_id: string | null;
+  action_payload: QuestConsequenceActionPayload;
+  after_days: number;
+  held_at: string;
+  beat_id: string | null;
+  beat_title: string | null;
 }
 
 export interface QuestRuntimeContext {
@@ -472,6 +702,13 @@ export interface QuestRuntimeContext {
   outgoing: QuestRuntimeChoice[];
   return_target: QuestRuntimePosition | null;
   path_so_far: Array<Record<string, unknown>>;
+  /** The thread this context was fetched for. */
+  thread: QuestThread;
+  /** Every thread this quest currently holds, so a thread switcher never
+   *  needs a second query. */
+  threads: QuestThreadCursor[];
+  /** Payoffs held back rather than fired, still waiting on the log. */
+  held: QuestHeldPayoff[];
 }
 
 export interface QuestBeatTransition {
@@ -491,6 +728,9 @@ export interface QuestBeatTransition {
   provenance: Record<string, unknown>;
   created_by: string | null;
   created_at: string;
+  /** The thread that walked this transition. Null for an `assert` row, which
+   *  carries no cursor at all, and for a row logged before threads existed. */
+  thread_id: string | null;
 }
 
 export interface PlayerQuestBeat {

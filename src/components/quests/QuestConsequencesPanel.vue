@@ -88,6 +88,17 @@
           No undiscovered quests to unlock — write the sequel first and leave it undiscovered.
         </p>
       </template>
+      <template v-else-if="action === 'grant_knowledge'">
+        <AppInput v-model="knowledgeText" size="body-xs" placeholder="What do the players learn…" class="sm:col-span-2" />
+      </template>
+      <template v-else-if="action === 'owe_favor'">
+        <EntityCombobox v-if="npcOptions.length" v-model="targetNpcId" class="min-w-0 sm:col-span-2" :options="npcOptions" placeholder="Which NPC…" />
+        <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">No NPCs in this campaign yet.</p>
+        <AppInput v-if="npcOptions.length" v-model="favorText" size="body-xs" placeholder="What do they owe the party…" class="sm:col-span-2" />
+      </template>
+      <template v-else-if="action === 'award_milestone'">
+        <AppInput v-model="milestoneText" size="body-xs" placeholder="What did the party earn…" class="sm:col-span-2" />
+      </template>
       <template v-else>
         <AppInput v-model="broadcastMessage" size="body-xs" placeholder="Broadcast message…" class="sm:col-span-2" />
       </template>
@@ -178,6 +189,9 @@ const ACTION_TONES: Record<QuestConsequenceAction, string> = {
   // the same rule read either way depending on the step.
   shift_npc_relationship: "text-tone-info",
   unlock_quest: "text-primary",
+  grant_knowledge: "text-tone-info",
+  owe_favor: "text-tone-info",
+  award_milestone: "text-primary",
 };
 
 const isLedgerAction = isLedgerConsequenceAction;
@@ -235,6 +249,9 @@ const broadcastMessage = ref("");
 const targetNpcId = ref("");
 const relationshipStep = ref(1);
 const targetQuestId = ref("");
+const knowledgeText = ref("");
+const favorText = ref("");
+const milestoneText = ref("");
 const adding = ref(false);
 const removingId = ref("");
 const error = ref("");
@@ -287,6 +304,9 @@ const canAdd = computed(() => {
   if (action.value === "create_calendar_event") return !!calendarTitle.value.trim();
   if (action.value === "shift_npc_relationship") return !!targetNpcId.value && relationshipStep.value !== 0;
   if (action.value === "unlock_quest") return !!targetQuestId.value;
+  if (action.value === "grant_knowledge") return !!knowledgeText.value.trim();
+  if (action.value === "owe_favor") return !!targetNpcId.value && !!favorText.value.trim();
+  if (action.value === "award_milestone") return !!milestoneText.value.trim();
   return !!broadcastMessage.value.trim();
 });
 
@@ -323,6 +343,9 @@ function resetForm() {
   targetNpcId.value = "";
   relationshipStep.value = 1;
   targetQuestId.value = "";
+  knowledgeText.value = "";
+  favorText.value = "";
+  milestoneText.value = "";
 }
 
 async function add() {
@@ -337,7 +360,13 @@ async function add() {
         ? { message: broadcastMessage.value.trim() }
         : action.value === "shift_npc_relationship"
           ? { step: relationshipStep.value }
-          : {};
+          : action.value === "grant_knowledge"
+            ? { text: knowledgeText.value.trim() }
+            : action.value === "owe_favor"
+              ? { text: favorText.value.trim() }
+              : action.value === "award_milestone"
+                ? { text: milestoneText.value.trim() }
+                : {};
     const insert: QuestConsequenceInsert = {
       quest_id: questId,
       on_beat_id: scope === "beat" && !conditionEdgeId.value ? beat!.id : null,
@@ -348,7 +377,7 @@ async function add() {
       after_days: afterDays.value || 0,
       action: action.value,
       target_objective_id: isLedgerAction(action.value) ? targetObjectiveId.value : null,
-      target_npc_id: action.value === "shift_npc_relationship" ? targetNpcId.value : null,
+      target_npc_id: action.value === "shift_npc_relationship" || action.value === "owe_favor" ? targetNpcId.value : null,
       target_quest_id: action.value === "unlock_quest" ? targetQuestId.value : null,
       action_payload: payload,
     };

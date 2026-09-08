@@ -1,6 +1,9 @@
 import type {
   BroadcastConsequencePayload,
   CalendarEventConsequencePayload,
+  FavorConsequencePayload,
+  KnowledgeConsequencePayload,
+  MilestoneConsequencePayload,
   QuestConsequence,
   QuestConsequenceAction,
   RelationshipShiftConsequencePayload,
@@ -16,6 +19,9 @@ export const QUEST_CONSEQUENCE_ACTION_LABELS: Record<QuestConsequenceAction, str
   send_broadcast: "Send broadcast",
   shift_npc_relationship: "Shift an NPC's disposition",
   unlock_quest: "Unlock a quest",
+  grant_knowledge: "Grant knowledge",
+  owe_favor: "Owe a favor",
+  award_milestone: "Award a milestone",
 };
 
 export function isLedgerConsequenceAction(action: QuestConsequenceAction): boolean {
@@ -84,6 +90,18 @@ export function describeWorldConsequenceAction(
       }
       const steps = Math.abs(payload.step) === 1 ? "step" : "steps";
       return `${payload.step > 0 ? "Improve" : "Worsen"} an NPC's disposition by ${Math.abs(payload.step)} ${steps}`;
+    }
+    case "grant_knowledge": {
+      const payload = actionPayload as Partial<KnowledgeConsequencePayload>;
+      return `Knowledge: "${payload.text || UNKNOWN_PAYLOAD_FIELD}"`;
+    }
+    case "owe_favor": {
+      const payload = actionPayload as Partial<FavorConsequencePayload>;
+      return `Favour owed: "${payload.text || UNKNOWN_PAYLOAD_FIELD}"`;
+    }
+    case "award_milestone": {
+      const payload = actionPayload as Partial<MilestoneConsequencePayload>;
+      return `Milestone: "${payload.text || UNKNOWN_PAYLOAD_FIELD}"`;
     }
     case "unlock_quest":
     case "raise":

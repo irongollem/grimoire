@@ -74,4 +74,15 @@ describe("describeQuestRouteEffect", () => {
     const effect: QuestRouteEffect = { action: "send_broadcast", objective: null, after_days: 0 };
     expect(describeQuestRouteEffect(effect)).toBe("Then sends a broadcast");
   });
+
+  // The three payoff verbs #853 adds (knowledge/favour/milestone) — each
+  // needs its own verb here or it falls through to `undefined` in the map.
+  it("describes the three payoff verbs", () => {
+    expect(describeQuestRouteEffect({ action: "grant_knowledge", objective: null, after_days: 0 }))
+      .toBe("Then grants knowledge");
+    expect(describeQuestRouteEffect({ action: "owe_favor", objective: null, after_days: 0 }))
+      .toBe("Then owes a favor");
+    expect(describeQuestRouteEffect({ action: "award_milestone", objective: null, after_days: 0 }))
+      .toBe("Then awards a milestone");
+  });
 });

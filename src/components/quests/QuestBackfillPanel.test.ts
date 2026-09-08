@@ -33,6 +33,9 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: { value: mocks.objectives } }),
 }));
+vi.mock("@/composables/quests/useQuestThreads", () => ({
+  useQuestThreads: () => ({ data: { value: [{ id: "thread-1", quest_id: "quest-1", status: "live", label: "Main" }] } }),
+}));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ activeCampaignId: mocks.activeCampaignId }),
 }));
@@ -42,7 +45,7 @@ const quest = { id: "quest-1", title: "The Unseen" } as Quest;
 function beat(id: string, title: string, kind = "neutral"): QuestBeat {
   return {
     id, quest_id: "quest-1", campaign_id: "campaign-1", title,
-    dm_content: null, read_aloud: null, how_it_plays: null, outcomes: null, consequences: null,
+    dm_content: null, read_aloud: null, how_it_plays: null, converge_mode: "any",
     rumor_text: null, reveal_text: null, visibility: "hidden", kind,
     presentation_hint: null, canvas_x: 0, canvas_y: 0, is_improvised: false, staged_at_location_id: null,
     improv_reviewed_at: null, created_by: "dm", created_at: "now", updated_at: "now",
@@ -50,7 +53,10 @@ function beat(id: string, title: string, kind = "neutral"): QuestBeat {
 }
 
 function edge(source_beat_id: string, target_beat_id: string): QuestBeatEdge {
-  return { id: `${source_beat_id}-${target_beat_id}`, quest_id: "quest-1", campaign_id: "campaign-1", source_beat_id, target_beat_id, created_by: "dm", created_at: "now" };
+  return {
+    id: `${source_beat_id}-${target_beat_id}`, quest_id: "quest-1", campaign_id: "campaign-1", source_beat_id, target_beat_id,
+    route_kind: "choice", thread_label: null, created_by: "dm", created_at: "now",
+  };
 }
 
 function consequence(overrides: Partial<QuestConsequence> & { id: string }): QuestConsequence {
@@ -79,13 +85,14 @@ function transition(overrides: Partial<QuestBeatTransition> & { to_beat_id: stri
     to_beat_title: null,
     provenance: {},
     created_by: "dm",
+    thread_id: "thread-1",
     ...overrides,
   };
 }
 
 function runtimeState(overrides: Partial<QuestRuntimeState> = {}): QuestRuntimeState {
   return {
-    campaign_id: "campaign-1", quest_id: "quest-1", current_beat_id: null, status: "idle",
+    campaign_id: "campaign-1", quest_id: "quest-1", thread_id: "thread-1", current_beat_id: null, status: "idle",
     visit_stack: [], visit_index: 0, return_stack: [], version: 1, updated_by: "dm",
     created_at: "now", updated_at: "now",
     ...overrides,
@@ -213,6 +220,7 @@ describe("QuestBackfillPanel", () => {
     expect(mocks.assertRuntime).toHaveBeenCalledWith({
       campaignId: "campaign-1",
       questId: "quest-1",
+      threadId: "thread-1",
       beatIds: ["a", "b"],
       placeCursor: false,
       reason: "Session 4 recap",

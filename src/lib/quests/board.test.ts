@@ -43,6 +43,8 @@ const ready: QuestBoardSummary = {
   prepGapCount: 0,
   undispatchedLootCount: 0,
   unclaimedLootCount: 0,
+  threads: [],
+  liveThreadCount: 0,
 };
 
 describe("filterQuestBoard", () => {
@@ -152,7 +154,7 @@ describe("deriveQuestBoardSummaries", () => {
       edges: [{ source_beat_id: "beat-a", target_beat_id: "beat-b" }] as never[],
       attachments: [{ beat_id: "beat-b", attachment_type: "handout", prep_gap: true }] as never[],
       loot: [{ beat_id: "beat-b", quest_id: "quest-a", delivery_state: "held" }] as never[],
-      runtime: [{ quest_id: "quest-a", current_beat_id: "beat-a", status: "running" }] as never[],
+      runtime: [{ quest_id: "quest-a", thread_id: "main", current_beat_id: "beat-a", status: "running" }] as never[],
       transitions: [{ to_beat_id: "beat-a" }] as never[],
     });
     expect(summaries["quest-a"]).toMatchObject({
@@ -163,5 +165,37 @@ describe("deriveQuestBoardSummaries", () => {
       prepGapCount: 1,
       undispatchedLootCount: 1,
     });
+  });
+
+  // #853: a quest can hold several live threads at once. The top-level fields
+  // read as the first *running* thread's; every thread gets its own entry.
+  it("reads the top-level fields off the first running thread, and lists every thread on its own", () => {
+    const beats = [
+      { id: "beat-a", quest_id: "quest-a", title: "Arrival" },
+      { id: "beat-b", quest_id: "quest-a", title: "Side chamber" },
+    ] as QuestBeat[];
+    const threads = [
+      { id: "main", quest_id: "quest-a", campaign_id: "campaign-1", label: "Main", status: "live" },
+      { id: "side", quest_id: "quest-a", campaign_id: "campaign-1", label: "The lost heir", status: "live" },
+    ] as never[];
+    const summaries = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      runtime: [
+        { quest_id: "quest-a", thread_id: "side", current_beat_id: "beat-b", status: "paused" },
+        { quest_id: "quest-a", thread_id: "main", current_beat_id: "beat-a", status: "running" },
+      ] as never[],
+      threads,
+    });
+    const summary = summaries["quest-a"]!;
+    expect(summary.isLive).toBe(true);
+    expect(summary.liveThreadCount).toBe(1);
+    expect(summary.currentBeatTitle).toBe("Arrival");
+    expect(summary.threads).toEqual([
+      { id: "side", label: "The lost heir", status: "live", currentBeatTitle: "Side chamber", beatSegments: expect.any(Array) },
+      { id: "main", label: "Main", status: "live", currentBeatTitle: "Arrival", beatSegments: expect.any(Array) },
+    ]);
   });
 });

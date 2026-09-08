@@ -122,6 +122,7 @@ import {
   useQuestRuntimeImprovise,
   useUpdateQuestBeat,
 } from "@/composables/quests/useQuestFlow";
+import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuests } from "@/composables/quests/useQuests";
 import { rootBeatIds } from "@/lib/quests/graph";
 import { rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarget } from "@/lib/quests/run";
@@ -156,7 +157,18 @@ const { confirm } = useConfirm();
 // cursor sat in quest B rendered B's beat, branches, attachments and loot under
 // A's URL. The anchor and the cursor are now the same quest by construction.
 const questId = computed(() => anchorQuestId);
-const contextQuery = useQuestRuntimeContext(questId);
+const threadsQuery = useQuestThreads(questId);
+// Interim (#853): wave 1 replaces this — see #854/#856/#859. Until the
+// cockpit has its own thread switcher, the thread comes from `?thread=` when
+// the URL names one (a link into a specific thread), else the first live
+// thread this quest holds — which is every quest's only thread until a
+// parallel route or the thread bar opens a second one.
+const threadId = computed(() => {
+  const fromRoute = typeof route.query.thread === "string" ? route.query.thread : "";
+  if (fromRoute) return fromRoute;
+  return threadsQuery.data.value?.find((thread) => thread.status === "live")?.id ?? "";
+});
+const contextQuery = useQuestRuntimeContext(questId, threadId);
 const runtimeCommand = useQuestRuntimeCommand();
 const beatsQuery = useQuestBeats(questId);
 const edgesQuery = useQuestBeatEdges(questId);
@@ -268,21 +280,21 @@ async function command(kind: QuestRuntimeCommand, extra: { edgeId?: string } = {
   const state = context.value?.state;
   if (!state) return;
   if (["previous", "advance", "end"].includes(kind) && !(await confirmLeavingDraft())) return;
-  await run({ campaignId: state.campaign_id, questId: anchorQuestId, command: kind, expectedVersion: state.version, ...extra });
+  await run({ campaignId: state.campaign_id, questId: anchorQuestId, threadId: threadId.value, command: kind, expectedVersion: state.version, ...extra });
 }
 
 async function start() {
   const beat = beatsQuery.data.value?.find((row) => row.id === startBeatId.value);
   const state = context.value?.state;
   if (!beat) return;
-  await run({ campaignId: beat.campaign_id, questId: anchorQuestId, command: "start", expectedVersion: state?.version ?? 0, targetBeatId: beat.id });
+  await run({ campaignId: beat.campaign_id, questId: anchorQuestId, threadId: threadId.value, command: "start", expectedVersion: state?.version ?? 0, targetBeatId: beat.id });
 }
 
 async function jump(target: RankedQuestJumpTarget, reason: string, pushReturn: boolean) {
   const state = context.value?.state;
   if (!state || !(await confirmLeavingDraft())) return;
   await run({
-    campaignId: state.campaign_id, questId: anchorQuestId, command: "jump", expectedVersion: state.version,
+    campaignId: state.campaign_id, questId: anchorQuestId, threadId: threadId.value, command: "jump", expectedVersion: state.version,
     targetBeatId: target.beat_id, reason, pushReturn,
     provenance: { surface: "quest-run-jump" },
   });
@@ -294,7 +306,7 @@ async function improvise(value: { title: string; kind: string; reason: string; d
   transitioning.value = true;
   error.value = "";
   try {
-    await improviseRuntime.mutateAsync({ campaignId: state.campaign_id, questId: anchorQuestId, expectedVersion: state.version, ...value });
+    await improviseRuntime.mutateAsync({ campaignId: state.campaign_id, questId: anchorQuestId, threadId: threadId.value, expectedVersion: state.version, ...value });
     improvOpen.value = false;
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "The improvised beat could not be created";

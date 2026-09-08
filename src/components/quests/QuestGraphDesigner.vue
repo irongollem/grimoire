@@ -141,6 +141,7 @@ import {
   useUpdateQuestBeatEdge,
   useUpdateQuestBeat,
 } from "@/composables/quests/useQuestFlow";
+import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds } from "@/lib/quests/presentation";
 import { deriveQuestRouteGates } from "@/lib/quests/gates";
@@ -187,7 +188,13 @@ const edgeGatesQuery = useQuestBeatEdgeGates(questIdRef);
 const objectivesQuery = useQuestObjectives(questIdRef);
 const attachmentsQuery = useQuestBeatAttachmentSummaries(questIdRef);
 const lootQuery = useLootPlacements({ questId: questIdRef });
-const runtimeQuery = useQuestRuntimeState(questId);
+const threadsQuery = useQuestThreads(questIdRef);
+// Interim (#853): wave 1 replaces this — see #854/#856/#859. Build mode reads
+// and edits one thread's cursor for now — its own live thread, since every
+// quest has exactly one until a parallel route or the thread bar opens a
+// second.
+const threadId = computed(() => threadsQuery.data.value?.find((thread) => thread.status === "live")?.id ?? "");
+const runtimeQuery = useQuestRuntimeState(questId, threadId);
 const transitionsQuery = useQuestBeatTransitionsForQuest(questIdRef);
 const updateBeat = useUpdateQuestBeat();
 const createBeatWithRoute = useCreateQuestBeatWithRoute();
@@ -330,7 +337,13 @@ async function linkExisting(sourceBeatId: string, targetBeatId: string) {
   const retry = () => void linkExisting(sourceBeatId, targetBeatId);
   try {
     mutationError.value = "";
-    await createEdge.mutateAsync({ quest_id: questId, campaign_id: campaign.activeCampaignId, source_beat_id: sourceBeatId, target_beat_id: targetBeatId });
+    // Interim (#853): wave 1 replaces this — see #854/#856/#859. Build mode
+    // has no route-kind editor yet, so a drawn route is always a plain choice.
+    await createEdge.mutateAsync({
+      quest_id: questId, campaign_id: campaign.activeCampaignId,
+      source_beat_id: sourceBeatId, target_beat_id: targetBeatId,
+      route_kind: "choice", thread_label: null,
+    });
     retryMutation.value = null;
   } catch (error) { mutationError.value = error instanceof Error ? error.message : "Could not create route"; retryMutation.value = retry; }
 }
@@ -374,12 +387,15 @@ async function archivePendingBeat() {
   const wasCurrent = deletionImpact.value.isCurrent;
   try {
     const endingRuntime = wasCurrent && replacementBeatId.value === "end";
+    // Interim (#853): one thread's disposition, since Build mode only reads
+    // one thread's cursor for now (see `threadId` above) — wave 1 replaces
+    // this with one entry per thread actually standing on the archived beat.
     await archiveBeat.mutateAsync({
       id: beat.id,
       questId,
-      expectedRuntimeVersion: wasCurrent ? runtimeQuery.data.value?.version : undefined,
-      replacementBeatId: wasCurrent && !endingRuntime ? replacementBeatId.value : undefined,
-      endRuntime: endingRuntime,
+      replacements: wasCurrent && threadId.value
+        ? [{ threadId: threadId.value, beatId: endingRuntime ? null : replacementBeatId.value }]
+        : [],
     });
     pendingDeleteBeatId.value = null;
     selectedBeatId.value = null;

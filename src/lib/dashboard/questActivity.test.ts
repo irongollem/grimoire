@@ -36,6 +36,7 @@ const transition = (overrides: Partial<QuestBeatTransition> & { id: string }): Q
   provenance: {},
   created_by: "user-1",
   created_at: "2026-08-20T12:00:00Z",
+  thread_id: "thread-1",
   ...overrides,
 });
 

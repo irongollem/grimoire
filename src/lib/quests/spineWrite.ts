@@ -103,12 +103,11 @@ export async function writeQuestSpine(
           dm_content: toTiptapJson(beat.dmContentPlain),
           read_aloud: beat.readAloudPlain ? toTiptapJson(beat.readAloudPlain) : null,
           how_it_plays: null,
-          outcomes: null,
-          consequences: null,
           rumor_text: null,
           reveal_text: null,
           visibility: "hidden",
           kind: beat.kind,
+          converge_mode: "any",
           presentation_hint: null,
           // 320px apart on one row, matching the spacing QuestFlowCanvas
           // already uses when the DM adds a beat from the "+" button — a
@@ -131,6 +130,10 @@ export async function writeQuestSpine(
             campaign_id: campaignId,
             source_beat_id: beatIdByKey.get(route.from)!,
             target_beat_id: beatIdByKey.get(route.to)!,
+            // A generated spine has no notion of parallel routes or thread
+            // labels (#853) — every route it plans is a plain either/or choice.
+            route_kind: "choice",
+            thread_label: null,
           }),
         ),
       );

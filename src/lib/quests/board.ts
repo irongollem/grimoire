@@ -8,17 +8,30 @@ import type {
   QuestRef,
   QuestRuntimeState,
   QuestRuntimeStatus,
+  QuestThread,
+  QuestThreadStatus,
 } from "@/types/quest.types";
 import { summarizeQuestLootByQuest } from "./loot";
-import { deriveQuestBeatPresentations } from "./presentation";
+import { deriveQuestBeatPresentations, type QuestBeatPresentation } from "./presentation";
 
 /** Optional summaries keep quests valid while graph data loads: they render without invented
  * beat-only data while flow-enabled quests use one batched campaign query. */
 export type QuestBeatSegment = "done" | "here" | "gap" | "upcoming";
 
+/** One thread's own reading of the board (#853) — a quest can hold several at
+ *  once, and each walks its own beats independently. */
+export interface QuestBoardThreadSummary {
+  id: string;
+  label: string;
+  status: QuestThreadStatus;
+  currentBeatTitle: string | null;
+  beatSegments: QuestBeatSegment[];
+}
+
 export interface QuestBoardSummary {
   /** The party is in this chain right now. Several quests can be live at once —
-   * a paused chain still holds its cursor but is not where the table is. */
+   * a paused chain still holds its cursor but is not where the table is.
+   * Reads as the first live thread's status (#853) — see `threads` for the rest. */
   isLive: boolean;
   runtimeStatus: QuestRuntimeStatus | null;
   currentBeatTitle: string | null;
@@ -26,6 +39,11 @@ export interface QuestBoardSummary {
   prepGapCount: number;
   undispatchedLootCount: number;
   unclaimedLootCount: number;
+  /** Every thread this quest currently holds (#853). Empty for a quest with
+   *  no runtime row at all — the pre-threads, never-started case. */
+  threads: QuestBoardThreadSummary[];
+  /** How many of `threads` are actually running, not merely paused or waiting. */
+  liveThreadCount: number;
 }
 
 export interface QuestBoardEntry {
@@ -53,6 +71,23 @@ export interface QuestBoardFilterCounts {
   pendingLoot: number;
 }
 
+/** A thread's own beat segments — "here" means *this* thread's cursor, not any
+ *  thread's, so two threads standing on different beats of the same converge
+ *  target don't both claim every beat between them. */
+function beatSegmentsForThread(
+  beats: QuestBeat[],
+  presentations: Record<string, QuestBeatPresentation>,
+  threadId: string | null,
+): QuestBeatSegment[] {
+  return beats.map((beat) => {
+    const presentation = presentations[beat.id];
+    if (threadId && presentation?.currentThreadIds.includes(threadId)) return "here";
+    if (presentation?.isVisited) return "done";
+    if (presentation && !presentation.isReady) return "gap";
+    return "upcoming";
+  });
+}
+
 export function deriveQuestBoardSummaries(input: {
   beats: QuestBeat[];
   edges: QuestBeatEdge[];
@@ -60,13 +95,21 @@ export function deriveQuestBoardSummaries(input: {
   loot: LootPlacement[];
   runtime?: QuestRuntimeState[];
   transitions?: QuestBeatTransition[];
+  /** `quest_threads` rows, for a thread's label and status (#853). A cursor
+   *  with no matching row here — an older export, or a fixture that predates
+   *  threads — still gets a summary, labelled "Main" and read as live. */
+  threads?: QuestThread[];
 }) {
   const lootByQuest = summarizeQuestLootByQuest(input.loot);
   const presentations = deriveQuestBeatPresentations(input);
-  const cursorByQuest = new Map<string, QuestRuntimeState>();
+  const runtimeByQuest = new Map<string, QuestRuntimeState[]>();
   for (const row of input.runtime ?? []) {
-    if (row.current_beat_id) cursorByQuest.set(row.quest_id, row);
+    if (!row.current_beat_id) continue;
+    const rows = runtimeByQuest.get(row.quest_id) ?? [];
+    rows.push(row);
+    runtimeByQuest.set(row.quest_id, rows);
   }
+  const threadById = new Map((input.threads ?? []).map((thread) => [thread.id, thread]));
   const questIds = new Set(input.beats.map((beat) => beat.quest_id));
   // A room-homed row (#830) carries no quest_id — it belongs to no quest's
   // board summary, so it must not be added as a bogus quest id here.
@@ -75,25 +118,37 @@ export function deriveQuestBoardSummaries(input: {
 
   for (const questId of questIds) {
     const beats = input.beats.filter((beat) => beat.quest_id === questId);
-    const cursor = cursorByQuest.get(questId) ?? null;
-    const current = cursor
-      ? beats.find((beat) => beat.id === cursor.current_beat_id) ?? null
-      : null;
+    const cursors = runtimeByQuest.get(questId) ?? [];
     const loot = lootByQuest[questId] ?? { undispatched: 0, unclaimed: 0 };
+
+    const threads: QuestBoardThreadSummary[] = cursors.map((cursor) => {
+      const current = beats.find((beat) => beat.id === cursor.current_beat_id) ?? null;
+      const thread = threadById.get(cursor.thread_id);
+      return {
+        id: cursor.thread_id,
+        label: thread?.label ?? "Main",
+        status: thread?.status ?? "live",
+        currentBeatTitle: current?.title ?? null,
+        beatSegments: beatSegmentsForThread(beats, presentations, cursor.thread_id),
+      };
+    });
+    const liveThreadCount = cursors.filter((cursor) => cursor.status === "running").length;
+    // Kept as the first live thread's for now (#853) — a running one if any
+    // thread has one, else whichever cursor came first. Every other thread's
+    // own reading lives in `threads`.
+    const primaryCursor = cursors.find((cursor) => cursor.status === "running") ?? cursors[0] ?? null;
+    const primary = threads.find((thread) => thread.id === primaryCursor?.thread_id) ?? null;
+
     result[questId] = {
-      isLive: current !== null && cursor?.status === "running",
-      runtimeStatus: cursor?.status ?? null,
-      currentBeatTitle: current?.title ?? null,
-      beatSegments: beats.map((beat) => {
-        const presentation = presentations[beat.id];
-        if (presentation?.isCurrent) return "here";
-        if (presentation?.isVisited) return "done";
-        if (presentation && !presentation.isReady) return "gap";
-        return "upcoming";
-      }),
+      isLive: liveThreadCount > 0,
+      runtimeStatus: primaryCursor?.status ?? null,
+      currentBeatTitle: primary?.currentBeatTitle ?? null,
+      beatSegments: primary?.beatSegments ?? beatSegmentsForThread(beats, presentations, null),
       prepGapCount: beats.reduce((total, beat) => total + (presentations[beat.id]?.prepGapCount ?? 0), 0),
       undispatchedLootCount: loot.undispatched,
       unclaimedLootCount: loot.unclaimed,
+      threads,
+      liveThreadCount,
     };
   }
   return result;

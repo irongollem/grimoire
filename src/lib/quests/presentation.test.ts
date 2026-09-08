@@ -103,6 +103,25 @@ describe("quest beat presentation", () => {
     expect(result.relic.reach).toBe("ahead");
   });
 
+  // #853: a single quest can now hold several live threads at once — a
+  // parallel route spawns one without touching the other. Both threads
+  // standing on the same converge-all beat must both show up, not just the
+  // last one read.
+  it("marks a beat current for every thread standing on it, within one quest", () => {
+    const result = deriveQuestBeatPresentations({
+      beats: [beat("split"), beat("converge")],
+      edges: [edge("sc1", "split", "converge")],
+      attachments: [],
+      runtime: [
+        { quest_id: "q", thread_id: "main", current_beat_id: "converge" },
+        { quest_id: "q", thread_id: "side", current_beat_id: "converge" },
+      ] as never[],
+      transitions: [],
+    });
+    expect(result.converge.isCurrent).toBe(true);
+    expect(result.converge.currentThreadIds).toEqual(["main", "side"]);
+  });
+
   it("leaves a chain with no cursor entirely out of the run", () => {
     const result = deriveQuestBeatPresentations({
       beats: [beat("a"), beat("b"), { ...beat("untouched"), quest_id: "dormant" } as QuestBeat],

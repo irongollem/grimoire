@@ -5,7 +5,7 @@ import type { QuestBeatPresentation } from "./presentation";
 
 const beat = (id: string, x: number, y: number): QuestBeat => ({
   id, quest_id: "quest", campaign_id: "campaign", title: id, dm_content: null,
-  read_aloud: null, how_it_plays: null, outcomes: null, consequences: null,
+  read_aloud: null, how_it_plays: null, converge_mode: "any",
   rumor_text: null, reveal_text: null, visibility: "hidden", kind: "neutral",
   presentation_hint: null, canvas_x: x, canvas_y: y, is_improvised: false, staged_at_location_id: null, improv_reviewed_at: null,
   created_by: "dm", created_at: "now", updated_at: "now",
@@ -27,7 +27,7 @@ describe("quest flow adapter", () => {
   });
 
   it("maps shared presentation and visited-route state without changing domain rows", () => {
-    const presentation = { isCurrent: true, isVisited: true, isReady: false, isDisconnected: false, reach: "current", prepGapCount: 1, prepGaps: [{ kind: "guidance", label: "Add DM guidance" }], handoutCount: 1, loot: { total: 1, undispatched: 1, unclaimed: 0 } } satisfies QuestBeatPresentation;
+    const presentation = { isCurrent: true, isVisited: true, isReady: false, isDisconnected: false, reach: "current", prepGapCount: 1, prepGaps: [{ kind: "guidance", label: "Add DM guidance" }], handoutCount: 1, loot: { total: 1, undispatched: 1, unclaimed: 0 }, currentThreadIds: [] } satisfies QuestBeatPresentation;
     const edges = [{ id: "e", source_beat_id: "a", target_beat_id: "b" }] as QuestBeatEdge[];
     const graph = toQuestFlowGraph([beat("a", 0, 0), beat("b", 1, 1)], edges, { a: presentation }, new Set(["e"]));
     expect(graph.nodes[0]!.data!.presentation).toBe(presentation);

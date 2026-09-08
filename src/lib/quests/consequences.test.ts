@@ -67,6 +67,32 @@ describe("describeQuestConsequenceAction", () => {
     )).toBe("Worsen an NPC's disposition by 1 step");
   });
 
+  // The three world verbs the design adds for knowledge, favours and
+  // milestones (#853) — same `{ text }` payload shape, different label.
+  it("describes the three payoff verbs by their own text, not by a shared label", () => {
+    expect(describeQuestConsequenceAction(
+      row({ action: "grant_knowledge", target_objective_id: null, action_payload: { text: "The cult meets at midnight" } }),
+      objectiveLabel,
+    )).toBe('Knowledge: "The cult meets at midnight"');
+
+    expect(describeQuestConsequenceAction(
+      row({ action: "owe_favor", target_objective_id: null, action_payload: { text: "A favor, unspecified" } }),
+      objectiveLabel,
+    )).toBe('Favour owed: "A favor, unspecified"');
+
+    expect(describeQuestConsequenceAction(
+      row({ action: "award_milestone", target_objective_id: null, action_payload: { text: "Renown among the dockworkers" } }),
+      objectiveLabel,
+    )).toBe('Milestone: "Renown among the dockworkers"');
+  });
+
+  it("marks a missing text field on a payoff verb rather than rendering an empty one", () => {
+    expect(describeQuestConsequenceAction(
+      row({ action: "grant_knowledge", target_objective_id: null, action_payload: {} }),
+      objectiveLabel,
+    )).toBe('Knowledge: "???"');
+  });
+
   it("describes a quest unlock by its own label", () => {
     expect(describeQuestConsequenceAction(
       row({ action: "unlock_quest", target_objective_id: null, action_payload: {} }),

@@ -10,6 +10,7 @@ const chain = (
   quest_id, quest_title, quest_status: "active", beat_id: `${quest_id}-beat`,
   beat_title: "02. Main Keep", beat_kind: "explore", runtime_status,
   version: 1, updated_at: "2026-08-22T00:00:00Z",
+  thread_id: `${quest_id}-thread`, thread_label: "Main", thread_status: "live", sibling_count: 0,
 });
 
 const quest = (id: string, title: string) => ({ id, title }) as Quest;

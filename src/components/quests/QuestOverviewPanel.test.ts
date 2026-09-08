@@ -35,7 +35,7 @@ const quest = {
 
 const beat = (id: string, title: string): QuestBeat => ({
   id, quest_id: "quest-1", campaign_id: "campaign-1", title,
-  dm_content: null, read_aloud: null, how_it_plays: null, outcomes: null, consequences: null,
+  dm_content: null, read_aloud: null, how_it_plays: null, converge_mode: "any",
   rumor_text: null, reveal_text: null, visibility: "hidden", kind: "neutral",
   presentation_hint: null, canvas_x: 0, canvas_y: 0, is_improvised: false, staged_at_location_id: null,
   improv_reviewed_at: null, created_by: "dm", created_at: "now", updated_at: "now",
@@ -94,7 +94,7 @@ describe("QuestOverviewPanel", () => {
   it("lists every graph root as a link into Story flow, never a beat with an incoming route", () => {
     mocks.beats = [beat("a", "The tavern"), beat("b", "The docks"), beat("c", "The cave")];
     mocks.edges = [
-      { id: "e", quest_id: "quest-1", campaign_id: "campaign-1", source_beat_id: "a", target_beat_id: "c", created_by: "dm", created_at: "now" },
+      { id: "e", quest_id: "quest-1", campaign_id: "campaign-1", source_beat_id: "a", target_beat_id: "c", route_kind: "choice", thread_label: null, created_by: "dm", created_at: "now" },
     ];
     const wrapper = mountPanel();
     expect(wrapper.text()).toContain("The tavern");

@@ -59,6 +59,9 @@ export function ledgerVerbOf(action: QuestConsequenceAction): LedgerVerb | null 
     case "send_broadcast":
     case "shift_npc_relationship":
     case "unlock_quest":
+    case "grant_knowledge":
+    case "owe_favor":
+    case "award_milestone":
       return null;
     default: {
       const unhandled: never = action;
@@ -216,6 +219,7 @@ export interface SpineTransition {
   to_quest_id?: unknown;
   to_beat_id?: unknown;
   to_beat_title?: unknown;
+  thread_id?: unknown;
 }
 
 export interface StorySpineInput {
@@ -229,6 +233,14 @@ export interface StorySpineInput {
   objectives: readonly QuestObjective[];
   /** Resolves a staged place to its name; `null` when the place is unknown. */
   placeNameOf?: (locationId: string) => string | null;
+  /**
+   * Restricts the played rows to this thread (#853) — several threads can
+   * share one quest's transition log, and a spine reads as one continuous
+   * story only when it is one thread's own history. Omitted, every row still
+   * counts, which is what a thread-less (`assert`) row and every caller before
+   * threads existed both need.
+   */
+  threadId?: string;
 }
 
 /**
@@ -245,6 +257,11 @@ export function storySpine(input: StorySpineInput): SpineEntry[] {
 
   for (const row of input.transitions) {
     if (row.to_quest_id !== input.questId) continue;
+    // A thread filter keeps this thread's own rows plus thread-less asserts —
+    // the same rule `path_so_far` is built under server-side. A row with no
+    // `thread_id` at all (an older transition, or a caller not passing one)
+    // is never excluded by a filter it cannot answer.
+    if (input.threadId !== undefined && row.thread_id != null && row.thread_id !== input.threadId) continue;
     const beatId = typeof row.to_beat_id === "string" ? row.to_beat_id : null;
     if (!beatId || beatId === input.currentBeatId || seen.has(beatId)) continue;
     seen.add(beatId);

@@ -65,6 +65,9 @@ const EFFECT_VERBS: Record<QuestConsequenceAction, string> = {
   // says that a disposition moves; the rule editor says by how much.
   shift_npc_relationship: "shifts an NPC's disposition",
   unlock_quest: "unlocks a quest",
+  grant_knowledge: "grants knowledge",
+  owe_favor: "owes a favor",
+  award_milestone: "awards a milestone",
 };
 
 /** What a branch card shows for one line of "taking this route also does

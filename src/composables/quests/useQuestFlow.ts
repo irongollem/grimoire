@@ -28,9 +28,12 @@ import type {
   QuestConsequence,
   QuestConsequenceInsert,
   QuestRuntimeState,
+  QuestThread,
 } from "@/types/quest.types";
 
-const BEATS_KEY = "quest_beats";
+/** Exported so `useQuestThreads` can invalidate the board summary too — a
+ *  thread opening or closing changes what the board's `threads[]` shows. */
+export const BEATS_KEY = "quest_beats";
 const EDGES_KEY = "quest_beat_edges";
 const EDGE_GATES_KEY = "quest_beat_edge_gates";
 const RUNTIME_KEY = "quest_runtime_state";
@@ -302,15 +305,16 @@ export function useQuestBoardSummaries() {
     queryKey: computed(() => [BEATS_KEY, "board", campaign.activeCampaignId]),
     queryFn: async (): Promise<Record<string, QuestBoardSummary>> => {
       const campaignId = campaign.activeCampaignId!;
-      const [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult] = await Promise.all([
+      const [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult] = await Promise.all([
         supabase.from("quest_beats").select("*").eq("campaign_id", campaignId).neq("kind", "archived").order("created_at"),
         supabase.from("quest_beat_edges").select("*").eq("campaign_id", campaignId).order("created_at"),
         supabase.from("quest_beat_attachments").select("*").eq("campaign_id", campaignId).order("sort_order").order("created_at"),
         supabase.from("quest_runtime_state").select("*").eq("campaign_id", campaignId),
         supabase.from("quest_beat_transitions").select("*").eq("campaign_id", campaignId).order("created_at"),
         supabase.rpc("get_loot_placements", { p_campaign_id: campaignId, p_quest_id: null, p_location_id: null }),
+        supabase.from("quest_threads").select("*").eq("campaign_id", campaignId),
       ]);
-      const error = [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult]
+      const error = [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult]
         .find((result) => result.error)?.error;
       if (error) throw error;
 
@@ -327,6 +331,7 @@ export function useQuestBoardSummaries() {
         runtime: (runtimeResult.data ?? []) as QuestRuntimeState[],
         transitions: (transitionsResult.data ?? []) as QuestBeatTransition[],
         loot: (lootResult.data ?? []) as LootPlacement[],
+        threads: (threadsResult.data ?? []) as QuestThread[],
       });
     },
     enabled: () => !!campaign.activeCampaignId,
@@ -489,22 +494,31 @@ export function useDeleteQuestBeat() {
   });
 }
 
+/** One thread's disposition when the beat it stands on is archived: move to
+ *  `beatId`, or end that thread's runtime when `beatId` is null. Replaces the
+ *  old single `replacementBeatId`/`endRuntime` pair (#853) — several threads
+ *  can now stand on the same beat, and each needs its own answer. */
+export interface ArchiveQuestBeatReplacement {
+  threadId: string;
+  beatId: string | null;
+}
+
 /** Soft deletion keeps transition FKs/history intact while removing the beat
  * from authored flow. Only beat-owned placements and routes are detached; their
  * authoritative encounters/entities remain untouched. */
 export interface ArchiveQuestBeatInput {
   id: string;
-  expectedRuntimeVersion?: number;
-  replacementBeatId?: string;
-  endRuntime?: boolean;
+  /** Empty when no thread currently stands on this beat. */
+  replacements: ArchiveQuestBeatReplacement[];
 }
 
 export async function archiveQuestBeat(input: ArchiveQuestBeatInput) {
   const { error } = await supabase.rpc("archive_quest_beat", {
     p_beat_id: input.id,
-    p_expected_runtime_version: input.expectedRuntimeVersion ?? null,
-    p_replacement_beat_id: input.replacementBeatId ?? null,
-    p_end_runtime: input.endRuntime ?? false,
+    p_replacements: input.replacements.map((replacement) => ({
+      thread_id: replacement.threadId,
+      beat_id: replacement.beatId,
+    })),
   });
   if (error) throw error;
 }
@@ -607,42 +621,53 @@ export function useClearQuestBeatEdgeGate() {
   });
 }
 
-export function useQuestRuntimeState(questId: string | Ref<string>) {
+/** A thread's own cursor (#853) — keyed `(campaign, quest, thread)`, matching
+ *  the row's own primary key. Disabled while `threadId` is empty: there is no
+ *  thread-less cursor left to fall back to. */
+export function useQuestRuntimeState(questId: string | Ref<string>, threadId: string | Ref<string>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const id = asRef(questId);
+  const thread = asRef(threadId);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_KEY, campaignId.value, id.value]),
+    queryKey: computed(() => [RUNTIME_KEY, campaignId.value, id.value, thread.value]),
     queryFn: async (): Promise<QuestRuntimeState | null> => {
       const { data, error } = await supabase
         .from("quest_runtime_state")
         .select("*")
         .eq("campaign_id", campaignId.value!)
         .eq("quest_id", id.value)
+        .eq("thread_id", thread.value)
         .maybeSingle();
       if (error) throw error;
       return data as QuestRuntimeState | null;
     },
-    enabled: () => !!campaignId.value && !!id.value,
+    enabled: () => !!campaignId.value && !!id.value && !!thread.value,
     refetchInterval: 5_000,
   });
 }
 
-export function useQuestRuntimeContext(questId: string | Ref<string>) {
+/** A thread's own runtime context (#853) — the current beat, its outgoing
+ *  routes, and every other thread this quest holds (`context.threads`), all
+ *  scoped to the one thread this hook was asked for. Disabled while
+ *  `threadId` is empty. */
+export function useQuestRuntimeContext(questId: string | Ref<string>, threadId: string | Ref<string>) {
   const campaign = useCampaignStore();
   const campaignId = computed(() => campaign.activeCampaignId);
   const id = asRef(questId);
+  const thread = asRef(threadId);
   return useQuery({
-    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value, id.value]),
+    queryKey: computed(() => [RUNTIME_CONTEXT_KEY, campaignId.value, id.value, thread.value]),
     queryFn: async (): Promise<QuestRuntimeContext> => {
       const { data, error } = await supabase.rpc("get_quest_runtime_context", {
         p_campaign_id: campaignId.value!,
         p_quest_id: id.value,
+        p_thread_id: thread.value,
       });
       if (error) throw error;
       return data as QuestRuntimeContext;
     },
-    enabled: () => !!campaignId.value && !!id.value,
+    enabled: () => !!campaignId.value && !!id.value && !!thread.value,
     refetchInterval: 5_000,
   });
 }
@@ -703,8 +728,8 @@ export function useQuestRuntimeCommand() {
       return data as QuestRuntimeContext;
     },
     onSuccess: (context, input) => {
-      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId, input.questId], context);
-      queryClient.setQueryData([RUNTIME_KEY, input.campaignId, input.questId], context.state);
+      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId, input.questId, input.threadId], context);
+      queryClient.setQueryData([RUNTIME_KEY, input.campaignId, input.questId, input.threadId], context.state);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });
@@ -725,6 +750,7 @@ export function useQuestRuntimeCommand() {
 export interface QuestAssertRuntimeInput {
   campaignId: string;
   questId: string;
+  threadId: string;
   /** In story order — the order beats are applied and chained from. */
   beatIds: string[];
   placeCursor: boolean;
@@ -755,6 +781,7 @@ export function useAssertQuestRuntime() {
       const { data, error } = await supabase.rpc("assert_quest_runtime", {
         p_campaign_id: input.campaignId,
         p_quest_id: input.questId,
+        p_thread_id: input.threadId,
         p_beat_ids: input.beatIds,
         p_place_cursor: input.placeCursor,
         p_reason: input.reason?.trim() || null,
@@ -780,6 +807,7 @@ export function useAssertQuestRuntime() {
 export interface QuestRuntimeImprovInput {
   campaignId: string;
   questId: string;
+  threadId: string;
   expectedVersion: number;
   title: string;
   kind: string;
@@ -797,6 +825,7 @@ export function useQuestRuntimeImprovise() {
       const { data, error } = await supabase.rpc("improvise_quest_runtime", {
         p_campaign_id: input.campaignId,
         p_quest_id: input.questId,
+        p_thread_id: input.threadId,
         p_expected_version: input.expectedVersion,
         p_title: input.title,
         p_kind: input.kind,
@@ -810,11 +839,12 @@ export function useQuestRuntimeImprovise() {
       return data as { context: QuestRuntimeContext; beat: QuestBeat };
     },
     onSuccess: ({ context }, input) => {
-      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId, input.questId], context);
-      // Three parts, matching `useQuestRuntimeState`'s key and the line above.
-      // It wrote a two-part key, which no query reads, so the optimistic update
-      // landed nowhere and the cursor moved only once the refetch came back.
-      queryClient.setQueryData([RUNTIME_KEY, input.campaignId, input.questId], context.state);
+      queryClient.setQueryData([RUNTIME_CONTEXT_KEY, input.campaignId, input.questId, input.threadId], context);
+      // Four parts, matching `useQuestRuntimeState`'s key and the line above.
+      // It once wrote a two-part key, which no query reads, so the optimistic
+      // update landed nowhere and the cursor moved only once the refetch came
+      // back — threads add a fourth part for the same reason they added a third.
+      queryClient.setQueryData([RUNTIME_KEY, input.campaignId, input.questId, input.threadId], context.state);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [RUNTIME_KEY] });

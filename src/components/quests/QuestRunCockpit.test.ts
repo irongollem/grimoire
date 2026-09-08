@@ -40,6 +40,9 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.updateBeat }),
   useQuestRuntimeImprovise: () => ({ mutateAsync: mocks.improvise }),
 }));
+vi.mock("@/composables/quests/useQuestThreads", () => ({
+  useQuestThreads: () => ({ data: { value: [{ id: "thread-1", status: "live" }] } }),
+}));
 
 const beat = { id: "b1", quest_id: "q1", campaign_id: "c1", title: "Opening", kind: "social" };
 const runningContext = () => ({
@@ -194,6 +197,17 @@ describe("QuestRunCockpit", () => {
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Preview as players")!.trigger("click");
     await wrapper.vm.$nextTick();
     expect(wrapper.findComponent(QuestPlayerPreviewDrawer).props("visibleTo")).toEqual(["anchor-player"]);
+  });
+
+  // #853, interim: until the cockpit has its own thread switcher, it runs the
+  // first live thread this quest holds — which is every quest's only thread
+  // until a parallel route or the thread bar opens a second one.
+  it("passes the quest's first live thread through to every runtime command", async () => {
+    mocks.context.value = runningContext();
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    wrapper.findComponent(QuestRunOutcomeStrip).vm.$emit("advance", "e1");
+    await wrapper.vm.$nextTick();
+    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ threadId: "thread-1" }));
   });
 
   it("lists the other chains the party has open, and never this one", () => {

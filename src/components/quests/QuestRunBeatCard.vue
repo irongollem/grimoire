@@ -28,21 +28,14 @@
       <RichTextViewer :content="beat.read_aloud" />
     </section>
 
-    <div class="grid gap-3 lg:grid-cols-2">
-      <section v-if="beat.dm_content || beat.how_it_plays" class="space-y-3 rounded-lg border border-border bg-card p-3">
-        <h3 class="font-cinzel text-sm font-bold text-foreground">Run this moment</h3>
-        <RichTextViewer v-if="beat.dm_content" :content="beat.dm_content" />
-        <div v-if="beat.how_it_plays">
-          <p class="mb-1 text-caption font-semibold text-muted-foreground">How it plays</p>
-          <RichTextViewer :content="beat.how_it_plays" />
-        </div>
-      </section>
-      <section v-if="beat.outcomes || beat.consequences" class="space-y-3 rounded-lg border border-border bg-card p-3">
-        <h3 class="font-cinzel text-sm font-bold text-foreground">Outcomes & consequences</h3>
-        <RichTextViewer v-if="beat.outcomes" :content="beat.outcomes" />
-        <RichTextViewer v-if="beat.consequences" :content="beat.consequences" />
-      </section>
-    </div>
+    <section v-if="beat.dm_content || beat.how_it_plays" class="space-y-3 rounded-lg border border-border bg-card p-3">
+      <h3 class="font-cinzel text-sm font-bold text-foreground">Run this moment</h3>
+      <RichTextViewer v-if="beat.dm_content" :content="beat.dm_content" />
+      <div v-if="beat.how_it_plays">
+        <p class="mb-1 text-caption font-semibold text-muted-foreground">How it plays</p>
+        <RichTextViewer :content="beat.how_it_plays" />
+      </div>
+    </section>
 
     <section class="space-y-2">
       <h3 class="font-cinzel text-sm font-bold text-foreground">In this room</h3>

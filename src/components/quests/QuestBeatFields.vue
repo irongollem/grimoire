@@ -68,14 +68,6 @@
         How it plays
         <RichTextEditor v-model="draft.how_it_plays" size="md" placeholder="Checks, pacing, social pressure, exploration, or combat guidance…" />
       </label>
-      <label class="block space-y-1 text-caption font-semibold text-foreground">
-        Outcomes
-        <RichTextEditor v-model="draft.outcomes" size="md" placeholder="Likely immediate outcomes and branches…" />
-      </label>
-      <label class="block space-y-1 text-caption font-semibold text-foreground">
-        Consequences
-        <RichTextEditor v-model="draft.consequences" size="md" placeholder="What changes later in the world or other quests?" />
-      </label>
     </template>
 
     <div class="grid gap-3" :class="compact ? '' : 'md:grid-cols-2'">

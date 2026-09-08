@@ -38,6 +38,8 @@ const summary: QuestBoardSummary = {
   prepGapCount: 1,
   undispatchedLootCount: 3,
   unclaimedLootCount: 0,
+  threads: [],
+  liveThreadCount: 1,
 };
 
 const global = { stubs: { RouterLink: RouterLinkStub } };

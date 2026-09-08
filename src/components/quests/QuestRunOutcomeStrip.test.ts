@@ -5,8 +5,16 @@ import QuestRunOutcomeStrip from "./QuestRunOutcomeStrip.vue";
 const closedGate = { objective_id: "o1", objective: "Clear the checkpoint", required_status: "complete", current_status: "pending", is_open: false } as const;
 
 const outgoing = [
-  { edge_id: "e1", quest_id: "q1", beat_id: "b2", gate: null, effects: [], beat_title: "Bridge", beat_kind: "explore", visibility: "hidden" as const, presentationHint: "Chase", prepGapCount: 1, isVisited: true },
-  { edge_id: "e2", quest_id: "q1", beat_id: "b3", gate: null, effects: [], beat_title: "Tunnel", beat_kind: "explore", visibility: "revealed" as const, presentationHint: null, prepGapCount: 0, isVisited: false },
+  {
+    edge_id: "e1", quest_id: "q1", beat_id: "b2", gate: null, effects: [], beat_title: "Bridge", beat_kind: "explore",
+    route_kind: "choice" as const, thread_label: null, converge_mode: "any" as const, site: null, payoff: [], loot: [],
+    visibility: "hidden" as const, presentationHint: "Chase", prepGapCount: 1, isVisited: true,
+  },
+  {
+    edge_id: "e2", quest_id: "q1", beat_id: "b3", gate: null, effects: [], beat_title: "Tunnel", beat_kind: "explore",
+    route_kind: "choice" as const, thread_label: null, converge_mode: "any" as const, site: null, payoff: [], loot: [],
+    visibility: "revealed" as const, presentationHint: null, prepGapCount: 0, isVisited: false,
+  },
 ];
 
 describe("QuestRunOutcomeStrip", () => {

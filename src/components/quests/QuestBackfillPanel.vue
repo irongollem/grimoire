@@ -64,7 +64,7 @@
             label="Mark as played"
             variant="outline"
             size="sm"
-            :disabled="!selectedBeatIds.length || !campaignId"
+            :disabled="!selectedBeatIds.length || !campaignId || !threadId"
             :loading="submitting && pendingPlaceCursor === false"
             @click="submit(false)"
           />
@@ -72,7 +72,7 @@
             :label="placeCursorLabel"
             variant="primary"
             size="sm"
-            :disabled="!selectedBeatIds.length || !campaignId"
+            :disabled="!selectedBeatIds.length || !campaignId || !threadId"
             :loading="submitting && pendingPlaceCursor === true"
             @click="submit(true)"
           />
@@ -93,6 +93,7 @@ import {
   useQuestRuntimeState,
   type QuestAssertRuntimeResult,
 } from "@/composables/quests/useQuestFlow";
+import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
 import { storyBeatOrder } from "@/lib/quests/graph";
@@ -137,7 +138,13 @@ const beatsQuery = useQuestBeats(questId);
 const edgesQuery = useQuestBeatEdges(questId);
 const consequencesQuery = useQuestConsequences(questId);
 const { data: objectivesData } = useQuestObjectives(questId);
-const runtimeQuery = useQuestRuntimeState(questId);
+const threadsQuery = useQuestThreads(questId);
+// Interim (#853): wave 1 replaces this — see #854/#856/#859. Backfilling
+// records history against one thread — its own live thread, since every
+// quest has exactly one until a parallel route or the thread bar opens a
+// second.
+const threadId = computed(() => threadsQuery.data.value?.find((thread) => thread.status === "live")?.id ?? "");
+const runtimeQuery = useQuestRuntimeState(questId, threadId);
 const transitionsQuery = useQuestBeatTransitionsForQuest(questId);
 const assertRuntime = useAssertQuestRuntime();
 
@@ -278,7 +285,7 @@ const resultSummary = computed(() => {
 });
 
 async function submit(placeCursor: boolean) {
-  if (!beatIdsInSubmitOrder.value.length || !campaignId.value) return;
+  if (!beatIdsInSubmitOrder.value.length || !campaignId.value || !threadId.value) return;
   submitting.value = true;
   pendingPlaceCursor.value = placeCursor;
   error.value = "";
@@ -288,6 +295,7 @@ async function submit(placeCursor: boolean) {
     result.value = await assertRuntime.mutateAsync({
       campaignId: campaignId.value,
       questId: questId.value,
+      threadId: threadId.value,
       beatIds: beatIdsInSubmitOrder.value,
       placeCursor,
       reason: reason.value,

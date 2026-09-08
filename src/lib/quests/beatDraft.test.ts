@@ -5,7 +5,7 @@ import { questBeatDraftsEqual, questBeatDraftToUpdate, questBeatToDraft } from "
 const beat = {
   id: "beat", title: "A choice", kind: "social", presentation_hint: null,
   visibility: "hidden", dm_content: "lead", read_aloud: "speech",
-  how_it_plays: "talk", outcomes: "branch", consequences: "later",
+  how_it_plays: "talk",
   rumor_text: null, reveal_text: null,
 } as QuestBeat;
 
@@ -13,7 +13,7 @@ describe("quest beat draft", () => {
   it("round-trips both editor surfaces through one field model", () => {
     const draft = questBeatToDraft(beat);
     expect(questBeatDraftToUpdate(draft)).toMatchObject({
-      title: "A choice", dm_content: "lead", read_aloud: "speech", consequences: "later",
+      title: "A choice", dm_content: "lead", read_aloud: "speech", how_it_plays: "talk",
     });
   });
 
@@ -21,7 +21,7 @@ describe("quest beat draft", () => {
     const before = questBeatToDraft(beat);
     const after = { ...before, kind: "combat" };
     expect(questBeatDraftToUpdate(after)).toMatchObject({
-      kind: "combat", dm_content: "lead", read_aloud: "speech", outcomes: "branch",
+      kind: "combat", dm_content: "lead", read_aloud: "speech", how_it_plays: "talk",
     });
     expect(questBeatDraftsEqual(before, after)).toBe(false);
   });
