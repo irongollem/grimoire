@@ -466,6 +466,8 @@ end $function$;
 comment on function private.apply_quest_consequences(uuid, uuid, uuid, uuid, uuid, uuid[], boolean, uuid[]) is
   'The one rule engine: fires a beat/edge/objective-became/ledger-settled rule at most once per transition, unless its id is held (#852), in which case it is logged and does nothing.';
 
+revoke execute on function private.apply_quest_consequences(uuid, uuid, uuid, uuid, uuid, uuid[], boolean, uuid[]) from public, anon, authenticated;
+
 -- ── 3. perform_quest_consequence gains the three verbs and the ledger arms ──
 
 create or replace function private.perform_quest_consequence(p_event_id uuid, p_year integer, p_month integer, p_day integer)
@@ -963,6 +965,11 @@ begin
     -- A thread that was parked waiting for a merge is, again, simply running.
     update public.quest_threads set status = 'live' where id = p_thread_id and status = 'waiting';
   elsif v_kind = 'enter' then
+    -- A quest ended and run again restarts on its Main thread: `end` closed
+    -- the thread, so `start` reopens it, or the thread bar would show a row
+    -- that is closed and running at once.
+    update public.quest_threads set status = 'live', closed_at = null
+     where id = p_thread_id and status = 'closed';
     -- start never converges (nothing has been "walked" into it).
     perform private.apply_quest_consequences(
       p_campaign_id, p_quest_id, v_transition_id, v_to_beat_id, null, '{}'::uuid[], null, v_hold
@@ -1789,3 +1796,9 @@ grant execute on function public.end_campaign_quest_session(uuid) to authenticat
 
 comment on function public.end_campaign_quest_session(uuid) is
   'Pauses every running thread in the campaign at its current beat. Waiting threads (parked for a merge) are left waiting.';
+
+-- ── 12. Players see a milestone the moment it is awarded ────────────────────
+--
+-- party_milestones is member-readable and the party screen lists it; without
+-- the publication a milestone awarded at the table waits for a refetch.
+alter publication supabase_realtime add table public.party_milestones;

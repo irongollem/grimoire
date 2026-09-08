@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(73);
+select plan(75);
 
 -- Fixture inserts below run as postgres between scenarios (reset role), so
 -- none of them should be quota-checked against a stale sub left by whichever
@@ -572,6 +572,33 @@ $$, 'Not authorized', 'a member cannot enumerate the open threads');
 select throws_ok($$
   select public.archive_quest_beat('85200000-0000-4000-8000-000000000030')
 $$, 'P0002', 'Beat not found or not editable', 'a member cannot archive a beat');
+
+
+-- ── A thread ended and run again is live again, not closed-and-running ──────
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '85200000-0000-4000-8000-000000000001', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select public.close_quest_thread('85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000021',
+  (select id from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000021' and label = 'Main'), 'done for tonight');
+select public.transition_quest_runtime(
+  '85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000021',
+  (select id from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000021' and label = 'Main'),
+  'start',
+  (select version from public.quest_runtime_state where thread_id = (select id from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000021' and label = 'Main')),
+  '85200000-0000-4000-8000-000000000060'
+);
+select is(
+  (select status || ':' || coalesce(closed_at::text, 'open') from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000021' and label = 'Main'),
+  'live:open', 'restarting a closed thread reopens it — never closed and running at once'
+);
+
+-- ── A member cannot end the table's session ─────────────────────────────────
+select set_config('request.jwt.claim.sub', '85200000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$ select public.end_campaign_quest_session('85200000-0000-4000-8000-000000000010') $$,
+  'Not authorized', 'a member cannot end every running thread of the campaign'
+);
 
 select * from finish();
 rollback;
