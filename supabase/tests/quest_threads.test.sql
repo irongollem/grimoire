@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(75);
+select plan(79);
 
 -- Fixture inserts below run as postgres between scenarios (reset role), so
 -- none of them should be quota-checked against a stale sub left by whichever
@@ -598,6 +598,33 @@ select set_config('request.jwt.claim.sub', '85200000-0000-4000-8000-000000000002
 select throws_ok(
   $$ select public.end_campaign_quest_session('85200000-0000-4000-8000-000000000010') $$,
   'Not authorized', 'a member cannot end every running thread of the campaign'
+);
+
+-- ── ensure_quest_main_thread: the invariant repairs itself ──────────────────
+-- A seeded or imported quest bypasses the insert trigger and has no thread.
+reset role;
+insert into public.quests (id, user_id, campaign_id, title)
+values ('85200000-0000-4000-8000-000000000029', '85200000-0000-4000-8000-000000000001', '85200000-0000-4000-8000-000000000010', 'Imported');
+delete from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000029';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '85200000-0000-4000-8000-000000000001', true);
+select is(
+  (select label || ':' || status from public.ensure_quest_main_thread('85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000029')),
+  'Main:live', 'a quest with no thread gets Main, live'
+);
+select is(
+  (select count(*)::int from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000029'),
+  1, 'calling it again creates nothing — idempotent'
+);
+select is(
+  (select id from public.ensure_quest_main_thread('85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000029')),
+  (select id from public.quest_threads where quest_id = '85200000-0000-4000-8000-000000000029'),
+  'and returns the thread that already exists'
+);
+select set_config('request.jwt.claim.sub', '85200000-0000-4000-8000-000000000002', true);
+select throws_ok(
+  $$ select public.ensure_quest_main_thread('85200000-0000-4000-8000-000000000010', '85200000-0000-4000-8000-000000000029') $$,
+  'Not authorized', 'a member cannot open a quest''s thread'
 );
 
 select * from finish();

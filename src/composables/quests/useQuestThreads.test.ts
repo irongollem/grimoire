@@ -1,12 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
+const mocks = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn() }));
 
 vi.mock("@/lib/supabase", () => ({
-  supabase: { rpc: mocks.rpc },
+  supabase: { rpc: mocks.rpc, from: mocks.from },
 }));
 
-import { closeQuestThread, fireHeldConsequence, openQuestThread } from "./useQuestThreads";
+import { closeQuestThread, fetchQuestThreads, fireHeldConsequence, openQuestThread } from "./useQuestThreads";
+
+function threadsSelect(rows: unknown[]) {
+  const order = vi.fn().mockResolvedValue({ data: rows, error: null });
+  const eq = vi.fn(() => ({ order }));
+  const select = vi.fn(() => ({ eq }));
+  mocks.from.mockReturnValue({ select });
+}
+
+// A seeded or imported quest bypasses the Main-thread trigger; the first read
+// of an empty list repairs it through the engine so "Start run" has a thread.
+describe("fetchQuestThreads", () => {
+  beforeEach(() => { mocks.rpc.mockReset(); mocks.from.mockReset(); });
+
+  it("returns the threads it finds without touching the engine", async () => {
+    threadsSelect([{ id: "t1", label: "Main" }]);
+    expect(await fetchQuestThreads("q1", "c1")).toEqual([{ id: "t1", label: "Main" }]);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it("asks the engine for Main when a quest has no thread at all", async () => {
+    threadsSelect([]);
+    mocks.rpc.mockResolvedValue({ data: { id: "t-main", label: "Main", status: "live" }, error: null });
+    expect(await fetchQuestThreads("q1", "c1")).toEqual([{ id: "t-main", label: "Main", status: "live" }]);
+    expect(mocks.rpc).toHaveBeenCalledWith("ensure_quest_main_thread", { p_campaign_id: "c1", p_quest_id: "q1" });
+  });
+
+  it("leaves the list empty when no campaign is active to repair against", async () => {
+    threadsSelect([]);
+    expect(await fetchQuestThreads("q1", null)).toEqual([]);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+});
 
 describe("openQuestThread", () => {
   beforeEach(() => mocks.rpc.mockReset());

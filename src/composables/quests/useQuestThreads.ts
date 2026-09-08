@@ -20,14 +20,32 @@ function invalidateThreadCaches(queryClient: ReturnType<typeof useQueryClient>, 
   queryClient.invalidateQueries({ queryKey: [BEATS_KEY, "board"] });
 }
 
-async function fetchQuestThreads(questId: string): Promise<QuestThread[]> {
+export async function fetchQuestThreads(questId: string, campaignId: string | null): Promise<QuestThread[]> {
   const { data, error } = await supabase
     .from("quest_threads")
     .select("*")
     .eq("quest_id", questId)
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return (data ?? []) as QuestThread[];
+  const threads = (data ?? []) as QuestThread[];
+  if (threads.length > 0 || !campaignId) return threads;
+  return [await ensureQuestMainThread(campaignId, questId)];
+}
+
+/**
+ * A quest always has a Main thread — the insert trigger and the backfill in
+ * `20260907234512` promise it — but a seeded or imported quest bypasses the
+ * trigger (a local `db reset` loads `seed.sql` with triggers off), and the
+ * cockpit's "Start run" then had no thread to point at and failed twice over.
+ * So the first read of an empty thread list repairs the invariant through the
+ * engine's own idempotent call (`20260908203821`) instead of showing a quest
+ * the DM cannot start. Every caller of `useQuestThreads` is a DM surface; the
+ * RPC re-checks that server-side.
+ */
+async function ensureQuestMainThread(campaignId: string, questId: string): Promise<QuestThread> {
+  const { data, error } = await supabase.rpc("ensure_quest_main_thread", { p_campaign_id: campaignId, p_quest_id: questId });
+  if (error) throw error;
+  return data as QuestThread;
 }
 
 /** Every thread a quest holds, live and closed alike — the thread bar reads
@@ -36,9 +54,10 @@ async function fetchQuestThreads(questId: string): Promise<QuestThread[]> {
  *  from another open tab or another DM device. */
 export function useQuestThreads(questId: string | Ref<string>) {
   const id = asRef(questId);
+  const campaign = useCampaignStore();
   return useQuery({
     queryKey: computed(() => [THREADS_KEY, id.value]),
-    queryFn: () => fetchQuestThreads(id.value),
+    queryFn: () => fetchQuestThreads(id.value, campaign.activeCampaignId),
     enabled: () => !!id.value,
     refetchInterval: 5_000,
   });
