@@ -1802,3 +1802,10 @@ comment on function public.end_campaign_quest_session(uuid) is
 -- party_milestones is member-readable and the party screen lists it; without
 -- the publication a milestone awarded at the table waits for a refetch.
 alter publication supabase_realtime add table public.party_milestones;
+
+-- And the campaign_sync doorbell (20260904230420): realtime carries inserts
+-- and updates, the doorbell carries the deletes a channel never sees.
+create trigger party_milestones_signal_delete
+  after delete on public.party_milestones
+  referencing old table as changed
+  for each statement execute procedure public.signal_campaign_change();

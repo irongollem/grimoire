@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 import { SYNC_TABLES, SIGNAL_KEYS } from "./useCampaignLiveSync";
 
@@ -13,17 +13,30 @@ import { SYNC_TABLES, SIGNAL_KEYS } from "./useCampaignLiveSync";
  * So they are asserted equal here rather than reviewed. This is the same
  * arrangement as `bucketRegistryMirror.test.ts`.
  */
+const MIGRATIONS_DIR = resolve(process.cwd(), "supabase/migrations");
 const MIGRATION = resolve(
   process.cwd(),
   "supabase/migrations/20260904230420_campaign_sync_signal.sql",
 );
 
-/** The table list inside the migration's `foreach t in array array[…]` loop. */
+/**
+ * The table list inside the doorbell migration's `foreach t in array array[…]`
+ * loop, plus every table a LATER migration wired to the same bell by hand —
+ * `create trigger <table>_signal_delete … on public.<table>` — because a table
+ * born after the doorbell (party_milestones, #850) cannot be added to a
+ * historical migration and must not be invisible to this registry either.
+ */
 function triggeredTables(): string[] {
   const sql = readFileSync(MIGRATION, "utf8");
   const block = /foreach t in array array\[([\s\S]*?)\]/.exec(sql);
   if (!block) throw new Error("could not find the trigger table array in the migration");
-  return [...block[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+  const looped = [...block[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+  const byHand = readdirSync(MIGRATIONS_DIR)
+    .filter((file) => file.endsWith(".sql") && file > basename(MIGRATION))
+    .flatMap((file) => [...readFileSync(resolve(MIGRATIONS_DIR, file), "utf8")
+      .matchAll(/create trigger ([a-z_]+)_signal_delete\s+after delete on public\.\1\b/g)]
+      .map((m) => m[1]));
+  return [...new Set([...looped, ...byHand])].sort();
 }
 
 /**

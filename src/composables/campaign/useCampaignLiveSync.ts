@@ -46,6 +46,9 @@ export const SYNC_TABLES = [
   ["session_availability",    "session_availability"],
   ["items",                   "items"],
   ["loot_placements",         "loot_placements"],
+  // A milestone the DM awards (or an award_milestone rule fires) reaches the
+  // party screen as it happens; the table is member-readable (#850).
+  ["party_milestones",        "party_milestones"],
   // Chat carries the authoritative claim/removal state for dispatched loot, but
   // it is also the busiest table here — the system reducer filters down to the
   // loot message types before touching any quest cache.
