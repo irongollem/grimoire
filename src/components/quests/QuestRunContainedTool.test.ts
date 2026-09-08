@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   trigger: vi.fn(),
   playPlaylist: vi.fn(),
   stopPlaylist: vi.fn(),
+  promptRoll: vi.fn(),
 }));
 
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
@@ -59,6 +60,7 @@ vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({
   playPlaylist: mocks.playPlaylist,
   stopPlaylist: mocks.stopPlaylist,
 }) }));
+vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: mocks.promptRoll }) }));
 function attachment(type: QuestBeatAttachmentType, overrides: Partial<QuestBeatAttachmentSummary> = {}): QuestBeatAttachmentSummary {
   return {
     id: "a1", beat_id: "b1", quest_id: "q1", campaign_id: "c1", attachment_type: type,
@@ -78,6 +80,7 @@ describe("QuestRunContainedTool", () => {
     mocks.tracks.value = [];
     mocks.playPlaylist.mockReset();
     mocks.stopPlaylist.mockReset();
+    mocks.promptRoll.mockReset();
   });
 
   const global = { stubs: { Teleport: true, EntityLightbox: { template: "<div><slot /></div>" } } };
@@ -155,6 +158,41 @@ describe("QuestRunContainedTool", () => {
     expect(mocks.monsterId.value).toBe("");
     expect(mocks.soundEnabled?.()).toBe(false);
     expect(mocks.playlistEnabled?.()).toBe(false);
+  });
+
+  it("rolls a check through the shared dice roller and posts as the DM", async () => {
+    mocks.promptRoll.mockResolvedValue({ total: 14, label: "Insight check", breakdown: [], modifier: 0, isCrit: false, isFumble: false });
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: {
+        attachment: attachment("check", {
+          ref_id: "check",
+          label: "Insight DC 15",
+          compact_detail: "Contested by Deception",
+          metadata: { skill: "Insight", dc: 15, contested_by: "Deception" },
+        }),
+        returnTo: "/quests/q1?mode=run&beat=b1",
+      },
+      global,
+    });
+
+    expect(wrapper.text()).toContain("Insight DC 15");
+    expect(wrapper.text()).toContain("Contested by Deception");
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Roll")!.trigger("click");
+    expect(mocks.promptRoll).toHaveBeenCalledWith(expect.objectContaining({ counts: { 20: 1 }, modifier: 0, label: "Insight check", senderName: "DM" }));
+    expect(wrapper.text()).toContain("Rolled 14");
+  });
+
+  it("marks a check outcome locally without touching the schema", async () => {
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: {
+        attachment: attachment("check", { ref_id: "check", metadata: { skill: "Athletics", dc: 12 } }),
+        returnTo: "/quests/q1?mode=run&beat=b1",
+      },
+      global,
+    });
+
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Mark as passed")!.trigger("click");
+    expect(wrapper.text()).toContain("Marked passed");
   });
 
   it("renders an attached Scriptorium handout body", () => {

@@ -1,4 +1,4 @@
-import { shallowMount } from "@vue/test-utils";
+import { mount, shallowMount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import QuestBeatAttachmentsPanel from "./QuestBeatAttachmentsPanel.vue";
 import type { QuestBeat, QuestBeatAttachmentSummary } from "@/types/quest.types";
@@ -6,10 +6,11 @@ import type { QuestBeat, QuestBeatAttachmentSummary } from "@/types/quest.types"
 const helpers = vi.hoisted(() => ({
   emptyQuery: () => ({ data: { value: [] } }),
   mutation: () => ({ mutateAsync: vi.fn() }),
+  createAttachment: vi.fn(),
 }));
 
 vi.mock("@/composables/quests/useQuestFlow", () => ({
-  useCreateQuestBeatAttachment: helpers.mutation,
+  useCreateQuestBeatAttachment: () => ({ mutateAsync: helpers.createAttachment }),
   useDeleteQuestBeatAttachment: helpers.mutation,
   useSetQuestBeatAttachmentRequired: helpers.mutation,
 }));
@@ -84,5 +85,45 @@ describe("QuestBeatAttachmentsPanel", () => {
     });
     expect(wrapper.get(".sr-only").text()).toBe("Optional");
     expect(wrapper.text()).toContain("Optional fallback — kept out of the prep-gap count");
+  });
+
+  it("renders a check placement with its green mark, skill/DC label, and contested-by caption", () => {
+    const wrapper = shallowMount(QuestBeatAttachmentsPanel, {
+      props: {
+        beat,
+        attachments: [attachment({
+          id: "a-check", attachment_type: "check", ref_id: "check", metadata: { skill: "Insight", dc: 15, contested_by: "Deception" },
+          label: "Insight DC 15", compact_detail: "Contested by Deception", full_editor_to: null,
+        })],
+      },
+    });
+    expect(wrapper.get(".sr-only").text()).toBe("Required, present");
+    expect(wrapper.text()).toContain("Insight DC 15");
+    expect(wrapper.text()).toContain("Contested by Deception");
+  });
+
+  it("swaps the ref-id combobox for a skill/DC/contested-by/note form when Check is chosen, and places it with ref_id \"check\"", async () => {
+    helpers.createAttachment.mockReset();
+    const wrapper = mount(QuestBeatAttachmentsPanel, {
+      props: { beat, attachments: [] },
+      global: { stubs: { EntityCombobox: true, QuestRunContainedTool: true, RouterLink: { template: "<a><slot /></a>" } } },
+    });
+
+    await wrapper.get('[aria-label="Attachment type"]').setValue("check");
+    expect(wrapper.find('[aria-label="Skill"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="DC"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="Contested by (optional)"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="Note"]').exists()).toBe(true);
+    expect(wrapper.findAllComponents({ name: "AppButton" }).some((button) => button.props("label") === "Create new")).toBe(false);
+
+    await wrapper.get('[aria-label="Skill"]').setValue("Insight");
+    await wrapper.get('[aria-label="DC"]').setValue(15);
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Place")!.trigger("click");
+
+    expect(helpers.createAttachment).toHaveBeenCalledWith(expect.objectContaining({
+      attachment_type: "check",
+      ref_id: "check",
+      metadata: { skill: "Insight", dc: 15, contested_by: null, note: null },
+    }));
   });
 });

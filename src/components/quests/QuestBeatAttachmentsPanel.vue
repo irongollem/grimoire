@@ -57,10 +57,23 @@
       <AppSelect v-model="attachmentType" class="min-w-0" aria-label="Attachment type">
         <option v-for="type in supportedTypes" :key="type" :value="type">{{ adapterLabel(type) }}</option>
       </AppSelect>
-      <EntityCombobox v-model="refId" class="min-w-0" :options="options" :placeholder="`Find ${adapterLabel(attachmentType).toLowerCase()}…`" />
+      <EntityCombobox v-if="attachmentType !== 'check'" v-model="refId" class="min-w-0" :options="options" :placeholder="`Find ${adapterLabel(attachmentType).toLowerCase()}…`" />
+      <AppSelect v-else v-model="checkSkill" class="min-w-0" aria-label="Skill">
+        <option v-for="skill in SKILL_OPTIONS" :key="skill" :value="skill">{{ skill }}</option>
+      </AppSelect>
+      <template v-if="attachmentType === 'check'">
+        <div class="col-span-2 grid min-w-0 grid-cols-3 gap-2">
+          <AppInput v-model.number="checkDc" type="number" class="min-w-0" placeholder="DC" aria-label="DC" />
+          <AppSelect v-model="checkContestedBy" class="min-w-0" aria-label="Contested by (optional)">
+            <option value="">Not contested</option>
+            <option v-for="skill in SKILL_OPTIONS" :key="skill" :value="skill">{{ skill }}</option>
+          </AppSelect>
+          <AppInput v-model="checkNote" class="min-w-0" placeholder="Note (optional)" aria-label="Note" />
+        </div>
+      </template>
       <div class="col-span-2 flex min-w-0 flex-wrap justify-end gap-2">
-        <AppButton label="Place" size="sm" :disabled="!refId" :loading="adding" @click="add" />
-        <AppButton :to="createUrl" label="Create new" size="sm" variant="subtle" />
+        <AppButton label="Place" size="sm" :disabled="!canPlace" :loading="adding" @click="add" />
+        <AppButton v-if="attachmentType !== 'check'" :to="createUrl" label="Create new" size="sm" variant="subtle" />
       </div>
     </div>
     <div v-if="attachmentType === 'encounter'" class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-md border border-dashed border-border p-2">
@@ -87,7 +100,8 @@ import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
 import { withQuestReturnTo } from "@/lib/quests/navigation";
 import { IconCheck, IconWarning } from "@/lib/icons";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
-import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
+import { SKILLS } from "@/types/party.types";
+import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType, QuestCheckAttachmentMetadata } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -95,9 +109,14 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import QuestRunContainedTool from "./QuestRunContainedTool.vue";
 
 const props = defineProps<{ beat: QuestBeat; attachments: QuestBeatAttachmentSummary[] }>();
-const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "npc", "faction", "item", "monster", "sound", "audio_scene", "playlist", "note", "handout"];
+const supportedTypes: QuestBeatAttachmentType[] = ["encounter", "check", "npc", "faction", "item", "monster", "sound", "audio_scene", "playlist", "note", "handout"];
+const SKILL_OPTIONS = SKILLS.map((skill) => skill.label);
 const attachmentType = ref<QuestBeatAttachmentType>("encounter");
 const refId = ref("");
+const checkSkill = ref(SKILL_OPTIONS[0] ?? "");
+const checkDc = ref<number | null>(null);
+const checkContestedBy = ref("");
+const checkNote = ref("");
 const adding = ref(false);
 const quickCreating = ref(false);
 const quickEncounterName = ref("");
@@ -121,6 +140,7 @@ const { data: documents } = useScriptoriumDocuments();
 
 const options = computed<Array<{ id: string; name: string }>>(() => ({
   encounter: (encounters.value ?? []).map((row) => ({ id: row.id, name: row.name })),
+  check: [],
   npc: (npcs.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   faction: (factions.value ?? []).map((row) => ({ id: row.id, name: row.name })),
   item: (items.value ?? []).filter((row) => !!row.user_id).map((row) => ({ id: row.id, name: row.name })),
@@ -131,7 +151,7 @@ const options = computed<Array<{ id: string; name: string }>>(() => ({
   note: (notes.value ?? []).map((row) => ({ id: row.id, name: row.title })),
   handout: (documents.value ?? []).map((row) => ({ id: row.id, name: row.title })),
 }[attachmentType.value]));
-const createUrl = computed(() => withQuestReturnTo(({
+const CREATE_URLS: Record<Exclude<QuestBeatAttachmentType, "check">, string> = {
   encounter: "/encounters/new",
   npc: "/npcs/new",
   faction: "/factions/new",
@@ -142,7 +162,14 @@ const createUrl = computed(() => withQuestReturnTo(({
   playlist: "/soundboard",
   note: "/notes/new",
   handout: "/scriptorium/new",
-})[attachmentType.value], `/quests/${props.beat.quest_id}/beats/${props.beat.id}`));
+};
+const createUrl = computed(() => {
+  const type = attachmentType.value;
+  return type === "check" ? "" : withQuestReturnTo(CREATE_URLS[type], `/quests/${props.beat.quest_id}/beats/${props.beat.id}`);
+});
+const canPlace = computed(() => attachmentType.value === "check"
+  ? checkSkill.value !== "" && checkDc.value !== null && !Number.isNaN(checkDc.value)
+  : !!refId.value);
 
 watch(attachmentType, () => { refId.value = ""; error.value = ""; });
 
@@ -151,6 +178,8 @@ function adapterLabel(type: QuestBeatAttachmentType) {
 }
 
 async function add() {
+  const type = attachmentType.value;
+  if (type === "check") { await addCheck(); return; }
   if (!refId.value) return;
   adding.value = true;
   error.value = "";
@@ -159,13 +188,41 @@ async function add() {
       beat_id: props.beat.id,
       quest_id: props.beat.quest_id,
       campaign_id: props.beat.campaign_id,
-      attachment_type: attachmentType.value,
+      attachment_type: type,
       ref_id: refId.value,
       metadata: {},
     });
     refId.value = "";
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : "Could not place this material";
+  } finally { adding.value = false; }
+}
+
+async function addCheck() {
+  if (checkSkill.value === "" || checkDc.value === null || Number.isNaN(checkDc.value)) return;
+  adding.value = true;
+  error.value = "";
+  try {
+    const metadata: QuestCheckAttachmentMetadata = {
+      skill: checkSkill.value,
+      dc: checkDc.value,
+      contested_by: checkContestedBy.value || null,
+      note: checkNote.value.trim() || null,
+    };
+    await createAttachment.mutateAsync({
+      beat_id: props.beat.id,
+      quest_id: props.beat.quest_id,
+      campaign_id: props.beat.campaign_id,
+      attachment_type: "check",
+      ref_id: "check",
+      metadata: metadata as unknown as Record<string, unknown>,
+    });
+    checkSkill.value = SKILL_OPTIONS[0] ?? "";
+    checkDc.value = null;
+    checkContestedBy.value = "";
+    checkNote.value = "";
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : "Could not place this check";
   } finally { adding.value = false; }
 }
 

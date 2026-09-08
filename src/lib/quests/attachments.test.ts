@@ -21,8 +21,12 @@ const attachment = (overrides: Partial<QuestBeatAttachment> = {}): QuestBeatAtta
 describe("quest beat attachment adapters", () => {
   it("declares a Run action, contained surface, and specialist escape hatch for every type", () => {
     for (const adapter of Object.values(QUEST_BEAT_ATTACHMENT_ADAPTERS)) {
-      expect(adapter.runAction).toMatch(/^(run|view|play)$/);
-      expect(adapter.containedSurface).toMatch(/^(encounter|entity|audio|document)$/);
+      expect(adapter.runAction).toMatch(/^(run|view|play|roll)$/);
+      expect(adapter.containedSurface).toMatch(/^(encounter|entity|audio|document|check)$/);
+      // A check carries its own data instead of pointing at a row: its summary
+      // reads `metadata`, not the generic `target`, and it never offers a full
+      // editor — both covered by their own tests below.
+      if (adapter.type === "check") continue;
       expect(adapter.summary(attachment({ attachment_type: adapter.type }), { label: "Ready" }).label).toBe("Ready");
       expect(adapter.fullEditorTo("target", "quest")).toEqual(expect.any(String));
     }
@@ -45,5 +49,35 @@ describe("quest beat attachment adapters", () => {
 
   it("does not count a missing optional target as a prep gap", () => {
     expect(summarizeQuestBeatAttachment(attachment({ is_required: false }), null).prep_gap).toBe(false);
+  });
+
+  it("reads a check's skill and DC from its own metadata, contested-by taking priority over a note", () => {
+    const checkAttachment = attachment({
+      attachment_type: "check",
+      ref_id: "check",
+      metadata: { skill: "Insight", dc: 15, contested_by: "Deception", note: "Ignored while contested" },
+    });
+    const adapter = QUEST_BEAT_ATTACHMENT_ADAPTERS.check;
+    expect(adapter.summary(checkAttachment, null)).toEqual({ label: "Insight DC 15", detail: "Contested by Deception" });
+    expect(adapter.fullEditorTo("check", "quest")).toBeNull();
+
+    const result = summarizeQuestBeatAttachment(checkAttachment, null);
+    expect(result.label).toBe("Insight DC 15");
+    expect(result.compact_detail).toBe("Contested by Deception");
+    expect(result.target_exists).toBe(true);
+    expect(result.prep_gap).toBe(false);
+    expect(result.full_editor_to).toBeNull();
+  });
+
+  it("falls back to the note when a check has no contested skill", () => {
+    const checkAttachment = attachment({
+      attachment_type: "check",
+      ref_id: "check",
+      metadata: { skill: "Athletics", dc: 12, note: "Climbing the outer wall" },
+    });
+    expect(QUEST_BEAT_ATTACHMENT_ADAPTERS.check.summary(checkAttachment, null)).toEqual({
+      label: "Athletics DC 12",
+      detail: "Climbing the outer wall",
+    });
   });
 });

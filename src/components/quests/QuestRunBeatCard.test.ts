@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import type { QuestBeat } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatAttachmentSummary } from "@/types/quest.types";
 import { threadBadges } from "@/lib/quests/threads";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 
@@ -40,5 +40,31 @@ describe("QuestRunBeatCard", () => {
     });
     expect(wrapper.text()).toContain("Party is here · Thread A");
     expect(wrapper.text()).toContain("The Cloister");
+  });
+
+  it("puts a check first as a primary Roll button, ahead of other placements", () => {
+    const attachments: QuestBeatAttachmentSummary[] = [
+      {
+        id: "a-npc", beat_id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", attachment_type: "npc",
+        ref_id: "npc-1", role: "", is_required: true, metadata: {}, sort_order: 0, created_by: "dm", created_at: "now",
+        label: "Ser Vallis", target_exists: true, prep_gap: false, compact_detail: null, full_editor_to: "/npcs/npc-1",
+      },
+      {
+        id: "a-check", beat_id: "beat-1", quest_id: "quest-1", campaign_id: "campaign-1", attachment_type: "check",
+        ref_id: "check", role: "", is_required: true, metadata: { skill: "Insight", dc: 15, contested_by: "Deception" },
+        sort_order: 1, created_by: "dm", created_at: "now", label: "Insight DC 15", target_exists: true, prep_gap: false,
+        compact_detail: "Contested by Deception", full_editor_to: null,
+      },
+    ];
+    const wrapper = mount(QuestRunBeatCard, {
+      props: { anchorQuestId: "quest-1", beat: beat("revealed"), attachments, threadBadge, placeName: null },
+      global: { stubs: { RichTextViewer: true, RouterLink: { template: "<a><slot /></a>" } } },
+    });
+    const attachmentButtons = wrapper
+      .findAllComponents({ name: "AppButton" })
+      .filter((button) => ["Roll Insight", "Ser Vallis"].includes(button.props("label")));
+    expect(attachmentButtons.map((button) => button.props("label"))).toEqual(["Roll Insight", "Ser Vallis"]);
+    expect(attachmentButtons[0]!.props("variant")).toBe("primary");
+    expect(attachmentButtons[1]!.props("variant")).toBe("subtle");
   });
 });

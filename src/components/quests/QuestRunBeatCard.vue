@@ -35,12 +35,12 @@
 
     <div class="flex flex-wrap gap-2">
       <AppButton
-        v-for="attachment in attachments"
+        v-for="attachment in orderedAttachments"
         :key="attachment.id"
-        :label="attachment.label"
+        :label="attachmentButtonLabel(attachment)"
         :icon="attachmentIcon(attachment.attachment_type)"
         size="sm"
-        variant="subtle"
+        :variant="attachment.attachment_type === 'check' ? 'primary' : 'subtle'"
         :disabled="!attachment.target_exists"
         :tooltip="attachment.target_exists ? undefined : 'Not prepared yet'"
         @click="emit('open-attachment', attachment)"
@@ -60,12 +60,13 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType } from "@/types/quest.types";
+import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType, QuestCheckAttachmentMetadata } from "@/types/quest.types";
 import type { ThreadBadge } from "@/lib/quests/threads";
 import { deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import {
+  IconDice,
   IconDocument,
   IconEdit,
   IconEncounter,
@@ -94,12 +95,28 @@ const editUrl = computed(() => ({
 }));
 const prepGaps = computed(() => deriveQuestBeatPrepGaps(props.beat, props.attachments));
 
+// A check attachment's button leads with the roll ("Roll Insight") rather than
+// the beat's own label, and comes first in the row — it is the action the
+// table takes right now, not a reference the DM opens.
+const orderedAttachments = computed(() => {
+  const checks = props.attachments.filter((attachment) => attachment.attachment_type === "check");
+  const rest = props.attachments.filter((attachment) => attachment.attachment_type !== "check");
+  return [...checks, ...rest];
+});
+
+function attachmentButtonLabel(attachment: QuestBeatAttachmentSummary) {
+  if (attachment.attachment_type !== "check") return attachment.label;
+  const metadata = attachment.metadata as unknown as QuestCheckAttachmentMetadata;
+  return `Roll ${metadata.skill}`;
+}
+
 const ATTACHMENT_ICONS: Record<QuestBeatAttachmentType, typeof IconEncounter> = {
   encounter: IconEncounter,
   npc: IconUserRound,
   faction: IconFaction,
   item: IconPackage,
   monster: IconMonster,
+  check: IconDice,
   sound: IconMusicNote,
   audio_scene: IconMusic,
   playlist: IconMusicNote,

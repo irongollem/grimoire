@@ -35,6 +35,36 @@
             </template>
             <p v-else class="text-body text-foreground">Audio cue is unavailable.</p>
           </div>
+          <div v-else-if="adapter.containedSurface === 'check'" class="rounded-lg border border-border bg-card p-4 text-center">
+            <p class="font-cinzel text-2xl font-bold text-foreground">{{ checkMetadata.skill }} DC {{ checkMetadata.dc }}</p>
+            <p v-if="checkMetadata.contested_by" class="mt-1 text-caption text-muted-foreground">Contested by {{ checkMetadata.contested_by }}</p>
+            <p v-else-if="checkMetadata.note" class="mt-1 text-caption text-muted-foreground">{{ checkMetadata.note }}</p>
+            <AppButton label="Roll" :icon="IconDice" variant="primary" class="mt-3" :loading="rolling" @click="rollCheck" />
+            <p v-if="lastRoll !== null" class="mt-2 text-caption text-muted-foreground">Rolled {{ lastRoll }}</p>
+            <div class="mt-3 flex justify-center gap-2">
+              <AppButton
+                label="Mark as passed"
+                size="sm"
+                :variant="checkOutcome === 'passed' ? 'primary' : 'subtle'"
+                :aria-pressed="checkOutcome === 'passed'"
+                @click="checkOutcome = 'passed'"
+              />
+              <AppButton
+                label="Mark as failed"
+                size="sm"
+                :variant="checkOutcome === 'failed' ? 'primary' : 'subtle'"
+                :aria-pressed="checkOutcome === 'failed'"
+                @click="checkOutcome = 'failed'"
+              />
+            </div>
+            <p
+              v-if="checkOutcome"
+              class="mt-2 text-caption"
+              :class="checkOutcome === 'passed' ? 'text-ink-success' : 'text-destructive'"
+            >
+              Marked {{ checkOutcome }} — noted for this table, not saved.
+            </p>
+          </div>
           <div v-else-if="attachment.attachment_type === 'npc'" class="rounded-lg border border-border bg-card p-3">
             <p class="text-body text-foreground">{{ npcRecord?.occupation || "No occupation prepared" }} · {{ npcRecord?.status || "unknown status" }}</p>
             <p v-if="npcRecord?.personality" class="mt-2 text-caption text-muted-foreground">{{ npcRecord.personality }}</p>
@@ -97,11 +127,13 @@ import { useScriptoriumDocument } from "@/composables/scriptorium/useScriptorium
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { usePlaylists, usePlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useActionCheck, useBlockedCheck, useSoundTrigger } from "@/composables/soundboard/useSoundPlayback";
+import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
 import { withQuestReturnTo } from "@/lib/quests/navigation";
 import { useSoundboardStore } from "@/stores/soundboard";
-import type { QuestBeatAttachmentSummary } from "@/types/quest.types";
+import type { QuestBeatAttachmentSummary, QuestCheckAttachmentMetadata } from "@/types/quest.types";
 import type { Sound } from "@/types/sound.types";
+import { IconDice } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -150,6 +182,25 @@ const actionFor = useActionCheck();
 const blockedReason = useBlockedCheck();
 const audioAction = (value: Sound) => ({ play: "Play cue", pause: "Pause cue", refire: "Fire cue again" })[actionFor(value)];
 const specialistUrl = (path: string) => withQuestReturnTo(path, props.returnTo);
+const checkMetadata = computed(() => props.attachment.metadata as unknown as QuestCheckAttachmentMetadata);
+const { promptRoll } = usePromptedRoll();
+const rolling = ref(false);
+const lastRoll = ref<number | null>(null);
+const checkOutcome = ref<"passed" | "failed" | null>(null);
+async function rollCheck() {
+  rolling.value = true;
+  try {
+    const result = await promptRoll({
+      counts: { 20: 1 },
+      modifier: 0,
+      label: `${checkMetadata.value.skill} check`,
+      senderName: "DM",
+    });
+    if (result) lastRoll.value = result.total;
+  } finally {
+    rolling.value = false;
+  }
+}
 function togglePlaylist() {
   if (!playlist.value) return;
   if (playlistActive.value) soundboard.stopPlaylist(playlist.value.playlist_type, playlist.value.id);
