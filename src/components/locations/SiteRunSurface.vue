@@ -37,45 +37,15 @@
           @move-party="moveTo"
         />
 
-        <div class="flex flex-col gap-1">
-          <p v-if="!rooms.length" class="text-caption text-muted-foreground italic">
-            No rooms yet — add some from the location sheet first.
-          </p>
-          <!-- Reachable rooms (and the current one) are plain click-to-move
-               buttons. An unreachable room instead becomes a link to its own
-               sheet — "select-without-moving": the DM can still look. -->
-          <AppButton
-            v-for="room in rooms"
-            :key="room.id"
-            variant="menu"
-            size="sm"
-            block
-            :to="roomTo(room)"
-            @click="onRoomClick(room)"
-          >
-            <IconLocation
-              v-if="room.id === currentRoomId"
-              class="h-3.5 w-3.5 shrink-0 text-primary"
-              aria-hidden="true"
-            />
-            <IconLock
-              v-else-if="!isReachable(room.id)"
-              class="h-3.5 w-3.5 shrink-0 text-muted-foreground/60"
-              aria-hidden="true"
-            />
-            <span class="min-w-0 flex-1 truncate" :class="roomNameClass(room)">{{ room.name }}</span>
-            <IconShieldCheck
-              v-if="stateOf(room.id, 'cleared')?.value"
-              class="h-3.5 w-3.5 shrink-0 text-tone-success"
-              aria-hidden="true"
-            />
-            <IconLoot
-              v-if="stateOf(room.id, 'looted')?.value"
-              class="h-3.5 w-3.5 shrink-0 text-tone-caution"
-              aria-hidden="true"
-            />
-          </AppButton>
-        </div>
+        <SiteRoomList
+          :site-id="location.id"
+          :rooms="rooms"
+          :current-room-id="currentRoomId"
+          :reachable="reachable"
+          :state-of="stateOf"
+          :unwritten-ids="unwrittenIds"
+          @move="moveTo"
+        />
       </section>
 
       <!-- The current room — whatever the party is in, composed inline so
@@ -128,6 +98,11 @@
  *
  * The caller (`LocationDetailView`) only mounts this on a site-tier
  * location, so nothing here re-checks `location.location_type`.
+ *
+ * The room list itself is `SiteRoomList` (#850 story H) — shared verbatim
+ * with `QuestSiteHandoff`'s in-quest room panel, so "can the party reach this
+ * room" and "what does an unwritten room look like" have exactly one answer
+ * rather than two components that drift.
  */
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -138,7 +113,8 @@ import LocationLootPanel from "@/components/locations/LocationLootPanel.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
-import { IconClose, IconLocation, IconLock, IconLoot, IconShieldCheck } from "@/lib/icons";
+import SiteRoomList from "@/components/locations/SiteRoomList.vue";
+import { IconClose } from "@/lib/icons";
 import { useLocations } from "@/composables/locations/useLocations";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
@@ -150,6 +126,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { compareSiblings } from "@/lib/locations/tree";
 import { partyRoomInSite, reachableRoomIds as computeReachableRoomIds } from "@/lib/locations/siteRun";
+import { unwrittenRoomIds } from "@/lib/quests/siteHandoff";
 import { extractTiptapText } from "@/lib/utils";
 import type { LocationStateFact } from "@/types/locationState.types";
 import type { Location } from "@/types/location.types";
@@ -195,9 +172,7 @@ const reachable = computed(() => {
   const from = currentRoomId.value;
   return from ? computeReachableRoomIds(from, doors.value) : null;
 });
-function isReachable(roomId: string): boolean {
-  return !reachable.value || reachable.value.has(roomId);
-}
+const unwrittenIds = computed(() => unwrittenRoomIds(rooms.value));
 
 // The composite (`LocationMap.vue`) mounts whenever `location.map_url`
 // exists, same gate `LocationSheet` uses — a site with nothing traced yet is
@@ -218,22 +193,6 @@ function moveTo(roomId: string): void {
     { id: campaign.activeCampaignId, locationId: roomId },
     { onError: (e) => toast.error(toast.fromError(e)) },
   );
-}
-
-function roomTo(room: Location): string | undefined {
-  if (room.id === currentRoomId.value) return undefined;
-  return isReachable(room.id) ? undefined : `/locations/${room.id}`;
-}
-
-function onRoomClick(room: Location): void {
-  if (room.id === currentRoomId.value || !isReachable(room.id)) return;
-  moveTo(room.id);
-}
-
-function roomNameClass(room: Location): string {
-  if (room.id === currentRoomId.value) return "text-primary font-semibold";
-  if (!isReachable(room.id)) return "text-muted-foreground/70";
-  return "text-foreground";
 }
 
 // ── Context: the site's own state at a glance ────────────────────────────────
