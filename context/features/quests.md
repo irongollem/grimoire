@@ -446,7 +446,7 @@ module rather than choosing a letter or colour locally.
 
 ### `quest_runtime_state` — the cursor
 
-PK `(campaign_id, quest_id, thread_id)` since `20260907232245` (#850,
+PK `(campaign_id, quest_id, thread_id)` since `20260908210320` (#850,
 superseding the `(campaign_id, quest_id)` PK #755 gave it): **one cursor per
 thread**, because a quest now holds as many live cursors as the story has
 open at once — there is no thread-less cursor left. Holds `current_beat_id`,
@@ -564,7 +564,7 @@ delay, and an **`action`**:
 | --- | --- | --- |
 | `raise` `reveal` `complete` `fail` | ledger verb | `target_objective_id` |
 | `create_calendar_event` `send_broadcast` | world action | `action_payload` |
-| `shift_npc_relationship` (#831, `to` since `20260908064822`) | world action | `target_npc_id` + `action_payload.step` **or** `action_payload.to` |
+| `shift_npc_relationship` (#831, `to` since `20260908210324`) | world action | `target_npc_id` + `action_payload.step` **or** `action_payload.to` |
 | `unlock_quest` (#836) | world action | `target_quest_id` |
 | `grant_knowledge` (#850) | world action | `action_payload.text` |
 | `owe_favor` (#850) | world action | `target_npc_id` + `action_payload.text` |
@@ -610,7 +610,7 @@ from "we have not established this" is meaningless and mapping it to
 and records `previous_relationship`, or does neither — so undo has a value to
 restore or nothing to do, and nothing downstream reads a NULL and guesses.
 
-**The absolute form, `to` (`20260908064822`).** The maintainer's example of
+**The absolute form, `to` (`20260908210324`).** The maintainer's example of
 the reward a table actually hands out is "indifferent to helpful" — a stance
 *stated*, which a signed step cannot say, and which the step form silently
 skipped whenever the NPC still sat at the default `unknown`. `action_payload.to`

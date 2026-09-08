@@ -584,7 +584,7 @@ select is((select result from shift_probe where label = 'hostile {"step":-3}'), 
 select is((select result from shift_probe where label = 'unknown {"step":2}'), 'unknown/null',
   'unknown is not a rung: the shift is a no-op and records nothing for undo to restore');
 
--- The absolute form (`20260908064822`): "becomes helpful" states the stance
+-- The absolute form (`20260908210324`): "becomes helpful" states the stance
 -- outright, so it applies from `unknown` too, and records what was there —
 -- `unknown` included — for undo.
 create temp table stance_probe(label text, result text) on commit drop;

@@ -1,6 +1,6 @@
 -- The runtime runs one thread at a time. Story #852, epic #850.
 --
--- 20260907232245 landed the schema half: quest_runtime_state is keyed on
+-- 20260908210320 landed the schema half: quest_runtime_state is keyed on
 -- (campaign_id, quest_id, thread_id), quest_threads exists, edges carry
 -- route_kind/thread_label, beats carry converge_mode, and three verbs
 -- (grant_knowledge, owe_favor, award_milestone) have somewhere to write. This

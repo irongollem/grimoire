@@ -34,11 +34,11 @@ export async function fetchQuestThreads(questId: string, campaignId: string | nu
 
 /**
  * A quest always has a Main thread — the insert trigger and the backfill in
- * `20260907234512` promise it — but a seeded or imported quest bypasses the
+ * `20260908210321` promise it — but a seeded or imported quest bypasses the
  * trigger (a local `db reset` loads `seed.sql` with triggers off), and the
  * cockpit's "Start run" then had no thread to point at and failed twice over.
  * So the first read of an empty thread list repairs the invariant through the
- * engine's own idempotent call (`20260908203821`) instead of showing a quest
+ * engine's own idempotent call (`20260908210325`) instead of showing a quest
  * the DM cannot start. Every caller of `useQuestThreads` is a DM surface; the
  * RPC re-checks that server-side.
  */

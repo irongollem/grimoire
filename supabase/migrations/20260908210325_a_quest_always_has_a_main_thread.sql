@@ -1,7 +1,7 @@
 -- A quest always has a Main thread — and the app can restore that itself.
 --
 -- The trigger `private.create_quest_main_thread` and the backfill in
--- `20260907234512` promise every quest a Main thread. Two things still break
+-- `20260908210321` promise every quest a Main thread. Two things still break
 -- the promise: a local `supabase db reset` loads `seed.sql` AFTER the
 -- migrations with `session_replication_role = replica`, so the trigger never
 -- fires for a seeded quest; and any future import that writes `quests` the

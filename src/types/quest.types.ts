@@ -168,7 +168,7 @@ export interface BroadcastConsequencePayload {
  */
 export type RelationshipShiftConsequencePayload =
   | { step: number }
-  /** The absolute form (migration `20260908064822`): "becomes helpful". A DM
+  /** The absolute form (migration `20260908210324`): "becomes helpful". A DM
    *  naming the stance outright, which the step cannot say and which is the
    *  only form that reaches an NPC still at `unknown`. */
   | { to: NpcStance };
@@ -178,7 +178,7 @@ export type NpcStance = (typeof NPC_RELATIONSHIP_LADDER)[number];
 
 /**
  * The three verbs the design's diagnosis names directly (migration
- * `20260907232245`): "knowledge, favours and milestones have no verb, so they
+ * `20260908210320`): "knowledge, favours and milestones have no verb, so they
  * end up as prose in `outcomes`." Same shape for all three — one line of text
  * — because what differs between them is *where* the row lands
  * (`player_journal_entries` / `npc_favors` / `party_milestones`), not what a
@@ -401,7 +401,7 @@ export interface QuestBeat {
   dm_content: string | null;
   read_aloud: string | null;
   /**
-   * `outcomes`/`consequences` are gone (migration `20260907232245`): a beat's
+   * `outcomes`/`consequences` are gone (migration `20260908210320`): a beat's
    * prose columns for "what usually happens" and "what changes later" folded
    * into this field as trailing paragraphs, and the three world verbs
    * (`grant_knowledge`/`owe_favor`/`award_milestone`) replace the part that
