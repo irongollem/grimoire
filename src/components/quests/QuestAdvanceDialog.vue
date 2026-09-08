@@ -122,8 +122,13 @@
             <span class="min-w-0 flex-1">
               <span class="block font-cinzel text-sm font-bold text-foreground">{{ route.beat_title || "Untitled beat" }}</span>
               <span v-if="!isClosed(route)" class="block text-caption text-muted-foreground">
-                Creates Thread {{ route.thread_label || route.beat_title }} at that beat. Thread {{ threadLetter }} keeps its own cursor —
-                untick to prepare the layer without opening it yet.
+                <template v-if="plan?.spawnLetters[route.edge_id]">
+                  Creates Thread {{ plan.spawnLetters[route.edge_id] }} — “{{ route.thread_label || route.beat_title }}” — at that beat. Thread {{ threadLetter }} keeps its own cursor —
+                  untick to prepare the layer without opening it yet.
+                </template>
+                <template v-else>
+                  Would open a thread “{{ route.thread_label || route.beat_title }}” at that beat.
+                </template>
               </span>
               <span v-else class="block text-caption text-destructive">{{ routeCondition(route.gate)?.text }}</span>
             </span>

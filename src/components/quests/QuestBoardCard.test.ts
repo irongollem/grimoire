@@ -47,6 +47,8 @@ const summary: QuestBoardSummary = {
   unlockedBy: null,
   heldPayoffCount: 0,
   settledCaption: null,
+  objectivesDone: 0,
+  objectivesTotal: 0,
 };
 
 const global = { stubs: { RouterLink: RouterLinkStub } };

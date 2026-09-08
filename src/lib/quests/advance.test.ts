@@ -176,6 +176,34 @@ describe("planAdvance", () => {
     // thread-a and thread-b are already live/waiting (oldest first); the
     // closed thread drops out; the spawn is newer than both so it lands last.
     expect(plan.threadsAfter).toEqual(["A", "B", "C"]);
+    expect(plan.spawnLetters).toEqual({ "edge-parallel-1": "C" });
+  });
+
+  // Design frame `05 Advance`: "Creates Thread C at that beat" — the dialog
+  // reads the letter straight off the plan rather than a route's own label,
+  // so it can never show a phrase where the mock shows a letter.
+  it("names each ticked parallel route's own spawned letter, keyed by edge id", () => {
+    const context = baseContext({
+      threads: [
+        thread({ id: "thread-a", created_at: "2026-09-01T00:00:00Z", status: "live" }),
+        thread({ id: "thread-b", created_at: "2026-09-02T00:00:00Z", status: "live" }),
+      ],
+      outgoing: [
+        choice({ edge_id: "edge-1" }),
+        choice({ edge_id: "edge-parallel-1", route_kind: "parallel" }),
+        choice({ edge_id: "edge-parallel-2", route_kind: "parallel" }),
+      ],
+    });
+
+    const plan = planAdvance({
+      context,
+      edgeId: "edge-1",
+      spawnEdgeIds: ["edge-parallel-1", "edge-parallel-2"],
+      heldIds: [],
+      dispatchIds: [],
+    });
+
+    expect(plan.spawnLetters).toEqual({ "edge-parallel-1": "C", "edge-parallel-2": "D" });
   });
 
   it("builds the exact rpc args useQuestRuntimeCommand needs", () => {

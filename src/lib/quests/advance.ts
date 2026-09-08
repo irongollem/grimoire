@@ -27,6 +27,12 @@ export interface PlanAdvanceResult {
    *  this transition and its spawns land — existing threads first, in their
    *  current order, then one per spawn. */
   threadsAfter: string[];
+  /** The letter each ticked parallel route's spawned thread would get, keyed
+   *  by that route's edge id — computed from the same `threadBadges` call as
+   *  `threadsAfter` so the two can never disagree (design frame `05 Advance`:
+   *  "Creates Thread C at that beat"). A route not in `spawnEdgeIds` has no
+   *  entry here — it isn't spawning anything yet. */
+  spawnLetters: Record<string, string>;
   /** How many of the chosen route's payoff entries will actually fire. */
   fired: number;
   /** How many of the target beat's loot entries stay held back (not dispatched). */
@@ -62,10 +68,19 @@ function projectedSpawnThread(edgeId: string, offsetMs: number): ThreadLike {
  * which this context does not carry. The dialog is a projection for the DM
  * to read before committing, not a simulation of the transaction.
  */
-function threadsLiveAfter(threads: readonly ThreadLike[], spawnEdgeIds: readonly string[]): string[] {
+function threadsLiveAfter(
+  threads: readonly ThreadLike[],
+  spawnEdgeIds: readonly string[],
+): { threadsAfter: string[]; spawnLetters: Record<string, string> } {
   const existing = threads.filter((thread) => thread.status === "live" || thread.status === "waiting");
   const spawned = spawnEdgeIds.map((edgeId, index) => projectedSpawnThread(edgeId, index + 1));
-  return threadBadges([...existing, ...spawned]).map((badge) => badge.letter);
+  const badges = threadBadges([...existing, ...spawned]);
+  const spawnLetters: Record<string, string> = {};
+  for (const edgeId of spawnEdgeIds) {
+    const badge = badges.find((candidate) => candidate.thread.id === `spawn:${edgeId}`);
+    if (badge) spawnLetters[edgeId] = badge.letter;
+  }
+  return { threadsAfter: badges.map((badge) => badge.letter), spawnLetters };
 }
 
 export function planAdvance(input: PlanAdvanceInput): PlanAdvanceResult {
@@ -76,7 +91,7 @@ export function planAdvance(input: PlanAdvanceInput): PlanAdvanceResult {
 
   const fired = payoff.filter((entry) => !heldIds.includes(entry.consequence_id)).length;
   const held = loot.filter((entry) => !dispatchIds.includes(entry.id)).length;
-  const threadsAfter = threadsLiveAfter(context.threads, spawnEdgeIds);
+  const { threadsAfter, spawnLetters } = threadsLiveAfter(context.threads, spawnEdgeIds);
 
   const state = context.state;
   const rpcArgs: QuestRuntimeCommandInput = {
@@ -91,7 +106,7 @@ export function planAdvance(input: PlanAdvanceInput): PlanAdvanceResult {
     dispatchLootIds: dispatchIds,
   };
 
-  return { threadsAfter, fired, held, rpcArgs };
+  return { threadsAfter, spawnLetters, fired, held, rpcArgs };
 }
 
 /**

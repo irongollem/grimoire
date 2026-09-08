@@ -87,6 +87,21 @@ describe("QuestAdvanceDialog", () => {
     expect(advance().props("disabled")).toBe(false);
   });
 
+  // Design frame `05 Advance`: "Creates Thread C at that beat" — the caption
+  // names the letter the spawned thread will actually get, not the route's
+  // authored thread_label ("C" here), and a route with no projected letter
+  // yet (no choice picked) reads as an open offer instead.
+  it("names the projected spawn letter once a route is chosen, and reads as an open offer before that", async () => {
+    const wrapper = await mountDialog();
+    expect(wrapper.text()).toContain("Would open a thread “C” at that beat.");
+
+    await radios(wrapper)[0]!.trigger("change");
+    // One existing thread ("Main") becomes A; the ticked parallel route's
+    // projected thread is B — the fixture's authored thread_label "C" is
+    // quoted as the route's name, not mistaken for the thread's own letter.
+    expect(wrapper.text()).toContain("Creates Thread B — “C” — at that beat.");
+  });
+
   it("shows the selected route's payoff and loot, and recomputes the footer as ticks change", async () => {
     const wrapper = await mountDialog();
     await radios(wrapper)[0]!.trigger("change");

@@ -52,6 +52,8 @@ const ready: QuestBoardSummary = {
   unlockedBy: null,
   heldPayoffCount: 0,
   settledCaption: null,
+  objectivesDone: 0,
+  objectivesTotal: 0,
 };
 
 describe("filterQuestBoard", () => {
@@ -358,5 +360,29 @@ describe("deriveQuestBoardSummaries", () => {
 
     const neverEnded = deriveQuestBoardSummaries({ beats, edges: [], attachments: [], loot: [] });
     expect(neverEnded["quest-a"]!.settledCaption).toBeNull();
+  });
+
+  // Frame `07 Log`'s featured-card statblock reads "Objectives 1 / 3" — done
+  // counts only `status: "complete"`, and a quest with none gets a
+  // zero/zero the card knows to hide rather than a missing field.
+  it("counts complete objectives against the quest's total", () => {
+    const beats = [{ id: "beat-a", quest_id: "quest-a", title: "Arrival" }] as QuestBeat[];
+    const summaries = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      objectives: [
+        { id: "obj-1", quest_id: "quest-a", status: "complete" },
+        { id: "obj-2", quest_id: "quest-a", status: "pending" },
+        { id: "obj-3", quest_id: "quest-a", status: "failed" },
+      ],
+    });
+    expect(summaries["quest-a"]!.objectivesDone).toBe(1);
+    expect(summaries["quest-a"]!.objectivesTotal).toBe(3);
+
+    const withoutObjectives = deriveQuestBoardSummaries({ beats, edges: [], attachments: [], loot: [] });
+    expect(withoutObjectives["quest-a"]!.objectivesDone).toBe(0);
+    expect(withoutObjectives["quest-a"]!.objectivesTotal).toBe(0);
   });
 });

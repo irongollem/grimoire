@@ -28,6 +28,10 @@
           <dt class="text-label uppercase tracking-wide text-muted-foreground">Threads</dt>
           <dd class="font-cinzel text-base font-bold text-foreground">{{ summary.liveThreadCount }} live</dd>
         </div>
+        <div v-if="summary.objectivesTotal > 0">
+          <dt class="text-label uppercase tracking-wide text-muted-foreground">Objectives</dt>
+          <dd class="font-cinzel text-base font-bold text-foreground">{{ summary.objectivesDone }} / {{ summary.objectivesTotal }}</dd>
+        </div>
       </dl>
     </div>
 
@@ -99,12 +103,12 @@
  * because `summary.isLive` is true, so there is always at least one running
  * thread to show a spine for.
  *
- * Two facts from the mockup's statblock are deliberately absent: a next-session
- * date (no such field exists anywhere in the data — inventing one would be
- * lying about a date nobody set) and an Objectives N / M count (not part of
- * this story's `QuestBoardSummary` additions — `useQuestBoardSummaries` never
- * fetches `quest_objectives`, and adding that fetch is its own, separate
- * change). Both are called out here rather than silently dropped.
+ * One fact from the mockup's statblock is deliberately absent: a next-session
+ * date. No such field exists anywhere in the data — inventing one would be
+ * lying about a date nobody set — so it stays off the card rather than being
+ * faked. The Objectives N / M count, once absent for the same reason
+ * (`useQuestBoardSummaries` didn't fetch `quest_objectives` yet), is now read
+ * straight off the summary and hidden only when a quest has none to count.
  */
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
@@ -127,7 +131,12 @@ const gapChips = computed(() => {
   return [...counts].map(([label, count]) => ({ label, count }));
 });
 
-const visitedBeatCount = computed(() => summary.beatSegments.filter((segment) => segment === "done" || segment === "here").length);
+// Quest-wide, not the primary thread's: a beat any thread has reached counts
+// once, since each thread's spine now reads only its own visits.
+const visitedBeatCount = computed(() => {
+  const spines = summary.threads.length ? summary.threads.map((thread) => thread.beatSegments) : [summary.beatSegments];
+  return summary.beatSegments.filter((_, index) => spines.some((spine) => spine[index] === "done" || spine[index] === "here")).length;
+});
 
 // `QuestBoardThreadSummary` already carries everything `ThreadLike` needs
 // (id/label/status/created_at) so the letter and tone this card paints a

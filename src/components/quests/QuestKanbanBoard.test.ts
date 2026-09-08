@@ -93,6 +93,8 @@ describe("QuestKanbanBoard", () => {
         unlockedBy: null,
         heldPayoffCount: 0,
         settledCaption: null,
+        objectivesDone: 0,
+        objectivesTotal: 0,
       },
     };
     const wrapper = mount(QuestKanbanBoard, {

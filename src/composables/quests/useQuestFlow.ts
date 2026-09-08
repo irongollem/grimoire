@@ -27,6 +27,7 @@ import type {
   QuestRuntimeJumpTarget,
   QuestConsequence,
   QuestConsequenceInsert,
+  QuestObjective,
   QuestRuntimeState,
   QuestThread,
 } from "@/types/quest.types";
@@ -305,7 +306,7 @@ export function useQuestBoardSummaries() {
     queryKey: computed(() => [BEATS_KEY, "board", campaign.activeCampaignId]),
     queryFn: async (): Promise<Record<string, QuestBoardSummary>> => {
       const campaignId = campaign.activeCampaignId!;
-      const [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult, consequencesResult] = await Promise.all([
+      const [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult, consequencesResult, objectivesResult] = await Promise.all([
         supabase.from("quest_beats").select("*").eq("campaign_id", campaignId).neq("kind", "archived").order("created_at"),
         supabase.from("quest_beat_edges").select("*").eq("campaign_id", campaignId).order("created_at"),
         supabase.from("quest_beat_attachments").select("*").eq("campaign_id", campaignId).order("sort_order").order("created_at"),
@@ -321,8 +322,13 @@ export function useQuestBoardSummaries() {
         // Two foreign keys point at quests (the rule's own quest and an
         // unlock target), so the embed must name which one it follows.
         supabase.from("quest_consequences").select("*, quests!quest_consequences_quest_id_fkey!inner(campaign_id)").eq("quests.campaign_id", campaignId),
+        // The featured card's Objectives N / M count (frame `07 Log`). Same
+        // shape as `consequences` above — `quest_objectives` has no
+        // `campaign_id` of its own, and it has exactly one FK to `quests`,
+        // so no `!fkey` hint is needed to disambiguate the embed.
+        supabase.from("quest_objectives").select("id, quest_id, status, quests!inner(campaign_id)").eq("quests.campaign_id", campaignId),
       ]);
-      const error = [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult, consequencesResult]
+      const error = [beatsResult, edgesResult, attachmentsResult, runtimeResult, transitionsResult, lootResult, threadsResult, consequencesResult, objectivesResult]
         .find((result) => result.error)?.error;
       if (error) throw error;
 
@@ -341,6 +347,7 @@ export function useQuestBoardSummaries() {
         loot: (lootResult.data ?? []) as LootPlacement[],
         threads: (threadsResult.data ?? []) as QuestThread[],
         consequences: (consequencesResult.data ?? []) as unknown as QuestConsequence[],
+        objectives: (objectivesResult.data ?? []) as unknown as Pick<QuestObjective, "id" | "quest_id" | "status">[],
       });
     },
     enabled: () => !!campaign.activeCampaignId,

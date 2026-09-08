@@ -6,6 +6,7 @@ import type {
   QuestConsequence,
   LootPlacement,
   QuestBeatTransition,
+  QuestObjective,
   QuestRef,
   QuestRuntimeState,
   QuestRuntimeStatus,
@@ -92,6 +93,13 @@ export interface QuestBoardSummary {
    *  type — never invented from a date), then whether every thread the quest
    *  ever opened closed or merged, or one was left running/paused/waiting. */
   settledCaption: string | null;
+  /** How many of this quest's `quest_objectives` rows are `status: "complete"`
+   *  (frame `07 Log`'s featured-card statblock, story I). */
+  objectivesDone: number;
+  /** Every `quest_objectives` row this quest has, regardless of status. Zero
+   *  means the quest has no objectives at all — the featured card renders
+   *  nothing for a count with nothing to count. */
+  objectivesTotal: number;
 }
 
 export interface QuestBoardEntry {
@@ -170,6 +178,11 @@ export function deriveQuestBoardSummaries(input: {
    *  (that is the entire point of `unlock_quest`), so this cannot be scoped
    *  to one quest's own beats the way `attachments`/`loot` are. */
   consequences?: QuestConsequence[];
+  /** `quest_objectives` rows for the campaign (frame `07 Log`'s featured-card
+   *  statblock, story I). `quest_objectives` carries no `campaign_id` of its
+   *  own, so the caller scopes this through the `quests` embed the same way
+   *  `consequences` does. */
+  objectives?: Pick<QuestObjective, "id" | "quest_id" | "status">[];
 }) {
   const lootByQuest = summarizeQuestLootByQuest(input.loot);
   const presentations = deriveQuestBeatPresentations(input);
@@ -189,6 +202,12 @@ export function deriveQuestBoardSummaries(input: {
     threadsByQuest.set(thread.quest_id, list);
   }
   const beatById = new Map(input.beats.map((beat) => [beat.id, beat]));
+  const objectivesByQuest = new Map<string, Pick<QuestObjective, "id" | "quest_id" | "status">[]>();
+  for (const objective of input.objectives ?? []) {
+    const list = objectivesByQuest.get(objective.quest_id) ?? [];
+    list.push(objective);
+    objectivesByQuest.set(objective.quest_id, list);
+  }
   // `unlock_quest` is the only consequence action a quest reads for itself
   // rather than for one of its own beats — the rule lives on whichever beat
   // (in whichever quest) raises it, and only its `target_quest_id` says which
@@ -272,6 +291,9 @@ export function deriveQuestBoardSummaries(input: {
       .filter((transition) => transition.transition_kind === "end"
         && (transition.from_quest_id === questId || transition.to_quest_id === questId))
       .at(-1) ?? null;
+    const objectives = objectivesByQuest.get(questId) ?? [];
+    const objectivesDone = objectives.filter((objective) => objective.status === "complete").length;
+
     let settledCaption: string | null = null;
     if (endTransition) {
       const threadsForQuest = threadsByQuest.get(questId) ?? [];
@@ -298,6 +320,8 @@ export function deriveQuestBoardSummaries(input: {
       unlockedBy,
       heldPayoffCount,
       settledCaption,
+      objectivesDone,
+      objectivesTotal: objectives.length,
     };
   }
   return result;

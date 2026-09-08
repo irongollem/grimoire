@@ -60,6 +60,8 @@ function summary(overrides: Partial<QuestBoardSummary> = {}): QuestBoardSummary 
     unlockedBy: null,
     heldPayoffCount: 0,
     settledCaption: null,
+    objectivesDone: 1,
+    objectivesTotal: 3,
     ...overrides,
   };
 }
@@ -75,6 +77,37 @@ describe("QuestFeaturedCard", () => {
     expect(wrapper.text()).toContain("A widow's petition");
     expect(wrapper.text()).toContain("3 / 5");
     expect(wrapper.text()).toContain("2 live");
+  });
+
+  // Each thread's spine reads only its own visits, so the quest-wide tally is
+  // the union: a beat only the side thread reached still counts once.
+  it("counts a beat visited by any thread, once", () => {
+    const wrapper = mount(QuestFeaturedCard, {
+      props: {
+        quest: quest(),
+        summary: summary({
+          beatSegments: ["done", "here", "upcoming", "upcoming", "upcoming"],
+          threads: [
+            { ...summary().threads[0]!, beatSegments: ["done", "here", "upcoming", "upcoming", "upcoming"] },
+            { ...summary().threads[1]!, beatSegments: ["upcoming", "upcoming", "upcoming", "done", "here"] },
+          ],
+        }),
+      },
+      global,
+    });
+    expect(wrapper.text()).toContain("4 / 5");
+  });
+
+  it("states the objectives tally, and hides it entirely for a quest with none", () => {
+    const wrapper = mount(QuestFeaturedCard, { props: { quest: quest(), summary: summary() }, global });
+    expect(wrapper.text()).toContain("Objectives");
+    expect(wrapper.text()).toContain("1 / 3");
+
+    const withoutObjectives = mount(QuestFeaturedCard, {
+      props: { quest: quest(), summary: summary({ objectivesDone: 0, objectivesTotal: 0 }) },
+      global,
+    });
+    expect(withoutObjectives.text()).not.toContain("Objectives");
   });
 
   it("draws one spine row per live thread, each naming its own current beat", () => {

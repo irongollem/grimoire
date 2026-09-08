@@ -38,6 +38,8 @@ const summary = (undispatched: number, unclaimed: number): QuestBoardSummary => 
   unlockedBy: null,
   heldPayoffCount: 0,
   settledCaption: null,
+  objectivesDone: 0,
+  objectivesTotal: 0,
 });
 
 describe("deriveQuestLootRows", () => {
