@@ -48,6 +48,9 @@
       <!-- Party-member connections (npc_pc_notes) — same #168 reasoning as
            NpcRelationsSection above: previously edit-form-only. -->
       <NpcPcNotesSection :npc-id="npc.id" />
+      <!-- What this NPC owes the party (#853, npc_favors) — written by the
+           owe_favor quest consequence, or added here by hand. -->
+      <NpcFavorsSection :npc-id="npc.id" />
     </div>
 
     <!-- Combat tab -->
@@ -82,6 +85,7 @@ import SpellcastingList from "@/components/common/SpellcastingList.vue";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
 import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
 import NpcPcNotesSection from "@/components/npcs/NpcPcNotesSection.vue";
+import NpcFavorsSection from "@/components/npcs/NpcFavorsSection.vue";
 import NpcVoiceCoach from "@/components/npcs/NpcVoiceCoach.vue";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";

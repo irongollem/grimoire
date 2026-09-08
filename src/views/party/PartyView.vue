@@ -24,6 +24,10 @@
 
     <PartyTracker ref="tracker" />
 
+    <!-- What the party has earned (#853, party_milestones) — written by the
+         award_milestone quest consequence, or added here by hand. -->
+    <PartyMilestonesPanel class="mt-6" />
+
     <!-- Group Portrait -->
     <div class="mt-6 rounded-lg border border-border bg-card overflow-hidden">
       <div class="px-4 py-3 border-b border-border bg-muted/20 flex items-center justify-between">
@@ -87,6 +91,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
+import PartyMilestonesPanel from "@/components/party/PartyMilestonesPanel.vue";
 import { useGroupPortrait } from "@/composables/party/useGroupPortrait";
 
 const tracker     = ref<InstanceType<typeof PartyTracker> | null>(null);
