@@ -749,16 +749,14 @@ Vue Flow view-model wrappers only.
 | --------------------------- | ----------------------------------------------- |
 | `/quests`                   | `views/quests/QuestsView.vue` → `QuestList.vue` |
 | `/quests/new`               | `QuestDetailView.vue` → `QuestFlowStarter.vue`  |
-| `/quests/:id` (child of `/quests`) | `QuestDetailView.vue`                    |
+| `/quests/:id`               | `QuestDetailView.vue`                            |
 | `/quests/:id/beats/:beatId` | `views/quests/QuestBeatDetailView.vue`          |
 
-`/quests/:id` nests under `/quests` (#844) the same way NPCs and monsters nest
-under their grids — `QuestsView` keeps the log mounted and renders
-`<RouterView />` after it; `QuestDetailView` decides whether it is the modal or
-the full screen, via `useDetailModal` fed by `useQuestDetailSurface`. `/quests/new`
-and the beats route stay top-level siblings on purpose: creating a quest is the
-full editor at every width, and a beat is a full-screen surface in its own
-right, neither of which has a list to sit over.
+`/quests/:id`, `/quests/new` and the beats route are all top-level siblings of
+`/quests`: a quest is a full page at every width (see **DM surfaces** below for
+why it stopped being a modal on 8 Sep 2026), creating one is the full editor,
+and a beat is a full-screen surface in its own right — none of them has a list
+to sit over. Static segments outrank `:id`, so `/quests/new` still wins.
 
 **Three ways to start a quest**, all reachable without leaving the quest list:
 typing one (`QuestFlowStarter.vue`'s own form — title, starting lane, optional
@@ -776,42 +774,39 @@ toggle in that same confirmation, defaulted on. The full step-per-kind wizard
 in Campaign Settings → Document Import is unchanged and still the way to
 bulk-import a whole chapter.
 
-`/quests/:id` has two peer surfaces behind a `SegmentedControl`, selected by
-`?view=`. Only one of the two is a glance: on tablet and up, Overview is
-`useDetailModal`'s popover over the log (`QuestDetailModal.vue`, thin over
-`QuestOverviewPanel` the same way `NpcDetailModal` wraps the NPC sheet), while
-Work is a commitment — the graph is a fixed-viewport canvas and the cockpit is
-a live session — so `useQuestDetailSurface`'s `takesWholeScreen` forces it to
-the full screen regardless of width. `SegmentedControl` still switches between
-them inline wherever the full screen is already showing (a phone, at every
-`view`; desktop while `view === "work"`).
+`/quests/:id` is a full page with three permanent tabs — **Overview · Story
+flow · Run** — behind one `SegmentedControl`, selected by `?view=overview|work|run`.
+With no `?view`, the page opens on Run while a session is live and on Overview
+otherwise. Nothing about the tabs depends on session state: the Run tab is
+always there, which is how a DM reaches the cockpit to start a session in the
+first place (before 8 Sep 2026 the second tab swapped between "Story flow" and
+"Run session" with the session, and the cockpit could not be found without one).
 
-**A surface switch made inside the quest never changes whether it is a modal.**
-Switching from Story flow or Run session back to Overview with that control
-keeps the whole screen: `QuestDetailView.selectView` sets `ui.questFullScreenId`
-to the quest whenever the switch is made from a full-screen surface, and
-`useQuestDetailSurface.takesWholeScreen` honours it alongside `view === "work"`.
-The flag is forgotten when the route moves to another quest or the view unmounts,
-so opening a quest fresh from the log is still the modal. Before this (8 Sep
-2026) clicking Overview from the cockpit dropped the DM onto the quest list with
-a popover over it — a navigation they never asked for.
+**A quest is never a modal.** It was, briefly: `/quests/:id` nested under
+`/quests` so the overview could pop over the log the way an NPC sheet does,
+with a `questFullScreenId` flag keeping an in-quest tab switch from dropping
+the DM onto the list with a popover open. The maintainer's verdict on using it
+— "too much data and inconsistent" — retired the whole arrangement the same
+day: the route is top-level again, `QuestDetailModal.vue` and the flag are
+gone, and every surface is the same kind of page. A link chooses a surface
+with `?view=` and never touches broadcasting (`ui.dmMode`); the retired
+`?mode=run`, `?mode=details`, `?mode=build` and `?overview=true` shapes are
+neither generated nor read.
 
 - **Overview** — `QuestOverviewPanel` → metadata (title, premise/`summary`,
   status, giver, location, parent, tags, sharing — one autosaved editor per
   field), then either a "Write the opening beat" empty state (no beats yet) or
-  a read-only list of the graph's root beat(s) linking into Work, then
+  a read-only list of the graph's root beat(s) linking into Story flow, then
   lifecycle (objectives, quest-wide consequences via `QuestRulesPanel` — see
   below, sub-quests, calendar, and the backfill panel). A beat's own content is
-  edited in exactly one place — the Work-tab story flow's rail, or
+  edited in exactly one place — the story flow's rail, or
   `QuestBeatDetailView` — never here; this surface no longer embeds a second
   beat editor (it did, for the `is_overview` beat, before #793).
-- **Work** — the **story flow** (`QuestGraphDesigner` + `QuestFlowCanvas`, with
-  `QuestGraphOutline` as the sub-`48rem` and screen-reader fallback), or the **run
-  cockpit** (`QuestRunCockpit`) when a session is running or `?mode=run` asked.
-
-Legacy query translations still honoured: `?overview=true`, `?mode=details`,
-`?edit=true` → overview; `?mode=build` → work. `?mode=run` is _not_ legacy —
-`QuestChainRow` and `QuestRunOpenChains` generate it every time.
+- **Story flow** (`view=work`) — `QuestGraphDesigner` + `QuestFlowCanvas`, with
+  `QuestGraphOutline` in the rail (and as the sub-`48rem`/screen-reader
+  fallback).
+- **Run** (`view=run`) — the **run cockpit** (`QuestRunCockpit`), live session
+  or not.
 
 **`:contained` follows the graph, not the work tab.** The canvas is a
 fixed-viewport surface that scrolls itself; the cockpit is an ordinary long
@@ -1344,8 +1339,9 @@ there.
   autosave in place on a debounce; only **delete** navigates, to `/quests`
   (`QuestOverviewLifecycle.vue`). Do not add a post-mutation redirect to an
   autosaving field — there is no save event to hang it on.
-- **`?mode=run` may choose a surface but must never start a session.** Writing
-  `ui.dmMode` as a side effect of a link was a defect, fixed in #758.
+- **`?view=run` may choose a surface but must never start a session.** Writing
+  `ui.dmMode` as a side effect of a link was a defect, fixed in #758 (the
+  query was `?mode=run` then).
 - **The cursor is per thread — never add a thread-less read path.**
   `quest_runtime_state`'s PK is `(campaign_id, quest_id, thread_id)`; there is
   no "default thread" special case anywhere in the RPCs, and a new surface
@@ -1374,29 +1370,26 @@ there.
 
 ---
 
-## A departure that used to need a decision
+## A departure that needs a decision again
 
-`QuestFlowStarter` sends a newly created quest to `/quests/:id?view=overview` — the
-new record's own detail page, and it is not alone: `QuestGeneratorPanel` does it
-twice (lines 420 and 431) and `QuestPasteImportPanel` once (line 517). A fourth,
-`QuestGraphDesigner:283`, targets a *beat* rather than the quest, so it is a
-different route and not part of this question. The post-mutation navigation rule
-says create should go to the list and explicitly forbids the detail page; the carve-out
-that lets NPCs and monsters target their own id after a mutation is earned by
-*route nesting*, and until [#844](https://github.com/irongollem/grimoire/issues/844)
-`/quests/:id` was a standalone route, so none of these four qualified for it.
-A conventions review during epic #780 flagged this, and the epic itself added
-the fourth call site rather than resolving it.
+`QuestFlowStarter` sends a newly created quest to `/quests/:id?view=overview` —
+the new record's own detail page, and it is not alone: `QuestGeneratorPanel`
+does it twice and `QuestPasteImportPanel` once. A fourth,
+`QuestGraphDesigner`'s beat command, targets a *beat* rather than the quest, so
+it is a different route and not part of this question. The post-mutation
+navigation rule says create should go to the list and explicitly forbids the
+detail page; the carve-out that lets NPCs and monsters target their own id is
+earned by *route nesting*, and [#844](https://github.com/irongollem/grimoire/issues/844)
+nested `/quests/:id` to earn it the same way.
 
-**Resolved by #844, option 1: `/quests/:id` now nests under `/quests`**, the
-same structure NPCs and monsters use (`useDetailModal`, fed by
-`useQuestDetailSurface`'s `takesWholeScreen` — see the DM-surfaces section
-above). That earns the carve-out honestly instead of arguing for an exception:
-all four call sites are correct exactly as they stand, and none of them needed
-to change. The asymmetry the other two options would have accepted — bless a
-quest-shaped exception in CLAUDE.md, or send all four to the plain list and
-make a freshly hooked quest as hard to get back into as filing a new NPC —
-never had to be chosen between.
+**That nesting is gone (8 Sep 2026) — the quest is a full page, never a
+modal — so the carve-out no longer applies and the four call sites are a plain
+departure again.** They are kept as they stand, deliberately: a quest is born
+with no beats, and the one thing a DM does next is write the opening beat,
+which lives on the quest's own page; sending them to the log would make a
+freshly hooked quest as hard to get back into as filing a new NPC. Sanction it
+in `CLAUDE.md` or send them to the list — but do not re-nest the route to
+launder it.
 
 ## Design source
 
