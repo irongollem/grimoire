@@ -10,7 +10,22 @@ import type { PackCategory } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { cellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
 import { classifyJoint, type CellEdge } from "@/cartographer/edges";
+import { boundaryEdges } from "@/cartographer/floodFill";
 import type { Tool } from "@/cartographer/tools";
+import type { ZoneKind } from "@/types/locationMapRegion.types";
+
+// Fill / accent colour per zone kind (#868). `src/lib/locations/zones.ts` is
+// the Atlas-side twin that colours a published region the same way — the two
+// must be kept in sync by hand; there is no shared source because this file
+// must not import from `lib/locations/` (module-placement boundary) and that
+// file has no reason to import a Cartographer-only render module.
+export const ZONE_RENDER_COLOURS: Record<ZoneKind, { fill: string; accent: string }> = {
+  terrain: { fill: "rgba(56,189,248,.30)", accent: "rgba(56,189,248,.85)" },
+  hazard: { fill: "rgba(251,146,60,.32)", accent: "rgba(251,146,60,.9)" },
+  light: { fill: "rgba(139,92,246,.30)", accent: "rgba(167,139,250,.9)" },
+  trigger: { fill: "rgba(244,63,94,.30)", accent: "rgba(244,63,94,.9)" },
+  marker: { fill: "rgba(120,113,108,.30)", accent: "rgba(168,162,158,.85)" },
+};
 
 export interface MapRenderScene {
   ctx: CanvasRenderingContext2D;
@@ -47,6 +62,14 @@ export interface MapRenderScene {
   hoverCell: [number, number] | null;
   selectedCell: [number, number] | null;
   previewCells: Set<CellKey>;
+  /**
+   * Derived spaces to outline with their proposed name (#868) — the Space
+   * tool's "here's what claiming a region gets you" preview. Only ever set
+   * while that tool is active; every other tool leaves this undefined and
+   * draws no outlines, same convention as `hoveredEdge`/`previewCells`.
+   */
+  derivedSpaces?: { key: string; cells: CellKey[]; displayName: string; nameSource: "annotation" | null }[];
+  selectedSpaceKey?: string | null;
 }
 
 // ── Geometry helpers ───────────────────────────────────────────────────────
@@ -73,6 +96,8 @@ export function renderMap(scene: MapRenderScene): void {
     hoverCell,
     selectedCell,
     previewCells,
+    derivedSpaces,
+    selectedSpaceKey,
   } = scene;
   const { minX, minY, maxX, maxY } = bounds;
 
@@ -246,6 +271,74 @@ export function renderMap(scene: MapRenderScene): void {
         } else {
           ctx.drawImage(tile.source, drawX, drawY, tilePx, tilePx);
         }
+      }
+    }
+  }
+
+  // Zone layer (#868) — translucent fill + dashed cell border per kind,
+  // drawn above objects so a stamped brazier still reads inside a "Light"
+  // zone rather than being washed out by it.
+  if (layers.zone) {
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const zone = layers.zone[cellKey(x, y)];
+        if (!zone) continue;
+        const colours = ZONE_RENDER_COLOURS[zone.kind];
+        const drawX = x * tilePx - viewportOffset.x;
+        const drawY = y * tilePx - viewportOffset.y;
+        ctx.fillStyle = colours.fill;
+        ctx.fillRect(drawX, drawY, tilePx, tilePx);
+        ctx.strokeStyle = colours.accent;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([tilePx * 0.12, tilePx * 0.08]);
+        ctx.strokeRect(drawX + 1, drawY + 1, tilePx - 2, tilePx - 2);
+        ctx.setLineDash([]);
+      }
+    }
+  }
+
+  // Derived-space outlines (#868) — the Space tool's "here's the region
+  // you'd claim" preview. Traces the space's true perimeter (not per-cell
+  // boxes) via `boundaryEdges`, same helper Wrap Walls uses to find the
+  // edges facing void.
+  if (derivedSpaces && derivedSpaces.length > 0) {
+    for (const space of derivedSpaces) {
+      const isSelected = space.key === selectedSpaceKey;
+      ctx.strokeStyle = isSelected ? "rgba(96,165,250,0.9)" : "rgba(255,255,255,0.35)";
+      ctx.lineWidth = isSelected ? 2.5 : 1.5;
+      ctx.setLineDash([tilePx * 0.15, tilePx * 0.1]);
+      ctx.beginPath();
+      for (const { x, y, side } of boundaryEdges(new Set(space.cells))) {
+        const baseX = x * tilePx - viewportOffset.x;
+        const baseY = y * tilePx - viewportOffset.y;
+        switch (side) {
+          case "N": ctx.moveTo(baseX, baseY);           ctx.lineTo(baseX + tilePx, baseY); break;
+          case "S": ctx.moveTo(baseX, baseY + tilePx);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+          case "W": ctx.moveTo(baseX, baseY);            ctx.lineTo(baseX, baseY + tilePx); break;
+          case "E": ctx.moveTo(baseX + tilePx, baseY);   ctx.lineTo(baseX + tilePx, baseY + tilePx); break;
+        }
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // An annotation-sourced name is already drawn by the annotation layer
+      // below, at the cell it was typed into — drawing it again at the
+      // space's centroid would show the same name twice on screen. Only a
+      // space with no annotation of its own (still "Region N") needs this
+      // layer to say its name at all.
+      if (space.nameSource !== "annotation") {
+        const cx = space.cells.reduce((sum, c) => sum + Number(c.split(",")[0]), 0) / space.cells.length;
+        const cy = space.cells.reduce((sum, c) => sum + Number(c.split(",")[1]), 0) / space.cells.length;
+        const labelX = (cx + 0.5) * tilePx - viewportOffset.x;
+        const labelY = (cy + 0.5) * tilePx - viewportOffset.y;
+        const fontSize = Math.max(10, Math.round(tilePx * 0.18));
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillText(space.displayName, labelX + 1, labelY + 1);
+        ctx.fillStyle = isSelected ? "rgba(191,219,254,0.95)" : "rgba(255,255,255,0.75)";
+        ctx.fillText(space.displayName, labelX, labelY);
       }
     }
   }

@@ -5,6 +5,8 @@
     class="absolute inset-0 h-full w-full"
     :class="mode === 'browse' && activeRegionId ? 'cursor-crosshair' : 'cursor-pointer'"
     @pointerdown="onPointerDown"
+    @pointermove="onCanvasHoverMove"
+    @pointerleave="onCanvasHoverLeave"
   />
 </template>
 
@@ -28,11 +30,12 @@ import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useUpdateLocationMapRegion } from "@/composables/locations/useLocationMapRegions";
 import { useToast } from "@/composables/useToast";
-import { cellAtImageFraction, cellRectInImageFractions, gridExtent } from "@/lib/gridCalibration";
+import { cellAtImageFraction, cellRectInImageFractions, gridExtent } from "@/lib/locations/gridCalibration";
 import { isCellOnImageGrid, toggleCell } from "@/lib/locations/siteMap";
+import { ZONE_KIND_FILL } from "@/lib/locations/zones";
 import { cellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration } from "@/types/location.types";
-import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+import { ZONE_KIND_LABELS, type LocationMapRegion } from "@/types/locationMapRegion.types";
 
 const activeRegionId = defineModel<string | null>("activeRegionId", { default: null });
 
@@ -45,6 +48,10 @@ const {
   partyRoomId = null,
   reachableRoomIds = null,
   toImageFraction,
+  showSpaces = true,
+  showZones = false,
+  showGrid = true,
+  nestedSiteIds = new Set<string>(),
 } = defineProps<{
   regions: LocationMapRegion[];
   calibration: GridCalibration | null;
@@ -63,9 +70,32 @@ const {
    *  one `MapPinsLayer` uses, so a click lands on the same cell the grid was
    *  drawn onto. See `MapFrame.vue`. */
   toImageFraction: (clientX: number, clientY: number) => { x: number; y: number } | null;
+  /** The `Spaces` layer bar pill (#868). Spaces are the map's original
+   *  content, so this defaults on. */
+  showSpaces?: boolean;
+  /** The `Zones` layer bar pill (#868). Off by default — a zone is DM ink
+   *  first, and most plans have none traced yet. */
+  showZones?: boolean;
+  /** The `Grid` layer bar pill (#868). */
+  showGrid?: boolean;
+  /** Bound spaces that are themselves a nested site rather than a room
+   *  (#818) — clicking one descends into it instead of pushing to its
+   *  sheet. Derived by `LocationMap.vue` from the same `spaces` prop that
+   *  feeds `SiteMapRegionList`. */
+  nestedSiteIds?: ReadonlySet<string>;
 }>();
 
-const emit = defineEmits<{ "move-party": [roomId: string] }>();
+const emit = defineEmits<{
+  "move-party": [roomId: string];
+  /** A bound space is a nested site (#818) — `LocationMap.vue`'s caller
+   *  decides what "descend" means (the Atlas pane re-centres, the sheet
+   *  navigates); this layer only knows it isn't a plain room push. */
+  descend: [spaceId: string];
+  /** The region under the pointer changed — including to `null` on leaving
+   *  it. Fired on hover, not on click; a later story uses it for a caption
+   *  chip and nothing here reacts to it itself. */
+  "hover-region": [regionId: string | null];
+}>();
 
 const router = useRouter();
 const { error: toastError, fromError } = useToast();
@@ -161,60 +191,141 @@ function renderOverlay(): void {
   const originCellX = cal.origin_cell_x ?? 0;
   const originCellY = cal.origin_cell_y ?? 0;
 
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let ix = 0; ix <= cols; ix++) {
-    const rect = cellRectInImageFractions(cellKey(ix + originCellX, originCellY), cal, w, h);
-    const px = rect.x * canvas.width;
-    ctx.moveTo(px, 0);
-    ctx.lineTo(px, canvas.height);
-  }
-  for (let iy = 0; iy <= rows; iy++) {
-    const rect = cellRectInImageFractions(cellKey(originCellX, iy + originCellY), cal, w, h);
-    const py = rect.y * canvas.height;
-    ctx.moveTo(0, py);
-    ctx.lineTo(canvas.width, py);
-  }
-  ctx.stroke();
-
-  for (const region of regions) {
-    const pending = pendingStroke.value;
-    const cells =
-      stroke && stroke.regionId === region.id
-        ? stroke.cells
-        : pending && pending.regionId === region.id
-          ? pending.cells
-          : region.cells;
-    // Same null-versus-null trap as `regionFillColor` — the outline has to agree
-    // with the fill, or an unbound shape gets a party ring around a colour that
-    // says it is untraced.
-    const isHighlighted =
-      mode === "run"
-        ? partyRoomId !== null && region.space_location_id === partyRoomId
-        : region.id === activeRegionId.value;
-    ctx.fillStyle = regionFillColor(region);
-    for (const key of cells) {
-      const rect = cellRectInImageFractions(key, cal, w, h);
-      ctx.fillRect(rect.x * canvas.width, rect.y * canvas.height, rect.w * canvas.width, rect.h * canvas.height);
+  if (showGrid) {
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let ix = 0; ix <= cols; ix++) {
+      const rect = cellRectInImageFractions(cellKey(ix + originCellX, originCellY), cal, w, h);
+      const px = rect.x * canvas.width;
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, canvas.height);
     }
-    if (isHighlighted) {
-      ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
-      ctx.lineWidth = 2;
+    for (let iy = 0; iy <= rows; iy++) {
+      const rect = cellRectInImageFractions(cellKey(originCellX, iy + originCellY), cal, w, h);
+      const py = rect.y * canvas.height;
+      ctx.moveTo(0, py);
+      ctx.lineTo(canvas.width, py);
+    }
+    ctx.stroke();
+  }
+
+  /** The cells actually painted for `region` right now — its own stored
+   *  cells, or the in-flight/just-committed stroke on top of it. Shared by
+   *  the space and zone passes so an active trace never disagrees with
+   *  itself depending on which layer it belongs to. */
+  function cellsForRegion(region: LocationMapRegion): CellKey[] {
+    const pending = pendingStroke.value;
+    return stroke && stroke.regionId === region.id
+      ? stroke.cells
+      : pending && pending.regionId === region.id
+        ? pending.cells
+        : region.cells;
+  }
+
+  if (showSpaces) {
+    for (const region of regions) {
+      if (region.region_role !== "space") continue;
+      const cells = cellsForRegion(region);
+      // Same null-versus-null trap as `regionFillColor` — the outline has to agree
+      // with the fill, or an unbound shape gets a party ring around a colour that
+      // says it is untraced.
+      const isHighlighted =
+        mode === "run"
+          ? partyRoomId !== null && region.space_location_id === partyRoomId
+          : region.id === activeRegionId.value;
+      ctx.fillStyle = regionFillColor(region);
       for (const key of cells) {
         const rect = cellRectInImageFractions(key, cal, w, h);
-        const x = rect.x * canvas.width;
-        const y = rect.y * canvas.height;
-        const cw = rect.w * canvas.width;
-        const ch = rect.h * canvas.height;
-        ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2);
+        ctx.fillRect(rect.x * canvas.width, rect.y * canvas.height, rect.w * canvas.width, rect.h * canvas.height);
+      }
+      if (isHighlighted) {
+        ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
+        ctx.lineWidth = 2;
+        for (const key of cells) {
+          const rect = cellRectInImageFractions(key, cal, w, h);
+          const x = rect.x * canvas.width;
+          const y = rect.y * canvas.height;
+          const cw = rect.w * canvas.width;
+          const ch = rect.h * canvas.height;
+          ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2);
+        }
+      }
+    }
+  }
+
+  // Zones paint above spaces — a room is a floor to stand on, a zone is an
+  // overlay ON that floor (water, ash, darkness) — and always dashed, so a
+  // zone reads as an area effect rather than a second, competing room shape
+  // (frame 07: "Zone layer over the space layer — dashed, so a zone never
+  // reads as a room.").
+  if (showZones) {
+    for (const region of regions) {
+      if (region.region_role !== "zone" || !region.zone_kind) continue;
+      const cells = cellsForRegion(region);
+      const { fill, stroke: strokeColor } = ZONE_KIND_FILL[region.zone_kind];
+
+      ctx.fillStyle = fill;
+      for (const key of cells) {
+        const rect = cellRectInImageFractions(key, cal, w, h);
+        ctx.fillRect(rect.x * canvas.width, rect.y * canvas.height, rect.w * canvas.width, rect.h * canvas.height);
+      }
+
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([7, 5]);
+      for (const key of cells) {
+        const rect = cellRectInImageFractions(key, cal, w, h);
+        ctx.strokeRect(rect.x * canvas.width, rect.y * canvas.height, rect.w * canvas.width, rect.h * canvas.height);
+      }
+      ctx.setLineDash([]);
+
+      if (region.id === activeRegionId.value) {
+        ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
+        ctx.lineWidth = 2;
+        for (const key of cells) {
+          const rect = cellRectInImageFractions(key, cal, w, h);
+          const x = rect.x * canvas.width;
+          const y = rect.y * canvas.height;
+          const cw = rect.w * canvas.width;
+          const ch = rect.h * canvas.height;
+          ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2);
+        }
+      }
+
+      if (cells.length) {
+        let sx = 0;
+        let sy = 0;
+        for (const key of cells) {
+          const rect = cellRectInImageFractions(key, cal, w, h);
+          sx += (rect.x + rect.w / 2) * canvas.width;
+          sy += (rect.y + rect.h / 2) * canvas.height;
+        }
+        const label = (region.label || ZONE_KIND_LABELS[region.zone_kind]).toUpperCase();
+        ctx.font = `${Math.round(9 * dpr)}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = strokeColor;
+        ctx.fillText(label, sx / cells.length, sy / cells.length);
       }
     }
   }
 }
 
 watch(
-  [() => regions, () => calibration, activeRegionId, () => imageNaturalWidth, () => imageNaturalHeight, () => mode, () => partyRoomId, () => reachableRoomIds],
+  [
+    () => regions,
+    () => calibration,
+    activeRegionId,
+    () => imageNaturalWidth,
+    () => imageNaturalHeight,
+    () => mode,
+    () => partyRoomId,
+    () => reachableRoomIds,
+    () => showSpaces,
+    () => showZones,
+    () => showGrid,
+  ],
   () => renderOverlay(),
   { flush: "post", immediate: true },
 );
@@ -231,6 +342,41 @@ function cellFromEvent(e: PointerEvent): CellKey | null {
   const frac = toImageFraction(e.clientX, e.clientY);
   if (!frac) return null;
   return cellAtImageFraction(frac.x, frac.y, cal, imageNaturalWidth, imageNaturalHeight);
+}
+
+// ── Hover (#868) ──────────────────────────────────────────────────────────────
+// Plain mouse movement, not a gesture — a separate template listener rather
+// than folded into the window-level drag tracking above, so it keeps working
+// whether or not a pointer is down. Suppressed mid-stroke: the window
+// handler already owns the pointer for the duration of a paint, and hovering
+// would otherwise report whatever's under the cursor as it drags across
+// several regions rather than the one actually being painted.
+let lastHoverRegionId: string | null = null;
+
+function regionAtEvent(e: PointerEvent): LocationMapRegion | null {
+  const key = cellFromEvent(e);
+  if (!key) return null;
+  // Zones paint above spaces (see `renderOverlay`), so hover follows the
+  // same stacking: whatever the DM would actually see under the cursor wins.
+  return (
+    regions.find((r) => r.region_role === "zone" && r.cells.includes(key)) ??
+    regions.find((r) => r.region_role === "space" && r.cells.includes(key)) ??
+    null
+  );
+}
+
+function onCanvasHoverMove(e: PointerEvent): void {
+  if (stroke) return;
+  const id = regionAtEvent(e)?.id ?? null;
+  if (id === lastHoverRegionId) return;
+  lastHoverRegionId = id;
+  emit("hover-region", id);
+}
+
+function onCanvasHoverLeave(): void {
+  if (lastHoverRegionId === null) return;
+  lastHoverRegionId = null;
+  emit("hover-region", null);
 }
 
 /**
@@ -313,15 +459,31 @@ function onWindowPointerUp(e: PointerEvent): void {
   handleClick(e);
 }
 
+/** Pushes to a bound space's sheet, or — when it's a nested site rather
+ *  than a room (#818) — emits `descend` instead, so the caller can navigate
+ *  the way it already navigates a pin (a re-centred Atlas pane, not a
+ *  route push) rather than this layer assuming what "descend" means. */
+function goToSpace(spaceId: string): void {
+  if (nestedSiteIds.has(spaceId)) emit("descend", spaceId);
+  else router.push(`/locations/${spaceId}`);
+}
+
 /**
  * Everything that isn't painting: selecting an unbound shape to trace,
  * navigating to a bound room's sheet, or — in run mode — moving the party.
+ *
+ * Zones are excluded from the search on purpose: they bind to nothing, so a
+ * click can only ever mean something for the space underneath one, and a
+ * DM's tap on an overlapping zone+space cell would otherwise resolve
+ * unpredictably depending on array order. Zones are only ever traced —
+ * selected for it from `SiteMapZoneList`'s Draw/Trace buttons, never from a
+ * plain tap on the map.
  */
 function handleClick(e: PointerEvent): void {
   if (mode === "browse" && activeRegionId.value) return;
   const key = cellFromEvent(e);
   if (!key) return;
-  const found = regions.find((r) => r.cells.includes(key));
+  const found = regions.find((r) => r.region_role === "space" && r.cells.includes(key));
   if (!found) return;
 
   if (!found.space_location_id) {
@@ -333,12 +495,12 @@ function handleClick(e: PointerEvent): void {
     if (!reachableRoomIds || reachableRoomIds.has(found.space_location_id)) {
       emit("move-party", found.space_location_id);
     } else {
-      router.push(`/locations/${found.space_location_id}`);
+      goToSpace(found.space_location_id);
     }
     return;
   }
 
-  router.push(`/locations/${found.space_location_id}`);
+  goToSpace(found.space_location_id);
 }
 
 onUnmounted(() => {

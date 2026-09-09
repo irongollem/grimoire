@@ -3,7 +3,7 @@ import type { Ref } from "vue";
 import { mount, flushPromises } from "@vue/test-utils";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import type { PlayerVisibleSiteRoom } from "./usePlayerVisibleSiteState";
+import type { PlayerSitePlan, PlayerSitePlanSpace } from "./usePlayerVisibleSiteState";
 
 // Plain top-level `ref()`s, mirroring `LocationSheet.test.ts`'s ui-store mock:
 // the mock factories below only close over these, they don't read `.value`
@@ -18,7 +18,8 @@ vi.mock("@/stores/ui", () => ({
   }),
 }));
 
-const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+const emptyDoc = { spaces: [], glimpsed: [], ways: [], zones: [] };
+const rpc = vi.fn().mockResolvedValue({ data: emptyDoc, error: null });
 vi.mock("@/lib/supabase", () => ({ supabase: { rpc } }));
 
 // Imported after the mocks above (same idiom as `useStoreItems.test.ts`): a
@@ -26,7 +27,9 @@ vi.mock("@/lib/supabase", () => ({ supabase: { rpc } }));
 // `@/lib/supabase` import while THIS file's top-level body is still being
 // evaluated, i.e. before `const rpc` exists — a real TDZ crash, not a
 // theoretical one, hit while writing this test.
-const { groupExploredRooms, usePlayerVisibleSiteState } = await import("./usePlayerVisibleSiteState");
+const { exploredRooms, parsePlayerSitePlan, usePlayerVisibleSiteState, wayCount } = await import(
+  "./usePlayerVisibleSiteState"
+);
 
 function mountWidget(siteId: string, previewRef?: Ref<string | null>) {
   mount(
@@ -43,6 +46,7 @@ function mountWidget(siteId: string, previewRef?: Ref<string | null>) {
 describe("usePlayerVisibleSiteState", () => {
   beforeEach(() => {
     rpc.mockClear();
+    rpc.mockResolvedValue({ data: emptyDoc, error: null });
     dmPreviewMode.value = false;
     dmPreviewPartyMemberId.value = null;
   });
@@ -58,7 +62,7 @@ describe("usePlayerVisibleSiteState", () => {
 
   // The DM-preview hole this closes: a DM's own campaign_members row has a
   // null party_member_id, so without this the RPC would always see "not
-  // this party member" and the previewed journal's map would show no rooms.
+  // this party member" and the previewed journal's plan would show nothing.
   it("falls back to the DM's global preview audience when no explicit ref is given", async () => {
     dmPreviewMode.value = true;
     dmPreviewPartyMemberId.value = "member-1";
@@ -93,7 +97,30 @@ describe("usePlayerVisibleSiteState", () => {
   });
 });
 
-function room(overrides: Partial<PlayerVisibleSiteRoom> = {}): PlayerVisibleSiteRoom {
+describe("parsePlayerSitePlan", () => {
+  it("accepts the RPC's own empty document", () => {
+    expect(parsePlayerSitePlan(emptyDoc)).toEqual(emptyDoc);
+  });
+
+  it("passes the four arrays through unchanged", () => {
+    const doc = {
+      spaces: [{ space_location_id: "room-a" }],
+      glimpsed: [{ cells: ["0,0"] }],
+      ways: [{ from_space_id: "room-a" }],
+      zones: [{ zone_kind: "hazard" }],
+    };
+    expect(parsePlayerSitePlan(doc)).toEqual(doc);
+  });
+
+  it.each([null, undefined, "a string", 42, {}, { spaces: [] }])(
+    "throws rather than silently downgrading an unexpected shape (%j)",
+    (value) => {
+      expect(() => parsePlayerSitePlan(value)).toThrow();
+    },
+  );
+});
+
+function space(overrides: Partial<PlayerSitePlanSpace> = {}): PlayerSitePlanSpace {
   return {
     space_location_id: "room-a",
     name: "Flooded Nave",
@@ -106,49 +133,67 @@ function room(overrides: Partial<PlayerVisibleSiteRoom> = {}): PlayerVisibleSite
   };
 }
 
-describe("groupExploredRooms", () => {
-  it("returns an empty list for no rows", () => {
-    expect(groupExploredRooms([])).toEqual([]);
+function plan(overrides: Partial<PlayerSitePlan> = {}): PlayerSitePlan {
+  return { spaces: [], glimpsed: [], ways: [], zones: [], ...overrides };
+}
+
+describe("exploredRooms", () => {
+  it("returns an empty list for no spaces", () => {
+    expect(exploredRooms(plan())).toEqual([]);
   });
 
   it("returns one entry per room", () => {
-    expect(groupExploredRooms([room()])).toEqual([
+    expect(exploredRooms(plan({ spaces: [space()] }))).toEqual([
       { spaceLocationId: "room-a", name: "Flooded Nave", isCleared: false, isLooted: false },
     ]);
   });
 
   // A room traced as more than one shape must still read as one room in a
-  // list — the map overlay is the layer that draws every shape.
+  // list — `PlayerSitePlan.vue` is the layer that draws every shape.
   it("folds multiple traced shapes bound to the same room into one entry", () => {
-    const rows = [
-      room({ space_location_id: "room-a", cells: ["0,0"] }),
-      room({ space_location_id: "room-a", cells: ["1,0"] }),
+    const spaces = [
+      space({ space_location_id: "room-a", cells: ["0,0"] }),
+      space({ space_location_id: "room-a", cells: ["1,0"] }),
     ];
-    expect(groupExploredRooms(rows)).toHaveLength(1);
+    expect(exploredRooms(plan({ spaces }))).toHaveLength(1);
   });
 
   it("sorts by sort_order (nulls last), then by name", () => {
-    const rows = [
-      room({ space_location_id: "c", name: "Charlie", sort_order: null }),
-      room({ space_location_id: "b", name: "Bravo", sort_order: 1 }),
-      room({ space_location_id: "a", name: "Alpha", sort_order: null }),
+    const spaces = [
+      space({ space_location_id: "c", name: "Charlie", sort_order: null }),
+      space({ space_location_id: "b", name: "Bravo", sort_order: 1 }),
+      space({ space_location_id: "a", name: "Alpha", sort_order: null }),
     ];
-    expect(groupExploredRooms(rows).map((r) => r.spaceLocationId)).toEqual(["b", "a", "c"]);
+    expect(exploredRooms(plan({ spaces })).map((r) => r.spaceLocationId)).toEqual(["b", "a", "c"]);
   });
 
   it("carries the cleared/looted facts through", () => {
-    const rows = [room({ is_cleared: true, is_looted: true })];
-    expect(groupExploredRooms(rows)[0]).toMatchObject({ isCleared: true, isLooted: true });
+    const spaces = [space({ is_cleared: true, is_looted: true })];
+    expect(exploredRooms(plan({ spaces }))[0]).toMatchObject({ isCleared: true, isLooted: true });
   });
 
   it("keeps independently-explored rooms separate", () => {
-    const rows = [
-      room({ space_location_id: "room-a", name: "Alpha", is_cleared: true }),
-      room({ space_location_id: "room-b", name: "Bravo", is_looted: true }),
+    const spaces = [
+      space({ space_location_id: "room-a", name: "Alpha", is_cleared: true }),
+      space({ space_location_id: "room-b", name: "Bravo", is_looted: true }),
     ];
-    const result = groupExploredRooms(rows);
+    const result = exploredRooms(plan({ spaces }));
     expect(result).toHaveLength(2);
     expect(result.find((r) => r.spaceLocationId === "room-a")).toMatchObject({ isCleared: true, isLooted: false });
     expect(result.find((r) => r.spaceLocationId === "room-b")).toMatchObject({ isCleared: false, isLooted: true });
+  });
+});
+
+describe("wayCount", () => {
+  it("is zero for a plan with no known ways", () => {
+    expect(wayCount(plan())).toBe(0);
+  });
+
+  it("counts every way the plan carries, known-edge or not", () => {
+    const ways: PlayerSitePlan["ways"] = [
+      { from_space_id: "room-a", to_space_id: "room-b", door_kind: "door", source_edge_key: "0,0:N" },
+      { from_space_id: "room-a", to_space_id: null, door_kind: "arch", source_edge_key: null },
+    ];
+    expect(wayCount(plan({ ways }))).toBe(2);
   });
 });

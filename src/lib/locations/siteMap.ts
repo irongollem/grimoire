@@ -13,7 +13,7 @@
 // `SiteMapView.vue`, deleted when the map's regions overlay moved into the
 // composite).
 
-import { gridExtent } from "@/lib/gridCalibration";
+import { gridExtent } from "@/lib/locations/gridCalibration";
 import { parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration } from "@/types/location.types";
 

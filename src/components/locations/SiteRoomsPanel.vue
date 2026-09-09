@@ -6,6 +6,24 @@
          "Inventory" under a "Store" heading; here there is no second word
          worth inventing, so the row simply goes. -->
 
+    <!-- Site-default ambience (#868) — the floor every themeless room here
+         falls back to. Dashed border marks it as the fallback row, not a
+         room, the same way the "Add a room…" row below reads as an affordance
+         rather than a room. -->
+    <div
+      v-if="site"
+      class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2"
+    >
+      <span class="min-w-0 shrink-0 truncate font-cinzel text-xs font-semibold text-foreground">{{ site.name }}</span>
+      <RoomAmbienceCell
+        :location-id="site.id"
+        :own-theme="site.audio_theme"
+        :resolved="siteAmbience"
+        :theme-options="themeOptions"
+        @save="saveAmbience"
+      />
+    </div>
+
     <!-- Room list -->
     <VueDraggable
       v-if="dragList.length"
@@ -19,68 +37,82 @@
       <div
         v-for="(room, idx) in dragList"
         :key="room.id"
-        class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
+        class="flex flex-col gap-1 rounded-md border border-border bg-card px-3 py-2"
       >
-        <div
-          class="room-drag-handle shrink-0 cursor-grab text-muted-foreground/40 transition-colors hover:text-muted-foreground/80 active:cursor-grabbing"
-          title="Drag to reorder"
-        >
-          <IconDrag class="h-3.5 w-3.5" />
+        <div class="flex items-center gap-2">
+          <div
+            class="room-drag-handle shrink-0 cursor-grab text-muted-foreground/40 transition-colors hover:text-muted-foreground/80 active:cursor-grabbing"
+            title="Drag to reorder"
+          >
+            <IconDrag class="h-3.5 w-3.5" />
+          </div>
+
+          <span class="w-5 shrink-0 text-caption-sm tabular-nums text-muted-foreground">{{ idx + 1 }}.</span>
+
+          <AppInput
+            v-if="editingId === room.id"
+            ref="renameInput"
+            v-model="nameDraft"
+            size="xs"
+            class="flex-1"
+            @keydown.enter="saveRename(room.id)"
+            @keydown.escape="cancelRename"
+            @blur="saveRename(room.id)"
+          />
+          <span
+            v-else
+            class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground"
+          >{{ room.name }}</span>
+
+          <!-- Read-only cleared/looted markers (#787, epic #780). The toggles
+               themselves live on the room's own detail page (LocationStateControls);
+               this is a glance-only indicator, so it shows only a positive
+               assertion — an "unknown" or explicit-false room renders no marker
+               at all, keeping the row exactly as dense as before this feature. -->
+          <IconShieldCheck
+            v-if="siteStateOf(room.id, 'cleared')?.value"
+            class="h-3.5 w-3.5 shrink-0 text-tone-success"
+            aria-label="Cleared"
+            title="Cleared"
+          />
+          <IconLoot
+            v-if="siteStateOf(room.id, 'looted')?.value"
+            class="h-3.5 w-3.5 shrink-0 text-tone-caution"
+            aria-label="Looted"
+            title="Looted"
+          />
+
+          <AppButton
+            v-if="editingId !== room.id"
+            variant="ghost"
+            size="icon-xs"
+            :icon="IconEdit"
+            tooltip="Rename room"
+            class="shrink-0"
+            @click="startRename(room)"
+          />
+          <AppButton
+            variant="ghost"
+            tone="danger"
+            size="icon-xs"
+            :icon="IconClose"
+            tooltip="Delete room"
+            class="shrink-0"
+            @click="removeRoom(room)"
+          />
         </div>
 
-        <span class="w-5 shrink-0 text-caption-sm tabular-nums text-muted-foreground">{{ idx + 1 }}.</span>
-
-        <AppInput
-          v-if="editingId === room.id"
-          ref="renameInput"
-          v-model="nameDraft"
-          size="xs"
-          class="flex-1"
-          @keydown.enter="saveRename(room.id)"
-          @keydown.escape="cancelRename"
-          @blur="saveRename(room.id)"
-        />
-        <span
-          v-else
-          class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground"
-        >{{ room.name }}</span>
-
-        <!-- Read-only cleared/looted markers (#787, epic #780). The toggles
-             themselves live on the room's own detail page (LocationStateControls);
-             this is a glance-only indicator, so it shows only a positive
-             assertion — an "unknown" or explicit-false room renders no marker
-             at all, keeping the row exactly as dense as before this feature. -->
-        <IconShieldCheck
-          v-if="siteStateOf(room.id, 'cleared')?.value"
-          class="h-3.5 w-3.5 shrink-0 text-tone-success"
-          aria-label="Cleared"
-          title="Cleared"
-        />
-        <IconLoot
-          v-if="siteStateOf(room.id, 'looted')?.value"
-          class="h-3.5 w-3.5 shrink-0 text-tone-caution"
-          aria-label="Looted"
-          title="Looted"
-        />
-
-        <AppButton
-          v-if="editingId !== room.id"
-          variant="ghost"
-          size="icon-xs"
-          :icon="IconEdit"
-          tooltip="Rename room"
-          class="shrink-0"
-          @click="startRename(room)"
-        />
-        <AppButton
-          variant="ghost"
-          tone="danger"
-          size="icon-xs"
-          :icon="IconClose"
-          tooltip="Delete room"
-          class="shrink-0"
-          @click="removeRoom(room)"
-        />
+        <!-- Ambience (#868) — indented under the drag handle + index so it
+             reads as this room's own second line, not a sibling row. -->
+        <div class="pl-7">
+          <RoomAmbienceCell
+            :location-id="room.id"
+            :own-theme="room.audio_theme"
+            :resolved="roomAmbience(room.id)"
+            :theme-options="themeOptions"
+            @save="saveAmbience"
+          />
+        </div>
       </div>
     </VueDraggable>
 
@@ -120,12 +152,19 @@ import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
 import {
   useLocations,
+  useAllLocations,
   useCreateLocation,
   useUpdateLocation,
   useDeleteLocation,
   useReorderLocations,
 } from "@/composables/locations/useLocations";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
+import { buildAtlasIndex } from "@/lib/locations/tree";
+import { resolveInheritedTheme } from "@/lib/locations/ambience";
+import { collectThemes } from "@/lib/audio/audioThemes";
+import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
+import { useSounds } from "@/composables/soundboard/useSounds";
+import RoomAmbienceCell from "@/components/locations/RoomAmbienceCell.vue";
 import type { Location, LocationInsert } from "@/types/location.types";
 
 /**
@@ -154,6 +193,28 @@ const { stateOf: siteStateOf } = useLocationStateForRooms(roomIds);
 
 const toast = useToast();
 const { confirm } = useConfirm();
+
+// ── Ambience (#868) ───────────────────────────────────────────────────────
+// Full campaign list (shared query key — the Atlas already pays for this
+// fetch) rather than just this site's own children: a site itself can
+// inherit from an ancestor further up, and the walk needs the whole chain.
+const { data: allLocations } = useAllLocations();
+const ambienceById = computed(() => buildAtlasIndex(allLocations.value ?? []).byId);
+const site = computed(() => ambienceById.value.get(locationId) ?? null);
+const siteAmbience = computed(() => resolveInheritedTheme(locationId, ambienceById.value));
+function roomAmbience(roomId: string) {
+  return resolveInheritedTheme(roomId, ambienceById.value);
+}
+
+const { data: playlists } = usePlaylists();
+const { data: sounds } = useSounds();
+const themeOptions = computed(() =>
+  collectThemes(playlists.value === undefined ? [] : playlists.value, sounds.value === undefined ? [] : sounds.value),
+);
+
+function saveAmbience(id: string, theme: string | null): void {
+  updateLocation({ id, update: { audio_theme: theme } }, { onError: (e) => toast.error(toast.fromError(e)) });
+}
 
 // ── Drag-to-reorder ─────────────────────────────────────────────────────────────
 // Local mutable copy for VueDraggable (it reorders this in place); kept in

@@ -49,6 +49,8 @@ Same rule forward in time: no "we'll refactor later", no "we'll extract this whe
 
 **The overseer (the session's model) keeps:** recon and audits, architecture and scoping decisions, writing each executor's spec, reviewing every diff, running the gates, migrations and DB writes, git commits, GitHub issue lifecycle, and user communication.
 
+**Discovery runs on sonnet too — and every subagent launch names its model.** Recon that fans out over many files (an `Explore` agent per area) is cheap-model work exactly like execution; the overseer reads the *reports* and keeps the judgment. The trap is the default: an agent launched without `model:` inherits the session's model, so an unannotated `Explore` call under a Fable session is a Fable session reading two thousand files. Pass `model: "sonnet"` explicitly on every `Agent` call that is not a fork; the top model is reserved for orchestration, review, and the isolated judgment calls the advisor pattern names.
+
 **Executors (`model: "sonnet"`; haiku for pure lookups):** one well-specified story each. Every spec includes: the verified facts they should trust (schema locations, API quirks — with file:line), an explicit list of files they own, the conventions that apply, and hard boundaries — no commits, no pushes, no migrations (report needed SQL instead), no GitHub writes, and no touching files another agent or the user has in flight (name those files in the prompt).
 
 **Waves by file overlap:** stories with disjoint files run in parallel in the shared checkout; stories sharing a file run in sequence. Structure work so shared code stabilizes first, then fan out dependents.

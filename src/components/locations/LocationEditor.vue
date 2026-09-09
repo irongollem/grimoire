@@ -145,7 +145,7 @@
               placeholder="dungeon, tavern, storm…"
             />
             <p class="text-caption text-muted-foreground">
-              Opening this location asks the soundboard for an ambient playlist tagged with this theme — nothing happens if none matches.
+              Opening this location asks the soundboard for an ambient playlist tagged with this theme — nothing happens if none matches. Blank inherits from the nearest themed ancestor; pick "silence" to mute this place on purpose instead.
             </p>
           </div>
         </div>

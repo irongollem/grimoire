@@ -213,7 +213,13 @@ export interface Location {
    * Theme label requested from the soundboard when this location is opened
    * for prep-time preview (`LocationSheet`), or when the party actually
    * arrives here during a session (`usePartyAmbience`, #790); resolves
-   * against ambient playlists tagged with it. Null = leave audio alone.
+   * against ambient playlists tagged with it.
+   *
+   * Null = INHERIT (#868): walk up `parent_id` to the nearest ancestor with a
+   * theme, so a dungeon themed once themes every room. The reserved label
+   * `SILENCE_THEME` (`lib/audio/audioThemes.ts`) is authorable silence — it
+   * resolves to nothing and stops the walk. A top-level location with null
+   * is still "leave audio alone".
    */
   audio_theme: string | null;
   /**
@@ -225,6 +231,12 @@ export interface Location {
    */
   sort_order: number | null;
   ai_provenance?: AiProvenance | null;
+  /**
+   * The `dungeon_maps.rev` the last Publish to Atlas carried (#868). Null =
+   * never published from the Cartographer — a scanned page, a photo. Compared
+   * against the live map's `rev` to say "the drawing moved on".
+   */
+  map_published_rev: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -267,11 +279,13 @@ export const DEFAULT_GRID_OPACITY = 0.35;
 
 export type LocationInsert = Omit<
   Location,
-  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme" | "sort_order"
+  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme" | "sort_order" | "map_published_rev"
 > & {
   /** Omit to take the column default of null — no audio is requested. */
   audio_theme?: string | null;
   /** Omit to take the column default of null — the DM hasn't arranged this yet. */
   sort_order?: number | null;
+  /** Written by Publish to Atlas only. */
+  map_published_rev?: number | null;
 };
 export type LocationUpdate = Partial<LocationInsert>;

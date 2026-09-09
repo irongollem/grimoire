@@ -13,6 +13,8 @@
 // no `kind` column in the database; `placementKind` below derives it for
 // display so the two shapes can never drift apart.
 
+import type { CellKey } from "@/types/dungeonMap.types";
+
 export interface LocationPlacement {
   id: string;
   user_id: string;
@@ -26,6 +28,10 @@ export interface LocationPlacement {
    *  says what it's for here. */
   note: string | null;
   sort_order: number | null;
+  /** Which cell of the site's plan this was drawn on (`"x,y"`, the map's own
+   *  cell space). Null = added from the room sheet; draws on the room. The
+   *  cell wins on position, the room wins on membership (#868). */
+  source_cell_key: CellKey | null;
   created_at: string;
   updated_at: string;
 }
@@ -38,11 +44,13 @@ export interface LocationPlacementInsert {
   loot_table_id?: string | null;
   note?: string | null;
   sort_order?: number | null;
+  source_cell_key?: CellKey | null;
 }
 
 export interface LocationPlacementUpdate {
   note?: string | null;
   sort_order?: number | null;
+  source_cell_key?: CellKey | null;
 }
 
 export const LOCATION_PLACEMENT_KINDS = [

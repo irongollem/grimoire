@@ -27,12 +27,31 @@ export const LOCATION_STATE_FACT_LABELS: Record<LocationStateFact, string> = {
   looted: "Looted",
 };
 
-/** One row of the append-only log. */
+// ── Door facts (#868) ────────────────────────────────────────────────────────
+//
+// A way out's `starts_locked` and `is_secret` are what the DM prepared; whether
+// the party has since *unlocked* or *found* it is play state and goes in this
+// same log, keyed by `door_id` (migration `20260908215644`). No second log: a
+// door fact is asserted, undone and read exactly like a room fact. Its
+// `location_id` is the SITE the door's two spaces share — the DB guard refuses
+// anything else — so a site-wide read stays one query.
+
+export const DOOR_STATE_FACTS = ["unlocked", "found"] as const;
+export type DoorStateFact = (typeof DOOR_STATE_FACTS)[number];
+
+export const DOOR_STATE_FACT_LABELS: Record<DoorStateFact, string> = {
+  unlocked: "Unlocked",
+  found: "Found",
+};
+
+/** One row of the append-only log. A location fact has `door_id: null`; a
+ *  door fact names the door and logs against its site. */
 export interface LocationStateEvent {
   id: string;
   user_id: string;
   location_id: string;
-  fact: LocationStateFact;
+  door_id: string | null;
+  fact: LocationStateFact | DoorStateFact;
   /** What this event asserts. `false` is how a prior `true` is taken back —
    *  never a row deletion. */
   value: boolean;
@@ -41,12 +60,22 @@ export interface LocationStateEvent {
   created_at: string;
 }
 
-export interface LocationStateEventInsert {
-  location_id: string;
-  fact: LocationStateFact;
-  value: boolean;
-  note?: string | null;
-}
+export type LocationStateEventInsert =
+  | {
+      location_id: string;
+      fact: LocationStateFact;
+      value: boolean;
+      note?: string | null;
+      door_id?: null;
+    }
+  | {
+      /** The site the door belongs to. */
+      location_id: string;
+      door_id: string;
+      fact: DoorStateFact;
+      value: boolean;
+      note?: string | null;
+    };
 
 /**
  * One row of the `location_state` view — the newest assertion per
@@ -55,9 +84,11 @@ export interface LocationStateEventInsert {
  */
 export interface LocationState {
   location_id: string;
-  fact: LocationStateFact;
+  fact: LocationStateFact | DoorStateFact;
   value: boolean;
   asserted_by: string;
   asserted_note: string | null;
   asserted_at: string;
+  /** Null for a location fact; the door for `unlocked` / `found`. */
+  door_id: string | null;
 }

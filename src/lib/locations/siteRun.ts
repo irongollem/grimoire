@@ -6,8 +6,12 @@
 
 /** The shape `reachableRoomIds` needs from a `location_doors` row. Typed
  *  against the fields it actually reads, same convention as `SiblingOrder`
- *  in `lib/locations/tree.ts`, so a raw query row satisfies it structurally. */
+ *  in `lib/locations/tree.ts`, so a raw query row satisfies it structurally.
+ *  `id` was added for #868's `unlockedDoorIds` — a locked door is looked up
+ *  by it, not by the pair of endpoints, since two rooms may have more than
+ *  one door between them. */
 export interface DoorEdge {
+  id: string;
   from_location_id: string;
   to_location_id: string;
   is_one_way: boolean;
@@ -35,22 +39,27 @@ export function partyRoomInSite(
 
 /**
  * Every room reachable from `fromRoomId` by crossing doors that are not
- * `starts_locked`, following `is_one_way` direction where it applies.
- * Includes `fromRoomId` itself — the party is trivially "there" already.
+ * `starts_locked` — or that are, but have since been unlocked in play —
+ * following `is_one_way` direction where it applies. Includes `fromRoomId`
+ * itself — the party is trivially "there" already.
  *
- * Deliberately simple, per #791's scope: a `starts_locked` door blocks the
- * route outright rather than being weighed against a live "has the party
- * since picked this lock" fact, because no such fact exists yet —
- * `starts_locked` is authored prep, not play state (see
- * `types/locationDoor.types.ts`, and #787's durable-site-state log, which
- * this deliberately does not extend to doors). A later story can add a live
- * unlock fact without changing this function's shape: it would only need to
- * stop reading `starts_locked` and start reading that fact instead.
+ * #791 read `starts_locked` alone because no live unlock fact existed yet;
+ * #868 adds one (`location_state_events`' `unlocked` door fact) without
+ * changing this function's shape, exactly as that story's comment predicted
+ * — `unlockedDoorIds` is consulted only for a door that `starts_locked`,
+ * never as a way to lock a door this table doesn't otherwise think is
+ * locked. `starts_locked` itself stays authored prep and is never mutated by
+ * play (see `types/locationDoor.types.ts`).
  *
- * A locked door is dropped from the graph in *both* directions — whichever
- * side the party is standing on, it has not been opened from either side.
+ * A locked-and-not-yet-unlocked door is dropped from the graph in *both*
+ * directions — whichever side the party is standing on, it has not been
+ * opened from either side.
  */
-export function reachableRoomIds(fromRoomId: string, doors: readonly DoorEdge[]): Set<string> {
+export function reachableRoomIds(
+  fromRoomId: string,
+  doors: readonly DoorEdge[],
+  unlockedDoorIds: ReadonlySet<string> = new Set(),
+): Set<string> {
   const adjacency = new Map<string, string[]>();
   const addEdge = (from: string, to: string) => {
     const existing = adjacency.get(from);
@@ -58,7 +67,7 @@ export function reachableRoomIds(fromRoomId: string, doors: readonly DoorEdge[])
     else adjacency.set(from, [to]);
   };
   for (const door of doors) {
-    if (door.starts_locked) continue;
+    if (door.starts_locked && !unlockedDoorIds.has(door.id)) continue;
     addEdge(door.from_location_id, door.to_location_id);
     if (!door.is_one_way) addEdge(door.to_location_id, door.from_location_id);
   }

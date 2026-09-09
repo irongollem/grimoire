@@ -3,6 +3,8 @@ import type { Ref } from "vue";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import type { LocationDoor, LocationDoorInsert, LocationDoorUpdate } from "@/types/locationDoor.types";
+import { doorsFromRoomPerspective } from "@/lib/locations/doors";
+import type { RoomDoorView as GenericRoomDoorView } from "@/lib/locations/doors";
 
 /**
  * A door joined to both endpoints' names — needed because a door is read from
@@ -16,11 +18,12 @@ export interface LocationDoorWithRooms extends LocationDoor {
 
 /** One door, as seen from a specific room: which room is at the other end,
  *  regardless of whether *this* room is the door's `from` or `to` side. */
-export interface RoomDoorView {
-  door: LocationDoorWithRooms;
-  otherRoomId: string;
-  otherRoomName: string;
-}
+export type RoomDoorView = GenericRoomDoorView<LocationDoorWithRooms>;
+
+/** Re-exported from `lib/locations/doors.ts` (#868), which now owns the one
+ *  implementation this composable and the site-wide "Ways out" panel both
+ *  read from — see that module for the merge rule. */
+export { doorsFromRoomPerspective };
 
 const QUERY_KEY = "location-doors";
 
@@ -40,6 +43,10 @@ async function fetchRoomDoors(roomId: string): Promise<LocationDoorWithRooms[]> 
   return data as LocationDoorWithRooms[];
 }
 
+/** Accepts `door_kind` and `dungeon_feature_id` (#868) through `LocationDoorInsert`
+ *  like every other field here — nothing about the create path is kind-specific,
+ *  so a stair or a feature-governed secret door is created exactly like a plain
+ *  one. */
 async function createLocationDoor(insert: LocationDoorInsert): Promise<LocationDoor> {
   const user = getCurrentUser();
   const { data, error } = await supabase
@@ -65,41 +72,6 @@ async function updateLocationDoor(id: string, update: LocationDoorUpdate): Promi
 async function deleteLocationDoor(id: string): Promise<void> {
   const { error } = await supabase.from("location_doors").delete().eq("id", id);
   if (error) throw error;
-}
-
-// ── Pure derivation ───────────────────────────────────────────────────────────
-
-function compareDoorViews(a: RoomDoorView, b: RoomDoorView): number {
-  if (a.door.sort_order !== b.door.sort_order) {
-    if (a.door.sort_order === null) return 1;
-    if (b.door.sort_order === null) return -1;
-    return a.door.sort_order - b.door.sort_order;
-  }
-  return a.otherRoomName.localeCompare(b.otherRoomName);
-}
-
-/**
- * Merges a room's outgoing doors with its bidirectional incoming doors into
- * one "ways out" list, told from that room's point of view.
- *
- * Re-checks the `is_one_way` exclusion that `fetchRoomDoors` already applies
- * server-side, so this function is correct for any row set handed to it —
- * including a test fixture that (deliberately) includes a one-way row leading
- * in, to prove it gets dropped rather than merely never fetched.
- */
-export function doorsFromRoomPerspective(
-  rows: readonly LocationDoorWithRooms[],
-  roomId: string,
-): RoomDoorView[] {
-  const views: RoomDoorView[] = [];
-  for (const door of rows) {
-    if (door.from_location_id === roomId) {
-      views.push({ door, otherRoomId: door.to_location_id, otherRoomName: door.to_location?.name ?? "???" });
-    } else if (door.to_location_id === roomId && !door.is_one_way) {
-      views.push({ door, otherRoomId: door.from_location_id, otherRoomName: door.from_location?.name ?? "???" });
-    }
-  }
-  return views.sort(compareDoorViews);
 }
 
 // ── Public composables ─────────────────────────────────────────────────────────

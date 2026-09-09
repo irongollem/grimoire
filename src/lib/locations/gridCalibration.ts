@@ -20,18 +20,13 @@
 // (0,0) corresponds to; see that field's docstring in `location.types.ts`
 // for why the two can differ (bake padding).
 //
-// Placed at the root of `lib/` on the strength of who will import it, which is
-// a weaker claim than the rule wants and is written down as such. Today the
-// callers are locations (`MapRegionsLayer`, `lib/locations/siteMap`) and play
-// (`PlayerSiteMap`) — two feature areas, not the three-or-more that CLAUDE.md's
-// Module Placement table asks for. Encounters and the cartographer are the
-// other intended callers and have not been wired up: this shipped as #805's
-// first slice, pure maths ahead of its consumers.
-//
-// So: if the remaining #805 slices land, the claim becomes true and this stays.
-// If they are dropped, this belongs in `lib/locations/` and should be moved
-// rather than left sitting at the root on a promise. Noted during the #825
-// review, where the original comment claimed four consumers it did not have.
+// Lives in `lib/locations/` because that is who uses it: `MapRegionsLayer`
+// and `siteMap`. It sat at the root of `lib/` from
+// #805 to #868 on the promise that encounters and the cartographer would
+// import it too; they never did (the battle map has its own
+// `lib/battlemap/gridCalibration.ts`, and the player plan stopped needing an
+// image at all in #868), so the promise lapsed and the module moved to where
+// its callers are, as the earlier version of this comment said it should.
 
 import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration } from "@/types/location.types";

@@ -40,6 +40,7 @@ function loc(name: string, location_type: LocationType): Location {
     era_end: null,
     audio_theme: null,
     sort_order: null,
+    map_published_rev: null,
     created_at: "",
     updated_at: "",
   };

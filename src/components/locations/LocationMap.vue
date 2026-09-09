@@ -1,5 +1,12 @@
 <template>
   <div class="flex flex-col gap-3">
+    <!-- Layer bar (#868, frame 03) — browse mode only; run mode keeps its
+         own chrome (the click-to-move room list, not this toolbar). -->
+    <SiteMapLayerBar
+      v-if="showRegions && hasRegionContent && !runMode"
+      :counts="layerCounts"
+    />
+
     <!-- Tracing banner — browse mode only; run mode has nothing to trace. -->
     <div
       v-if="showRegions && !runMode && activeRegion"
@@ -11,46 +18,67 @@
       <AppButton variant="ghost" size="inline-xs" label="Done" @click="activeRegionId = null" />
     </div>
 
-    <MapFrame
-      ref="frameRef"
-      :map-url="mapUrl"
-      :compact="compact"
-      :placing="!!placingChildId"
-      @tap="onTap"
-      @container-click="pinsLayerRef?.clearPinned()"
-    >
-      <!-- Regions render beneath pins: room shapes are a floor to stand on,
-           pins are markers placed on top of it. -->
-      <MapRegionsLayer
-        v-if="showRegions && hasRegionContent"
-        v-model:active-region-id="activeRegionId"
-        :regions="regions"
-        :calibration="calibration"
-        :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
-        :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
-        :mode="runMode ? 'run' : 'browse'"
-        :party-room-id="partyRoomId"
-        :reachable-room-ids="reachableRoomIds"
-        :to-image-fraction="toImageFraction"
-        @move-party="emit('move-party', $event)"
-      />
-      <MapPinsLayer
-        ref="pinsLayerRef"
-        v-model:pins="pins"
-        v-model:placing-child-id="placingChildId"
+    <div class="relative">
+      <MapFrame
+        ref="frameRef"
         :map-url="mapUrl"
-        :children="children"
-        :mode="mode"
-        :show-hidden-pins="showHiddenPins"
-        :offer-peek="offerPeek"
-        :shared-child-ids="sharedChildIds"
-        :scale="frameRef?.scale ?? 1"
-        :to-image-fraction="toImageFraction"
-        @pin-click="emit('pin-click', $event)"
-        @pin-go="emit('pin-go', $event)"
-        @pin-watch="emit('pin-watch', $event)"
-      />
-    </MapFrame>
+        :compact="compact"
+        :placing="!!placingChildId"
+        @tap="onTap"
+        @container-click="pinsLayerRef?.clearPinned()"
+      >
+        <!-- Regions render beneath pins: room shapes are a floor to stand on,
+             pins are markers placed on top of it. -->
+        <MapRegionsLayer
+          v-if="showRegions && hasRegionContent"
+          v-model:active-region-id="activeRegionId"
+          :regions="regions"
+          :calibration="calibration"
+          :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
+          :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
+          :mode="runMode ? 'run' : 'browse'"
+          :party-room-id="partyRoomId"
+          :reachable-room-ids="reachableRoomIds"
+          :to-image-fraction="toImageFraction"
+          :show-spaces="siteMapLayers.spaces"
+          :show-zones="siteMapLayers.zones"
+          :show-grid="siteMapLayers.grid"
+          :nested-site-ids="nestedSiteIds"
+          @move-party="emit('move-party', $event)"
+          @descend="emit('descend', $event)"
+          @hover-region="emit('hover-region', $event)"
+        />
+        <MapPinsLayer
+          ref="pinsLayerRef"
+          v-model:pins="pins"
+          v-model:placing-child-id="placingChildId"
+          :map-url="mapUrl"
+          :children="children"
+          :mode="mode"
+          :show-hidden-pins="showHiddenPins"
+          :offer-peek="offerPeek"
+          :shared-child-ids="sharedChildIds"
+          :scale="frameRef?.scale ?? 1"
+          :to-image-fraction="toImageFraction"
+          @pin-click="emit('pin-click', $event)"
+          @pin-go="emit('pin-go', $event)"
+          @pin-watch="emit('pin-watch', $event)"
+        />
+      </MapFrame>
+
+      <!-- Calibration chip (#868, frame 03) — a HUD overlay, not part of
+           MapFrame's own zoomed slot, so it stays put while the map pans. -->
+      <div v-if="showRegions && hasRegionContent && calibration" class="pointer-events-none absolute right-2 top-2 z-20">
+        <span
+          class="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-card/90 px-2.5 py-1 text-caption-sm text-muted-foreground shadow-sm backdrop-blur-sm"
+        >
+          <IconRuler class="h-3 w-3 shrink-0" aria-hidden="true" />
+          {{ calibration.cells_per_image_width }} cells · 5 ft · origin {{ originCell(calibration).x }},{{ originCell(calibration).y }}
+        </span>
+      </div>
+    </div>
+
+    <SiteMapLegend v-if="showRegions && hasRegionContent && !runMode" />
 
     <!-- Edit mode: placing indicator or unplaced children -->
     <template v-if="mode === 'edit'">
@@ -113,15 +141,24 @@
 
       <!-- Editing-only, same as `LocationEditor`'s inline panels — run mode
            renders its own click-to-move room list instead (`SiteRunSurface`). -->
-      <SiteMapRegionList
-        v-if="!runMode"
-        :location-id="locationId!"
-        :spaces="spaces"
-        :regions="regions"
-        :active-region-id="activeRegionId"
-        :can-trace="!!calibration"
-        @update:active-region-id="activeRegionId = $event"
-      />
+      <template v-if="!runMode">
+        <SiteMapRegionList
+          :location-id="locationId!"
+          :spaces="spaces"
+          :regions="regions"
+          :active-region-id="activeRegionId"
+          :can-trace="!!calibration"
+          @update:active-region-id="activeRegionId = $event"
+        />
+        <SiteMapZoneList
+          :location-id="locationId!"
+          :regions="regions"
+          :active-region-id="activeRegionId"
+          :can-trace="!!calibration"
+          @update:active-region-id="activeRegionId = $event"
+        />
+        <!-- S5: SiteWaysOutPanel mounts here -->
+      </template>
     </template>
 
     <!-- Mounted unconditionally, same idiom as `LocationEditor.vue` — gated
@@ -139,15 +176,21 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { IconLocation } from '@/lib/icons';
+import { storeToRefs } from "pinia";
+import { IconLocation, IconRuler } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
 import MapFrame from "@/components/locations/MapFrame.vue";
 import MapPinsLayer from "@/components/locations/MapPinsLayer.vue";
 import MapRegionsLayer from "@/components/locations/MapRegionsLayer.vue";
+import SiteMapLayerBar from "@/components/locations/SiteMapLayerBar.vue";
+import SiteMapLegend from "@/components/locations/SiteMapLegend.vue";
 import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
+import SiteMapZoneList from "@/components/locations/SiteMapZoneList.vue";
 import { useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
 import { useToast } from "@/composables/useToast";
+import { isSiteType } from "@/lib/locations/tiers";
+import { useUiStore } from "@/stores/ui";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { GridCalibration, LocationType, MapPin as MapPinType } from "@/types/location.types";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
@@ -211,8 +254,14 @@ const {
   /** The direct children that can carry a shape on this map — a room, or a
    *  nested site (#818). Callers build it with `bindableSpaces()`. Used by the
    *  region list and the tracing banner's name lookup. Only meaningful when
-   *  `showRegions`. */
-  spaces?: BindableSpace[];
+   *  `showRegions`.
+   *
+   *  `location_type` is optional rather than added to `BindableSpace` itself
+   *  (a shared type this story doesn't own): every existing caller already
+   *  passes it through, since `bindableSpaces()` is generic over whatever
+   *  shape `children` carries and every `children` array already has it —
+   *  this only widens what the prop *accepts*, so nothing upstream changes. */
+  spaces?: Array<BindableSpace & { location_type?: LocationType }>;
   calibration?: GridCalibration | null;
   /** Regions interaction: browse (trace/select/navigate, default) or run
    *  (click-to-move-party, `SiteRunSurface`). Ignored when `!showRegions`. */
@@ -228,7 +277,17 @@ const emit = defineEmits<{
   "pin-go": [childId: string];
   "pin-watch": [childId: string];
   "move-party": [roomId: string];
+  /** Relayed from `MapRegionsLayer` — a bound space clicked on the map is a
+   *  nested site, not a room. Forwarded rather than handled here: whether
+   *  "descend" means an Atlas re-centre or a route push is the caller's
+   *  call, the same way it already decides what a pin click means. */
+  descend: [spaceId: string];
+  /** Relayed from `MapRegionsLayer` — see its own docstring. */
+  "hover-region": [regionId: string | null];
 }>();
+
+const uiStore = useUiStore();
+const { siteMapLayers } = storeToRefs(uiStore);
 
 const frameRef = ref<InstanceType<typeof MapFrame> | null>(null);
 const pinsLayerRef = ref<InstanceType<typeof MapPinsLayer> | null>(null);
@@ -299,5 +358,34 @@ async function onCalibrationSave(next: GridCalibration): Promise<void> {
   } catch (e) {
     toastError(fromError(e));
   }
+}
+
+// ── Zones + layer bar (#868) ──────────────────────────────────────────────────
+
+/** Bound spaces that are themselves a nested site (#818), so `MapRegionsLayer`
+ *  can emit `descend` instead of pushing a route for them — the map-click
+ *  twin of the pin layer's existing descend-vs-navigate split. */
+const nestedSiteIds = computed(
+  () => new Set(spaces.filter((s) => s.location_type && isSiteType(s.location_type)).map((s) => s.id)),
+);
+
+/** Feeds `SiteMapLayerBar`'s pill counts. `ways`/`prepared` are 0 rather than
+ *  omitted: #868's S5 (`SiteWaysOutPanel`) and a later "Prepared" story wire
+ *  real counts through once their data reaches this component — until then
+ *  there genuinely are zero of either shown here, which is what the layer
+ *  bar should say rather than hiding the pill. */
+const layerCounts = computed(() => ({
+  spaces: spaces.length,
+  ways: 0,
+  zones: regions.filter((r) => r.region_role === "zone").length,
+  prepared: 0,
+}));
+
+/** `origin_cell_x/y` default to (0, 0) per `GridCalibration`'s documented
+ *  default (`resolveOriginCell` in `gridCalibration.ts`, a file this story
+ *  doesn't own and can't add an export to) — mirrored locally rather than
+ *  reaching into it, purely for the calibration chip's read-out. */
+function originCell(cal: GridCalibration): { x: number; y: number } {
+  return { x: cal.origin_cell_x ?? 0, y: cal.origin_cell_y ?? 0 };
 }
 </script>

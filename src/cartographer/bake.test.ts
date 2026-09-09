@@ -15,6 +15,7 @@ function emptyMap(): DungeonMap {
     tags: [],
     notes: null,
     created_at: "",
+    rev: 1,
     updated_at: "",
   };
 }

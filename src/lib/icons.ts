@@ -14,7 +14,7 @@ import {
   Dna, DoorClosed, DoorOpen, Download, Droplets,
   Eraser, ExternalLink, Eye, EyeOff,
   Feather, FileDown, FileText, Flag, Flame, FlaskConical,
-  Gamepad2, Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical,
+  Gamepad2, Gem, Ghost, Gift, Globe, Globe2, GraduationCap, GripVertical, Grid3x3,
   Hammer, Hand, Handshake, Hash, Hexagon, Highlighter, Home, Image, ImagePlus, Images, Info,
   Cloud,
   Keyboard, KeyRound, Landmark, Layers, LayoutDashboard, LayoutGrid, LayoutList,
@@ -27,12 +27,13 @@ import {
   Package, PackageOpen, PackagePlus, PaintBucket, Paintbrush, Pause, PawPrint, Pen, PenLine, Pencil,
   PencilLine, Pickaxe, Pin, Play, Plus, Printer,
   Puzzle, Quote, Radio, RectangleHorizontal, Redo2, RefreshCw,
-  Repeat, Repeat1, RotateCcw,
+  Repeat, Repeat1, RotateCcw, Ruler,
   PictureInPicture2,
   Save, ScanEye, Scissors, Scroll, ScrollText, Search, Send, Settings, Settings2,
   Share2, Shield, ShieldCheck, ShoppingBag, Shuffle, SkipBack, SkipForward, Skull, SlidersHorizontal,
   Sparkles, Square, SquareCode, SquareSplitVertical, Stamp, Star, Strikethrough, Sun, Sword, Swords,
   Table2, Tag, Trash2, Truck,
+  Aperture, TrendingUp,
   Underline, Undo2, Upload, UploadCloud,
   User, UserPlus, UserRound, UserX, Users, UtensilsCrossed,
   VolumeX, Wand2, Wind, Wine, WrapText, Wrench, X, XCircle, Zap, ZoomIn, ZoomOut,
@@ -118,6 +119,9 @@ export { Home as IconHome }
 export { LayoutDashboard as IconDashboard }
 export { LayoutList as IconListView }
 export { LayoutGrid as IconGridView }
+/** The site map's Grid layer toggle (#868) — distinct from `IconGridView`,
+ *  which means "list vs. grid layout" elsewhere in the app. */
+export { Grid3x3 as IconGrid }
 /** Dense grid packing — the Customize-mode "Pack tightly" toggle (#768). */
 export { Shrink as IconPack }
 export { Columns2 as IconColumns }
@@ -134,6 +138,7 @@ export { ZoomIn as IconZoomIn }
 export { ZoomOut as IconZoomOut }
 export { Maximize2 as IconMaximize }
 export { Navigation as IconNavigate }
+export { Ruler as IconRuler }
 
 // ── Status / Feedback ─────────────────────────────────────────────────────────
 export { Info as IconInfo }
@@ -179,6 +184,17 @@ export { Package as IconPackage }
 export { PackageOpen as IconPackageOpen }
 export { MapPin as IconLocation }
 export { DoorOpen as IconDungeon }
+// Way-out kinds (#868) — DOOR_KINDS in locationDoor.types.ts. `door` reuses
+// IconDoor above; these four are the rest of that set, kept together so a
+// glance at this block matches the enum. Lucide ships no stair/shaft/portal
+// icon, so each borrows the closest existing shape: an arch is an open
+// doorway (the same glyph as IconDungeon, under its own name so callers never
+// have to know the two concepts share an icon), a stair reads as an ascending
+// line, a shaft as travel straight up/down, a portal as an iris/aperture.
+export { DoorOpen as IconArch }
+export { TrendingUp as IconStairs }
+export { MoveVertical as IconShaft }
+export { Aperture as IconPortal }
 export { Crosshair as IconTrap }
 export { Crosshair as IconCenter }
 export { Puzzle as IconPuzzle }

@@ -4,10 +4,12 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(19);
 
 select has_function('public', 'get_player_visible_site_state', array['uuid', 'uuid'],
   'the inside of a site reaches players through a dedicated projection');
+select ok(pg_get_function_result('public.get_player_visible_site_state(uuid,uuid)'::regprocedure) = 'jsonb',
+  'the projection returns one composed document, not a row set to mask (#868)');
 select ok(not has_function_privilege('anon', 'public.get_player_visible_site_state(uuid,uuid)', 'EXECUTE'),
   'anonymous callers cannot execute the site projection');
 select ok(position('staged_at_location_id' in pg_get_functiondef('public.get_player_visible_quest_beats(uuid,uuid,uuid)'::regprocedure)) > 0,
@@ -97,35 +99,40 @@ select is(
 );
 
 -- ── The map: explored rooms only ────────────────────────────────────────────
+--
+-- #868: the projection now returns one composed jsonb document
+-- ({spaces, glimpsed, ways, zones}) rather than a row set, so "nothing" for an
+-- outsider or an unshared map is every array coming back empty, not zero rows.
 
 select is(
-  (select count(*)::integer from public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050')),
+  jsonb_array_length((public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050'))->'spaces'),
   1,
   'only the explored room comes back'
 );
 
 select is(
-  (select space_location_id from public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050')),
+  ((public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050'))->'spaces'->0->>'space_location_id')::uuid,
   '79800000-0000-4000-8000-000000000051'::uuid,
   'and it is the courtyard, not the vault'
 );
 
 select is(
-  (select cells from public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050')),
+  (public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050'))->'spaces'->0->'cells',
   '["0,0","0,1"]'::jsonb,
   'the region geometry travels with it, so the map can draw the shape'
 );
 
 select is(
-  (select is_looted from public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050')),
+  ((public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050'))->'spaces'->0->>'is_looted')::boolean,
   true,
   'facts the party established themselves come back alongside'
 );
 
 select ok(
   not exists (
-    select 1 from public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050')
-     where space_location_id = '79800000-0000-4000-8000-000000000052'
+    select 1
+      from jsonb_array_elements((public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050'))->'spaces') s
+     where s->>'space_location_id' = '79800000-0000-4000-8000-000000000052'
   ),
   'the unexplored vault is ABSENT from the payload, not flagged in it — a room '
   'withheld on the client would sit in the network tab'
@@ -168,7 +175,7 @@ select set_config('request.jwt.claims', '{"sub":"79800000-0000-4000-8000-0000000
 select set_config('request.jwt.claims', '{"sub":"79800000-0000-4000-8000-000000000003","role":"authenticated"}', true);
 
 select is(
-  (select count(*)::integer from public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050')),
+  jsonb_array_length((public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050'))->'spaces'),
   0,
   'someone outside the campaign gets nothing at all'
 );
@@ -179,7 +186,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"79800000-0000-4000-8000-000000000002","role":"authenticated"}', true);
 
 select is(
-  (select count(*)::integer from public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050')),
+  jsonb_array_length((public.get_player_visible_site_state('79800000-0000-4000-8000-000000000050'))->'spaces'),
   0,
   'an unshared map withholds its geometry too — coordinates are a floor plan'
 );
@@ -197,8 +204,8 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"79800000-0000-4000-8000-000000000001","role":"authenticated"}', true);
 
 select is(
-  (select count(*)::integer from public.get_player_visible_site_state(
-     '79800000-0000-4000-8000-000000000050', '79800000-0000-4000-8000-000000000020')),
+  jsonb_array_length((public.get_player_visible_site_state(
+     '79800000-0000-4000-8000-000000000050', '79800000-0000-4000-8000-000000000020'))->'spaces'),
   1,
   'the DM can preview exactly what a given character sees'
 );
@@ -206,8 +213,8 @@ select is(
 select set_config('request.jwt.claims', '{"sub":"79800000-0000-4000-8000-000000000002","role":"authenticated"}', true);
 
 select is(
-  (select count(*)::integer from public.get_player_visible_site_state(
-     '79800000-0000-4000-8000-000000000050', '79800000-0000-4000-8000-000000000020')),
+  jsonb_array_length((public.get_player_visible_site_state(
+     '79800000-0000-4000-8000-000000000050', '79800000-0000-4000-8000-000000000020'))->'spaces'),
   0,
   'a player cannot use the preview argument to read as somebody else'
 );

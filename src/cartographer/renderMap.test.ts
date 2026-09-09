@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderMap, type MapRenderScene } from "./renderMap";
+import { renderMap, ZONE_RENDER_COLOURS, type MapRenderScene } from "./renderMap";
 import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
 import type { TilePackManifest } from "@/cartographer/packSchema";
 import type { ValidationResult } from "@/cartographer/validatePack";
@@ -44,6 +44,7 @@ interface FakeCtx {
   translate(x: number, y: number): void;
   rotate(angle: number): void;
   fillText(text: string, x: number, y: number, maxWidth?: number): void;
+  setLineDash(segments: number[]): void;
 }
 
 interface Recorder {
@@ -52,10 +53,11 @@ interface Recorder {
   drawImages: DrawImageCall[];
   fillStyles: string[];
   strokeStyles: string[];
+  texts: string[];
 }
 
 function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
-  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [] };
+  const rec: Recorder = { calls: [], fillRects: [], drawImages: [], fillStyles: [], strokeStyles: [], texts: [] };
   let fillStyle = "";
   let strokeStyle = "";
   const noop = (): void => {};
@@ -86,7 +88,8 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rec: Recorder } {
     restore: () => rec.calls.push("restore"),
     translate: noop,
     rotate: noop,
-    fillText: () => rec.calls.push("fillText"),
+    fillText: (text) => { rec.calls.push("fillText"); rec.texts.push(text); },
+    setLineDash: () => rec.calls.push("setLineDash"),
   };
   return { ctx: fake as unknown as CanvasRenderingContext2D, rec };
 }
@@ -306,5 +309,100 @@ describe("renderMap — runtime fallback rule", () => {
     renderMap(scene);
 
     expect(rec.drawImages.filter((d) => sourceOf(d).category === "floor")).toHaveLength(0);
+  });
+});
+
+describe("renderMap — zone layer (#868)", () => {
+  it("fills and outlines a zone cell in its kind's colour", () => {
+    const layers = emptyLayers();
+    layers.zone![cellKey(1, 1)] = { zone_id: "z1", kind: "hazard", label: null };
+    const { scene, rec } = baseScene({ layers });
+    renderMap(scene);
+
+    expect(rec.fillStyles).toContain(ZONE_RENDER_COLOURS.hazard.fill);
+    expect(rec.strokeStyles).toContain(ZONE_RENDER_COLOURS.hazard.accent);
+    expect(rec.fillRects).toContainEqual({ x: 1 * 64, y: 1 * 64, w: 64, h: 64 });
+  });
+
+  it("tolerates a map saved before the zone layer existed", () => {
+    const layers = emptyLayers();
+    delete layers.zone;
+    const { scene } = baseScene({ layers });
+    expect(() => renderMap(scene)).not.toThrow();
+  });
+
+  it("draws the zone layer above objects and below annotations", () => {
+    const layers = emptyLayers();
+    layers.object[cellKey(0, 0)] = { pack_id: "stone-dungeon", pack_version: 1, variant: 0, category: "objectChest" };
+    layers.zone![cellKey(1, 1)] = { zone_id: "z1", kind: "terrain", label: null };
+    layers.annotation[cellKey(2, 2)] = { text: "Nave" };
+    const { scene, rec } = baseScene({ layers, runtimes: new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]) });
+    renderMap(scene);
+
+    const objectIdx = rec.calls.indexOf("drawImage");
+    const zoneFillIdx = rec.calls.indexOf("fillRect", objectIdx); // [0] is the background fill, before any drawImage
+    const annotationIdx = rec.calls.indexOf("fillText");
+    expect(objectIdx).toBeGreaterThanOrEqual(0);
+    expect(zoneFillIdx).toBeGreaterThan(objectIdx);
+    expect(annotationIdx).toBeGreaterThan(zoneFillIdx);
+  });
+});
+
+describe("renderMap — derived-space outlines (#868)", () => {
+  it("draws nothing when derivedSpaces is absent", () => {
+    const { scene, rec } = baseScene();
+    renderMap(scene);
+
+    expect(rec.texts).toHaveLength(0);
+  });
+
+  it("outlines a space and labels it with its proposed name", () => {
+    const { scene, rec } = baseScene({
+      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0), cellKey(1, 0)], displayName: "Cistern", nameSource: null }],
+      selectedSpaceKey: null,
+    });
+    renderMap(scene);
+
+    expect(rec.strokeStyles).toContain("rgba(255,255,255,0.35)");
+    expect(rec.texts).toContain("Cistern");
+  });
+
+  it("highlights the selected space in a different colour", () => {
+    const { scene, rec } = baseScene({
+      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0)], displayName: "Cistern", nameSource: null }],
+      selectedSpaceKey: "s:0,0",
+    });
+    renderMap(scene);
+
+    expect(rec.strokeStyles).toContain("rgba(96,165,250,0.9)");
+    expect(rec.strokeStyles).not.toContain("rgba(255,255,255,0.35)");
+  });
+
+  it("does not draw the centroid label when the name came from an annotation — the annotation layer already draws it", () => {
+    const layers = emptyLayers();
+    layers.annotation[cellKey(0, 0)] = { text: "Cistern" };
+    const { scene, rec } = baseScene({
+      layers,
+      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0), cellKey(1, 0)], displayName: "Cistern", nameSource: "annotation" }],
+      selectedSpaceKey: null,
+    });
+    renderMap(scene);
+
+    // The outline still draws (stroke). Each fillText call draws a drop
+    // shadow plus the lit text, so the annotation layer alone accounts for
+    // two "Cistern" calls — what this asserts is that the centroid label
+    // contributes none on top of that (it would otherwise add two more).
+    expect(rec.strokeStyles).toContain("rgba(255,255,255,0.35)");
+    expect(rec.texts.filter((t) => t === "Cistern")).toHaveLength(2);
+  });
+
+  it("still draws the centroid label for an unnamed region", () => {
+    const { scene, rec } = baseScene({
+      derivedSpaces: [{ key: "s:0,0", cells: [cellKey(0, 0)], displayName: "Region 1", nameSource: null }],
+      selectedSpaceKey: null,
+    });
+    renderMap(scene);
+
+    expect(rec.texts).toContain("Region 1");
   });
 });

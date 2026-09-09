@@ -178,6 +178,46 @@
       <p class="text-caption-sm text-muted-foreground italic">Click a cell to attach entities.</p>
     </div>
 
+    <!-- Space tool: no cell-level options — the real inspector is the rail's Structure panel -->
+    <div v-if="activeTool === 'space'">
+      <p class="text-caption-sm text-muted-foreground italic">
+        Click a floor region to claim it. Its name, ways out and links show in the Spaces panel below the canvas.
+      </p>
+    </div>
+
+    <!-- Zone tool -->
+    <div v-if="activeTool === 'zone'">
+      <label class="block text-eyebrow text-muted-foreground mb-1">Kind</label>
+      <AppSelect
+        :model-value="zoneKind"
+        tone="card"
+        size="body-xs"
+        class="mb-2"
+        @update:model-value="$emit('update:zoneKind', $event as ZoneKind)"
+      >
+        <option v-for="kind in ZONE_KINDS" :key="kind" :value="kind">{{ ZONE_KIND_LABELS[kind] }}</option>
+      </AppSelect>
+      <label class="block text-eyebrow text-muted-foreground mb-1">Label</label>
+      <AppInput
+        :model-value="zoneLabel"
+        placeholder="Flooded, difficult terrain…"
+        size="body-xs"
+        class="mb-2"
+        @update:model-value="$emit('update:zoneLabel', $event)"
+      />
+      <SegmentedControl
+        :model-value="zoneMode"
+        :options="ZONE_MODE_OPTIONS"
+        size="xs"
+        block
+        class="mb-2"
+        @update:model-value="$event === 'new' && $emit('startNewZone')"
+      />
+      <p class="text-caption-sm text-muted-foreground">
+        Paint to extend the current zone — separate cells count as one zone as long as you don't start a new one, so a hazard that straddles two rooms stays a single zone.
+      </p>
+    </div>
+
     <!-- Room template shape picker -->
     <div v-if="activeTool === 'template'">
       <label class="block text-eyebrow text-muted-foreground mb-1">
@@ -224,11 +264,17 @@ import { ref } from "vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
+import { ZONE_KINDS, ZONE_KIND_LABELS, type ZoneKind } from "@/types/locationMapRegion.types";
 
 const CAVE_RADIUS_OPTIONS = [3, 5, 7, 9].map((size) => ({ value: size, label: String(size) }));
+const ZONE_MODE_OPTIONS = [
+  { value: "new", label: "New zone" },
+  { value: "continue", label: "Continue zone" },
+] as const;
 
 interface BundledPack {
   pack_id: string;
@@ -271,6 +317,9 @@ defineProps<{
   activeTemplateShape: string;
   templateShapes: TemplateShape[];
   caveRadius: number;
+  zoneKind: ZoneKind;
+  zoneLabel: string;
+  zoneMode: "new" | "continue";
 }>();
 
 defineEmits<{
@@ -286,6 +335,9 @@ defineEmits<{
   "update:linkedFeatureId": [id: string];
   "update:activeTemplateShape": [shape: string];
   "update:caveRadius": [size: number];
+  "update:zoneKind": [kind: ZoneKind];
+  "update:zoneLabel": [label: string];
+  startNewZone: [];
 }>();
 
 const annotationInputEl = ref<AppInputHandle | null>(null);

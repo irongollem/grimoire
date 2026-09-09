@@ -82,6 +82,9 @@ beforeEach(() => {
   sessionRunning.value = false;
   mocks.requestAudioTheme.mockClear();
   mocks.releaseAudioTheme.mockClear();
+  // Reset rather than leave a previous test's ancestor chain in place — this
+  // is a shared hoisted box, not a fresh `ref()` per test.
+  mocks.allLocations.data.value = [];
 });
 
 afterEach(() => {
@@ -146,5 +149,26 @@ describe("LocationSheet ambient audio", () => {
     await flushPromises();
 
     expect(mocks.requestAudioTheme).toHaveBeenCalledWith(expect.objectContaining({ sourceId: "location:l1" }));
+  });
+
+  // #868: a themeless room previews what the party would actually hear there.
+  it("inherits the nearest themed ancestor's theme, keyed on the ancestor's sourceId", async () => {
+    const site = place({ id: "site", name: "Ashmouth Undercroft", audio_theme: "dungeon-wet" });
+    const room = place({ id: "room", name: "Gatehouse Stair", parent_id: "site", audio_theme: null });
+    mocks.allLocations.data.value = [site, room];
+    mountSheet(room);
+    await flushPromises();
+
+    expect(mocks.requestAudioTheme).toHaveBeenCalledWith(expect.objectContaining({
+      sourceId: "location:site", theme: "dungeon-wet", label: "Gatehouse Stair",
+    }));
+  });
+
+  it("previews nothing for a room that is deliberately silent", async () => {
+    const loc = place({ id: "l1", name: "Abbot's Cell", audio_theme: "silence" });
+    mountSheet(loc);
+    await flushPromises();
+
+    expect(mocks.requestAudioTheme).not.toHaveBeenCalled();
   });
 });

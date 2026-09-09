@@ -6,6 +6,8 @@ import {
   themePlaylists,
   themeSounds,
   resolveAudioTheme,
+  SILENCE_THEME,
+  isSilenceTheme,
 } from "@/lib/audio/audioThemes";
 import type { Sound, SoundboardPlaylist } from "@/types/sound.types";
 
@@ -62,15 +64,33 @@ describe("collectThemes", () => {
       [playlist({ id: "p1", tags: ["Battle", "boss"] })],
       [sound({ id: "s1", tags: ["battle", "tavern"] })],
     );
-    expect(themes).toEqual(["Battle", "boss", "tavern"]);
+    expect(themes).toEqual(["silence", "Battle", "boss", "tavern"]);
   });
 
   it("drops blank tags", () => {
-    expect(collectThemes([playlist({ id: "p", tags: ["  ", "calm"] })], [])).toEqual(["calm"]);
+    expect(collectThemes([playlist({ id: "p", tags: ["  ", "calm"] })], [])).toEqual(["silence", "calm"]);
   });
 
-  it("is empty when nothing is labelled", () => {
-    expect(collectThemes([playlist({ id: "p" })], [sound({ id: "s" })])).toEqual([]);
+  it("always offers silence, even when nothing has ever been labelled", () => {
+    expect(collectThemes([playlist({ id: "p" })], [sound({ id: "s" })])).toEqual(["silence"]);
+  });
+
+  it("folds a literal 'silence' tag into the one reserved entry rather than duplicating it", () => {
+    expect(collectThemes([playlist({ id: "p", tags: ["Silence", "calm"] })], [])).toEqual(["silence", "calm"]);
+  });
+});
+
+describe("isSilenceTheme", () => {
+  it("matches the reserved label regardless of case or whitespace", () => {
+    expect(isSilenceTheme(SILENCE_THEME)).toBe(true);
+    expect(isSilenceTheme(" Silence ")).toBe(true);
+  });
+
+  it("is false for a real theme, null, undefined or blank", () => {
+    expect(isSilenceTheme("dungeon-wet")).toBe(false);
+    expect(isSilenceTheme(null)).toBe(false);
+    expect(isSilenceTheme(undefined)).toBe(false);
+    expect(isSilenceTheme("")).toBe(false);
   });
 });
 

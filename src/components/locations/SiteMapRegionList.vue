@@ -1,7 +1,9 @@
 <template>
-  <!-- Space shapes — every addressable space of this site (a room, or a
-       nested site with its own floor plan, #818), whether or not it has a
-       region yet, so the site is usable before it is fully traced.
+  <!-- Spaces (#868, frame 03) — every addressable space of this site (a
+       room, or a nested site with its own floor plan, #818), whether or not
+       it has a region yet, so the site is usable before it is fully traced.
+       Titled "Spaces" rather than "Space shapes" now that it sits beside
+       `SiteMapZoneList` under the same layer-bar vocabulary.
        Deliberately NOT called "Rooms": `SiteRoomsPanel` owns rooms themselves
        (order, add, rename, delete) further down the same place's page. Two
        sections reading "Rooms" is the duplication #783 removed from the
@@ -12,7 +14,7 @@
        `LocationMap.vue` (#807) — run mode renders its own click-to-move
        room list instead. -->
   <div class="flex flex-col gap-1.5">
-    <span class="text-label-lg font-semibold text-muted-foreground">Space shapes</span>
+    <span class="text-label-lg font-semibold text-muted-foreground">Spaces</span>
     <p v-if="!spaces.length" class="text-caption text-muted-foreground italic">No spaces yet — add a room below, or a nested site as a child location.</p>
     <div v-else class="flex flex-col gap-1.5">
       <div
@@ -24,6 +26,10 @@
           :to="`/locations/${space.id}`"
           class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
         >{{ space.name }}</RouterLink>
+        <span
+          v-if="boundRegionBySpace.get(space.id)"
+          class="shrink-0 text-caption text-muted-foreground"
+        >{{ regionProvenanceText(boundRegionBySpace.get(space.id)!) }}</span>
 
         <template v-if="boundRegionBySpace.get(space.id)">
           <AppButton
@@ -85,6 +91,7 @@
           class="w-40 shrink-0"
           @update:model-value="onBindSpace(region, $event)"
         />
+        <span class="shrink-0 text-caption text-muted-foreground">{{ regionProvenanceText(region) }}</span>
         <AppButton
           variant="ghost"
           size="inline-xs"
@@ -158,16 +165,32 @@ const emit = defineEmits<{ "update:activeRegionId": [id: string | null] }>();
 const { confirm } = useConfirm();
 const { error: toastError, fromError } = useToast();
 
+// Regions carry a `region_role` now (#868) — a zone's `space_location_id` is
+// always null by rule, which would otherwise land it in "Untitled shapes"
+// below alongside genuinely unbound spaces. `SiteMapZoneList` owns zones.
+const spaceRegions = computed(() => regions.filter((r) => r.region_role === "space"));
+
 const boundRegionBySpace = computed(() => {
   const map = new Map<string, LocationMapRegion>();
-  for (const r of regions) if (r.space_location_id) map.set(r.space_location_id, r);
+  for (const r of spaceRegions.value) if (r.space_location_id) map.set(r.space_location_id, r);
   return map;
 });
-const unboundRegions = computed(() => regions.filter((r) => !r.space_location_id));
+const unboundRegions = computed(() => spaceRegions.value.filter((r) => !r.space_location_id));
 // A space already claimed by a bound region can't take a second one — the
 // partial unique index would reject it — so it's left out of the picker
 // entirely rather than surfacing that as a toast after the fact.
 const unclaimedSpaces = computed(() => spaces.filter((s) => !boundRegionBySpace.value.has(s.id)));
+
+/** "18 cells · from flood fill" — the cell count every row earns once it has
+ *  been traced, plus how it got there when a human didn't draw it by hand.
+ *  `derived_from === "dm"` says nothing extra: every hand-traced shape reads
+ *  that way, so naming it would just repeat what tracing already implies. */
+function regionProvenanceText(region: LocationMapRegion): string {
+  const cells = `${region.cells.length} cell${region.cells.length === 1 ? "" : "s"}`;
+  const provenance =
+    region.derived_from === "floodfill" ? "from flood fill" : region.derived_from === "annotation" ? "from annotation" : "";
+  return provenance ? `${cells} · ${provenance}` : cells;
+}
 
 function toggleActive(id: string): void {
   emit("update:activeRegionId", activeRegionId === id ? null : id);

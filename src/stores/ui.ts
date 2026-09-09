@@ -769,6 +769,17 @@ export const useUiStore = defineStore("ui", () => {
     locationsExpandedIds.value = [];
   }
 
+  // Site map layer bar (#868, frame 03) — which of a site plan's overlays are
+  // currently painted. A plain ref rather than `useLocalStorage`: which
+  // layers are on is a working-session preference for whichever plan is open
+  // right now, not a durable setting worth carrying between sessions or
+  // sites the way `locationsTreeCollapsed` is.
+  const siteMapLayers = ref({ spaces: true, ways: true, zones: false, prepared: false, grid: true });
+
+  function toggleSiteMapLayer(key: keyof typeof siteMapLayers.value) {
+    siteMapLayers.value[key] = !siteMapLayers.value[key];
+  }
+
   // Puzzles (Enigmarium) UI state
   const puzzlesSearch = ref("");
   const puzzlesFilterType = ref("");
@@ -1241,6 +1252,8 @@ export const useUiStore = defineStore("ui", () => {
     toggleLocationExpanded,
     revealLocationPath,
     collapseAllLocations,
+    siteMapLayers,
+    toggleSiteMapLayer,
 
     // Puzzles
     puzzlesSearch,

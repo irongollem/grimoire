@@ -20,6 +20,11 @@ vi.mock("@/composables/locations/useLocations", () => ({
   useAllLocations: () => ({ data: locations }),
 }));
 
+/** An empty inheritance index — every test that isn't about inheritance itself. */
+function noAncestors(...locs: Location[]): ReadonlyMap<string, Location> {
+  return new Map(locs.map((loc) => [loc.id, loc]));
+}
+
 function place(over: Partial<Location> & { id: string }): Location {
   return {
     user_id: "u", campaign_id: "c", parent_id: null, name: over.id,
@@ -64,30 +69,55 @@ describe("resolvePartyAmbience", () => {
   it("requests nothing when no session is running, wherever the party stands", async () => {
     const { resolvePartyAmbience } = await import("@/composables/campaign/usePartyAmbience");
     const loc = place({ id: "l1", name: "The Yawning Portal", audio_theme: "tavern" });
-    expect(resolvePartyAmbience(false, loc)).toBeNull();
+    expect(resolvePartyAmbience(false, loc, noAncestors(loc))).toBeNull();
   });
 
-  it("requests nothing for a location with no theme set", async () => {
+  it("requests nothing when nothing in the chain has ever been themed", async () => {
     const { resolvePartyAmbience } = await import("@/composables/campaign/usePartyAmbience");
     const loc = place({ id: "l1", name: "A Nameless Room", audio_theme: null });
-    expect(resolvePartyAmbience(true, loc)).toBeNull();
+    expect(resolvePartyAmbience(true, loc, noAncestors(loc))).toBeNull();
   });
 
   it("requests nothing when the party's location is not yet known", async () => {
     const { resolvePartyAmbience } = await import("@/composables/campaign/usePartyAmbience");
-    expect(resolvePartyAmbience(true, null)).toBeNull();
+    expect(resolvePartyAmbience(true, null, noAncestors())).toBeNull();
   });
 
   it("resolves the party's own themed ambience during a session", async () => {
     const { resolvePartyAmbience, partyAmbienceSourceId } = await import("@/composables/campaign/usePartyAmbience");
     const loc = place({ id: "l1", name: "The Yawning Portal", audio_theme: "tavern" });
-    expect(resolvePartyAmbience(true, loc)).toEqual({
+    expect(resolvePartyAmbience(true, loc, noAncestors(loc))).toEqual({
       sourceId: partyAmbienceSourceId("l1"),
       theme: "tavern",
       slot: "ambient",
       label: "The Yawning Portal",
       kind: "location",
     });
+  });
+
+  it("inherits the nearest themed ancestor's theme, but keeps the room's own name as the label", async () => {
+    const { resolvePartyAmbience, partyAmbienceSourceId } = await import("@/composables/campaign/usePartyAmbience");
+    const site = place({ id: "site", name: "Ashmouth Undercroft", audio_theme: "dungeon-wet" });
+    const room = place({ id: "room", name: "Gatehouse Stair", parent_id: "site", audio_theme: null });
+    expect(resolvePartyAmbience(true, room, noAncestors(site, room))).toEqual({
+      // Keyed on the ancestor that owns the theme, not the room — see the
+      // sourceId comment on resolvePartyAmbience for why that is load-bearing.
+      sourceId: partyAmbienceSourceId("site"),
+      theme: "dungeon-wet",
+      slot: "ambient",
+      label: "Gatehouse Stair",
+      kind: "location",
+    });
+  });
+
+  it("requests nothing for a room that is deliberately silent, own or inherited", async () => {
+    const { resolvePartyAmbience } = await import("@/composables/campaign/usePartyAmbience");
+    const ownSilence = place({ id: "l1", name: "Abbot's Cell", audio_theme: "silence" });
+    expect(resolvePartyAmbience(true, ownSilence, noAncestors(ownSilence))).toBeNull();
+
+    const site = place({ id: "site", name: "Ashmouth Undercroft", audio_theme: "silence" });
+    const room = place({ id: "room", name: "A Quiet Room", parent_id: "site", audio_theme: null });
+    expect(resolvePartyAmbience(true, room, noAncestors(site, room))).toBeNull();
   });
 });
 
@@ -136,6 +166,29 @@ describe("usePartyAmbience", () => {
       { type: "request", request: expect.objectContaining({ sourceId: "party:l2", theme: "dungeon" }) },
       { type: "release", sourceId: "party:l1" },
     ]);
+  });
+
+  // The property the theme-owner sourceId exists for: `useAudioThemeTriggers`
+  // releases an ambient scene by target id with no reference count, so a
+  // room-keyed sourceId would request the still-playing scene under a new id
+  // (a no-op) and then release the old one, stopping it outright. Keyed on
+  // the ancestor instead, both rooms resolve to the same sourceId and the
+  // party walking between them must not touch the bus at all.
+  it("touches the bus not at all when the party moves between two rooms inheriting the same theme", async () => {
+    locations.value = [
+      place({ id: "site", name: "Ashmouth Undercroft", audio_theme: "dungeon-wet" }),
+      place({ id: "l1", name: "Gatehouse Stair", parent_id: "site", audio_theme: null }),
+      place({ id: "l2", name: "Cistern", parent_id: "site", audio_theme: null }),
+    ];
+    activeCampaign.value = { current_location_id: "l1" };
+    sessionRunning.value = true;
+    const { events } = await mount();
+    events.length = 0; // discard the initial request made on mount
+
+    activeCampaign.value = { current_location_id: "l2" };
+    await flush();
+
+    expect(events).toEqual([]);
   });
 
   // The property the fix in LocationSheet exists for: a competing request from

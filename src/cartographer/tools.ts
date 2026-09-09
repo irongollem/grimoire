@@ -21,4 +21,9 @@ export type Tool =
   | "annotate"
   | "link"
   | "template"
-  | "cave";
+  | "cave"
+  // Structure group (#868) — these don't paint pixels, they claim/annotate
+  // what the drawing MEANS: "space" selects the derived room under the
+  // cursor, "zone" paints the hazard/terrain/light/trigger/marker overlay.
+  | "space"
+  | "zone";

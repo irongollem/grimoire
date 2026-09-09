@@ -8,6 +8,9 @@
         :to="`/locations/${view.otherRoomId}`"
         :name="view.otherRoomName"
       >
+        <template #badge>
+          <component :is="DOOR_KIND_ICONS[view.door.door_kind]" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        </template>
         <template #actions>
           <AppButton
             variant="ghost"
@@ -63,7 +66,10 @@
 
     <!-- Inline add -->
     <div class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
-      <EntityCombobox v-model="newRoomId" :options="siblingRooms" placeholder="Pick a room…" />
+      <EntityCombobox v-model="newRoomId" :options="siblingSpaces" placeholder="Pick a room or nested site…" />
+      <AppSelect v-model="newKind" size="xs" aria-label="Way-out kind">
+        <option v-for="kind in DOOR_KINDS" :key="kind" :value="kind">{{ DOOR_KIND_LABELS[kind] }}</option>
+      </AppSelect>
       <AppInput
         v-model="newLabel"
         type="text"
@@ -111,9 +117,11 @@
  * far room's panel still shows up here.
  *
  * The DB trigger (`guard_location_door_endpoints`) is the actual authority on
- * which rooms may be connected — this panel only restricts the picker to
- * *sibling* rooms (same `parent_id`, type `room`, excluding self) rather than
- * re-deriving that rule; a rejection still surfaces as a toast.
+ * which spaces may be connected — this panel only restricts the picker to
+ * *sibling bindable spaces* (same `parent_id`, a room or a nested site,
+ * excluding self — #868 widened the guard from room-only to `bindableSpaces`,
+ * so a stair to a sibling `grounds` courtyard is offered here too) rather
+ * than re-deriving that rule; a rejection still surfaces as a toast.
  *
  * The three flags are toggles, not live switches, and the distinction matters:
  * they say what the DM *authored* — this door starts locked, this one is
@@ -126,10 +134,13 @@ import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
 import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
 import PlacementRow from "@/components/locations/PlacementRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconClose, IconHide, IconLock } from "@/lib/icons";
+import { DOOR_KIND_ICONS } from "@/lib/locations/doors";
+import { bindableSpaces } from "@/lib/locations/tiers";
 import { useToast } from "@/composables/useToast";
 import { useLocations } from "@/composables/locations/useLocations";
 import {
@@ -139,7 +150,8 @@ import {
   useDeleteLocationDoor,
 } from "@/composables/locations/useLocationDoors";
 import type { LocationDoorWithRooms } from "@/composables/locations/useLocationDoors";
-import type { LocationDoorInsert, LocationDoorUpdate } from "@/types/locationDoor.types";
+import { DOOR_KINDS, DOOR_KIND_LABELS } from "@/types/locationDoor.types";
+import type { DoorKind, LocationDoorInsert, LocationDoorUpdate } from "@/types/locationDoor.types";
 
 const { roomId, parentId } = defineProps<{ roomId: string; parentId: string | null }>();
 
@@ -155,14 +167,16 @@ const toast = useToast();
 // silently substituting a fake parent id and querying the wrong tree.
 const parentIdRef = computed(() => parentId);
 const { data: children } = useLocations(parentIdRef);
-const siblingRooms = computed(() =>
-  parentId
-    ? (children.value ?? []).filter((l) => l.location_type === "room" && l.id !== roomId)
-    : [],
+// #868 widened the endpoint guard to any two bindable spaces sharing a
+// parent, not only rooms — so a sibling `grounds` courtyard belongs in this
+// picker too, the same set `bindableSpaces` already offers for map regions.
+const siblingSpaces = computed(() =>
+  parentId ? bindableSpaces(children.value ?? []).filter((l) => l.id !== roomId) : [],
 );
 
 // ── Add ─────────────────────────────────────────────────────────────────────────
 const newRoomId = ref("");
+const newKind = ref<DoorKind>("door");
 const newLabel = ref("");
 const newIsOneWay = ref(false);
 const newStartsLocked = ref(false);
@@ -180,6 +194,7 @@ function buildInsert(): LocationDoorInsert {
     starts_locked: newStartsLocked.value,
     lock_note: newStartsLocked.value ? newLockNote.value.trim() || null : null,
     is_secret: newIsSecret.value,
+    door_kind: newKind.value,
   };
 }
 
@@ -188,6 +203,7 @@ function addDoor() {
   createDoor(buildInsert(), {
     onSuccess: () => {
       newRoomId.value = "";
+      newKind.value = "door";
       newLabel.value = "";
       newIsOneWay.value = false;
       newStartsLocked.value = false;

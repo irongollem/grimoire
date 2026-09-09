@@ -31,8 +31,9 @@
           tone="primary"
           emphasis="outline"
           size="sm"
+          :icon="IconUpload"
           :disabled="baking"
-          :label="baking ? 'Baking…' : 'Save to Atlas'"
+          :label="baking ? 'Publishing…' : 'Publish to Atlas'"
           @click="showAtlasModal = true"
         />
         <ListActionButton label="Edit" @click="onEdit" />
@@ -129,6 +130,9 @@
           <span>
             Zoom: <strong class="text-foreground">{{ Math.round(zoom * 100) }}%</strong>
           </span>
+          <span>
+            Brush: <strong class="text-foreground">{{ activeToolLabel }}</strong>
+          </span>
           <AppButton
             variant="ghost"
             fill="muted"
@@ -165,6 +169,15 @@
           <span v-if="cellsPainted > 0">
             Floor cells: <strong class="text-foreground">{{ cellsPainted }}</strong>
           </span>
+          <span v-if="changedRegionsCaution" class="ml-auto text-amber-500">{{ changedRegionsCaution }}</span>
+        </div>
+
+        <!-- Space tool hint -->
+        <div
+          v-if="!viewMode && activeTool === 'space'"
+          class="absolute top-2 left-2 px-2 py-1 rounded-md bg-card/95 border border-border text-caption-sm text-muted-foreground"
+        >
+          Space tool — click a floor region to claim it
         </div>
 
         <!-- Overlay hint while the default pack loads -->
@@ -176,9 +189,9 @@
         </div>
       </div>
 
-      <!-- Inspector -->
+      <!-- Inspector + Structure -->
+      <div v-if="!viewMode" class="flex flex-col gap-3">
       <CartographerInspectorPanel
-        v-if="!viewMode"
         ref="inspectorPanelRef"
         :name="name"
         :campaign-id="campaignId"
@@ -203,6 +216,9 @@
         :active-template-shape="activeTemplateShape"
         :template-shapes="TEMPLATE_SHAPES"
         :cave-radius="caveRadius"
+        :zone-kind="structure.zoneKind.value"
+        :zone-label="structure.zoneLabel.value"
+        :zone-mode="structure.zoneMode.value"
         @update:name="name = $event"
         @update:campaign-id="campaignId = $event"
         @update:current-pack-id="currentPackId = $event"
@@ -215,7 +231,20 @@
         @update:linked-feature-id="linkedFeatureId = $event"
         @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
         @update:cave-radius="caveRadius = $event"
+        @update:zone-kind="structure.zoneKind.value = $event"
+        @update:zone-label="structure.zoneLabel.value = $event"
+        @start-new-zone="structure.startNewZone()"
       />
+      <CartographerStructurePanel
+        :space-rows="structure.spaceRows.value"
+        :selected-space-inspector="structure.selectedSpaceInspector.value"
+        :published-sites="publishedSites ?? []"
+        :map-rev="loadedMap?.rev ?? 0"
+        @select-space="(key) => structure.selectedSpaceKey.value = key"
+        @rename-space="structureTools.onRenameSpace"
+        @redetect="structure.redetect"
+      />
+      </div>
     </div>
   </PageHeader>
 </template>
@@ -245,6 +274,9 @@ import {
   IconEntityLink,
   IconRoomTemplate,
   IconCave,
+  IconSplitCell,
+  IconHighlight,
+  IconUpload,
 } from "@/lib/icons";
 
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -254,8 +286,12 @@ import ListActionButton from "@/components/common/ListActionButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CartographerSaveAtlasModal from "@/components/cartographer/CartographerSaveAtlasModal.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
-import CartographerToolPalette from "@/components/cartographer/CartographerToolPalette.vue";
+import CartographerToolPalette, { type ToolGroup } from "@/components/cartographer/CartographerToolPalette.vue";
 import CartographerInspectorPanel from "@/components/cartographer/CartographerInspectorPanel.vue";
+import CartographerStructurePanel from "@/components/cartographer/CartographerStructurePanel.vue";
+import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
+import { useCartographerStructureTools } from "@/composables/cartographer/useCartographerStructureTools";
+import { usePublishedSites } from "@/composables/cartographer/usePublishedSites";
 
 import {
   useDungeonMap,
@@ -424,6 +460,9 @@ interface ToolDef {
   /** Override for the visible kbd badge — used for non-keyboard hints like "RMB" on Pan. */
   displayBadge?: string;
   disabled?: boolean;
+  /** Defaults to "draw" in the palette. #868 adds "structure" (Space, Zone,
+   *  Link entity — moved out of Draw) and tags Pan as "view". */
+  group?: ToolGroup;
 }
 const activeTool = ref<Tool>("floor");
 const TOOLS: ToolDef[] = [
@@ -438,10 +477,14 @@ const TOOLS: ToolDef[] = [
   { id: "fill",     label: "Fill",          icon: IconFill,         shortcut: "f" },
   { id: "wrap",     label: "Wrap walls",    icon: IconWrapWalls,    shortcut: "x" },
   { id: "annotate",  label: "Annotate",       icon: IconAnnotate,     shortcut: "t" },
-  { id: "link",      label: "Link entity",    icon: IconEntityLink,   shortcut: "k" },
+  // Structure group (#868) — "s" is already Solid block's shortcut, so Space
+  // takes "p" instead of the frame's literal key; see the story report.
+  { id: "space",     label: "Space",          icon: IconSplitCell,    shortcut: "p", group: "structure" },
+  { id: "zone",      label: "Zone",           icon: IconHighlight,    shortcut: "z", group: "structure" },
+  { id: "link",      label: "Link entity",    icon: IconEntityLink,   shortcut: "k", group: "structure" },
   { id: "template",  label: "Room template",  icon: IconRoomTemplate, shortcut: "m" },
   { id: "cave",      label: "Cave brush",     icon: IconCave,         shortcut: "v" },
-  { id: "pan",       label: "Pan",            icon: IconHand,         displayBadge: "RMB" },
+  { id: "pan",       label: "Pan",            icon: IconHand,         displayBadge: "RMB", group: "view" },
 ];
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
@@ -492,6 +535,12 @@ const inspectorPanelRef = ref<{ annotationInputEl: AppInputHandle | null } | nul
 
 // M4 — Map metadata (entity links), lives alongside layers
 const metadata = ref<Record<CellKey, CellMetadata>>({});
+
+// #868 — derived structure (spaces/ways/zones/links) + the Structure tools'
+// own state. See useCartographerStructure.ts for what each field means.
+const structure = useCartographerStructure(layers, metadata, loadedMap);
+const structureTools = useCartographerStructureTools(structure, { activeTool, dirty, layers, snapshotStr, pushCommand });
+const { data: publishedSites } = usePublishedSites(mapId);
 
 // M4 — Entity options for the link picker
 const { data: notesData } = useNotes();
@@ -581,8 +630,24 @@ const floorVariantCount = computed(() =>
 
 const statusLine = computed(() => {
   if (isNew.value) return "New map — paint a floor, then save.";
-  if (dirty.value) return "Unsaved changes.";
-  return "Saved.";
+  const packName = packRuntime.value?.manifest.name ?? currentPackId.value;
+  // `loadedMap` is null until the map has actually loaded — a map with no
+  // rev yet is not rev 0, it's unknown, so the segment is absent rather than
+  // coerced. "Saved" is never spelled out; its absence IS the saved state.
+  const revSegment = loadedMap.value ? ` · rev ${loadedMap.value.rev}` : "";
+  const unsavedSegment = dirty.value ? " · unsaved changes" : "";
+  return `${packName} · ${cellsPainted.value} cells painted${revSegment}${unsavedSegment}`;
+});
+
+const activeToolLabel = computed(() => TOOLS.find((t) => t.id === activeTool.value)?.label ?? activeTool.value);
+
+// "N regions changed since last publish" — only meaningful once the map has
+// been published at least once (a brand-new drawing has nothing to compare
+// against, and `changedSinceLastPublish` is null until then anyway).
+const changedRegionsCaution = computed(() => {
+  const delta = structure.changedSinceLastPublish.value;
+  if (!delta || delta.total === 0 || (publishedSites.value?.length ?? 0) === 0) return null;
+  return `${delta.total} region${delta.total === 1 ? "" : "s"} changed since last publish`;
 });
 
 // ── Pack load ───────────────────────────────────────────────────────────────
@@ -985,6 +1050,7 @@ function render(): void {
     hoverCell: hoverCell.value,
     selectedCell: selectedCell.value,
     previewCells: previewCells.value,
+    ...structureTools.renderStructureScene(),
   });
 }
 
@@ -997,7 +1063,7 @@ function scheduleRender(): void {
   });
 }
 
-watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells, metadata, selectedCell, viewMode, cellGlyphs], () => scheduleRender(), { deep: true });
+watch([zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool, previewCells, metadata, selectedCell, viewMode, cellGlyphs, structure.selectedSpaceKey], () => scheduleRender(), { deep: true });
 
 // ── Pointer interaction ────────────────────────────────────────────────────
 
@@ -1035,6 +1101,12 @@ function onPointerDown(ev: PointerEvent): void {
     eraseObjectAt(cx, cy);
     const after = snapshotStr();
     if (before !== after) pushCommand(before, after);
+    return;
+  }
+
+  // Structure tools (#868): Space click-to-select, Zone right-click erase.
+  if (structureTools.handleStructurePointerDown(cx, cy, ev.button)) {
+    if (ev.button === 2) ev.preventDefault();
     return;
   }
 
@@ -1115,12 +1187,14 @@ function onPointerDown(ev: PointerEvent): void {
   if (activeTool.value === "floor") paintCell(cx, cy);
   else if (activeTool.value === "solid") paintSolidAt(cx, cy);
   else if (activeTool.value === "stamp") paintObjectAt(cx, cy);
+  else if (activeTool.value === "zone") structureTools.handleStructurePointerMove(cx, cy);
   else if (activeTool.value === "eraser") {
     if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
     else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
     else if (layers.value.annotation[cellKey(cx, cy)]) {
       const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; dirty.value = true;
     }
+    else if (structureTools.handleStructurePointerMove(cx, cy)) { /* zone erased in preference to floor */ }
     else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
     else eraseCell(cx, cy);
   } else if (activeTool.value === "wall" && hoveredEdge.value) {
@@ -1175,9 +1249,11 @@ function onPointerMove(ev: PointerEvent): void {
     } else if (tool === "floor") paintCell(cx, cy);
     else if (tool === "solid") paintSolidAt(cx, cy);
     else if (tool === "stamp") paintObjectAt(cx, cy);
+    else if (tool === "zone") structureTools.handleStructurePointerMove(cx, cy);
     else if (tool === "eraser") {
       if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
       else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
+      else if (structureTools.handleStructurePointerMove(cx, cy)) { /* zone erased in preference to floor */ }
       else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
       else eraseCell(cx, cy);
     } else if (tool === "wall" && hoveredEdge.value) {

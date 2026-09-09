@@ -4,6 +4,7 @@ import type { DoorEdge } from "./siteRun";
 
 function door(overrides: Partial<DoorEdge> = {}): DoorEdge {
   return {
+    id: "door-1",
     from_location_id: "room-a",
     to_location_id: "room-b",
     is_one_way: false,
@@ -76,5 +77,27 @@ describe("reachableRoomIds", () => {
   it("a room with no door to it at all is simply absent from the set", () => {
     const doors = [door({ from_location_id: "room-a", to_location_id: "room-b" })];
     expect(reachableRoomIds("room-a", doors).has("room-isolated")).toBe(false);
+  });
+
+  // #868: a live "unlocked" door fact reopens a route that `starts_locked`
+  // alone would keep closed, without touching the authored flag itself.
+  it("crosses a starts_locked door whose id is in unlockedDoorIds", () => {
+    const doors = [door({ id: "door-x", starts_locked: true })];
+    expect(reachableRoomIds("room-a", doors, new Set(["door-x"]))).toEqual(new Set(["room-a", "room-b"]));
+  });
+
+  it("still blocks a starts_locked door whose id is NOT in unlockedDoorIds", () => {
+    const doors = [door({ id: "door-x", starts_locked: true })];
+    expect(reachableRoomIds("room-a", doors, new Set(["some-other-door"]))).toEqual(new Set(["room-a"]));
+  });
+
+  it("an unlockedDoorIds entry for a door that was never locked changes nothing", () => {
+    const doors = [door({ id: "door-x", starts_locked: false })];
+    expect(reachableRoomIds("room-a", doors, new Set(["door-x"]))).toEqual(new Set(["room-a", "room-b"]));
+  });
+
+  it("defaults unlockedDoorIds to empty when the caller omits it", () => {
+    const doors = [door({ id: "door-x", starts_locked: true })];
+    expect(reachableRoomIds("room-a", doors)).toEqual(new Set(["room-a"]));
   });
 });

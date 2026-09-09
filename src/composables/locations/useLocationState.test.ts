@@ -1,11 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { buildLocationStateIndex } from "./useLocationState";
+import { buildDoorStateIndex, buildLocationStateIndex } from "./useLocationState";
 import type { LocationState } from "@/types/locationState.types";
 
 function row(overrides: Partial<LocationState> = {}): LocationState {
   return {
     location_id: "room-a",
     fact: "cleared",
+    value: true,
+    asserted_by: "dm-1",
+    asserted_note: null,
+    door_id: null,
+    asserted_at: "2026-09-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function doorRow(overrides: Partial<LocationState> = {}): LocationState {
+  return {
+    location_id: "site-a",
+    door_id: "door-1",
+    fact: "unlocked",
     value: true,
     asserted_by: "dm-1",
     asserted_note: null,
@@ -70,5 +84,45 @@ describe("buildLocationStateIndex", () => {
     const newThenOld = buildLocationStateIndex([newer, older]);
     expect(newThenOld.get("room-a")?.cleared?.value).toBe(false);
     expect(newThenOld.get("room-a")?.cleared?.asserted_note).toBe("actually, no");
+  });
+});
+
+describe("buildDoorStateIndex", () => {
+  it("returns an empty index for no rows", () => {
+    expect(buildDoorStateIndex([]).size).toBe(0);
+  });
+
+  it("indexes a row under its door, not its site", () => {
+    const index = buildDoorStateIndex([doorRow()]);
+    expect(index.get("door-1")?.unlocked?.value).toBe(true);
+    expect(index.get("site-a")).toBeUndefined();
+  });
+
+  it("ignores location facts — a null door_id never lands in this index", () => {
+    const index = buildDoorStateIndex([row({ fact: "cleared", value: true })]);
+    expect(index.size).toBe(0);
+  });
+
+  it("leaves an unasserted door fact absent rather than defaulting it to false", () => {
+    const index = buildDoorStateIndex([doorRow({ fact: "unlocked", value: true })]);
+    const forDoor = index.get("door-1");
+    expect(forDoor?.unlocked).toBeDefined();
+    expect(forDoor?.found).toBeUndefined();
+  });
+
+  it("keeps two doors of the same site independent of one another", () => {
+    const index = buildDoorStateIndex([
+      doorRow({ door_id: "door-1", fact: "found", value: true }),
+      doorRow({ door_id: "door-2", fact: "found", value: false }),
+    ]);
+    expect(index.get("door-1")?.found?.value).toBe(true);
+    expect(index.get("door-2")?.found?.value).toBe(false);
+  });
+
+  it("keeps the newest row when two rows collide on the same (door, fact)", () => {
+    const older = doorRow({ value: true, asserted_at: "2026-09-01T00:00:00Z" });
+    const newer = doorRow({ value: false, asserted_at: "2026-09-03T00:00:00Z" });
+    const index = buildDoorStateIndex([older, newer]);
+    expect(index.get("door-1")?.unlocked?.value).toBe(false);
   });
 });

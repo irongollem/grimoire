@@ -24,6 +24,21 @@ export function normaliseTheme(value: string): string {
   return value.toLowerCase().trim().replace(/\s+/g, " ");
 }
 
+/**
+ * Reserved label meaning "deliberately no ambience here" (#868). It is
+ * authored into `audio_theme` exactly like any other theme — nothing in the
+ * schema distinguishes it — but `lib/locations/ambience.ts`'s inheritance
+ * walk treats it as a stopping point that resolves to nothing, which is what
+ * lets a DM say "this room is quiet on purpose" instead of leaving the field
+ * blank, which means "ask my parent" (#868), not "silent".
+ */
+export const SILENCE_THEME = "silence";
+
+export function isSilenceTheme(theme: string | null | undefined): boolean {
+  if (theme === null || theme === undefined) return false;
+  return normaliseTheme(theme) === SILENCE_THEME;
+}
+
 export function tagsIncludeTheme(tags: readonly string[], theme: string): boolean {
   const wanted = normaliseTheme(theme);
   if (wanted === "") return false;
@@ -33,6 +48,12 @@ export function tagsIncludeTheme(tags: readonly string[], theme: string): boolea
 /**
  * Every theme label in use, for the picker's suggestions. Sorted so the list is
  * stable rather than dependent on row order.
+ *
+ * `SILENCE_THEME` always leads the list rather than sorting alphabetically
+ * with the rest: it is not a label anyone tagged a playlist with, it is the
+ * one suggestion that exists purely so a DM can find it. A playlist or sound
+ * that happens to carry a literal "silence" tag is folded into that same
+ * entry rather than appearing twice.
  */
 export function collectThemes(
   playlists: readonly SoundboardPlaylist[],
@@ -47,7 +68,10 @@ export function collectThemes(
   };
   playlists.forEach((p) => p.tags.forEach(add));
   sounds.forEach((s) => s.tags.forEach(add));
-  return [...seen.values()].sort((a, b) => a.localeCompare(b));
+  const rest = [...seen.values()]
+    .filter((tag) => !isSilenceTheme(tag))
+    .sort((a, b) => a.localeCompare(b));
+  return [SILENCE_THEME, ...rest];
 }
 
 /** Candidate playlists for a theme, restricted to the slot's own type. */

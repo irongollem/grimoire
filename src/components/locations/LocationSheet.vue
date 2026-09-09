@@ -140,6 +140,8 @@ import { IconDelete, IconEdit, IconPlay } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
 import { useUiStore } from "@/stores/ui";
+import { buildAtlasIndex } from "@/lib/locations/tree";
+import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import {
   useLocations,
   useAllLocations,
@@ -259,6 +261,20 @@ function onPinClick(childId: string) {
 // browsing. With no session running this is unchanged, and that is
 // deliberate: it is the prep-time preview of the room the DM is looking at.
 //
+// The preview inherits too (#868), off the same `allLocations` list already
+// fetched above for the breadcrumb — a DM previewing a themeless room hears
+// what the party would hear there, not silence. `props.location` is merged
+// in over whatever `allLocations` currently holds for that id: it is this
+// sheet's own live prop, so resolving its *own* theme must never depend on
+// the shared list having refetched since the last save, and a brand-new
+// location may not be in that cache yet at all.
+const ambienceById = computed(() => {
+  const index = buildAtlasIndex(allLocations.value ?? []).byId;
+  const merged = new Map(index);
+  merged.set(props.location.id, props.location);
+  return merged;
+});
+
 // `heldSourceId` (rather than deriving straight from `props.location.id`)
 // is what lets one function answer both triggers below: a location change
 // and a session starting or ending mid-browse must produce the exact same
@@ -269,16 +285,27 @@ const heldSourceId = ref<string | null>(null);
 
 function syncAmbience(loc: Location): void {
   const previous = heldSourceId.value;
-  const theme = ui.sessionRunning ? null : loc.audio_theme;
-  const next = theme ? `location:${loc.id}` : null;
+  // Mid-session this previews nothing at all — the party's own position
+  // (`usePartyAmbience`) owns the slot instead.
+  const resolved = ui.sessionRunning
+    ? null
+    : resolveInheritedTheme(loc.id, ambienceById.value);
+  const theme = resolved?.theme ?? null;
+  // Keyed on the theme owner, not `loc.id` — same reasoning as
+  // `usePartyAmbience`'s `sourceId`: two rooms previewed back to back that
+  // inherit from the same ancestor must resolve to one sourceId, or the
+  // second preview's release stops the scene the first one only just handed
+  // off to it (`useAudioThemeTriggers` releases an ambient scene by target
+  // id with no reference count).
+  const next = theme && resolved ? `location:${resolved.from!.id}` : null;
   if (previous === next) return;
   // Request first, release second, and the order is load-bearing. The new
   // owner takes the ambient slot synchronously, so the release that follows
   // is recognised as stale and ignored. Releasing first would instead hand
   // the slot back to whatever preceded it and then immediately take it again
   // — an audible stop-start between two rooms that should simply cross over.
-  if (theme) {
-    requestAudioTheme({ sourceId: `location:${loc.id}`, theme, slot: "ambient", label: loc.name, kind: "location" });
+  if (theme && next) {
+    requestAudioTheme({ sourceId: next, theme, slot: "ambient", label: loc.name, kind: "location" });
   }
   if (previous) releaseAudioTheme(previous);
   heldSourceId.value = next;

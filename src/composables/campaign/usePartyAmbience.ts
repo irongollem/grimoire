@@ -3,6 +3,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { requestAudioTheme, releaseAudioTheme, type AudioThemeRequest } from "@/lib/audio/audioTriggers";
+import { buildAtlasIndex } from "@/lib/locations/tree";
+import { resolveInheritedTheme, type AmbienceLocationLike } from "@/lib/locations/ambience";
 import type { Location } from "@/types/location.types";
 
 /**
@@ -31,19 +33,44 @@ export function partyAmbienceSourceId(locationId: string): string {
  * What the party's ambience slot should own right now, or null when nothing
  * should follow the party.
  *
- * Pure on purpose: the two rules that matter here — no session, no request;
- * no theme, no request — are covered without mounting Vue reactivity,
+ * `byId` resolves inheritance (#868, story S7): a room with no `audio_theme`
+ * of its own asks its ancestors via `resolveInheritedTheme` rather than
+ * releasing the slot, and the reserved `SILENCE_THEME` — wherever in the
+ * chain it is authored — resolves to null exactly like "no theme anywhere".
+ *
+ * The request's `sourceId` is keyed on `resolved.from.id` — the location that
+ * actually *owns* the resolved theme — not on `location.id`. This is load-
+ * bearing, not a stylistic choice: `useAudioThemeTriggers`'s ambient slot
+ * dedupes a request against `ambientOwners` by `sourceId` but releases by
+ * calling `store.stopAmbientPlaylist(target)` unconditionally, with no check
+ * for a second owner still holding the same target. Keyed on the room's own
+ * id, walking from one inheriting room to a sibling would request the
+ * already-playing scene under a *new* sourceId (a no-op, since the store
+ * skips a playlist already running) and then release the *old* sourceId,
+ * which stops that same playlist outright — an audible dropout on every step
+ * through a themed dungeon, not a crossfade. Keyed on the theme owner's id
+ * instead, two rooms inheriting from the same ancestor resolve to the exact
+ * same `sourceId`, so the watcher below sees no change at all and neither
+ * requests nor releases anything when the party moves between them.
+ *
+ * `label` still names the room the party is actually in, not the ancestor —
+ * that is what a DM reads in the "why is this playing" chip.
+ *
+ * Pure on purpose: the rules that matter here — no session, no request; no
+ * resolved theme, no request — are covered without mounting Vue reactivity,
  * TanStack Query, or the audio bus.
  */
 export function resolvePartyAmbience(
   sessionRunning: boolean,
-  location: Pick<Location, "id" | "name" | "audio_theme"> | null | undefined,
+  location: Pick<Location, "id" | "name"> | null | undefined,
+  byId: ReadonlyMap<string, AmbienceLocationLike>,
 ): AudioThemeRequest | null {
-  if (!sessionRunning) return null;
-  if (!location?.audio_theme) return null;
+  if (!sessionRunning || !location) return null;
+  const resolved = resolveInheritedTheme(location.id, byId);
+  if (resolved.theme === null || resolved.from === null) return null;
   return {
-    sourceId: partyAmbienceSourceId(location.id),
-    theme: location.audio_theme,
+    sourceId: partyAmbienceSourceId(resolved.from.id),
+    theme: resolved.theme,
     slot: "ambient",
     label: location.name,
     kind: "location",
@@ -71,6 +98,10 @@ export function usePartyAmbience(): void {
   // and every location editor already share (shared query key).
   const { data: locations } = useAllLocations(() => ui.sessionRunning);
 
+  // Rebuilt from the same list `buildAtlasIndex` already knows how to index —
+  // reused rather than a second parent-chasing lookup, per `lib/locations/tree.ts`.
+  const locationsById = computed(() => buildAtlasIndex(locations.value ?? []).byId);
+
   const partyLocation = computed<Location | null>(() => {
     const id = campaign.activeCampaign?.current_location_id;
     if (!id) return null;
@@ -83,9 +114,9 @@ export function usePartyAmbience(): void {
   const active = ref<AudioThemeRequest | null>(null);
 
   watch(
-    [() => ui.sessionRunning, partyLocation],
+    [() => ui.sessionRunning, partyLocation, locationsById],
     () => {
-      const next = resolvePartyAmbience(ui.sessionRunning, partyLocation.value);
+      const next = resolvePartyAmbience(ui.sessionRunning, partyLocation.value, locationsById.value);
       const previous = active.value;
       if (previous?.sourceId === next?.sourceId) {
         active.value = next;
