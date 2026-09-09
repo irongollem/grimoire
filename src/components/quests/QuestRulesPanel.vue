@@ -83,6 +83,10 @@
         <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">
           No undiscovered quests to unlock — write the sequel first and leave it undiscovered.
         </p>
+        <template v-if="targetQuestId">
+          <EntityCombobox v-if="entryBeatOptions.length" v-model="entryBeatId" class="min-w-0 sm:col-span-2" :options="entryBeatOptions" placeholder="Enters at…" />
+          <p v-else class="text-caption italic text-muted-foreground sm:col-span-2">This quest has no beats yet — it will open at whichever beat is written first.</p>
+        </template>
       </template>
       <template v-else-if="action === 'grant_knowledge'">
         <AppInput v-model="knowledgeText" size="body-xs" placeholder="What do the players learn…" class="sm:col-span-2" />
@@ -116,6 +120,7 @@ import {
   useQuestConsequences,
 } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
+import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
@@ -267,6 +272,14 @@ const unlockableQuestOptions = computed(() =>
     .map((quest) => ({ id: quest.id, name: quest.title })),
 );
 
+// "Enters at" (#871) — see useUnlockEntryPicker for the shared mechanism.
+const {
+  entryBeatId, entryBeatOptions, unlockQuestLabel, unlockBeatLabel, resolveEntryBeatId,
+  reset: resetEntryBeatPicker,
+} = useUnlockEntryPicker({
+  targetQuestId,
+  fallbackTargetQuestId: () => rows.value.find((row) => row.action === "unlock_quest" && row.target_quest_id)?.target_quest_id ?? "",
+});
 
 // A ledger verb cannot target the same objective its own condition names —
 // the database's no-self-reference check — so that objective is dropped from
@@ -308,7 +321,7 @@ function delaySuffix(row: QuestConsequence): string {
 }
 
 function actionSummary(row: QuestConsequence): string {
-  return describeQuestConsequenceAction(row, objectiveLabel);
+  return describeQuestConsequenceAction(row, objectiveLabel, { questLabel: unlockQuestLabel, beatLabel: unlockBeatLabel });
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────
@@ -325,6 +338,7 @@ function resetForm() {
   targetNpcId.value = "";
   relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY;
   targetQuestId.value = "";
+  resetEntryBeatPicker();
   knowledgeText.value = "";
   favorText.value = "";
   milestoneText.value = "";
@@ -362,6 +376,7 @@ async function add() {
       target_objective_id: isLedgerAction(action.value) ? targetObjectiveId.value : null,
       target_npc_id: action.value === "shift_npc_relationship" || action.value === "owe_favor" ? targetNpcId.value : null,
       target_quest_id: action.value === "unlock_quest" ? targetQuestId.value : null,
+      entry_beat_id: action.value === "unlock_quest" ? resolveEntryBeatId() : null,
       action_payload: payload,
     };
     await createConsequence.mutateAsync(insert);

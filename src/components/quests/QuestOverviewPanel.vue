@@ -26,12 +26,16 @@
     </section>
 
     <section v-else class="space-y-2 rounded-lg border border-border bg-card p-3" aria-label="Opening beats">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">{{ roots.length > 1 ? "Opening beats" : "Opening beat" }}</h3>
-      <p v-if="!roots.length" role="alert" class="text-caption text-tone-caution">
+      <h3 class="font-cinzel text-sm font-bold text-foreground">Opens at</h3>
+      <p v-if="!roots.length && !entryBeat" role="alert" class="text-caption text-tone-caution">
         Every beat here has an incoming route, so there is no way in for the party. Open Story flow and break the loop.
       </p>
       <ul v-else class="space-y-1">
-        <li v-for="beat in roots" :key="beat.id">
+        <li v-if="entryBeat" class="flex items-center gap-1.5">
+          <span class="rounded bg-tone-info/15 px-1.5 py-0.5 text-caption text-ink-info">{{ isEntryRoot ? "entry" : "entry · not a root" }}</span>
+          <AppButton :to="workLinkFor(entryBeat.id)" :label="entryBeat.title || 'Untitled beat'" variant="link" size="sm" />
+        </li>
+        <li v-for="beat in otherRoots" :key="beat.id">
           <AppButton :to="workLinkFor(beat.id)" :label="beat.title || 'Untitled beat'" variant="link" size="sm" />
         </li>
       </ul>
@@ -82,6 +86,12 @@ const beats = computed(() => beatsQuery.data.value ?? []);
 const edges = computed(() => edgesQuery.data.value ?? []);
 const rootIds = computed(() => new Set(rootBeatIds(beats.value, edges.value)));
 const roots = computed(() => beats.value.filter((beat) => rootIds.value.has(beat.id)));
+// The formal entry (`quests.entry_beat_id`) always leads the list, even when
+// the DM chose a beat with an incoming route — it is still where the story
+// begins, just not where the graph computes an unforced way in.
+const entryBeat = computed(() => beats.value.find((beat) => beat.id === props.quest.entry_beat_id) ?? null);
+const isEntryRoot = computed(() => Boolean(entryBeat.value && rootIds.value.has(entryBeat.value.id)));
+const otherRoots = computed(() => roots.value.filter((beat) => beat.id !== entryBeat.value?.id));
 
 // Held back until every input has loaded at least once, so the panel never
 // flashes a finding derived from a partially-loaded quest (e.g. "objective

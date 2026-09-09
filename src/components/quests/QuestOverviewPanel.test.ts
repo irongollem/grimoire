@@ -31,6 +31,7 @@ const quest = {
   id: "quest-1",
   title: "The Unseen",
   status: "active",
+  entry_beat_id: null,
 } as Quest;
 
 const beat = (id: string, title: string): QuestBeat => ({
@@ -41,9 +42,9 @@ const beat = (id: string, title: string): QuestBeat => ({
   improv_reviewed_at: null, created_by: "dm", created_at: "now", updated_at: "now",
 });
 
-function mountPanel() {
+function mountPanel(questOverrides: Partial<Quest> = {}) {
   return mount(QuestOverviewPanel, {
-    props: { quest },
+    props: { quest: { ...quest, ...questOverrides } },
     global: {
       stubs: {
         QuestOverviewMetadata: true,
@@ -100,5 +101,30 @@ describe("QuestOverviewPanel", () => {
     expect(wrapper.text()).toContain("The tavern");
     expect(wrapper.text()).toContain("The docks");
     expect(wrapper.text()).not.toContain("The cave");
+  });
+
+  it("shows Opens at, with the entry beat first and tagged with its chip", () => {
+    mocks.beats = [beat("a", "The tavern"), beat("b", "The docks")];
+    mocks.edges = [];
+    const wrapper = mountPanel({ entry_beat_id: "b" });
+    expect(wrapper.get("h3").text()).toBe("Opens at");
+    const items = wrapper.findAll("li").map((li) => li.text());
+    expect(items[0]).toContain("entry");
+    expect(items[0]).toContain("The docks");
+    expect(items[0]).not.toContain("not a root");
+    expect(items[1]).toContain("The tavern");
+  });
+
+  it("still leads with the entry when the DM chose a beat that is not a computed root, and captions it", () => {
+    mocks.beats = [beat("a", "The tavern"), beat("b", "The docks")];
+    mocks.edges = [
+      { id: "e", quest_id: "quest-1", campaign_id: "campaign-1", source_beat_id: "a", target_beat_id: "b", route_kind: "choice", thread_label: null, created_by: "dm", created_at: "now" },
+    ];
+    const wrapper = mountPanel({ entry_beat_id: "b" });
+    const items = wrapper.findAll("li").map((li) => li.text());
+    expect(items[0]).toContain("entry · not a root");
+    expect(items[0]).toContain("The docks");
+    // "a" is the sole computed root and is listed after the entry.
+    expect(items[1]).toContain("The tavern");
   });
 });

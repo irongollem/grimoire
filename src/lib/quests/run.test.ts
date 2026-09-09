@@ -171,7 +171,7 @@ describe("objectiveGateTargets", () => {
 describe("objectiveThreadHint", () => {
   const consequence = (overrides: Partial<QuestConsequence> = {}): QuestConsequence => ({
     id: "c1", quest_id: "q1", on_beat_id: "beat-b", on_edge_id: null, on_objective_id: null,
-    on_objective_status: null, on_quest_settled: false, after_days: 0, action: "raise",
+    on_objective_status: null, on_quest_settled: false, entry_beat_id: null, after_days: 0, action: "raise",
     target_objective_id: "o1", target_npc_id: null, target_quest_id: null, action_payload: {},
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,

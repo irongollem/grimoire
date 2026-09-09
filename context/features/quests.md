@@ -142,6 +142,44 @@ place (the party can pick the thread up at the tavern or the docks) or from
 none yet (no beats authored, or a pure cycle) — both are honest answers, not a
 bug to paper over with an invented winner.
 
+**A quest also _declares_ its entry (#871, `20260909194207`).** The computed
+roots answer "where could the party come in"; they do not answer "where does
+the story begin," which the DM knows at prep time and has forgotten by the
+table — the cockpit's "Choose a starting beat…" dropdown was the maintainer's
+own complaint ("instantly confuses me when I prepped a while ago and forgot
+the names"). `quests.entry_beat_id` is that answer: a composite FK onto the
+quest's own beats, **defaulted by the database** — `private.settle_quest_entry_beat()`
+sets it to the first beat written and reassigns it when the entry is archived
+or deleted (roots first, oldest first, the oldest beat when the graph is a
+pure cycle), so the generator, the paste import, the hook path and the starter
+all get it without being taught. `private.guard_quest_entry_beat()` refuses a
+tombstone. It is null only while the quest has no beats at all — legacy data:
+`QuestFlowStarter` now writes the rumor beat together with the quest — titled
+"The rumor", `visibility: rumored`, because "rumor" is a visibility state and
+not a `kind`: the player journal already says a rumour is circulating before
+`rumor_text` is written (`hasSomethingToShow`, `playerThreads.ts`). The
+arrival ratchet (`private.promote_quest_on_cursor_arrival`, `20260822232041`)
+learned what that means in the same migration: a cursor standing on a
+`rumored` beat takes an `undiscovered` quest to **Rumor** and no further, and
+the first step onto any other beat takes it to **Active** — "the first beat
+being a rumor means at the next beat the quest is no longer a rumor." Still
+one-way, still never touching a verdict.
+`supabase/tests/quest_promotion_on_arrival.test.sql` walks exactly that. The DM moves it from the overview's **Opens at** field; the story flow
+marks the node with an "Entry" chip; the overview's "Opens at" block lists it
+first, before the other computed roots. The roots stay as the fallback and as
+the override picker's ranking.
+
+**A bridge names where the party comes in.** An `unlock_quest` rule carries
+`quest_consequences.entry_beat_id`, a composite FK onto the _target_ quest's
+beats (null = the target's own entry) — "Enters at" on both authoring
+surfaces, preselected to the target's entry. A sequel entered sideways through
+a bridge starts at the beat the bridge lands on, not at its own rumor. The
+cockpit reads it from the event log rather than from new state on the quest:
+the most recent performed, un-undone `unlock_quest` event targeting the quest
+names the rule, and the rule names the beat (`useQuestUnlockEntry`). See **The
+run cockpit** for the start order. Neither column is nesting: `parent_quest_id`
+stays what it was.
+
 **Where the two still overlap.** Each of these is a fact with two writable homes
 and no rule about which wins:
 
@@ -244,6 +282,11 @@ it at the same 600 characters it uses for a character backstory. So #799 added
 `quests_summary_is_one_line CHECK (char_length(summary) <= 280 and summary !~
 E'[\n\r]')`, with `QUEST_SUMMARY_MAX` shared by the CHECK, the inputs and the
 importer. **It is player-facing and rendered raw** — never put a DM secret in it.
+
+`entry_beat_id` (#871) — the beat the story begins at; see "A quest also
+declares its entry" above. DB-defaulted, so `QuestInsert` omits it and only
+`QuestUpdate` carries it. Restore from a campaign backup nulls it, since the
+backup format has never carried the beat graph.
 
 Carries `unique (id, campaign_id)` — the composite every beat-side FK targets.
 
@@ -599,7 +642,7 @@ event.
 | `raise` `reveal` `complete` `fail`                           | ledger verb  | `target_objective_id`                                              |
 | `create_calendar_event` `send_broadcast`                     | world action | `action_payload`                                                   |
 | `shift_npc_relationship` (#831, `to` since `20260908210324`) | world action | `target_npc_id` + `action_payload.step` **or** `action_payload.to` |
-| `unlock_quest` (#836)                                        | world action | `target_quest_id`                                                  |
+| `unlock_quest` (#836, `entry_beat_id` since #871)            | world action | `target_quest_id` + optional `entry_beat_id` of that quest         |
 | `grant_knowledge` (#850)                                     | world action | `action_payload.text`                                              |
 | `owe_favor` (#850)                                           | world action | `target_npc_id` + `action_payload.text`                            |
 | `award_milestone` (#850)                                     | world action | `action_payload.text`                                              |
@@ -995,7 +1038,19 @@ exactly where the old panel was.
 
 `QuestRunCockpit.vue` runs **one thread at a time**: the route names which one
 (`?thread=`, or the thread bar switching it), defaulting to the quest's oldest
-live thread. Below the header:
+live thread.
+
+**The start card tells, not asks (#871).** Before a thread has a cursor it
+used to open on a dropdown of every beat. It now resolves where to start
+(`resolveStartBeatId`, `src/lib/quests/entry.ts`) — the beat a performed
+bridge named (`useQuestUnlockEntry`), else the quest's declared
+`entry_beat_id`, else the sole computed root — and shows that beat's title
+with its read-aloud (or rumor text, or the first lines of DM content) so the
+DM recognises the scene rather than the name, captioned with the reason
+("Where the story begins", "Entered through ‹beat›", "The only way in"), and a
+single **Start here**. **Start elsewhere** reveals the old picker, roots ranked
+first. Only when nothing resolves (no entry and several roots) does the picker
+show first. Below the header:
 
 - **`QuestThreadBar`** — one pill per thread the quest holds (live/waiting
   selectable, closed/merged shown dimmed for context but not clickable), and

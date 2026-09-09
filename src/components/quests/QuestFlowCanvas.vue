@@ -29,6 +29,7 @@
             :current="slotProps.id === currentBeatId"
             :presentation="slotProps.data.presentation"
             :gated="slotProps.data.isGated"
+            :is-entry="slotProps.data.isEntry"
             :threads="threads"
             :editable="editable"
             @select="emit('command', { type: 'select', beatId: slotProps.id })"
@@ -87,11 +88,11 @@ import type { QuestBeat, QuestBeatEdge, QuestRouteGate } from "@/types/quest.typ
 // needs to fully enclose the node, not hug it exactly.
 const SWIMLANE_NODE_SIZE = { width: 240, height: 150 };
 
-const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, threads = [], runtime = [], transitions = [], selectedBeatId = null, currentBeatId = null, fitOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; threads?: ThreadLike[]; runtime?: SwimlaneRuntimeCursor[]; transitions?: SwimlaneTransition[]; selectedBeatId?: string | null; currentBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
+const { graphId, beats, edges, presentations = {}, visitedEdgeIds = new Set<string>(), edgeGates = {}, threads = [], runtime = [], transitions = [], selectedBeatId = null, currentBeatId = null, entryBeatId = null, fitOnOpen = true, initialViewport = null, editable = true } = defineProps<{ graphId: string; beats: QuestBeat[]; edges: QuestBeatEdge[]; presentations?: Record<string, QuestBeatPresentation>; visitedEdgeIds?: ReadonlySet<string>; edgeGates?: Record<string, QuestRouteGate>; threads?: ThreadLike[]; runtime?: SwimlaneRuntimeCursor[]; transitions?: SwimlaneTransition[]; selectedBeatId?: string | null; currentBeatId?: string | null; entryBeatId?: string | null; fitOnOpen?: boolean; initialViewport?: ViewportTransform | null; editable?: boolean }>();
 const emit = defineEmits<{ command: [command: QuestGraphCommand]; "viewport-change": [viewport: ViewportTransform] }>();
 const flow = useVueFlow(graphId);
 const canvasEl = ref<HTMLElement | null>(null);
-const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds, edgeGates));
+const graph = computed(() => toQuestFlowGraph(beats, edges, presentations, visitedEdgeIds, edgeGates, entryBeatId));
 const nodes = computed({ get: () => graph.value.nodes, set: () => undefined });
 const flowEdges = computed({ get: () => graph.value.edges, set: () => undefined });
 const swimlanes = computed(() => deriveSwimlanes({ threads, runtime, transitions, beats, nodeSize: SWIMLANE_NODE_SIZE }));

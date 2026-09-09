@@ -19,6 +19,7 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
     on_objective_id: null,
     on_objective_status: null,
     on_quest_settled: false,
+    entry_beat_id: null,
     on_location_id: null,
     on_location_fact: null,
     after_days: 0,
@@ -182,5 +183,41 @@ describe("derivePayoffRows", () => {
 
     expect(rows[0]!.summary).toBe("Tally-stick of the widow");
     expect(rows[1]!.summary).toBe("3× Silver rings");
+  });
+
+  // #871: the entry-beat bridge — the caller's questLabel/beatLabel pair
+  // reaches describeQuestConsequenceAction unchanged.
+  it("summarizes an unlock row with its target quest and entry beat when the caller supplies a resolver", () => {
+    const rows = derivePayoffRows({
+      beatId: "beat-fork",
+      consequences: [consequence({
+        id: "c-unlock", on_beat_id: "beat-fork", action: "unlock_quest",
+        target_quest_id: "quest-sequel", entry_beat_id: "beat-confess",
+      })],
+      outgoingEdges,
+      beats,
+      loot: [],
+      objectiveLabel,
+      questLabel: (id) => id === "quest-sequel" ? "The stolen cauldron" : "Missing quest",
+      beatLabel: (id) => id === "beat-confess" ? "He confesses the tithe" : "Missing beat",
+    });
+
+    expect(rows[0]!.summary).toBe('Unlock "The stolen cauldron" · enters at "He confesses the tithe"');
+  });
+
+  it("summarizes an unlock row by the bare label when the caller supplies no resolver", () => {
+    const rows = derivePayoffRows({
+      beatId: "beat-fork",
+      consequences: [consequence({
+        id: "c-unlock", on_beat_id: "beat-fork", action: "unlock_quest",
+        target_quest_id: "quest-sequel", entry_beat_id: "beat-confess",
+      })],
+      outgoingEdges,
+      beats,
+      loot: [],
+      objectiveLabel,
+    });
+
+    expect(rows[0]!.summary).toBe("Unlock a quest");
   });
 });

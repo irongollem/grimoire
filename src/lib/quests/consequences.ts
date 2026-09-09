@@ -29,6 +29,16 @@ export function isLedgerConsequenceAction(action: QuestConsequenceAction): boole
   return QUEST_CONSEQUENCE_LEDGER_ACTIONS.includes(action);
 }
 
+/** What `describeQuestConsequenceAction` needs to name an unlock's target
+ *  quest and, when the bridge names one, the beat it enters at. Both callers
+ *  that pass this (`QuestPayoffPanel`, `QuestRulesPanel`) already hold the
+ *  data these read from — `useQuests("undiscovered")` and the target quest's
+ *  own `useQuestBeats` — so the resolver is a thin adapter, not a fetch. */
+export interface QuestConsequenceLabelResolver {
+  questLabel?: (id: string | null) => string;
+  beatLabel?: (id: string | null) => string;
+}
+
 /**
  * One line describing what a consequence rule does — `Complete "Kill the
  * dragon"`, or `Calendar event: "The bridge collapses"`. Shared by the rule
@@ -37,13 +47,33 @@ export function isLedgerConsequenceAction(action: QuestConsequenceAction): boole
  * row into the same sentence a DM reads at a glance — extracted rather than
  * grown a second time, since the two already differ only in how they resolve
  * `objectiveLabel`.
+ *
+ * `resolver` is optional and `unlock_quest`-only (#871): without it — every
+ * caller that predates the entry-beat bridge, plus the backfill preview and
+ * the Advance dialog, neither of which has a quest/beat title handy for an
+ * arbitrary target — an unlock still reads as the bare `"Unlock a quest"`
+ * label. With it, `Unlock "<quest title>"`, plus ` · enters at "<beat
+ * title>"` when the rule names a beat other than the target's own entry.
  */
 export function describeQuestConsequenceAction(
-  row: Pick<QuestConsequence, "action" | "target_objective_id" | "action_payload">,
+  row: Pick<QuestConsequence, "action" | "target_objective_id" | "action_payload">
+    & Partial<Pick<QuestConsequence, "target_quest_id" | "entry_beat_id">>,
   objectiveLabel: (id: string | null) => string,
+  resolver?: QuestConsequenceLabelResolver,
 ): string {
   if (isLedgerConsequenceAction(row.action)) {
     return `${QUEST_CONSEQUENCE_ACTION_LABELS[row.action]} "${objectiveLabel(row.target_objective_id)}"`;
+  }
+  if (row.action === "unlock_quest" && resolver?.questLabel) {
+    // A resolver that comes back empty (still loading, or a target the caller
+    // has no title for) drops that part rather than asserting a "Missing"
+    // anything — the bare verb is true; a wrong name is not.
+    const questTitle = resolver.questLabel(row.target_quest_id ?? null);
+    if (!questTitle) return describeWorldConsequenceAction(row.action, row.action_payload);
+    const entryBeatId = row.entry_beat_id ?? null;
+    const beatTitle = entryBeatId && resolver.beatLabel ? resolver.beatLabel(entryBeatId) : "";
+    const suffix = beatTitle ? ` · enters at "${beatTitle}"` : "";
+    return `Unlock "${questTitle}"${suffix}`;
   }
   return describeWorldConsequenceAction(row.action, row.action_payload);
 }

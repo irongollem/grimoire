@@ -12,6 +12,9 @@ export interface QuestFlowNodeData {
    *  drawn as a dashed muted border, independent of the wire itself (a beat
    *  can be gated from one route and open from another). */
   isGated: boolean;
+  /** True for the one beat named by `quests.entry_beat_id` — the story's
+   *  formal opening, as opposed to a computed graph root. */
+  isEntry: boolean;
 }
 export type QuestFlowNode = Node<QuestFlowNodeData>;
 export interface QuestFlowEdgeData {
@@ -43,6 +46,7 @@ export function toQuestFlowGraph(
   presentations: Record<string, QuestBeatPresentation> = {},
   visitedEdgeIds: ReadonlySet<string> = new Set(),
   routeGates: Record<string, QuestRouteGate> = {},
+  entryBeatId: string | null = null,
 ) {
   const beatsById = new Map(beats.map((beat) => [beat.id, beat]));
   const gatedClosedTargetIds = new Set(
@@ -62,6 +66,7 @@ export function toQuestFlowGraph(
       visibility: beat.visibility,
       presentation: presentations[beat.id],
       isGated: gatedClosedTargetIds.has(beat.id),
+      isEntry: beat.id === entryBeatId,
     },
   }));
   const flowEdges: QuestFlowEdge[] = edges.map((edge) => {

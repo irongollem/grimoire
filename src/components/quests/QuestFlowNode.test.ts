@@ -153,6 +153,21 @@ describe("QuestFlowNode", () => {
     expect(wrapper.get("article").classes()).toContain("is-current");
   });
 
+  it("draws an Entry chip only when isEntry is set, and names it in the accessible label", () => {
+    const entryNode = mount(QuestFlowNode, {
+      props: { title: "The rumor", kind: "neutral", visibility: "hidden", isEntry: true },
+      global: { stubs: { Handle: true } },
+    });
+    expect(entryNode.text()).toContain("Entry");
+    expect(entryNode.get("button.quest-flow-node__main").attributes("aria-label")).toContain("quest entry");
+
+    const plainNode = mount(QuestFlowNode, {
+      props: { title: "Elsewhere", kind: "neutral", visibility: "hidden" },
+      global: { stubs: { Handle: true } },
+    });
+    expect(plainNode.text()).not.toContain("Entry");
+  });
+
   it("offers an atomic add-next action from the card", async () => {
     const wrapper = mount(QuestFlowNode, { props: { title: "Start", kind: "neutral", visibility: "hidden", editable: true }, global: { stubs: { Handle: true } } });
     const card = wrapper.get("article");

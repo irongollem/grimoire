@@ -26,7 +26,7 @@
     </ul>
     <p v-else class="text-caption italic text-muted-foreground">Nothing this beat gives yet.</p>
 
-    <div class="grid grid-cols-4 gap-1.5">
+    <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
       <AppButton
         v-for="option in QUICK_ADD_OPTIONS"
         :key="option.kind"
@@ -58,7 +58,7 @@
         </template>
 
         <template v-else>
-          <AppSelect v-model="conditionEdgeId" aria-label="When this fires">
+          <AppSelect v-model="conditionEdgeId" block aria-label="When this fires">
             <option value="">On arriving here</option>
             <option v-for="edge in outgoingEdges" :key="edge.id" :value="edge.id">On taking the route to {{ beatTitle(edge.target_beat_id) }}</option>
           </AppSelect>
@@ -80,6 +80,10 @@
           <template v-else-if="activeQuickAdd === 'quest'">
             <EntityCombobox v-if="unlockableQuestOptions.length" v-model="targetQuestId" :options="unlockableQuestOptions" placeholder="Which quest…" />
             <p v-else class="text-caption italic text-muted-foreground">No undiscovered quests to unlock — write the sequel first and leave it undiscovered.</p>
+            <template v-if="targetQuestId">
+              <EntityCombobox v-if="entryBeatOptions.length" v-model="entryBeatId" :options="entryBeatOptions" placeholder="Enters at…" />
+              <p v-else class="text-caption italic text-muted-foreground">This quest has no beats yet — it will open at whichever beat is written first.</p>
+            </template>
           </template>
           <template v-else-if="activeQuickAdd === 'favor'">
             <EntityCombobox v-if="npcOptions.length" v-model="targetNpcId" :options="npcOptions" placeholder="Which NPC…" />
@@ -112,6 +116,7 @@ import { computed, reactive, ref, watch, type Component } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { useCreateLootPlacement, useCreateQuestConsequence, useDeleteLootPlacement, useDeleteQuestConsequence } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
+import { useUnlockEntryPicker } from "@/composables/quests/useUnlockEntryPicker";
 import { useItems } from "@/composables/items/useItems";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { drawerTransition } from "@/lib/motion";
@@ -164,6 +169,8 @@ const rows = computed<PayoffRow[]>(() => derivePayoffRows({
   beats,
   loot,
   objectiveLabel,
+  questLabel: unlockQuestLabel,
+  beatLabel: unlockBeatLabel,
 }));
 
 function beatTitle(id: string): string {
@@ -241,12 +248,20 @@ const unlockableQuestOptions = computed(() => (undiscoveredQuests.value ?? [])
   .filter((quest) => quest.id !== beat.quest_id)
   .map((quest) => ({ id: quest.id, name: quest.title })));
 
+// "Enters at" (#871) — see useUnlockEntryPicker for the shared mechanism.
+const {
+  entryBeatId, entryBeatOptions, unlockQuestLabel, unlockBeatLabel, resolveEntryBeatId,
+  reset: resetEntryBeatPicker,
+} = useUnlockEntryPicker({
+  targetQuestId,
+  fallbackTargetQuestId: () => consequences.find((row) => row.action === "unlock_quest" && row.target_quest_id)?.target_quest_id ?? "",
+});
 
 function resetQuickAddFields() {
   itemId.value = ""; label.value = ""; quantity.value = 1;
   for (const coin of COINS) currency[coin] = 0;
   conditionEdgeId.value = ""; afterDays.value = 0;
-  targetNpcId.value = ""; relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY; targetQuestId.value = "";
+  targetNpcId.value = ""; relationshipShiftKey.value = DEFAULT_RELATIONSHIP_SHIFT_KEY; targetQuestId.value = ""; resetEntryBeatPicker();
   knowledgeText.value = ""; favorText.value = ""; milestoneText.value = "";
   calendarTitle.value = ""; calendarType.value = "quest";
   error.value = "";
@@ -324,6 +339,7 @@ async function submit() {
         target_objective_id: null,
         target_npc_id: activeQuickAdd.value === "influence" || activeQuickAdd.value === "favor" ? targetNpcId.value : null,
         target_quest_id: activeQuickAdd.value === "quest" ? targetQuestId.value : null,
+        entry_beat_id: activeQuickAdd.value === "quest" ? resolveEntryBeatId() : null,
         action_payload: payload,
       };
       await createConsequence.mutateAsync(insert);

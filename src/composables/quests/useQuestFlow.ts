@@ -48,6 +48,7 @@ export const QUEST_RUNTIME_QUERY_KEYS = [RUNTIME_KEY, RUNTIME_CONTEXT_KEY, TRANS
 const ATTACHMENTS_KEY = "quest_beat_attachments";
 const LOOT_KEY = "loot_placements";
 const CONSEQUENCES_KEY = "quest_consequences";
+const CONSEQUENCE_EVENTS_KEY = "quest_consequence_events";
 
 /** Player projections are audience-keyed. An authored beat change can alter
  * every audience's safe DTO, so invalidating only the authored quest key leaves
@@ -1016,5 +1017,53 @@ export function useDeleteQuestConsequence() {
     onSuccess: (_result, input) => {
       queryClient.invalidateQueries({ queryKey: [CONSEQUENCES_KEY, input.questId] });
     },
+  });
+}
+
+export interface QuestUnlockEntry {
+  /** The bridge rule's own `entry_beat_id` — null means "the target's own
+   *  entry", same as the column's meaning on `quest_consequences`. */
+  entryBeatId: string | null;
+  /** The beat (of the *source* quest) whose arrival raised the unlock — the
+   *  bridge's own on-ramp, named in the start card's caption ("Entered
+   *  through …"). */
+  fromBeatId: string | null;
+}
+
+async function fetchQuestUnlockEntry(questId: string): Promise<QuestUnlockEntry | null> {
+  const { data, error } = await supabase
+    .from("quest_consequence_events")
+    .select("consequence:quest_consequences(entry_beat_id, on_beat_id)")
+    .eq("target_quest_id", questId)
+    .eq("action", "unlock_quest")
+    .not("performed_at", "is", null)
+    .is("undone_at", null)
+    .order("seq", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  const consequence = data?.consequence as unknown as { entry_beat_id: string | null; on_beat_id: string | null } | null;
+  if (!consequence) return null;
+  return { entryBeatId: consequence.entry_beat_id, fromBeatId: consequence.on_beat_id };
+}
+
+/**
+ * The most recent performed, not-undone `unlock_quest` event that promoted
+ * this quest, read off the event log rather than stored on the quest (#871,
+ * "sideways entry is read from the event log"). Null while no unlock has
+ * fired yet, and once one has but its rule no longer resolves (deleted after
+ * firing) — the start card falls back to the quest's own entry either way
+ * (`resolveStartBeatId`, `src/lib/quests/entry.ts`).
+ *
+ * Query key starts with `CONSEQUENCE_EVENTS_KEY` so the existing
+ * invalidations at useQuestFlow.ts:817 (`useAssertQuestRuntime`) and
+ * useQuestThreads.ts:161 — both fire or undo a consequence — refresh this too.
+ */
+export function useQuestUnlockEntry(questId: string | Ref<string>) {
+  const id = asRef(questId);
+  return useQuery({
+    queryKey: computed(() => [CONSEQUENCE_EVENTS_KEY, "unlock-entry", id.value]),
+    queryFn: () => fetchQuestUnlockEntry(id.value),
+    enabled: () => !!id.value,
   });
 }

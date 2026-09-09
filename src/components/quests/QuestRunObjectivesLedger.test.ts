@@ -70,7 +70,7 @@ describe("QuestRunObjectivesLedger", () => {
       { id: "o1", quest_id: "q1", description: "Recover the seal", status: "pending", is_player_visible: false },
     ];
     mocks.consequences.value = [
-      { id: "c1", quest_id: "q1", on_beat_id: "beat-b", on_edge_id: null, on_objective_id: null, on_objective_status: null, on_quest_settled: false, after_days: 0, action: "raise", target_objective_id: "o1", target_npc_id: null, target_quest_id: null, action_payload: {}, created_at: "now" },
+      { id: "c1", quest_id: "q1", on_beat_id: "beat-b", on_edge_id: null, on_objective_id: null, on_objective_status: null, on_quest_settled: false, entry_beat_id: null, after_days: 0, action: "raise", target_objective_id: "o1", target_npc_id: null, target_quest_id: null, action_payload: {}, created_at: "now" },
     ];
     const wrapper = mountLedger({
       threads: [

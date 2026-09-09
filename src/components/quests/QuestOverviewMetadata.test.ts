@@ -10,11 +10,13 @@ const mocks = vi.hoisted(() => ({
   npcs: [] as Array<{ id: string; name: string }>,
   locations: [] as Array<{ id: string; name: string }>,
   allQuests: [] as Array<{ id: string; title: string }>,
+  beats: [] as Array<{ id: string; title: string }>,
   activeCampaignId: "campaign-1" as string | null,
 }));
 
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: { value: mocks.npcs } }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: { value: mocks.locations } }) }));
+vi.mock("@/composables/quests/useQuestFlow", () => ({ useQuestBeats: () => ({ data: { value: mocks.beats } }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useAllQuests: () => ({ data: { value: mocks.allQuests } }),
   useUpdateQuest: () => ({ mutateAsync: mocks.updateQuest }),
@@ -37,6 +39,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     player_visible_to: [],
     started_at: null,
     resolved_at: null,
+    entry_beat_id: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -58,6 +61,7 @@ describe("QuestOverviewMetadata", () => {
     mocks.npcs = [];
     mocks.locations = [];
     mocks.allQuests = [];
+    mocks.beats = [];
     mocks.activeCampaignId = "campaign-1";
   });
 
@@ -78,6 +82,7 @@ describe("QuestOverviewMetadata", () => {
       "Quest giver",
       "Primary location",
       "Part of quest",
+      "Opens at",
       "Tags",
     ]);
   });
@@ -141,5 +146,56 @@ describe("QuestOverviewMetadata", () => {
     wrapper.findComponent({ name: "AudienceRevealControl" }).vm.$emit("change", ["player-1", "player-2"]);
     await flushPromises();
     expect(mocks.announce).not.toHaveBeenCalled();
+  });
+
+  // "Opens at" — the DM's chosen entry beat. The DB re-defaults it once a
+  // quest has any beat, so the field is disabled rather than offering an
+  // empty option while there is nothing to choose from. There are several
+  // EntityCombobox instances on this panel (giver, location, parent quest),
+  // so every lookup below picks the "Opens at" one out by its own placeholder
+  // rather than the first match.
+  function opensAtCombobox(wrapper: ReturnType<typeof mountMetadata>) {
+    return wrapper.findAllComponents({ name: "EntityCombobox" })
+      .find((combobox) => combobox.props("placeholder") === "Choose the opening beat…");
+  }
+
+  it("renders Opens at disabled with a No beats yet placeholder when the quest has no beats", () => {
+    mocks.beats = [];
+    const wrapper = mountMetadata({ entry_beat_id: null });
+    const disabledInput = wrapper.findAll("input").find((input) => input.attributes("placeholder") === "No beats yet");
+    expect(disabledInput).toBeDefined();
+    expect(disabledInput!.attributes("disabled")).toBeDefined();
+    expect(opensAtCombobox(wrapper)).toBeUndefined();
+  });
+
+  it("syncs entry_beat_id into the Opens at combobox once the quest has beats", () => {
+    mocks.beats = [{ id: "beat-1", title: "The rumor" }, { id: "beat-2", title: "The docks" }];
+    const wrapper = mountMetadata({ entry_beat_id: "beat-2" });
+    const combobox = opensAtCombobox(wrapper);
+    expect(combobox).toBeDefined();
+    expect(combobox!.props("modelValue")).toBe("beat-2");
+    expect(combobox!.props("options")).toEqual([
+      { id: "beat-1", name: "The rumor" },
+      { id: "beat-2", name: "The docks" },
+    ]);
+  });
+
+  it("saves a newly chosen entry beat alongside the rest of the metadata", async () => {
+    mocks.beats = [{ id: "beat-1", title: "The rumor" }, { id: "beat-2", title: "The docks" }];
+    const wrapper = mountMetadata({ entry_beat_id: "beat-1" });
+    opensAtCombobox(wrapper)!.vm.$emit("update:modelValue", "beat-2");
+    await flushPromises();
+    expect(mocks.updateQuest).toHaveBeenCalledWith(expect.objectContaining({
+      update: expect.objectContaining({ entry_beat_id: "beat-2" }),
+    }));
+  });
+
+  it("snaps back instead of writing null when the box is cleared — a quest with beats always has an entry", async () => {
+    mocks.beats = [{ id: "beat-1", title: "The rumor" }];
+    const wrapper = mountMetadata({ entry_beat_id: "beat-1" });
+    opensAtCombobox(wrapper)!.vm.$emit("update:modelValue", "");
+    await flushPromises();
+    expect(mocks.updateQuest).not.toHaveBeenCalled();
+    expect(opensAtCombobox(wrapper)!.props("modelValue")).toBe("beat-1");
   });
 });

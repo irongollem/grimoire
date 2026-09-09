@@ -5,12 +5,16 @@ import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
+  createBeat: vi.fn(),
   push: vi.fn(),
   ui: { dmMode: "play" as "prep" | "play" },
 }));
 
 vi.mock("@/composables/quests/useQuests", () => ({
   useCreateQuest: () => ({ mutateAsync: mocks.create }),
+}));
+vi.mock("@/composables/quests/useQuestFlow", () => ({
+  useCreateQuestBeat: () => ({ mutateAsync: mocks.createBeat }),
 }));
 vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
@@ -21,12 +25,13 @@ vi.mock("@/stores/ui", () => ({ useUiStore: () => mocks.ui }));
 describe("QuestFlowStarter", () => {
   beforeEach(() => {
     mocks.create.mockReset();
+    mocks.createBeat.mockReset().mockResolvedValue({ id: "beat-new" });
     mocks.push.mockReset();
     mocks.ui.dmMode = "play";
   });
 
   it("creates the quest shell and opens its overview", async () => {
-    mocks.create.mockResolvedValue({ id: "quest-new" });
+    mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
     const wrapper = mount(QuestFlowStarter, {
       props: { parentId: "parent-1" },
       global: { stubs: { RouterLink: RouterLinkStub } },
@@ -46,12 +51,50 @@ describe("QuestFlowStarter", () => {
     expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: { view: "overview" } });
   });
 
+  // The DB trigger makes the first beat a quest's entry the moment it exists
+  // (`private.settle_quest_entry_beat`) — the starter never sets
+  // `entry_beat_id` itself, only writes the beat.
+  it("writes the rumor beat with the quest, titled The rumor, with no route", async () => {
+    mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+
+    await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
+    await wrapper.get('button[aria-label="Create quest"]').trigger("click");
+    await flushPromises();
+
+    // "Rumor" is a visibility, not a kind: the beat is born `rumored`, so the
+    // player journal already says a rumour is circulating before any text.
+    expect(mocks.createBeat).toHaveBeenCalledWith(expect.objectContaining({
+      quest_id: "quest-new",
+      campaign_id: "camp-1",
+      title: "The rumor",
+      kind: "neutral",
+      visibility: "rumored",
+      canvas_x: 0,
+      canvas_y: 0,
+    }));
+    expect(mocks.push).toHaveBeenCalledWith({ path: "/quests/quest-new", query: { view: "overview" } });
+  });
+
+  it("keeps the failure in context when the rumor beat cannot be created, and never navigates away", async () => {
+    mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
+    mocks.createBeat.mockRejectedValue(new Error("Beat insert failed"));
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+
+    await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
+    await wrapper.get('button[aria-label="Create quest"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.get('[role="alert"]').text()).toContain("Beat insert failed");
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
   // Regression guard for #799: `quests.rewards` and the currency/item reward
   // columns are gone from the schema, so sending them in the insert fails at
   // the database. This asserts the client-side row shape, not just that the
   // call happened.
   it("never sends the deleted reward columns on the created quest", async () => {
-    mocks.create.mockResolvedValue({ id: "quest-new" });
+    mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
     const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
 
     await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
@@ -81,7 +124,7 @@ describe("QuestFlowStarter", () => {
   // next NPC reveal went out unannounced. The overview is now named in the URL,
   // so the landing surface no longer costs the session. See #758.
   it("leaves a running session alone", async () => {
-    mocks.create.mockResolvedValue({ id: "quest-new" });
+    mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
     const wrapper = mount(QuestFlowStarter, {
       global: { stubs: { RouterLink: RouterLinkStub } },
     });

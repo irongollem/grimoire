@@ -56,12 +56,19 @@ export interface Quest {
   started_at: string | null;
   resolved_at: string | null;
   ai_provenance?: AiProvenance | null;
+  /**
+   * The beat the story begins at — the cockpit's start default and the
+   * overview's "Opens at". Database-defaulted to the first beat and
+   * reassigned on archive/delete by `private.settle_quest_entry_beat()`
+   * (migration `20260909194207`); null only while the quest has no beats.
+   */
+  entry_beat_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at">;
-export type QuestUpdate = Partial<QuestInsert>;
+export type QuestInsert = Omit<Quest, "id" | "user_id" | "created_at" | "updated_at" | "entry_beat_id">;
+export type QuestUpdate = Partial<QuestInsert> & { entry_beat_id?: string | null };
 
 /**
  * `dormant` -> `pending` (raised) -> `complete` | `failed`, with `dormant`
@@ -270,12 +277,21 @@ export interface QuestConsequence {
    * something unrelated, so belonging stays an authoring choice made separately.
    */
   target_quest_id: string | null;
+  /**
+   * unlock_quest only: the beat of `target_quest_id` the party comes in at
+   * through this bridge (migration `20260909194207`). Composite FK onto the
+   * target quest's own beats — a bridge can only name a beat of the quest it
+   * unlocks. Null means "the target's own `entry_beat_id`".
+   */
+  entry_beat_id: string | null;
   action_payload: QuestConsequenceActionPayload;
   created_at: string;
   updated_at: string;
 }
 
-export type QuestConsequenceInsert = Omit<QuestConsequence, "id" | "created_at" | "updated_at">;
+export type QuestConsequenceInsert = Omit<QuestConsequence, "id" | "created_at" | "updated_at" | "entry_beat_id"> & {
+  entry_beat_id?: string | null;
+};
 
 /**
  * The append-only log of every consequence that fired: `quest_consequence_events`.

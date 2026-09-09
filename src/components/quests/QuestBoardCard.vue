@@ -303,12 +303,15 @@ const threadBadgesList = computed(() => threadBadges(summary?.threads ?? []));
 const hasNoBeats = computed(() => summary !== undefined && summary.beatSegments.length === 0);
 const needsFirstBeat = computed(() => quest.status === "undiscovered" && hasNoBeats.value);
 
-/** "Unlocked by …" and "no beats yet" compose onto one line when both are
- *  true (the frame's own example); a held, unnamed rule stands alone. */
+/** "Unlocked by …", "enters at …" and "no beats yet" compose onto one line
+ *  when several are true (the frame's own example); a held, unnamed rule
+ *  stands alone. `entersAt` only ever accompanies `unlockedBy` — it is the
+ *  same rule's own `entry_beat_id`, named for the bridge (#871). */
 const undiscoveredCaption = computed(() => {
   if (quest.status !== "undiscovered" || !summary) return null;
   const parts: string[] = [];
   if (summary.unlockedBy) parts.push(`Unlocked by ${summary.unlockedBy}`);
+  if (summary.entersAt) parts.push(`enters at ${summary.entersAt}`);
   if (hasNoBeats.value) parts.push("no beats yet");
   if (parts.length) return parts.join(" · ");
   if (summary.heldPayoffCount) return "Held payoff — not yet fired";

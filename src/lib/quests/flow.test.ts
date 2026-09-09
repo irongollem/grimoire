@@ -42,6 +42,16 @@ describe("quest flow adapter", () => {
     expect(graph.edges[0]!.data!.gate).toBe(closedGate);
   });
 
+  it("marks only the beat matching entryBeatId as the entry, and none when it is null", () => {
+    const beats = [beat("a", 0, 0), beat("b", 1, 1)];
+    const withEntry = toQuestFlowGraph(beats, [], {}, new Set(), {}, "b");
+    expect(withEntry.nodes[0]!.data!.isEntry).toBe(false);
+    expect(withEntry.nodes[1]!.data!.isEntry).toBe(true);
+    const withoutEntry = toQuestFlowGraph(beats, []);
+    expect(withoutEntry.nodes[0]!.data!.isEntry).toBe(false);
+    expect(withoutEntry.nodes[1]!.data!.isEntry).toBe(false);
+  });
+
   it("retains selection across refreshed row objects and clears deleted beats", () => {
     expect(retainSelectedBeatId("a", [beat("a", 50, 60)])).toBe("a");
     expect(retainSelectedBeatId("a", [beat("b", 50, 60)])).toBeNull();

@@ -21,6 +21,7 @@ function quest(id: string, status: Quest["status"]): Quest {
     player_visible_to: [],
     started_at: null,
     resolved_at: null,
+    entry_beat_id: null,
     created_at: "2026-08-01T00:00:00Z",
     updated_at: "2026-08-10T00:00:00Z",
   };
@@ -91,6 +92,7 @@ describe("QuestKanbanBoard", () => {
         hasPayoffPrepared: false,
         convergesInto: [],
         unlockedBy: null,
+        entersAt: null,
         heldPayoffCount: 0,
         settledCaption: null,
         objectivesDone: 0,

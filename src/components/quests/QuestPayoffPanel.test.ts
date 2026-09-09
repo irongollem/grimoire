@@ -15,10 +15,26 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useDeleteQuestConsequence: () => ({ mutateAsync: mocks.removeConsequence }),
   useCreateLootPlacement: () => ({ mutateAsync: mocks.createLoot }),
   useDeleteLootPlacement: () => ({ mutateAsync: mocks.removeLoot }),
+  // #871: keyed by the ref's own current value, like the real composable —
+  // `quest-sequel` has beats (one archived, excluded), `quest-empty` has none.
+  useQuestBeats: (id: { value: string } | string) => ({
+    data: { get value() {
+      const targetId = typeof id === "string" ? id : id.value;
+      if (targetId !== "quest-sequel") return [];
+      return [
+        { id: "beat-rumor", quest_id: "quest-sequel", title: "The rumor" },
+        { id: "beat-cauldron", quest_id: "quest-sequel", title: "The cauldron surfaces" },
+        { id: "beat-old", quest_id: "quest-sequel", title: "An old, retired scene", kind: "archived" },
+      ];
+    } },
+  }),
 }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuestObjectives: () => ({ data: { value: [{ id: "obj-1", description: "Keep the bridge standing" }] } }),
-  useQuests: () => ({ data: { value: [{ id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered" }] } }),
+  useQuests: () => ({ data: { value: [
+    { id: "quest-sequel", title: "The stolen cauldron", status: "undiscovered", entry_beat_id: "beat-rumor" },
+    { id: "quest-empty", title: "The empty ledger", status: "undiscovered", entry_beat_id: null },
+  ] } }),
 }));
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useNpcs: () => ({ data: { value: [{ id: "npc-1", name: "Oarus Masthew" }] } }),
@@ -40,7 +56,7 @@ const edges = [
 function consequence(overrides: Partial<QuestConsequence> & { id: string }): QuestConsequence {
   return {
     quest_id: "quest-1", on_beat_id: null, on_edge_id: null, on_objective_id: null, on_objective_status: null,
-    on_quest_settled: false, on_location_id: null, on_location_fact: null, after_days: 0, action: "grant_knowledge", target_objective_id: null,
+    on_quest_settled: false, on_location_id: null, on_location_fact: null, entry_beat_id: null, after_days: 0, action: "grant_knowledge", target_objective_id: null,
     target_npc_id: null, target_quest_id: null, action_payload: {},
     created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -175,5 +191,68 @@ describe("QuestPayoffPanel", () => {
   it("shows an empty-state direction when the beat gives nothing yet", () => {
     const wrapper = mountPanel();
     expect(wrapper.text()).toContain("Nothing this beat gives yet.");
+  });
+
+  // #871: the "Enters at" combobox on the Quest quick-add.
+  describe("the entry-beat bridge on a quest unlock", () => {
+    async function openQuestQuickAdd(wrapper: ReturnType<typeof mountPanel>) {
+      await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Quest")!.trigger("click");
+    }
+
+    it("preselects the target's own entry beat, marked in its option name", async () => {
+      const wrapper = mountPanel();
+      await openQuestQuickAdd(wrapper);
+      wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "quest-sequel");
+      await flushPromises();
+
+      const comboboxes = wrapper.findAllComponents({ name: "EntityCombobox" });
+      expect(comboboxes).toHaveLength(2);
+      expect(comboboxes[1]!.props("modelValue")).toBe("beat-rumor");
+      const options = comboboxes[1]!.props("options") as Array<{ id: string; name: string }>;
+      expect(options.map((o) => o.id)).toEqual(["beat-rumor", "beat-cauldron"]);
+      expect(options.find((o) => o.id === "beat-rumor")!.name).toBe("The rumor · entry");
+    });
+
+    it("writes null when the entry beat stays selected", async () => {
+      const wrapper = mountPanel();
+      await openQuestQuickAdd(wrapper);
+      wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "quest-sequel");
+      await flushPromises();
+      await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+      await flushPromises();
+
+      expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({
+        action: "unlock_quest",
+        target_quest_id: "quest-sequel",
+        entry_beat_id: null,
+      }));
+    });
+
+    it("writes the chosen beat id when the DM picks a beat other than the entry", async () => {
+      const wrapper = mountPanel();
+      await openQuestQuickAdd(wrapper);
+      wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "quest-sequel");
+      await flushPromises();
+      wrapper.findAllComponents({ name: "EntityCombobox" })[1]!.vm.$emit("update:modelValue", "beat-cauldron");
+      await flushPromises();
+      await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+      await flushPromises();
+
+      expect(mocks.createConsequence).toHaveBeenCalledWith(expect.objectContaining({
+        action: "unlock_quest",
+        target_quest_id: "quest-sequel",
+        entry_beat_id: "beat-cauldron",
+      }));
+    });
+
+    it("shows a no-beats caption instead of a combobox when the target has no beats yet", async () => {
+      const wrapper = mountPanel();
+      await openQuestQuickAdd(wrapper);
+      wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "quest-empty");
+      await flushPromises();
+
+      expect(wrapper.findAllComponents({ name: "EntityCombobox" })).toHaveLength(1);
+      expect(wrapper.text()).toContain("This quest has no beats yet — it will open at whichever beat is written first.");
+    });
   });
 });

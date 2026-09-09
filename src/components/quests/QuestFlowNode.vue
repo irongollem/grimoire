@@ -23,6 +23,7 @@
       <span class="quest-flow-node__kind">{{ kindEyebrow }}</span>
       <strong>{{ title || "Untitled beat" }}</strong>
       <span class="quest-flow-node__facts">
+        <span v-if="isEntry" class="is-entry">Entry</span>
         <span v-if="presentation?.prepGapCount" class="is-gap">{{ presentation.prepGapCount }} prep gap{{ presentation.prepGapCount === 1 ? '' : 's' }}</span>
         <span v-if="presentation?.handoutCount">{{ presentation.handoutCount }} handout{{ presentation.handoutCount === 1 ? '' : 's' }}</span>
         <span v-if="presentation?.payoffCount">{{ presentation.payoffCount }} payoff{{ presentation.payoffCount === 1 ? '' : 's' }}</span>
@@ -50,7 +51,7 @@ import { threadBadge, type ThreadLike } from "@/lib/quests/threads";
 import { QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 
-const { title, kind, visibility, current, presentation, editable = true, deletable = true, threads = [], gated = false } = defineProps<{ title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean; threads?: ThreadLike[]; gated?: boolean }>();
+const { title, kind, visibility, current, presentation, editable = true, deletable = true, threads = [], gated = false, isEntry = false } = defineProps<{ title: string; kind: string; visibility: string; selected?: boolean; current?: boolean; presentation?: QuestBeatPresentation; editable?: boolean; deletable?: boolean; threads?: ThreadLike[]; gated?: boolean; isEntry?: boolean }>();
 const emit = defineEmits<{ select: []; open: []; delete: []; "create-next": [] }>();
 
 const kindLabel = computed(() => QUEST_BEAT_KIND_LABELS[kind as keyof typeof QUEST_BEAT_KIND_LABELS] ?? kind);
@@ -92,6 +93,7 @@ const accessibleLabel = computed(() => [
   title || "Untitled beat",
   kindLabel.value,
   visibility,
+  isEntry ? "quest entry" : "",
   isCurrent.value ? "current beat, party is here" : "",
   presentation?.reach === "visited" ? "visited" : "",
   presentation?.reach === "stranded" ? "no longer reachable from the current beat" : "",
@@ -119,6 +121,7 @@ const accessibleLabel = computed(() => [
 .quest-flow-node__kind { color: var(--muted-foreground); font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; }
 .quest-flow-node__facts { display: flex; flex-wrap: wrap; gap: .3rem; color: var(--muted-foreground); font-size: .7rem; }
 .quest-flow-node__facts span { border-radius: 999px; background: var(--muted); padding: .1rem .35rem; }
+.quest-flow-node__facts .is-entry { color: var(--primary); font-weight: 700; }
 .quest-flow-node__facts .is-gap { color: var(--color-tone-caution); }
 .quest-flow-node__facts .is-cutoff { color: var(--color-tone-caution); }
 .quest-flow-node__facts .is-site { color: var(--color-ink-info); display: inline-flex; align-items: center; gap: .2rem; }

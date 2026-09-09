@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   edges: { value: [] as Array<Record<string, unknown>> },
   targets: { value: [] as Array<Record<string, unknown>> },
   quests: { value: [] as Array<Record<string, unknown>> },
+  quest: { value: null as Record<string, unknown> | null },
+  unlockEntry: { value: null as Record<string, unknown> | null },
+  bridgeBeat: { value: null as Record<string, unknown> | null },
   liveQuests: { value: [] as Array<Record<string, unknown>> },
   objectives: { value: [] as Array<Record<string, unknown>> },
   consequences: { value: [] as Array<Record<string, unknown>> },
@@ -37,16 +40,19 @@ vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignI
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: mocks.locations }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
   useQuests: () => ({ data: mocks.quests }),
+  useQuest: () => ({ data: mocks.quest }),
   useQuestObjectives: () => ({ data: mocks.objectives }),
 }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestRuntimeContext: () => ({ data: mocks.context, isLoading: { value: false }, error: { value: null }, refetch: mocks.refetch }),
   useQuestRuntimeCommand: () => ({ mutateAsync: mocks.mutateAsync }),
   useQuestBeats: () => ({ data: mocks.beats }),
+  useQuestBeat: () => ({ data: mocks.bridgeBeat }),
   useQuestBeatEdges: () => ({ data: mocks.edges }),
   useQuestBeatAttachmentSummaries: () => ({ data: { value: [] } }),
   useLootPlacements: () => ({ data: { value: [] } }),
   useQuestConsequences: () => ({ data: mocks.consequences }),
+  useQuestUnlockEntry: () => ({ data: mocks.unlockEntry }),
   useQuestRuntimeJumpTargets: () => ({ data: mocks.targets }),
   useCampaignLiveQuests: () => ({ data: mocks.liveQuests }),
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.updateBeat }),
@@ -76,6 +82,9 @@ describe("QuestRunCockpit", () => {
     mocks.edges.value = [];
     mocks.targets.value = [];
     mocks.quests.value = [];
+    mocks.quest.value = { id: "q1", entry_beat_id: null };
+    mocks.unlockEntry.value = null;
+    mocks.bridgeBeat.value = null;
     mocks.liveQuests.value = [];
     mocks.objectives.value = [];
     mocks.consequences.value = [];
@@ -91,20 +100,28 @@ describe("QuestRunCockpit", () => {
     mocks.improvise.mockReset();
   });
 
-  it("starts the selected beat with version zero", async () => {
+  // The start card tells, not asks (#871): with a declared entry it renders
+  // that beat's headline and prose directly, and "Start here" starts it —
+  // no picker interaction needed at all.
+  it("tells the DM the declared entry beat, with its read-aloud, and starts there", async () => {
+    mocks.quest.value = { id: "q1", entry_beat_id: "b1" };
+    mocks.beats.value = [{ ...beat, read_aloud: "The tavern hums with quiet dread." }];
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
-    wrapper.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "b1");
     await wrapper.vm.$nextTick();
-    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Start run")!.trigger("click");
+
+    expect(wrapper.text()).toContain("Where the story begins");
+    expect(wrapper.text()).toContain("Opening");
+    expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("The tavern hums with quiet dread.");
+    expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
+
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Start here")!.trigger("click");
     expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "start", expectedVersion: 0, targetBeatId: "b1" }));
   });
 
-  // Runs used to start on the stored overview beat by default, and offered
-  // every other beat in plain `created_at` order with nothing pre-selected
-  // (#793). The opening beat is a graph root now — a beat with no incoming
-  // route — so a sole root is picked for the DM, and every root sorts first
-  // when there is more than one place the party could have started.
-  it("defaults the start picker to the sole graph root and ranks other roots first", async () => {
+  // "Start elsewhere" reveals the same override picker the cockpit always
+  // had — roots ranked first (#793) — inline, with its own "Start run".
+  it("reveals the override picker from Start elsewhere, ranking roots first, and starts the picked beat", async () => {
+    mocks.quest.value = { id: "q1", entry_beat_id: "b1" };
     mocks.beats.value = [
       { id: "b2", quest_id: "q1", campaign_id: "c1", title: "Second beat", kind: "neutral" },
       beat,
@@ -112,13 +129,59 @@ describe("QuestRunCockpit", () => {
     mocks.edges.value = [{ id: "e1", quest_id: "q1", campaign_id: "c1", source_beat_id: "b1", target_beat_id: "b2" }];
     const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
     await wrapper.vm.$nextTick();
+    expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(false);
 
-    expect(wrapper.findComponent({ name: "EntityCombobox" }).props("modelValue")).toBe("b1");
-    const options = wrapper.findComponent({ name: "EntityCombobox" }).props("options") as Array<{ id: string }>;
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Start elsewhere")!.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    const combobox = wrapper.findComponent({ name: "EntityCombobox" });
+    expect(combobox.props("modelValue")).toBe("b1");
+    const options = combobox.props("options") as Array<{ id: string }>;
     expect(options[0]!.id).toBe("b1");
 
+    combobox.vm.$emit("update:modelValue", "b2");
+    await wrapper.vm.$nextTick();
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Start run")!.trigger("click");
-    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "start", targetBeatId: "b1" }));
+    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "start", targetBeatId: "b2" }));
+  });
+
+  // No entry, no bridge, and more than one root: there is nothing to resolve
+  // to, so the start card shows the picker directly rather than a "tell" card
+  // for a beat it cannot actually name.
+  it("shows the picker directly when nothing resolves", async () => {
+    mocks.quest.value = { id: "q1", entry_beat_id: null };
+    mocks.beats.value = [
+      beat,
+      { id: "b2", quest_id: "q1", campaign_id: "c1", title: "Second beat", kind: "neutral" },
+    ];
+    mocks.edges.value = [];
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findComponent({ name: "EntityCombobox" }).exists()).toBe(true);
+    expect(wrapper.findAllComponents({ name: "AppButton" }).some((button) => button.props("label") === "Start here")).toBe(false);
+  });
+
+  // A bridge that just promoted this quest wins over its own declared entry
+  // (#871) — the caption names the beat that raised it and the quest it
+  // belongs to, read off the event log via `useQuestUnlockEntry`.
+  it("names the bridge that entered this quest sideways, and starts at its landing beat", async () => {
+    mocks.quest.value = { id: "q1", entry_beat_id: "b1" };
+    mocks.beats.value = [
+      beat,
+      { id: "b2", quest_id: "q1", campaign_id: "c1", title: "The sealed antechamber", kind: "neutral" },
+    ];
+    mocks.unlockEntry.value = { entryBeatId: "b2", fromBeatId: "b9" };
+    mocks.bridgeBeat.value = { id: "b9", quest_id: "q9", title: "The Vault's Keeper" };
+    mocks.quests.value = [{ id: "q9", title: "The Sunken Reliquary" }];
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain("Entered through “The Vault's Keeper” in The Sunken Reliquary");
+    expect(wrapper.text()).toContain("The sealed antechamber");
+
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Start here")!.trigger("click");
+    expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ command: "start", targetBeatId: "b2" }));
   });
 
   it("routes previous, pause, resume and jump through versioned commands, from the session panel", async () => {

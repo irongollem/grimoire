@@ -69,6 +69,13 @@
         <EntityCombobox v-model="parentQuestId" :options="parentQuestOptions" placeholder="Search quests…" @update:model-value="saveMetadata" />
       </label>
 
+      <label class="flex flex-col gap-1 sm:col-span-2">
+        <span class="text-label font-semibold text-muted-foreground">Opens at</span>
+        <AppInput v-if="!beatOptions.length" model-value="" tone="card" size="body" placeholder="No beats yet" disabled />
+        <EntityCombobox v-else v-model="entryBeatId" :options="beatOptions" placeholder="Choose the opening beat…" @update:model-value="onEntryBeatChange" />
+        <span class="text-caption text-muted-foreground">Where the story begins. The run starts here unless you choose otherwise.</span>
+      </label>
+
       <div class="flex flex-col gap-1 sm:col-span-2">
         <span class="text-label font-semibold text-muted-foreground">Tags</span>
         <TagInput v-model="tags" @update:model-value="queueTagSave" />
@@ -87,6 +94,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useAllQuests, useUpdateQuest } from "@/composables/quests/useQuests";
 import { useCampaignStore } from "@/stores/campaign";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
@@ -97,6 +105,7 @@ const campaign = useCampaignStore();
 const { data: npcs } = useNpcs();
 const { data: locations } = useAllLocations();
 const { data: allQuests } = useAllQuests();
+const { data: beats } = useQuestBeats(computed(() => props.quest.id));
 const { mutateAsync: updateQuest } = useUpdateQuest();
 
 const title = ref("");
@@ -105,6 +114,7 @@ const status = ref<QuestStatus>("undiscovered");
 const giverNpcId = ref("");
 const locationId = ref("");
 const parentQuestId = ref("");
+const entryBeatId = ref("");
 const tags = ref<string[]>([]);
 const playerVisibleTo = ref<string[]>([]);
 const saving = ref(false);
@@ -116,6 +126,9 @@ const parentQuestOptions = computed(() => (allQuests.value ?? [])
   .filter((candidate) => candidate.id !== props.quest.id)
   .map((candidate) => ({ id: candidate.id, name: candidate.title || "Untitled Quest" })));
 
+const beatOptions = computed(() => (beats.value ?? [])
+  .map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
+
 function syncFromQuest() {
   title.value = props.quest.title ?? "";
   summary.value = props.quest.summary ?? "";
@@ -123,11 +136,23 @@ function syncFromQuest() {
   giverNpcId.value = props.quest.giver_npc_id ?? "";
   locationId.value = props.quest.location_id ?? "";
   parentQuestId.value = props.quest.parent_quest_id ?? "";
+  entryBeatId.value = props.quest.entry_beat_id ?? "";
   tags.value = [...(props.quest.tags ?? [])];
   playerVisibleTo.value = [...(props.quest.player_visible_to ?? [])];
 }
 
 watch(() => props.quest.id, syncFromQuest, { immediate: true });
+
+// A quest with beats always has an entry — the DB would re-default it on the
+// next beat write anyway, so clearing the box here is not a state the DM can
+// actually choose. The combobox's clear affordance just snaps back.
+function onEntryBeatChange(next: string) {
+  if (!next) {
+    entryBeatId.value = props.quest.entry_beat_id ?? "";
+    return;
+  }
+  void saveMetadata();
+}
 
 function onRevealChange(next: string[]) {
   playerVisibleTo.value = next;
@@ -153,6 +178,7 @@ async function saveMetadata() {
         giver_npc_id: giverNpcId.value || null,
         location_id: locationId.value || null,
         parent_quest_id: parentQuestId.value || null,
+        entry_beat_id: entryBeatId.value || null,
         tags: tags.value,
         player_visible_to: playerVisibleTo.value,
       },

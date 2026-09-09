@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { useCreateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useCreateQuest } from "@/composables/quests/useQuests";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 import { QUEST_STATUSES, QUEST_STATUS_LABELS, type QuestStatus } from "@/types/quest.types";
@@ -81,6 +82,7 @@ const START_MODE_OPTIONS: SegmentedOption<StartMode>[] = [
 ];
 const router = useRouter();
 const createQuest = useCreateQuest();
+const createBeat = useCreateQuestBeat();
 const title = ref("");
 const summary = ref("");
 const status = ref<QuestStatus>("undiscovered");
@@ -103,6 +105,36 @@ async function createFlow() {
       player_visible_to: [],
       started_at: null,
       resolved_at: null,
+    });
+    // A quest's rumor beat is written with it, not left for the DM to
+    // remember — the DB trigger makes this the entry the moment it exists,
+    // so nothing here sets `entry_beat_id` directly. "Rumor" is not a kind:
+    // it is `visibility: "rumored"`, the state the player journal renders as
+    // "a rumour is circulating" even before `rumor_text` is written — which
+    // is why the plain insert is used here rather than the route RPC, whose
+    // signature has no visibility parameter.
+    // `quests.campaign_id` is nullable on the column and never in practice —
+    // `useCreateQuest` stamps the active campaign with no opt-out (see the
+    // `campaign_id` note in quests.md). A null here would mean that promise
+    // broke, which is worth a loud error rather than a beat in no campaign.
+    if (!created.campaign_id) throw new Error("The quest was created outside any campaign");
+    await createBeat.mutateAsync({
+      quest_id: created.id,
+      campaign_id: created.campaign_id,
+      title: "The rumor",
+      dm_content: null,
+      read_aloud: null,
+      how_it_plays: null,
+      rumor_text: null,
+      reveal_text: null,
+      visibility: "rumored",
+      kind: "neutral",
+      converge_mode: "any",
+      presentation_hint: null,
+      canvas_x: 0,
+      canvas_y: 0,
+      is_improvised: false,
+      improv_reviewed_at: null,
     });
     // Name the surface, never the global mode. This used to set `dmMode = "prep"`
     // and rely on prep's default landing — which meant improvising a quest at the

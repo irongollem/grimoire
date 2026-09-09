@@ -83,6 +83,14 @@ export interface QuestBoardSummary {
    *  Null both when no such rule exists and when one does but its condition
    *  is an edge, an objective, or the quest settling — see `heldPayoffCount`. */
   unlockedBy: string | null;
+  /** The title of the beat `unlockedBy`'s rule names as this quest's entry
+   *  (`quest_consequences.entry_beat_id`, #871) — where the party comes in
+   *  through this bridge, rather than at the quest's own rumor beat. Beats of
+   *  the *target* quest are in `input.beats` already (everything campaign-wide
+   *  is), so this needs no extra fetch. Null both when `unlockedBy` is null
+   *  and when the rule names no beat of its own (falls back to the target's
+   *  own entry, which this summary does not need to name). */
+  entersAt: string | null;
   /** `unlock_quest` rules targeting this quest whose condition is not a bare
    *  beat arrival — an edge, an objective becoming a status, or the source
    *  quest settling — so there is no single beat title to name. Still "held"
@@ -282,6 +290,9 @@ export function deriveQuestBoardSummaries(input: {
     const unlockedBy = namedUnlockRule?.on_beat_id
       ? beatById.get(namedUnlockRule.on_beat_id)?.title ?? null
       : null;
+    const entersAt = namedUnlockRule?.entry_beat_id
+      ? beatById.get(namedUnlockRule.entry_beat_id)?.title ?? null
+      : null;
     const heldPayoffCount = unlockRules.filter((rule) => !rule.on_beat_id).length;
 
     // "Session N" only when the DM's own end-of-run reason names one — the
@@ -318,6 +329,7 @@ export function deriveQuestBoardSummaries(input: {
       hasPayoffPrepared,
       convergesInto,
       unlockedBy,
+      entersAt,
       heldPayoffCount,
       settledCaption,
       objectivesDone,

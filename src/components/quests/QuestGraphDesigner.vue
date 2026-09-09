@@ -71,6 +71,7 @@
           :transitions="transitions"
           :selected-beat-id="selectedBeatId"
           :current-beat-id="currentBeatId"
+          :entry-beat-id="entryBeatId"
           :initial-viewport="initialViewport"
           :fit-on-open="!initialViewport"
           :editable="true"
@@ -196,7 +197,7 @@ import QuestRoutePanel from "./QuestRoutePanel.vue";
 import QuestSelectedBeatPanel from "./QuestSelectedBeatPanel.vue";
 import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 
-const { questId, visibleTo = [], focusCurrentOnOpen = false } = defineProps<{ questId: string; visibleTo?: string[]; focusCurrentOnOpen?: boolean }>();
+const { questId, visibleTo = [], focusCurrentOnOpen = false, entryBeatId = null } = defineProps<{ questId: string; visibleTo?: string[]; focusCurrentOnOpen?: boolean; entryBeatId?: string | null }>();
 const canvas = ref<InstanceType<typeof QuestFlowCanvas> | null>(null);
 const route = useRoute();
 const router = useRouter();

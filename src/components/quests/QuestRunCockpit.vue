@@ -120,14 +120,33 @@
     </template>
 
     <div v-else class="space-y-4 rounded-xl border border-border bg-card p-5">
-      <div>
-        <h2 class="font-cinzel text-lg font-bold text-foreground">Start the session flow</h2>
+      <h2 class="font-cinzel text-lg font-bold text-foreground">Start the session flow</h2>
+
+      <template v-if="!pickerVisible && resolvedStartBeat">
+        <div class="space-y-2">
+          <p v-if="startCaption" class="text-caption font-semibold uppercase tracking-wider text-primary">{{ startCaption }}</p>
+          <div class="flex items-center gap-2">
+            <h3 class="font-fell text-lg font-semibold text-foreground">{{ resolvedStartBeat.title || "Untitled beat" }}</h3>
+            <span class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ resolvedStartBeat.kind }}</span>
+          </div>
+          <div v-if="startProse" class="line-clamp-4 text-body text-muted-foreground">
+            <RichTextViewer :content="startProse" />
+          </div>
+        </div>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <AppButton label="Start here" variant="primary" :disabled="transitioning" @click="start" />
+          <AppButton label="Start elsewhere" variant="link" size="sm" @click="showPicker = true" />
+        </div>
+      </template>
+
+      <template v-else>
         <p class="text-body text-muted-foreground">Choose the first prepared beat. This does not reveal anything to players.</p>
-      </div>
-      <div class="flex flex-col gap-2 sm:flex-row">
-        <EntityCombobox v-model="startBeatId" :options="startOptions" placeholder="Choose a starting beat…" />
-        <AppButton label="Start run" variant="primary" :disabled="!startBeatId || transitioning" @click="start" />
-      </div>
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <EntityCombobox v-model="startBeatId" :options="startOptions" placeholder="Choose a starting beat…" />
+          <AppButton label="Start run" variant="primary" :disabled="!startBeatId || transitioning" @click="start" />
+        </div>
+      </template>
+
       <QuestRunOpenChains :chains="otherOpenChains" :threads="context?.threads ?? []" :thread-id="threadId" @switch-thread="switchThread" />
     </div>
 
@@ -144,9 +163,11 @@ import { useHotkeys } from "@/composables/useHotkeys";
 import { useCampaignStore } from "@/stores/campaign";
 import {
   useCampaignLiveQuests,
+  useQuestBeat,
   useQuestBeatAttachmentSummaries,
   useQuestBeatEdges,
   useQuestConsequences,
+  useQuestUnlockEntry,
   useLootPlacements,
   useQuestBeats,
   useQuestRuntimeCommand,
@@ -154,11 +175,12 @@ import {
   useQuestRuntimeJumpTargets,
   useUpdateQuestBeat,
 } from "@/composables/quests/useQuestFlow";
-import { useQuestObjectives } from "@/composables/quests/useQuests";
+import { useQuest, useQuestObjectives } from "@/composables/quests/useQuests";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuests } from "@/composables/quests/useQuests";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { isSiteType } from "@/lib/locations/tiers";
+import { resolveStartBeatId } from "@/lib/quests/entry";
 import { rootBeatIds } from "@/lib/quests/graph";
 import { rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarget } from "@/lib/quests/run";
 import { defaultThreadId, threadBadge, threadTone } from "@/lib/quests/threads";
@@ -166,6 +188,7 @@ import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/qu
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import QuestThreadBar from "./QuestThreadBar.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
 import QuestRunHeldPayoff from "./QuestRunHeldPayoff.vue";
@@ -221,11 +244,21 @@ const lootQuery = useLootPlacements({ questId });
 const objectivesQuery = useQuestObjectives(questId);
 const consequencesQuery = useQuestConsequences(questId);
 const locationsQuery = useAllLocations();
+// The start card's own data (#871): the quest for its declared entry, and the
+// event log for the most recent bridge that promoted this quest, if any.
+const questQuery = useQuest(questId);
+const unlockEntryQuery = useQuestUnlockEntry(questId);
+const bridgeFromBeatId = computed(() => unlockEntryQuery.data.value?.fromBeatId ?? "");
+const bridgeBeatQuery = useQuestBeat(bridgeFromBeatId);
 const jumpSearch = ref("");
 const debouncedJumpSearch = refDebounced(jumpSearch, 250);
 const jumpTargetsQuery = useQuestRuntimeJumpTargets(questId, debouncedJumpSearch);
 const jumpOpen = ref(false);
 const startBeatId = ref("");
+// Reveals the override picker on the start card even when a beat resolved —
+// the DM knows better than the resolver this one time. `resolveStartBeatId`'s
+// own `ask` reason shows the picker regardless of this (see `pickerVisible`).
+const showPicker = ref(false);
 const transitioning = ref(false);
 const error = ref("");
 const selectedAttachment = ref<QuestBeatAttachmentSummary | null>(null);
@@ -253,6 +286,45 @@ const rootIds = computed(() => new Set(rootBeatIds(beatsQuery.data.value ?? [], 
 const startOptions = computed(() => [...(beatsQuery.data.value ?? [])]
   .sort((a, b) => Number(rootIds.value.has(b.id)) - Number(rootIds.value.has(a.id)))
   .map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
+// The start card tells, not asks (#871): a bridge that just promoted this
+// quest wins over its own declared entry, which wins over the sole computed
+// root — `rootIds` stays the fallback for legacy data and pure cycles, same
+// as it always was.
+const beatIds = computed(() => new Set((beatsQuery.data.value ?? []).map((beat) => beat.id)));
+const resolvedStart = computed(() => resolveStartBeatId({
+  entryBeatId: questQuery.data.value?.entry_beat_id ?? null,
+  unlockEntryBeatId: unlockEntryQuery.data.value?.entryBeatId ?? null,
+  rootIds: rootIds.value,
+  beatIds: beatIds.value,
+}));
+const resolvedStartBeat = computed(() => {
+  const id = resolvedStart.value.beatId;
+  if (!id) return null;
+  return (beatsQuery.data.value ?? []).find((beat) => beat.id === id) ?? null;
+});
+// The picker shows itself when the DM asked for it (`showPicker`), or when
+// `resolveStartBeatId` had nothing to resolve to (`ask`) — there is no tell
+// card to show instead in that case.
+const pickerVisible = computed(() => showPicker.value || resolvedStart.value.reason === "ask");
+const startProse = computed(() => {
+  const beat = resolvedStartBeat.value;
+  if (!beat) return null;
+  return beat.read_aloud || beat.rumor_text || beat.dm_content || null;
+});
+const startCaption = computed(() => {
+  if (resolvedStart.value.reason === "entry") return "Where the story begins";
+  if (resolvedStart.value.reason === "sole-root") return "The only way in";
+  if (resolvedStart.value.reason === "bridge") {
+    const bridgeTitle = bridgeBeatQuery.data.value?.title;
+    if (!bridgeTitle) return null;
+    const bridgeQuestId = bridgeBeatQuery.data.value?.quest_id;
+    const bridgeQuestTitle = questsQuery.data.value?.find((row) => row.id === bridgeQuestId)?.title;
+    return bridgeQuestTitle
+      ? `Entered through “${bridgeTitle}” in ${bridgeQuestTitle}`
+      : `Entered through “${bridgeTitle}”`;
+  }
+  return null;
+});
 const currentAttachments = computed(() => (attachmentsQuery.data.value ?? []).filter((row) => row.beat_id === context.value?.current?.id));
 const heldLoot = computed(() => (lootQuery.data.value ?? []).filter((row) => row.delivery_state === "held"));
 const previewBeat = computed(() => (beatsQuery.data.value ?? []).find((beat) => beat.id === previewBeatId.value) ?? context.value?.current ?? null);
@@ -360,7 +432,11 @@ async function command(kind: QuestRuntimeCommand, extra: { edgeId?: string } = {
 }
 
 async function start() {
-  const beat = beatsQuery.data.value?.find((row) => row.id === startBeatId.value);
+  // The resolved beat unless the picker is the surface actually in front of
+  // the DM — either they asked for it (`showPicker`) or there was nothing to
+  // resolve (`ask`), both captured by `pickerVisible`.
+  const beatId = pickerVisible.value ? startBeatId.value : resolvedStart.value.beatId;
+  const beat = beatsQuery.data.value?.find((row) => row.id === beatId);
   const state = context.value?.state;
   if (!beat) return;
   await run({ campaignId: beat.campaign_id, questId: anchorQuestId, threadId: threadId.value, command: "start", expectedVersion: state?.version ?? 0, targetBeatId: beat.id });

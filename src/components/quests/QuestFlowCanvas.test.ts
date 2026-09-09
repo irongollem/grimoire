@@ -1,6 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestFlowCanvas from "./QuestFlowCanvas.vue";
+import QuestFlowNode from "./QuestFlowNode.vue";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
@@ -12,7 +13,19 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@vue-flow/core", () => ({
   useVueFlow: () => mocks,
-  VueFlow: { name: "VueFlow", template: "<div><slot /></div>" },
+  // Renders the `node-questBeat` scoped slot per node, so a QuestFlowCanvas
+  // test can inspect what actually reaches QuestFlowNode — the real VueFlow
+  // does the same thing, just with far more machinery around it.
+  VueFlow: {
+    name: "VueFlow",
+    props: ["nodes"],
+    template: `<div>
+      <template v-for="node in nodes" :key="node.id">
+        <slot name="node-questBeat" v-bind="node" />
+      </template>
+      <slot />
+    </div>`,
+  },
   Handle: { name: "Handle", template: "<div />" },
   Position: { Left: "left", Right: "right" },
 }));
@@ -70,6 +83,28 @@ describe("QuestFlowCanvas viewport persistence", () => {
     wrapper.unmount();
 
     expect(wrapper.emitted("viewport-change")).toBeUndefined();
+  });
+});
+
+describe("QuestFlowCanvas entry beat", () => {
+  beforeEach(() => {
+    mocks.fitView.mockReset().mockResolvedValue(true);
+    mocks.setCenter.mockReset().mockResolvedValue(true);
+    mocks.viewport.value = { x: -40, y: -20, zoom: 1.4 };
+  });
+
+  it("passes isEntry through to the node matching entryBeatId, and to no other", () => {
+    const twoBeats = [
+      { id: "beat-a", quest_id: "q", title: "A", kind: "social", visibility: "hidden", canvas_x: 0, canvas_y: 0 },
+      { id: "beat-b", quest_id: "q", title: "B", kind: "social", visibility: "hidden", canvas_x: 100, canvas_y: 0 },
+    ] as QuestBeat[];
+    const wrapper = mount(QuestFlowCanvas, {
+      props: { graphId: "quest-q", beats: twoBeats, edges: [] as QuestBeatEdge[], entryBeatId: "beat-b" },
+      global: { stubs: { QuestGraphOutline: true, QuestFlowNode: true, QuestFlowEdge: true } },
+    });
+    const nodes = wrapper.findAllComponents(QuestFlowNode);
+    expect(nodes.find((node) => node.props("title") === "A")!.props("isEntry")).toBe(false);
+    expect(nodes.find((node) => node.props("title") === "B")!.props("isEntry")).toBe(true);
   });
 });
 

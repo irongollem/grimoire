@@ -551,6 +551,12 @@ async function executeImport(
           giver_npc_id: r(q.giver_npc_id, idMap),
           location_id: r(q.location_id, idMap),
           player_visible_to: rArr(q.player_visible_to, idMap),
+          // This backup format has never carried the beat graph (see the
+          // on_beat_id/on_edge_id note on quest_consequences below), so a
+          // spread-through entry_beat_id would point at a beat that was never
+          // restored. Null and let the DB's own default-entry trigger pick it
+          // once the quest's beats land.
+          entry_beat_id: null,
         };
       }),
     );
@@ -858,6 +864,11 @@ async function executeImport(
         // carried the beat graph and there would be nothing to point them at.
         target_npc_id: r(qc.target_npc_id, idMap),
         target_quest_id: r(qc.target_quest_id, idMap),
+        // Same reasoning as on_beat_id/on_edge_id above: entry_beat_id names a
+        // beat of target_quest_id, and this backup format never carried the
+        // beat graph, so there is nothing to remap it onto. Null means "the
+        // target's own entry" — the honest fallback, not a lost bridge.
+        entry_beat_id: null,
       })),
     );
 

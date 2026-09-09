@@ -17,6 +17,7 @@ function quest(id: string, overrides: Partial<Quest> = {}): Quest {
     player_visible_to: [],
     started_at: null,
     resolved_at: null,
+    entry_beat_id: null,
     created_at: "2026-08-01T00:00:00Z",
     updated_at: "2026-08-10T00:00:00Z",
     ...overrides,
@@ -50,6 +51,7 @@ const ready: QuestBoardSummary = {
   hasPayoffPrepared: false,
   convergesInto: [],
   unlockedBy: null,
+  entersAt: null,
   heldPayoffCount: 0,
   settledCaption: null,
   objectivesDone: 0,
@@ -316,6 +318,40 @@ describe("deriveQuestBoardSummaries", () => {
     expect(summaries["quest-locked"]!.heldPayoffCount).toBe(0);
     expect(summaries["quest-locked-2"]!.unlockedBy).toBeNull();
     expect(summaries["quest-locked-2"]!.heldPayoffCount).toBe(1);
+  });
+
+  // #871: a bridge can name where the party comes in through it, distinct
+  // from the beat that raised the unlock (`unlockedBy`). Both beats belong to
+  // `input.beats` already — the entry beat is one of the *target* quest's own
+  // beats, campaign-wide data the caller already assembled.
+  it("names the entry a bridge lands on, distinct from the beat that raised it", () => {
+    const beats = [
+      { id: "beat-source", quest_id: "quest-source", title: "The Vault's Keeper" },
+      { id: "beat-locked-entry", quest_id: "quest-locked", title: "The sealed antechamber" },
+    ] as QuestBeat[];
+    const withEntry = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      consequences: [
+        { id: "c1", quest_id: "quest-source", on_beat_id: "beat-source", action: "unlock_quest", target_quest_id: "quest-locked", entry_beat_id: "beat-locked-entry" },
+      ] as never[],
+    });
+    expect(withEntry["quest-locked"]!.unlockedBy).toBe("The Vault's Keeper");
+    expect(withEntry["quest-locked"]!.entersAt).toBe("The sealed antechamber");
+
+    // Null `entry_beat_id` means "the target's own entry" — nothing extra to name.
+    const withoutEntry = deriveQuestBoardSummaries({
+      beats,
+      edges: [],
+      attachments: [],
+      loot: [],
+      consequences: [
+        { id: "c1", quest_id: "quest-source", on_beat_id: "beat-source", action: "unlock_quest", target_quest_id: "quest-locked", entry_beat_id: null },
+      ] as never[],
+    });
+    expect(withoutEntry["quest-locked"]!.entersAt).toBeNull();
   });
 
   it("reads convergesInto off an actual cross-quest transition landing on a converge-all beat", () => {

@@ -93,10 +93,52 @@ describe("describeQuestConsequenceAction", () => {
     )).toBe('Knowledge: "???"');
   });
 
-  it("describes a quest unlock by its own label", () => {
+  it("describes a quest unlock by its own label when no resolver is given", () => {
     expect(describeQuestConsequenceAction(
       row({ action: "unlock_quest", target_objective_id: null, action_payload: {} }),
       objectiveLabel,
+    )).toBe("Unlock a quest");
+  });
+
+  // #871: the entry-beat bridge. With a resolver, an unlock names its target
+  // and, only when the rule names a beat, where it lands.
+  it("names the target quest when a resolver is given", () => {
+    const questLabel = (id: string | null) => id === "quest-sequel" ? "The stolen cauldron" : "Missing quest";
+    expect(describeQuestConsequenceAction(
+      { action: "unlock_quest", target_objective_id: null, action_payload: {}, target_quest_id: "quest-sequel", entry_beat_id: null },
+      objectiveLabel,
+      { questLabel },
+    )).toBe('Unlock "The stolen cauldron"');
+  });
+
+  it("appends the entry beat only when the rule names one", () => {
+    const questLabel = () => "The stolen cauldron";
+    const beatLabel = (id: string | null) => id === "beat-confess" ? "He confesses the tithe" : "Missing beat";
+    expect(describeQuestConsequenceAction(
+      { action: "unlock_quest", target_objective_id: null, action_payload: {}, target_quest_id: "quest-sequel", entry_beat_id: "beat-confess" },
+      objectiveLabel,
+      { questLabel, beatLabel },
+    )).toBe('Unlock "The stolen cauldron" · enters at "He confesses the tithe"');
+  });
+
+  it("drops back to the bare verb when the quest title does not resolve, and drops the suffix when the beat does not", () => {
+    expect(describeQuestConsequenceAction(
+      { action: "unlock_quest", target_objective_id: null, action_payload: {}, target_quest_id: "quest-gone", entry_beat_id: "beat-x" },
+      objectiveLabel,
+      { questLabel: () => "", beatLabel: () => "Somewhere" },
+    )).toBe("Unlock a quest");
+    expect(describeQuestConsequenceAction(
+      { action: "unlock_quest", target_objective_id: null, action_payload: {}, target_quest_id: "quest-sequel", entry_beat_id: "beat-x" },
+      objectiveLabel,
+      { questLabel: () => "The stolen cauldron", beatLabel: () => "" },
+    )).toBe('Unlock "The stolen cauldron"');
+  });
+
+  it("falls back to the bare label when a resolver is given without a questLabel function", () => {
+    expect(describeQuestConsequenceAction(
+      { action: "unlock_quest", target_objective_id: null, action_payload: {}, target_quest_id: "quest-sequel", entry_beat_id: null },
+      objectiveLabel,
+      {},
     )).toBe("Unlock a quest");
   });
 

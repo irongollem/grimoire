@@ -1,5 +1,5 @@
 import type { LootPlacement, QuestBeat, QuestBeatEdge, QuestConsequence, QuestConsequenceAction } from "@/types/quest.types";
-import { describeQuestConsequenceAction } from "./consequences";
+import { describeQuestConsequenceAction, type QuestConsequenceLabelResolver } from "./consequences";
 
 /**
  * The Payoff list (Quest Manager Redesign, frame `03 Inspector`): the loot
@@ -85,6 +85,11 @@ export interface DerivePayoffRowsInput {
   loot: readonly LootPlacement[];
   /** Resolves a ledger verb's target objective to its description. */
   objectiveLabel: (id: string | null) => string;
+  /** Resolves an `unlock_quest` row's target quest and, when set, its entry
+   *  beat — passed straight through to `describeQuestConsequenceAction`.
+   *  Omitted, an unlock row still summarizes as the bare "Unlock a quest". */
+  questLabel?: QuestConsequenceLabelResolver["questLabel"];
+  beatLabel?: QuestConsequenceLabelResolver["beatLabel"];
 }
 
 /**
@@ -104,7 +109,7 @@ export function derivePayoffRows(input: DerivePayoffRowsInput): PayoffRow[] {
         source: "consequence",
         tone: style.tone,
         icon: style.icon,
-        summary: describeQuestConsequenceAction(row, input.objectiveLabel),
+        summary: describeQuestConsequenceAction(row, input.objectiveLabel, { questLabel: input.questLabel, beatLabel: input.beatLabel }),
         caption: consequenceCaption(row, input.outgoingEdges, input.beats),
         chip: "auto",
       };

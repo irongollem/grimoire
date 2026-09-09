@@ -20,6 +20,7 @@ function quest(overrides: Partial<Quest> = {}): Quest {
     player_visible_to: [],
     started_at: null,
     resolved_at: null,
+    entry_beat_id: null,
     created_at: "2026-08-01T00:00:00Z",
     updated_at: "2026-08-10T00:00:00Z",
     ...overrides,
@@ -45,6 +46,7 @@ const summary: QuestBoardSummary = {
   hasPayoffPrepared: false,
   convergesInto: [],
   unlockedBy: null,
+  entersAt: null,
   heldPayoffCount: 0,
   settledCaption: null,
   objectivesDone: 0,
@@ -154,6 +156,19 @@ describe("QuestBoardCard", () => {
     expect(wrapper.text()).toContain("no beats yet");
     const draftBeats = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Draft beats");
     expect(draftBeats?.props("to")).toMatchObject({ path: "/quests/quest-1", query: { view: "work" } });
+  });
+
+  it("names where a bridge lands alongside what unlocked it", () => {
+    const withEntry: QuestBoardSummary = {
+      ...summary,
+      isLive: false,
+      beatSegments: [],
+      unlockedBy: "The Vault's Keeper",
+      entersAt: "The sealed antechamber",
+    };
+    const wrapper = mount(QuestBoardCard, { props: { quest: quest({ status: "undiscovered" }), summary: withEntry }, global });
+
+    expect(wrapper.text()).toContain("Unlocked by The Vault's Keeper · enters at The sealed antechamber · no beats yet");
   });
 
   it("reads a held, unnamed unlock rule as a caption of its own", () => {
