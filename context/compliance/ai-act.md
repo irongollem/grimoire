@@ -158,8 +158,9 @@ this entry records the decision and its current build status.
 
 **Implementation status, 4 Aug 2026 (end of day) — built.** The
 `ai_acknowledgements` table (migration `20260804000003`), the `ai_use` dialog
-(`AiNoticeDialog.vue`, gated at the `AiTab.vue` toggle and once-per-session in
-both DM and player layouts via `AiUseNoticeGate`), and the `likeness` gate are
+(`AiNoticeDialog.vue`, gated at the `AiTab.vue` toggle and once-per-account in
+the DM layout via `AiUseNoticeGate` — DM-only since 9 Sep 2026: players get the
+marker on the content, not the deployer's notice), and the `likeness` gate are
 all implemented. Likeness is enforced server-side (`forge-mini` stylize/sculpt;
 `generate-chronicle-image` whenever the request carries portrait references —
 request-shape, not purpose, so scenes/group portraits/disguise/trap-with-party

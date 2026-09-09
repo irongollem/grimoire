@@ -49,6 +49,24 @@ export function shouldOfferAiChoice(
 }
 
 /**
+ * Whether `AiUseNoticeGate` should show the plain "AI is on" notice: the
+ * campaign has AI on, this account has not acknowledged the current notice
+ * version, and this account is a DM of the campaign. Players never see it
+ * (maintainer decision, 9 Sep 2026): the notice is the Art 50(1)
+ * *deployer-side* transparency step — it explains what the DM is about to
+ * send to a provider — while what a player is owed is the marker on the
+ * content itself, which the portal already carries. Pure predicate, tested
+ * without mounting the gate.
+ */
+export function shouldShowAiUseNotice(
+  campaign: Pick<Campaign, "ai_enabled">,
+  isDm: boolean,
+  hasAcknowledged: boolean,
+): boolean {
+  return campaign.ai_enabled === true && isDm && !hasAcknowledged;
+}
+
+/**
  * Whether `AiUseNoticeGate` should offer the one-time free->Pro AI re-ask
  * (context/compliance/ai-act.md §4, owner decision 4 Aug 2026) for
  * `campaign` right now: the owner previously declined AI explicitly

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldOfferAiChoice, shouldOfferProReoffer } from "./useAiUseNoticeDismissal";
+import { shouldOfferAiChoice, shouldOfferProReoffer, shouldShowAiUseNotice } from "./useAiUseNoticeDismissal";
 import type { Campaign } from "@/types/campaign.types";
 
 function campaign(
@@ -59,5 +59,21 @@ describe("shouldOfferProReoffer", () => {
   it("does not offer it when there is no signed-in user", () => {
     expect(shouldOfferProReoffer(campaign({ ai_enabled: false }), undefined, true, false)).toBe(false);
     expect(shouldOfferProReoffer(campaign({ ai_enabled: false }), null, true, false)).toBe(false);
+  });
+});
+
+describe("shouldShowAiUseNotice", () => {
+  it("shows a DM the notice for an AI-on campaign they have not acknowledged", () => {
+    expect(shouldShowAiUseNotice({ ai_enabled: true }, true, false)).toBe(true);
+  });
+
+  it("never shows it to a player, however the campaign is set", () => {
+    expect(shouldShowAiUseNotice({ ai_enabled: true }, false, false)).toBe(false);
+  });
+
+  it("stays quiet once acknowledged, and for a campaign that is not AI-on", () => {
+    expect(shouldShowAiUseNotice({ ai_enabled: true }, true, true)).toBe(false);
+    expect(shouldShowAiUseNotice({ ai_enabled: null }, true, false)).toBe(false);
+    expect(shouldShowAiUseNotice({ ai_enabled: false }, true, false)).toBe(false);
   });
 });

@@ -215,10 +215,6 @@
   <!-- Location quick-view opened from @location chips in rich text -->
   <PlayerLocationDialog />
 
-  <!-- EU AI Act Art 50(1) consent gate — once-per-account notice for
-       campaigns where AI was already on before this account acknowledged it -->
-  <AiUseNoticeGate />
-
   <!-- EU AI Act Art 50(1) likeness consent gate — opened by useLikenessGate
        before any portrait-bearing generation (Simulacrum, chronicle scene
        references, group portrait, NPC disguise) -->
@@ -374,7 +370,6 @@ import PlayerNavGrid from "@/components/layout/PlayerNavGrid.vue";
 import ModeToggle from "@/components/layout/ModeToggle.vue";
 import { useLazyMount } from "@/composables/useLazyMount";
 import PlayerLocationDialog from "@/components/play/PlayerLocationDialog.vue";
-import AiUseNoticeGate from "@/components/campaign/AiUseNoticeGate.vue";
 import LikenessNoticeGate from "@/components/campaign/LikenessNoticeGate.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import PlayerAudioStream from "@/components/soundboard/PlayerAudioStream.vue";

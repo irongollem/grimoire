@@ -15,12 +15,15 @@
  * Three things live here, all keyed off the active campaign's tri-state
  * `ai_enabled` (context/compliance/ai-act.md §4):
  *
- *  - `ai_enabled === true` and this account hasn't acknowledged the AI-use
- *    notice yet → the plain once-per-account notice (mode "notice", existing
- *    behavior) — for campaigns where AI was already on before this account
- *    ever saw the dialog. A fresh toggle-on goes through `AiTab.vue`'s own
- *    gate instead, which records the acknowledgement before the toggle takes
- *    effect.
+ *  - `ai_enabled === true`, this account is a DM of the campaign, and it
+ *    hasn't acknowledged the AI-use notice yet → the plain once-per-account
+ *    notice (mode "notice") — for campaigns where AI was already on before
+ *    this account ever saw the dialog. A fresh toggle-on goes through
+ *    `AiTab.vue`'s own gate instead, which records the acknowledgement
+ *    before the toggle takes effect. Players never see this notice
+ *    (`shouldShowAiUseNotice`, 9 Sep 2026): it explains what the DM is
+ *    about to send to a provider, and what a player is owed is the marker on
+ *    the content, which the portal already carries.
  *  - `ai_enabled === null` (never explicitly chosen) and the current user is
  *    the campaign's OWNER (`shouldOfferAiChoice`) → the inviting-but-honest
  *    chooser (mode "choose", kind "ai_use"). Confirm records the `ai_use`
@@ -53,10 +56,8 @@
  * this is a one-time "have you reconsidered" moment for the person, not a
  * per-campaign setting.
  *
- * Mounted once in each of the DM shell (DefaultLayout) and the player shell
- * (PlayerLayout) so whichever role loads the campaign first can trigger the
- * plain notice — the chooser (either kind) only ever opens for the owner,
- * regardless of which shell happened to mount it first. See
+ * Mounted once, in the DM shell (DefaultLayout). Every branch here is a DM's
+ * or the owner's, so the player shell has nothing to mount. See
  * context/compliance/provenance-architecture.md §3.
  */
 import { ref, watch } from "vue";
@@ -65,7 +66,12 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useAiAcknowledgements, type AiAcknowledgementKind } from "@/composables/ai/useAiAcknowledgements";
-import { useAiUseNoticeDismissal, shouldOfferAiChoice, shouldOfferProReoffer } from "@/composables/ai/useAiUseNoticeDismissal";
+import {
+  useAiUseNoticeDismissal,
+  shouldOfferAiChoice,
+  shouldOfferProReoffer,
+  shouldShowAiUseNotice,
+} from "@/composables/ai/useAiUseNoticeDismissal";
 import { useLazyMount } from "@/composables/useLazyMount";
 import { useUpdateCampaign } from "@/composables/campaign/useCampaigns";
 import { AI_USE_NOTICE_VERSION, AI_PRO_REOFFER_NOTICE_VERSION } from "@/lib/legal";
@@ -97,6 +103,7 @@ watch(
     acknowledgementsLoading.value,
     acknowledgementsError.value,
     acknowledgements.value,
+    auth.isDM,
   ] as const,
   ([c, userId, pro, loading, loadFailed]) => {
     // `hasAcknowledged()` reads an async query. Do not interpret its initial
@@ -119,7 +126,7 @@ watch(
       }
       return;
     }
-    if (c.ai_enabled && !hasAcknowledged("ai_use", AI_USE_NOTICE_VERSION)) {
+    if (shouldShowAiUseNotice(c, auth.isDM, hasAcknowledged("ai_use", AI_USE_NOTICE_VERSION))) {
       mode.value = "notice";
       kind.value = "ai_use";
       proReoffer.value = false;
