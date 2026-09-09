@@ -159,27 +159,42 @@ export function useAudioThemeTriggers(): void {
   /**
    * Take (or refresh) this source's place at the top of the music stack.
    *
-   * A second request from the same source updates its own entry in place
-   * rather than stacking a second layer on itself — otherwise a repeat
-   * trigger would become the thing it later restores. The floor — what to
-   * hand back to once the whole stack empties — is captured only the first
-   * time anything takes the slot, from whatever the DM had running by hand.
+   * A second request from the same source brings its own entry to the top
+   * rather than stacking a second layer on itself — a re-request means "bring
+   * mine to the front", not "add another one of me". Without this, a source
+   * held lower in the stack (something newer took the slot over it) that asks
+   * again ended up with two entries: the old one buried where it was, and a
+   * new one on top, so releasing it later found the *older* one first and
+   * reported "was-lower" for what was actually the audible copy — the release
+   * silently did nothing. Removing any existing entry before pushing keeps
+   * one source to at most one entry, always. The floor — what to hand back to
+   * once the whole stack empties — is captured only the first time anything
+   * takes the slot, from whatever the DM had running by hand.
    */
   function claimMusicSlot(ownership: ActiveTrigger): void {
     const stack = musicStack.value;
-    const top = stack.at(-1);
-    if (top !== undefined && top.sourceId === ownership.sourceId) {
-      musicStack.value = [...stack.slice(0, -1), ownership];
-      return;
-    }
     if (stack.length === 0) musicFloor.value = store.activeMusicPlaylistId();
-    musicStack.value = [...stack, ownership];
+    const withoutSource = stack.filter((owner) => owner.sourceId !== ownership.sourceId);
+    musicStack.value = [...withoutSource, ownership];
   }
 
-  /** Drop a source from the music stack. Tells the caller whether it was audible. */
+  /**
+   * Drop a source from the music stack. Tells the caller whether it was audible.
+   *
+   * Searches from the top down so that if a duplicate ever slipped in despite
+   * `claimMusicSlot`'s dedupe, a release still resolves against the newest
+   * (audible, or about-to-be-audible) copy rather than a stale one buried
+   * lower.
+   */
   function removeFromMusicStack(sourceId: string): "not-found" | "was-top" | "was-lower" {
     const stack = musicStack.value;
-    const index = stack.findIndex((owner) => owner.sourceId === sourceId);
+    let index = -1;
+    for (let i = stack.length - 1; i >= 0; i--) {
+      if (stack[i].sourceId === sourceId) {
+        index = i;
+        break;
+      }
+    }
     if (index === -1) return "not-found";
     const wasTop = index === stack.length - 1;
     musicStack.value = stack.filter((_, i) => i !== index);

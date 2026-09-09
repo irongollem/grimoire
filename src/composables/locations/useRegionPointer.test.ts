@@ -232,7 +232,7 @@ describe("template drag", () => {
 });
 
 describe("async-gesture guard", () => {
-  it("a pointerup that lands mid-confirm is not misread as a tap-click", async () => {
+  it("commits immediately when the pointerup already landed mid-confirm, instead of losing the stroke", async () => {
     let resolveConfirm!: (ok: boolean) => void;
     const { pointer, options, region } = makeHarness({
       confirmConvert: vi.fn(
@@ -256,16 +256,65 @@ describe("async-gesture guard", () => {
     expect(options.confirmConvert).toHaveBeenCalled();
     expect(pointer.strokeCells.value).toBeNull(); // still waiting on the confirm
 
-    // The down/up pair completes before the confirm dialog resolves.
+    // The down/up pair completes before the confirm dialog resolves — the
+    // `{ once: true }` pointerup listener is already gone by the time the
+    // confirm settles, so nothing else will ever call `commitCells` for this
+    // gesture unless the resuming handler notices and commits itself.
     window.dispatchEvent(up(0, 0));
     expect(options.onSelect).not.toHaveBeenCalled();
     expect(options.regionAt).not.toHaveBeenCalled();
+    expect(options.commitCells).not.toHaveBeenCalled();
 
     resolveConfirm(true);
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(pointer.strokeCells.value).toEqual({ regionId: "region-1", cells: ["9,9", "0,0"] });
+    expect(options.commitCells).toHaveBeenCalledTimes(1);
+    expect(options.commitCells).toHaveBeenCalledWith("region-1", ["9,9", "0,0"]);
+    expect(pointer.strokeCells.value).toBeNull(); // committed and cleared, not left stranded
+  });
+
+  it("commits nothing when the confirm is rejected", async () => {
+    let resolveConfirm!: (ok: boolean) => void;
+    const { pointer, options, region } = makeHarness({
+      confirmConvert: vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            resolveConfirm = resolve;
+          }),
+      ),
+    });
+    region.current = makeRegion({
+      vertices: [
+        [0, 0],
+        [4, 0],
+        [2, 4],
+      ],
+      cells: ["9,9"],
+    });
+
+    pointer.onPointerDown(down(0, 0));
+    window.dispatchEvent(up(0, 0)); // lands mid-confirm, same as above
+
+    resolveConfirm(false);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(options.commitCells).not.toHaveBeenCalled();
+    expect(pointer.strokeCells.value).toBeNull();
+  });
+
+  it("an ordinary paint drag on a cell region (no confirm needed) still commits on pointerup", () => {
+    const { pointer, options, region } = makeHarness();
+    region.current = makeRegion({ cells: [] }); // vertices: null — no conversion confirm
+
+    pointer.onPointerDown(down(3, 3));
+    window.dispatchEvent(move(4, 4));
+    window.dispatchEvent(up(4, 4));
+
+    expect(options.commitCells).toHaveBeenCalledTimes(1);
+    expect(options.commitCells).toHaveBeenCalledWith("region-1", ["3,3", "4,4"]);
+    expect(pointer.strokeCells.value).toBeNull();
   });
 });
 

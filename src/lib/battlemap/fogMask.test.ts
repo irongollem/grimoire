@@ -5,6 +5,7 @@ import {
   roundBrushCells,
   cellBrushCells,
   applyBrush,
+  shouldSeedFog,
 } from "@/lib/battlemap/fogMask";
 
 describe("encode / decode fog mask", () => {
@@ -98,6 +99,24 @@ describe("cellBrushCells", () => {
       brushCells: 4,
     });
     expect(result.size).toBe(9);
+  });
+});
+
+describe("shouldSeedFog", () => {
+  it("is true for a never-seeded row (null)", () => {
+    expect(shouldSeedFog(null)).toBe(true);
+  });
+
+  it("is true for an absent value (undefined)", () => {
+    expect(shouldSeedFog(undefined)).toBe(true);
+  });
+
+  it("is false for an explicit \"Hide all\" (empty string), not 'never seeded'", () => {
+    expect(shouldSeedFog("")).toBe(false);
+  });
+
+  it("is false once any cells are revealed", () => {
+    expect(shouldSeedFog("1,2;3,4")).toBe(false);
   });
 });
 

@@ -68,14 +68,17 @@ import type { SiteLevelSummary } from "@/components/locations/SiteLevelsRail.vue
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
-import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
+import { levelsOf } from "@/lib/locations/levels";
+import { bindableSpaces } from "@/lib/locations/tiers";
 import { buildAtlasIndex, childrenOf } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
 
 const { location, children } = defineProps<{
   location: Location;
-  /** This place's own children — used both to find its own child sites and,
-   *  via `bindableSpaces`, to scope its vertical ways-out panel. */
+  /** This place's own children — used via `bindableSpaces` to scope its
+   *  vertical ways-out panel. `levelsOf` reads child/parent sites off the
+   *  locally-built `index` instead, since it also needs the sibling levels
+   *  above `location`, which this prop alone can't reach. */
   children: Location[];
 }>();
 
@@ -84,22 +87,18 @@ defineEmits<{ select: [id: string] }>();
 const { data: allLocations } = useAllLocations();
 const index = computed(() => buildAtlasIndex(allLocations.value ?? []));
 
-const childSites = computed(() => children.filter((c) => isSiteType(c.location_type)));
+// Shared with `AtlasSiteMapMode` and `AtlasPlacePane` so all three surfaces
+// number levels the same way regardless of which level's page is open — see
+// the doc comment on `levelsOf` (#868 fix: numbering used to disagree
+// depending on whether the rail was reached from the container or from one
+// of its own levels).
+const levelsInfo = computed(() => levelsOf(index.value, location));
 
 /** Whose children the rail is listing — this site's own, or its parent's,
  *  when this place has no levels of its own but IS one (#868, S6). */
-const levelsContainer = computed<Location | null>(() => {
-  if (childSites.value.length > 0) return location;
-  if (!location.parent_id) return null;
-  const parent = index.value.byId.get(location.parent_id);
-  return parent && isSiteType(parent.location_type) ? parent : null;
-});
+const levelsContainer = computed<Location | null>(() => levelsInfo.value?.container ?? null);
 
-const levelSites = computed<Location[]>(() => {
-  if (childSites.value.length > 0) return [location, ...childSites.value];
-  const container = levelsContainer.value;
-  return container ? childrenOf(index.value, container.id).filter((c) => isSiteType(c.location_type)) : [];
-});
+const levelSites = computed<Location[]>(() => levelsInfo.value?.levels ?? []);
 
 const levelRoomIdsByLevel = computed(() => {
   const byLevel = new Map<string, string[]>();

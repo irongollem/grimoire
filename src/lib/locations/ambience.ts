@@ -20,15 +20,19 @@ import { isSilenceTheme } from "@/lib/audio/audioThemes";
 
 export type AmbienceLocationLike = Pick<Location, "id" | "parent_id" | "audio_theme" | "name">;
 
-export type AmbienceKind = "own" | "inherited" | "silence" | "none";
+export type AmbienceKind = "own" | "inherited" | "silence" | "silence-inherited" | "none";
 
 export interface ResolvedAmbience {
   /** What to actually request, or null when nothing should play. */
   theme: string | null;
   /**
    * The location whose own `audio_theme` produced this answer — itself for
-   * "own", the ancestor for "inherited", wherever the silence was authored
-   * for "silence", and null for "none".
+   * "own" or "silence" (silence declared right here), the ancestor for
+   * "inherited" or "silence-inherited" (silence authored further up), and
+   * null for "none". `kind` alone tells a caller whether the location asked
+   * about is the one that made the decision — that distinction is why
+   * "silence" and "silence-inherited" are separate kinds rather than one
+   * "silence" kind read alongside `from.id`.
    *
    * Callers should key their producer `sourceId` on *this* id, not the id of
    * the location actually asked about: that is what makes walking between
@@ -65,7 +69,13 @@ export function resolveInheritedTheme(
     seen.add(current.id);
     const theme = current.audio_theme;
     if (theme) {
-      if (isSilenceTheme(theme)) return { theme: null, from: current, kind: "silence" };
+      if (isSilenceTheme(theme)) {
+        return {
+          theme: null,
+          from: current,
+          kind: current.id === locationId ? "silence" : "silence-inherited",
+        };
+      }
       return { theme, from: current, kind: current.id === locationId ? "own" : "inherited" };
     }
     current = current.parent_id ? byId.get(current.parent_id) : undefined;

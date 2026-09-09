@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planPublish, matchSpace, jaccard, isCreatedRef, createdRefKey } from "./publish";
+import { planPublish, matchSpace, matchZone, jaccard, isCreatedRef, createdRefKey } from "./publish";
 import type { PublishInputs } from "./publish";
 import { cellSignature } from "@/cartographer/cellSignature";
 import type {
@@ -234,6 +234,93 @@ describe("matchSpace", () => {
       space_location_id: null,
     });
     expect(matchSpace(space, [unbound, zoneRegion], new Map())).toBeNull();
+  });
+});
+
+// ── matchZone ────────────────────────────────────────────────────────────
+
+describe("matchZone", () => {
+  it("matches by identical signature even when a different candidate overlaps more", () => {
+    const cells: CellKey[] = ["2,2", "2,3", "2,4", "2,5"];
+    const zone = makeZone({ cells, kind: "hazard" });
+    const exact = makeRegion({
+      cells,
+      cell_signature: cellSignature(cells),
+      region_role: "zone",
+      zone_kind: "hazard",
+    });
+    const overlapping = makeRegion({
+      cells: ["2,2", "2,3", "2,4"],
+      cell_signature: "stale",
+      region_role: "zone",
+      zone_kind: "hazard",
+    });
+    const result = matchZone(zone, [overlapping, exact]);
+    expect(result?.by).toBe("signature");
+    expect(result?.region).toBe(exact);
+  });
+
+  it("picks the best-overlapping same-kind candidate over a weaker one", () => {
+    const zone = makeZone({ cells: ["2,2", "2,3", "2,4", "2,5", "2,6"], kind: "hazard" });
+    const weak = makeRegion({
+      cells: ["2,2", "2,3", "2,4"],
+      cell_signature: "weak",
+      region_role: "zone",
+      zone_kind: "hazard",
+    }); // 3/6 = 0.5
+    const strong = makeRegion({
+      cells: ["2,2", "2,3", "2,4", "2,5"],
+      cell_signature: "strong",
+      region_role: "zone",
+      zone_kind: "hazard",
+    }); // 4/5 = 0.8
+    const result = matchZone(zone, [weak, strong]);
+    expect(result?.by).toBe("overlap");
+    expect(result?.region).toBe(strong);
+  });
+
+  it("never matches across zone kinds by overlap", () => {
+    const zone = makeZone({ cells: ["2,2", "2,3"], kind: "hazard" });
+    const otherKind = makeRegion({
+      cells: ["2,2", "2,3"],
+      cell_signature: "other",
+      region_role: "zone",
+      zone_kind: "trigger",
+    });
+    expect(matchZone(zone, [otherKind])).toBeNull();
+  });
+
+  it("falls back to a kind+label match only when the zone's own label is non-null", () => {
+    const zone = makeZone({ cells: ["9,9"], kind: "hazard", label: "Ash cloud" });
+    const region = makeRegion({
+      cells: ["0,0"],
+      cell_signature: "no-match",
+      region_role: "zone",
+      zone_kind: "hazard",
+      label: "Ash cloud",
+    });
+    const result = matchZone(zone, [region]);
+    expect(result?.by).toBe("label");
+    expect(result?.region).toBe(region);
+  });
+
+  it("never matches two unlabeled same-kind zones to each other", () => {
+    const zone = makeZone({ cells: ["9,9"], kind: "hazard", label: null });
+    const region = makeRegion({
+      cells: ["0,0"],
+      cell_signature: "no-match",
+      region_role: "zone",
+      zone_kind: "hazard",
+      label: null,
+    });
+    expect(matchZone(zone, [region])).toBeNull();
+  });
+
+  it("ignores space-role regions as candidates", () => {
+    const cells: CellKey[] = ["4,4", "4,5"];
+    const zone = makeZone({ cells, kind: "hazard" });
+    const spaceRegion = makeRegion({ cells, cell_signature: cellSignature(cells), region_role: "space" });
+    expect(matchZone(zone, [spaceRegion])).toBeNull();
   });
 });
 
@@ -552,6 +639,52 @@ describe("planPublish — zones", () => {
   it("creates a zone with no matching region", () => {
     const zone = makeZone({ cells: ["2,2"], kind: "trigger", label: "Pressure plate" });
     const plan = planPublish(makeInput({ derived: makeDerived({ zones: [zone] }) }));
+    expect(plan.zones).toEqual([{ kind: "create", zone }]);
+  });
+
+  it("matches two unlabeled same-kind zones to their own shifted originals, not each other", () => {
+    // Both zones are unlabeled hazards, and both shifted by exactly one cell —
+    // the case a bare kind+label equality check would cross-match in whatever
+    // order `input.regions` happens to hold them (#868 bug B).
+    const zoneA = makeZone({ cells: ["1,1", "1,2", "1,3", "1,4"], kind: "hazard", label: null });
+    const zoneB = makeZone({ cells: ["8,6", "8,7", "8,8", "8,9"], kind: "hazard", label: null });
+    const regionA = makeRegion({
+      cells: ["1,0", "1,1", "1,2", "1,3"], // shifted up by one -> jaccard 3/5 = 0.6
+      cell_signature: "stale-a",
+      region_role: "zone",
+      zone_kind: "hazard",
+      label: null,
+      zone_payload: { trap_id: "trap-a" },
+    });
+    const regionB = makeRegion({
+      cells: ["8,5", "8,6", "8,7", "8,8"], // shifted up by one -> jaccard 3/5 = 0.6
+      cell_signature: "stale-b",
+      region_role: "zone",
+      zone_kind: "hazard",
+      label: null,
+      zone_payload: { trap_id: "trap-b" },
+    });
+    // Regions passed in the opposite order from the zones, so an
+    // order-dependent match would pair zoneA with regionB.
+    const plan = planPublish(
+      makeInput({ derived: makeDerived({ zones: [zoneA, zoneB] }), regions: [regionB, regionA] }),
+    );
+    expect(plan.zones).toEqual([
+      { kind: "update", zone: zoneA, region: regionA },
+      { kind: "update", zone: zoneB, region: regionB },
+    ]);
+  });
+
+  it("creates rather than updates when an unlabeled zone has no overlap with any candidate", () => {
+    const zone = makeZone({ cells: ["9,9"], kind: "hazard", label: null });
+    const unrelated = makeRegion({
+      cells: ["0,0"],
+      cell_signature: "unrelated",
+      region_role: "zone",
+      zone_kind: "hazard",
+      label: null,
+    });
+    const plan = planPublish(makeInput({ derived: makeDerived({ zones: [zone] }), regions: [unrelated] }));
     expect(plan.zones).toEqual([{ kind: "create", zone }]);
   });
 });

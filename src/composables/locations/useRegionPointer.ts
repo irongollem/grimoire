@@ -172,6 +172,15 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
    *  would read no gesture in flight and misread the release as a plain
    *  tap-click. */
   let pendingAsyncGesture = false;
+  /** Set by `onWindowPointerUp` when it bails out because `pendingAsyncGesture`
+   *  was true — i.e. the pointer already came up while a handler was still
+   *  awaiting. The `{ once: true }` pointerup listener is gone by then, so
+   *  nothing else will ever fire for this gesture; whichever handler resumes
+   *  after the await is responsible for checking this and finishing the
+   *  gesture itself instead of waiting on a pointerup that already happened.
+   *  Reset at the top of every `onPointerDown` so a stale `true` from one
+   *  gesture can never leak into the next. */
+  let pointerUpDuringAsyncGesture = false;
 
   let lastHoverRegionId: string | null = null;
 
@@ -237,6 +246,13 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
 
     strokeMode = region.cells.includes(key) ? "erase" : "paint";
     strokeCells.value = { regionId: region.id, cells: toggleCell(region.cells, key) };
+
+    // The physical pointerup can already have happened while `confirmConvert`
+    // was awaiting (`onWindowPointerUp` recorded it and bailed, since there
+    // was nothing to commit yet). No further pointerup is coming for this
+    // gesture, so finish it now instead of leaving a one-cell stroke stranded
+    // until the next click's mousedown paints over it.
+    if (pointerUpDuringAsyncGesture) commitStroke();
   }
 
   /**
@@ -314,6 +330,7 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
   function onPointerDown(e: PointerEvent): void {
     pointerDownAt = { x: e.clientX, y: e.clientY };
     movedBeyondTapThreshold = false;
+    pointerUpDuringAsyncGesture = false;
 
     // Listeners attach synchronously, before any of the branches below touch
     // the network — `handlePaintPointerDown` and `handlePenPointerDown` both
@@ -323,6 +340,20 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     // the browser's own event dispatch — so registering the listeners after
     // the `await` risked losing that pointerup entirely, leaving the next
     // gesture reading a stale `pointerDownAt`.
+    //
+    // That still leaves the case where the pointerup arrives *before* the
+    // await resolves: the `{ once: true }` listener below has already fired
+    // and detached itself, so nothing will ever call `onWindowPointerUp`
+    // again for this gesture. `pendingAsyncGesture` tells `onWindowPointerUp`
+    // there's an awaiting handler to defer to (so it doesn't misread the
+    // release as a plain tap-click), and when it bails out for that reason it
+    // sets `pointerUpDuringAsyncGesture`. `handlePaintPointerDown` checks that
+    // flag once its own await resolves and, if set, finishes the gesture
+    // itself via `commitStroke()` rather than waiting for a pointerup that
+    // already happened. `handlePenPointerDown`'s two async branches (alt-click
+    // delete, draft-close) don't need the same check — each commits directly
+    // inside its own `await` rather than deferring to a later pointerup, so a
+    // pointerup landing mid-flight there has nothing left to finish.
     window.addEventListener("pointermove", onWindowPointerMove);
     window.addEventListener("pointerup", onWindowPointerUp, { once: true });
 
@@ -368,6 +399,18 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     }
   }
 
+  /** The one place that calls `options.commitCells` — used both by the
+   *  ordinary pointerup path below and by `handlePaintPointerDown` when the
+   *  pointerup already happened mid-`confirmConvert` (see
+   *  `pointerUpDuringAsyncGesture`). */
+  function commitStroke(): void {
+    const current = strokeCells.value;
+    if (!current) return;
+    strokeCells.value = null;
+    strokeMode = null;
+    options.commitCells(current.regionId, current.cells);
+  }
+
   /** Commits whichever gesture was in flight — a paint stroke, a pen node
    *  drag, or a template drop — or, when none started, resolves a plain,
    *  unmoved tap into a click on whatever region is under it. */
@@ -376,10 +419,7 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     pointerDownAt = null;
 
     if (strokeCells.value) {
-      const { regionId, cells } = strokeCells.value;
-      strokeCells.value = null;
-      strokeMode = null;
-      options.commitCells(regionId, cells);
+      commitStroke();
       return;
     }
 
@@ -407,7 +447,15 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
       return;
     }
 
-    if (movedBeyondTapThreshold || pendingAsyncGesture) return;
+    if (pendingAsyncGesture) {
+      // Nothing to commit yet — whichever handler is still awaiting will
+      // check this once it resumes, rather than this pointerup (the only one
+      // coming) being lost or misread as a click.
+      pointerUpDuringAsyncGesture = true;
+      return;
+    }
+
+    if (movedBeyondTapThreshold) return;
     handleClick(e);
   }
 

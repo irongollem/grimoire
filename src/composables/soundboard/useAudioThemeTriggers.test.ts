@@ -492,6 +492,77 @@ describe("a beat's audio cue", () => {
     expect(store.stopPlaylist).toHaveBeenCalledWith("music");
   });
 
+  describe("a source re-requesting while held lower in the stack", () => {
+    const a = () => playlist({ id: "a", playlist_type: "music" });
+    const b = () => playlist({ id: "b", playlist_type: "music" });
+
+    it("brings itself back to the top instead of stacking a second entry", async () => {
+      const mod = await import("@/composables/soundboard/useAudioThemeTriggers");
+      const { requestAudioCue, releaseAudioTheme } = await mount();
+      const read = mod.useActiveAudioTriggers();
+      playlists.value = [a(), b()];
+
+      requestAudioCue({ sourceId: "a", kind: "beat", label: "A", slot: "music", target: { playlistId: "a" } });
+      await flush();
+      store.activeMusicPlaylistId.mockImplementation(() => "a");
+
+      requestAudioCue({ sourceId: "b", kind: "beat", label: "B", slot: "music", target: { playlistId: "b" } });
+      await flush();
+      store.activeMusicPlaylistId.mockImplementation(() => "b");
+
+      // A asks again while it is buried under B — this must surface A, not
+      // silently stack a second copy of it underneath.
+      requestAudioCue({ sourceId: "a", kind: "beat", label: "A", slot: "music", target: { playlistId: "a" } });
+      await flush();
+      expect(store.playPlaylist).toHaveBeenLastCalledWith(a(), tracks);
+      expect(read.musicTrigger.value?.sourceId).toBe("a");
+      store.activeMusicPlaylistId.mockImplementation(() => "a");
+
+      // Releasing A must uncover B — the one real B entry, not a stale
+      // duplicate of A left behind at A's old position.
+      releaseAudioTheme("a");
+      await flush();
+      expect(store.playPlaylist).toHaveBeenLastCalledWith(b(), tracks);
+      expect(read.musicTrigger.value?.sourceId).toBe("b");
+
+      // And releasing B must go straight to the floor — proof the stack is
+      // exactly [B] at this point, not [B, leftover-A].
+      store.playPlaylist.mockClear();
+      releaseAudioTheme("b");
+      await flush();
+      expect(store.stopPlaylist).toHaveBeenCalledWith("music");
+      expect(store.playPlaylist).not.toHaveBeenCalled();
+    });
+
+    it("a release of a lower (non-repeated) source leaves the top untouched", async () => {
+      const mod = await import("@/composables/soundboard/useAudioThemeTriggers");
+      const { requestAudioCue, releaseAudioTheme } = await mount();
+      const read = mod.useActiveAudioTriggers();
+      playlists.value = [a(), b()];
+
+      requestAudioCue({ sourceId: "a", kind: "beat", label: "A", slot: "music", target: { playlistId: "a" } });
+      await flush();
+      store.activeMusicPlaylistId.mockImplementation(() => "a");
+      requestAudioCue({ sourceId: "b", kind: "beat", label: "B", slot: "music", target: { playlistId: "b" } });
+      await flush();
+      store.activeMusicPlaylistId.mockImplementation(() => "b");
+      store.playPlaylist.mockClear();
+
+      // A is held lower, never repeated its request — releasing it must not
+      // touch playback at all.
+      releaseAudioTheme("a");
+      await flush();
+      expect(store.playPlaylist).not.toHaveBeenCalled();
+      expect(store.stopPlaylist).not.toHaveBeenCalled();
+      expect(read.musicTrigger.value?.sourceId).toBe("b");
+
+      // B's own release now finds nothing held beneath it.
+      releaseAudioTheme("b");
+      await flush();
+      expect(store.stopPlaylist).toHaveBeenCalledWith("music");
+    });
+  });
+
   describe("a bare-sound cue", () => {
     const cueSound = { id: "s9", file_url: "u", category: "effects", source_type: "url", gain_trim: 1, tags: [] } as unknown as Sound;
 

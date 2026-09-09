@@ -19,6 +19,25 @@
       </ul>
     </section>
 
+    <!-- Zones -->
+    <section v-if="zoneRows.length > 0">
+      <div class="flex items-baseline justify-between gap-2 mb-1.5">
+        <span class="text-eyebrow text-muted-foreground">Zones</span>
+        <span class="text-caption-sm text-muted-foreground">{{ zoneSummary }}</span>
+      </div>
+      <ul class="space-y-1">
+        <li
+          v-for="row in zoneRows"
+          :key="row.key"
+          class="border-l-2 pl-2.5 py-1 text-caption-sm"
+          :class="BORDER_CLASS[row.tone]"
+        >
+          <span class="text-foreground">{{ row.text }}</span>
+          <span class="block text-muted-foreground">{{ row.action }}</span>
+        </li>
+      </ul>
+    </section>
+
     <!-- Ways out -->
     <section>
       <div class="flex items-baseline justify-between gap-2 mb-1.5">
@@ -82,9 +101,10 @@ import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import { IconStar, IconWarning } from "@/lib/icons";
 import { DOOR_KIND_LABELS } from "@/types/locationDoor.types";
+import { ZONE_KIND_LABELS } from "@/types/locationMapRegion.types";
 import { LOCATION_PLACEMENT_KIND_LABELS, placementKind, type LocationPlacement } from "@/types/locationPlacement.types";
 import type { LocationPlacementWithEntity } from "@/composables/locations/useLocationPlacements";
-import { createdRefKey, type PublishPlan } from "@/lib/locations/publish";
+import { createdRefKey, type PublishPlan, type ZoneChange } from "@/lib/locations/publish";
 import type { CellKey } from "@/types/dungeonMap.types";
 
 type Tone = "new" | "changed" | "gone" | "unchanged";
@@ -184,6 +204,63 @@ const spaceSummary = computed(() => {
   const created = plan.spaces.filter((c) => c.kind === "create").length;
   const changed = plan.spaces.filter((c) => c.kind === "update" || c.kind === "held").length;
   const unchanged = plan.spaces.filter((c) => c.kind === "skip").length;
+  return `${created} new · ${changed} changed · ${unchanged} unchanged`;
+});
+
+// ── Zones ────────────────────────────────────────────────────────────────
+//
+// A zone binds nothing, so unlike a space's "held" case there is no DM edit
+// to hold back — `ZoneChange` only ever matches by signature (unchanged), by
+// kind+label (shape moved under an unchanged identity), or fails to match at
+// all (new). Frame 05 lists zones beside spaces as "what the plan is made
+// of", so the row shape mirrors `spaceRows` exactly, unchanged rows folded
+// into one line the same way.
+
+function zoneLabel(kind: ZoneChange["zone"]["kind"], label: string | null): string {
+  return label ? `${ZONE_KIND_LABELS[kind]} '${label}'` : ZONE_KIND_LABELS[kind];
+}
+
+const zoneRows = computed<Row[]>(() => {
+  const rows: Row[] = [];
+  const skipped: string[] = [];
+  for (const change of plan.zones) {
+    const name = zoneLabel(change.zone.kind, change.zone.label);
+    if (change.kind === "create") {
+      const count = change.zone.cells.length;
+      rows.push({
+        key: `create:${change.zone.zoneId}`,
+        tone: "new",
+        text: `${name} — New zone, ${count} cell${count === 1 ? "" : "s"}`,
+        action: "→ Create zone",
+      });
+    } else if (change.kind === "update") {
+      const before = change.region?.cells.length ?? 0;
+      const after = change.zone.cells.length;
+      rows.push({
+        key: `update:${change.region?.id ?? change.zone.zoneId}`,
+        tone: "changed",
+        text: `${name} — ${before} → ${after} cells`,
+        action: "→ Update shape",
+      });
+    } else {
+      skipped.push(name);
+    }
+  }
+  if (skipped.length > 0) {
+    rows.push({
+      key: "skip:all-zones",
+      tone: "unchanged",
+      text: `${skipped.join(" · ")} — Unchanged`,
+      action: "bindings and state kept → skip",
+    });
+  }
+  return rows;
+});
+
+const zoneSummary = computed(() => {
+  const created = plan.zones.filter((c) => c.kind === "create").length;
+  const changed = plan.zones.filter((c) => c.kind === "update").length;
+  const unchanged = plan.zones.filter((c) => c.kind === "skip").length;
   return `${created} new · ${changed} changed · ${unchanged} unchanged`;
 });
 

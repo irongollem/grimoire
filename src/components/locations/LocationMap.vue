@@ -56,6 +56,7 @@
               :show-spaces="siteMapLayers.spaces"
               :show-zones="siteMapLayers.zones"
               :show-grid="siteMapLayers.grid"
+              :show-ways="siteMapLayers.ways"
               :ways="siteDoors ?? []"
               :nested-site-ids="nestedSiteIds"
               @move-party="emit('move-party', $event)"

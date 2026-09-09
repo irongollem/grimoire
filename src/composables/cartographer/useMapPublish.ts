@@ -126,7 +126,12 @@ export function useMapPublish(opts: {
 
   const open = ref(false);
   const targetSiteId = ref("");
-  /** DM-resolved far ends for stairs the drawing left unresolved — cellKey → target space id. */
+  /** DM-resolved far ends for stairs the drawing left unresolved — cellKey → target space id.
+   *  Scoped to whichever site `targetSiteId` currently names: a stair target is a room id
+   *  from the site being published, so it has no meaning once the picker rebinds
+   *  `targetSiteId` to a different one. See the watches below that clear it on a site
+   *  change or an unpublished close, so a resolution never carries into a plan for
+   *  another site (which `createDoor` would then fail against the door-endpoint guard). */
   const stairTargets = ref<Record<CellKey, string>>({});
   const publishing = ref(false);
   const error = ref<string | null>(null);
@@ -166,6 +171,18 @@ export function useMapPublish(opts: {
     },
     { immediate: true },
   );
+
+  // Changing target site invalidates any stair resolutions the DM already
+  // made — they name rooms in the *old* site. Closing the modal without
+  // publishing clears them too (a successful publish already does, below;
+  // this covers Cancel/Escape so a stale resolution can't survive to the
+  // next time the modal opens).
+  watch(targetSiteId, () => {
+    stairTargets.value = {};
+  });
+  watch(open, (isOpen) => {
+    if (!isOpen) stairTargets.value = {};
+  });
 
   const { data: targetSiteData } = useLocation(computed(() => targetSiteId.value));
   const targetSite = computed(() => targetSiteData.value ?? null);

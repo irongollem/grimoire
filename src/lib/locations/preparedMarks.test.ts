@@ -265,6 +265,26 @@ describe("resolvePreparedMarks", () => {
     expect(marks[0].colour).toBe(MARK_COLOURS.feature);
   });
 
+  it("leads a feature's subtitle with Perception DC when both DCs are set, matching roomStack's featureDcPhrase", () => {
+    const marks = resolvePreparedMarks(
+      baseInput({
+        placements: [placement({ id: "p2", dungeon_feature_id: "feature-1", source_cell_key: "1,1" })],
+        features: [feature({ perception_dc: 16, investigation_dc: 13 })],
+      }),
+    );
+    expect(marks[0].subtitle).toBe("Altar · Perception DC 16");
+  });
+
+  it("falls back to Investigation DC when Perception is unset", () => {
+    const marks = resolvePreparedMarks(
+      baseInput({
+        placements: [placement({ id: "p2", dungeon_feature_id: "feature-1", source_cell_key: "1,1" })],
+        features: [feature({ perception_dc: null, investigation_dc: 13 })],
+      }),
+    );
+    expect(marks[0].subtitle).toBe("Altar · Investigation DC 13");
+  });
+
   it("never draws a marker for a roll-table or loot-table placement", () => {
     const marks = resolvePreparedMarks(
       baseInput({

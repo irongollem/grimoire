@@ -136,7 +136,7 @@ export function jaccard(a: readonly CellKey[], b: readonly CellKey[]): number {
  * among the candidates (the room moved or resized); else, as a last resort,
  * an exact name match between the annotation and the bound space's name
  * (the shape changed enough to lose overlap, but the DM's label survived).
- * Exported for the test and for the modal's "why did these match" tooltip.
+ * Exported so the test can pin the ladder directly.
  *
  * Filters `candidates` to bound space regions itself, so a caller can pass
  * a site's full region list without pre-filtering.
@@ -426,26 +426,62 @@ function planPlacements(input: PublishInputs, spaceIdFor: Map<string, string>): 
 
 // ── Zones ────────────────────────────────────────────────────────────────
 
+/**
+ * Match one derived zone to an existing zone-role region: identical signature
+ * first (a re-publish of the same cells); else best Jaccard overlap ≥ 0.5
+ * among same-kind candidates (the zone moved or resized); else, only when the
+ * zone itself carries a non-null label, an exact kind+label match. Mirrors
+ * `matchSpace`'s ladder — and for the same reason: most zones have
+ * `label: null`, so a bare kind+label equality check (`null === null`) would
+ * match any two unlabeled same-kind zones to each other in whatever order
+ * `candidates` happens to hold them, letting one zone's `zone_payload` (a
+ * trap or encounter id) land on a completely unrelated zone's cells.
+ * Exported so the test can pin the ladder directly.
+ */
+export function matchZone(
+  zone: DerivedZone,
+  candidates: readonly LocationMapRegion[],
+): { region: LocationMapRegion; by: "signature" | "overlap" | "label" } | null {
+  const pool = candidates.filter((r) => r.region_role === "zone");
+
+  const bySignature = pool.find((r) => r.cell_signature === zone.signature);
+  if (bySignature) return { region: bySignature, by: "signature" };
+
+  let best: LocationMapRegion | null = null;
+  let bestScore = 0;
+  for (const region of pool) {
+    if (region.zone_kind !== zone.kind) continue;
+    const score = jaccard(zone.cells, region.cells);
+    if (score >= 0.5 && score > bestScore) {
+      best = region;
+      bestScore = score;
+    }
+  }
+  if (best) return { region: best, by: "overlap" };
+
+  if (zone.label !== null) {
+    const byLabel = pool.find((r) => r.zone_kind === zone.kind && r.label === zone.label);
+    if (byLabel) return { region: byLabel, by: "label" };
+  }
+
+  return null;
+}
+
 function planZones(input: PublishInputs): ZoneChange[] {
-  const unmatched = input.regions.filter((r) => r.region_role === "zone");
   const changes: ZoneChange[] = [];
 
   const sortedZones = [...input.derived.zones].sort((a, b) => compareByCell(a.cells[0] ?? "0,0", b.cells[0] ?? "0,0"));
-  const pool = [...unmatched];
+  const pool = input.regions.filter((r) => r.region_role === "zone");
 
   for (const zone of sortedZones) {
-    let idx = pool.findIndex((r) => r.cell_signature === zone.signature);
-    const matchedBySignature = idx !== -1;
-    if (idx === -1) {
-      idx = pool.findIndex((r) => r.zone_kind === zone.kind && r.label === zone.label);
-    }
-    if (idx === -1) {
+    const match = matchZone(zone, pool);
+    if (!match) {
       changes.push({ kind: "create", zone });
       continue;
     }
-    const region = pool[idx]!;
-    pool.splice(idx, 1);
-    changes.push({ kind: matchedBySignature ? "skip" : "update", zone, region });
+    const idx = pool.indexOf(match.region);
+    if (idx !== -1) pool.splice(idx, 1);
+    changes.push({ kind: match.by === "signature" ? "skip" : "update", zone, region: match.region });
   }
 
   return changes;

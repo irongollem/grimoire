@@ -21,6 +21,7 @@
 // live rows this receives.
 
 import { centroid } from "@/lib/locations/planSvg";
+import { featureDcPhrase } from "@/lib/locations/roomStack";
 import { cellKey } from "@/types/dungeonMap.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
@@ -212,8 +213,11 @@ function trapSubtitle(trap: Trap): string {
 function featureSubtitle(feature: DungeonFeature): string {
   const bits: string[] = [];
   if (feature.feature_glyph) bits.push(FEATURE_GLYPH_LABELS[feature.feature_glyph]);
-  if (feature.investigation_dc != null) bits.push(`Investigation DC ${feature.investigation_dc}`);
-  else if (feature.perception_dc != null) bits.push(`Perception DC ${feature.perception_dc}`);
+  // Shared with `roomStack.ts`'s `featureDcPhrase` so the map layer and the
+  // room stack agree on which DC a feature leads with — Perception, not
+  // Investigation (#868 follow-up; the two had drifted).
+  const dcPhrase = featureDcPhrase(feature);
+  if (dcPhrase) bits.push(dcPhrase);
   return bits.join(" · ") || feature.feature_type;
 }
 

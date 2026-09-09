@@ -136,6 +136,11 @@ const writeParts = computed<WritePart[]>(() => {
   const doorWrites = s.newDoors + s.doorUpdates;
   if (doorWrites > 0) parts.push({ count: doorWrites, label: `door${doorWrites === 1 ? "" : "s"}` });
   if (s.reanchored > 0) parts.push({ count: s.reanchored, label: `placement${s.reanchored === 1 ? "" : "s"} re-anchored` });
+  // Zones have no `summary` fields of their own (the plan's summary predates
+  // #868's zone role) — counted straight off `plan.zones` the same way the
+  // review rows do, so this total can't drift from what the DM sees listed.
+  const zoneWrites = plan.zones.filter((z) => z.kind === "create" || z.kind === "update").length;
+  if (zoneWrites > 0) parts.push({ count: zoneWrites, label: `zone${zoneWrites === 1 ? "" : "s"}` });
   return parts;
 });
 

@@ -163,6 +163,7 @@ import {
   decodeFogMask,
   encodeFogMask,
   roundBrushCells,
+  shouldSeedFog,
   type BrushMode,
   type CellKey,
 } from "@/lib/battlemap/fogMask";
@@ -248,22 +249,22 @@ watch(
   { immediate: true },
 );
 
-// Whether this go-live session has already seeded the room's fog. Tracked
-// separately from the mask itself: inferring "not yet seeded" from
-// `fogMask.size === 0` (the old approach) meant a DM's "Hide all" — which IS
-// an empty mask — got silently re-seeded by the next surface recompute
-// (regions refetching, etc.), undoing the DM's own action. Reset only on the
-// false→true transition, i.e. a genuine new go-live, not on every recompute.
-const seededForLive = ref(false);
-watch(isLive, (live, wasLive) => {
-  if (live && !wasLive) seededForLive.value = false;
-});
-
 // Entering combat seeds the party into the room they already occupy, and
 // starts the room's own cells revealed — "you are standing in it" (frame
 // 13/16). Token placement is idempotent on its own (only fills combatants
 // with no position yet), so it re-runs every call; the fog seed is gated on
-// `seededForLive` instead, so it fires exactly once per go-live.
+// the row's own `fog_mask`, not a local flag. A component-local "already
+// seeded" ref resets on every mount — a browser refresh, or the second
+// window `openBattleMapInNewWindow` opens — so it goes false again while the
+// encounter is already live and this function then replaces whatever the DM
+// had revealed mid-fight with just the focus room. `fog_mask` is server
+// truth instead: `goLive` (useEncounterLive.ts) writes it to null on every
+// fresh go-live and nothing writes it back to null afterwards, so
+// `shouldSeedFog` answers "never seeded this fight" correctly across any
+// number of remounts. It also tells a DM's explicit "Hide all" (an empty
+// mask, encoded `""`) apart from "never seeded" (`null`) — the case the old
+// local flag could not distinguish, which let a surface recompute quietly
+// undo a DM's own "Hide all".
 function seedRoomIfNeeded() {
   const s = surface.value;
   if (!s || s.focusCells.length === 0) return;
@@ -279,9 +280,14 @@ function seedRoomIfNeeded() {
     }
   });
 
-  if (!seededForLive.value) {
+  if (liveState.value && shouldSeedFog(liveState.value.fog_mask)) {
     fogMask.value = seedFogMask(s.focusCells);
-    seededForLive.value = true;
+    // Mark the row seeded locally right away. The push below is debounced
+    // and only mirrors the patch into `liveState` once the write returns, so
+    // a surface recompute landing in that window (regions refetching) would
+    // otherwise read `null` again and seed a second time over whatever the
+    // DM had already brushed.
+    liveState.value = { ...liveState.value, fog_mask: encodeFogMask(fogMask.value) };
     changed = true;
   }
 

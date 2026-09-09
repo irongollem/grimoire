@@ -92,11 +92,13 @@ function joinSubtitle(parts: ReadonlyArray<string | null | undefined>, fallback:
   return bits.length ? bits.join(" · ") : fallback;
 }
 
-function featureDcPhrase(feature: Pick<DungeonFeature, "investigation_dc" | "perception_dc">): string | null {
-  // Perception first — frame 11 reads "Undiscovered · Perception DC 16", and
-  // the trap rows above already lead with the passive (Perception) DC, so a
-  // hidden door's phrase follows the same convention rather than favouring
-  // Investigation just because it happens to be checked first.
+/**
+ * Perception first — frame 11 reads "Undiscovered · Perception DC 16", and
+ * the trap rows above already lead with the passive (Perception) DC. Shared
+ * with `preparedMarks.ts`'s `featureSubtitle` so the map layer and the room
+ * stack never disagree about which DC a feature leads with (#868 follow-up).
+ */
+export function featureDcPhrase(feature: Pick<DungeonFeature, "investigation_dc" | "perception_dc">): string | null {
   if (feature.perception_dc != null) return `Perception DC ${feature.perception_dc}`;
   if (feature.investigation_dc != null) return `Investigation DC ${feature.investigation_dc}`;
   return null;

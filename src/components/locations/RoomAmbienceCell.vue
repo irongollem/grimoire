@@ -28,7 +28,7 @@
         :class="chipClass"
       >{{ chipValue }}</span>
       <AppButton
-        v-if="resolved.kind === 'inherited' || resolved.kind === 'none'"
+        v-if="resolved.kind !== 'own' && resolved.kind !== 'silence'"
         variant="ghost"
         size="inline-xs"
         label="Set…"
@@ -98,16 +98,18 @@ function cancelEdit(): void {
   editing.value = false;
 }
 
-const silent = computed(() => props.resolved.kind === "silence");
-const declaredHere = computed(() => props.resolved.from?.id === props.locationId);
+const silent = computed(() => props.resolved.kind === "silence" || props.resolved.kind === "silence-inherited");
 
 // If/else rather than a switch: oxlint's `vue/return-in-computed-property`
 // flags an exhaustive switch as a missing return even when every case does,
 // the same false positive `lib/locations/tree.ts` documents on its own loop.
+//
+// "own" and "silence" are this location's own answer; every other kind
+// (including "silence-inherited") reads from further up, hence "Inherits ·".
 const prefix = computed(() => {
   if (props.resolved.kind === "own") return "Own theme →";
-  if (props.resolved.kind === "silence") return declaredHere.value ? "Deliberately silent →" : "Inherits ·";
-  if (props.resolved.kind === "inherited") return "Inherits ·";
+  if (props.resolved.kind === "silence") return "Deliberately silent →";
+  if (props.resolved.kind === "inherited" || props.resolved.kind === "silence-inherited") return "Inherits ·";
   return "No ambience";
 });
 

@@ -62,13 +62,16 @@ describe("RoomAmbienceCell", () => {
       props: {
         locationId: "room-1",
         ownTheme: null,
-        resolved: resolved({ theme: null, from: { id: "site-1", parent_id: null, audio_theme: "silence", name: "Site" }, kind: "silence" }),
+        resolved: resolved({ theme: null, from: { id: "site-1", parent_id: null, audio_theme: "silence", name: "Site" }, kind: "silence-inherited" }),
         themeOptions: [],
       },
     });
     expect(wrapper.text()).toContain("Inherits ·");
     expect(wrapper.text()).toContain("silence");
     expect(wrapper.text()).not.toContain("Deliberately silent");
+    // The affordance must agree with the caption: nothing is declared here,
+    // so the row offers Set…, not the pencil an owned value gets.
+    expect(wrapper.text()).toContain("Set…");
   });
 
   it("renders none with no chip", () => {

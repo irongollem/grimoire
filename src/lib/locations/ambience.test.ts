@@ -47,12 +47,21 @@ describe("resolveInheritedTheme", () => {
     });
   });
 
-  it("carries an ancestor's silence down to an inheriting room", () => {
+  it("carries an ancestor's silence down to an inheriting room as 'silence-inherited', distinct from own silence", () => {
     const byId = index(
       place({ id: "site", audio_theme: "silence" }),
       place({ id: "room", parent_id: "site", audio_theme: null }),
     );
     expect(resolveInheritedTheme("room", byId)).toEqual({
+      theme: null,
+      from: byId.get("site"),
+      kind: "silence-inherited",
+    });
+  });
+
+  it("keeps a site's own declared silence as 'silence', not 'silence-inherited'", () => {
+    const byId = index(place({ id: "site", audio_theme: "silence" }));
+    expect(resolveInheritedTheme("site", byId)).toEqual({
       theme: null,
       from: byId.get("site"),
       kind: "silence",

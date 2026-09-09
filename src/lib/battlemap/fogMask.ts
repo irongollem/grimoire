@@ -18,6 +18,19 @@ export function decodeFogMask(encoded: string | null | undefined): Set<CellKey> 
   return result;
 }
 
+/**
+ * Whether a live encounter's fog has never been seeded. `null`/`undefined` is
+ * that "never seeded" state — `goLive` writes `fog_mask: null` on every fresh
+ * go-live, and nothing ever writes it back to null afterwards, so a seeded
+ * row stays seeded across a remount (a refresh, or a second map window).
+ * An empty string is "Hide all" — a real DM choice made *after* seeding —
+ * and must read as already-seeded, not as "never seeded", or the next
+ * surface recompute would silently undo it.
+ */
+export function shouldSeedFog(encoded: string | null | undefined): boolean {
+  return encoded == null;
+}
+
 export interface BrushInput {
   pixelX: number;
   pixelY: number;

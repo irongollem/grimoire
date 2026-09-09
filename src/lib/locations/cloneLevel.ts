@@ -108,7 +108,7 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
     parent_id: site.parent_id,
     name: `${site.name} (copy)`,
     location_type: site.location_type,
-    description: null,
+    description: site.description,
     map_url: site.map_url,
     source_map_id: site.source_map_id,
     grid_calibration: site.grid_calibration,

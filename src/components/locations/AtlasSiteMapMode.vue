@@ -127,10 +127,10 @@ import { useLocationMapRegions } from "@/composables/locations/useLocationMapReg
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { IconChevronRight, IconChevronUp, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
+import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { planAscent, planDescent, regionOrigin } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
-import { childrenOf } from "@/lib/locations/tree";
 import type { AtlasIndex } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
 
@@ -282,39 +282,31 @@ function clearZoom() {
 onBeforeUnmount(clearZoom);
 
 // ── Levels (#868, frame 06) — "not a new table: it lists this site's
-//    children that are themselves sites, ordered by `sort_order`." A level is
-//    a sibling site: when THIS place has no levels of its own but its parent
-//    is a site, the rail lists the parent's children instead and marks this
-//    one active. Built entirely off the already-loaded `index` — no query of
-//    its own beyond the room-state batch below. ─────────────────────────────
-const childSites = computed(() => children.filter((c) => isSiteType(c.location_type)));
+//    children that are themselves sites, ordered by `sort_order`." A level's
+//    number must be the same no matter which level's page it is read from —
+//    S is 1, A is 2, B is 3, whether the DM is looking at S, A, or B — so the
+//    list is always anchored on the container (the site that HAS the levels),
+//    never on whichever end `location` happens to be: viewing S, the
+//    container is S itself; viewing A or B, `levelsOf` resolves the same
+//    container (S) via `parent_id` and returns the identical list. Before
+//    this, the two branches disagreed — the child branch listed the parent's
+//    children WITHOUT the parent, so the DM saw "Level 2 · A" from S's page
+//    and "Level 1 · A" one click later, on A's own. `levelsOf` is shared with
+//    `SiteLevelsColumn` and `AtlasPlacePane` so all three surfaces agree.
+//    Built entirely off the already-loaded `index` — no query of its own
+//    beyond the room-state batch below. ──────────────────────────────────────
+const levelsInfo = computed(() => levelsOf(index, location));
 
 /** Whose children the rail is listing — this site's own, or its parent's. */
-const levelsContainer = computed<Location | null>(() => {
-  if (childSites.value.length > 0) return location;
-  if (!location.parent_id) return null;
-  const parent = index.byId.get(location.parent_id);
-  return parent && isSiteType(parent.location_type) ? parent : null;
-});
+const levelsContainer = computed<Location | null>(() => levelsInfo.value?.container ?? null);
 
-/**
- * "1 · Undercroft" marks active alongside its own child sites (frame 06) —
- * the site being viewed is always level 1 of itself, so it's prepended
- * rather than left out of a list it is, in fact, the head of. The sibling
- * branch already listed this place among the rail's own entries.
- */
-const levelSites = computed<Location[]>(() => {
-  if (childSites.value.length > 0) return [location, ...childSites.value];
-  const container = levelsContainer.value;
-  return container ? childrenOf(index, container.id).filter((c) => isSiteType(c.location_type)) : [];
-});
+const levelSites = computed<Location[]>(() => levelsInfo.value?.levels ?? []);
 
 const showLevelsRail = computed(() => levelSites.value.length > 0);
 
-const currentLevelOrdinal = computed(() => {
-  const idx = levelSites.value.findIndex((l) => l.id === location.id);
-  return idx === -1 ? null : idx + 1;
-});
+const currentLevelOrdinal = computed(() =>
+  levelsInfo.value ? levelOrdinal(levelsInfo.value.levels, location.id) : null,
+);
 
 /** "2 stairs down" trail chip — every vertical way out this site itself has,
  *  from the same door graph the Ways out panel already reads. */
@@ -323,7 +315,9 @@ const verticalWaysCount = computed(() => verticalWays(siteStructureDoors.value).
 function onLevelSelect(id: string) {
   if (id === location.id) return; // already here — the rail's own active row
   // Our own children — the same zoom a pin gives, per the frame's own words.
-  if (childSites.value.length > 0) descendTo(id);
+  // (`levelsContainer` is `location` itself exactly when it has its own
+  // site-typed children — see `levelsOf`.)
+  if (levelsContainer.value?.id === location.id) descendTo(id);
   // A sibling level: a plain selection, not a descent between two maps that
   // don't stand in a parent/child relationship to each other.
   else emit("select", id);

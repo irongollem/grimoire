@@ -13,6 +13,18 @@
         />
         <path :d="group.outline" fill="none" :stroke="group.stroke" stroke-width="0.05" />
       </g>
+      <g v-for="group in zoneCellGroups" :key="group.key">
+        <rect
+          v-for="(r, i) in group.rects"
+          :key="i"
+          :x="r.x"
+          :y="r.y"
+          :width="r.w"
+          :height="r.h"
+          :fill="group.fill"
+        />
+        <path :d="group.outline" fill="none" :stroke="group.stroke" stroke-width="0.05" stroke-dasharray="0.15,0.1" />
+      </g>
       <line
         v-for="(bar, i) in doorBars"
         :key="`door-${i}`"
@@ -26,7 +38,7 @@
       />
     </svg>
     <ul class="flex flex-wrap gap-x-4 gap-y-1 text-caption-sm text-muted-foreground">
-      <li v-for="entry in LEGEND" :key="entry.label" class="flex items-center gap-1.5">
+      <li v-for="entry in legendEntries" :key="entry.label" class="flex items-center gap-1.5">
         <span class="h-2.5 w-2.5 rounded-sm shrink-0" :style="{ background: entry.swatch }" />
         {{ entry.label }}
       </li>
@@ -45,10 +57,20 @@
  * it by hand. The frame's four-entry legend (New/Changed/Gone/Unchanged) has
  * no fifth bucket for that, and visually it reads exactly like a change that
  * happened not to apply.
+ *
+ * Zones draw as a second, dashed-outline layer on top, tinted per kind with
+ * `ZONE_KIND_FILL` — the same swatch the live Cartographer canvas
+ * (`renderMap.ts`'s `ZONE_RENDER_COLOURS`) and the Atlas's own `MapRegionsLayer`
+ * use, so a zone reads the same colour everywhere it is drawn. That is a
+ * different question from the four-bucket diff above (a zone binds nothing,
+ * so there is no "held" case to fold in) — its legend entries are appended
+ * dynamically, one per kind actually present in the plan.
  */
 import { computed } from "vue";
 import { cellsRects, edgeSegment, outlinePath, planViewBox } from "@/lib/locations/planSvg";
 import type { PublishPlan } from "@/lib/locations/publish";
+import { ZONE_KIND_FILL } from "@/lib/locations/zones";
+import { ZONE_KIND_LABELS, type ZoneKind } from "@/types/locationMapRegion.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 
 const COLORS = {
@@ -92,6 +114,41 @@ const cellGroups = computed(() =>
     })),
 );
 
+// Every zone in the plan draws — create/update/skip alike, since the
+// preview's job here is "what the site will look like", not "what changed"
+// (that distinction is `PublishPlanRows`' Zones section). Grouped by kind
+// rather than by change, so two zones of the same kind share one outline
+// path the way `cellGroups` shares one per diff bucket.
+const zoneCellsByKind = computed<Partial<Record<ZoneKind, CellKey[]>>>(() => {
+  const buckets: Partial<Record<ZoneKind, CellKey[]>> = {};
+  for (const change of plan.zones) {
+    (buckets[change.zone.kind] ??= []).push(...change.zone.cells);
+  }
+  return buckets;
+});
+
+const zoneCellGroups = computed(() =>
+  (Object.keys(zoneCellsByKind.value) as ZoneKind[])
+    .filter((kind) => (zoneCellsByKind.value[kind]?.length ?? 0) > 0)
+    .map((kind) => {
+      const cells = zoneCellsByKind.value[kind]!;
+      return {
+        key: `zone:${kind}`,
+        rects: cellsRects(cells),
+        outline: outlinePath(cells),
+        fill: ZONE_KIND_FILL[kind].fill,
+        stroke: ZONE_KIND_FILL[kind].stroke,
+      };
+    }),
+);
+
+const legendEntries = computed(() => [
+  ...LEGEND,
+  ...(Object.keys(zoneCellsByKind.value) as ZoneKind[])
+    .filter((kind) => (zoneCellsByKind.value[kind]?.length ?? 0) > 0)
+    .map((kind) => ({ label: ZONE_KIND_LABELS[kind], swatch: ZONE_KIND_FILL[kind].fill })),
+]);
+
 interface DoorBar {
   x1: number;
   y1: number;
@@ -111,6 +168,14 @@ const doorBars = computed<DoorBar[]>(() =>
   }),
 );
 
-const viewBox = computed(() => planViewBox(Object.values(bucketedCells.value)) ?? { minX: 0, minY: 0, width: 1, height: 1 });
+const viewBox = computed(
+  () =>
+    planViewBox([...Object.values(bucketedCells.value), ...Object.values(zoneCellsByKind.value)]) ?? {
+      minX: 0,
+      minY: 0,
+      width: 1,
+      height: 1,
+    },
+);
 const viewBoxAttr = computed(() => `${viewBox.value.minX} ${viewBox.value.minY} ${viewBox.value.width} ${viewBox.value.height}`);
 </script>

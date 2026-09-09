@@ -134,6 +134,14 @@ export function useEncounterLive(encounterId: MaybeRefOrGetter<string | null>) {
       combatants_live: state.combatants,
       events_fired: [],
       started_at: new Date().toISOString(),
+      // Upsert on `encounter_id` means a second go-live of the same encounter
+      // (a new fight after a previous one ended) would otherwise inherit the
+      // last fight's mask — nothing clears `fog_mask` on end, since it also
+      // feeds the "explored" sync read on end-combat. Null it here instead,
+      // on the row's own onConflict update, so the battle-map view's own seed
+      // check (`shouldSeedFog`, fogMask.ts) reliably fires exactly once per
+      // go-live rather than once per encounter ever.
+      fog_mask: null,
     };
     const { data, error } = await supabase
       .from("encounter_state")

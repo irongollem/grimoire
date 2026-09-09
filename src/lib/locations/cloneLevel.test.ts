@@ -83,7 +83,14 @@ function door(over: Partial<LocationDoor> = {}): LocationDoor {
 }
 
 describe("planCloneLevel", () => {
-  const site = loc({ id: "site", name: "Undercroft", parent_id: "region-1", map_url: "/map.webp", source_map_id: "map-1" });
+  const site = loc({
+    id: "site",
+    name: "Undercroft",
+    parent_id: "region-1",
+    map_url: "/map.webp",
+    source_map_id: "map-1",
+    description: "A damp crypt beneath the chapel.",
+  });
   const room1 = loc({ id: "room-1", name: "Nave", parent_id: "site", location_type: "room" });
   const room2 = loc({ id: "room-2", name: "Cell", parent_id: "site", location_type: "room" });
 
@@ -94,6 +101,11 @@ describe("planCloneLevel", () => {
     expect(plan.siteInsert.map_url).toBe("/map.webp");
     expect(plan.siteInsert.source_map_id).toBe("map-1");
     expect(plan.siteInsert.map_published_rev).toBeUndefined();
+  });
+
+  it("carries the site's own description over to the clone, same as a room's", () => {
+    const plan = planCloneLevel({ site, rooms: [room1, room2], regions: [], doors: [] });
+    expect(plan.siteInsert.description).toBe("A damp crypt beneath the chapel.");
   });
 
   it("plans one room per source room, keyed by source id", () => {

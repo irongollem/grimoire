@@ -259,6 +259,7 @@ import {
   IconQuest,
 } from "@/lib/icons";
 import { isLocationOutOfEra } from "@/lib/locations/era";
+import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { visibleTags } from "@/lib/locations/tags";
 import { groupByTier, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
 import type { LocationTier, TierGroup } from "@/lib/locations/tiers";
@@ -391,16 +392,17 @@ const eraLabel = computed(() => {
 
 /**
  * "Level N" for a nested-site child of a site (#868, frame 02) — N is the
- * child's 1-based position among its site siblings, already in
- * `compareSiblings` order via `groupByTier`. Every child in the `site` tier
- * bucket of an `isSite` parent's own `groups` IS a nested site by
- * construction (`tierOf` only assigns that tier to the six site-shaped
- * types), so no extra type check is needed beyond the group itself.
+ * child's 1-based position in `levelsOf`'s list, which is `location` itself
+ * (level 1) followed by its site-typed children in `compareSiblings` order.
+ * Shared with the Map-mode rail (`AtlasSiteMapMode`, `SiteLevelsColumn`) so
+ * Contents mode and Map mode never disagree on the same page — they used to,
+ * because this chip numbered `group.locations` on its own, which excludes
+ * the parent the rail counts as level 1.
  */
 function levelChipFor(group: TierGroup, child: Location): number | null {
-  if (!isSite.value || group.tier !== "site") return null;
-  const idx = group.locations.findIndex((l) => l.id === child.id);
-  return idx === -1 ? null : idx + 1;
+  if (!isSite.value || group.tier !== "site" || !location) return null;
+  const info = levelsOf(index, location);
+  return info ? levelOrdinal(info.levels, child.id) : null;
 }
 
 function rowFor(child: Location): AtlasRow {
