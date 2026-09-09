@@ -108,11 +108,60 @@ describe("SiteRoomList", () => {
     expect(mocks.setLocation).not.toHaveBeenCalled();
   });
 
-  it("renders an unwritten room dashed, with a Fill button that opens an inline editor", async () => {
-    const rooms = [room({ id: "room-a", description: null })];
+  it("keeps the plain description caption when runCaptions is off, even with reachability data present", () => {
+    const rooms = [room({ id: "room-a" }), room({ id: "room-b", name: "Antechamber" })];
+    const wrapper = mount(SiteRoomList, {
+      props: baseProps(rooms, { currentRoomId: "room-a", reachable: new Set(["room-a"]) }),
+      global: { stubs },
+    });
+    expect(wrapper.text()).not.toContain("Not reachable from here");
+    expect(wrapper.text()).toContain("Athletics DC 12");
+  });
+
+  it("switches to reachability captions once runCaptions is on", () => {
+    const rooms = [room({ id: "room-a" }), room({ id: "room-b", name: "Antechamber" })];
+    // An unreachable room renders its title through a real RouterLink
+    // (`linkTo` points at its sheet), and the plain `RouterLink: true` stub
+    // used elsewhere in this file swallows slot content — so this test needs
+    // a stub that keeps it, to actually see the room's caption.
+    const linkStubs = { RouterLink: { template: "<a><slot /></a>" }, RichTextEditor: true };
+    const wrapper = mount(SiteRoomList, {
+      props: baseProps(rooms, { currentRoomId: "room-a", reachable: new Set(["room-a"]), runCaptions: true }),
+      global: { stubs: linkStubs },
+    });
+    expect(wrapper.text()).toContain("Party here");
+    expect(wrapper.text()).toContain("Not reachable from here");
+  });
+
+  it("appends the active zone note to the current room's caption", () => {
+    const rooms = [room({ id: "room-a" })];
+    const wrapper = mount(SiteRoomList, {
+      props: baseProps(rooms, { currentRoomId: "room-a", runCaptions: true, zoneNotes: new Map([["room-a", "ash-fall zone"]]) }),
+      global: { stubs },
+    });
+    expect(wrapper.text()).toContain("Party here · ash-fall zone active");
+  });
+
+  it("prefers 'Secret door — undiscovered' over a plain reachable caption, with a badge", () => {
+    const rooms = [room({ id: "room-a" }), room({ id: "room-b", name: "Abbot's Cell" })];
+    const wrapper = mount(SiteRoomList, {
+      props: baseProps(rooms, {
+        currentRoomId: "room-a",
+        reachable: new Set(["room-a", "room-b"]),
+        runCaptions: true,
+        secretUndiscoveredIds: new Set(["room-b"]),
+      }),
+      global: { stubs },
+    });
+    expect(wrapper.text()).toContain("Secret door — undiscovered");
+    expect(wrapper.find('[title="Reachable only through an undiscovered secret door"]').exists()).toBe(true);
+  });
+
+  it("renders an unwritten room dashed, keeping its name as the title, with a Fill button that opens an inline editor", async () => {
+    const rooms = [room({ id: "room-a", name: "Nave of Ash", description: null })];
     const wrapper = mount(SiteRoomList, { props: baseProps(rooms), global: { stubs } });
-    expect(wrapper.text()).toContain("Unwritten");
-    expect(wrapper.text()).toContain("Prep gap — write it or roll it");
+    expect(wrapper.text()).toContain("Nave of Ash");
+    expect(wrapper.text()).toContain("Unwritten — write it or roll it");
 
     const fillButton = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.text() === "Fill");
     await fillButton!.trigger("click");

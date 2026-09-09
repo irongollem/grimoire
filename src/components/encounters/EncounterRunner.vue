@@ -142,14 +142,14 @@ import { useRouter, useRoute } from "vue-router";
 import { IconDiceRoll, IconDungeon, IconEncounter, IconFlag, IconLive, IconMap } from '@/lib/icons';
 import ManualHelpLink from '@/components/common/ManualHelpLink.vue';
 import { useEncounter } from "@/composables/encounters/useEncounters";
-import { useLocation } from "@/composables/locations/useLocations";
+import { useCombatExploration } from "@/composables/encounters/useCombatExploration";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useParty, useUpdatePartyMember } from "@/composables/party/useParty";
 import { useCompanions, useUpdateCompanion } from "@/composables/encounters/useCompanions";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { buildNpcSyncUpdate } from "@/lib/encounters/npcEncounterSync";
-import { useEncounterLive } from "@/composables/encounters/useEncounterLive";
+import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
 import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import { useUiStore } from "@/stores/ui";
@@ -185,21 +185,11 @@ const { data: monsters } = useAllMonsters(() => ({ includeAllScopes: true }));
 const { data: partyMembers } = useParty();
 const { data: companions } = useCompanions();
 const { data: encounter } = useEncounter(encounterId);
-const battleMapLocationId = computed(() => encounter.value?.location_id ?? "");
-const { data: battleMapLocation } = useLocation(battleMapLocationId);
-
-const canOpenBattleMap = computed(() =>
-  !!battleMapLocation.value?.is_battle_map &&
-  !!battleMapLocation.value?.map_url &&
-  !!battleMapLocation.value?.grid_calibration,
-);
-const battleMapDisabledReason = computed(() => {
-  if (!encounter.value?.location_id) return "Link this encounter to a location to use the battle map";
-  if (!battleMapLocation.value?.map_url) return "The linked location has no map";
-  if (!battleMapLocation.value?.is_battle_map) return 'Toggle "Battle map" on the location to enable the VTT';
-  if (!battleMapLocation.value?.grid_calibration) return "Calibrate the location's map first";
-  return "";
-});
+// Shared with EncounterMapView (via useEncounterRoom internally) — the two
+// views must never disagree about which map an encounter opens on, which
+// cells are its focus room, or when the battle map is legal to open.
+const { canOpenBattleMap, battleMapDisabledReason, markRoomsExploredFromFogMask } =
+  useCombatExploration(encounterId);
 
 function openBattleMapInNewWindow() {
   window.open(`/encounters/${encounterId.value}/run/map`, "_blank", "noopener,noreferrer");
@@ -462,6 +452,10 @@ async function handleEndCombat() {
   if (!await confirm("End combat? Party HP, conditions, and curses will be updated.")) return;
   // Cancel any pending HP debounce — end-combat does its own authoritative write below.
   cancelPendingHpFlush();
+  // Read before endLive() clears it — leaving asserts explored for whatever
+  // the room-anchored fog mask actually revealed (frame 16), never the
+  // reverse: un-brushing a cell never un-explores a room.
+  const fogMaskAtEnd = liveState.value?.fog_mask ?? null;
   await endLive();
   // Hands the music slot back to whatever was playing before the fight, or
   // stops it if the DM had nothing running.
@@ -497,6 +491,10 @@ async function handleEndCombat() {
       }),
     ),
   ]);
+
+  // One prompt, not seven toggles (frame 16): every room the party actually
+  // saw this fight becomes one confirm, not a per-room decision.
+  await markRoomsExploredFromFogMask(fogMaskAtEnd);
 
   store.reset();
   router.push(`/encounters/${encounterId.value}`);

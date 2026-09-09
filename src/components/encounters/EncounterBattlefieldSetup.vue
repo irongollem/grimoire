@@ -48,7 +48,7 @@
             preserveAspectRatio="none"
           >
             <image
-              :href="location?.map_url ?? undefined"
+              :href="mapLocation?.map_url ?? undefined"
               :x="panX"
               :y="panY"
               :width="imageNaturalW * scale"
@@ -93,8 +93,8 @@
           />
 
           <img
-            v-if="location?.map_url && !imageReady"
-            :src="location.map_url"
+            v-if="mapLocation?.map_url && !imageReady"
+            :src="mapLocation.map_url"
             class="hidden-loader"
             @load="onImageLoad"
           />
@@ -106,7 +106,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from "vue";
-import { useLocation } from "@/composables/locations/useLocations";
+import { useLocationBattleSurface } from "@/composables/encounters/useEncounterRoom";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
@@ -132,21 +132,38 @@ const emit = defineEmits<{
   "update:combatants": [combatants: CombatantDef[]];
 }>();
 
+// Resolved the same way the runner and EncounterMapView resolve it: a room
+// with no map of its own places tokens on its site's published plan instead
+// of staying disabled, because that plan — not the room's own (absent)
+// map_url — is what combat actually draws (epic #868, frame 13).
 const locationIdRef = computed(() => props.locationId ?? "");
-const { data: location } = useLocation(locationIdRef);
+const { location, surface, mapLocation } = useLocationBattleSurface(locationIdRef);
 
-const isReady = computed(
-  () =>
-    !!location.value?.is_battle_map &&
-    !!location.value?.map_url &&
-    !!location.value?.grid_calibration,
-);
+const isReady = computed(() => {
+  const s = surface.value;
+  if (!s) return false;
+  return s.focusRoomId !== null || !!s.mapLocation.is_battle_map;
+});
 const readinessHint = computed(() => {
   if (!props.locationId) return "Pick a location with a calibrated battle map to enable placement.";
   if (!location.value) return "Loading location…";
-  if (!location.value.map_url) return "The linked location has no map.";
-  if (!location.value.is_battle_map) return "Tick \"Battle map\" on the location to enable placement.";
-  if (!location.value.grid_calibration) return "Calibrate the location's map to enable placement.";
+  const s = surface.value;
+  if (!s) {
+    // Check map_url first: a room can carry its own uncalibrated map even
+    // while its site's plan is also uncalibrated — that needs "calibrate",
+    // not "no map of its own", since the room does have one.
+    if (location.value.location_type === "room") {
+      return location.value.map_url
+        ? "This room's map isn't calibrated yet — calibrate it to enable placement."
+        : "This room has no map of its own, and its site isn't calibrated either.";
+    }
+    return location.value.map_url
+      ? "Calibrate the location's map to enable placement."
+      : "The linked location has no map.";
+  }
+  if (s.focusRoomId === null && !s.mapLocation.is_battle_map) {
+    return "Tick \"Battle map\" on the location to enable placement.";
+  }
   return "";
 });
 
@@ -269,24 +286,24 @@ const {
 } = useMapCanvas();
 
 const cellPx = computed(() =>
-  location.value?.grid_calibration
+  mapLocation.value?.grid_calibration
     ? cellSizeInDisplay({
         imageNaturalWidth: imageNaturalW.value,
-        cellsPerImageWidth: location.value.grid_calibration.cells_per_image_width,
+        cellsPerImageWidth: mapLocation.value.grid_calibration.cells_per_image_width,
         scale: scale.value,
       })
     : 0,
 );
 const gridOrigin = computed(() =>
-  location.value?.grid_calibration
+  mapLocation.value?.grid_calibration
     ? gridOriginInDisplay({
         panX: panX.value,
         panY: panY.value,
         scale: scale.value,
         imageNaturalWidth: imageNaturalW.value,
         imageNaturalHeight: imageNaturalH.value,
-        originXPct: location.value.grid_calibration.origin_x_pct,
-        originYPct: location.value.grid_calibration.origin_y_pct,
+        originXPct: mapLocation.value.grid_calibration.origin_x_pct,
+        originYPct: mapLocation.value.grid_calibration.origin_y_pct,
       })
     : { x: 0, y: 0 },
 );
@@ -297,13 +314,14 @@ const gridHorizontals = computed(() =>
   cellPx.value > 0 ? gridLinePositions(gridOrigin.value.y, hostH.value, cellPx.value) : [],
 );
 const gridStrokeOpacity = computed(
-  () => location.value?.grid_calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
+  () => mapLocation.value?.grid_calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
 
-// Reset imageReady when the location's map_url changes so a different map
+// Reset imageReady when the resolved map's URL changes so a different map
+// (including switching between a room's own map and its site's plan)
 // re-fits and re-renders cleanly.
 watch(
-  () => location.value?.map_url,
+  () => mapLocation.value?.map_url,
   () => {
     imageReady.value = false;
   },

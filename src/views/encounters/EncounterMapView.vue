@@ -1,72 +1,21 @@
 <template>
   <div class="map-root">
-    <!-- Top bar -->
-    <div class="map-topbar">
-      <RouterLink :to="`/encounters/${encounterId}/run`" class="back-link">
-        ← Back to Runner
-      </RouterLink>
-      <span class="encounter-name">{{ encounter?.name ?? "" }}</span>
-      <ManualHelpLink page="encounter-map-battle-map-fog-of-war" />
-
-      <!-- Fog toolbox -->
-      <div class="fog-toolbox">
-        <span class="fog-label">Fog</span>
-        <div class="tool-group" role="radiogroup" aria-label="Tool">
-          <button
-            v-for="t in TOOLS"
-            :key="t.id"
-            type="button"
-            class="tool-btn"
-            :class="{ 'tool-btn-active': tool === t.id }"
-            :title="t.label"
-            @click="tool = t.id"
-          >
-            {{ t.icon }}
-          </button>
-        </div>
-        <template v-if="tool !== 'pan'">
-          <div class="tool-group" role="radiogroup" aria-label="Brush shape">
-            <button
-              v-for="s in BRUSH_SHAPES"
-              :key="s.id"
-              type="button"
-              class="tool-btn"
-              :class="{ 'tool-btn-active': brushShape === s.id }"
-              :title="s.label"
-              @click="brushShape = s.id"
-            >
-              {{ s.icon }}
-            </button>
-          </div>
-          <div class="tool-group" role="radiogroup" aria-label="Brush size">
-            <button
-              v-for="n in BRUSH_SIZES"
-              :key="n"
-              type="button"
-              class="tool-btn"
-              :class="{ 'tool-btn-active': brushSize === n }"
-              :title="`${n} cells`"
-              @click="brushSize = n"
-            >
-              {{ n }}
-            </button>
-          </div>
-        </template>
-        <button class="zoom-btn" title="Reveal everything (clear fog)" @click="resetFog('reveal')">Reveal all</button>
-        <button class="zoom-btn" title="Re-hide everything (reset fog)" @click="resetFog('hide')">Hide all</button>
-        <AppCheckbox
-          v-model="previewAsPlayer"
-          label="As player"
-          label-class="fog-label"
-          class="inline-flex items-center gap-1"
-        />
-      </div>
-
-      <div class="topbar-right">
-        <span class="hint">{{ Math.round(scale * 100) }}%</span>
-        <button class="zoom-btn" title="Reset view" @click="resetView">Reset</button>
-      </div>
-    </div>
+    <BattleMapToolbar
+      v-model:tool="tool"
+      v-model:brush-shape="brushShape"
+      v-model:brush-size="brushSize"
+      v-model:show-zones="showZones"
+      v-model:preview-as-player="previewAsPlayer"
+      :title="title"
+      :caption="caption"
+      :site-target="siteTarget"
+      :site-tooltip="siteTooltip"
+      :token-count="store.combatants.length"
+      :calibration-from-publish="calibrationFromPublish"
+      :scale-percent="Math.round(scale * 100)"
+      @reset-fog="resetFog"
+      @reset-view="resetView"
+    />
 
     <!-- Body -->
     <div
@@ -121,6 +70,21 @@
         </g>
       </svg>
 
+      <!-- Room focus layer: dims the plan outside the encounter's room and
+           outlines it + its terrain zones (frame 13). Only when the map is a
+           site plan the encounter is anchored to a room on — a plain
+           location map has nothing to focus around. -->
+      <BattleMapRoomFocusLayer
+        v-if="surface?.focusRoomId && imageReady && cellPx > 0"
+        :host-w="hostW"
+        :host-h="hostH"
+        :cell-px="cellPx"
+        :origin-x="gridOrigin.x"
+        :origin-y="gridOrigin.y"
+        :focus-cells="surface.focusCells"
+        :zones="showZones ? terrainZones : []"
+      />
+
       <!-- Token layer (DM-side: renders all combatants regardless of reveal_state) -->
       <BattleMapTokenLayer
         v-if="location && imageReady && cellPx > 0"
@@ -159,21 +123,27 @@
         @load="onImageLoad"
       />
     </div>
+
+    <BattleMapLegend :zones="terrainZones" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { useRoute, RouterLink } from "vue-router";
-import { useEncounter } from "@/composables/encounters/useEncounters";
-import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
-import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import { useLocation } from "@/composables/locations/useLocations";
+import { useRoute } from "vue-router";
+import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
+import BattleMapRoomFocusLayer from "@/components/encounters/BattleMapRoomFocusLayer.vue";
+import BattleMapLegend from "@/components/encounters/BattleMapLegend.vue";
+import BattleMapToolbar, {
+  type BattleMapTool,
+  type BattleMapBrushShape,
+} from "@/components/encounters/BattleMapToolbar.vue";
+import { seedFogMask, seedTokenPositions } from "@/lib/battlemap/roomBridge";
 import {
   gridLinePositions,
   cellSizeInDisplay,
@@ -192,11 +162,43 @@ import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 
 const route = useRoute();
 const encounterId = computed(() => route.params.id as string);
-const { data: encounter } = useEncounter(encounterId);
-const locationIdRef = computed(() => encounter.value?.location_id ?? "");
-const { data: location } = useLocation(locationIdRef);
+// `location` here is the map-bearing location — the encounter's own map, or
+// (a room with none of its own) its site's published plan; `encounterLocation`
+// is the encounter's own location, kept only for the diagnostic messages
+// below, which need to tell a room apart from a plain map.
+const {
+  encounter,
+  location: encounterLocation,
+  mapLocation: location,
+  surface,
+  focusRoom,
+  terrainZones,
+} = useEncounterRoom(encounterId);
 const store = useEncounterRunStore();
 const { schedulePush, isLive } = useEncounterLive(encounterId.value);
+const showZones = ref(true);
+
+// Header (frame 13): "<focus room> — <encounter>" over a status line — the
+// segmented control's Site option is what used to be the "← Back to the
+// site" / "← Back to Runner" link, so its target and tooltip keep that same
+// branch (a plain, non-room-anchored map still goes back to the Runner, not
+// to a site page it was never on).
+const siteTarget = computed(() =>
+  surface.value?.focusRoomId
+    ? { path: `/locations/${surface.value.mapLocation.id}`, query: { run: "true" } }
+    : `/encounters/${encounterId.value}/run`,
+);
+const siteTooltip = computed(() => (surface.value?.focusRoomId ? "Back to the site" : "Back to Runner"));
+const title = computed(() => {
+  const encounterName = encounter.value?.name ?? "Loading…";
+  return focusRoom.value ? `${focusRoom.value.name} — ${encounterName}` : encounterName;
+});
+const caption = computed(() => {
+  if (!isLive.value) return "Encounter ready";
+  const n = store.combatants.length;
+  return `Encounter running · round ${store.round} · ${n} combatant${n === 1 ? "" : "s"}`;
+});
+const calibrationFromPublish = computed(() => location.value?.map_published_rev != null);
 
 function onTokenMoved(instanceId: string, position: { x: number; y: number }) {
   const target = store.combatants.find((c) => c.instance_id === instanceId);
@@ -215,22 +217,8 @@ function onTokenMoved(instanceId: string, position: { x: number; y: number }) {
 
 // ── Fog of war ────────────────────────────────────────────────────────────
 
-type Tool = "pan" | "reveal" | "rehide";
-type BrushShape = "round" | "cell";
-
-const TOOLS: { id: Tool; label: string; icon: string }[] = [
-  { id: "pan", label: "Pan map", icon: "✋" },
-  { id: "reveal", label: "Reveal brush", icon: "💡" },
-  { id: "rehide", label: "Re-hide brush", icon: "🌑" },
-];
-const BRUSH_SHAPES: { id: BrushShape; label: string; icon: string }[] = [
-  { id: "round", label: "Round brush", icon: "●" },
-  { id: "cell", label: "Cell brush", icon: "▦" },
-];
-const BRUSH_SIZES = [1, 3, 5] as const;
-
-const tool = ref<Tool>("pan");
-const brushShape = ref<BrushShape>("round");
+const tool = ref<BattleMapTool>("pan");
+const brushShape = ref<BattleMapBrushShape>("round");
 const brushSize = ref<1 | 3 | 5>(3);
 const previewAsPlayer = ref(false);
 const emptyDragSet = new Set<string>();
@@ -244,6 +232,54 @@ watch(
   () => liveState.value?.fog_mask,
   (encoded) => {
     fogMask.value = decodeFogMask(encoded ?? null);
+  },
+  { immediate: true },
+);
+
+// Whether this go-live session has already seeded the room's fog. Tracked
+// separately from the mask itself: inferring "not yet seeded" from
+// `fogMask.size === 0` (the old approach) meant a DM's "Hide all" — which IS
+// an empty mask — got silently re-seeded by the next surface recompute
+// (regions refetching, etc.), undoing the DM's own action. Reset only on the
+// false→true transition, i.e. a genuine new go-live, not on every recompute.
+const seededForLive = ref(false);
+watch(isLive, (live, wasLive) => {
+  if (live && !wasLive) seededForLive.value = false;
+});
+
+// Entering combat seeds the party into the room they already occupy, and
+// starts the room's own cells revealed — "you are standing in it" (frame
+// 13/16). Token placement is idempotent on its own (only fills combatants
+// with no position yet), so it re-runs every call; the fog seed is gated on
+// `seededForLive` instead, so it fires exactly once per go-live.
+function seedRoomIfNeeded() {
+  const s = surface.value;
+  if (!s || s.focusCells.length === 0) return;
+  let changed = false;
+
+  const seeded = seedTokenPositions(store.combatants, s.focusCells, {
+    footprintOf: (c) => c.footprint ?? 1,
+  });
+  seeded.forEach((c, i) => {
+    if (c.position && !store.combatants[i].position) {
+      store.combatants[i].position = c.position;
+      changed = true;
+    }
+  });
+
+  if (!seededForLive.value) {
+    fogMask.value = seedFogMask(s.focusCells);
+    seededForLive.value = true;
+    changed = true;
+  }
+
+  if (changed) pushFog();
+}
+
+watch(
+  () => [isLive.value, surface.value] as const,
+  ([live]) => {
+    if (live) seedRoomIfNeeded();
   },
   { immediate: true },
 );
@@ -328,15 +364,25 @@ const loadingState = computed(() => {
   if (!encounter.value.location_id) {
     return "This encounter is not linked to a location. Set a location with a calibrated map to use the battle view.";
   }
-  if (!location.value) return "Loading location…";
-  if (!location.value.map_url) {
-    return "The linked location has no map. Upload or bake a map for this location first.";
+  if (!encounterLocation.value) return "Loading location…";
+  if (!surface.value) {
+    // Check map_url first: a room can have its own uncalibrated map even
+    // while its site's plan is also uncalibrated, and that case needs
+    // "calibrate", not "no map of its own" — the room does have one.
+    if (encounterLocation.value.location_type === "room") {
+      return encounterLocation.value.map_url
+        ? "This room's map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale."
+        : "This room has no map of its own, and its site isn't calibrated either. Trace and publish a plan for the site first.";
+    }
+    return encounterLocation.value.map_url
+      ? "This map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale."
+      : "The linked location has no map. Upload or bake a map for this location first.";
   }
-  if (!location.value.is_battle_map) {
+  // A room rides its site's own publish — already a legal battle map at
+  // combat's cell scale (frame 13) — so only a plain, non-room-anchored map
+  // still needs the explicit flag that hides tactical art from players.
+  if (surface.value.focusRoomId === null && !surface.value.mapLocation.is_battle_map) {
     return "This location's map isn't marked as a battle map. Open the location and tick \"Battle map\" to use it in the VTT.";
-  }
-  if (!location.value.grid_calibration) {
-    return "This map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale.";
   }
   return null;
 });
@@ -412,99 +458,6 @@ const gridStrokeOpacity = computed(
   min-height: 0;
   background: #0b0b10;
   color: #e7e7ea;
-}
-
-.map-topbar {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.back-link {
-  font-family: var(--font-cinzel, "Cinzel", serif);
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.7);
-  text-decoration: none;
-  transition: color 120ms ease;
-}
-.back-link:hover {
-  color: #fff;
-}
-
-.encounter-name {
-  font-family: var(--font-cinzel, "Cinzel", serif);
-  font-weight: 700;
-  flex: 1;
-}
-
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.hint {
-  font-family: var(--font-fell, "IM Fell English", serif);
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.zoom-btn {
-  font-family: var(--font-cinzel, "Cinzel", serif);
-  font-size: 0.6875rem;
-  letter-spacing: 0.05em;
-  padding: 0.25rem 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 0.25rem;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.75);
-  cursor: pointer;
-}
-.zoom-btn:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
-}
-
-.fog-toolbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-.fog-label {
-  font-family: var(--font-cinzel, "Cinzel", serif);
-  font-size: 0.6875rem;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.55);
-}
-.tool-group {
-  display: inline-flex;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 0.25rem;
-  overflow: hidden;
-}
-.tool-btn {
-  width: 1.75rem;
-  height: 1.75rem;
-  border: 0;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  font-size: 0.875rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.tool-btn:hover {
-  color: #fff;
-}
-.tool-btn-active {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
 }
 
 .map-canvas-host {

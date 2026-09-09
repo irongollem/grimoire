@@ -12,7 +12,7 @@ import type { LootPlacement } from "@/types/quest.types";
 
 /**
  * A room with no authored content at all — the frame's dashed "Unwritten"
- * row, caption "Prep gap — write it or roll it". `extractTiptapText(..., 1)`
+ * row, caption "Unwritten — write it or roll it". `extractTiptapText(..., 1)`
  * is enough to tell "nothing" from "something": a room whose first character
  * survives the extraction has *some* DM content, however short.
  */
@@ -31,7 +31,7 @@ export function unwrittenRoomIds(rooms: readonly Pick<Location, "id" | "descript
  * description, truncated — "Athletics DC 12", "Encounter · 4 sodden husks" —
  * with " · cleared" appended once the room's `cleared` fact is asserted true.
  * Never called for an unwritten room, which renders its own fixed caption
- * ("Prep gap — write it or roll it") instead.
+ * ("Unwritten — write it or roll it") instead.
  */
 export function roomRowCaption(description: string | null, cleared: boolean): string {
   const text = extractTiptapText(description, 60);

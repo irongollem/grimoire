@@ -34,15 +34,20 @@
             {{ indexOf(room) + 1 }}
           </span>
           <span class="min-w-0 flex-1">
-            <span class="block truncate font-cinzel text-label font-bold" :class="unwrittenIds.has(room.id) ? 'italic text-muted-foreground' : 'text-foreground'">
-              {{ unwrittenIds.has(room.id) ? "Unwritten" : room.name }}
-            </span>
-            <span class="block truncate text-caption text-muted-foreground">{{ captionFor(room) }}</span>
+            <span class="block truncate font-cinzel text-label font-bold text-foreground">{{ room.name }}</span>
+            <span class="block truncate text-caption text-muted-foreground" :class="unwrittenIds.has(room.id) ? 'italic' : ''">{{ captionFor(room) }}</span>
           </span>
         </AppButton>
 
         <span v-if="lootRoomIds.has(room.id)" class="inline-flex shrink-0 items-center self-center rounded bg-primary/10 px-1.5 py-0.5 text-primary" title="Loot held here">
           <IconCoins class="h-3 w-3" aria-hidden="true" />
+        </span>
+        <span
+          v-if="runCaptions && secretUndiscoveredIds.has(room.id)"
+          class="inline-flex shrink-0 items-center self-center rounded bg-tone-arcane/10 px-1.5 py-0.5 text-tone-arcane"
+          title="Reachable only through an undiscovered secret door"
+        >
+          <IconHide class="h-3 w-3" aria-hidden="true" />
         </span>
         <AppButton v-if="unwrittenIds.has(room.id)" size="xs" label="Fill" class="shrink-0 self-center" @click="startFill(room)" />
       </template>
@@ -72,7 +77,7 @@ import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import { IconCoins } from "@/lib/icons";
+import { IconCoins, IconHide } from "@/lib/icons";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
@@ -82,13 +87,32 @@ import { roomRowCaption, roomsWithHeldLoot } from "@/lib/quests/siteHandoff";
 import type { LocationState, LocationStateFact } from "@/types/locationState.types";
 import type { Location } from "@/types/location.types";
 
-const { siteId, rooms, currentRoomId, reachable, stateOf, unwrittenIds } = defineProps<{
+const {
+  siteId, rooms, currentRoomId, reachable, stateOf, unwrittenIds,
+  runCaptions = false,
+  secretUndiscoveredIds = new Set<string>(),
+  zoneNotes = new Map<string, string>(),
+} = defineProps<{
   siteId: string;
   rooms: Location[];
   currentRoomId: string | null;
   reachable: ReadonlySet<string> | null;
   stateOf: (locationId: string, fact: LocationStateFact) => LocationState | undefined;
   unwrittenIds: ReadonlySet<string>;
+  /**
+   * Opt-in to frame 08's reachability-driven captions ("Reachable", "Not
+   * reachable from here", "Secret door — undiscovered", "Party here · <zone>
+   * active") in place of the plain description snippet. Off by default so
+   * `QuestSiteHandoff` — not yet redesigned for this frame — keeps its
+   * existing rows unchanged; `SiteRunSurface` turns it on (#868, S11).
+   */
+  runCaptions?: boolean;
+  /** Rooms reachable only through a secret door the party hasn't found yet.
+   *  Only consulted when `runCaptions` is true. */
+  secretUndiscoveredIds?: ReadonlySet<string>;
+  /** The active-zone note for the party's current room ("ash-fall zone"),
+   *  keyed by room id. Only consulted when `runCaptions` is true. */
+  zoneNotes?: ReadonlyMap<string, string>;
 }>();
 const emit = defineEmits<{ move: [roomId: string]; fill: [roomId: string] }>();
 
@@ -108,14 +132,24 @@ function isReachable(room: Location): boolean {
 }
 
 function captionFor(room: Location): string {
-  if (unwrittenIds.has(room.id)) return "Prep gap — write it or roll it";
-  return roomRowCaption(room.description, isCleared(room));
+  if (unwrittenIds.has(room.id)) return "Unwritten — write it or roll it";
+  if (!runCaptions) return roomRowCaption(room.description, isCleared(room));
+
+  // Frame 08's reachability-driven captions, opt-in via `runCaptions`.
+  if (room.id === currentRoomId) {
+    const zoneNote = zoneNotes.get(room.id);
+    return zoneNote ? `Party here · ${zoneNote} active` : "Party here";
+  }
+  if (secretUndiscoveredIds.has(room.id)) return "Secret door — undiscovered";
+  if (!isReachable(room)) return "Not reachable from here";
+  return "Reachable";
 }
 
 function rowClass(room: Location): string[] {
   if (unwrittenIds.has(room.id)) return ["border-dashed", "border-tone-caution/50"];
   const classes = ["border-border"];
   if (room.id === currentRoomId) classes.push("border-tone-info", "ring-2", "ring-tone-info/15");
+  else if (runCaptions && !isReachable(room)) classes.push("opacity-55");
   else if (isCleared(room)) classes.push("opacity-70");
   return classes;
 }
