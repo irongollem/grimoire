@@ -138,8 +138,26 @@
               class="w-48"
               @update:model-value="updatePayload(zone, { encounter_id: $event || undefined })"
             />
-            <!-- Prompting a beat instead of/alongside an encounter is S12's job
-                 (`beat_id`) — omitted here on purpose. -->
+            <!-- A zone can also name a beat (#868 S12): Run shows "Beat N is
+                 staged on this floor — advance?" when the party enters it.
+                 Quest first, then beat — there's no campaign-wide beat list
+                 to search directly. `triggerQuestId` primes from the zone's
+                 own `beat_id` the first time its editor opens, so reopening
+                 one that already names a beat doesn't ask the DM to re-find
+                 which quest it lives in. -->
+            <EntityCombobox
+              v-model="triggerQuestId"
+              :options="questOptions"
+              placeholder="Which quest…"
+              class="w-40"
+            />
+            <EntityCombobox
+              :model-value="zone.zone_payload.beat_id ?? ''"
+              :options="triggerBeatOptions"
+              :placeholder="triggerQuestId ? 'Prompt a beat…' : 'Choose a quest first…'"
+              class="w-48"
+              @update:model-value="updatePayload(zone, { beat_id: $event || undefined })"
+            />
           </template>
 
           <span v-else class="text-caption text-muted-foreground italic">
@@ -163,7 +181,7 @@
  * `SiteMapRegionList` — it also drives the map canvas's highlight and the
  * "Tracing X" banner above it, neither of which this component renders.
  */
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -176,6 +194,8 @@ import {
 } from "@/composables/locations/useLocationMapRegions";
 import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { useQuests } from "@/composables/quests/useQuests";
+import { useQuestBeat, useQuestBeats } from "@/composables/quests/useQuestFlow";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { IconAdd, IconChevronDown, IconChevronUp, IconDelete } from "@/lib/icons";
@@ -205,6 +225,22 @@ const zones = computed(() => regions.filter((r) => r.region_role === "zone"));
 
 const newZoneKind = ref<ZoneKind>("marker");
 const expandedId = ref<string | null>(null);
+
+// ── Trigger zone's beat picker (#868 S12) — one quest/beat cursor, since only
+//    one zone's payload editor is ever expanded at a time. ─────────────────
+const { data: quests } = useQuests();
+const questOptions = computed(() => (quests.value ?? []).map((quest) => ({ id: quest.id, name: quest.title })));
+const triggerQuestId = ref("");
+const expandedZoneBeatId = computed(() => (zones.value.find((zone) => zone.id === expandedId.value)?.zone_payload.beat_id) ?? "");
+// Primes the quest picker from the beat the zone already names, the one time
+// its editor opens with one already set — without this, reopening a
+// configured trigger zone would ask the DM to re-find which quest it lives in
+// even though the beat itself is already chosen.
+const { data: primingBeat } = useQuestBeat(expandedZoneBeatId);
+watch(expandedId, () => { triggerQuestId.value = ""; });
+watch(primingBeat, (beat) => { if (beat && !triggerQuestId.value) triggerQuestId.value = beat.quest_id; });
+const { data: triggerBeats } = useQuestBeats(triggerQuestId);
+const triggerBeatOptions = computed(() => (triggerBeats.value ?? []).map((beat) => ({ id: beat.id, name: beat.title || "Untitled beat" })));
 
 function toggleActive(id: string): void {
   emit("update:activeRegionId", activeRegionId === id ? null : id);

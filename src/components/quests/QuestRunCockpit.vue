@@ -304,11 +304,21 @@ const stagedLocation = computed(() => {
   if (!id) return null;
   return (locationsQuery.data.value ?? []).find((location) => location.id === id) ?? null;
 });
+// A beat can now be staged directly at a room, not only a site itself (#868
+// S12) — the site the crawl actually runs is the room's parent. Resolving
+// that here (rather than only checking `isSiteType` on the staged location
+// itself) is what makes "the crawl is the beat" true: staging a beat at a
+// specific opening room, the whole point of that story, must still gate
+// `QuestSiteHandoff` on exactly as staging it at the site directly does.
 const stagedSiteWithRooms = computed(() => {
-  const location = stagedLocation.value;
-  if (!location || !isSiteType(location.location_type)) return null;
-  const hasRooms = (locationsQuery.data.value ?? []).some((row) => row.parent_id === location.id && row.location_type === "room");
-  return hasRooms ? location : null;
+  const staged = stagedLocation.value;
+  if (!staged) return null;
+  const site = isSiteType(staged.location_type)
+    ? staged
+    : (locationsQuery.data.value ?? []).find((location) => location.id === staged.parent_id) ?? null;
+  if (!site || !isSiteType(site.location_type)) return null;
+  const hasRooms = (locationsQuery.data.value ?? []).some((row) => row.parent_id === site.id && row.location_type === "room");
+  return hasRooms ? site : null;
 });
 const showSiteHandoff = computed(() => !!stagedSiteWithRooms.value && !siteHandoffDismissed.value);
 

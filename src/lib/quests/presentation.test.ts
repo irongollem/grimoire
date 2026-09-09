@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deriveQuestBeatPrepGaps, deriveQuestBeatPresentations, formatUnwrittenRoomsLabel, forwardReachableBeatIds, tallyQuestReach, visitedRouteEdgeIds } from "./presentation";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatTransition, QuestConsequence } from "@/types/quest.types";
+import type { SiteReadiness } from "@/lib/locations/siteReadiness";
 
 const beat = (id: string, visibility: QuestBeat["visibility"] = "hidden") => ({
   id, quest_id: "q", campaign_id: "c", title: id, visibility,
@@ -11,6 +12,11 @@ const beat = (id: string, visibility: QuestBeat["visibility"] = "hidden") => ({
 }) as QuestBeat;
 const edge = (id: string, source: string, target: string) => ({ id, source_beat_id: source, target_beat_id: target }) as QuestBeatEdge;
 const transition = (from: string | null, to: string) => ({ from_beat_id: from, to_beat_id: to }) as QuestBeatTransition;
+const readiness = (over: Partial<SiteReadiness> = {}): SiteReadiness => ({
+  mapped: true, calibrated: true, traced: true, bound: true, waysOut: true,
+  unboundSpaces: 0, untracedSpaces: 0, caption: null,
+  ...over,
+});
 
 describe("quest beat presentation", () => {
   it("derives readiness, visibility-independent history, live, handout and disconnected states", () => {
@@ -46,6 +52,55 @@ describe("quest beat presentation", () => {
     expect(deriveQuestBeatPrepGaps({ ...draft, visibility: "hidden", how_it_plays: "Skill challenge" }, [])).toEqual([
       { kind: "improv_review", label: "Review improvised beat" },
     ]);
+  });
+
+  it("raises a site gap when the crawl can't actually be walked, and none when it's clean", () => {
+    const prepared = { ...beat("staged", "hidden"), how_it_plays: "Explore the vault" };
+    expect(deriveQuestBeatPrepGaps(prepared, [], { site: readiness({ bound: false, unboundSpaces: 1, caption: "1 space unbound" }) }))
+      .toEqual([{ kind: "site", label: "1 space unbound" }]);
+    // Bound cleanly but no doors traced at all — no caption to report the
+    // unbound/untraced count against, so the gap falls back to naming the
+    // actual blocker: the party has nowhere to go.
+    expect(deriveQuestBeatPrepGaps(prepared, [], { site: readiness({ waysOut: false }) }))
+      .toEqual([{ kind: "site", label: "no ways out — the party cannot leave this site" }]);
+    expect(deriveQuestBeatPrepGaps(prepared, [], { site: readiness() })).toEqual([]);
+    // No site input at all (a beat staged nowhere, or a beat staged
+    // somewhere nobody has fetched readiness for yet) reports nothing.
+    expect(deriveQuestBeatPrepGaps(prepared, [])).toEqual([]);
+  });
+
+  it("threads a staged site's readiness into the beat's own prep gaps", () => {
+    const result = deriveQuestBeatPresentations({
+      beats: [{ ...beat("crawl", "hidden"), how_it_plays: "Explore", staged_at_location_id: "site-1" } as QuestBeat],
+      edges: [],
+      attachments: [],
+      sites: {
+        "site-1": {
+          locationId: "site-1", name: "Ashmouth Undercroft", roomCount: 3, unwrittenRooms: [],
+          readiness: readiness({ bound: false, unboundSpaces: 1, caption: "1 space unbound" }),
+        },
+      },
+    });
+    expect(result.crawl.prepGaps).toEqual([{ kind: "site", label: "1 space unbound" }]);
+    expect(result.crawl.isReady).toBe(false);
+  });
+
+  it("raises no site gap for a site with no rooms — a tavern staged for a conversation was never meant to be walked", () => {
+    const result = deriveQuestBeatPresentations({
+      beats: [{ ...beat("chat", "hidden"), how_it_plays: "Talk to the barkeep", staged_at_location_id: "tavern-1" } as QuestBeat],
+      edges: [],
+      attachments: [],
+      sites: {
+        "tavern-1": {
+          locationId: "tavern-1", name: "The Quiet Hamlet's tavern", roomCount: 0, unwrittenRooms: [],
+          // Readiness that would raise a gap if it were consulted at all —
+          // proving the guard skips it, not that this readiness is clean.
+          readiness: readiness({ bound: false, waysOut: false, unboundSpaces: 1, caption: "1 space unbound" }),
+        },
+      },
+    });
+    expect(result.chat.prepGaps).toEqual([]);
+    expect(result.chat.isReady).toBe(true);
   });
 
   it("scopes connectivity per quest", () => {

@@ -102,9 +102,8 @@ const {
   /**
    * Opt-in to frame 08's reachability-driven captions ("Reachable", "Not
    * reachable from here", "Secret door — undiscovered", "Party here · <zone>
-   * active") in place of the plain description snippet. Off by default so
-   * `QuestSiteHandoff` — not yet redesigned for this frame — keeps its
-   * existing rows unchanged; `SiteRunSurface` turns it on (#868, S11).
+   * active") in place of the plain description snippet. Off by default;
+   * both `SiteRunSurface` and `QuestSiteHandoff` turn it on (#868, S11/S12).
    */
   runCaptions?: boolean;
   /** Rooms reachable only through a secret door the party hasn't found yet.

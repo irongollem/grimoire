@@ -227,6 +227,30 @@ describe("QuestRunCockpit", () => {
     }));
   });
 
+  // #868 S12: `staged_at_location_id` now legitimately names a room, not only
+  // a site — the crawl's own opening point. The handoff must still gate on
+  // exactly the same condition (the SITE the room belongs to has rooms).
+  it("mounts the site handoff when the current beat is staged at a room, not only at a site directly", () => {
+    mocks.context.value = runningContext();
+    mocks.beats.value = [{ ...beat, staged_at_location_id: "room-1" }];
+    mocks.locations.value = [
+      { id: "site-1", parent_id: null, location_type: "dungeon" },
+      { id: "room-1", parent_id: "site-1", location_type: "room" },
+    ];
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    expect(wrapper.findComponent({ name: "QuestSiteHandoff" }).exists()).toBe(true);
+    expect(wrapper.findComponent(QuestRunBeatCard).exists()).toBe(false);
+  });
+
+  it("does not mount the site handoff for a beat staged at a non-site location", () => {
+    mocks.context.value = runningContext();
+    mocks.beats.value = [{ ...beat, staged_at_location_id: "town-1" }];
+    mocks.locations.value = [{ id: "town-1", parent_id: null, location_type: "town" }];
+    const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+    expect(wrapper.findComponent({ name: "QuestSiteHandoff" }).exists()).toBe(false);
+    expect(wrapper.findComponent(QuestRunBeatCard).exists()).toBe(true);
+  });
+
   it("reveals the current beat without moving the runtime cursor", async () => {
     mocks.context.value = runningContext();
     mocks.beats.value = [{ ...beat, visibility: "hidden", updated_at: "version-1" }];

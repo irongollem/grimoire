@@ -7,6 +7,7 @@ import type {
   QuestConvergeMode,
   QuestRuntimeState,
 } from "@/types/quest.types";
+import type { SiteReadiness } from "@/lib/locations/siteReadiness";
 
 export interface QuestBeatLootSummary {
   total: number;
@@ -30,6 +31,10 @@ export interface QuestBeatSiteInput {
   name: string;
   roomCount: number;
   unwrittenRooms: number[];
+  /** Absent when nobody has fetched this site's regions/doors yet — a beat
+   *  staged at a site the DM hasn't opened this session gets no site gap
+   *  rather than a false "unbound" one derived from an empty read. */
+  readiness?: SiteReadiness;
 }
 
 export interface QuestBeatSitePresentation {
@@ -59,7 +64,7 @@ export function formatUnwrittenRoomsLabel(unwrittenRooms: number[]): string | nu
   return `${word} ${ranges.join(", ")} empty`;
 }
 
-export type QuestBeatPrepGapKind = "guidance" | "player_copy" | "attachment" | "improv_review" | "connection";
+export type QuestBeatPrepGapKind = "guidance" | "player_copy" | "attachment" | "improv_review" | "connection" | "site";
 
 export interface QuestBeatPrepGap {
   kind: QuestBeatPrepGapKind;
@@ -153,7 +158,7 @@ export function tallyQuestReach(presentations: Record<string, QuestBeatPresentat
 export function deriveQuestBeatPrepGaps(
   beat: QuestBeat,
   attachments: QuestBeatAttachmentSummary[],
-  options: { isDisconnected?: boolean } = {},
+  options: { isDisconnected?: boolean; site?: SiteReadiness } = {},
 ): QuestBeatPrepGap[] {
   const gaps: QuestBeatPrepGap[] = [];
   if (!beat.dm_content && !beat.how_it_plays) gaps.push({ kind: "guidance", label: "Add DM guidance" });
@@ -167,6 +172,15 @@ export function deriveQuestBeatPrepGaps(
   }
   if (beat.is_improvised && !beat.improv_reviewed_at) gaps.push({ kind: "improv_review", label: "Review improvised beat" });
   if (options.isDisconnected) gaps.push({ kind: "connection", label: "Connect this staging beat to the story flow" });
+  // A site the party cannot actually be moved through is the same class of
+  // gap as a beat with no guidance — the Quest Board already renders
+  // `has-gaps` on either (frame 15). Priority mirrors `siteReadiness`'s own
+  // caption: an unbound/untraced room is the cheaper fix, so it leads; a site
+  // with nothing left to bind but no doors at all still can't move the party.
+  if (options.site && (!options.site.bound || !options.site.waysOut)) {
+    const detail = options.site.caption ?? "no ways out — the party cannot leave this site";
+    gaps.push({ kind: "site", label: detail });
+  }
   return gaps;
 }
 
@@ -246,7 +260,14 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
     const placed = attachments.get(beat.id) ?? [];
     const isDisconnected = (flowBeatsPerQuest.get(beat.quest_id) ?? 0) > 1
       && !connected.has(beat.id);
-    const prepGaps = deriveQuestBeatPrepGaps(beat, placed, { isDisconnected });
+    const siteInput = beat.staged_at_location_id ? input.sites?.[beat.staged_at_location_id] : undefined;
+    // A site with no rooms at all (a tavern staged for a conversation, never
+    // meant to be walked) has nothing to be unbound or short a door — mirrors
+    // the `roomCount > 0` guard on the `site` presentation field below.
+    const prepGaps = deriveQuestBeatPrepGaps(beat, placed, {
+      isDisconnected,
+      site: siteInput && siteInput.roomCount > 0 ? siteInput.readiness : undefined,
+    });
     const loot = input.lootByBeat?.[beat.id] ?? { total: 0, undispatched: 0, unclaimed: 0 };
     const currentThreadIds = threadIdsByBeat.get(beat.id) ?? [];
     const isCurrent = currentThreadIds.length > 0;
@@ -262,7 +283,6 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       : "stranded";
     const beatConsequences = consequencesByBeat.get(beat.id) ?? [];
     const incomingCount = incomingCountByBeat.get(beat.id) ?? 0;
-    const siteInput = beat.staged_at_location_id ? input.sites?.[beat.staged_at_location_id] : undefined;
     result[beat.id] = {
       prepGapCount: prepGaps.length,
       prepGaps,

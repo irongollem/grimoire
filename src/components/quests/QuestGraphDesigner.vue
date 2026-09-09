@@ -168,6 +168,8 @@ import {
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
+import { isSiteType } from "@/lib/locations/tiers";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput } from "@/lib/quests/presentation";
 import { deriveQuestRouteGates } from "@/lib/quests/gates";
@@ -182,6 +184,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useConfirm } from "@/composables/useConfirm";
 import { useIsMobile } from "@/composables/useBreakpoint";
 import { type QuestBeat, type QuestConsequenceObjectiveStatus, type QuestRouteEffect, type QuestRouteKind } from "@/types/quest.types";
+import type { Location } from "@/types/location.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -257,24 +260,45 @@ const transitions = computed(() => transitionsQuery.data.value ?? []);
 const lootByBeat = computed(() => summarizeQuestBeatLoot(lootQuery.data.value ?? []));
 const consequences = computed(() => consequencesQuery.data.value ?? []);
 
+const allLocationsRef = computed(() => allLocationsQuery.data.value ?? []);
+
+// A beat can now be staged at a room, not only a site itself (#868 S12 —
+// `staged_at_location_id` always accepted any location, and a room *is* a
+// location; the site panel just stops restricting the picker). This resolves
+// "the site" a staged location actually belongs to — itself if it's already
+// site-tier, else its parent — once, shared by the room-count fact below and
+// the readiness batch feeding it. Keyed by the STAGED id (what a beat's
+// `staged_at_location_id` and `deriveQuestBeatPresentations`'s `sites` lookup
+// both use), not the resolved site's own id.
+const stagedSites = computed(() => {
+  const allLocations = allLocationsRef.value;
+  const result = new Map<string, Location>();
+  for (const stagedId of new Set(beats.value.flatMap((beat) => beat.staged_at_location_id ? [beat.staged_at_location_id] : []))) {
+    const staged = allLocations.find((candidate) => candidate.id === stagedId);
+    if (!staged) continue;
+    const site = isSiteType(staged.location_type) ? staged : allLocations.find((candidate) => candidate.id === staged.parent_id);
+    if (site) result.set(stagedId, site);
+  }
+  return result;
+});
+const stagedSiteIds = computed(() => [...new Set([...stagedSites.value.values()].map((site) => site.id))]);
+const { readinessBySite } = useSiteBeatGaps(stagedSiteIds, allLocationsRef);
+
 // The story flow canvas draws a `site · N rooms` fact off a location's own
 // room list — the same rooms `SiteRoomsPanel` numbers and the same test for
 // "written" (`extractTiptapText`) `SiteRunSurface` uses for its own reveal.
 const sites = computed<Record<string, QuestBeatSiteInput>>(() => {
-  const allLocations = allLocationsQuery.data.value ?? [];
+  const allLocations = allLocationsRef.value;
   const result: Record<string, QuestBeatSiteInput> = {};
-  const stagedLocationIds = new Set(beats.value.flatMap((beat) => beat.staged_at_location_id ? [beat.staged_at_location_id] : []));
-  for (const locationId of stagedLocationIds) {
-    const location = allLocations.find((candidate) => candidate.id === locationId);
-    if (!location) continue;
+  for (const [stagedId, site] of stagedSites.value) {
     const rooms = allLocations
-      .filter((candidate) => candidate.parent_id === locationId && candidate.location_type === "room")
+      .filter((candidate) => candidate.parent_id === site.id && candidate.location_type === "room")
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const unwrittenRooms = rooms
       .map((room, index) => ({ position: index + 1, written: extractTiptapText(room.description, 1).length > 0 }))
       .filter((room) => !room.written)
       .map((room) => room.position);
-    result[locationId] = { locationId, name: location.name, roomCount: rooms.length, unwrittenRooms };
+    result[stagedId] = { locationId: stagedId, name: site.name, roomCount: rooms.length, unwrittenRooms, readiness: readinessBySite.value[site.id] };
   }
   return result;
 });

@@ -89,6 +89,17 @@ export function useLocationDoors(roomId: string | Ref<string>) {
   return { ...query, doors };
 }
 
+// A door change also invalidates `site-doors` (`useSiteDoors`, and the
+// batched query `useSiteBeatGaps` keys under it) — that composable reads the
+// same `location_doors` rows batched across a whole site's spaces, and it
+// has no other invalidation path back to a single-room mutation like these.
+function invalidateDoorQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    queryClient.invalidateQueries({ queryKey: ["site-doors"] }),
+  ]);
+}
+
 export function useCreateLocationDoor() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -97,7 +108,7 @@ export function useCreateLocationDoor() {
     // than just the room this panel is mounted on also refreshes the other
     // endpoint's panel if it happens to be mounted too (AtlasPlacePane keeps
     // one instance alive across selections).
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: () => invalidateDoorQueries(queryClient),
   });
 }
 
@@ -105,7 +116,7 @@ export function useUpdateLocationDoor() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, update }: { id: string; update: LocationDoorUpdate }) => updateLocationDoor(id, update),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: () => invalidateDoorQueries(queryClient),
   });
 }
 
@@ -113,6 +124,6 @@ export function useDeleteLocationDoor() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteLocationDoor,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [QUERY_KEY] }),
+    onSuccess: () => invalidateDoorQueries(queryClient),
   });
 }

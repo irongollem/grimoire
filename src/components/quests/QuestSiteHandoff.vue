@@ -37,7 +37,20 @@
       </div>
     </header>
 
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_19rem]">
+    <!-- A zone can name a beat (#868 S12): the party walking into a traced
+         trigger room this beat itself is named on. Never fires the advance
+         on its own — this only surfaces the same button the header already
+         carries. -->
+    <div v-if="showTriggerPrompt" class="flex items-center gap-3 rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3">
+      <IconNavigate class="h-4 w-4 shrink-0 text-ink-caution" aria-hidden="true" />
+      <p class="flex-1 text-caption text-foreground">
+        <span class="font-cinzel font-bold">{{ beat.title || "This beat" }}</span> is staged on this floor — advance?
+      </p>
+      <AppButton size="xs" variant="tinted" tone="caution" label="Advance" @click="emit('advance')" />
+      <AppButton size="xs" variant="ghost" label="Dismiss" @click="dismissTriggerPrompt" />
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_20rem]">
       <!-- Rooms -->
       <section class="flex min-h-0 flex-col gap-2 rounded-xl border border-border bg-card p-3">
         <header class="flex items-center gap-2">
@@ -53,6 +66,9 @@
           :reachable="reachable"
           :state-of="stateOf"
           :unwritten-ids="unwrittenIds"
+          run-captions
+          :secret-undiscovered-ids="secretUndiscoveredIds"
+          :zone-notes="zoneNotes"
           @move="moveTo"
         />
         <p class="text-caption text-muted-foreground">
@@ -60,7 +76,8 @@
         </p>
       </section>
 
-      <!-- Middle: the floor plan, and the other threads this quest is holding -->
+      <!-- Middle: the floor plan and the room's own read-aloud/prompts/payoff,
+           then the other threads this quest is holding. -->
       <div class="flex min-h-0 flex-col gap-4">
         <LocationMap
           v-if="site.map_url"
@@ -85,6 +102,20 @@
           <p>Cartographer scene or an uploaded battlemap.</p>
         </div>
 
+        <SiteRunRoomStack
+          v-if="currentRoom"
+          :site-id="site.id"
+          :room="currentRoom"
+          :regions="regions"
+          :doors="doors"
+          :door-state="doorStateOf"
+          :loot="currentRoomLoot ?? []"
+          :campaign-id="campaign.activeCampaignId"
+        />
+        <p v-else class="rounded-xl border border-dashed border-border p-4 text-caption italic text-muted-foreground">
+          The party hasn't entered a room here yet — click one on the left to move them in.
+        </p>
+
         <section v-if="otherThreads.length" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
           <h3 class="font-cinzel text-sm font-bold text-foreground">{{ otherThreadsHeading }}</h3>
           <div v-for="badge in otherThreads" :key="badge.thread.id" class="flex items-center gap-3 rounded-lg border border-border bg-card p-2">
@@ -102,47 +133,21 @@
         </section>
       </div>
 
-      <!-- Right: the current room, and its payoff -->
+      <!-- Right: ways out of the current room, and its progress. -->
       <div class="flex min-h-0 flex-col gap-4">
-        <article v-if="currentRoom" class="flex flex-col gap-3 rounded-xl border border-tone-info bg-card p-4">
-          <div class="flex flex-wrap items-center gap-1.5">
-            <span class="inline-flex items-center gap-1.5 rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">
-              <span class="relative flex h-1.5 w-1.5">
-                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-tone-info opacity-75" />
-                <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-tone-info" />
-              </span>
-              Room {{ roomOrdinalValue }}
-            </span>
-            <span v-for="kind in currentRoomPlacementKinds" :key="kind" class="rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">
-              {{ LOCATION_PLACEMENT_KIND_LABELS[kind] }}
-            </span>
-          </div>
-          <h2 class="font-cinzel text-base font-bold text-foreground">{{ currentRoom.name }}</h2>
-          <RichTextViewer v-if="hasDescription" :content="currentRoom.description" />
-          <div class="flex flex-wrap gap-2">
-            <AppButton v-if="!isRoomCleared" variant="primary" size="sm" label="Room cleared" :loading="isAsserting" @click="markCleared" />
-            <AppButton v-else variant="tinted" tone="success" emphasis="soft" size="sm" :icon="IconCheck" label="Cleared" disabled />
-          </div>
-          <div class="flex flex-col gap-2">
-            <h4 class="font-cinzel text-xs font-bold uppercase tracking-wide text-muted-foreground">Prepared here</h4>
-            <LocationPlacements :location-id="currentRoom.id" />
-          </div>
-        </article>
-        <p v-else class="rounded-xl border border-dashed border-border p-4 text-caption italic text-muted-foreground">
-          The party hasn't entered a room here yet — click one on the left to move them in.
-        </p>
+        <SiteRunWaysOut
+          v-if="currentRoom"
+          :site-id="site.id"
+          :room-id="currentRoom.id"
+          :room-name="currentRoom.name"
+          :doors="doors"
+          :door-state="doorStateOf"
+        />
 
-        <section class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
-          <h3 class="font-cinzel text-sm font-bold text-foreground">Room payoff</h3>
-          <LootPlacementList
-            v-if="currentRoom"
-            title="Loot"
-            empty-label="No loot prepared for this room."
-            :loot="currentRoomLoot ?? []"
-            @dropped="onLootDropped"
-          />
-          <p v-else class="text-caption italic text-muted-foreground">No room to pay off until the party is inside one.</p>
-          <p class="text-caption text-muted-foreground">A room's payoff uses the same two mechanisms as a beat's, logged against the beat that owns the site.</p>
+        <section v-if="currentRoom" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
+          <h3 class="font-cinzel text-sm font-bold text-foreground">Progress</h3>
+          <p class="text-caption text-muted-foreground">{{ currentRoom.name }}</p>
+          <LocationStateControls :location-id="currentRoom.id" />
         </section>
       </div>
     </div>
@@ -151,50 +156,47 @@
 
 <script setup lang="ts">
 /**
- * Frame `06 Site` (Quest Manager Redesign) — a beat staged at a site with a
- * floor plan runs as rooms. Replaces the cockpit's beat card + held payoff
- * for exactly that case (#850 story H): "the thread's cursor stays on the
- * beat, the room cursor lives inside it, and leaving keeps both" — nothing
- * here writes to `quest_runtime_state`. `leave` and `advance` are the only
- * two ways out, and both are emits; the cockpit (story F) owns what happens
- * next.
+ * Frame `06 Site` (Quest Manager Redesign), reshaped for #868's frame 15 (S12):
+ * a beat staged at a site with a floor plan runs as rooms. Replaces the
+ * cockpit's beat card + held payoff for exactly that case (#850 story H):
+ * "the thread's cursor stays on the beat, the room cursor lives inside it,
+ * and leaving keeps both" — nothing here writes to `quest_runtime_state`.
+ * `leave` and `advance` are the only two ways out, and both are emits; the
+ * cockpit (story F) owns what happens next.
  *
- * The room list itself is `SiteRoomList` (#850 story H), shared verbatim
- * with `SiteRunSurface`'s Atlas Run action — this component only supplies
- * the site's rooms, the party's current room, and the door-reachability
- * graph, exactly as `SiteRunSurface` does for its own mount of the same
- * component.
+ * The current room's own stack — read-aloud, prompt rows, payoff — is
+ * `SiteRunRoomStack`, and its ways out are `SiteRunWaysOut`: the same two
+ * pieces `SiteRunSurface` mounts for the Atlas Run action (#868, S11), so a
+ * DM running a crawl from the cockpit and one running it from the Atlas see
+ * the identical room surface rather than two components that can drift.
+ * `SiteRoomList` itself is shared verbatim with `SiteRunSurface` too, now with
+ * `runCaptions` on (frame 08's reachability-driven captions).
  */
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
-import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
-import LocationPlacements from "@/components/locations/LocationPlacements.vue";
+import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import SiteRoomList from "@/components/locations/SiteRoomList.vue";
-import LootPlacementList from "@/components/quests/LootPlacementList.vue";
+import SiteRunWaysOut from "@/components/locations/SiteRunWaysOut.vue";
+import SiteRunRoomStack from "@/components/locations/SiteRunRoomStack.vue";
 import { IconCheck, IconImages, IconNavigate } from "@/lib/icons";
 import { useLocation, useLocations, useUpdateLocation } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
-import { useLocationPlacements } from "@/composables/locations/useLocationPlacements";
-import { useLocationStateForRooms, useAssertLocationState } from "@/composables/locations/useLocationState";
+import { useLocationStateForRooms, useDoorStateForSite } from "@/composables/locations/useLocationState";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useQuest } from "@/composables/quests/useQuests";
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
-import { useQueryClient } from "@tanstack/vue-query";
-import { LOCATION_STATE_QUERY_KEY } from "@/composables/locations/useLocationState";
-import { bindableSpaces } from "@/lib/locations/tiers";
+import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { compareSiblings } from "@/lib/locations/tree";
-import { extractTiptapText } from "@/lib/utils";
 import { partyRoomInSite, reachableRoomIds as computeReachableRoomIds } from "@/lib/locations/siteRun";
 import { threadBadge, threadBadges } from "@/lib/quests/threads";
 import { roomOrdinal, unwrittenRoomIds } from "@/lib/quests/siteHandoff";
-import { placementKind, LOCATION_PLACEMENT_KIND_LABELS } from "@/types/locationPlacement.types";
+import { zoneSummary } from "@/lib/locations/zones";
 import { QUEST_BEAT_KIND_LABELS } from "@/types/quest.types";
-import type { LocationPlacementKind } from "@/types/locationPlacement.types";
 import type { Location } from "@/types/location.types";
 import type { QuestBeat, QuestRuntimeContext } from "@/types/quest.types";
 
@@ -209,7 +211,6 @@ const emit = defineEmits<{ advance: []; leave: [] }>();
 const route = useRoute();
 const campaign = useCampaignStore();
 const toast = useToast();
-const queryClient = useQueryClient();
 
 // ── Quest + thread chrome ────────────────────────────────────────────────
 const { data: quest } = useQuest(computed(() => questId));
@@ -222,7 +223,18 @@ const otherThreadsHeading = computed(() => otherThreads.value.length === 1
   : "Other threads are paused, not closed");
 
 // ── The site and its rooms, exactly as SiteRunSurface reads them ───────────
-const siteId = computed(() => beat.staged_at_location_id ?? "");
+// A beat can now be staged directly at a room, not only a site itself (#868
+// S12) — "Opens at" (`QuestBeatSitePanel`'s row) is that room, and this crawl
+// still runs at the room's PARENT site: fetching this component's rooms/map/
+// doors off the room id itself (as if it were the site) would return zero of
+// everything, since a room has no children of its own.
+const stagedLocationId = computed(() => beat.staged_at_location_id ?? "");
+const { data: stagedLocationRecord } = useLocation(stagedLocationId);
+const siteId = computed(() => {
+  const staged = stagedLocationRecord.value;
+  if (!staged) return "";
+  return isSiteType(staged.location_type) ? staged.id : (staged.parent_id ?? "");
+});
 const { data: site } = useLocation(siteId);
 const { data: children } = useLocations(siteId);
 const rooms = computed<Location[]>(() =>
@@ -234,21 +246,102 @@ const pinnableChildren = computed<Location[]>(() =>
 
 const unwrittenIds = computed(() => unwrittenRoomIds(rooms.value));
 
+// The room the beat is staged at directly, when it is one — "the party
+// starts here when Run enters the site" (frame 15). Never moves the party on
+// its own: the room list already requires a click to move them in, same as
+// every other room, this is only what the "not yet inside" caption points at.
+const openingRoom = computed(() => {
+  const staged = stagedLocationRecord.value;
+  return staged && staged.location_type === "room" ? rooms.value.find((r) => r.id === staged.id) ?? null : null;
+});
+
 const currentRoomId = computed(() =>
   partyRoomInSite(campaign.activeCampaign?.current_location_id ?? null, roomIds.value));
 const currentRoom = computed(() => rooms.value.find((r) => r.id === currentRoomId.value) ?? null);
 const roomOrdinalValue = computed(() => roomOrdinal(currentRoomId.value, roomIds.value));
-const positionLabel = computed(() => roomOrdinalValue.value === null ? "not yet inside" : `room ${roomOrdinalValue.value} of ${rooms.value.length}`);
+const positionLabel = computed(() => {
+  if (roomOrdinalValue.value !== null) return `room ${roomOrdinalValue.value} of ${rooms.value.length}`;
+  return openingRoom.value ? `not yet inside — opens at ${openingRoom.value.name}` : "not yet inside";
+});
 const switchingCaption = computed(() => roomOrdinalValue.value === null ? "Switching back leaves this site" : `Switching back leaves this site at room ${roomOrdinalValue.value}`);
 
+// ── Doors, and the unlock facts that widen reachability past `starts_locked`
+//    (#868) — the same graph `SiteRunSurface` walks for the Atlas Run action. ─
 const doorsQuery = useSiteDoors(roomIds);
+const doors = computed(() => doorsQuery.data.value ?? []);
+const { stateOf: doorStateOf } = useDoorStateForSite(siteId);
 const reachable = computed(() => {
   const from = currentRoomId.value;
-  return from ? computeReachableRoomIds(from, doorsQuery.data.value ?? []) : null;
+  if (!from) return null;
+  const unlocked = new Set(doors.value.filter((d) => doorStateOf(d.id, "unlocked")?.value === true).map((d) => d.id));
+  return computeReachableRoomIds(from, doors.value, unlocked);
 });
 
 const regionsQuery = useLocationMapRegions(siteId);
 const regions = computed(() => regionsQuery.data.value ?? []);
+
+// ── Frame 08's room-list subtitles: a room whose only known doors are all
+//    secret and undiscovered gets its own caption rather than a plain
+//    "Reachable" — the same derivation `SiteRunSurface` uses for its own
+//    `runCaptions` mount of `SiteRoomList`. ──────────────────────────────
+const secretUndiscoveredIds = computed(() => {
+  const bySpace = new Map<string, typeof doors.value>();
+  for (const door of doors.value) {
+    for (const spaceId of new Set([door.from_location_id, door.to_location_id])) {
+      const existing = bySpace.get(spaceId);
+      if (existing) existing.push(door);
+      else bySpace.set(spaceId, [door]);
+    }
+  }
+  const ids = new Set<string>();
+  for (const room of rooms.value) {
+    const incident = bySpace.get(room.id) ?? [];
+    if (incident.length && incident.every((d) => d.is_secret && doorStateOf(d.id, "found")?.value !== true)) {
+      ids.add(room.id);
+    }
+  }
+  return ids;
+});
+
+// The current room's own active zone, named for the "Party here · <zone>
+// active" caption — same intersection `SiteRunSurface` computes.
+const zoneNotes = computed(() => {
+  const map = new Map<string, string>();
+  const roomId = currentRoomId.value;
+  const roomRegion = roomId ? regions.value.find((r) => r.region_role === "space" && r.space_location_id === roomId) : undefined;
+  if (!roomId || !roomRegion) return map;
+  const roomCells = new Set(roomRegion.cells);
+  const zone = regions.value.find((r) => r.region_role === "zone" && r.cells.some((c) => roomCells.has(c)));
+  const note = zone ? zone.label || zoneSummary(zone) : "";
+  if (note) map.set(roomId, note);
+  return map;
+});
+
+// ── A zone can name a beat (#868 S12) — a trigger zone whose payload names
+//    THIS beat, traced over the room the party is currently standing in.
+//    Comparing to `beat.id` (not merely "any beat in this quest") is what
+//    keeps the prompt meaningful: `advance` has no target parameter, so it
+//    can only ever advance the beat already staged here. Dismissing is
+//    per-room, not per-session — walking the prompt off then back onto the
+//    trigger room shows it again, since nothing about the config changed. ──
+const dismissedRoomId = ref<string | null>(null);
+// A dismissal only ever means "not now, in this room" — leaving the room
+// forgets it, so walking back in re-checks the zone fresh, matching the
+// comment above rather than pinning the dismissal to that room forever.
+watch(currentRoomId, () => { dismissedRoomId.value = null; });
+const triggerZone = computed(() => {
+  const roomId = currentRoomId.value;
+  if (!roomId) return null;
+  const roomRegion = regions.value.find((r) => r.region_role === "space" && r.space_location_id === roomId);
+  if (!roomRegion) return null;
+  const roomCells = new Set(roomRegion.cells);
+  return regions.value.find((r) =>
+    r.region_role === "zone" && r.zone_kind === "trigger" && r.zone_payload.beat_id === beat.id
+    && r.cells.some((c) => roomCells.has(c)),
+  ) ?? null;
+});
+const showTriggerPrompt = computed(() => !!triggerZone.value && dismissedRoomId.value !== currentRoomId.value);
+function dismissTriggerPrompt(): void { dismissedRoomId.value = currentRoomId.value; }
 
 const { mutate: setCampaignLocation, isPending: isMoving } = useSetCampaignLocation();
 function moveTo(roomId: string): void {
@@ -263,27 +356,9 @@ function toggleMapShared(): void {
   updateLocation({ id: site.value.id, update: { is_map_shared: !site.value.is_map_shared } }, { onError: (e) => toast.error(toast.fromError(e)) });
 }
 
-// ── The current room: state, placements, loot ───────────────────────────
+// ── Room state, for the shared room list ────────────────────────────────
 const { stateOf } = useLocationStateForRooms(roomIds);
-const hasDescription = computed(() => !!currentRoom.value && extractTiptapText(currentRoom.value.description, 1).length > 0);
-const isRoomCleared = computed(() => !!currentRoom.value && stateOf(currentRoom.value.id, "cleared")?.value === true);
-
-const { mutate: assertState, isPending: isAsserting } = useAssertLocationState();
-function markCleared(): void {
-  if (!currentRoom.value) return;
-  assertState({ location_id: currentRoom.value.id, fact: "cleared", value: true }, { onError: (e) => toast.error(toast.fromError(e)) });
-}
 
 const currentRoomIdOrEmpty = computed(() => currentRoom.value?.id ?? "");
-const { data: currentRoomPlacements } = useLocationPlacements(currentRoomIdOrEmpty);
-const currentRoomPlacementKinds = computed<LocationPlacementKind[]>(() => {
-  const kinds = new Set<LocationPlacementKind>();
-  for (const placement of currentRoomPlacements.value ?? []) kinds.add(placementKind(placement));
-  return [...kinds];
-});
-
 const { data: currentRoomLoot } = useLootPlacements({ locationId: currentRoomIdOrEmpty });
-function onLootDropped(): void {
-  void queryClient.invalidateQueries({ queryKey: [LOCATION_STATE_QUERY_KEY] });
-}
 </script>

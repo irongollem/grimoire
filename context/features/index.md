@@ -16,13 +16,13 @@ Each doc covers **both DM and player perspectives**, lists exact file paths, com
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [campaign-notes-calendar.md](campaign-notes-calendar.md) | Dashboard, Session Notes, Player Journal, Faerûn Calendar, timeline, AI Chronicler image gen                                                     |
 | [world-building.md](world-building.md)                   | Atlas/Locations (18 types, hierarchical), Factions + relations, Pantheons & Deities, shared AI retrieval grounding                               |
-| [quests.md](quests.md)                                   | Quests: the beat/objective model, story-flow graph, run cockpit, runtime cursor + RPCs, player journal — and the redesign in flight (#780)      |
+| [quests.md](quests.md)                                   | Quests: the beat/objective model, story-flow graph, run cockpit, runtime cursor + RPCs, player journal, threads and parallel routes (#850), and staging a beat at a site (#868)      |
 | [npcs.md](npcs.md)                                       | NPC list, full detail sheet, force-directed Relationship Web, NPC Generator, player visibility                                                   |
 | [party-characters.md](party-characters.md)               | Party Tracker, full D&D 5e character sheet, Character Codex, Hall of Heroes, shapeshifter disguise                                               |
 | [combat-encounters.md](combat-encounters.md)             | Bestiary (monster builder + discovery), Encounter Builder, live Encounter Runner, player combat view                                             |
 | [items-spells-crafting.md](items-spells-crafting.md)     | Item Vault, player Paper Doll inventory, Spellbook, Workshop recipes + player crafting                                                           |
 | [dungeon-craft.md](dungeon-craft.md)                     | Dungeon Features, Traps (CR advisor), Puzzles (DM/player split), Roll Tables, Loot Tables                                                        |
-| [cartographer.md](cartographer.md)                       | **(Spec)** Tile-based battle map builder; versioned tile packs; per-brush theme; bakes to Atlas locations                                        |
+| [cartographer.md](cartographer.md)                       | Tile-based battle map builder; versioned tile packs; per-brush theme; derives structure (spaces/ways/zones) from the drawing and publishes it into the Atlas                                        |
 | [downtime-interlude.md](downtime-interlude.md)           | The Interlude: DM-granted downtime credits, card-driven player draws, DM batch resolution, prepped deck backs                                    |
 | [simulacrum.md](simulacrum.md)                           | Simulacrum: portrait → AI mini-render → Meshy 3D sculpt (print STL / VTT GLB), teaser demand gate, /minis gallery                                |
 | [publishing-tools.md](publishing-tools.md)               | Scriptorium (document publisher), Card Forge (MTG/Tarot print), The Mint (tokens+coins), Illuminator, Reliquary                                  |
@@ -174,7 +174,7 @@ a heading never appears over an empty grid.
 - **Puzzles** — DM controls hint reveals per-hint; `read_aloud` field; player portal receives realtime updates via Supabase Realtime; `shared_hints[]` array with per-hint Eye toggle
 - **Roll Tables** — range-based entries; overlap validation; optional Encounter entity link
 - **Loot Tables** — 3 entry types (specific item, currency pool, random-by-rarity); drop chance per entry; "Drop chest in chat" posts claimable loot atoms with claims cap; AI generator grounded in the DM's own vault with a tier-derived rarity band (#602)
-- **Cartographer** *(spec, not yet built)* — tile-based battle map editor on an infinite canvas; versioned WebP tile packs with schema-validated category slots; per-brush theme switching; **edge-based walls** (thin partitions) coexisting with a **`solidBlock` layer** (thick masonry) so the builder controls wall thickness; cell-level entity links (traps, encounters, NPCs); bakes to Atlas location maps; data preserved for a future in-app VTT
+- **Cartographer** — tile-based battle map editor on an infinite canvas; versioned WebP tile packs with schema-validated category slots; per-brush theme switching; **edge-based walls** (thin partitions) coexisting with a **`solidBlock` layer** (thick masonry) so the builder controls wall thickness; cell-level entity links (traps, encounters, NPCs); derives spaces/ways/zones from the drawing and reconciles them into the Atlas via Publish to Atlas; data preserved for a future in-app VTT
 
 ### Publishing & Output Tools (desktop-only)
 

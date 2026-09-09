@@ -183,32 +183,78 @@ about status:
 
 ### The map fills in
 
-`get_player_visible_site_state(p_site_location_id uuid)` returns one row per
-traced region whose space the party has **explored**, carrying the region's
-`cells` geometry plus the `cleared` / `looted` facts the party established
-themselves. Only possible because #787 made the site remember what was explored.
+`get_player_visible_site_state(p_site_location_id, p_preview_party_member_id)`
+composes the party's own plan of a site rather than handing back a masked copy
+of the DM's map. #798 returned `setof record`, one row per explored region —
+the right cut for a list. Epic #868 (migration `20260908215645`) rewrote it to
+return one `jsonb` document, because a *plan* has more to withhold than a list
+does: "masking is not the same as withholding — draw the map and then shade
+it, and everything drawn after the shade leaks: every door, the secret one
+included, and the walls of rooms nobody has entered." The document carries
+exactly four keys, and nothing else:
 
-Three things about it that are load-bearing:
+- **`spaces`** — explored rooms only: `cells`, `name`, `cleared`/`looted`, as
+  before.
+- **`glimpsed`** — derived, not stored: the footprint only (no id, no name, no
+  contents) of a room that shares a non-secret (or found) way out with an
+  explored room but hasn't itself been explored. "A room, that way" — the
+  plan's own way of saying there is something there without saying what.
+- **`ways`** — doors the party has stood beside (one endpoint explored), never
+  a secret one unless it has been marked `found` (the door-play-state facts
+  from `20260908215644` — see world-building.md). A locked door still draws as
+  a plain door: `starts_locked`, `lock_note` and `is_one_way` are withheld: the
+  plan does not do the party's rattling for them.
+- **`zones`** — only the ones the DM marked `visible_to_players`, clipped to
+  explored cells only. "The water is waist-deep" does not have to reveal how
+  far it goes.
 
-- **Unexplored rooms are absent from the payload, not flagged in it.** That
-  absence is the feature. Filtering on the client would put the unexplored rooms
-  in the network tab, which is the same as printing them.
+Never in the payload: unexplored geometry, secret ways out, lock notes, hazard
+glyphs, trap DCs, room notes, the door graph, or any region the party hasn't
+stood in — filtered in the RPC, not hidden in the component, because a thing
+absent from the payload cannot leak through a re-render, a zoom, or a curious
+devtools panel.
+
+`PlayerSitePlan.vue` (`lib/locations/planSvg.ts`) renders this straight as an
+SVG — no baked image, no calibration, no pan/zoom frame — because there is
+nothing left to anchor an `<img>`-based overlay to once the RPC returns cell
+geometry directly. That closes the surface's one real gap before #868: the old
+widget drew the DM's picture and shaded it, so a signed image URL still
+containing every room and door regardless of what the party had found sat in
+the payload the whole session. `PlayerSiteMap.vue` is now just the card shell
+plus an accessible room list (name, Cleared/Looted glyphs) beside the plan as
+its textual record — the list renders even with nothing drawn yet (#828), so a
+screen reader has the same facts the `aria-hidden` SVG draws visually.
+
+Three things about it that are still load-bearing:
+
+- **Absence is the feature, not a filter.** Filtering unexplored rooms on the
+  client would put them in the network tab, which is the same as printing
+  them — this is why the RPC composes the document itself instead of handing
+  back raw rows for the component to trim.
 - **It checks both ends of a region.** The caller is bound to the *site's*
   campaign, and the room must belong to that same campaign
   (`space.campaign_id = site.campaign_id`). Nothing in the schema guarantees
   those match — see #827 — and without the predicate a DM running two tables
   could show one campaign's rooms to another's players. Found by exploit during
   the #798 audit, not by review.
-- **An unshared map withholds the geometry too.** Coordinates are a floor plan;
-  returning regions for a site whose `is_map_shared` is false would leak the
-  layout without the picture.
+- **`is_map_shared` still gates admission**, even though the plan is no longer
+  a picture. A site with no map shared has nothing to compose a plan from at
+  all — the flag decides whether the party gets a plan of this site, not
+  whether an image is attached to it.
 
 Like every other player read of the Atlas it is a `SECURITY DEFINER` projection
 rather than an RLS path — players have no direct read on `locations`,
 `location_map_regions` or `location_state`. It therefore authorizes internally,
 which matters more than usual here: `location_state` is a view with
 `security_invoker = true`, so inside a definer function it resolves as the
-definer and sees every campaign's rows.
+definer and sees every campaign's rows. The return-type change from `setof
+record` to `jsonb` forced a `drop function` + `create`, which resets the ACL to
+the `PUBLIC` default (the same shape that let #650 happen) — the migration
+revokes explicitly, and `anon_rpc_surface.test.sql` still pins exactly five
+anon-reachable functions; this one is not among them.
+
+The deeper RPC history and the DM-side site-handoff surface
+(`QuestSiteHandoff.vue`) are documented in [quests.md](quests.md).
 
 ## Player Inventory
 

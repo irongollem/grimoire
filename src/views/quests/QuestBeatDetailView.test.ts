@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   liveQuests: [] as unknown[],
   threads: [] as unknown[],
   locationOptions: [] as unknown[],
+  siteReadiness: undefined as Record<string, unknown> | undefined,
 }));
 
 vi.mock("vue-router", async (importOriginal) => ({
@@ -33,6 +34,9 @@ vi.mock("@/composables/quests/useQuestThreads", () => ({
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
   useLocationTree: () => ({ locationOptions: { get value() { return mocks.locationOptions; } } }),
+}));
+vi.mock("@/composables/locations/useSiteStructure", () => ({
+  useSiteStructure: () => ({ readiness: { get value() { return mocks.siteReadiness; } } }),
 }));
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestBeat: () => ({ data: { get value() { return mocks.beat; } }, isLoading: ref(false) }),
@@ -90,6 +94,7 @@ describe("QuestBeatDetailView", () => {
     mocks.liveQuests = [];
     mocks.threads = [];
     mocks.locationOptions = [];
+    mocks.siteReadiness = undefined;
   });
 
   it("shows the missing-beat message when the beat does not belong to this quest", () => {
@@ -160,6 +165,29 @@ describe("QuestBeatDetailView", () => {
     ];
     const wrapper = mountView();
     expect(wrapper.text()).toContain("staged at · site: 2 rooms");
+  });
+
+  it("describes a beat staged at a room by the site it opens into, not as a non-site place (#868 S12)", () => {
+    mocks.beat = beat({ staged_at_location_id: "room-1" });
+    mocks.locationOptions = [
+      { id: "site-1", name: "The sealed crypt", location_type: "dungeon", parent_id: null },
+      { id: "room-1", name: "Nave of Ash", location_type: "room", parent_id: "site-1" },
+      { id: "room-2", name: "Room 2", location_type: "room", parent_id: "site-1" },
+    ];
+    const wrapper = mountView();
+    expect(wrapper.text()).toContain("Nave of Ash");
+    expect(wrapper.text()).toContain("staged at · opens at this room in The sealed crypt — 2 rooms");
+  });
+
+  it("adds the site's readiness to the beat's own prep gap count once staged there", () => {
+    mocks.beat = beat({ staged_at_location_id: "site-1", dm_content: "Prepared", how_it_plays: "Explore", visibility: "hidden" });
+    mocks.locationOptions = [{ id: "site-1", name: "The sealed crypt", location_type: "dungeon", parent_id: null }];
+    const clean = mountView();
+    expect(clean.text()).not.toContain("prep gap");
+
+    mocks.siteReadiness = { bound: false, waysOut: true, caption: "1 space unbound" };
+    const withGap = mountView();
+    expect(withGap.text()).toContain("1 prep gap");
   });
 
   it("offers Reveal fully for a rumored beat and Reveal to players for a hidden one, but no reveal action once revealed", async () => {

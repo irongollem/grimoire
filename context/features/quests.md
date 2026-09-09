@@ -405,6 +405,20 @@ at two towns and a lake as well as at dungeons, buildings and a store. Being a
 site is what unlocks the run surface — a capability of the place, not a
 precondition for naming it; `bindableSpaces()` draws that line.
 
+**Since epic #868 (S12), the column also accepts a room directly — no new
+column, because `staged_at_location_id` already took any location and a room
+*is* one.** `QuestBeatSitePanel`'s "Opens at" row is what this actually buys:
+staging a beat at a specific room inside a site names the party's entry point,
+not merely the dungeon. Every reader that used to assume "staged at a site
+means staged at a site-tier location" now resolves the site itself first —
+the location if it is already site-tier, else its `parent_id` — before doing
+anything with rooms, doors or the map: `QuestBeatSitePanel.vue`,
+`QuestGraphDesigner.vue`'s `site · N rooms` fact, `QuestBeatDetailView.vue`'s
+staged-site caption, `QuestRunCockpit.vue`'s handoff gate, and
+`QuestSiteHandoff.vue` itself all repeat this same one-line resolution rather
+than sharing a helper, because each already had its own staged-location read
+and the fix is the same three lines everywhere.
+
 `private.guard_beat_staging()` enforces campaign scope on insert and update,
 with the same predicate every arm of the attachment validator uses: the location
 is campaign-scoped to this campaign, or it is personal content belonging to the
@@ -863,9 +877,40 @@ below), which is the actual inspector.
 visibility, each saved on the spot as soon as it changes — no separate Save
 button), the read-aloud block, then `QuestBeatFields` for the prose;
 `QuestBeatAttachmentsPanel` for placements (needed/optional marks, the eleven
-attachment types including `check`); `QuestBeatSitePanel` for the site (choose
-or change which site this beat is staged at, or the "This beat can become a
-crawl" empty state when nothing is chosen yet).
+attachment types including `check`); `QuestBeatSitePanel` for the site — the
+"This beat can become a crawl" empty state when nothing is chosen yet, or,
+once staged, the full sheet epic #868 (S12) grew it into.
+
+**`QuestBeatSitePanel`'s picker now offers a site's rooms indented beneath it,
+not only the site itself** — the same depth-indented shape every other
+location combobox already uses. Picking a room sets **"Opens at"**: the
+party's entry point when Run enters the site, versus "the site itself" when
+none is chosen and Run opens at the site's own map. Beneath that, three more
+rows read the site as it stands right now, computed from the same reachable
+subgraph a room's opening point defines (the whole site's rooms when staged at
+the site itself, since there's no single entry point yet to walk from):
+**"Prepared on the way"** (trap/encounter/puzzle counts reachable from the
+opening room — features and loot already have their own rows elsewhere on the
+sheet and would double-count here), **"Ambience"** (the resolved theme via
+`resolveInheritedTheme()`, walking from the opening room the same way
+`usePartyAmbience` does at the table — see world-building.md), and **"Site
+readiness"** — `siteReadiness()`, the same five-check module the Atlas place
+pane's meter runs (world-building.md), reused here over just this one site's
+own data.
+
+**Site readiness is a beat gap.** The Quest Board already renders `has-gaps`
+on a beat missing its people or its handouts; a site that cannot actually be
+walked (unbound spaces, no ways out) is the same class of gap, so
+`deriveQuestBeatPrepGaps` gained a `"site"` kind: it fires when `!bound ||
+!waysOut`, with the same caption priority `siteReadiness()` itself uses — an
+unbound shape is the cheaper fix, so it leads; a site with everything bound
+but no doors at all still can't accept the party. **`useSiteBeatGaps.ts`**
+(`composables/quests/`) is what makes this affordable on the story flow
+canvas, where several beats can be staged at several different sites at
+once: it batches one regions query and one doors query across every staged
+site rather than mounting one `useSiteStructure` per site, and
+`QuestGraphDesigner.vue` feeds the result into `QuestBeatSiteInput.readiness`
+alongside the existing `site · N rooms` fact.
 
 **Right column** — `QuestBeatRoutesPanel` ("Routes out": one card per outgoing
 edge, its `route_kind` badge, its thread label if parallel, a site chip if the
@@ -966,32 +1011,101 @@ conflict — another device moved this thread first) surfaces as "The session
 moved on another device — reopen to advance," via
 `isVersionConflictError`.
 
-### Site handoff (frame `06 Site`)
+### Site handoff (frame `06 Site`, reshaped by epic #868 S12)
 
 When the cockpit's current beat is staged at a site with rooms,
-`QuestSiteHandoff.vue` takes over the left column: numbered rooms with their
-states (cleared, party-here, unwritten — a dashed row with a "Fill" button
-that opens an inline `RichTextEditor`, the design's "prep gap" state), the
-site's floor plan (`LocationMap`, run-mode), the room card (read-aloud,
-"Room cleared", `LocationPlacements`), and the room's own payoff
-(`LootPlacementList`, "a room's payoff uses the same two mechanisms as a
-beat's, logged against the beat that owns the site"). Other threads the quest
-holds are listed as "paused, not closed" with a Switch button. Three exits,
-all emits the cockpit owns: "Show map to players" (toggles
-`is_map_shared`), "Leave site" (dismisses the handoff for this visit; nothing
-here writes `quest_runtime_state`), "Advance beat" (opens `QuestAdvanceDialog`
-the normal way).
+`QuestSiteHandoff.vue` takes over the left column. #850 built this as its own
+room card and its own `LootPlacementList` mount; #868 replaced both with the
+same room surface the Atlas Run action uses, per the maintainer's framing
+for that epic: **a room is a zoomed-in beat**, so the cockpit's crawl and the
+Atlas's crawl should look like the same crawl, not two components that can
+drift.
 
-**One room list, two surfaces.** `SiteRoomList.vue`
-(`src/components/locations/`) is the room list itself — numbered rows,
-click-to-move, the unwritten/Fill affordance, a loot chip — shared verbatim
-between `QuestSiteHandoff` and `SiteRunSurface`'s Atlas Run action. Before
-this epic each surface carried its own copy of the click-to-move and
-unreachable-link logic; now there is exactly one implementation of "can the
-party reach this room," so the two can never quietly disagree again. Pure
-derivations shared by both callers (which rooms are unwritten, a room's list
-caption, the party's ordinal position, which rooms hold loot) live in
-`src/lib/quests/siteHandoff.ts`.
+- **The rooms list** is still `SiteRoomList.vue` (numbered rows,
+  click-to-move, the unwritten/Fill affordance, a loot chip), now mounted with
+  `run-captions` on — the same frame-08 reachability captions ("Reachable",
+  "Not reachable from here", "Secret door — undiscovered", "Party here ·
+  `<zone>` active") `SiteRunSurface` shows, computed identically in both
+  callers rather than the plain description snippet the handoff used to fall
+  back to.
+- **The floor plan** (`LocationMap`, run-mode) is unchanged in mechanism, and
+  now sits above the room's own stack rather than beside a room-detail column.
+- **The current room's stack is `SiteRunRoomStack.vue`** — read-aloud (the
+  room's own description), prompt rows for traps, roll tables, encounters and
+  undiscovered secret ways out, and the room's payoff via `LocationLootPanel`
+  — replacing the handoff's own read-aloud/"Room cleared"/`LocationPlacements`
+  composition outright.
+- **Ways out of the current room is `SiteRunWaysOut.vue`** — Move / Unlock /
+  Reveal per door, replacing nothing (this is genuinely new to the handoff);
+  the two door facts land in the append-only state log exactly as they do from
+  the Atlas surface, never on the authored `starts_locked`/`is_secret` flags.
+  Reachability itself now consults those unlock facts too:
+  `computeReachableRoomIds` takes the site's unlocked-door set as a third
+  argument, so a door the party has since picked stays open on return without
+  needing `starts_locked` touched.
+- **Progress** stays `LocationStateControls` on the current room, now in its
+  own small card rather than folded into the room article.
+
+**A beat staged directly at a room (#868 S12) still runs the room's *parent*
+site.** `QuestSiteHandoff` resolves `siteId` from the staged location the same
+way every other #868 S12 reader does — itself if already site-tier, else
+`parent_id` — because fetching this component's rooms, doors and map off the
+room id directly (as if it were the site) would return zero of everything: a
+room has no children of its own. The staged room, when there is one, becomes
+`openingRoom` — what "Opens at" in `QuestBeatSitePanel` set — and the position
+caption reads "not yet inside — opens at `<room>`" until the party actually
+moves there; nothing here moves them on its own.
+
+**A trigger zone can prompt this beat's own advance, and never fires it.**
+`SiteMapZoneList.vue` lets a `trigger`-kind zone name a `beat_id` (#868 S12).
+When the party's current room falls inside a trigger zone naming *this* beat
+— compared by id, not "any beat in the quest," since `advance` has no target
+parameter and can only ever advance the beat already staged here — the
+handoff shows "`<beat title>` is staged on this floor — advance?" above the
+three-column body, with an Advance button that is the same emit the header's
+own Advance button already fires, and a Dismiss that is per-room: walking off
+the trigger room and back onto it shows the prompt again, since nothing about
+the zone's configuration changed. This is presentation only — nothing about a
+token's position ever triggers an advance by itself, the same "prompts, not
+automation" rule the site runner holds elsewhere in #868.
+
+**A room's Cleared fact does not yet satisfy an objective — #869, on purpose.**
+Frame 15 of the site sheet says "an objective may watch for it, which is the
+honest version of the DM ticking the box twice." It was left out of #868
+because `private.apply_quest_consequences` keys every firing on a beat
+transition: `quest_consequence_events` dedupes on `(transition_id,
+consequence_id)` and that id is the firing's provenance. A `location_state_events`
+row is not a transition — there is no quest, thread or beat to attribute it
+to, and with two open chains at one vault it would have to fire for both or
+pick one. That is a rule-engine design (a new condition source with its own
+dedupe key), not a site story; `20260906225258` rejected `on_location_arrival`
+for room loot for the same reason.
+
+**One room surface, two callers.** `SiteRoomList.vue`, `SiteRunWaysOut.vue`
+and `SiteRunRoomStack.vue` (`src/components/locations/`) are now shared
+verbatim between `QuestSiteHandoff` and `SiteRunSurface`'s Atlas Run action —
+before #868, only the room list itself was shared (#850 story H); the room
+card and its ways-out were each hand-rolled per caller. There is now exactly
+one implementation of "what does the DM see when the party is in this room,"
+so the cockpit's crawl and the Atlas's crawl can never quietly disagree again.
+Pure derivations shared by both callers (which rooms are unwritten, a room's
+list caption, the party's ordinal position, which rooms hold loot) live in
+`src/lib/quests/siteHandoff.ts`; the room's own stack (`buildRoomStack`) lives
+in `src/lib/locations/roomStack.ts` and is documented in world-building.md's
+"The site runner".
+
+Other threads the quest holds are still listed as "paused, not closed" with a
+Switch button, unchanged from #850. Three exits, all emits the cockpit owns:
+"Show map to players" (toggles `is_map_shared`), "Leave site" (dismisses the
+handoff for this visit; nothing here writes `quest_runtime_state`), "Advance
+beat" (opens `QuestAdvanceDialog` the normal way).
+
+**The handoff's own gate no longer checks `isSiteType` on the staged location
+alone.** `QuestRunCockpit.vue`'s `stagedSiteWithRooms` and
+`QuestBeatDetailView.vue`'s staged-site caption both resolve the site first
+(itself, or its parent when a room was staged directly) before asking whether
+it has rooms — otherwise a beat staged at a room, the entire point of this
+story, would fail the site check and never show the handoff at all.
 
 ### The quest log (frame `07 Log`)
 
@@ -1405,6 +1519,17 @@ say "and also," a payoff is split across two panels — and redraws the six
 surfaces around them. [EPIC #850](https://github.com/irongollem/grimoire/issues/850)
 implemented it; read that epic for the story-by-story breakdown and the wave
 gates it shipped under.
+
+**The site-crawl integration is a second, independent design.**
+`QuestBeatSitePanel`'s "Opens at"/readiness sheet and `QuestSiteHandoff`'s
+adoption of `SiteRunWaysOut`/`SiteRunRoomStack` are not frames of the Quest
+Manager Redesign — they implement **`atlas/Sites & Cartographer.html`**
+(epic [#868](https://github.com/irongollem/grimoire/issues/868), story S12),
+the design that owns the Atlas/site-runner surfaces documented in
+world-building.md. The two designs meet at exactly one seam,
+`quest_beats.staged_at_location_id`, which #868 widened to accept a room as
+well as a site — no schema change, since the column already took any
+location.
 
 **It supersedes the surface half of an earlier, fourteen-board canvas** (the
 "Quest System Redesign" canvas cited from `CLAUDE.md`) — that canvas's _model_

@@ -129,6 +129,7 @@ import {
 } from "@/composables/quests/useQuestFlow";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useLocationTree } from "@/composables/locations/useLocations";
+import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useConfirm } from "@/composables/useConfirm";
 import { questReturnLabel, questSurfaceReturnTo, safeQuestReturnTo } from "@/lib/quests/navigation";
 import { isSiteType } from "@/lib/locations/tiers";
@@ -236,12 +237,27 @@ const stagedLocation = computed(() => beat.value?.staged_at_location_id
   ? locationOptions.value.find((candidate) => candidate.id === beat.value!.staged_at_location_id)
   : undefined);
 const stagedLocationName = computed(() => stagedLocation.value?.name ?? "");
-const stagedSiteCaption = computed(() => {
-  if (!stagedLocation.value) return "nowhere yet";
-  if (!isSiteType(stagedLocation.value.location_type)) return "not a site — no room surface";
-  const roomCount = locationOptions.value.filter((candidate) => candidate.parent_id === stagedLocation.value!.id && candidate.location_type === "room").length;
-  return `site: ${roomCount} room${roomCount === 1 ? "" : "s"}`;
+// A beat can now be staged directly at a room (#868 S12) — the site itself
+// is the room's parent; `staged_at_location_id` has always accepted any
+// location, a room included. `QuestBeatSitePanel` (below) is the full "Opens
+// at" surface for that case; this caption only needs to stop calling it
+// "not a site" when it plainly is one, one level up.
+const resolvedSite = computed(() => {
+  const loc = stagedLocation.value;
+  if (!loc) return null;
+  if (isSiteType(loc.location_type)) return loc;
+  return loc.parent_id ? locationOptions.value.find((candidate) => candidate.id === loc.parent_id) ?? null : null;
 });
+const stagedSiteCaption = computed(() => {
+  const loc = stagedLocation.value;
+  if (!loc) return "nowhere yet";
+  const site = resolvedSite.value;
+  if (!site) return "not a site — no room surface";
+  const roomCount = locationOptions.value.filter((candidate) => candidate.parent_id === site.id && candidate.location_type === "room").length;
+  const rooms = `${roomCount} room${roomCount === 1 ? "" : "s"}`;
+  return loc.id === site.id ? `site: ${rooms}` : `opens at this room in ${site.name} — ${rooms}`;
+});
+const { readiness: siteReadiness } = useSiteStructure(resolvedSite);
 
 const fieldsSaveError = ref("");
 async function saveBeatField(update: QuestBeatUpdate) {
@@ -257,7 +273,9 @@ watch(() => beat.value?.id, () => { editingLocation.value = false; editingVisibi
 
 // ── Prep gaps ──────────────────────────────────────────────────────────────
 
-const prepGapCount = computed(() => beat.value ? deriveQuestBeatPrepGaps(beat.value, attachments.value).length : 0);
+const prepGapCount = computed(() => beat.value
+  ? deriveQuestBeatPrepGaps(beat.value, attachments.value, { site: resolvedSite.value ? siteReadiness.value : undefined }).length
+  : 0);
 
 // ── Reveal + preview ─────────────────────────────────────────────────────────
 
