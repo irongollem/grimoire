@@ -1,5 +1,6 @@
 import type { NpcRelationship } from "@/types/npc.types";
 import type { AiProvenance } from "@/ai/provenance";
+import { LOCATION_STATE_FACT_LABELS, type LocationStateFact } from "@/types/locationState.types";
 
 export type QuestStatus =
   | "undiscovered"
@@ -149,6 +150,17 @@ export const NPC_RELATIONSHIP_LADDER = ["hostile", "unfriendly", "indifferent", 
 export type QuestConsequenceObjectiveStatus = "pending" | "complete" | "failed";
 export const QUEST_CONSEQUENCE_OBJECTIVE_STATUSES: readonly QuestConsequenceObjectiveStatus[] = ["pending", "complete", "failed"];
 
+/**
+ * The location facts a `quest_consequences.on_location_fact` condition can
+ * name (#869, frame 15: "an objective may watch for it, which is the honest
+ * version of 'the DM ticks the box twice'"). Mirrors `LOCATION_STATE_FACTS`
+ * exactly — a door fact (unlocked, found) is play state of a way out, not of
+ * a place, and is never a valid condition here (enforced by the migration's
+ * check constraint, not just here).
+ */
+export const QUEST_CONSEQUENCE_LOCATION_FACTS: readonly LocationStateFact[] = ["explored", "cleared", "looted"];
+export const QUEST_CONSEQUENCE_LOCATION_FACT_LABELS: Record<LocationStateFact, string> = LOCATION_STATE_FACT_LABELS;
+
 export interface CalendarEventConsequencePayload {
   title: string;
   event_type: string;
@@ -211,8 +223,9 @@ export type QuestConsequenceActionPayload =
  * One rule: when this becomes that, do this. Exactly one condition family is
  * set — `on_beat_id` (arrival), `on_edge_id` (taking that branch),
  * `on_objective_id` + `on_objective_status` (an objective became that status),
- * or `on_quest_settled` (the whole ledger has nothing pending left) — enforced
- * by `quest_consequences_one_condition` in the database, not here.
+ * `on_quest_settled` (the whole ledger has nothing pending left), or
+ * `on_location_id` + `on_location_fact` (a place gained a true fact — #869) —
+ * enforced by `quest_consequences_one_condition` in the database, not here.
  *
  * Replaces `quest_objective_effects` (event → state) and `quest_triggers`
  * (state → world action), which were two ends of the same sentence and never
@@ -226,6 +239,16 @@ export interface QuestConsequence {
   on_objective_id: string | null;
   on_objective_status: QuestConsequenceObjectiveStatus | null;
   on_quest_settled: boolean;
+  /**
+   * A place's durable fact (#869, `supabase/migrations/20260909140236_a_quest_rule_can_watch_a_place.sql`).
+   * Fires when `on_location_id` gains a **true** `on_location_fact` assertion
+   * in `location_state_events` — taking a fact back never un-fires a rule,
+   * same as every other consequence undoing only via the DM's own act. Only a
+   * location fact fires; a door fact (unlocked, found) is play state of a way
+   * out, not of a place, and can never populate this pair.
+   */
+  on_location_id: string | null;
+  on_location_fact: LocationStateFact | null;
   /** In-world days between the condition firing and the action performing.
    *  Zero performs inside the same transaction as the condition. Honoured for
    *  the two world actions; a ledger verb applies immediately regardless —

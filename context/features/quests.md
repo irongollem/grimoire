@@ -179,7 +179,7 @@ pointer, admitted by the CHECK and offered by no UI — went too, at zero rows.
 | Surface              | Component                                                                    | What it says an objective is                                                                    |
 | --------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | A checklist you tick | Inline in `QuestOverviewLifecycle.vue` (Overview › Quest lifecycle)          | a to-do the DM asserts via `assert_quest_objective_status` — the mark cycles dormant → pending → complete → failed |
-| A rule you author    | `QuestPayoffPanel.vue`'s quick-adds (beat scope, beat page) and `QuestRulesPanel.vue` (quest scope, quest overview — this row's component was `QuestConsequencesPanel.vue` before the Quest Manager Redesign split it in two) | one `quest_consequences` row: a beat/edge condition (beat scope) or an objective-became/quest-settled condition (quest scope), doing one of the four ledger verbs or one of the seven world actions alike |
+| A rule you author    | `QuestPayoffPanel.vue`'s quick-adds (beat scope, beat page) and `QuestRulesPanel.vue` (quest scope, quest overview — this row's component was `QuestConsequencesPanel.vue` before the Quest Manager Redesign split it in two) | one `quest_consequences` row: a beat/edge condition (beat scope) or an objective-became/quest-settled/location-fact condition (quest scope), doing one of the four ledger verbs or one of the seven world actions alike |
 
 Until #794 the second row showed only _reveal / complete / fail_ and no status at all —
 `quest_objective_effects` couldn't raise a dormant objective or watch one settle. One
@@ -571,8 +571,9 @@ event.
 
 `quest_consequences` is the rule: exactly one **condition** (`on_beat_id`,
 `on_edge_id`, `on_objective_id` + `on_objective_status` ∈
-`pending`/`complete`/`failed`, or `on_quest_settled`), an **`after_days`**
-delay, and an **`action`**:
+`pending`/`complete`/`failed`, `on_quest_settled`, or — since #869 —
+`on_location_id` + `on_location_fact`), an **`after_days`** delay, and an
+**`action`**:
 
 | action | kind | needs |
 | --- | --- | --- |
@@ -602,7 +603,37 @@ quest-settled condition (`on_objective_id`/`on_objective_status`, or
 `scope="beat"` half into the Payoff list and left it with exactly one scope
 (so the `scope` prop and its beat-only branches are gone, not kept as dead
 code paths). Both surfaces still share the same action half: the four ledger
-verbs and the now-seven world actions, plus the delay field.
+verbs and the now-seven world actions, plus the delay field. A location-fact
+condition (below) is authored on the same quest-overview surface as
+objective-became and quest-settled, in `QuestRulesPanel.vue` — a place is not
+scoped to one beat, so it has no home on the beat page's Payoff list.
+
+**A place's fact is a fourth condition family (#869), closing the frame-15
+line #868 deferred: "Cleared can satisfy an objective — a durable Cleared
+assertion on a room is a world fact with provenance. An objective may watch
+for it, which is the honest version of 'the DM ticks the box twice'."**
+`on_location_id` + `on_location_fact` fires the same rule engine, watched by a
+trigger on `location_state_events` (`private.fire_location_fact_consequences`,
+migration `20260909140236`) rather than authored inline like a beat/edge
+condition, because nothing about arriving at a beat or taking a route asserts
+a location fact — that only ever happens through the room/door state log
+(`mark_arrival_explored`, `dispatch_loot` recording `looted`, or the DM
+directly). Three decisions, all in the migration header:
+
+- **Only a `true` assertion fires.** Taking a fact back ("no, not looted after
+  all") never un-completes an objective — undo on the ledger is the DM's own
+  act, as it is for every other consequence.
+- **Only a location fact fires.** A door fact (`unlocked`, `found`) is play
+  state of a way out, not of a place, and can never populate this pair.
+- **Only the campaign's ACTIVE quests fire.** A fact asserted while a quest is
+  undiscovered, a rumour, or already over is not retroactive; when the quest
+  later becomes active the rule simply waits for the next assertion, which is
+  what "watch" means.
+
+One assert transition per (state event, quest) — the same shape
+`assert_quest_objective_status` already uses for a ledger write outside any
+beat — gives `quest_consequence_events` its dedupe key and provenance, exactly
+as every other condition family does.
 
 **The family is "outcomes", not "rewards", and the word matters.** A reward is
 positive by construction; a relationship shift is *signed* — charm the lady and
@@ -1083,17 +1114,21 @@ the zone's configuration changed. This is presentation only — nothing about a
 token's position ever triggers an advance by itself, the same "prompts, not
 automation" rule the site runner holds elsewhere in #868.
 
-**A room's Cleared fact does not yet satisfy an objective — #869, on purpose.**
-Frame 15 of the site sheet says "an objective may watch for it, which is the
-honest version of the DM ticking the box twice." It was left out of #868
-because `private.apply_quest_consequences` keys every firing on a beat
-transition: `quest_consequence_events` dedupes on `(transition_id,
-consequence_id)` and that id is the firing's provenance. A `location_state_events`
-row is not a transition — there is no quest, thread or beat to attribute it
-to, and with two open chains at one vault it would have to fire for both or
-pick one. That is a rule-engine design (a new condition source with its own
-dedupe key), not a site story; `20260906225258` rejected `on_location_arrival`
-for room loot for the same reason.
+**A room's Cleared fact satisfies an objective, since #869.** Frame 15 of the
+site sheet: "an objective may watch for it, which is the honest version of the
+DM ticking the box twice." It was left out of #868 because
+`private.apply_quest_consequences` keys every firing on a beat transition:
+`quest_consequence_events` dedupes on `(transition_id, consequence_id)` and
+that id is the firing's provenance. A `location_state_events` row is not a
+transition — there is no quest, thread or beat to attribute it to, and with
+two open chains at one vault it would have to fire for both or pick one. That
+was a rule-engine design (a new condition source with its own dedupe key), not
+a site story — `20260906225258` rejected `on_location_arrival` for room loot
+for the same reason — so it landed separately as #869: a fourth condition
+family, `on_location_id`/`on_location_fact`, and a trigger on
+`location_state_events` that mints its own `assert` transition per (state
+event, quest). See "one rule engine" above for the mechanism and its
+decisions, and `QuestRulesPanel.vue` for where a DM authors "when a place…".
 
 **One room surface, two callers.** `SiteRoomList.vue`, `SiteRunWaysOut.vue`
 and `SiteRunRoomStack.vue` (`src/components/locations/`) are now shared

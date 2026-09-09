@@ -317,6 +317,8 @@ async function submit() {
         on_objective_id: null,
         on_objective_status: null,
         on_quest_settled: false,
+        on_location_id: null,
+        on_location_fact: null,
         after_days: afterDays.value || 0,
         action,
         target_objective_id: null,

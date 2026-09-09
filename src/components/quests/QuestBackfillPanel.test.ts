@@ -62,7 +62,7 @@ function edge(source_beat_id: string, target_beat_id: string): QuestBeatEdge {
 function consequence(overrides: Partial<QuestConsequence> & { id: string }): QuestConsequence {
   return {
     quest_id: "quest-1", on_beat_id: null, on_edge_id: null, on_objective_id: null,
-    on_objective_status: null, on_quest_settled: false, after_days: 0,
+    on_objective_status: null, on_quest_settled: false, on_location_id: null, on_location_fact: null, after_days: 0,
     action: "complete", target_objective_id: null, target_npc_id: null, target_quest_id: null, action_payload: {},
     created_at: "now", updated_at: "now",
     ...overrides,

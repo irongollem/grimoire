@@ -19,6 +19,8 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
     on_objective_id: null,
     on_objective_status: null,
     on_quest_settled: false,
+    on_location_id: null,
+    on_location_fact: null,
     after_days: 0,
     action: "grant_knowledge",
     target_objective_id: null,

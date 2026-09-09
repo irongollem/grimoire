@@ -180,6 +180,8 @@ export async function writeQuestSpine(
           on_objective_id: null,
           on_objective_status: null,
           on_quest_settled: false,
+          on_location_id: null,
+          on_location_fact: null,
           after_days: 0,
           action: "raise",
           target_objective_id: createdObjectives[entry.objectiveIndex]!.id,

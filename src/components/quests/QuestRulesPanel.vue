@@ -3,7 +3,7 @@
     <div>
       <h3 class="font-cinzel text-sm font-bold text-foreground">Consequences</h3>
       <p class="text-caption text-muted-foreground">
-        When an objective becomes a status, or the whole ledger settles, do this — optionally after a delay.
+        When an objective becomes a status, the whole ledger settles, or a place gains a fact, do this — optionally after a delay.
       </p>
     </div>
 
@@ -21,14 +21,27 @@
 
     <div class="grid min-w-0 gap-2 sm:grid-cols-2">
       <!-- Condition -->
-      <AppSelect v-model="conditionKind" class="min-w-0" aria-label="Condition" @change="conditionObjectiveId = ''">
+      <AppSelect v-model="conditionKind" class="min-w-0" aria-label="Condition" @change="conditionObjectiveId = ''; conditionLocationId = ''">
         <option value="settled">When the quest settles</option>
         <option value="objective">When an objective becomes…</option>
+        <option value="location">When a place…</option>
       </AppSelect>
       <template v-if="conditionKind === 'objective'">
         <EntityCombobox v-model="conditionObjectiveId" class="min-w-0" :options="objectiveOptions" placeholder="Which objective…" />
         <AppSelect v-model="conditionObjectiveStatus" class="min-w-0 sm:col-span-2" aria-label="Becomes">
           <option v-for="status in QUEST_CONSEQUENCE_OBJECTIVE_STATUSES" :key="status" :value="status">…becomes {{ QUEST_OBJECTIVE_STATUS_LABELS[status] }}</option>
+        </AppSelect>
+      </template>
+      <template v-else-if="conditionKind === 'location'">
+        <!-- Any location, not just sites — a district or a room can be
+             cleared too (design frame 15). -->
+        <EntityCombobox v-model="conditionLocationId" class="min-w-0" :options="locationOptions" placeholder="Which place…">
+          <template #option="{ opt }">
+            <span :style="{ paddingLeft: `${opt.depth * 0.75}rem` }">{{ opt.name }}</span>
+          </template>
+        </EntityCombobox>
+        <AppSelect v-model="conditionLocationFact" class="min-w-0 sm:col-span-2" aria-label="Gains the fact">
+          <option v-for="fact in QUEST_CONSEQUENCE_LOCATION_FACTS" :key="fact" :value="fact">…is {{ QUEST_CONSEQUENCE_LOCATION_FACT_LABELS[fact].toLowerCase() }}</option>
         </AppSelect>
       </template>
 
@@ -104,9 +117,12 @@ import {
 } from "@/composables/quests/useQuestFlow";
 import { useQuestObjectives, useQuests } from "@/composables/quests/useQuests";
 import { useNpcs } from "@/composables/npcs/useNpcs";
+import { useLocationTree } from "@/composables/locations/useLocations";
 import { QUEST_OBJECTIVE_STATUS_LABELS } from "@/lib/quests/objectives";
 import {
   QUEST_CONSEQUENCE_LEDGER_ACTIONS,
+  QUEST_CONSEQUENCE_LOCATION_FACT_LABELS,
+  QUEST_CONSEQUENCE_LOCATION_FACTS,
   QUEST_CONSEQUENCE_OBJECTIVE_STATUSES,
   QUEST_CONSEQUENCE_WORLD_ACTIONS,
   type QuestConsequence,
@@ -115,6 +131,7 @@ import {
   type QuestConsequenceInsert,
   type QuestConsequenceObjectiveStatus,
 } from "@/types/quest.types";
+import type { LocationStateFact } from "@/types/locationState.types";
 import { EVENT_TYPE_COLORS, type CalendarEventType } from "@/types/calendar.types";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -126,8 +143,10 @@ import QuestObjectiveStatusMark from "./QuestObjectiveStatusMark.vue";
 
 /**
  * The quest-wide half of the one consequence editor (#794): rules that fire
- * when an objective becomes a status, or when the whole ledger settles.
- * Mounted once, on the quest overview (`QuestOverviewLifecycle`).
+ * when an objective becomes a status, when the whole ledger settles, or
+ * (#869) when a place gains a durable fact (explored/cleared/looted) — the
+ * honest version of the DM ticking a box twice, per frame 15 of the site
+ * sheet. Mounted once, on the quest overview (`QuestOverviewLifecycle`).
  *
  * The beat-scoped half — arrival and branch conditions, authored on a beat —
  * moved into the Payoff list on the beat page (`QuestPayoffPanel.vue`,
@@ -176,11 +195,17 @@ const { data: objectives } = useQuestObjectives(computed(() => questId));
 const consequencesQuery = useQuestConsequences(computed(() => questId));
 const createConsequence = useCreateQuestConsequence();
 const deleteConsequence = useDeleteQuestConsequence();
+const { locationOptions: locationTreeOptions } = useLocationTree();
+// Any location, not just sites — a district or a room can be cleared too
+// (design frame 15). Wrapped in its own computed, like every other option
+// list here, rather than binding the composable's ref straight to the
+// template.
+const locationOptions = computed(() => locationTreeOptions.value);
 
-// Objective-became and quest-settled rules only — a beat/edge rule from the
-// flow lives in the Payoff list instead.
+// Objective-became, quest-settled and location-fact rules only — a beat/edge
+// rule from the flow lives in the Payoff list instead.
 const rows = computed(() => (consequencesQuery.data.value ?? [])
-  .filter((row) => row.on_objective_id !== null || row.on_quest_settled));
+  .filter((row) => row.on_objective_id !== null || row.on_quest_settled || row.on_location_id !== null));
 
 const objectiveOptions = computed(() => (objectives.value ?? []).map((objective) => ({ id: objective.id, name: objective.description })));
 function objectiveFor(id: string | null) {
@@ -192,11 +217,21 @@ function objectiveLabel(id: string | null): string {
   return objectiveFor(id)?.description ?? "Objective removed";
 }
 
+// A location fact's `on_location_id` cascades on delete (the migration's own
+// FK), so "removed" is not a real state here the way it is for an objective —
+// only ever a loading gap before `locationOptions` has fetched.
+function locationLabel(id: string | null): string {
+  if (!id) return "";
+  return locationOptions.value.find((location) => location.id === id)?.name ?? "Unknown place";
+}
+
 // ── Condition form ───────────────────────────────────────────────────────────
 
-const conditionKind = ref<"settled" | "objective">("settled");
+const conditionKind = ref<"settled" | "objective" | "location">("settled");
 const conditionObjectiveId = ref("");
 const conditionObjectiveStatus = ref<QuestConsequenceObjectiveStatus>("complete");
+const conditionLocationId = ref("");
+const conditionLocationFact = ref<LocationStateFact>("cleared");
 
 // ── Action form ──────────────────────────────────────────────────────────────
 
@@ -249,6 +284,7 @@ watch(targetOptions, (options) => {
 
 const canAdd = computed(() => {
   if (conditionKind.value === "objective" && !conditionObjectiveId.value) return false;
+  if (conditionKind.value === "location" && !conditionLocationId.value) return false;
   if (isLedgerAction(action.value)) return !!targetObjectiveId.value;
   if (action.value === "create_calendar_event") return !!calendarTitle.value.trim();
   if (action.value === "shift_npc_relationship") return !!targetNpcId.value && relationshipShiftPayload(relationshipShiftKey.value) !== null;
@@ -263,6 +299,7 @@ const canAdd = computed(() => {
 
 function conditionLabel(row: QuestConsequence): string {
   if (row.on_quest_settled) return "when the quest settles";
+  if (row.on_location_id) return `when "${locationLabel(row.on_location_id)}" is ${QUEST_CONSEQUENCE_LOCATION_FACT_LABELS[row.on_location_fact!].toLowerCase()}`;
   return `when "${objectiveLabel(row.on_objective_id)}" becomes ${QUEST_OBJECTIVE_STATUS_LABELS[row.on_objective_status!].toLowerCase()}`;
 }
 
@@ -279,6 +316,8 @@ function actionSummary(row: QuestConsequence): string {
 function resetForm() {
   conditionKind.value = "settled";
   conditionObjectiveId.value = "";
+  conditionLocationId.value = "";
+  conditionLocationFact.value = "cleared";
   targetObjectiveId.value = "";
   afterDays.value = 0;
   calendarTitle.value = "";
@@ -316,6 +355,8 @@ async function add() {
       on_objective_id: conditionKind.value === "objective" ? conditionObjectiveId.value : null,
       on_objective_status: conditionKind.value === "objective" ? conditionObjectiveStatus.value : null,
       on_quest_settled: conditionKind.value === "settled",
+      on_location_id: conditionKind.value === "location" ? conditionLocationId.value : null,
+      on_location_fact: conditionKind.value === "location" ? conditionLocationFact.value : null,
       after_days: afterDays.value || 0,
       action: action.value,
       target_objective_id: isLedgerAction(action.value) ? targetObjectiveId.value : null,

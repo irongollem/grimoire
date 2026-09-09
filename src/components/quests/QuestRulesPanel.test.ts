@@ -29,6 +29,12 @@ vi.mock("@/composables/quests/useQuests", () => ({
 vi.mock("@/composables/npcs/useNpcs", () => ({
   useNpcs: () => ({ data: { value: [{ id: "npc-1", name: "Oarus Masthew" }] } }),
 }));
+vi.mock("@/composables/locations/useLocations", () => ({
+  useLocationTree: () => ({ locationOptions: { value: [
+    { id: "loc-crypt", name: "The Sunken Crypt", depth: 0 },
+    { id: "loc-vault", name: "The Inner Vault", depth: 1 },
+  ] } }),
+}));
 
 function mountPanel() {
   return mount(QuestRulesPanel, {
@@ -49,6 +55,8 @@ function consequence(overrides: Partial<QuestConsequence> & { id: string }): Que
     on_objective_id: null,
     on_objective_status: null,
     on_quest_settled: false,
+    on_location_id: null,
+    on_location_fact: null,
     after_days: 0,
     action: "complete",
     target_objective_id: null,
@@ -71,7 +79,7 @@ describe("QuestRulesPanel", () => {
   it("defaults to the quest-settled condition and hides the objective picker", () => {
     const wrapper = mountPanel();
     const options = wrapper.findAll("select")[0]!.findAll("option");
-    expect(options.map((option) => option.attributes("value"))).toEqual(["settled", "objective"]);
+    expect(options.map((option) => option.attributes("value"))).toEqual(["settled", "objective", "location"]);
     // Only the action's own target-objective combobox is offered yet.
     expect(comboboxes(wrapper)).toHaveLength(1);
   });
@@ -103,6 +111,8 @@ describe("QuestRulesPanel", () => {
       on_objective_id: "obj-1",
       on_objective_status: "failed",
       on_quest_settled: false,
+      on_location_id: null,
+      on_location_fact: null,
       after_days: 2,
       action: "create_calendar_event",
       target_objective_id: null,
@@ -110,6 +120,37 @@ describe("QuestRulesPanel", () => {
       target_quest_id: null,
       action_payload: { title: "The cult reveals itself", event_type: "quest" },
     });
+  });
+
+  it("reveals the place and fact pickers once the condition is 'location'", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAll("select")[0]!.setValue("location");
+    expect(comboboxes(wrapper)).toHaveLength(2);
+    const factOptions = wrapper.findAll("select")[1]!.findAll("option");
+    expect(factOptions.map((option) => option.attributes("value"))).toEqual(["explored", "cleared", "looted"]);
+  });
+
+  it("authors a location-fact rule", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAll("select")[0]!.setValue("location");
+    comboboxes(wrapper)[0]!.vm.$emit("update:modelValue", "loc-crypt");
+    await flushPromises();
+    await wrapper.findAll("select")[1]!.setValue("cleared");
+    await wrapper.findAll("select")[2]!.setValue("complete");
+    comboboxes(wrapper)[1]!.vm.$emit("update:modelValue", "obj-1");
+    await flushPromises();
+    await wrapper.findAll("button").find((button) => button.text() === "Add")!.trigger("click");
+    await flushPromises();
+
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
+      on_objective_id: null,
+      on_objective_status: null,
+      on_quest_settled: false,
+      on_location_id: "loc-crypt",
+      on_location_fact: "cleared",
+      action: "complete",
+      target_objective_id: "obj-1",
+    }));
   });
 
   it("authors a quest-settled rule", async () => {
@@ -138,18 +179,20 @@ describe("QuestRulesPanel", () => {
     expect(targetOptions.map((option) => option.id)).toEqual(["obj-2"]);
   });
 
-  it("only shows objective-became and settled rules, never a beat/edge rule from the flow", () => {
+  it("only shows objective-became, settled and location-fact rules, never a beat/edge rule from the flow", () => {
     mocks.rows = [
       consequence({ id: "c-1", on_beat_id: "beat-fork", action: "complete", target_objective_id: "obj-1" }),
       consequence({ id: "c-2", on_edge_id: "edge-bridge", action: "fail", target_objective_id: "obj-1" }),
       consequence({ id: "c-3", on_objective_id: "obj-1", on_objective_status: "complete", after_days: 4, action: "raise", target_objective_id: "obj-2" }),
       consequence({ id: "c-4", on_quest_settled: true, action: "send_broadcast", action_payload: { message: "Done." } }),
+      consequence({ id: "c-5", on_location_id: "loc-crypt", on_location_fact: "cleared", action: "complete", target_objective_id: "obj-2" }),
     ];
     const rows = mountPanel().findAll("ul li");
 
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
     expect(rows[0]!.text()).toContain('when "Keep the bridge standing" becomes completed');
     expect(rows[1]!.text()).toContain("when the quest settles");
+    expect(rows[2]!.text()).toContain('when "The Sunken Crypt" is cleared');
   });
 
   it("removes a rule by id", async () => {
