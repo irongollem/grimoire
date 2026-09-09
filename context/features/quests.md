@@ -120,10 +120,10 @@ Nothing here is broken code. It is two coherent designs built four months apart
 that were never asked to fully agree — though the seam between them lost its
 sharpest special case in #793.
 
-|        | Generation one — the quest sheet                             | Generation two — the story flow                                                                                                         |
-| ------ | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Shape  | a record with a checklist                                    | a graph you run a cursor through                                                                                                        |
-| Tables | `quests`, `quest_objectives`, `quest_refs`                   | `quest_beats`, `quest_beat_edges`, `quest_beat_attachments`, `quest_runtime_state`, `quest_beat_transitions`                            |
+|        | Generation one — the quest sheet           | Generation two — the story flow                                                                              |
+| ------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Shape  | a record with a checklist                  | a graph you run a cursor through                                                                             |
+| Tables | `quests`, `quest_objectives`, `quest_refs` | `quest_beats`, `quest_beat_edges`, `quest_beat_attachments`, `quest_runtime_state`, `quest_beat_transitions` |
 
 `quest_consequences` / `quest_consequence_events` (#794) belong to neither generation — they are the one rule engine both now share, see below.
 
@@ -145,10 +145,10 @@ bug to paper over with an invented winner.
 **Where the two still overlap.** Each of these is a fact with two writable homes
 and no rule about which wins:
 
-| Generation one holds                         | Generation two also holds                                                            | Reconciled by                                                                                 |
-| -------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `quests.reward_*` (coins, pools, items, art) | `loot_placements` rows with `source_type = 'quest_reward'`                           | **resolved by #799** — the quest-level columns are dropped; `loot_placements` (renamed from `quest_beat_loot` by #830, when rooms gained the same verb) is the only home |
-| `quest_refs`                                 | `quest_beat_attachments`                                                             | a trigger syncs attachment → ref; nothing syncs back, and removing a placement leaves the ref |
+| Generation one holds                         | Generation two also holds                                  | Reconciled by                                                                                                                                                            |
+| -------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `quests.reward_*` (coins, pools, items, art) | `loot_placements` rows with `source_type = 'quest_reward'` | **resolved by #799** — the quest-level columns are dropped; `loot_placements` (renamed from `quest_beat_loot` by #830, when rooms gained the same verb) is the only home |
+| `quest_refs`                                 | `quest_beat_attachments`                                   | a trigger syncs attachment → ref; nothing syncs back, and removing a placement leaves the ref                                                                            |
 
 `quest_triggers` (fired _from_ an objective) and `quest_objective_effects` (fired _to_ one)
 were this table's third row until #794: two ends of one idea, reconciled by merging both into
@@ -176,9 +176,9 @@ pointer, admitted by the CHECK and offered by no UI — went too, at zero rows.
 
 ### An objective appears in two surfaces that once disagreed, and a third that used to
 
-| Surface              | Component                                                                    | What it says an objective is                                                                    |
-| --------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| A checklist you tick | Inline in `QuestOverviewLifecycle.vue` (Overview › Quest lifecycle)          | a to-do the DM asserts via `assert_quest_objective_status` — the mark cycles dormant → pending → complete → failed |
+| Surface              | Component                                                                                                                                                                                                                     | What it says an objective is                                                                                                                                                                                            |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A checklist you tick | Inline in `QuestOverviewLifecycle.vue` (Overview › Quest lifecycle)                                                                                                                                                           | a to-do the DM asserts via `assert_quest_objective_status` — the mark cycles dormant → pending → complete → failed                                                                                                      |
 | A rule you author    | `QuestPayoffPanel.vue`'s quick-adds (beat scope, beat page) and `QuestRulesPanel.vue` (quest scope, quest overview — this row's component was `QuestConsequencesPanel.vue` before the Quest Manager Redesign split it in two) | one `quest_consequences` row: a beat/edge condition (beat scope) or an objective-became/quest-settled/location-fact condition (quest scope), doing one of the four ledger verbs or one of the seven world actions alike |
 
 Until #794 the second row showed only _reveal / complete / fail_ and no status at all —
@@ -196,6 +196,24 @@ place an objective's meaning could disagree with itself.
 ---
 
 ## Data model
+
+### The ledger was written by hand, not extracted (#834, 9 Sep 2026)
+
+#821 and #832 asked for an AI pass that proposes objectives, rules and gates
+from a quest's prose — split in two, since 14 of 19 production quests had no
+routes at all. Re-measuring one day after epic #850 deployed gave the same
+shape: 44 routes in five quests, one rule in the whole database, no gates.
+Two facts closed the ticket instead of building it: **every multi-beat quest
+belongs to the owner** (the three from any other account have one beat and no
+objectives each), and **nothing was AI-generated or imported** — the unwired
+seven-beat quest is an artefact of the checklist era, not a shape a quest born
+under #850 takes. So the ledger was written in one session, quest by quest,
+with the DM pre-approving the batch: 10 routes to give the four spineless
+quests a spine, 4 objectives the prose implied, 89 rules, and 0 gates. That
+pass is also the re-measurement #834 asked for — and it found the dedupe
+defect above. The feature is reopened only if a non-owner DM arrives after
+launch with unwired multi-beat prose quests; if the manual surfaces make that
+rare, the gap does not exist.
 
 ### `quests`
 
@@ -330,8 +348,9 @@ One optional row per edge: `objective_id` + `status` (`pending` | `complete` |
 the same reason `dormant` is excluded: a route gated on an objective the party
 has never been given would never open). The route is open while the named
 objective stands in that status; **absent means always open**, not a default —
-every one of the 13 production forks would leave this unset today, since every
-one is still decided at the table.
+and still the shape production has: the hand-wiring pass of 9 Sep 2026 (#834,
+below) read every fork's prose and gated none of them, because every one is
+decided at the table, not by the ledger.
 
 A child table rather than two columns on the edge, so that removing the
 objective can drop the gate and keep the route via a plain FK cascade — a
@@ -407,7 +426,7 @@ precondition for naming it; `bindableSpaces()` draws that line.
 
 **Since epic #868 (S12), the column also accepts a room directly — no new
 column, because `staged_at_location_id` already took any location and a room
-*is* one.** `QuestBeatSitePanel`'s "Opens at" row is what this actually buys:
+_is_ one.** `QuestBeatSitePanel`'s "Opens at" row is what this actually buys:
 staging a beat at a specific room inside a site names the party's entry point,
 not merely the dungeon. Every reader that used to assume "staged at a site
 means staged at a site-tier location" now resolves the site itself first —
@@ -493,7 +512,7 @@ Denormalised
 title snapshots so history survives edits. No UPDATE/DELETE policies, and both
 are revoked from `authenticated`/`anon`.
 
-### `loot_placements` — what a beat or a room *holds* (#830)
+### `loot_placements` — what a beat or a room _holds_ (#830)
 
 Renamed from `quest_beat_loot` when a site room gained the same verb. Keyed by
 **where**: `beat_id` + `quest_id` (set together) **or** `location_id`, exactly
@@ -503,15 +522,15 @@ carries no quest at all.
 **Do not merge this table into `quest_consequences`.** They are the same shape
 at a glance and three measurable things apart:
 
-| | `loot_placements` | `quest_consequences` |
-| --- | --- | --- |
-| fires from | a **human**, at a moment the graph cannot see | the **engine**, on a condition |
-| how often | **once ever** (`dispatched_at`, immutability trigger) | **once per transition** |
-| needs the runtime | no — `dispatch_loot` checks only `is_campaign_dm` | yes — `transition_id` is NOT NULL |
+|                   | `loot_placements`                                     | `quest_consequences`              |
+| ----------------- | ----------------------------------------------------- | --------------------------------- |
+| fires from        | a **human**, at a moment the graph cannot see         | the **engine**, on a condition    |
+| how often         | **once ever** (`dispatched_at`, immutability trigger) | **once per transition**           |
+| needs the runtime | no — `dispatch_loot` checks only `is_campaign_dm`     | yes — `transition_id` is NOT NULL |
 
-The tell that the split is real rather than arbitrary: those axes put a *room's*
+The tell that the split is real rather than arbitrary: those axes put a _room's_
 loot on the loot side without being asked. The verbs are **holds** and **does** —
-a beat *holds* loot the way a chest does, and *does* consequences.
+a beat _holds_ loot the way a chest does, and _does_ consequences.
 
 **The Quest Manager Redesign overturned the surface half of that guidance, not
 the data-model half.** This doc used to say "do not build a combined Outcomes
@@ -575,15 +594,15 @@ event.
 `on_location_id` + `on_location_fact`), an **`after_days`** delay, and an
 **`action`**:
 
-| action | kind | needs |
-| --- | --- | --- |
-| `raise` `reveal` `complete` `fail` | ledger verb | `target_objective_id` |
-| `create_calendar_event` `send_broadcast` | world action | `action_payload` |
+| action                                                       | kind         | needs                                                              |
+| ------------------------------------------------------------ | ------------ | ------------------------------------------------------------------ |
+| `raise` `reveal` `complete` `fail`                           | ledger verb  | `target_objective_id`                                              |
+| `create_calendar_event` `send_broadcast`                     | world action | `action_payload`                                                   |
 | `shift_npc_relationship` (#831, `to` since `20260908210324`) | world action | `target_npc_id` + `action_payload.step` **or** `action_payload.to` |
-| `unlock_quest` (#836) | world action | `target_quest_id` |
-| `grant_knowledge` (#850) | world action | `action_payload.text` |
-| `owe_favor` (#850) | world action | `target_npc_id` + `action_payload.text` |
-| `award_milestone` (#850) | world action | `action_payload.text` |
+| `unlock_quest` (#836)                                        | world action | `target_quest_id`                                                  |
+| `grant_knowledge` (#850)                                     | world action | `action_payload.text`                                              |
+| `owe_favor` (#850)                                           | world action | `target_npc_id` + `action_payload.text`                            |
+| `award_milestone` (#850)                                     | world action | `action_payload.text`                                              |
 
 The three #850 verbs join the family exactly like `shift_npc_relationship` and
 `unlock_quest` did: same table, same `after_days` delay, same event log, same
@@ -591,6 +610,19 @@ undo. `owe_favor` shares `shift_npc_relationship`'s NPC-pair constraint
 (`quest_consequences_npc_pair`) — `target_npc_id` is required for either
 action and forbidden for every other one, extended by #850 from a
 single-action check.
+
+**A rule's identity is its condition, its action and every target it can
+name (`20260909192146`).** The #794 uniques carried `quest_objective_effects`'
+key forward — (condition, action, `target_objective_id`) — which was the whole
+identity of a rule when every action either moved an objective or carried a
+payload. `unlock_quest` and the two NPC actions added targets the key did not
+know about, so a beat could open one sequel and move one NPC at most; the
+second `unlock_quest` on a real opening beat raised `23505` during #834.
+Ledger verbs still dedupe on the objective, targeted world actions on their
+target, and the four payload-only actions (`create_calendar_event`,
+`send_broadcast`, `grant_knowledge`, `award_milestone`) do not dedupe at all —
+two pieces of knowledge from one beat are two rules, and the payload is not an
+identity. `supabase/tests/quest_consequence_dedupe.test.sql` pins all three.
 
 **Authored on two surfaces now, since the beat scope moved.** A beat/edge
 condition (`on_beat_id` or `on_edge_id`) is authored from the beat page's
@@ -636,7 +668,7 @@ beat — gives `quest_consequence_events` its dedupe key and provenance, exactly
 as every other condition family does.
 
 **The family is "outcomes", not "rewards", and the word matters.** A reward is
-positive by construction; a relationship shift is *signed* — charm the lady and
+positive by construction; a relationship shift is _signed_ — charm the lady and
 it goes up, embarrass yourself trying and it goes down. Framing the family as
 rewards quietly excludes half the cases a DM needs (the guild has marked you,
 the shrine is now watched). The corollary is the rule of thumb behind both new
@@ -657,7 +689,7 @@ restore or nothing to do, and nothing downstream reads a NULL and guesses.
 
 **The absolute form, `to` (`20260908210324`).** The maintainer's example of
 the reward a table actually hands out is "indifferent to helpful" — a stance
-*stated*, which a signed step cannot say, and which the step form silently
+_stated_, which a signed step cannot say, and which the step form silently
 skipped whenever the NPC still sat at the default `unknown`. `action_payload.to`
 names one of the five rungs (never `unknown`); it applies from any stance,
 `unknown` included, and records the previous value so `previous` restores
@@ -671,15 +703,15 @@ five stances first and defaults to "Becomes friendly".
 
 **`unlock_quest` promotes `undiscovered` → `rumor` and nothing else.** That was
 the one rung with no trigger: arrival already moves `rumor` → `active`, but
-nothing moved a quest *out* of `undiscovered` except a DM editing it. It
-promotes to `rumor` rather than `active` because the party has *caused* the
+nothing moved a quest _out_ of `undiscovered` except a DM editing it. It
+promotes to `rumor` rather than `active` because the party has _caused_ the
 sequel, not met it. Undo restores the previous status **only if the quest is
 still `rumor`** — a party that has since picked it up must not be yanked back
 into hiding by an unrelated step-back.
 
 **`unlock_quest` deliberately leaves `parent_quest_id` alone.** "Unlocked by"
 and "child of" are different relations: one trigger can legitimately open both a
-sequel *and* something unrelated, which is exactly what the maintainer's own
+sequel _and_ something unrelated, which is exactly what the maintainer's own
 campaign does. Merging them would make every unlocked quest a child of its
 trigger, and that is very hard to undo once data exists.
 
@@ -794,7 +826,7 @@ Vue Flow view-model wrappers only.
 | --------------------------- | ----------------------------------------------- |
 | `/quests`                   | `views/quests/QuestsView.vue` → `QuestList.vue` |
 | `/quests/new`               | `QuestDetailView.vue` → `QuestFlowStarter.vue`  |
-| `/quests/:id`               | `QuestDetailView.vue`                            |
+| `/quests/:id`               | `QuestDetailView.vue`                           |
 | `/quests/:id/beats/:beatId` | `views/quests/QuestBeatDetailView.vue`          |
 
 `/quests/:id`, `/quests/new` and the beats route are all top-level siblings of
@@ -1011,7 +1043,7 @@ loudest, most deliberate intent in the room — see soundboard.md's "Who wins
 the slot" — rather than a raw store call that could silently stomp whatever
 ambience or encounter theme was already running with no way to hand it back.
 The button's own "is this active" state reads `useActiveAudioTriggers()`
-(a cue owned by *this* attachment's `sourceId`, not merely "is this playlist
+(a cue owned by _this_ attachment's `sourceId`, not merely "is this playlist
 playing somewhere") so it never disagrees with the `CausedByChip`. Leaving the
 cockpit (unmount) releases the cue — mirroring `EncounterRunner`, whose battle
 music would otherwise follow the DM around the app with nothing left on
@@ -1091,7 +1123,7 @@ drift.
 - **Progress** stays `LocationStateControls` on the current room, now in its
   own small card rather than folded into the room article.
 
-**A beat staged directly at a room (#868 S12) still runs the room's *parent*
+**A beat staged directly at a room (#868 S12) still runs the room's _parent_
 site.** `QuestSiteHandoff` resolves `siteId` from the staged location the same
 way every other #868 S12 reader does — itself if already site-tier, else
 `parent_id` — because fetching this component's rooms, doors and map off the
@@ -1103,7 +1135,7 @@ moves there; nothing here moves them on its own.
 
 **A trigger zone can prompt this beat's own advance, and never fires it.**
 `SiteMapZoneList.vue` lets a `trigger`-kind zone name a `beat_id` (#868 S12).
-When the party's current room falls inside a trigger zone naming *this* beat
+When the party's current room falls inside a trigger zone naming _this_ beat
 — compared by id, not "any beat in the quest," since `advance` has no target
 parameter and can only ever advance the beat already staged here — the
 handoff shows "`<beat title>` is staged on this floor — advance?" above the
@@ -1360,8 +1392,8 @@ the party knows it; see below).
 `QuestBackfillPanel.vue`, mounted inside `QuestOverviewLifecycle` on the quest's
 Overview. The DM ticks the beats the party already played, optionally names the
 session, and records them: consequences are applied and the cursor can be placed
-at the last one — without ever starting a session. *"Backfilling ten sessions of
-history should not mean performing them."*
+at the last one — without ever starting a session. _"Backfilling ten sessions of
+history should not mean performing them."_
 
 **Thread-scoped since #850, defaulting to the quest's first live thread.**
 The panel records against one named thread (`useQuestThreads`, the first
@@ -1374,7 +1406,7 @@ knowing before relying on it for a multi-thread quest.
 **Every row shows its own state before anything is ticked** — "Playing now" /
 "The party is here", "Played · 3d ago", "Recorded · Session 4", "Not played" —
 derived in `lib/quests/backfill.ts` (`deriveBeatRecordStates`) from the
-transition log and the cursor: the newest transition *to* a beat decides, an
+transition log and the cursor: the newest transition _to_ a beat decides, an
 `assert` reads as recorded, a table kind as played, and the cursor's beat wins.
 That is the panel's feedback: after recording, the rows change state in place
 rather than a cleared list and a banner. "Select all" picks only unplayed
@@ -1464,7 +1496,7 @@ not been sent down that branch yet. An unwired objective lands `pending`
 conservatively, so a hole in the model's output never hides a goal from the DM.
 
 The planning is pure and lives in `src/lib/quests/spine.ts` — it treats the
-response as untrusted and *degrades* rather than throwing: blank keys, dangling
+response as untrusted and _degrades_ rather than throwing: blank keys, dangling
 routes, duplicate pairs and unknown kinds are dropped. **Nothing is ever
 manufactured.** A response with no usable spine creates no beat at all; a
 fabricated "Opening beat" would let the generation-one shape survive its own
@@ -1473,10 +1505,10 @@ deletion, which is the whole of what epic #780 undid.
 The writing lives in `src/lib/quests/spineWrite.ts` (#829), which takes its four
 mutations as injected deps because there are now **two producers**:
 
-| Producer | Gets its mutations from | Fills `read_aloud`? |
-| --- | --- | --- |
-| `useCreateQuestFromHook` (this generator) | TanStack mutations | No — invented prose has no boxed text |
-| `DocumentImportWizard` (#829, pasted adventure page) | plain Supabase inserts | Yes — a published page marks its boxed text |
+| Producer                                             | Gets its mutations from | Fills `read_aloud`?                         |
+| ---------------------------------------------------- | ----------------------- | ------------------------------------------- |
+| `useCreateQuestFromHook` (this generator)            | TanStack mutations      | No — invented prose has no boxed text       |
+| `DocumentImportWizard` (#829, pasted adventure page) | plain Supabase inserts  | Yes — a published page marks its boxed text |
 
 Three behaviours in there look arbitrary and are not: beats are created
 **sequentially rather than `Promise.all`** (`canvas_x` reads left-to-right in story
@@ -1538,11 +1570,11 @@ there.
 `QuestFlowStarter` sends a newly created quest to `/quests/:id?view=overview` —
 the new record's own detail page, and it is not alone: `QuestGeneratorPanel`
 does it twice and `QuestPasteImportPanel` once. A fourth,
-`QuestGraphDesigner`'s beat command, targets a *beat* rather than the quest, so
+`QuestGraphDesigner`'s beat command, targets a _beat_ rather than the quest, so
 it is a different route and not part of this question. The post-mutation
 navigation rule says create should go to the list and explicitly forbids the
 detail page; the carve-out that lets NPCs and monsters target their own id is
-earned by *route nesting*, and [#844](https://github.com/irongollem/grimoire/issues/844)
+earned by _route nesting_, and [#844](https://github.com/irongollem/grimoire/issues/844)
 nested `/quests/:id` to earn it the same way.
 
 **That nesting is gone (8 Sep 2026) — the quest is a full page, never a
