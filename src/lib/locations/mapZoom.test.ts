@@ -7,8 +7,9 @@ import {
   pinOrigin,
   planAscent,
   planDescent,
+  regionOrigin,
 } from "./mapZoom";
-import type { Location } from "@/types/location.types";
+import type { Location, GridCalibration } from "@/types/location.types";
 
 function place(over: Partial<Location> = {}): Location {
   return {
@@ -138,6 +139,32 @@ describe("planDescent / planAscent", () => {
     expect(planAscent(child, place({ map_url: null }))).toBeNull();
     expect(planDescent(null, child)).toBeNull();
     expect(planAscent(child, null)).toBeNull();
+  });
+
+  it("accepts an origin override, for descending into a traced region", () => {
+    expect(planDescent(parent, child, "10% 20%")?.origin).toBe("10% 20%");
+  });
+});
+
+describe("regionOrigin", () => {
+  const calibration: GridCalibration = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 };
+
+  it("centres on a single cell", () => {
+    const origin = regionOrigin(["0,0"], calibration, 1000, 1000);
+    expect(origin).toBe("5% 5%");
+  });
+
+  it("averages cell-by-cell rather than by bounding box, so an L-shape anchors inside itself", () => {
+    // An L of (0,0), (1,0), (0,1) has a bounding-box centre at (1,1) — outside
+    // the shape entirely. The cell-average anchors inside it instead.
+    const origin = regionOrigin(["0,0", "1,0", "0,1"], calibration, 1000, 1000);
+    const [x, y] = origin.replace(/%/g, "").split(" ").map(Number);
+    expect(x).toBeCloseTo((5 + 15 + 5) / 3, 5);
+    expect(y).toBeCloseTo((5 + 5 + 15) / 3, 5);
+  });
+
+  it("falls back to centre for an empty region", () => {
+    expect(regionOrigin([], calibration, 1000, 1000)).toBe("50% 50%");
   });
 });
 

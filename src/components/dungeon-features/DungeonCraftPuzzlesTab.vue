@@ -47,7 +47,7 @@
             :class="PUZZLE_DIFFICULTY_BG[puzzle.difficulty]"
           >{{ puzzle.difficulty }}</span>
         </div>
-        <div class="p-2.5 flex flex-col gap-0.5">
+        <div class="p-2.5 flex flex-col gap-1">
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ puzzle.name }}</h3>
           <div class="flex items-center gap-2">
             <span class="text-caption-sm text-muted-foreground italic">
@@ -57,6 +57,7 @@
               · {{ puzzle.skill_checks.map((s) => s.skill).join(', ') }}
             </span>
           </div>
+          <PlacedInLine :rooms="placedInRows(puzzle)" />
         </div>
       </RouterLink>
     </template>
@@ -67,16 +68,36 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { usePuzzles } from "@/composables/dungeon-features/usePuzzles";
+import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
+import { directRoomPlacement } from "@/lib/dungeon-features/placedIn";
+import type { PlacedInRoom } from "@/lib/dungeon-features/placedIn";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
+import type { PuzzleRoom } from "@/types/puzzle.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
+import PlacedInLine from "./PlacedInLine.vue";
 
 const router = useRouter();
 const { data: puzzles, isLoading: puzzlesLoading } = usePuzzles();
 const puzzlesSearch           = ref("");
 const puzzlesTypeFilter       = ref("");
 const puzzlesDifficultyFilter = ref("");
+
+// ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
+// Not from `location_placements` — a puzzle anchors via its own
+// `dungeon_feature_id` (draws wherever that feature is placed) or
+// `location_id` (a bare room, no cell of its own) instead of a join row.
+const hostFeatureIds = computed(
+  () => (puzzles.value ?? []).map((p) => p.dungeon_feature_id).filter((id): id is string => !!id),
+);
+const { placedInRows: placedInRowsForFeature, locationsById } = usePlacedInRooms("dungeon_feature", hostFeatureIds);
+
+function placedInRows(puzzle: PuzzleRoom): PlacedInRoom[] {
+  if (puzzle.dungeon_feature_id) return placedInRowsForFeature(puzzle.dungeon_feature_id);
+  if (puzzle.location_id) return [directRoomPlacement(puzzle.location_id, locationsById.value)];
+  return [];
+}
 
 const filteredPuzzles = computed(() => {
   let list = puzzles.value ?? [];

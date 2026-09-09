@@ -1,9 +1,12 @@
 <template>
   <div class="flex flex-col gap-3">
     <!-- Layer bar (#868, frame 03) — browse mode only; run mode keeps its
-         own chrome (the click-to-move room list, not this toolbar). -->
+         own chrome (the click-to-move room list, not this toolbar).
+         `showLayerBar` lets a caller that renders its own copy elsewhere
+         (the Atlas pane's Contents/Map row, S6) suppress this one instead of
+         showing it twice. -->
     <SiteMapLayerBar
-      v-if="showRegions && hasRegionContent && !runMode"
+      v-if="showRegions && hasRegionContent && !runMode && showLayerBar"
       :counts="layerCounts"
     />
 
@@ -18,67 +21,129 @@
       <AppButton variant="ghost" size="inline-xs" label="Done" @click="activeRegionId = null" />
     </div>
 
-    <div class="relative">
-      <MapFrame
-        ref="frameRef"
-        :map-url="mapUrl"
-        :compact="compact"
-        :placing="!!placingChildId"
-        @tap="onTap"
-        @container-click="pinsLayerRef?.clearPinned()"
-      >
-        <!-- Regions render beneath pins: room shapes are a floor to stand on,
-             pins are markers placed on top of it. -->
-        <MapRegionsLayer
-          v-if="showRegions && hasRegionContent"
-          v-model:active-region-id="activeRegionId"
-          :regions="regions"
-          :calibration="calibration"
-          :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
-          :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
-          :mode="runMode ? 'run' : 'browse'"
-          :party-room-id="partyRoomId"
-          :reachable-room-ids="reachableRoomIds"
-          :to-image-fraction="toImageFraction"
-          :show-spaces="siteMapLayers.spaces"
-          :show-zones="siteMapLayers.zones"
-          :show-grid="siteMapLayers.grid"
-          :nested-site-ids="nestedSiteIds"
-          @move-party="emit('move-party', $event)"
-          @descend="emit('descend', $event)"
-          @hover-region="emit('hover-region', $event)"
-        />
-        <MapPinsLayer
-          ref="pinsLayerRef"
-          v-model:pins="pins"
-          v-model:placing-child-id="placingChildId"
-          :map-url="mapUrl"
-          :children="children"
-          :mode="mode"
-          :show-hidden-pins="showHiddenPins"
-          :offer-peek="offerPeek"
-          :shared-child-ids="sharedChildIds"
-          :scale="frameRef?.scale ?? 1"
-          :to-image-fraction="toImageFraction"
-          @pin-click="emit('pin-click', $event)"
-          @pin-go="emit('pin-go', $event)"
-          @pin-watch="emit('pin-watch', $event)"
-        />
-      </MapFrame>
+    <!--
+      Frame 03 "Map mode, for a site": the map (with its legend underneath)
+      on the left, a 340px column of the space/zone lists — and whatever a
+      caller adds via #aside (S6: SiteWaysOutPanel) — to its right, from `lg`
+      up. Below `lg` there is no room for a side column, so everything stacks
+      exactly as it always has.
+    -->
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-start">
+      <div class="flex min-w-0 flex-1 flex-col gap-3">
+        <div class="relative">
+          <MapFrame
+            ref="frameRef"
+            :map-url="mapUrl"
+            :compact="compact"
+            :placing="!!placingChildId"
+            @tap="onTap"
+            @container-click="pinsLayerRef?.clearPinned()"
+          >
+            <!-- Regions render beneath pins: room shapes are a floor to stand on,
+                 pins are markers placed on top of it. -->
+            <MapRegionsLayer
+              v-if="showRegions && hasRegionContent"
+              v-model:active-region-id="activeRegionId"
+              :regions="regions"
+              :calibration="calibration"
+              :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
+              :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
+              :mode="runMode ? 'run' : 'browse'"
+              :party-room-id="partyRoomId"
+              :reachable-room-ids="reachableRoomIds"
+              :to-image-fraction="toImageFraction"
+              :show-spaces="siteMapLayers.spaces"
+              :show-zones="siteMapLayers.zones"
+              :show-grid="siteMapLayers.grid"
+              :ways="siteDoors ?? []"
+              :nested-site-ids="nestedSiteIds"
+              @move-party="emit('move-party', $event)"
+              @descend="emit('descend', $event)"
+              @hover-region="emit('hover-region', $event)"
+            />
+            <!-- Prepared marks sit above regions/doors, below pins — a token
+                 on the floor, not a pin above the whole map (#868, S8). -->
+            <MapPreparedLayer
+              v-if="showRegions && siteMapLayers.prepared"
+              :marks="preparedMarks"
+              :calibration="calibration"
+              :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
+              :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
+            />
+            <MapPinsLayer
+              ref="pinsLayerRef"
+              v-model:pins="pins"
+              v-model:placing-child-id="placingChildId"
+              :map-url="mapUrl"
+              :children="children"
+              :mode="mode"
+              :show-hidden-pins="showHiddenPins"
+              :offer-peek="offerPeek"
+              :shared-child-ids="sharedChildIds"
+              :scale="frameRef?.scale ?? 1"
+              :to-image-fraction="toImageFraction"
+              @pin-click="emit('pin-click', $event)"
+              @pin-go="emit('pin-go', $event)"
+              @pin-watch="emit('pin-watch', $event)"
+            />
+          </MapFrame>
 
-      <!-- Calibration chip (#868, frame 03) — a HUD overlay, not part of
-           MapFrame's own zoomed slot, so it stays put while the map pans. -->
-      <div v-if="showRegions && hasRegionContent && calibration" class="pointer-events-none absolute right-2 top-2 z-20">
-        <span
-          class="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-card/90 px-2.5 py-1 text-caption-sm text-muted-foreground shadow-sm backdrop-blur-sm"
-        >
-          <IconRuler class="h-3 w-3 shrink-0" aria-hidden="true" />
-          {{ calibration.cells_per_image_width }} cells · 5 ft · origin {{ originCell(calibration).x }},{{ originCell(calibration).y }}
-        </span>
+          <!-- Calibration chip (#868, frame 03) — a HUD overlay, not part of
+               MapFrame's own zoomed slot, so it stays put while the map pans. -->
+          <div v-if="showRegions && hasRegionContent && calibration" class="pointer-events-none absolute right-2 top-2 z-20">
+            <span
+              class="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-card/90 px-2.5 py-1 text-caption-sm text-muted-foreground shadow-sm backdrop-blur-sm"
+            >
+              <IconRuler class="h-3 w-3 shrink-0" aria-hidden="true" />
+              {{ calibration.cells_per_image_width }} cells · 5 ft · origin {{ originCell(calibration).x }},{{ originCell(calibration).y }}
+            </span>
+          </div>
+
+          <!--
+            A caller that needs to overlay something fixed to the map's OWN
+            box — the Atlas pane's "Up to <parent>" control (S6) — renders it
+            here rather than as a sibling of this whole component. Sibling
+            positioning is what put that control over the layer bar/tracing
+            banner once this component started rendering chrome above the
+            frame: this slot sits exactly where the calibration chip does, so
+            it tracks the map regardless of what renders above it.
+          -->
+          <slot name="frame-overlay" />
+        </div>
+
+        <SiteMapLegend
+          v-if="showRegions && hasRegionContent && !runMode"
+          :show-prepared="siteMapLayers.prepared"
+          :prepared-counts="preparedCounts"
+        />
+      </div>
+
+      <!-- Editing-only, same as `LocationEditor`'s inline panels — run mode
+           renders its own click-to-move room list instead (`SiteRunSurface`),
+           which needs no side column. -->
+      <div
+        v-if="showRegions && hasRegionContent && !runMode"
+        class="flex w-full flex-col gap-3 lg:w-85 lg:shrink-0"
+      >
+        <SiteMapRegionList
+          :location-id="locationId!"
+          :spaces="spaces"
+          :regions="regions"
+          :active-region-id="activeRegionId"
+          :can-trace="!!calibration"
+          @update:active-region-id="activeRegionId = $event"
+        />
+        <SiteMapZoneList
+          :location-id="locationId!"
+          :regions="regions"
+          :active-region-id="activeRegionId"
+          :can-trace="!!calibration"
+          @update:active-region-id="activeRegionId = $event"
+        />
+        <!-- S6: SiteWaysOutPanel mounts here via a caller's #aside content. -->
+        <slot name="aside" />
       </div>
     </div>
-
-    <SiteMapLegend v-if="showRegions && hasRegionContent && !runMode" />
 
     <!-- Edit mode: placing indicator or unplaced children -->
     <template v-if="mode === 'edit'">
@@ -125,41 +190,18 @@
       </div>
     </template>
 
-    <!-- Site regions: calibration gate + the room-shapes list. Gated on
-         presence (spaces or regions actually exist), not on tier — see
-         `hasRegionContent`. -->
-    <template v-if="showRegions && hasRegionContent">
-      <div
-        v-if="!calibration"
-        class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2"
-      >
-        <span class="text-caption text-muted-foreground">
-          A grid has to be matched to this map before spaces can be traced on it.
-        </span>
-        <AppButton variant="primary" size="sm" label="Calibrate grid" @click="calibrationOpen = true" />
-      </div>
-
-      <!-- Editing-only, same as `LocationEditor`'s inline panels — run mode
-           renders its own click-to-move room list instead (`SiteRunSurface`). -->
-      <template v-if="!runMode">
-        <SiteMapRegionList
-          :location-id="locationId!"
-          :spaces="spaces"
-          :regions="regions"
-          :active-region-id="activeRegionId"
-          :can-trace="!!calibration"
-          @update:active-region-id="activeRegionId = $event"
-        />
-        <SiteMapZoneList
-          :location-id="locationId!"
-          :regions="regions"
-          :active-region-id="activeRegionId"
-          :can-trace="!!calibration"
-          @update:active-region-id="activeRegionId = $event"
-        />
-        <!-- S5: SiteWaysOutPanel mounts here -->
-      </template>
-    </template>
+    <!-- Site regions: calibration gate, ahead of anything that needs the
+         grid to exist. The room-shapes/zone lists themselves moved into the
+         `lg` side column above — this is the one thing that stayed put. -->
+    <div
+      v-if="showRegions && hasRegionContent && !calibration"
+      class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2"
+    >
+      <span class="text-caption text-muted-foreground">
+        A grid has to be matched to this map before spaces can be traced on it.
+      </span>
+      <AppButton variant="primary" size="sm" label="Calibrate grid" @click="calibrationOpen = true" />
+    </div>
 
     <!-- Mounted unconditionally, same idiom as `LocationEditor.vue` — gated
          purely by `:open`, not by a v-if that would tear it down mid-flow. -->
@@ -175,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { IconLocation, IconRuler } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
@@ -187,7 +229,10 @@ import SiteMapLayerBar from "@/components/locations/SiteMapLayerBar.vue";
 import SiteMapLegend from "@/components/locations/SiteMapLegend.vue";
 import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
 import SiteMapZoneList from "@/components/locations/SiteMapZoneList.vue";
+import MapPreparedLayer from "@/components/locations/MapPreparedLayer.vue";
 import { useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
+import { useSiteDoors } from "@/composables/locations/useSiteDoors";
+import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { useToast } from "@/composables/useToast";
 import { isSiteType } from "@/lib/locations/tiers";
 import { useUiStore } from "@/stores/ui";
@@ -217,6 +262,7 @@ const {
   runMode = false,
   partyRoomId = null,
   reachableRoomIds = null,
+  showLayerBar = true,
 } = defineProps<{
   mapUrl: string;
   /** Candidate pin targets (edit mode: unplaced list + pin data population).
@@ -270,6 +316,13 @@ const {
   partyRoomId?: string | null;
   /** Rooms reachable from `partyRoomId`. Only meaningful when `runMode`. */
   reachableRoomIds?: ReadonlySet<string> | null;
+  /** Render this component's own `SiteMapLayerBar` above the frame. A caller
+   *  that mounts its own copy elsewhere — the Atlas pane's Contents/Map row
+   *  (S6), so its "Up to <parent>" overlay doesn't collide with a bar
+   *  rendered inside this component — passes `false` and reads `layerCounts`
+   *  off the `layer-counts` emit instead. Default true so every other caller
+   *  (the sheet, the run surface) is unaffected. */
+  showLayerBar?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -284,6 +337,10 @@ const emit = defineEmits<{
   descend: [spaceId: string];
   /** Relayed from `MapRegionsLayer` — see its own docstring. */
   "hover-region": [regionId: string | null];
+  /** The pill counts this component would show its own layer bar, whether or
+   *  not `showLayerBar` is actually rendering one — so a caller suppressing
+   *  it (S6) can still read the numbers without re-deriving them. */
+  "layer-counts": [counts: { spaces: number; ways: number; zones: number; prepared: number }];
 }>();
 
 const uiStore = useUiStore();
@@ -369,17 +426,34 @@ const nestedSiteIds = computed(
   () => new Set(spaces.filter((s) => s.location_type && isSiteType(s.location_type)).map((s) => s.id)),
 );
 
-/** Feeds `SiteMapLayerBar`'s pill counts. `ways`/`prepared` are 0 rather than
- *  omitted: #868's S5 (`SiteWaysOutPanel`) and a later "Prepared" story wire
- *  real counts through once their data reaches this component — until then
- *  there genuinely are zero of either shown here, which is what the layer
- *  bar should say rather than hiding the pill. */
+// ── Doors drawn on the map + Prepared layer (#868, S8) ────────────────────────
+//
+// Both read the same `spaceIds` `MapRegionsLayer`'s own bindable-space props
+// already imply — fetched here rather than passed in from a caller, the same
+// call this component already makes for its own calibration mutation, so
+// `SiteWaysOutPanel`'s side list (fed from outside, via `#aside`) and this
+// component's own bars/legend never need to agree on a shared prop shape.
+const spaceIds = computed(() => spaces.map((s) => s.id));
+const { data: siteDoors } = useSiteDoors(spaceIds);
+const { marks: preparedMarks, counts: preparedCounts } = useSitePrepared(
+  spaceIds,
+  computed(() => regions),
+);
+
+/** Feeds `SiteMapLayerBar`'s pill counts. Both `ways` and `prepared` now read
+ *  real data (#868 S8) — the placeholder comment this replaced predates
+ *  `useSiteDoors`/`useSitePrepared` existing at all. */
 const layerCounts = computed(() => ({
   spaces: spaces.length,
-  ways: 0,
+  ways: siteDoors.value?.length ?? 0,
   zones: regions.filter((r) => r.region_role === "zone").length,
-  prepared: 0,
+  prepared: preparedMarks.value.length,
 }));
+
+// Re-emitted whenever it changes so a caller suppressing `showLayerBar` (S6)
+// can still read the numbers without a second implementation of "how many
+// spaces/zones does this site have".
+watch(layerCounts, (counts) => emit("layer-counts", counts), { immediate: true });
 
 /** `origin_cell_x/y` default to (0, 0) per `GridCalibration`'s documented
  *  default (`resolveOriginCell` in `gridCalibration.ts`, a file this story
@@ -388,4 +462,16 @@ const layerCounts = computed(() => ({
 function originCell(cal: GridCalibration): { x: number; y: number } {
   return { x: cal.origin_cell_x ?? 0, y: cal.origin_cell_y ?? 0 };
 }
+
+// A caller descending into a REGION rather than a pin (#868, S6) needs the
+// loaded image's natural size to turn the region's cells into an anchor
+// point (`regionOrigin` in `mapZoom.ts`) — the same numbers `MapFrame`
+// already tracks for its own overlays, exposed here so that caller doesn't
+// have to mount a second `<img>` just to measure one.
+defineExpose({
+  getImageNaturalSize: () => ({
+    width: frameRef.value?.imageNaturalWidth ?? 0,
+    height: frameRef.value?.imageNaturalHeight ?? 0,
+  }),
+});
 </script>

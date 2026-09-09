@@ -1,6 +1,10 @@
 <template>
   <section class="flex flex-col gap-3" :aria-label="verticalOnly ? 'Vertical ways out' : 'Ways out'">
-    <header class="flex items-center gap-2">
+    <!-- `hideHeader` for a caller that already renders its own section
+         heading (`LocationDetailSections`'s "Ways out" `h2`) — a second
+         "Ways out" title right beneath the first read as a mistake, not
+         emphasis. -->
+    <header v-if="!hideHeader" class="flex items-center gap-2">
       <IconDoor class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <h3 class="font-cinzel text-sm font-bold text-foreground">{{ verticalOnly ? "Vertical ways out" : "Ways out" }}</h3>
       <span
@@ -220,12 +224,15 @@ export interface WaysOutSpace {
 // key/route off it) but nothing in this story's rendering needs it — every
 // door this panel reads is already scoped by `spaces`, which is exhaustive
 // for the site it was fetched from.
-const { spaces, verticalOnly = false } = defineProps<{
+const { spaces, verticalOnly = false, hideHeader = false } = defineProps<{
   siteId: string;
   spaces: WaysOutSpace[];
   /** Renders the frame-06 "Vertical ways out" variant: filtered, read-only,
    *  no add form — for a levels rail to mount. */
   verticalOnly?: boolean;
+  /** Suppresses the icon+title+count header — for a caller (`LocationDetailSections`)
+   *  that already renders its own "Ways out" section heading above this. */
+  hideHeader?: boolean;
 }>();
 
 const toast = useToast();

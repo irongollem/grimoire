@@ -14,6 +14,7 @@ import type { SoundCategory } from "@/types/sound.types";
 import type { DowntimeDrawStatus } from "@/types/downtime.types";
 import type { MiniFormat, MiniStatus } from "@/types/mini.types";
 import type { AdminAuditAction } from "@/composables/admin/useAdminAuditLog";
+import type { TraceTool } from "@/lib/locations/polygon";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -780,6 +781,12 @@ export const useUiStore = defineStore("ui", () => {
     siteMapLayers.value[key] = !siteMapLayers.value[key];
   }
 
+  // Site map trace tool (#868, frame 12) — which of the three ways to trace a
+  // space is active. A plain ref alongside `siteMapLayers` for the same
+  // reason: which tool is selected is a working-session preference for
+  // whichever plan is open, not a durable setting.
+  const siteMapTraceTool = ref<TraceTool>("paint");
+
   // Puzzles (Enigmarium) UI state
   const puzzlesSearch = ref("");
   const puzzlesFilterType = ref("");
@@ -1254,6 +1261,7 @@ export const useUiStore = defineStore("ui", () => {
     collapseAllLocations,
     siteMapLayers,
     toggleSiteMapLayer,
+    siteMapTraceTool,
 
     // Puzzles
     puzzlesSearch,

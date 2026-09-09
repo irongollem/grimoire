@@ -10,6 +10,16 @@
             <component :is="KIND_ICON[kindOf(p)]" class="h-3 w-3" />
             {{ LOCATION_PLACEMENT_KIND_LABELS[kindOf(p)] }}
           </span>
+          <!-- #868 S8, frame 10: the only addition a cell-anchored placement
+               needs — `source_cell_key` being non-null IS "from map". -->
+          <span
+            v-if="p.source_cell_key"
+            class="inline-flex shrink-0 items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-primary"
+            :title="`Placed on the map at cell ${p.source_cell_key}`"
+          >
+            <IconMap class="h-3 w-3" />
+            from map
+          </span>
         </template>
         <template #actions>
           <AppButton
@@ -22,6 +32,9 @@
             @click="removePlacement(p.id)"
           />
         </template>
+        <p v-if="p.source_cell_key" class="text-caption-sm text-muted-foreground italic">
+          cell {{ p.source_cell_key }}
+        </p>
         <PlacementNoteInput
           :model-value="p.note"
           placeholder="Note — what it's doing in this room…"
@@ -77,7 +90,7 @@ import PlacementRow from "@/components/locations/PlacementRow.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
-import { IconClose, IconDungeon, IconLoot, IconTable, IconTrap } from "@/lib/icons";
+import { IconClose, IconDungeon, IconLoot, IconMap, IconTable, IconTrap } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import {
   useLocationPlacements,

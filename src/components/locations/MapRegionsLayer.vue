@@ -7,6 +7,7 @@
     @pointerdown="onPointerDown"
     @pointermove="onCanvasHoverMove"
     @pointerleave="onCanvasHoverLeave"
+    @dblclick="onCanvasDoubleClick"
   />
 </template>
 
@@ -26,16 +27,38 @@
  * list button — committing a drag stroke's cells — the same split
  * `SiteMapRegionList.vue` already draws for bind/unbind/label/delete.
  */
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useUpdateLocationMapRegion } from "@/composables/locations/useLocationMapRegions";
+import {
+  canvasToGridPoint,
+  deleteRingVertex,
+  gridPointToCanvas,
+  insertRingVertex,
+  isNearFirstNode,
+  moveRingVertex,
+  useRegionPen,
+  useTemplateShape,
+} from "@/composables/locations/useRegionPen";
+import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import { cellAtImageFraction, cellRectInImageFractions, gridExtent } from "@/lib/locations/gridCalibration";
+import { useUiStore } from "@/stores/ui";
+import { cellAtImageFraction } from "@/lib/locations/gridCalibration";
+import { cellsInsideRing, nearestEdge, nearestVertex, snapPoint, templateCells, templateRing } from "@/lib/locations/polygon";
+import {
+  drawGridPass,
+  drawPenOverlay,
+  drawSpacesPass,
+  drawTemplatePreview,
+  drawWaysPass,
+  drawZonesPass,
+  type RenderGeometry,
+} from "@/lib/locations/planCanvas";
 import { isCellOnImageGrid, toggleCell } from "@/lib/locations/siteMap";
-import { ZONE_KIND_FILL } from "@/lib/locations/zones";
-import { cellKey, type CellKey } from "@/types/dungeonMap.types";
+import type { CellKey } from "@/types/dungeonMap.types";
+import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
 import type { GridCalibration } from "@/types/location.types";
-import { ZONE_KIND_LABELS, type LocationMapRegion } from "@/types/locationMapRegion.types";
+import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
 
 const activeRegionId = defineModel<string | null>("activeRegionId", { default: null });
 
@@ -51,6 +74,8 @@ const {
   showSpaces = true,
   showZones = false,
   showGrid = true,
+  ways = [],
+  showWays = true,
   nestedSiteIds = new Set<string>(),
 } = defineProps<{
   regions: LocationMapRegion[];
@@ -78,6 +103,19 @@ const {
   showZones?: boolean;
   /** The `Grid` layer bar pill (#868). */
   showGrid?: boolean;
+  /** Doors on this site, drawn as bars across their edge (frame 03) — only
+   *  ones with a `source_edge_key` actually draw. `LocationMap.vue` passes
+   *  this next wave; optional here so the prop can land ahead of that. */
+  ways?: ReadonlyArray<{
+    id: string;
+    source_edge_key: SourceEdgeKey | null;
+    door_kind: DoorKind;
+    starts_locked: boolean;
+    is_secret: boolean;
+  }>;
+  /** The `Ways` layer bar pill (#868). On by default — a door is structural,
+   *  not DM ink, the way a zone is. */
+  showWays?: boolean;
   /** Bound spaces that are themselves a nested site rather than a room
    *  (#818) — clicking one descends into it instead of pushing to its
    *  sheet. Derived by `LocationMap.vue` from the same `spaces` prop that
@@ -99,15 +137,29 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const { error: toastError, fromError } = useToast();
+const { confirm } = useConfirm();
 const updateRegion = useUpdateLocationMapRegion();
+
+// Trace tool (#868, frame 12) — `paint` is the default, so browse mode is
+// unchanged until a DM deliberately switches. Read straight from the store
+// rather than as a prop: `SiteMapRegionList` writes the same field, and
+// `LocationMap.vue` doesn't otherwise mediate between these two siblings.
+const uiStore = useUiStore();
+const tool = computed(() => uiStore.siteMapTraceTool);
+const templateShape = useTemplateShape();
+const pen = useRegionPen();
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
 let resizeObserver: ResizeObserver | null = null;
 onMounted(() => {
   resizeObserver = new ResizeObserver(() => renderOverlay());
+  window.addEventListener("keydown", onKeyDown);
 });
-onUnmounted(() => resizeObserver?.disconnect());
+onUnmounted(() => {
+  resizeObserver?.disconnect();
+  window.removeEventListener("keydown", onKeyDown);
+});
 // The canvas is sized in CSS to exactly cover the rendered image box, so
 // observing the canvas itself is sufficient to catch every resize that would
 // move it out of alignment.
@@ -125,6 +177,42 @@ interface Stroke {
   cells: CellKey[];
 }
 let stroke: Stroke | null = null;
+
+/** An in-flight node drag on a pen ring — the draft ring while it's still
+ *  unsaved, or a persisted region's `vertices` once it's closed. Mirrors
+ *  `Stroke` above: mutated by a pointer handler, read back by an explicit
+ *  `renderOverlay()` call in that same handler. */
+interface PenDrag {
+  regionId: string;
+  persisted: boolean;
+  index: number;
+}
+let penDrag: PenDrag | null = null;
+const liveDragRing = ref<GridPoint[] | null>(null);
+
+/** The site this drag's eventual template region belongs to — captured at
+ *  pointerdown since the drag itself only knows shape/centre/radius. */
+let templateDragRegionId: string | null = null;
+
+/** True while a pointerdown handler is mid-`await` (a confirm dialog, a
+ *  mutation) with no `stroke`/`penDrag`/`templateDrag` yet set to show for
+ *  it. The corresponding `pointerup` can arrive before that await resolves
+ *  — a real click's down/up pair is not guaranteed to straddle a network
+ *  round trip — and without this flag `onWindowPointerUp` would read no
+ *  gesture in flight and misread the release as a plain tap-click. */
+let pendingAsyncGesture = false;
+
+/** The cursor's current grid point while the pen tool is armed, snapped the
+ *  same way a click would be — drives the rubber-band and the first-node
+ *  gold highlight (frame 12). `null` whenever the cursor isn't over the
+ *  canvas or the pen tool isn't the one in play. */
+const penHoverPoint = ref<GridPoint | null>(null);
+
+/** How many grid units a click may miss a node/edge by and still hit it —
+ *  generous enough for a coarse pointer, small enough not to swallow
+ *  clicks meant for a neighbouring vertex on a tightly-traced ring. */
+const SNAP_HIT_RADIUS_CELLS = 0.4;
+const NODE_SIZE_PX = 9;
 
 /** The cells a finished stroke committed, drawn in place of the server's copy
  *  until the refetch carries them back — see `SiteMapView`'s original
@@ -148,27 +236,17 @@ watch(
   },
 );
 
-/** Browse mode's palette: active-for-tracing blue, bound green, unbound
- *  amber. Run mode repurposes the same three slots for what a DM asks
- *  mid-session: party (blue), reachable (green), locked (stone grey rather
- *  than amber, so it doesn't read as "look here"), untraced nearly invisible. */
-function regionFillColor(region: LocationMapRegion): string {
-  if (mode === "run") {
-    // `partyRoomId` guarded first: both sides are nullable, and a party that has
-    // not entered a room yet is null on one side while every *unbound* region is
-    // null on the other. Comparing them raw made `null === null` true, so on a
-    // fresh site every shape the DM had traced but not yet bound to a room lit
-    // up in party-blue at once — several places claiming to hold the party, a
-    // state one party cannot be in. The `!space_location_id` line below shows
-    // the nullability was known; it just sat one line too late to help.
-    if (partyRoomId !== null && region.space_location_id === partyRoomId) return "rgba(96, 165, 250, 0.55)";
-    if (!region.space_location_id) return "rgba(255, 255, 255, 0.04)";
-    const reachable = !reachableRoomIds || reachableRoomIds.has(region.space_location_id);
-    return reachable ? "rgba(74, 222, 128, 0.28)" : "rgba(120, 113, 108, 0.35)";
-  }
-  const isActive = region.id === activeRegionId.value;
-  const bound = !!region.space_location_id;
-  return isActive ? "rgba(96, 165, 250, 0.45)" : bound ? "rgba(74, 222, 128, 0.28)" : "rgba(251, 191, 36, 0.28)";
+/** The cells a finished stroke committed, or a pending region's own stored
+ *  cells — one map, keyed by region id, fed to both the space and zone
+ *  passes so an active trace never disagrees with itself depending on which
+ *  layer it belongs to. Built once per frame rather than per-region, since
+ *  at most one region is ever mid-stroke or mid-refetch-lag at a time. */
+function cellsOverride(): ReadonlyMap<string, readonly CellKey[]> | undefined {
+  const overrides = new Map<string, readonly CellKey[]>();
+  if (stroke) overrides.set(stroke.regionId, stroke.cells);
+  const pending = pendingStroke.value;
+  if (pending && !overrides.has(pending.regionId)) overrides.set(pending.regionId, pending.cells);
+  return overrides.size > 0 ? overrides : undefined;
 }
 
 function renderOverlay(): void {
@@ -185,130 +263,59 @@ function renderOverlay(): void {
 
   const w = imageNaturalWidth;
   const h = imageNaturalHeight;
-  const { cols, rows } = gridExtent(cal, w, h);
-  if (cols <= 0 || rows <= 0) return;
+  const geometry: RenderGeometry = { calibration: cal, imageWidth: w, imageHeight: h, canvasWidth: canvas.width, canvasHeight: canvas.height };
 
-  const originCellX = cal.origin_cell_x ?? 0;
-  const originCellY = cal.origin_cell_y ?? 0;
-
-  if (showGrid) {
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let ix = 0; ix <= cols; ix++) {
-      const rect = cellRectInImageFractions(cellKey(ix + originCellX, originCellY), cal, w, h);
-      const px = rect.x * canvas.width;
-      ctx.moveTo(px, 0);
-      ctx.lineTo(px, canvas.height);
-    }
-    for (let iy = 0; iy <= rows; iy++) {
-      const rect = cellRectInImageFractions(cellKey(originCellX, iy + originCellY), cal, w, h);
-      const py = rect.y * canvas.height;
-      ctx.moveTo(0, py);
-      ctx.lineTo(canvas.width, py);
-    }
-    ctx.stroke();
+  /** A pen ring vertex (grid-point space) to this canvas's own pixels — the
+   *  same conversion the pen tool and the door bars below both need, since
+   *  neither draws in whole cells the way the grid/fill passes do. */
+  function pointToCanvas(point: GridPoint): { x: number; y: number } {
+    return gridPointToCanvas(point, cal!, w, h, canvas!.width, canvas!.height);
   }
 
-  /** The cells actually painted for `region` right now — its own stored
-   *  cells, or the in-flight/just-committed stroke on top of it. Shared by
-   *  the space and zone passes so an active trace never disagrees with
-   *  itself depending on which layer it belongs to. */
-  function cellsForRegion(region: LocationMapRegion): CellKey[] {
-    const pending = pendingStroke.value;
-    return stroke && stroke.regionId === region.id
-      ? stroke.cells
-      : pending && pending.regionId === region.id
-        ? pending.cells
-        : region.cells;
-  }
+  if (showGrid) drawGridPass(ctx, geometry);
+
+  const overrides = cellsOverride();
 
   if (showSpaces) {
-    for (const region of regions) {
-      if (region.region_role !== "space") continue;
-      const cells = cellsForRegion(region);
-      // Same null-versus-null trap as `regionFillColor` — the outline has to agree
-      // with the fill, or an unbound shape gets a party ring around a colour that
-      // says it is untraced.
-      const isHighlighted =
-        mode === "run"
-          ? partyRoomId !== null && region.space_location_id === partyRoomId
-          : region.id === activeRegionId.value;
-      ctx.fillStyle = regionFillColor(region);
-      for (const key of cells) {
-        const rect = cellRectInImageFractions(key, cal, w, h);
-        ctx.fillRect(rect.x * canvas.width, rect.y * canvas.height, rect.w * canvas.width, rect.h * canvas.height);
-      }
-      if (isHighlighted) {
-        ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
-        ctx.lineWidth = 2;
-        for (const key of cells) {
-          const rect = cellRectInImageFractions(key, cal, w, h);
-          const x = rect.x * canvas.width;
-          const y = rect.y * canvas.height;
-          const cw = rect.w * canvas.width;
-          const ch = rect.h * canvas.height;
-          ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2);
-        }
-      }
-    }
+    drawSpacesPass(
+      ctx,
+      geometry,
+      regions,
+      { mode, activeRegionId: activeRegionId.value, partyRoomId, reachableRoomIds },
+      pointToCanvas,
+      overrides,
+    );
   }
+
+  // Doors on the plan (#868, frame 03) — a bar across the door's own cell
+  // edge, drawn over the space fill so it reads as a gap in the wall.
+  if (showWays) drawWaysPass(ctx, geometry, ways, pointToCanvas);
 
   // Zones paint above spaces — a room is a floor to stand on, a zone is an
   // overlay ON that floor (water, ash, darkness) — and always dashed, so a
   // zone reads as an area effect rather than a second, competing room shape
   // (frame 07: "Zone layer over the space layer — dashed, so a zone never
   // reads as a room.").
-  if (showZones) {
-    for (const region of regions) {
-      if (region.region_role !== "zone" || !region.zone_kind) continue;
-      const cells = cellsForRegion(region);
-      const { fill, stroke: strokeColor } = ZONE_KIND_FILL[region.zone_kind];
+  if (showZones) drawZonesPass(ctx, geometry, regions, activeRegionId.value, dpr, overrides);
 
-      ctx.fillStyle = fill;
-      for (const key of cells) {
-        const rect = cellRectInImageFractions(key, cal, w, h);
-        ctx.fillRect(rect.x * canvas.width, rect.y * canvas.height, rect.w * canvas.width, rect.h * canvas.height);
-      }
-
-      ctx.strokeStyle = strokeColor;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([7, 5]);
-      for (const key of cells) {
-        const rect = cellRectInImageFractions(key, cal, w, h);
-        ctx.strokeRect(rect.x * canvas.width, rect.y * canvas.height, rect.w * canvas.width, rect.h * canvas.height);
-      }
-      ctx.setLineDash([]);
-
-      if (region.id === activeRegionId.value) {
-        ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
-        ctx.lineWidth = 2;
-        for (const key of cells) {
-          const rect = cellRectInImageFractions(key, cal, w, h);
-          const x = rect.x * canvas.width;
-          const y = rect.y * canvas.height;
-          const cw = rect.w * canvas.width;
-          const ch = rect.h * canvas.height;
-          ctx.strokeRect(x + 1, y + 1, cw - 2, ch - 2);
-        }
-      }
-
-      if (cells.length) {
-        let sx = 0;
-        let sy = 0;
-        for (const key of cells) {
-          const rect = cellRectInImageFractions(key, cal, w, h);
-          sx += (rect.x + rect.w / 2) * canvas.width;
-          sy += (rect.y + rect.h / 2) * canvas.height;
-        }
-        const label = (region.label || ZONE_KIND_LABELS[region.zone_kind]).toUpperCase();
-        ctx.font = `${Math.round(9 * dpr)}px ui-sans-serif, system-ui, sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillStyle = strokeColor;
-        ctx.fillText(label, sx / cells.length, sy / cells.length);
-      }
+  // ── Pen tool overlay (#868, frame 12) ────────────────────────────────────
+  // The ring being traced or edited right now: a live node drag wins over
+  // the persisted/draft ring it's dragging, the same override order
+  // `cellsOverride` already uses for the paint stroke above.
+  if (mode === "browse" && tool.value === "pen" && activeRegionId.value) {
+    const region = regions.find((r) => r.id === activeRegionId.value);
+    if (region) {
+      const persisted = region.vertices !== null;
+      const dragging = penDrag && penDrag.regionId === region.id ? liveDragRing.value : null;
+      const ring = dragging ?? (persisted ? region.vertices! : pen.draftRing.value);
+      drawPenOverlay(ctx, pointToCanvas, ring, persisted, penHoverPoint.value, NODE_SIZE_PX, SNAP_HIT_RADIUS_CELLS);
     }
+  }
+
+  // ── Template preview (#868, frame 12: "dropped in one drag") ─────────────
+  if (mode === "browse" && tool.value === "template" && pen.templateDrag.value && pen.templateDrag.value.radius > 0) {
+    const { shape, center, radius } = pen.templateDrag.value;
+    drawTemplatePreview(ctx, pointToCanvas, templateRing(shape, center, radius));
   }
 }
 
@@ -325,6 +332,13 @@ watch(
     () => showSpaces,
     () => showZones,
     () => showGrid,
+    () => ways,
+    () => showWays,
+    tool,
+    () => pen.draftRing.value,
+    () => pen.templateDrag.value,
+    penHoverPoint,
+    () => liveDragRing.value,
   ],
   () => renderOverlay(),
   { flush: "post", immediate: true },
@@ -342,6 +356,27 @@ function cellFromEvent(e: PointerEvent): CellKey | null {
   const frac = toImageFraction(e.clientX, e.clientY);
   if (!frac) return null;
   return cellAtImageFraction(frac.x, frac.y, cal, imageNaturalWidth, imageNaturalHeight);
+}
+
+/** The same event, as a continuous grid point rather than a whole cell — what
+ *  the pen and template tools place their vertices/centres at. Unsnapped;
+ *  callers run it through `snapPoint` (or `Math.round` for a template
+ *  centre) themselves. */
+function gridPointFromEvent(e: { clientX: number; clientY: number }): GridPoint | null {
+  const cal = calibration;
+  const canvas = canvasEl.value;
+  if (!cal || !canvas || imageNaturalWidth <= 0 || imageNaturalHeight <= 0) return null;
+  const frac = toImageFraction(e.clientX, e.clientY);
+  if (!frac) return null;
+  return canvasToGridPoint(
+    frac.x * canvas.width,
+    frac.y * canvas.height,
+    cal,
+    imageNaturalWidth,
+    imageNaturalHeight,
+    canvas.width,
+    canvas.height,
+  );
 }
 
 // ── Hover (#868) ──────────────────────────────────────────────────────────────
@@ -367,6 +402,16 @@ function regionAtEvent(e: PointerEvent): LocationMapRegion | null {
 
 function onCanvasHoverMove(e: PointerEvent): void {
   if (stroke) return;
+
+  // The pen tool's own cursor tracking (rubber-band + first-node gold
+  // highlight) — kept in step with whatever the next click would snap to.
+  if (mode === "browse" && tool.value === "pen" && activeRegionId.value) {
+    const gp = gridPointFromEvent(e);
+    penHoverPoint.value = gp ? snapPoint(gp[0], gp[1], e.altKey ? "half" : "intersection") : null;
+  } else if (penHoverPoint.value !== null) {
+    penHoverPoint.value = null;
+  }
+
   const id = regionAtEvent(e)?.id ?? null;
   if (id === lastHoverRegionId) return;
   lastHoverRegionId = id;
@@ -374,6 +419,7 @@ function onCanvasHoverMove(e: PointerEvent): void {
 }
 
 function onCanvasHoverLeave(): void {
+  penHoverPoint.value = null;
   if (lastHoverRegionId === null) return;
   lastHoverRegionId = null;
   emit("hover-region", null);
@@ -393,26 +439,146 @@ function onCanvasHoverLeave(): void {
 let pointerDownAt: { x: number; y: number } | null = null;
 let movedBeyondTapThreshold = false;
 
+/** Converting a pen-traced region to painted cells is one-way and lossy (the
+ *  diagonal is gone once `vertices` is null), so it is confirmed once here
+ *  rather than silently on the first paint stroke (#868 Build step 2). Keeps
+ *  the same cell set — only `vertices` drops — so the stroke that follows
+ *  starts from exactly what the DM was already looking at. */
+async function handlePaintPointerDown(e: PointerEvent, region: LocationMapRegion, cal: GridCalibration): Promise<void> {
+  const key = cellFromEvent(e);
+  if (!key || !isCellOnImageGrid(key, cal, imageNaturalWidth, imageNaturalHeight)) return;
+
+  if (region.vertices !== null) {
+    pendingAsyncGesture = true;
+    try {
+      const ok = await confirm(
+        "Painting converts this pen-traced shape to cells — the diagonal edges are lost. Continue?",
+        { danger: true },
+      );
+      if (!ok) return;
+      await updateRegion.mutateAsync({ id: region.id, update: { vertices: null, cells: region.cells } });
+    } catch (err) {
+      toastError(fromError(err));
+      return;
+    } finally {
+      pendingAsyncGesture = false;
+    }
+  }
+
+  stroke = { regionId: region.id, mode: region.cells.includes(key) ? "erase" : "paint", cells: toggleCell(region.cells, key) };
+  renderOverlay();
+}
+
+/** Writes a ring edit through to the region it belongs to — used by every
+ *  pen gesture that touches an already-*persisted* ring (move/delete/insert;
+ *  closing a fresh draft is its own call, since that one also introduces
+ *  `vertices` for the first time). `cells` is always re-derived alongside,
+ *  so the two never drift apart in storage. */
+async function commitRingChange(regionId: string, ring: GridPoint[]): Promise<void> {
+  try {
+    await updateRegion.mutateAsync({ id: regionId, update: { vertices: ring, cells: cellsInsideRing(ring) } });
+  } catch (err) {
+    toastError(fromError(err));
+  }
+}
+
+/**
+ * The pen tool (#868, frame 12). A region with `vertices === null` is still
+ * an unsaved draft — clicks build `pen.draftRing` locally and nothing is
+ * written until the first node closes it. Once `vertices` exists, every
+ * further edit (drag/delete/insert) commits immediately; there is no
+ * separate edit mode, so a plain click elsewhere on an already-closed ring
+ * does nothing — the only sanctioned way to grow a closed ring is the
+ * double-click-an-edge gesture (`onCanvasDoubleClick`).
+ */
+async function handlePenPointerDown(e: PointerEvent, region: LocationMapRegion): Promise<void> {
+  const gridPt = gridPointFromEvent(e);
+  if (!gridPt) return;
+  const persisted = region.vertices !== null;
+  const ring = persisted ? region.vertices! : pen.draftRing.value;
+
+  const hitIndex = nearestVertex(ring, gridPt[0], gridPt[1], SNAP_HIT_RADIUS_CELLS);
+
+  if (hitIndex !== null && e.altKey) {
+    if (persisted) {
+      pendingAsyncGesture = true;
+      try {
+        await commitRingChange(region.id, deleteRingVertex(ring, hitIndex));
+      } finally {
+        pendingAsyncGesture = false;
+      }
+    } else {
+      pen.draftRing.value = deleteRingVertex(ring, hitIndex);
+    }
+    renderOverlay();
+    return;
+  }
+
+  if (!persisted && hitIndex === 0 && isNearFirstNode(ring, gridPt[0], gridPt[1], SNAP_HIT_RADIUS_CELLS)) {
+    const closed = pen.close();
+    if (closed) {
+      pendingAsyncGesture = true;
+      try {
+        await updateRegion.mutateAsync({ id: region.id, update: { vertices: closed, cells: cellsInsideRing(closed) } });
+      } catch (err) {
+        pen.draftRing.value = closed; // nothing lost — the ring goes back to being a draft
+        toastError(fromError(err));
+      } finally {
+        pendingAsyncGesture = false;
+      }
+    }
+    renderOverlay();
+    return;
+  }
+
+  if (hitIndex !== null) {
+    penDrag = { regionId: region.id, persisted, index: hitIndex };
+    liveDragRing.value = [...ring];
+    return;
+  }
+
+  if (persisted) return; // adding a node mid-ring is the double-click-edge gesture only
+
+  const snapped = snapPoint(gridPt[0], gridPt[1], e.altKey ? "half" : "intersection");
+  pen.addPoint(snapped);
+  renderOverlay();
+}
+
+/** The template tool (#868, frame 12: "click a centre, drag a radius,
+ *  done."). The centre snaps to a whole cell index — templates are defined
+ *  on integer centres the same way `cellsForTemplate` already requires. */
+function handleTemplatePointerDown(e: PointerEvent, region: LocationMapRegion): void {
+  const gridPt = gridPointFromEvent(e);
+  if (!gridPt) return;
+  templateDragRegionId = region.id;
+  pen.startTemplate(templateShape.value, [Math.round(gridPt[0]), Math.round(gridPt[1])]);
+  renderOverlay();
+}
+
 function onPointerDown(e: PointerEvent): void {
   pointerDownAt = { x: e.clientX, y: e.clientY };
   movedBeyondTapThreshold = false;
 
+  // Listeners attach synchronously, before any of the branches below touch
+  // the network — `handlePaintPointerDown` and `handlePenPointerDown` both
+  // `await` a mutation partway through (the conversion confirm, the ring
+  // close). A real click's `pointerup` can arrive before that await
+  // resolves, and this function returning a pending promise doesn't delay
+  // the browser's own event dispatch — so registering the listeners after
+  // the `await` risked losing that pointerup entirely, leaving the next
+  // gesture reading a stale `pointerDownAt`.
+  window.addEventListener("pointermove", onWindowPointerMove);
+  window.addEventListener("pointerup", onWindowPointerUp, { once: true });
+
   if (mode === "browse" && activeRegionId.value) {
     const region = regions.find((r) => r.id === activeRegionId.value);
     const cal = calibration;
-    const key = region && cal ? cellFromEvent(e) : null;
-    if (region && cal && key && isCellOnImageGrid(key, cal, imageNaturalWidth, imageNaturalHeight)) {
-      stroke = {
-        regionId: region.id,
-        mode: region.cells.includes(key) ? "erase" : "paint",
-        cells: toggleCell(region.cells, key),
-      };
-      renderOverlay();
+    if (region && cal) {
+      if (tool.value === "paint") void handlePaintPointerDown(e, region, cal);
+      else if (tool.value === "pen") void handlePenPointerDown(e, region);
+      else if (tool.value === "template") handleTemplatePointerDown(e, region);
     }
   }
-
-  window.addEventListener("pointermove", onWindowPointerMove);
-  window.addEventListener("pointerup", onWindowPointerUp, { once: true });
 }
 
 function onWindowPointerMove(e: PointerEvent): void {
@@ -420,19 +586,38 @@ function onWindowPointerMove(e: PointerEvent): void {
   if (Math.hypot(e.clientX - pointerDownAt.x, e.clientY - pointerDownAt.y) > 6) {
     movedBeyondTapThreshold = true;
   }
-  if (!stroke) return;
-  const cal = calibration;
-  if (!cal) return;
-  const key = cellFromEvent(e);
-  if (!key || !isCellOnImageGrid(key, cal, imageNaturalWidth, imageNaturalHeight)) return;
-  const alreadyInStrokeDirection = stroke.mode === "paint" ? stroke.cells.includes(key) : !stroke.cells.includes(key);
-  if (alreadyInStrokeDirection) return;
-  stroke.cells = toggleCell(stroke.cells, key);
-  renderOverlay();
+
+  if (stroke) {
+    const cal = calibration;
+    if (!cal) return;
+    const key = cellFromEvent(e);
+    if (!key || !isCellOnImageGrid(key, cal, imageNaturalWidth, imageNaturalHeight)) return;
+    const alreadyInStrokeDirection = stroke.mode === "paint" ? stroke.cells.includes(key) : !stroke.cells.includes(key);
+    if (alreadyInStrokeDirection) return;
+    stroke.cells = toggleCell(stroke.cells, key);
+    renderOverlay();
+    return;
+  }
+
+  if (penDrag) {
+    const gp = gridPointFromEvent(e);
+    if (!gp || !liveDragRing.value) return;
+    const snapped = snapPoint(gp[0], gp[1], e.altKey ? "half" : "intersection");
+    liveDragRing.value = moveRingVertex(liveDragRing.value, penDrag.index, snapped);
+    renderOverlay();
+    return;
+  }
+
+  if (pen.templateDrag.value) {
+    const gp = gridPointFromEvent(e);
+    if (gp) pen.dragTemplate(gp);
+    renderOverlay();
+  }
 }
 
-/** Commits the whole stroke as one mutation, or — when no stroke started —
- *  resolves a plain, unmoved tap into a click on whatever region is under it. */
+/** Commits whichever gesture was in flight — a paint stroke, a pen node drag,
+ *  or a template drop — or, when none started, resolves a plain, unmoved tap
+ *  into a click on whatever region is under it. */
 function onWindowPointerUp(e: PointerEvent): void {
   window.removeEventListener("pointermove", onWindowPointerMove);
   pointerDownAt = null;
@@ -455,8 +640,65 @@ function onWindowPointerUp(e: PointerEvent): void {
     return;
   }
 
-  if (movedBeyondTapThreshold) return;
+  if (penDrag) {
+    const drag = penDrag;
+    const final = liveDragRing.value;
+    penDrag = null;
+    liveDragRing.value = null;
+    if (final) {
+      if (drag.persisted) void commitRingChange(drag.regionId, final);
+      else pen.draftRing.value = final;
+    }
+    renderOverlay();
+    return;
+  }
+
+  if (pen.templateDrag.value) {
+    const regionId = templateDragRegionId;
+    const final = pen.endTemplate();
+    templateDragRegionId = null;
+    if (final && final.radius > 0 && regionId) {
+      const ring = templateRing(final.shape, final.center, final.radius);
+      const cells = templateCells(final.shape, final.center, final.radius);
+      updateRegion.mutate({ id: regionId, update: { vertices: ring, cells } }, { onError: (err) => toastError(fromError(err)) });
+    }
+    renderOverlay();
+    return;
+  }
+
+  if (movedBeyondTapThreshold || pendingAsyncGesture) return;
   handleClick(e);
+}
+
+/** Double-click an edge inserts a node there (frame 12) — only meaningful on
+ *  the pen tool's own ring, draft or persisted alike. */
+function onCanvasDoubleClick(e: MouseEvent): void {
+  if (mode !== "browse" || tool.value !== "pen" || !activeRegionId.value) return;
+  const region = regions.find((r) => r.id === activeRegionId.value);
+  if (!region) return;
+  const gridPt = gridPointFromEvent(e);
+  if (!gridPt) return;
+
+  const persisted = region.vertices !== null;
+  const ring = persisted ? region.vertices! : pen.draftRing.value;
+  const found = nearestEdge(ring, gridPt[0], gridPt[1], SNAP_HIT_RADIUS_CELLS);
+  if (!found) return;
+
+  const next = insertRingVertex(ring, found.index, found.point);
+  if (persisted) void commitRingChange(region.id, next);
+  else pen.draftRing.value = next;
+  renderOverlay();
+}
+
+/** `Escape` abandons an unsaved pen draft (frame 12) — a no-op once the ring
+ *  has already been persisted, since there is nothing left to abandon. */
+function onKeyDown(e: KeyboardEvent): void {
+  if (e.key !== "Escape") return;
+  if (mode !== "browse" || tool.value !== "pen" || !activeRegionId.value) return;
+  const region = regions.find((r) => r.id === activeRegionId.value);
+  if (!region || region.vertices !== null || pen.draftRing.value.length === 0) return;
+  pen.abandon();
+  renderOverlay();
 }
 
 /** Pushes to a bound space's sheet, or — when it's a nested site rather

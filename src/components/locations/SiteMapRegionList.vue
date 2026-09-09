@@ -13,23 +13,46 @@
        Only mounted in browse mode — see the `v-if` at the call site in
        `LocationMap.vue` (#807) — run mode renders its own click-to-move
        room list instead. -->
+  <!-- Trace tool switcher (#868, frame 12 "Three ways to trace a space") —
+       shown only while a region is actively being traced. Template gains its
+       own shape picker underneath; the caption mirrors the frame's own
+       toolbar hint. -->
+  <div v-if="activeRegionId" class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2">
+    <SegmentedControl v-model="traceTool" :options="TRACE_TOOL_OPTIONS" size="inline-xs" />
+    <SegmentedControl
+      v-if="traceTool === 'template'"
+      v-model="templateShape"
+      :options="TEMPLATE_SHAPE_OPTIONS"
+      variant="ghost"
+      size="inline-xs"
+    />
+    <span class="text-caption text-muted-foreground">
+      Snap: intersections · <span class="font-semibold">alt</span> half-cell · <span class="font-semibold">esc</span> abandon
+    </span>
+  </div>
+
   <div class="flex flex-col gap-1.5">
     <span class="text-label-lg font-semibold text-muted-foreground">Spaces</span>
     <p v-if="!spaces.length" class="text-caption text-muted-foreground italic">No spaces yet — add a room below, or a nested site as a child location.</p>
     <div v-else class="flex flex-col gap-1.5">
       <div
-        v-for="space in spaces"
+        v-for="(space, i) in spaces"
         :key="space.id"
         class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
       >
-        <RouterLink
-          :to="`/locations/${space.id}`"
-          class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
-        >{{ space.name }}</RouterLink>
-        <span
-          v-if="boundRegionBySpace.get(space.id)"
-          class="shrink-0 text-caption text-muted-foreground"
-        >{{ regionProvenanceText(boundRegionBySpace.get(space.id)!) }}</span>
+        <div class="min-w-0 flex-1">
+          <RouterLink
+            :to="`/locations/${space.id}`"
+            class="block truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
+          ><template v-if="boundRegionBySpace.get(space.id)">{{ i + 1 }}. </template>{{ space.name }}</RouterLink>
+          <p
+            v-if="boundRegionBySpace.get(space.id)"
+            class="flex items-center gap-1 truncate text-caption-sm text-muted-foreground"
+          >
+            <IconPen v-if="boundRegionBySpace.get(space.id)!.vertices" class="h-3 w-3 shrink-0" aria-hidden="true" />
+            {{ regionProvenanceText(boundRegionBySpace.get(space.id)!) }}
+          </p>
+        </div>
 
         <template v-if="boundRegionBySpace.get(space.id)">
           <AppButton
@@ -91,7 +114,10 @@
           class="w-40 shrink-0"
           @update:model-value="onBindSpace(region, $event)"
         />
-        <span class="shrink-0 text-caption text-muted-foreground">{{ regionProvenanceText(region) }}</span>
+        <span class="shrink-0 flex items-center gap-1 text-caption text-muted-foreground">
+          <IconPen v-if="region.vertices" class="h-3 w-3" aria-hidden="true" />
+          {{ regionProvenanceText(region) }}
+        </span>
         <AppButton
           variant="ghost"
           size="inline-xs"
@@ -134,14 +160,19 @@ import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import { IconAdd, IconDelete } from "@/lib/icons";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
+import { IconAdd, IconDelete, IconPaint, IconPen, IconRoomTemplate } from "@/lib/icons";
 import {
   useCreateLocationMapRegion,
   useDeleteLocationMapRegion,
   useUpdateLocationMapRegion,
 } from "@/composables/locations/useLocationMapRegions";
+import { TEMPLATE_SHAPES, TEMPLATE_SHAPE_LABELS, useTemplateShape } from "@/composables/locations/useRegionPen";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
+import { useUiStore } from "@/stores/ui";
+import type { TemplateShape, TraceTool } from "@/lib/locations/polygon";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
 
 const { locationId, spaces, regions, activeRegionId, canTrace } = defineProps<{
@@ -165,6 +196,30 @@ const emit = defineEmits<{ "update:activeRegionId": [id: string | null] }>();
 const { confirm } = useConfirm();
 const { error: toastError, fromError } = useToast();
 
+// Trace tool switcher (#868, frame 12) — `siteMapTraceTool` lives in the UI
+// store beside `siteMapLayers` (a working-session preference, not a durable
+// setting); the template shape is a smaller-lived singleton shared with
+// `MapRegionsLayer` — see `useTemplateShape`'s own docstring for why.
+const uiStore = useUiStore();
+const traceTool = computed<TraceTool>({
+  get: () => uiStore.siteMapTraceTool,
+  set: (value) => {
+    uiStore.siteMapTraceTool = value;
+  },
+});
+const templateShape = useTemplateShape();
+
+const TRACE_TOOL_OPTIONS: SegmentedOption<TraceTool>[] = [
+  { value: "paint", label: "Paint cells", icon: IconPaint },
+  { value: "pen", label: "Pen", icon: IconPen },
+  { value: "template", label: "Template", icon: IconRoomTemplate },
+];
+
+const TEMPLATE_SHAPE_OPTIONS: SegmentedOption<TemplateShape>[] = TEMPLATE_SHAPES.map((shape) => ({
+  value: shape,
+  label: TEMPLATE_SHAPE_LABELS[shape],
+}));
+
 // Regions carry a `region_role` now (#868) — a zone's `space_location_id` is
 // always null by rule, which would otherwise land it in "Untitled shapes"
 // below alongside genuinely unbound spaces. `SiteMapZoneList` owns zones.
@@ -187,9 +242,10 @@ const unclaimedSpaces = computed(() => spaces.filter((s) => !boundRegionBySpace.
  *  that way, so naming it would just repeat what tracing already implies. */
 function regionProvenanceText(region: LocationMapRegion): string {
   const cells = `${region.cells.length} cell${region.cells.length === 1 ? "" : "s"}`;
+  const vertices = region.vertices ? `${region.vertices.length} ${region.vertices.length === 1 ? "vertex" : "vertices"}` : "";
   const provenance =
     region.derived_from === "floodfill" ? "from flood fill" : region.derived_from === "annotation" ? "from annotation" : "";
-  return provenance ? `${cells} · ${provenance}` : cells;
+  return [cells, vertices, provenance].filter(Boolean).join(" · ");
 }
 
 function toggleActive(id: string): void {

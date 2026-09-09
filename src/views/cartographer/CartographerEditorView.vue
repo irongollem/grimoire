@@ -32,9 +32,9 @@
           emphasis="outline"
           size="sm"
           :icon="IconUpload"
-          :disabled="baking"
-          :label="baking ? 'Publishing…' : 'Publish to Atlas'"
-          @click="showAtlasModal = true"
+          :disabled="mapPublish.review.value.publishing"
+          :label="mapPublish.review.value.publishing ? 'Publishing…' : 'Publish to Atlas'"
+          @click="mapPublish.open.value = true"
         />
         <ListActionButton label="Edit" @click="onEdit" />
         <ListActionButton variant="primary" label="Done" @click="onDone" />
@@ -59,14 +59,14 @@
         />
       </template>
 
-      <CartographerSaveAtlasModal
-        v-model="showAtlasModal"
-        v-model:locationId="atlasLocationId"
-        :location-options="locationOptions"
-        :baking="baking"
-        :error="atlasError"
-        :target-has-map="atlasTargetHasMap"
-        @save="onSaveToAtlas"
+      <CartographerPublishModal
+        v-model="mapPublish.open.value"
+        v-model:target-site-id="mapPublish.targetSiteId.value"
+        :site-context="mapPublish.siteContext.value"
+        :stair-targets="mapPublish.stairTargets.value"
+        :review="mapPublish.review.value"
+        @pick-stair-target="(cellKey, id) => (mapPublish.stairTargets.value = { ...mapPublish.stairTargets.value, [cellKey]: id })"
+        @publish="mapPublish.publish()"
       />
 
       <CartographerAiStyleModal
@@ -284,14 +284,15 @@ import type { AppInputHandle } from "@/components/common/fieldVariants";
 import AppButton from "@/components/common/AppButton.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import CartographerSaveAtlasModal from "@/components/cartographer/CartographerSaveAtlasModal.vue";
 import CartographerAiStyleModal from "@/components/cartographer/CartographerAiStyleModal.vue";
+import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
 import CartographerToolPalette, { type ToolGroup } from "@/components/cartographer/CartographerToolPalette.vue";
 import CartographerInspectorPanel from "@/components/cartographer/CartographerInspectorPanel.vue";
 import CartographerStructurePanel from "@/components/cartographer/CartographerStructurePanel.vue";
 import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useCartographerStructureTools } from "@/composables/cartographer/useCartographerStructureTools";
 import { usePublishedSites } from "@/composables/cartographer/usePublishedSites";
+import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 
 import {
   useDungeonMap,
@@ -396,19 +397,14 @@ const dirty = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
 
-// Location picker source for both the Atlas-save and AI-styler modals.
+// Location picker source for the AI Style modal's "Save to Atlas" mini-flow.
 const { data: allLocationsData } = useAllLocations();
 const locationOptions = computed(() =>
   (allLocationsData.value ?? []).map((l) => ({ id: l.id, name: l.name })),
 );
 
-// M5 (Save to Atlas) + M8 (AI Map Styler) — export cluster, see useMapExport.
 const {
   baking,
-  showAtlasModal,
-  atlasLocationId,
-  atlasError,
-  atlasTargetHasMap,
   showStylePicker,
   showStyleResult,
   selectedPresetId,
@@ -422,7 +418,6 @@ const {
   styleAtlasTargetHasMap,
   styleByok,
   styleCost,
-  onSaveToAtlas,
   onGenerateStyle,
   onRetryStyle,
   onDownloadStyled,
@@ -567,6 +562,13 @@ const trapOptions = computed(() => (allTrapsData.value ?? []).map((t) => ({ id: 
 const featureOptions = computed(() => (allFeaturesData.value ?? []).map((f) => ({ id: f.id, name: f.name })));
 const cellGlyphs = computed(() => resolveCellGlyphs(metadata.value, trapsById.value, featuresById.value));
 
+const mapPublish = useMapPublish({
+  map: () => (loadedMap.value ? { ...loadedMap.value, layers: layers.value, metadata: metadata.value } : null),
+  runtimes: () => loadedRuntimes.value,
+  glyphs: () => cellGlyphs.value,
+  structure: () => structure.structure.value,
+});
+
 // Writable computeds for the inspector's link pickers
 const linkedNoteId = computed({
   get: () => (selectedCell.value ? (metadata.value[cellKey(...selectedCell.value)]?.note_id ?? "") : ""),
@@ -621,7 +623,6 @@ const annotationText = computed({
     dirty.value = true;
   },
 });
-
 
 const cellsPainted = computed(() => Object.keys(layers.value.floor).length);
 const floorVariantCount = computed(() =>
@@ -977,7 +978,6 @@ function eraseWallAtCellEdge(edge: CellEdge): void {
   if (paintOps.eraseWallAtCellEdge(paintContext(), edge, strokeState)) dirty.value = true;
 }
 
-
 // ── Canvas rendering ───────────────────────────────────────────────────────
 
 function devicePixelDims(): { w: number; h: number; dpr: number } {
@@ -1332,8 +1332,7 @@ async function onSave(): Promise<void> {
     if (isNew.value) {
       const result = await createMutation.mutateAsync(payload);
       dirty.value = false;
-      // Navigate to the saved map URL (no ?edit=true → view mode).
-      await router.replace(`/cartographer/${result.id}`);
+      await router.replace({ path: `/cartographer/${result.id}`, query: route.query }); // keeps ?publishTo= alive
     } else {
       await updateMutation.mutateAsync({ id: mapId.value, update: payload });
       dirty.value = false;

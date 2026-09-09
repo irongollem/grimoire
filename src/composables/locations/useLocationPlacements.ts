@@ -97,6 +97,24 @@ async function fetchEntityPlacements(
   return data as LocationPlacementWithLocation[];
 }
 
+/** The batched form of `fetchEntityPlacements` — every placement for a set of
+ *  entities of one kind, in one query. Returns rows for whichever ids are
+ *  actually placed; a grid card with no rows here is "not placed —
+ *  catalogue only". */
+async function fetchEntityPlacementsFor(
+  kind: LocationPlacementKind,
+  entityIds: readonly string[],
+): Promise<LocationPlacementWithLocation[]> {
+  if (!entityIds.length) return [];
+  const { data, error } = await supabase
+    .from("location_placements")
+    .select("*, location:locations(id, name, location_type)")
+    .in(`${kind}_id`, entityIds)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data as LocationPlacementWithLocation[];
+}
+
 async function createLocationPlacement(insert: LocationPlacementInsert): Promise<LocationPlacement> {
   const user = getCurrentUser();
   const { data, error } = await supabase
@@ -128,6 +146,24 @@ async function deleteLocationPlacement(id: string): Promise<LocationPlacement> {
   return data as LocationPlacement;
 }
 
+/**
+ * `useSitePlacements` (`useSitePlacements.ts`) keys its query on
+ * `[QUERY_KEY, "site", ...spaceIds]` and `useEntityPlacementsFor` above on
+ * `[QUERY_KEY, "entity", kind, "many", ...ids]` — both broader than the
+ * single-location / single-entity keys the five mutations below already
+ * invalidate. TanStack matches a partial key as a prefix, so invalidating
+ * just these two prefixes reaches every batched site view and every Dungeon
+ * Craft grid watching this kind, without needing to know which sites or
+ * which id sets are currently mounted (#868, S8).
+ */
+function invalidateBroadPlacementQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  kind: LocationPlacementKind,
+): void {
+  queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "site"] });
+  queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "entity", kind] });
+}
+
 // ── Public composables ─────────────────────────────────────────────────────────
 
 /** Everything prepared in one location, joined to each target's display name. */
@@ -153,6 +189,21 @@ export function useEntityPlacements(kind: LocationPlacementKind, entityId: strin
   });
 }
 
+/** Same reverse join as `useEntityPlacements`, but for a whole grid of one
+ *  kind at once (#868, S8) — Dungeon Craft's Traps/Features/Puzzles tabs need
+ *  a "Placed in" line per card, and one `.in()` query beats mounting one
+ *  `useEntityPlacements` per card (which is what a `v-for` would otherwise
+ *  reach for). `ids` is a `Ref` because the tab's own filtering/search narrows
+ *  the visible set as the DM types. */
+export function useEntityPlacementsFor(kind: LocationPlacementKind, ids: Ref<string[]>) {
+  const sortedIds = computed(() => [...ids.value].sort());
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "entity", kind, "many", sortedIds.value]),
+    queryFn: () => fetchEntityPlacementsFor(kind, ids.value),
+    enabled: () => ids.value.length > 0,
+  });
+}
+
 export function useCreateLocationPlacement() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -161,6 +212,7 @@ export function useCreateLocationPlacement() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, vars.location_id] });
       const { kind, id } = targetOf(vars);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "entity", kind, id] });
+      invalidateBroadPlacementQueries(queryClient, kind);
     },
   });
 }
@@ -179,6 +231,7 @@ export function useUpdateLocationPlacement(locationId: Ref<string>) {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, locationId.value] });
       const { kind, id } = targetOf(data);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "entity", kind, id] });
+      invalidateBroadPlacementQueries(queryClient, kind);
     },
   });
 }
@@ -196,6 +249,7 @@ export function useUpdateEntityPlacement() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, data.location_id] });
       const { kind, id } = targetOf(data);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "entity", kind, id] });
+      invalidateBroadPlacementQueries(queryClient, kind);
     },
   });
 }
@@ -210,6 +264,7 @@ export function useDeleteLocationPlacement(locationId: Ref<string>) {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, locationId.value] });
       const { kind, id } = targetOf(deleted);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "entity", kind, id] });
+      invalidateBroadPlacementQueries(queryClient, kind);
     },
   });
 }
@@ -225,6 +280,7 @@ export function useDeleteEntityPlacement() {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, deleted.location_id] });
       const { kind, id } = targetOf(deleted);
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, "entity", kind, id] });
+      invalidateBroadPlacementQueries(queryClient, kind);
     },
   });
 }

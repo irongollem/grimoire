@@ -75,12 +75,12 @@
       <ul class="space-y-1.5">
         <li v-for="site in publishedSites" :key="site.id" class="flex items-start gap-2 text-caption-sm">
           <IconLocation class="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-          <span class="min-w-0 flex-1">
+          <RouterLink :to="{ path: '/locations', query: { at: site.id } }" class="min-w-0 flex-1 transition-colors hover:text-primary">
             <span class="block truncate text-foreground">{{ site.name }}</span>
             <span class="block text-muted-foreground">
               rev {{ site.map_published_rev ?? 0 }} · {{ timeAgo(site.updated_at) }}<template v-if="behind(site) > 0"> · {{ behind(site) }} behind</template>
             </span>
-          </span>
+          </RouterLink>
         </li>
       </ul>
       <p class="text-caption-sm text-muted-foreground italic mt-1.5">
@@ -92,6 +92,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import { IconCheck, IconCircle, IconLocation, IconSplitCell } from "@/lib/icons";

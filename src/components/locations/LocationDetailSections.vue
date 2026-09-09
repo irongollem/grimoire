@@ -82,6 +82,15 @@
       <LocationDoors :room-id="location.id" :parent-id="location.parent_id" />
     </section>
 
+    <!-- Ways out, lifted to the site (#868, S6) — a site sees its whole door
+         graph at once, the same way `SiteRoomsPanel` below replaces the
+         "Interiors" tree group. A room's own Ways out section above stays a
+         one-room view; this is the other end of the same graph. -->
+    <section v-if="isSite" class="flex flex-col gap-2">
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Ways out</h2>
+      <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" hide-header />
+    </section>
+
     <!-- Store inventory — self-contained editable component. Useful enough
          to keep in view mode so a DM running a shop scene doesn't need to
          enter full-edit just to restock. -->
@@ -98,6 +107,14 @@
          dungeon's rooms are never rendered in two places at once. -->
     <section v-if="isSite" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Rooms</h2>
+      <!-- "Drawn in Cartographer" strip (#868, S6) — today `source_map_id`
+           only produces a link; this also says how stale the publish is. -->
+      <SiteMapSourceStrip
+        v-if="location.source_map_id"
+        :site="location"
+        :map="sourceMap"
+        :staleness="siteStaleness"
+      />
       <SiteRoomsPanel :location-id="location.id" />
     </section>
 
@@ -199,9 +216,12 @@ import LocationDoors from "@/components/locations/LocationDoors.vue";
 import LocationLootPanel from "@/components/locations/LocationLootPanel.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
+import SiteMapSourceStrip from "@/components/locations/SiteMapSourceStrip.vue";
 import SiteRoomsPanel from "@/components/locations/SiteRoomsPanel.vue";
+import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useEncountersByLocation } from "@/composables/encounters/useEncounters";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useNpcs, useNpcsByLocations } from "@/composables/npcs/useNpcs";
@@ -260,6 +280,15 @@ const membersHere = computed(() =>
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(location.location_type));
 const isSite = computed(() => isSiteType(location.location_type));
 const isRoom = computed(() => location.location_type === "room");
+
+// ── Site structure (#868, S6) — spaces for the Ways out panel, plus the
+//    published-drawing staleness the Rooms strip reads. `null` when this
+//    isn't a site keeps every query inside `useSiteStructure` disabled
+//    rather than fetching for a room or a continent. ─────────────────────────
+const siteStructureLocation = computed(() => (isSite.value ? location : null));
+const { spaces: siteSpaces, sourceMap: sourceMapQuery, staleness: siteStaleness } =
+  useSiteStructure(siteStructureLocation);
+const sourceMap = computed(() => sourceMapQuery.data.value);
 
 const { data: allNpcs } = useNpcs();
 const ownerNpcName = computed(

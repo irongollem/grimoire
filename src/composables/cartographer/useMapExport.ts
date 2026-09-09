@@ -1,6 +1,10 @@
-// The map-export cluster: baking the current editor state to the Atlas
-// (a location's `map_url` + VTT grid calibration), and the AI map-restyle
-// flow (bake -> style-map edge function -> save the styled result).
+// The map-export cluster: the client-side PNG/VTT download, and the AI
+// map-restyle flow (bake -> style-map edge function -> save the styled
+// result to a location, M8). Publishing the drawing itself to the Atlas is
+// `useMapPublish` (#868 S10) — that flow replaced M5's "Save to Atlas"
+// entirely, so this module no longer bakes a plain WebP for a location's
+// `map_url`; only the AI-styled result still saves that way, because the
+// style pipeline produces a picture with nothing behind it to reconcile.
 //
 // Extracted out of CartographerEditorView.vue. The view owns the canvas/
 // paint state; this composable only needs a read-only snapshot of the
@@ -9,7 +13,7 @@
 // internal refs.
 
 import { computed, ref } from "vue";
-import { bakeMap, bakeMapForAI, computeBakedDimensions } from "@/cartographer/bake";
+import { bakeMapForAI } from "@/cartographer/bake";
 import { blobToBase64, base64ToBlob } from "@/cartographer/imageCodec";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
@@ -19,11 +23,7 @@ import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import {
-  useAllLocations,
-  useUpdateLocationMapUrl,
-  useUpdateLocationGridCalibration,
-} from "@/composables/locations/useLocations";
+import { useAllLocations, useUpdateLocationMapUrl } from "@/composables/locations/useLocations";
 import { useCampaignStore } from "@/stores/campaign";
 
 /** Shape of the `style-map` edge function's JSON response. */
@@ -43,17 +43,10 @@ export function useMapExport(opts: {
   const { data: allLocationsData } = useAllLocations();
   const locationOptionsSource = computed(() => allLocationsData.value ?? []);
   const updateLocationMapUrl = useUpdateLocationMapUrl();
-  const updateLocationGridCalibration = useUpdateLocationGridCalibration();
 
-  // M5 — Save to Atlas
+  // Shared bake-in-progress flag for the PNG download and (indirectly) the
+  // AI Style button's disabled state — see CartographerEditorView's onDownloadPng.
   const baking = ref(false);
-  const showAtlasModal = ref(false);
-  const atlasLocationId = ref("");
-  const atlasError = ref<string | null>(null);
-  const atlasTargetHasMap = computed(() =>
-    !!atlasLocationId.value &&
-    !!locationOptionsSource.value.find((l) => l.id === atlasLocationId.value)?.map_url,
-  );
 
   // M8 — AI Map Styler
   // Map restyle renders square (1024×1024) via OpenAI → flat cost, no size scaling.
@@ -80,53 +73,6 @@ export function useMapExport(opts: {
     !!styleAtlasLocationId.value &&
     !!locationOptionsSource.value.find((l) => l.id === styleAtlasLocationId.value)?.map_url,
   );
-
-  async function onSaveToAtlas(): Promise<void> {
-    const map = opts.buildMap();
-    if (baking.value || !atlasLocationId.value || !map) return;
-    atlasError.value = null;
-    baking.value = true;
-    try {
-      const blob = await bakeMap(map, opts.runtimes(), {}, opts.glyphs());
-      const user = getCurrentUser();
-      if (!user) throw new Error("Not authenticated");
-      const url = await uploadToBucket({
-        bucket: "locationImages",
-        blob,
-        userId: user.id,
-        contentType: "image/webp",
-      });
-      if (!url) throw new Error("Upload failed");
-      await updateLocationMapUrl.mutateAsync({
-        id: atlasLocationId.value,
-        mapUrl: url,
-        sourceMapId: map.id,
-      });
-      // Auto-populate VTT grid calibration: the bake produces an image where
-      // every column is one 5-ft cell at BASE_TILE_SIZE px and cell (0,0) sits
-      // at the image's top-left, so cells_per_image_width == cols.
-      const dims = computeBakedDimensions(map);
-      await updateLocationGridCalibration.mutateAsync({
-        id: atlasLocationId.value,
-        calibration: {
-          cells_per_image_width: dims.cols,
-          origin_x_pct: 0,
-          origin_y_pct: 0,
-          // Image cell (0,0) is the *padded* corner of the bake, not the map's
-          // own (0,0) — `computeBakedDimensions` applies the padding itself so
-          // this cannot drift from whatever padding the bake actually used.
-          origin_cell_x: dims.originCellX,
-          origin_cell_y: dims.originCellY,
-        },
-      });
-      showAtlasModal.value = false;
-      atlasLocationId.value = "";
-    } catch (e) {
-      atlasError.value = e instanceof Error ? e.message : "Something went wrong";
-    } finally {
-      baking.value = false;
-    }
-  }
 
   async function onGenerateStyle(): Promise<void> {
     const map = opts.buildMap();
@@ -215,12 +161,8 @@ export function useMapExport(opts: {
   }
 
   return {
-    // Save to Atlas
+    // Shared / PNG download
     baking,
-    showAtlasModal,
-    atlasLocationId,
-    atlasError,
-    atlasTargetHasMap,
     // AI Map Styler
     showStylePicker,
     showStyleResult,
@@ -236,7 +178,6 @@ export function useMapExport(opts: {
     styleByok,
     styleCost,
     // Actions
-    onSaveToAtlas,
     onGenerateStyle,
     onRetryStyle,
     onDownloadStyled,

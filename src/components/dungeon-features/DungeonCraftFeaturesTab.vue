@@ -39,7 +39,7 @@
             :class="DUNGEON_FEATURE_TYPE_BG[feature.feature_type]"
           >{{ feature.feature_type }}</span>
         </div>
-        <div class="p-2.5 flex flex-col gap-0.5">
+        <div class="p-2.5 flex flex-col gap-1">
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ feature.name }}</h3>
           <div class="flex items-center gap-2">
             <span v-if="feature.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">
@@ -49,6 +49,7 @@
               Perc {{ feature.perception_dc }}
             </span>
           </div>
+          <PlacedInLine :rooms="placedInRows(feature.id)" />
         </div>
       </RouterLink>
     </template>
@@ -59,15 +60,21 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
+import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { DUNGEON_FEATURE_TYPES, DUNGEON_FEATURE_TYPE_BG } from "@/types/dungeonFeature.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
+import PlacedInLine from "./PlacedInLine.vue";
 
 const router = useRouter();
 const { data: features, isLoading: featuresLoading } = useDungeonFeatures();
 const featuresSearch     = ref("");
 const featuresTypeFilter = ref("");
+
+// ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
+const featureIds = computed(() => (features.value ?? []).map((f) => f.id));
+const { placedInRows } = usePlacedInRooms("dungeon_feature", featureIds);
 
 const filteredFeatures = computed(() => {
   let list = features.value ?? [];

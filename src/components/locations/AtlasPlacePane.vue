@@ -120,64 +120,50 @@
       Deliberately not `block`: stretched across the pane a two-option toggle
       shouts louder than the content it switches, and the map is a view of this
       place, not the point of the page.
+
+      Readiness (Contents mode) and the layer bar (Map mode) share this same
+      row — "beside the scale rail on the Contents/Map row" (#868, frame 02) —
+      rather than getting a row of their own. The row itself renders whenever
+      either half of it would: a site with no map yet still needs to show
+      "not mapped", even though the toggle it would otherwise share the row
+      with has nothing to switch between yet.
     -->
-    <SegmentedControl
-      v-if="hasMap"
-      :model-value="paneMode"
-      :options="MODE_OPTIONS"
-      size="xs"
-      class="mb-3 self-start"
-      @update:model-value="$emit('update:paneMode', $event)"
-    />
+    <div v-if="hasMap || isSite" class="mb-3 flex flex-wrap items-center gap-2">
+      <SegmentedControl
+        v-if="hasMap"
+        :model-value="paneMode"
+        :options="MODE_OPTIONS"
+        size="xs"
+        class="self-start"
+        @update:model-value="$emit('update:paneMode', $event)"
+      />
+      <SiteReadinessMeter
+        v-if="isSite && paneMode === 'places'"
+        :readiness="siteReadiness"
+        class="ml-auto"
+      />
+      <SiteMapLayerBar
+        v-if="isSite && hasMap && paneMode === 'map'"
+        :counts="siteLayerCounts"
+        class="ml-auto"
+      />
+    </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto pr-1">
       <!--
-        `relative` so the zoom overlay can sit exactly on the map frame the
-        reader is already looking at, instead of being measured into place.
+        `relative` so the zoom overlay AtlasSiteMapMode renders can sit
+        exactly on the map frame the reader is already looking at, instead of
+        being measured into place.
       -->
-      <div v-if="hasMap && paneMode === 'map'" class="relative">
-        <LocationMap
-          :map-url="location.map_url!"
-          :pins="location.map_pins"
-          :children="children"
-          mode="view"
-          show-hidden-pins
-          compact
-          :offer-peek="false"
-          :location-id="location.id"
-          :show-regions="isSite"
-          :regions="siteRegions"
-          :spaces="siteSpaces"
-          :calibration="location.grid_calibration"
-          v-model:active-region-id="activeRegionId"
-          @pin-click="descendTo"
-          @pin-go="descendTo"
-          @pin-watch="descendTo"
-        />
-
-        <!--
-          Up one level, in the map's own idiom. Placed on the map rather than in
-          the breadcrumb because it is the reverse of the gesture that got you
-          here, and it should be where that gesture happened.
-        -->
-        <AppButton
-          v-if="ascendTarget && !zoomPlan"
-          variant="subtle"
-          size="xs"
-          class="absolute top-2 left-2 z-30 max-w-56 bg-background/85 backdrop-blur-sm"
-          :icon="IconChevronUp"
-          :label="`Up to ${ascendTarget.name}`"
-          @click="ascend"
-        />
-
-        <AtlasMapZoom
-          v-if="zoomPlan"
-          :plan="zoomPlan"
-          :settling="zoomSettling"
-          compact
-          @done="finishDescent"
-        />
-      </div>
+      <AtlasSiteMapMode
+        v-if="hasMap && paneMode === 'map'"
+        :location="location"
+        :index="index"
+        :children="children"
+        v-model:active-region-id="activeRegionId"
+        @select="$emit('select', $event)"
+        @descend="$emit('select', $event)"
+      />
 
       <template v-else>
         <!--
@@ -193,7 +179,7 @@
             <span class="tabular-nums font-normal">{{ group.locations.length }}</span>
           </h3>
           <ul class="flex flex-col gap-0.5">
-            <li v-for="child in group.locations" :key="child.id">
+            <li v-for="child in group.locations" :key="child.id" class="relative">
               <AtlasTreeRow
                 :row="rowFor(child)"
                 :expanded="false"
@@ -202,6 +188,20 @@
                 :out-of-era="isLocationOutOfEra(child, todayYear)"
                 @select="$emit('select', $event)"
               />
+              <!--
+                "A nested site inside Interiors reads as a level, not as a
+                stray room" (#868, frame 02) — `AtlasTreeRow` isn't ours to
+                add a slot to, so the chip overlays the row it names instead
+                of living inside it. `pointer-events-none` keeps it purely
+                informational: the row underneath stays the whole click target.
+              -->
+              <span
+                v-if="levelChipFor(group, child)"
+                class="pointer-events-none absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground"
+              >
+                <IconLayers class="h-3 w-3 shrink-0" aria-hidden="true" />
+                Level {{ levelChipFor(group, child) }}
+              </span>
             </li>
           </ul>
         </section>
@@ -224,20 +224,27 @@ import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import AtlasMapZoom from "@/components/locations/AtlasMapZoom.vue";
 import AtlasScaleRail from "@/components/locations/AtlasScaleRail.vue";
+import AtlasSiteMapMode from "@/components/locations/AtlasSiteMapMode.vue";
 import AtlasTreeRow from "@/components/locations/AtlasTreeRow.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
-import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
-import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
-import { IconChevronRight, IconChevronUp, IconClock, IconEdit, IconLocation, IconMap } from "@/lib/icons";
+import SiteMapLayerBar from "@/components/locations/SiteMapLayerBar.vue";
+import SiteReadinessMeter from "@/components/locations/SiteReadinessMeter.vue";
+import { useSiteStructure } from "@/composables/locations/useSiteStructure";
+import { useUiStore } from "@/stores/ui";
+import {
+  IconChevronRight,
+  IconClock,
+  IconEdit,
+  IconLayers,
+  IconLocation,
+  IconMap,
+} from "@/lib/icons";
 import { isLocationOutOfEra } from "@/lib/locations/era";
-import { planAscent, planDescent } from "@/lib/locations/mapZoom";
-import type { ZoomPlan } from "@/lib/locations/mapZoom";
 import { visibleTags } from "@/lib/locations/tags";
-import { bindableSpaces, groupByTier, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
-import type { LocationTier } from "@/lib/locations/tiers";
+import { groupByTier, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
+import type { LocationTier, TierGroup } from "@/lib/locations/tiers";
 import { ancestorPath, childrenOf, descendantsOf } from "@/lib/locations/tree";
 import type { AtlasIndex, AtlasRow } from "@/lib/locations/tree";
 import { LOCATION_TYPE_COLORS, LOCATION_TYPE_LABELS } from "@/types/location.types";
@@ -250,7 +257,7 @@ const { index, location, paneMode, todayYear } = defineProps<{
   todayYear: number;
 }>();
 
-const emit = defineEmits<{ select: [id: string]; "update:paneMode": [mode: "places" | "map"] }>();
+defineEmits<{ select: [id: string]; "update:paneMode": [mode: "places" | "map"] }>();
 
 const MODE_OPTIONS = [
   { value: "places", label: "Contents", icon: IconLocation },
@@ -262,98 +269,54 @@ const MODE_OPTIONS = [
 // re-deriving six queries' worth of emptiness here.
 const sections = useTemplateRef("sectionsRef");
 
+const uiStore = useUiStore();
+
 // A `tavern` tag beside a Tavern badge says nothing twice. Legacy rows typed
 // `building` and tagged "tavern" keep theirs — there the tag is the meaning.
 const shownTags = computed(() => (location ? visibleTags(location) : []));
 
-// ── Moving between maps ───────────────────────────────────────────────────────
-const zoomPlan = ref<ZoomPlan | null>(null);
-const zoomSettling = ref(false);
-let settleTimer: ReturnType<typeof setTimeout> | undefined;
-
-/** The parent, when rising to it can be animated. Drives the ascend control. */
-const ascendTarget = computed(() => {
-  if (!location?.parent_id) return null;
-  const parent = index.byId.get(location.parent_id);
-  return parent && planAscent(location, parent) ? parent : null;
+onBeforeUnmount(() => {
+  if (foldedTreeForMapMode) uiStore.locationsTreeCollapsed = false;
 });
-
-/**
- * The pin's "watch" action. When both this place and the child have a map, the
- * move is animated as a continued zoom — the thing an atlas actually does —
- * and the selection is deferred until the motion lands. Otherwise it is an
- * ordinary selection, which is also what happens under reduced motion.
- */
-function descendTo(childId: string) {
-  start(planDescent(location, index.byId.get(childId)), childId);
-}
-
-function ascend() {
-  const parent = ascendTarget.value;
-  if (parent) start(planAscent(location, parent), parent.id);
-}
-
-function start(plan: ZoomPlan | null, fallbackId: string) {
-  if (!plan) {
-    emit("select", fallbackId);
-    return;
-  }
-  zoomSettling.value = false;
-  zoomPlan.value = plan;
-}
-
-/**
- * The motion has landed. Select — but leave the overlay up.
- *
- * Tearing it down here is what produced the jitter: the selection travels
- * through the router, so for a frame or two the *previous* map is still what is
- * mounted underneath, and it flashes through before the destination renders.
- */
-function finishDescent() {
-  if (zoomPlan.value) emit("select", zoomPlan.value.targetId);
-}
-
-/**
- * Retire the overlay once the destination is genuinely mounted beneath it, and
- * fade rather than cut — two maps of different aspect ratios do not occupy the
- * same box, so the last frame of the animation and the first frame of the real
- * map are never pixel-identical. A short fade covers that; a cut shows it.
- */
-watch(
-  () => location?.id,
-  (id) => {
-    const plan = zoomPlan.value;
-    if (!plan) return;
-    if (id !== plan.targetId) {
-      // Navigated somewhere else mid-flight (tree, breadcrumb, Back) — drop it.
-      clearZoom();
-      return;
-    }
-    zoomSettling.value = true;
-    settleTimer = setTimeout(clearZoom, 220);
-  },
-);
-
-function clearZoom() {
-  clearTimeout(settleTimer);
-  zoomPlan.value = null;
-  zoomSettling.value = false;
-}
-
-onBeforeUnmount(clearZoom);
 
 const trail = computed(() => (location ? ancestorPath(index, location.id) : []));
 
 const children = computed(() => (location ? childrenOf(index, location.id) : []));
 
-// ── Site regions (#807) — only ever queried for a site-tier place; the
-//    empty-string id below keeps the query disabled everywhere else. ────────
-const activeRegionId = ref<string | null>(null);
 const isSite = computed(() => !!location && isSiteType(location.location_type));
-const siteRegionsQuery = useLocationMapRegions(computed(() => (isSite.value ? location!.id : "")));
-const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
-// See LocationSheet: a room, or a nested site that occupies part of this map.
-const siteSpaces = computed(() => bindableSpaces(children.value));
+
+// The map mode's own tracing state (AtlasSiteMapMode) — lives here rather
+// than inside that component so it survives a paneMode toggle back to
+// Contents and resets cleanly on selection, same as before #868 S6 split it
+// out. See the watch below.
+const activeRegionId = ref<string | null>(null);
+
+// ── Readiness, staleness, layer counts (#868, S6) — one composable so the
+//    meter, the source strip and the layer bar all read the same facts. ────
+const siteStructureLocation = computed(() => (isSite.value ? location : null));
+const { readiness: siteReadiness, layerCounts: siteLayerCounts } = useSiteStructure(siteStructureLocation);
+
+// The tree fold already exists for exactly this — a two-pane explorer where
+// the map is the pane that earns the extra width. Only fold what we found
+// unfolded, and only restore what we ourselves folded: a DM who folded the
+// tree on purpose before opening a site's map should find it still folded
+// after leaving, not sprung back open by a pane that merely visited.
+let foldedTreeForMapMode = false;
+watch(
+  () => paneMode === "map" && isSite.value,
+  (onSiteMap) => {
+    if (onSiteMap) {
+      if (!uiStore.locationsTreeCollapsed) {
+        uiStore.locationsTreeCollapsed = true;
+        foldedTreeForMapMode = true;
+      }
+    } else if (foldedTreeForMapMode) {
+      uiStore.locationsTreeCollapsed = false;
+      foldedTreeForMapMode = false;
+    }
+  },
+  { immediate: true },
+);
 
 // An active trace belongs to the place it was started on; carrying it into
 // the next selection would reopen a stale "Tracing X" banner on an unrelated
@@ -401,6 +364,20 @@ const eraLabel = computed(() => {
   if (era_end) return `Until ${era_end}`;
   return "";
 });
+
+/**
+ * "Level N" for a nested-site child of a site (#868, frame 02) — N is the
+ * child's 1-based position among its site siblings, already in
+ * `compareSiblings` order via `groupByTier`. Every child in the `site` tier
+ * bucket of an `isSite` parent's own `groups` IS a nested site by
+ * construction (`tierOf` only assigns that tier to the six site-shaped
+ * types), so no extra type check is needed beyond the group itself.
+ */
+function levelChipFor(group: TierGroup, child: Location): number | null {
+  if (!isSite.value || group.tier !== "site") return null;
+  const idx = group.locations.findIndex((l) => l.id === child.id);
+  return idx === -1 ? null : idx + 1;
+}
 
 function rowFor(child: Location): AtlasRow {
   const kids = index.childIds.get(child.id) ?? [];

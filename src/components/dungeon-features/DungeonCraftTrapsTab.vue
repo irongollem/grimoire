@@ -39,12 +39,13 @@
             :class="TRAP_TYPE_BG[trap.trap_type]"
           >{{ trap.trap_type }}</span>
         </div>
-        <div class="p-2.5 flex flex-col gap-0.5">
+        <div class="p-2.5 flex flex-col gap-1">
           <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
           <div class="flex items-center gap-2">
             <span v-if="trap.cr" class="text-label text-muted-foreground">CR {{ trap.cr }}</span>
             <span v-if="trap.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
           </div>
+          <PlacedInLine :rooms="placedInRows(trap.id)" />
         </div>
       </RouterLink>
     </template>
@@ -55,15 +56,21 @@
 import { ref, computed } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
+import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
+import PlacedInLine from "./PlacedInLine.vue";
 
 const router = useRouter();
 const { data: traps, isLoading: trapsLoading } = useTraps();
 const trapsSearch     = ref("");
 const trapsTypeFilter = ref("");
+
+// ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
+const trapIds = computed(() => (traps.value ?? []).map((t) => t.id));
+const { placedInRows } = usePlacedInRooms("trap", trapIds);
 
 const filteredTraps = computed(() => {
   let list = traps.value ?? [];

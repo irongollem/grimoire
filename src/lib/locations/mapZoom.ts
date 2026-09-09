@@ -1,4 +1,6 @@
-import type { Location, MapPin } from "@/types/location.types";
+import type { CellKey } from "@/types/dungeonMap.types";
+import type { GridCalibration, Location, MapPin } from "@/types/location.types";
+import { cellRectInImageFractions } from "./gridCalibration";
 
 /**
  * The descend-into-a-map transition.
@@ -143,15 +145,44 @@ function anchorOrigin(parent: Location, childId: string): string {
 export function planDescent(
   parent: Location | null | undefined,
   child: Location | null | undefined,
+  /** Override for descending into a REGION rather than a pin (#868, S6): the
+   *  traced shape's own centroid, from `regionOrigin` below, rather than a
+   *  pin's point. Falls back to the pin-anchor rule when omitted. */
+  origin?: string,
 ): ZoomPlan | null {
   if (!parent || !child || !canZoomBetween(parent, child)) return null;
   return {
     direction: "in",
     fromUrl: parent.map_url!,
     toUrl: child.map_url!,
-    origin: anchorOrigin(parent, child.id),
+    origin: origin ?? anchorOrigin(parent, child.id),
     targetId: child.id,
   };
+}
+
+/**
+ * The anchor for descending into a space via its traced REGION rather than a
+ * pin — "the same zoom a pin gives, drawn as a polygon" (#868, frame 06). The
+ * centroid of the region's cell rects, in image-fraction space, averaged
+ * cell-by-cell rather than by a bounding-box midpoint so an L-shaped room
+ * anchors inside its own footprint instead of in the empty corner its
+ * bounding box would include.
+ */
+export function regionOrigin(
+  cells: readonly CellKey[],
+  calibration: GridCalibration,
+  imageNaturalWidth: number,
+  imageNaturalHeight: number,
+): string {
+  if (!cells.length) return CENTRE_ORIGIN;
+  let sumX = 0;
+  let sumY = 0;
+  for (const cell of cells) {
+    const rect = cellRectInImageFractions(cell, calibration, imageNaturalWidth, imageNaturalHeight);
+    sumX += rect.x + rect.w / 2;
+    sumY += rect.y + rect.h / 2;
+  }
+  return `${pct(sumX / cells.length)}% ${pct(sumY / cells.length)}%`;
 }
 
 /**

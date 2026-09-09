@@ -51,6 +51,9 @@ export interface LocationPlacementUpdate {
   note?: string | null;
   sort_order?: number | null;
   source_cell_key?: CellKey | null;
+  /** A re-anchor (#868 Publish to Atlas) moves a placement to the room that
+   *  now holds its cell — the only path that ever changes this after insert. */
+  location_id?: string;
 }
 
 export const LOCATION_PLACEMENT_KINDS = [
