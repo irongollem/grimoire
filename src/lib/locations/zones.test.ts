@@ -79,4 +79,11 @@ describe("emptyZoneInsert", () => {
       zone_payload: {},
     });
   });
+
+  it("defaults a light zone to player-visible, and every other kind to DM-only", () => {
+    expect(emptyZoneInsert("site-1", "light").zone_payload).toEqual({ visible_to_players: true });
+    expect(emptyZoneInsert("site-1", "hazard").zone_payload).toEqual({});
+    expect(emptyZoneInsert("site-1", "terrain").zone_payload).toEqual({});
+    expect(emptyZoneInsert("site-1", "trigger").zone_payload).toEqual({});
+  });
 });

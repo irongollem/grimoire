@@ -25,6 +25,7 @@
 // the DM as a toast instead, same as `LocationDoor`'s endpoint guard.
 
 import type { CellKey } from "@/types/dungeonMap.types";
+import type { LocationType } from "@/types/location.types";
 
 // ── A region has a role (#868) ───────────────────────────────────────────────
 //
@@ -154,4 +155,10 @@ export type LocationMapRegionUpdate = Partial<
 export interface BindableSpace {
   id: string;
   name: string;
+  /** Present whenever the caller's own child list already carries it — every
+   *  `bindableSpaces()` caller's does, since that function is generic over
+   *  `{ location_type: LocationType }` — so `SiteMapRegionList.vue` can read
+   *  "Nested site · click to descend" (#868, frame 03) for a bound site
+   *  without this shared type needing every consumer's full shape. */
+  location_type?: LocationType;
 }

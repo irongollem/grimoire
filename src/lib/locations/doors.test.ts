@@ -152,6 +152,7 @@ describe("doorSubtitle", () => {
       starts_locked: false,
       lock_note: null,
       label: "",
+      is_one_way: false,
       ...overrides,
     };
   }
@@ -164,8 +165,8 @@ describe("doorSubtitle", () => {
     expect(subtitle({ starts_locked: true, lock_note: "the brass key" })).toBe("Locked · the brass key");
   });
 
-  it("leads with the kind label and the door's label otherwise", () => {
-    expect(subtitle({ door_kind: "stair", label: "one-way descent" })).toBe("Stair · one-way descent");
+  it("leads with the kind label and the door's label otherwise, for a horizontal kind", () => {
+    expect(subtitle({ door_kind: "door", label: "iron grille" })).toBe("Door · iron grille");
   });
 
   it("prefers Secret over Locked when a door is both", () => {
@@ -178,6 +179,22 @@ describe("doorSubtitle", () => {
     expect(subtitle({ is_secret: true, label: "" })).toBe("Secret");
     expect(subtitle({ starts_locked: true, lock_note: null })).toBe("Locked");
     expect(subtitle({ door_kind: "arch", label: "" })).toBe("Arch");
+  });
+
+  it("names a two-way vertical kind's climb direction alongside its label", () => {
+    expect(subtitle({ door_kind: "stair", is_one_way: false, label: "flooded at the base" })).toBe(
+      "Stair · two-way · flooded at the base",
+    );
+  });
+
+  it("names a one-way vertical kind's climb direction alongside its label", () => {
+    expect(subtitle({ door_kind: "shaft", is_one_way: true, label: "40 ft, no climb" })).toBe(
+      "Shaft · one-way · 40 ft, no climb",
+    );
+  });
+
+  it("still names the climb direction for a vertical kind with no label", () => {
+    expect(subtitle({ door_kind: "stair", is_one_way: false, label: "" })).toBe("Stair · two-way");
   });
 
   function subtitle(overrides: Partial<import("./doors").DoorSubtitleRow>): string {

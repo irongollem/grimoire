@@ -157,9 +157,10 @@ export interface PreparedMark {
    *  neither, nowhere"). */
   cell: CellKey;
   /** The room this reads as prepared in, for the reverse "Placed in" column
-   *  and for grouping — null only for a puzzle anchored purely through a
-   *  feature that has since lost its own room (shouldn't happen in practice;
-   *  `location_placements` requires a location). */
+   *  and for grouping — null for a puzzle anchored purely through a feature
+   *  that has since lost its own room (shouldn't happen in practice;
+   *  `location_placements` requires a location), and for a hazard zone's
+   *  linked trap, which belongs to the zone rather than to any one room. */
   spaceId: string | null;
   label: string;
   subtitle: string;
@@ -226,9 +227,10 @@ function lootSubtitle(loot: LootPlacement): string {
 
 /**
  * Resolves every prepared mark a site's plan should draw. Order in the
- * output is placements (traps, then features) → puzzles → encounters →
- * loot, then fanned out — deterministic so the same input always produces
- * the same marks, which is what the fan-out and the tests below rely on.
+ * output is placements (traps, then features) → hazard-zone-linked traps →
+ * puzzles → encounters → loot, then fanned out — deterministic so the same
+ * input always produces the same marks, which is what the fan-out and the
+ * tests below rely on.
  */
 export function resolvePreparedMarks(input: PreparedMarksInput): PreparedMark[] {
   const trapsById = new Map(input.traps.map((t) => [t.id, t]));
@@ -291,6 +293,34 @@ export function resolvePreparedMarks(input: PreparedMarksInput): PreparedMark[] 
         fanOffset: 0,
       });
     }
+  }
+
+  // Hazard zones drawing their own linked trap (frame 07: "may carry
+  // `trap_id`, in which case the trap's own `hazard_glyph` draws inside it
+  // instead of a flat fill") — the flat fill itself is `drawZonesPass`'s
+  // job, still painted underneath; this only resolves where the glyph goes.
+  // Drawn at the zone's own centroid, not any room's — a hazard zone need
+  // not sit inside a single bound space at all.
+  for (const region of input.regions) {
+    if (region.region_role !== "zone" || region.zone_kind !== "hazard") continue;
+    const trapId = region.zone_payload.trap_id;
+    if (!trapId) continue;
+    const hazardTrap = trapsById.get(trapId);
+    if (!hazardTrap) continue;
+    const cell = roomCentroidCell(region);
+    if (!cell) continue;
+    marks.push({
+      id: `zone-trap:${region.id}`,
+      kind: "trap",
+      cell,
+      spaceId: null,
+      label: hazardTrap.name,
+      subtitle: trapSubtitle(hazardTrap),
+      icon: hazardTrap.hazard_glyph ? HAZARD_MARK_ICON[hazardTrap.hazard_glyph] : KIND_FALLBACK_ICON.trap,
+      colour: MARK_COLOURS.trap,
+      href: `/traps/${hazardTrap.id}`,
+      fanOffset: 0,
+    });
   }
 
   for (const puzzle of input.puzzles) {

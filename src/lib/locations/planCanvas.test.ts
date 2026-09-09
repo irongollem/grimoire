@@ -115,6 +115,38 @@ describe("regionFillColor", () => {
     // that must read as "not the party", not as a match.
     expect(regionFillColor(makeRegion({ space_location_id: null }), opts)).toBe("rgba(255, 255, 255, 0.04)");
   });
+
+  it("shades a bound space by its room facts in browse mode (#868 frame 01)", () => {
+    const opts = { mode: "browse" as const, activeRegionId: null, partyRoomId: null, reachableRoomIds: null };
+    const region = makeRegion({ space_location_id: "room-1" });
+    expect(regionFillColor(region, { ...opts, roomState: new Map([["room-1", { explored: false, cleared: true, looted: true }]]) })).toBe(
+      "rgba(167, 139, 250, 0.34)",
+    );
+    expect(regionFillColor(region, { ...opts, roomState: new Map([["room-1", { explored: false, cleared: true, looted: false }]]) })).toBe(
+      "rgba(74, 222, 128, 0.32)",
+    );
+    expect(regionFillColor(region, { ...opts, roomState: new Map([["room-1", { explored: false, cleared: false, looted: true }]]) })).toBe(
+      "rgba(217, 158, 44, 0.32)",
+    );
+    expect(regionFillColor(region, { ...opts, roomState: new Map([["room-1", { explored: true, cleared: false, looted: false }]]) })).toBe(
+      "rgba(148, 163, 184, 0.28)",
+    );
+  });
+
+  it("falls back to the plain bound green when the room has no facts yet", () => {
+    const opts = { mode: "browse" as const, activeRegionId: null, partyRoomId: null, reachableRoomIds: null };
+    const region = makeRegion({ space_location_id: "room-1" });
+    expect(regionFillColor(region, opts)).toBe("rgba(74, 222, 128, 0.28)");
+    expect(regionFillColor(region, { ...opts, roomState: new Map() })).toBe("rgba(74, 222, 128, 0.28)");
+  });
+
+  it("keeps the active-selection blue over any room facts", () => {
+    const opts = { mode: "browse" as const, activeRegionId: "active", partyRoomId: null, reachableRoomIds: null };
+    const region = makeRegion({ id: "active", space_location_id: "room-1" });
+    expect(regionFillColor(region, { ...opts, roomState: new Map([["room-1", { explored: true, cleared: true, looted: true }]]) })).toBe(
+      "rgba(96, 165, 250, 0.45)",
+    );
+  });
 });
 
 describe("drawSpacesPass", () => {

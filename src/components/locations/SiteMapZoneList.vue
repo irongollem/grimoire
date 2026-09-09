@@ -188,6 +188,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import PlacementNoteInput from "@/components/locations/PlacementNoteInput.vue";
 import {
+  dmEdit,
   useCreateLocationMapRegion,
   useDeleteLocationMapRegion,
   useUpdateLocationMapRegion,
@@ -276,7 +277,7 @@ async function removeZone(zone: LocationMapRegion): Promise<void> {
 function commitLabel(zone: LocationMapRegion, value: string): void {
   const next = value.trim();
   if (next === (zone.label ?? "")) return;
-  updateRegion.mutate({ id: zone.id, update: { label: next === "" ? null : next } });
+  updateRegion.mutate({ id: zone.id, update: dmEdit({ label: next === "" ? null : next }) });
 }
 
 function toggleVisible(zone: LocationMapRegion): void {
@@ -288,6 +289,6 @@ function toggleVisible(zone: LocationMapRegion): void {
  *  field-at-a-time editor that replaced the object would drop whichever
  *  ones the visible control didn't just touch. */
 function updatePayload(zone: LocationMapRegion, patch: Partial<ZonePayload>): void {
-  updateRegion.mutate({ id: zone.id, update: { zone_payload: { ...zone.zone_payload, ...patch } } });
+  updateRegion.mutate({ id: zone.id, update: dmEdit({ zone_payload: { ...zone.zone_payload, ...patch } }) });
 }
 </script>

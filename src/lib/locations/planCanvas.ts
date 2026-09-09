@@ -79,10 +79,47 @@ export interface SpacePaletteOptions {
   /** `null` means "nothing to be unreachable from yet" — every bound region
    *  renders as reachable. Only meaningful in run mode. */
   reachableRoomIds: ReadonlySet<string> | null;
+  /** A bound space's durable world-state facts (#868, frame 01) — browse
+   *  mode only; run mode keeps its own palette above. Keyed by space id;
+   *  absent, or no entry for this space, falls back to the plain bound green
+   *  a site with nothing asserted yet has always shown. */
+  roomState?: ReadonlyMap<string, RoomFacts>;
+}
+
+/** The three durable facts a room can carry (`location_state`'s own
+ *  `explored`/`cleared`/`looted`), reduced to plain booleans for shading —
+ *  missing-vs-false is a distinction this palette has no visual for. */
+export interface RoomFacts {
+  explored: boolean;
+  cleared: boolean;
+  looted: boolean;
+}
+
+/** The four tints a bound space takes on in browse mode once the DM has
+ *  asserted anything about it — frame 01: "those three facts now shade the
+ *  space on the plan, so 'what is left of this dungeon' is a glance rather
+ *  than a list." The same palette the player's own plan used before #868,
+ *  reused here (and by `SiteMapLegend`) so the two never drift apart. */
+export const ROOM_FACT_COLORS = {
+  clearedAndLooted: "rgba(167, 139, 250, 0.34)",
+  cleared: "rgba(74, 222, 128, 0.32)",
+  looted: "rgba(217, 158, 44, 0.32)",
+  exploredOnly: "rgba(148, 163, 184, 0.28)",
+} as const;
+
+/** `null` when the room has no facts at all yet — the caller falls back to
+ *  the plain bound green in that case, same as before this landed. */
+function roomFactFillColor(facts: RoomFacts | undefined): string | null {
+  if (!facts) return null;
+  if (facts.cleared && facts.looted) return ROOM_FACT_COLORS.clearedAndLooted;
+  if (facts.cleared) return ROOM_FACT_COLORS.cleared;
+  if (facts.looted) return ROOM_FACT_COLORS.looted;
+  if (facts.explored) return ROOM_FACT_COLORS.exploredOnly;
+  return null;
 }
 
 export function regionFillColor(region: LocationMapRegion, opts: SpacePaletteOptions): string {
-  const { mode, activeRegionId, partyRoomId, reachableRoomIds } = opts;
+  const { mode, activeRegionId, partyRoomId, reachableRoomIds, roomState } = opts;
   if (mode === "run") {
     // `partyRoomId` guarded first: both sides are nullable, and a party that
     // has not entered a room yet is null on one side while every *unbound*
@@ -93,9 +130,9 @@ export function regionFillColor(region: LocationMapRegion, opts: SpacePaletteOpt
     const reachable = !reachableRoomIds || reachableRoomIds.has(region.space_location_id);
     return reachable ? "rgba(74, 222, 128, 0.28)" : "rgba(120, 113, 108, 0.35)";
   }
-  const isActive = region.id === activeRegionId;
-  const bound = !!region.space_location_id;
-  return isActive ? "rgba(96, 165, 250, 0.45)" : bound ? "rgba(74, 222, 128, 0.28)" : "rgba(251, 191, 36, 0.28)";
+  if (region.id === activeRegionId) return "rgba(96, 165, 250, 0.45)";
+  if (!region.space_location_id) return "rgba(251, 191, 36, 0.28)";
+  return roomFactFillColor(roomState?.get(region.space_location_id)) ?? "rgba(74, 222, 128, 0.28)";
 }
 
 /**

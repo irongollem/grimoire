@@ -296,10 +296,28 @@ const placementRows = computed<Row[]>(() => {
         text: `${LOCATION_PLACEMENT_KIND_LABELS[change.target.kind]} at (${change.link.cellKey})`,
         action: "→ Prepared here",
       });
+    } else if (change.kind === "note") {
+      // Encounter/note links never write a placement (encounters and notes
+      // carry their own location column) — this row is purely informational,
+      // so it never disappears from the review the way an unhandled kind
+      // would have (the section itself used to vanish for a plan holding
+      // only these).
+      const label = change.link.metadata.encounter_id ? "Encounter" : "Note";
+      rows.push({
+        key: `note:${change.link.cellKey}`,
+        tone: "unchanged",
+        text: `${label} linked at cell ${change.link.cellKey}`,
+        action: "lives on its own location; not written by publish",
+      });
     }
   }
   return rows;
 });
 
-const placementSummary = computed(() => `${plan.summary.reanchored} moved`);
+const placementSummary = computed(() => {
+  const noted = plan.placements.filter((c) => c.kind === "note").length;
+  const parts = [`${plan.summary.reanchored} moved`];
+  if (noted > 0) parts.push(`${noted} reported`);
+  return parts.join(" · ");
+});
 </script>

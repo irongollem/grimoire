@@ -12,7 +12,7 @@
         <span class="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"><IconDungeon class="h-3.5 w-3.5" /></span>
         <div class="min-w-0 flex-1">
           <p class="truncate font-cinzel text-label-lg font-bold text-foreground">{{ site.name }}</p>
-          <p class="text-muted-foreground">{{ roomCount }} room{{ roomCount === 1 ? '' : 's' }}</p>
+          <p class="text-muted-foreground">{{ siteMetaCaption }}</p>
         </div>
         <AppButton :to="`/locations/${site.id}`" label="Open in Atlas" size="xs" variant="subtle" />
       </div>
@@ -48,25 +48,6 @@
         <span class="w-28 shrink-0 text-muted-foreground">Ambience</span>
         <span class="text-foreground">{{ ambienceCaption }}</span>
       </div>
-
-      <!-- Site readiness is a beat gap (#868 S12, frame 15): the Quest Board
-           already renders `has-gaps` on a beat missing its people or its
-           handouts. A site that cannot be walked is the same class of gap. -->
-      <div v-if="readiness" class="flex flex-col gap-1 rounded-md border border-border p-2 text-caption">
-        <p class="font-cinzel text-label font-bold uppercase tracking-wide text-muted-foreground">Site readiness</p>
-        <p class="flex items-center gap-1.5">
-          <component :is="floorPlanPublished ? IconCheck : IconWarning" class="h-3.5 w-3.5 shrink-0" :class="floorPlanPublished ? 'text-tone-success' : 'text-tone-caution'" />
-          <span :class="floorPlanPublished ? 'text-foreground' : 'text-ink-caution'">Floor plan {{ floorPlanPublished ? "published" : "not published yet" }}</span>
-        </p>
-        <p class="flex items-center gap-1.5">
-          <component :is="readiness.waysOut ? IconCheck : IconWarning" class="h-3.5 w-3.5 shrink-0" :class="readiness.waysOut ? 'text-tone-success' : 'text-tone-caution'" />
-          <span :class="readiness.waysOut ? 'text-foreground' : 'text-ink-caution'">Ways out {{ readiness.waysOut ? `traced — ${doorCount}` : "not traced yet" }}</span>
-        </p>
-        <p v-if="readiness.unboundSpaces > 0" class="flex items-center gap-1.5">
-          <IconWarning class="h-3.5 w-3.5 shrink-0 text-tone-caution" />
-          <span class="text-ink-caution">{{ readiness.caption }}</span>
-        </p>
-      </div>
     </div>
 
     <div v-else-if="choosingSite" class="mt-2 flex min-w-0 items-center gap-2 rounded-md border border-dashed border-border p-2">
@@ -87,6 +68,31 @@
       <AppButton label="Choose site" size="xs" :loading="staging" @click="choosingSite = true" />
     </div>
     <p v-if="stagingError" role="alert" class="mt-1 text-caption text-destructive">{{ stagingError }}</p>
+  </section>
+
+  <!-- Site readiness is a beat gap (#868 S12, frame 15): the Quest Board
+       already renders `has-gaps` on a beat missing its people or its
+       handouts. A site that cannot be walked is the same class of gap —
+       its own bordered panel, separate from the Site panel above, so the
+       warning reads as a distinct signal rather than one more Site row. -->
+  <section v-if="readiness" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3" aria-label="Site readiness">
+    <header class="flex items-center gap-2">
+      <IconWarning class="h-4 w-4 shrink-0 text-tone-caution" aria-hidden="true" />
+      <h3 class="font-cinzel text-sm font-bold text-foreground">Site readiness</h3>
+    </header>
+    <p class="flex items-center gap-1.5 text-caption">
+      <component :is="floorPlanPublished ? IconCheck : IconWarning" class="h-3.5 w-3.5 shrink-0" :class="floorPlanPublished ? 'text-tone-success' : 'text-tone-caution'" />
+      <span :class="floorPlanPublished ? 'text-foreground' : 'text-ink-caution'">Floor plan {{ floorPlanPublished ? "published" : "not published yet" }}</span>
+    </p>
+    <p class="flex items-center gap-1.5 text-caption">
+      <component :is="readiness.waysOut ? IconCheck : IconWarning" class="h-3.5 w-3.5 shrink-0" :class="readiness.waysOut ? 'text-tone-success' : 'text-tone-caution'" />
+      <span :class="readiness.waysOut ? 'text-foreground' : 'text-ink-caution'">Ways out {{ readiness.waysOut ? `traced — ${doorCount}` : "not traced yet" }}</span>
+    </p>
+    <p v-if="readiness.unboundSpaces > 0" class="flex items-center gap-1.5 text-caption">
+      <IconWarning class="h-3.5 w-3.5 shrink-0 text-tone-caution" />
+      <span class="text-ink-caution">{{ readiness.caption }}</span>
+    </p>
+    <p class="text-caption text-muted-foreground">Site readiness is a beat gap.</p>
   </section>
 </template>
 
@@ -111,6 +117,7 @@ import { reachableRoomIds } from "@/lib/locations/siteRun";
 import { siteReadiness } from "@/lib/locations/siteReadiness";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { IconCheck, IconDungeon, IconWarning } from "@/lib/icons";
+import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { QuestBeat } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
@@ -142,6 +149,25 @@ const siteRooms = computed(() => site.value
   ? locationOptions.value.filter((candidate) => candidate.parent_id === site.value!.id && candidate.location_type === "room")
   : []);
 const roomCount = computed(() => siteRooms.value.length);
+
+// Frame 15's site row ("Ashmouth Undercroft — Dungeon · 3 levels · plan
+// published rev 14") — a level is a nested site (a floor), same set
+// `AtlasSiteMapMode`'s own `childSites` reads; omitted entirely for a site
+// with none, same as the frame shows for a single-floor dungeon.
+const childSiteCount = computed(() => site.value
+  ? locationOptions.value.filter((candidate) => candidate.parent_id === site.value!.id && isSiteType(candidate.location_type)).length
+  : 0);
+const siteMetaCaption = computed(() => {
+  if (!site.value) return "";
+  const parts = [LOCATION_TYPE_LABELS[site.value.location_type]];
+  if (childSiteCount.value > 0) parts.push(`${childSiteCount.value} level${childSiteCount.value === 1 ? "" : "s"}`);
+  parts.push(
+    site.value.map_published_rev != null
+      ? `plan published rev ${site.value.map_published_rev}`
+      : "plan never published from the Cartographer",
+  );
+  return parts.join(" · ");
+});
 
 // The picker offers every site-tier location AND, indented beneath each, its
 // bindable spaces (rooms and nested sites) — the same depth-indented shape

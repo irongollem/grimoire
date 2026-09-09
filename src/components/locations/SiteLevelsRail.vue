@@ -16,7 +16,9 @@
     >
       <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
         <img v-if="level.mapUrl" :src="level.mapUrl" alt="" class="h-full w-full object-cover" />
-        <IconMap v-else class="h-3.5 w-3.5 text-muted-foreground/50" aria-hidden="true" />
+        <!-- No map yet — an add glyph in the thumbnail's place, not a map
+             icon standing in for a map that isn't there (#868, frame 06). -->
+        <IconAdd v-else class="h-3.5 w-3.5 text-muted-foreground/50" aria-hidden="true" />
       </div>
       <div class="min-w-0 flex-1">
         <p class="truncate text-left font-cinzel text-xs font-semibold text-foreground">{{ i + 1 }} · {{ level.name }}</p>
@@ -36,7 +38,7 @@
  * component has no business holding.
  */
 import AppButton from "@/components/common/AppButton.vue";
-import { IconMap } from "@/lib/icons";
+import { IconAdd } from "@/lib/icons";
 
 export interface SiteLevelSummary {
   id: string;

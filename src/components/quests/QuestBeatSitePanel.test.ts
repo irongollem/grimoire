@@ -8,20 +8,28 @@ const mocks = vi.hoisted(() => ({
   regions: [] as unknown[],
   doors: [] as unknown[],
   preparedCounts: { trap: 0, feature: 0, secret_feature: 0, puzzle: 0, encounter: 0, loot: 0 },
+  locationOptions: [] as unknown[],
 }));
 
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useUpdateQuestBeat: () => ({ mutateAsync: mocks.update }),
 }));
 vi.mock("@/composables/locations/useLocations", () => ({
-  useLocationTree: () => ({ locationOptions: { value: [
-    { id: "site-1", name: "Cloister of Small Mercies", location_type: "building", parent_id: null, depth: 0, map_url: null, grid_calibration: null, audio_theme: "dungeon-wet" },
-    { id: "room-1", name: "The nave", location_type: "room", parent_id: "site-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null },
-    { id: "room-2", name: "The crypt", location_type: "room", parent_id: "site-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null },
-    { id: "town-1", name: "Ashmouth", location_type: "town", parent_id: null, depth: 0, map_url: null, grid_calibration: null, audio_theme: null },
-    { id: "room-3", name: "Orphan room", location_type: "room", parent_id: "town-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null },
-  ] } }),
+  useLocationTree: () => ({ locationOptions: { value: mocks.locationOptions } }),
 }));
+
+// A plain function rather than a fixture constant so individual tests can
+// start from it and layer on a nested site (a "level") or a publish rev
+// (frame 15) without disturbing every other test's counts.
+function defaultLocations() {
+  return [
+    { id: "site-1", name: "Cloister of Small Mercies", location_type: "building", parent_id: null, depth: 0, map_url: null, grid_calibration: null, audio_theme: "dungeon-wet", map_published_rev: null },
+    { id: "room-1", name: "The nave", location_type: "room", parent_id: "site-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+    { id: "room-2", name: "The crypt", location_type: "room", parent_id: "site-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+    { id: "town-1", name: "Ashmouth", location_type: "town", parent_id: null, depth: 0, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+    { id: "room-3", name: "Orphan room", location_type: "room", parent_id: "town-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+  ];
+}
 vi.mock("@/composables/locations/useLocationMapRegions", () => ({
   useLocationMapRegions: () => ({ data: { value: mocks.regions } }),
 }));
@@ -43,6 +51,7 @@ describe("QuestBeatSitePanel", () => {
     mocks.regions = [];
     mocks.doors = [];
     mocks.preparedCounts = { trap: 0, feature: 0, secret_feature: 0, puzzle: 0, encounter: 0, loot: 0 };
+    mocks.locationOptions = defaultLocations();
   });
 
   it("offers to choose a site when the beat is not staged at one", () => {
@@ -145,5 +154,39 @@ describe("QuestBeatSitePanel", () => {
       global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
     });
     expect(wrapper.text()).toContain("This beat can become a crawl");
+  });
+
+  it("names the site's type, its levels and its publish rev in the site row (frame 15)", () => {
+    mocks.locationOptions = [
+      ...defaultLocations().map((loc) => (loc.id === "site-1" ? { ...loc, location_type: "dungeon", map_published_rev: 14 } : loc)),
+      { id: "level-2", name: "Second Floor", location_type: "dungeon", parent_id: "site-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+    ];
+    const wrapper = mount(QuestBeatSitePanel, {
+      props: { beat: beat({ staged_at_location_id: "site-1" }) },
+      global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+    });
+    expect(wrapper.text()).toContain("Dungeon · 1 level · plan published rev 14");
+  });
+
+  it("says the plan was never published from the Cartographer, and omits levels for a single-floor site", () => {
+    const wrapper = mount(QuestBeatSitePanel, {
+      props: { beat: beat({ staged_at_location_id: "site-1" }) },
+      global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+    });
+    expect(wrapper.text()).toContain("Building · plan never published from the Cartographer");
+  });
+
+  it("splits readiness into its own bordered section, separate from the Site panel (frame 15)", () => {
+    const wrapper = mount(QuestBeatSitePanel, {
+      props: { beat: beat({ staged_at_location_id: "site-1" }) },
+      global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+    });
+    const siteSection = wrapper.find('[aria-label="Site"]');
+    const readinessSection = wrapper.find('[aria-label="Site readiness"]');
+    expect(siteSection.exists()).toBe(true);
+    expect(readinessSection.exists()).toBe(true);
+    expect(siteSection.text()).not.toContain("Site readiness");
+    expect(readinessSection.text()).toContain("Floor plan not published yet");
+    expect(readinessSection.text()).toContain("Site readiness is a beat gap.");
   });
 });

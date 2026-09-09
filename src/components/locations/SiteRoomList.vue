@@ -49,6 +49,9 @@
         >
           <IconHide class="h-3 w-3" aria-hidden="true" />
         </span>
+        <!-- Frame 08: cleared stays full weight — only an unreachable room
+             dims. The shield replaces dimming as the "done with this" signal. -->
+        <IconShieldCheck v-if="isCleared(room)" class="h-4 w-4 shrink-0 self-center text-tone-success" aria-hidden="true" />
         <AppButton v-if="unwrittenIds.has(room.id)" size="xs" label="Fill" class="shrink-0 self-center" @click="startFill(room)" />
       </template>
     </div>
@@ -77,7 +80,7 @@ import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
-import { IconCoins, IconHide } from "@/lib/icons";
+import { IconCoins, IconHide, IconShieldCheck } from "@/lib/icons";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { useLootPlacements } from "@/composables/quests/useQuestFlow";
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
@@ -148,8 +151,9 @@ function rowClass(room: Location): string[] {
   if (unwrittenIds.has(room.id)) return ["border-dashed", "border-tone-caution/50"];
   const classes = ["border-border"];
   if (room.id === currentRoomId) classes.push("border-tone-info", "ring-2", "ring-tone-info/15");
+  // Frame 08: only an unreachable room dims — cleared stays full weight, with
+  // the shield glyph as its own signal (see the template).
   else if (runCaptions && !isReachable(room)) classes.push("opacity-55");
-  else if (isCleared(room)) classes.push("opacity-70");
   return classes;
 }
 

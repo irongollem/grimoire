@@ -29,7 +29,7 @@
  */
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useUpdateLocationMapRegion } from "@/composables/locations/useLocationMapRegions";
+import { dmEdit, useUpdateLocationMapRegion } from "@/composables/locations/useLocationMapRegions";
 import { useRegionPointer, type UseRegionPointerOptions } from "@/composables/locations/useRegionPointer";
 import { canvasToGridPoint, gridPointToCanvas } from "@/composables/locations/useRegionPen";
 import { useConfirm } from "@/composables/useConfirm";
@@ -45,6 +45,7 @@ import {
   drawWaysPass,
   drawZonesPass,
   type RenderGeometry,
+  type RoomFacts,
 } from "@/lib/locations/planCanvas";
 import { isCellOnImageGrid } from "@/lib/locations/siteMap";
 import type { CellKey } from "@/types/dungeonMap.types";
@@ -62,6 +63,7 @@ const {
   mode,
   partyRoomId = null,
   reachableRoomIds = null,
+  roomState,
   toImageFraction,
   showSpaces = true,
   showZones = false,
@@ -83,6 +85,10 @@ const {
    *  means "nothing to be unreachable from yet" — every bound region renders
    *  and behaves as reachable. Only meaningful in run mode. */
   reachableRoomIds?: ReadonlySet<string> | null;
+  /** A bound space's durable world-state facts (#868, frame 01) — shades a
+   *  space's fill once the DM has asserted anything about it. Browse mode
+   *  only; `LocationMap.vue` builds it from `useLocationStateForRooms`. */
+  roomState?: ReadonlyMap<string, RoomFacts>;
   /** The frame's client-coordinates → image-fraction conversion — the same
    *  one `MapPinsLayer` uses, so a click lands on the same cell the grid was
    *  drawn onto. See `MapFrame.vue`. */
@@ -187,7 +193,7 @@ function hoverRegionAt(cell: CellKey): LocationMapRegion | null {
 function commitCells(regionId: string, cells: CellKey[]): void {
   pendingStroke.value = { regionId, cells };
   updateRegion.mutate(
-    { id: regionId, update: { cells } },
+    { id: regionId, update: dmEdit({ cells }) },
     {
       onError: (err) => {
         if (pendingStroke.value?.regionId === regionId) pendingStroke.value = null;
@@ -204,7 +210,7 @@ function commitCells(regionId: string, cells: CellKey[]): void {
 // caller swallows it.
 async function commitRing(regionId: string, ring: GridPoint[]): Promise<void> {
   try {
-    await updateRegion.mutateAsync({ id: regionId, update: { vertices: ring, cells: cellsInsideRing(ring) } });
+    await updateRegion.mutateAsync({ id: regionId, update: dmEdit({ vertices: ring, cells: cellsInsideRing(ring) }) });
   } catch (err) {
     toastError(fromError(err));
     throw err;
@@ -215,7 +221,7 @@ async function commitRing(regionId: string, ring: GridPoint[]): Promise<void> {
 // cell fill (`templateCells`) is its own algorithm, not the generic
 // ring-fill `commitRing` uses for a hand-traced pen shape.
 function commitTemplate(regionId: string, ring: GridPoint[], cells: CellKey[]): void {
-  updateRegion.mutate({ id: regionId, update: { vertices: ring, cells } }, { onError: (err) => toastError(fromError(err)) });
+  updateRegion.mutate({ id: regionId, update: dmEdit({ vertices: ring, cells }) }, { onError: (err) => toastError(fromError(err)) });
 }
 
 // Converting a pen-traced region to painted cells is one-way and lossy (the
@@ -225,7 +231,7 @@ async function confirmConvert(region: LocationMapRegion): Promise<boolean> {
   const ok = await confirm("Painting converts this pen-traced shape to cells — the diagonal edges are lost. Continue?", { danger: true });
   if (!ok) return false;
   try {
-    await updateRegion.mutateAsync({ id: region.id, update: { vertices: null, cells: region.cells } });
+    await updateRegion.mutateAsync({ id: region.id, update: dmEdit({ vertices: null, cells: region.cells }) });
     return true;
   } catch (err) {
     toastError(fromError(err));
@@ -349,7 +355,7 @@ function renderOverlay(): void {
       ctx,
       geometry,
       regions,
-      { mode, activeRegionId: activeRegionId.value, partyRoomId, reachableRoomIds },
+      { mode, activeRegionId: activeRegionId.value, partyRoomId, reachableRoomIds, roomState },
       pointToCanvas,
       overrides,
     );
@@ -398,6 +404,7 @@ watch(
     () => mode,
     () => partyRoomId,
     () => reachableRoomIds,
+    () => roomState,
     () => showSpaces,
     () => showZones,
     () => showGrid,

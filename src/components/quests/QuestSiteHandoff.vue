@@ -41,14 +41,12 @@
          trigger room this beat itself is named on. Never fires the advance
          on its own — this only surfaces the same button the header already
          carries. -->
-    <div v-if="showTriggerPrompt" class="flex items-center gap-3 rounded-lg border border-tone-caution/50 bg-tone-caution/5 p-3">
-      <IconNavigate class="h-4 w-4 shrink-0 text-ink-caution" aria-hidden="true" />
-      <p class="flex-1 text-caption text-foreground">
-        <span class="font-cinzel font-bold">{{ beat.title || "This beat" }}</span> is staged on this floor — advance?
-      </p>
-      <AppButton size="xs" variant="tinted" tone="caution" label="Advance" @click="emit('advance')" />
-      <AppButton size="xs" variant="ghost" label="Dismiss" @click="dismissTriggerPrompt" />
-    </div>
+    <TriggerBeatPrompt
+      v-if="showTriggerPrompt"
+      :beat="{ title: beat.title }"
+      @advance="emit('advance')"
+      @dismiss="dismissTriggerPrompt"
+    />
 
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_20rem]">
       <!-- Rooms -->
@@ -180,6 +178,7 @@ import LocationStateControls from "@/components/locations/LocationStateControls.
 import SiteRoomList from "@/components/locations/SiteRoomList.vue";
 import SiteRunWaysOut from "@/components/locations/SiteRunWaysOut.vue";
 import SiteRunRoomStack from "@/components/locations/SiteRunRoomStack.vue";
+import TriggerBeatPrompt from "@/components/locations/TriggerBeatPrompt.vue";
 import { IconCheck, IconImages, IconNavigate } from "@/lib/icons";
 import { useLocation, useLocations, useUpdateLocation } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";

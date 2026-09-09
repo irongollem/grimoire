@@ -27,10 +27,10 @@
       <!-- "A level is a sibling site" (#868, frame 06) — not a new table,
            just this site's own child sites, or its parent's when this
            place IS one of them. -->
-      <SiteLevelsRail
+      <SiteLevelsColumn
         v-if="showLevelsRail"
-        :levels="levelSummaries"
-        :active-id="location.id"
+        :location="location"
+        :children="children"
         @select="onLevelSelect"
       />
 
@@ -77,38 +77,6 @@
 
           <template #aside>
             <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" />
-
-            <template v-if="showLevelsRail">
-              <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" vertical-only />
-              <div class="rounded-md border border-border bg-card px-3 py-2 text-caption text-muted-foreground">
-                <p class="mb-1 font-cinzel text-2xs font-semibold uppercase tracking-wide text-foreground">
-                  Rules we keep
-                </p>
-                <ul class="list-disc space-y-2 pl-4">
-                  <li>
-                    Direct children only
-                    <p class="text-caption-sm text-muted-foreground/70">
-                      A region binds to a child of the site it is drawn on — the DB guard already refuses a
-                      grandchild, so the picker never offers one.
-                    </p>
-                  </li>
-                  <li>
-                    One map per place
-                    <p class="text-caption-sm text-muted-foreground/70">
-                      A level has its own map_url. Multi-floor in one drawing stays a drawing; the Atlas needs a
-                      place per floor to hold rooms and state.
-                    </p>
-                  </li>
-                  <li>
-                    Depth is not new nesting
-                    <p class="text-caption-sm text-muted-foreground/70">
-                      Sites already nest arbitrarily. "Level" is a reading of the existing tree, not a new parent
-                      kind.
-                    </p>
-                  </li>
-                </ul>
-              </div>
-            </template>
           </template>
         </LocationMap>
 
@@ -121,15 +89,6 @@
         />
       </div>
     </div>
-
-    <SiteLevelReusePanel
-      v-if="showLevelsRail"
-      :container-id="levelsContainer!.id"
-      :container-campaign-id="levelsContainer!.campaign_id"
-      :level-type="levelsContainer!.location_type"
-      :current-level="location"
-      :next-level-number="levelSummaries.length + 1"
-    />
   </div>
 </template>
 
@@ -137,11 +96,17 @@
 /**
  * The Atlas pane's map mode (#868, S6) — split out of `AtlasPlacePane.vue`
  * once that file's template pushed past the 300-line soft max. Everything
- * here is specific to *looking at a place's drawing*: the levels rail, the
- * reuse panel, the staleness strip, the map itself with its up-one-level
- * overlay and Ways-out aside, and the zoom transition between two maps.
- * `AtlasPlacePane` keeps identity, the Contents/Map toggle row, and Contents
- * mode — the parts that render whether or not this place has a map at all.
+ * here is specific to *looking at a place's drawing*: the trail line naming
+ * the level being viewed, the staleness strip, the map itself with its
+ * up-one-level overlay and Ways-out aside, and the zoom transition between
+ * two maps. The levels sidebar itself (rail, vertical ways-out, reuse panel)
+ * moved to `SiteLevelsColumn` (#868, S5b) so `LocationSheet` can mount the
+ * same sidebar beside its own map — this file keeps its own copy of the
+ * level/container computeds only because the trail line above needs them
+ * too, and they're cheap synchronous derivations off the `index` this
+ * component already has. `AtlasPlacePane` keeps identity, the Contents/Map
+ * toggle row, and Contents mode — the parts that render whether or not this
+ * place has a map at all.
  *
  * Two distinct outward events rather than one: `select` is an ordinary
  * jump (a sibling level in the rail, or landing after an ascend/pin
@@ -155,13 +120,10 @@ import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AtlasMapZoom from "@/components/locations/AtlasMapZoom.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
-import SiteLevelReusePanel from "@/components/locations/SiteLevelReusePanel.vue";
-import SiteLevelsRail from "@/components/locations/SiteLevelsRail.vue";
-import type { SiteLevelSummary } from "@/components/locations/SiteLevelsRail.vue";
+import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
 import SiteMapSourceStrip from "@/components/locations/SiteMapSourceStrip.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
-import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { IconChevronRight, IconChevronUp, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
@@ -353,35 +315,6 @@ const currentLevelOrdinal = computed(() => {
   const idx = levelSites.value.findIndex((l) => l.id === location.id);
   return idx === -1 ? null : idx + 1;
 });
-
-const levelRoomIdsByLevel = computed(() => {
-  const byLevel = new Map<string, string[]>();
-  for (const level of levelSites.value) {
-    byLevel.set(
-      level.id,
-      childrenOf(index, level.id)
-        .filter((c) => c.location_type === "room")
-        .map((c) => c.id),
-    );
-  }
-  return byLevel;
-});
-const allLevelRoomIds = computed(() => [...levelRoomIdsByLevel.value.values()].flat());
-const { stateOf: levelRoomStateOf } = useLocationStateForRooms(allLevelRoomIds);
-
-const levelSummaries = computed<SiteLevelSummary[]>(() =>
-  levelSites.value.map((level) => {
-    const roomIds = levelRoomIdsByLevel.value.get(level.id) ?? [];
-    return {
-      id: level.id,
-      name: level.name,
-      mapUrl: level.map_url,
-      roomCount: roomIds.length,
-      clearedCount: roomIds.filter((id) => levelRoomStateOf(id, "cleared")?.value).length,
-      exploredCount: roomIds.filter((id) => levelRoomStateOf(id, "explored")?.value).length,
-    };
-  }),
-);
 
 /** "2 stairs down" trail chip — every vertical way out this site itself has,
  *  from the same door graph the Ways out panel already reads. */

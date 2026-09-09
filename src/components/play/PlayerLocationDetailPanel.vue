@@ -20,6 +20,12 @@
       </p>
     </div>
 
+    <!-- A site with a plan gets the composed plan (#868): the projection
+         withholds its picture, and get_player_visible_site_state hands back
+         only the rooms the party has walked. PlayerSiteMap renders nothing
+         until there is something earned to draw. -->
+    <PlayerSiteMap v-if="isSiteType(loc.location_type) && loc.is_map_shared" :site-location-id="loc.id" />
+
     <!-- Map (suppressed for battle maps and when the DM hasn't shared it) -->
     <div v-if="loc.map_url && loc.is_map_shared && !loc.is_battle_map">
       <LocationMap
@@ -101,6 +107,8 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import PlayerStoreWares from "@/components/locations/PlayerStoreWares.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
+import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
+import { isSiteType } from "@/lib/locations/tiers";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";

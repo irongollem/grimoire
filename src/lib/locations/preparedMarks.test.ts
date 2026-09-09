@@ -316,6 +316,40 @@ describe("resolvePreparedMarks", () => {
     expect(marks[0]).toMatchObject({ kind: "loot", cell: "7,2" });
   });
 
+  it("draws a hazard zone's linked trap at the zone's own centroid, not any room's", () => {
+    const marks = resolvePreparedMarks(
+      baseInput({
+        traps: [trap()],
+        regions: [
+          region({ id: "room-region", cells: ["0,0"] }),
+          region({
+            id: "zone-1",
+            region_role: "zone",
+            zone_kind: "hazard",
+            zone_payload: { trap_id: "trap-1" },
+            space_location_id: null,
+            cells: ["9,9"],
+          }),
+        ],
+      }),
+    );
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toMatchObject({ id: "zone-trap:zone-1", kind: "trap", cell: "9,9", spaceId: null, colour: MARK_COLOURS.trap });
+  });
+
+  it("skips a hazard zone with no linked trap, and a non-hazard zone entirely", () => {
+    const marks = resolvePreparedMarks(
+      baseInput({
+        traps: [trap()],
+        regions: [
+          region({ id: "hazard-no-trap", region_role: "zone", zone_kind: "hazard", zone_payload: {}, space_location_id: null }),
+          region({ id: "terrain-with-trap", region_role: "zone", zone_kind: "terrain", zone_payload: { trap_id: "trap-1" }, space_location_id: null }),
+        ],
+      }),
+    );
+    expect(marks).toHaveLength(0);
+  });
+
   it("fans out a second mark sharing a cell with the first", () => {
     const marks = resolvePreparedMarks(
       baseInput({

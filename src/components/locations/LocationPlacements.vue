@@ -20,6 +20,15 @@
             <IconMap class="h-3 w-3" />
             from map
           </span>
+          <!-- #868, frame 10: the honest counterpart to "from map" — this
+               entry is prepared for the room, with no position on the plan. -->
+          <span
+            v-else
+            class="inline-flex shrink-0 items-center gap-1 rounded bg-muted/40 px-1.5 py-0.5 text-2xs font-medium text-muted-foreground"
+            title="Prepared for this room, with no position on the map"
+          >
+            room
+          </span>
         </template>
         <template #actions>
           <AppButton

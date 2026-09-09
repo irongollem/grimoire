@@ -70,10 +70,16 @@
       </div>
       <div class="flex-1 flex flex-col gap-3 min-w-0">
         <div class="flex flex-col gap-1">
-          <h1 class="text-title font-bold text-foreground leading-tight">{{ location.name }}</h1>
-          <p v-if="location.location_type" class="text-body text-muted-foreground italic">
-            {{ LOCATION_TYPE_LABELS[location.location_type] }}
-          </p>
+          <h1 class="text-title font-bold text-foreground leading-tight">
+            {{ location.name }}
+            <!-- "Ashmouth Undercroft — three levels" (#868, frame 06) — only
+                 when this site actually stacks levels; a lone site says
+                 nothing about levels at all. -->
+            <span v-if="levelsSuffix" class="font-fell text-body font-normal text-muted-foreground italic">
+              — {{ levelsSuffix }}
+            </span>
+          </h1>
+          <p v-if="captionText" class="text-body text-muted-foreground italic">{{ captionText }}</p>
         </div>
         <div v-if="shownTags.length" class="flex flex-wrap gap-1.5">
           <span
@@ -89,20 +95,35 @@
          the one rendering of `location.map_url` (#807). -->
     <section v-if="location.map_url" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Map</h2>
-      <LocationMap
-        :map-url="location.map_url"
-        :pins="location.map_pins ?? []"
-        :children="mapPinnableChildren"
-        mode="view"
-        :show-hidden-pins="true"
-        :location-id="location.id"
-        :show-regions="isSiteType(location.location_type)"
-        :regions="siteRegions"
-        :spaces="siteSpaces"
-        :calibration="location.grid_calibration"
-        v-model:active-region-id="activeRegionId"
-        @pin-click="onPinClick"
-      />
+      <div class="flex items-start gap-3">
+        <!-- Frame 06's levels sidebar, reused verbatim from the Atlas
+             explorer (#868, S5b) — this is the surface most links actually
+             land on, so it had none of frame 06 until now. Shown whenever
+             this place has levels to navigate: its own child sites, or a
+             site parent that makes this place a level itself. -->
+        <SiteLevelsColumn
+          v-if="showLevelsColumn"
+          :location="location"
+          :children="children ?? []"
+          @select="onLevelSelect"
+        />
+        <div class="min-w-0 flex-1">
+          <LocationMap
+            :map-url="location.map_url"
+            :pins="location.map_pins ?? []"
+            :children="mapPinnableChildren"
+            mode="view"
+            :show-hidden-pins="true"
+            :location-id="location.id"
+            :show-regions="isSiteType(location.location_type)"
+            :regions="siteRegions"
+            :spaces="siteSpaces"
+            :calibration="location.grid_calibration"
+            v-model:active-region-id="activeRegionId"
+            @pin-click="onPinClick"
+          />
+        </div>
+      </div>
     </section>
 
     <!-- Sub-locations — read-only list linking into each child. -->
@@ -158,6 +179,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
 import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
+import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
 
 const props = defineProps<{ location: Location }>();
 const route   = useRoute();
@@ -206,6 +228,44 @@ const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
 // such as a courtyard inside a dungeon (#818). The database decides this; the
 // helper exists so the picker never offers what the guard would refuse.
 const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
+
+// ── Identity row: rooms, sub-sites, levels (#868, frame 06) ─────────────────
+//
+// "Ashmouth Undercroft — three levels" / "Dungeon · 7 rooms · 2 sub-sites" —
+// `childSites` is the same "this site's own children that are themselves
+// sites" reading `SiteLevelsColumn` uses to build its rail, so the level
+// count here and the rail below always agree by construction.
+const roomCount = computed(() => (children.value ?? []).filter((l) => l.location_type === "room").length);
+const childSites = computed(() => (children.value ?? []).filter((l) => isSiteType(l.location_type)));
+
+/** The site itself is level 1, so a stack of N child sites reads as N + 1
+ *  levels — null (no suffix at all) for a site with no levels to stack. */
+const levelsSuffix = computed(() =>
+  childSites.value.length > 0 ? `${childSites.value.length + 1} levels` : null,
+);
+
+const captionText = computed(() => {
+  const type = props.location.location_type ? LOCATION_TYPE_LABELS[props.location.location_type] : "";
+  if (!isSite.value) return type;
+  const parts = [type];
+  if (roomCount.value > 0) parts.push(`${roomCount.value} room${roomCount.value === 1 ? "" : "s"}`);
+  if (childSites.value.length > 0) {
+    parts.push(`${childSites.value.length} sub-site${childSites.value.length === 1 ? "" : "s"}`);
+  }
+  return parts.join(" · ");
+});
+
+/** This place has a level stack of its own, OR is itself one level of its
+ *  parent's stack — either way `SiteLevelsColumn` has something to show. */
+const hasSiteParent = computed(() => {
+  const parent = ancestors.value.at(-1);
+  return !!parent && isSiteType(parent.location_type);
+});
+const showLevelsColumn = computed(() => isSite.value && (childSites.value.length > 0 || hasSiteParent.value));
+
+function onLevelSelect(id: string) {
+  router.push(`/locations/${id}`);
+}
 
 /**
  * Sub-locations, minus the rooms — a site's rooms are owned by the Rooms panel

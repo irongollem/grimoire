@@ -122,7 +122,13 @@ export function buildRoomStack(input: RoomStackInput): RoomStackRow[] {
       id: `trap:${placement.id}`,
       kind: "trap",
       label: trap.name,
-      subtitle: joinSubtitle([passivePhrase(trap.detection_dc), placement.note], "Trap"),
+      // Frame 11 ("Passive 15 notices the seam · 7,2, third pew") names the
+      // cell alongside the passive DC and the DM's own note — without it a
+      // room with several traps reads as one undifferentiated pile.
+      subtitle: joinSubtitle(
+        [passivePhrase(trap.detection_dc), placement.source_cell_key ? `cell ${placement.source_cell_key}` : null, placement.note],
+        "Trap",
+      ),
       // There is no trap-firing mechanic in the app (traps are prep, not a
       // simulated mechanism) — Trigger is a reference link to the trap's own
       // page, the same place a DM would look up its save/damage to run it.

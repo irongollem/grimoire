@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SiteRoomList from "./SiteRoomList.vue";
 import { unwrittenRoomIds } from "@/lib/quests/siteHandoff";
+import { IconShieldCheck } from "@/lib/icons";
 import type { Location } from "@/types/location.types";
 
 function tiptap(text: string): string {
@@ -76,6 +77,31 @@ describe("SiteRoomList", () => {
       global: { stubs },
     });
     expect(wrapper.text()).toContain("Athletics DC 12 · cleared");
+  });
+
+  it("keeps a cleared room at full weight with a shield glyph, and only dims an unreachable one (frame 08)", () => {
+    // Room b is unreachable, so its `AppButton` renders through the
+    // `to`-driven `RouterLink` — whose stub swallows the default slot (see
+    // the test above for the same caveat) — so the rows are told apart by
+    // position, in the order the `rooms` prop gives them, rather than text.
+    const rooms = [room({ id: "room-a" }), room({ id: "room-b", name: "Antechamber" })];
+    const wrapper = mount(SiteRoomList, {
+      props: baseProps(rooms, {
+        currentRoomId: "elsewhere",
+        reachable: new Set(["room-a"]),
+        runCaptions: true,
+        stateOf: (id, fact) => (id === "room-a" && fact === "cleared" ? { value: true } as never : undefined),
+      }),
+      global: { stubs },
+    });
+    const rows = wrapper.findAll(".rounded-lg.border");
+    expect(rows).toHaveLength(2);
+    const [clearedRow, unreachableRow] = rows;
+    expect(clearedRow!.classes()).not.toContain("opacity-70");
+    expect(clearedRow!.classes()).not.toContain("opacity-55");
+    expect(clearedRow!.findComponent(IconShieldCheck).exists()).toBe(true);
+    expect(unreachableRow!.classes()).toContain("opacity-55");
+    expect(unreachableRow!.findComponent(IconShieldCheck).exists()).toBe(false);
   });
 
   it("shows a loot chip only for a room with held loot", () => {

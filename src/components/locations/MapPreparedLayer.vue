@@ -45,9 +45,17 @@
 /**
  * The Prepared layer (#868, S8, frame 10): traps, features, puzzles,
  * encounters and loot, drawn where `preparedMarks.ts` resolved them to sit.
- * Pure renderer + click-to-navigate, like `MapPinsLayer` — resolving *where*
- * a mark goes is `useSitePrepared`'s job, this only turns a resolved
- * `PreparedMark` into geometry.
+ * Pure renderer, like `MapPinsLayer` — resolving *where* a mark goes is
+ * `useSitePrepared`'s job, this only turns a resolved `PreparedMark` into
+ * geometry.
+ *
+ * Clicking a mark with a room selects it (frame 10: "Prepared here · Nave of
+ * Ash") rather than navigating straight to the entity — `LocationMap.vue`
+ * owns what "selected" means (the panel it renders beside the plan) and
+ * toggles the same room off on a second click, so this stays a pure emitter
+ * exactly like `hover-region` on `MapRegionsLayer`. A mark with no room
+ * (a hazard zone's own linked trap) has nowhere to select into, so it still
+ * navigates straight there.
  *
  * One root `<svg>` with a `0 0 1 1` viewBox (image-fraction units) rather
  * than per-marker absolutely-positioned divs: `cellRectInImageFractions`
@@ -68,6 +76,12 @@ const { marks, calibration, imageNaturalWidth, imageNaturalHeight } = defineProp
   calibration: GridCalibration | null;
   imageNaturalWidth: number;
   imageNaturalHeight: number;
+}>();
+
+const emit = defineEmits<{
+  /** A mark with a room was clicked — `LocationMap.vue` decides what
+   *  "selected" means and toggles it off on a repeat click. */
+  "select-room": [spaceId: string];
 }>();
 
 const router = useRouter();
@@ -101,6 +115,7 @@ const placedMarks = computed<PlacedMark[]>(() => {
 });
 
 function onMarkClick(mark: PreparedMark): void {
-  router.push(mark.href);
+  if (mark.spaceId) emit("select-room", mark.spaceId);
+  else router.push(mark.href);
 }
 </script>

@@ -4,7 +4,10 @@
       v-model:tool="tool"
       v-model:brush-shape="brushShape"
       v-model:brush-size="brushSize"
+      v-model:show-tokens="showTokens"
       v-model:show-zones="showZones"
+      v-model:show-fog="showFog"
+      v-model:show-grid="showGrid"
       v-model:preview-as-player="previewAsPlayer"
       :title="title"
       :caption="caption"
@@ -44,7 +47,7 @@
           :width="imageNaturalW * scale"
           :height="imageNaturalH * scale"
         />
-        <g class="grid">
+        <g v-if="showGrid" class="grid">
           <line
             v-for="(x, i) in gridVerticals"
             :key="`v-${i}`"
@@ -87,7 +90,7 @@
 
       <!-- Token layer (DM-side: renders all combatants regardless of reveal_state) -->
       <BattleMapTokenLayer
-        v-if="location && imageReady && cellPx > 0"
+        v-if="showTokens && location && imageReady && cellPx > 0"
         :host-w="hostW"
         :host-h="hostH"
         :cell-px="cellPx"
@@ -99,13 +102,17 @@
         :npcs="store.availableNpcs"
         :active-instance-id="store.activeCombatant?.instance_id ?? null"
         :draggable-instance-ids="tool === 'pan' ? null : emptyDragSet"
+        :portrait-overrides="portraitOverrides"
         :on-position-change="onTokenMoved"
         :class="{ 'pointer-events-none': tool !== 'pan' }"
       />
 
-      <!-- Fog layer (DM: translucent unless previewing as player) -->
+      <!-- Fog layer: off by default in the DM's own view (frame 13 —
+           "Fog (off)"); the fog toolbox's brushes still edit the mask
+           regardless. "As player" preview forces it on and opaque, since
+           that toggle exists specifically to show what a player sees. -->
       <BattleMapFogLayer
-        v-if="location && imageReady && cellPx > 0"
+        v-if="(showFog || previewAsPlayer) && location && imageReady && cellPx > 0"
         :host-w="hostW"
         :host-h="hostH"
         :cell-px="cellPx"
@@ -132,6 +139,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
+import { useCombatantMinis } from "@/composables/encounters/useCombatantMinis";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useEncounterLive, liveState } from "@/composables/encounters/useEncounterLive";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
@@ -176,7 +184,11 @@ const {
 } = useEncounterRoom(encounterId);
 const store = useEncounterRunStore();
 const { schedulePush, isLive } = useEncounterLive(encounterId.value);
+const showTokens = ref(true);
 const showZones = ref(true);
+const showFog = ref(false);
+const showGrid = ref(true);
+const portraitOverrides = useCombatantMinis(computed(() => store.combatants));
 
 // Header (frame 13): "<focus room> — <encounter>" over a status line — the
 // segmented control's Site option is what used to be the "← Back to the

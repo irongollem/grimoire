@@ -45,6 +45,7 @@ const {
   draggableInstanceIds = null,
   hideHidden = false,
   silhouetteUnseen = false,
+  portraitOverrides = null,
   onPositionChange,
 } = defineProps<{
   hostW: number;
@@ -57,6 +58,10 @@ const {
   monsters?: Monster[];
   npcs?: Npc[];
   activeInstanceId?: string | null;
+  /** instance_id -> portrait URL for combatants with a ready vtt-format mini
+   *  (frame 13: "A `minis` row with `format:'vtt'` is the portrait"). Takes
+   *  priority over the combatant's own `portrait_url` when present. */
+  portraitOverrides?: Map<string, string> | null;
   /** If null, all tokens are draggable. Pass an empty Set to make all
    *  read-only, or a specific set to limit drag to one combatant (player
    *  view: their own PC). */
@@ -101,6 +106,9 @@ interface RenderedToken {
   dead: boolean;
   draggable: boolean;
   silhouette: boolean;
+  /** Resolved once here — the mini override, or the combatant's own
+   *  portrait_url — so rendering never has to re-decide the precedence. */
+  imageUrl: string | null;
 }
 
 // O(1) lookup maps. Without these, every renderedTokens recompute (60×/s
@@ -132,13 +140,15 @@ function getFactionColor(factionId: string): string {
   return factionColorById.value.get(factionId) ?? "#3b82f6";
 }
 
-function combatantToEntity(c: RunCombatant): TokenEntity {
+function combatantToEntity(c: RunCombatant, imageUrl: string | null): TokenEntity {
   return {
     id: c.instance_id,
     name: c.name,
     subtitle: "",
-    imageUrl: c.portrait_url ?? null,
-    focalPoint: c.portrait_focal_point ?? null,
+    imageUrl,
+    // A mini override renders the mini's own composition, not the source
+    // entity's portrait crop, so its focal point doesn't apply.
+    focalPoint: imageUrl === c.portrait_url ? (c.portrait_focal_point ?? null) : null,
     bgGradient:
       c.type === "monster"
         ? ["#3b0a0a", "#0a0202"]
@@ -181,6 +191,7 @@ const renderedTokens = computed<RenderedToken[]>(() => {
       dead: c.hp <= 0 && c.type === "monster",
       draggable: isDraggable(c.instance_id),
       silhouette: silhouetteUnseen && (c.reveal_state ?? "revealed") === "unseen",
+      imageUrl: portraitOverrides?.get(c.instance_id) ?? c.portrait_url ?? null,
     });
   }
   return result;
@@ -211,7 +222,7 @@ async function renderTokenCanvas(tok: RenderedToken) {
   const controller = new AbortController();
   renderControllers.set(tok.combatant.instance_id, controller);
 
-  await drawToken(canvas, combatantToEntity(tok.combatant), {
+  await drawToken(canvas, combatantToEntity(tok.combatant, tok.imageUrl), {
     ringColor: tok.factionColor,
     activeTurn: tok.active,
     revealState: tok.silhouette ? "unseen" : "revealed",
@@ -228,7 +239,7 @@ function renderKey(tok: RenderedToken): string {
     tok.factionColor,
     tok.active ? "1" : "0",
     tok.silhouette ? "1" : "0",
-    tok.combatant.portrait_url ?? "",
+    tok.imageUrl ?? "",
     tok.footprint,
     tok.combatant.name,
   ].join("|");

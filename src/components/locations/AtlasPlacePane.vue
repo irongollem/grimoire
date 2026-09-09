@@ -88,6 +88,21 @@
           >
             {{ tag }}
           </span>
+          <!--
+            "Dungeon · tithe · flooded · [quest icon] 2 quests staged here"
+            (#868, frame 02) — a beat staged at this place OR any of its
+            rooms, so a DM scanning the Atlas sees a quest is waiting here
+            before opening the runner. Silent at zero: most places never
+            carry a staged beat, and an always-on "0 quests" would be noise
+            on every other row.
+          -->
+          <span
+            v-if="stagedQuestCount > 0"
+            class="flex items-center gap-1 text-caption text-muted-foreground"
+          >
+            <IconQuest class="h-3 w-3 shrink-0" aria-hidden="true" />
+            {{ stagedQuestCount }} quest{{ stagedQuestCount === 1 ? "" : "s" }} staged here
+          </span>
         </div>
       </div>
       <!--
@@ -232,6 +247,7 @@ import LocationRevealControl from "@/components/locations/LocationRevealControl.
 import SiteMapLayerBar from "@/components/locations/SiteMapLayerBar.vue";
 import SiteReadinessMeter from "@/components/locations/SiteReadinessMeter.vue";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
+import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useUiStore } from "@/stores/ui";
 import {
   IconChevronRight,
@@ -240,6 +256,7 @@ import {
   IconLayers,
   IconLocation,
   IconMap,
+  IconQuest,
 } from "@/lib/icons";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { visibleTags } from "@/lib/locations/tags";
@@ -295,6 +312,13 @@ const activeRegionId = ref<string | null>(null);
 //    meter, the source strip and the layer bar all read the same facts. ────
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
 const { readiness: siteReadiness, layerCounts: siteLayerCounts } = useSiteStructure(siteStructureLocation);
+
+// ── Quests staged here (#868, frame 02) — the site itself, or any of its
+//    own rooms; not deeper levels, which are a different place to stage at.
+const roomIds = computed(() => children.value.filter((c) => c.location_type === "room").map((c) => c.id));
+const questStageSpaceIds = computed(() => (location ? [location.id, ...roomIds.value] : []));
+const { data: stagedQuestBeats } = useBeatsStagedAt(questStageSpaceIds);
+const stagedQuestCount = computed(() => new Set((stagedQuestBeats.value ?? []).map((b) => b.quest_id)).size);
 
 // The tree fold already exists for exactly this — a two-pane explorer where
 // the map is the pane that earns the extra width. Only fold what we found

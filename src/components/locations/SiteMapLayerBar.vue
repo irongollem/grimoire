@@ -26,10 +26,9 @@
       shape="pill"
       size="xs"
       :icon="IconGrid"
+      label="Grid"
       :active="siteMapLayers.grid"
       :class="siteMapLayers.grid ? '' : 'opacity-50'"
-      tooltip="Grid"
-      aria-label="Grid"
       @click="toggleSiteMapLayer('grid')"
     />
   </div>
@@ -70,6 +69,6 @@ const pills: Array<{ key: "spaces" | "ways" | "zones" | "prepared"; label: strin
   { key: "spaces", label: "Spaces", swatch: "rgba(74, 222, 128, 0.6)" },
   { key: "ways", label: "Ways out", swatch: "#e7d9bd" },
   { key: "zones", label: "Zones", swatch: "rgba(56, 189, 248, 0.6)" },
-  { key: "prepared", label: "Prepared", swatch: "rgba(167, 139, 250, 0.7)" },
+  { key: "prepared", label: "Prepared", swatch: "#dc2626" },
 ];
 </script>

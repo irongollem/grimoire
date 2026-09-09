@@ -116,22 +116,34 @@ function onPickSite(id: string): void {
   changingPlace.value = false;
 }
 
-const changeCount = computed(() => {
+// `changeCount` (the button) and `footerWritesText` (the footer sentence)
+// used to compute independently and disagreed on re-anchored placements
+// (#868 frame 05 — "Publish N changes" and "Writes …" have to name the same
+// N). Both now read off this one list of writes, so they cannot drift apart
+// again.
+interface WritePart {
+  count: number;
+  label: string;
+}
+
+const writeParts = computed<WritePart[]>(() => {
   const plan = review.plan;
-  if (!plan) return 0;
+  if (!plan) return [];
   const s = plan.summary;
-  return s.newRooms + s.regionUpdates + s.newDoors + s.doorUpdates + s.reanchored;
+  const parts: WritePart[] = [];
+  if (s.newRooms > 0) parts.push({ count: s.newRooms, label: `room${s.newRooms === 1 ? "" : "s"}` });
+  if (s.regionUpdates > 0) parts.push({ count: s.regionUpdates, label: `region update${s.regionUpdates === 1 ? "" : "s"}` });
+  const doorWrites = s.newDoors + s.doorUpdates;
+  if (doorWrites > 0) parts.push({ count: doorWrites, label: `door${doorWrites === 1 ? "" : "s"}` });
+  if (s.reanchored > 0) parts.push({ count: s.reanchored, label: `placement${s.reanchored === 1 ? "" : "s"} re-anchored` });
+  return parts;
 });
 
+const changeCount = computed(() => writeParts.value.reduce((total, part) => total + part.count, 0));
+
 const footerWritesText = computed(() => {
-  const plan = review.plan;
-  if (!plan) return "";
-  const s = plan.summary;
-  const parts: string[] = [];
-  if (s.newRooms > 0) parts.push(`${s.newRooms} room${s.newRooms === 1 ? "" : "s"}`);
-  if (s.regionUpdates > 0) parts.push(`${s.regionUpdates} region update${s.regionUpdates === 1 ? "" : "s"}`);
-  const doorWrites = s.newDoors + s.doorUpdates;
-  if (doorWrites > 0) parts.push(`${doorWrites} door${doorWrites === 1 ? "" : "s"}`);
+  if (!review.plan) return "";
+  const parts = writeParts.value.map((part) => `${part.count} ${part.label}`);
   parts.push("1 image");
   return `Writes ${parts.join(", ")}.`;
 });

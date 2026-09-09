@@ -148,6 +148,36 @@ describe("BattleMapTokenLayer — render-key memoization", () => {
   });
 });
 
+describe("BattleMapTokenLayer — mini portrait overrides (frame 13)", () => {
+  it("prefers a portrait override over the combatant's own portrait_url", async () => {
+    const withPortrait: RunCombatant = { ...combatant("m-1-0", "goblin"), portrait_url: "npc.png" };
+    mount(BattleMapTokenLayer, {
+      props: {
+        ...baseProps(),
+        combatants: [withPortrait],
+        portraitOverrides: new Map([["m-1-0", "mini.png"]]),
+      },
+    });
+    await nextTick();
+    await nextTick();
+
+    expect(drawTokenMock.mock.calls[0][1].imageUrl).toBe("mini.png");
+  });
+
+  it("redraws when a portrait override arrives for an otherwise-unchanged combatant", async () => {
+    const wrapper = mount(BattleMapTokenLayer, { props: baseProps() });
+    await nextTick();
+    await nextTick();
+    drawTokenMock.mockClear();
+
+    await wrapper.setProps({ portraitOverrides: new Map([["m-1-0", "mini.png"]]) });
+    await nextTick();
+    await nextTick();
+
+    expect(drawTokenMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("BattleMapTokenLayer — footprint persistence", () => {
   it("uses combatant.footprint when no monster data is available (player path)", () => {
     // Simulates the player view: liveState combatants carry a baked footprint

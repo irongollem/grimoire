@@ -96,12 +96,18 @@ export function isPlayerVisible(region: Pick<LocationMapRegion, "zone_payload">)
 /** A freshly-drawn, unnamed zone ready for `useCreateLocationMapRegion` —
  *  the zone twin of `SiteMapRegionList`'s `addUnboundRegion`. `space_location_id`
  *  is omitted rather than set to null: the column default already is null,
- *  and a zone binding to a space at all is what the DB trigger refuses. */
+ *  and a zone binding to a space at all is what the DB trigger refuses.
+ *
+ *  Zones are DM ink by default (`ZonePayload.visible_to_players`'s own
+ *  docstring) — except `light`, frame 07's "the one zone worth showing
+ *  players by default": a lit or dark room is something a player already
+ *  sees for themselves, so hiding it behind a DM toggle would only cost a
+ *  click every time. Every other kind still starts DM-only. */
 export function emptyZoneInsert(siteId: string, kind: ZoneKind): LocationMapRegionInsert {
   return {
     site_location_id: siteId,
     region_role: "zone",
     zone_kind: kind,
-    zone_payload: {},
+    zone_payload: kind === "light" ? { visible_to_players: true } : {},
   };
 }

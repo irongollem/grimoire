@@ -225,6 +225,16 @@ describe("buildRoomStack", () => {
     ]);
   });
 
+  it("names the placement's own cell in the trap subtitle when source_cell_key is set", () => {
+    const rows = buildRoomStack(
+      baseInput({
+        placements: [placement({ id: "p-trap", trap_id: "trap-1", note: "third pew", source_cell_key: "7,2" })],
+        traps: [trap({ detection_dc: 15 })],
+      }),
+    );
+    expect(rows[0]?.subtitle).toBe("Passive 15 notices it · cell 7,2 · third pew");
+  });
+
   it("drops a placement whose trap id isn't in the catalogue rather than rendering a broken row", () => {
     const rows = buildRoomStack(baseInput({ placements: [placement({ trap_id: "missing" })], traps: [] }));
     expect(rows).toEqual([]);

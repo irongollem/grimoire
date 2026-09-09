@@ -116,7 +116,17 @@ as $$
     l.image_url,
     l.created_at,
     l.updated_at,
-    case when l.is_map_shared then l.map_url else null::text end,
+    -- A site with a plan sends no picture: the player's plan is composed from
+    -- cells by get_player_visible_site_state (20260908215645), and the baked
+    -- image was "the one honest limit" -- one signed URL that shows the whole
+    -- floor to anyone who fetches it. A place with no traced spaces (a region
+    -- map with pins, a scanned town) still ships its picture as before.
+    case when l.is_map_shared and not exists (
+           select 1 from location_map_regions r
+            where r.site_location_id = l.id
+              and r.region_role = 'space'
+              and r.space_location_id is not null
+         ) then l.map_url else null::text end,
     coalesce((
       select jsonb_agg(pin)
       from jsonb_array_elements(coalesce(l.map_pins, '[]'::jsonb)) pin

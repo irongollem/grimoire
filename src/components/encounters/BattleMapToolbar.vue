@@ -20,17 +20,35 @@
     </div>
 
     <div class="topbar-controls">
-      <!-- Layer bar: what's on the map and why it needed no setup of its own
-           (frame 13 — "Calibration came with the publish, nothing to align"). -->
+      <!-- Layer bar: four equivalent on/off toggles for what's on the map
+           (frame 13 — "Tokens 8 · Zones · Fog (off) · Grid 5 ft"), plus why
+           it needed no setup of its own ("Calibration came with the publish,
+           nothing to align"). -->
       <div class="layer-bar">
-        <span class="layer-chip">Tokens {{ tokenCount }}</span>
+        <AppCheckbox
+          v-model="showTokens"
+          :label="`Tokens ${tokenCount}`"
+          label-class="fog-label"
+          class="inline-flex items-center gap-1"
+        />
         <AppCheckbox
           v-model="showZones"
           label="Zones"
           label-class="fog-label"
           class="inline-flex items-center gap-1"
         />
-        <span class="layer-chip">Grid 5 ft</span>
+        <AppCheckbox
+          v-model="showFog"
+          label="Fog"
+          label-class="fog-label"
+          class="inline-flex items-center gap-1"
+        />
+        <AppCheckbox
+          v-model="showGrid"
+          label="Grid 5 ft"
+          label-class="fog-label"
+          class="inline-flex items-center gap-1"
+        />
         <span v-if="calibrationFromPublish" class="layer-caption">
           Calibration came with the publish — nothing to align
         </span>
@@ -166,7 +184,10 @@ defineEmits<{
 const tool = defineModel<BattleMapTool>("tool", { required: true });
 const brushShape = defineModel<BattleMapBrushShape>("brushShape", { required: true });
 const brushSize = defineModel<1 | 3 | 5>("brushSize", { required: true });
+const showTokens = defineModel<boolean>("showTokens", { required: true });
 const showZones = defineModel<boolean>("showZones", { required: true });
+const showFog = defineModel<boolean>("showFog", { required: true });
+const showGrid = defineModel<boolean>("showGrid", { required: true });
 const previewAsPlayer = defineModel<boolean>("previewAsPlayer", { required: true });
 
 const router = useRouter();
@@ -257,15 +278,6 @@ const BRUSH_SIZES = [1, 3, 5] as const;
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-}
-.layer-chip {
-  font-family: var(--font-cinzel, "Cinzel", serif);
-  font-size: 0.6875rem;
-  letter-spacing: 0.05em;
-  padding: 0.125rem 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 0.25rem;
-  color: rgba(255, 255, 255, 0.7);
 }
 .layer-caption {
   font-family: var(--font-fell, "IM Fell English", serif);

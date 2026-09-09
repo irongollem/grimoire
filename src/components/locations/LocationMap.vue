@@ -51,6 +51,7 @@
               :mode="runMode ? 'run' : 'browse'"
               :party-room-id="partyRoomId"
               :reachable-room-ids="reachableRoomIds"
+              :room-state="roomState"
               :to-image-fraction="toImageFraction"
               :show-spaces="siteMapLayers.spaces"
               :show-zones="siteMapLayers.zones"
@@ -69,6 +70,7 @@
               :calibration="calibration"
               :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
               :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
+              @select-room="onSelectPreparedRoom"
             />
             <MapPinsLayer
               ref="pinsLayerRef"
@@ -112,7 +114,9 @@
         </div>
 
         <SiteMapLegend
-          v-if="showRegions && hasRegionContent && !runMode"
+          v-if="showRegions && hasRegionContent"
+          :mode="runMode ? 'run' : 'browse'"
+          :show-room-facts="hasRoomFacts"
           :show-prepared="siteMapLayers.prepared"
           :prepared-counts="preparedCounts"
         />
@@ -140,6 +144,21 @@
           :can-trace="!!calibration"
           @update:active-region-id="activeRegionId = $event"
         />
+        <!-- Frame 10 "Prepared here · Nave of Ash" — a Prepared mark's own
+             room, opened beside the plan instead of navigating away. Reuses
+             `LocationPlacements` wholesale: its rows already link to the
+             entity, so there is nothing left for this panel to add but the
+             room name and a close control. -->
+        <div
+          v-if="showRegions && siteMapLayers.prepared && preparedRoomId"
+          class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="truncate text-label-lg font-semibold text-muted-foreground">Prepared here · {{ preparedRoomName }}</span>
+            <AppButton variant="ghost" size="icon-xs" :icon="IconClose" tooltip="Close" @click="preparedRoomId = null" />
+          </div>
+          <LocationPlacements :location-id="preparedRoomId!" />
+        </div>
         <!-- S6: SiteWaysOutPanel mounts here via a caller's #aside content. -->
         <slot name="aside" />
       </div>
@@ -219,9 +238,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import { IconLocation, IconRuler } from '@/lib/icons';
+import { IconClose, IconLocation, IconRuler } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
+import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import MapFrame from "@/components/locations/MapFrame.vue";
 import MapPinsLayer from "@/components/locations/MapPinsLayer.vue";
 import MapRegionsLayer from "@/components/locations/MapRegionsLayer.vue";
@@ -231,10 +251,12 @@ import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
 import SiteMapZoneList from "@/components/locations/SiteMapZoneList.vue";
 import MapPreparedLayer from "@/components/locations/MapPreparedLayer.vue";
 import { useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
+import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { useToast } from "@/composables/useToast";
 import { isSiteType } from "@/lib/locations/tiers";
+import type { RoomFacts } from "@/lib/locations/planCanvas";
 import { useUiStore } from "@/stores/ui";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { GridCalibration, LocationType, MapPin as MapPinType } from "@/types/location.types";
@@ -300,14 +322,8 @@ const {
   /** The direct children that can carry a shape on this map — a room, or a
    *  nested site (#818). Callers build it with `bindableSpaces()`. Used by the
    *  region list and the tracing banner's name lookup. Only meaningful when
-   *  `showRegions`.
-   *
-   *  `location_type` is optional rather than added to `BindableSpace` itself
-   *  (a shared type this story doesn't own): every existing caller already
-   *  passes it through, since `bindableSpaces()` is generic over whatever
-   *  shape `children` carries and every `children` array already has it —
-   *  this only widens what the prop *accepts*, so nothing upstream changes. */
-  spaces?: Array<BindableSpace & { location_type?: LocationType }>;
+   *  `showRegions`. */
+  spaces?: BindableSpace[];
   calibration?: GridCalibration | null;
   /** Regions interaction: browse (trace/select/navigate, default) or run
    *  (click-to-move-party, `SiteRunSurface`). Ignored when `!showRegions`. */
@@ -439,6 +455,36 @@ const { marks: preparedMarks, counts: preparedCounts } = useSitePrepared(
   spaceIds,
   computed(() => regions),
 );
+
+// ── Room-fact shading (#868, frame 01) ────────────────────────────────────
+// One batched query for every bound space's explored/cleared/looted facts,
+// reduced to plain booleans for `MapRegionsLayer`'s palette — the fact log's
+// missing-vs-false distinction has no visual on this plan, only "asserted or
+// not yet".
+const { stateOf: locationFactStateOf } = useLocationStateForRooms(spaceIds);
+const roomState = computed<ReadonlyMap<string, RoomFacts>>(() => {
+  const map = new Map<string, RoomFacts>();
+  for (const id of spaceIds.value) {
+    map.set(id, {
+      explored: locationFactStateOf(id, "explored")?.value === true,
+      cleared: locationFactStateOf(id, "cleared")?.value === true,
+      looted: locationFactStateOf(id, "looted")?.value === true,
+    });
+  }
+  return map;
+});
+const hasRoomFacts = computed(() => Array.from(roomState.value.values()).some((f) => f.explored || f.cleared || f.looted));
+
+// ── Prepared-here panel (#868, frame 10) ──────────────────────────────────
+// The room a Prepared mark was last clicked into — `MapPreparedLayer` only
+// emits, this decides what "selected" means (a panel beside the plan) and
+// toggles the same room off on a repeat click, same idiom `activeRegionId`
+// already uses for tracing.
+const preparedRoomId = ref<string | null>(null);
+const preparedRoomName = computed(() => spaces.find((s) => s.id === preparedRoomId.value)?.name ?? "");
+function onSelectPreparedRoom(spaceId: string): void {
+  preparedRoomId.value = preparedRoomId.value === spaceId ? null : spaceId;
+}
 
 /** Feeds `SiteMapLayerBar`'s pill counts. Both `ways` and `prepared` now read
  *  real data (#868 S8) — the placeholder comment this replaced predates

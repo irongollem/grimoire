@@ -48,6 +48,20 @@ async function deleteLocationMapRegion(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * A DM edit always wins over the next re-publish (#868, frame 01: "a DM edit
+ * to a name, a bind or a door always wins over the next re-publish —
+ * provenance is `derived_from`, and once touched it reads 'dm'"). A freshly
+ * created region already gets that column default from the DB — see
+ * `20260908215640_a_region_has_a_role.sql` — so only an UPDATE to a region
+ * the Cartographer might have derived (floodfill/annotation) needs this;
+ * spread it onto any update a DM's own rename, bind/unbind, paint stroke, pen
+ * ring or template drop makes, so a re-publish never overwrites it.
+ */
+export function dmEdit(update: LocationMapRegionUpdate): LocationMapRegionUpdate {
+  return { ...update, derived_from: "dm" };
+}
+
 /** A site's traced regions — bound and unbound alike. The viewer decides how
  *  to group them against the site's rooms; this composable just returns the
  *  rows. */

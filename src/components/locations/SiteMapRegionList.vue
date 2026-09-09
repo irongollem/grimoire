@@ -32,7 +32,24 @@
   </div>
 
   <div class="flex flex-col gap-1.5">
-    <span class="text-label-lg font-semibold text-muted-foreground">Spaces</span>
+    <!-- Frame 03 "Spaces panel header: icon + 'Spaces' + count chip + Trace
+         button" — the same header treatment as `SiteMapZoneList`'s, with the
+         one action a new region ever needs: start tracing an untitled shape
+         (what "New shape" did below, before this moved up to be the panel's
+         only creation control). -->
+    <div class="flex flex-wrap items-center gap-2">
+      <IconGridView class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <span class="text-label-lg font-semibold text-muted-foreground">Spaces</span>
+      <span class="rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground">{{ spaces.length }}</span>
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        class="ml-auto"
+        :icon="IconAdd"
+        label="Trace"
+        @click="addUnboundRegion"
+      />
+    </div>
     <p v-if="!spaces.length" class="text-caption text-muted-foreground italic">No spaces yet — add a room below, or a nested site as a child location.</p>
     <div v-else class="flex flex-col gap-1.5">
       <div
@@ -45,8 +62,18 @@
             :to="`/locations/${space.id}`"
             class="block truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
           ><template v-if="boundRegionBySpace.get(space.id)">{{ i + 1 }}. </template>{{ space.name }}</RouterLink>
+          <!-- Frame 03 "7. The Drowned Stair — Nested site · click to descend
+               [L2]" — a nested site's second line names what clicking it on
+               the map does, in place of the plain cell-count/provenance line
+               every other bound space shows. -->
           <p
-            v-if="boundRegionBySpace.get(space.id)"
+            v-if="boundRegionBySpace.get(space.id) && space.location_type && isSiteType(space.location_type)"
+            class="truncate text-caption-sm text-muted-foreground"
+          >
+            Nested site · click to descend
+          </p>
+          <p
+            v-else-if="boundRegionBySpace.get(space.id)"
             class="flex items-center gap-1 truncate text-caption-sm text-muted-foreground"
           >
             <IconPen v-if="boundRegionBySpace.get(space.id)!.vertices" class="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -55,6 +82,13 @@
         </div>
 
         <template v-if="boundRegionBySpace.get(space.id)">
+          <span
+            v-if="nestedSiteIndexBySpace.get(space.id)"
+            class="shrink-0 rounded bg-muted/40 px-1.5 py-0.5 font-cinzel text-2xs font-bold text-muted-foreground"
+            :title="`Nested site — level ${nestedSiteIndexBySpace.get(space.id)}`"
+          >
+            L{{ nestedSiteIndexBySpace.get(space.id) }}
+          </span>
           <AppButton
             variant="ghost"
             size="inline-xs"
@@ -84,12 +118,11 @@
     </div>
   </div>
 
-  <!-- Untitled shapes — traced but not (yet) bound to a space. -->
+  <!-- Untitled shapes — traced but not (yet) bound to a space. Creation moved
+       to the Spaces header's own Trace button above; a fresh shape still
+       lands here the moment it exists, unbound. -->
   <div class="flex flex-col gap-1.5">
-    <div class="flex items-center justify-between">
-      <span class="text-label-lg font-semibold text-muted-foreground">Untitled shapes</span>
-      <AppButton variant="ghost" size="inline-xs" :icon="IconAdd" label="New shape" @click="addUnboundRegion" />
-    </div>
+    <span class="text-label-lg font-semibold text-muted-foreground">Untitled shapes</span>
     <p v-if="!unboundRegions.length" class="text-caption text-muted-foreground italic">Nothing traced yet.</p>
     <div v-else class="flex flex-col gap-1.5">
       <div
@@ -162,8 +195,10 @@ import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
-import { IconAdd, IconDelete, IconPaint, IconPen, IconRoomTemplate } from "@/lib/icons";
+import { IconAdd, IconDelete, IconGridView, IconPaint, IconPen, IconRoomTemplate } from "@/lib/icons";
+import { isSiteType } from "@/lib/locations/tiers";
 import {
+  dmEdit,
   useCreateLocationMapRegion,
   useDeleteLocationMapRegion,
   useUpdateLocationMapRegion,
@@ -236,6 +271,18 @@ const unboundRegions = computed(() => spaceRegions.value.filter((r) => !r.space_
 // entirely rather than surfacing that as a toast after the fact.
 const unclaimedSpaces = computed(() => spaces.filter((s) => !boundRegionBySpace.value.has(s.id)));
 
+// A nested site's own info chip (#868, frame 03: "[L2]") — 1-based among this
+// site's nested-site spaces specifically, not the row's own position in the
+// list above (which already counts every bound space, rooms included).
+const nestedSiteIndexBySpace = computed(() => {
+  const map = new Map<string, number>();
+  let n = 0;
+  for (const space of spaces) {
+    if (space.location_type && isSiteType(space.location_type)) map.set(space.id, ++n);
+  }
+  return map;
+});
+
 /** "18 cells · from flood fill" — the cell count every row earns once it has
  *  been traced, plus how it got there when a human didn't draw it by hand.
  *  `derived_from === "dm"` says nothing extra: every hand-traced shape reads
@@ -277,7 +324,7 @@ async function addUnboundRegion(): Promise<void> {
 async function onBindSpace(region: LocationMapRegion, spaceId: string): Promise<void> {
   if (!spaceId) return;
   try {
-    await updateRegion.mutateAsync({ id: region.id, update: { space_location_id: spaceId } });
+    await updateRegion.mutateAsync({ id: region.id, update: dmEdit({ space_location_id: spaceId }) });
   } catch (e) {
     toastError(fromError(e));
   }
@@ -285,7 +332,7 @@ async function onBindSpace(region: LocationMapRegion, spaceId: string): Promise<
 
 async function unbind(region: LocationMapRegion): Promise<void> {
   try {
-    await updateRegion.mutateAsync({ id: region.id, update: { space_location_id: null } });
+    await updateRegion.mutateAsync({ id: region.id, update: dmEdit({ space_location_id: null }) });
   } catch (e) {
     toastError(fromError(e));
   }
@@ -308,6 +355,6 @@ async function removeRegion(region: LocationMapRegion): Promise<void> {
 function commitLabel(region: LocationMapRegion, value: string): void {
   const next = value.trim();
   if (next === (region.label ?? "")) return;
-  updateRegion.mutate({ id: region.id, update: { label: next === "" ? null : next } });
+  updateRegion.mutate({ id: region.id, update: dmEdit({ label: next === "" ? null : next }) });
 }
 </script>

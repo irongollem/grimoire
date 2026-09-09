@@ -139,20 +139,29 @@ export interface DoorSubtitleRow {
   starts_locked: boolean;
   lock_note: string | null;
   label: string;
+  is_one_way: boolean;
 }
 
 /**
  * "Secret · behind the ash-screen" / "Locked · the brass key" / "Stair ·
- * one-way descent" — whichever fact about the door matters most to a DM
+ * two-way · flooded at the base" / "Shaft · one-way · 40 ft, no climb"
+ * (#868, frame 06) — whichever fact about the door matters most to a DM
  * scanning the list, then the free-text detail that goes with it. Priority
  * is secret, then locked, then kind, matching the order the frame's own
  * examples read in: a door that is both secret and locked still leads with
  * "Secret" because that is the fact that gates whether the party can even
  * see the lock note yet.
+ *
+ * A vertical kind (stair, shaft) additionally names whether it can be
+ * climbed both ways — a horizontal door already says this by which side of
+ * it a room sits on, but a level change has no "other side" to read that
+ * from, so `is_one_way` has to be spelled out.
  */
 export function doorSubtitle(door: DoorSubtitleRow): string {
   if (door.is_secret) return door.label ? `Secret · ${door.label}` : "Secret";
   if (door.starts_locked) return door.lock_note ? `Locked · ${door.lock_note}` : "Locked";
-  const kind = DOOR_KIND_LABELS[door.door_kind];
-  return door.label ? `${kind} · ${door.label}` : kind;
+  const parts = [DOOR_KIND_LABELS[door.door_kind]];
+  if (VERTICAL_DOOR_KINDS.has(door.door_kind)) parts.push(door.is_one_way ? "one-way" : "two-way");
+  if (door.label) parts.push(door.label);
+  return parts.join(" · ");
 }

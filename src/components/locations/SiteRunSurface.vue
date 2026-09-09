@@ -47,6 +47,13 @@
           @move-party="moveTo"
         />
 
+        <TriggerBeatPrompt
+          v-if="showTriggerPrompt"
+          :beat="{ title: triggerBeat?.title ?? null }"
+          @advance="advanceTriggerBeat"
+          @dismiss="dismissTriggerPrompt"
+        />
+
         <SiteRunRoomStack
           v-if="currentRoom"
           :site-id="location.id"
@@ -103,7 +110,7 @@
  * The caller (`LocationDetailView`) only mounts this on a site-tier
  * location, so nothing here re-checks `location.location_type`.
  */
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { RouteLocationRaw } from "vue-router";
 import LocationMap from "@/components/locations/LocationMap.vue";
@@ -113,10 +120,11 @@ import SiteRunHeader from "@/components/locations/SiteRunHeader.vue";
 import SiteRunBeatCard from "@/components/locations/SiteRunBeatCard.vue";
 import SiteRunWaysOut from "@/components/locations/SiteRunWaysOut.vue";
 import SiteRunRoomStack from "@/components/locations/SiteRunRoomStack.vue";
+import TriggerBeatPrompt from "@/components/locations/TriggerBeatPrompt.vue";
 import { useLocations } from "@/composables/locations/useLocations";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
-import { useLootPlacements } from "@/composables/quests/useQuestFlow";
+import { useLootPlacements, useQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useLocationStateForRooms, useDoorStateForSite } from "@/composables/locations/useLocationState";
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
@@ -225,6 +233,40 @@ const zoneNotes = computed(() => {
   if (note) map.set(roomId, note);
   return map;
 });
+
+// ── A zone can name a beat (#868 S12/S13, frames 07/15): a trigger zone
+//    whose payload names a beat, traced over the room the party is
+//    currently standing in. This is distinct from `currentBeat` below (a
+//    beat staged directly at this site or room) — a trigger zone can name
+//    any beat, anywhere in the quest graph. Advance from the Atlas can't
+//    resolve the beat inline (nothing here holds `quest_runtime_state`), so
+//    it opens the cockpit at that beat instead, the same place
+//    `SiteRunBeatCard`'s "Resolve beat" already goes. Dismissal is per-room,
+//    same reasoning as `QuestSiteHandoff`'s own copy of this prompt: walking
+//    off the trigger room and back re-checks the zone fresh. ──────────────
+const dismissedTriggerRoomId = ref<string | null>(null);
+watch(currentRoomId, () => { dismissedTriggerRoomId.value = null; });
+const triggerBeatId = computed(() => {
+  const roomId = currentRoomId.value;
+  if (!roomId) return null;
+  const roomRegion = regions.value.find((r) => r.region_role === "space" && r.space_location_id === roomId);
+  if (!roomRegion) return null;
+  const roomCells = new Set(roomRegion.cells);
+  const zone = regions.value.find((r) =>
+    r.region_role === "zone" && r.zone_kind === "trigger" && !!r.zone_payload.beat_id
+    && r.cells.some((c) => roomCells.has(c)),
+  );
+  return zone?.zone_payload.beat_id ?? null;
+});
+const { data: triggerBeat } = useQuestBeat(computed(() => triggerBeatId.value ?? ""));
+const showTriggerPrompt = computed(() => !!triggerBeat.value && dismissedTriggerRoomId.value !== currentRoomId.value);
+
+function advanceTriggerBeat(): void {
+  const target = triggerBeat.value;
+  if (!target) return;
+  router.push(questSurfaceReturnTo(target.quest_id, target.id, "run"));
+}
+function dismissTriggerPrompt(): void { dismissedTriggerRoomId.value = currentRoomId.value; }
 
 // ── A beat staged at the site or the party's current room — shown only when
 //    one exists, so a DM who opened the Atlas outside any quest sees nothing
