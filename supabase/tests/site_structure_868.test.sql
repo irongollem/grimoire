@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(46);
+select plan(47);
 
 -- This file traces many locations, regions and doors across eight sections;
 -- none of it is what free-tier quotas exist to police, and a fixture that size
@@ -394,6 +394,14 @@ select is(
   jsonb_array_length((public.get_player_visible_site_state('86800000-0000-4000-8000-000000000400'))->'spaces'),
   1,
   'spaces has exactly the one explored room'
+);
+
+-- A beat may be staged at a ROOM ("Opens at", #868 S12); the player's quest
+-- page hands the projection the room id. The site resolves inside the RPC.
+select is(
+  (public.get_player_visible_site_state('86800000-0000-4000-8000-000000000401')),
+  (public.get_player_visible_site_state('86800000-0000-4000-8000-000000000400')),
+  'asking for a room returns its site''s plan -- the caller need not know the parent'
 );
 
 select is(

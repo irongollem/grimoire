@@ -49,14 +49,24 @@ stable
 security definer
 set search_path = public, private
 as $$
-  with site as (
+  with target as (
+    -- A beat may now be staged at a ROOM (#868 S12: "Opens at"), and the
+    -- player's quest page hands this function whatever the beat names. A
+    -- room has no plan of its own; its site does. Resolve here, once, rather
+    -- than in every caller: the room's parent is the site, and the parent's
+    -- own admission below still applies in full.
+    select case when l.location_type = 'room' then l.parent_id else l.id end as site_id
+      from public.locations l
+     where l.id = p_site_location_id
+  ),
+  site as (
     -- The same admission as before (#798): a member of the site's campaign,
     -- the map shared, and the site visible to this character -- or, for a
     -- preview, a DM of THIS campaign asking about a character who is in it.
     -- Both preview checks coalesced: a missing membership row must deny.
     select s.id, s.campaign_id
       from public.locations s
-     where s.id = p_site_location_id
+     where s.id = (select site_id from target)
        and s.campaign_id is not null
        and s.is_map_shared
        and exists (
