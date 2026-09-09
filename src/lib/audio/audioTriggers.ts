@@ -20,7 +20,7 @@ import type { AudioSlot } from "@/lib/audio/audioThemes";
  * string convention would break silently the first time a producer chose a
  * different prefix.
  */
-export type AudioTriggerKind = "encounter" | "location";
+export type AudioTriggerKind = "encounter" | "location" | "beat";
 
 export interface AudioThemeRequest {
   /**
@@ -37,8 +37,26 @@ export interface AudioThemeRequest {
   kind: AudioTriggerKind;
 }
 
+/** What a beat's audio cue points at — already resolved, unlike a theme label. */
+export type AudioCueTarget = { playlistId: string } | { soundId: string };
+
+/**
+ * "The DM fired this beat's cue." Unlike `AudioThemeRequest`, a cue never needs
+ * resolving against tags — a beat's attachment already names an exact playlist
+ * or sound row, so there is nothing to match, only somewhere to route it.
+ */
+export interface AudioCueRequest {
+  sourceId: string;
+  kind: "beat";
+  /** Human-readable origin, for the "playing because of…" note in the UI. */
+  label: string;
+  slot: AudioSlot;
+  target: AudioCueTarget;
+}
+
 export type AudioTriggerEvent =
   | { type: "request"; request: AudioThemeRequest }
+  | { type: "cue"; request: AudioCueRequest }
   | { type: "release"; sourceId: string };
 
 type Handler = (event: AudioTriggerEvent) => void;
@@ -68,7 +86,20 @@ export function requestAudioTheme(request: AudioThemeRequest): void {
   emit({ type: "request", request });
 }
 
-/** "That encounter ended." Whether anything stops is the soundboard's call. */
+/**
+ * "Fire this beat's cue." Always resolved, so — unlike `requestAudioTheme` —
+ * there is no blank-target guard here: an attachment with nothing to point at
+ * is a prep gap the beat UI already flags, not something this bus decides.
+ */
+export function requestAudioCue(request: AudioCueRequest): void {
+  emit({ type: "cue", request });
+}
+
+/**
+ * "That encounter ended" / "that beat cue stopped." Whether anything stops is
+ * the soundboard's call. One verb for both request shapes: a theme and a cue
+ * both hand the slot back the same way once released.
+ */
 export function releaseAudioTheme(sourceId: string): void {
   emit({ type: "release", sourceId });
 }

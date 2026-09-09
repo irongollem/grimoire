@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   onAudioTrigger,
   requestAudioTheme,
+  requestAudioCue,
   releaseAudioTheme,
   clearAudioTriggerHandlers,
   type AudioTriggerEvent,
@@ -13,6 +14,14 @@ const REQUEST = {
   slot: "music",
   label: "Goblin ambush",
   kind: "encounter",
+} as const;
+
+const CUE = {
+  sourceId: "beat:b1:a1",
+  kind: "beat",
+  label: "Beat · The ambush",
+  slot: "music",
+  target: { playlistId: "battle" },
 } as const;
 
 beforeEach(() => {
@@ -65,5 +74,32 @@ describe("audio trigger bus", () => {
     // Mutating the handler set during iteration must not skip the next one.
     expect(() => requestAudioTheme({ ...REQUEST })).not.toThrow();
     expect(second).toHaveBeenCalledTimes(1);
+  });
+
+  it("delivers a cue as its own event shape, distinct from a theme request", () => {
+    const handler = vi.fn<(e: AudioTriggerEvent) => void>();
+    onAudioTrigger(handler);
+
+    requestAudioCue({ ...CUE });
+
+    expect(handler).toHaveBeenCalledWith({ type: "cue", request: { ...CUE } });
+  });
+
+  it("delivers a cue targeting a bare sound, not just a playlist", () => {
+    const handler = vi.fn<(e: AudioTriggerEvent) => void>();
+    onAudioTrigger(handler);
+
+    const soundCue = { ...CUE, slot: "ambient", target: { soundId: "s1" } } as const;
+    requestAudioCue(soundCue);
+
+    expect(handler).toHaveBeenCalledWith({ type: "cue", request: soundCue });
+  });
+
+  it("releases a cue through the same verb a theme releases through", () => {
+    const handler = vi.fn<(e: AudioTriggerEvent) => void>();
+    onAudioTrigger(handler);
+
+    releaseAudioTheme(CUE.sourceId);
+    expect(handler).toHaveBeenCalledWith({ type: "release", sourceId: CUE.sourceId });
   });
 });

@@ -17,9 +17,9 @@ const mocks = vi.hoisted(() => ({
   monsterId: { value: "" },
   noteId: { value: "" },
   handoutId: { value: "" },
-  trigger: vi.fn(),
-  playPlaylist: vi.fn(),
-  stopPlaylist: vi.fn(),
+  requestAudioCue: vi.fn(),
+  releaseAudioTheme: vi.fn(),
+  triggerForPlaylist: vi.fn<(id: string) => { sourceId: string } | null>(() => null),
   promptRoll: vi.fn(),
 }));
 
@@ -53,13 +53,19 @@ vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({
 vi.mock("@/composables/soundboard/useSoundPlayback", () => ({
   useActionCheck: () => () => "play",
   useBlockedCheck: () => () => null,
-  useSoundTrigger: () => mocks.trigger,
 }));
-vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => ({
-  isPlaylistActive: () => false,
-  playPlaylist: mocks.playPlaylist,
-  stopPlaylist: mocks.stopPlaylist,
-}) }));
+vi.mock("@/composables/soundboard/useAudioThemeTriggers", () => ({
+  useActiveAudioTriggers: () => ({
+    musicTrigger: { value: null },
+    ambientTriggers: { value: [] },
+    triggerForPlaylist: mocks.triggerForPlaylist,
+    triggerForSound: () => null,
+  }),
+}));
+vi.mock("@/lib/audio/audioTriggers", () => ({
+  requestAudioCue: mocks.requestAudioCue,
+  releaseAudioTheme: mocks.releaseAudioTheme,
+}));
 vi.mock("@/composables/dice/usePromptedRoll", () => ({ usePromptedRoll: () => ({ promptRoll: mocks.promptRoll }) }));
 function attachment(type: QuestBeatAttachmentType, overrides: Partial<QuestBeatAttachmentSummary> = {}): QuestBeatAttachmentSummary {
   return {
@@ -72,14 +78,15 @@ function attachment(type: QuestBeatAttachmentType, overrides: Partial<QuestBeatA
 
 describe("QuestRunContainedTool", () => {
   beforeEach(() => {
-    mocks.trigger.mockReset();
     mocks.npc.value = null;
     mocks.note.value = undefined;
     mocks.handout.value = undefined;
     mocks.playlists.value = [];
     mocks.tracks.value = [];
-    mocks.playPlaylist.mockReset();
-    mocks.stopPlaylist.mockReset();
+    mocks.requestAudioCue.mockReset();
+    mocks.releaseAudioTheme.mockReset();
+    mocks.triggerForPlaylist.mockReset();
+    mocks.triggerForPlaylist.mockImplementation(() => null);
     mocks.promptRoll.mockReset();
   });
 
@@ -87,7 +94,7 @@ describe("QuestRunContainedTool", () => {
 
   it("opens the authoritative encounter runner with an exact Run return path", () => {
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("encounter", { ref_id: "encounter-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
+      props: { attachment: attachment("encounter", { ref_id: "encounter-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
     const run = wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Open full-screen");
@@ -96,7 +103,7 @@ describe("QuestRunContainedTool", () => {
 
   it("replaces the encounter summary while the authoritative runner is focused", async () => {
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("encounter", { ref_id: "encounter-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
+      props: { attachment: attachment("encounter", { ref_id: "encounter-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
 
@@ -109,35 +116,86 @@ describe("QuestRunContainedTool", () => {
     expect(wrapper.text()).toContain("Focused encounter state stays in the existing Encounter Runner.");
   });
 
-  it("fires an attached sound through the shared playback subsystem", async () => {
+  it("fires an attached sound as a beat cue on the trigger bus (#870)", async () => {
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("sound", { ref_id: "sound-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
+      props: { attachment: attachment("sound", { id: "a1", beat_id: "b1", ref_id: "sound-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Play cue")!.trigger("click");
-    expect(mocks.trigger).toHaveBeenCalledWith(expect.objectContaining({ id: "sound-1" }));
+    expect(mocks.requestAudioCue).toHaveBeenCalledWith({
+      sourceId: "beat:b1:a1",
+      kind: "beat",
+      label: "Beat · The ambush",
+      slot: "ambient",
+      target: { soundId: "sound-1" },
+    });
   });
 
   it.each([
     ["audio_scene", "ambient", "Ambient scene · 1 track", "Play scene"],
     ["playlist", "music", "Music playlist · 1 track", "Play playlist"],
-  ] as const)("plays an attached %s through the shared playlist engine", async (type, playlistType, copy, action) => {
+  ] as const)("requests an attached %s as a beat cue through the trigger bus", async (type, playlistType, copy, action) => {
     mocks.playlists.value = [{ id: `${type}-1`, name: "Prepared audio", playlist_type: playlistType }];
     mocks.tracks.value = [{ id: "track-1" }];
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment(type, { ref_id: `${type}-1` }), returnTo: "/quests/q1?view=run&beat=b1" },
+      props: { attachment: attachment(type, { id: "a1", beat_id: "b1", ref_id: `${type}-1` }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
 
     expect(wrapper.text()).toContain(copy);
     await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === action)!.trigger("click");
-    expect(mocks.playPlaylist).toHaveBeenCalledWith(expect.objectContaining({ playlist_type: playlistType }), mocks.tracks.value);
+    expect(mocks.requestAudioCue).toHaveBeenCalledWith({
+      sourceId: "beat:b1:a1",
+      kind: "beat",
+      label: "Beat · The ambush",
+      slot: playlistType,
+      target: { playlistId: `${type}-1` },
+    });
+  });
+
+  it("releases the cue instead of requesting it again once this beat's cue owns the slot", async () => {
+    mocks.playlists.value = [{ id: "playlist-1", name: "Prepared audio", playlist_type: "music" }];
+    mocks.tracks.value = [{ id: "track-1" }];
+    mocks.triggerForPlaylist.mockImplementation((id) => (id === "playlist-1" ? { sourceId: "beat:b1:a1" } : null));
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("playlist", { id: "a1", beat_id: "b1", ref_id: "playlist-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
+      global,
+    });
+
+    const button = wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === "Stop playlist")!;
+    await button.trigger("click");
+
+    expect(mocks.releaseAudioTheme).toHaveBeenCalledWith("beat:b1:a1");
+    expect(mocks.requestAudioCue).not.toHaveBeenCalled();
+  });
+
+  it("does not read this playlist as active when a different source owns it", () => {
+    mocks.playlists.value = [{ id: "playlist-1", name: "Prepared audio", playlist_type: "music" }];
+    mocks.tracks.value = [{ id: "track-1" }];
+    // A location's ambience happens to be playing the same playlist — this
+    // beat's own cue button must not read that as itself being active.
+    mocks.triggerForPlaylist.mockImplementation((id) => (id === "playlist-1" ? { sourceId: "location:1" } : null));
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("playlist", { id: "a1", beat_id: "b1", ref_id: "playlist-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
+      global,
+    });
+
+    expect(wrapper.findAllComponents({ name: "AppButton" }).some((b) => b.props("label") === "Play playlist")).toBe(true);
+  });
+
+  it("gives the slot back when the cockpit is left", () => {
+    const wrapper = shallowMount(QuestRunContainedTool, {
+      props: { attachment: attachment("sound", { id: "a1", beat_id: "b1", ref_id: "sound-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
+      global,
+    });
+    wrapper.unmount();
+    expect(mocks.releaseAudioTheme).toHaveBeenCalledWith("beat:b1:a1");
   });
 
   it("shows an entity quick view and closes back to the beat", async () => {
     mocks.npc.value = { name: "Mira", occupation: "Guide", status: "alive", personality: "Never wastes a word." };
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("npc", { ref_id: "npc-1", label: "Mira" }), returnTo: "/quests/q1?view=run&beat=b1" },
+      props: { attachment: attachment("npc", { ref_id: "npc-1", label: "Mira" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
     expect(wrapper.text()).toContain("Guide · alive");
@@ -148,7 +206,7 @@ describe("QuestRunContainedTool", () => {
   it("renders an attached note body and gates unrelated queries", () => {
     mocks.note.value = { title: "Bell lore", category: "lore", tags: ["bell"], content: "note-body" };
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("note", { ref_id: "note-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
+      props: { attachment: attachment("note", { ref_id: "note-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
     expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("note-body");
@@ -171,6 +229,7 @@ describe("QuestRunContainedTool", () => {
           metadata: { skill: "Insight", dc: 15, contested_by: "Deception" },
         }),
         returnTo: "/quests/q1?view=run&beat=b1",
+        beatTitle: "The ambush",
       },
       global,
     });
@@ -187,6 +246,7 @@ describe("QuestRunContainedTool", () => {
       props: {
         attachment: attachment("check", { ref_id: "check", metadata: { skill: "Athletics", dc: 12 } }),
         returnTo: "/quests/q1?view=run&beat=b1",
+        beatTitle: "The ambush",
       },
       global,
     });
@@ -198,7 +258,7 @@ describe("QuestRunContainedTool", () => {
   it("renders an attached Scriptorium handout body", () => {
     mocks.handout.value = { title: "The prophecy", doc_type: "handout", word_count: 42, is_published: false, content: "handout-body" };
     const wrapper = shallowMount(QuestRunContainedTool, {
-      props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?view=run&beat=b1" },
+      props: { attachment: attachment("handout", { ref_id: "handout-1" }), returnTo: "/quests/q1?view=run&beat=b1", beatTitle: "The ambush" },
       global,
     });
     expect(wrapper.findComponent({ name: "RichTextViewer" }).props("content")).toBe("handout-body");

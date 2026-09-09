@@ -49,6 +49,7 @@
       v-if="opened"
       :attachment="opened"
       :return-to="`/quests/${beat.quest_id}/beats/${beat.id}`"
+      :beat-title="beat.title"
       @close="opened = null"
     />
     <p v-else class="text-caption italic text-muted-foreground">Nothing placed on this beat yet.</p>

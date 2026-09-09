@@ -26,12 +26,12 @@
           <div v-else-if="adapter.containedSurface === 'audio'" class="rounded-lg border border-border bg-card p-3">
             <template v-if="sound">
               <p class="text-body text-foreground">{{ sound.category }} · {{ sound.source_type }}</p>
-              <AppButton :label="audioAction(sound)" class="mt-2" variant="primary" :disabled="!!blockedReason(sound)" @click="triggerSound(sound)" />
+              <AppButton :label="audioAction(sound)" class="mt-2" variant="primary" :disabled="!!blockedReason(sound)" @click="fireSoundCue" />
               <p v-if="blockedReason(sound)" class="mt-1 text-caption text-destructive">{{ blockedReason(sound) }}</p>
             </template>
             <template v-else-if="playlist">
               <p class="text-body text-foreground">{{ attachment.attachment_type === 'audio_scene' ? 'Ambient scene' : 'Music playlist' }} · {{ playlistTracks.length }} track{{ playlistTracks.length === 1 ? '' : 's' }}</p>
-              <AppButton :label="playlistActionLabel" class="mt-2" variant="primary" :disabled="!playlistTracks.length" @click="togglePlaylist" />
+              <AppButton :label="playlistActionLabel" class="mt-2" variant="primary" :disabled="!playlistTracks.length" @click="toggleCuePlaylist" />
             </template>
             <p v-else class="text-body text-foreground">Audio cue is unavailable.</p>
           </div>
@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref } from "vue";
+import { computed, defineAsyncComponent, onUnmounted, ref } from "vue";
 import { useHotkeys } from "@/composables/useHotkeys";
 import { useNpc } from "@/composables/npcs/useNpcs";
 import { useFaction } from "@/composables/factions/useFactions";
@@ -126,11 +126,12 @@ import { useNote } from "@/composables/notes/useNotes";
 import { useScriptoriumDocument } from "@/composables/scriptorium/useScriptorium";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { usePlaylists, usePlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
-import { useActionCheck, useBlockedCheck, useSoundTrigger } from "@/composables/soundboard/useSoundPlayback";
+import { useActionCheck, useBlockedCheck } from "@/composables/soundboard/useSoundPlayback";
+import { useActiveAudioTriggers } from "@/composables/soundboard/useAudioThemeTriggers";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
 import { withQuestReturnTo } from "@/lib/quests/navigation";
-import { useSoundboardStore } from "@/stores/soundboard";
+import { releaseAudioTheme, requestAudioCue } from "@/lib/audio/audioTriggers";
 import type { QuestBeatAttachmentSummary, QuestCheckAttachmentMetadata } from "@/types/quest.types";
 import type { Sound } from "@/types/sound.types";
 import { IconDice } from "@/lib/icons";
@@ -141,7 +142,7 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 
 const EncounterRunSurface = defineAsyncComponent(() => import("@/components/encounters/EncounterRunSurface.vue"));
 
-const props = defineProps<{ attachment: QuestBeatAttachmentSummary; returnTo: string }>();
+const props = defineProps<{ attachment: QuestBeatAttachmentSummary; returnTo: string; beatTitle: string }>();
 const emit = defineEmits<{ close: [] }>();
 const encounterFocused = ref(false);
 const adapter = computed(() => QUEST_BEAT_ATTACHMENT_ADAPTERS[props.attachment.attachment_type]);
@@ -168,16 +169,26 @@ const isPlaylistAttachment = computed(() => props.attachment.attachment_type ===
 const { data: playlists } = usePlaylists(() => isPlaylistAttachment.value);
 const playlistId = computed(() => isPlaylistAttachment.value ? props.attachment.ref_id : null);
 const { data: playlistTracksData } = usePlaylistTracks(playlistId);
-const soundboard = useSoundboardStore();
 const sound = computed(() => props.attachment.attachment_type === "sound" ? sounds.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
 const playlist = computed(() => isPlaylistAttachment.value ? playlists.value?.find((row) => row.id === props.attachment.ref_id) ?? null : null);
 const playlistTracks = computed(() => playlistTracksData.value ?? []);
-const playlistActive = computed(() => playlist.value ? soundboard.isPlaylistActive(playlist.value.id) : false);
+
+// A beat's audio cue goes through the trigger bus rather than the soundboard
+// store directly (#870), so it takes the ambience slot through the same
+// ownership model an encounter's theme or a location's ambience does — and so
+// the "why is this playing" chip agrees with this button's own state.
+const cueSourceId = computed(() => `beat:${props.attachment.beat_id}:${props.attachment.id}`);
+const cueLabel = computed(() => `Beat · ${props.beatTitle}`);
+const { triggerForPlaylist } = useActiveAudioTriggers();
+const playlistActive = computed(() => {
+  if (!playlist.value) return false;
+  const trigger = triggerForPlaylist(playlist.value.id);
+  return trigger !== null && trigger.sourceId === cueSourceId.value;
+});
 const playlistActionLabel = computed(() => {
   const noun = props.attachment.attachment_type === "audio_scene" ? "scene" : "playlist";
   return `${playlistActive.value ? "Stop" : "Play"} ${noun}`;
 });
-const triggerSound = useSoundTrigger();
 const actionFor = useActionCheck();
 const blockedReason = useBlockedCheck();
 const audioAction = (value: Sound) => ({ play: "Play cue", pause: "Pause cue", refire: "Fire cue again" })[actionFor(value)];
@@ -201,10 +212,36 @@ async function rollCheck() {
     rolling.value = false;
   }
 }
-function togglePlaylist() {
+function toggleCuePlaylist() {
   if (!playlist.value) return;
-  if (playlistActive.value) soundboard.stopPlaylist(playlist.value.playlist_type, playlist.value.id);
-  else if (playlistTracks.value.length) soundboard.playPlaylist(playlist.value, playlistTracks.value);
+  if (playlistActive.value) {
+    releaseAudioTheme(cueSourceId.value);
+  } else if (playlistTracks.value.length) {
+    requestAudioCue({
+      sourceId: cueSourceId.value,
+      kind: "beat",
+      label: cueLabel.value,
+      slot: playlist.value.playlist_type,
+      target: { playlistId: playlist.value.id },
+    });
+  }
 }
+function fireSoundCue() {
+  if (!sound.value) return;
+  // Always requests — useAudioThemeTriggers decides play/pause/refire from
+  // the sound's real state, exactly as this button always has; this only adds
+  // the ownership bookkeeping so the chip and the slot model can see it too.
+  requestAudioCue({
+    sourceId: cueSourceId.value,
+    kind: "beat",
+    label: cueLabel.value,
+    slot: "ambient",
+    target: { soundId: sound.value.id },
+  });
+}
+// Leaving the cockpit gives the slot back — mirrors EncounterRunner, whose
+// battle music would otherwise follow the DM around the app with nothing left
+// on screen to stop it.
+onUnmounted(() => releaseAudioTheme(cueSourceId.value));
 useHotkeys([{ combo: "escape", description: "Close contained quest tool", handler: () => emit("close"), hidden: true }], { layer: "overlay" });
 </script>

@@ -1,8 +1,14 @@
-import { ref, computed, onScopeDispose } from "vue";
+import { ref, computed, watch, onScopeDispose } from "vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSounds } from "@/composables/soundboard/useSounds";
 import { usePlaylists, useFetchPlaylistTracks } from "@/composables/soundboard/useSoundboardPlaylists";
-import { onAudioTrigger, type AudioThemeRequest, type AudioTriggerKind } from "@/lib/audio/audioTriggers";
+import { useSoundTrigger } from "@/composables/soundboard/useSoundPlayback";
+import {
+  onAudioTrigger,
+  type AudioThemeRequest,
+  type AudioCueRequest,
+  type AudioTriggerKind,
+} from "@/lib/audio/audioTriggers";
 import { resolveAudioTheme, type AudioSlot, type ThemeMatch } from "@/lib/audio/audioThemes";
 import { getAudioTriggersEnabled, setAudioTriggersEnabled } from "@/lib/audio/audioTriggerPrefs";
 import type { Sound, SoundboardPlaylist } from "@/types/sound.types";
@@ -46,17 +52,23 @@ export interface ActiveTrigger {
   target: string;
 }
 
-interface MusicOwnership extends ActiveTrigger {
-  /** What was running in this slot before the trigger took it, to hand back. */
-  previousPlaylistId: string | null;
-}
-
 /**
  * Module-level because the consumer is mounted once, in `DefaultLayout`, and
  * every surface that wants to show the chip is somewhere else entirely. The
  * `enabled` ref above is module-level for the same reason.
+ *
+ * Music is a stack, not a single slot. Frame 14's ranking — a beat's cue
+ * ducks a live encounter's theme, which is *held, not stopped*, which sits
+ * over the room's own ambience — means a second trigger taking the slot must
+ * not erase the first: it goes on top, and releasing it uncovers whichever
+ * trigger (or none) was underneath. `musicFloor` is the one thing that is not
+ * a trigger — whatever the DM had running by hand before anything on the
+ * stack took over — captured once, when the stack first stops being empty.
  */
-const musicOwner = ref<MusicOwnership | null>(null);
+const musicStack = ref<ActiveTrigger[]>([]);
+const musicFloor = ref<string | null>(null);
+/** The audible one — always the top of the stack, or nobody. */
+const musicOwner = computed<ActiveTrigger | null>(() => musicStack.value.at(-1) ?? null);
 /** Scenes stack, so ambient ownership is a list rather than a single slot. */
 const ambientOwners = ref<ActiveTrigger[]>([]);
 
@@ -96,6 +108,10 @@ export function useAudioThemeTriggers(): void {
   const { data: sounds } = useSounds();
   const { data: playlists } = usePlaylists();
   const fetchTracks = useFetchPlaylistTracks();
+  // A cue already names an exact sound row, so firing it reuses the very
+  // function every playback button in the app calls — refire-as-effect,
+  // Safari's webm block, Spotify's own play path all stay exactly as they are.
+  const fireSound = useSoundTrigger();
 
   /**
    * The two slots behave differently on purpose.
@@ -129,6 +145,47 @@ export function useAudioThemeTriggers(): void {
     store.playPlaylist(playlist, tracks);
   }
 
+  /** Restart whatever a music-stack entry points at — a playlist, or a bare file standing in for one. */
+  async function resumeMusicTarget(target: string, gen: number): Promise<void> {
+    if (target.startsWith("sound:")) {
+      const sound = currentSounds().find((s) => s.id === target.slice("sound:".length));
+      if (sound === undefined || gen !== generation.music) return;
+      store.play(sound.id, sound.file_url, sound.category, sound.gain_trim);
+      return;
+    }
+    await startPlaylist(target, "music", gen);
+  }
+
+  /**
+   * Take (or refresh) this source's place at the top of the music stack.
+   *
+   * A second request from the same source updates its own entry in place
+   * rather than stacking a second layer on itself — otherwise a repeat
+   * trigger would become the thing it later restores. The floor — what to
+   * hand back to once the whole stack empties — is captured only the first
+   * time anything takes the slot, from whatever the DM had running by hand.
+   */
+  function claimMusicSlot(ownership: ActiveTrigger): void {
+    const stack = musicStack.value;
+    const top = stack.at(-1);
+    if (top !== undefined && top.sourceId === ownership.sourceId) {
+      musicStack.value = [...stack.slice(0, -1), ownership];
+      return;
+    }
+    if (stack.length === 0) musicFloor.value = store.activeMusicPlaylistId();
+    musicStack.value = [...stack, ownership];
+  }
+
+  /** Drop a source from the music stack. Tells the caller whether it was audible. */
+  function removeFromMusicStack(sourceId: string): "not-found" | "was-top" | "was-lower" {
+    const stack = musicStack.value;
+    const index = stack.findIndex((owner) => owner.sourceId === sourceId);
+    if (index === -1) return "not-found";
+    const wasTop = index === stack.length - 1;
+    musicStack.value = stack.filter((_, i) => i !== index);
+    return wasTop ? "was-top" : "was-lower";
+  }
+
   async function handleRequest(request: AudioThemeRequest): Promise<void> {
     if (!enabled.value) return;
 
@@ -143,42 +200,106 @@ export function useAudioThemeTriggers(): void {
 
     const playingId = store.activeMusicPlaylistId();
 
-    // Already playing exactly what was asked for: take ownership so the release
-    // still works, but do not restart it mid-bar.
-    if (match.kind === "playlist" && playingId === match.playlist.id) {
-      musicOwner.value = {
-        ...ownershipFrom(request, match.playlist.id),
-        previousPlaylistId: musicOwner.value === null ? null : musicOwner.value.previousPlaylistId,
-      };
-      return;
-    }
-
-    // Only remember a previous playlist on the first takeover. A second trigger
-    // arriving while we already own the slot must not record our own audio as
-    // the thing to restore.
-    const previousPlaylistId =
-      musicOwner.value === null ? playingId : musicOwner.value.previousPlaylistId;
-    const target =
-      match.kind === "playlist" ? match.playlist.id : soundTarget(match.sound.id);
-    musicOwner.value = { ...ownershipFrom(request, target), previousPlaylistId };
-
-    const gen = ++generation.music;
-
     if (match.kind === "playlist") {
+      // Already playing exactly what was asked for: take ownership so the
+      // release still works, but do not restart it mid-bar.
+      const alreadyPlaying = playingId === match.playlist.id;
+      claimMusicSlot(ownershipFrom(request, match.playlist.id));
+      if (alreadyPlaying) return;
+      const gen = ++generation.music;
       await startPlaylist(match.playlist.id, "music", gen);
       return;
     }
 
     // No playlist answers this theme, so a single file stands in. Stop whatever
     // playlist held the slot first, or the two play over each other.
+    claimMusicSlot(ownershipFrom(request, soundTarget(match.sound.id)));
+    const gen = ++generation.music;
     if (playingId !== null) store.stopPlaylist("music");
     if (gen !== generation.music) return;
     const { sound } = match;
     store.play(sound.id, sound.file_url, sound.category, sound.gain_trim);
   }
 
+  /**
+   * A beat's cue is already resolved — an exact playlist or sound id, never a
+   * label to match — so there is no `resolveAudioTheme` step here. It also
+   * ignores the DM's automatic-trigger toggle: that switch exists to stop
+   * *guessed* audio from hijacking the room, and a cue is a button the DM
+   * pressed on purpose.
+   */
+  async function handleCue(request: AudioCueRequest): Promise<void> {
+    const { target } = request;
+
+    if ("soundId" in target) {
+      await fireSoundCue(request, target.soundId);
+      return;
+    }
+
+    const playlist = currentPlaylists().find((p) => p.id === target.playlistId);
+    // The attachment's id no longer resolves to a real row — same rule as an
+    // unmatched theme: do nothing rather than guess.
+    if (playlist === undefined) return;
+
+    if (request.slot === "ambient") {
+      if (ambientOwners.value.some((owner) => owner.sourceId === request.sourceId)) return;
+      ambientOwners.value = [...ambientOwners.value, ownershipFrom(request, playlist.id)];
+      await startPlaylist(playlist.id, "ambient", ++generation.ambient);
+      return;
+    }
+
+    // Music-slot cue: the same exclusive takeover an encounter theme gets, so
+    // releasing it hands the slot back — "ducks the others". If an encounter's
+    // theme already holds the slot, that theme is pushed underneath rather
+    // than displaced, so it is what release hands back to — "held, not
+    // stopped", not "gone".
+    const playingId = store.activeMusicPlaylistId();
+    const alreadyPlaying = playingId === playlist.id;
+    claimMusicSlot(ownershipFrom(request, playlist.id));
+    if (alreadyPlaying) return;
+    const gen = ++generation.music;
+    await startPlaylist(playlist.id, "music", gen);
+  }
+
+  /**
+   * A bare-sound cue never contests the exclusive slot — it fires exactly as
+   * the cockpit's own button would, and joins the ambient stack purely so the
+   * chip and "is this active" queries have something to point at.
+   *
+   * It is a short-lived owner: nothing is waiting for it to let go, so instead
+   * of requiring an explicit release it lets go the moment the sound itself
+   * goes quiet (see `watchSoundEnd`).
+   */
+  async function fireSoundCue(request: AudioCueRequest, soundId: string): Promise<void> {
+    const sound = currentSounds().find((s) => s.id === soundId);
+    if (sound === undefined) return;
+    fireSound(sound);
+    if (ambientOwners.value.some((owner) => owner.sourceId === request.sourceId)) return;
+    ambientOwners.value = [...ambientOwners.value, ownershipFrom(request, soundTarget(soundId))];
+    watchSoundEnd(request.sourceId, soundId);
+  }
+
+  /**
+   * The store flips a sound's `isPlaying` false both when the clip ends on its
+   * own and when the DM pauses it by hand — either way, ownership should let
+   * go rather than sit there claiming a cue that made no sound. A
+   * Spotify-sourced sound has no such signal here (its state lives in
+   * `useSpotifyStore`, never in this store's `playbackStates`), so those
+   * release only on an explicit stop or on leaving the beat.
+   */
+  function watchSoundEnd(sourceId: string, soundId: string): void {
+    const stopWatching = watch(
+      () => store.getState(soundId).isPlaying,
+      (isPlaying) => {
+        if (isPlaying) return;
+        stopWatching();
+        void handleRelease(sourceId);
+      },
+    );
+  }
+
   /** The public half of ownership — what the chip reads. */
-  function ownershipFrom(request: AudioThemeRequest, target: string): ActiveTrigger {
+  function ownershipFrom(request: AudioThemeRequest | AudioCueRequest, target: string): ActiveTrigger {
     return {
       sourceId: request.sourceId,
       label: request.label,
@@ -218,26 +339,36 @@ export function useAudioThemeTriggers(): void {
       else store.stopAmbientPlaylist(owned.target);
     }
 
-    // A release from anyone but the current owner is stale — an encounter
-    // ending must not cut the music a newer one started.
-    if (musicOwner.value === null || musicOwner.value.sourceId !== sourceId) return;
+    // A release from anyone but the current top is either stale (an encounter
+    // ending must not cut the music a newer one started) or a held layer that
+    // was never audible in the first place — neither changes what plays now.
+    const removal = removeFromMusicStack(sourceId);
+    if (removal === "not-found" || removal === "was-lower") return;
 
-    const previousPlaylistId = musicOwner.value.previousPlaylistId;
-    musicOwner.value = null;
     const gen = ++generation.music;
+    const newTop = musicStack.value.at(-1);
 
-    if (previousPlaylistId === null) {
-      store.stopPlaylist("music");
+    if (newTop === undefined) {
+      const floor = musicFloor.value;
+      musicFloor.value = null;
+      if (floor === null) {
+        store.stopPlaylist("music");
+        return;
+      }
+      // Hand the slot back to whatever the DM had running. It restarts from the
+      // top rather than resuming its old position, which is the honest cost of
+      // not holding a paused playlist open for the length of a fight.
+      await startPlaylist(floor, "music", gen);
       return;
     }
-    // Hand the slot back to whatever the DM had running. It restarts from the
-    // top rather than resuming its old position, which is the honest cost of
-    // not holding a paused playlist open for the length of a fight.
-    await startPlaylist(previousPlaylistId, "music", gen);
+
+    // Something was still waiting underneath — held, not stopped. Bring it back.
+    await resumeMusicTarget(newTop.target, gen);
   }
 
   const off = onAudioTrigger((event) => {
     if (event.type === "request") void handleRequest(event.request);
+    else if (event.type === "cue") void handleCue(event.request);
     else void handleRelease(event.sourceId);
   });
 

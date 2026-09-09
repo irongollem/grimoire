@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { effectScope, ref } from "vue";
+import { effectScope, reactive, ref } from "vue";
 import type { Sound, SoundboardPlaylist, PlaylistTrackWithSound } from "@/types/sound.types";
 
 /**
@@ -14,6 +14,13 @@ const tracks: PlaylistTrackWithSound[] = [
   { sound: { id: "s1", file_url: "https://example.test/1.mp3" } } as PlaylistTrackWithSound,
 ];
 
+/** Reactive so a test can flip `isPlaying` and let `watchSoundEnd` react to it. */
+const soundStates = new Map<string, { isPlaying: boolean }>();
+function stateFor(soundId: string): { isPlaying: boolean } {
+  if (!soundStates.has(soundId)) soundStates.set(soundId, reactive({ isPlaying: false }));
+  return soundStates.get(soundId)!;
+}
+
 const store = {
   playPlaylist: vi.fn(),
   stopPlaylist: vi.fn(),
@@ -22,7 +29,14 @@ const store = {
   stop: vi.fn(),
   activeMusicPlaylistId: vi.fn<() => string | null>(() => null),
   isPlaylistActive: vi.fn<(id: string) => boolean>(() => false),
+  getState: vi.fn((soundId: string) => stateFor(soundId)),
 };
+
+/** Stands in for `useSoundTrigger()`'s returned function — a beat cue fires a
+ * bare sound through this, exactly as any other playback button would. */
+const fireSound = vi.fn((sound: { id: string }) => {
+  stateFor(sound.id).isPlaying = true;
+});
 
 vi.mock("@/stores/soundboard", () => ({ useSoundboardStore: () => store }));
 vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: () => ({ data: sounds }) }));
@@ -30,6 +44,7 @@ vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({
   usePlaylists: () => ({ data: playlists }),
   useFetchPlaylistTracks: () => () => Promise.resolve(tracks),
 }));
+vi.mock("@/composables/soundboard/useSoundPlayback", () => ({ useSoundTrigger: () => fireSound }));
 
 function playlist(over: Partial<SoundboardPlaylist> & { id: string }): SoundboardPlaylist {
   return {
@@ -63,6 +78,8 @@ beforeEach(async () => {
   store.isPlaylistActive.mockImplementation(() => false);
   playlists.value = [];
   sounds.value = [];
+  soundStates.clear();
+  fireSound.mockClear();
   const { clearAudioTriggerHandlers } = await import("@/lib/audio/audioTriggers");
   clearAudioTriggerHandlers();
 });
@@ -358,5 +375,173 @@ describe("what the UI can read back", () => {
 
     expect(read.triggerForPlaylist("tavern")?.label).toBe("The Rusty Anchor");
     expect(read.triggerForPlaylist("storm")?.label).toBe("The Moors");
+  });
+});
+
+/**
+ * Frame 14's ranking: a beat's cue is the loudest, deliberate intent in the
+ * room and ducks everything else; a live encounter's theme is held rather
+ * than stopped underneath it; the room is the floor. These cover the cue
+ * request shape end to end — resolution-free, since a cue already names an
+ * exact row — and the stack that makes "held" real.
+ */
+describe("a beat's audio cue", () => {
+  const battle = () => playlist({ id: "battle", playlist_type: "music" });
+  const scene = () => playlist({ id: "scene-1", playlist_type: "ambient" });
+
+  it("takes the music slot and hands it back to what was playing before", async () => {
+    const { requestAudioCue, releaseAudioTheme } = await mount();
+    const travel = playlist({ id: "travel" });
+    playlists.value = [battle(), travel];
+    store.activeMusicPlaylistId.mockImplementation(() => "travel");
+
+    requestAudioCue({ sourceId: "beat:b1:a1", kind: "beat", label: "Beat · The ambush", slot: "music", target: { playlistId: "battle" } });
+    await flush();
+    expect(store.playPlaylist).toHaveBeenCalledWith(expect.objectContaining({ id: "battle" }), tracks);
+
+    releaseAudioTheme("beat:b1:a1");
+    await flush();
+    expect(store.playPlaylist).toHaveBeenLastCalledWith(travel, tracks);
+  });
+
+  it("joins the ambient stack like any other scene", async () => {
+    const { requestAudioCue } = await mount();
+    playlists.value = [scene()];
+
+    requestAudioCue({ sourceId: "beat:b1:a1", kind: "beat", label: "Beat · Ambush", slot: "ambient", target: { playlistId: "scene-1" } });
+    await flush();
+
+    expect(store.playPlaylist).toHaveBeenCalledWith(expect.objectContaining({ id: "scene-1" }), tracks);
+  });
+
+  it("does nothing when the attachment's row no longer exists", async () => {
+    const { requestAudioCue } = await mount();
+    playlists.value = [];
+
+    requestAudioCue({ sourceId: "beat:b1:a1", kind: "beat", label: "Beat · Gone", slot: "music", target: { playlistId: "missing" } });
+    await flush();
+
+    expect(store.playPlaylist).not.toHaveBeenCalled();
+  });
+
+  it("fires unconditionally, ignoring the DM's automatic-trigger toggle", async () => {
+    const { requestAudioCue, prefs } = await mount();
+    playlists.value = [battle()];
+    prefs().setAudioTriggersEnabled(false);
+
+    requestAudioCue({ sourceId: "beat:b1:a1", kind: "beat", label: "Beat · Ambush", slot: "music", target: { playlistId: "battle" } });
+    await flush();
+
+    // A cue is a button the DM pressed on purpose, not a guess the toggle
+    // exists to suppress.
+    expect(store.playPlaylist).toHaveBeenCalled();
+    prefs().setAudioTriggersEnabled(true);
+  });
+
+  it("ducks a live encounter's theme and hands it back on release — held, not stopped", async () => {
+    const { requestAudioTheme, requestAudioCue, releaseAudioTheme } = await mount();
+    const boss = playlist({ id: "boss", playlist_type: "music", tags: ["boss"] });
+    playlists.value = [battle(), boss];
+
+    // The encounter's theme takes the slot first.
+    requestAudioTheme({ sourceId: "encounter:1", theme: "boss", slot: "music", label: "Boss fight", kind: "encounter" });
+    await flush();
+    store.activeMusicPlaylistId.mockImplementation(() => "boss");
+    expect(store.playPlaylist).toHaveBeenLastCalledWith(boss, tracks);
+
+    // The DM fires a beat cue over it.
+    requestAudioCue({ sourceId: "beat:b1:a1", kind: "beat", label: "Beat · Ambush", slot: "music", target: { playlistId: "battle" } });
+    await flush();
+    store.activeMusicPlaylistId.mockImplementation(() => "battle");
+    expect(store.playPlaylist).toHaveBeenLastCalledWith(battle(), tracks);
+
+    // Releasing the cue uncovers the encounter's theme rather than skipping
+    // past it to whatever was playing before combat.
+    releaseAudioTheme("beat:b1:a1");
+    await flush();
+    expect(store.playPlaylist).toHaveBeenLastCalledWith(boss, tracks);
+
+    // The encounter's own release still works once it is back on top.
+    releaseAudioTheme("encounter:1");
+    await flush();
+    expect(store.stopPlaylist).toHaveBeenCalledWith("music");
+  });
+
+  it("removes a held (non-top) release from the stack without touching playback", async () => {
+    const { requestAudioTheme, requestAudioCue, releaseAudioTheme } = await mount();
+    const boss = playlist({ id: "boss", playlist_type: "music", tags: ["boss"] });
+    playlists.value = [battle(), boss];
+
+    requestAudioTheme({ sourceId: "encounter:1", theme: "boss", slot: "music", label: "Boss fight", kind: "encounter" });
+    await flush();
+    store.activeMusicPlaylistId.mockImplementation(() => "boss");
+    requestAudioCue({ sourceId: "beat:b1:a1", kind: "beat", label: "Beat · Ambush", slot: "music", target: { playlistId: "battle" } });
+    await flush();
+    store.playPlaylist.mockClear();
+
+    // The encounter ends while the cue is still on top — it should vanish
+    // quietly rather than restoring anything, since it was not audible.
+    releaseAudioTheme("encounter:1");
+    await flush();
+    expect(store.playPlaylist).not.toHaveBeenCalled();
+    expect(store.stopPlaylist).not.toHaveBeenCalled();
+
+    // The cue's own release now has nothing held beneath it.
+    releaseAudioTheme("beat:b1:a1");
+    await flush();
+    expect(store.stopPlaylist).toHaveBeenCalledWith("music");
+  });
+
+  describe("a bare-sound cue", () => {
+    const cueSound = { id: "s9", file_url: "u", category: "effects", source_type: "url", gain_trim: 1, tags: [] } as unknown as Sound;
+
+    it("fires through the existing playback path and is visible to the UI", async () => {
+      const mod = await import("@/composables/soundboard/useAudioThemeTriggers");
+      const { requestAudioCue } = await mount();
+      const read = mod.useActiveAudioTriggers();
+      sounds.value = [cueSound];
+
+      requestAudioCue({ sourceId: "beat:b1:a2", kind: "beat", label: "Beat · Thunder", slot: "ambient", target: { soundId: "s9" } });
+      await flush();
+
+      expect(fireSound).toHaveBeenCalledWith(cueSound);
+      expect(read.triggerForSound("s9")?.label).toBe("Beat · Thunder");
+    });
+
+    it("never contests the exclusive music slot", async () => {
+      const { requestAudioCue } = await mount();
+      sounds.value = [cueSound];
+
+      requestAudioCue({ sourceId: "beat:b1:a2", kind: "beat", label: "Beat · Thunder", slot: "ambient", target: { soundId: "s9" } });
+      await flush();
+
+      expect(store.stopPlaylist).not.toHaveBeenCalled();
+    });
+
+    it("releases itself once the sound goes quiet, without an explicit release", async () => {
+      const mod = await import("@/composables/soundboard/useAudioThemeTriggers");
+      const { requestAudioCue } = await mount();
+      const read = mod.useActiveAudioTriggers();
+      sounds.value = [cueSound];
+
+      requestAudioCue({ sourceId: "beat:b1:a2", kind: "beat", label: "Beat · Thunder", slot: "ambient", target: { soundId: "s9" } });
+      await flush();
+      expect(read.triggerForSound("s9")).not.toBeNull();
+
+      stateFor("s9").isPlaying = false;
+      await flush();
+
+      expect(read.triggerForSound("s9")).toBeNull();
+    });
+
+    it("does nothing when the attachment's sound row no longer exists", async () => {
+      const { requestAudioCue } = await mount();
+      sounds.value = [];
+
+      requestAudioCue({ sourceId: "beat:b1:a2", kind: "beat", label: "Beat · Gone", slot: "ambient", target: { soundId: "missing" } });
+      await flush();
+
+      expect(fireSound).not.toHaveBeenCalled();
+    });
   });
 });

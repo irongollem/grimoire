@@ -114,14 +114,22 @@ Audio binds to campaign events by **theme label**, never by a foreign key to one
 | Piece                                      | Role                                                                                    |
 | ------------------------------------------ | --------------------------------------------------------------------------------------- |
 | `src/lib/audio/audioThemes.ts`                   | Pure resolution: `resolveAudioTheme`, `collectThemes`, `tagsIncludeTheme`               |
-| `src/lib/audio/audioTriggers.ts`                 | The bus: `requestAudioTheme` / `releaseAudioTheme` / `onAudioTrigger`                   |
-| `src/composables/soundboard/useAudioThemeTriggers.ts` | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs` |
+| `src/lib/audio/audioTriggers.ts`                 | The bus: `requestAudioTheme` / `requestAudioCue` / `releaseAudioTheme` / `onAudioTrigger` |
+| `src/composables/soundboard/useAudioThemeTriggers.ts` | The only consumer. Mounted once in `DefaultLayout`. Also exports `useAudioTriggerPrefs` and `useActiveAudioTriggers` |
 | `src/lib/audio/audioTriggerPrefs.ts`             | The DM's on/off switch, localStorage, default on                                        |
 | `src/components/common/ThemeInput.vue`     | Free-text label with datalist suggestions, shared by the encounter and location editors |
 
 **Slots.** An encounter drives `music`; a location drives `ambient`. They compose deliberately — dungeon ambience keeps running underneath battle music — and neither can ever contend for the other's channel. `resolveAudioTheme` will not look in the other slot even when its own has no answer.
 
 The two slots also behave differently on release, mirroring the store. **Music is exclusive**: a trigger takes the slot and hands it back to whatever preceded it. **Ambient is additive**: a trigger adds its own scene and removes only that one, because a location has no business stopping a scene a different location started, and combat ending must leave the room the party is standing in alone.
+
+### Who wins the slot (#870)
+
+Three producers can want the music slot: a beat's own audio cue (`QuestRunContainedTool`, fired from the Run cockpit), a live encounter's theme, and a location's ambience. They keep separate `sourceId`s precisely so two features cannot pull each other's audio, so the ranking in frame 14 of `Sites & Cartographer.html` is an **order**, not a fight: **1** a beat's cue — DM-fired, deliberate, and always the loudest intent in the room, so it ducks the others; **2** a live encounter's theme — *held, not stopped*, so it returns when the cue ends; **3** the room's own ambience — the floor.
+
+A cue is already resolved (an exact playlist or sound id — a beat's attachment has no label left to match), so it skips `resolveAudioTheme` and goes straight through `requestAudioCue` to the same ownership path a matched theme takes: a music-slot cue (a `playlist` attachment) takes the exclusive slot exactly as an encounter's theme would; an ambient-slot cue (`audio_scene`) joins the ambient stack; a bare `sound` attachment fires through the same `useSoundTrigger` path any other playback button uses and registers as a short-lived ambient-stack owner, releasing itself the moment the store's `isPlaying` for that sound goes false (the clip ending and the DM pausing it both count — a Spotify-sourced sound has no such signal here, so those release only on an explicit stop or on leaving the beat).
+
+The music slot is a genuine **stack**, not a single owner with one level of history: when a beat's cue takes the slot while an encounter's theme already holds it, the theme is pushed underneath rather than replaced, so releasing the cue uncovers the theme again instead of skipping past it to whatever the DM had running before combat. `useAudioThemeTriggers`'s `musicStack` (with a `musicFloor` sentinel for "what to restore once the stack is empty") is what makes "held, not stopped" true for more than one layer of nesting.
 
 ### The rule that governs all of it
 
@@ -283,7 +291,8 @@ and 6 (shared playback) have shipped.** What remains:
 Encounters and locations are wired (see **Themed audio** above). Still open:
 
 - **Sessions and the calendar do not trigger anything.** The bus is producer-agnostic, so adding one is a `requestAudioTheme` call plus a theme field — no soundboard changes.
-- **No indication of _why_ audio is playing.** The trigger carries a `label` ("Goblin ambush") that nothing displays yet, so a DM who forgot they themed an encounter has no way to see what started the music.
+
+"No indication of why audio is playing" is done: `src/components/soundboard/CausedByChip.vue` reads `useActiveAudioTriggers()` and shows the trigger's `label` with a release button, and (#870) a beat's own audio cue is a third producer on the same bus — see "Who wins the slot" above.
 
 ### Not phased
 

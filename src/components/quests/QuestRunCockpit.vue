@@ -96,6 +96,7 @@
         v-if="selectedAttachment"
         :attachment="selectedAttachment"
         :return-to="runReturn"
+        :beat-title="currentBeat.title"
         @close="selectedAttachment = null"
       />
       <QuestAdvanceDialog

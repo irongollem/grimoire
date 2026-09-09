@@ -967,10 +967,24 @@ live thread. Below the header:
 
 Runtime context, live chains and runtime state all poll at 5s; every command
 carries `expectedVersion`. `QuestRunContainedTool` opens an attachment in
-place: encounters embed `EncounterRunSurface`, audio calls the Soundboard,
-objectives get a next-status button, notes and handouts render their bodies.
-Despite the name it is also the prep-time viewer, mounted from
-`QuestBeatAttachmentsPanel`.
+place: encounters embed `EncounterRunSurface`; objectives get a next-status
+button; notes and handouts render their bodies. Despite the name it is also
+the prep-time viewer, mounted from `QuestBeatAttachmentsPanel`.
+
+**Audio no longer calls the soundboard store directly (#870).** A `sound` /
+`audio_scene` / `playlist` attachment's play/stop/fire button goes through
+`requestAudioCue` / `releaseAudioTheme` (`src/lib/audio/audioTriggers.ts`),
+the same trigger bus an encounter's theme and a location's ambience use, with
+`sourceId = beat:<beatId>:<attachmentId>`. That is what makes a beat's cue the
+loudest, most deliberate intent in the room — see soundboard.md's "Who wins
+the slot" — rather than a raw store call that could silently stomp whatever
+ambience or encounter theme was already running with no way to hand it back.
+The button's own "is this active" state reads `useActiveAudioTriggers()`
+(a cue owned by *this* attachment's `sourceId`, not merely "is this playlist
+playing somewhere") so it never disagrees with the `CausedByChip`. Leaving the
+cockpit (unmount) releases the cue — mirroring `EncounterRunner`, whose battle
+music would otherwise follow the DM around the app with nothing left on
+screen to stop it.
 
 **Deletes** the path panel (`QuestRunPath.vue`), the site strip
 (`QuestRunSitePanel.vue` — "where the party physically is" as a panel
