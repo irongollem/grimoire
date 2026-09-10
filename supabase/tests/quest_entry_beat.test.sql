@@ -6,7 +6,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 set local grimoire.bypass_quota = 'on';
 
@@ -126,6 +126,17 @@ select is(
   (select entry_beat_id from public.quest_consequences where id = '79600000-0000-4000-8000-000000a00071'),
   null,
   'losing the side door leaves the rule pointing at the sequel''s own entry');
+
+-- The players' quest RPC is `returns setof quests`; a column added to quests
+-- broke it once (16 selected, 17 declared — 42804 for every player). The
+-- structure is checked when RETURN QUERY runs, rows or no rows, so calling it
+-- as the DM (who sees nothing through the player predicate) is enough.
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '79600000-0000-4000-8000-000000a00001', true);
+select lives_ok(
+  $$select * from public.get_player_visible_quests('79600000-0000-4000-8000-000000a00010')$$,
+  'the player quest RPC still matches the quests row after entry_beat_id was added');
 
 select * from finish();
 rollback;

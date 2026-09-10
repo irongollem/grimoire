@@ -30,19 +30,19 @@ function quest(id: string, status: Quest["status"]): Quest {
 const global = { stubs: { RouterLink: RouterLinkStub } };
 
 describe("QuestKanbanBoard", () => {
-  it("groups the five persisted statuses into three visual groups", () => {
+  it("groups the four persisted statuses into three visual groups", () => {
     const wrapper = mount(QuestKanbanBoard, {
-      props: { quests: [quest("1", "active"), quest("2", "failed"), quest("3", "rumor")] },
+      props: { quests: [quest("1", "active"), quest("2", "completed"), quest("3", "failed"), quest("4", "undiscovered")] },
       global,
     });
 
     const headings = wrapper.findAll("h2").map((heading) => heading.text());
     expect(headings).toEqual(["Active", "Undiscovered — waiting to be unlocked", "Settled"]);
-    // active + rumor both land in the Active group.
-    expect(wrapper.findAllComponents(QuestBoardCard)).toHaveLength(3);
-    expect(wrapper.find('[aria-label="2 quests in active"]').text()).toBe("2 quests");
-    expect(wrapper.find('[aria-label="1 quests in settled"]').text()).toBe("1 quest");
-    expect(wrapper.find('[aria-label="0 quests in undiscovered"]').text()).toBe("0 quests");
+    // completed + failed both land in the Settled group.
+    expect(wrapper.findAllComponents(QuestBoardCard)).toHaveLength(4);
+    expect(wrapper.find('[aria-label="1 quests in active"]').text()).toBe("1 quest");
+    expect(wrapper.find('[aria-label="2 quests in settled"]').text()).toBe("2 quests");
+    expect(wrapper.find('[aria-label="1 quests in undiscovered"]').text()).toBe("1 quest");
   });
 
   it("forwards the card's keyboard status move as a board mutation", () => {
@@ -108,30 +108,9 @@ describe("QuestKanbanBoard", () => {
     expect(wrapper.getComponent(QuestFeaturedCard).props("quest").id).toBe("1");
   });
 
-  // The rumour is a stage of the lifecycle (undiscovered → rumoured → active →
-  // settled). It folds into Active because the party already lives with it,
-  // but it is named there, and the card can confirm it.
-  it("lists rumoured quests under their own heading inside Active, with a Confirm action", async () => {
-    const wrapper = mount(QuestKanbanBoard, {
-      props: { quests: [quest("1", "active"), quest("2", "rumor")] },
-      global,
-    });
-    const active = wrapper.findAll("section")[0]!;
-    expect(active.text()).toContain("Rumoured");
-    expect(active.text()).toContain("heard of, not yet begun");
-    const rumourCard = wrapper.findAllComponents(QuestBoardCard).find((card) => card.props("quest").id === "2")!;
-    await rumourCard.findAll("button").find((button) => button.text() === "Confirm")!.trigger("click");
-    expect(wrapper.emitted("move")).toEqual([[{ id: "2", status: "active" }]]);
-  });
-
-  it("shows no Rumoured heading when nothing is rumoured", () => {
-    const wrapper = mount(QuestKanbanBoard, { props: { quests: [quest("1", "active")] }, global });
-    expect(wrapper.findAll("section")[0]!.text()).not.toContain("Rumoured");
-  });
-
   it("promotes a dropped quest to the target group's primary status", async () => {
     const wrapper = mount(QuestKanbanBoard, {
-      props: { quests: [quest("1", "rumor")] },
+      props: { quests: [quest("1", "undiscovered")] },
       global,
     });
 
@@ -143,7 +122,7 @@ describe("QuestKanbanBoard", () => {
 
   it("does not reassign a quest dropped back onto the group it already belongs to", async () => {
     const wrapper = mount(QuestKanbanBoard, {
-      props: { quests: [quest("1", "rumor")] },
+      props: { quests: [quest("1", "active")] },
       global,
     });
 

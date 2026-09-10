@@ -10,7 +10,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(59);
+select plan(60);
 
 -- Six scenarios, six DM fixtures. request.jwt.claim.sub survives both a role
 -- change and a scenario boundary, so a later scenario's fixture inserts (run
@@ -529,6 +529,11 @@ values ('79400000-0000-4000-8000-000000f00070', '79400000-0000-4000-8000-000000f
 insert into public.quests (id, user_id, campaign_id, title, status) values
   ('79400000-0000-4000-8000-000000f00080', '79400000-0000-4000-8000-000000f00001', '79400000-0000-4000-8000-000000f00010', 'The sequel', 'undiscovered'),
   ('79400000-0000-4000-8000-000000f00081', '79400000-0000-4000-8000-000000f00001', '79400000-0000-4000-8000-000000f00010', 'Already running', 'active');
+-- #871's trigger makes the first live beat a quest's entry_beat_id, which is
+-- what unlock_quest now marks 'rumored' if still 'hidden' (see the
+-- retire_the_rumor_lane migration).
+insert into public.quest_beats (id, quest_id, campaign_id, title)
+values ('79400000-0000-4000-8000-000000f00082', '79400000-0000-4000-8000-000000f00080', '79400000-0000-4000-8000-000000f00010', 'The sequel opens');
 insert into public.quest_beat_transitions (id, campaign_id, transition_kind, provenance, runtime_version)
 values ('79400000-0000-4000-8000-000000f00090', '79400000-0000-4000-8000-000000f00010', 'enter', '{}'::jsonb, 1);
 
@@ -637,8 +642,10 @@ begin
 end
 $do$;
 
-select is((select status::text from public.quests where id = '79400000-0000-4000-8000-000000f00080'), 'rumor',
-  'an unlock promotes a locked quest to rumor, not straight to active');
+select is((select status::text from public.quests where id = '79400000-0000-4000-8000-000000f00080'), 'active',
+  'an unlock promotes a locked quest straight to active — there is no rumor lane to land in');
+select is((select visibility from public.quest_beats where id = '79400000-0000-4000-8000-000000f00082'), 'rumored',
+  'the target''s entry beat becomes rumored: the party has caused the sequel, not met it');
 select is((select status::text from public.quests where id = '79400000-0000-4000-8000-000000f00081'), 'active',
   'a quest already in play is not re-announced by a late unlock');
 select ok((select previous_quest_status is null from public.quest_consequence_events

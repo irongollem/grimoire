@@ -3,9 +3,10 @@
     Every quest, once.
 
     The dashboard carried three cards — chains holding a live cursor, the active
-    lane, and the rumor lane. All three ask about quests, each stood mostly empty
-    while together pushing the page past the first screen, and a quest being
-    played appeared in two of them at the same time.
+    lane, and the rumor lane (retired entirely by #874: a rumor is now a beat's
+    visibility, not a quest stage). All three asked about quests, each stood
+    mostly empty while together pushing the page past the first screen, and a
+    quest being played appeared in two of them at the same time.
 
     Merging them is not stacking them, and it is not grouping them either. Stage
     headings were the second wrong answer: once quests are properly built out,
@@ -54,7 +55,6 @@ const { data: liveChains, isLoading: chainsLoading } = useCampaignLiveQuests();
 const { data: npcs } = useNpcs();
 
 const activeQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "active"));
-const rumorQuests = computed(() => (allQuests.value ?? []).filter((q) => q.status === "rumor"));
 
 function giverName(quest: Quest): string | null {
   if (!quest.giver_npc_id) return null;
@@ -62,6 +62,6 @@ function giverName(quest: Quest): string | null {
 }
 
 const rows = computed(() =>
-  buildQuestRows(liveChains.value ?? [], activeQuests.value, rumorQuests.value, giverName),
+  buildQuestRows(liveChains.value ?? [], activeQuests.value, giverName),
 );
 </script>

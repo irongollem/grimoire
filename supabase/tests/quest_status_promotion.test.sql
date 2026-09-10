@@ -5,7 +5,7 @@ select plan(9);
 
 -- Two things called themselves "active" and never met: the DM-curated kanban
 -- lane and the live runtime cursor. A DM could be mid-session in a quest that
--- still sat in the Rumor lane and was absent from the dashboard entirely.
+-- still sat Undiscovered and was absent from the dashboard entirely.
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values ('75600000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'issue756-dm@example.invalid', '', '{}'::jsonb, '{}'::jsonb);
@@ -17,13 +17,13 @@ values ('75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-0000000
 on conflict (campaign_id, user_id) do update set role = excluded.role;
 
 insert into public.quests (id, user_id, campaign_id, title, status) values
-  ('75600000-0000-4000-8000-000000000020', '75600000-0000-4000-8000-000000000001', '75600000-0000-4000-8000-000000000010', 'Rumoured', 'rumor'),
+  ('75600000-0000-4000-8000-000000000020', '75600000-0000-4000-8000-000000000001', '75600000-0000-4000-8000-000000000010', 'Undiscovered too', 'undiscovered'),
   ('75600000-0000-4000-8000-000000000021', '75600000-0000-4000-8000-000000000001', '75600000-0000-4000-8000-000000000010', 'Unknown', 'undiscovered'),
   ('75600000-0000-4000-8000-000000000022', '75600000-0000-4000-8000-000000000001', '75600000-0000-4000-8000-000000000010', 'Finished', 'completed'),
   ('75600000-0000-4000-8000-000000000023', '75600000-0000-4000-8000-000000000001', '75600000-0000-4000-8000-000000000010', 'Lost', 'failed');
 
 insert into public.quest_beats (id, quest_id, campaign_id, title) values
-  ('75600000-0000-4000-8000-000000000030', '75600000-0000-4000-8000-000000000020', '75600000-0000-4000-8000-000000000010', 'Rumour beat'),
+  ('75600000-0000-4000-8000-000000000030', '75600000-0000-4000-8000-000000000020', '75600000-0000-4000-8000-000000000010', 'Undiscovered beat'),
   ('75600000-0000-4000-8000-000000000031', '75600000-0000-4000-8000-000000000021', '75600000-0000-4000-8000-000000000010', 'Unknown beat'),
   ('75600000-0000-4000-8000-000000000032', '75600000-0000-4000-8000-000000000022', '75600000-0000-4000-8000-000000000010', 'Callback beat'),
   ('75600000-0000-4000-8000-000000000033', '75600000-0000-4000-8000-000000000023', '75600000-0000-4000-8000-000000000010', 'Flashback beat');
@@ -36,9 +36,9 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select lives_ok($$ select public.transition_quest_runtime(
   '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000020', (select id from public.quest_threads where quest_id = '75600000-0000-4000-8000-000000000020' and label = 'Main'), 'start', 0,
-  '75600000-0000-4000-8000-000000000030') $$, 'a rumoured quest can be entered');
+  '75600000-0000-4000-8000-000000000030') $$, 'an undiscovered quest can be entered');
 select is((select status::text from public.quests where id = '75600000-0000-4000-8000-000000000020'),
-  'active', 'arriving in a rumoured quest promotes it to the Active lane');
+  'active', 'arriving in an undiscovered quest promotes it to the Active lane');
 
 select lives_ok($$ select public.transition_quest_runtime(
   '75600000-0000-4000-8000-000000000010', '75600000-0000-4000-8000-000000000021', (select id from public.quest_threads where quest_id = '75600000-0000-4000-8000-000000000021' and label = 'Main'), 'start', 0,

@@ -157,14 +157,7 @@ tombstone. It is null only while the quest has no beats at all — legacy data:
 `QuestFlowStarter` now writes the rumor beat together with the quest — titled
 "The rumor", `visibility: rumored`, because "rumor" is a visibility state and
 not a `kind`: the player journal already says a rumour is circulating before
-`rumor_text` is written (`hasSomethingToShow`, `playerThreads.ts`). The
-arrival ratchet (`private.promote_quest_on_cursor_arrival`, `20260822232041`)
-learned what that means in the same migration: a cursor standing on a
-`rumored` beat takes an `undiscovered` quest to **Rumor** and no further, and
-the first step onto any other beat takes it to **Active** — "the first beat
-being a rumor means at the next beat the quest is no longer a rumor." Still
-one-way, still never touching a verdict.
-`supabase/tests/quest_promotion_on_arrival.test.sql` walks exactly that. The DM moves it from the overview's **Opens at** field; the story flow
+`rumor_text` is written (`hasSomethingToShow`, `playerThreads.ts`). The DM moves it from the overview's **Opens at** field; the story flow
 marks the node with an "Entry" chip; the overview's "Opens at" block lists it
 first, before the other computed roots. The roots stay as the fallback and as
 the override picker's ranking.
@@ -255,8 +248,9 @@ rare, the gap does not exist.
 
 ### `quests`
 
-`title`, `status` (`quest_status_enum`: `undiscovered`, `rumor`, `active`,
-`completed`, `failed`), `summary`, `giver_npc_id`, `location_id`,
+`title`, `status` (`quest_status_enum`: `undiscovered`, `active`,
+`completed`, `failed` — **`rumor` was retired by #874**; a rumour is a beat's
+`visibility`, see `quest_beats`), `summary`, `giver_npc_id`, `location_id`,
 `parent_quest_id` (sub-quests, no depth limit), `tags`,
 `player_visible_to uuid[]` (null = never shared), `started_at` / `resolved_at`
 (**`started_at` is never written by anything**), `ai_provenance`.
@@ -744,13 +738,18 @@ and a NULL check passes. The one option list both authoring panels offer
 (`RELATIONSHIP_SHIFT_OPTIONS`, `src/lib/quests/consequences.ts`) puts the
 five stances first and defaults to "Becomes friendly".
 
-**`unlock_quest` promotes `undiscovered` → `rumor` and nothing else.** That was
-the one rung with no trigger: arrival already moves `rumor` → `active`, but
-nothing moved a quest _out_ of `undiscovered` except a DM editing it. It
-promotes to `rumor` rather than `active` because the party has _caused_ the
-sequel, not met it. Undo restores the previous status **only if the quest is
-still `rumor`** — a party that has since picked it up must not be yanked back
-into hiding by an unrelated step-back.
+**`unlock_quest` promotes `undiscovered` → `active` and marks the target's
+entry beat `rumored` if it was hidden.** That was the one rung with no
+trigger: nothing moved a quest _out_ of `undiscovered` except a DM editing it.
+It used to promote to a quest-level `rumor` lane, "because the party has
+_caused_ the sequel, not met it" — #874 retired that lane (since the redesign a
+quest is undiscovered · active · settled, and rumour is a _beat's_ visibility),
+so the same meaning now lives where the model says it does: the quest is
+active, and what the party knows of it is the rumoured entry beat the journal
+renders as "Rumoured: …". Undo restores `undiscovered` **only if the quest is
+still `active`** — one the DM has since settled is not yanked back into hiding
+by an unrelated step-back — and does not revert the beat's visibility: a rumour
+heard is not unheard, and the DM can hide the beat.
 
 **`unlock_quest` deliberately leaves `parent_quest_id` alone.** "Unlocked by"
 and "child of" are different relations: one trigger can legitimately open both a
@@ -1291,7 +1290,8 @@ toggle — the plain grid list is untouched by this epic).
   card raises), a "Payoff prepared" chip, Resume run (into the thread that is
   actually running), Story flow.
 - **Three groups**, replacing the old five-lane kanban's presentation without
-  changing how a card is dropped onto one: **Active** (`active`/`rumor`),
+  changing how a card is dropped onto one: **Active** (`active` — the
+  "Rumoured" sub-group went with the lane in #874),
   **"Undiscovered — waiting to be unlocked"** (`undiscovered`), **Settled**
   (`completed`/`failed`).
 - **`QuestBoardCard`** (every group) now draws **one spine row per live
@@ -1556,7 +1556,7 @@ Semantics not to re-litigate (from #755):
   `end_campaign_session`.
 - **Nesting is a sort hint.** A parent's cursor never aggregates its children's.
 
-`promote_quest_on_cursor_arrival` ratchets `quests.status` `undiscovered|rumor →
+`promote_quest_on_cursor_arrival` ratchets `quests.status` `undiscovered →
 active` on arrival, never demotes, never touches `completed`/`failed`.
 
 ---

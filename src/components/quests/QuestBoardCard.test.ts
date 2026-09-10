@@ -124,15 +124,6 @@ describe("QuestBoardCard", () => {
     expect(wrapper.find('[aria-label="Move The Salt-Drowned Bell to another status"]').exists()).toBe(false);
   });
 
-  it("flags a rumoured quest without hiding its live chip", () => {
-    const wrapper = mount(QuestBoardCard, {
-      props: { quest: quest({ status: "rumor" }), summary },
-      global,
-    });
-    expect(wrapper.text()).toContain("Rumoured");
-    expect(wrapper.text()).toContain("Party is here");
-  });
-
   it("draws one spine row per live thread instead of the single-thread seam", () => {
     const withThreads: QuestBoardSummary = {
       ...summary,

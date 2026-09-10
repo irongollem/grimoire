@@ -8,7 +8,7 @@ import type { CampaignLiveQuest, Quest } from "@/types/quest.types";
  * when the table closes, so treating "has a cursor" as "is being played" would
  * claim the party is standing in six scenes on a Sunday afternoon.
  */
-export type QuestStage = "here" | "paused" | "active" | "rumor";
+export type QuestStage = "here" | "paused" | "active";
 
 export interface DashboardQuestRowModel {
   id: string;
@@ -21,17 +21,18 @@ export interface DashboardQuestRowModel {
   runLink: boolean;
 }
 
-const RANK: Record<QuestStage, number> = { here: 0, paused: 1, active: 2, rumor: 3 };
+const RANK: Record<QuestStage, number> = { here: 0, paused: 1, active: 2 };
 
 /**
  * One row per quest, merged across every reading of the data.
  *
  * The dashboard used to carry three lists — chains with a live cursor, the
- * active lane, and the rumor lane — and a quest being played appeared in two of
- * them at once. Stacking them in a single card did not fix that; it only put
- * the duplicate closer to its twin. So the lists become one list, and a quest
- * that is both "in progress" and "in the active lane" is one row saying the more
- * urgent of the two things.
+ * active lane, and the rumor lane (retired entirely by #874: a rumor is now a
+ * beat's visibility, not a quest stage) — and a quest being played appeared in
+ * two of them at once. Stacking them in a single card did not fix that; it
+ * only put the duplicate closer to its twin. So the lists become one list,
+ * and a quest that is both "in progress" and "in the active lane" is one row
+ * saying the more urgent of the two things.
  *
  * A cursor always wins, because where the party is standing is the strongest
  * thing you can say about a quest — and it carries the beat, which is more use
@@ -40,7 +41,6 @@ const RANK: Record<QuestStage, number> = { here: 0, paused: 1, active: 2, rumor:
 export function buildQuestRows(
   chains: CampaignLiveQuest[],
   activeQuests: Quest[],
-  rumorQuests: Quest[],
   giverName: (quest: Quest) => string | null,
 ): DashboardQuestRowModel[] {
   const byId = new Map<string, DashboardQuestRowModel>();
@@ -57,7 +57,6 @@ export function buildQuestRows(
   };
 
   for (const quest of activeQuests) fromLane(quest, "active");
-  for (const quest of rumorQuests) fromLane(quest, "rumor");
 
   // Chains last so they overwrite the lane reading of the same quest. A chain
   // can also belong to a quest in neither lane — completed, revisited — and it

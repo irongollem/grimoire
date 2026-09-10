@@ -190,16 +190,16 @@ select is(
 );
 
 -- ════════════════════════════════════════════════════════════════════════════
--- 6. A rule on a rumor-status quest does not fire
+-- 6. A rule on a non-active quest does not fire (#869: only ACTIVE quests fire)
 -- ════════════════════════════════════════════════════════════════════════════
 
 reset role;
 
 insert into public.quests (id, user_id, campaign_id, title, status)
-values ('86900000-0000-4000-8000-000000000035', '86900000-0000-4000-8000-000000000001', '86900000-0000-4000-8000-000000000010', 'Rumored Below', 'rumor');
+values ('86900000-0000-4000-8000-000000000035', '86900000-0000-4000-8000-000000000001', '86900000-0000-4000-8000-000000000010', 'Undiscovered Below', 'undiscovered');
 
 insert into public.quest_objectives (id, quest_id, description, status, sort_order) values
-  ('86900000-0000-4000-8000-000000000056', '86900000-0000-4000-8000-000000000035', 'Rumor objective', 'pending', 1);
+  ('86900000-0000-4000-8000-000000000056', '86900000-0000-4000-8000-000000000035', 'Undiscovered objective', 'pending', 1);
 
 insert into public.quest_consequences (id, quest_id, on_location_id, on_location_fact, action, target_objective_id)
 values ('86900000-0000-4000-8000-000000000076', '86900000-0000-4000-8000-000000000035',
@@ -212,13 +212,13 @@ select set_config('request.jwt.claim.sub', '86900000-0000-4000-8000-000000000001
 select lives_ok(
   $$insert into public.location_state_events (user_id, location_id, fact, value)
     values ('86900000-0000-4000-8000-000000000001', '86900000-0000-4000-8000-000000000021', 'looted', true)$$,
-  'the Antechamber is asserted looted while the watching quest is only a rumor'
+  'the Antechamber is asserted looted while the watching quest is still undiscovered'
 );
 
 select is(
   (select status from public.quest_objectives where id = '86900000-0000-4000-8000-000000000056'),
   'pending',
-  'a rumor-status quest''s rule does not fire -- it waits for the next assertion once active'
+  'an undiscovered quest''s rule does not fire -- it waits for the next assertion once active'
 );
 
 -- ════════════════════════════════════════════════════════════════════════════

@@ -41,31 +41,17 @@
           class="flex min-h-40 flex-1 flex-col gap-2 rounded-lg border border-border bg-muted/20 p-2 transition-colors"
           :class="dragOverGroup === group.key && draggedQuestId ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''"
         >
-          <template v-for="(section, index) in group.sections" :key="section.key">
-            <!-- A rumour is its own stage of the lifecycle (undiscovered →
-                 rumoured → active → settled). It folds into Active on the
-                 board because the party is already living with it, but it is
-                 named, not hidden behind a chip. -->
-            <div
-              v-if="section.heading && (section.quests.length || index > 0)"
-              class="flex items-center gap-2 pt-1"
-              :class="index > 0 && 'mt-1 border-t border-border/60 pt-2'"
-            >
-              <span class="text-label uppercase tracking-wide text-ink-arcane">{{ section.heading }}</span>
-              <span class="text-caption text-muted-foreground">{{ section.caption }}</span>
-            </div>
-            <QuestBoardCard
-              v-for="quest in section.quests"
-              :key="quest.id"
-              :quest="quest"
-              :party="party"
-              :summary="summaries?.[quest.id]"
-              :dragging="draggedQuestId === quest.id"
-              @dragstart="startDrag"
-              @dragend="endDrag"
-              @move="moveQuest(quest.id, $event)"
-            />
-          </template>
+          <QuestBoardCard
+            v-for="quest in group.quests"
+            :key="quest.id"
+            :quest="quest"
+            :party="party"
+            :summary="summaries?.[quest.id]"
+            :dragging="draggedQuestId === quest.id"
+            @dragstart="startDrag"
+            @dragend="endDrag"
+            @move="moveQuest(quest.id, $event)"
+          />
 
           <div v-if="!group.quests.length" class="flex flex-1 items-center justify-center px-4 py-8 text-center">
             <p v-if="group.unfilteredCount" class="font-fell text-sm italic text-muted-foreground">{{ group.unfilteredCount }} {{ group.shortLabel }} quest{{ group.unfilteredCount === 1 ? '' : 's' }} filtered out.</p>
@@ -79,16 +65,17 @@
 
 <script setup lang="ts">
 /**
- * Frame `07 Log`: three groups replace the five-lane kanban's presentation.
- * The lane *statuses* underneath are unchanged — `QUEST_STATUSES` still has
- * five rungs, and `QuestBoardCard`'s own prev/next arrows still walk all of
- * them one at a time — only how they are grouped and dropped onto changes.
+ * Frame `07 Log`: three groups replace the old five-lane kanban's
+ * presentation. The lane *statuses* underneath are unchanged — `QUEST_STATUSES`
+ * still has four rungs, and `QuestBoardCard`'s own prev/next arrows still walk
+ * all of them one at a time — only how they are grouped and dropped onto
+ * changes.
  *
  * Deleted here: the per-status "New … quest" quick-add button each of the
  * five lanes carried. It assumed one status per drop target, which a group
- * spanning two statuses (`active`+`rumor`, `completed`+`failed`) no longer
- * gives it an honest answer for, and the mockup does not carry one either —
- * the page-level "New quest" action already covers it.
+ * spanning two statuses (`completed`+`failed`) no longer gives it an honest
+ * answer for, and the mockup does not carry one either — the page-level "New
+ * quest" action already covers it.
  */
 import { computed, ref, type Component } from "vue";
 import { IconCheck, IconLock, IconQuest } from "@/lib/icons";
@@ -123,31 +110,22 @@ interface QuestGroupDefinition {
   shortLabel: string;
   icon: Component;
   statuses: readonly QuestStatus[];
-  /** The status a drop onto this group's zone sets — never `rumor`/`failed`,
-   *  which stay reachable only through the card's own ladder arrows. */
+  /** The status a drop onto this group's zone sets — never `failed`, which
+   *  stays reachable only through the card's own ladder arrows. */
   primaryStatus: QuestStatus;
 }
 
 const GROUP_DEFINITIONS: readonly QuestGroupDefinition[] = [
-  { key: "active", heading: "Active", shortLabel: "active", icon: IconQuest, statuses: ["active", "rumor"], primaryStatus: "active" },
+  { key: "active", heading: "Active", shortLabel: "active", icon: IconQuest, statuses: ["active"], primaryStatus: "active" },
   { key: "undiscovered", heading: "Undiscovered — waiting to be unlocked", shortLabel: "undiscovered", icon: IconLock, statuses: ["undiscovered"], primaryStatus: "undiscovered" },
   { key: "settled", heading: "Settled", shortLabel: "settled", icon: IconCheck, statuses: ["completed", "failed"], primaryStatus: "completed" },
 ];
 
 const groups = computed(() => GROUP_DEFINITIONS.map((definition) => {
   const inGroup = quests.filter((quest) => definition.statuses.includes(quest.status));
-  // Active carries its rumoured quests under their own heading; every other
-  // group is one unlabelled run of cards.
-  const sections = definition.key === "active"
-    ? [
-        { key: "active", heading: null, caption: null, quests: inGroup.filter((quest) => quest.status === "active") },
-        { key: "rumor", heading: "Rumoured", caption: "heard of, not yet begun", quests: inGroup.filter((quest) => quest.status === "rumor") },
-      ].filter((section) => section.quests.length > 0 || section.key === "active")
-    : [{ key: definition.key, heading: null, caption: null, quests: inGroup }];
   return {
     ...definition,
     quests: inGroup,
-    sections,
     unfilteredCount: (allQuests ?? quests).filter((quest) => definition.statuses.includes(quest.status)).length,
   };
 }));
@@ -179,10 +157,10 @@ function dropOn(key: QuestGroupKey) {
   const quest = quests.find((candidate) => candidate.id === id);
   const group = groups.value.find((candidate) => candidate.key === key);
   if (!quest || !group) return;
-  // Dropping onto the group a card already belongs to (e.g. a `rumor` quest
-  // dropped back onto Active) must not silently reassign it to the group's
-  // primary status — that would demote a confirmed `active` reading of a
-  // rumoured quest to something the DM never asked for.
+  // Dropping onto the group a card already belongs to (e.g. a `completed`
+  // quest dropped back onto Settled) must not silently reassign it to the
+  // group's primary status — that would move it to something the DM never
+  // asked for.
   if (group.statuses.includes(quest.status)) return;
   moveQuest(id, group.primaryStatus);
 }

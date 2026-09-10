@@ -1,10 +1,11 @@
 <template>
   <!--
-    One row for every quest, whatever stage it is at.
-Rumors used to render as chips and active quests as rows, which said they were
-    different kinds of thing. They are not: a rumor is a quest the party has
-    heard about and an active quest is one they have taken up. The stage belongs
-    in the dot and the trailing label, never in the shape of the row. See #759.
+    One row for every quest, whatever stage it is at. Rumors and active quests
+    used to render as different shapes — a chip versus a row — which said they
+    were different kinds of thing. They weren't (and since #874 there is no
+    quest-level rumor stage at all — a rumor is a beat's visibility). The stage
+    belongs in the dot and the trailing label, never in the shape of the row.
+    See #759.
   -->
   <RouterLink
     :to="row.runLink ? { path: `/quests/${row.id}`, query: { view: 'run' } } : `/quests/${row.id}`"
@@ -46,6 +47,5 @@ const STAGES = {
   here:   { dot: "bg-primary",      badge: "Party is here", badgeClass: "text-primary" },
   paused: { dot: "bg-muted-foreground", badge: "Paused",    badgeClass: "text-muted-foreground" },
   active: { dot: "bg-tone-success", badge: "",              badgeClass: "" },
-  rumor:  { dot: "bg-tone-caution", badge: "Rumor",         badgeClass: "text-muted-foreground/70" },
 } as const;
 </script>

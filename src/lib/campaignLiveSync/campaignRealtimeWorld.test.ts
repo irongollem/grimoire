@@ -41,10 +41,10 @@ describe("applyCampaignRealtimeWorld", () => {
 
   it("moves quests between status and subquest lists while invalidating, not replacing, player projections", () => {
     const qc = new QueryClient();
-    const previous = row({ id: "quest-1", status: "rumor", parent_quest_id: "parent-a", notes: "secret" });
+    const previous = row({ id: "quest-1", status: "undiscovered", parent_quest_id: "parent-a", notes: "secret" });
     const next = row({ ...previous, status: "active", parent_quest_id: "parent-b", notes: "still secret" });
     const playerProjection = [{ id: "quest-1", title: "Public", notes: null }];
-    qc.setQueryData(["quests", "campaign-1", "rumor"], [previous]);
+    qc.setQueryData(["quests", "campaign-1", "undiscovered"], [previous]);
     qc.setQueryData(["quests", "campaign-1", "active"], []);
     qc.setQueryData(["quests", "sub", "parent-a"], [previous]);
     qc.setQueryData(["quests", "sub", "parent-b"], []);
@@ -53,7 +53,7 @@ describe("applyCampaignRealtimeWorld", () => {
     qc.setQueryData(["encounter_quests", "encounter-1"], [{ id: "quest-1", title: "Old" }]);
 
     expect(applyCampaignRealtimeWorld(qc, "quests", { eventType: "UPDATE", old: previous, new: next }, dm)).toBe(true);
-    expect(qc.getQueryData(["quests", "campaign-1", "rumor"])).toEqual([]);
+    expect(qc.getQueryData(["quests", "campaign-1", "undiscovered"])).toEqual([]);
     expect(qc.getQueryData(["quests", "campaign-1", "active"])).toEqual([next]);
     expect(qc.getQueryData(["quests", "sub", "parent-a"])).toEqual([]);
     expect(qc.getQueryData(["quests", "sub", "parent-b"])).toEqual([next]);

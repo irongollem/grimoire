@@ -164,53 +164,47 @@ alter table public.quest_consequences
 comment on column public.quest_consequences.entry_beat_id is
   'unlock_quest only: the beat of target_quest_id the party comes in at through this bridge. Null means the target''s own entry_beat_id.';
 
--- ── The ratchet learns what a rumored beat means ────────────────────────────
+
+-- ── get_player_visible_quests returns the row, not a column list ────────────
 --
--- 20260822232041 promotes a quest to `active` the moment any cursor stands in
--- it. Now that a quest opens on its rumor beat, that would make "Start here"
--- on the rumor an *active* quest while the party has only heard of it. The
--- maintainer's model: "you are in beat 1 [the rumor], then you make a choice
--- which flows you to beat 2 — the first beat being a rumor means at the next
--- beat the quest is no longer a rumor." So the ratchet now reads the beat's
--- visibility: arriving at a `rumored` beat promotes `undiscovered` → `rumor`
--- and no further; arriving at any other beat promotes `undiscovered`/`rumor`
--- → `active`, as before. Still one-way, still never touching a verdict.
-create or replace function private.promote_quest_on_cursor_arrival()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, private
-as $$
-declare
-  v_visibility text;
+-- The players' quest RPC is declared `returns setof quests` but selected
+-- sixteen named columns. Adding `entry_beat_id` above made the row seventeen
+-- wide, and PostgREST answered every player's quest log with 42804 "structure
+-- of query does not match function result type" — found the same day by
+-- looking at the player view as the player fixture, which is the only place
+-- it could have been found: no test called the RPC as a player after a
+-- column was added. `q.*` follows the declared return type by construction,
+-- so the next column cannot break it; the row carries nothing a player may
+-- not see (the beat ids it names are the same ids the beats RPC hands out).
+create or replace function public.get_player_visible_quests(p_campaign_id uuid DEFAULT NULL::uuid, p_quest_id uuid DEFAULT NULL::uuid, p_preview_party_member_id uuid DEFAULT NULL::uuid)
+ RETURNS SETOF quests
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'private'
+AS $function$
 begin
-  -- Ending a chain nulls its cursor. Leaving the quest as it is stays right:
-  -- the party did play it, and only the DM decides it is finished.
-  if new.current_beat_id is null then
-    return new;
-  end if;
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if p_preview_party_member_id is not null and not exists (
+    select 1 from public.party_members pm
+    where pm.id = p_preview_party_member_id
+      and (p_campaign_id is null or pm.campaign_id = p_campaign_id)
+      and coalesce(private.is_campaign_dm(pm.campaign_id), false)
+  ) then raise exception 'Preview audience is not available to this DM'; end if;
 
-  select b.visibility into v_visibility
-  from public.quest_beats b
-  where b.id = new.current_beat_id;
-
-  if v_visibility = 'rumored' then
-    update public.quests
-       set status = 'rumor'
-     where id = new.quest_id
-       and status = 'undiscovered';
-  else
-    update public.quests
-       set status = 'active'
-     where id = new.quest_id
-       and status in ('undiscovered', 'rumor');
-  end if;
-
-  return new;
+  -- Column list narrowed by #799. A SETOF quests projection cannot name a
+  -- column that no longer exists, and the quest-level payout fields are dropped
+  -- below: loot is an event, so it reaches players through the beat that grants
+  -- it (loot_placements, renamed from quest_beat_loot by #830 when rooms
+  -- gained the same verb), not through the quest header.
+  return query select q.*
+  from public.quests q
+  where q.campaign_id is not null
+    and (p_campaign_id is null or q.campaign_id = p_campaign_id)
+    and (p_quest_id is null or q.id = p_quest_id)
+    and case
+      when p_preview_party_member_id is null then private.is_quest_player_visible(q.id)
+      else p_preview_party_member_id = any(q.player_visible_to)
+        and coalesce(private.is_campaign_dm(q.campaign_id), false)
+    end;
 end;
-$$;
-
-revoke all on function private.promote_quest_on_cursor_arrival() from public, anon, authenticated;
-
-comment on function private.promote_quest_on_cursor_arrival() is
-  'Promotes a quest as a runtime cursor enters it: a rumored beat takes undiscovered to rumor; any other beat takes undiscovered/rumor to active. One-way: never demotes, and never touches a completed or failed verdict.';
+$function$;

@@ -421,11 +421,10 @@ watch(
 );
 
 // Statuses that render in a Quest Log group — the badge counts exactly these.
-const QUEST_LOG_STATUSES: readonly string[] = ["active", "rumor", "completed", "failed"];
+const QUEST_LOG_STATUSES: readonly string[] = ["active", "completed", "failed"];
 
 const questGroups = computed<[string, Quest[]][]>(() => [
   ["Active",    (playerQuests.value ?? []).filter((q) => q.status === "active")],
-  ["Rumors",    (playerQuests.value ?? []).filter((q) => q.status === "rumor")],
   ["Completed", (playerQuests.value ?? []).filter((q) => q.status === "completed")],
   ["Failed",    (playerQuests.value ?? []).filter((q) => q.status === "failed")],
 ]);

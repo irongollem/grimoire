@@ -17,15 +17,6 @@
       >
         {{ quest.title || "Untitled Quest" }}
       </RouterLink>
-      <!-- A rumoured quest is still shown among the active ones (the party has
-           heard of it, it just is not confirmed) — this is the one fact that
-           distinguishes it there. -->
-      <span
-        v-if="quest.status === 'rumor'"
-        class="inline-flex shrink-0 items-center gap-1 rounded bg-tone-arcane/15 px-1.5 py-0.5 text-label uppercase text-ink-arcane"
-      >
-        Rumoured
-      </span>
       <!-- Same words and same glyph as the graph node and the outline: one
            vocabulary for one fact, so a DM never has to learn that "Live" here
            and "Party is here" there mean the same thing. -->
@@ -192,19 +183,6 @@
           label="Draft beats"
           size="xs"
           variant="subtle"
-        />
-        <!-- A rumour is a real stage, not a chip: the party has heard of the
-             quest and not begun it. Confirming it is the DM's call (the party
-             arriving at its first beat does the same thing automatically). -->
-        <AppButton
-          v-if="quest.status === 'rumor'"
-          label="Confirm"
-          :tooltip="`The party takes it up — ${quest.title || 'this quest'} becomes active`"
-          size="xs"
-          variant="tinted"
-          tone="arcane"
-          emphasis="soft"
-          @click="emit('move', 'active')"
         />
         <AppButton
           v-if="previousStatus"

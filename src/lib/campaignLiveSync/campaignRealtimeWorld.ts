@@ -12,7 +12,7 @@ interface Context {
   isDM: boolean;
 }
 
-const QUEST_STATUSES = new Set(["undiscovered", "rumor", "active", "completed", "failed"]);
+const QUEST_STATUSES = new Set(["undiscovered", "active", "completed", "failed"]);
 
 function isString(value: unknown): value is string {
   return typeof value === "string";
