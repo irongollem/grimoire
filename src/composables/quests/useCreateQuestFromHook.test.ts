@@ -209,4 +209,27 @@ describe("useCreateQuestFromHook", () => {
       location_id: "loc-1",
     });
   });
+
+  it("writes parent_quest_id when the caller supplies one (#873), and null when it doesn't", async () => {
+    const { createFromHook } = useCreateQuestFromHook();
+    await createFromHook({
+      hook: hook(),
+      giverNpcId: "",
+      locationId: "",
+      entityPools: emptyPools,
+      aiProvenance: null,
+      parentQuestId: "quest-parent-1",
+    });
+    expect(mocks.createQuest.mock.calls[0]![0]).toMatchObject({ parent_quest_id: "quest-parent-1" });
+
+    mocks.createQuest.mockClear();
+    await createFromHook({
+      hook: hook(),
+      giverNpcId: "",
+      locationId: "",
+      entityPools: emptyPools,
+      aiProvenance: null,
+    });
+    expect(mocks.createQuest.mock.calls[0]![0]).toMatchObject({ parent_quest_id: null });
+  });
 });

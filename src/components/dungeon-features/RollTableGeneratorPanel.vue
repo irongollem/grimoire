@@ -209,7 +209,7 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useCreateRollTable } from "@/composables/dungeon-features/useRollTables";
 import { useRollTableGeneration } from "@/ai/useRollTableGeneration";
-import { resolveGeneratedEntities, type ResolvedEntity } from "@/ai/resolveGeneratedEntities";
+import { resolveGeneratedEntities, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
 import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
@@ -267,16 +267,10 @@ const resolvedEntities = computed<ResolvedEntity[]>(() =>
   result.value ? resolveGeneratedEntities(result.value, entityPools.value) : [],
 );
 
-const ENTITY_CHIP_ROUTE: Record<ResolvedEntity["kind"], string> = {
-  npc: "/npcs",
-  location: "/locations",
-  faction: "/factions",
-};
-
 function goToEntity(entity: ResolvedEntity) {
   if (!entity.id) return;
   ui.rollTableGeneratorOpen = false;
-  router.push(`${ENTITY_CHIP_ROUTE[entity.kind]}/${entity.id}`);
+  router.push(`${ENTITY_KIND_ROUTE[entity.kind]}/${entity.id}`);
 }
 
 const { costOf, affordable } = useAiCredits();

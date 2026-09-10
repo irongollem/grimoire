@@ -878,7 +878,7 @@ why it stopped being a modal on 8 Sep 2026), creating one is the full editor,
 and a beat is a full-screen surface in its own right — none of them has a list
 to sit over. Static segments outrank `:id`, so `/quests/new` still wins.
 
-**Three ways to start a quest**, all reachable without leaving the quest list:
+**Four ways to start a quest**, all reachable without leaving the quest list:
 typing one (`QuestFlowStarter.vue`'s own form — title, starting lane, optional
 premise), generating one (`QuestGeneratorPanel.vue`, opened from the list's
 "Generate" button), and — since #839 — pasting a page from a book
@@ -893,6 +893,41 @@ anything else the page yielded (locations, NPCs, monsters…) is a per-group
 toggle in that same confirmation, defaulted on. The full step-per-kind wizard
 in Campaign Settings → Document Import is unchanged and still the way to
 bulk-import a whole chapter.
+
+**Paste a page and Design it appear only while the campaign's AI is on** —
+both run the campaign's AI (an extraction, a model conversation), so a DM who
+switched it off sees "Type it" alone rather than a mode that only leads to a
+refusal, the way the NPC and monster sheets hide their AI buttons.
+
+**The fourth — since #873 — is designing one in conversation** ("Design it",
+the third `SegmentedControl` mode: `QuestDesignerPanel.vue`). The DM writes
+what the quest is and the stages they see; the model proposes the whole tree
+in the #822 representation and, where a fork is genuinely ambiguous, **asks
+back** (`QuestDesignQuestionCard.vue` — what it is about, why, two to four
+options, free text as the escape hatch) rather than guessing or flattening.
+The maintainer's framing, from #823: "asking back questions when it thinks a
+fork may need more or less options but isn't sure." Answering revises the
+tree in place — `QuestDesignTreePreview.vue` badges each beat new / changed
+and lists what was removed, from `diffDesignTrees` (`lib/quests/designer.ts`)
+— and an empty question list means the tree is settled. "Create quest" lands
+it through `useCreateQuestFromHook` exactly as a generated hook lands, with
+`ai_provenance.generatorType = "quest_design"`.
+
+Three decisions, all in the epic and the edge function's header: **turns are
+stateless** (nothing in this app holds a conversation and `callText` is one
+system + one user message on every provider, so each turn carries the prose,
+the previous tree and every answer so far, and the model returns the whole
+tree with stable keys — "revise only what the answers affect" is a prompt
+rule the client diff makes visible); **a fast model per provider**
+(`provider_config.fast_text_model`, null = fall back to `text_model`,
+editable on the admin Providers tab, because a back-and-forth cannot wait on
+the strongest model each turn); and **priced per exchange with a running
+total and a ten-turn budget** (`quest_design_turn`, 1 credit; the budget is
+enforced server-side by the `turn` number the client sends), so a DM who
+answers eight questions is never surprised by eight charges — they watched
+the total climb. Single sitting, create only: editing an existing tree is a
+different feature (#834's diff surface, not built), and nothing here touches
+runtime, the ledger or an existing quest.
 
 `/quests/:id` is a full page with three permanent tabs — **Overview · Story
 flow · Run** — behind one `SegmentedControl`, selected by `?view=overview|work|run`.

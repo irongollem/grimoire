@@ -115,7 +115,16 @@ export interface QuotaResult {
 
 export type CreditPackId = 'starter' | 'standard' | 'bulk'
 
-export type AiGenerationType = 'portrait' | 'npc_text' | 'monster_stat_block' | 'music_clip' | 'music_full_song'
+export type AiGenerationType =
+  | 'portrait'
+  | 'npc_text'
+  | 'monster_stat_block'
+  | 'music_clip'
+  | 'music_full_song'
+  // #873: one exchange with the Quest Designer (quest-designer-turn edge
+  // function) — the per-turn conversational alternative to the one-shot
+  // quest_generation hook generator.
+  | 'quest_design_turn'
 
 export const CREDIT_COST: Record<AiGenerationType, number> = {
   portrait:           2,
@@ -123,6 +132,7 @@ export const CREDIT_COST: Record<AiGenerationType, number> = {
   monster_stat_block: 1,
   music_clip:         1,
   music_full_song:    2,
+  quest_design_turn:  1,
 } as const
 
 // Display fallback only — real packs (credits + Stripe-synced prices) come from

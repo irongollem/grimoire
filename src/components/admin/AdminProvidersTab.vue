@@ -96,7 +96,27 @@
             capability="text"
             :known-models="providerModelOptions[row.provider]"
             placeholder="e.g. gpt-5.6-luna"
-          />
+          >
+            <template #extra>
+              <div class="space-y-1">
+                <label class="block text-label text-muted-foreground">Fast model</label>
+                <AppInput
+                  v-model="draftProviders[row.provider].fast_text_model"
+                  :list="`fast-text-models-${row.provider}`"
+                  type="text"
+                  size="caption"
+                  class="font-mono"
+                  placeholder="Falls back to the text model"
+                />
+                <datalist :id="`fast-text-models-${row.provider}`">
+                  <option v-for="m in providerModelOptions[row.provider]" :key="m" :value="m" />
+                </datalist>
+                <p class="text-caption-sm text-muted-foreground/60 italic">
+                  Used by the quest designer's back-and-forth turns. Leave empty to use the text model.
+                </p>
+              </div>
+            </template>
+          </ProviderCapabilityCell>
 
           <!-- Image generation -->
           <ProviderCapabilityCell
@@ -328,6 +348,7 @@ watch(
         draftProviders[r.provider] = {
           provider:          r.provider,
           text_model:        r.text_model,
+          fast_text_model:   r.fast_text_model,
           image_model:       r.image_model,
           image_quality:     r.image_quality,
           audio_model:       r.audio_model,
@@ -350,7 +371,11 @@ async function saveProvider(provider: string) {
   providerSaving[provider] = true;
   providerSaveError[provider] = "";
   try {
-    await updateProvider.mutateAsync(draftProviders[provider]);
+    const draft = draftProviders[provider]!;
+    // A cleared Fast model box is "fall back to the text model", which the
+    // edge function reads as null — an empty string would be sent as a model
+    // id and fail the provider call instead of falling back.
+    await updateProvider.mutateAsync({ ...draft, fast_text_model: draft.fast_text_model?.trim() || null });
   } catch (err) {
     providerSaveError[provider] = err instanceof Error ? err.message : "Save failed.";
   } finally {
@@ -465,6 +490,7 @@ watch(
 
     for (const p of providers ?? []) {
       initModel(p.text_model);
+      initModel(p.fast_text_model);
       initModel(p.image_model);
       // For audio: initialize all known models for the provider, not just the DB-configured one.
       const knownAudio = KNOWN_AUDIO_MODELS[p.provider];
@@ -504,6 +530,11 @@ const modelsByProvider = computed(() => {
     if (!draft) continue;
     const items: ModelConfigItem[] = [];
     if (draft.text_model)  items.push({ model: draft.text_model,  model_type: "text" });
+    // Only when it names a distinct model -- otherwise it's the same pricing
+    // row as text_model and a second entry would duplicate the v-for :key.
+    if (draft.fast_text_model && draft.fast_text_model !== draft.text_model) {
+      items.push({ model: draft.fast_text_model, model_type: "text" });
+    }
     if (draft.image_model) items.push({ model: draft.image_model, model_type: "image" });
     const knownAudio = KNOWN_AUDIO_MODELS[provider];
     if (knownAudio?.length && draft.audio_model) {

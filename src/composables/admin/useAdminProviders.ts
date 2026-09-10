@@ -4,6 +4,12 @@ import { supabase } from "@/lib/supabase";
 export interface ProviderConfig {
   provider: string;
   text_model: string | null;
+  /**
+   * Cheaper/faster text model for high-volume, low-stakes turns (currently:
+   * the quest designer's back-and-forth). Null falls back to text_model —
+   * see quest-designer-turn's provider resolution (#873).
+   */
+  fast_text_model: string | null;
   image_model: string | null;
   image_quality: string | null;
   audio_model: string | null;

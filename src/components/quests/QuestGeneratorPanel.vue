@@ -283,7 +283,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
-import { resolveGeneratedEntities, type ResolvedEntity } from "@/ai/resolveGeneratedEntities";
+import { resolveGeneratedEntities, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
 import { describeSpineRoutes, planSpineBeats } from "@/lib/quests/spine";
 import { useToast } from "@/composables/useToast";
 import type { QuestHookResult } from "@/ai/types";
@@ -343,16 +343,10 @@ const resolvedEntitiesByHook = computed<ResolvedEntity[][]>(() =>
   hooks.value.map((hook) => resolveGeneratedEntities(hook, entityPools.value)),
 );
 
-const ENTITY_CHIP_ROUTE: Record<ResolvedEntity["kind"], string> = {
-  npc: "/npcs",
-  location: "/locations",
-  faction: "/factions",
-};
-
 function goToEntity(entity: ResolvedEntity) {
   if (!entity.id) return;
   ui.questGeneratorOpen = false;
-  router.push(`${ENTITY_CHIP_ROUTE[entity.kind]}/${entity.id}`);
+  router.push(`${ENTITY_KIND_ROUTE[entity.kind]}/${entity.id}`);
 }
 
 const { costOf, affordable } = useAiCredits();

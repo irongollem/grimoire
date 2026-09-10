@@ -10,6 +10,10 @@
           Copy a page from an adventure book — the quest lands with its story beats already wired, and anything
           else on the page (locations, NPCs, monsters…) comes along too if you want it.
         </template>
+        <template v-else-if="startMode === 'design'">
+          Describe the quest in your own words — the model proposes a beat tree and asks where your prose leaves
+          a fork ambiguous, until it's settled or you're ready to create it.
+        </template>
         <template v-else>
           The overview opens next — the quest's premise, stakes, rewards, and the material that spans the whole
           story. Build the beats from there once you know what the quest is.
@@ -49,13 +53,15 @@
       </div>
     </template>
 
-    <QuestPasteImportPanel v-else :parent-id="parentId ?? null" />
+    <QuestPasteImportPanel v-else-if="startMode === 'paste'" :parent-id="parentId ?? null" />
+    <QuestDesignerPanel v-else-if="startMode === 'design'" :parent-id="parentId ?? null" />
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useCampaignStore } from "@/stores/campaign";
 import { useCreateQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useCreateQuest } from "@/composables/quests/useQuests";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
@@ -65,21 +71,40 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import QuestPasteImportPanel from "@/components/quests/QuestPasteImportPanel.vue";
-import { IconClipboard, IconEdit } from "@/lib/icons";
+import QuestDesignerPanel from "@/components/quests/QuestDesignerPanel.vue";
+import { IconClipboard, IconEdit, IconGenerate } from "@/lib/icons";
 
 const { parentId = null } = defineProps<{ parentId?: string | null }>();
 
-/** A third way to start a quest, beside typing one (below) and generating
- *  one (`QuestGeneratorPanel.vue`, opened from the quest list) — pasting a
- *  page from a book (#839). See `QuestPasteImportPanel.vue`'s own header for
- *  why this reuses the settings importer's extraction rather than forking
- *  it. */
-type StartMode = "type" | "paste";
+/** A fourth way to start a quest, beside typing one (below), generating one
+ *  (`QuestGeneratorPanel.vue`, opened from the quest list), and pasting a
+ *  page from a book (#839, `QuestPasteImportPanel.vue`) — a multi-turn
+ *  conversation with the quest-designer model (#873,
+ *  `QuestDesignerPanel.vue`): the DM describes the quest in prose, the model
+ *  proposes a beat tree and asks where the prose leaves a fork genuinely
+ *  ambiguous. */
+type StartMode = "type" | "paste" | "design";
 const startMode = ref<StartMode>("type");
-const START_MODE_OPTIONS: SegmentedOption<StartMode>[] = [
+const campaign = useCampaignStore();
+// "Paste a page" and "Design it" both run the campaign's AI — the paste mode
+// is a document extraction, the designer a model conversation — so a DM who
+// switched AI off for this campaign does not see them at all, the same way
+// the NPC and monster sheets hide their AI buttons rather than offering a
+// mode that only leads to a refusal. Only "Type it" is unconditional.
+const START_MODE_OPTIONS = computed<SegmentedOption<StartMode>[]>(() => [
   { value: "type", label: "Type it", icon: IconEdit },
-  { value: "paste", label: "Paste a page", icon: IconClipboard },
-];
+  ...(campaign.isAiEnabled
+    ? [
+      { value: "paste" as const, label: "Paste a page", icon: IconClipboard },
+      { value: "design" as const, label: "Design it", icon: IconGenerate },
+    ]
+    : []),
+]);
+// AI switched off mid-visit: an AI mode with no button is not a state to
+// leave the page in.
+watch(() => campaign.isAiEnabled, (enabled) => {
+  if (!enabled && startMode.value !== "type") startMode.value = "type";
+});
 const router = useRouter();
 const createQuest = useCreateQuest();
 const createBeat = useCreateQuestBeat();

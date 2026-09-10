@@ -9,6 +9,19 @@
  * back with `id: null` so the panel can offer "create this" instead of
  * silently losing what the model wrote.
  */
+/**
+ * Where a resolved entity chip navigates, by kind. One map, not one per
+ * panel: it was copied verbatim into three generator panels before the
+ * quest designer would have made it four. The per-panel `goToEntity` stays
+ * local because closing the panel first differs per consumer — see
+ * `GeneratedEntityChips.vue`.
+ */
+export const ENTITY_KIND_ROUTE: Record<ResolvedEntity["kind"], string> = {
+  npc: "/npcs",
+  location: "/locations",
+  faction: "/factions",
+};
+
 export interface ResolvedEntity {
   kind: "npc" | "location" | "faction";
   name: string;

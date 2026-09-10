@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabase";
 export interface ProviderConfigRow {
   provider: string;
   text_model: string | null;
+  /** Falls back to text_model when null — see useAdminProviders.ts's ProviderConfig. */
+  fast_text_model: string | null;
   image_model: string | null;
   text_multiplier: number | null;
   image_multiplier: number | null;
@@ -34,7 +36,7 @@ export function useProviderConfig() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("provider_config")
-        .select("provider, text_model, image_model, text_multiplier, image_multiplier, text_enabled, image_enabled")
+        .select("provider, text_model, fast_text_model, image_model, text_multiplier, image_multiplier, text_enabled, image_enabled")
         .order("provider");
       if (error) throw error;
       return data as ProviderConfigRow[];

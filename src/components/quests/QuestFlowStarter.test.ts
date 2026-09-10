@@ -3,11 +3,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestFlowStarter from "./QuestFlowStarter.vue";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
 
+// QuestDesignerPanel (#873) pulls in a wide composable surface of its own
+// (subscription, credits, provider config, npc/location/faction pools, the
+// designer composable itself) that this file has no reason to exercise —
+// QuestDesignerPanel.test.ts already covers its behaviour. Stubbing it here
+// keeps this file testing only what QuestFlowStarter itself is responsible
+// for: which panel renders for which mode.
+vi.mock("@/components/quests/QuestDesignerPanel.vue", () => ({
+  default: { name: "QuestDesignerPanel", props: ["parentId"], template: "<div>Designer panel stub</div>" },
+}));
+
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   createBeat: vi.fn(),
   push: vi.fn(),
   ui: { dmMode: "play" as "prep" | "play" },
+  campaign: { isAiEnabled: true },
 }));
 
 vi.mock("@/composables/quests/useQuests", () => ({
@@ -21,6 +32,7 @@ vi.mock("vue-router", async (importOriginal) => ({
   useRouter: () => ({ push: mocks.push }),
 }));
 vi.mock("@/stores/ui", () => ({ useUiStore: () => mocks.ui }));
+vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => mocks.campaign }));
 
 describe("QuestFlowStarter", () => {
   beforeEach(() => {
@@ -28,6 +40,7 @@ describe("QuestFlowStarter", () => {
     mocks.createBeat.mockReset().mockResolvedValue({ id: "beat-new" });
     mocks.push.mockReset();
     mocks.ui.dmMode = "play";
+    mocks.campaign.isAiEnabled = true;
   });
 
   it("creates the quest shell and opens its overview", async () => {
@@ -145,5 +158,31 @@ describe("QuestFlowStarter", () => {
 
     expect(wrapper.get('[role="alert"]').text()).toContain("Quest insert failed");
     expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  // #873 — the third mode, forwarding parentId the same way the paste mode does.
+  it("renders the quest designer panel in Design it mode", async () => {
+    const wrapper = mount(QuestFlowStarter, {
+      props: { parentId: "parent-1" },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    });
+
+    await wrapper.get('button[aria-label="Design it"]').trigger("click");
+
+    const designer = wrapper.findComponent({ name: "QuestDesignerPanel" });
+    expect(designer.exists()).toBe(true);
+    expect(designer.props("parentId")).toBe("parent-1");
+  });
+
+  it("offers Paste a page and Design it only while the campaign's AI is on", () => {
+    const on = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    expect(on.text()).toContain("Paste a page");
+    expect(on.text()).toContain("Design it");
+
+    mocks.campaign.isAiEnabled = false;
+    const off = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    expect(off.text()).toContain("Type it");
+    expect(off.text()).not.toContain("Paste a page");
+    expect(off.text()).not.toContain("Design it");
   });
 });

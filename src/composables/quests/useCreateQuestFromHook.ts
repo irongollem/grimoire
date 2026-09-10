@@ -24,6 +24,13 @@ export interface CreateQuestFromHookInput {
   locationId: string;
   entityPools: QuestHookEntityPools;
   aiProvenance: AiProvenance | null;
+  /** #873: the Quest Designer can produce a quest meant to nest under an
+   *  existing one (a sub-quest arrived at conversationally). Every other
+   *  caller — the one-shot generator, the document importer — has no notion
+   *  of a parent, so this is optional and absence genuinely means "no
+   *  parent," not "unknown": see the `?? null` below, the one place in this
+   *  composable that idiom is allowed. */
+  parentQuestId?: string | null;
 }
 
 export interface CreateQuestFromHookResult {
@@ -73,7 +80,7 @@ export function useCreateQuestFromHook() {
   const { mutateAsync: createConsequence } = useCreateQuestConsequence();
 
   async function createFromHook(input: CreateQuestFromHookInput): Promise<CreateQuestFromHookResult> {
-    const { hook, giverNpcId, locationId, entityPools, aiProvenance } = input;
+    const { hook, giverNpcId, locationId, entityPools, aiProvenance, parentQuestId } = input;
 
     // The model is *told* to return a one-line summary, and that instruction is
     // not a guarantee — `quests.summary` is capped at 280 characters and
@@ -106,7 +113,7 @@ export function useCreateQuestFromHook() {
       status: "active",
       giver_npc_id: giverNpcId || null,
       location_id: locationId || null,
-      parent_quest_id: null,
+      parent_quest_id: parentQuestId ?? null,
       player_visible_to: [],
       started_at: null,
       resolved_at: null,

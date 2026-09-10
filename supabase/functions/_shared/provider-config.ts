@@ -21,6 +21,14 @@ export interface ProviderRow {
   document_model: string | null;
   text_multiplier: number | null;
   image_multiplier: number | null;
+  /**
+   * Model for latency-sensitive, many-turn features — the quest designer
+   * (#873) is the first consumer. NULL means "use text_model": unlike
+   * `document_model`, a missing fast tier is not an unsupported capability,
+   * just an admin who hasn't picked one yet, so callers fall back rather
+   * than refusing.
+   */
+  fast_text_model: string | null;
 }
 
 let providerCache: Partial<Record<Provider, ProviderRow>> | null = null;
@@ -34,7 +42,7 @@ export async function fetchProviderConfigs(
   if (!providerCache || Date.now() >= providerCacheExpiry) {
     const { data } = await admin
       .from("provider_config")
-      .select("provider, text_model, image_model, image_quality, document_model, text_multiplier, image_multiplier");
+      .select("provider, text_model, image_model, image_quality, document_model, text_multiplier, image_multiplier, fast_text_model");
     providerCache = Object.fromEntries(
       (data ?? []).map((row: { provider: string } & ProviderRow) => [row.provider, row]),
     ) as Partial<Record<Provider, ProviderRow>>;
