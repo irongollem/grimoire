@@ -1,6 +1,34 @@
 <template>
-  <AppModal :open="open" size="lg" @close="cancel">
-    <div class="border-b border-border px-5 pt-4">
+  <AppModal :open="open" size="lg" align="sheet" panel-class="h-full sm:h-auto" @close="cancel">
+    <!--
+      Below `sm` (design frame `02 Advance`): three stacked sections plus a
+      footer preview do not fit a phone modal, so the header becomes a
+      two-step wizard (route, then what it does) instead of the single
+      always-visible header `sm` and up keeps. Same submit, same validation —
+      the step is presentational, so both headers drive the same refs.
+    -->
+    <div v-if="isMobile" class="border-b border-border px-5 pt-4 pb-3">
+      <div class="mb-1 flex items-center justify-between gap-2">
+        <p class="flex items-center gap-1.5 text-eyebrow font-semibold text-primary">
+          <component :is="IconCheck" class="h-3 w-3" />
+          Advance · Thread {{ threadLetter }}
+        </p>
+        <AppButton variant="ghost" size="md" :icon="IconClose" aria-label="Close" @click="cancel" />
+      </div>
+      <h3 class="mb-3 truncate text-heading-sm font-bold text-foreground">
+        {{ step === 1 ? `Leaving “${currentBeatTitle}”` : `→ ${headerTitle}` }}
+      </h3>
+      <div class="flex items-center gap-2 text-caption font-semibold">
+        <span class="flex items-center gap-1" :class="step === 1 ? 'text-primary' : 'text-ink-success'">
+          <component :is="IconCheck" v-if="step > 1" class="h-3 w-3" />
+          <span v-else>1</span>
+          Route
+        </span>
+        <span class="h-px flex-1 bg-border" />
+        <span :class="step === 2 ? 'text-primary' : 'text-muted-foreground'">2 What it does</span>
+      </div>
+    </div>
+    <div v-else class="border-b border-border px-5 pt-4">
       <p class="mb-1 flex items-center gap-1.5 text-eyebrow font-semibold text-primary">
         <component :is="IconCheck" class="h-3 w-3" />
         Advance · Thread {{ threadLetter }}
@@ -17,7 +45,10 @@
 
     <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
       <!-- 1. The route taken -->
-      <section aria-label="The route taken — the others become unreachable">
+      <section v-show="!isMobile || step === 1" aria-label="The route taken — the others become unreachable">
+        <p v-if="isMobile" class="mb-3 text-body text-muted-foreground">
+          One transition is recorded. Consequences fire now; loot waits for you.
+        </p>
         <p class="mb-2 flex items-center gap-1.5 text-eyebrow font-semibold text-muted-foreground">
           <component :is="IconShuffle" class="h-3.5 w-3.5" />
           The route taken — the others become unreachable
@@ -100,7 +131,11 @@
       </section>
 
       <!-- 2. Also opens -->
-      <section v-if="parallelRoutes.length && !improviseSelected" aria-label="Also opens — both paths get walked">
+      <section
+        v-if="parallelRoutes.length && !improviseSelected"
+        v-show="!isMobile || step === 2"
+        aria-label="Also opens — both paths get walked"
+      >
         <p class="mb-2 flex items-center gap-1.5 text-eyebrow font-semibold text-ink-info">
           <component :is="IconLayers" class="h-3.5 w-3.5" />
           Also opens — both paths get walked
@@ -140,7 +175,7 @@
       </section>
 
       <!-- 3. Payoff from this route -->
-      <section v-if="selectedChoice" aria-label="Payoff from this route">
+      <section v-if="selectedChoice" v-show="!isMobile || step === 2" aria-label="Payoff from this route">
         <p class="mb-2 flex items-center gap-1.5 text-eyebrow font-semibold text-muted-foreground">
           <component :is="IconInvite" class="h-3.5 w-3.5" />
           Payoff from this route
@@ -196,7 +231,26 @@
       <p v-if="submitError" role="alert" class="text-caption text-destructive">{{ submitError }}</p>
     </div>
 
-    <div class="flex items-center gap-2 border-t border-border px-5 py-3">
+    <!-- Footer: mobile splits into a Continue step and an Advance step; sm+ keeps the one-step footer with its preview line. -->
+    <div v-if="isMobile && step === 1" class="flex items-center gap-2 border-t border-border px-5 py-3">
+      <AppButton label="Cancel" variant="subtle" size="md" class="flex-1" @click="cancel" />
+      <AppButton label="Continue" variant="primary" size="md" class="flex-1" :disabled="!canSubmit" @click="step = 2" />
+    </div>
+    <div v-else-if="isMobile" class="flex flex-col gap-2 border-t border-border px-5 py-3">
+      <p class="text-caption text-muted-foreground">
+        <template v-if="improviseSelected">Improvised beats carry no payoff yet — add consequences from the beat editor after the session.</template>
+        <template v-else-if="plan">
+          After this: threads <span class="font-semibold text-foreground">{{ plan.threadsAfter.join(", ") }}</span> live ·
+          {{ plan.fired }} consequence{{ plan.fired === 1 ? "" : "s" }} fired · {{ plan.held }} loot held
+        </template>
+        <template v-else>Choose what happened to see what changes.</template>
+      </p>
+      <div class="flex items-center gap-2">
+        <AppButton label="Back" variant="subtle" size="md" @click="step = 1" />
+        <AppButton label="Advance" variant="primary" size="md" class="flex-1" :icon="IconCheck" :loading="submitting" :disabled="!canSubmit" @click="submit" />
+      </div>
+    </div>
+    <div v-else class="flex items-center gap-2 border-t border-border px-5 py-3">
       <p class="flex-1 text-caption text-muted-foreground">
         <template v-if="improviseSelected">Improvised beats carry no payoff yet — add consequences from the beat editor after the session.</template>
         <template v-else-if="plan">
@@ -231,12 +285,14 @@ import { isVersionConflictError, planAdvance, type PlanAdvanceResult } from "@/l
 import { routeCondition } from "@/lib/quests/ledger";
 import { describeQuestConsequenceAction, relationshipShiftIsGain } from "@/lib/quests/consequences";
 import { useQuestRuntimeCommand, useQuestRuntimeImprovise } from "@/composables/quests/useQuestFlow";
+import { useBelow } from "@/composables/useBreakpoint";
 import { drawerTransition } from "@/lib/motion";
 import {
   IconAnnounce,
   IconAward,
   IconCalendar,
   IconCheck,
+  IconClose,
   IconCoins,
   IconHand,
   IconInvite,
@@ -263,6 +319,13 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ close: []; advanced: [context: QuestRuntimeContext] }>();
+
+// Below `sm` the dialog becomes a two-step sheet (design frame `02 Advance`);
+// `sm` and up render every section at once, exactly as before. `step` is pure
+// presentation — it never changes what `plan`/`canSubmit`/`submit` do.
+const isMobile = useBelow("sm");
+const step = ref<1 | 2>(1);
+const currentBeatTitle = computed(() => props.context.current?.title || "this beat");
 
 const choiceRoutes = computed(() => props.context.outgoing.filter((route) => route.route_kind === "choice"));
 const parallelRoutes = computed(() => props.context.outgoing.filter((route) => route.route_kind === "parallel"));
@@ -306,6 +369,7 @@ const submitError = ref("");
 watch(() => props.open, (isOpen) => {
   if (!isOpen) return;
   submitError.value = "";
+  step.value = 1;
   improviseSelected.value = !!props.improvise;
   selectedEdgeId.value = props.improvise ? null : (props.preselectedEdgeId ?? null);
   spawnEdgeIds.value = parallelRoutes.value.filter((route) => !isClosed(route)).map((route) => route.edge_id);

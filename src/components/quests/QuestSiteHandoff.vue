@@ -8,7 +8,16 @@
 
   <div v-else class="flex flex-col gap-4">
     <!-- Header strip -->
-    <header class="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
+    <!-- `min-w-0 flex-1` on the title gives it a 0% flex-basis, so `flex-wrap`
+         never actually wraps the button row onto its own line below xl — the
+         line-breaking decision is made on basis, not on shrunk size, so the
+         title just gets squeezed to whatever the button row doesn't claim
+         (a pre-existing bug this story's own phone verification pass turned
+         up: a beat title was rendering one letter per line at 390px). Below
+         xl the header stacks instead; at xl+ `xl:flex-row xl:flex-wrap
+         xl:justify-between` reproduce the original row layout exactly, so
+         nothing above the breakpoint changes. -->
+    <header class="flex flex-col items-start gap-3 rounded-lg border border-border bg-card px-4 py-3 xl:flex-row xl:flex-wrap xl:justify-between">
       <div class="min-w-0 flex-1">
         <div class="mb-1 flex flex-wrap items-center gap-2">
           <span
@@ -33,7 +42,10 @@
           @click="toggleMapShared"
         />
         <AppButton variant="subtle" size="sm" label="Leave site" @click="emit('leave')" />
-        <AppButton variant="primary" size="sm" :icon="IconCheck" label="Advance beat" @click="emit('advance')" />
+        <!-- Frame 4: the dock carries this same verb below xl, so the header's
+             own copy hides there rather than duplicating a control that is
+             now one tap away at any scroll position. -->
+        <AppButton variant="primary" size="sm" class="hidden xl:inline-flex" :icon="IconCheck" label="Advance beat" @click="emit('advance')" />
       </div>
     </header>
 
@@ -48,7 +60,12 @@
       @dismiss="dismissTriggerPrompt"
     />
 
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_20rem]">
+    <!-- Frame 4 ("On a phone the crawl is one room at a time"): below xl this
+         whole three-column layout gives way to a single-room composition, so
+         it is a JS-level branch (not CSS visibility) — both arms mount
+         SiteRunRoomStack/SiteRunWaysOut/LocationStateControls, and mounting
+         both would double every query they run. -->
+    <div v-if="!belowXl" class="grid grid-cols-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)_20rem]">
       <!-- Rooms -->
       <section class="flex min-h-0 flex-col gap-2 rounded-xl border border-border bg-card p-3">
         <header class="flex items-center gap-2">
@@ -149,6 +166,151 @@
         </section>
       </div>
     </div>
+
+    <!-- Frame 4a/4b: the plan, the current room (read-aloud, hazards, ways
+         out AS the move control), then a docked "Rooms · n" / "Advance beat".
+         SiteRoomList lives in the Rooms sheet, not a column — moving never
+         means opening it, since Ways Out already IS the move control. -->
+    <template v-else>
+      <div class="flex flex-col gap-3">
+        <div class="relative h-[11.875rem] overflow-hidden rounded-xl border border-border">
+          <div v-if="site.map_url" class="pointer-events-none absolute inset-0">
+            <LocationMap
+              :map-url="site.map_url"
+              :pins="site.map_pins"
+              :children="pinnableChildren"
+              mode="view"
+              :show-hidden-pins="true"
+              :location-id="site.id"
+              show-regions
+              :regions="regions"
+              :spaces="siteSpaces"
+              :calibration="site.grid_calibration"
+              run-mode
+              :party-room-id="currentRoomId"
+              :reachable-room-ids="reachable"
+              :show-layer-bar="false"
+            />
+          </div>
+          <div v-else class="flex h-full flex-col items-center justify-center gap-1 p-4 text-center text-caption text-muted-foreground">
+            <p>Floor plan from the location.</p>
+          </div>
+          <button
+            v-if="site.map_url"
+            type="button"
+            class="absolute inset-0"
+            aria-label="Expand floor plan"
+            @click="mapExpandOpen = true"
+          />
+          <span
+            v-if="site.map_url"
+            class="pointer-events-none absolute bottom-2 right-2 rounded bg-card/90 px-1.5 py-0.5 text-label uppercase text-muted-foreground shadow-sm backdrop-blur-sm"
+          >
+            Tap to expand
+          </span>
+          <span
+            v-if="site.is_map_shared"
+            class="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-border bg-card/90 px-2 py-0.5 text-label text-ink-info shadow-sm backdrop-blur-sm"
+          >
+            <IconReveal class="h-3 w-3 shrink-0" aria-hidden="true" />
+            Shared with players
+          </span>
+        </div>
+
+        <section v-if="currentRoom" class="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
+          <header class="flex items-center gap-2">
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-tone-info font-cinzel text-label font-bold text-white">
+              {{ roomOrdinalValue }}
+            </span>
+            <div class="min-w-0 flex-1">
+              <h2 class="truncate font-cinzel text-sm font-bold text-foreground">{{ currentRoom.name }}</h2>
+              <p class="truncate text-caption text-muted-foreground">Party is here{{ currentRoomZoneNote ? ` · ${currentRoomZoneNote}` : "" }}</p>
+            </div>
+          </header>
+          <SiteRunRoomStack
+            :site-id="site.id"
+            :room="currentRoom"
+            :regions="regions"
+            :doors="doors"
+            :door-state="doorStateOf"
+            :loot="currentRoomLoot ?? []"
+            :campaign-id="campaign.activeCampaignId"
+          />
+          <SiteRunWaysOut
+            :site-id="site.id"
+            :room-id="currentRoom.id"
+            :room-name="currentRoom.name"
+            :doors="doors"
+            :door-state="doorStateOf"
+          />
+          <div class="flex flex-col gap-2">
+            <h3 class="font-cinzel text-sm font-bold text-foreground">Progress</h3>
+            <LocationStateControls :location-id="currentRoom.id" />
+          </div>
+        </section>
+        <p v-else class="rounded-xl border border-dashed border-border p-4 text-caption italic text-muted-foreground">
+          The party hasn't entered a room here yet — open Rooms below to move them in.
+        </p>
+      </div>
+
+      <DockBar hide-from="xl">
+        <AppButton variant="subtle" size="md" class="min-h-12 flex-1" :label="`Rooms · ${rooms.length}`" @click="roomsSheetOpen = true" />
+        <AppButton variant="primary" size="md" class="min-h-12 flex-1" :icon="IconCheck" label="Advance beat" @click="emit('advance')" />
+      </DockBar>
+
+      <MobileSheet v-model:open="roomsSheetOpen" show-until="xl" title="Rooms">
+        <div v-if="unwrittenIds.size" class="mb-2 flex justify-end">
+          <span class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ unwrittenIds.size }} unwritten</span>
+        </div>
+        <SiteRoomList
+          :site-id="site.id"
+          :rooms="rooms"
+          :current-room-id="currentRoomId"
+          :reachable="reachable"
+          :state-of="stateOf"
+          :unwritten-ids="unwrittenIds"
+          run-captions
+          :secret-undiscovered-ids="secretUndiscoveredIds"
+          :zone-notes="zoneNotes"
+          @move="onRoomsSheetMove"
+        />
+        <template #footer>
+          <div class="flex gap-2">
+            <AppButton variant="subtle" size="md" class="min-h-11 flex-1" label="Leave site" @click="emit('leave')" />
+            <AppButton variant="primary" size="md" class="min-h-11 flex-1" :icon="IconCheck" label="Advance beat" @click="emit('advance')" />
+          </div>
+        </template>
+      </MobileSheet>
+
+      <MobileSheet v-if="site.map_url" v-model:open="mapExpandOpen" show-until="xl" title="Floor plan">
+        <div class="relative">
+          <LocationMap
+            :map-url="site.map_url"
+            :pins="site.map_pins"
+            :children="pinnableChildren"
+            mode="view"
+            :show-hidden-pins="true"
+            :location-id="site.id"
+            show-regions
+            :regions="regions"
+            :spaces="siteSpaces"
+            :calibration="site.grid_calibration"
+            run-mode
+            :party-room-id="currentRoomId"
+            :reachable-room-ids="reachable"
+            :show-layer-bar="false"
+            @move-party="onExpandedMapMove"
+          />
+          <span
+            v-if="site.is_map_shared"
+            class="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-border bg-card/90 px-2 py-0.5 text-label text-ink-info shadow-sm backdrop-blur-sm"
+          >
+            <IconReveal class="h-3 w-3 shrink-0" aria-hidden="true" />
+            Shared with players
+          </span>
+        </div>
+      </MobileSheet>
+    </template>
   </div>
 </template>
 
@@ -173,13 +335,15 @@
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
+import DockBar from "@/components/common/DockBar.vue";
+import MobileSheet from "@/components/common/MobileSheet.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import SiteRoomList from "@/components/locations/SiteRoomList.vue";
 import SiteRunWaysOut from "@/components/locations/SiteRunWaysOut.vue";
 import SiteRunRoomStack from "@/components/locations/SiteRunRoomStack.vue";
 import TriggerBeatPrompt from "@/components/locations/TriggerBeatPrompt.vue";
-import { IconCheck, IconImages, IconNavigate } from "@/lib/icons";
+import { IconCheck, IconImages, IconNavigate, IconReveal } from "@/lib/icons";
 import { useLocation, useLocations, useUpdateLocation } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useLocationStateForRooms, useDoorStateForSite } from "@/composables/locations/useLocationState";
@@ -189,6 +353,7 @@ import { useQuest } from "@/composables/quests/useQuests";
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
+import { useBelow } from "@/composables/useBreakpoint";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { compareSiblings } from "@/lib/locations/tree";
 import { partyRoomInSite, reachableRoomIds as computeReachableRoomIds } from "@/lib/locations/siteRun";
@@ -210,6 +375,14 @@ const emit = defineEmits<{ advance: []; leave: [] }>();
 const route = useRoute();
 const campaign = useCampaignStore();
 const toast = useToast();
+
+// Frame 4 ("On a phone the crawl is one room at a time") — a JS branch, not
+// a CSS one: the mobile arm mounts its own SiteRunRoomStack/SiteRunWaysOut/
+// LocationStateControls/SiteRoomList, and CSS-only hiding would mount the
+// desktop arm's copies of the same components alongside them.
+const belowXl = useBelow("xl");
+const roomsSheetOpen = ref(false);
+const mapExpandOpen = ref(false);
 
 // ── Quest + thread chrome ────────────────────────────────────────────────
 const { data: quest } = useQuest(computed(() => questId));
@@ -316,6 +489,10 @@ const zoneNotes = computed(() => {
   return map;
 });
 
+// Frame 4's current-room card reads this same map for its own "Party is
+// here · <zone>" caption, keyed off the current room the same way.
+const currentRoomZoneNote = computed(() => currentRoomId.value ? zoneNotes.value.get(currentRoomId.value) : undefined);
+
 // ── A zone can name a beat (#868 S12) — a trigger zone whose payload names
 //    THIS beat, traced over the room the party is currently standing in.
 //    Comparing to `beat.id` (not merely "any beat in this quest") is what
@@ -346,6 +523,18 @@ const { mutate: setCampaignLocation, isPending: isMoving } = useSetCampaignLocat
 function moveTo(roomId: string): void {
   if (!campaign.activeCampaignId || isMoving.value || roomId === currentRoomId.value) return;
   setCampaignLocation({ id: campaign.activeCampaignId, locationId: roomId }, { onError: (e) => toast.error(toast.fromError(e)) });
+}
+
+// Frame 4's Rooms sheet and expanded-map sheet both close on a successful
+// move — the DM asked "where next," got their answer, and the sheet
+// covering the current-room card is no longer where they want to look.
+function onRoomsSheetMove(roomId: string): void {
+  moveTo(roomId);
+  roomsSheetOpen.value = false;
+}
+function onExpandedMapMove(roomId: string): void {
+  moveTo(roomId);
+  mapExpandOpen.value = false;
 }
 
 // ── Show/hide the map to players ────────────────────────────────────────

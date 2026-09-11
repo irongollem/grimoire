@@ -1,6 +1,6 @@
 <template>
   <section class="space-y-2 rounded-xl border border-border bg-card p-3" aria-label="Session">
-    <h3 class="font-cinzel text-sm font-bold text-foreground">Session</h3>
+    <h3 v-if="!headless" class="font-cinzel text-sm font-bold text-foreground">Session</h3>
     <div class="flex flex-wrap gap-2">
       <AppButton label="Previous" size="sm" variant="subtle" :disabled="navigationDisabled || !hasPrevious" @click="emit('previous')" />
       <AppButton label="Jump…" size="sm" variant="subtle" :disabled="navigationDisabled" @click="emit('jump')" />
@@ -20,12 +20,16 @@
  * docked at the foot of the whole cockpit; it is a card in the left column
  * now, under Held payoff, which is where the redesign's `[1fr · 20rem]`
  * grid puts it (#853, story F).
+ *
+ * `headless` (#872 review fix 3) omits the `<h3>` for the cockpit's Session
+ * fold row, whose own title already says "Session" — the `aria-label` stays
+ * either way, so the section keeps its accessible name.
  */
 import { computed } from "vue";
 import type { QuestRuntimeStatus } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
 
-const props = defineProps<{ status: QuestRuntimeStatus; hasPrevious: boolean; disabled?: boolean }>();
+const props = defineProps<{ status: QuestRuntimeStatus; hasPrevious: boolean; disabled?: boolean; headless?: boolean }>();
 const navigationDisabled = computed(() => props.disabled || props.status !== "running");
 const emit = defineEmits<{
   previous: [];

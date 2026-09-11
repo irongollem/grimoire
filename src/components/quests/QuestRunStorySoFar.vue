@@ -1,8 +1,8 @@
 <template>
   <section class="space-y-2 rounded-xl border border-border bg-card p-3" aria-label="Story so far">
     <div class="flex items-center justify-between gap-2">
-      <h3 class="font-cinzel text-sm font-bold text-foreground">Story so far</h3>
-      <span class="text-caption text-muted-foreground">{{ threadLabel }}</span>
+      <h3 v-if="!headless" class="font-cinzel text-sm font-bold text-foreground">Story so far</h3>
+      <span class="ml-auto text-caption text-muted-foreground">{{ threadLabel }}</span>
     </div>
     <ul v-if="rows.length" class="flex flex-col gap-1.5">
       <li v-for="row in rows" :key="row.beatId" class="flex items-start gap-2">
@@ -25,6 +25,10 @@
  * one with the transition that actually carried the party there — "enter ·
  * session 22" — rather than `storySpine`'s own `note` (a ledger-delta
  * summary), which the cockpit's Objectives panel already shows.
+ *
+ * `headless` (#872 review fix 3) omits the `<h3>` for `QuestRunPrepSheet`'s
+ * "Story so far" tab, whose segmented-control label already says it — the
+ * `aria-label` stays either way, so the section keeps its accessible name.
  */
 import { computed } from "vue";
 import { timeAgo } from "@/lib/utils";
@@ -39,7 +43,7 @@ import type {
   QuestThreadCursor,
 } from "@/types/quest.types";
 
-const { questId, threadId, beats, pathSoFar, currentBeatId, outgoing, consequences, objectives, threads } = defineProps<{
+const { questId, threadId, beats, pathSoFar, currentBeatId, outgoing, consequences, objectives, threads, headless = false } = defineProps<{
   questId: string;
   threadId: string;
   beats: Array<Pick<QuestBeat, "id" | "title" | "staged_at_location_id">>;
@@ -49,6 +53,7 @@ const { questId, threadId, beats, pathSoFar, currentBeatId, outgoing, consequenc
   consequences: QuestConsequence[];
   objectives: QuestObjective[];
   threads: QuestThreadCursor[];
+  headless?: boolean;
 }>();
 
 const threadLabel = computed(() => {

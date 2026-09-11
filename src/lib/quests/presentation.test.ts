@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { deriveQuestBeatPrepGaps, deriveQuestBeatPresentations, formatUnwrittenRoomsLabel, forwardReachableBeatIds, tallyQuestReach, visitedRouteEdgeIds } from "./presentation";
+import {
+  deriveQuestBeatPrepGaps,
+  deriveQuestBeatPresentations,
+  formatUnwrittenRoomsLabel,
+  forwardReachableBeatIds,
+  questBeatKindLabel,
+  tallyQuestReach,
+  visitedRouteEdgeIds,
+} from "./presentation";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatEdge, QuestBeatTransition, QuestConsequence } from "@/types/quest.types";
 import type { SiteReadiness } from "@/lib/locations/siteReadiness";
 
@@ -16,6 +24,13 @@ const readiness = (over: Partial<SiteReadiness> = {}): SiteReadiness => ({
   mapped: true, calibrated: true, traced: true, bound: true, waysOut: true,
   unboundSpaces: 0, untracedSpaces: 0, caption: null,
   ...over,
+});
+
+describe("questBeatKindLabel", () => {
+  it("labels a known kind and falls back to the raw value for one it does not recognise", () => {
+    expect(questBeatKindLabel("explore")).toBe("Explore");
+    expect(questBeatKindLabel("legacy-kind")).toBe("legacy-kind");
+  });
 });
 
 describe("quest beat presentation", () => {

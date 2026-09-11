@@ -731,15 +731,20 @@ export const routes: RouteRecordRaw[] = [
     // covered one of three surfaces. `/quests/new` above still wins the match
     // against this `:id` (static segments outrank dynamic ones), so ordering
     // still matters even without the nesting.
-    meta: { requiresAuth: true, title: "Quest" },
+    // fullscreenMobile: below md the quest surfaces draw their own top bar and
+    // docked action bar (#872, "Quest Phone Frames") — the same takeover the
+    // NPC and monster sheets use, so the run cockpit's fold is not spent on
+    // two stacked bars. Desktop and tablets are untouched.
+    meta: { requiresAuth: true, title: "Quest", fullscreenMobile: true },
   },
   {
     path: "/quests/:id/beats/:beatId",
     name: "quest-beat-detail",
     component: () => import("@/views/quests/QuestBeatDetailView.vue"),
     // Also NOT nested: a beat is a full-screen surface in its own right, not a
-    // glance over the quest it belongs to.
-    meta: { requiresAuth: true, title: "Quest Beat" },
+    // glance over the quest it belongs to. fullscreenMobile for the same reason
+    // as the quest page above (#872).
+    meta: { requiresAuth: true, title: "Quest Beat", fullscreenMobile: true },
   },
 
   // Workshop (Crafting)

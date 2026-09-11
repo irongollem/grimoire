@@ -6,17 +6,38 @@ import type { QuestRuntimeContext } from "@/types/quest.types";
 const mocks = vi.hoisted(() => ({
   command: vi.fn(),
   improvise: vi.fn(),
+  // Filled in by the `useBreakpoint` mock factory below, with a genuine Vue
+  // `ref` (not a plain box): the component reads it straight in the template
+  // (`v-if="isMobile"`), which only auto-unwraps a real ref — a plain
+  // `{ value }` object is truthy on its own and would read as "mobile"
+  // unconditionally. Built inside the factory (rather than up here) because
+  // `vi.hoisted` runs before `vue` itself is available to import from.
+  isMobile: undefined as unknown as { value: boolean },
 }));
 
 vi.mock("@/composables/quests/useQuestFlow", () => ({
   useQuestRuntimeCommand: () => ({ mutateAsync: mocks.command }),
   useQuestRuntimeImprovise: () => ({ mutateAsync: mocks.improvise }),
 }));
+vi.mock("@/composables/useBreakpoint", async (importOriginal) => {
+  const { ref } = await import("vue");
+  mocks.isMobile = ref(false);
+  return {
+    ...(await importOriginal<typeof import("@/composables/useBreakpoint")>()),
+    useBelow: () => mocks.isMobile,
+  };
+});
 
 function buildContext(): QuestRuntimeContext {
   return {
     state: { campaign_id: "campaign-1", quest_id: "quest-1", thread_id: "thread-a", current_beat_id: "beat-current", return_stack: [], visit_stack: [], visit_index: 0, status: "running", version: 4, updated_by: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z" },
-    current: null,
+    current: {
+      id: "beat-current", quest_id: "quest-1", campaign_id: "campaign-1", title: "Confront Ser Vallis",
+      dm_content: null, read_aloud: null, how_it_plays: null, rumor_text: null, reveal_text: null,
+      visibility: "revealed", kind: "social", presentation_hint: null, converge_mode: "any",
+      staged_at_location_id: null, canvas_x: 0, canvas_y: 0, is_improvised: false, improv_reviewed_at: null,
+      created_by: null, created_at: "2026-09-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z",
+    },
     previous: null,
     return_target: null,
     path_so_far: [],
@@ -51,6 +72,10 @@ async function mountDialog(overrides: Partial<InstanceType<typeof QuestAdvanceDi
   const wrapper = mount(QuestAdvanceDialog, {
     props: { open: true, context: buildContext(), threadLetter: "A", ...overrides },
     global: { stubs: { Teleport: true } },
+    // isVisible() reads getComputedStyle, which only resolves correctly for a
+    // node attached to the document — needed below to assert the mobile
+    // step's v-show state rather than just its style attribute.
+    attachTo: document.body,
   });
   await wrapper.vm.$nextTick();
   return wrapper;
@@ -66,6 +91,7 @@ describe("QuestAdvanceDialog", () => {
     mocks.improvise.mockReset();
     mocks.command.mockImplementation(async () => buildContext());
     mocks.improvise.mockImplementation(async () => ({ context: buildContext(), beat: {} }));
+    mocks.isMobile.value = false;
   });
 
   it("lists the open choice routes plus the dashed improvise option, and disables the closed one with its condition", async () => {
@@ -176,6 +202,69 @@ describe("QuestAdvanceDialog", () => {
 
     expect(wrapper.text()).toContain("The session moved on another device — reopen to advance.");
     expect(wrapper.emitted("close")).toBeUndefined();
+  });
+
+  // Design frame `02 Advance`: below `sm` the modal becomes a full-height sheet
+  // with a two-step body. Same `planAdvance` + RPC path either way — only the
+  // step index is local, presentational UI state.
+  describe("below sm", () => {
+    beforeEach(() => {
+      mocks.isMobile.value = true;
+    });
+
+    function findButton(wrapper: Awaited<ReturnType<typeof mountDialog>>, label: string) {
+      return wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label)!;
+    }
+
+    it("step 1 shows only the route section, with Continue disabled until a route is chosen", async () => {
+      const wrapper = await mountDialog();
+      expect(wrapper.get('section[aria-label="The route taken — the others become unreachable"]').isVisible()).toBe(true);
+      expect(wrapper.get('section[aria-label="Also opens — both paths get walked"]').isVisible()).toBe(false);
+      expect(wrapper.text()).toContain("Leaving “Confront Ser Vallis”");
+
+      expect(findButton(wrapper, "Continue").props("disabled")).toBe(true);
+      await radios(wrapper)[0]!.trigger("change");
+      expect(findButton(wrapper, "Continue").props("disabled")).toBe(false);
+    });
+
+    it("Continue moves to step 2, and Back returns to step 1 keeping the chosen route", async () => {
+      const wrapper = await mountDialog();
+      await radios(wrapper)[0]!.trigger("change");
+      await findButton(wrapper, "Continue").trigger("click");
+
+      expect(wrapper.get('section[aria-label="The route taken — the others become unreachable"]').isVisible()).toBe(false);
+      expect(wrapper.get('section[aria-label="Also opens — both paths get walked"]').isVisible()).toBe(true);
+      expect(wrapper.get('section[aria-label="Payoff from this route"]').isVisible()).toBe(true);
+      expect(wrapper.text()).toContain("→ Testify before the Guild");
+
+      await findButton(wrapper, "Back").trigger("click");
+      expect(wrapper.get('section[aria-label="The route taken — the others become unreachable"]').isVisible()).toBe(true);
+      expect((radios(wrapper)[0]!.element as HTMLInputElement).checked).toBe(true);
+    });
+
+    it("submits the same payload as the desktop path once Advance is pressed from step 2", async () => {
+      const wrapper = await mountDialog();
+      await radios(wrapper)[0]!.trigger("change");
+      await findButton(wrapper, "Continue").trigger("click");
+
+      const advance = findButton(wrapper, "Advance");
+      await advance.trigger("click");
+      await flush();
+
+      expect(mocks.command).toHaveBeenCalledWith(expect.objectContaining({
+        campaignId: "campaign-1",
+        questId: "quest-1",
+        threadId: "thread-a",
+        command: "advance",
+        edgeId: "edge-1",
+        expectedVersion: 4,
+        spawnEdgeIds: ["edge-3"],
+        holdConsequenceIds: [],
+        dispatchLootIds: [],
+      }));
+      expect(wrapper.emitted("advanced")).toHaveLength(1);
+      expect(wrapper.emitted("close")).toHaveLength(1);
+    });
   });
 });
 

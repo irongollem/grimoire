@@ -1,6 +1,9 @@
 <template>
-  <div class="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2" aria-label="Threads in this quest">
-    <span class="text-label font-bold uppercase tracking-wider text-primary">Threads in this quest</span>
+  <div
+    class="flex flex-nowrap items-center gap-2 overflow-x-auto rounded-xl border border-border bg-card p-2 sm:flex-wrap sm:overflow-visible"
+    aria-label="Threads in this quest"
+  >
+    <span class="shrink-0 text-label font-bold uppercase tracking-wider text-primary max-sm:hidden">Threads in this quest</span>
 
     <AppButton
       v-for="badge in badges"
@@ -11,7 +14,11 @@
       :emphasis="badge.thread.id === threadId ? 'strong' : isDimmed(badge.thread) ? 'soft' : 'outline'"
       shape="pill"
       size="xs"
-      :class="isDimmed(badge.thread) ? 'opacity-50' : ''"
+      :class="[
+        'shrink-0',
+        isDimmed(badge.thread) ? 'opacity-50 max-sm:hidden' : '',
+        badge.thread.id === threadId ? 'max-sm:order-first' : '',
+      ]"
       :disabled="isDimmed(badge.thread)"
       @click="emit('switch', badge.thread.id)"
     >
@@ -29,33 +36,96 @@
       variant="subtle"
       shape="pill"
       size="xs"
-      class="border-dashed"
+      class="max-sm:hidden border-dashed"
       @click="formOpen = !formOpen"
     />
 
-    <span class="ml-auto text-caption text-muted-foreground">Switching is just navigation — no cursor moves and nothing is recorded.</span>
+    <span class="ml-auto max-sm:hidden text-caption text-muted-foreground">Switching is just navigation — no cursor moves and nothing is recorded.</span>
+
+    <!-- Below sm, the picker (every thread, the caption and the create form) moves into a sheet
+         behind this counter — five pills plus the caption plus the form wrap into a four-line
+         block on a 390px phone and shove the beat card off the fold (frame 5). -->
+    <AppButton
+      :label="`${badges.length} ›`"
+      :aria-label="`${badges.length} threads — open the thread picker`"
+      variant="subtle"
+      shape="pill"
+      size="sm"
+      class="ml-auto min-h-11 shrink-0 sm:hidden"
+      @click="sheetOpen = true"
+    />
 
     <Transition v-bind="drawerTransition()">
-      <div v-show="formOpen" class="flex w-full flex-col gap-2 rounded-lg border border-border bg-background p-3 sm:flex-row sm:items-end">
-        <div class="min-w-0 flex-1">
-          <p class="mb-1 text-caption text-muted-foreground">Beat</p>
-          <EntityCombobox v-model="newBeatId" :options="beatOptions" placeholder="Choose a beat…" />
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="mb-1 text-caption text-muted-foreground">Label</p>
-          <AppInput v-model="newLabel" placeholder="What is this thread?" />
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="mb-1 text-caption text-muted-foreground">Reason</p>
-          <AppInput v-model="newReason" placeholder="Why open it now? (optional)" />
-        </div>
-        <div class="flex gap-2">
-          <AppButton label="Cancel" size="sm" variant="subtle" @click="closeForm" />
-          <AppButton label="Open thread" size="sm" variant="primary" :loading="openThread.isPending.value" :disabled="!newBeatId || !newLabel.trim()" @click="submit" />
-        </div>
-      </div>
+      <QuestThreadOpenForm
+        v-show="formOpen"
+        v-model:beat-id="newBeatId"
+        v-model:label="newLabel"
+        v-model:reason="newReason"
+        :options="beatOptions"
+        :pending="openThread.isPending.value"
+        layout="row"
+        class="max-sm:hidden"
+        @submit="submit"
+        @cancel="closeForm"
+      />
     </Transition>
-    <p v-if="error" role="alert" class="basis-full text-caption text-destructive">{{ error }}</p>
+    <p v-if="error" role="alert" class="max-sm:hidden basis-full text-caption text-destructive">{{ error }}</p>
+
+    <MobileSheet v-model:open="sheetOpen" title="Threads in this quest" show-until="sm">
+      <p class="mb-2 text-caption text-muted-foreground">Switching is just navigation — no cursor moves and nothing is recorded.</p>
+
+      <ul class="space-y-1.5">
+        <li v-for="badge in badges" :key="badge.thread.id">
+          <AppButton
+            variant="subtle"
+            size="sm"
+            block
+            class="min-h-11 justify-start gap-2 rounded-md border border-border p-2.5 text-left"
+            :class="isDimmed(badge.thread) ? 'opacity-50' : ''"
+            :disabled="isDimmed(badge.thread)"
+            @click="selectFromSheet(badge.thread.id)"
+          >
+            <span
+              class="block h-1.5 w-1.5 shrink-0 rounded-full"
+              :class="[dotClass(badge.index), badge.thread.id === threadId ? 'animate-pulse' : '']"
+            />
+            <span class="min-w-0 flex-1 truncate">{{ threadTitle(badge) }}</span>
+            <span
+              v-if="isDimmed(badge.thread)"
+              class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground"
+            >{{ badge.thread.status }}</span>
+          </AppButton>
+        </li>
+      </ul>
+
+      <Transition v-bind="drawerTransition()">
+        <QuestThreadOpenForm
+          v-show="formOpen"
+          v-model:beat-id="newBeatId"
+          v-model:label="newLabel"
+          v-model:reason="newReason"
+          :options="beatOptions"
+          :pending="openThread.isPending.value"
+          layout="stack"
+          class="mt-3"
+          @submit="submit"
+          @cancel="closeForm"
+        />
+      </Transition>
+      <p v-if="error" role="alert" class="mt-2 text-caption text-destructive">{{ error }}</p>
+
+      <template #footer>
+        <AppButton
+          label="Open a thread"
+          :icon="IconAdd"
+          variant="subtle"
+          shape="pill"
+          size="sm"
+          class="min-h-11 w-full border-dashed"
+          @click="formOpen = !formOpen"
+        />
+      </template>
+    </MobileSheet>
   </div>
 </template>
 
@@ -76,8 +146,8 @@ import { threadBadges, threadTitle } from "@/lib/quests/threads";
 import { drawerTransition } from "@/lib/motion";
 import { IconAdd } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
-import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import MobileSheet from "@/components/common/MobileSheet.vue";
+import QuestThreadOpenForm from "./QuestThreadOpenForm.vue";
 
 const { questId, campaignId, threadId } = defineProps<{ questId: string; campaignId: string; threadId: string }>();
 const emit = defineEmits<{ switch: [threadId: string] }>();
@@ -108,6 +178,15 @@ const newBeatId = ref("");
 const newLabel = ref("");
 const newReason = ref("");
 const error = ref("");
+
+// #872 frame 5: below `sm` the picker (every thread, dimmed ones included) lives
+// in this sheet behind the trailing counter pill. Selecting one is exactly the
+// pill's own click handler, plus closing the sheet.
+const sheetOpen = ref(false);
+function selectFromSheet(id: string) {
+  emit("switch", id);
+  sheetOpen.value = false;
+}
 
 function closeForm() {
   formOpen.value = false;

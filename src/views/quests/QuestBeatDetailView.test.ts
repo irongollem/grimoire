@@ -2,6 +2,7 @@ import { reactive, ref } from "vue";
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestBeatDetailView from "./QuestBeatDetailView.vue";
+import DockBar from "@/components/common/DockBar.vue";
 import type { QuestBeat, QuestBeatAttachmentSummary, LootPlacement } from "@/types/quest.types";
 
 const mocks = vi.hoisted(() => ({
@@ -19,11 +20,21 @@ const mocks = vi.hoisted(() => ({
   threads: [] as unknown[],
   locationOptions: [] as unknown[],
   siteReadiness: undefined as Record<string, unknown> | undefined,
+  // #872 review fix 2: happy-dom's own `matchMedia` always answers "not
+  // matched", so `useBelow("lg")` already defaults to desktop (`false`)
+  // without mocking — every pre-existing test below keeps exercising the
+  // desktop `QuestBeatIdentityFields` copy exactly as it did before the
+  // extraction. Only the new below-`lg` test flips this explicitly.
+  belowLg: false,
 }));
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRoute: () => reactive(mocks.route),
+}));
+vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useBelow: () => ref(mocks.belowLg),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
@@ -95,6 +106,7 @@ describe("QuestBeatDetailView", () => {
     mocks.threads = [];
     mocks.locationOptions = [];
     mocks.siteReadiness = undefined;
+    mocks.belowLg = false;
   });
 
   it("shows the missing-beat message when the beat does not belong to this quest", () => {
@@ -242,5 +254,94 @@ describe("QuestBeatDetailView", () => {
     const wrapper = mountView();
     expect(wrapper.findComponent({ name: "QuestBeatAttachmentsPanel" }).props("attachments")).toEqual([{ id: "a-1", beat_id: "beat-1" }]);
     expect(wrapper.findComponent({ name: "QuestPayoffPanel" }).props("loot")).toEqual([{ id: "loot-1", beat_id: "beat-1" }]);
+  });
+
+  // ── Phone layout (frame 3, #872) ───────────────────────────────────────────
+  // Below `lg` the mobile block renders alongside the desktop grid (hidden by
+  // Tailwind classes jsdom does not evaluate), so these assert on its content
+  // directly rather than mocking a breakpoint.
+
+  it("collapses payoff, routes, attachments and site into fold rows with counted captions", () => {
+    mocks.beat = beat({
+      // `dm_content`/`how_it_plays` are saved as Tiptap JSON strings
+      // (`JSON.stringify(editor.getJSON())`), never HTML — see
+      // RichTextEditor.vue and countQuestBeatContentBlocks.
+      dm_content: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }, { type: "paragraph" }] }),
+      how_it_plays: JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }),
+      staged_at_location_id: "site-1",
+    });
+    mocks.locationOptions = [{ id: "site-1", name: "The sealed crypt", location_type: "dungeon", parent_id: null }];
+    mocks.edges = [
+      { id: "e-1", source_beat_id: "beat-1", route_kind: "choice" },
+      { id: "e-2", source_beat_id: "beat-1", route_kind: "parallel" },
+    ];
+    mocks.consequences = [{ id: "c-1", on_beat_id: "beat-1", on_edge_id: null }];
+    mocks.loot = [{ id: "loot-1", beat_id: "beat-1", delivery_state: "held" } as LootPlacement];
+    mocks.attachments = [
+      { id: "a-1", beat_id: "beat-1", attachment_type: "npc", label: "Grimlock Watch" } as QuestBeatAttachmentSummary,
+    ];
+    const wrapper = mountView();
+    expect(wrapper.text()).toContain("3 paragraphs");
+    expect(wrapper.text()).toContain("1 consequence · 1 loot held");
+    expect(wrapper.text()).toContain("1 choice · 1 parallel");
+    expect(wrapper.text()).toContain("NPC");
+    expect(wrapper.text()).toContain("The sealed crypt · 0 rooms");
+  });
+
+  it("keeps the Kind/staged-location/Visibility editor reachable below `lg`, inside a Beat fold (#872 review fix 2)", () => {
+    mocks.belowLg = true;
+    mocks.beat = beat({ kind: "explore", visibility: "revealed", staged_at_location_id: "loc-1" });
+    mocks.locationOptions = [{ id: "loc-1", name: "Ashmouth Chapel", location_type: "town", parent_id: null }];
+    const wrapper = mountView();
+
+    const fold = wrapper.findAll("[aria-expanded]").find((node) => node.text().includes("Beat"))!;
+    expect(fold.text()).toContain("Explore · Revealed · Ashmouth Chapel");
+    wrapper.get('select[aria-label="Kind"]');
+  });
+
+  it("mounts the Beat identity editor only once regardless of breakpoint", () => {
+    const belowLg = mountView();
+    expect(belowLg.findAllComponents({ name: "QuestBeatIdentityFields" }).length).toBe(1);
+
+    mocks.belowLg = true;
+    const aboveLg = mountView();
+    expect(aboveLg.findAllComponents({ name: "QuestBeatIdentityFields" }).length).toBe(1);
+  });
+
+  it("opens a fold row on tap", async () => {
+    mocks.attachments = [
+      { id: "a-1", beat_id: "beat-1", attachment_type: "npc", label: "Grimlock Watch" } as QuestBeatAttachmentSummary,
+    ];
+    const wrapper = mountView();
+    const attachmentsToggle = wrapper.findAll("[aria-expanded]").find((node) => node.text().includes("Attachments"))!;
+    expect(attachmentsToggle.attributes("aria-expanded")).toBe("false");
+    await attachmentsToggle.trigger("click");
+    expect(attachmentsToggle.attributes("aria-expanded")).toBe("true");
+  });
+
+  it("renders the phone dock and reveals from it through the same mutation as the desktop action", async () => {
+    const wrapper = mountView();
+    const dock = wrapper.findComponent(DockBar);
+    expect(dock.exists()).toBe(true);
+
+    const revealButton = dock.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Reveal fully")!;
+    await revealButton.trigger("click");
+    await flushPromises();
+
+    expect(mocks.confirm).toHaveBeenCalled();
+    expect(mocks.update).toHaveBeenCalledWith({
+      id: "beat-1", questId: "quest-1", expectedUpdatedAt: "version-1", update: { visibility: "revealed" },
+    });
+  });
+
+  it("swaps the dock's reveal action for Preview as players once the beat is revealed", async () => {
+    mocks.beat = beat({ visibility: "revealed" });
+    const wrapper = mountView();
+    const dock = wrapper.findComponent(DockBar);
+
+    expect(wrapper.findComponent({ name: "QuestPlayerPreviewDrawer" }).exists()).toBe(false);
+    const previewButton = dock.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Preview as players")!;
+    await previewButton.trigger("click");
+    expect(wrapper.findComponent({ name: "QuestPlayerPreviewDrawer" }).exists()).toBe(true);
   });
 });

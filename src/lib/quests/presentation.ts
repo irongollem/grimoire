@@ -1,13 +1,51 @@
-import type {
-  QuestBeat,
-  QuestBeatAttachmentSummary,
-  QuestBeatEdge,
-  QuestBeatTransition,
-  QuestConsequence,
-  QuestConvergeMode,
-  QuestRuntimeState,
+import {
+  QUEST_BEAT_KINDS,
+  QUEST_BEAT_KIND_LABELS,
+  type QuestBeat,
+  type QuestBeatAttachmentSummary,
+  type QuestBeatEdge,
+  type QuestBeatTransition,
+  type QuestBeatVisibility,
+  type QuestConsequence,
+  type QuestConvergeMode,
+  type QuestRuntimeState,
 } from "@/types/quest.types";
 import type { SiteReadiness } from "@/lib/locations/siteReadiness";
+
+/** `QUEST_BEAT_KIND_LABELS` falls back to the raw value for a kind an editor
+ *  does not recognise (#780's note: never silently rewrite an unknown kind to
+ *  "neutral") — this is that fallback, shared by the beat page's eyebrow, its
+ *  identity chips, and `QuestBeatIdentityFields`'s own Kind select (#872). */
+export function questBeatKindLabel(kind: string): string {
+  return QUEST_BEAT_KIND_LABELS[kind as (typeof QUEST_BEAT_KINDS)[number]] ?? kind;
+}
+
+/** The beat page's Visibility row and identity chip, and now
+ *  `QuestBeatIdentityFields` (#872) — one copy of both maps rather than a
+ *  second one wherever the editor mounts. */
+export const QUEST_BEAT_VISIBILITY_LABELS: Record<QuestBeatVisibility, string> = { hidden: "hidden", rumored: "rumored", revealed: "revealed" };
+export const QUEST_BEAT_VISIBILITY_CAPTIONS: Record<QuestBeatVisibility, string> = {
+  hidden: "Players do not see this beat at all",
+  rumored: "Players see the rumour text, not the beat",
+  revealed: "Players see the beat itself",
+};
+
+/** Top-level block count of a Tiptap doc stored as a JSON string (the format
+ *  `RichTextEditor` actually saves — `JSON.stringify(editor.getJSON())`), or
+ *  `null` for legacy plain text / anything unparseable. Shared by
+ *  `QuestRunBeatCard`'s DM-notes fold row and the beat page's own phone fold
+ *  (#872) — a caption that assumed HTML (`<p>` tags) would read every real
+ *  beat's content as empty, since none of it is stored that way. */
+export function countQuestBeatContentBlocks(content: string | null): number | null {
+  if (!content) return null;
+  try {
+    const doc = JSON.parse(content) as { type?: string; content?: unknown[] };
+    if (doc?.type === "doc" && Array.isArray(doc.content)) return doc.content.length;
+  } catch {
+    // Not Tiptap JSON — legacy plain text, unknown block count.
+  }
+  return null;
+}
 
 export interface QuestBeatLootSummary {
   total: number;

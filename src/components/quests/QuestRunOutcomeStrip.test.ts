@@ -82,6 +82,19 @@ describe("QuestRunOutcomeStrip", () => {
     expect(chooseButton?.attributes("disabled")).toBeUndefined();
   });
 
+  // #872 review fix 3: `QuestRunNextSheet`'s own sheet title already says
+  // "What happens next", so headless omits this strip's own duplicate <h3>
+  // while keeping the section's accessible name.
+  it("shows its own heading by default, and omits it when headless", () => {
+    const shown = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing } });
+    expect(shown.find("h3").exists()).toBe(true);
+    expect(shown.get("section").attributes("aria-label")).toBe("What happens next");
+
+    const headless = mount(QuestRunOutcomeStrip, { props: { status: "running", outgoing, headless: true } });
+    expect(headless.find("h3").exists()).toBe(false);
+    expect(headless.get("section").attributes("aria-label")).toBe("What happens next");
+  });
+
   it("prefers a route's own payoff over its gate condition when both exist", () => {
     const payoffChoice = {
       ...outgoing[0]!,

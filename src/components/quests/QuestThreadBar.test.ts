@@ -1,5 +1,5 @@
-import { mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DOMWrapper, mount, type VueWrapper } from "@vue/test-utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QuestThreadBar from "./QuestThreadBar.vue";
 
 const mocks = vi.hoisted(() => ({
@@ -64,5 +64,70 @@ describe("QuestThreadBar", () => {
       campaignId: "c1", questId: "q1", beatId: "b1", label: "The sealed crypt", reason: undefined,
     });
     expect(wrapper.emitted("switch")).toEqual([["t4"]]);
+  });
+
+  // #872 frame 5: below `sm`, the picker lives behind a trailing counter pill.
+  describe("the mobile thread picker (frame 5)", () => {
+    // MobileSheet teleports to document.body, outside the mounted wrapper's own
+    // element and outside anything unmount() would otherwise clean up on its
+    // own, so every test that opens it must unmount explicitly or the next
+    // test's DOMWrapper(document.body) query can match a stale sheet instead.
+    let wrapper: VueWrapper | undefined;
+    afterEach(() => wrapper?.unmount());
+
+    function bodyWrapper(): DOMWrapper<HTMLElement> {
+      return new DOMWrapper(document.body);
+    }
+
+    it("shows a counter pill with the total including closed threads", () => {
+      wrapper = mount(QuestThreadBar, { props: { questId: "q1", campaignId: "c1", threadId: "t1" } });
+      const counter = wrapper.findAll("button").find((button) => button.text() === "3 ›");
+      expect(counter).toBeDefined();
+    });
+
+    it("opens the sheet from the counter and lists every thread, closed ones dimmed and disabled", async () => {
+      wrapper = mount(QuestThreadBar, { props: { questId: "q1", campaignId: "c1", threadId: "t1" } });
+      await wrapper.findAll("button").find((button) => button.text() === "3 ›")!.trigger("click");
+
+      const dialog = bodyWrapper().get("[role=dialog]");
+      expect(dialog.text()).toContain("A · The petition");
+      expect(dialog.text()).toContain("B · The Drowned Vault");
+      expect(dialog.text()).toContain("An old lead");
+
+      const closedRow = dialog.findAll("button").find((button) => button.text().includes("An old lead"));
+      expect(closedRow?.attributes("disabled")).toBeDefined();
+    });
+
+    it("selecting a live thread in the sheet emits switch, same as its pill, and closes the sheet", async () => {
+      wrapper = mount(QuestThreadBar, { props: { questId: "q1", campaignId: "c1", threadId: "t1" } });
+      await wrapper.findAll("button").find((button) => button.text() === "3 ›")!.trigger("click");
+
+      const dialog = bodyWrapper().get("[role=dialog]");
+      const drowned = dialog.findAll("button").find((button) => button.text().includes("The Drowned Vault"));
+      await drowned!.trigger("click");
+
+      expect(wrapper.emitted("switch")).toEqual([["t2"]]);
+      expect(bodyWrapper().find("[role=dialog]").exists()).toBe(false);
+    });
+
+    it("opens a thread from the sheet's own form through the same mutation", async () => {
+      mocks.openThread.mockResolvedValue({ thread: { id: "t4" } });
+      wrapper = mount(QuestThreadBar, {
+        props: { questId: "q1", campaignId: "c1", threadId: "t1" },
+        global: { stubs: { EntityCombobox: true } },
+      });
+      await wrapper.findAll("button").find((button) => button.text() === "3 ›")!.trigger("click");
+
+      const dialog = bodyWrapper().get("[role=dialog]");
+      await dialog.findAll("button").find((button) => button.text() === "Open a thread")!.trigger("click");
+      dialog.findComponent({ name: "EntityCombobox" }).vm.$emit("update:modelValue", "b1");
+      await dialog.find("input[placeholder='What is this thread?']").setValue("The sealed crypt");
+      await dialog.findAll("button").find((button) => button.text() === "Open thread")!.trigger("click");
+
+      expect(mocks.openThread).toHaveBeenCalledWith({
+        campaignId: "c1", questId: "q1", beatId: "b1", label: "The sealed crypt", reason: undefined,
+      });
+      expect(wrapper.emitted("switch")).toEqual([["t4"]]);
+    });
   });
 });

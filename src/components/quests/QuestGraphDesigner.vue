@@ -12,11 +12,15 @@
           <span v-if="prepGapBeatCount" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ prepGapBeatCount }} prep gaps</span>
         </p>
       </div>
-      <div class="ml-auto flex gap-2">
-        <AppButton :icon="IconAdd" label="Add beat" size="sm" variant="primary" @click="openComposer()" />
-        <AppButton :icon="IconLayers" label="Add parallel route" size="sm" @click="openParallelComposer" />
-        <AppButton :icon="IconMaximize" label="Fit" size="sm" variant="subtle" @click="canvas?.fitGraph()" />
-        <AppButton v-if="currentBeatId" :icon="IconCenter" label="Current beat" size="sm" variant="subtle" @click="canvas?.focusCurrent()" />
+      <!-- Wraps rather than squeezes: four labels in one non-wrapping row at
+           390px became four two-line blocks (#872). Fit and Current beat act
+           on the canvas, which the outline replaces below 48rem, so they do
+           not exist there. -->
+      <div class="ml-auto flex flex-wrap gap-2">
+        <AppButton :icon="IconAdd" label="Add beat" size="sm" variant="primary" class="whitespace-nowrap" @click="openComposer()" />
+        <AppButton :icon="IconLayers" label="Add parallel route" size="sm" class="whitespace-nowrap" @click="openParallelComposer" />
+        <AppButton :icon="IconMaximize" label="Fit" size="sm" variant="subtle" class="hidden whitespace-nowrap md:inline-flex" @click="canvas?.fitGraph()" />
+        <AppButton v-if="currentBeatId" :icon="IconCenter" label="Current beat" size="sm" variant="subtle" class="hidden whitespace-nowrap md:inline-flex" @click="canvas?.focusCurrent()" />
       </div>
     </div>
 

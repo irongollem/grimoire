@@ -25,13 +25,34 @@
       <RichTextViewer :content="beat.read_aloud" />
     </section>
 
-    <section v-if="beat.dm_content || beat.how_it_plays" class="space-y-3">
+    <!-- Below `xl` this collapses into a fold row (#872, frame 1): mid-session
+         the DM needs the read-aloud and the way onward, not the notes. A
+         `v-if`/`v-else-if` switch on the breakpoint rather than a CSS-hidden
+         duplicate — `RichTextViewer` mounts a full Tiptap editor, and running
+         two live instances of the same content for one to sit invisible is
+         exactly the "heavy" case CLAUDE.md's motion rules reserve JS gating for. -->
+    <section v-if="(beat.dm_content || beat.how_it_plays) && !belowXl" class="space-y-3">
       <RichTextViewer v-if="beat.dm_content" :content="beat.dm_content" />
       <div v-if="beat.how_it_plays">
         <p class="mb-1 text-body font-bold text-foreground">How it plays.</p>
         <RichTextViewer :content="beat.how_it_plays" />
       </div>
     </section>
+    <QuestFoldRow
+      v-else-if="beat.dm_content || beat.how_it_plays"
+      v-model:open="notesOpen"
+      title="DM notes & how it plays"
+      :caption="notesCaption"
+      :icon="IconNote"
+    >
+      <div class="space-y-3">
+        <RichTextViewer v-if="beat.dm_content" :content="beat.dm_content" />
+        <div v-if="beat.how_it_plays">
+          <p class="mb-1 text-body font-bold text-foreground">How it plays.</p>
+          <RichTextViewer :content="beat.how_it_plays" />
+        </div>
+      </div>
+    </QuestFoldRow>
 
     <div class="flex flex-wrap gap-2">
       <AppButton
@@ -59,13 +80,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import type { QuestBeat, QuestBeatAttachmentSummary, QuestBeatAttachmentType, QuestCheckAttachmentMetadata } from "@/types/quest.types";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import type { ThreadBadge } from "@/lib/quests/threads";
-import { deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
+import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps } from "@/lib/quests/presentation";
+import { useBelow } from "@/composables/useBreakpoint";
 import AppButton from "@/components/common/AppButton.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import QuestFoldRow from "./QuestFoldRow.vue";
 import {
   IconDice,
   IconDocument,
@@ -95,6 +118,23 @@ const editUrl = computed(() => ({
   query: { returnTo: runReturn.value },
 }));
 const prepGaps = computed(() => deriveQuestBeatPrepGaps(props.beat, props.attachments));
+
+// Wrapped in a `computed` rather than used directly: `useBelow` is mocked in
+// tests as a plain `{ value }` box (see QuestAdvanceDialog.test.ts's own
+// convention), which the template's ref-auto-unwrap does not see through —
+// only a real `computed` reads `.value` reliably regardless of what the
+// underlying hook returns.
+const belowXlSource = useBelow("xl");
+const belowXl = computed(() => belowXlSource.value);
+const notesOpen = ref(false);
+
+const notesCaption = computed(() => {
+  const counts = [countQuestBeatContentBlocks(props.beat.dm_content), countQuestBeatContentBlocks(props.beat.how_it_plays)]
+    .filter((count): count is number => count !== null);
+  if (!counts.length) return "notes";
+  const total = counts.reduce((sum, count) => sum + count, 0);
+  return `${total} paragraph${total === 1 ? "" : "s"}`;
+});
 
 // A check attachment's button leads with the roll ("Roll Insight") rather than
 // the beat's own label, and comes first in the row — it is the action the

@@ -1,7 +1,7 @@
-import { mount } from "@vue/test-utils";
+import { DOMWrapper, mount, type VueWrapper } from "@vue/test-utils";
 import { computed, nextTick, ref } from "vue";
 import type { Ref } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import QuestSiteHandoff from "./QuestSiteHandoff.vue";
 import type { QuestBeat, QuestRuntimeContext, QuestThreadCursor } from "@/types/quest.types";
 import type { Location } from "@/types/location.types";
@@ -36,9 +36,18 @@ const mocks = vi.hoisted(() => ({
   setLocation: vi.fn(),
   updateLocation: vi.fn(),
   route: { query: {} as Record<string, string> },
+  // #872 frame 4: the phone composition is a JS branch (`belowXl`), not a CSS
+  // one, so it needs a real mock rather than relying on jsdom/happy-dom's own
+  // `matchMedia` (which always answers "not matched"). Defaults to desktop
+  // (`false`) so every pre-existing test above stays exactly as it was.
+  belowXl: false,
 }));
 
 vi.mock("vue-router", async (importOriginal) => ({ ...(await importOriginal<object>()), useRoute: () => mocks.route }));
+vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useBelow: () => ref(mocks.belowXl),
+}));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => {
     mocks.campaignLocationRef = ref(mocks.currentLocationId);
@@ -186,6 +195,7 @@ describe("QuestSiteHandoff", () => {
     mocks.setLocation.mockClear();
     mocks.updateLocation.mockClear();
     mocks.route.query = {};
+    mocks.belowXl = false;
   });
 
   it("declines to run when the beat carries no staged site", () => {
@@ -355,5 +365,90 @@ describe("QuestSiteHandoff", () => {
     await nextTick();
 
     expect(wrapper.text()).toContain("is staged on this floor — advance?");
+  });
+
+  // #872 frame 4 ("On a phone the crawl is one room at a time"): below xl the
+  // three-column grid gives way to the plan, the current room, and a docked
+  // Rooms/Advance bar — a JS branch (`belowXl`), so every heavy component
+  // below (SiteRunRoomStack, SiteRunWaysOut, LocationStateControls,
+  // SiteRoomList) mounts exactly once, never alongside the desktop grid's
+  // own copies.
+  describe("below xl (frame 4: the room is the page)", () => {
+    // MobileSheet teleports to document.body — same reasoning as
+    // QuestThreadBar's own mobile-picker tests: outside the mounted
+    // wrapper's own element, so every test that opens one must unmount
+    // explicitly or the next test's `bodyWrapper()` query can match a stale
+    // sheet instead.
+    let wrapper: VueWrapper | undefined;
+    afterEach(() => wrapper?.unmount());
+
+    function bodyWrapper(): DOMWrapper<HTMLElement> {
+      return new DOMWrapper(document.body);
+    }
+
+    beforeEach(() => {
+      mocks.belowXl = true;
+      mocks.children = [room({ id: "room-1" }), room({ id: "room-2", name: "Antechamber" })];
+      mocks.currentLocationId = "room-1";
+    });
+
+    it("docks Rooms · n and Advance beat instead of rendering the three-column grid", () => {
+      wrapper = mountHandoff();
+      expect(wrapper.findComponent({ name: "SiteRoomList" }).exists()).toBe(false);
+      const dock = wrapper.findComponent({ name: "DockBar" });
+      expect(dock.exists()).toBe(true);
+      expect(dock.text()).toContain("Rooms · 2");
+      const stack = wrapper.findComponent({ name: "SiteRunRoomStack" });
+      expect(stack.props("room")).toMatchObject({ id: "room-1" });
+      expect(wrapper.findComponent({ name: "SiteRunWaysOut" }).props("roomId")).toBe("room-1");
+    });
+
+    it("the dock's Advance beat fires the same emit as the header's own button", async () => {
+      wrapper = mountHandoff();
+      const dock = wrapper.findComponent({ name: "DockBar" });
+      await dock.findAllComponents({ name: "AppButton" }).find((b) => b.text() === "Advance beat")!.trigger("click");
+      expect(wrapper.emitted("advance")).toHaveLength(1);
+    });
+
+    it("opens the Rooms sheet from the dock, lists every room with run captions, and closes the sheet once one is picked", async () => {
+      wrapper = mountHandoff();
+      const dock = wrapper.findComponent({ name: "DockBar" });
+      await dock.findAllComponents({ name: "AppButton" }).find((b) => b.text().startsWith("Rooms ·"))!.trigger("click");
+
+      const dialog = bodyWrapper().get("[role=dialog]");
+      expect(dialog.text()).toContain("Rooms");
+      const list = wrapper.findComponent({ name: "SiteRoomList" });
+      expect(list.props("rooms")).toHaveLength(2);
+      expect(list.props("runCaptions")).toBe(true);
+
+      list.vm.$emit("move", "room-2");
+      await nextTick();
+      expect(mocks.setLocation).toHaveBeenCalledWith(
+        { id: "c1", locationId: "room-2" },
+        expect.objectContaining({ onError: expect.any(Function) }),
+      );
+      expect(bodyWrapper().find("[role=dialog]").exists()).toBe(false);
+    });
+
+    it("the sheet's footer Leave site and Advance beat fire the same emits as the header", async () => {
+      wrapper = mountHandoff();
+      const dock = wrapper.findComponent({ name: "DockBar" });
+      await dock.findAllComponents({ name: "AppButton" }).find((b) => b.text().startsWith("Rooms ·"))!.trigger("click");
+
+      const dialog = bodyWrapper().get("[role=dialog]");
+      await dialog.findAll("button").find((b) => b.text() === "Leave site")!.trigger("click");
+      await dialog.findAll("button").find((b) => b.text() === "Advance beat")!.trigger("click");
+      expect(wrapper.emitted("leave")).toHaveLength(1);
+      expect(wrapper.emitted("advance")).toHaveLength(1);
+    });
+
+    it("the trigger banner still emits its two actions", async () => {
+      mocks.regions = [roomRegion({ space_location_id: "room-1", cells: ["0,0"] }), triggerZone({ zone_payload: { beat_id: "beat-1" }, cells: ["0,0"] })];
+      wrapper = mountHandoff();
+      expect(wrapper.text()).toContain("is staged on this floor — advance?");
+
+      await wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.text() === "Advance")!.trigger("click");
+      expect(wrapper.emitted("advance")).toHaveLength(1);
+    });
   });
 });

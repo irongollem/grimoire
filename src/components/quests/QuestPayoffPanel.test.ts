@@ -193,6 +193,23 @@ describe("QuestPayoffPanel", () => {
     expect(wrapper.text()).toContain("Nothing this beat gives yet.");
   });
 
+  // #872 frame 6: two columns on a phone, widening to the desktop grid at sm,
+  // with cp spanning the full width of the phone's two-column row.
+  it("lays the Riches coin grid out two-up on a phone, five-up from sm, cp spanning both phone columns", async () => {
+    const wrapper = mountPanel();
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Riches")!.trigger("click");
+
+    const grid = wrapper.find("label.uppercase").element.parentElement!;
+    expect(grid.className).toContain("grid-cols-2");
+    expect(grid.className).toContain("sm:grid-cols-5");
+
+    const labels = wrapper.findAll("label.uppercase");
+    expect(labels).toHaveLength(5);
+    const cpLabel = labels.find((label) => label.text().toUpperCase() === "CP")!;
+    expect(cpLabel.classes()).toEqual(expect.arrayContaining(["col-span-2", "sm:col-span-1"]));
+    expect(labels.filter((label) => label !== cpLabel).every((label) => !label.classes().includes("col-span-2"))).toBe(true);
+  });
+
   // #871: the "Enters at" combobox on the Quest quick-add.
   describe("the entry-beat bridge on a quest unlock", () => {
     async function openQuestQuickAdd(wrapper: ReturnType<typeof mountPanel>) {

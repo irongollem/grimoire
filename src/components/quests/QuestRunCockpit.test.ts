@@ -1,4 +1,5 @@
 import { flushPromises, shallowMount } from "@vue/test-utils";
+import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestRunCockpit from "./QuestRunCockpit.vue";
 import QuestRunSessionPanel from "./QuestRunSessionPanel.vue";
@@ -9,6 +10,9 @@ import QuestPlayerPreviewDrawer from "./QuestPlayerPreviewDrawer.vue";
 import QuestRunOpenChains from "./QuestRunOpenChains.vue";
 import QuestThreadBar from "./QuestThreadBar.vue";
 import QuestAdvanceDialog from "./QuestAdvanceDialog.vue";
+import QuestRunPrepSheet from "./QuestRunPrepSheet.vue";
+import QuestRunNextSheet from "./QuestRunNextSheet.vue";
+import DockBar from "@/components/common/DockBar.vue";
 
 const mocks = vi.hoisted(() => ({
   context: { value: null as Record<string, unknown> | null },
@@ -31,11 +35,20 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   route: { query: { view: "run" } as Record<string, string> },
   activeCampaignId: "c1" as string | null,
+  // #872: happy-dom's `matchMedia` always answers "matched", which would
+  // make the real `useBelow("xl")` read as mobile by default — the opposite
+  // of every test below, which asserts the desktop rail. Same mock shape as
+  // QuestSiteHandoff.test.ts.
+  belowXl: false,
 }));
 
 vi.mock("vue-router", () => ({ useRoute: () => mocks.route, useRouter: () => ({ replace: mocks.replace }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn(async () => true) }) }));
 vi.mock("@/composables/useHotkeys", () => ({ useHotkeys: vi.fn() }));
+vi.mock("@/composables/useBreakpoint", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useBelow: () => ref(mocks.belowXl),
+}));
 vi.mock("@/stores/campaign", () => ({ useCampaignStore: () => ({ activeCampaignId: mocks.activeCampaignId }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: mocks.locations }) }));
 vi.mock("@/composables/quests/useQuests", () => ({
@@ -98,6 +111,7 @@ describe("QuestRunCockpit", () => {
     mocks.replace.mockReset();
     mocks.updateBeat.mockReset();
     mocks.improvise.mockReset();
+    mocks.belowXl = false;
   });
 
   // The start card tells, not asks (#871): with a declared entry it renders
@@ -356,5 +370,106 @@ describe("QuestRunCockpit", () => {
     expect(wrapper.findComponent(QuestRunOpenChains).props("chains")).toEqual([
       expect.objectContaining({ quest_id: "q2", runtime_status: "paused" }),
     ]);
+  });
+
+  // #872, frame 1: below xl the rail becomes a docked "What happens next" +
+  // Prep, and none of the rail's own heavy components mount alongside it.
+  describe("phone frame (#872)", () => {
+    it("docks 'What happens next' with its count and Prep, and mounts none of the desktop rail", () => {
+      mocks.belowXl = true;
+      mocks.context.value = runningContext();
+      const wrapper = shallowMount(QuestRunCockpit, {
+        props: { anchorQuestId: "q1" },
+        global: { stubs: { DockBar: false } },
+      });
+      expect(wrapper.findComponent(QuestRunOutcomeStrip).exists()).toBe(false);
+      expect(wrapper.findComponent(QuestRunOpenChains).exists()).toBe(false);
+      const buttons = wrapper.findAllComponents({ name: "AppButton" });
+      expect(buttons.some((button) => button.props("label") === "What happens next · 1")).toBe(true);
+      expect(buttons.some((button) => button.props("ariaLabel") === "Prep")).toBe(true);
+    });
+
+    it("opens the Prep and What-happens-next sheets from the dock", async () => {
+      mocks.belowXl = true;
+      mocks.context.value = runningContext();
+      const wrapper = shallowMount(QuestRunCockpit, {
+        props: { anchorQuestId: "q1" },
+        global: { stubs: { DockBar: false } },
+      });
+      const buttons = wrapper.findAllComponents({ name: "AppButton" });
+      await buttons.find((button) => button.props("label") === "What happens next · 1")!.trigger("click");
+      expect(wrapper.findComponent(QuestRunNextSheet).props("open")).toBe(true);
+      await buttons.find((button) => button.props("ariaLabel") === "Prep")!.trigger("click");
+      expect(wrapper.findComponent(QuestRunPrepSheet).props("open")).toBe(true);
+    });
+
+    it("hands off from Prep's footer to the What-happens-next sheet", async () => {
+      mocks.context.value = runningContext();
+      const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+      wrapper.findComponent(QuestRunPrepSheet).vm.$emit("update:open", true);
+      await wrapper.vm.$nextTick();
+      wrapper.findComponent(QuestRunPrepSheet).vm.$emit("open-next");
+      await wrapper.vm.$nextTick();
+      expect(wrapper.findComponent(QuestRunPrepSheet).props("open")).toBe(false);
+      expect(wrapper.findComponent(QuestRunNextSheet).props("open")).toBe(true);
+    });
+
+    it("opens the Advance dialog from the Next sheet's choose, same as the rail's outcome strip", async () => {
+      mocks.context.value = runningContext();
+      const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+      wrapper.findComponent(QuestRunNextSheet).vm.$emit("choose", "e1");
+      await wrapper.vm.$nextTick();
+      const dialog = wrapper.findComponent(QuestAdvanceDialog);
+      expect(dialog.props("open")).toBe(true);
+      expect(dialog.props("preselectedEdgeId")).toBe("e1");
+    });
+
+    it("folds Held payoff and Session, and hides the Held payoff fold entirely when nothing is held", () => {
+      mocks.belowXl = true;
+      mocks.context.value = runningContext();
+      const nothingHeld = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+      expect(nothingHeld.findAllComponents({ name: "QuestFoldRow" }).map((fold) => fold.props("title"))).toEqual(["Session"]);
+
+      mocks.context.value = { ...runningContext(), held: [{ event_id: "ev1", beat_title: "Opening" }] };
+      const held = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+      expect(held.findAllComponents({ name: "QuestFoldRow" }).map((fold) => fold.props("title"))).toEqual(["Held payoff", "Session"]);
+    });
+
+    // #872 review fix 3: the fold's own title already says "Session", so its
+    // copy of the panel must not render a second one.
+    it("mounts the folded Session panel headless, and the desktop one with its own heading", () => {
+      mocks.belowXl = true;
+      mocks.context.value = runningContext();
+      // `QuestFoldRow` is a shallow stub by default, and a stub never renders
+      // its default slot — the folded `QuestRunSessionPanel` this test cares
+      // about lives in that slot, so the fold itself must be unstubbed here.
+      const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" }, global: { stubs: { QuestFoldRow: false } } });
+      const panels = wrapper.findAllComponents(QuestRunSessionPanel);
+      expect(panels.map((panel) => !!panel.props("headless"))).toEqual([false, true]);
+    });
+
+    it("does not dock 'What happens next' before the run has started, or under the site handoff", () => {
+      mocks.belowXl = true;
+      const notStarted = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+      expect(notStarted.findComponent(DockBar).exists()).toBe(false);
+
+      mocks.context.value = runningContext();
+      mocks.beats.value = [{ ...beat, staged_at_location_id: "room-1" }];
+      mocks.locations.value = [
+        { id: "site-1", parent_id: null, location_type: "dungeon" },
+        { id: "room-1", parent_id: "site-1", location_type: "room" },
+      ];
+      const handoff = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+      expect(handoff.findComponent({ name: "QuestSiteHandoff" }).exists()).toBe(true);
+      expect(handoff.findComponent(DockBar).exists()).toBe(false);
+    });
+
+    it("renders the rail and outcome strip as before, above xl", () => {
+      mocks.belowXl = false;
+      mocks.context.value = runningContext();
+      const wrapper = shallowMount(QuestRunCockpit, { props: { anchorQuestId: "q1" } });
+      expect(wrapper.findComponent(QuestRunOutcomeStrip).exists()).toBe(true);
+      expect(wrapper.findComponent(QuestRunOpenChains).exists()).toBe(true);
+    });
   });
 });

@@ -1,6 +1,6 @@
 <template>
   <section class="flex flex-col gap-2" aria-label="What happens next">
-    <h3 class="font-cinzel text-sm font-bold text-foreground">What happens next</h3>
+    <h3 v-if="!headless" class="font-cinzel text-sm font-bold text-foreground">What happens next</h3>
     <AppInput v-if="choices.length > 4" v-model="branchSearch" placeholder="Filter branches…" />
     <div class="grid gap-2">
       <article v-for="choice in filteredChoices" :key="choice.edge_id" class="space-y-2 rounded-lg border border-border bg-card p-3">
@@ -70,7 +70,7 @@ import { IconLinkAlt as IconParallel } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 
-const props = defineProps<{ status: QuestRuntimeStatus; outgoing: QuestRunBranchChoice[]; disabled?: boolean }>();
+const props = defineProps<{ status: QuestRuntimeStatus; outgoing: QuestRunBranchChoice[]; disabled?: boolean; headless?: boolean }>();
 const navigationDisabled = computed(() => props.disabled || props.status !== "running");
 const choices = computed(() => props.outgoing.filter((choice) => choice.route_kind === "choice"));
 const parallelRoutes = computed(() => props.outgoing.filter((choice) => choice.route_kind === "parallel"));

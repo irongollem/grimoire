@@ -14,6 +14,7 @@
     />
 
     <template v-else-if="quest">
+      <QuestPhoneTopBar :title="quest.title" :subtitle="phoneSubtitle" />
       <!--
         The three permanent tabs — "i utterly dont like the quest in a
         modal. its too much data and inconsistent" / "perhaps we just need 3
@@ -61,6 +62,7 @@ import QuestFlowStarter from "@/components/quests/QuestFlowStarter.vue";
 import QuestGraphDesigner from "@/components/quests/QuestGraphDesigner.vue";
 import QuestRunCockpit from "@/components/quests/QuestRunCockpit.vue";
 import QuestOverviewPanel from "@/components/quests/QuestOverviewPanel.vue";
+import QuestPhoneTopBar from "@/components/quests/QuestPhoneTopBar.vue";
 import { QUEST_STATUS_LABELS } from "@/types/quest.types";
 
 const route    = useRoute();
@@ -79,6 +81,16 @@ const { view } = useQuestDetailSurface();
  * See #776.
  */
 const showsGraph = computed(() => !isNew.value && view.value === "work");
+
+// The phone top bar's second line: the lane, plus the surface when it is not
+// the overview — "Active · Run" tells a DM which of the three tabs they are
+// on without the tab strip having scrolled into view.
+const phoneSubtitle = computed(() => {
+  if (!quest.value) return undefined;
+  const lane = QUEST_STATUS_LABELS[quest.value.status];
+  const surface = view.value === "work" ? "Story flow" : view.value === "run" ? "Run" : null;
+  return surface ? `${lane} · ${surface}` : lane;
+});
 
 const viewOptions = [
   { value: "overview" as const, label: "Overview" },

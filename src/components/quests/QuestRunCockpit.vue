@@ -50,20 +50,47 @@
               @open-attachment="selectedAttachment = $event"
               @reveal="revealBeat(currentBeat.id)"
             />
-            <QuestRunHeldPayoff :campaign-id="campaignId" :loot="heldLoot" :held="context.held" />
+            <!-- Below xl this folds (frame 1), absent when nothing is held. -->
+            <QuestRunHeldPayoff class="hidden xl:block" :campaign-id="campaignId" :loot="heldLoot" :held="context.held" />
+            <QuestFoldRow
+              v-if="heldLoot.length || context.held.length"
+              v-model:open="heldPayoffOpen"
+              class="xl:hidden"
+              title="Held payoff"
+              :caption="heldPayoffCaption"
+              :icon="IconPackage"
+            >
+              <QuestRunHeldPayoff :campaign-id="campaignId" :loot="heldLoot" :held="context.held" />
+            </QuestFoldRow>
           </template>
-          <QuestRunSessionPanel
-            :status="context.state.status"
-            :has-previous="!!context.previous"
-            :disabled="transitioning"
-            @previous="command('previous')"
-            @jump="jumpOpen = !jumpOpen"
-            @pause="command('pause')"
-            @resume="command('resume')"
-            @end="endSession"
-          />
+          <QuestRunSessionPanel class="hidden xl:block" v-bind="sessionPanelProps" v-on="sessionPanelListeners" />
+          <QuestFoldRow v-model:open="sessionOpen" class="xl:hidden" title="Session" caption="Previous · Jump · Pause · End" :icon="IconClock">
+            <QuestRunSessionPanel v-bind="sessionPanelProps" headless v-on="sessionPanelListeners" />
+          </QuestFoldRow>
+          <!-- Dock (frame 1), absent under the site handoff. No Prep badge — objectives + chains is noise, not a count. -->
+          <DockBar v-if="!showSiteHandoff" hide-from="xl">
+            <AppButton
+              :label="`What happens next · ${nextCount}`"
+              variant="primary"
+              size="lg"
+              class="min-h-12 flex-1"
+              :icon="IconLinkAlt"
+              @click="nextSheetOpen = true"
+            />
+            <AppButton
+              variant="subtle"
+              size="icon-sm"
+              shape="pill"
+              class="min-h-12 min-w-12"
+              :icon="IconClipboard"
+              aria-label="Prep"
+              @click="prepSheetOpen = true"
+            />
+          </DockBar>
         </div>
-        <div class="flex flex-col gap-3 min-h-0">
+        <!-- Rail, xl and up only — below that Ledger/Story so far/Open Chains
+             already mount inside the Prep sheet, so this doesn't mount at all. -->
+        <div v-if="!belowXl" class="flex flex-col gap-3 min-h-0">
           <QuestRunObjectivesLedger :quest-id="anchorQuestId" :thread-id="threadId" :outgoing="context.outgoing" :threads="context.threads" />
           <QuestRunStorySoFar
             :quest-id="anchorQuestId"
@@ -78,18 +105,28 @@
           />
           <QuestRunOpenChains :chains="otherOpenChains" :threads="context.threads" :thread-id="threadId" @switch-thread="switchThread" />
           <div class="mt-auto">
-            <QuestRunOutcomeStrip
-              :status="context.state.status"
-              :outgoing="branchChoices"
-              :disabled="transitioning"
-              @choose="onChoose"
-              @something-else="onSomethingElse"
-              @reveal="revealBeat"
-              @preview="openPreview"
-            />
+            <QuestRunOutcomeStrip v-bind="outcomeStripProps" v-on="outcomeStripListeners" />
           </div>
         </div>
       </div>
+
+      <QuestRunPrepSheet
+        v-model:open="prepSheetOpen"
+        :quest-id="anchorQuestId"
+        :thread-id="threadId"
+        :outgoing="context.outgoing"
+        :threads="context.threads"
+        :beats="beatsQuery.data.value ?? []"
+        :path-so-far="context.path_so_far"
+        :current-beat-id="context.current?.id ?? null"
+        :consequences="consequencesQuery.data.value ?? []"
+        :objectives="objectivesQuery.data.value ?? []"
+        :chains="otherOpenChains"
+        :next-count="nextCount"
+        @switch-thread="switchThread"
+        @open-next="openNextFromPrep"
+      />
+      <QuestRunNextSheet v-model:open="nextSheetOpen" v-bind="outcomeStripProps" :thread-badge="currentThreadBadge" v-on="outcomeStripListeners" />
 
       <QuestRunJumpPanel v-if="jumpOpen" v-model="jumpSearch" :targets="rankedJumpTargets" @close="jumpOpen = false" @jump="jump" />
       <QuestRunContainedTool
@@ -160,6 +197,7 @@ import { refDebounced } from "@vueuse/core";
 import { useRoute, useRouter } from "vue-router";
 import { useConfirm } from "@/composables/useConfirm";
 import { useHotkeys } from "@/composables/useHotkeys";
+import { useBelow } from "@/composables/useBreakpoint";
 import { useCampaignStore } from "@/stores/campaign";
 import {
   useCampaignLiveQuests,
@@ -185,14 +223,19 @@ import { rootBeatIds } from "@/lib/quests/graph";
 import { rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarget } from "@/lib/quests/run";
 import { defaultThreadId, threadBadge, threadTone } from "@/lib/quests/threads";
 import type { QuestBeatAttachmentSummary, QuestRuntimeCommand } from "@/types/quest.types";
+import { IconClipboard, IconClock, IconLinkAlt, IconPackage } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import DockBar from "@/components/common/DockBar.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import QuestThreadBar from "./QuestThreadBar.vue";
 import QuestRunBeatCard from "./QuestRunBeatCard.vue";
+import QuestFoldRow from "./QuestFoldRow.vue";
 import QuestRunHeldPayoff from "./QuestRunHeldPayoff.vue";
 import QuestRunSessionPanel from "./QuestRunSessionPanel.vue";
+import QuestRunPrepSheet from "./QuestRunPrepSheet.vue";
+import QuestRunNextSheet from "./QuestRunNextSheet.vue";
 import QuestRunJumpPanel from "./QuestRunJumpPanel.vue";
 import QuestRunObjectivesLedger from "./QuestRunObjectivesLedger.vue";
 import QuestRunStorySoFar from "./QuestRunStorySoFar.vue";
@@ -269,6 +312,14 @@ const advanceOpen = ref(false);
 const advancePreselectedEdgeId = ref<string | undefined>(undefined);
 const advanceImprovise = ref(false);
 const updateBeat = useUpdateQuestBeat();
+const belowXlSource = useBelow("xl");
+// #872 phone fold/sheet state. `belowXl` is a `computed` (not the raw hook)
+// so the template's ref-unwrap works against the plain-box test mock too.
+const belowXl = computed(() => belowXlSource.value);
+const heldPayoffOpen = ref(false);
+const sessionOpen = ref(false);
+const prepSheetOpen = ref(false);
+const nextSheetOpen = ref(false);
 
 const context = computed(() => contextQuery.data.value ?? null);
 const currentBeat = computed(() => {
@@ -356,6 +407,19 @@ const branchChoices = computed(() => {
     };
   });
 });
+// Dock's "What happens next · N" (#872) — every route out of the current
+// beat, choice and parallel alike.
+const nextCount = computed(() => branchChoices.value.length);
+// Held-payoff fold row caption: a total plus a short breakdown.
+const heldPayoffCaption = computed(() => {
+  const heldCount = context.value?.held.length ?? 0;
+  const total = heldCount + heldLoot.value.length;
+  if (!total) return "";
+  const parts: string[] = [];
+  if (heldLoot.value.length) parts.push(`${heldLoot.value.length} loot`);
+  if (heldCount) parts.push(`${heldCount} consequence${heldCount === 1 ? "" : "s"}`);
+  return `${total} waiting on you — ${parts.join(", ")}`;
+});
 const rankedJumpTargets = computed(() => rankQuestJumpTargets(
   (jumpTargetsQuery.data.value ?? []).filter((target) => target.beat_id !== context.value?.current?.id),
   recentBeatIds.value,
@@ -407,6 +471,7 @@ watch(rootIds, (roots) => {
 watch(() => context.value?.current?.id, (beatId) => {
   selectedAttachment.value = null;
   siteHandoffDismissed.value = false;
+  nextSheetOpen.value = false; // its routes may no longer exist once the beat moves
   if (!beatId || route.query.beat === beatId) return;
   void router.replace({ query: { ...route.query, beat: beatId } });
 }, { immediate: true });
@@ -430,6 +495,21 @@ async function command(kind: QuestRuntimeCommand, extra: { edgeId?: string } = {
   if (!state) return;
   await run({ campaignId: state.campaign_id, questId: anchorQuestId, threadId: threadId.value, command: kind, expectedVersion: state.version, ...extra });
 }
+
+// Shared by the desktop and folded session panel copies, and by the rail's
+// outcome strip and the phone "What happens next" sheet (#872) — one
+// definition each rather than the same bindings written out twice.
+const sessionPanelProps = computed(() => ({
+  status: context.value!.state!.status, hasPrevious: !!context.value!.previous, disabled: transitioning.value,
+}));
+const sessionPanelListeners = {
+  previous: () => command("previous"), jump: () => { jumpOpen.value = !jumpOpen.value; },
+  pause: () => command("pause"), resume: () => command("resume"), end: () => endSession(),
+};
+const outcomeStripProps = computed(() => ({
+  status: context.value!.state!.status, outgoing: branchChoices.value, disabled: transitioning.value,
+}));
+const outcomeStripListeners = { choose: onChoose, "something-else": onSomethingElse, reveal: revealBeat, preview: openPreview };
 
 async function start() {
   // The resolved beat unless the picker is the surface actually in front of
@@ -498,6 +578,13 @@ function onSomethingElse() {
 function onAdvanced() {
   advanceOpen.value = false;
   jumpOpen.value = false;
+}
+
+/** Prep's footer hands off to the other sheet (#872) rather than duplicating
+ *  the outcome strip inside Prep. */
+function openNextFromPrep() {
+  prepSheetOpen.value = false;
+  nextSheetOpen.value = true;
 }
 
 useHotkeys(computed(() => [

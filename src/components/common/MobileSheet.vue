@@ -12,7 +12,8 @@
     <Transition name="sheet">
       <div
         v-if="open"
-        class="fixed inset-0 z-50 flex flex-col justify-end md:hidden"
+        class="fixed inset-0 z-50 flex flex-col justify-end"
+        :class="HIDE_FROM[showUntil]"
         role="dialog"
         aria-modal="true"
       >
@@ -73,7 +74,20 @@ import { IconClose } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 
 const open = defineModel<boolean>("open", { required: true });
-defineProps<{ title?: string }>();
+const { showUntil = "md" } = defineProps<{
+  title?: string;
+  /**
+   * The breakpoint at which the sheet stops existing and the caller's desktop
+   * layout takes over. `md` is the original mobile-only contract; the quest
+   * phone frames (#872) run the cockpit's Prep / What-happens-next sheets and
+   * the site handoff's Rooms sheet up to `xl`, where their desktop rail
+   * returns, and the Advance sheet and thread sheet only up to `sm`.
+   */
+  showUntil?: keyof typeof HIDE_FROM;
+}>();
+
+// Static strings on purpose: Tailwind only emits classes it can read.
+const HIDE_FROM = { sm: "sm:hidden", md: "md:hidden", lg: "lg:hidden", xl: "xl:hidden" } as const;
 </script>
 
 <style scoped>

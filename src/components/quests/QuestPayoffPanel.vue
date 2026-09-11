@@ -33,6 +33,7 @@
         :label="option.label"
         :icon="option.icon"
         size="xs"
+        class="max-sm:min-h-11"
         :active="activeQuickAdd === option.kind"
         @click="toggleQuickAdd(option.kind)"
       />
@@ -52,8 +53,13 @@
             <label class="text-caption text-muted-foreground">Quantity <AppInput v-model.number="quantity" type="number" min="1" /></label>
             <label class="text-caption text-muted-foreground">Table label <AppInput v-model="label" placeholder="Optional label" /></label>
           </div>
-          <div v-else class="grid grid-cols-5 gap-2">
-            <label v-for="coin in COINS" :key="coin" class="text-caption uppercase text-muted-foreground">{{ coin }}<AppInput v-model.number="currency[coin]" type="number" min="0" /></label>
+          <div v-else class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <label
+              v-for="coin in COINS"
+              :key="coin"
+              class="text-caption uppercase text-muted-foreground"
+              :class="coin === 'cp' ? 'col-span-2 sm:col-span-1' : ''"
+            >{{ coin }}<AppInput v-model.number="currency[coin]" type="number" min="0" class="max-sm:min-h-11" /></label>
           </div>
         </template>
 
