@@ -57,10 +57,10 @@ Each card is the shared `EntityGridCard`. The item card is deliberately the lean
 - **Linked Spells** (non-mundane items only) — search and multi-select spells from the Spellbook to associate with this item (e.g. a staff that can cast specific spells).
 - **Mundane Description** (non-mundane items only) — rich text field shown to players before identification.
 - **Description** — rich text full item description shown after identification.
-- **Written Contents** (`ItemWrittenContentsCard`) — optional in-world text the item itself carries (a ledger's pages, a contract's clauses, a scroll's text), distinct from Description, which is meta text *about* the item. The card is folded closed behind a "HAS WRITING" toggle (the Curse card's pattern): non-null content is a real signal (feather badge, tome tab in player journals), so the editor only opens once the DM declares the item carries writing. Inside the fold sit the editor, a caption stating what players will see, the "PLAYER WRITABLE" checkbox (campaign members may append their own writing at the table), and — on existing items — the entries journal itself (`ItemDocumentSection` with `hideContent`, since the content already sits above it in an editable box), so the DM can read, add and moderate entries without switching to the view sheet. Entries mutate immediately; they are not part of the form's Save. The parent `ItemDetail` keeps persistence: it derives `effectiveContent` from the card's models and writes NULL/false when the fold is closed. See "Document Items" below.
+- **Written Contents** (`ItemWrittenContentsCard`) — optional in-world text the item itself carries (a ledger's pages, a contract's clauses, a scroll's text), distinct from Description, which is meta text _about_ the item. The card is folded closed behind a "HAS WRITING" toggle (the Curse card's pattern): non-null content is a real signal (feather badge, tome tab in player journals), so the editor only opens once the DM declares the item carries writing. Inside the fold sit the editor, a caption stating what players will see, the "PLAYER WRITABLE" checkbox (campaign members may append their own writing at the table), and — on existing items — the entries journal itself (`ItemDocumentSection` with `hideContent`, since the content already sits above it in an editable box), so the DM can read, add and moderate entries without switching to the view sheet. Entries mutate immediately; they are not part of the form's Save. The parent `ItemDetail` keeps persistence: it derives `effectiveContent` from the card's models and writes NULL/false when the fold is closed. See "Document Items" below.
 - **DM Notes** — rich text amber-bordered panel **never shown to players**. Use for GM-side asides, structural beats, foreshadowing. Rendered DM-side in ItemSheet when present.
 - **Curse** (non-mundane items only) — toggle + rich text curse description. The hint reminds the DM to reveal the curse via the party inventory panel once triggered.
-- **Scope** — two-button toggle: "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — *active campaign name*" (`campaign_id = active`). New items default to the active campaign; SRD imports stay general. The Vault list and every downstream `useItems()` caller (chat search, store inventory, crafting recipes, NPC inventory, encounters, loot tables, quests, party inventory) filter by this scope unless `includeAllScopes` is opted in.
+- **Scope** — two-button toggle: "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — _active campaign name_" (`campaign_id = active`). New items default to the active campaign; SRD imports stay general. The Vault list and every downstream `useItems()` caller (chat search, store inventory, crafting recipes, NPC inventory, encounters, loot tables, quests, party inventory) filter by this scope unless `includeAllScopes` is opted in.
 - **Source** — freeform text for custom items; read-only link for Open5e imports.
 
 **View mode** (`/vault/:id` without `?edit=true`) — renders `ItemSheet`, a clean reading layout with tabbed identified/mundane art, a stat block panel (type, rarity, weight, cost, damage, armor class, attunement, charges, properties), linked spells list, and the rich text description.
@@ -79,7 +79,7 @@ Each card is the shared `EntityGridCard`. The item card is deliberately the lean
 
 ### Document Items
 
-Any item can carry `items.content` — the object's own in-world writing (a ledger's pages, a contract's clauses, a scroll's text), Tiptap JSON like every other rich text field. It is NULL for an ordinary item, and distinct from `description`, which is meta text *about* the item rather than words the item itself carries. The editor persists NULL rather than an empty Tiptap doc when the field is blank, so "has content" stays a real signal rather than a presence check on an empty string. Document-ness is also an explicit declaration, not a side effect of typing: the editor card is folded behind a "HAS WRITING" toggle, and unfolding it off persists `content: NULL` and `content_player_writable: false` (drafted text survives in the session until save, mirroring the Curse card). Unsaying "has writing" therefore also locks the player composer, since the `item_entries` INSERT policy gates on `content_player_writable`.
+Any item can carry `items.content` — the object's own in-world writing (a ledger's pages, a contract's clauses, a scroll's text), Tiptap JSON like every other rich text field. It is NULL for an ordinary item, and distinct from `description`, which is meta text _about_ the item rather than words the item itself carries. The editor persists NULL rather than an empty Tiptap doc when the field is blank, so "has content" stays a real signal rather than a presence check on an empty string. Document-ness is also an explicit declaration, not a side effect of typing: the editor card is folded behind a "HAS WRITING" toggle, and unfolding it off persists `content: NULL` and `content_player_writable: false` (drafted text survives in the session until save, mirroring the Curse card). Unsaying "has writing" therefore also locks the player composer, since the `item_entries` INSERT policy gates on `content_player_writable`.
 
 - **`content_player_writable`** — the "PLAYER WRITABLE" toggle in the editor. When on, campaign members may append their own writing to the item; the DM can always write regardless of the flag.
 - **`content_updated_at`** — stamped by a server-side trigger (`items_touch_content_updated_at`) whenever `content` changes, never by the client, so the unread signal cannot be skipped by a client code path. Player unread dots key on this column rather than `updated_at`, so an unrelated item edit (renaming it, reweighing it) does not re-flag a tome a player has already read.
@@ -222,7 +222,7 @@ The Spellbook is the DM's master spell compendium, holding both imported SRD spe
   - **Mechanics block**: Attack/Targeting type (Melee Spell Attack, Ranged Spell Attack, Saving Throw, Utility/No Attack), save attribute and "effect on successful save" (for saving throws); damage rolls (multi-roll `DiceInput`); area of effect (shape + size)
   - Spell description — rich text editor
   - Higher level effects — rich text editor
-  - **Scope** (`CampaignScopeField`, #596) — "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — *active campaign name*" (`campaign_id = active`). New spells default to the active campaign; editing an existing spell never moves it off its stored scope, even a general one. `useAllSpells()` filters custom rows to `!campaign_id || campaign_id === activeCampaignId` — SRD/library spells are always general.
+  - **Scope** (`CampaignScopeField`, #596) — "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — _active campaign name_" (`campaign_id = active`). New spells default to the active campaign; editing an existing spell never moves it off its stored scope, even a general one. `useAllSpells()` filters custom rows to `!campaign_id || campaign_id === activeCampaignId` — SRD/library spells are always general.
 - **Right column** — class list (multi-select checkboxes for all spellcasting classes)
 - **Spell Level Advisor modal** — wizard that appears for new spells. Asks school, effect type, intensity/damage dice, target count, and save type; outputs a suggested spell level and pre-fills mechanical fields.
 
@@ -310,9 +310,9 @@ The Workshop is where the DM creates crafting recipes and controls which players
 - A workspace bonus (standard modifier for having a proper workspace)
 - A workspace label shown in the attempt dialog
 
-Not every discipline maps to an artisan's tool. Herbalism, Poisoncraft and Forgery key off kits, which is deliberate: the point of a discipline is that *some* proficiency unlocks it, and a Charlatan's Forgery Kit is as real a qualification as a smith's hammer. Forgery currently reuses `IconCraftScribing` because `CRAFTING_GLYPHS` is generated from a 14-discipline art sheet and no forgery glyph exists yet — replace it by adding art and regenerating, never by hand-editing `craftingGlyphs.generated.ts`.
+Not every discipline maps to an artisan's tool. Herbalism, Poisoncraft and Forgery key off kits, which is deliberate: the point of a discipline is that _some_ proficiency unlocks it, and a Charlatan's Forgery Kit is as real a qualification as a smith's hammer. Forgery currently reuses `IconCraftScribing` because `CRAFTING_GLYPHS` is generated from a 14-discipline art sheet and no forgery glyph exists yet — replace it by adding art and regenerating, never by hand-editing `craftingGlyphs.generated.ts`.
 
-**Starter recipe data invariants** — `src/data/starterRecipes.test.ts` asserts three things, each because it shipped broken and nothing failed: no duplicate recipe names (the whole `painting` block was once duplicated, so every DM who imported got doubled cards); every output names an item that actually exists in `gear.ts`, `provisions.ts` or `ammunition.ts` (`buildStarterRecipeChildRows` silently *drops* an output it cannot resolve, so the recipe imports fine and then crafts into nothing); and every `discipline` is a real id. Note the third list — ammunition was missing from the importer's lookup, which is why the two arrow/bolt recipes produced nothing.
+**Starter recipe data invariants** — `src/data/starterRecipes.test.ts` asserts three things, each because it shipped broken and nothing failed: no duplicate recipe names (the whole `painting` block was once duplicated, so every DM who imported got doubled cards); every output names an item that actually exists in `gear.ts`, `provisions.ts` or `ammunition.ts` (`buildStarterRecipeChildRows` silently _drops_ an output it cannot resolve, so the recipe imports fine and then crafts into nothing); and every `discipline` is a real id. Note the third list — ammunition was missing from the importer's lookup, which is why the two arrow/bolt recipes produced nothing.
 
 **Reveal control** — `AudienceRevealControl` on each recipe card controls which player characters can see the recipe in their portal. This can be changed directly from the list without entering the editor, and `RecipeSheet` and `RecipeEditor` carry the same control (#741).
 
@@ -356,7 +356,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 **Ingredient matching** — specific-item ingredients matched by `item_id`; tag-based ingredients matched by checking ALL required tags against the vault item's tag array. Ruined items are excluded from counts. Party stash items are included.
 
-**Tool-proficiency matching goes through `src/rules/toolProficiency.ts` — never compare the strings directly.** `party_members.tool_proficiencies` is free text fed from three places (the sheet's picker, Open5e background prose, hand-written homebrew), and the exact `includes()` this replaced meant a background granted proficiencies that toggled nothing: production held four spellings of the herbalism kit (`"herbalism kit"`, `"Herbalism kit"`, `"Herbalism Kit"`, `"Herbalist kit"`), lowercase `"Alchemist's supplies"`, the fragment `"or Disguise Kit."`, and `"No additional tool proficiencies"` stored as though it were a proficiency. `canonicalToolName` resolves those against `TOOL_PROFICIENCY_GROUPS`, returns `null` for prose that names no tool, and passes homebrew and armour/weapon entries through untouched. Because it canonicalises on *read* as well as write, existing dirty rows started matching without a backfill.
+**Tool-proficiency matching goes through `src/rules/toolProficiency.ts` — never compare the strings directly.** `party_members.tool_proficiencies` is free text fed from three places (the sheet's picker, Open5e background prose, hand-written homebrew), and the exact `includes()` this replaced meant a background granted proficiencies that toggled nothing: production held four spellings of the herbalism kit (`"herbalism kit"`, `"Herbalism kit"`, `"Herbalism Kit"`, `"Herbalist kit"`), lowercase `"Alchemist's supplies"`, the fragment `"or Disguise Kit."`, and `"No additional tool proficiencies"` stored as though it were a proficiency. `canonicalToolName` resolves those against `TOOL_PROFICIENCY_GROUPS`, returns `null` for prose that names no tool, and passes homebrew and armour/weapon entries through untouched. Because it canonicalises on _read_ as well as write, existing dirty rows started matching without a backfill.
 
 **CraftAttemptDialog** — modal that opens when "Attempt Craft" is clicked:
 
@@ -395,73 +395,73 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 ### Item (`items` table)
 
-| Field                       | Type               | Notes                                                                                         |
-| --------------------------- | ------------------ | --------------------------------------------------------------------------------------------- |
-| `name`                      | string             |                                                                                               |
-| `item_type`                 | enum               | weapon, armor, shield, ring, wand, staff, scroll, potion, gear, ammunition, art_object, other |
-| `subtype`                   | string             | e.g. "longsword", "chain mail"                                                                |
-| `rarity`                    | enum               | mundane, common, uncommon, rare, very_rare, legendary                                         |
-| `weight`                    | string             | parsed by `parseWeightLb()`                                                                   |
-| `cost`                      | string             | freeform, e.g. "50 gp"                                                                        |
-| `tags`                      | string[]           | drive slot matching, container detection, ingredient wildcards                                |
-| `image_url`                 | string             | identified portrait                                                                           |
-| `image_focal_point`         | object             | {x, y} for FocalImage                                                                         |
-| `mundane_image_url`         | string             | pre-identification portrait                                                                   |
-| `mundane_image_focal_point` | object             |                                                                                               |
-| `requires_attunement`       | boolean            |                                                                                               |
-| `attunement_requirements`   | string             | "by a spellcaster", etc.                                                                      |
-| `charges`                   | number             | max charges (staff/wand/rod) or quantity (ammunition)                                         |
+| Field                       | Type               | Notes                                                                                                  |
+| --------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------ |
+| `name`                      | string             |                                                                                                        |
+| `item_type`                 | enum               | weapon, armor, shield, ring, wand, staff, scroll, potion, gear, ammunition, art_object, other          |
+| `subtype`                   | string             | e.g. "longsword", "chain mail"                                                                         |
+| `rarity`                    | enum               | mundane, common, uncommon, rare, very_rare, legendary                                                  |
+| `weight`                    | string             | parsed by `parseWeightLb()`                                                                            |
+| `cost`                      | string             | freeform, e.g. "50 gp"                                                                                 |
+| `tags`                      | string[]           | drive slot matching, container detection, ingredient wildcards                                         |
+| `image_url`                 | string             | identified portrait                                                                                    |
+| `image_focal_point`         | object             | {x, y} for FocalImage                                                                                  |
+| `mundane_image_url`         | string             | pre-identification portrait                                                                            |
+| `mundane_image_focal_point` | object             |                                                                                                        |
+| `requires_attunement`       | boolean            |                                                                                                        |
+| `attunement_requirements`   | string             | "by a spellcaster", etc.                                                                               |
+| `charges`                   | number             | max charges (staff/wand/rod) or quantity (ammunition)                                                  |
 | `recharge`                  | string             | combined roll + trigger, e.g. "Regains 1d6+4 charges daily at dawn" — no separate roll/trigger columns |
-| `is_arcane_focus`           | boolean            |                                                                                               |
-| `damage_rolls`              | DamageRoll[]       | JSONB array                                                                                   |
-| `versatile_damage`          | string             | dice expression                                                                               |
-| `weapon_range`              | string             | "80/320 ft."                                                                                  |
-| `properties`                | string[]           | finesse, light, thrown, etc.                                                                  |
-| `mastery`                   | enum               | 2024 PHB weapon mastery property (weapons only) — Cleave, Graze, Nick, Push, Sap, Slow, Topple, Vex |
-| `armor_class`               | string             | "13 + DEX modifier (max 2)"                                                                   |
-| `spell_ids`                 | string[]           | linked Vault spells                                                                           |
-| `bundle_items`              | {name, quantity}[] | pack expansion                                                                                |
-| `description`               | Tiptap JSON        | rich text, post-identification                                                                |
-| `mundane_description`       | Tiptap JSON        | rich text, pre-identification                                                                 |
-| `content`                   | Tiptap JSON        | in-world text the item itself carries; NULL = not a document item. Distinct from `description` |
-| `content_player_writable`   | boolean            | when true, campaign members may append `item_entries`; the DM always can                      |
-| `content_updated_at`        | timestamp          | bumped by trigger on `content` change only — not on other item edits                          |
-| `curse_description`         | Tiptap JSON        | non-null = cursed; no separate `is_cursed` boolean                                             |
-| `campaign_id`               | uuid               | null = general (all campaigns); set = scoped to that campaign                                 |
-| `dm_notes`                  | Tiptap JSON        | DM-only, never shown to players                                                               |
-| `ai_provenance`             | jsonb              | AI generation/edit provenance for the Generator panel; null for hand-authored items            |
-| `source`                    | string             | slug                                                                                          |
-| `source_title`              | string             | display name                                                                                  |
-| `source_url`                | string             | link to external source                                                                       |
+| `is_arcane_focus`           | boolean            |                                                                                                        |
+| `damage_rolls`              | DamageRoll[]       | JSONB array                                                                                            |
+| `versatile_damage`          | string             | dice expression                                                                                        |
+| `weapon_range`              | string             | "80/320 ft."                                                                                           |
+| `properties`                | string[]           | finesse, light, thrown, etc.                                                                           |
+| `mastery`                   | enum               | 2024 PHB weapon mastery property (weapons only) — Cleave, Graze, Nick, Push, Sap, Slow, Topple, Vex    |
+| `armor_class`               | string             | "13 + DEX modifier (max 2)"                                                                            |
+| `spell_ids`                 | string[]           | linked Vault spells                                                                                    |
+| `bundle_items`              | {name, quantity}[] | pack expansion                                                                                         |
+| `description`               | Tiptap JSON        | rich text, post-identification                                                                         |
+| `mundane_description`       | Tiptap JSON        | rich text, pre-identification                                                                          |
+| `content`                   | Tiptap JSON        | in-world text the item itself carries; NULL = not a document item. Distinct from `description`         |
+| `content_player_writable`   | boolean            | when true, campaign members may append `item_entries`; the DM always can                               |
+| `content_updated_at`        | timestamp          | bumped by trigger on `content` change only — not on other item edits                                   |
+| `curse_description`         | Tiptap JSON        | non-null = cursed; no separate `is_cursed` boolean                                                     |
+| `campaign_id`               | uuid               | null = general (all campaigns); set = scoped to that campaign                                          |
+| `dm_notes`                  | Tiptap JSON        | DM-only, never shown to players                                                                        |
+| `ai_provenance`             | jsonb              | AI generation/edit provenance for the Generator panel; null for hand-authored items                    |
+| `source`                    | string             | slug                                                                                                   |
+| `source_title`              | string             | display name                                                                                           |
+| `source_url`                | string             | link to external source                                                                                |
 
 ### Spell (`spells` table)
 
-| Field               | Type        | Notes                                                  |
-| ------------------- | ----------- | ------------------------------------------------------ |
-| `name`              | string      |                                                        |
-| `level`             | number      | 0 = cantrip                                            |
-| `school`            | string      | abjuration, conjuration, etc.                          |
-| `casting_time`      | string      |                                                        |
-| `range`             | string      |                                                        |
-| `duration`          | string      |                                                        |
-| `concentration`     | boolean     |                                                        |
-| `ritual`            | boolean     |                                                        |
-| `components`        | string[]    | ["V","S","M"]                                          |
-| `material`          | string      | material component text                                |
-| `attack_type`       | string      | melee_spell_attack, ranged_spell_attack, save, utility |
-| `save_attribute`    | string      | STR, DEX, CON, INT, WIS, CHA                           |
-| `save_effect`       | string      | half, none, other                                      |
-| `damage_rolls`      | DiceInput[] |                                                        |
-| `area_of_effect`    | object      | shape + size                                           |
-| `classes`           | string[]    | class list                                             |
-| `description`       | Tiptap JSON |                                                        |
-| `higher_level`      | Tiptap JSON |                                                        |
-| `image_url`         | string      |                                                        |
-| `image_focal_point` | object      |                                                        |
-| `source`            | string      |                                                        |
-| `source_title`      | string      |                                                        |
-| `source_url`        | string      |                                                        |
-| `open5e_import`     | boolean     | true for Open5e-sourced spells                         |
+| Field               | Type        | Notes                                                         |
+| ------------------- | ----------- | ------------------------------------------------------------- |
+| `name`              | string      |                                                               |
+| `level`             | number      | 0 = cantrip                                                   |
+| `school`            | string      | abjuration, conjuration, etc.                                 |
+| `casting_time`      | string      |                                                               |
+| `range`             | string      |                                                               |
+| `duration`          | string      |                                                               |
+| `concentration`     | boolean     |                                                               |
+| `ritual`            | boolean     |                                                               |
+| `components`        | string[]    | ["V","S","M"]                                                 |
+| `material`          | string      | material component text                                       |
+| `attack_type`       | string      | melee_spell_attack, ranged_spell_attack, save, utility        |
+| `save_attribute`    | string      | STR, DEX, CON, INT, WIS, CHA                                  |
+| `save_effect`       | string      | half, none, other                                             |
+| `damage_rolls`      | DiceInput[] |                                                               |
+| `area_of_effect`    | object      | shape + size                                                  |
+| `classes`           | string[]    | class list                                                    |
+| `description`       | Tiptap JSON |                                                               |
+| `higher_level`      | Tiptap JSON |                                                               |
+| `image_url`         | string      |                                                               |
+| `image_focal_point` | object      |                                                               |
+| `source`            | string      |                                                               |
+| `source_title`      | string      |                                                               |
+| `source_url`        | string      |                                                               |
+| `open5e_import`     | boolean     | true for Open5e-sourced spells                                |
 | `campaign_id`       | uuid        | null = general (all campaigns); set = scoped to that campaign |
 
 ### CraftingRecipe (`crafting_recipes` table)
@@ -509,21 +509,21 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 The second column exists because `item_id` predates the shared library: `library_items.id` is text, so until #815 a player picking anything shared got `invalid input syntax for type uuid` and the entire catalogue was selectable but unaddable. Note the shape of the workaround that grew instead — `useEnsureOwnedItem` copies a library row into the caller's vault, which is where 673 shadow rows on one long-standing account came from. Reference shared content; do not copy it. Use `inventoryItemRef(row)` to read and `itemRefColumns(pickedId)` to write, and remember that a row carrying a library reference must keep it through a stack split or an equip, or the link vanishes while the row still looks right.
 
-| Field             | Notes                                             |
-| ----------------- | ------------------------------------------------- |
-| `item_id`         | FK to the owner's vault item (uuid)               |
-| `library_item_id` | FK to shared library content (text) — #815        |
-| `name`            | display name                                      |
-| `quantity`      |                                                   |
-| `carried_by`    | party member id; null = party stash               |
-| `location`      | equipped, backpack, belt, container, stored       |
-| `slot`          | InventorySlot or null                             |
-| `is_container`  | promotes item to a container section              |
-| `container_id`  | FK to another party_inventory row                 |
-| `is_equipped`   | boolean                                           |
-| `is_attuned`    | boolean                                           |
-| `is_identified` | boolean                                           |
-| `is_ruined`     | boolean                                           |
-| `notes`         | freeform per-instance text                        |
-| `sort_order`    | integer for drag-and-drop ordering                |
-| `charges`       | current charges (tracks against vault item's max) |
+| Field             | Notes                                                                             |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `item_id`         | FK to the owner's vault item (uuid)                                               |
+| `library_item_id` | FK to shared library content (text) — #815                                        |
+| `name`            | display name                                                                      |
+| `quantity`        |                                                                                   |
+| `carried_by`      | party member id; null = party stash                                               |
+| `location`        | equipped, backpack, belt, container, stored                                       |
+| `slot`            | InventorySlot or null                                                             |
+| `is_container`    | promotes item to a container section                                              |
+| `container_id`    | FK to another party_inventory row                                                 |
+| `is_equipped`     | boolean                                                                           |
+| `is_attuned`      | boolean                                                                           |
+| `is_identified`   | boolean                                                                           |
+| `is_ruined`       | boolean                                                                           |
+| `notes`           | freeform per-instance text; player-editable from the item detail panel since #809 |
+| `sort_order`      | integer for drag-and-drop ordering                                                |
+| `charges`         | current charges (tracks against vault item's max)                                 |

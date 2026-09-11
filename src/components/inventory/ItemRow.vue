@@ -9,7 +9,7 @@
         class="text-body text-foreground truncate text-left hover:text-primary transition-colors w-full"
         @click="$emit('open-detail', item)"
       >{{ item.name }}<span v-if="item.is_attuned" class="ml-1 font-cinzel text-2xs text-primary/70" title="Attuned">✦</span></button>
-      <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ item.notes }}</p>
+      <p v-if="item.notes" class="text-caption text-muted-foreground italic truncate">{{ tiptapToPlainText(item.notes) }}</p>
       <p v-if="showCarrier && item.carried_by" class="text-label text-muted-foreground/60">
         {{ carrierName(item.carried_by) }}
       </p>
@@ -112,6 +112,7 @@
 import { computed } from "vue";
 import { IconAdd, IconArrowUp, IconDelete, IconDrag, IconFeather, IconMinus, IconScissors, IconShop } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { PartyMember } from "@/types/party.types";

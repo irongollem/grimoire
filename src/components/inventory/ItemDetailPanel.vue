@@ -210,10 +210,28 @@
           </ul>
         </div>
 
-        <!-- Notes -->
-        <div v-if="inv.notes" class="rounded-lg border border-border bg-card/50 p-3">
+        <!-- Notes: shared per-instance text — the player's own reminder
+             ("special qualities"), visible to whoever holds the item — #809 -->
+        <div class="rounded-lg border border-border bg-card/50 p-3">
           <p class="text-eyebrow font-semibold text-muted-foreground mb-1">Notes</p>
-          <p class="text-body text-foreground">{{ inv.notes }}</p>
+          <AppButton
+            v-if="!editingNotes && !localNotes"
+            variant="subtle"
+            size="sm"
+            label="Add a note"
+            @click="startEditingNotes"
+          />
+          <div v-else-if="editingNotes" class="flex flex-col gap-2">
+            <RichTextEditor v-model="draftNotes" size="sm" placeholder="Special qualities, reminders…" />
+            <div class="flex gap-2">
+              <AppButton variant="primary" size="xs" label="Save" @click="saveNotes" />
+              <AppButton variant="subtle" size="xs" label="Cancel" @click="cancelEditingNotes" />
+            </div>
+          </div>
+          <div v-else class="flex flex-col gap-2">
+            <RichTextViewer :content="localNotes" />
+            <AppButton variant="subtle" size="sm" label="Edit" class="self-start" @click="startEditingNotes" />
+          </div>
         </div>
 
         <!-- Description: mundane when unidentified, full when identified -->
@@ -317,8 +335,10 @@ import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import ItemStatBlock from "@/components/inventory/ItemStatBlock.vue";
 import ItemDocumentSection from "@/components/items/ItemDocumentSection.vue";
+import { tiptapToPlainText } from "@/lib/tiptap/tiptapText";
 import { useUpdateInventoryItem } from "@/composables/items/usePartyInventory";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { usePromptedRoll } from "@/composables/dice/usePromptedRoll";
@@ -446,6 +466,34 @@ watch(() => [props.inv?.id, props.inv?.is_attuned] as const, () => {
 watch(() => [props.inv?.id, props.inv?.is_identified] as const, () => {
   localIdentified.value = props.inv?.is_identified ?? true;
 }, { immediate: true });
+
+// Notes: local optimistic ref synced from props via watch — same idiom as
+// localCharges/localAttuned/localIdentified above (#809).
+const localNotes = ref<string | null>(null);
+const editingNotes = ref(false);
+const draftNotes = ref<string | null>(null);
+
+watch(() => [props.inv?.id, props.inv?.notes] as const, () => {
+  localNotes.value = props.inv?.notes ?? null;
+  editingNotes.value = false;
+}, { immediate: true });
+
+function startEditingNotes() {
+  draftNotes.value = localNotes.value;
+  editingNotes.value = true;
+}
+
+function cancelEditingNotes() {
+  editingNotes.value = false;
+}
+
+async function saveNotes() {
+  if (!props.inv) return;
+  const next = tiptapToPlainText(draftNotes.value).trim() ? draftNotes.value : null;
+  localNotes.value = next;
+  editingNotes.value = false;
+  await updateInventoryItem({ id: props.inv.id, update: { notes: next } });
+}
 
 async function toggleIdentified() {
   if (!props.inv) return;
