@@ -32,6 +32,13 @@
 -- campaign_id too, and quest_consequences has no campaign column to match.
 -- `on delete set null (column)` is the PG 15+ form that nulls only the named
 -- column; the two-column form would try to null `quests.id`.
+--
+-- One consequence for the client: quests and quest_beats now share TWO
+-- relationships (this FK and quest_beats_quest_campaign_fkey), so a bare
+-- PostgREST embed between them answers PGRST201 "more than one relationship".
+-- Every embed names its constraint — `quests!quest_beats_quest_campaign_fkey`
+-- — and scripts/check-embeds.sh (the spell-database CI job) holds the release
+-- if one does not. It held this one, for useBeatsStagedAt.ts.
 
 alter table public.quest_beats
   add constraint quest_beats_id_quest_key unique (id, quest_id);
