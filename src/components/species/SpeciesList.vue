@@ -1,5 +1,18 @@
 <template>
   <div>
+    <BulkScopeBar
+      v-if="bulk.selecting.value && !selectMode"
+      :count="bulk.count.value"
+      :selectable-count="selectableIds.length"
+      :busy="bulkScope.isPending.value"
+      :campaign-name="activeCampaign?.name ?? null"
+      class="mb-3"
+      @select-all="selectAllShown"
+      @clear="bulk.clear"
+      @stop="bulk.stop"
+      @move="moveSelection"
+    />
+
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -38,97 +51,103 @@
       v-else
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
     >
-      <div
+      <BulkSelectableCard
         v-for="s in visibleItems"
         :key="s.id"
-        class="group relative flex flex-col rounded-lg border bg-card transition-colors overflow-hidden"
-        :class="[
-          selectMode ? 'cursor-pointer' : '',
-          selectedId && s.id === selectedId
-            ? 'border-primary ring-1 ring-primary/20'
-            : 'border-border hover:border-primary/50',
-        ]"
+        :selected="bulk.isSelected(s.id)"
+        :selecting="bulk.selecting.value && !selectMode && isUuid(s.id)"
+        @toggle="bulk.toggle(s.id)"
       >
-        <!-- Card link / select overlay -->
-        <RouterLink v-if="!selectMode" :to="`/species/${s.id}`" class="absolute inset-0 z-2" />
-        <button v-else type="button" class="absolute inset-0 z-2" @click="emit('select', s)" />
-
-        <!-- Selected badge -->
         <div
-          v-if="selectedId && s.id === selectedId"
-          class="absolute top-2 right-2 z-10 flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground"
+          class="group relative flex flex-col rounded-lg border bg-card transition-colors overflow-hidden"
+          :class="[
+            selectMode ? 'cursor-pointer' : '',
+            selectedId && s.id === selectedId
+              ? 'border-primary ring-1 ring-primary/20'
+              : 'border-border hover:border-primary/50',
+          ]"
         >
-          <IconCheck class="size-3" />
-        </div>
+          <!-- Card link / select overlay -->
+          <RouterLink v-if="!selectMode" :to="`/species/${s.id}`" class="absolute inset-0 z-2" />
+          <button v-else type="button" class="absolute inset-0 z-2" @click="emit('select', s)" />
 
-        <!-- Portrait / placeholder -->
-        <div class="relative h-36 bg-muted overflow-hidden shrink-0">
-          <FocalImage
-            v-if="s.image_url"
-            :src="s.image_url"
-            :alt="s.name"
-            format="landscape"
-            :focal-point="s.focal_point"
-            class="group-hover:scale-105 transition-transform duration-300"
-          />
+          <!-- Selected badge -->
           <div
-            v-else
-            class="w-full h-full flex items-center justify-center text-display font-bold text-primary/30"
+            v-if="selectedId && s.id === selectedId"
+            class="absolute top-2 right-2 z-10 flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground"
           >
-            {{ s.name.charAt(0).toUpperCase() }}
+            <IconCheck class="size-3" />
           </div>
-        </div>
 
-        <div class="p-3 flex flex-col gap-2 flex-1">
-          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-1">
-            {{ s.name }}
-          </h3>
-
-          <p class="text-caption text-muted-foreground italic capitalize">
-            {{ s.size ?? "—" }}
-            <span v-if="s.speed?.walk"> · {{ s.speed.walk }} ft</span>
-          </p>
-
-          <p v-if="s.source" class="text-label text-muted-foreground">
-            {{ s.source }}
-          </p>
-
-          <!-- Tags -->
-          <div v-if="s.tags.length" class="flex flex-wrap gap-1 mt-auto">
-            <span
-              v-for="tag in s.tags.slice(0, 3)"
-              :key="tag"
-              class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
+          <!-- Portrait / placeholder -->
+          <div class="relative h-36 bg-muted overflow-hidden shrink-0">
+            <FocalImage
+              v-if="s.image_url"
+              :src="s.image_url"
+              :alt="s.name"
+              format="landscape"
+              :focal-point="s.focal_point"
+              class="group-hover:scale-105 transition-transform duration-300"
+            />
+            <div
+              v-else
+              class="w-full h-full flex items-center justify-center text-display font-bold text-primary/30"
             >
-              {{ tag }}
-            </span>
+              {{ s.name.charAt(0).toUpperCase() }}
+            </div>
           </div>
 
-          <!-- Select button (shown in selectMode) -->
-          <AppButton
-            v-if="selectMode"
-            variant="tinted"
-            tone="primary"
-            emphasis="soft"
-            size="sm"
-            block
-            class="relative z-10 mt-2"
-            label="Select"
-            @click.stop="emit('select', s)"
-          />
-        </div>
+          <div class="p-3 flex flex-col gap-2 flex-1">
+            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight line-clamp-1">
+              {{ s.name }}
+            </h3>
 
-        <!-- Edit button — DM mode only, not shown for srd (shared) species cards -->
-        <RouterLink
-          v-if="!readonly && !selectMode && isUuid(s.id)"
-          :to="`/species/${s.id}?edit=true`"
-          class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Edit species"
-        >
-          <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
-          Edit
-        </RouterLink>
-      </div>
+            <p class="text-caption text-muted-foreground italic capitalize">
+              {{ s.size ?? "—" }}
+              <span v-if="s.speed?.walk"> · {{ s.speed.walk }} ft</span>
+            </p>
+
+            <p v-if="s.source" class="text-label text-muted-foreground">
+              {{ s.source }}
+            </p>
+
+            <!-- Tags -->
+            <div v-if="s.tags.length" class="flex flex-wrap gap-1 mt-auto">
+              <span
+                v-for="tag in s.tags.slice(0, 3)"
+                :key="tag"
+                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
+              >
+                {{ tag }}
+              </span>
+            </div>
+
+            <!-- Select button (shown in selectMode) -->
+            <AppButton
+              v-if="selectMode"
+              variant="tinted"
+              tone="primary"
+              emphasis="soft"
+              size="sm"
+              block
+              class="relative z-10 mt-2"
+              label="Select"
+              @click.stop="emit('select', s)"
+            />
+          </div>
+
+          <!-- Edit button — DM mode only, not shown for srd (shared) species cards -->
+          <RouterLink
+            v-if="!readonly && !selectMode && isUuid(s.id)"
+            :to="`/species/${s.id}?edit=true`"
+            class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Edit species"
+          >
+            <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
+            Edit
+          </RouterLink>
+        </div>
+      </BulkSelectableCard>
     </div>
 
     <div ref="sentinelRef" />
@@ -143,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { IconCheck, IconEdit } from '@/lib/icons';
 import type { Species } from "@/types/species.types";
 import { useUiStore } from "@/stores/ui";
@@ -155,6 +174,13 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { storeToRefs } from "pinia";
+import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import { useBulkSelection } from "@/composables/useBulkSelection";
+import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
+import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 
 const { selectMode } = defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
 const emit = defineEmits<{ select: [species: Species] }>();
@@ -192,4 +218,60 @@ const filtered = computed(() => {
 const { savedCount, linkCount } = useScrollRestore("species");
 const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);
 linkCount(visibleCount);
+
+// ── Bulk selection (#875) — the DM's codex tool ─────────────────────────────
+//
+// Named and gated apart from the player picker's own `selectMode`/`select`
+// (added earlier for `PlayerSpeciesPickerView`, a single-pick flow with a
+// different meaning): `bulk` is a separate composable instance, every
+// bulk-affordance is additionally gated on `!selectMode`, and a card's
+// `selecting` prop is only ever true when `selectMode` is falsy — so the
+// picker keeps emitting `select` on a plain click exactly as before, and the
+// bulk tool never renders while a player is picking. Shared/library species
+// (a slug id rather than a uuid, `isUuid(s.id)`) are excluded from selection —
+// the same distinction the Edit button above already uses.
+const bulk = useBulkSelection();
+const bulkScope = useBulkCampaignScope();
+const toast = useToast();
+const { activeCampaign } = storeToRefs(useCampaignStore());
+
+// Every row a bulk move may legally touch: passes the current filters and
+// has a real uuid (not shared/library content). Reused by "select all" and
+// by the prune below, so both always agree on what's selectable.
+const selectableIds = computed(() => filtered.value.filter((s) => isUuid(s.id)).map((s) => s.id));
+
+// The filters (or `selectMode`/campaign switch) can change while rows are
+// selected; prune whenever the selectable set changes so a stale id from a
+// now-hidden row never lingers in the selection or reaches the mutation
+// (#875).
+watch(selectableIds, (ids) => bulk.pruneTo(ids));
+
+function selectAllShown() {
+  bulk.selectAll(selectableIds.value);
+}
+
+async function moveSelection(campaignId: string | null) {
+  const ids = bulk.pruneTo(selectableIds.value);
+  if (!ids.length) return;
+  try {
+    const { moved } = await bulkScope.mutateAsync({ table: "species", ids, campaignId });
+    // "Species" is its own plural — no noun-count branch needed here.
+    toast.success(
+      campaignId
+        ? `Moved ${moved} species to ${activeCampaign.value?.name ?? "the campaign"}.`
+        : `Made ${moved} species available in all campaigns.`,
+    );
+    bulk.stop();
+  } catch (e) {
+    toast.error(toast.fromError(e));
+  }
+}
+
+function toggleBulkSelectMode() {
+  if (selectMode) return; // the player picker never enters bulk mode
+  if (bulk.selecting.value) bulk.stop();
+  else bulk.selecting.value = true;
+}
+
+defineExpose({ bulkSelecting: bulk.selecting, toggleBulkSelectMode });
 </script>

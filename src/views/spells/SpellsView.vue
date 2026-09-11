@@ -27,6 +27,13 @@
       </SourcesPickerPanel>
 
       <ListActionButton
+        :icon="IconListTodo"
+        :label="selecting ? 'Done' : 'Select'"
+        :active="selecting"
+        :collapse-label-on-mobile="false"
+        @click="toggleSelecting"
+      />
+      <ListActionButton
         :icon="IconGenerate"
         label="Generate"
         @click="ui.spellGeneratorOpen = true"
@@ -72,18 +79,34 @@
       </ListFilterBar>
     </template>
 
+    <BulkScopeBar
+      v-if="selecting"
+      :count="selectedCount"
+      :selectable-count="(spellListRef?.selectableIds ?? []).length"
+      :busy="isMovingScope"
+      :campaign-name="campaignStore.activeCampaign?.name ?? null"
+      @select-all="selectAll(spellListRef?.selectableIds ?? [])"
+      @clear="clearSelection"
+      @stop="stopSelecting"
+      @move="handleMove"
+    />
     <SpellList
+      ref="spellListRef"
       :search="ui.spellsSearch"
       :level-filter="ui.spellsFilterLevel"
       :school-filter="ui.spellsFilterSchool"
       :class-filter="ui.spellsFilterClass"
       :source-filter="ui.spellsFilterSource"
+      :selecting="selecting"
+      :selected-ids="selectedIds"
+      @toggle-select="toggleRowSelection"
     />
   </ListPageLayout>
 </template>
 
 <script setup lang="ts">
-import { IconAdd, IconGenerate, IconLibrary } from '@/lib/icons';
+import { ref, watch } from "vue";
+import { IconAdd, IconGenerate, IconLibrary, IconListTodo } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -94,9 +117,14 @@ import ListFilterGroup from "@/components/common/ListFilterGroup.vue";
 import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import SpellList from "@/components/spells/SpellList.vue";
+import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { useEnabledSources, useAvailableLibrarySpellSources } from "@/composables/library/useEnabledSources";
+import { useBulkSelection } from "@/composables/useBulkSelection";
+import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
+import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 
 const ui = useUiStore();
 
@@ -113,4 +141,51 @@ const LEVEL_FILTERS = [
 // disable wiring itself now lives inside SourcesPickerPanel.
 const { data: enabledSourceData } = useEnabledSources();
 const { data: availableSourceData, isLoading: sourcesLoading } = useAvailableLibrarySpellSources();
+
+// ── Bulk move-to-campaign (#875) ─────────────────────────────────────────────
+const {
+  selecting,
+  selectedIds,
+  count: selectedCount,
+  toggle: toggleRowSelection,
+  selectAll,
+  clear: clearSelection,
+  stop: stopSelecting,
+  pruneTo,
+} = useBulkSelection();
+const { mutateAsync: moveScope, isPending: isMovingScope } = useBulkCampaignScope();
+const campaignStore = useCampaignStore();
+const toast = useToast();
+const spellListRef = ref<InstanceType<typeof SpellList> | null>(null);
+
+function toggleSelecting() {
+  if (selecting.value) stopSelecting();
+  else selecting.value = true;
+}
+
+// The selection lives here, but which ids are still selectable is decided by
+// SpellList's own filters — a search/level/school/class edit there can leave
+// this selection holding an id for a row no longer shown. Prune whenever
+// that exposed set changes (#875).
+watch(
+  () => spellListRef.value?.selectableIds ?? [],
+  (ids) => pruneTo(ids),
+);
+
+async function handleMove(campaignId: string | null) {
+  const ids = pruneTo(spellListRef.value?.selectableIds ?? []);
+  if (!ids.length) return;
+  try {
+    const { moved } = await moveScope({ table: "spells", ids, campaignId });
+    const noun = moved === 1 ? "spell" : "spells";
+    toast.success(
+      campaignId
+        ? `Moved ${moved} ${noun} to ${campaignStore.activeCampaign?.name ?? "the campaign"}`
+        : `${moved} ${noun} ${moved === 1 ? "is" : "are"} now available in all campaigns`,
+    );
+    stopSelecting();
+  } catch (error) {
+    toast.error(toast.fromError(error));
+  }
+}
 </script>

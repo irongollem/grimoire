@@ -1,18 +1,20 @@
 <template>
-  <div v-if="lootTablesLoading" class="flex justify-center py-16">
-    <LoadingSpinner />
-  </div>
-  <template v-else-if="lootTables?.length">
-    <div class="flex flex-wrap items-center gap-2 mb-4">
-      <AppInput
-        v-model="lootTablesSearch"
-        type="search"
-        tone="card"
-        size="body"
-        :block="false"
-        placeholder="Search loot tables…"
-        class="flex-1 min-w-40"
-      />
+  <DungeonCraftEntityGrid
+    :items="lootTables"
+    :is-loading="lootTablesLoading"
+    v-model:search="lootTablesSearch"
+    :filtered-count="filteredLootTables.length"
+    search-placeholder="Search loot tables…"
+    no-match-text="No loot tables match your filter."
+    empty-icon="Coins"
+    empty-title="No loot tables yet"
+    empty-description="Build your first hoard — add Vault items with their own drop chances and quantities."
+    empty-action-label="New Loot Table"
+    table="loot_tables"
+    :ids="lootTableFilteredIds"
+    @empty-action="router.push('/loot-tables/new')"
+  >
+    <template #filters>
       <AppSelect
         v-model="lootTablesTierFilter"
         tone="card"
@@ -29,34 +31,29 @@
         label="Clear"
         @click="ui.resetLootTablesFilters()"
       />
-    </div>
-    <p v-if="!filteredLootTables.length" class="text-center text-body text-muted-foreground italic py-8">
-      No loot tables match your filter.
-    </p>
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-      <RouterLink
+    </template>
+    <template #card="{ selecting, isSelected, toggle }">
+      <BulkSelectableCard
         v-for="t in filteredLootTables"
         :key="t.id"
-        :to="`/loot-tables/${t.id}`"
-        class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
+        :selected="isSelected(t.id)"
+        :selecting="selecting"
+        @toggle="toggle(t.id)"
       >
-        <div class="flex items-start justify-between gap-2 mb-1">
-          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
-          <span v-if="t.cr_tier !== 'any'" class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">{{ LOOT_CR_TIER_LABELS[t.cr_tier] }}</span>
-        </div>
-        <p v-if="t.description" class="text-caption text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
-        <p class="text-caption-sm text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "item" : "items" }}</p>
-      </RouterLink>
-    </div>
-  </template>
-  <EmptyState
-    v-else
-    icon="Coins"
-    title="No loot tables yet"
-    description="Build your first hoard — add Vault items with their own drop chances and quantities."
-    action-label="New Loot Table"
-    @action="router.push('/loot-tables/new')"
-  />
+        <RouterLink
+          :to="`/loot-tables/${t.id}`"
+          class="flex flex-col rounded-lg border border-border bg-card p-3 hover:border-primary/50 transition-colors"
+        >
+          <div class="flex items-start justify-between gap-2 mb-1">
+            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight">{{ t.name }}</h3>
+            <span v-if="t.cr_tier !== 'any'" class="text-label px-1.5 py-0.5 rounded bg-primary/10 text-primary font-semibold shrink-0">{{ LOOT_CR_TIER_LABELS[t.cr_tier] }}</span>
+          </div>
+          <p v-if="t.description" class="text-caption text-muted-foreground italic line-clamp-2">{{ t.description }}</p>
+          <p class="text-caption-sm text-muted-foreground mt-2">{{ t.entries.length }} {{ t.entries.length === 1 ? "item" : "items" }}</p>
+        </RouterLink>
+      </BulkSelectableCard>
+    </template>
+  </DungeonCraftEntityGrid>
 </template>
 
 <script setup lang="ts">
@@ -67,10 +64,9 @@ import { useLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useUiStore } from "@/stores/ui";
 import { LOOT_CR_TIERS, LOOT_CR_TIER_LABELS } from "@/types/lootTable.types";
 import AppButton from "@/components/common/AppButton.vue";
-import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import EmptyState from "@/components/common/EmptyState.vue";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 
 const router = useRouter();
 const ui = useUiStore();
@@ -90,4 +86,7 @@ const filteredLootTables = computed(() => {
   );
   return list;
 });
+
+// "Select all shown" reads every row passing the current filters (#875).
+const lootTableFilteredIds = computed(() => filteredLootTables.value.map((t) => t.id));
 </script>

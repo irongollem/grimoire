@@ -9,12 +9,12 @@
     </div>
 
     <EmptyState
-      v-else-if="!filtered.length && !props.search && !props.levelFilter && !props.schoolFilter && !props.classFilter"
+      v-else-if="!filtered.length && !search && !levelFilter && !schoolFilter && !classFilter"
       title="No spells yet"
       description="Craft your spellbook — cantrips to 9th-level catastrophes."
     >
       <template #icon><IconNavSpellbook class="h-16 w-16" /></template>
-      <template v-if="!props.playerMemberId" #action>
+      <template v-if="!playerMemberId" #action>
         <RouterLink
           to="/spells/new"
           class="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 font-cinzel text-sm font-semibold text-primary-foreground tracking-wider hover:opacity-90 transition-opacity"
@@ -33,134 +33,160 @@
 
     <template v-else>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        <div
+        <!--
+          Wrapped in BulkSelectableCard (#875) for every card — but `selecting`
+          is only ever true for a row the DM can actually re-scope; shared/
+          library spells (`isSharedContent`) always get `selecting: false`
+          regardless of the list-wide mode, so they render untouched and
+          cannot be selected or re-scoped, same as their Edit button above.
+        -->
+        <BulkSelectableCard
           v-for="spell in visibleItems"
           :key="spell.id"
-          class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
+          :selected="selectedIds.has(spell.id)"
+          :selecting="selecting && !isSharedContent(spell)"
+          @toggle="emit('toggle-select', spell.id)"
         >
-          <!-- Card overlay: navigate in DM mode, open modal in player mode -->
-          <button
-            v-if="props.playerMemberId"
-            class="absolute inset-0 z-2"
-            @click="emit('spell-click', spell)"
-          />
-          <RouterLink v-else :to="`/spells/${spell.id}`" class="absolute inset-0 z-2" />
-
-          <!-- School colour bar -->
           <div
-            class="h-1.5 w-full shrink-0"
-            :class="SCHOOL_BG[spell.school]"
-          />
-
-          <div class="p-3 flex flex-col gap-2 flex-1">
-            <!-- Name + level badge -->
-            <div class="flex items-start justify-between gap-2">
-              <h3
-                class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-2"
-              >
-                {{ spell.name }}
-              </h3>
-              <span
-                class="shrink-0 px-1.5 py-0.5 rounded text-label font-bold text-white whitespace-nowrap"
-                :class="SCHOOL_BG[spell.school]"
-              >
-                {{ spell.level === 0 ? "C" : spell.level }}
-              </span>
-            </div>
-
-            <!-- School + type line -->
-            <p class="text-caption text-muted-foreground italic capitalize">
-              {{ spellLevelLabel(spell.level) }} {{ spell.school }}
-              <span v-if="spell.ritual"> · Ritual</span>
-            </p>
-
-            <!-- Cast time + range -->
-            <div class="flex gap-3 font-cinzel text-xs text-muted-foreground">
-              <span><span class="text-foreground font-bold">Cast</span> {{ spell.casting_time }}</span>
-              <span><span class="text-foreground font-bold">Range</span> {{ spell.range }}</span>
-            </div>
-
-            <!-- Components -->
-            <p class="font-cinzel text-xs text-muted-foreground">
-              <span class="text-foreground font-bold">Components</span>
-              {{ spell.components.join(", ") || "—" }}
-              <span v-if="spell.concentration"> · <em class="text-primary">Conc.</em></span>
-            </p>
-
-            <!-- Classes -->
-            <p
-              v-if="spell.classes.length"
-              class="text-caption text-muted-foreground truncate"
-            >
-              {{ spell.classes.join(", ") }}
-            </p>
-
-            <!-- Tags -->
-            <div v-if="spell.tags.length" class="flex flex-wrap gap-1 mt-auto">
-              <span
-                v-for="tag in spell.tags.slice(0, 3)"
-                :key="tag"
-                class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
-              >
-                {{ tag }}
-              </span>
-            </div>
-
-            <!-- Source attribution -->
-            <a
-              v-if="spell.source_url"
-              :href="spell.source_url"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="relative z-10 mt-auto font-cinzel text-2xs text-muted-foreground/60 hover:text-muted-foreground truncate transition-colors"
-              @click.stop
-            >
-              {{ spell.source_title ?? spell.source ?? "Reference" }}
-            </a>
-            <span
-              v-else-if="spell.source_title || spell.source"
-              class="mt-auto font-cinzel text-2xs text-muted-foreground/60 truncate"
-            >
-              {{ spell.source_title ?? spell.source }}
-            </span>
-          </div>
-
-          <!-- Edit button — DM mode only, not shown for SRD spell cards -->
-          <RouterLink
-            v-if="!props.playerMemberId && !isSharedContent(spell)"
-            :to="`/spells/${spell.id}?edit=true`"
-            class="absolute top-2 left-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity"
-            title="Edit spell"
+            class="group relative flex flex-col rounded-lg border border-border bg-card hover:border-primary/50 transition-colors overflow-hidden"
           >
-            <IconEdit class="max-md:h-4 max-md:w-4 h-3 w-3" />
-            Edit
-          </RouterLink>
+            <!-- Card overlay: navigate in DM mode, open modal in player mode -->
+            <button
+              v-if="playerMemberId"
+              class="absolute inset-0 z-2"
+              @click="emit('spell-click', spell)"
+            />
+            <RouterLink v-else :to="`/spells/${spell.id}`" class="absolute inset-0 z-2" />
 
-          <!-- Learn / Prepare button — player mode -->
-          <template v-if="showLearnButton">
-            <button
-              v-if="!isKnown(spell.id)"
-              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold text-white bg-primary/80 hover:bg-primary [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
-              :disabled="isAdding || isChanging"
-              @click.prevent.stop="handleLearn(spell)"
-            >
-              <IconAddBook class="max-md:h-4 max-md:w-4 h-3 w-3" />
-              {{ learnLabel(spell.level === 0) }}
-            </button>
-            <button
-              v-else
-              class="absolute bottom-2 right-2 z-10 flex items-center justify-center gap-1 rounded max-md:min-h-11 max-md:px-3 max-md:py-2 px-2 py-1 text-label font-semibold bg-black/50 hover:bg-black/70 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40 cursor-pointer"
-              :class="isRemoving ? 'text-muted-foreground' : 'text-emerald-400 hover:text-red-400'"
-              :disabled="isRemoving"
-              :title="props.casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
-              @click.prevent.stop="handleKnownClick(spell)"
-            >
-              <IconCheck v-if="!isRemoving" class="max-md:h-4 max-md:w-4 h-3 w-3" />
-              <IconClose v-else class="max-md:h-4 max-md:w-4 h-3 w-3" />
-              {{ learnedLabel(spell.level === 0) }}
-            </button>
-          </template>
-        </div>
+            <!-- School colour bar -->
+            <div
+              class="h-1.5 w-full shrink-0"
+              :class="SCHOOL_BG[spell.school]"
+            />
+
+            <div class="p-3 flex flex-col gap-2 flex-1">
+              <!-- Name + level badge -->
+              <div class="flex items-start justify-between gap-2">
+                <h3
+                  class="font-cinzel text-sm font-bold text-foreground leading-tight flex-1 line-clamp-2"
+                >
+                  {{ spell.name }}
+                </h3>
+                <span
+                  class="shrink-0 px-1.5 py-0.5 rounded text-label font-bold text-white whitespace-nowrap"
+                  :class="SCHOOL_BG[spell.school]"
+                >
+                  {{ spell.level === 0 ? "C" : spell.level }}
+                </span>
+              </div>
+
+              <!-- School + type line -->
+              <p class="text-caption text-muted-foreground italic capitalize">
+                {{ spellLevelLabel(spell.level) }} {{ spell.school }}
+                <span v-if="spell.ritual"> · Ritual</span>
+              </p>
+
+              <!-- Cast time + range -->
+              <div class="flex gap-3 font-cinzel text-xs text-muted-foreground">
+                <span><span class="text-foreground font-bold">Cast</span> {{ spell.casting_time }}</span>
+                <span><span class="text-foreground font-bold">Range</span> {{ spell.range }}</span>
+              </div>
+
+              <!-- Components -->
+              <p class="font-cinzel text-xs text-muted-foreground">
+                <span class="text-foreground font-bold">Components</span>
+                {{ spell.components.join(", ") || "—" }}
+                <span v-if="spell.concentration"> · <em class="text-primary">Conc.</em></span>
+              </p>
+
+              <!-- Classes -->
+              <p
+                v-if="spell.classes.length"
+                class="text-caption text-muted-foreground truncate"
+              >
+                {{ spell.classes.join(", ") }}
+              </p>
+
+              <!-- Tags -->
+              <div v-if="spell.tags.length" class="flex flex-wrap gap-1 mt-auto">
+                <span
+                  v-for="tag in spell.tags.slice(0, 3)"
+                  :key="tag"
+                  class="px-1.5 py-0.5 rounded bg-muted text-label text-muted-foreground"
+                >
+                  {{ tag }}
+                </span>
+              </div>
+
+              <!-- Source attribution -->
+              <a
+                v-if="spell.source_url"
+                :href="spell.source_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="relative z-10 mt-auto font-cinzel text-2xs text-muted-foreground/60 hover:text-muted-foreground truncate transition-colors"
+                @click.stop
+              >
+                {{ spell.source_title ?? spell.source ?? "Reference" }}
+              </a>
+              <span
+                v-else-if="spell.source_title || spell.source"
+                class="mt-auto font-cinzel text-2xs text-muted-foreground/60 truncate"
+              >
+                {{ spell.source_title ?? spell.source }}
+              </span>
+            </div>
+
+            <!-- Edit button — DM mode only, not shown for SRD spell cards -->
+            <AppButton
+              v-if="!playerMemberId && !isSharedContent(spell)"
+              :to="`/spells/${spell.id}?edit=true`"
+              variant="ghost"
+              size="xs"
+              :icon="IconEdit"
+              label="Edit"
+              :class="[
+                CARD_OVERLAY_SCRIM,
+                'text-white hover:text-white absolute top-2 left-2 z-10 max-md:min-h-11 max-md:px-3',
+                '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
+              ]"
+              tooltip="Edit spell"
+            />
+
+            <!-- Learn / Prepare button — player mode -->
+            <template v-if="showLearnButton">
+              <AppButton
+                v-if="!isKnown(spell.id)"
+                variant="ghost"
+                size="xs"
+                :icon="IconAddBook"
+                :label="learnLabel(spell.level === 0)"
+                :disabled="isAdding || isChanging"
+                :class="[
+                  'absolute bottom-2 right-2 z-10 text-white hover:text-white bg-primary/80 hover:bg-primary max-md:min-h-11 max-md:px-3',
+                  '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
+                ]"
+                @click.prevent.stop="handleLearn(spell)"
+              />
+              <AppButton
+                v-else
+                variant="ghost"
+                size="xs"
+                :icon="isRemoving ? IconClose : IconCheck"
+                :label="learnedLabel(spell.level === 0)"
+                :disabled="isRemoving"
+                :tooltip="casterType === 'prepared' ? 'Unprepare' : 'Remove from spellbook'"
+                :class="[
+                  CARD_OVERLAY_SCRIM,
+                  isRemoving ? 'text-muted-foreground hover:text-muted-foreground' : 'text-emerald-400 hover:text-red-400',
+                  'absolute bottom-2 right-2 z-10 max-md:min-h-11 max-md:px-3',
+                  '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
+                ]"
+                @click.prevent.stop="handleKnownClick(spell)"
+              />
+            </template>
+          </div>
+        </BulkSelectableCard>
       </div>
 
       <div ref="sentinelRef" />
@@ -187,13 +213,33 @@ import { SCHOOL_BG, spellLevelLabel } from "@/types/spell.types";
 import type { CasterType, Spell } from "@/types/spell.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import AppButton from "@/components/common/AppButton.vue";
+import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import { isSharedContent } from "@/lib/library/contentIdentity";
 import { useSpellReplacement } from "@/composables/party/useSpellReplacement";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import { getSpellPreparationPolicy, policyValueAtLevel } from "@/rules/spellPreparationPolicy";
 import { useToast } from "@/composables/useToast";
 
-const props = defineProps<{
+const {
+  search,
+  levelFilter,
+  schoolFilter,
+  classFilter,
+  sourceFilter,
+  playerMemberId,
+  casterType,
+  knownSpellIds,
+  preparedSpellIds,
+  sourceClassId,
+  sourceClassLevel,
+  knownCantripCount,
+  preparedSpellCount,
+  officialRulesPolicy,
+  selecting = false,
+  selectedIds = new Set<string>(),
+} = defineProps<{
   search: string;
   levelFilter: string;
   schoolFilter: string;
@@ -214,10 +260,15 @@ const props = defineProps<{
   preparedSpellCount?: number;
   /** The parent resolved this class row to an official edition policy. */
   officialRulesPolicy?: boolean;
+  /** Bulk-selection mode is on (#875). Shared/library spells (isSharedContent)
+   *  never enter selection mode regardless of this flag — see the template. */
+  selecting?: boolean;
+  selectedIds?: ReadonlySet<string>;
 }>();
 
 const emit = defineEmits<{
   (e: "spell-click", spell: Spell): void;
+  (e: "toggle-select", id: string): void;
 }>();
 
 const { mutateAsync: addSpell, isPending: isAdding } = useAddCharacterSpell();
@@ -228,37 +279,37 @@ const { ruleset } = useRuleset();
 const toast = useToast();
 
 async function handleLearn(spell: Spell) {
-  if (!props.playerMemberId || !props.sourceClassId) return;
-  const policy = props.officialRulesPolicy
-    ? getSpellPreparationPolicy(props.classFilter, ruleset.value)
+  if (!playerMemberId || !sourceClassId) return;
+  const policy = officialRulesPolicy
+    ? getSpellPreparationPolicy(classFilter, ruleset.value)
     : null;
   if (policy && policy.casterType !== "spellbook") {
     if (spell.level === 0) {
-      const limit = policyValueAtLevel(policy.cantrips, props.sourceClassLevel ?? 1);
-      if (limit !== null && (props.knownCantripCount ?? 0) < limit) {
+      const limit = policyValueAtLevel(policy.cantrips, sourceClassLevel ?? 1);
+      if (limit !== null && (knownCantripCount ?? 0) < limit) {
         await addSpell({
-          partyMemberId: props.playerMemberId,
+          partyMemberId: playerMemberId,
           spellId: spell.id,
           isPrepared: true,
-          sourceClassId: props.sourceClassId,
+          sourceClassId: sourceClassId,
         });
         return;
       }
       toast.info("Your revised cantrip choices are full; change them during level up.");
       return;
     }
-    if (candidate.value && candidate.value.source_class_id !== props.sourceClassId) {
+    if (candidate.value && candidate.value.source_class_id !== sourceClassId) {
       toast.error("The replacement spell must use the same source class.");
       return;
     }
     if (!candidate.value && policy.changeCount !== null) {
-      const limit = policyValueAtLevel(policy.prepared, props.sourceClassLevel ?? 1);
-      if (limit !== null && (props.preparedSpellCount ?? 0) < limit) {
+      const limit = policyValueAtLevel(policy.prepared, sourceClassLevel ?? 1);
+      if (limit !== null && (preparedSpellCount ?? 0) < limit) {
         await addSpell({
-          partyMemberId: props.playerMemberId,
+          partyMemberId: playerMemberId,
           spellId: spell.id,
           isPrepared: true,
-          sourceClassId: props.sourceClassId,
+          sourceClassId: sourceClassId,
         });
         return;
       }
@@ -267,8 +318,8 @@ async function handleLearn(spell: Spell) {
     }
     try {
       await changePreparedSpell({
-        partyMemberId: props.playerMemberId,
-        sourceClassId: props.sourceClassId,
+        partyMemberId: playerMemberId,
+        sourceClassId: sourceClassId,
         newSpellId: spell.id,
         oldCharacterSpellId: candidate.value?.id ?? null,
       });
@@ -279,17 +330,17 @@ async function handleLearn(spell: Spell) {
     return;
   }
   await addSpell({
-    partyMemberId: props.playerMemberId,
+    partyMemberId: playerMemberId,
     spellId: spell.id,
-    isPrepared: props.casterType === "prepared",
-    sourceClassId: props.sourceClassId,
+    isPrepared: casterType === "prepared",
+    sourceClassId: sourceClassId,
   });
 }
 
 function handleKnownClick(spell: Spell) {
-  if (!props.playerMemberId) return;
-  const policy = props.officialRulesPolicy
-    ? getSpellPreparationPolicy(props.classFilter, ruleset.value)
+  if (!playerMemberId) return;
+  const policy = officialRulesPolicy
+    ? getSpellPreparationPolicy(classFilter, ruleset.value)
     : null;
   if (policy) {
     toast.info(policy.casterType === "spellbook"
@@ -297,43 +348,53 @@ function handleKnownClick(spell: Spell) {
       : "Choose the spell to replace from your prepared list.");
     return;
   }
-  removeSpell({ partyMemberId: props.playerMemberId, spellId: spell.id, sourceClassId: props.sourceClassId });
+  removeSpell({ partyMemberId: playerMemberId, spellId: spell.id, sourceClassId: sourceClassId });
 }
 
-const showLearnButton = computed(() => !!props.playerMemberId && props.casterType !== "none");
+const showLearnButton = computed(() => !!playerMemberId && casterType !== "none");
 
 function learnLabel(isCantrip: boolean) {
-  if (props.casterType === "prepared") return "Prepare";
+  if (casterType === "prepared") return "Prepare";
   if (isCantrip) return "Learn";
-  return props.casterType === "spellbook" ? "Add" : "Learn";
+  return casterType === "spellbook" ? "Add" : "Learn";
 }
 
 function learnedLabel(isCantrip: boolean) {
-  if (props.casterType === "prepared") return "Prepared";
+  if (casterType === "prepared") return "Prepared";
   if (isCantrip) return "Known";
-  return props.casterType === "spellbook" ? "Added" : "Learned";
+  return casterType === "spellbook" ? "Added" : "Learned";
 }
 
 function isKnown(spellId: string): boolean {
-  if (props.casterType === "prepared") return props.preparedSpellIds?.includes(spellId) ?? false;
-  return props.knownSpellIds?.includes(spellId) ?? false;
+  if (casterType === "prepared") return preparedSpellIds?.includes(spellId) ?? false;
+  return knownSpellIds?.includes(spellId) ?? false;
 }
 
 const { data: allSpells, isLoading } = useAllSpells();
 
 // Debounce search to avoid filtering on every keystroke
-const debouncedSearch = refDebounced(computed(() => props.search), 200);
+const debouncedSearch = refDebounced(computed(() => search), 200);
 
 const filtered = computed<Spell[]>(() => {
   let list = allSpells.value ?? [];
   const q = debouncedSearch.value.trim().toLowerCase();
   if (q) list = list.filter((s) => s.name.toLowerCase().includes(q));
-  if (props.levelFilter !== "") list = list.filter((s) => s.level === parseInt(props.levelFilter));
-  if (props.schoolFilter) list = list.filter((s) => s.school === props.schoolFilter);
-  if (props.classFilter) list = list.filter((s) => s.classes.includes(props.classFilter));
-  if (props.sourceFilter && props.sourceFilter !== "all") list = list.filter((s) => s.source === props.sourceFilter);
+  if (levelFilter !== "") list = list.filter((s) => s.level === parseInt(levelFilter));
+  if (schoolFilter) list = list.filter((s) => s.school === schoolFilter);
+  if (classFilter) list = list.filter((s) => s.classes.includes(classFilter));
+  if (sourceFilter && sourceFilter !== "all") list = list.filter((s) => s.source === sourceFilter);
   return list;
 });
+
+/**
+ * Ids selectable for a bulk campaign-scope move: every filtered spell that is
+ * the DM's own. Shared/library spells (`isSharedContent`) have no
+ * `campaign_id` of their own to move — "Select all shown" must never
+ * pre-tick them, same rows the Edit button above already excludes.
+ */
+const selectableIds = computed(() => filtered.value.filter((s) => !isSharedContent(s)).map((s) => s.id));
+
+defineExpose({ selectableIds });
 
 const { savedCount, linkCount } = useScrollRestore("spells");
 const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);

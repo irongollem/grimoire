@@ -1,5 +1,18 @@
 <template>
   <div>
+    <BulkScopeBar
+      v-if="bulk.selecting.value"
+      :count="bulk.count.value"
+      :selectable-count="selectableIds.length"
+      :busy="bulkScope.isPending.value"
+      :campaign-name="activeCampaign?.name ?? null"
+      class="mb-3"
+      @select-all="selectAllShown"
+      @clear="bulk.clear"
+      @stop="bulk.stop"
+      @move="moveSelection"
+    />
+
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -35,21 +48,28 @@
           ? 'grid grid-cols-2 gap-3 pb-2'
           : 'flex flex-col gap-2 pb-2'"
       >
-        <EntityMobileCard
+        <BulkSelectableCard
           v-for="monster in visibleItems"
           :key="monster.id"
-          :layout="layout"
-          :to="`/monsters/${monster.id}`"
-          :title="monster.name"
-          :subtitle="monsterSubtitle(monster)"
-          :image-url="monster.image_url"
-          :focal-point="monster.portrait_focal_point"
-          placeholder="/assets/placeholders/monster.webp"
-          :badge-text="crLabel(monster.stat_block.challenge_rating)"
-          :badge-class="crBg(monster.stat_block.challenge_rating)"
-          :location="monster.habitat || undefined"
-          :shared="isDiscovered(monster)"
-        />
+          corner="top-right"
+          :selected="bulk.isSelected(monster.id)"
+          :selecting="bulk.selecting.value && !monster.is_shared"
+          @toggle="bulk.toggle(monster.id)"
+        >
+          <EntityMobileCard
+            :layout="layout"
+            :to="`/monsters/${monster.id}`"
+            :title="monster.name"
+            :subtitle="monsterSubtitle(monster)"
+            :image-url="monster.image_url"
+            :focal-point="monster.portrait_focal_point"
+            placeholder="/assets/placeholders/monster.webp"
+            :badge-text="crLabel(monster.stat_block.challenge_rating)"
+            :badge-class="crBg(monster.stat_block.challenge_rating)"
+            :location="monster.habitat || undefined"
+            :shared="isDiscovered(monster)"
+          />
+        </BulkSelectableCard>
       </div>
     </template>
 
@@ -58,12 +78,19 @@
       v-else
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
     >
-      <MonsterGridCard
+      <BulkSelectableCard
         v-for="monster in visibleItems"
         :key="monster.id"
-        :monster="monster"
-        :locked="lockedMonsterIds.has(monster.id)"
-      />
+        corner="top-right"
+        :selected="bulk.isSelected(monster.id)"
+        :selecting="bulk.selecting.value && !monster.is_shared"
+        @toggle="bulk.toggle(monster.id)"
+      >
+        <MonsterGridCard
+          :monster="monster"
+          :locked="lockedMonsterIds.has(monster.id)"
+        />
+      </BulkSelectableCard>
     </div>
 
     <div ref="sentinelRef" />
@@ -80,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { IconNavBestiary } from '@/lib/icons';
@@ -99,6 +126,13 @@ import EntityMobileCard from "@/components/common/EntityMobileCard.vue";
 import MobileEntityMetaRow from "@/components/common/MobileEntityMetaRow.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
+import { storeToRefs } from "pinia";
+import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import { useBulkSelection } from "@/composables/useBulkSelection";
+import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
+import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 
 const router = useRouter();
 const { canCreate, quota: monsterQuota } = useQuota("monsters");
@@ -173,4 +207,57 @@ const lockedMonsterIds = computed((): Set<string> => {
 function monsterSubtitle(monster: Monster): string {
   return `${monster.size} ${monster.monster_type}`;
 }
+
+// ── Bulk selection (#875) ───────────────────────────────────────────────────
+//
+// Owned here, not in useUiStore: transient per-visit selection, not a list
+// filter. Shared/library monsters (monster.is_shared) are never selectable —
+// the same flag MonsterGridCard already reads to show its "Reference" chip
+// and hide the Edit action, so this reuses an existing distinction rather
+// than inventing a new one.
+const bulk = useBulkSelection();
+const bulkScope = useBulkCampaignScope();
+const toast = useToast();
+const { activeCampaign } = storeToRefs(useCampaignStore());
+
+// Every row a bulk move may legally touch: passes the current filters and
+// isn't shared/library content. Reused by "select all" and by the prune
+// below, so both always agree on what's selectable.
+const selectableIds = computed(() => filtered.value.filter((m) => !m.is_shared).map((m) => m.id));
+
+// The filters can change (or the underlying list refetch) while rows are
+// selected; prune whenever the selectable set changes so a stale id from a
+// now-hidden row never lingers in the selection or reaches the mutation
+// (#875).
+watch(selectableIds, (ids) => bulk.pruneTo(ids));
+
+function selectAllShown() {
+  // "Shown" means every row passing the current filters, not just the
+  // windowed/painted subset — taken from `filtered`, not `visibleItems`.
+  bulk.selectAll(selectableIds.value);
+}
+
+async function moveSelection(campaignId: string | null) {
+  const ids = bulk.pruneTo(selectableIds.value);
+  if (!ids.length) return;
+  try {
+    const { moved } = await bulkScope.mutateAsync({ table: "monsters", ids, campaignId });
+    const noun = moved === 1 ? "monster" : "monsters";
+    toast.success(
+      campaignId
+        ? `Moved ${moved} ${noun} to ${activeCampaign.value?.name ?? "the campaign"}.`
+        : `Made ${moved} ${noun} available in all campaigns.`,
+    );
+    bulk.stop();
+  } catch (e) {
+    toast.error(toast.fromError(e));
+  }
+}
+
+function toggleSelectMode() {
+  if (bulk.selecting.value) bulk.stop();
+  else bulk.selecting.value = true;
+}
+
+defineExpose({ selecting: bulk.selecting, toggleSelectMode });
 </script>

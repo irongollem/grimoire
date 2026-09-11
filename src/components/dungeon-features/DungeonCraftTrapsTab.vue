@@ -10,6 +10,8 @@
     empty-title="No traps yet"
     empty-description="Build your first trap — set the trigger, DCs, damage, and CR."
     empty-action-label="New Trap"
+    table="traps"
+    :ids="trapFilteredIds"
     @empty-action="router.push('/traps/new')"
   >
     <template #filters>
@@ -18,36 +20,42 @@
         <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
       </AppSelect>
     </template>
-    <template #card>
-      <RouterLink
+    <template #card="{ selecting, isSelected, toggle }">
+      <BulkSelectableCard
         v-for="trap in filteredTraps"
         :key="trap.id"
-        :to="`/traps/${trap.id}`"
-        class="flex flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
+        :selected="isSelected(trap.id)"
+        :selecting="selecting"
+        @toggle="toggle(trap.id)"
       >
-        <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
-          <FocalImage
-            :src="trap.image_url"
-            :alt="trap.name"
-            format="portrait"
-            :focal-point="trap.image_focal_point"
-            placeholder="/assets/placeholders/trap.webp"
-            class="group-hover:scale-105 transition-transform duration-300"
-          />
-          <span
-            class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
-            :class="TRAP_TYPE_BG[trap.trap_type]"
-          >{{ trap.trap_type }}</span>
-        </div>
-        <div class="p-2.5 flex flex-col gap-1">
-          <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
-          <div class="flex items-center gap-2">
-            <span v-if="trap.cr" class="text-label text-muted-foreground">CR {{ trap.cr }}</span>
-            <span v-if="trap.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
+        <RouterLink
+          :to="`/traps/${trap.id}`"
+          class="flex flex-col rounded-lg border border-border bg-card overflow-hidden hover:border-primary/50 transition-colors group"
+        >
+          <div class="relative aspect-square bg-muted overflow-hidden shrink-0">
+            <FocalImage
+              :src="trap.image_url"
+              :alt="trap.name"
+              format="portrait"
+              :focal-point="trap.image_focal_point"
+              placeholder="/assets/placeholders/trap.webp"
+              class="group-hover:scale-105 transition-transform duration-300"
+            />
+            <span
+              class="absolute top-2 left-2 text-label px-1.5 py-0.5 rounded text-white font-bold"
+              :class="TRAP_TYPE_BG[trap.trap_type]"
+            >{{ trap.trap_type }}</span>
           </div>
-          <PlacedInLine :rooms="placedInRows(trap.id)" />
-        </div>
-      </RouterLink>
+          <div class="p-2.5 flex flex-col gap-1">
+            <h3 class="font-cinzel text-sm font-bold text-foreground leading-tight truncate">{{ trap.name }}</h3>
+            <div class="flex items-center gap-2">
+              <span v-if="trap.cr" class="text-label text-muted-foreground">CR {{ trap.cr }}</span>
+              <span v-if="trap.trigger_type" class="text-caption-sm text-muted-foreground italic truncate">{{ trap.trigger_type }}</span>
+            </div>
+            <PlacedInLine :rooms="placedInRows(trap.id)" />
+          </div>
+        </RouterLink>
+      </BulkSelectableCard>
     </template>
   </DungeonCraftEntityGrid>
 </template>
@@ -60,6 +68,7 @@ import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRoom
 import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import PlacedInLine from "./PlacedInLine.vue";
 
@@ -83,4 +92,7 @@ const filteredTraps = computed(() => {
   );
   return list;
 });
+
+// "Select all shown" reads every row passing the current filters (#875).
+const trapFilteredIds = computed(() => filteredTraps.value.map((t) => t.id));
 </script>

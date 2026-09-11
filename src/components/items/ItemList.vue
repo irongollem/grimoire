@@ -29,92 +29,103 @@
         rides the artwork in `#image-footer`, and the body carries only a quick
         stat line and tags. Items have far less to say at a glance than an NPC
         or a monster, and filling the body to match them would be padding.
+
+        Wrapped in BulkSelectableCard (#875) for every card — but `selecting`
+        is only ever true for the DM's own rows (`isUuid`); a library/reference
+        row always gets `selecting: false` regardless of the list-wide mode, so
+        it renders untouched and cannot be selected or re-scoped.
       -->
-      <EntityGridCard
+      <BulkSelectableCard
         v-for="item in visibleItems"
         :key="item.id"
-        :to="`/vault/${item.id}`"
-        :title="item.name"
-        :image-url="item.image_url"
-        :focal-point="item.image_focal_point"
-        placeholder="/assets/placeholders/item.webp"
-        :badge-text="ITEM_RARITY_LABELS[item.rarity]"
-        :badge-class="RARITY_BG[item.rarity]"
+        :selected="selectedIds.has(item.id)"
+        :selecting="selecting && isUuid(item.id)"
+        @toggle="emit('toggle-select', item.id)"
       >
-        <!-- Owned rows get Edit; shared rows say so and link through to the
-             detail view's Clone action, which is the only way to change them. -->
-        <template #actions-start>
-          <AppButton
-            v-if="isUuid(item.id)"
-            :to="`/vault/${item.id}?edit=true`"
-            variant="ghost"
-            size="xs"
-            :icon="IconEdit"
-            label="Edit"
-            :class="[
-              CARD_OVERLAY_SCRIM,
-              'text-white hover:text-white max-md:min-h-11 max-md:px-3',
-              '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
-            ]"
-            tooltip="Edit item"
-          />
-          <span
-            v-else
-            class="flex h-6 items-center rounded bg-black/50 px-1.5 text-label text-white backdrop-blur-sm"
-          >Reference</span>
-        </template>
-
-        <template #image-footer>
-          <div class="flex items-end gap-1.5">
-            <component
-              :is="itemTypeIcon(item.item_type)"
-              class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
-            />
-            <IconFeather
-              v-if="item.content !== null"
-              class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
+        <EntityGridCard
+          :to="`/vault/${item.id}`"
+          :title="item.name"
+          :image-url="item.image_url"
+          :focal-point="item.image_focal_point"
+          placeholder="/assets/placeholders/item.webp"
+          :badge-text="ITEM_RARITY_LABELS[item.rarity]"
+          :badge-class="RARITY_BG[item.rarity]"
+        >
+          <!-- Owned rows get Edit; shared rows say so and link through to the
+               detail view's Clone action, which is the only way to change them. -->
+          <template #actions-start>
+            <AppButton
+              v-if="isUuid(item.id)"
+              :to="`/vault/${item.id}?edit=true`"
+              variant="ghost"
+              size="xs"
+              :icon="IconEdit"
+              label="Edit"
+              :class="[
+                CARD_OVERLAY_SCRIM,
+                'text-white hover:text-white max-md:min-h-11 max-md:px-3',
+                '[@media(hover:hover)]:opacity-0 transition-opacity group-hover:opacity-100',
+              ]"
+              tooltip="Edit item"
             />
             <span
-              class="line-clamp-2 font-cinzel text-sm font-bold leading-tight text-white transition-colors group-hover:text-primary/90"
-            >
-              {{ item.name }}
-            </span>
-          </div>
-        </template>
+              v-else
+              class="flex h-6 items-center rounded bg-black/50 px-1.5 text-label text-white backdrop-blur-sm"
+            >Reference</span>
+          </template>
 
-        <template #body>
-          <!-- Damage / AC quick stat -->
-          <div
-            v-if="item.damage_rolls?.length || item.armor_class || item.charges"
-            class="mt-auto flex items-center gap-3 pt-1"
-          >
-            <span v-if="item.damage_rolls?.length" class="text-caption text-muted-foreground">
-              ⚔
-              {{
-                item.damage_rolls
-                  .map((r) => r.dice + (r.type ? " " + r.type : ""))
-                  .join(" + ")
-              }}
-            </span>
-            <span v-if="item.armor_class" class="text-caption text-muted-foreground">
-              🛡 AC {{ item.armor_class }}
-            </span>
-            <span v-if="item.charges" class="text-caption text-muted-foreground">
-              ✦ {{ item.charges }} charges
-            </span>
-          </div>
+          <template #image-footer>
+            <div class="flex items-end gap-1.5">
+              <component
+                :is="itemTypeIcon(item.item_type)"
+                class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
+              />
+              <IconFeather
+                v-if="item.content !== null"
+                class="mb-px h-3.5 w-3.5 shrink-0 text-white/70"
+              />
+              <span
+                class="line-clamp-2 font-cinzel text-sm font-bold leading-tight text-white transition-colors group-hover:text-primary/90"
+              >
+                {{ item.name }}
+              </span>
+            </div>
+          </template>
 
-          <div v-if="item.tags.length" class="flex flex-wrap gap-1">
-            <span
-              v-for="tag in item.tags.slice(0, 4)"
-              :key="tag"
-              class="rounded bg-muted px-1 py-1 text-label text-muted-foreground"
+          <template #body>
+            <!-- Damage / AC quick stat -->
+            <div
+              v-if="item.damage_rolls?.length || item.armor_class || item.charges"
+              class="mt-auto flex items-center gap-3 pt-1"
             >
-              {{ tag }}
-            </span>
-          </div>
-        </template>
-      </EntityGridCard>
+              <span v-if="item.damage_rolls?.length" class="text-caption text-muted-foreground">
+                ⚔
+                {{
+                  item.damage_rolls
+                    .map((r) => r.dice + (r.type ? " " + r.type : ""))
+                    .join(" + ")
+                }}
+              </span>
+              <span v-if="item.armor_class" class="text-caption text-muted-foreground">
+                🛡 AC {{ item.armor_class }}
+              </span>
+              <span v-if="item.charges" class="text-caption text-muted-foreground">
+                ✦ {{ item.charges }} charges
+              </span>
+            </div>
+
+            <div v-if="item.tags.length" class="flex flex-wrap gap-1">
+              <span
+                v-for="tag in item.tags.slice(0, 4)"
+                :key="tag"
+                class="rounded bg-muted px-1 py-1 text-label text-muted-foreground"
+              >
+                {{ tag }}
+              </span>
+            </div>
+          </template>
+        </EntityGridCard>
+      </BulkSelectableCard>
     </div>
     <div ref="sentinelRef" />
   </div>
@@ -126,6 +137,7 @@ import { IconCaravan, IconCircle, IconCoins, IconComponent, IconEdit, IconFeathe
 import AppButton from "@/components/common/AppButton.vue";
 import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import EntityGridCard from "@/components/common/EntityGridCard.vue";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import type { ItemType } from "@/types/item.types";
 
 const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
@@ -162,22 +174,36 @@ import { ITEM_RARITY_LABELS, RARITY_BG } from "@/types/item.types";
 import EmptyState from "@/components/common/EmptyState.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
-const props = defineProps<{
+const {
+  search,
+  typeFilter,
+  rarityFilter,
+  sourceFilter,
+  showAllScopes = false,
+  selecting = false,
+  selectedIds = new Set<string>(),
+} = defineProps<{
   search: string;
   typeFilter: string;
   rarityFilter: string;
   sourceFilter: string;
   showAllScopes?: boolean;
+  /** Bulk-selection mode is on (#875). Library/reference rows (non-UUID ids)
+   *  never enter selection mode regardless of this flag — see the template. */
+  selecting?: boolean;
+  selectedIds?: ReadonlySet<string>;
 }>();
 
-const { data: items, isLoading } = useItems(() => ({ includeAllScopes: !!props.showAllScopes }));
+const emit = defineEmits<{ "toggle-select": [id: string] }>();
+
+const { data: items, isLoading } = useItems(() => ({ includeAllScopes: !!showAllScopes }));
 
 const filtered = computed(() => {
-  const q = props.search.trim().toLowerCase();
+  const q = search.trim().toLowerCase();
   return (items.value ?? []).filter((item) => {
-    if (props.typeFilter && item.item_type !== props.typeFilter) return false;
-    if (props.rarityFilter && item.rarity !== props.rarityFilter) return false;
-    if (props.sourceFilter && item.source !== props.sourceFilter) return false;
+    if (typeFilter && item.item_type !== typeFilter) return false;
+    if (rarityFilter && item.rarity !== rarityFilter) return false;
+    if (sourceFilter && item.source !== sourceFilter) return false;
     if (q) {
       return (
         item.name.toLowerCase().includes(q) ||
@@ -188,6 +214,16 @@ const filtered = computed(() => {
     return true;
   });
 });
+
+/**
+ * Ids selectable for a bulk campaign-scope move: every row passing the
+ * current filters that is the DM's own (a UUID row). Library/reference rows
+ * (a provider key like "srd_owlbear") have no `campaign_id` of their own to
+ * move — "Select all shown" must never pre-tick them.
+ */
+const selectableIds = computed(() => filtered.value.filter((item) => isUuid(item.id)).map((item) => item.id));
+
+defineExpose({ selectableIds });
 
 const { savedCount, linkCount } = useScrollRestore("items");
 const { visibleItems, sentinelRef, visibleCount } = useInfiniteScroll(filtered, 48, savedCount);

@@ -63,6 +63,38 @@ Each card is the shared `EntityGridCard`. The item card is deliberately the lean
 - **Scope** — two-button toggle: "General — all campaigns" (`campaign_id IS NULL`) vs "Campaign — _active campaign name_" (`campaign_id = active`). New items default to the active campaign; SRD imports stay general. The Vault list and every downstream `useItems()` caller (chat search, store inventory, crafting recipes, NPC inventory, encounters, loot tables, quests, party inventory) filter by this scope unless `includeAllScopes` is opted in.
 - **Source** — freeform text for custom items; read-only link for Open5e imports.
 
+**Re-scoping in bulk (#875).** The single-row control above cannot sort a
+backlog, so every list that owns re-scopable content — the Vault, the
+Spellbook, the Bestiary, Species, and all four Dungeon Craft tabs — carries a
+**Select** action that turns the grid into a selection surface:
+`BulkSelectableCard` puts a checkbox in whichever corner that list's card
+leaves free, `BulkScopeBar` docks above the grid, and `useBulkCampaignScope`
+issues one `update({campaign_id}).in("id", …)` per 200 ids. Three rules the
+implementation turns on, each with a reason worth keeping:
+
+- **The bar offers exactly the two scopes `CampaignScopeField` offers** — the
+  active campaign, or every campaign — and no campaign picker, so the bulk and
+  single-row controls can never come to mean different things. Filing into
+  another campaign means switching to it, as it already did for one row.
+- **"Select all shown" means every row passing the current filters**, not the
+  48 the virtualiser has painted, and never a shared-library row (`isUuid` for
+  items and species, `isSharedContent` for spells, `is_shared` for monsters).
+  Where a list holds _only_ library rows the bar says so rather than offering
+  moves that cannot apply.
+- **The selection is pruned to what is still shown, at move time.** Without
+  that, selecting forty rows and then editing the search box left the batched
+  write pointing at rows the DM could no longer see — the one way this feature
+  could have silently re-scoped something nobody chose.
+
+**The backlog this exists for is smaller than it looks, and deliberately not
+migrated.** Of 1,919 globally-scoped items, 1,644 are published-source
+catalogue loaded in a single day in March 2026 (`vom`, `a5e`, `wotc-srd`,
+`srd`, `toh`) — global is the right scope for those forever, and 441 of them
+duplicate `library_items` rows outright (#876). Roughly 275 are authored. So
+nothing mass-assigns existing rows, the selection is never defaulted to
+"everything global" (that would pre-tick the entire SRD), and the DM sorts what
+they actually wrote.
+
 **View mode** (`/vault/:id` without `?edit=true`) — renders `ItemSheet`, a clean reading layout with tabbed identified/mundane art, a stat block panel (type, rarity, weight, cost, damage, armor class, attunement, charges, properties), linked spells list, and the rich text description.
 
 **Header actions on existing items:**

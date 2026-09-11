@@ -33,6 +33,12 @@
         @click="ui.monsterGeneratorOpen = true"
       />
       <ListActionButton
+        :active="monsterListRef?.selecting ?? false"
+        :icon="IconCheck"
+        label="Select"
+        @click="monsterListRef?.toggleSelectMode()"
+      />
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Monster"
@@ -74,7 +80,7 @@
       </ListFilterBar>
     </template>
 
-    <MonsterList />
+    <MonsterList ref="monsterListRef" />
   </ListPageLayout>
 
   <!-- ══ Mobile (<md): purpose-built list chrome ═══════════════════════════ -->
@@ -166,7 +172,7 @@
          (Prep mode), so this view no longer has its own bottom New bar.
          The shell's <main> already reserves space for the docked bar. -->
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-1">
-      <MonsterList />
+      <MonsterList ref="monsterListRef" />
     </div>
 
     <!-- Filters bottom sheet -->
@@ -233,6 +239,15 @@
         >
           <template #icon><IconGenerate class="size-5 shrink-0 text-muted-foreground" /></template>
         </AppButton>
+        <AppButton
+          variant="menu"
+          size="body"
+          block
+          :label="monsterListRef?.selecting ? 'Cancel selection' : 'Select monsters'"
+          @click="overflowOpen = false; monsterListRef?.toggleSelectMode()"
+        >
+          <template #icon><IconCheck class="size-5 shrink-0 text-muted-foreground" /></template>
+        </AppButton>
       </div>
     </MobileSheet>
 
@@ -264,7 +279,7 @@ import { ref, computed } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import { useDetailModal } from "@/composables/useDetailModal";
 import {
-  IconAdd, IconClose, IconGenerate, IconLibrary,
+  IconAdd, IconCheck, IconClose, IconGenerate, IconLibrary,
   IconSearch, IconSettings,
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -303,6 +318,7 @@ const { showList } = useDetailModal("/monsters");
 const filtersOpen = ref(false);
 const overflowOpen = ref(false);
 const sourcesOpen = ref(false);
+const monsterListRef = ref<InstanceType<typeof MonsterList> | null>(null);
 
 function handleNew() {
   if (!canCreate.value) { showPaywall.value = true; return; }

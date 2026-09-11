@@ -26,6 +26,13 @@
         />
         <ListActionButton
           v-if="activeTab === 'species'"
+          :active="speciesListRef?.bulkSelecting ?? false"
+          :icon="IconCheck"
+          label="Select"
+          @click="speciesListRef?.toggleBulkSelectMode()"
+        />
+        <ListActionButton
+          v-if="activeTab === 'species'"
           variant="primary"
           :icon="IconAdd"
           label="New Species"
@@ -201,7 +208,7 @@
     <!-- Tab bar -->
     <TabBar :tabs="TABS" v-model="activeTab" wrapper-class="mb-6 overflow-x-auto" />
 
-    <SpeciesList v-if="activeTab === 'species'" :readonly="!isDM" />
+    <SpeciesList v-if="activeTab === 'species'" :readonly="!isDM" ref="speciesListRef" />
     <BackgroundList v-else-if="activeTab === 'backgrounds'" :readonly="!isDM" />
     <ClassList v-else-if="activeTab === 'classes'" />
     <ArchetypeList v-else-if="activeTab === 'archetypes'" ref="archetypeListRef" />
@@ -217,7 +224,7 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { onClickOutside } from "@vueuse/core";
-import { IconAdd, IconBookUser, IconDownload, IconLevel, IconLightning, IconLoading, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
+import { IconAdd, IconBookUser, IconCheck, IconDownload, IconLevel, IconLightning, IconLoading, IconPopulate, IconSettings, IconSpecies } from '@/lib/icons';
 import TabBar from "@/components/common/TabBar.vue";
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
 import ListActionButton from "@/components/common/ListActionButton.vue";
@@ -314,6 +321,7 @@ const archetypeClassNames = computed(() => {
   return [...new Set([...srd, ...custom])].sort();
 });
 const archetypeListRef = ref<InstanceType<typeof ArchetypeList> | null>(null);
+const speciesListRef = ref<InstanceType<typeof SpeciesList> | null>(null);
 
 // ── Backgrounds: Open5e source picker ────────────────────────────────────────
 // Source selection lives in useUiStore so it survives navigation within a
