@@ -25,7 +25,12 @@ async function fetchBeatsStagedAt(campaignId: string, spaceIds: readonly string[
   if (!spaceIds.length) return [];
   const { data, error } = await supabase
     .from("quest_beats")
-    .select("*, quest:quests(id, title, status)")
+    // The constraint is named because #871 added a second relationship
+    // between the two tables (quests.entry_beat_id → quest_beats), and a bare
+    // `quests(...)` embed is ambiguous to PostgREST from then on (PGRST201,
+    // caught by scripts/check-embeds.sh). This is the beat's own quest, via
+    // the composite FK every beat carries.
+    .select("*, quest:quests!quest_beats_quest_campaign_fkey(id, title, status)")
     .eq("campaign_id", campaignId)
     .in("staged_at_location_id", spaceIds);
   if (error) throw error;
