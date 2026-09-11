@@ -8,7 +8,7 @@
           :alt="puzzle.name"
           format="portrait"
           :focal-point="puzzle.image_focal_point"
-          placeholder="/assets/placeholders/enigma.webp"
+          :placeholder="placeholderUrl('enigma')"
           class="h-full"
         />
       </div>
@@ -53,6 +53,7 @@
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import type { PuzzleRoom } from "@/types/puzzle.types";
 import FocalImage from "@/components/common/FocalImage.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { puzzle } = defineProps<{ puzzle: PuzzleRoom }>();
 </script>

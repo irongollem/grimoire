@@ -12,7 +12,7 @@
             :alt="member.name"
             format="landscape"
             :focal-point="member.portrait_focal_point ?? null"
-            placeholder="/assets/placeholders/character.webp"
+            :placeholder="placeholderUrl('character')"
           />
         </div>
 
@@ -283,6 +283,7 @@ import PartyDeathSaves from "./PartyDeathSaves.vue";
 import { applyDamage, applyHealing, betterTempHp } from "@/rules/hitPoints";
 import type { PartyMember, PartyMemberUpdate, SkillProficiencies, SkillProfLevel } from "@/types/party.types";
 import type { Companion } from "@/types/companion.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const {
   member,

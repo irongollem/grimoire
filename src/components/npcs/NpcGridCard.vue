@@ -9,7 +9,7 @@
     :title="displayName"
     :image-url="getNpcDisplayPortrait(npc)"
     :focal-point="getNpcDisplayFocalPoint(npc)"
-    placeholder="/assets/placeholders/npc.webp"
+    :placeholder="placeholderUrl('npc')"
     :locked="locked"
     :badge-text="npc.relationship"
     :badge-class="relClass"
@@ -89,6 +89,7 @@ import {
   npcRelationshipBg,
   npcStatusBg,
 } from "@/lib/npcDisplay";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { Npc } from "@/types/npc.types";
 
 const { npc, locationName } = defineProps<{

@@ -63,7 +63,7 @@
             :subtitle="monsterSubtitle(monster)"
             :image-url="monster.image_url"
             :focal-point="monster.portrait_focal_point"
-            placeholder="/assets/placeholders/monster.webp"
+            :placeholder="placeholderUrl('monster')"
             :badge-text="crLabel(monster.stat_block.challenge_rating)"
             :badge-class="crBg(monster.stat_block.challenge_rating)"
             :location="monster.habitat || undefined"
@@ -133,6 +133,7 @@ import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { canCreate, quota: monsterQuota } = useQuota("monsters");

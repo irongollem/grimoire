@@ -50,7 +50,7 @@
             @click="handlePlaceholderFpClick($event, entity.type)"
           >
             <img
-              :src="`/assets/placeholders/${entity.type}.webp`"
+              :src="placeholderUrl(entity.type)"
               :alt="entity.label"
               class="w-full h-full object-cover"
             />
@@ -95,6 +95,7 @@ import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue"
 import VariantSweepPanel from "@/components/admin/VariantSweepPanel.vue";
 import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
 import { useAdminPlaceholderFocalPoints } from "@/composables/admin/useAdminPlaceholderFocalPoints";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const PLACEHOLDER_ENTITIES = [
   { type: "background",     label: "Background",      aspect: "aspect-3/4" },

@@ -9,7 +9,7 @@
         :alt="companion.name"
         format="portrait"
         :focal-point="companion.portrait_focal_point ?? null"
-        placeholder="/assets/placeholders/companion.webp"
+        :placeholder="placeholderUrl('companion')"
         class="group-hover:scale-105 transition-transform duration-300"
       />
       <span
@@ -67,6 +67,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import { useHpDisplay } from "@/composables/play/useHpDisplay";
 import { COMPANION_TYPE_LABELS, COMPANION_TYPE_COLORS } from "@/types/companion.types";
 import type { Companion } from "@/types/companion.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { companion, ownerName, showNumericHp } = defineProps<{
   companion: Companion;

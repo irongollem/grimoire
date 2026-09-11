@@ -11,7 +11,7 @@
           :alt="member.name"
           format="portrait"
           :focal-point="member.portrait_focal_point ?? null"
-          placeholder="/assets/placeholders/character.webp"
+          :placeholder="placeholderUrl('character')"
           class="group-hover:scale-105 transition-transform duration-300"
         />
         <span
@@ -73,6 +73,7 @@ import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue
 import { useHpDisplay } from "@/composables/play/useHpDisplay";
 import { useShieldAcBonus } from "@/composables/party/useShieldAc";
 import type { PartyMember } from "@/types/party.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { member, isOwn, showNumericHp, subtitle } = defineProps<{
   member: PartyMember;

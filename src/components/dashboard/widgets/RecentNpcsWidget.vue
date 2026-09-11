@@ -19,7 +19,7 @@
             :focal-point="npc.portrait_focal_point ?? null"
             format="token"
             :alt="npc.name"
-            placeholder="/assets/placeholders/npc.webp"
+            :placeholder="placeholderUrl('npc')"
           />
         </div>
         <p class="text-caption text-center text-muted-foreground group-hover:text-foreground transition-colors line-clamp-2 leading-tight w-full">
@@ -37,6 +37,7 @@ import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useRecentNpcs } from "@/composables/dashboard/useRecentNpcs";
 import FocalImage from "@/components/common/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 /** Who the DM has been looking at, so the faces of the current scene are one
  *  click away. Ordered by the visit, not by the campaign. */

@@ -26,6 +26,7 @@ import { computed } from "vue";
 import EntityLightbox from "@/components/common/EntityLightbox.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import type { RunCombatant } from "@/types/encounter.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { combatant } = defineProps<{ combatant: RunCombatant | null }>();
 defineEmits<{ close: [] }>();
@@ -40,7 +41,7 @@ const focalPoint = computed(() =>
 );
 
 const placeholder = computed(() =>
-  combatant?.npc_id ? "/assets/placeholders/npc.webp" : "/assets/placeholders/monster.webp",
+  combatant?.npc_id ? placeholderUrl("npc") : placeholderUrl("monster"),
 );
 
 // NPC-backed combatants keep their notes under the `npc` entity so they line up

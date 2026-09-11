@@ -38,7 +38,7 @@
               :alt="trap.name"
               format="portrait"
               :focal-point="trap.image_focal_point"
-              placeholder="/assets/placeholders/trap.webp"
+              :placeholder="placeholderUrl('trap')"
               class="group-hover:scale-105 transition-transform duration-300"
             />
             <span
@@ -71,6 +71,7 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import PlacedInLine from "./PlacedInLine.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { data: traps, isLoading: trapsLoading } = useTraps();

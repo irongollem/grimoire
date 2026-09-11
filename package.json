@@ -45,7 +45,9 @@
     "seed-content-sources": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-content-sources.ts",
     "dev:auth": "tsx --tsconfig tsconfig.node.json scripts/dev-auth.ts",
     "dev:buckets": "tsx --tsconfig tsconfig.node.json scripts/dev-buckets.ts",
-    "cartographer:pack": "tsx --tsconfig tsconfig.node.json scripts/cartographer-pack.ts"
+    "cartographer:pack": "tsx --tsconfig tsconfig.node.json scripts/cartographer-pack.ts",
+    "art:manifest": "tsx --tsconfig tsconfig.node.json scripts/art-manifest.ts",
+    "art:publish": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/art-publish.ts"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",

@@ -37,7 +37,7 @@
           <div class="portrait-inner" :class="isActive(combatant) ? 'portrait-active' : ''">
             <FocalImage
               :src="portraitSrc(combatant) ?? undefined"
-              :placeholder="combatant.type === 'player' ? '/assets/placeholders/character.webp' : combatant.npc_id ? '/assets/placeholders/npc.webp' : '/assets/placeholders/monster.webp'"
+              :placeholder="combatant.type === 'player' ? placeholderUrl('character') : combatant.npc_id ? placeholderUrl('npc') : placeholderUrl('monster')"
               :alt="portraitAlt(combatant)"
               :focal-point="portraitHasBeastImage(combatant) ? null : (combatant.portrait_focal_point ?? null)"
               format="square"
@@ -104,6 +104,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import type { RunCombatant, HealthVisibility } from "@/types/encounter.types";
 import type { PartyMember } from "@/types/party.types";
 import { displayTempHp as calcDisplayTempHp } from "@/rules/hitPoints";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const {
   visibleCombatants,

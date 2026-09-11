@@ -22,7 +22,7 @@
             format="portrait"
             :focal-point="trap.image_focal_point ?? null"
             :lightbox="true"
-            placeholder="/assets/placeholders/trap.webp"
+            :placeholder="placeholderUrl('trap')"
             class="w-full h-full"
           />
         </div>
@@ -175,6 +175,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props  = defineProps<{ trap: Trap }>();
 const route  = useRoute();

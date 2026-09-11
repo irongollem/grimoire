@@ -28,7 +28,7 @@
               :alt="puzzle.name"
               format="portrait"
               :focal-point="puzzle.image_focal_point"
-              placeholder="/assets/placeholders/enigma.webp"
+              :placeholder="placeholderUrl('enigma')"
               class="group-hover:scale-105 transition-transform duration-300"
             />
             <span
@@ -64,6 +64,7 @@ import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { data: puzzles, isLoading } = usePlayerVisiblePuzzles();
 const { isNew } = useReadItems("puzzle");

@@ -56,7 +56,7 @@
           format="portrait"
           :render-width="200"
           :focal-point="null"
-          placeholder="/assets/placeholders/location.webp"
+          :placeholder="placeholderUrl('location')"
           class="h-full w-full object-cover"
         />
       </div>
@@ -258,6 +258,7 @@ import {
   IconMap,
   IconQuest,
 } from "@/lib/icons";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { visibleTags } from "@/lib/locations/tags";

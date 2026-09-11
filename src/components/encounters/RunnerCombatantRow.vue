@@ -18,7 +18,7 @@
         >
           <FocalImage
             :src="wildshape?.beast_image_url ?? combatant.portrait_url ?? undefined"
-            :placeholder="combatant.type === 'player' ? '/assets/placeholders/character.webp' : combatant.npc_id ? '/assets/placeholders/npc.webp' : '/assets/placeholders/monster.webp'"
+            :placeholder="combatant.type === 'player' ? placeholderUrl('character') : combatant.npc_id ? placeholderUrl('npc') : placeholderUrl('monster')"
             :alt="wildshape?.beast_name ?? combatant.name"
             :focal-point="wildshape?.beast_image_url ? null : (combatant.portrait_focal_point ?? null)"
             format="square"
@@ -187,6 +187,7 @@ import { useRuleset } from "@/composables/rules/useRuleset";
 import { getExhaustionLevel, getConditionDescription } from "@/rules/conditions";
 import { useRunnerCombatant } from "@/composables/encounters/useRunnerCombatant";
 import type { RunCombatant } from "@/types/encounter.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { combatant, selectedId } = defineProps<{
   combatant: RunCombatant;

@@ -3,8 +3,8 @@ import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { visualizer } from "rollup-plugin-visualizer";
-import path from "path";
-import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import path from "node:path";
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 /**
@@ -41,7 +41,7 @@ import { createHash } from "node:crypto";
  * vite@^7 (its peer dep range caps there and the package has been stale
  * for 5 months with no vite 8 support).
  */
-function swPlugin(): Plugin {
+function swPlugin(assetCdnOrigin: string): Plugin {
   /**
    * Ceiling for the whole precache. Not a tuning knob — a tripwire. The old
    * policy decayed silently because nothing failed as the number grew; a
@@ -154,15 +154,125 @@ function swPlugin(): Plugin {
       // tokens before the code uses them, so first-occurrence replace would
       // rewrite the comment and leave the real const declarations untouched.
       const sw = template
-        .replaceAll("__PRECACHE__",   JSON.stringify(files))
-        .replaceAll("__MUTABLE__",    JSON.stringify(mutable))
-        .replaceAll("__CACHE_NAME__", cacheName);
+        .replaceAll("__PRECACHE__",         JSON.stringify(files))
+        .replaceAll("__MUTABLE__",          JSON.stringify(mutable))
+        .replaceAll("__CACHE_NAME__",       cacheName)
+        // "" when no CDN is configured — the template's own doc comment says
+        // the runtime rule built on this token must be inert in that case.
+        .replaceAll("__ASSET_CDN_ORIGIN__", JSON.stringify(assetCdnOrigin));
       writeFileSync(path.join(distDir, "sw.js"), sw);
 
       this.info?.(
         `SW built: ${files.length} precached (${(shellBytes / 1024 / 1024).toFixed(1)} MB shell), ` +
           `${mutable.length} mutable, cache=${cacheName}`,
       );
+    },
+  };
+}
+
+/**
+ * Strips published art out of `dist/` once it is CDN-backed (#864 / #877).
+ *
+ * `dist/` accrues ~22 MB of static art — cardforge loot backs, Scriptorium
+ * watercolour, placeholders, sheet plates — that never changes between
+ * deployments, yet is versioned and retained by every one of them. Once
+ * `art:publish` has put a path's bytes in R2 and `artUrl()` resolves it to a
+ * CDN URL, the copy inside `dist/` is dead weight: nothing serves it and
+ * nothing links to it any more.
+ *
+ * ORDERING IS LOAD-BEARING: this plugin MUST run its `closeBundle` before
+ * `swPlugin`'s (see the `plugins:` array below — position is the whole
+ * enforcement mechanism, there is no other coupling between the two).
+ * `swPlugin` walks whatever is left in `dist/`/`public/` to build the
+ * precache and mutable-asset lists; running this first means the removed art
+ * simply isn't there to be found, for free. Reorder these two and nothing
+ * fails — the build stays green and `dist/` silently goes back to shipping
+ * the full 22 MB, precached, on every deploy. That is the bug this whole
+ * story exists to kill, so do not move this plugin after `swPlugin()` in the
+ * array without moving this comment's warning with it.
+ *
+ * Driven by the manifest rather than a hand-maintained directory list: every
+ * path `artManifest.json` names is guaranteed servable from the CDN once the
+ * base is set (that is what `artUrl()` resolves it to), so stripping exactly
+ * that set can never remove something nothing else can now reach. A
+ * hardcoded list of art directories would silently drift the moment a new
+ * art set landed in the manifest without a matching entry here.
+ *
+ * Unset CDN base → no-op, so a local `npm run build` is byte-identical to
+ * before this story landed. Missing manifest → also a no-op (nothing to
+ * strip yet), the same "safe to land before R2 has a single byte" property
+ * `artUrl()` itself relies on.
+ */
+function artStripPlugin(assetCdnBase: string | null): Plugin {
+  /**
+   * manifest key → dist-relative emitted path, for art the bundler itself
+   * hashed (sheet plates, via `IllustratedSheet.vue`'s `import.meta.glob`)
+   * rather than copied verbatim from `public/`.
+   *
+   * Those never sit at their manifest key's literal path in `dist/` — Vite
+   * flattens and re-hashes them (`src/assets/sheets/a4/back-adventure.webp`
+   * → `assets/back-adventure-D6gzbfqU.webp`), so the direct
+   * `path.join(distDir, servedPath)` check below can never find them, and
+   * skips them rather than risk deleting the wrong file — which is exactly
+   * what made 8.9 MB of #864's own accounting silently survive a first draft
+   * of this plugin with no error anywhere. `generateBundle` is the one hook
+   * that still knows the original module id (`originalFileNames`) next to
+   * the emitted name; `closeBundle`, which does the actual deleting, is
+   * handed only a finished `dist/` with no such mapping — hence populating
+   * this map in the earlier hook for the later one to read.
+   */
+  const bundledOriginals = new Map<string, string>();
+
+  return {
+    name: "grimoire-art-strip",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      for (const [emittedPath, item] of Object.entries(bundle)) {
+        if (item.type !== "asset") continue;
+        const originalFileNames = (item as { originalFileNames?: string[] }).originalFileNames ?? [];
+        for (const original of originalFileNames) {
+          // Reported repo-root-relative, e.g. "src/assets/sheets/a4/back-adventure.webp".
+          // The manifest's own key convention drops the "src" segment —
+          // `sheetPlateUrl.ts`'s `resolvePlateUrl` performs the identical
+          // conversion for its `artUrl()` lookup; mirrored here rather than
+          // imported so this plugin stays driven by *any* bundled asset that
+          // happens to have a manifest entry, not specifically by sheets.
+          if (!original.startsWith("src/")) continue;
+          bundledOriginals.set(`/${original.slice(4)}`, emittedPath);
+        }
+      }
+    },
+    closeBundle() {
+      if (!assetCdnBase) return;
+
+      const distDir = path.resolve(import.meta.dirname, "dist");
+      const manifestPath = path.resolve(import.meta.dirname, "src/generated/artManifest.json");
+      if (!existsSync(manifestPath)) return;
+
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, string>;
+
+      let removed = 0;
+      let bytes = 0;
+      const remove = (filePath: string) => {
+        bytes += statSync(filePath).size;
+        rmSync(filePath);
+        removed++;
+      };
+      for (const servedPath of Object.keys(manifest)) {
+        const distPath = path.join(distDir, servedPath.replace(/^\/+/, ""));
+        if (existsSync(distPath)) {
+          remove(distPath);
+          continue;
+        }
+        // Not at its literal manifest path — it may instead be a Vite-bundled
+        // asset (see `bundledOriginals` above) rather than one copied
+        // verbatim from `public/`.
+        const emitted = bundledOriginals.get(servedPath);
+        const emittedPath = emitted && path.join(distDir, emitted);
+        if (emittedPath && existsSync(emittedPath)) remove(emittedPath);
+      }
+
+      this.info?.(`art-strip: removed ${removed} file(s), ${(bytes / 1024 / 1024).toFixed(1)} MB, from dist/`);
     },
   };
 }
@@ -184,11 +294,29 @@ export default defineConfig(({ mode }) => {
   // only the human-readable label on the release. Empty off-Vercel.
   const release = process.env.VERCEL_GIT_COMMIT_SHA ?? "";
 
+  // Root .env.local intentionally contains hosted credentials and Vite loads
+  // it after .env.<mode>. Isolate localdb mode in its own env directory so
+  // hosted values cannot silently win on precedence.
+  const envDir = mode === "localdb" ? path.resolve(import.meta.dirname, "config/env/localdb") : undefined;
+
+  /**
+   * Same value `ASSET_CDN_BASE` resolves at runtime (`src/lib/storage/buckets.ts:247`),
+   * restated here rather than imported: this file runs in Node, before Vite's
+   * `import.meta.env` transform exists, so it cannot read a module gated on
+   * that. `buckets.ts` stays the single source of truth for the *runtime*
+   * value; this is only the build-time echo of the same trim/null rule,
+   * resolved against the same env directory the client build itself uses.
+   */
+  const assetCdnBase = (() => {
+    const raw = loadEnv(mode, envDir ?? import.meta.dirname).VITE_ASSET_CDN_URL?.trim();
+    return raw ? raw.replace(/\/+$/, "") : null;
+  })();
+  // Origin only (scheme + host) — what a cross-origin `fetch` request's
+  // `url.origin` will actually equal, even if the base ever carried a path.
+  const assetCdnOrigin = assetCdnBase ? new URL(assetCdnBase).origin : "";
+
   return {
-    // Root .env.local intentionally contains hosted credentials and Vite loads
-    // it after .env.<mode>. Isolate localdb mode in its own env directory so
-    // hosted values cannot silently win on precedence.
-    envDir: mode === "localdb" ? path.resolve(import.meta.dirname, "config/env/localdb") : undefined,
+    envDir,
     define: {
       __SENTRY_RELEASE__: JSON.stringify(release),
       __SENTRY_ENVIRONMENT__: JSON.stringify(process.env.VERCEL_ENV ?? "development"),
@@ -217,7 +345,11 @@ export default defineConfig(({ mode }) => {
         },
       }),
       tailwindcss(),
-      swPlugin(),
+      // MUST come before swPlugin() — see artStripPlugin's doc comment. Both
+      // hook into closeBundle, and array position is the whole ordering
+      // contract between them.
+      artStripPlugin(assetCdnBase),
+      swPlugin(assetCdnOrigin),
       // Last: it needs the finished bundle. Skipped entirely without a token, so
       // `npm run build` stays a zero-configuration command for contributors and
       // for the CI gate in test.yml (which builds only to prove the build works

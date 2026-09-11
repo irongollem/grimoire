@@ -14,7 +14,7 @@
         :focal-point="displayFocalPoint"
         format="portrait"
         :lightbox="true"
-        placeholder="/assets/placeholders/npc.webp"
+        :placeholder="placeholderUrl('npc')"
         class="w-full rounded-lg overflow-hidden max-h-80 lg:max-h-none lg:flex-1 lg:min-h-0"
       />
       <div class="flex flex-wrap gap-1">
@@ -80,6 +80,7 @@ import { getNpcDisplayPortrait, getNpcDisplayFocalPoint, getNpcPlayerFacingName 
 import { useUiStore } from "@/stores/ui";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import type { Npc } from "@/types/npc.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ npc: Npc }>();
 

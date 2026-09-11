@@ -56,7 +56,7 @@
                 format="portrait"
                 :focal-point="char.portrait_focal_point ?? null"
                 :lightbox="true"
-                placeholder="/assets/placeholders/character.webp"
+                :placeholder="placeholderUrl('character')"
               />
             </div>
 
@@ -146,7 +146,7 @@
                 format="portrait"
                 :focal-point="char.portrait_focal_point ?? null"
                 :lightbox="true"
-                placeholder="/assets/placeholders/character.webp"
+                :placeholder="placeholderUrl('character')"
               />
             </div>
 
@@ -196,6 +196,7 @@ import AppButton from '@/components/common/AppButton.vue';
 import FocalImage from '@/components/common/FocalImage.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import type { PartyMember } from '@/types/party.types';
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const auth = useAuthStore();
 const ui   = useUiStore();

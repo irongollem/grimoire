@@ -8,7 +8,7 @@
           :alt="faction.name + ' emblem'"
           format="portrait"
           :lightbox="true"
-          placeholder="/assets/placeholders/faction.webp"
+          :placeholder="placeholderUrl('faction')"
           class="w-full h-full"
         />
       </div>
@@ -78,6 +78,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import FactionDeitiesSection from "@/components/factions/FactionDeitiesSection.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ faction: Faction }>();
 const route  = useRoute();

@@ -11,7 +11,7 @@
           :src="companion.portrait_url"
           format="token"
           :focal-point="companion.portrait_focal_point ?? null"
-          placeholder="/assets/placeholders/companion.webp"
+          :placeholder="placeholderUrl('companion')"
         />
       </div>
 
@@ -205,6 +205,7 @@ import {
   setExhaustionLevel,
   isExhaustion,
 } from "@/rules/conditions";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import ExhaustionChip from "@/components/common/ExhaustionChip.vue";
 import {
   COMPANION_TYPE_LABELS,

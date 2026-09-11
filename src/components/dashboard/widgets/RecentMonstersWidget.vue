@@ -19,7 +19,7 @@
             :focal-point="row.portraitFocalPoint"
             format="token"
             :alt="row.name"
-            placeholder="/assets/placeholders/monster.webp"
+            :placeholder="placeholderUrl('monster')"
           />
         </div>
         <p class="text-caption text-center text-muted-foreground group-hover:text-foreground transition-colors line-clamp-2 leading-tight w-full">
@@ -42,6 +42,7 @@ import { deriveRecentMonsters } from "@/lib/dashboard/recentMonsters";
 import { timeAgo } from "@/lib/utils";
 import FocalImage from "@/components/common/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 /**
  * Bestiary entries the party has recently discovered, newest first (#764) —

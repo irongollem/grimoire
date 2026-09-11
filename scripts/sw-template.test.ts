@@ -34,7 +34,8 @@ function loadInstallHandler(fetchMock: ReturnType<typeof vi.fn>) {
   const source = template
     .replaceAll("__PRECACHE__", JSON.stringify(["/index.html", "/assets/app-123.js", "/assets/app-123.css"]))
     .replaceAll("__MUTABLE__", JSON.stringify(["/assets/placeholders/npc.webp"]))
-    .replaceAll("__CACHE_NAME__", "grimoire-test");
+    .replaceAll("__CACHE_NAME__", "grimoire-test")
+    .replaceAll("__ASSET_CDN_ORIGIN__", JSON.stringify(""));
 
   runInNewContext(source, {
     self: worker,
@@ -121,6 +122,8 @@ function loadWorker(options: {
   mutable?: string[];
   seed?: Record<string, Record<string, string>>;
   fetchMock?: ReturnType<typeof vi.fn>;
+  /** `__ASSET_CDN_ORIGIN__` — "" (the default) reproduces "no CDN configured". */
+  assetCdnOrigin?: string;
 }) {
   const ORIGIN = "https://app.example.test";
   const stores = new Map<string, Map<string, Response>>();
@@ -150,7 +153,8 @@ function loadWorker(options: {
   const source = readFileSync(resolve(process.cwd(), "scripts/sw-template.js"), "utf8")
     .replaceAll("__PRECACHE__", JSON.stringify(options.precache ?? []))
     .replaceAll("__MUTABLE__", JSON.stringify(options.mutable ?? []))
-    .replaceAll("__CACHE_NAME__", "grimoire-test");
+    .replaceAll("__CACHE_NAME__", "grimoire-test")
+    .replaceAll("__ASSET_CDN_ORIGIN__", JSON.stringify(options.assetCdnOrigin ?? ""));
 
   runInNewContext(source, {
     self: {
@@ -313,5 +317,80 @@ describe("service-worker copy-forward", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const stored = stores.get("grimoire-test")!.get("/assets/cardforge/loot-backs/dragons-watch-tc.webp");
     expect(await stored!.text()).toBe("fresh");
+  });
+});
+
+// ── CDN art cache (#864 / #877) ───────────────────────────────────────────
+//
+// This is the half of the story that undoes itself silently if it regresses:
+// a swept ART_CACHE, or a runtime rule that fires with no CDN configured,
+// produces no failing build and no visible symptom beyond "art re-downloads
+// every deploy forever" — exactly why this needs its own coverage rather than
+// trusting the activate/runtime-cache tests above to generalise.
+
+const CDN_ORIGIN = "https://cdn.example.test";
+
+describe("service-worker CDN art cache", () => {
+  it("is inert when __ASSET_CDN_ORIGIN__ is empty — no CDN configured", async () => {
+    const { runFetch, fetchMock } = loadWorker({ assetCdnOrigin: "" });
+
+    // A request to what would be the CDN origin, but the worker was never
+    // told about a CDN, so it must not intercept this — same as any other
+    // cross-origin request it has never heard of (Supabase, OpenAI, …).
+    const { result } = await runFetch(`${CDN_ORIGIN}/app-art/assets/placeholders/npc.abc12345.webp`);
+
+    expect(result).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("serves CDN-origin art from the art cache, never from the precache, once the flag is on", async () => {
+    const { runFetch, stores } = loadWorker({
+      assetCdnOrigin: CDN_ORIGIN,
+      // Mirrors a post-artStripPlugin dist/: the boot shell only, no art path
+      // in it — this is what "the precache no longer contains art" means in
+      // practice, since PRECACHE is just whatever array the build hands in.
+      precache: ["/index.html", "/assets/app-123.js"],
+    });
+
+    const { result } = await runFetch(`${CDN_ORIGIN}/app-art/assets/placeholders/npc.abc12345.webp`);
+
+    expect(await result!.text()).toBe("fresh");
+    // CACHE_NAME (the precache) is never opened for this request at all.
+    expect(stores.has("grimoire-test")).toBe(false);
+    expect(stores.get("grimoire-art")?.has("/app-art/assets/placeholders/npc.abc12345.webp")).toBe(true);
+  });
+
+  it("survives an activate sweep that clears every other cache", async () => {
+    // The one line this whole story hinges on: if activate ever swept
+    // grimoire-art the way it sweeps a stale precache, every deploy would
+    // silently re-download the entire art set for every visitor, forever.
+    const { runActivate, deleted } = loadWorker({
+      assetCdnOrigin: CDN_ORIGIN,
+      seed: { "grimoire-old": {}, "grimoire-test": {}, "grimoire-runtime": {}, "grimoire-art": {} },
+    });
+
+    await runActivate();
+
+    expect(deleted).toEqual(["grimoire-old"]);
+  });
+
+  it("evicts oldest-first once the art cache passes its bound", async () => {
+    const ART_CACHE_MAX_ENTRIES = 400; // must track scripts/sw-template.js
+    const { runFetch, stores } = loadWorker({ assetCdnOrigin: CDN_ORIGIN });
+
+    // Seed directly rather than through `seed` — cheaper than round-tripping
+    // 400 fetches, and the fake cache keys by pathname regardless of origin.
+    const seeded = new Map<string, Response>();
+    for (let i = 0; i < ART_CACHE_MAX_ENTRIES; i++) {
+      seeded.set(`/app-art/assets/seed-${i}.webp`, response("seed", "image/webp"));
+    }
+    stores.set("grimoire-art", seeded);
+
+    await runFetch(`${CDN_ORIGIN}/app-art/assets/new.webp`);
+
+    const art = stores.get("grimoire-art")!;
+    expect(art.size).toBe(ART_CACHE_MAX_ENTRIES);
+    expect(art.has("/app-art/assets/seed-0.webp")).toBe(false); // oldest — evicted
+    expect(art.has("/app-art/assets/new.webp")).toBe(true);
   });
 });

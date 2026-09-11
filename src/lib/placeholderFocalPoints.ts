@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { artUrl } from '@/lib/assets/artUrl';
 
 type FocalPoint = { x: number; y: number };
 type FocalPointMap = Record<string, FocalPoint>;
@@ -29,4 +30,17 @@ export function getPlaceholderFocalPoint(entityType: string): FocalPoint | null 
 /** Called by the admin composable to keep the in-memory cache fresh without a re-fetch. */
 export function updatePlaceholderFocalPointCache(entityType: string, fp: FocalPoint): void {
   _cache[entityType] = fp;
+}
+
+/**
+ * Resolve a placeholder art URL for an entity type, routed through artUrl
+ * (#864/#877) so placeholder art can move to R2 behind the CDN.
+ *
+ * Lives here rather than as 40+ separate `artUrl(...)` call sites because this
+ * module already owns placeholder entity-type knowledge (getPlaceholderFocalPoint
+ * keys its cache the same way). FocalImage.vue's entityTypeFromPlaceholder()
+ * parses this exact filename shape back out of whatever URL this returns.
+ */
+export function placeholderUrl(entityType: string): string {
+  return artUrl(`/assets/placeholders/${entityType}.webp`);
 }

@@ -31,7 +31,7 @@
             :alt="feature.name"
             format="portrait"
             :focal-point="feature.image_focal_point"
-            placeholder="/assets/placeholders/dungeonfeature.webp"
+            :placeholder="placeholderUrl('dungeonfeature')"
             class="group-hover:scale-105 transition-transform duration-300"
           />
           <span
@@ -66,6 +66,7 @@ import FocalImage from "@/components/common/FocalImage.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import PlacedInLine from "./PlacedInLine.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { data: features, isLoading: featuresLoading } = useDungeonFeatures();

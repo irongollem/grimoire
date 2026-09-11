@@ -18,6 +18,8 @@
  * outward at it.
  */
 
+import { artUrl } from "@/lib/assets/artUrl";
+
 export interface WatercolorAsset {
   file: string;
   /** width / height of the source art — drives the masked box's aspect-ratio. */
@@ -46,5 +48,5 @@ export function watercolorAsset(variant: number): WatercolorAsset {
 
 /** Resolve a 1-based variant index to its asset URL. */
 export function watercolorSrc(variant: number): string {
-  return `/assets/scriptorium/watercolor/${watercolorAsset(variant).file}`;
+  return artUrl(`/assets/scriptorium/watercolor/${watercolorAsset(variant).file}`);
 }

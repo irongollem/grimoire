@@ -8,7 +8,7 @@
           :focal-point="spell.image_focal_point"
           format="portrait"
           :lightbox="true"
-          placeholder="/assets/placeholders/spell.webp"
+          :placeholder="placeholderUrl('spell')"
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-[80vh]"
         />
         <div
@@ -203,6 +203,7 @@ import { useSpellKnowers } from "@/composables/party/useCharacterSpells";
 import { useNpcSpellCasters } from "@/composables/npcs/useNpcs";
 import { SCHOOL_TEXT, ATTACK_TYPES, spellSourceLabel } from "@/types/spell.types";
 import type { Spell } from "@/types/spell.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ spell: Spell }>();
 

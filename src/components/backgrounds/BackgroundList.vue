@@ -60,7 +60,7 @@
             :alt="b.name"
             format="landscape"
             :focal-point="b.focal_point"
-            placeholder="/assets/placeholders/background.webp"
+            :placeholder="placeholderUrl('background')"
             class="group-hover:scale-105 transition-transform duration-300"
           />
         </div>
@@ -167,6 +167,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import type { Background } from "@/types/background.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
 const emit = defineEmits<{ select: [bg: Background] }>();

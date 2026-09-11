@@ -28,7 +28,7 @@
             format="portrait"
             :focal-point="background.focal_point ?? null"
             :lightbox="true"
-            placeholder="/assets/placeholders/background.webp"
+            :placeholder="placeholderUrl('background')"
             class="w-full h-full"
           />
         </div>
@@ -285,6 +285,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import BackgroundOriginFeatBadge from "@/components/backgrounds/BackgroundOriginFeatBadge.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ background: Background }>();
 const route = useRoute();

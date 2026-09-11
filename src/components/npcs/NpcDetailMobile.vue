@@ -97,7 +97,7 @@
         format="portrait"
         :focal-point="displayFocalPoint"
         :render-width="600"
-        placeholder="/assets/placeholders/npc.webp"
+        :placeholder="placeholderUrl('npc')"
         class="absolute inset-0"
       />
       <!-- Gradient fading into the page background -->
@@ -320,6 +320,7 @@ import {
   npcRelationshipBg,
   npcStatusBg,
 } from "@/lib/npcDisplay";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { NPC_RELATIONSHIP_LABELS, type Npc } from "@/types/npc.types";
 
 const { npc } = defineProps<{ npc: Npc }>();

@@ -8,6 +8,7 @@ import {
   Trash2Icon,
   CrosshairIcon,
 } from "@lucide/vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import FocalImage from "@/components/common/FocalImage.vue";
 import FocalPointPicker from "@/components/common/FocalPointPicker.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -128,7 +129,7 @@ function resolvedFocalPoint() {
           :src="entity.image_url"
           :alt="entity.name"
           format="portrait"
-          placeholder="/assets/placeholders/monster.webp"
+          :placeholder="placeholderUrl('monster')"
         />
         <div
           v-if="canExpandFocal()"

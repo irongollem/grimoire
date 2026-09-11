@@ -27,7 +27,7 @@
             format="portrait"
             :focal-point="species.focal_point ?? null"
             :lightbox="true"
-            placeholder="/assets/placeholders/species.webp"
+            :placeholder="placeholderUrl('species')"
             class="w-full h-full"
           />
         </div>
@@ -143,6 +143,7 @@ import type { Species } from "@/types/species.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ species: Species; isShared?: boolean }>();
 const route = useRoute();

@@ -13,7 +13,7 @@
           format="portrait"
           :render-width="600"
           :lightbox="true"
-          placeholder="/assets/placeholders/deity.webp"
+          :placeholder="placeholderUrl('deity')"
           class="w-full h-full"
         />
       </div>
@@ -173,6 +173,7 @@ import type { Deity, Pantheon } from "@/types/deity.types";
 import FocalImage from "@/components/common/FocalImage.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import DeityFactionsSection from "@/components/deities/DeityFactionsSection.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{
   deity: Deity & { pantheon: Pick<Pantheon, "id" | "name"> | null };

@@ -22,7 +22,7 @@
               :alt="bg.name"
               format="landscape"
               :focal-point="bg.focal_point ?? null"
-              placeholder="/assets/placeholders/background.webp"
+              :placeholder="placeholderUrl('background')"
               class="group-hover:scale-105 transition-transform duration-300"
             />
             <!-- Selected badge -->
@@ -233,6 +233,7 @@ import { IconCheck } from "@/lib/icons";
 import { useAllDeities } from "@/composables/deities/useDeities";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import type { CharacterCreationForm } from "@/composables/party/useCharacterCreationForm";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { form } = defineProps<{ form: CharacterCreationForm }>();
 

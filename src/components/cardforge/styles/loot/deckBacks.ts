@@ -13,6 +13,7 @@
  */
 
 import type { CardSizeId } from "@/stores/cardForge";
+import { artUrl } from "@/lib/assets/artUrl";
 
 export interface DeckBack {
   /** Stable id used in localStorage / store state */
@@ -27,7 +28,7 @@ export interface DeckBack {
 
 const base = "/assets/cardforge/loot-backs";
 
-export const BUILTIN_DECK_BACKS: DeckBack[] = [
+const DECK_BACK_SOURCES: DeckBack[] = [
   {
     id: "arcane-vortex",
     name: "Arcane Vortex",
@@ -83,6 +84,12 @@ export const BUILTIN_DECK_BACKS: DeckBack[] = [
     },
   },
 ];
+
+/** Routed through artUrl so loot-back art can move to the CDN — see #864/#877. */
+export const BUILTIN_DECK_BACKS: DeckBack[] = DECK_BACK_SOURCES.map((deck) => ({
+  ...deck,
+  urls: { mtg: artUrl(deck.urls.mtg), tarot: artUrl(deck.urls.tarot) },
+}));
 
 /** Default deck back when loot mode is first enabled. */
 export const DEFAULT_DECK_BACK_ID = "arcane-vortex";

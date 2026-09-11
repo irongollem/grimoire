@@ -47,7 +47,7 @@
           :title="item.name"
           :image-url="item.image_url"
           :focal-point="item.image_focal_point"
-          placeholder="/assets/placeholders/item.webp"
+          :placeholder="placeholderUrl('item')"
           :badge-text="ITEM_RARITY_LABELS[item.rarity]"
           :badge-class="RARITY_BG[item.rarity]"
         >
@@ -139,6 +139,7 @@ import { CARD_OVERLAY_SCRIM } from "@/components/common/appButtonVariants";
 import EntityGridCard from "@/components/common/EntityGridCard.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import type { ItemType } from "@/types/item.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const ITEM_TYPE_ICONS: Record<ItemType, VueComponent> = {
   weapon: IconSword,

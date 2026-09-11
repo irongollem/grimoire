@@ -54,6 +54,7 @@ import { computed } from "vue";
 import { IconEdit, IconDelete, IconExport } from "@/lib/icons";
 import { getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import type { Npc, NpcSet } from "@/types/npc.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{
   set: NpcSet;
@@ -62,7 +63,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ export: []; edit: []; delete: [] }>();
 
-const PLACEHOLDER = "/assets/placeholders/npc.webp";
+const PLACEHOLDER = placeholderUrl("npc");
 const MAX_THUMBS = 6;
 
 // npc_ids that no longer resolve to a live NPC (deleted since the set was built).

@@ -64,7 +64,7 @@
           :alt="location.name"
           format="portrait"
           :lightbox="true"
-          placeholder="/assets/placeholders/location.webp"
+          :placeholder="placeholderUrl('location')"
           class="w-full rounded-lg border border-border overflow-hidden"
         />
       </div>
@@ -169,6 +169,7 @@ import {
   useDeleteLocation,
   getPinnableDescendants,
 } from "@/composables/locations/useLocations";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";

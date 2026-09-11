@@ -108,7 +108,7 @@
         format="portrait"
         :focal-point="monster.portrait_focal_point"
         :render-width="600"
-        placeholder="/assets/placeholders/monster.webp"
+        :placeholder="placeholderUrl('monster')"
         class="absolute inset-0"
       />
       <!-- Gradient fading into the page background -->
@@ -314,6 +314,7 @@ import { useLocationTree } from "@/composables/locations/useLocations";
 import { useMonsterVisibility } from "@/composables/monsters/useMonsterVisibility";
 import { crBg, crText } from "@/lib/monsterDisplay";
 import type { Monster } from "@/types/monster.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { monster } = defineProps<{ monster: Monster }>();
 

@@ -416,10 +416,20 @@ async function resolve(
   }
 }
 
+// Matches the filename stem, tolerating an optional content-hash segment
+// inserted before the extension by art-manifest routing (artUrl()):
+//   npc.webp             → "npc"
+//   npc.a1b2c3d4.webp    → "npc"   (CDN-shaped, content-hashed)
+// A naive "strip the last extension" parse returns "npc.a1b2c3d4" for the
+// second shape, which silently stops matching admin-configured focal points
+// once a placeholder resolves to a CDN URL — see #864/#877.
+const PLACEHOLDER_FILENAME_RE = /^([a-z0-9]+)(?:\.[0-9a-f]{8})?\.[a-z0-9]+$/i;
+
 /** Extract entity type key from a placeholder URL: /assets/placeholders/npc.webp → "npc" */
 function entityTypeFromPlaceholder(url: string): string | null {
-  const filename = url.split("/").pop();
-  return filename ? filename.replace(/\.[^.]+$/, "") || null : null;
+  const filename = url.split("?")[0]?.split("/").pop();
+  if (!filename) return null;
+  return filename.match(PLACEHOLDER_FILENAME_RE)?.[1] ?? null;
 }
 
 async function resolvePlaceholder(url: string) {

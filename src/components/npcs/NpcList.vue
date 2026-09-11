@@ -53,7 +53,7 @@
           :subtitle="npcSubtitle(npc)"
           :image-url="getNpcDisplayPortrait(npc)"
           :focal-point="getNpcDisplayFocalPoint(npc)"
-          placeholder="/assets/placeholders/npc.webp"
+          :placeholder="placeholderUrl('npc')"
           :badge-text="npc.relationship"
           :badge-class="npcRelationshipBg(npc.relationship)"
           :status-class="npcStatusBg(npc.status)"
@@ -118,6 +118,7 @@ import {
   npcRelationshipBg,
   npcStatusBg,
 } from "@/lib/npcDisplay";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { Npc } from "@/types/npc.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";

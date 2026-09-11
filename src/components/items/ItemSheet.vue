@@ -36,7 +36,7 @@
             :focal-point="item.image_focal_point"
             format="portrait"
             :lightbox="true"
-            placeholder="/assets/placeholders/item.webp"
+            :placeholder="placeholderUrl('item')"
             class="h-full"
           />
         </div>
@@ -296,6 +296,7 @@ import {
   RARITY_TEXT,
   itemSourceLabel,
 } from "@/types/item.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { Item } from "@/types/item.types";
 
 const props = defineProps<{

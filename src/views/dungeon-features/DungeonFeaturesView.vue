@@ -64,7 +64,7 @@
               :alt="feature.name"
               format="portrait"
               :focal-point="feature.image_focal_point"
-              placeholder="/assets/placeholders/dungeonfeature.webp"
+              :placeholder="placeholderUrl('dungeonfeature')"
               class="group-hover:scale-105 transition-transform duration-300"
             />
             <!-- Type badge -->
@@ -116,6 +116,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { useUiStore } from "@/stores/ui";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const ui = useUiStore();

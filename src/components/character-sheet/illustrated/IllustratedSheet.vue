@@ -181,6 +181,7 @@ import { computed } from "vue";
 import type { PartyMember } from "@/types/party.types";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
+import { resolvePlateUrl } from "./sheetPlateUrl";
 import {
   PAGE_PX,
   type IllustratedTheme,
@@ -237,9 +238,10 @@ const sheet = computed(() => {
   const cfg = (pageSize === "Letter" ? LETTER : A4)[theme][side];
   return fieldsOverride ? { ...cfg, fields: fieldsOverride } : cfg;
 });
-const plateUrl = computed(
-  () => plateModules[`/src/assets/sheets/${pageSize.toLowerCase()}/${sheet.value.plate}`],
-);
+// Routed through artUrl via resolvePlateUrl (#864/#877) so plates can move
+// to R2 behind the CDN — see sheetPlateUrl.ts for why the fallback there
+// isn't a plain artUrl() call.
+const plateUrl = computed(() => resolvePlateUrl(pageSize, sheet.value.plate, plateModules));
 
 const front = computed(() => toFront(member, inventory, speciesName, backgroundName, acBonus, items));
 const back = computed(() => toBack(member));

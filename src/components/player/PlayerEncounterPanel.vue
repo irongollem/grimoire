@@ -84,7 +84,7 @@
                   :src="companion.portrait_url"
                   format="token"
                   :focal-point="companion.portrait_focal_point ?? null"
-                  placeholder="/assets/placeholders/companion.webp"
+                  :placeholder="placeholderUrl('companion')"
                 />
               </div>
               <span class="min-w-0 flex-1 text-body text-foreground truncate">{{ companion.name }}</span>
@@ -242,6 +242,7 @@ import EncounterCombatantLightbox from "@/components/player/EncounterCombatantLi
 import TurnTimer from "@/components/encounters/TurnTimer.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 defineEmits<{ close: [] }>();
 

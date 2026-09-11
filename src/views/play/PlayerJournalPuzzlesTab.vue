@@ -19,7 +19,7 @@
           :alt="puzzle.name"
           format="portrait"
           :focal-point="puzzle.image_focal_point"
-          placeholder="/assets/placeholders/enigma.webp"
+          :placeholder="placeholderUrl('enigma')"
           class="group-hover:scale-105 transition-transform duration-300"
         />
         <span
@@ -53,6 +53,7 @@ import EntityNewDot from '@/components/common/EntityNewDot.vue';
 import { useReadItems } from '@/composables/play/useReadItems';
 import { PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from '@/types/puzzle.types';
 import type { PuzzleRoom } from '@/types/puzzle.types';
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 defineProps<{
   isLoading: boolean;

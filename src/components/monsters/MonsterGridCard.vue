@@ -9,7 +9,7 @@
     :title="monster.name"
     :image-url="monster.image_url"
     :focal-point="monster.portrait_focal_point"
-    placeholder="/assets/placeholders/monster.webp"
+    :placeholder="placeholderUrl('monster')"
     :locked="locked"
     :accent-class="challengeClass"
   >
@@ -92,6 +92,7 @@ import { IconEdit } from "@/lib/icons";
 import { crBg, crText } from "@/lib/monsterDisplay";
 import { formatHitPoints } from "@/lib/utils";
 import type { Monster } from "@/types/monster.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const { monster } = defineProps<{
   monster: Monster;

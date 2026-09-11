@@ -26,7 +26,7 @@
         <div class="flex items-center gap-2">
           <div class="relative h-8 w-8 shrink-0">
             <div class="h-8 w-8 rounded-full overflow-hidden bg-secondary">
-              <FocalImage :src="member.portrait_url" :focal-point="member.portrait_focal_point ?? null" format="token" :alt="member.name" placeholder="/assets/placeholders/character.webp" />
+              <FocalImage :src="member.portrait_url" :focal-point="member.portrait_focal_point ?? null" format="token" :alt="member.name" :placeholder="placeholderUrl('character')" />
             </div>
             <span
               class="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card"
@@ -94,6 +94,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import DmTrackerButtons from "@/components/rules/DmTrackerButtons.vue";
 import DashboardWidget from "../DashboardWidget.vue";
 import type { PartyMember } from "@/types/party.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 /** The numbers that change during play — HP, conditions, inspiration — plus
  *  who is actually at the table, from campaign presence. */

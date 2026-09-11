@@ -2,28 +2,45 @@
 // Grimoire service worker — hand-rolled, no workbox.
 //
 // Build-time substitutions (see `swPlugin` in vite.config.ts):
-//   __PRECACHE__    → JSON array of precached paths (the boot shell only)
-//   __MUTABLE__     → JSON array of paths copied verbatim from public/, i.e.
-//                     the served paths whose bytes can change without the
-//                     filename changing
-//   __CACHE_NAME__  → "grimoire-<8-char hash>" — bumped whenever any precached
-//                     file's hash changes, forcing a fresh cache on deploy
+//   __PRECACHE__         → JSON array of precached paths (the boot shell only)
+//   __MUTABLE__          → JSON array of paths copied verbatim from public/, i.e.
+//                          the served paths whose bytes can change without the
+//                          filename changing
+//   __CACHE_NAME__       → "grimoire-<8-char hash>" — bumped whenever any precached
+//                          file's hash changes, forcing a fresh cache on deploy
+//   __ASSET_CDN_ORIGIN__ → the CDN's origin (e.g. "https://cdn.dungeongrimoire.com"),
+//                          or "" when `VITE_ASSET_CDN_URL` is unset — see the
+//                          CDN ART CACHE section below. Empty string must make
+//                          the whole runtime rule it drives inert (#864/#877).
 //
-// TWO CACHES, AND ONLY ONE OF THEM IS SWEPT ON DEPLOY.
+// THREE CACHES, AND ONLY ONE OF THEM IS SWEPT ON DEPLOY.
 //   CACHE_NAME    — the boot shell. Versioned, rebuilt on every deploy whose
 //                   shell changed, and garbage-collected by `activate`.
-//   RUNTIME_CACHE — everything else, populated on first real use. Deliberately
-//                   NOT versioned and deliberately spared by `activate`: its
-//                   entries are content-hashed, so a new deploy simply asks for
-//                   different filenames and the old ones age out via the entry
-//                   bound. Sweeping it per deploy would make every release
-//                   re-download every route and every image a user had already
-//                   paid for, which is the cost this split exists to avoid.
+//   RUNTIME_CACHE — same-origin assets outside the shell, populated on first
+//                   real use. Deliberately NOT versioned and deliberately
+//                   spared by `activate`: its entries are content-hashed, so a
+//                   new deploy simply asks for different filenames and the old
+//                   ones age out via the entry bound. Sweeping it per deploy
+//                   would make every release re-download every route and every
+//                   image a user had already paid for, which is the cost this
+//                   split exists to avoid.
+//   ART_CACHE     — static app art served cross-origin from the asset CDN
+//                   (cardforge, Scriptorium, placeholders, sheet plates).
+//                   Same reasoning and same exemption from `activate` as
+//                   RUNTIME_CACHE, and for the same reason: its keys are
+//                   content-hashed by `art-manifest.ts`, so an old key simply
+//                   stops being requested once nothing links to it, rather
+//                   than needing to be swept. THIS IS THE ONE THE WHOLE STORY
+//                   HINGES ON — see the CDN ART CACHE section: sweep this on
+//                   deploy and the lazy cache re-downloads all of it forever.
 //
 // WHY THE PRECACHE IS ONLY THE SHELL: it used to be all of `dist/` under 3 MB
 // — 36.4 MB on a first visit, 26.1 MB of it art nobody had asked to see, plus
 // all 449 JS chunks including the lazy `model-viewer`, `documents` and `pdf`
-// routes. See the `swPlugin` doc comment for the full account.
+// routes. See the `swPlugin` doc comment for the full account. Art has since
+// moved to the CDN entirely (see below), so it no longer competes for a place
+// in `dist/`'s precache at all — this section is kept for the JS/CSS half of
+// that history.
 //
 // Behaviour:
 //   install   — populate `__CACHE_NAME__`, reusing unchanged hashed assets
@@ -37,10 +54,13 @@
 //               (registration.update() is polled by swAutoUpdate, so a
 //               failed install retries within minutes.)
 //   activate  — claim clients, then delete every cache whose name doesn't
-//               match __CACHE_NAME__ (garbage-collects old deploys). Runs
-//               only after a fully successful install, so the old cache is
-//               never deleted before the new one is complete.
-//   fetch     — same-origin GETs only:
+//               match __CACHE_NAME__, RUNTIME_CACHE or ART_CACHE
+//               (garbage-collects old deploys only). Runs only after a fully
+//               successful install, so the old cache is never deleted before
+//               the new one is complete.
+//   fetch     — CDN-origin GETs (when __ASSET_CDN_ORIGIN__ is set) → cache-first
+//               against ART_CACHE; see the CDN ART CACHE section. Everything
+//               else is same-origin GETs only:
 //                 • navigations (mode: 'navigate') → network raced against a
 //                   short timeout; on timeout or failure serve the cached
 //                   /index.html, so a slow connection never means staring at
@@ -50,8 +70,22 @@
 //                   cache-first when the filename carries a content hash
 //                   (immutable by construction), stale-while-revalidate when
 //                   it came from public/ and could change under a stable name.
-//               Cross-origin and non-GET requests are passed through to the
-//               network untouched (we never cache Supabase / OpenAI calls).
+//               Every other cross-origin request and every non-GET request is
+//               passed through to the network untouched (we never cache
+//               Supabase / OpenAI calls).
+//
+// CDN ART CACHE (#864/#877): static app art moved out of `dist/` and out of
+// the precache entirely once `VITE_ASSET_CDN_URL` is set — see `artStripPlugin`
+// in vite.config.ts. It is now fetched lazily, on first real request, from a
+// different origin, and kept in ART_CACHE forever after: every key under
+// `__ASSET_CDN_ORIGIN__` is content-hashed by `art-manifest.ts` (a new upload
+// gets a new key), so there is no mutable case to revalidate here the way
+// public/ assets need SWR — cache-first with no network check is always
+// correct. The one failure mode worth naming explicitly, because nothing
+// else catches it: if `activate` ever swept ART_CACHE the way it sweeps
+// CACHE_NAME, every deploy would silently re-download the entire art set for
+// every visitor, forever — the lazy-cache win this story exists to deliver
+// would quietly undo itself with no error anywhere in the build.
 //
 // The old vite-plugin-pwa also ran `clients.claim()` and `skipWaiting()`,
 // and `main.ts` reloads the page on `controllerchange`. Preserved.
@@ -59,7 +93,7 @@
 const CACHE_NAME = "__CACHE_NAME__";
 const PRECACHE = /** @type {string[]} */ (__PRECACHE__);
 
-// Unversioned on purpose — see the two-caches note above.
+// Unversioned on purpose — see the three-caches note above.
 const RUNTIME_CACHE = "grimoire-runtime";
 
 /**
@@ -69,6 +103,31 @@ const RUNTIME_CACHE = "grimoire-runtime";
  * plain FIFO — approximate, and much cheaper than tracking real usage.
  */
 const RUNTIME_MAX_ENTRIES = 250;
+
+// Unversioned, exempt from `activate`'s sweep — see the CDN ART CACHE note
+// above. A distinct name from RUNTIME_CACHE on purpose: art and JS/CSS chunks
+// have different lifetimes and different origins, and keeping them in
+// separate caches means either one can be reasoned about (and, if it ever
+// came to that, cleared) independently of the other.
+const ART_CACHE = "grimoire-art";
+
+/**
+ * The CDN's origin, e.g. "https://cdn.dungeongrimoire.com", or "" when
+ * `VITE_ASSET_CDN_URL` is unset. Every check against it below treats "" as
+ * "never matches" (no request's `url.origin` is ever the empty string), which
+ * is what makes the whole CDN art rule inert with no CDN configured.
+ */
+const ASSET_CDN_ORIGIN = /** @type {string} */ (__ASSET_CDN_ORIGIN__);
+
+/**
+ * Entry bound for ART_CACHE. `art-manifest.ts` mints a new content-hashed key
+ * for every changed file, so a long-lived install otherwise accretes one dead
+ * entry per re-hashed asset per deploy forever, exactly like RUNTIME_CACHE.
+ * ~166 files exist today (see common.md's inventory); this leaves headroom
+ * for several deploys' worth of re-hashed art between evictions before the
+ * FIFO bound starts trimming entries still in active use.
+ */
+const ART_CACHE_MAX_ENTRIES = 400;
 
 /**
  * Paths served verbatim out of public/. Their bytes can change while the
@@ -184,14 +243,20 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      // RUNTIME_CACHE is spared. It holds content-hashed assets a user has
-      // already downloaded — routes they have opened, art they have seen — so
-      // deleting it here would make every deploy re-fetch all of it. Old
-      // entries stop being requested the moment their hash changes and leave
-      // via the FIFO bound instead.
+      // RUNTIME_CACHE and ART_CACHE are both spared. Each holds content-hashed
+      // assets a user has already downloaded — routes they have opened, art
+      // they have seen — so deleting either here would make every deploy
+      // re-fetch all of it. Old entries stop being requested the moment their
+      // hash changes and leave via their own FIFO bound instead.
+      //
+      // ART_CACHE spared is the one load-bearing line in this whole file: get
+      // it wrong (e.g. by filtering only CACHE_NAME and RUNTIME_CACHE) and
+      // every deploy silently wipes every piece of app art a visitor has ever
+      // cached, forever — the exact regression #864/#877 exist to prevent,
+      // and nothing except the test suite would ever notice.
       await Promise.all(
         keys
-          .filter((k) => k !== CACHE_NAME && k !== RUNTIME_CACHE)
+          .filter((k) => k !== CACHE_NAME && k !== RUNTIME_CACHE && k !== ART_CACHE)
           .map((k) => caches.delete(k)),
       );
       await self.clients.claim();
@@ -203,6 +268,17 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+
+  // Static app art, served cross-origin from the asset CDN. Checked before the
+  // same-origin guard below on purpose — this is the one request this worker
+  // deliberately handles cross-origin. `ASSET_CDN_ORIGIN` is "" when no CDN is
+  // configured, and no request's origin is ever the empty string, so this
+  // branch is unreachable — inert — in that case, exactly as required.
+  if (ASSET_CDN_ORIGIN && url.origin === ASSET_CDN_ORIGIN) {
+    event.respondWith(serveFromArtCache(req));
+    return;
+  }
+
   if (url.origin !== self.location.origin) return;
 
   // SPA navigation — network-first, but only for NAV_TIMEOUT_MS: on a slow
@@ -285,7 +361,7 @@ async function serveFromRuntime(event, req, path) {
       // otherwise land here.
       if (response.ok && response.type === "basic") {
         await runtime.put(req, response.clone());
-        await trimRuntime(runtime);
+        await trimCache(runtime, RUNTIME_MAX_ENTRIES);
       }
       return response;
     })
@@ -303,10 +379,57 @@ async function serveFromRuntime(event, req, path) {
   return fresh ?? Response.error();
 }
 
-/** @param {Cache} runtime */
-async function trimRuntime(runtime) {
-  const keys = await runtime.keys();
-  const excess = keys.length - RUNTIME_MAX_ENTRIES;
+/**
+ * Static app art from the asset CDN — see the CDN ART CACHE header comment.
+ * Cache-first with no revalidation, full stop: every key here is
+ * content-hashed by `art-manifest.ts`, so unlike `serveFromRuntime` there is
+ * no mutable case to distinguish and no background refresh to schedule. A hit
+ * is always correct; a miss is fetched once and kept for good (until the FIFO
+ * bound evicts it).
+ *
+ * @param {Request} req
+ */
+async function serveFromArtCache(req) {
+  const cache = await caches.open(ART_CACHE);
+  const cached = await cache.match(req);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(req);
+    // An `<img>` with no `crossorigin` attribute fetches cross-origin
+    // resources in "no-cors" mode, so the CDN's response comes back opaque:
+    // status 0, `ok` always false — even though the Worker already sends
+    // `Access-Control-Allow-Origin: *` (infra/grimoire-cdn-worker.js) and the
+    // bytes are perfectly good; the browser still paints an opaque image
+    // fine, only script cannot inspect it. Requiring `response.ok` alone
+    // would mean this cache silently never fills for that common case, with
+    // no error anywhere — accepting `type === "opaque"` too is what keeps it
+    // from being a second version of the trap this story exists to avoid.
+    // Safe specifically because every key here is content-addressed and
+    // immutable (a changed file gets a new hashed key): there is no
+    // "wrong content under this key" for an unreadable status to hide.
+    if (response.ok || response.type === "opaque") {
+      await cache.put(req, response.clone());
+      await trimCache(cache, ART_CACHE_MAX_ENTRIES);
+    }
+    return response;
+  } catch {
+    return Response.error();
+  }
+}
+
+/**
+ * FIFO trim shared by every cache with an entry bound. `Cache.keys()` yields
+ * insertion order, so this is approximate rather than true LRU — much cheaper
+ * than tracking real usage, and good enough for a bound whose job is "don't
+ * grow forever", not "evict optimally".
+ *
+ * @param {Cache} cache
+ * @param {number} maxEntries
+ */
+async function trimCache(cache, maxEntries) {
+  const keys = await cache.keys();
+  const excess = keys.length - maxEntries;
   if (excess <= 0) return;
-  await Promise.all(keys.slice(0, excess).map((k) => runtime.delete(k)));
+  await Promise.all(keys.slice(0, excess).map((k) => cache.delete(k)));
 }

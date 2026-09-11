@@ -86,11 +86,12 @@ import { useCreateNpcSet, useUpdateNpcSet } from "@/composables/npcs/useNpcSets"
 import { getNpcDisplayName, getNpcDisplayPortrait } from "@/lib/npcDisplay";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import type { Npc, NpcSet } from "@/types/npc.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ set: NpcSet | null }>();
 const emit = defineEmits<{ close: []; saved: [] }>();
 
-const PLACEHOLDER = "/assets/placeholders/npc.webp";
+const PLACEHOLDER = placeholderUrl("npc");
 
 const { data: npcs, isLoading } = useNpcs();
 const createSet = useCreateNpcSet();

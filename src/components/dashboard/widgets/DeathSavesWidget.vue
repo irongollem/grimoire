@@ -21,7 +21,7 @@
             :focal-point="member.portraitFocalPoint"
             format="token"
             :alt="member.name"
-            placeholder="/assets/placeholders/character.webp"
+            :placeholder="placeholderUrl('character')"
           />
         </div>
         <div class="min-w-0 flex-1">
@@ -58,6 +58,7 @@ import { useParty } from "@/composables/party/useParty";
 import { deriveDyingPartyMembers } from "@/lib/dashboard/deathSaves";
 import FocalImage from "@/components/common/FocalImage.vue";
 import DashboardWidget from "../DashboardWidget.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 /**
  * The self-hiding death-saves alert (#764).

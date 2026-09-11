@@ -15,7 +15,7 @@
           :focal-point="monster.portrait_focal_point"
           format="portrait"
           :lightbox="true"
-          placeholder="/assets/placeholders/monster.webp"
+          :placeholder="placeholderUrl('monster')"
           class="w-full rounded-lg overflow-hidden flex-1 min-h-0 max-h-112"
         />
         <div v-if="monster.tags?.length" class="flex flex-wrap gap-1">
@@ -145,6 +145,7 @@ import { useEncountersByMonster } from "@/composables/encounters/useEncounters";
 import { useMonsterLootTables } from "@/composables/dungeon-features/useLootTables";
 import { useLocationTree } from "@/composables/locations/useLocations";
 import type { Monster, MonsterStatBlock } from "@/types/monster.types";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const props = defineProps<{ monster: Monster }>();
 

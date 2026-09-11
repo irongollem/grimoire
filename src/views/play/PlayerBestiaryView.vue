@@ -184,7 +184,7 @@
               :alt="lightbox?.name"
               format="landscape"
               :focal-point="lightbox?.monster?.portrait_focal_point"
-              placeholder="/assets/placeholders/monster.webp"
+              :placeholder="placeholderUrl('monster')"
             />
             <!-- Left, not right: the mini badge owns bottom-right here. -->
             <!--
@@ -317,6 +317,7 @@ import AbilityScoreTable from "@/components/common/AbilityScoreTable.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import MonsterFormCard from "@/components/monsters/MonsterFormCard.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 // `PlayerVisibleMonster`, not `Monster` (#842): everything on this view comes

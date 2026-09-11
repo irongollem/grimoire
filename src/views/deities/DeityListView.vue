@@ -87,7 +87,7 @@
           :subtitle="deity.titles ?? undefined"
           :image-url="deity.portrait_url"
           :focal-point="deity.portrait_focal_point ?? null"
-          placeholder="/assets/placeholders/deity.webp"
+          :placeholder="placeholderUrl('deity')"
           :badge-text="deity.alignment ?? undefined"
           :shared="deity.player_visible_to.length > 0"
         />
@@ -103,7 +103,7 @@
           :title="deity.name"
           :image-url="deity.portrait_url"
           :focal-point="deity.portrait_focal_point ?? null"
-          placeholder="/assets/placeholders/deity.webp"
+          :placeholder="placeholderUrl('deity')"
           :badge-text="deity.alignment"
         >
           <template #actions-start>
@@ -171,6 +171,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
