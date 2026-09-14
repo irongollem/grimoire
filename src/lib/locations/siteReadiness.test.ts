@@ -3,6 +3,18 @@ import { siteReadiness, structureFromSite, publishStaleness } from "./siteReadin
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 import { emptyLayers } from "@/types/dungeonMap.types";
+import type { MapStackSource } from "@/lib/locations/mapStack";
+
+function siteLoc(over: Partial<MapStackSource> = {}): MapStackSource {
+  return {
+    map_url: null,
+    grid_calibration: null,
+    map_layer_url: null,
+    map_layer_calibration: null,
+    plan_size: null,
+    ...over,
+  };
+}
 
 function region(over: Partial<LocationMapRegion> = {}): LocationMapRegion {
   return {
@@ -28,7 +40,7 @@ function region(over: Partial<LocationMapRegion> = {}): LocationMapRegion {
 describe("siteReadiness", () => {
   it("is fully unready for a bare site", () => {
     const result = siteReadiness({
-      location: { map_url: null, grid_calibration: null },
+      location: siteLoc(),
       spaces: [],
       regions: [],
       doors: [],
@@ -47,7 +59,7 @@ describe("siteReadiness", () => {
 
   it("is fully ready when every check passes", () => {
     const result = siteReadiness({
-      location: { map_url: "/map.webp", grid_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 } },
+      location: siteLoc({ map_url: "/map.webp", grid_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 } }),
       spaces: [{ id: "room-1" }],
       regions: [region({ id: "reg-1", cells: ["0,0"], space_location_id: "room-1" })],
       doors: [{ from_location_id: "room-1" }],
@@ -62,7 +74,7 @@ describe("siteReadiness", () => {
 
   it("reports an unbound traced region", () => {
     const result = siteReadiness({
-      location: { map_url: "/map.webp", grid_calibration: null },
+      location: siteLoc({ map_url: "/map.webp" }),
       spaces: [{ id: "room-1" }],
       regions: [region({ id: "reg-1", cells: ["0,0"], space_location_id: null })],
       doors: [],
@@ -77,7 +89,7 @@ describe("siteReadiness", () => {
 
   it("reports an untraced room when every region is already bound", () => {
     const result = siteReadiness({
-      location: { map_url: "/map.webp", grid_calibration: null },
+      location: siteLoc({ map_url: "/map.webp" }),
       spaces: [{ id: "room-1" }, { id: "room-2" }],
       regions: [region({ id: "reg-1", cells: ["0,0"], space_location_id: "room-1" })],
       doors: [],
@@ -88,9 +100,23 @@ describe("siteReadiness", () => {
     expect(result.caption).toBe("1 room untraced");
   });
 
+  it("is mapped and calibrated from a Drawing layer alone (#884 — no Picture needed)", () => {
+    const result = siteReadiness({
+      location: siteLoc({
+        map_layer_url: "/drawing.webp",
+        map_layer_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 },
+      }),
+      spaces: [],
+      regions: [],
+      doors: [],
+    });
+    expect(result.mapped).toBe(true);
+    expect(result.calibrated).toBe(true);
+  });
+
   it("ignores zone-role regions and untraced (empty-cell) regions", () => {
     const result = siteReadiness({
-      location: { map_url: "/map.webp", grid_calibration: null },
+      location: siteLoc({ map_url: "/map.webp" }),
       spaces: [{ id: "room-1" }],
       regions: [
         region({ id: "z1", region_role: "zone", zone_kind: "hazard", cells: ["1,1"] }),

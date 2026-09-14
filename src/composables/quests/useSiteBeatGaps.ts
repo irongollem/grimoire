@@ -74,7 +74,13 @@ export function deriveReadinessBySite(
     if (!location) continue;
     const spaceIds = new Set(spaceIdsBySite.get(siteId) ?? []);
     result[siteId] = siteReadiness({
-      location: { map_url: location.map_url, grid_calibration: location.grid_calibration },
+      location: {
+        map_url: location.map_url,
+        grid_calibration: location.grid_calibration,
+        map_layer_url: location.map_layer_url,
+        map_layer_calibration: location.map_layer_calibration,
+        plan_size: location.plan_size,
+      },
       spaces: [...spaceIds].map((id) => ({ id })),
       regions: regions.filter((region) => region.site_location_id === siteId),
       doors: doors.filter((door) => spaceIds.has(door.from_location_id)),

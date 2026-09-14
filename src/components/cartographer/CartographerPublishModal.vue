@@ -28,13 +28,13 @@
 
     <div class="flex-1 min-h-0 overflow-y-auto">
       <div class="flex flex-col lg:flex-row gap-4 px-5 py-4">
-        <div class="lg:w-[27.5rem] shrink-0 flex flex-col gap-3">
+        <div class="lg:w-110 shrink-0 flex flex-col gap-3">
           <PublishPlanPreview v-if="review.plan" :plan="review.plan" />
           <div v-if="review.bakedDims" class="rounded-md border border-border bg-muted/40 px-3 py-2 text-caption-sm text-muted-foreground">
             <span class="block text-eyebrow text-muted-foreground mb-1">Also written</span>
-            Baked WebP → <code>location-maps/…</code> · <code>map_url</code> · <code>grid_calibration</code> = {{ review.bakedDims.cols }} cells wide,
+            Transparent bake → <code>location-maps/…</code> · <code>map_layer_url</code> · <code>map_layer_calibration</code> = {{ review.bakedDims.cols }} cells wide,
             origin cell ({{ review.bakedDims.originCellX }}, {{ review.bakedDims.originCellY }}) from the bake padding ·
-            <code>source_map_id</code> · <code>map_published_rev = {{ review.mapRev }}</code>.
+            <code>source_map_id</code> · <code>map_published_rev = {{ review.mapRev }}</code>. The Picture (<code>map_url</code>) is untouched.
           </div>
         </div>
         <div class="flex-1 min-w-0">

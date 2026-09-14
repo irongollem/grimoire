@@ -17,31 +17,32 @@
       class="absolute inset-0 flex items-start justify-center will-change-transform"
       :style="fromStyle"
     >
-      <img :src="plan.fromUrl" :class="imageClass" alt="" draggable="false" />
+      <MapStackImage :stack="plan.from" :compact="compact" :visible="visibleLayers" />
     </div>
 
     <div
       class="absolute inset-0 flex items-start justify-center will-change-transform"
       :style="toStyle"
     >
-      <img :src="plan.toUrl" :class="imageClass" alt="" draggable="false" />
+      <MapStackImage :stack="plan.to" :compact="compact" :visible="visibleLayers" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
+import { storeToRefs } from "pinia";
+import MapStackImage from "@/components/locations/MapStackImage.vue";
 import {
-  MAP_IMAGE_COMPACT_SIZING,
-  MAP_IMAGE_SIZING,
   ZOOM_CHILD_SCALE,
   ZOOM_CROSSFADE_AT,
   ZOOM_DURATION_MS,
   ZOOM_PARENT_BLUR_PX,
   ZOOM_PARENT_SCALE,
-  preloadImage,
+  preloadStack,
 } from "@/lib/locations/mapZoom";
 import { prefersReducedMotion } from "@/lib/motion";
+import { useUiStore } from "@/stores/ui";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 
 const { plan, settling = false, compact = false } = defineProps<{
@@ -62,7 +63,11 @@ const emit = defineEmits<{ done: [] }>();
 
 const descending = plan.direction === "in";
 
-const imageClass = [MAP_IMAGE_SIZING, compact ? MAP_IMAGE_COMPACT_SIZING : ""];
+// The same layer toggles `MapFrame` reads (#884), so a DM who has hidden the
+// Drawing (or the Picture beneath it) sees that same choice honoured through
+// the transition rather than a flash of a layer that isn't normally shown.
+const { siteMapLayers } = storeToRefs(useUiStore());
+const visibleLayers = computed(() => ({ picture: siteMapLayers.value.picture, drawing: siteMapLayers.value.drawing }));
 
 /**
  * Both layers ride one locked trajectory (see ZOOM_CHILD_SCALE): everything on
@@ -110,7 +115,7 @@ onMounted(async () => {
 
   // Decode the destination first: a crossfade onto an undecoded image flashes
   // white on precisely the frame the eye is tracking.
-  await preloadImage(plan.toUrl);
+  await preloadStack(plan.to);
 
   // Two frames, not one. A single rAF can still coalesce with the initial paint
   // in some engines, and the transition then has no start value to move from —

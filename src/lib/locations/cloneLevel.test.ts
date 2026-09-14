@@ -29,6 +29,9 @@ function loc(over: Partial<Location> = {}): Location {
     source_map_id: null,
     is_battle_map: false,
     grid_calibration: null,
+    map_layer_url: null,
+    map_layer_calibration: null,
+    plan_size: null,
     era_start: null,
     era_end: null,
     audio_theme: null,
@@ -90,6 +93,9 @@ describe("planCloneLevel", () => {
     map_url: "/map.webp",
     source_map_id: "map-1",
     description: "A damp crypt beneath the chapel.",
+    map_layer_url: "/drawing.webp",
+    map_layer_calibration: { cells_per_image_width: 12, origin_x_pct: 0, origin_y_pct: 0 },
+    plan_size: { cols: 12, rows: 8 },
   });
   const room1 = loc({ id: "room-1", name: "Nave", parent_id: "site", location_type: "room" });
   const room2 = loc({ id: "room-2", name: "Cell", parent_id: "site", location_type: "room" });
@@ -101,6 +107,20 @@ describe("planCloneLevel", () => {
     expect(plan.siteInsert.map_url).toBe("/map.webp");
     expect(plan.siteInsert.source_map_id).toBe("map-1");
     expect(plan.siteInsert.map_published_rev).toBeUndefined();
+  });
+
+  it("carries the site's Drawing and blank-grid fields into the clone, alongside map_url", () => {
+    const plan = planCloneLevel({ site, rooms: [room1, room2], regions: [], doors: [] });
+    expect(plan.siteInsert.map_layer_url).toBe("/drawing.webp");
+    expect(plan.siteInsert.map_layer_calibration).toEqual({ cells_per_image_width: 12, origin_x_pct: 0, origin_y_pct: 0 });
+    expect(plan.siteInsert.plan_size).toEqual({ cols: 12, rows: 8 });
+  });
+
+  it("never gives a cloned room its own Drawing or blank grid — same as map_url", () => {
+    const plan = planCloneLevel({ site, rooms: [room1, room2], regions: [], doors: [] });
+    expect(plan.rooms[0].insert.map_layer_url).toBeNull();
+    expect(plan.rooms[0].insert.map_layer_calibration).toBeNull();
+    expect(plan.rooms[0].insert.plan_size).toBeNull();
   });
 
   it("carries the site's own description over to the clone, same as a room's", () => {

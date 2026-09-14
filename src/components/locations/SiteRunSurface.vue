@@ -30,8 +30,8 @@
       <!-- The place — the map, in run mode, and the room stack under it. -->
       <div class="flex flex-col gap-4">
         <LocationMap
-          v-if="location.map_url"
-          :map-url="location.map_url"
+          v-if="hasAnyMapLayer(location)"
+          :stack="mapStack"
           :pins="location.map_pins"
           :children="pinnableChildren"
           mode="view"
@@ -40,7 +40,6 @@
           show-regions
           :regions="regions"
           :spaces="siteSpaces"
-          :calibration="location.grid_calibration"
           run-mode
           :party-room-id="currentRoomId"
           :reachable-room-ids="reachable"
@@ -122,6 +121,7 @@ import SiteRunWaysOut from "@/components/locations/SiteRunWaysOut.vue";
 import SiteRunRoomStack from "@/components/locations/SiteRunRoomStack.vue";
 import TriggerBeatPrompt from "@/components/locations/TriggerBeatPrompt.vue";
 import { useLocations } from "@/composables/locations/useLocations";
+import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useLootPlacements, useQuestBeat } from "@/composables/quests/useQuestFlow";
@@ -185,15 +185,16 @@ const reachable = computed(() => {
 });
 const unwrittenIds = computed(() => unwrittenRoomIds(rooms.value));
 
-// The composite (`LocationMap.vue`) mounts whenever `location.map_url`
-// exists, same gate `LocationSheet` uses — a site with nothing traced yet is
-// still fully runnable via the room list above, but a reference image alone
-// is worth showing. Its own regions apparatus (canvas, calibration prompt,
-// room-shapes list — hidden here anyway, see `run-mode` below) additionally
-// gates on having a room or a region at all, so an untraced site's map still
-// renders without a noisy empty grid.
+// The composite (`LocationMap.vue`) mounts whenever the site has any map
+// layer (#884: Picture, Drawing, or a blank grid) — same gate `LocationSheet`
+// uses. A site with nothing traced yet is still fully runnable via the room
+// list above, but a plan alone is worth showing. Its own regions apparatus
+// (canvas, calibration prompt, room-shapes list — hidden here anyway, see
+// `run-mode` below) additionally gates on having a room or a region at all,
+// so an untraced site's map still renders without a noisy empty grid.
 const regionsQuery = useLocationMapRegions(siteId);
 const regions = computed(() => regionsQuery.data.value ?? []);
+const mapStack = computed(() => buildMapStack(location));
 
 // ── Frame 08's room-list subtitles: a room whose only known doors are all
 //    secret and undiscovered gets its own caption rather than a plain

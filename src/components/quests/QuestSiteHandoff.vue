@@ -95,9 +95,9 @@
            then the other threads this quest is holding. -->
       <div class="flex min-h-0 flex-col gap-4">
         <LocationMap
-          v-if="site.map_url"
+          v-if="siteHasMap"
           class="flex-1"
-          :map-url="site.map_url"
+          :stack="siteMapStack"
           :pins="site.map_pins"
           :children="pinnableChildren"
           mode="view"
@@ -106,7 +106,6 @@
           show-regions
           :regions="regions"
           :spaces="siteSpaces"
-          :calibration="site.grid_calibration"
           run-mode
           :party-room-id="currentRoomId"
           :reachable-room-ids="reachable"
@@ -174,9 +173,9 @@
     <template v-else>
       <div class="flex flex-col gap-3">
         <div class="relative h-[11.875rem] overflow-hidden rounded-xl border border-border">
-          <div v-if="site.map_url" class="pointer-events-none absolute inset-0">
+          <div v-if="siteHasMap" class="pointer-events-none absolute inset-0">
             <LocationMap
-              :map-url="site.map_url"
+              :stack="siteMapStack"
               :pins="site.map_pins"
               :children="pinnableChildren"
               mode="view"
@@ -185,7 +184,6 @@
               show-regions
               :regions="regions"
               :spaces="siteSpaces"
-              :calibration="site.grid_calibration"
               run-mode
               :party-room-id="currentRoomId"
               :reachable-room-ids="reachable"
@@ -196,14 +194,14 @@
             <p>Floor plan from the location.</p>
           </div>
           <button
-            v-if="site.map_url"
+            v-if="siteHasMap"
             type="button"
             class="absolute inset-0"
             aria-label="Expand floor plan"
             @click="mapExpandOpen = true"
           />
           <span
-            v-if="site.map_url"
+            v-if="siteHasMap"
             class="pointer-events-none absolute bottom-2 right-2 rounded bg-card/90 px-1.5 py-0.5 text-label uppercase text-muted-foreground shadow-sm backdrop-blur-sm"
           >
             Tap to expand
@@ -282,10 +280,10 @@
         </template>
       </MobileSheet>
 
-      <MobileSheet v-if="site.map_url" v-model:open="mapExpandOpen" show-until="xl" title="Floor plan">
+      <MobileSheet v-if="siteHasMap" v-model:open="mapExpandOpen" show-until="xl" title="Floor plan">
         <div class="relative">
           <LocationMap
-            :map-url="site.map_url"
+            :stack="siteMapStack"
             :pins="site.map_pins"
             :children="pinnableChildren"
             mode="view"
@@ -294,7 +292,6 @@
             show-regions
             :regions="regions"
             :spaces="siteSpaces"
-            :calibration="site.grid_calibration"
             run-mode
             :party-room-id="currentRoomId"
             :reachable-room-ids="reachable"
@@ -354,6 +351,7 @@ import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useBelow } from "@/composables/useBreakpoint";
+import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { compareSiblings } from "@/lib/locations/tree";
 import { partyRoomInSite, reachableRoomIds as computeReachableRoomIds } from "@/lib/locations/siteRun";
@@ -451,6 +449,10 @@ const reachable = computed(() => {
 
 const regionsQuery = useLocationMapRegions(siteId);
 const regions = computed(() => regionsQuery.data.value ?? []);
+
+// ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────
+const siteMapStack = computed(() => buildMapStack(site.value));
+const siteHasMap = computed(() => hasAnyMapLayer(site.value));
 
 // ── Frame 08's room-list subtitles: a room whose only known doors are all
 //    secret and undiscovered gets its own caption rather than a plain

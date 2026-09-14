@@ -203,6 +203,23 @@ export interface Location {
    */
   grid_calibration: GridCalibration | null;
   /**
+   * The Drawing layer: a transparent bake of the Cartographer drawing in
+   * `source_map_id`, re-baked on every save of the drawing. Null when the
+   * site has no drawing. Site map stack (#884) — read through
+   * `lib/locations/mapStack.ts`, never directly.
+   */
+  map_layer_url: string | null;
+  /**
+   * `GridCalibration` of `map_layer_url`, computed by Publish from the
+   * bake's own padding — never eyeballed. Null iff `map_layer_url` is null.
+   */
+  map_layer_calibration: GridCalibration | null;
+  /**
+   * `{cols, rows}` for a site whose Plan is traced on a blank grid with no
+   * Picture and no Drawing beneath it. Null otherwise.
+   */
+  plan_size: { cols: number; rows: number } | null;
+  /**
    * Optional in-world year bounds. When set, the location is only "current"
    * while the campaign's `current_year` falls within [era_start, era_end]
    * (either bound may be open-ended).
@@ -279,7 +296,16 @@ export const DEFAULT_GRID_OPACITY = 0.35;
 
 export type LocationInsert = Omit<
   Location,
-  "id" | "user_id" | "created_at" | "updated_at" | "audio_theme" | "sort_order" | "map_published_rev"
+  | "id"
+  | "user_id"
+  | "created_at"
+  | "updated_at"
+  | "audio_theme"
+  | "sort_order"
+  | "map_published_rev"
+  | "map_layer_url"
+  | "map_layer_calibration"
+  | "plan_size"
 > & {
   /** Omit to take the column default of null — no audio is requested. */
   audio_theme?: string | null;
@@ -287,5 +313,11 @@ export type LocationInsert = Omit<
   sort_order?: number | null;
   /** Written by Publish to Atlas only. */
   map_published_rev?: number | null;
+  /** Omit to take the column default of null — no drawing yet. */
+  map_layer_url?: string | null;
+  /** Omit to take the column default of null — no drawing yet. */
+  map_layer_calibration?: GridCalibration | null;
+  /** Omit to take the column default of null — no blank-grid plan yet. */
+  plan_size?: { cols: number; rows: number } | null;
 };
 export type LocationUpdate = Partial<LocationInsert>;

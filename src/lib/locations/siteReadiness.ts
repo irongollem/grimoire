@@ -10,13 +10,13 @@
 // from the Atlas's OWN regions/doors so it can be diffed against the live
 // Cartographer drawing with the same `structureDelta` the publish review uses.
 
-import type { GridCalibration } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { SourceEdgeKey } from "@/types/locationDoor.types";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 import { deriveStructure, structureDelta } from "@/cartographer/structure";
 import type { DerivedStructure, DerivedWay } from "@/cartographer/structure.types";
 import { cellSignature } from "@/cartographer/cellSignature";
+import { frameCalibration, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
 
 // ── Readiness ─────────────────────────────────────────────────────────────
 
@@ -29,10 +29,7 @@ export interface ReadinessDoor {
 }
 
 export interface SiteReadinessInput {
-  location: {
-    map_url: string | null;
-    grid_calibration: GridCalibration | null;
-  };
+  location: MapStackSource;
   /** This site's bindable children — rooms and nested sites alike. */
   spaces: readonly ReadinessSpace[];
   regions: readonly LocationMapRegion[];
@@ -74,8 +71,8 @@ export function siteReadiness(input: SiteReadinessInput): SiteReadiness {
   );
   const untracedSpaces = spaces.filter((s) => !boundSpaceIds.has(s.id)).length;
 
-  const mapped = !!location.map_url;
-  const calibrated = !!location.grid_calibration;
+  const mapped = hasAnyMapLayer(location);
+  const calibrated = !!frameCalibration(location);
   const traced = tracedRegions.length > 0;
   const bound = unboundSpaces === 0 && untracedSpaces === 0;
   const waysOut = doors.length > 0;

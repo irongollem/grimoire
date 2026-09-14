@@ -69,6 +69,7 @@ import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { levelsOf } from "@/lib/locations/levels";
+import { buildMapStack } from "@/lib/locations/mapStack";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { buildAtlasIndex, childrenOf } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
@@ -118,10 +119,12 @@ const { stateOf: levelRoomStateOf } = useLocationStateForRooms(allLevelRoomIds);
 const levelSummaries = computed<SiteLevelSummary[]>(() =>
   levelSites.value.map((level) => {
     const roomIds = levelRoomIdsByLevel.value.get(level.id) ?? [];
+    const stack = buildMapStack(level);
     return {
       id: level.id,
       name: level.name,
-      mapUrl: level.map_url,
+      thumbnailUrl: stack.primary?.url ?? null,
+      hasMap: stack.hasAnyLayer,
       roomCount: roomIds.length,
       clearedCount: roomIds.filter((id) => levelRoomStateOf(id, "cleared")?.value).length,
       exploredCount: roomIds.filter((id) => levelRoomStateOf(id, "explored")?.value).length,

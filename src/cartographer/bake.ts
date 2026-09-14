@@ -15,6 +15,16 @@ import { classifyJoint } from "./edges";
 export interface BakeOptions {
   /** Cells of black padding around the painted extent. Default: 3. */
   paddingCells?: number;
+  /**
+   * Skip the opaque `#000` ground fill so a cell with no floor stays alpha 0
+   * — the Drawing layer (epic #884) sits over a Picture, which must show
+   * through wherever nothing is painted. Wall-joint fill (`rgb(40,36,32)`)
+   * is unaffected: that paints per-cell where a joint is actually drawn, not
+   * the whole canvas, so it stays opaque even in transparent mode. Default
+   * false — the PNG download and the AI-styler input both want an opaque
+   * backing, same as before.
+   */
+  transparent?: boolean;
 }
 
 export const DEFAULT_BAKE_PADDING_CELLS = 3;
@@ -72,6 +82,7 @@ function renderToCanvas(
   runtimes: Map<string, TilePackRuntime>,
   paddingCells: number,
   glyphs: Record<CellKey, PackCategory> = {},
+  transparent: boolean = false,
 ): OffscreenCanvas {
   const ts = BASE_TILE_SIZE;
   const layers = map.layers;
@@ -99,8 +110,10 @@ function renderToCanvas(
   const rows = maxY - minY + 1 + paddingCells * 2;
   const canvas = new OffscreenCanvas(cols * ts, rows * ts);
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, cols * ts, rows * ts);
+  if (!transparent) {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, cols * ts, rows * ts);
+  }
 
   const rt = (packId: string): TilePackRuntime | null => runtimes.get(packId) ?? null;
   const dx = (cx: number) => (cx - minX + paddingCells) * ts;
@@ -257,7 +270,7 @@ export async function bakeMap(
   options: BakeOptions = {},
   glyphs: Record<CellKey, PackCategory> = {},
 ): Promise<Blob> {
-  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3, glyphs);
+  const canvas = renderToCanvas(map, runtimes, options.paddingCells ?? 3, glyphs, options.transparent ?? false);
   let blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.9 });
   if (blob.size > MAX_BYTES) {
     blob = await canvas.convertToBlob({ type: "image/webp", quality: 0.75 });

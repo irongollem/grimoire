@@ -47,7 +47,7 @@
         >{{ row.descendantCount }}</span
       >
       <IconMap
-        v-if="row.loc.map_url && !row.loc.is_battle_map"
+        v-if="hasAnyMapLayer(row.loc) && !row.loc.is_battle_map"
         class="h-3 w-3 shrink-0 text-muted-foreground/70"
         :aria-label="`${row.loc.name} has a map`"
       />
@@ -60,6 +60,7 @@ import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconChevronDown, IconChevronRight, IconMap } from "@/lib/icons";
 import type { AtlasRow } from "@/lib/locations/tree";
+import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 
 const {

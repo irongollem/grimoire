@@ -47,6 +47,9 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     source_map_id: null,
     is_battle_map: false,
     grid_calibration: null,
+    map_layer_url: null,
+    map_layer_calibration: null,
+    plan_size: null,
     era_start: null,
     era_end: null,
     audio_theme: null,
@@ -136,7 +139,37 @@ describe("resolveBattleSurface", () => {
       focusRoomId: null,
       focusCells: [],
       calibration,
+      imageUrl: "https://example.test/map.webp",
     });
+  });
+
+  it("draws the Drawing layer, not the Picture, when a location has both (#884)", () => {
+    const drawingCalibration = makeCalibration({ cells_per_image_width: 16 });
+    const location = makeLocation({
+      id: "loc-1",
+      location_type: "dungeon",
+      map_url: "https://example.test/picture.webp",
+      grid_calibration: makeCalibration({ cells_per_image_width: 10 }),
+      map_layer_url: "https://example.test/drawing.webp",
+      map_layer_calibration: drawingCalibration,
+    });
+    const surface = resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] });
+    expect(surface?.imageUrl).toBe("https://example.test/drawing.webp");
+    expect(surface?.calibration).toBe(drawingCalibration);
+  });
+
+  it("uses a Drawing-only location — no Picture at all (#884)", () => {
+    const calibration = makeCalibration();
+    const location = makeLocation({
+      id: "loc-1",
+      location_type: "dungeon",
+      map_layer_url: "https://example.test/drawing.webp",
+      map_layer_calibration: calibration,
+    });
+    const surface = resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] });
+    expect(surface).not.toBeNull();
+    expect(surface?.imageUrl).toBe("https://example.test/drawing.webp");
+    expect(surface?.calibration).toBe(calibration);
   });
 
   it("a room with no map of its own opens on its site's plan, focused on its traced cells", () => {

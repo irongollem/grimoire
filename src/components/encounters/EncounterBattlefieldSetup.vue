@@ -48,7 +48,7 @@
             preserveAspectRatio="none"
           >
             <image
-              :href="mapLocation?.map_url ?? undefined"
+              :href="surface?.imageUrl ?? undefined"
               :x="panX"
               :y="panY"
               :width="imageNaturalW * scale"
@@ -93,8 +93,8 @@
           />
 
           <img
-            v-if="mapLocation?.map_url && !imageReady"
-            :src="mapLocation.map_url"
+            v-if="surface?.imageUrl && !imageReady"
+            :src="surface.imageUrl"
             class="hidden-loader"
             @load="onImageLoad"
           />
@@ -109,6 +109,7 @@ import { computed, watch } from "vue";
 import { useLocationBattleSurface } from "@/composables/encounters/useEncounterRoom";
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
+import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import {
   cellSizeInDisplay,
@@ -137,7 +138,7 @@ const emit = defineEmits<{
 // of staying disabled, because that plan — not the room's own (absent)
 // map_url — is what combat actually draws (epic #868, frame 13).
 const locationIdRef = computed(() => props.locationId ?? "");
-const { location, surface, mapLocation } = useLocationBattleSurface(locationIdRef);
+const { location, surface } = useLocationBattleSurface(locationIdRef);
 
 const isReady = computed(() => {
   const s = surface.value;
@@ -149,15 +150,16 @@ const readinessHint = computed(() => {
   if (!location.value) return "Loading location…";
   const s = surface.value;
   if (!s) {
-    // Check map_url first: a room can carry its own uncalibrated map even
-    // while its site's plan is also uncalibrated — that needs "calibrate",
-    // not "no map of its own", since the room does have one.
+    // Check the map stack first: a room can carry its own uncalibrated
+    // Picture or Drawing even while its site's plan is also uncalibrated —
+    // that needs "calibrate", not "no map of its own", since the room does
+    // have one.
     if (location.value.location_type === "room") {
-      return location.value.map_url
+      return hasAnyMapLayer(location.value)
         ? "This room's map isn't calibrated yet — calibrate it to enable placement."
         : "This room has no map of its own, and its site isn't calibrated either.";
     }
-    return location.value.map_url
+    return hasAnyMapLayer(location.value)
       ? "Calibrate the location's map to enable placement."
       : "The linked location has no map.";
   }
@@ -286,24 +288,24 @@ const {
 } = useMapCanvas();
 
 const cellPx = computed(() =>
-  mapLocation.value?.grid_calibration
+  surface.value
     ? cellSizeInDisplay({
         imageNaturalWidth: imageNaturalW.value,
-        cellsPerImageWidth: mapLocation.value.grid_calibration.cells_per_image_width,
+        cellsPerImageWidth: surface.value.calibration.cells_per_image_width,
         scale: scale.value,
       })
     : 0,
 );
 const gridOrigin = computed(() =>
-  mapLocation.value?.grid_calibration
+  surface.value
     ? gridOriginInDisplay({
         panX: panX.value,
         panY: panY.value,
         scale: scale.value,
         imageNaturalWidth: imageNaturalW.value,
         imageNaturalHeight: imageNaturalH.value,
-        originXPct: mapLocation.value.grid_calibration.origin_x_pct,
-        originYPct: mapLocation.value.grid_calibration.origin_y_pct,
+        originXPct: surface.value.calibration.origin_x_pct,
+        originYPct: surface.value.calibration.origin_y_pct,
       })
     : { x: 0, y: 0 },
 );
@@ -314,14 +316,14 @@ const gridHorizontals = computed(() =>
   cellPx.value > 0 ? gridLinePositions(gridOrigin.value.y, hostH.value, cellPx.value) : [],
 );
 const gridStrokeOpacity = computed(
-  () => mapLocation.value?.grid_calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
+  () => surface.value?.calibration.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
 
-// Reset imageReady when the resolved map's URL changes so a different map
-// (including switching between a room's own map and its site's plan)
-// re-fits and re-renders cleanly.
+// Reset imageReady when the resolved map's image changes so a different map
+// (including switching between a room's own map and its site's plan, or
+// between a Picture and a Drawing) re-fits and re-renders cleanly.
 watch(
-  () => mapLocation.value?.map_url,
+  () => surface.value?.imageUrl,
   () => {
     imageReady.value = false;
   },

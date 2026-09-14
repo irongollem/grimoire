@@ -33,7 +33,7 @@
         <div class="relative">
           <MapFrame
             ref="frameRef"
-            :map-url="mapUrl"
+            :stack="stack"
             :compact="compact"
             :placing="!!placingChildId"
             @tap="onTap"
@@ -45,7 +45,7 @@
               v-if="showRegions && hasRegionContent"
               v-model:active-region-id="activeRegionId"
               :regions="regions"
-              :calibration="calibration"
+              :calibration="stack.frameCalibration"
               :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
               :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
               :mode="runMode ? 'run' : 'browse'"
@@ -68,7 +68,7 @@
             <MapPreparedLayer
               v-if="showRegions && siteMapLayers.prepared"
               :marks="preparedMarks"
-              :calibration="calibration"
+              :calibration="stack.frameCalibration"
               :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
               :image-natural-height="frameRef?.imageNaturalHeight ?? 0"
               @select-room="onSelectPreparedRoom"
@@ -77,7 +77,7 @@
               ref="pinsLayerRef"
               v-model:pins="pins"
               v-model:placing-child-id="placingChildId"
-              :map-url="mapUrl"
+              :map-key="mapIdentity"
               :children="children"
               :mode="mode"
               :show-hidden-pins="showHiddenPins"
@@ -93,12 +93,12 @@
 
           <!-- Calibration chip (#868, frame 03) — a HUD overlay, not part of
                MapFrame's own zoomed slot, so it stays put while the map pans. -->
-          <div v-if="showRegions && hasRegionContent && calibration" class="pointer-events-none absolute right-2 top-2 z-20">
+          <div v-if="showRegions && hasRegionContent && stack.frameCalibration" class="pointer-events-none absolute right-2 top-2 z-20">
             <span
               class="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-card/90 px-2.5 py-1 text-caption-sm text-muted-foreground shadow-sm backdrop-blur-sm"
             >
               <IconRuler class="h-3 w-3 shrink-0" aria-hidden="true" />
-              {{ calibration.cells_per_image_width }} cells · 5 ft · origin {{ originCell(calibration).x }},{{ originCell(calibration).y }}
+              {{ stack.frameCalibration.cells_per_image_width }} cells · 5 ft · origin {{ originCell(stack.frameCalibration).x }},{{ originCell(stack.frameCalibration).y }}
             </span>
           </div>
 
@@ -135,14 +135,14 @@
           :spaces="spaces"
           :regions="regions"
           :active-region-id="activeRegionId"
-          :can-trace="!!calibration"
+          :can-trace="!!stack.frameCalibration"
           @update:active-region-id="activeRegionId = $event"
         />
         <SiteMapZoneList
           :location-id="locationId!"
           :regions="regions"
           :active-region-id="activeRegionId"
-          :can-trace="!!calibration"
+          :can-trace="!!stack.frameCalibration"
           @update:active-region-id="activeRegionId = $event"
         />
         <!-- Frame 10 "Prepared here · Nave of Ash" — a Prepared mark's own
@@ -212,9 +212,13 @@
 
     <!-- Site regions: calibration gate, ahead of anything that needs the
          grid to exist. The room-shapes/zone lists themselves moved into the
-         `lg` side column above — this is the one thing that stayed put. -->
+         `lg` side column above — this is the one thing that stayed put.
+         Offered only for a Picture: a Drawing is calibrated by construction
+         (the Cartographer bake computes `map_layer_calibration` itself) and
+         a blank grid's calibration is synthetic — neither has anything for
+         the DM to set here (#884). -->
     <div
-      v-if="showRegions && hasRegionContent && !calibration"
+      v-if="showRegions && hasRegionContent && !stack.frameCalibration && stack.primary?.kind === 'picture'"
       class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2"
     >
       <span class="text-caption text-muted-foreground">
@@ -228,8 +232,8 @@
     <GridCalibrationDialog
       v-if="showRegions"
       :open="calibrationOpen"
-      :map-url="mapUrl"
-      :existing="calibration"
+      :map-url="stack.picture?.url ?? null"
+      :existing="stack.frameCalibration"
       @cancel="calibrationOpen = false"
       @save="onCalibrationSave"
     />
@@ -257,6 +261,7 @@ import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { useToast } from "@/composables/useToast";
 import { isSiteType } from "@/lib/locations/tiers";
+import type { MapStack } from "@/lib/locations/mapStack";
 import type { RoomFacts } from "@/lib/locations/planCanvas";
 import { useUiStore } from "@/stores/ui";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
@@ -270,7 +275,7 @@ const pins = defineModel<MapPinType[]>("pins", { required: true });
 const activeRegionId = defineModel<string | null>("activeRegionId", { default: null });
 
 const {
-  mapUrl,
+  stack,
   children,
   mode,
   showHiddenPins = false,
@@ -281,13 +286,15 @@ const {
   showRegions = false,
   regions = [],
   spaces = [],
-  calibration = null,
   runMode = false,
   partyRoomId = null,
   reachableRoomIds = null,
   showLayerBar = true,
 } = defineProps<{
-  mapUrl: string;
+  /** The site's map stack — Picture, Drawing, and/or a blank grid (#884).
+   *  Callers build it with `buildMapStack()` and gate mounting this
+   *  component on `hasAnyMapLayer()`. */
+  stack: MapStack;
   /** Candidate pin targets (edit mode: unplaced list + pin data population).
    *  Usually direct children, but callers can also pass descendants that were
    *  surfaced through vague container types (regions / continents / …) — in
@@ -325,7 +332,6 @@ const {
    *  region list and the tracing banner's name lookup. Only meaningful when
    *  `showRegions`. */
   spaces?: BindableSpace[];
-  calibration?: GridCalibration | null;
   /** Regions interaction: browse (trace/select/navigate, default) or run
    *  (click-to-move-party, `SiteRunSurface`). Ignored when `!showRegions`. */
   runMode?: boolean;
@@ -393,6 +399,13 @@ function onTap(target: EventTarget | null) {
 function toImageFraction(clientX: number, clientY: number): { x: number; y: number } | null {
   return frameRef.value?.toImageFraction(clientX, clientY) ?? null;
 }
+
+/** A stable identity for "which map is this" — the pins layer's own cue to
+ *  drop hover/pinned pin state when the underlying map changes (#884: was
+ *  keyed on `mapUrl` directly; a blank grid has no url to key on). */
+const mapIdentity = computed(() =>
+  stack.primary?.url ?? (stack.blank ? `blank:${stack.blank.cols}x${stack.blank.rows}` : null),
+);
 
 // ── Unplaced children (edit mode) ─────────────────────────────────────────────
 const placedIds = computed(() => new Set(pins.value.map((p) => p.child_location_id)));

@@ -15,7 +15,11 @@
       @click="$emit('select', level.id)"
     >
       <div class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
-        <img v-if="level.mapUrl" :src="level.mapUrl" alt="" class="h-full w-full object-cover" />
+        <img v-if="level.thumbnailUrl" :src="level.thumbnailUrl" alt="" class="h-full w-full object-cover" />
+        <!-- A blank-grid level (#884): a map layer exists, just no picture to
+             thumbnail — the grid glyph says "a plan, no art yet", distinct
+             from "no map yet" below. -->
+        <IconGrid v-else-if="level.hasMap" class="h-3.5 w-3.5 text-muted-foreground/50" aria-hidden="true" />
         <!-- No map yet — an add glyph in the thumbnail's place, not a map
              icon standing in for a map that isn't there (#868, frame 06). -->
         <IconAdd v-else class="h-3.5 w-3.5 text-muted-foreground/50" aria-hidden="true" />
@@ -38,12 +42,18 @@
  * component has no business holding.
  */
 import AppButton from "@/components/common/AppButton.vue";
-import { IconAdd } from "@/lib/icons";
+import { IconAdd, IconGrid } from "@/lib/icons";
 
 export interface SiteLevelSummary {
   id: string;
   name: string;
-  mapUrl: string | null;
+  /** The primary image layer's url — Drawing if there is one, else Picture,
+   *  else null (#884: was the raw `map_url`; a level's map may now be a
+   *  Drawing, or a blank grid with no image at all). */
+  thumbnailUrl: string | null;
+  /** Whether this level has ANY map layer — Picture, Drawing, or a blank
+   *  grid. A blank grid has `thumbnailUrl === null` but `hasMap === true`. */
+  hasMap: boolean;
   roomCount: number;
   clearedCount: number;
   exploredCount: number;
@@ -58,7 +68,7 @@ const { levels } = defineProps<{
 defineEmits<{ select: [id: string] }>();
 
 function subtitle(level: SiteLevelSummary): string {
-  if (!level.mapUrl) return "No map yet";
+  if (!level.hasMap) return "No map yet";
   if (!level.roomCount) return "No rooms yet";
   if (level.clearedCount > 0) return `${level.roomCount} rooms · cleared ${level.clearedCount}`;
   if (level.exploredCount === 0) return `${level.roomCount} rooms · unexplored`;

@@ -137,7 +137,7 @@ const pins = defineModel<MapPinType[]>("pins", { required: true });
  *  inside its transformed slot and so can't be rendered from here. */
 const placingChildId = defineModel<string | null>("placingChildId", { default: null });
 const {
-  mapUrl,
+  mapKey,
   children,
   mode,
   showHiddenPins = false,
@@ -145,7 +145,12 @@ const {
   scale,
   toImageFraction,
 } = defineProps<{
-  mapUrl: string;
+  /** A stable identity for "which map is this" (#884: was `mapUrl` — a
+   *  stack's primary layer may be a Drawing, or there may be no image at
+   *  all for a blank grid, so a raw url no longer always exists). Used only
+   *  to notice a map swap and drop this map's hover/pinned pin state below —
+   *  see the `watch` on it. */
+  mapKey: string | null;
   /** Candidate pin targets (edit mode: unplaced list + pin data population).
    *  Usually direct children, but callers can also pass descendants that were
    *  surfaced through vague container types (regions / continents / …) — in
@@ -218,11 +223,11 @@ function clearPinned() {
 }
 
 // Hover and pinned state describe pins on *this* map. The Atlas keeps one
-// LocationMap instance and swaps `mapUrl` as you travel, so without this the
+// LocationMap instance and swaps `mapKey` as you travel, so without this the
 // pin you clicked to leave stays pinned open when you come back — its pill
 // floating with no pointer anywhere near it.
 watch(
-  () => mapUrl,
+  () => mapKey,
   () => {
     hoveredPinId.value = null;
     pinnedPinId.value = null;

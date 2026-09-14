@@ -40,8 +40,7 @@ import {
   useLocation,
   useCreateLocation,
   useUpdateLocation,
-  useUpdateLocationMapUrl,
-  useUpdateLocationGridCalibration,
+  useUpdateLocationDrawing,
 } from "@/composables/locations/useLocations";
 import {
   useLocationMapRegions,
@@ -222,8 +221,7 @@ export function useMapPublish(opts: {
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────
-  const updateLocationMapUrl = useUpdateLocationMapUrl();
-  const updateLocationGridCalibration = useUpdateLocationGridCalibration();
+  const updateLocationDrawing = useUpdateLocationDrawing();
   const updateLocation = useUpdateLocation();
   const createLocation = useCreateLocation();
   const createRegion = useCreateLocationMapRegion();
@@ -257,23 +255,27 @@ export function useMapPublish(opts: {
     publishing.value = true;
     error.value = null;
     try {
-      // (a) Bake the picture and write it + calibration + the rev the DM is publishing.
-      const blob = await bakeMap(map, opts.runtimes(), {}, opts.glyphs());
+      // (a) Bake the Drawing — transparent, so the Picture beneath shows
+      // through wherever nothing is painted — and write it + its own
+      // calibration + the rev the DM is publishing. The Picture (map_url) is
+      // a separate layer and Publish never touches it.
+      const blob = await bakeMap(map, opts.runtimes(), { transparent: true }, opts.glyphs());
       const user = getCurrentUser();
       if (!user) throw new Error("Not authenticated");
       const url = await uploadToBucket({ bucket: "locationImages", blob, userId: user.id, contentType: "image/webp" });
       if (!url) throw new Error("Upload failed");
-      await updateLocationMapUrl.mutateAsync({ id: targetSiteId.value, mapUrl: url, sourceMapId: map.id });
       const dims = computeBakedDimensions(map);
-      await updateLocationGridCalibration.mutateAsync({
+      await updateLocationDrawing.mutateAsync({
         id: targetSiteId.value,
-        calibration: {
+        mapLayerUrl: url,
+        mapLayerCalibration: {
           cells_per_image_width: dims.cols,
           origin_x_pct: 0,
           origin_y_pct: 0,
           origin_cell_x: dims.originCellX,
           origin_cell_y: dims.originCellY,
         },
+        sourceMapId: map.id,
       });
       await updateLocation.mutateAsync({ id: targetSiteId.value, update: { map_published_rev: map.rev } });
 

@@ -1,10 +1,15 @@
 // The map-export cluster: the client-side PNG/VTT download, and the AI
 // map-restyle flow (bake -> style-map edge function -> save the styled
 // result to a location, M8). Publishing the drawing itself to the Atlas is
-// `useMapPublish` (#868 S10) — that flow replaced M5's "Save to Atlas"
-// entirely, so this module no longer bakes a plain WebP for a location's
-// `map_url`; only the AI-styled result still saves that way, because the
-// style pipeline produces a picture with nothing behind it to reconcile.
+// `useMapPublish` (#868 S10, transparent-bake since epic #884) — that flow
+// replaced M5's "Save to Atlas" entirely, so this module no longer bakes a
+// plain WebP for a location's `map_url`; only the AI-styled result still
+// saves that way.
+//
+// The styled render is the Picture layer (epic #884): it sits beneath
+// whatever Drawing the Cartographer has published on top of it, which is
+// exactly why this save doesn't go through Publish's diff/review — there is
+// no structure to reconcile, only a `map_url` to replace.
 //
 // Extracted out of CartographerEditorView.vue. The view owns the canvas/
 // paint state; this composable only needs a read-only snapshot of the
@@ -23,7 +28,7 @@ import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import { useAllLocations, useUpdateLocationMapUrl } from "@/composables/locations/useLocations";
+import { useAllLocations, useUpdateLocationPicture } from "@/composables/locations/useLocations";
 import { useCampaignStore } from "@/stores/campaign";
 
 /** Shape of the `style-map` edge function's JSON response. */
@@ -42,7 +47,7 @@ export function useMapExport(opts: {
 }) {
   const { data: allLocationsData } = useAllLocations();
   const locationOptionsSource = computed(() => allLocationsData.value ?? []);
-  const updateLocationMapUrl = useUpdateLocationMapUrl();
+  const updateLocationPicture = useUpdateLocationPicture();
 
   // Shared bake-in-progress flag for the PNG download and (indirectly) the
   // AI Style button's disabled state — see CartographerEditorView's onDownloadPng.
@@ -141,10 +146,9 @@ export function useMapExport(opts: {
         contentType: "image/webp",
       });
       if (!url) throw new Error("Upload failed");
-      await updateLocationMapUrl.mutateAsync({
+      await updateLocationPicture.mutateAsync({
         id: styleAtlasLocationId.value,
         mapUrl: url,
-        sourceMapId: map.id,
       });
       // Log the restyled map to the Gallery, linked back to the location.
       void logImageGeneration({

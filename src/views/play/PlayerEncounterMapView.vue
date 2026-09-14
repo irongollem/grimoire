@@ -28,7 +28,7 @@
         preserveAspectRatio="none"
       >
         <image
-          :href="location.map_url ?? undefined"
+          :href="image?.url ?? undefined"
           :x="panX"
           :y="panY"
           :width="imageNaturalW * scale"
@@ -89,8 +89,8 @@
       />
 
       <img
-        v-if="location?.map_url && !imageReady"
-        :src="location.map_url"
+        v-if="image?.url && !imageReady"
+        :src="image.url"
         class="hidden-loader"
         @load="onImageLoad"
       />
@@ -109,6 +109,7 @@ import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
 import { decodeFogMask } from "@/lib/battlemap/fogMask";
+import { primaryImage } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
 import type { RunCombatant } from "@/types/encounter.types";
@@ -138,6 +139,11 @@ const encounterIdRef = computed(() => liveState.value?.encounter_id ?? "");
 const { data: encounter } = useEncounter(encounterIdRef);
 const locationIdRef = computed(() => encounter.value?.location_id ?? "");
 const { data: location } = usePlayerVisibleLocation(locationIdRef);
+
+// The image this battle view actually draws — the site's Drawing when it
+// has one, else its Picture (#884: never `location.map_url` directly, or a
+// Drawing-only battle map would render nothing).
+const image = computed(() => primaryImage(location.value));
 
 // Decode only when the source string actually changes (a plain `computed`
 // would re-decode on every liveState mutation, including unrelated token
@@ -226,32 +232,32 @@ const loadingState = computed(() => {
   if (!encounter.value) return "Loading encounter…";
   if (!encounter.value.location_id) return "This encounter has no battle map.";
   if (!location.value) return "Loading location…";
-  if (!location.value.map_url) return "The battle map has no image yet.";
+  if (!image.value) return "The battle map has no image yet.";
   if (!location.value.is_battle_map) return "This isn't a battle map.";
-  if (!location.value.grid_calibration) return "The DM hasn't calibrated this map yet.";
+  if (!image.value.calibration) return "The DM hasn't calibrated this map yet.";
   return null;
 });
 
 const cellPx = computed(() =>
-  location.value?.grid_calibration
+  image.value?.calibration
     ? cellSizeInDisplay({
         imageNaturalWidth: imageNaturalW.value,
-        cellsPerImageWidth: location.value.grid_calibration.cells_per_image_width,
+        cellsPerImageWidth: image.value.calibration.cells_per_image_width,
         scale: scale.value,
       })
     : 0,
 );
 
 const gridOrigin = computed(() =>
-  location.value?.grid_calibration
+  image.value?.calibration
     ? gridOriginInDisplay({
         panX: panX.value,
         panY: panY.value,
         scale: scale.value,
         imageNaturalWidth: imageNaturalW.value,
         imageNaturalHeight: imageNaturalH.value,
-        originXPct: location.value.grid_calibration.origin_x_pct,
-        originYPct: location.value.grid_calibration.origin_y_pct,
+        originXPct: image.value.calibration.origin_x_pct,
+        originYPct: image.value.calibration.origin_y_pct,
       })
     : { x: 0, y: 0 },
 );
@@ -263,7 +269,7 @@ const gridHorizontals = computed(() =>
   cellPx.value > 0 ? gridLinePositions(gridOrigin.value.y, hostH.value, cellPx.value) : [],
 );
 const gridStrokeOpacity = computed(
-  () => location.value?.grid_calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
+  () => image.value?.calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
 </script>
 

@@ -71,7 +71,17 @@ export interface CloneLevelSource {
 
 function blankLocationFields(): Omit<
   LocationInsert,
-  "campaign_id" | "parent_id" | "name" | "location_type" | "map_url" | "source_map_id" | "grid_calibration" | "description"
+  | "campaign_id"
+  | "parent_id"
+  | "name"
+  | "location_type"
+  | "map_url"
+  | "source_map_id"
+  | "grid_calibration"
+  | "description"
+  | "map_layer_url"
+  | "map_layer_calibration"
+  | "plan_size"
 > {
   return {
     notes: null,
@@ -112,6 +122,9 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
     map_url: site.map_url,
     source_map_id: site.source_map_id,
     grid_calibration: site.grid_calibration,
+    map_layer_url: site.map_layer_url,
+    map_layer_calibration: site.map_layer_calibration,
+    plan_size: site.plan_size,
   };
 
   const roomPlans: RoomPlan[] = rooms.map((room) => ({
@@ -125,6 +138,9 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
       map_url: null,
       source_map_id: null,
       grid_calibration: null,
+      map_layer_url: null,
+      map_layer_calibration: null,
+      plan_size: null,
     },
   }));
 

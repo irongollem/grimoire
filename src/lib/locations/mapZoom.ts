@@ -1,6 +1,8 @@
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration, Location, MapPin } from "@/types/location.types";
 import { cellRectInImageFractions } from "./gridCalibration";
+import { buildMapStack, hasAnyMapLayer } from "./mapStack";
+import type { MapStack, MapStackSource } from "./mapStack";
 
 /**
  * The descend-into-a-map transition.
@@ -87,10 +89,10 @@ export type ZoomDirection = "in" | "out";
 
 export interface ZoomPlan {
   direction: ZoomDirection;
-  /** The map currently on screen. */
-  fromUrl: string;
-  /** The map to end on. */
-  toUrl: string;
+  /** The map stack currently on screen. */
+  from: MapStack;
+  /** The map stack to end on. */
+  to: MapStack;
   /**
    * CSS transform-origin, e.g. "42% 68%". Always the child's pin *on the parent
    * map* — the point the two images agree about, and therefore the only anchor
@@ -105,17 +107,18 @@ export interface ZoomPlan {
 /**
  * Whether a descent can be animated at all.
  *
- * Requires a map at both ends: with only one, there is nothing to zoom *into*
- * and the honest thing is an ordinary selection. Battle maps are excluded on
- * both sides — they are tactical encounter art rather than geography, and the
- * Atlas does not show them.
+ * Requires a map layer at both ends — Picture, Drawing, or a blank grid, any
+ * of the map stack (#884): with neither end holding one, there is nothing to
+ * zoom *into* and the honest thing is an ordinary selection. Battle maps are
+ * excluded on both sides — they are tactical encounter art rather than
+ * geography, and the Atlas does not show them.
  */
 export function canZoomBetween(
-  parent: Pick<Location, "map_url" | "is_battle_map"> | null | undefined,
-  child: Pick<Location, "map_url" | "is_battle_map"> | null | undefined,
+  parent: (Pick<Location, "is_battle_map"> & MapStackSource) | null | undefined,
+  child: (Pick<Location, "is_battle_map"> & MapStackSource) | null | undefined,
 ): boolean {
-  if (!parent?.map_url || parent.is_battle_map) return false;
-  if (!child?.map_url || child.is_battle_map) return false;
+  if (!hasAnyMapLayer(parent) || parent?.is_battle_map) return false;
+  if (!hasAnyMapLayer(child) || child?.is_battle_map) return false;
   return true;
 }
 
@@ -153,8 +156,8 @@ export function planDescent(
   if (!parent || !child || !canZoomBetween(parent, child)) return null;
   return {
     direction: "in",
-    fromUrl: parent.map_url!,
-    toUrl: child.map_url!,
+    from: buildMapStack(parent),
+    to: buildMapStack(child),
     origin: origin ?? anchorOrigin(parent, child.id),
     targetId: child.id,
   };
@@ -197,21 +200,28 @@ export function planAscent(
   if (!child || !parent || !canZoomBetween(parent, child)) return null;
   return {
     direction: "out",
-    fromUrl: child.map_url!,
-    toUrl: parent.map_url!,
+    from: buildMapStack(child),
+    to: buildMapStack(parent),
     origin: anchorOrigin(parent, child.id),
     targetId: parent.id,
   };
 }
 
 /**
- * Decodes an image before the animation starts. A cross-fade to an undecoded
- * image flashes white at exactly the moment the eye is following the motion,
- * which is the one frame that must not be wrong. Resolves either way — a failed
- * preload should degrade to a slightly rougher transition, never to no
- * navigation at all.
+ * Decodes every image layer of a map stack before the animation starts. A
+ * cross-fade to an undecoded image flashes white at exactly the moment the
+ * eye is following the motion, which is the one frame that must not be
+ * wrong — and with a Drawing over a Picture (#884), both layers paint at
+ * once, so both need to be ready. Resolves either way — a failed preload
+ * should degrade to a slightly rougher transition, never to no navigation
+ * at all.
  */
-export function preloadImage(url: string): Promise<void> {
+export function preloadStack(stack: MapStack): Promise<void> {
+  const urls = [stack.picture?.url, stack.drawing?.url].filter((url): url is string => !!url);
+  return Promise.all(urls.map(preloadOneImage)).then(() => undefined);
+}
+
+function preloadOneImage(url: string): Promise<void> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve();

@@ -17,6 +17,7 @@ import { cellKey, parseCellKey, type CellKey } from "@/types/dungeonMap.types";
 import type { GridCalibration, Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { RunCombatant } from "@/types/encounter.types";
+import { primaryImage } from "@/lib/locations/mapStack";
 
 function originOf(calibration: GridCalibration): { x: number; y: number } {
   return { x: calibration.origin_cell_x ?? 0, y: calibration.origin_cell_y ?? 0 };
@@ -40,7 +41,11 @@ export function battleCellToRegionCell(cell: CellKey, calibration: GridCalibrati
 // ── Which map an encounter opens on ─────────────────────────────────────────
 
 export interface BattleSurface {
-  /** The location whose `map_url` / `grid_calibration` the battle map draws. */
+  /** The location whose map stack (`lib/locations/mapStack.ts`) the battle
+   *  map draws — `imageUrl` + `calibration` below are already resolved from
+   *  it, so a caller never needs to re-read `mapLocation.map_url` /
+   *  `grid_calibration` directly (#884: that would only ever see the
+   *  Picture, never a Drawing). */
   mapLocation: Location;
   /** The room this encounter is anchored to, when `mapLocation` is that
    *  room's *parent* site rather than a map of the room's own. Null when the
@@ -50,7 +55,12 @@ export interface BattleSurface {
   /** The room's traced cells, converted to battle-cell space. Empty when
    *  there is no focus room. */
   focusCells: CellKey[];
+  /** The frame's calibration — `mapLocation`'s Drawing if it has one, else
+   *  its Picture (#884: `primaryImage`'s calibration). */
   calibration: GridCalibration;
+  /** The map image the battle view actually draws — the site's Drawing when
+   *  it has one, else its Picture (#884: `primaryImage`'s url). */
+  imageUrl: string;
 }
 
 /**
@@ -68,27 +78,39 @@ export function resolveBattleSurface(params: {
   const { encounterLocation, parent, regions } = params;
   if (!encounterLocation) return null;
 
-  // A location with its own calibrated map behaves exactly as before a room
-  // could be a battle-map anchor — including a room that happens to carry a
-  // scanned map of its own rather than living on its site's plan.
-  if (encounterLocation.map_url && encounterLocation.grid_calibration) {
+  // A location with its own calibrated map (Drawing or Picture) behaves
+  // exactly as before a room could be a battle-map anchor — including a room
+  // that happens to carry a scanned map of its own rather than living on its
+  // site's plan.
+  const ownImage = primaryImage(encounterLocation);
+  if (ownImage?.calibration) {
     return {
       mapLocation: encounterLocation,
       focusRoomId: null,
       focusCells: [],
-      calibration: encounterLocation.grid_calibration,
+      calibration: ownImage.calibration,
+      imageUrl: ownImage.url,
     };
   }
 
   // A room with no map of its own opens on its site's plan, focused on the
   // cells the DM traced for it.
-  if (encounterLocation.location_type === "room" && parent?.map_url && parent.grid_calibration) {
-    const calibration = parent.grid_calibration;
-    const region = regions.find(
-      (r) => r.region_role === "space" && r.space_location_id === encounterLocation.id,
-    );
-    const focusCells = (region?.cells ?? []).map((c) => regionCellToBattleCell(c, calibration));
-    return { mapLocation: parent, focusRoomId: encounterLocation.id, focusCells, calibration };
+  if (encounterLocation.location_type === "room" && parent) {
+    const parentImage = primaryImage(parent);
+    if (parentImage?.calibration) {
+      const calibration = parentImage.calibration;
+      const region = regions.find(
+        (r) => r.region_role === "space" && r.space_location_id === encounterLocation.id,
+      );
+      const focusCells = (region?.cells ?? []).map((c) => regionCellToBattleCell(c, calibration));
+      return {
+        mapLocation: parent,
+        focusRoomId: encounterLocation.id,
+        focusCells,
+        calibration,
+        imageUrl: parentImage.url,
+      };
+    }
   }
 
   return null;

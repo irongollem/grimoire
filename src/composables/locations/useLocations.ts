@@ -153,12 +153,16 @@ async function deleteLocation(id: string): Promise<void> {
   // irreversible cleanup — previously quest_refs were wiped and quests delinked
   // BEFORE the delete, so a failed delete destroyed those references while the
   // location still existed.
-  const { data: loc } = await supabase.from("locations").select("image_url, map_url").eq("id", id).single();
+  const { data: loc } = await supabase
+    .from("locations")
+    .select("image_url, map_url, map_layer_url")
+    .eq("id", id)
+    .single();
   const { error } = await supabase.from("locations").delete().eq("id", id);
   if (error) throw error;
   // quest_refs is polymorphic (ref_type/ref_id, no FK) so it needs manual cleanup.
   await supabase.from("quest_refs").delete().eq("ref_type", "location").eq("ref_id", id);
-  if (loc) await deleteByPublicUrl(loc.image_url, loc.map_url);
+  if (loc) await deleteByPublicUrl(loc.image_url, loc.map_url, loc.map_layer_url);
 }
 
 // ── Public composables ─────────────────────────────────────────────────────────
@@ -385,12 +389,47 @@ export function usePlayerVisibleLocation(id: string | Ref<string>) {
   });
 }
 
-/** Update a location's map_url + source_map_id from a Cartographer bake. */
-export function useUpdateLocationMapUrl() {
+/**
+ * Update a location's Drawing layer — `map_layer_url` + its own
+ * `map_layer_calibration` + `source_map_id` — from a Cartographer publish
+ * (epic #884). The Picture (`map_url`) is a separate layer underneath and is
+ * never touched here; see `useUpdateLocationPicture`.
+ */
+export function useUpdateLocationDrawing() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, mapUrl, sourceMapId }: { id: string; mapUrl: string; sourceMapId: string }) =>
-      updateLocation(id, { map_url: mapUrl, source_map_id: sourceMapId }),
+    mutationFn: ({
+      id,
+      mapLayerUrl,
+      mapLayerCalibration,
+      sourceMapId,
+    }: {
+      id: string;
+      mapLayerUrl: string;
+      mapLayerCalibration: GridCalibration;
+      sourceMapId: string;
+    }) =>
+      updateLocation(id, {
+        map_layer_url: mapLayerUrl,
+        map_layer_calibration: mapLayerCalibration,
+        source_map_id: sourceMapId,
+      }),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });
+    },
+  });
+}
+
+/**
+ * Update a location's Picture layer — `map_url` alone. Written by a DM
+ * upload/scan or the AI styler's render (epic #884); never carries
+ * `source_map_id` or a calibration, both of which describe the Drawing.
+ */
+export function useUpdateLocationPicture() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, mapUrl }: { id: string; mapUrl: string }) => updateLocation(id, { map_url: mapUrl }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY, id] });

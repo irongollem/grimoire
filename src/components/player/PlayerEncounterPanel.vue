@@ -243,6 +243,7 @@ import TurnTimer from "@/components/encounters/TurnTimer.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
+import { primaryImage } from "@/lib/locations/mapStack";
 
 defineEmits<{ close: [] }>();
 
@@ -258,8 +259,9 @@ const canShowBattleMap = computed(
   () =>
     !!liveState.value &&
     !!battleLocation.value?.is_battle_map &&
-    !!battleLocation.value?.map_url &&
-    !!battleLocation.value?.grid_calibration,
+    // The Drawing counts here too (#884), not just the Picture — a
+    // drawing-only battle map draws now where it used to be unshowable.
+    !!primaryImage(battleLocation.value)?.calibration,
 );
 // Player-visible pre-scripted events — shown as narrative beats in the combat panel
 const playerVisibleFiredEvents = computed<EncounterEvent[]>(() => {

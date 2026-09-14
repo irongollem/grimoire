@@ -37,7 +37,7 @@
       <div class="relative min-w-0 flex-1">
         <LocationMap
           ref="mapRef"
-          :map-url="location.map_url!"
+          :stack="mapStack"
           :pins="location.map_pins"
           :children="children"
           mode="view"
@@ -48,7 +48,6 @@
           :show-regions="isSite"
           :regions="siteRegions"
           :spaces="siteSpaces"
-          :calibration="location.grid_calibration"
           :show-layer-bar="false"
           v-model:active-region-id="activeRegionId"
           @pin-click="descendTo"
@@ -128,6 +127,7 @@ import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { IconChevronRight, IconChevronUp, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
+import { buildMapStack } from "@/lib/locations/mapStack";
 import { planAscent, planDescent, regionOrigin } from "@/lib/locations/mapZoom";
 import type { ZoomPlan } from "@/lib/locations/mapZoom";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
@@ -159,6 +159,9 @@ const siteRegionsQuery = useLocationMapRegions(computed(() => (isSite.value ? lo
 const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
 // See LocationSheet: a room, or a nested site that occupies part of this map.
 const siteSpaces = computed(() => bindableSpaces(children));
+
+// ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────
+const mapStack = computed(() => buildMapStack(location));
 
 // ── Staleness / door graph (#868, S6) — one composable so the source strip
 //    and the vertical-ways count agree with the readiness meter the parent
@@ -216,7 +219,7 @@ function descendTo(childId: string) {
  */
 function onDescendRegion(spaceId: string) {
   const region = siteRegions.value.find((r) => r.space_location_id === spaceId && r.cells.length > 0);
-  const calibration = location.grid_calibration ?? null;
+  const calibration = mapStack.value.frameCalibration;
   if (region && calibration) {
     const size = mapRef.value?.getImageNaturalSize() ?? { width: 0, height: 0 };
     const origin = regionOrigin(region.cells, calibration, size.width, size.height);

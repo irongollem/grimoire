@@ -27,9 +27,9 @@
     <PlayerSiteMap v-if="isSiteType(loc.location_type) && loc.is_map_shared" :site-location-id="loc.id" />
 
     <!-- Map (suppressed for battle maps and when the DM hasn't shared it) -->
-    <div v-if="loc.map_url && loc.is_map_shared && !loc.is_battle_map">
+    <div v-if="hasAnyMapLayer(loc) && loc.is_map_shared && !loc.is_battle_map">
       <LocationMap
-        :map-url="loc.map_url"
+        :stack="mapStack"
         :pins="playerPins"
         :children="[]"
         mode="view"
@@ -108,6 +108,7 @@ import PlayerStoreWares from "@/components/locations/PlayerStoreWares.vue";
 import PlayerNotesWidget from "@/components/common/PlayerNotesWidget.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import PlayerSiteMap from "@/components/player/PlayerSiteMap.vue";
+import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { isSiteType } from "@/lib/locations/tiers";
 import { getNpcDisplayName } from "@/lib/npcDisplay";
 import { STORE_LOCATION_TYPES } from "@/types/location.types";
@@ -136,6 +137,7 @@ defineEmits<{
 }>();
 
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(loc.location_type));
+const mapStack = computed(() => buildMapStack(loc));
 const playerPins = computed(() =>
   (loc.map_pins ?? [])
     .filter((p) => p.visible_to_players)

@@ -358,9 +358,10 @@ select is(
 -- 8. The composed player plan: spaces, glimpsed, ways, zones (20260908215645)
 -- ══════════════════════════════════════════════════════════════════════════
 
-insert into public.locations (id, user_id, campaign_id, name, location_type, is_map_shared, player_visible_to)
+insert into public.locations (id, user_id, campaign_id, name, location_type, is_map_shared, player_visible_to, map_url)
 values ('86800000-0000-4000-8000-000000000400', '86800000-0000-4000-8000-000000000001', '86800000-0000-4000-8000-000000000010',
-        'Composed Plan Site', 'dungeon', true, array['86800000-0000-4000-8000-000000000020']::uuid[]);
+        'Composed Plan Site', 'dungeon', true, array['86800000-0000-4000-8000-000000000020']::uuid[],
+        'https://example.invalid/composed-plan.webp');
 insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type) values
   ('86800000-0000-4000-8000-000000000401', '86800000-0000-4000-8000-000000000001', '86800000-0000-4000-8000-000000000010', '86800000-0000-4000-8000-000000000400', 'Room A2', 'room'),
   ('86800000-0000-4000-8000-000000000402', '86800000-0000-4000-8000-000000000001', '86800000-0000-4000-8000-000000000010', '86800000-0000-4000-8000-000000000400', 'Room B2', 'room'),
@@ -396,12 +397,15 @@ select is(
   'spaces has exactly the one explored room'
 );
 
--- A site with a plan ships no picture to players: the composed plan replaces
--- it, and the baked image was the one URL that showed the whole floor.
+-- A shared site ships its picture whole. The 20260908215643 projection withheld
+-- it from a site with traced spaces (frame 16's "one honest limit"); epic #884
+-- decision 7 reversed that on the maintainer's ruling -- the picture is covered
+-- by fog client-side, and only the *structure* is withheld, by
+-- get_player_visible_site_state composing the plan from cells.
 select is(
   (select map_url from public.get_player_visible_locations(null, '86800000-0000-4000-8000-000000000400')),
-  null,
-  'a site with traced spaces withholds map_url from players -- the plan is composed instead'
+  'https://example.invalid/composed-plan.webp',
+  'a shared site ships its picture to players even when it has traced spaces (epic #884, decision 7)'
 );
 
 -- A beat may be staged at a ROOM ("Opens at", #868 S12); the player's quest

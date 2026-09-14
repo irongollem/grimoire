@@ -9,6 +9,7 @@ import {
   planDescent,
   regionOrigin,
 } from "./mapZoom";
+import { buildMapStack } from "./mapStack";
 import type { Location, GridCalibration } from "@/types/location.types";
 
 function place(over: Partial<Location> = {}): Location {
@@ -36,6 +37,9 @@ function place(over: Partial<Location> = {}): Location {
     source_map_id: null,
     is_battle_map: false,
     grid_calibration: null,
+    map_layer_url: null,
+    map_layer_calibration: null,
+    plan_size: null,
     era_start: null,
     era_end: null,
     audio_theme: null,
@@ -48,13 +52,20 @@ function place(over: Partial<Location> = {}): Location {
 }
 
 describe("canZoomBetween", () => {
-  it("allows a descent when both ends have a map", () => {
+  it("allows a descent when both ends have a map layer", () => {
     expect(canZoomBetween(place(), place())).toBe(true);
   });
 
-  it("refuses when either end has no map — there is nothing to zoom into", () => {
+  it("refuses when either end has no map layer at all — there is nothing to zoom into", () => {
     expect(canZoomBetween(place({ map_url: null }), place())).toBe(false);
     expect(canZoomBetween(place(), place({ map_url: null }))).toBe(false);
+  });
+
+  it("allows a descent off a Drawing or a blank grid alone — any map stack layer counts (#884)", () => {
+    const drawingOnly = place({ map_url: null, map_layer_url: "/drawing.webp", map_layer_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 } });
+    expect(canZoomBetween(drawingOnly, place())).toBe(true);
+    const blankOnly = place({ map_url: null, plan_size: { cols: 10, rows: 10 } });
+    expect(canZoomBetween(blankOnly, place())).toBe(true);
   });
 
   it("refuses battle maps at either end", () => {
@@ -106,11 +117,11 @@ describe("planDescent / planAscent", () => {
   });
   const child = place({ id: "child", map_url: "/child.webp" });
 
-  it("describes a descent anchored on the child's pin", () => {
+  it("describes a descent anchored on the child's pin, carrying each end's own map stack", () => {
     expect(planDescent(parent, child)).toEqual({
       direction: "in",
-      fromUrl: "/parent.webp",
-      toUrl: "/child.webp",
+      from: buildMapStack(parent),
+      to: buildMapStack(child),
       origin: "25% 75%",
       targetId: "child",
     });
@@ -122,8 +133,8 @@ describe("planDescent / planAscent", () => {
     const down = planDescent(parent, child)!;
     const up = planAscent(child, parent)!;
     expect(up.origin).toBe(down.origin);
-    expect(up.fromUrl).toBe(down.toUrl);
-    expect(up.toUrl).toBe(down.fromUrl);
+    expect(up.from).toEqual(down.to);
+    expect(up.to).toEqual(down.from);
     expect(up.direction).toBe("out");
     expect(up.targetId).toBe("parent");
   });

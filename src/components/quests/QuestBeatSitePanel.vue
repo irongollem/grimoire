@@ -270,7 +270,13 @@ const ambienceCaption = computed(() => {
 //    already runs for the Atlas, over this one site's own data. ────────────
 const readiness = computed(() => site.value
   ? siteReadiness({
-    location: { map_url: site.value.map_url, grid_calibration: site.value.grid_calibration },
+    location: {
+      map_url: site.value.map_url,
+      grid_calibration: site.value.grid_calibration,
+      map_layer_url: site.value.map_layer_url,
+      map_layer_calibration: site.value.map_layer_calibration,
+      plan_size: site.value.plan_size,
+    },
     spaces: siteBindableSpaceIds.value.map((id) => ({ id })),
     regions: regions.value,
     doors: doors.value,

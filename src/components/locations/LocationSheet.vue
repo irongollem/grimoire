@@ -92,8 +92,8 @@
     </div>
 
     <!-- Map — pins and, on a site-tier place, traced room regions, both on
-         the one rendering of `location.map_url` (#807). -->
-    <section v-if="location.map_url" class="flex flex-col gap-2">
+         the one rendering of the map stack (#807, restacked #884). -->
+    <section v-if="hasAnyMapLayer(location)" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Map</h2>
       <div class="flex items-start gap-3">
         <!-- Frame 06's levels sidebar, reused verbatim from the Atlas
@@ -109,7 +109,7 @@
         />
         <div class="min-w-0 flex-1">
           <LocationMap
-            :map-url="location.map_url"
+            :stack="mapStack"
             :pins="location.map_pins ?? []"
             :children="mapPinnableChildren"
             mode="view"
@@ -118,7 +118,6 @@
             :show-regions="isSiteType(location.location_type)"
             :regions="siteRegions"
             :spaces="siteSpaces"
-            :calibration="location.grid_calibration"
             v-model:active-region-id="activeRegionId"
             @pin-click="onPinClick"
           />
@@ -171,6 +170,7 @@ import {
 } from "@/composables/locations/useLocations";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
+import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import { visibleTags } from "@/lib/locations/tags";
@@ -229,6 +229,9 @@ const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
 // such as a courtyard inside a dungeon (#818). The database decides this; the
 // helper exists so the picker never offers what the guard would refuse.
 const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
+
+// ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────
+const mapStack = computed(() => buildMapStack(props.location));
 
 // ── Identity row: rooms, sub-sites, levels (#868, frame 06) ─────────────────
 //

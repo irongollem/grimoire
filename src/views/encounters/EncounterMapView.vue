@@ -41,7 +41,7 @@
         preserveAspectRatio="none"
       >
         <image
-          :href="location.map_url ?? undefined"
+          :href="surface?.imageUrl ?? undefined"
           :x="panX"
           :y="panY"
           :width="imageNaturalW * scale"
@@ -124,8 +124,8 @@
 
       <!-- Off-screen loader to read naturalWidth/Height -->
       <img
-        v-if="location?.map_url && !imageReady"
-        :src="location.map_url"
+        v-if="surface?.imageUrl && !imageReady"
+        :src="surface.imageUrl"
         class="hidden-loader"
         @load="onImageLoad"
       />
@@ -167,6 +167,7 @@ import {
   type BrushMode,
   type CellKey,
 } from "@/lib/battlemap/fogMask";
+import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 
 const route = useRoute();
@@ -342,8 +343,8 @@ function resetFog(mode: "reveal" | "hide") {
   // so it just sets a very large pre-populated rect over the visible map
   // bounds. For practical maps this covers everything the player would see.
   if (mode === "reveal") {
-    if (!location.value?.grid_calibration) return;
-    const cellsAcross = location.value.grid_calibration.cells_per_image_width;
+    if (!surface.value) return;
+    const cellsAcross = surface.value.calibration.cells_per_image_width;
     if (!cellsAcross || imageNaturalH.value <= 0) return;
     const cellsDown = Math.ceil(
       cellsAcross * (imageNaturalH.value / imageNaturalW.value),
@@ -384,15 +385,16 @@ const loadingState = computed(() => {
   }
   if (!encounterLocation.value) return "Loading location…";
   if (!surface.value) {
-    // Check map_url first: a room can have its own uncalibrated map even
-    // while its site's plan is also uncalibrated, and that case needs
-    // "calibrate", not "no map of its own" — the room does have one.
+    // Check the map stack first: a room can have its own uncalibrated
+    // Picture or Drawing even while its site's plan is also uncalibrated,
+    // and that case needs "calibrate", not "no map of its own" — the room
+    // does have one.
     if (encounterLocation.value.location_type === "room") {
-      return encounterLocation.value.map_url
+      return hasAnyMapLayer(encounterLocation.value)
         ? "This room's map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale."
         : "This room has no map of its own, and its site isn't calibrated either. Trace and publish a plan for the site first.";
     }
-    return encounterLocation.value.map_url
+    return hasAnyMapLayer(encounterLocation.value)
       ? "This map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale."
       : "The linked location has no map. Upload or bake a map for this location first.";
   }
@@ -434,25 +436,25 @@ function onPointerUp() {
 }
 
 const cellPx = computed(() =>
-  location.value?.grid_calibration
+  surface.value
     ? cellSizeInDisplay({
         imageNaturalWidth: imageNaturalW.value,
-        cellsPerImageWidth: location.value.grid_calibration.cells_per_image_width,
+        cellsPerImageWidth: surface.value.calibration.cells_per_image_width,
         scale: scale.value,
       })
     : 0,
 );
 
 const gridOrigin = computed(() =>
-  location.value?.grid_calibration
+  surface.value
     ? gridOriginInDisplay({
         panX: panX.value,
         panY: panY.value,
         scale: scale.value,
         imageNaturalWidth: imageNaturalW.value,
         imageNaturalHeight: imageNaturalH.value,
-        originXPct: location.value.grid_calibration.origin_x_pct,
-        originYPct: location.value.grid_calibration.origin_y_pct,
+        originXPct: surface.value.calibration.origin_x_pct,
+        originYPct: surface.value.calibration.origin_y_pct,
       })
     : { x: 0, y: 0 },
 );
@@ -464,7 +466,7 @@ const gridHorizontals = computed(() =>
   cellPx.value > 0 ? gridLinePositions(gridOrigin.value.y, hostH.value, cellPx.value) : [],
 );
 const gridStrokeOpacity = computed(
-  () => location.value?.grid_calibration?.grid_opacity ?? DEFAULT_GRID_OPACITY,
+  () => surface.value?.calibration.grid_opacity ?? DEFAULT_GRID_OPACITY,
 );
 </script>
 

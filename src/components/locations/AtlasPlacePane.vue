@@ -261,6 +261,7 @@ import {
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
+import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { visibleTags } from "@/lib/locations/tags";
 import { groupByTier, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
 import type { LocationTier, TierGroup } from "@/lib/locations/tiers";
@@ -376,7 +377,7 @@ const occupied = computed<ReadonlySet<LocationTier>>(() =>
  * Battle maps are excluded on purpose — they are tactical encounter art, not
  * geography, and the Atlas is not where a DM goes looking for one.
  */
-const hasMap = computed(() => !!location?.map_url && !location.is_battle_map);
+const hasMap = computed(() => hasAnyMapLayer(location) && !location?.is_battle_map);
 
 const outOfEra = computed(() =>
   location ? isLocationOutOfEra(location, todayYear) : false,

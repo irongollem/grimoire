@@ -4,6 +4,7 @@ import { useEncounterRoom } from "@/composables/encounters/useEncounterRoom";
 import { useAssertLocationState } from "@/composables/locations/useLocationState";
 import { decodeFogMask } from "@/lib/battlemap/fogMask";
 import { roomsRevealedInCombat, type BattleSurface } from "@/lib/battlemap/roomBridge";
+import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import type { Location } from "@/types/location.types";
 
 /**
@@ -28,20 +29,21 @@ export function resolveBattleMapGate(params: {
   if (!location) return { canOpen: false, reason: "" };
 
   if (!surface) {
-    // Check map_url first: a room can carry its own uncalibrated map even
-    // while its site's plan is also uncalibrated, and that needs
-    // "calibrate", not "no map of its own" — the room does have one.
+    // Check the map stack first: a room can carry its own uncalibrated
+    // Picture or Drawing even while its site's plan is also uncalibrated,
+    // and that needs "calibrate", not "no map of its own" — the room does
+    // have one.
     if (location.location_type === "room") {
       return {
         canOpen: false,
-        reason: location.map_url
+        reason: hasAnyMapLayer(location)
           ? "This room's map needs calibrating first"
           : "This room has no map of its own, and its site isn't calibrated either",
       };
     }
     return {
       canOpen: false,
-      reason: location.map_url ? "Calibrate the location's map first" : "The linked location has no map",
+      reason: hasAnyMapLayer(location) ? "Calibrate the location's map first" : "The linked location has no map",
     };
   }
 

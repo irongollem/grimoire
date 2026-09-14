@@ -28,6 +28,9 @@ function makeLocation(overrides: Partial<Location> = {}): Location {
     source_map_id: null,
     is_battle_map: false,
     grid_calibration: null,
+    map_layer_url: null,
+    map_layer_calibration: null,
+    plan_size: null,
     era_start: null,
     era_end: null,
     audio_theme: null,
@@ -56,6 +59,7 @@ function makeSurface(overrides: Partial<BattleSurface> = {}): BattleSurface {
     focusRoomId: null,
     focusCells: [],
     calibration: makeCalibration(),
+    imageUrl: "map.png",
     ...overrides,
   };
 }
@@ -82,6 +86,13 @@ describe("resolveBattleMapGate", () => {
 
   it("says 'needs calibrating' — not 'no map of its own' — for a room that HAS a map but no calibration", () => {
     const room = makeLocation({ location_type: "room", map_url: "room-map.png", grid_calibration: null });
+    const gate = resolveBattleMapGate({ hasLocationId: true, location: room, surface: null });
+    expect(gate.canOpen).toBe(false);
+    expect(gate.reason).toBe("This room's map needs calibrating first");
+  });
+
+  it("says 'needs calibrating' for a room whose own map is a Drawing, not a Picture (#884)", () => {
+    const room = makeLocation({ location_type: "room", map_url: null, map_layer_url: "drawing.webp" });
     const gate = resolveBattleMapGate({ hasLocationId: true, location: room, surface: null });
     expect(gate.canOpen).toBe(false);
     expect(gate.reason).toBe("This room's map needs calibrating first");

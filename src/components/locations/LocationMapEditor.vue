@@ -6,7 +6,7 @@
         >Map</span
       >
       <label
-        v-if="mapUrl && !isNew"
+        v-if="stack.hasAnyLayer && !isNew"
         class="inline-flex items-center gap-2 cursor-pointer"
         title="Share map with players"
       >
@@ -27,9 +27,9 @@
       </label>
     </div>
 
-    <!-- No map: full drop zone -->
+    <!-- No map layer at all: full drop zone -->
     <ImageUpload
-      v-if="!mapUrl"
+      v-if="!stack.hasAnyLayer"
       :model-value="null"
       aspect="landscape"
       placeholder="Upload a map…"
@@ -37,11 +37,11 @@
       @update:model-value="$emit('update:mapUrl', $event)"
     />
 
-    <!-- Has map: interactive map + compact controls -->
+    <!-- Has a map layer: interactive stack + compact controls -->
     <template v-else>
       <LocationMap
         v-if="!isNew && children"
-        :map-url="mapUrl"
+        :stack="stack"
         :pins="mapPins"
         :children="mapPinnableChildren"
         mode="edit"
@@ -119,13 +119,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import ImageUpload from '@/components/common/ImageUpload.vue';
 import AppButton from '@/components/common/AppButton.vue';
 import AppCheckbox from '@/components/common/AppCheckbox.vue';
 import LocationMap from '@/components/locations/LocationMap.vue';
 import { useImageUpload } from '@/composables/useImageUpload';
+import { buildMapStack } from '@/lib/locations/mapStack';
 import type { Location, MapPin as MapPinType, GridCalibration } from '@/types/location.types';
 
 const {
@@ -139,6 +140,9 @@ const {
   mapPinnableChildren = [],
   sourceMapId = null,
   gridCalibration = null,
+  mapLayerUrl = null,
+  mapLayerCalibration = null,
+  planSize = null,
 } = defineProps<{
   locationId: string | null;
   mapUrl: string | null;
@@ -150,7 +154,29 @@ const {
   mapPinnableChildren?: Location[];
   sourceMapId?: string | null;
   gridCalibration?: GridCalibration | null;
+  /** The Drawing layer (#884) — a transparent Cartographer bake. Passed
+   *  through from the saved location, never drafted: the form only ever
+   *  drafts the Picture (`mapUrl`), while the Drawing and the blank grid are
+   *  written by publish and by Build mode. */
+  mapLayerUrl?: string | null;
+  mapLayerCalibration?: GridCalibration | null;
+  /** The blank-grid plan size, when neither image layer exists. */
+  planSize?: { cols: number; rows: number } | null;
 }>();
+
+// The draft's own map stack (#884) — built from the individual field props
+// above rather than a whole `Location`, since this editor works from an
+// unsaved draft that may not correspond to any saved row yet (a new
+// location has no id at all).
+const stack = computed(() =>
+  buildMapStack({
+    map_url: mapUrl,
+    grid_calibration: gridCalibration,
+    map_layer_url: mapLayerUrl,
+    map_layer_calibration: mapLayerCalibration,
+    plan_size: planSize,
+  }),
+);
 
 const emit = defineEmits<{
   'update:mapUrl': [value: string | null];

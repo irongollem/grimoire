@@ -38,6 +38,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useUpdateLocation } from "@/composables/locations/useLocations";
 import { arrayRevealAdapter } from "@/lib/reveal";
 import type { RevealForm } from "@/lib/reveal";
+import { hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 
@@ -93,7 +94,7 @@ const shareOptions = computed(() => {
     { key: "is_description_shared", label: "Full description" },
     { key: "is_npcs_shared", label: "People here" },
   ];
-  if (location.map_url && !location.is_battle_map) {
+  if (hasAnyMapLayer(location) && !location.is_battle_map) {
     options.push({ key: "is_map_shared", label: "Map" });
   }
   if (STORE_LOCATION_TYPES.has(location.location_type)) {

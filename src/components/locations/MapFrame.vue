@@ -42,19 +42,19 @@
       @click="emit('container-click')"
     >
       <!--
-        Sizing comes from the shared constants, not literals: the Atlas zoom
-        overlay renders this same image and must match exactly, or the handoff
-        between the two visibly jumps.
+        The map stack (#884): Picture, Drawing, or a blank grid, whichever
+        applies. Sizing comes from the shared constants inside
+        `MapStackImage` itself, not literals here — the Atlas zoom overlay
+        renders the same stack through the same component and must match
+        exactly, or the handoff between the two visibly jumps.
       -->
-      <img
+      <MapStackImage
         v-if="!imageFailed"
-        :src="mapUrl"
-        class="rounded-lg pointer-events-none"
-        :class="[MAP_IMAGE_SIZING, compact ? MAP_IMAGE_COMPACT_SIZING : '']"
-        draggable="false"
-        alt="Location map"
-        @load="onImageLoad"
-        @error="onImageError"
+        :stack="stack"
+        :compact="compact"
+        :visible="{ picture: siteMapLayers.picture, drawing: siteMapLayers.drawing }"
+        @measured="onMeasured"
+        @failed="onImageError"
       />
 
       <!--
@@ -127,12 +127,16 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/AppButton.vue";
+import MapStackImage from "@/components/locations/MapStackImage.vue";
 import { IconMap } from "@/lib/icons";
-import { MAP_IMAGE_COMPACT_SIZING, MAP_IMAGE_SIZING } from "@/lib/locations/mapZoom";
+import { MAP_IMAGE_COMPACT_SIZING } from "@/lib/locations/mapZoom";
+import type { MapStack } from "@/lib/locations/mapStack";
+import { useUiStore } from "@/stores/ui";
 
-const { mapUrl, compact, placing = false } = defineProps<{
-  mapUrl: string;
+const { stack, compact, placing = false } = defineProps<{
+  stack: MapStack;
   /** Cap map height at ~800px with scroll (useful for very tall portrait maps). */
   compact?: boolean;
   /**
@@ -143,6 +147,8 @@ const { mapUrl, compact, placing = false } = defineProps<{
    */
   placing?: boolean;
 }>();
+
+const { siteMapLayers } = storeToRefs(useUiStore());
 
 const emit = defineEmits<{
   /**
@@ -437,26 +443,26 @@ function resetZoom() {
   ty.value = 0;
 }
 
-// ── Natural image size (#807) ────────────────────────────────────────────────
+// ── Natural image size (#807, restacked #884) ─────────────────────────────
 // Exposed so a slotted layer that needs image-space geometry (region cells,
-// today) doesn't mount its own second `<img>` just to read
-// naturalWidth/naturalHeight — this is the frame's own image, and it is the
-// only one `map_url` is rendered by. Reset on every `mapUrl` change so a
-// slower-loading replacement image can't leave a stale size behind for the
-// gap between the swap and the new `load` event.
+// today) doesn't mount its own second image just to read
+// naturalWidth/naturalHeight — this is the frame's own stack, and it is the
+// only one rendering `stack.primary` (or the blank grid's synthetic size).
+// Reset on every change of the primary layer's identity so a slower-loading
+// replacement can't leave a stale size behind for the gap between the swap
+// and the new `measured` event.
 const imageNaturalWidth = ref(0);
 const imageNaturalHeight = ref(0);
 
-// True once the current `mapUrl` has fired an `error` event (#828) — a
+// True once the current primary layer has fired a `failed` event (#828) — a
 // deleted asset, a CDN blip, an offline client. Drives the quiet placeholder
 // above and is exposed below so a consumer with a better fallback (the
 // player's explored-room list, today) can render one instead of nothing.
 const imageFailed = ref(false);
 
-function onImageLoad(e: Event) {
-  const img = e.target as HTMLImageElement;
-  imageNaturalWidth.value = img.naturalWidth;
-  imageNaturalHeight.value = img.naturalHeight;
+function onMeasured(naturalWidth: number, naturalHeight: number) {
+  imageNaturalWidth.value = naturalWidth;
+  imageNaturalHeight.value = naturalHeight;
   imageFailed.value = false;
 }
 
@@ -465,13 +471,13 @@ function onImageError() {
 }
 
 watch(
-  () => mapUrl,
+  () => stack.primary?.url ?? (stack.blank ? `blank:${stack.blank.cols}x${stack.blank.rows}` : null),
   () => {
     imageNaturalWidth.value = 0;
     imageNaturalHeight.value = 0;
     // A DM who fixes a broken URL shouldn't have to reload the page — a new
-    // `mapUrl` gets a fresh attempt, and the placeholder only comes back if
-    // that attempt also errors.
+    // primary layer gets a fresh attempt, and the placeholder only comes
+    // back if that attempt also errors.
     imageFailed.value = false;
   },
 );

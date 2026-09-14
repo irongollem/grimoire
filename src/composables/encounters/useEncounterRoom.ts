@@ -11,7 +11,8 @@ import type { LocationMapRegion } from "@/types/locationMapRegion.types";
  * so a caller that already has a `location_id` (the encounter builder's
  * pre-placement panel, which edits a not-yet-saved encounter and so has no
  * encounter row to read one from) can reuse the exact same resolution rather
- * than re-deriving it against only its own location's `map_url` (epic #868).
+ * than re-deriving it against only its own location's map stack (epic #868;
+ * the stack itself is epic #884's `lib/locations/mapStack.ts`).
  */
 export function useLocationBattleSurface(locationId: MaybeRefOrGetter<string>) {
   const { data: location } = useLocation(computed(() => toValue(locationId)));

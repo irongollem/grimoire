@@ -776,7 +776,12 @@ export const useUiStore = defineStore("ui", () => {
   // layers are on is a working-session preference for whichever plan is open
   // right now, not a durable setting worth carrying between sessions or
   // sites the way `locationsTreeCollapsed` is.
-  const siteMapLayers = ref({ spaces: true, ways: true, zones: false, prepared: false, grid: true });
+  // `picture`/`drawing` (#884) toggle the map stack's own two image layers —
+  // distinct from the traced-content layers above: turning the Drawing off
+  // reveals the Picture beneath it (when there is one), and turning the
+  // Picture off hides it where nothing else covers it. Default both on, same
+  // as every other layer here.
+  const siteMapLayers = ref({ spaces: true, ways: true, zones: false, prepared: false, grid: true, picture: true, drawing: true });
 
   function toggleSiteMapLayer(key: keyof typeof siteMapLayers.value) {
     siteMapLayers.value[key] = !siteMapLayers.value[key];
