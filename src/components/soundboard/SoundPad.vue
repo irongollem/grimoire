@@ -19,7 +19,12 @@
       blockedReason === null ? '' : 'opacity-60',
     ]"
     :title="blockedReason ?? undefined"
-    @click="fire"
+    @click="handleClick"
+    @pointerdown="gesture.onPointerdown"
+    @pointermove="gesture.onPointermove"
+    @pointerup="gesture.onPointerup"
+    @pointercancel="gesture.onPointercancel"
+    @contextmenu="gesture.onContextmenu"
   >
     <!--
       Cover art, Perform only. Arrange already shows it in the card header, and
@@ -70,11 +75,13 @@
     -->
     <span v-if="mode === 'perform' && size !== 'sm'" class="relative mt-auto flex min-w-0 items-center gap-1.5 pt-1">
       <EqBars v-if="isPlaying" :accent="sound.category" />
-      <IconRepeat
-        v-if="isLooping"
-        class="h-2.5 w-2.5 shrink-0"
-        :class="isPlaying ? CATEGORY_TEXT[sound.category] : 'text-muted-foreground'"
-      />
+      <Transition :css="false" @enter="onLoopIconEnter">
+        <IconRepeat
+          v-if="isLooping"
+          class="h-2.5 w-2.5 shrink-0"
+          :class="isPlaying ? CATEGORY_TEXT[sound.category] : 'text-muted-foreground'"
+        />
+      </Transition>
       <span v-if="durationLabel" class="shrink-0 text-2xs tabular-nums text-muted-foreground">
         {{ durationLabel }}
       </span>
@@ -85,10 +92,20 @@
       <CausedByChip :trigger="trigger" small :releasable="false" />
     </span>
 
-    <!-- Small pads still show that something is audible, just nothing else.
+    <!-- Small pads still show that something is audible, just nothing else —
+         duration and artist stay off. Loop is the exception: it is what the
+         *next* tap does, not decoration, and it is also the one state a small
+         pad has no other way to reveal, so it shows even while stopped.
          Perform only: those pads have fixed heights, so the row costs nothing. -->
-    <span v-else-if="mode === 'perform' && isPlaying" class="relative mt-auto pt-1">
-      <EqBars :accent="sound.category" />
+    <span v-else-if="mode === 'perform' && (isPlaying || isLooping)" class="relative mt-auto flex items-center gap-1 pt-1">
+      <EqBars v-if="isPlaying" :accent="sound.category" />
+      <Transition :css="false" @enter="onLoopIconEnter">
+        <IconRepeat
+          v-if="isLooping"
+          class="h-2.5 w-2.5 shrink-0"
+          :class="isPlaying ? CATEGORY_TEXT[sound.category] : 'text-muted-foreground'"
+        />
+      </Transition>
     </span>
 
     <span v-if="blockedReason !== null" class="relative mt-1 text-2xs leading-snug text-destructive">
@@ -110,9 +127,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconRepeat, IconMusicNote, IconMusic, IconWind, IconLightning } from "@/lib/icons";
+import { canAnimate, whenSettled } from "@/lib/motion";
 import FocalImage from "@/components/common/FocalImage.vue";
 import { useSoundboardStore } from "@/stores/soundboard";
 import { useSoundPlayback } from "@/composables/soundboard/useSoundPlayback";
+import { usePadLoopGesture } from "@/composables/soundboard/usePadLoopGesture";
 import {
   CATEGORY_BORDER,
   CATEGORY_SPINE,
@@ -173,6 +192,34 @@ const { triggerForSound } = useActiveAudioTriggers();
 const trigger = computed(() => triggerForSound(sound.id));
 const state = computed(() => store.getState(sound.id));
 const isLooping = computed(() => state.value.isLooping);
+
+// The pad has exactly one visible gesture — tap to fire. Loop rides on top of
+// it rather than adding a control that would compete with "aim and hit": a
+// double-tap/double-click, or a long-press/right-click for anyone who can't
+// land two taps in a row. See usePadLoopGesture for why neither path needs to
+// suppress the pad's own tap action.
+const gesture = usePadLoopGesture({ onToggleLoop: () => store.toggleLoop(sound.id) });
+
+function handleClick(): void {
+  if (gesture.onClick()) fire();
+}
+
+/** The loop glyph popping in is the confirmation — it disappears from a
+ *  double-tap that's already moved past by the time it turns off, so only
+ *  the appearance needs to be seen happening. */
+function onLoopIconEnter(el: Element, done: () => void): void {
+  if (!canAnimate(el)) {
+    done();
+    return;
+  }
+  whenSettled(
+    (el as HTMLElement).animate(
+      [{ transform: "scale(0.4)" }, { transform: "scale(1.25)" }, { transform: "scale(1)" }],
+      { duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+    ),
+    done,
+  );
+}
 
 const progress = computed(() => {
   const { currentTime, duration } = state.value;

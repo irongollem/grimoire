@@ -266,6 +266,19 @@
                 :model-value="store.soundEffects?.[sound.id] ?? 'none'"
                 @update:model-value="store.setEffect(sound.id, sound.file_url, $event, sound.category)"
               />
+              <!-- Loop toggle: the pad's own loop gesture is easy to miss mid-scene,
+                   so a sound already looping still needs to say so somewhere the DM
+                   is looking anyway — the widget's own list of what's audible. -->
+              <AppButton
+                variant="ghost"
+                size="inline-xs"
+                class="shrink-0"
+                :active="store.getState(sound.id).isLooping"
+                :icon="IconRepeat"
+                icon-size="xs"
+                tooltip="Toggle loop"
+                @click="store.toggleLoop(sound.id)"
+              />
               <!-- Stop -->
               <AppButton
                 variant="ghost"
