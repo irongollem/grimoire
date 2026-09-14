@@ -90,9 +90,20 @@ flowchart LR
     cdn --> r2 & ss
 ```
 
-- `VITE_ASSET_CDN_URL` unset (current production default) = everything served
-  from Supabase Storage; the R2 config is all-four-env-vars-or-nothing and
-  falls back silently (`R2UnavailableError`).
+- `VITE_ASSET_CDN_URL` **is set in production** and has been since #577 — it is
+  the single switch for both user/canonical art (`urls.ts`) and static app art
+  (`artUrl.ts`), not one variable per feature. Unset (the local default) means
+  everything resolves against the Supabase origin, which is why dev serves art
+  from the build. The R2 config proper is all-four-env-vars-or-nothing and falls
+  back silently (`R2UnavailableError`).
+
+  How to check rather than trust this line: `r2WritesEnabled()`
+  (`supabase/functions/_shared/r2/config.ts:58`) returns false unless the CDN
+  base is non-empty, so any recently uploaded object whose stored URL is a
+  `cdn.dungeongrimoire.com` one proves the variable was set at that moment. It
+  said "unset (current production default)" here for months after that stopped
+  being true, and the #877 session repeated it back to the maintainer as a
+  remaining rollout step before he corrected it.
 - Public URL contract: `cdn.dungeongrimoire.com/<bucket>/<path>` ==
   R2 key `<bucket>/<path>`. Worker runbook: `infra/README.md`.
 - Shared/canonical art lives under the `srd/` prefix, user art under
@@ -109,11 +120,11 @@ R2 key; `artUrl()` returns its argument unchanged when either the CDN base is
 unset **or** the path has no manifest entry, so an un-rolled-out environment
 is a silent no-op rather than a broken image.
 
-**Rollout order matters and is not reversible in the pleasant direction:**
-run `npm run art:publish` first, set `VITE_ASSET_CDN_URL` in Vercel second.
-The other order points the app at a CDN with nothing behind it. Published
-14 Sep 2026: all 91 objects uploaded and verified; `VITE_ASSET_CDN_URL` is
-still unset, so production continues to serve them from the build.
+**Rollout order matters, and there is no Vercel step.** `VITE_ASSET_CDN_URL`
+is already set (see above), so `artUrl()` begins returning CDN URLs for all 91
+paths the moment the code deploys — publish the bytes *before* pushing, or
+production 404s every one of them. Published 14 Sep 2026: all 91 uploaded and
+verified against the bucket, ahead of the deploy.
 
 `art:publish` never deletes — a hashed key from an older deploy may still be
 referenced by a client that has not reloaded, and a key nothing links to
