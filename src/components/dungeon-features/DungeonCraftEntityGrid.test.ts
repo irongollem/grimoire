@@ -4,10 +4,29 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 
+// The real CopyToCampaignDialog's setup unconditionally calls useDmCampaigns()
+// (a TanStack Query composable) even while closed, and PaywallModal's setup
+// does the same via useQuota/usePlan — neither has a query client in this
+// suite. Both are stubbed as inspectable components so the tests below can
+// assert on the props DungeonCraftEntityGrid passes them and drive their
+// emits, without standing up real query infrastructure — CopyToCampaignDialog
+// itself is covered by its own test file.
+const CopyToCampaignDialogStub = {
+  props: ["open", "table", "ids", "sourceCampaignId", "label"],
+  emits: ["close", "copied", "quota-exceeded"],
+  template: `<div data-testid="copy-dialog" />`,
+};
+const PaywallModalStub = {
+  props: ["modelValue", "resource"],
+  emits: ["update:modelValue"],
+  template: `<div data-testid="paywall-modal" />`,
+};
+
 const mocks = vi.hoisted(() => ({
   mutateAsync: vi.fn(async () => ({ moved: 1 })),
   activeCampaign: { name: "Curse of Strahd" } as { name: string } | null,
   activeCampaignId: "camp-1" as string | null,
+  toastSuccess: vi.fn(),
 }));
 
 vi.mock("@/composables/campaign/useBulkCampaignScope", () => ({
@@ -20,7 +39,7 @@ vi.mock("@/stores/campaign", () => ({
   }),
 }));
 vi.mock("@/composables/useToast", () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), fromError: (e: unknown) => String(e) }),
+  useToast: () => ({ success: mocks.toastSuccess, error: vi.fn(), fromError: (e: unknown) => String(e) }),
 }));
 
 function baseProps(overrides: Record<string, unknown> = {}) {
@@ -45,6 +64,14 @@ function cardSlot(onCardClick: () => void) {
       { selected: scope.isSelected("a"), selecting: scope.selecting, onToggle: () => scope.toggle("a") },
       { default: () => h("a", { href: "#", class: "card-a", onClick: onCardClick }, "Card A") },
     );
+}
+
+function mountGrid(props: ReturnType<typeof baseProps>, onCardClick: () => void = vi.fn()) {
+  return mount(DungeonCraftEntityGrid, {
+    props,
+    slots: { card: cardSlot(onCardClick) },
+    global: { stubs: { CopyToCampaignDialog: CopyToCampaignDialogStub, PaywallModal: PaywallModalStub } },
+  });
 }
 
 function findButton(wrapper: ReturnType<typeof mount>, text: string) {
@@ -166,5 +193,92 @@ describe("DungeonCraftEntityGrid — bulk scope (#875)", () => {
     await findButton(wrapper, "Move to Curse of Strahd")!.trigger("click");
 
     expect(mocks.mutateAsync).toHaveBeenCalledWith({ table: "roll_tables", ids: ["a"], campaignId: "camp-1" });
+  });
+});
+
+describe("DungeonCraftEntityGrid — copy to campaign (#598)", () => {
+  beforeEach(() => {
+    mocks.toastSuccess.mockClear();
+    mocks.activeCampaignId = "camp-1";
+  });
+
+  it("without `copyLabel`, no copy dialog mounts even though `table` is set", () => {
+    const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"] }));
+    expect(wrapper.find('[data-testid="copy-dialog"]').exists()).toBe(false);
+  });
+
+  it("pressing Copy to campaign… opens the dialog with the pruned selection and the active campaign as source", async () => {
+    const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"], copyLabel: "roll table" }));
+
+    await findButton(wrapper, "Select")!.trigger("click");
+    await wrapper.get(".card-a").trigger("click"); // selects "a"
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    const dialog = wrapper.findComponent(CopyToCampaignDialogStub);
+    expect(dialog.props()).toMatchObject({
+      open: true,
+      table: "roll_tables",
+      ids: ["a"],
+      sourceCampaignId: "camp-1",
+      label: "roll table",
+    });
+  });
+
+  it("prunes a stale id before opening the dialog, same as the move path (#875)", async () => {
+    const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"], copyLabel: "roll table" }));
+
+    await findButton(wrapper, "Select")!.trigger("click");
+    await findButton(wrapper, "Select all shown")!.trigger("click"); // selects "a" and "b"
+
+    // "b" no longer passes the current filters by the time Copy is pressed.
+    await wrapper.setProps({ ids: ["a"] });
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    expect(wrapper.findComponent(CopyToCampaignDialogStub).props("ids")).toEqual(["a"]);
+  });
+
+  it("on copied: toasts the count and destination, closes the dialog and clears the selection", async () => {
+    const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"], copyLabel: "roll table" }));
+
+    await findButton(wrapper, "Select")!.trigger("click");
+    await wrapper.get(".card-a").trigger("click");
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    const dialog = wrapper.findComponent(CopyToCampaignDialogStub);
+    await dialog.vm.$emit("copied", { copied: 3, targetName: "Icewind Dale" });
+
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Copied 3 roll tables to Icewind Dale.");
+    expect(wrapper.findComponent(CopyToCampaignDialogStub).props("open")).toBe(false);
+    expect(wrapper.text()).not.toContain("selected");
+  });
+
+  it("singular count toasts the singular noun", async () => {
+    const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"], copyLabel: "roll table" }));
+
+    await findButton(wrapper, "Select")!.trigger("click");
+    await wrapper.get(".card-a").trigger("click");
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+    await wrapper.findComponent(CopyToCampaignDialogStub).vm.$emit("copied", { copied: 1, targetName: "Icewind Dale" });
+
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Copied 1 roll table to Icewind Dale.");
+  });
+
+  it("no paywall is mounted for a table without the quota trigger (roll_tables)", () => {
+    const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"], copyLabel: "roll table" }));
+    expect(wrapper.find('[data-testid="paywall-modal"]').exists()).toBe(false);
+  });
+
+  it("on quota-exceeded for puzzle_rooms: closes the copy dialog and opens the paywall", async () => {
+    const wrapper = mountGrid(baseProps({ table: "puzzle_rooms", ids: ["a", "b"], copyLabel: "puzzle" }));
+
+    await findButton(wrapper, "Select")!.trigger("click");
+    await wrapper.get(".card-a").trigger("click");
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    const dialog = wrapper.findComponent(CopyToCampaignDialogStub);
+    await dialog.vm.$emit("quota-exceeded");
+
+    expect(wrapper.findComponent(CopyToCampaignDialogStub).props("open")).toBe(false);
+    expect(wrapper.findComponent(PaywallModalStub).props("modelValue")).toBe(true);
   });
 });

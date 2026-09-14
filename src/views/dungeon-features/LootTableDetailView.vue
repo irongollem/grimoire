@@ -11,6 +11,12 @@
           @click="onDelete"
         />
         <PageHeaderAction
+          v-if="table"
+          label="Copy to campaign…"
+          :icon="IconCopy"
+          @click="copyOpen = true"
+        />
+        <PageHeaderAction
           variant="primary"
           label="Edit"
           :icon="IconEdit"
@@ -235,14 +241,34 @@
       />
     </div>
   </PageHeader>
+
+  <!--
+    Copy-to-campaign (#598, wave 2). No `@close`-then-navigate here: the copy
+    lands in another campaign, which neither this page nor the loot-table list
+    can show, so the toast naming the destination (handleCopied below) is the
+    only confirmation there can be — a deliberate exception to CLAUDE.md's
+    Post-Mutation Navigation rule, not an oversight. loot_tables carries no
+    enforce_quota trigger, so there is no paywall to wire here.
+  -->
+  <CopyToCampaignDialog
+    v-if="table"
+    :open="copyOpen"
+    table="loot_tables"
+    :ids="[table.id]"
+    :source-campaign-id="table.campaign_id"
+    label="loot table"
+    @close="copyOpen = false"
+    @copied="handleCopied"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
-import { IconClose, IconDelete, IconEdit, IconMonster } from '@/lib/icons';
+import { IconClose, IconCopy, IconDelete, IconEdit, IconMonster } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import {
   useLootTable,
@@ -278,6 +304,7 @@ import LootTableEntryEditor from "@/components/dungeon-features/LootTableEntryEd
 import LootTableRollPanel from "@/components/dungeon-features/LootTableRollPanel.vue";
 import EntityPlacements from "@/components/locations/EntityPlacements.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 
 const route   = useRoute();
 const router  = useRouter();
@@ -446,5 +473,15 @@ async function onDelete() {
   } finally {
     isDeleting.value = false;
   }
+}
+
+// ── Copy to campaign (#598) ─────────────────────────────────────────────────
+
+const toast = useToast();
+const copyOpen = ref(false);
+
+function handleCopied({ targetName }: { copied: number; targetName: string }) {
+  toast.success(`Copied "${table.value?.name ?? form.value.name}" to ${targetName}.`);
+  copyOpen.value = false;
 }
 </script>

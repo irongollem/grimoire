@@ -89,6 +89,16 @@
       @clear="clearSelection"
       @stop="stopSelecting"
       @move="handleMove"
+      @copy="handleCopyOpen"
+    />
+    <CopyToCampaignDialog
+      :open="copyOpen"
+      table="spells"
+      :ids="copyIds"
+      :source-campaign-id="campaignStore.activeCampaignId"
+      label="spell"
+      @close="copyOpen = false"
+      @copied="onCopied"
     />
     <SpellList
       ref="spellListRef"
@@ -118,11 +128,13 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import SpellList from "@/components/spells/SpellList.vue";
 import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { useEnabledSources, useAvailableLibrarySpellSources } from "@/composables/library/useEnabledSources";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
+import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 
@@ -188,4 +200,20 @@ async function handleMove(campaignId: string | null) {
     toast.error(toast.fromError(error));
   }
 }
+
+// ── Bulk copy-to-campaign (#598) ─────────────────────────────────────────────
+// Same staleness discipline as handleMove: the selection can hold an id for a
+// row the current filters no longer show (#875), and a copy batched from it
+// would be just as wrong as a move would be — `useCopyToCampaignFlow` prunes
+// at open time for exactly this reason. It also ends selection mode on a
+// successful copy, exactly as `handleMove` does: a copy does not remove the
+// originals from this list, so keeping the selection would be defensible —
+// but the bulk surfaces have to agree on what finishing a bulk action looks
+// like, and every `move` already ends it.
+const { copyOpen, copyIds, openCopy: handleCopyOpen, onCopied } = useCopyToCampaignFlow({
+  noun: "spell",
+  selectableIds: () => spellListRef.value?.selectableIds ?? [],
+  pruneTo,
+  stop: stopSelecting,
+});
 </script>

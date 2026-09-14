@@ -22,6 +22,7 @@
     empty-action-label="New Roll Table"
     table="roll_tables"
     :ids="rollTableFilteredIds"
+    copy-label="roll table"
     @empty-action="inlineNewRollTable = true"
   >
     <template #filters>

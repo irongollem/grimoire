@@ -12,6 +12,7 @@
     empty-action-label="New Puzzle"
     table="puzzle_rooms"
     :ids="puzzleFilteredIds"
+    copy-label="puzzle"
     @empty-action="router.push('/puzzles/new')"
   >
     <template #filters>

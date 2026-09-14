@@ -51,6 +51,12 @@
         />
         <PageHeaderAction
           v-if="item"
+          label="Copy to campaign…"
+          :icon="IconCopy"
+          @click="copyOpen = true"
+        />
+        <PageHeaderAction
+          v-if="item"
           variant="destructive"
           :label="itemDetail.isDeleting ? 'Deleting…' : 'Delete'"
           :disabled="itemDetail.isDeleting"
@@ -82,6 +88,17 @@
         :prefill-name="isNewItem ? (route.query.name as string | undefined) : undefined"
       />
     </template>
+
+    <CopyToCampaignDialog
+      v-if="item"
+      :open="copyOpen"
+      table="items"
+      :ids="[item.id]"
+      :source-campaign-id="item.campaign_id"
+      label="item"
+      @close="copyOpen = false"
+      @copied="onCopied"
+    />
   </PageHeader>
 </template>
 
@@ -95,6 +112,7 @@ import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
 import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
 import ItemSendMenu from "@/components/items/ItemSendMenu.vue";
@@ -138,6 +156,19 @@ async function cloneToCustomize() {
   } finally {
     isCloning.value = false;
   }
+}
+
+// ── Copy to campaign (#598) ───────────────────────────────────────────────────
+const copyOpen = ref(false);
+function onCopied({ targetName }: { copied: number; targetName: string }) {
+  toast.success(`Copied "${item.value?.name ?? "item"}" to ${targetName}.`);
+  copyOpen.value = false;
+  // No post-copy navigation, deliberately: unlike a create, the copy lands in
+  // another campaign, which neither this page nor the vault list can show —
+  // the toast naming the destination is the only confirmation there can be,
+  // and leaving this page mid-edit would be strictly worse than the copy
+  // landing silently. "Clone" above stays on this page's own navigation,
+  // since that one does land in this scope.
 }
 
 const subtitle = computed(() => {

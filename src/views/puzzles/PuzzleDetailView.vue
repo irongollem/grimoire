@@ -5,6 +5,12 @@
       <template v-if="mode === 'view' && !isNew">
         <PuzzleRevealControl v-if="puzzle" :puzzle="puzzle" />
         <PageHeaderAction
+          v-if="puzzle"
+          label="Copy to campaign…"
+          :icon="IconCopy"
+          @click="copyOpen = true"
+        />
+        <PageHeaderAction
           label="Edit"
           :icon="IconEdit"
           @click="mode = 'edit'"
@@ -365,15 +371,36 @@
       </div>
     </template>
   </PageHeader>
+
+  <!--
+    Copy-to-campaign (#598, wave 2). No `@close`-then-navigate here: the copy
+    lands in another campaign, which neither this page nor the puzzle list can
+    show, so the toast naming the destination (handleCopied below) is the only
+    confirmation there can be — a deliberate exception to CLAUDE.md's
+    Post-Mutation Navigation rule, not an oversight.
+  -->
+  <CopyToCampaignDialog
+    v-if="puzzle"
+    :open="copyOpen"
+    table="puzzle_rooms"
+    :ids="[puzzle.id]"
+    :source-campaign-id="puzzle.campaign_id"
+    label="puzzle"
+    @close="copyOpen = false"
+    @copied="handleCopied"
+    @quota-exceeded="handleCopyQuotaExceeded"
+  />
+  <PaywallModal v-model="showPaywall" resource="puzzle_rooms" />
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
-import { IconDelete, IconDungeon, IconEdit, IconHide, IconLocation, IconReveal } from '@/lib/icons';
+import { IconCopy, IconDelete, IconDungeon, IconEdit, IconHide, IconLocation, IconReveal } from '@/lib/icons';
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/dungeon-features/usePuzzles";
 import { useCampaignStore } from "@/stores/campaign";
+import { useToast } from "@/composables/useToast";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { cn, deepEqual } from "@/lib/utils";
 import { fieldVariants } from "@/components/common/fieldVariants";
@@ -390,6 +417,8 @@ import TagInput from "@/components/common/TagInput.vue";
 import CampaignScopeField from "@/components/common/CampaignScopeField.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import RichTextViewer from "@/components/common/RichTextViewer.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import PuzzleIdentityCard from "@/components/puzzles/PuzzleIdentityCard.vue";
 import PuzzleRevealControl from "@/components/puzzles/PuzzleRevealControl.vue";
 import PuzzleHintsEditor from "@/components/puzzles/PuzzleHintsEditor.vue";
@@ -644,5 +673,21 @@ async function handleDelete() {
   if (!confirm(`Delete "${form.name}"? This cannot be undone.`)) return;
   await deleteMutation.mutateAsync(puzzle.value!);
   router.push({ path: "/dungeon-craft", query: { tab: "puzzles" } });
+}
+
+// ── Copy to campaign (#598) ─────────────────────────────────────────────────
+
+const toast = useToast();
+const copyOpen = ref(false);
+const showPaywall = ref(false);
+
+function handleCopied({ targetName }: { copied: number; targetName: string }) {
+  toast.success(`Copied "${puzzle.value?.name ?? form.name}" to ${targetName}.`);
+  copyOpen.value = false;
+}
+
+function handleCopyQuotaExceeded() {
+  copyOpen.value = false;
+  showPaywall.value = true;
 }
 </script>

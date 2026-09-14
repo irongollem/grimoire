@@ -86,6 +86,98 @@ implementation turns on, each with a reason worth keeping:
   write pointing at rows the DM could no longer see — the one way this feature
   could have silently re-scoped something nobody chose.
 
+**Copying to another campaign (#598) — the canonical description; the other
+feature docs point here.** Re-scoping *moves* a row: one row, somewhere else.
+The other half of the need is a second, independent row the DM can then let
+diverge — the whimsical campaign's Ashen Warden gets a silly hat and the
+serious one does not. That is a different feature from the global flag, which
+shares one row so an edit for one table changes it at the other.
+
+The mechanism is `src/lib/campaign/copyToCampaign.ts` (pure planner),
+`src/composables/campaign/useCopyToCampaign.ts` (reads, plans, inserts) and
+`CopyToCampaignDialog.vue`, over the same eight tables `BulkScopeTable` already
+names. **No migration backs it**: every one of those tables' INSERT policy is
+already `auth.uid() = user_id AND (campaign_id IS NULL OR
+private.is_campaign_dm(campaign_id))`, so inserting into another campaign the
+account DMs has always been permitted. It reaches the DM two ways — the Select
+surface's bar (so a shelf of homebrew travels in one action) and a
+"Copy to campaign…" action on each detail editor.
+
+Seven decisions worth keeping:
+
+- **The target picker exists here and deliberately does not on the Move
+  buttons.** The no-picker rule above keeps the bulk and single-row *scope*
+  controls from diverging; both answer "where does this row live", and
+  `CampaignScopeField` can only say "here" or "everywhere". A copy answers a
+  different question — it creates a row where the original is not — so there is
+  no single-row control for it to diverge from, and the active campaign is
+  precisely the one destination a copy never wants. The picker therefore
+  excludes the source's own scope: from a campaign-scoped row, that campaign;
+  from a general one, "general".
+- **A reference is dropped only when it would actually dangle.** The ticket
+  said to drop cross-entity references; the rule that ships is narrower. A
+  referenced row travels when the target can see it — `campaign_id IS NULL`
+  (general, visible everywhere) or equal to the target. Only a row scoped to
+  some *other* campaign is dropped, and the DM is told which by name **before**
+  confirming, never after. Measured against production the day it was built,
+  nothing would be dropped at all: 5 items carry `spell_ids`, 4 species carry
+  `granted_spells`, and zero spells are campaign-scoped. So the report renders
+  only when it has something to say — an empty "nothing will be dropped" panel
+  on every copy would be ceremony.
+- **Two references cannot be nulled, and are removed instead.** A loot entry
+  without `item_id` fails `validateEntries`, so a dangling item entry goes
+  whole. A species grant is the sharper case: `SpeciesSpellGrant` documents
+  `spell_id: null` as *free player pick*, so nulling a dropped grant would
+  silently turn "grants Chill Touch" into "picks any spell" — a materially more
+  generous rule that reads as deliberate on the copy and would surface at a
+  table, mid-level-up. A `RollTableEntry` keeps its `label` without its
+  encounter, so there only the link clears. The test: when a field's absence
+  already means something else, the entry goes rather than the field.
+- **Shared-library content is reported, never dropped.** A library row belongs
+  to no campaign and cannot dangle — but a campaign sees a library source only
+  once it is in `campaign_enabled_sources`, so a species copied into a campaign
+  that has not enabled, say, Tome of Heroes arrives granting a spell it cannot
+  look up. That gets its own panel, toned as a note rather than a loss, because
+  the fix is one toggle in the target campaign and losing the grant would be
+  worse. Only `species.granted_spells[].spell_id` can hold a library slug among
+  the eight; `items.spell_ids` and `loot_tables.monster_ids` are `uuid[]` and
+  cannot. The question is not asked at all when the target is "all campaigns",
+  since there is no one campaign whose enabled sources could answer it.
+- **The copy clears `source_document_key`, `source_record_key` and
+  `source_revision`, and keeps everything else about where the content came
+  from.** `items`, `spells`, `monsters` and `species` each carry a
+  `<table>_source_identity_unique` index on
+  `(user_id, source_document_key, source_record_key)` that is **not** scoped by
+  campaign, so carrying those onto a copy of an imported row raises 23505. The
+  copy is a fork of the import, not the import; `source_title`, `source_url`,
+  `source_license`, `provenance` and `ai_provenance` all travel, because it is
+  the same content and carries the same attribution obligation.
+- **No "(copy)" suffix.** The three same-scope duplicate actions beside it —
+  `ItemDetail`'s `cloneItem()`, `MonsterDetail`'s `duplicate()`, `ClassList`'s
+  `duplicate()` — each append one, and they are right to: their copy sits
+  beside its original and needs telling apart. A cross-campaign copy lands
+  where the original is not, so the name is free.
+- **Art is referenced, not duplicated, and quota is the database's job.**
+  `image_url` and friends travel unchanged: both campaigns belong to the same
+  account, so the copy points at the same object and nothing is ever written
+  under `srd/`. That is sound only while campaigns share an owner — if they
+  ever become shareable across accounts a copy must duplicate the object, since
+  the original owner deleting it would break the copy, and there is a comment
+  saying so at the spread. Quota needs no client check: `enforce_quota` sits on
+  `monsters` and `puzzle_rooms` (and no other of the eight), so an over-limit
+  copy raises `quota_exceeded` and the caller's existing `PaywallModal` catches
+  it through `isQuotaExceeded`.
+
+Two departures from the ticket, both stated out loud. Its acceptance criteria
+ask for the action "from the list row": no card in any of the eight lists has
+an overflow menu, and `BulkSelectableCard` intercepts card clicks while
+selecting, so eight new kebab menus would have been a bigger and riskier change
+than the feature. The Select surface is the list-side route instead. And the
+copy does **not** navigate afterwards — see the Sanctioned Exception in
+CLAUDE.md; the new rows are in another campaign, which neither the page nor its
+list can show, so the toast naming the destination is the only confirmation
+available.
+
 **The backlog this exists for is smaller than it looks, and deliberately not
 migrated.** Of 1,919 globally-scoped items, 1,644 are published-source
 catalogue loaded in a single day in March 2026 (`vom`, `a5e`, `wotc-srd`,

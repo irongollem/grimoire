@@ -33,6 +33,7 @@
       @clear="bulkSelection.clear()"
       @stop="bulkSelection.stop()"
       @move="handleMove"
+      @copy="handleCopyOpen"
     />
     <p v-if="!filteredCount" class="text-center text-body text-muted-foreground italic py-8">
       {{ noMatchText }}
@@ -49,17 +50,47 @@
     :action-label="emptyActionLabel"
     @action="emit('empty-action')"
   />
+
+  <!--
+    Copy-to-campaign (#598, wave 2). One dialog here rather than one per tab —
+    all four tabs govern a table the dialog already understands, so the
+    handler is identical across them; only `copyLabel` differs, and that
+    travels through as a prop. `table && copyLabel` doubles as the guard: a
+    grid without bulk-scope wiring (DungeonCraftFeaturesTab, no `table` prop)
+    or without a copy label never mounts this at all.
+  -->
+  <CopyToCampaignDialog
+    v-if="table && copyLabel"
+    :open="copyOpen"
+    :table="table"
+    :ids="copyIds"
+    :source-campaign-id="campaignStore.activeCampaignId"
+    :label="copyLabel"
+    @close="copyOpen = false"
+    @copied="handleCopied"
+    @quota-exceeded="handleCopyQuotaExceeded"
+  />
+  <!--
+    puzzle_rooms is the only one of these four tables carrying the
+    enforce_quota trigger (traps/loot_tables/roll_tables never emit
+    quota-exceeded), so this is the only tab that ever needs the paywall —
+    mounting it unconditionally for the other three would just be dead markup.
+  -->
+  <PaywallModal v-if="table === 'puzzle_rooms'" v-model="showPaywall" resource="puzzle_rooms" />
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useBulkCampaignScope, type BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
+import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 
@@ -76,6 +107,7 @@ const {
   emptyActionLabel,
   table,
   ids = [],
+  copyLabel,
 } = defineProps<{
   items: unknown[] | undefined;
   isLoading: boolean;
@@ -91,6 +123,10 @@ const {
   table?: BulkScopeTable;
   /** The ids of every row passing the current filters — "Select all shown" reads from this, not the painted subset. */
   ids?: readonly string[];
+  /** Singular noun for what `table` holds, e.g. "trap" — passed straight through
+   *  to CopyToCampaignDialog's `label` (#598). All four dungeon-craft nouns are
+   *  regular, so the dialog's naive `${label}s` plural is never wrong here. */
+  copyLabel?: string;
 }>();
 
 const emit = defineEmits<{
@@ -137,5 +173,28 @@ async function handleMove(campaignId: string | null) {
   } catch (e) {
     toast.error(toast.fromError(e));
   }
+}
+
+// ── Copy to campaign (#598) ─────────────────────────────────────────────────
+// Same stale-selection hazard the move path guards against (#875) —
+// `useCopyToCampaignFlow` prunes at open time for exactly this reason. `noun`
+// falls back to the generic "entry" (matching `handleMove`'s toast above) for
+// a mount with `table` set but no `copyLabel`; the flow is constructed
+// unconditionally — cheap, and keeps composable calls unconditional, same
+// reasoning as `bulkSelection` above — but `handleCopyOpen` keeps the
+// original guard so nothing opens without both set.
+const showPaywall = ref(false);
+const copyFlow = useCopyToCampaignFlow({
+  noun: copyLabel ?? "entry",
+  selectableIds: () => ids,
+  pruneTo: bulkSelection.pruneTo,
+  stop: bulkSelection.stop,
+  onQuotaExceeded: () => { showPaywall.value = true; },
+});
+const { copyOpen, copyIds, onCopied: handleCopied, onQuotaExceeded: handleCopyQuotaExceeded } = copyFlow;
+
+function handleCopyOpen() {
+  if (!table || !copyLabel) return;
+  copyFlow.openCopy();
 }
 </script>

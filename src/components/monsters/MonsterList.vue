@@ -11,6 +11,7 @@
       @clear="bulk.clear"
       @stop="bulk.stop"
       @move="moveSelection"
+      @copy="openCopyDialog"
     />
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -104,6 +105,17 @@
   </div>
 
   <PaywallModal v-model="showPaywall" resource="monsters" />
+
+  <CopyToCampaignDialog
+    :open="copyOpen"
+    table="monsters"
+    :ids="copyIds"
+    :source-campaign-id="activeCampaignId"
+    label="monster"
+    @close="copyOpen = false"
+    @copied="onCopied"
+    @quota-exceeded="onQuotaExceeded"
+  />
 </template>
 
 <script setup lang="ts">
@@ -129,8 +141,10 @@ import { useQuota } from "@/composables/billing/useQuota";
 import { storeToRefs } from "pinia";
 import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
+import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
@@ -219,7 +233,7 @@ function monsterSubtitle(monster: Monster): string {
 const bulk = useBulkSelection();
 const bulkScope = useBulkCampaignScope();
 const toast = useToast();
-const { activeCampaign } = storeToRefs(useCampaignStore());
+const { activeCampaign, activeCampaignId } = storeToRefs(useCampaignStore());
 
 // Every row a bulk move may legally touch: passes the current filters and
 // isn't shared/library content. Reused by "select all" and by the prune
@@ -259,6 +273,31 @@ function toggleSelectMode() {
   if (bulk.selecting.value) bulk.stop();
   else bulk.selecting.value = true;
 }
+
+// ── Copy to campaign (#598) ─────────────────────────────────────────────────
+//
+// Same pruning discipline as moveSelection: the selection can go stale
+// (refetch, filter edit) between the bar's click and the dialog opening, so
+// it's pruned to what's still shown before the dialog ever sees the ids
+// (#875, applies identically to copy) — `useCopyToCampaignFlow` owns that.
+//
+// monsters carries the enforce_quota trigger — the dialog surfaces a rejected
+// insert as a `quota-exceeded` event rather than owning a paywall itself (see
+// CopyToCampaignDialog.vue's docstring); this reuses the same PaywallModal
+// this file already mounts for its own create flow via the flow's callback.
+const {
+  copyOpen,
+  copyIds,
+  openCopy: openCopyDialog,
+  onCopied,
+  onQuotaExceeded,
+} = useCopyToCampaignFlow({
+  noun: "monster",
+  selectableIds: () => selectableIds.value,
+  pruneTo: bulk.pruneTo,
+  stop: bulk.stop,
+  onQuotaExceeded: () => { showPaywall.value = true; },
+});
 
 defineExpose({ selecting: bulk.selecting, toggleSelectMode });
 </script>

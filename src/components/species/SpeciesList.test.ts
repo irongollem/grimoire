@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { ref, computed, type Ref } from "vue";
+import { reactive, ref, computed, defineComponent, h, type Ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SpeciesList from "./SpeciesList.vue";
 import type { Species } from "@/types/species.types";
@@ -61,11 +61,15 @@ const ui = {
 vi.mock("@/stores/ui", () => ({ useUiStore: () => ui }));
 
 vi.mock("@/stores/campaign", () => ({
-  // `activeCampaign` must be a genuine `ref` — `storeToRefs` only picks up
-  // properties that pass `isRef`/`isReactive`, the same way a real Pinia
-  // store's own ref-backed state does (see MonsterList.test.ts).
-  useCampaignStore: () => ({
-    activeCampaignId: "camp-1",
+  // Wrapped in `reactive()`, exactly like a real Pinia store: `storeToRefs`
+  // needs `toRaw(store)` to still expose genuine refs for
+  // `activeCampaignId`/`activeCampaign` (a plain value is silently dropped
+  // from the destructure, not errored), while BulkScopeBar reads
+  // `campaignStore.activeCampaignId` directly and needs the proxy's
+  // read-time ref-unwrapping to hand back "camp-1" rather than the Ref
+  // object itself (see MonsterList.test.ts; #598 caught this).
+  useCampaignStore: () => reactive({
+    activeCampaignId: ref("camp-1"),
     activeCampaign: ref({ id: "camp-1", name: "Neverwinter" }),
   }),
 }));
@@ -73,6 +77,31 @@ vi.mock("@/stores/campaign", () => ({
 const mutateAsync = vi.fn().mockResolvedValue({ moved: 0 });
 vi.mock("@/composables/campaign/useBulkCampaignScope", () => ({
   useBulkCampaignScope: () => ({ mutateAsync, isPending: ref(false) }),
+}));
+
+const toastSuccess = vi.fn();
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({
+    success: toastSuccess,
+    error: vi.fn(),
+    fromError: (e: unknown) => (e instanceof Error ? e.message : String(e)),
+  }),
+}));
+
+// The dialog's own picker/plan/confirm behaviour (composables hitting
+// supabase) is CopyToCampaignDialog.test.ts's job — this stand-in only lets
+// this file assert the props SpeciesList hands it and drive its `copied`
+// event (#598). species carries no enforce_quota trigger, so unlike
+// MonsterList there is no quota-exceeded path to cover here.
+vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
+  default: defineComponent({
+    name: "CopyToCampaignDialog",
+    props: ["open", "table", "ids", "sourceCampaignId", "label", "labelPlural"],
+    emits: ["close", "copied"],
+    setup(props) {
+      return () => (props.open ? h("div", { class: "copy-dialog-stub" }) : null);
+    },
+  }),
 }));
 
 // Windowing over `filtered` without IntersectionObserver — mirrors the real
@@ -109,6 +138,7 @@ describe("SpeciesList — bulk selection (#875)", () => {
     allSpecies.value = [];
     mutateAsync.mockClear();
     mutateAsync.mockResolvedValue({ moved: 0 });
+    toastSuccess.mockClear();
   });
 
   it("the Select toggle shows and hides the bulk scope bar", async () => {
@@ -249,6 +279,67 @@ describe("SpeciesList — bulk selection (#875)", () => {
     await wrapper.find(".group.relative button").trigger("click");
     expect(wrapper.emitted("select")).toBeTruthy();
     expect(wrapper.emitted("select")![0]).toEqual([allSpecies.value[0]]);
+  });
+});
+
+describe("SpeciesList — copy to campaign (#598)", () => {
+  beforeEach(() => {
+    allSpecies.value = [];
+    toastSuccess.mockClear();
+  });
+
+  it("opens the dialog with the pruned selection, the active campaign as the source scope, and the irregular plural", async () => {
+    allSpecies.value = [customSpecies(1), customSpecies(2)];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleBulkSelectMode();
+    const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
+    await selectAllBtn!.trigger("click");
+
+    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
+    await copyBtn!.trigger("click");
+
+    const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
+    expect(dialog.props("open")).toBe(true);
+    expect(dialog.props("table")).toBe("species");
+    expect([...(dialog.props("ids") as string[])].sort()).toEqual([uuid(1), uuid(2)].sort());
+    // The source is the active campaign, not any row's own scope.
+    expect(dialog.props("sourceCampaignId")).toBe("camp-1");
+    expect(dialog.props("label")).toBe("species");
+    expect(dialog.props("labelPlural")).toBe("species");
+  });
+
+  it("prunes a stale id at copy time exactly like move (#875)", async () => {
+    allSpecies.value = [customSpecies(1), customSpecies(2), customSpecies(3)];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleBulkSelectMode();
+    const boxes = wrapper.findAll('input[type="checkbox"]');
+    await boxes[0]!.trigger("click"); // species 1
+    await boxes[1]!.trigger("click"); // species 2
+
+    allSpecies.value = [customSpecies(1), customSpecies(3)];
+    await wrapper.vm.$nextTick();
+
+    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
+    await copyBtn!.trigger("click");
+
+    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("ids")).toEqual([uuid(1)]);
+  });
+
+  it("a copied event toasts the count and destination, closes the dialog, and clears the selection", async () => {
+    allSpecies.value = [customSpecies(1)];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleBulkSelectMode();
+    const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
+    await selectAllBtn!.trigger("click");
+    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
+    await copyBtn!.trigger("click");
+
+    const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
+    await dialog.vm.$emit("copied", { copied: 2, targetName: "Neverwinter" });
+
+    expect(toastSuccess).toHaveBeenCalledWith("Copied 2 species to Neverwinter.");
+    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
+    expect(wrapper.text()).not.toContain("selected");
   });
 });
 

@@ -29,6 +29,14 @@
       <template v-if="!isShared">
         <AppButton
           v-if="hasSpell"
+          variant="subtle"
+          size="md"
+          :icon="IconCopy"
+          label="Copy to campaign…"
+          @click="$emit('copyToCampaign')"
+        />
+        <AppButton
+          v-if="hasSpell"
           variant="destructive"
           size="md"
           :disabled="isDeleting"
@@ -52,7 +60,7 @@
 
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
-import { IconDelete, IconGenerate, IconSave, IconScrollText } from "@/lib/icons";
+import { IconCopy, IconDelete, IconGenerate, IconSave, IconScrollText } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 
 defineProps<{
@@ -68,6 +76,7 @@ defineProps<{
 defineEmits<{
   generate: [];
   sendToScriptorium: [];
+  copyToCampaign: [];
   delete: [];
   save: [];
 }>();

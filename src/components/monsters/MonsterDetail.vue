@@ -17,6 +17,7 @@
     @cancel="onCancel"
     @delete="remove"
     @duplicate="duplicate"
+    @copy-to-campaign="copyOpen = true"
     @customize="customize"
     @scriptorium="sendToScriptorium"
     @generate="showGenerateDialog = true"
@@ -88,6 +89,14 @@
           :icon="IconCopy"
           :label="duplicating ? 'Copying…' : 'Duplicate'"
           @click="duplicate"
+        />
+        <AppButton
+          v-if="props.monster"
+          variant="subtle"
+          size="md"
+          :icon="IconCopy"
+          label="Copy to campaign…"
+          @click="copyOpen = true"
         />
       </template>
     </EntityEditorActionBar>
@@ -247,6 +256,18 @@
   />
 
   <PaywallModal v-model="showPaywall" resource="monsters" />
+
+  <CopyToCampaignDialog
+    v-if="props.monster"
+    :open="copyOpen"
+    table="monsters"
+    :ids="[props.monster.id]"
+    :source-campaign-id="props.monster.campaign_id"
+    label="monster"
+    @close="copyOpen = false"
+    @copied="onCopied"
+    @quota-exceeded="onQuotaExceeded"
+  />
 </template>
 
 <script setup lang="ts">
@@ -294,7 +315,9 @@ import type {
   MonsterStatBlock,
 } from "@/types/monster.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
+import { useToast } from "@/composables/useToast";
 
 const ALIGNMENTS = [
   "Lawful Good",
@@ -487,6 +510,27 @@ async function customize() {
   } finally {
     cloning.value = false;
   }
+}
+
+// ── Copy to campaign (#598) ─────────────────────────────────────────────────
+//
+// Unlike Duplicate/Customize above, this deliberately does NOT navigate on
+// success — a Post-Mutation Navigation exception (see CLAUDE.md). The copy
+// lands in another campaign, which neither this page nor /monsters can show,
+// so the toast naming the destination is the only confirmation there can be;
+// navigating away from the record the DM is still looking at would be
+// strictly worse.
+const toast = useToast();
+const copyOpen = ref(false);
+
+function onCopied({ targetName }: { copied: number; targetName: string }) {
+  toast.success(`Copied "${props.monster?.name ?? "monster"}" to ${targetName}.`);
+  copyOpen.value = false;
+}
+
+function onQuotaExceeded() {
+  copyOpen.value = false;
+  showPaywall.value = true;
 }
 
 async function sendToScriptorium() {

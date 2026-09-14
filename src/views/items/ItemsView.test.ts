@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount, RouterLinkStub } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
-import { defineComponent, ref } from "vue";
+import { defineComponent, h, ref } from "vue";
 import ItemsView from "./ItemsView.vue";
 
 /**
@@ -70,6 +70,19 @@ vi.mock("@/composables/items/useItems", () => ({
 }));
 vi.mock("@/composables/library/useEnabledSources", () => ({
   useAvailableLibraryItemSources: () => ({ data: ref([]), isLoading: ref(false) }),
+}));
+// The dialog's own picker/plan/confirm behaviour (composables hitting
+// supabase) is CopyToCampaignDialog.test.ts's job — this stand-in only lets
+// this file assert the props ItemsView hands it and drive its `copied` event.
+vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
+  default: defineComponent({
+    name: "CopyToCampaignDialog",
+    props: ["open", "table", "ids", "sourceCampaignId", "label"],
+    emits: ["close", "copied", "quota-exceeded"],
+    setup(props) {
+      return () => (props.open ? h("div", { class: "copy-dialog-stub" }) : null);
+    },
+  }),
 }));
 
 function mountView() {
@@ -184,5 +197,57 @@ describe("ItemsView — bulk move-to-campaign (#875)", () => {
 
     await findButton(wrapper, "Clear")!.trigger("click");
     expect(wrapper.text()).toContain("0 selected");
+  });
+});
+
+describe("ItemsView — bulk copy-to-campaign (#598)", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    mocks.selectableIds = ["item-1", "item-2", "item-3"];
+    mocks.toastSuccess.mockClear();
+    mocks.activeCampaignName = "Icewind Dale";
+  });
+
+  it("opens the dialog with the pruned selection and the active campaign as the source scope", async () => {
+    const wrapper = mountView();
+    await findButton(wrapper, "Select")!.trigger("click");
+    await findButton(wrapper, "Select all shown")!.trigger("click");
+
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
+    expect(dialog.props("open")).toBe(true);
+    expect(dialog.props("table")).toBe("items");
+    expect(dialog.props("ids")).toEqual(["item-1", "item-2", "item-3"]);
+    // The source is the active campaign, not any row's own scope — the one
+    // destination never offered is the campaign the DM is already standing in.
+    expect(dialog.props("sourceCampaignId")).toBe("campaign-1");
+    expect(dialog.props("label")).toBe("item");
+  });
+
+  it("prunes a stale id at copy time exactly like move (#875)", async () => {
+    const wrapper = mountView();
+    await findButton(wrapper, "Select")!.trigger("click");
+    await findButton(wrapper, "Select all shown")!.trigger("click");
+
+    mocks.selectableIds = ["item-1"];
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("ids")).toEqual(["item-1"]);
+  });
+
+  it("a copied event toasts the count and destination, closes the dialog, and clears the selection", async () => {
+    const wrapper = mountView();
+    await findButton(wrapper, "Select")!.trigger("click");
+    await findButton(wrapper, "Select all shown")!.trigger("click");
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
+    await dialog.vm.$emit("copied", { copied: 3, targetName: "Neverwinter" });
+
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Copied 3 items to Neverwinter.");
+    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
+    // stopSelecting() follows a successful copy, same as a successful move.
+    expect(wrapper.text()).not.toContain("selected");
   });
 });

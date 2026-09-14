@@ -42,8 +42,16 @@ const RollTableDetailViewStub = {
   template: `<div data-testid="detail-view" />`,
 };
 
+// The tab always passes `copy-label="roll table"` to the grid (#598), so the
+// grid always mounts CopyToCampaignDialog — even while closed — and its setup
+// unconditionally calls useDmCampaigns(), which needs a real query client.
+// Stubbed out here because this suite is about the inline-detail-swap
+// interaction, not the copy dialog (that gets its own coverage in
+// DungeonCraftEntityGrid.test.ts).
 function mountTab() {
-  return mount(DungeonCraftRollTablesTab, { global: { stubs: { RollTableDetailView: RollTableDetailViewStub } } });
+  return mount(DungeonCraftRollTablesTab, {
+    global: { stubs: { RollTableDetailView: RollTableDetailViewStub, CopyToCampaignDialog: true } },
+  });
 }
 
 function findExact(wrapper: ReturnType<typeof mountTab>, text: string) {

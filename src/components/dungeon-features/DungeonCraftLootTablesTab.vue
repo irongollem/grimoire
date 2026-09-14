@@ -12,6 +12,7 @@
     empty-action-label="New Loot Table"
     table="loot_tables"
     :ids="lootTableFilteredIds"
+    copy-label="loot table"
     @empty-action="router.push('/loot-tables/new')"
   >
     <template #filters>

@@ -25,7 +25,9 @@ const activeCampaignId = ref<string | null>("campaign-1");
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => reactive({ activeCampaignId, isAiEnabled: false }),
 }));
-vi.mock("vue-router", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
+const mockRouterPush = vi.hoisted(() => vi.fn());
+const mockRouterReplace = vi.hoisted(() => vi.fn());
+vi.mock("vue-router", () => ({ useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 vi.mock("@/composables/library/useLibrarySpellArt", () => ({
   useUpsertLibrarySpellArt: () => ({ mutateAsync: vi.fn() }),
@@ -37,11 +39,19 @@ vi.mock("@/composables/scriptorium/useScriptorium", () => ({
 const mocks = vi.hoisted(() => ({
   create: vi.fn().mockResolvedValue({ id: "new-spell" }),
   update: vi.fn().mockResolvedValue({ id: "existing-spell" }),
+  toastSuccess: vi.fn(),
 }));
 vi.mock("@/composables/spells/useSpells", () => ({
   useCreateSpell: () => ({ mutateAsync: mocks.create }),
   useUpdateSpell: () => ({ mutateAsync: mocks.update }),
   useDeleteSpell: () => ({ mutateAsync: vi.fn() }),
+}));
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({
+    success: mocks.toastSuccess,
+    error: vi.fn(),
+    fromError: (e: unknown) => (e instanceof Error ? e.message : String(e)),
+  }),
 }));
 
 const stubs = {
@@ -54,6 +64,7 @@ const stubs = {
   SpellTimingSection: true,
   SpellDetailHeader: true,
   CampaignScopeField: true,
+  CopyToCampaignDialog: true,
   EntityImageBlock: true,
   RichTextEditor: true,
   TagInput: true,
@@ -98,5 +109,58 @@ describe("SpellDetail scope default", () => {
     expect(mocks.update).toHaveBeenCalledWith(
       expect.objectContaining({ update: expect.objectContaining({ campaign_id: null }) }),
     );
+  });
+});
+
+/**
+ * #598: a spell's own Copy to campaign runs through SpellDetailHeader (its
+ * actions do not live in a PageHeader, unlike every sibling entity — see the
+ * story spec) and, unlike save/delete, must not navigate on success: the copy
+ * lands in another campaign that neither this page nor the Spellbook list can
+ * show, so the toast naming the destination is the only confirmation there is.
+ */
+describe("SpellDetail copy to campaign", () => {
+  const existing = {
+    id: "sp1",
+    campaign_id: "campaign-1",
+    name: "Fireball",
+    classes: [],
+    components: [],
+    tags: [],
+  } as unknown as Spell;
+
+  beforeEach(() => {
+    mocks.toastSuccess.mockClear();
+    mockRouterPush.mockClear();
+    mockRouterReplace.mockClear();
+  });
+
+  it("opens the dialog scoped to this spell's own campaign_id when the header emits copyToCampaign", async () => {
+    const wrapper = mountDetail(existing);
+    wrapper.findComponent({ name: "SpellDetailHeader" }).vm.$emit("copyToCampaign");
+    await wrapper.vm.$nextTick();
+
+    const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
+    expect(dialog.props("open")).toBe(true);
+    expect(dialog.props("ids")).toEqual(["sp1"]);
+    expect(dialog.props("sourceCampaignId")).toBe("campaign-1");
+    expect(dialog.props("table")).toBe("spells");
+  });
+
+  it("toasts the destination and closes the dialog on copied, without navigating", async () => {
+    const wrapper = mountDetail(existing);
+    wrapper.findComponent({ name: "SpellDetailHeader" }).vm.$emit("copyToCampaign");
+    await wrapper.vm.$nextTick();
+
+    wrapper.findComponent({ name: "CopyToCampaignDialog" }).vm.$emit("copied", {
+      copied: 1,
+      targetName: "Icewind Dale",
+    });
+    await wrapper.vm.$nextTick();
+
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Copied "Fireball" to Icewind Dale.');
+    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
+    expect(mockRouterPush).not.toHaveBeenCalled();
+    expect(mockRouterReplace).not.toHaveBeenCalled();
   });
 });

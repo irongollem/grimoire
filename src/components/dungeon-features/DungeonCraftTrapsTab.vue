@@ -12,6 +12,7 @@
     empty-action-label="New Trap"
     table="traps"
     :ids="trapFilteredIds"
+    copy-label="trap"
     @empty-action="router.push('/traps/new')"
   >
     <template #filters>

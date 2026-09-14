@@ -76,6 +76,12 @@ function mountView() {
       stubs: {
         RouterLink: RouterLinkStub,
         SourcesPickerPanel: true,
+        // CopyToCampaignDialog reads useDmCampaigns (TanStack Query) — its own
+        // internals are covered by CopyToCampaignDialog.test.ts; this file
+        // owns only the wiring one level up (open/ids/sourceCampaignId and the
+        // @copied handler), which the copy-to-campaign describe block below
+        // exercises against the stub directly.
+        CopyToCampaignDialog: true,
       },
     },
   });
@@ -171,5 +177,62 @@ describe("SpellsView — bulk move-to-campaign (#875)", () => {
 
     expect(mocks.toastError).toHaveBeenCalledWith("network blip");
     expect(wrapper.text()).toContain("selected");
+  });
+});
+
+describe("SpellsView — bulk copy-to-campaign (#598)", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    mocks.selectableIds = ["spell-1", "spell-2", "spell-3"];
+    mocks.toastSuccess.mockClear();
+    mocks.activeCampaignName = "Icewind Dale";
+  });
+
+  function findDialog(wrapper: ReturnType<typeof mountView>) {
+    return wrapper.findComponent({ name: "CopyToCampaignDialog" });
+  }
+
+  it("opens the dialog with the pruned selection, scoped to the active campaign (not any row's own scope)", async () => {
+    const wrapper = mountView();
+    await findButton(wrapper, "Select")!.trigger("click");
+    await findButton(wrapper, "Select all shown")!.trigger("click");
+
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    const dialog = findDialog(wrapper);
+    expect(dialog.props("open")).toBe(true);
+    expect(dialog.props("ids")).toEqual(["spell-1", "spell-2", "spell-3"]);
+    expect(dialog.props("sourceCampaignId")).toBe("campaign-1");
+    expect(dialog.props("table")).toBe("spells");
+  });
+
+  it("prunes a stale id at copy-open time when the filter narrowed since select-all (#875 discipline applied to copy)", async () => {
+    const wrapper = mountView();
+    await findButton(wrapper, "Select")!.trigger("click");
+    await findButton(wrapper, "Select all shown")!.trigger("click");
+
+    mocks.selectableIds = ["spell-1"];
+
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    expect(findDialog(wrapper).props("ids")).toEqual(["spell-1"]);
+  });
+
+  it("toasts the count and destination, closes the dialog and leaves selection mode on copied", async () => {
+    const wrapper = mountView();
+    await findButton(wrapper, "Select")!.trigger("click");
+    await findButton(wrapper, "Select all shown")!.trigger("click");
+    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+
+    await findDialog(wrapper).vm.$emit("copied", { copied: 3, targetName: "Neverwinter" });
+
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("Copied 3 spells to Neverwinter.");
+    expect(findDialog(wrapper).props("open")).toBe(false);
+    // Selection mode ends, exactly as it does after a move. A copy does leave
+    // the originals here and still selectable, so keeping the selection would
+    // be defensible — but all five bulk surfaces have to agree on what
+    // finishing a bulk action looks like, and every move already ends it.
+    expect(wrapper.text()).not.toContain("selected");
+    expect(findButton(wrapper, "Select")).toBeTruthy();
   });
 });

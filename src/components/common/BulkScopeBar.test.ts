@@ -68,3 +68,20 @@ describe("BulkScopeBar", () => {
     expect(labels).toContain("Done");
   });
 });
+
+describe("copy to campaign (#598)", () => {
+  it("offers Copy alongside Move, and emits without naming a target — the dialog picks one", async () => {
+    const wrapper = mount(BulkScopeBar, { props: { count: 3, campaignName: "Icewind Dale" } });
+    const copy = wrapper.findAll("button").find((b) => b.text().includes("Copy to campaign"));
+    expect(copy).toBeTruthy();
+    await copy!.trigger("click");
+    // No payload: unlike `move`, which means "the active campaign or general",
+    // the copy target is chosen in the dialog the caller opens.
+    expect(wrapper.emitted("copy")).toEqual([[]]);
+  });
+
+  it("hides Copy when nothing on screen can be acted on at all", () => {
+    const wrapper = mount(BulkScopeBar, { props: { count: 0, campaignName: "Icewind Dale", selectableCount: 0 } });
+    expect(wrapper.findAll("button").some((b) => b.text().includes("Copy to campaign"))).toBe(false);
+  });
+});

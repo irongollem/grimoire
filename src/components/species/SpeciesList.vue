@@ -11,6 +11,7 @@
       @clear="bulk.clear"
       @stop="bulk.stop"
       @move="moveSelection"
+      @copy="openCopyDialog"
     />
 
     <div v-if="isLoading" class="flex justify-center py-16">
@@ -159,6 +160,17 @@
       {{ filtered.length }} species
     </p>
   </div>
+
+  <CopyToCampaignDialog
+    :open="copyOpen"
+    table="species"
+    :ids="copyIds"
+    :source-campaign-id="activeCampaignId"
+    label="species"
+    label-plural="species"
+    @close="copyOpen = false"
+    @copied="onCopied"
+  />
 </template>
 
 <script setup lang="ts">
@@ -177,8 +189,10 @@ import AppButton from "@/components/common/AppButton.vue";
 import { storeToRefs } from "pinia";
 import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
+import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 
@@ -233,7 +247,7 @@ linkCount(visibleCount);
 const bulk = useBulkSelection();
 const bulkScope = useBulkCampaignScope();
 const toast = useToast();
-const { activeCampaign } = storeToRefs(useCampaignStore());
+const { activeCampaign, activeCampaignId } = storeToRefs(useCampaignStore());
 
 // Every row a bulk move may legally touch: passes the current filters and
 // has a real uuid (not shared/library content). Reused by "select all" and
@@ -272,6 +286,28 @@ function toggleBulkSelectMode() {
   if (bulk.selecting.value) bulk.stop();
   else bulk.selecting.value = true;
 }
+
+// ── Copy to campaign (#598) ─────────────────────────────────────────────────
+//
+// Same pruning discipline as moveSelection: the selection can go stale
+// (refetch, filter edit) between the bar's click and the dialog opening, so
+// it's pruned to what's still shown before the dialog ever sees the ids
+// (#875, applies identically to copy) — `useCopyToCampaignFlow` owns that.
+// species carries no enforce_quota trigger, so unlike monsters there's no
+// quota-exceeded callback to wire here. "Species" is its own plural, passed
+// as `nounPlural` so the toast doesn't need its own noun-count branch.
+const {
+  copyOpen,
+  copyIds,
+  openCopy: openCopyDialog,
+  onCopied,
+} = useCopyToCampaignFlow({
+  noun: "species",
+  nounPlural: "species",
+  selectableIds: () => selectableIds.value,
+  pruneTo: bulk.pruneTo,
+  stop: bulk.stop,
+});
 
 defineExpose({ bulkSelecting: bulk.selecting, toggleBulkSelectMode });
 </script>

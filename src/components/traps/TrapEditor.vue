@@ -18,6 +18,14 @@
         @click="onCancel"
       />
       <AppButton
+        v-if="!isNew"
+        variant="subtle"
+        size="md"
+        :icon="IconCopy"
+        label="Copy to campaign…"
+        @click="copyOpen = true"
+      />
+      <AppButton
         variant="primary"
         size="md"
         :icon="IconSave"
@@ -331,6 +339,25 @@
         />
       </div>
     </AppModal>
+
+    <!--
+      Copy-to-campaign (#598, wave 2). No `@close`-then-navigate here: the copy
+      lands in another campaign, which neither this editor nor the trap list
+      can show, so the toast naming the destination (handleCopied below) is
+      the only confirmation there can be — a deliberate exception to
+      CLAUDE.md's Post-Mutation Navigation rule, not an oversight. traps
+      carries no enforce_quota trigger, so there is no paywall to wire here.
+    -->
+    <CopyToCampaignDialog
+      v-if="trap"
+      :open="copyOpen"
+      table="traps"
+      :ids="[trap.id]"
+      :source-campaign-id="trap.campaign_id"
+      label="trap"
+      @close="copyOpen = false"
+      @copied="handleCopied"
+    />
   </div>
 </template>
 
@@ -338,9 +365,10 @@
 import { ref, computed, reactive, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
-import { IconCheck, IconClose, IconDelete, IconGenerate, IconSave } from '@/lib/icons';
+import { IconCheck, IconClose, IconCopy, IconDelete, IconGenerate, IconSave } from '@/lib/icons';
 import { useCreateTrap, useUpdateTrap, useDeleteTrap } from "@/composables/dungeon-features/useTraps";
 import { useConfirm } from "@/composables/useConfirm";
+import { useToast } from "@/composables/useToast";
 import { useCampaignStore } from "@/stores/campaign";
 import {
   TRAP_TYPES,
@@ -374,6 +402,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 
 const props = defineProps<{ trap: Trap | null; isNew: boolean }>();
 
@@ -518,6 +547,16 @@ function onCancel() {
   const q = { ...route.query };
   delete q.edit;
   router.push({ query: q });
+}
+
+// ── Copy to campaign (#598) ─────────────────────────────────────────────────
+
+const toast = useToast();
+const copyOpen = ref(false);
+
+function handleCopied({ targetName }: { copied: number; targetName: string }) {
+  toast.success(`Copied "${props.trap?.name ?? form.value.name}" to ${targetName}.`);
+  copyOpen.value = false;
 }
 
 // ── CR Advisor ─────────────────────────────────────────────────────────────

@@ -84,6 +84,16 @@
       @clear="clearSelection"
       @stop="stopSelecting"
       @move="handleMove"
+      @copy="handleCopyOpen"
+    />
+    <CopyToCampaignDialog
+      :open="copyOpen"
+      table="items"
+      :ids="copyIds"
+      :source-campaign-id="campaignStore.activeCampaignId"
+      label="item"
+      @close="copyOpen = false"
+      @copied="onCopied"
     />
     <ItemList
       ref="itemListRef"
@@ -112,6 +122,7 @@ import ListFilterSelect from "@/components/common/ListFilterSelect.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import ItemList from "@/components/items/ItemList.vue";
 import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { useItemSources } from "@/composables/items/useItems";
 import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSourceLabel } from "@/types/item.types";
@@ -119,6 +130,7 @@ import { useUiStore } from "@/stores/ui";
 import { useAvailableLibraryItemSources } from "@/composables/library/useEnabledSources";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
+import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 
@@ -199,4 +211,15 @@ async function handleMove(campaignId: string | null) {
     toast.error(toast.fromError(error));
   }
 }
+
+// ── Bulk copy-to-campaign (#598) ──────────────────────────────────────────────
+// Unlike move, the source scope for a copy is always the active campaign —
+// the list shows the active campaign's rows plus general ones, and the one
+// destination never wanted is the campaign the DM is already standing in.
+const { copyOpen, copyIds, openCopy: handleCopyOpen, onCopied } = useCopyToCampaignFlow({
+  noun: "item",
+  selectableIds: () => itemListRef.value?.selectableIds ?? [],
+  pruneTo,
+  stop: stopSelecting,
+});
 </script>

@@ -33,6 +33,15 @@
         :disabled="busy || count === 0"
         @click="emit('move', null)"
       />
+      <AppButton
+        v-if="selectableCount > 0"
+        variant="outline"
+        size="sm"
+        label="Copy to campaign…"
+        tooltip="Makes an independent copy somewhere else — the original stays where it is"
+        :disabled="busy || count === 0"
+        @click="emit('copy')"
+      />
       <AppButton variant="ghost" size="sm" label="Done" @click="emit('stop')" />
     </div>
   </div>
@@ -50,6 +59,18 @@
  * move rows to is read from the campaign store directly, the same dependency
  * `CampaignScopeField` already has — the bar always means "the active
  * campaign", never an arbitrary one.
+ *
+ * **Copy is the exception to that, and deliberately so (#598).** "Copy to
+ * campaign…" opens `CopyToCampaignDialog`, which does offer a picker of every
+ * campaign the account DMs. The no-picker rule above exists so the bulk and
+ * single-row *scope* controls cannot come to mean different things — both
+ * answer "where does this row live", and `CampaignScopeField` can only say
+ * "here" or "everywhere". Copy answers a different question: it creates a new
+ * row somewhere the original is not, so there is no single-row scope control
+ * for it to diverge from, and "the active campaign" is precisely the one place
+ * a copy is never wanted. The asymmetry that leaves — you may copy into any
+ * campaign but still move only between the active one and general — is the
+ * shape of #596's decision, not an oversight to tidy up here.
  */
 import AppButton from "@/components/common/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
@@ -72,6 +93,7 @@ const emit = defineEmits<{
   clear: [];
   stop: [];
   move: [campaignId: string | null];
+  copy: [];
 }>();
 
 const campaignStore = useCampaignStore();

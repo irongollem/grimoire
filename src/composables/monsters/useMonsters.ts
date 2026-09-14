@@ -355,7 +355,7 @@ export function useMonster(id: Ref<string>) {
  * short-circuits when the embed text's hash is unchanged, so a save that
  * touched an unrelated field costs no API call at all.
  */
-function queueMonsterEmbedding(id: string): void {
+export function queueMonsterEmbedding(id: string): void {
   void supabase.functions
     .invoke("embed-monsters", { body: { mode: "single", monster_id: id } })
     .catch((error) => reportHandledError(error, "queueMonsterEmbedding", { id }));

@@ -247,6 +247,23 @@
         <template #icon><IconCopy class="size-4 shrink-0 text-muted-foreground" /></template>
         {{ isDuplicating ? "Copying…" : "Duplicate" }}
       </AppButton>
+      <!--
+        The phone's twin of the desktop bar's "Copy to campaign…" (#598).
+        `MonsterDetail` owns the dialog and mounts both layouts, so this is one
+        emit rather than a second copy of the flow — and it has to exist, or the
+        two surfaces of the same editor quietly come to offer different actions,
+        which is how the soundboard's two surfaces drifted.
+      -->
+      <AppButton
+        variant="menu"
+        size="md"
+        block
+        class="gap-3"
+        @click="runAction('copyToCampaign')"
+      >
+        <template #icon><IconCopy class="size-4 shrink-0 text-muted-foreground" /></template>
+        Copy to campaign…
+      </AppButton>
       <AppButton
         variant="link"
         tone="danger"
@@ -333,6 +350,7 @@ const emit = defineEmits<{
   generate: [];
   scriptorium: [];
   duplicate: [];
+  copyToCampaign: [];
   customize: [];
   "update:imageUrl": [value: string];
   "update:focalPoint": [value: { x: number; y: number } | null];
@@ -369,11 +387,12 @@ const title = computed(() => {
   return form.name?.trim() || "Edit Monster";
 });
 
-function runAction(action: "generate" | "scriptorium" | "duplicate" | "delete") {
+function runAction(action: "generate" | "scriptorium" | "duplicate" | "copyToCampaign" | "delete") {
   showMenu.value = false;
   if (action === "generate") emit("generate");
   else if (action === "scriptorium") emit("scriptorium");
   else if (action === "duplicate") emit("duplicate");
+  else if (action === "copyToCampaign") emit("copyToCampaign");
   else emit("delete");
 }
 </script>

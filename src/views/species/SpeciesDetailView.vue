@@ -19,6 +19,9 @@
         @click="onClone"
       />
     </template>
+    <template v-else-if="species" #actions>
+      <PageHeaderAction label="Copy to campaign…" :icon="IconCopy" @click="copyOpen = true" />
+    </template>
 
     <div v-if="loading" class="flex justify-center py-16">
       <LoadingSpinner />
@@ -26,6 +29,18 @@
     <SpeciesDetail v-else-if="isNew || isEditing" ref="detailRef" :species="species ?? null" />
     <SpeciesSheet v-else-if="species" :species="species" :is-shared="isShared" />
   </PageHeader>
+
+  <CopyToCampaignDialog
+    v-if="species"
+    :open="copyOpen"
+    table="species"
+    :ids="[species.id]"
+    :source-campaign-id="species.campaign_id"
+    label="species"
+    label-plural="species"
+    @close="copyOpen = false"
+    @copied="onCopied"
+  />
 </template>
 
 <script setup lang="ts">
@@ -40,6 +55,8 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import DetailActions from "@/components/common/DetailActions.vue";
 import SpeciesDetail from "@/components/species/SpeciesDetail.vue";
 import SpeciesSheet from "@/components/species/SpeciesSheet.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import { useToast } from "@/composables/useToast";
 
 const detailRef = ref<InstanceType<typeof SpeciesDetail> | null>(null);
 
@@ -88,5 +105,21 @@ function onCancel() {
   const q = { ...route.query };
   delete q.edit;
   router.push({ query: q });
+}
+
+// ── Copy to campaign (#598) ─────────────────────────────────────────────────
+//
+// Unlike Clone to customize above, this deliberately does NOT navigate on
+// success — a Post-Mutation Navigation exception (see CLAUDE.md). The copy
+// lands in another campaign, which neither this page nor the species list can
+// show, so the toast naming the destination is the only confirmation there
+// can be; navigating away from the record the DM is still looking at would be
+// strictly worse.
+const toast = useToast();
+const copyOpen = ref(false);
+
+function onCopied({ targetName }: { copied: number; targetName: string }) {
+  toast.success(`Copied "${species.value?.name ?? "species"}" to ${targetName}.`);
+  copyOpen.value = false;
 }
 </script>

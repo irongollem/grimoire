@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { ref, computed, type Ref } from "vue";
+import { reactive, ref, computed, defineComponent, h, type Ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MonsterList from "./MonsterList.vue";
 import type { Monster } from "@/types/monster.types";
@@ -63,11 +63,15 @@ const ui = {
 vi.mock("@/stores/ui", () => ({ useUiStore: () => ui }));
 
 vi.mock("@/stores/campaign", () => ({
-  // `activeCampaign` must be a genuine `ref` — `storeToRefs` (used by
-  // MonsterList) only picks up properties that pass `isRef`/`isReactive`, the
-  // same way a real Pinia store's own ref-backed state does.
-  useCampaignStore: () => ({
-    activeCampaignId: "camp-1",
+  // Wrapped in `reactive()`, exactly like a real Pinia store: `storeToRefs`
+  // (used by MonsterList) needs `toRaw(store)` to still expose genuine refs
+  // for `activeCampaignId`/`activeCampaign` (a plain value is silently
+  // dropped from the destructure, not errored), while BulkScopeBar reads
+  // `campaignStore.activeCampaignId` directly and needs the proxy's
+  // read-time ref-unwrapping to hand back "camp-1" rather than the Ref
+  // object itself — a bare object literal satisfies only one of the two.
+  useCampaignStore: () => reactive({
+    activeCampaignId: ref("camp-1"),
     activeCampaign: ref({ id: "camp-1", name: "Neverwinter" }),
   }),
 }));
@@ -75,6 +79,30 @@ vi.mock("@/stores/campaign", () => ({
 const mutateAsync = vi.fn().mockResolvedValue({ moved: 0 });
 vi.mock("@/composables/campaign/useBulkCampaignScope", () => ({
   useBulkCampaignScope: () => ({ mutateAsync, isPending: ref(false) }),
+}));
+
+const toastSuccess = vi.fn();
+vi.mock("@/composables/useToast", () => ({
+  useToast: () => ({
+    success: toastSuccess,
+    error: vi.fn(),
+    fromError: (e: unknown) => (e instanceof Error ? e.message : String(e)),
+  }),
+}));
+
+// The dialog's own picker/plan/confirm behaviour (composables hitting
+// supabase) is CopyToCampaignDialog.test.ts's job — this stand-in only lets
+// this file assert the props MonsterList hands it and drive its `copied` /
+// `quota-exceeded` events (#598).
+vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
+  default: defineComponent({
+    name: "CopyToCampaignDialog",
+    props: ["open", "table", "ids", "sourceCampaignId", "label"],
+    emits: ["close", "copied", "quota-exceeded"],
+    setup(props) {
+      return () => (props.open ? h("div", { class: "copy-dialog-stub" }) : null);
+    },
+  }),
 }));
 
 // Windowing over `filtered` without IntersectionObserver — mirrors the real
@@ -118,6 +146,7 @@ describe("MonsterList — bulk selection (#875)", () => {
     monstersData.value = [];
     mutateAsync.mockClear();
     mutateAsync.mockResolvedValue({ moved: 0 });
+    toastSuccess.mockClear();
   });
 
   it("the Select toggle shows and hides the bulk scope bar", async () => {
@@ -248,6 +277,86 @@ describe("MonsterList — bulk selection (#875)", () => {
     const call = mutateAsync.mock.calls[0]![0] as { table: string; ids: string[]; campaignId: string | null };
     expect(call.campaignId).toBeNull();
     expect(call.ids).toEqual(["m1"]);
+  });
+});
+
+describe("MonsterList — copy to campaign (#598)", () => {
+  beforeEach(() => {
+    monstersData.value = [];
+    toastSuccess.mockClear();
+  });
+
+  it("opens the dialog with the pruned selection and the active campaign as the source scope", async () => {
+    monstersData.value = [monster({ id: "m1" }), monster({ id: "m2" })];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleSelectMode();
+    const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
+    await selectAllBtn!.trigger("click");
+
+    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
+    await copyBtn!.trigger("click");
+
+    const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
+    expect(dialog.props("open")).toBe(true);
+    expect(dialog.props("table")).toBe("monsters");
+    expect([...(dialog.props("ids") as string[])].sort()).toEqual(["m1", "m2"]);
+    // The source is the active campaign, not any row's own scope — the one
+    // destination never offered is the campaign the DM is already standing in.
+    expect(dialog.props("sourceCampaignId")).toBe("camp-1");
+    expect(dialog.props("label")).toBe("monster");
+  });
+
+  it("prunes a stale id at copy time exactly like move (#875)", async () => {
+    monstersData.value = [monster({ id: "m1" }), monster({ id: "m2" }), monster({ id: "m3" })];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleSelectMode();
+    const boxes = wrapper.findAll('input[type="checkbox"]');
+    await boxes[0]!.trigger("click"); // m1
+    await boxes[1]!.trigger("click"); // m2
+
+    monstersData.value = [monster({ id: "m1" }), monster({ id: "m3" })];
+    await wrapper.vm.$nextTick();
+
+    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
+    await copyBtn!.trigger("click");
+
+    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("ids")).toEqual(["m1"]);
+  });
+
+  it("a copied event toasts the count and destination, closes the dialog, and clears the selection", async () => {
+    monstersData.value = [monster({ id: "m1" })];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleSelectMode();
+    const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
+    await selectAllBtn!.trigger("click");
+    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
+    await copyBtn!.trigger("click");
+
+    const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
+    await dialog.vm.$emit("copied", { copied: 3, targetName: "Neverwinter" });
+
+    expect(toastSuccess).toHaveBeenCalledWith("Copied 3 monsters to Neverwinter.");
+    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
+    expect(wrapper.text()).not.toContain("selected");
+  });
+
+  it("a quota-exceeded event closes the dialog and opens the paywall, reusing the existing modal", async () => {
+    monstersData.value = [monster({ id: "m1" })];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleSelectMode();
+    const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
+    await selectAllBtn!.trigger("click");
+    const copyBtn = wrapper.findAll("button").find((b) => b.text() === "Copy to campaign…");
+    await copyBtn!.trigger("click");
+
+    const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
+    await dialog.vm.$emit("quota-exceeded");
+
+    expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    // Only one PaywallModal instance exists on this page — it's shared with
+    // the create flow, not a second copy.
+    expect(wrapper.findAllComponents({ name: "PaywallModal" })).toHaveLength(1);
   });
 });
 
