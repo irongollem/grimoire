@@ -171,6 +171,23 @@ dynamically imported module". Classify with `isStaleChunkError`, never
 `isChunkLoadError`, anywhere downstream of a route load; matching only the
 engine text is what let DUNGEON-GRIMOIRE-3 through the Sentry filter.
 
+**And the same `undefined` reaches anything else that awaits a dynamic import,
+where no classifier gets a look at all.** `main.ts`'s browser-only setup block
+is a `Promise.all` of four imports outside the router, so a swallowed chunk
+resolved one slot to `undefined` and the destructuring in `.then` threw
+`Cannot destructure property 'onWakeLockVisibilityChange'…` as an *unhandled
+rejection* — DUNGEON-GRIMOIRE-8, one client on a tab three commits behind,
+13 Sep 2026. `beforeSend` could not filter it: `isStaleChunkError` matches
+messages, and a TypeError about destructuring looks nothing like a chunk-load
+error.
+
+So the rule is not only "classify with `isStaleChunkError` downstream of a
+route load" but: **never destructure the result of a dynamic import that
+`preventDefault` can swallow.** Check the modules first and return quietly if
+any is missing — there is nothing to install when the chunk never arrived, and
+the reload is already in flight. Filtering the report would have been the wrong
+fix; not throwing is the right one.
+
 Fetch policy: same-origin GET only; navigations race network vs 2.5 s timeout
 → cached `index.html`; assets cache-first. **Supabase and provider calls are
 never cached** (cross-origin passes through), so the SW can be ruled out of

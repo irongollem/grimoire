@@ -12,7 +12,7 @@ import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
 import { installStaleChunkRecovery } from "./lib/staleChunkRecovery";
 import { queryRetryDelay, shouldRetryQuery } from "./lib/queryRetry";
-import { initErrorTracking } from "./lib/observability/sentry";
+import { initErrorTracking, reportHandledError } from "./lib/observability/sentry";
 import { installSwAutoUpdate } from "./lib/swAutoUpdate";
 import { updateAvailable } from "./composables/useAppUpdate";
 import { captureInstallPrompt } from "./composables/usePwaInstall";
@@ -138,14 +138,42 @@ Promise.all([
   import("./lib/tooltip"),
   import("./directives/tooltip"),
   import("./directives/noPwm"),
-]).then(([{ onWakeLockVisibilityChange }, { installTooltipEngine }, { tooltip: vTooltip }, { noPwm: vNoPwm }]) => {
-  app.directive("tooltip", vTooltip);
-  app.directive("no-pwm", vNoPwm);
-  installTooltipEngine();
+])
+  .then((modules) => {
+    // A stale chunk arrives here as `undefined`, not as a rejection.
+    // `installStaleChunkRecovery`'s `vite:preloadError` listener calls
+    // `preventDefault()` — that is what lets it reload onto the route the user
+    // asked for — and the documented cost is that Vite's preload helper then
+    // returns `undefined` instead of throwing. Destructuring straight out of
+    // `.then` therefore threw `Cannot destructure property
+    // 'onWakeLockVisibilityChange' from null or undefined value` into an
+    // unhandled rejection (DUNGEON-GRIMOIRE-8, one client on a tab three
+    // commits behind, 13 Sep 2026).
+    //
+    // That is exactly the deploy-boundary noise `beforeSend`'s
+    // `isStaleChunkError` filter exists to keep out of Sentry, escaping through
+    // a call site the filter cannot recognise: it matches messages, and a
+    // TypeError about destructuring looks nothing like a chunk-load error. The
+    // fix belongs here rather than in the filter — there is nothing to install
+    // if the chunk never arrived, and a reload is already in flight, so the
+    // honest thing is to do nothing quietly.
+    if (modules.some((module) => !module)) return;
+    const [wakeLock, tooltipEngine, tooltipDirective, noPwmDirective] = modules;
 
-  window.addEventListener("beforeinstallprompt", captureInstallPrompt, { once: true });
-  document.addEventListener("visibilitychange", onWakeLockVisibilityChange);
-});
+    app.directive("tooltip", tooltipDirective.tooltip);
+    app.directive("no-pwm", noPwmDirective.noPwm);
+    tooltipEngine.installTooltipEngine();
+
+    window.addEventListener("beforeinstallprompt", captureInstallPrompt, { once: true });
+    document.addEventListener("visibilitychange", wakeLock.onWakeLockVisibilityChange);
+  })
+  .catch((error: unknown) => {
+    // A genuine rejection — an import that failed for a reason `preloadError`
+    // did not cover, e.g. an offline first load. Reported rather than left to
+    // become a second unhandled rejection; `beforeSend` still drops it if it
+    // turns out to be a stale chunk after all.
+    reportHandledError(error, "main:browser-only-setup");
+  });
 
 // File Handling API — handle .grimoire files opened from the OS (Chrome/Edge PWA only)
 const lq = (window as Window & {
