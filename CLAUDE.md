@@ -459,6 +459,8 @@ If two pieces of UI share structure and differ only in a few values, the structu
 
 - Template >300 lines is a signal to split, not a sign of completeness
 - **Soft file max: 600 lines total.** If a file exceeds 600 lines, evaluate whether splitting is warranted before adding more code. If the file is already over 600 lines and you are about to add non-trivial code, propose a split first. Exceptions: pure data files (`src/data/*.ts`), generated types, and files where the size is intrinsic to the domain (e.g. a canvas renderer that cannot be meaningfully split). Always call out the exception explicitly.
+
+  **It is a guardrail against 2000-line files, not a threshold that generates work — the maintainer's words, 14 Sep 2026.** A few tens of lines over is fine and needs no ticket. "Evaluate whether splitting is warranted" means exercise judgement, and for a CRUD editor that has honestly accumulated features the judgement is usually "leave it". The #598 session read it the other way and filed #883 against four detail editors at 631–696 lines; that issue was closed unactioned. So: do not open an issue, propose a refactor, or hold up a feature over a file in the 600–800 range whose size is ordinary accumulation. Act when a file is genuinely unmanageable, or when you are about to make a big file much bigger — which is what the number is there to catch.
 - If two files share >30% of their markup, the shared part belongs in a component
 - The parent (page/panel) wires data and config; the child owns layout and interaction
 - Never create two half-baked copies that will silently diverge — one component with props beats two files every time
