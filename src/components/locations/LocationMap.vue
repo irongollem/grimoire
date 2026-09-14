@@ -413,6 +413,12 @@ const placingChildName = computed(
 const hasRegionContent = computed(() => spaces.length > 0 || regions.length > 0);
 
 const activeRegion = computed(() => regions.find((r) => r.id === activeRegionId.value) ?? null);
+
+// Selecting a region to trace reveals the layer that draws it — see
+// `revealLayerForRegionRole` in the ui store for why (#880).
+watch(activeRegion, (region) => {
+  if (region) uiStore.revealLayerForRegionRole(region.region_role);
+});
 const activeRegionLabel = computed(() => {
   const region = activeRegion.value;
   if (!region) return "";

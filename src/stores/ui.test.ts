@@ -86,3 +86,34 @@ describe("Atlas explorer layout", () => {
     expect(useUiStore().locationsTreeCollapsed).toBe(true);
   });
 });
+
+describe("site map layers", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  // #880: a zone the DM had selected to trace into was drawn only when the
+  // Zones layer happened to be on, and it is off by default — so the crosshair
+  // appeared, every stroke persisted, and the screen stayed blank.
+  it("reveals the layer that draws a region the DM has picked to trace", () => {
+    const store = useUiStore();
+    expect(store.siteMapLayers.zones).toBe(false);
+
+    store.revealLayerForRegionRole("zone");
+    expect(store.siteMapLayers.zones).toBe(true);
+
+    // The other layers are untouched — revealing one is not a reset.
+    expect(store.siteMapLayers.prepared).toBe(false);
+  });
+
+  it("reveals a role's own layer rather than zones specifically", () => {
+    const store = useUiStore();
+    store.toggleSiteMapLayer("spaces");
+    expect(store.siteMapLayers.spaces).toBe(false);
+
+    store.revealLayerForRegionRole("space");
+    expect(store.siteMapLayers.spaces).toBe(true);
+    expect(store.siteMapLayers.zones).toBe(false);
+  });
+});

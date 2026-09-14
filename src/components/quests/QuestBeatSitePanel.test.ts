@@ -148,6 +148,40 @@ describe("QuestBeatSitePanel", () => {
     expect(wrapper.text()).toContain("1 space unbound");
   });
 
+  // #881: the section header carried a hardcoded IconWarning, so a site with
+  // every row green still wore a caution triangle over them.
+  it("shows the readiness header as a gap only when one of its own rows is a gap", () => {
+    mocks.regions = [{ id: "region-1", region_role: "space", cells: ["0,0"], space_location_id: null }];
+    mocks.doors = [{ from_location_id: "room-1" }];
+    const wrapper = mount(QuestBeatSitePanel, {
+      props: { beat: beat({ staged_at_location_id: "site-1" }) },
+      global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+    });
+    const header = wrapper.find('[aria-label="Site readiness"] header');
+    expect(header.find(".text-tone-caution").exists()).toBe(true);
+  });
+
+  it("shows the readiness header as met once the floor plan, ways out and bindings all hold", () => {
+    mocks.locationOptions = defaultLocations().map((loc) => (loc.id === "site-1"
+      ? { ...loc, map_url: "https://example.invalid/plan.webp", grid_calibration: { cellSize: 50, originX: 0, originY: 0 } }
+      : loc));
+    mocks.regions = [
+      { id: "region-1", region_role: "space", cells: ["0,0"], space_location_id: "room-1" },
+      { id: "region-2", region_role: "space", cells: ["1,0"], space_location_id: "room-2" },
+    ];
+    mocks.doors = [{ from_location_id: "room-1" }];
+    const wrapper = mount(QuestBeatSitePanel, {
+      props: { beat: beat({ staged_at_location_id: "site-1" }) },
+      global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+    });
+    const header = wrapper.find('[aria-label="Site readiness"] header');
+    expect(header.find(".text-tone-caution").exists()).toBe(false);
+    expect(header.find(".text-tone-success").exists()).toBe(true);
+    // The trailing line is a legend explaining what readiness costs a beat —
+    // it states the rule, not this site's state, so it stays either way.
+    expect(wrapper.text()).toContain("Site readiness is a beat gap.");
+  });
+
   it("does not treat a room under a non-site parent as staged at a site", () => {
     const wrapper = mount(QuestBeatSitePanel, {
       props: { beat: beat({ staged_at_location_id: "room-3" }) },
@@ -168,12 +202,25 @@ describe("QuestBeatSitePanel", () => {
     expect(wrapper.text()).toContain("Dungeon · 1 level · plan published rev 14");
   });
 
-  it("says the plan was never published from the Cartographer, and omits levels for a single-floor site", () => {
+  it("says a site with no regions has no floor plan at all, and omits levels for a single-floor site", () => {
     const wrapper = mount(QuestBeatSitePanel, {
       props: { beat: beat({ staged_at_location_id: "site-1" }) },
       global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
     });
-    expect(wrapper.text()).toContain("Building · plan never published from the Cartographer");
+    expect(wrapper.text()).toContain("Building · no floor plan yet");
+  });
+
+  // #878: the caption used to say "never published from the Cartographer" for
+  // this case. True, and misread as "this site has no floor plan" by the DM
+  // who had just drawn one by hand in the Atlas.
+  it("says a hand-traced plan is traced in the Atlas rather than unpublished", () => {
+    mocks.regions = [{ id: "region-1", region_role: "space", cells: ["0,0"], space_location_id: "room-1" }];
+    const wrapper = mount(QuestBeatSitePanel, {
+      props: { beat: beat({ staged_at_location_id: "site-1" }) },
+      global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+    });
+    expect(wrapper.text()).toContain("Building · plan traced in the Atlas");
+    expect(wrapper.text()).not.toContain("no floor plan yet");
   });
 
   it("splits readiness into its own bordered section, separate from the Site panel (frame 15)", () => {

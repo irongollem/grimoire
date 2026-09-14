@@ -1038,6 +1038,32 @@ readiness"** — `siteReadiness()`, the same five-check module the Atlas place
 pane's meter runs (world-building.md), reused here over just this one site's
 own data.
 
+**The readiness header reads its own rows (#881).** The section header carried
+a bare `IconWarning`, rendered whenever the section rendered — so a site that
+was published, had its ways out traced and had every space bound still wore a
+caution triangle above three green checks, which is what the DM reported. It
+now keys on `siteReady` — `floorPlanPublished && waysOut && bound`, the same
+three checks the rows below state — and shows a check when they all hold. That
+is deliberately broader than `deriveQuestBeatPrepGaps`'s `"site"` kind, which
+fires on `!bound || !waysOut` and ignores the floor plan: the board's chip
+answers "can the party walk this site", while this header only has to agree
+with the rows underneath it. A site missing only its map therefore shows
+caution here and no gap chip on the board, and both are right. The third row
+also moved from `unboundSpaces > 0` to `caption !== null`, so the *untraced
+rooms* gap — which `siteReadiness()` has always computed and captioned, and
+which `bound` counts — finally has a line it can appear on instead of being a
+gap with no row.
+
+**A hand-traced plan says so (#878).** `siteMetaCaption` had two states and
+needed three. `locations.map_published_rev` is written in exactly one place,
+`useMapPublish.ts`, so it means "a Cartographer bake was published onto this
+site" and nothing else — tracing rooms by hand in the Atlas writes
+`location_map_regions` and never touches it. "Plan never published from the
+Cartographer" was therefore strictly true of a hand-traced site and still
+wrong, because the DM read it as "this site has no floor plan" and went
+looking for a bake they never needed. The caption now distinguishes
+`plan published rev N` / `plan traced in the Atlas` / `no floor plan yet`.
+
 **Site readiness is a beat gap.** The Quest Board already renders `has-gaps`
 on a beat missing its people or its handouts; a site that cannot actually be
 walked (unbound spaces, no ways out) is the same class of gap, so

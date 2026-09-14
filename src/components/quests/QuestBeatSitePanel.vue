@@ -77,7 +77,7 @@
        warning reads as a distinct signal rather than one more Site row. -->
   <section v-if="readiness" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3" aria-label="Site readiness">
     <header class="flex items-center gap-2">
-      <IconWarning class="h-4 w-4 shrink-0 text-tone-caution" aria-hidden="true" />
+      <component :is="siteReady ? IconCheck : IconWarning" class="h-4 w-4 shrink-0" :class="siteReady ? 'text-tone-success' : 'text-tone-caution'" aria-hidden="true" />
       <h3 class="font-cinzel text-sm font-bold text-foreground">Site readiness</h3>
     </header>
     <p class="flex items-center gap-1.5 text-caption">
@@ -88,7 +88,7 @@
       <component :is="readiness.waysOut ? IconCheck : IconWarning" class="h-3.5 w-3.5 shrink-0" :class="readiness.waysOut ? 'text-tone-success' : 'text-tone-caution'" />
       <span :class="readiness.waysOut ? 'text-foreground' : 'text-ink-caution'">Ways out {{ readiness.waysOut ? `traced — ${doorCount}` : "not traced yet" }}</span>
     </p>
-    <p v-if="readiness.unboundSpaces > 0" class="flex items-center gap-1.5 text-caption">
+    <p v-if="readiness.caption" class="flex items-center gap-1.5 text-caption">
       <IconWarning class="h-3.5 w-3.5 shrink-0 text-tone-caution" />
       <span class="text-ink-caution">{{ readiness.caption }}</span>
     </p>
@@ -157,14 +157,23 @@ const roomCount = computed(() => siteRooms.value.length);
 const childSiteCount = computed(() => site.value
   ? locationOptions.value.filter((candidate) => candidate.parent_id === site.value!.id && isSiteType(candidate.location_type)).length
   : 0);
+const hasTracedPlan = computed(() => regions.value.some((r) => r.region_role === "space" && r.cells.length > 0));
 const siteMetaCaption = computed(() => {
   if (!site.value) return "";
   const parts = [LOCATION_TYPE_LABELS[site.value.location_type]];
   if (childSiteCount.value > 0) parts.push(`${childSiteCount.value} level${childSiteCount.value === 1 ? "" : "s"}`);
+  // Three states, not two. "never published from the Cartographer" was
+  // strictly true of a site whose rooms the DM had traced by hand in the
+  // Atlas — `map_published_rev` is written only by the Cartographer's own
+  // publish flow (`useMapPublish.ts`) and nothing else touches it — but it
+  // read as "this site has no floor plan", which was false and sent the DM
+  // looking for a bake they never needed (#878). A hand-traced plan says so.
   parts.push(
     site.value.map_published_rev != null
       ? `plan published rev ${site.value.map_published_rev}`
-      : "plan never published from the Cartographer",
+      : hasTracedPlan.value
+        ? "plan traced in the Atlas"
+        : "no floor plan yet",
   );
   return parts.join(" · ");
 });
@@ -270,4 +279,18 @@ const readiness = computed(() => site.value
 // "Published" per frame 15 is the map AND its calibration — a traced map
 // with no scale can't place the party's token, so it isn't ready either.
 const floorPlanPublished = computed(() => !!readiness.value && readiness.value.mapped && readiness.value.calibrated);
+// The header glyph was a bare `IconWarning`, rendered unconditionally — so a
+// site with every row green still wore a caution triangle, which is what the
+// DM reported (#881). It now reads the same three checks the rows below it
+// read, and nothing else: a summary that can disagree with its own detail is
+// worse than no summary.
+//
+// Deliberately broader than `deriveQuestBeatPrepGaps`'s `"site"` gap kind,
+// which fires on `!bound || !waysOut` and ignores the floor plan. The two
+// answer different questions: the board's chip asks whether the party can
+// walk this site, while this header only has to agree with the three rows
+// underneath it — one of which is the floor plan. A site missing only its
+// map therefore shows a caution header here and no gap chip on the board,
+// which is correct in both places.
+const siteReady = computed(() => floorPlanPublished.value && !!readiness.value?.waysOut && !!readiness.value?.bound);
 </script>

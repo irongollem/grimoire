@@ -15,6 +15,7 @@ import type { DowntimeDrawStatus } from "@/types/downtime.types";
 import type { MiniFormat, MiniStatus } from "@/types/mini.types";
 import type { AdminAuditAction } from "@/composables/admin/useAdminAuditLog";
 import type { TraceTool } from "@/lib/locations/polygon";
+import type { RegionRole } from "@/types/locationMapRegion.types";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -781,6 +782,21 @@ export const useUiStore = defineStore("ui", () => {
     siteMapLayers.value[key] = !siteMapLayers.value[key];
   }
 
+  // You cannot trace into a layer you cannot see. `zones` is off by default
+  // above, so selecting a zone to draw into handed the DM a crosshair over an
+  // invisible layer: every stroke persisted through the same `commitCells`
+  // path a room uses, and nothing appeared on screen (#880). Selecting a
+  // region to trace is a statement of intent that outranks a viewing
+  // preference, so the layer that draws that region comes on with it. Keyed
+  // on the region's role rather than special-casing zones, so a third
+  // traceable role cannot reintroduce this; switching the layer back off
+  // afterwards stays available, and is now a choice rather than the default.
+  const LAYER_FOR_REGION_ROLE = { space: "spaces", zone: "zones" } as const satisfies Record<RegionRole, keyof typeof siteMapLayers.value>;
+
+  function revealLayerForRegionRole(role: RegionRole) {
+    siteMapLayers.value[LAYER_FOR_REGION_ROLE[role]] = true;
+  }
+
   // Site map trace tool (#868, frame 12) — which of the three ways to trace a
   // space is active. A plain ref alongside `siteMapLayers` for the same
   // reason: which tool is selected is a working-session preference for
@@ -1261,6 +1277,7 @@ export const useUiStore = defineStore("ui", () => {
     collapseAllLocations,
     siteMapLayers,
     toggleSiteMapLayer,
+    revealLayerForRegionRole,
     siteMapTraceTool,
 
     // Puzzles

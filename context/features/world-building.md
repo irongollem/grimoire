@@ -230,6 +230,24 @@ Cover: `src/lib/locations/siteMap.test.ts` (grid bounds, click-to-cell mapping, 
 
 Client side: `src/lib/locations/zones.ts` (pure — `ZONE_KIND_FILL` colours, `zoneSummary()` for the one-line read-out, `isPlayerVisible()`, `emptyZoneInsert()`), `SiteMapZoneList.vue` (the zone-CRUD sibling of `SiteMapRegionList`, mounted alongside it by `LocationMap.vue` in browse mode — same lifted-`activeRegionId` convention, same per-kind payload editor with fields that vary by `zone_kind`), `SiteMapLayerBar.vue` (the layer toggles, reading/writing `useUiStore().siteMapLayers` — `spaces`, `ways`, `zones`, `prepared`, `grid`, no v-model needed since every flag is session UI state), and `SiteMapLegend.vue`. Zones are DM ink by default (`visible_to_players` absent means false, not unknown); the player-visible projection clips a shown zone to the party's own explored cells (see "The player's plan is composed, not masked" below).
 
+**Picking a region to trace reveals its layer (#880).** `siteMapLayers.zones`
+starts off, and only `drawZonesPass` ever paints a zone's cells — its persisted
+fill *and* its in-progress paint stroke. So selecting a zone to draw into gave
+the DM a crosshair over an invisible layer: each stroke went through the same
+`commitCells` → `useUpdateLocationMapRegion` path a room's does and persisted
+correctly, and the screen stayed blank, which reads as a dead tool rather than
+a hidden one. `LocationMap` now watches `activeRegion` and calls
+`useUiStore().revealLayerForRegionRole(region.region_role)`, which maps the
+role to its layer (`space` → `spaces`, `zone` → `zones`) and turns that one on.
+The rule lives in the store rather than the map because it is a statement about
+the layer set, and it is keyed on the role rather than special-cased to zones so
+a third traceable role cannot bring the bug back. Turning the layer off again
+still works — it is now a choice the DM makes rather than the state they start
+in. Note the near miss that made this hard to spot: the pen tool's draft ring
+(`MapRegionsLayer.vue`) is *not* gated on `showZones`, so tracing a zone with
+the pen did show feedback and then lost the finished fill, while the default
+paint tool was dark end to end.
+
 **The Atlas place pane gains new apparatus** (epic #868, frames 02/03/06, gathered by `useSiteStructure.ts`). `AtlasPlacePane`'s readiness meter, its map-mode source strip, its layer bar and its levels rail all need the same facts about a site — its bindable spaces, its traced regions, its door graph, and (when it has one) the Cartographer drawing it was last published from. Gathering each of those independently is how a readiness pill and a staleness strip end up disagreeing about the same site, so `useSiteStructure(location)` is the one composable that gathers them all once.
 
 - **Readiness** (`siteReadiness()`, `lib/locations/siteReadiness.ts`, `SiteReadinessMeter.vue`) — the site analogue of the Quest Board's gap chips: five checks in a fixed order (mapped, calibrated, traced, bound, ways out). `bound` folds two different gaps under one flag — a region traced but never bound to a room (`unboundSpaces`), and a bindable child with no region bound to it at all (`untracedSpaces`) — because a DM fixing either one is doing the same job: making the floor plan agree with the room list. The single `caption` reports whichever is cheaper to fix first: an unbound shape is a one-click pick, an untraced room needs new ink drawn.
