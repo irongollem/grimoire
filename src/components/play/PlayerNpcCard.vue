@@ -16,7 +16,7 @@
         />
         <img
           v-else-if="!npc.player_visible_fields.includes('portrait') && displayPortrait"
-          src="/assets/npcs/mystery-figure.webp"
+          :src="mysteryFigureSrc"
           alt="Identity hidden"
           class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
         />
@@ -59,6 +59,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { IconUser } from '@/lib/icons';
+import { artUrl } from "@/lib/assets/artUrl";
 import FocalImage from "@/components/common/FocalImage.vue";
 import EntityNewDot from "@/components/common/EntityNewDot.vue";
 import MiniPortraitOverlay from "@/components/simulacrum/MiniPortraitOverlay.vue";
@@ -74,6 +75,8 @@ const props = defineProps<{
 }>();
 
 defineEmits<{ click: [] }>();
+
+const mysteryFigureSrc = artUrl("/assets/npcs/mystery-figure.webp");
 
 const displayName = computed(() => getNpcDisplayName(props.npc) ?? "???");
 const displayPortrait = computed(() => getNpcDisplayPortrait(props.npc));

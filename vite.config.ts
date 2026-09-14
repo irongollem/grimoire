@@ -202,6 +202,23 @@ function swPlugin(assetCdnOrigin: string): Plugin {
  * before this story landed. Missing manifest → also a no-op (nothing to
  * strip yet), the same "safe to land before R2 has a single byte" property
  * `artUrl()` itself relies on.
+ *
+ * INVARIANT this plugin depends on: every path `artManifest.json` names must
+ * reach the bundle exclusively through `artUrl()` (src/lib/assets/artUrl.ts)
+ * — never as a literal `/assets/...` string built by hand. A call site that
+ * writes the literal path directly still works locally (no CDN base, so
+ * `artUrl()` would return it unchanged too) and then 404s on the next
+ * production deploy, because this plugin deletes that exact served path from
+ * `dist/` once a CDN base is configured — production, always. Four icon
+ * components, a puzzle data file and five more call sites shipped precisely
+ * that bug (#877) before anything caught it. Enforced by
+ * `src/lib/assets/artUrl.literalPaths.test.ts`, which scans the source tree
+ * for a manifest key appearing as a bare string literal outside an
+ * `artUrl(` call. A path that a stylesheet must reference via a literal
+ * `url()` (CSS cannot call a function) is the one legitimate exception, and
+ * it is handled by excluding that key from the manifest entirely — see
+ * `MANIFEST_EXCLUSIONS` in `scripts/art-manifest.ts` — never by working
+ * around this plugin or the test.
  */
 function artStripPlugin(assetCdnBase: string | null): Plugin {
   /**

@@ -16,6 +16,7 @@ import {
   firstAnchorSelector,
   buildTourSteps,
 } from "@/lib/tours/firstRunTours";
+import { chunksArrived } from "@/lib/staleChunkRecovery";
 
 const route = useRoute();
 
@@ -76,10 +77,14 @@ async function maybeStartTour(): Promise<void> {
   const steps = buildTourSteps(kind);
   if (steps.length === 0) return;
 
-  const [{ driver }] = await Promise.all([
-    import("driver.js"),
-    import("driver.js/dist/driver.css"),
-  ]);
+  const modules = await Promise.all([import("driver.js"), import("driver.js/dist/driver.css")]);
+  // A stale chunk resolves to `undefined` rather than rejecting — see
+  // chunksArrived's docstring in staleChunkRecovery.ts. Bail quietly: the
+  // flag stays set (we returned before clearFlag() could run), so the tour
+  // is retried the next time this route is reached, by which point a reload
+  // already in flight will likely have picked up the fresh chunk graph.
+  if (!chunksArrived(modules)) return;
+  const [{ driver }] = modules;
   tourActive = true;
   const tour = driver({
     showProgress: true,

@@ -1,10 +1,11 @@
+import { artUrl } from "@/lib/assets/artUrl";
 import type { PuzzleInsert } from "@/types/puzzle.types";
 
 /** Pre-seeded puzzle room examples. Skips any that already exist by name. */
 export const PUZZLE_TEMPLATES: Omit<PuzzleInsert, "image_focal_point" | "campaign_id" | "is_shared" | "shared_hints" | "player_visible_to" | "read_aloud" | "location_id" | "dungeon_feature_id">[] = [
   {
     name: "The Three Doors",
-    image_url: "/assets/puzzles/three-doors.webp",
+    image_url: artUrl("/assets/puzzles/three-doors.webp"),
     puzzle_type: "Logic",
     difficulty: "Medium",
     description:
@@ -42,7 +43,7 @@ export const PUZZLE_TEMPLATES: Omit<PuzzleInsert, "image_focal_point" | "campaig
 
   {
     name: "The Celestial Orrery",
-    image_url: "/assets/puzzles/arcane-library.webp",
+    image_url: artUrl("/assets/puzzles/arcane-library.webp"),
     puzzle_type: "Arcane",
     difficulty: "Hard",
     description:
@@ -80,7 +81,7 @@ export const PUZZLE_TEMPLATES: Omit<PuzzleInsert, "image_focal_point" | "campaig
 
   {
     name: "The Waterway Vault",
-    image_url: "/assets/puzzles/waterway-vault.webp",
+    image_url: artUrl("/assets/puzzles/waterway-vault.webp"),
     puzzle_type: "Physical",
     difficulty: "Easy",
     description:

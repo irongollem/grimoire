@@ -4,6 +4,7 @@
 
 <script setup lang="ts">
 import MaskIcon from "./MaskIcon.vue";
+import { artUrl } from "@/lib/assets/artUrl";
 import type { DamageType } from "@/types/damage.types";
 
 /**
@@ -12,5 +13,5 @@ import type { DamageType } from "@/types/damage.types";
  */
 const { type, label } = defineProps<{ type: DamageType; label?: string }>();
 
-const src = `${import.meta.env.BASE_URL}assets/damage-types/${type}.svg`;
+const src = artUrl(`/assets/damage-types/${type}.svg`);
 </script>

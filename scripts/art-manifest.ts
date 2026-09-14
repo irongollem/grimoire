@@ -33,6 +33,7 @@ import { parseArgs } from "node:util";
 // src/lib/storage/buckets.ts, which reads import.meta.env at module scope and
 // throws under plain Node (see artPrefix.ts's docstring).
 import { ART_PREFIX } from "@/lib/assets/artPrefix";
+import { isCliEntry } from "./lib/cli";
 
 const REPO_ROOT = join(import.meta.dirname, "..");
 const MANIFEST_PATH = join(REPO_ROOT, "src/generated/artManifest.json");
@@ -58,6 +59,24 @@ const ART_EXTENSIONS = new Set([
   ".webp", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".avif",
   ".mp3", ".ogg", ".wav", ".mp4", ".webm",
 ]);
+
+/**
+ * Manifest keys deliberately withheld from the manifest, so `artStripPlugin`
+ * (vite.config.ts) can never strip them from `dist/` and `artUrl()` can never
+ * resolve them to a CDN URL. Add an entry only with a documented reason.
+ *
+ * `/assets/scriptorium/page-background.webp` — referenced by literal
+ * `url()`s in two plain CSS files (src/assets/scriptorium-editor.css,
+ * src/assets/scriptorium/theme-base.css) that cannot call `artUrl()`.
+ * Worse, theme-base.css is also `?inline`-imported into
+ * `useScriptoriumPrint.ts` and injected as raw CSS text into an isolated
+ * print iframe — and, per its own docstring, will later be handed unmodified
+ * to a headless server renderer (Phase E). Neither context runs app JS or
+ * inherits the main document's CSS custom properties, so a runtime-set
+ * `--sc-*` variable can't reach it either. The only fix that works
+ * everywhere is to keep this one file living at its literal path forever.
+ */
+const MANIFEST_EXCLUSIONS = new Set<string>(["/assets/scriptorium/page-background.webp"]);
 
 export interface ArtFile {
   /** Absolute path on disk. */
@@ -115,6 +134,7 @@ export function buildManifest(files: ArtFile[] = scanArtFiles()): ManifestResult
   let totalBytes = 0;
 
   for (const { absPath, key } of files) {
+    if (MANIFEST_EXCLUSIONS.has(key)) continue;
     const bytes = readFileSync(absPath);
     totalBytes += bytes.byteLength;
     const hash = hashBytes(bytes);
@@ -181,12 +201,7 @@ function diffLines(before: string, after: string): string {
   return out.slice(0, 40).join("\n") + (out.length > 40 ? "\n  … and more" : "");
 }
 
-// CLI-entry guard so tests can import without triggering main().
-const invokedAsCli =
-  typeof process.argv[1] === "string" &&
-  import.meta.url === new URL(`file://${process.argv[1]}`).href;
-
-if (invokedAsCli) {
+if (isCliEntry(import.meta.url)) {
   try {
     process.exit(main());
   } catch (err: unknown) {

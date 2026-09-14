@@ -5,6 +5,7 @@ import type { Item } from "@/types/item.types";
 import CharacterSheetRenderer from "@/components/character-sheet/CharacterSheetRenderer.vue";
 import IllustratedSheetDocument from "@/components/character-sheet/illustrated/IllustratedSheetDocument.vue";
 import { PAGE_PX as ILLUSTRATED_PAGE_PX, type IllustratedTheme } from "@/components/character-sheet/illustrated/sheetTypes";
+import { chunksArrived } from "@/lib/staleChunkRecovery";
 
 export type SheetPageSize = "A4" | "Letter";
 
@@ -113,10 +114,14 @@ export function useCharacterSheetPdf() {
       // jspdf + html2canvas are ~590 kB together and are only ever needed once a
       // user actually exports a sheet. Keep the lazy imports inside this cleanup
       // guard so a failed chunk request cannot leave the export permanently busy.
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import("jspdf"),
-        import("html2canvas"),
-      ]);
+      const modules = await Promise.all([import("jspdf"), import("html2canvas")]);
+      // A stale chunk resolves to `undefined` rather than rejecting — see
+      // chunksArrived's docstring. Bail out quietly: no PDF is produced, but
+      // the `finally` below still unmounts the off-screen render and clears
+      // `isGenerating`, so the UI settles back to "Export PDF" rather than
+      // claiming an export that never happened.
+      if (!chunksArrived(modules)) return;
+      const [{ default: jsPDF }, { default: html2canvas }] = modules;
 
       await nextTick();
       await document.fonts.ready;

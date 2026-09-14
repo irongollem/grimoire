@@ -10,7 +10,7 @@ import { createSessionRecovery } from "./lib/sessionRecovery";
 import { track } from "./lib/analytics";
 import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
 import { useAuthStore } from "./stores/auth";
-import { installStaleChunkRecovery } from "./lib/staleChunkRecovery";
+import { installStaleChunkRecovery, chunksArrived } from "./lib/staleChunkRecovery";
 import { queryRetryDelay, shouldRetryQuery } from "./lib/queryRetry";
 import { initErrorTracking, reportHandledError } from "./lib/observability/sentry";
 import { installSwAutoUpdate } from "./lib/swAutoUpdate";
@@ -140,24 +140,10 @@ Promise.all([
   import("./directives/noPwm"),
 ])
   .then((modules) => {
-    // A stale chunk arrives here as `undefined`, not as a rejection.
-    // `installStaleChunkRecovery`'s `vite:preloadError` listener calls
-    // `preventDefault()` — that is what lets it reload onto the route the user
-    // asked for — and the documented cost is that Vite's preload helper then
-    // returns `undefined` instead of throwing. Destructuring straight out of
-    // `.then` therefore threw `Cannot destructure property
-    // 'onWakeLockVisibilityChange' from null or undefined value` into an
-    // unhandled rejection (DUNGEON-GRIMOIRE-8, one client on a tab three
-    // commits behind, 13 Sep 2026).
-    //
-    // That is exactly the deploy-boundary noise `beforeSend`'s
-    // `isStaleChunkError` filter exists to keep out of Sentry, escaping through
-    // a call site the filter cannot recognise: it matches messages, and a
-    // TypeError about destructuring looks nothing like a chunk-load error. The
-    // fix belongs here rather than in the filter — there is nothing to install
-    // if the chunk never arrived, and a reload is already in flight, so the
-    // honest thing is to do nothing quietly.
-    if (modules.some((module) => !module)) return;
+    // A stale chunk arrives here as `undefined`, not as a rejection — see
+    // `chunksArrived`'s docstring in staleChunkRecovery.ts for why
+    // (DUNGEON-GRIMOIRE-8). Bail quietly: a reload is already in flight.
+    if (!chunksArrived(modules)) return;
     const [wakeLock, tooltipEngine, tooltipDirective, noPwmDirective] = modules;
 
     app.directive("tooltip", tooltipDirective.tooltip);

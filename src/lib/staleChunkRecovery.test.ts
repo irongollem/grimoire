@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Router } from "vue-router";
-import { isChunkLoadError, isStaleChunkError, installStaleChunkRecovery } from "@/lib/staleChunkRecovery";
+import { isChunkLoadError, isStaleChunkError, installStaleChunkRecovery, chunksArrived } from "@/lib/staleChunkRecovery";
 
 // Captures the hooks installStaleChunkRecovery registers so tests can fire
 // them directly, standing in for a real router.
@@ -48,6 +48,24 @@ describe("isChunkLoadError", () => {
     expect(isChunkLoadError(new Error("permission denied for table sounds"))).toBe(false);
     expect(isChunkLoadError("Failed to fetch dynamically imported module")).toBe(false);
     expect(isChunkLoadError(undefined)).toBe(false);
+  });
+});
+
+describe("chunksArrived", () => {
+  it("is true when every element of a Promise.all import result is present", () => {
+    expect(chunksArrived([{ default: 1 }, { default: 2 }])).toBe(true);
+  });
+
+  it("is false when a swallowed chunk resolved to undefined", () => {
+    expect(chunksArrived([{ default: 1 }, undefined])).toBe(false);
+  });
+
+  it("is false when a swallowed chunk resolved to null", () => {
+    expect(chunksArrived([null, { default: 2 }])).toBe(false);
+  });
+
+  it("is true for an empty tuple", () => {
+    expect(chunksArrived([])).toBe(true);
   });
 });
 

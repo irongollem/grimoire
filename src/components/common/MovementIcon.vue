@@ -4,6 +4,7 @@
 
 <script setup lang="ts">
 import MaskIcon from "./MaskIcon.vue";
+import { artUrl } from "@/lib/assets/artUrl";
 import { MOVEMENT_ICON, type MovementMode } from "@/lib/movement";
 
 /**
@@ -12,5 +13,5 @@ import { MOVEMENT_ICON, type MovementMode } from "@/lib/movement";
  */
 const { mode } = defineProps<{ mode: Exclude<MovementMode, "walk"> }>();
 
-const src = `${import.meta.env.BASE_URL}assets/movement/${MOVEMENT_ICON[mode]}.svg`;
+const src = artUrl(`/assets/movement/${MOVEMENT_ICON[mode]}.svg`);
 </script>

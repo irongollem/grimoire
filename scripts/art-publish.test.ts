@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { publish, contentTypeFor, type PublishDeps } from "./art-publish";
 import { IMMUTABLE_CACHE_CONTROL, type R2Config } from "../supabase/functions/_shared/r2/config.ts";
+
+const md5 = (bytes: Buffer) => createHash("md5").update(bytes).digest("hex");
 
 const R2: R2Config = {
   accountId: "acc",
@@ -26,7 +29,7 @@ function makeDeps(overrides: Partial<PublishDeps> = {}): PublishDeps {
 describe("art-publish publish()", () => {
   it("skips an object that already exists at the same size (HEAD hit)", async () => {
     const deps = makeDeps({
-      headObject: vi.fn(async () => ({ size: Buffer.from("fake-bytes").byteLength })),
+      headObject: vi.fn(async () => ({ size: Buffer.from("fake-bytes").byteLength, etag: null })),
     });
 
     const result = await publish([ENTRY], R2, { dryRun: false, verify: false, concurrency: 4 }, deps);
@@ -82,6 +85,52 @@ describe("art-publish publish()", () => {
   });
 });
 
+// A matching ETag is content-identity proof; a matching size alone is not — a
+// stale/corrupted object in R2 can happen to share the local file's byte
+// length. See `matchesStored`'s docstring.
+describe("art-publish matchesStored via publish() — ETag", () => {
+  const BYTES = Buffer.from("fake-bytes");
+
+  it("skips when the ETag matches, without reading the object", async () => {
+    const deps = makeDeps({
+      readFile: vi.fn(() => BYTES),
+      headObject: vi.fn(async () => ({ size: BYTES.byteLength, etag: md5(BYTES) })),
+    });
+
+    const result = await publish([ENTRY], R2, { dryRun: false, verify: false, concurrency: 4 }, deps);
+
+    expect(deps.getObject).not.toHaveBeenCalled();
+    expect(deps.putObject).not.toHaveBeenCalled();
+    expect(result).toEqual({ uploaded: 0, skipped: 1, problems: [] });
+  });
+
+  it("does NOT skip on a size match alone when the ETag mismatches — the bug this fixes", async () => {
+    const deps = makeDeps({
+      readFile: vi.fn(() => BYTES),
+      // Same byte length as BYTES, but a different ETag: a stale or corrupted
+      // object the old size-only check would have wrongly called "stored".
+      headObject: vi.fn(async () => ({ size: BYTES.byteLength, etag: md5(Buffer.from("wrong-byte")) })),
+    });
+
+    const result = await publish([ENTRY], R2, { dryRun: false, verify: false, concurrency: 4 }, deps);
+
+    expect(deps.putObject).toHaveBeenCalledOnce();
+    expect(result).toEqual({ uploaded: 1, skipped: 0, problems: [] });
+  });
+
+  it("falls back to size comparison when the ETag is absent — previous behaviour", async () => {
+    const deps = makeDeps({
+      readFile: vi.fn(() => BYTES),
+      headObject: vi.fn(async () => ({ size: BYTES.byteLength, etag: null })),
+    });
+
+    const result = await publish([ENTRY], R2, { dryRun: false, verify: false, concurrency: 4 }, deps);
+
+    expect(deps.putObject).not.toHaveBeenCalled();
+    expect(result).toEqual({ uploaded: 0, skipped: 1, problems: [] });
+  });
+});
+
 describe("contentTypeFor", () => {
   it("maps known art extensions to their MIME type", () => {
     expect(contentTypeFor("npc.webp")).toBe("image/webp");
@@ -106,7 +155,7 @@ describe("art-publish when R2 reports no size", () => {
     return {
       deps: makeDeps({
         readFile: vi.fn(() => BYTES),
-        headObject: vi.fn(async () => ({ size: null })),
+        headObject: vi.fn(async () => ({ size: null, etag: null })),
         getObject: vi.fn(async () => remote),
       }),
       options: { dryRun: false, verify, concurrency: 4 },

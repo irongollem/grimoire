@@ -70,6 +70,26 @@ export function isStaleChunkError(error: unknown): boolean {
   return preloadFailed && error instanceof Error && /couldn't resolve component/i.test(error.message);
 }
 
+/**
+ * True when every element of a `Promise.all([import(...), ...])` result
+ * actually arrived. A chunk lost to a swallowed `vite:preloadError` (see
+ * `isStaleChunkError` above) resolves to `undefined` rather than rejecting —
+ * destructuring `.default` straight out of it throws "Cannot destructure
+ * property ... of undefined" as an unhandled rejection instead of the chunk-
+ * load error this module exists to catch (DUNGEON-GRIMOIRE-8). A caller that
+ * gets `false` back should bail out quietly: there is nothing to install or
+ * render, and a reload is already in flight from the `vite:preloadError`
+ * listener installed below.
+ *
+ * Narrows the tuple so a caller can destructure straight out of the modules
+ * array once this returns `true`.
+ */
+export function chunksArrived<T extends readonly unknown[]>(
+  modules: T,
+): modules is { [K in keyof T]: NonNullable<T[K]> } {
+  return modules.every((module) => module != null);
+}
+
 function defaultNavigate(targetPath?: string): void {
   if (targetPath) window.location.assign(targetPath);
   else window.location.reload();

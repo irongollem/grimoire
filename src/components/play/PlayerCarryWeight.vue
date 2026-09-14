@@ -109,16 +109,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { formatWeightLb } from '@/lib/utils';
+import { artUrl } from '@/lib/assets/artUrl';
 import AppButton from '@/components/common/AppButton.vue';
 import AppInput from '@/components/common/AppInput.vue';
 
 type BurdenLevel = 'unencumbered' | 'encumbered' | 'heavily_encumbered' | 'over_encumbered';
 
 const BURDEN_META: Record<BurdenLevel, { label: string; img: string; color: string }> = {
-  unencumbered: { label: 'Unencumbered', img: '/assets/unencumbered.webp', color: 'text-green-500' },
-  encumbered: { label: 'Encumbered', img: '/assets/encumbered.webp', color: 'text-amber-400' },
-  heavily_encumbered: { label: 'Heavily Encumbered', img: '/assets/heavily_encumbered.webp', color: 'text-orange-500' },
-  over_encumbered: { label: 'Over Encumbered', img: '/assets/over_encumbered.webp', color: 'text-destructive' },
+  unencumbered: { label: 'Unencumbered', img: artUrl('/assets/unencumbered.webp'), color: 'text-green-500' },
+  encumbered: { label: 'Encumbered', img: artUrl('/assets/encumbered.webp'), color: 'text-amber-400' },
+  heavily_encumbered: { label: 'Heavily Encumbered', img: artUrl('/assets/heavily_encumbered.webp'), color: 'text-orange-500' },
+  over_encumbered: { label: 'Over Encumbered', img: artUrl('/assets/over_encumbered.webp'), color: 'text-destructive' },
 };
 
 const {

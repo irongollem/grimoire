@@ -27,6 +27,7 @@ import { createClient } from "@supabase/supabase-js";
 import { r2ConfigFrom, r2ObjectKey, IMMUTABLE_CACHE_CONTROL } from "../supabase/functions/_shared/r2/config.ts";
 import { putObject, headObject, getObject } from "../supabase/functions/_shared/r2/client.ts";
 import { STORAGE_WRITE_POLICY } from "../supabase/functions/_shared/storage-policy.ts";
+import { pooled } from "./lib/pool.ts";
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -110,18 +111,6 @@ async function* walk(
     }
     if (data.length < PAGE) return;
   }
-}
-
-/** Run `worker` over `items` with a bounded number in flight. */
-async function pooled<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      await worker(items[index]);
-    }
-  });
-  await Promise.all(runners);
 }
 
 async function main(): Promise<void> {

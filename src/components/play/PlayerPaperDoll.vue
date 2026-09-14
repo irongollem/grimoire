@@ -7,7 +7,7 @@
       <!-- Silhouette -->
       <div class="relative shrink-0 w-32 h-60 select-none">
         <img
-          :src="slotItem('clothes') ? '/assets/dressed.webp' : '/assets/naked.webp'"
+          :src="slotItem('clothes') ? dressedSrc : nakedSrc"
           alt="Character"
           class="w-full h-full object-contain object-center transition-opacity duration-200"
         />
@@ -157,9 +157,13 @@
 
 <script setup lang="ts">
 import { formatWeightLb } from '@/lib/utils';
+import { artUrl } from '@/lib/assets/artUrl';
 import type { PartyInventoryItem, InventorySlot } from '@/types/inventory.types';
 import SlotButton from '@/components/inventory/SlotButton.vue';
 import EquipSlotRow from '@/components/inventory/EquipSlotRow.vue';
+
+const dressedSrc = artUrl('/assets/dressed.webp');
+const nakedSrc = artUrl('/assets/naked.webp');
 
 const {
   equippedItems,

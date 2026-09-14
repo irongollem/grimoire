@@ -95,6 +95,16 @@ export async function getObject(config: R2Config, key: string): Promise<Uint8Arr
 export interface HeadResult {
   /** Null when the response carried no Content-Length — "unknown", never 0. */
   readonly size: number | null;
+  /**
+   * Unquoted ETag, or null when the response carried none. For a non-multipart
+   * PUT (every upload path in this codebase — see `putObject`), R2's ETag is
+   * the quoted MD5 hex of the body, which is what makes it usable as a
+   * content-identity check without a full download — see `art-publish.ts`'s
+   * `matchesStored`. A multipart-uploaded object's ETag is not an MD5 (it is
+   * `<hash-of-part-hashes>-<partCount>`), so this must not be trusted as an
+   * MD5 for objects this client did not itself PUT that way — none does today.
+   */
+  readonly etag: string | null;
 }
 
 /** Null when the object does not exist — the "already copied?" check. */
@@ -116,7 +126,11 @@ export async function headObject(config: R2Config, key: string): Promise<HeadRes
   // this against the source size to decide "already copied", and a fake zero
   // would turn "unknown" into "mismatched", or worse, match a real empty file.
   const contentLength = response.headers.get("content-length");
-  return { size: contentLength === null ? null : Number(contentLength) };
+  const rawEtag = response.headers.get("etag");
+  return {
+    size: contentLength === null ? null : Number(contentLength),
+    etag: rawEtag === null ? null : rawEtag.replace(/^W\//, "").replace(/^"|"$/g, ""),
+  };
 }
 
 /**

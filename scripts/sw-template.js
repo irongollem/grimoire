@@ -58,8 +58,9 @@
 //               (garbage-collects old deploys only). Runs only after a fully
 //               successful install, so the old cache is never deleted before
 //               the new one is complete.
-//   fetch     — CDN-origin GETs (when __ASSET_CDN_ORIGIN__ is set) → cache-first
-//               against ART_CACHE; see the CDN ART CACHE section. Everything
+//   fetch     — CDN-origin GETs under ART_PATH_PREFIX (when __ASSET_CDN_ORIGIN__
+//               is set) → cache-first against ART_CACHE; see the CDN ART CACHE
+//               section. Everything
 //               else is same-origin GETs only:
 //                 • navigations (mode: 'navigate') → network raced against a
 //                   short timeout; on timeout or failure serve the cached
@@ -118,6 +119,18 @@ const ART_CACHE = "grimoire-art";
  * is what makes the whole CDN art rule inert with no CDN configured.
  */
 const ASSET_CDN_ORIGIN = /** @type {string} */ (__ASSET_CDN_ORIGIN__);
+
+/**
+ * Path prefix every published art object is served under — the R2 key
+ * `art-manifest.ts` mints is exactly the CDN pathname (see
+ * grimoire-cdn-worker.js), and that key always starts with `ART_PREFIX`
+ * (`src/lib/assets/artPrefix.ts`, currently "app-art"). Hardcoded rather than
+ * templated in: this file is a build-time template substituted by
+ * `swPlugin` in vite.config.ts, which this script does not own, and
+ * artPrefix.ts is the source of truth to keep this in sync with if it ever
+ * changes.
+ */
+const ART_PATH_PREFIX = "/app-art/";
 
 /**
  * Entry bound for ART_CACHE. `art-manifest.ts` mints a new content-hashed key
@@ -274,7 +287,12 @@ self.addEventListener("fetch", (event) => {
   // deliberately handles cross-origin. `ASSET_CDN_ORIGIN` is "" when no CDN is
   // configured, and no request's origin is ever the empty string, so this
   // branch is unreachable — inert — in that case, exactly as required.
-  if (ASSET_CDN_ORIGIN && url.origin === ASSET_CDN_ORIGIN) {
+  //
+  // Matched on ART_PATH_PREFIX, not origin alone: the same CDN origin also
+  // fronts every Supabase storage bucket (src/lib/storage/buckets.ts, all
+  // `cdn: true`), which are not content-hashed the way published art is, and
+  // must not be cached forever on that promise.
+  if (ASSET_CDN_ORIGIN && url.origin === ASSET_CDN_ORIGIN && url.pathname.startsWith(ART_PATH_PREFIX)) {
     event.respondWith(serveFromArtCache(req));
     return;
   }

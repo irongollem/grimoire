@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { parseListResponse, __testing } from "./client.ts";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { parseListResponse, headObject, __testing } from "./client.ts";
 import { r2ConfigFrom } from "./config.ts";
 
 const config = r2ConfigFrom((key) =>
@@ -83,6 +83,46 @@ describe("parseListResponse", () => {
       <Contents><Key>mini-models/u1/a.stl</Key></Contents>
     </ListBucketResult>`;
     expect(parseListResponse(withPrefixes).keys).toEqual(["mini-models/u1/a.stl"]);
+  });
+});
+
+describe("headObject", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function stubFetch(headers: Record<string, string>, status = 200) {
+    const fetchMock = vi.fn(async () => new Response(null, { status, headers }));
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("unquotes a non-multipart ETag", () => {
+    stubFetch({ "content-length": "42", etag: '"d41d8cd98f00b204e9800998ecf8427e"' });
+    return headObject(config, "app-art/assets/foo.webp").then((result) => {
+      expect(result?.etag).toBe("d41d8cd98f00b204e9800998ecf8427e");
+    });
+  });
+
+  it("strips a weak-validator prefix", () => {
+    stubFetch({ "content-length": "42", etag: 'W/"d41d8cd98f00b204e9800998ecf8427e"' });
+    return headObject(config, "app-art/assets/foo.webp").then((result) => {
+      expect(result?.etag).toBe("d41d8cd98f00b204e9800998ecf8427e");
+    });
+  });
+
+  it("returns null etag, not coerced, when the response carries none", () => {
+    stubFetch({ "content-length": "42" });
+    return headObject(config, "app-art/assets/foo.webp").then((result) => {
+      expect(result?.etag).toBeNull();
+    });
+  });
+
+  it("returns null for a 404", () => {
+    stubFetch({}, 404);
+    return headObject(config, "app-art/assets/missing.webp").then((result) => {
+      expect(result).toBeNull();
+    });
   });
 });
 

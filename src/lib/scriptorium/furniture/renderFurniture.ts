@@ -13,7 +13,7 @@
  */
 
 import type { PageFurnitureItem, FurnitureAnchor } from "@/types/scriptorium.types";
-import { watercolorAsset } from "@/data/watercolorAssets";
+import { watercolorAsset, watercolorSrc } from "@/data/watercolorAssets";
 
 const FURNITURE_CLASS = "sc-furniture";
 
@@ -43,7 +43,7 @@ function buildElement(item: PageFurnitureItem): HTMLElement {
     // colour (a hue-rotate filter can't recolour black). The box is height-less,
     // so aspect-ratio reconstructs it from the source art's proportions.
     const asset = watercolorAsset(num(item.props.variant, 1));
-    const src = `/assets/scriptorium/watercolor/${asset.file}`;
+    const src = watercolorSrc(num(item.props.variant, 1));
     const mask = `url("${src}") center / contain no-repeat`;
     const div = document.createElement("div");
     div.style.cssText = [

@@ -10,6 +10,7 @@
 
 import type { ScriptoriumPageSize } from "@/types/scriptorium.types";
 import { EDITOR_PAGE_DIMENSIONS_PX } from "@/lib/scriptorium/editorConstants";
+import { artUrl } from "@/lib/assets/artUrl";
 
 /** @page size keyword per page size. */
 const PAGE_SIZE_KEYWORD: Record<ScriptoriumPageSize, string> = {
@@ -37,7 +38,7 @@ export function buildPagedPreviewCss(opts: PagedPreviewCssOptions): string {
   // Parchment chrome on the rendered page boxes (omitted in ink-friendly mode).
   const pageChrome = inkFriendly
     ? "background: #fff;"
-    : "background: url('/assets/scriptorium/page-background.webp') center / cover no-repeat, var(--sc-page-bg, #f9f6ef);";
+    : `background: url('${artUrl("/assets/scriptorium/page-background.webp")}') center / cover no-repeat, var(--sc-page-bg, #f9f6ef);`;
 
   return `
 @page {

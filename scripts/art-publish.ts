@@ -27,14 +27,17 @@
  */
 
 import { readFileSync, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import {
   r2ConfigFrom,
   IMMUTABLE_CACHE_CONTROL,
   type R2Config,
 } from "../supabase/functions/_shared/r2/config.ts";
-import { putObject, headObject, getObject } from "../supabase/functions/_shared/r2/client.ts";
+import { putObject, headObject, getObject, type HeadResult } from "../supabase/functions/_shared/r2/client.ts";
+import { pooled } from "./lib/pool.ts";
+import { isCliEntry } from "./lib/cli.ts";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MANIFEST_PATH = path.join(REPO_ROOT, "src/generated/artManifest.json");
@@ -98,18 +101,6 @@ export function contentTypeFor(filePath: string): string {
   return CONTENT_TYPES[path.extname(filePath).toLowerCase()] ?? "application/octet-stream";
 }
 
-/** Run `worker` over `items` with a bounded number in flight. */
-async function pooled<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
-  let cursor = 0;
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      await worker(items[index]);
-    }
-  });
-  await Promise.all(runners);
-}
-
 export interface PublishDeps {
   putObject: typeof putObject;
   headObject: typeof headObject;
@@ -143,24 +134,33 @@ export async function publish(
   /**
    * Whether R2 already holds these exact bytes.
    *
-   * A matching content-length answers it without reading the object, which is
-   * the path 68 of the 91 objects take. The other 23 are `.svg`, and R2's HEAD
-   * response for them carries no `content-length` at all — a text content type
-   * is compressed in transit, and a compressed response is chunked. `headObject`
-   * honestly returns `null` for the size rather than coercing it to 0, so the
-   * old `existing.size === bytes.byteLength` check simply could not be true for
-   * an SVG. Two consequences, both seen on the first real publish (14 Sep 2026):
-   * `--verify` reported all 23 as "size mismatch … r2 unknown", which reads as
-   * a quarter of the publish having failed when every one of them was in fact
-   * byte-identical; and the skip-if-present resume re-uploaded all 23 on every
-   * run, so "skipped N already present" was never the truth for them.
+   * A matching ETag answers it without reading the object. For a non-multipart
+   * PUT — every upload path this script takes, see `putObject` — R2's ETag is
+   * the quoted MD5 hex of the body, so comparing the local file's MD5 against
+   * it is a real content-identity check, not merely a size check: two
+   * different files can share a byte length, and a stale/corrupted object in
+   * R2 can happen to match the source size too. Size equality alone was the
+   * previous check here and let both cases through undetected.
    *
-   * An unknown size is therefore settled by reading the object and comparing
-   * bytes — the strongest answer available, and paid for only by the objects
-   * HEAD cannot size.
+   * When the response carried no ETag at all, or for the small number of
+   * requests where R2 does not return content-length (every `.svg` — a text
+   * content type is compressed in transit, and a compressed response is
+   * chunked), fall back to the original two-step: matching size, then — only
+   * when size itself is unknown — a full byte-for-byte read. `headObject`
+   * honestly returns `null` for the size rather than coercing it to 0, so the
+   * old `existing.size === bytes.byteLength` check simply could not be true
+   * for an SVG. Two consequences, both seen on the first real publish (14 Sep
+   * 2026, before the size fallback existed): `--verify` reported all 23 as
+   * "size mismatch … r2 unknown", which reads as a quarter of the publish
+   * having failed when every one of them was in fact byte-identical; and the
+   * skip-if-present resume re-uploaded all 23 on every run, so "skipped N
+   * already present" was never the truth for them.
    */
-  async function matchesStored(remoteSize: number | null, local: Buffer, key: string): Promise<boolean> {
-    if (remoteSize !== null) return remoteSize === local.byteLength;
+  async function matchesStored(existing: HeadResult, local: Buffer, key: string): Promise<boolean> {
+    if (existing.etag !== null) {
+      return createHash("md5").update(local).digest("hex") === existing.etag;
+    }
+    if (existing.size !== null) return existing.size === local.byteLength;
     const remote = await deps.getObject(r2, key);
     if (remote === null) return false;
     return Buffer.from(remote).equals(local);
@@ -176,7 +176,7 @@ export async function publish(
         problems.push(`missing from r2: ${key}`);
         return;
       }
-    } else if (await matchesStored(existing.size, bytes, key)) {
+    } else if (await matchesStored(existing, bytes, key)) {
       skipped++;
       return;
     } else if (options.verify) {
@@ -264,7 +264,7 @@ export async function run(argv = process.argv.slice(2)): Promise<number> {
   return 0;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isCliEntry(import.meta.url)) {
   run()
     .then((code) => {
       process.exitCode = code;

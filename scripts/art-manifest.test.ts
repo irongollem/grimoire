@@ -111,6 +111,28 @@ describe("scanArtFiles + buildManifest", () => {
   });
 });
 
+describe("MANIFEST_EXCLUSIONS", () => {
+  it("withholds an excluded path from the manifest while keeping its siblings", () => {
+    const root = mkdtempSync(join(tmpdir(), "art-manifest-exclusion-test-"));
+    const publicAssets = join(root, "public-assets");
+    mkdirSync(join(publicAssets, "scriptorium"), { recursive: true });
+    writeFileSync(join(publicAssets, "scriptorium", "page-background.webp"), "bg bytes");
+    writeFileSync(join(publicAssets, "scriptorium", "other.webp"), "other bytes");
+
+    const files = scanArtFiles([{ dir: publicAssets, keyPrefix: "/assets" }]);
+    const { manifest, fileCount } = buildManifest(files);
+
+    // scanArtFiles still finds the file (it's on disk); buildManifest is what
+    // withholds it — the exclusion belongs to the manifest step, not the scan.
+    expect(files.some((f) => f.key === "/assets/scriptorium/page-background.webp")).toBe(true);
+    expect(manifest["/assets/scriptorium/page-background.webp"]).toBeUndefined();
+    expect(manifest["/assets/scriptorium/other.webp"]).toBeDefined();
+    expect(fileCount).toBe(1);
+
+    rmSync(root, { recursive: true, force: true });
+  });
+});
+
 describe("the committed manifest", () => {
   it("matches what scanning the real art trees produces right now", () => {
     const committed = readFileSync(join(import.meta.dirname, "../src/generated/artManifest.json"), "utf8");

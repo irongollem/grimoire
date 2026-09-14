@@ -374,6 +374,21 @@ describe("service-worker CDN art cache", () => {
     expect(deleted).toEqual(["grimoire-old"]);
   });
 
+  it("does not intercept a CDN-origin GET outside /app-art/ — the storage-bucket case", async () => {
+    // ASSET_CDN_ORIGIN also fronts every Supabase storage bucket
+    // (src/lib/storage/buckets.ts, all `cdn: true`), which are not
+    // content-hashed the way published art is. Matching on origin alone would
+    // cache-first them forever under the "every key is content-hashed"
+    // justification that only holds for /app-art/.
+    const { runFetch, fetchMock, stores } = loadWorker({ assetCdnOrigin: CDN_ORIGIN });
+
+    const { result } = await runFetch(`${CDN_ORIGIN}/monster-images/some-user-id/portrait.webp`);
+
+    expect(result).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(stores.has("grimoire-art")).toBe(false);
+  });
+
   it("evicts oldest-first once the art cache passes its bound", async () => {
     const ART_CACHE_MAX_ENTRIES = 400; // must track scripts/sw-template.js
     const { runFetch, stores } = loadWorker({ assetCdnOrigin: CDN_ORIGIN });

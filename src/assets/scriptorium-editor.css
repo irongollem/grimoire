@@ -34,6 +34,12 @@
    so galley line lengths track the single-column book measure. px here is
    intrinsic page geometry, matching EDITOR_PAGE_DIMENSIONS_PX. */
 .phb-editor .ProseMirror {
+  /* /assets/scriptorium/page-background.webp is deliberately excluded from
+     src/generated/artManifest.json (see MANIFEST_EXCLUSIONS in
+     scripts/art-manifest.ts) — a stylesheet cannot call artUrl(), and this
+     same path is also referenced by theme-base.css, which is injected as raw
+     CSS text into a print iframe with no app JS. Keeping the file at this
+     literal path forever means both contexts resolve it without a CDN lookup. */
   background:
     url("/assets/scriptorium/page-background.webp") center / cover repeat-y,
     var(--sc-page-bg);
