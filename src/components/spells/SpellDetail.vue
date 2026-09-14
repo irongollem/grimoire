@@ -24,7 +24,7 @@
       :can-save="!!name.trim()"
       @generate="showGenerateDialog = true"
       @send-to-scriptorium="sendToScriptorium"
-      @copy-to-campaign="copyOpen = true"
+      @copy-to-campaign="openCopy"
       @delete="confirmDelete"
       @save="save"
     />
@@ -220,8 +220,7 @@
     v-if="props.spell"
     :open="copyOpen"
     table="spells"
-    :ids="[props.spell.id]"
-    :source-campaign-id="props.spell.campaign_id"
+    :ids="copyIds"
     label="spell"
     @close="copyOpen = false"
     @copied="onCopied"
@@ -255,7 +254,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import TagInput from "@/components/common/TagInput.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
-import { useToast } from "@/composables/useToast";
+import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { SPELL_SCHOOLS, spellSourceLabel } from "@/types/spell.types";
 import type { Spell, SpellSchool } from "@/types/spell.types";
 import { useCreateSpell, useUpdateSpell, useDeleteSpell } from "@/composables/spells/useSpells";
@@ -283,20 +282,12 @@ const campaignStore = useCampaignStore();
 const { activeCampaignId } = storeToRefs(campaignStore);
 const { mutateAsync: upsertLibraryArt } = useUpsertLibrarySpellArt();
 const isShared = computed(() => !!props.isShared);
-const toast = useToast();
 
 // ── Copy to campaign (#598) ──────────────────────────────────────────────────
-const copyOpen = ref(false);
-
-function onCopied({ targetName }: { copied: number; targetName: string }) {
-  // Deliberately no post-mutation navigation here (unlike save/delete below):
-  // the copy lands in another campaign, which neither this page nor the
-  // Spellbook list can show, so the toast naming the destination is the only
-  // confirmation there can be. Navigating away from the spell the DM is still
-  // editing would be strictly worse than staying put.
-  toast.success(`Copied "${props.spell?.name ?? "spell"}" to ${targetName}.`);
-  copyOpen.value = false;
-}
+const { copyOpen, copyIds, openCopy, onCopied } = useCopyEntityToCampaign({
+  entity: () => props.spell,
+  noun: "spell",
+});
 
 // ── Core fields ───────────────────────────────────────────────────────────────
 const name = ref(props.spell?.name ?? "");

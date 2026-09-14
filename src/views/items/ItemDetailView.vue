@@ -53,7 +53,7 @@
           v-if="item"
           label="Copy to campaign…"
           :icon="IconCopy"
-          @click="copyOpen = true"
+          @click="openCopy"
         />
         <PageHeaderAction
           v-if="item"
@@ -93,8 +93,7 @@
       v-if="item"
       :open="copyOpen"
       table="items"
-      :ids="[item.id]"
-      :source-campaign-id="item.campaign_id"
+      :ids="copyIds"
       label="item"
       @close="copyOpen = false"
       @copied="onCopied"
@@ -113,6 +112,7 @@ import PageHeader from "@/components/common/PageHeader.vue";
 import PageHeaderAction from "@/components/common/PageHeaderAction.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
 import ItemSendMenu from "@/components/items/ItemSendMenu.vue";
@@ -159,17 +159,13 @@ async function cloneToCustomize() {
 }
 
 // ── Copy to campaign (#598) ───────────────────────────────────────────────────
-const copyOpen = ref(false);
-function onCopied({ targetName }: { copied: number; targetName: string }) {
-  toast.success(`Copied "${item.value?.name ?? "item"}" to ${targetName}.`);
-  copyOpen.value = false;
-  // No post-copy navigation, deliberately: unlike a create, the copy lands in
-  // another campaign, which neither this page nor the vault list can show —
-  // the toast naming the destination is the only confirmation there can be,
-  // and leaving this page mid-edit would be strictly worse than the copy
-  // landing silently. "Clone" above stays on this page's own navigation,
-  // since that one does land in this scope.
-}
+// "Clone" above stays on this page's own navigation, since that one does
+// land in this scope — see useCopyEntityToCampaign's docstring for why a
+// copy to another campaign does not.
+const { copyOpen, copyIds, openCopy, onCopied } = useCopyEntityToCampaign({
+  entity: () => item.value,
+  noun: "item",
+});
 
 const subtitle = computed(() => {
   if (!item.value) return "";

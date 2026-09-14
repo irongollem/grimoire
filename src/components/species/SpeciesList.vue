@@ -4,7 +4,7 @@
       v-if="bulk.selecting.value && !selectMode"
       :count="bulk.count.value"
       :selectable-count="selectableIds.length"
-      :busy="bulkScope.isPending.value"
+      :busy="bulkMoving"
       :campaign-name="activeCampaign?.name ?? null"
       class="mb-3"
       @select-all="selectAllShown"
@@ -55,6 +55,7 @@
       <BulkSelectableCard
         v-for="s in visibleItems"
         :key="s.id"
+        corner="top-right"
         :selected="bulk.isSelected(s.id)"
         :selecting="bulk.selecting.value && !selectMode && isUuid(s.id)"
         @toggle="bulk.toggle(s.id)"
@@ -165,7 +166,6 @@
     :open="copyOpen"
     table="species"
     :ids="copyIds"
-    :source-campaign-id="activeCampaignId"
     label="species"
     label-plural="species"
     @close="copyOpen = false"
@@ -191,10 +191,9 @@ import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
-import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
+import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
-import { useToast } from "@/composables/useToast";
 
 const { selectMode } = defineProps<{ readonly?: boolean; selectMode?: boolean; selectedId?: string }>();
 const emit = defineEmits<{ select: [species: Species] }>();
@@ -245,9 +244,7 @@ linkCount(visibleCount);
 // (a slug id rather than a uuid, `isUuid(s.id)`) are excluded from selection —
 // the same distinction the Edit button above already uses.
 const bulk = useBulkSelection();
-const bulkScope = useBulkCampaignScope();
-const toast = useToast();
-const { activeCampaign, activeCampaignId } = storeToRefs(useCampaignStore());
+const { activeCampaign } = storeToRefs(useCampaignStore());
 
 // Every row a bulk move may legally touch: passes the current filters and
 // has a real uuid (not shared/library content). Reused by "select all" and
@@ -264,22 +261,17 @@ function selectAllShown() {
   bulk.selectAll(selectableIds.value);
 }
 
-async function moveSelection(campaignId: string | null) {
-  const ids = bulk.pruneTo(selectableIds.value);
-  if (!ids.length) return;
-  try {
-    const { moved } = await bulkScope.mutateAsync({ table: "species", ids, campaignId });
-    // "Species" is its own plural — no noun-count branch needed here.
-    toast.success(
-      campaignId
-        ? `Moved ${moved} species to ${activeCampaign.value?.name ?? "the campaign"}.`
-        : `Made ${moved} species available in all campaigns.`,
-    );
-    bulk.stop();
-  } catch (e) {
-    toast.error(toast.fromError(e));
-  }
-}
+// "Species" is its own plural — passed as `nounPlural` so the toast doesn't
+// need its own noun-count branch.
+const { moving: bulkMoving, move: moveSelection } = useMoveToCampaignFlow({
+  table: "species",
+  noun: "species",
+  nounPlural: "species",
+  selectableIds: () => selectableIds.value,
+  pruneTo: bulk.pruneTo,
+  stop: bulk.stop,
+  campaignName: () => activeCampaign.value?.name ?? null,
+});
 
 function toggleBulkSelectMode() {
   if (selectMode) return; // the player picker never enters bulk mode

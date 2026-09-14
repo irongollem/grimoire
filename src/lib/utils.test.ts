@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cn, deepEqual, extractTiptapText } from "./utils";
+import { chunkArray, cn, deepEqual, extractTiptapText, pluralizeCount } from "./utils";
 
 describe("cn", () => {
   // The #552 typography roles are custom `@utility` classes, so stock
@@ -90,5 +90,39 @@ describe("extractTiptapText", () => {
   it("strips the tags off an HTML description instead of printing them", () => {
     expect(extractTiptapText("<p>Frost rimes <em>every</em> surface.</p>", 60)).toBe("Frost rimes every surface.");
     expect(extractTiptapText("<p></p>", 1)).toBe("");
+  });
+});
+
+describe("chunkArray", () => {
+  it("splits into groups of the given size, with a shorter final group", () => {
+    expect(chunkArray([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+  });
+
+  it("returns one chunk when everything fits", () => {
+    expect(chunkArray(["a", "b"], 200)).toEqual([["a", "b"]]);
+  });
+
+  it("returns no chunks for an empty input", () => {
+    expect(chunkArray([], 200)).toEqual([]);
+  });
+
+  it("chunks exactly on a multiple of the size, with no trailing empty chunk", () => {
+    expect(chunkArray([1, 2, 3, 4], 2)).toEqual([[1, 2], [3, 4]]);
+  });
+});
+
+describe("pluralizeCount", () => {
+  it("uses the singular for a count of one", () => {
+    expect(pluralizeCount(1, "item")).toBe("1 item");
+  });
+
+  it("naively pluralises with a trailing 's' by default", () => {
+    expect(pluralizeCount(0, "item")).toBe("0 items");
+    expect(pluralizeCount(3, "item")).toBe("3 items");
+  });
+
+  it("uses the supplied irregular plural instead of the naive one", () => {
+    expect(pluralizeCount(2, "species", "species")).toBe("2 species");
+    expect(pluralizeCount(1, "species", "species")).toBe("1 species");
   });
 });

@@ -13,13 +13,13 @@ const { default: BulkScopeBar } = await import("./BulkScopeBar.vue");
 
 describe("BulkScopeBar", () => {
   it("renders the selected count in an aria-live region", () => {
-    const wrapper = mount(BulkScopeBar, { props: { count: 3, campaignName: "Curse of Strahd" } });
+    const wrapper = mount(BulkScopeBar, { props: { count: 3, campaignName: "Curse of Strahd", selectableCount: 1 } });
     const live = wrapper.get("[aria-live='polite']");
     expect(live.text()).toContain("3 selected");
   });
 
   it("emits select-all when its button is clicked", async () => {
-    const wrapper = mount(BulkScopeBar, { props: { count: 0, campaignName: "Curse of Strahd" } });
+    const wrapper = mount(BulkScopeBar, { props: { count: 0, campaignName: "Curse of Strahd", selectableCount: 1 } });
     const selectAllBtn = wrapper.findAll("button").find((b) => b.text().includes("Select all shown"));
     await selectAllBtn?.trigger("click");
     expect(wrapper.emitted("select-all")).toBeTruthy();
@@ -27,27 +27,27 @@ describe("BulkScopeBar", () => {
 
   it("emits move with the active campaign id for 'Move to {campaignName}'", async () => {
     mocks.activeCampaignId = "camp-1";
-    const wrapper = mount(BulkScopeBar, { props: { count: 2, campaignName: "Curse of Strahd" } });
+    const wrapper = mount(BulkScopeBar, { props: { count: 2, campaignName: "Curse of Strahd", selectableCount: 1 } });
     const moveBtn = wrapper.findAll("button").find((b) => b.text().includes("Move to Curse of Strahd"));
     await moveBtn?.trigger("click");
     expect(wrapper.emitted("move")).toEqual([["camp-1"]]);
   });
 
   it("emits move with null for 'Make available in all campaigns'", async () => {
-    const wrapper = mount(BulkScopeBar, { props: { count: 2, campaignName: "Curse of Strahd" } });
+    const wrapper = mount(BulkScopeBar, { props: { count: 2, campaignName: "Curse of Strahd", selectableCount: 1 } });
     const allBtn = wrapper.findAll("button").find((b) => b.text().includes("Make available in all campaigns"));
     await allBtn?.trigger("click");
     expect(wrapper.emitted("move")).toEqual([[null]]);
   });
 
   it("disables the move-to-campaign button when there is no active campaign", () => {
-    const wrapper = mount(BulkScopeBar, { props: { count: 2, campaignName: null } });
+    const wrapper = mount(BulkScopeBar, { props: { count: 2, campaignName: null, selectableCount: 1 } });
     const moveBtn = wrapper.findAll("button").find((b) => b.text().includes("Move to campaign"));
     expect(moveBtn?.attributes("disabled")).toBeDefined();
   });
 
   it("emits stop and clear from their respective buttons", async () => {
-    const wrapper = mount(BulkScopeBar, { props: { count: 1, campaignName: "Curse of Strahd" } });
+    const wrapper = mount(BulkScopeBar, { props: { count: 1, campaignName: "Curse of Strahd", selectableCount: 1 } });
     const clearBtn = wrapper.findAll("button").find((b) => b.text().includes("Clear"));
     await clearBtn?.trigger("click");
     expect(wrapper.emitted("clear")).toBeTruthy();
@@ -71,7 +71,7 @@ describe("BulkScopeBar", () => {
 
 describe("copy to campaign (#598)", () => {
   it("offers Copy alongside Move, and emits without naming a target — the dialog picks one", async () => {
-    const wrapper = mount(BulkScopeBar, { props: { count: 3, campaignName: "Icewind Dale" } });
+    const wrapper = mount(BulkScopeBar, { props: { count: 3, campaignName: "Icewind Dale", selectableCount: 1 } });
     const copy = wrapper.findAll("button").find((b) => b.text().includes("Copy to campaign"));
     expect(copy).toBeTruthy();
     await copy!.trigger("click");

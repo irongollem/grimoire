@@ -27,7 +27,7 @@
       class="mb-4"
       :count="bulkSelection.count.value"
       :selectable-count="ids.length"
-      :busy="bulkScope.isPending.value"
+      :busy="bulkMoving"
       :campaign-name="activeCampaignName"
       @select-all="bulkSelection.selectAll(ids)"
       @clear="bulkSelection.clear()"
@@ -64,7 +64,6 @@
     :open="copyOpen"
     :table="table"
     :ids="copyIds"
-    :source-campaign-id="campaignStore.activeCampaignId"
     :label="copyLabel"
     @close="copyOpen = false"
     @copied="handleCopied"
@@ -89,10 +88,10 @@ import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
-import { useBulkCampaignScope, type BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
+import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
+import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
-import { useToast } from "@/composables/useToast";
 
 const {
   items,
@@ -149,10 +148,8 @@ const searchModel = computed({
 // so a grid without it behaves exactly as it did before this feature existed.
 const bulkSelection = useBulkSelection();
 const { selecting } = bulkSelection;
-const bulkScope = useBulkCampaignScope();
 const campaignStore = useCampaignStore();
 const activeCampaignName = computed(() => campaignStore.activeCampaign?.name ?? null);
-const toast = useToast();
 
 // A DM can edit the search box (or a filter slotted in above) while rows are
 // selected; `ids` is every id passing the *current* filters, so a selection
@@ -162,18 +159,21 @@ const toast = useToast();
 // longer see (#875).
 watch(() => ids, (next) => bulkSelection.pruneTo(next));
 
-async function handleMove(campaignId: string | null) {
-  if (!table) return;
-  const moveIds = bulkSelection.pruneTo(ids);
-  if (!moveIds.length) return;
-  try {
-    const { moved } = await bulkScope.mutateAsync({ table, ids: moveIds, campaignId });
-    toast.success(`Moved ${moved} ${moved === 1 ? "entry" : "entries"}.`);
-    bulkSelection.stop();
-  } catch (e) {
-    toast.error(toast.fromError(e));
-  }
-}
+// `noun` falls back to the generic "entry" (irregular plural "entries") for a
+// mount with `table` set but no `copyLabel`, matching the copy flow's own
+// fallback below. `table` itself may be undefined here — `move()` is then a
+// no-op, per `useMoveToCampaignFlow`'s own doc — which used to show as
+// "Moved N entries." even when the destination was "all campaigns" (a latent
+// bug fixed by routing through the shared flow, which always branches).
+const { moving: bulkMoving, move: handleMove } = useMoveToCampaignFlow({
+  table,
+  noun: copyLabel ?? "entry",
+  nounPlural: copyLabel ? undefined : "entries",
+  selectableIds: () => ids,
+  pruneTo: bulkSelection.pruneTo,
+  stop: bulkSelection.stop,
+  campaignName: () => activeCampaignName.value,
+});
 
 // ── Copy to campaign (#598) ─────────────────────────────────────────────────
 // Same stale-selection hazard the move path guards against (#875) —

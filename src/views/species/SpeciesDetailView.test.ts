@@ -54,7 +54,7 @@ vi.mock("@/composables/useToast", () => ({
 vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
-    props: ["open", "table", "ids", "sourceCampaignId", "label", "labelPlural"],
+    props: ["open", "table", "ids", "label", "labelPlural"],
     emits: ["close", "copied"],
     setup(props) {
       return () => (props.open ? h("div", { class: "copy-dialog-stub" }) : null);
@@ -117,7 +117,6 @@ describe("SpeciesDetailView — copy to campaign (#598)", () => {
     expect(dialog.props("open")).toBe(false);
     expect(dialog.props("table")).toBe("species");
     expect(dialog.props("ids")).toEqual(["species-1"]);
-    expect(dialog.props("sourceCampaignId")).toBe("campaign-1");
     expect(dialog.props("label")).toBe("species");
     expect(dialog.props("labelPlural")).toBe("species");
   });

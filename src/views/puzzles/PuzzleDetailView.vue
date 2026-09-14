@@ -8,7 +8,7 @@
           v-if="puzzle"
           label="Copy to campaign…"
           :icon="IconCopy"
-          @click="copyOpen = true"
+          @click="openCopy"
         />
         <PageHeaderAction
           label="Edit"
@@ -372,23 +372,17 @@
     </template>
   </PageHeader>
 
-  <!--
-    Copy-to-campaign (#598, wave 2). No `@close`-then-navigate here: the copy
-    lands in another campaign, which neither this page nor the puzzle list can
-    show, so the toast naming the destination (handleCopied below) is the only
-    confirmation there can be — a deliberate exception to CLAUDE.md's
-    Post-Mutation Navigation rule, not an oversight.
-  -->
+  <!-- Copy-to-campaign (#598, wave 2) — see useCopyEntityToCampaign's
+       docstring for the Post-Mutation Navigation rationale. -->
   <CopyToCampaignDialog
     v-if="puzzle"
     :open="copyOpen"
     table="puzzle_rooms"
-    :ids="[puzzle.id]"
-    :source-campaign-id="puzzle.campaign_id"
+    :ids="copyIds"
     label="puzzle"
     @close="copyOpen = false"
-    @copied="handleCopied"
-    @quota-exceeded="handleCopyQuotaExceeded"
+    @copied="onCopied"
+    @quota-exceeded="onQuotaExceeded"
   />
   <PaywallModal v-model="showPaywall" resource="puzzle_rooms" />
 </template>
@@ -400,7 +394,7 @@ import { buildEntityContext, toPlainText } from "@/ai/utils";
 import { IconCopy, IconDelete, IconDungeon, IconEdit, IconHide, IconLocation, IconReveal } from '@/lib/icons';
 import { usePuzzle, useCreatePuzzle, useUpdatePuzzle, useDeletePuzzle } from "@/composables/dungeon-features/usePuzzles";
 import { useCampaignStore } from "@/stores/campaign";
-import { useToast } from "@/composables/useToast";
+import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { cn, deepEqual } from "@/lib/utils";
 import { fieldVariants } from "@/components/common/fieldVariants";
@@ -677,17 +671,12 @@ async function handleDelete() {
 
 // ── Copy to campaign (#598) ─────────────────────────────────────────────────
 
-const toast = useToast();
-const copyOpen = ref(false);
 const showPaywall = ref(false);
-
-function handleCopied({ targetName }: { copied: number; targetName: string }) {
-  toast.success(`Copied "${puzzle.value?.name ?? form.name}" to ${targetName}.`);
-  copyOpen.value = false;
-}
-
-function handleCopyQuotaExceeded() {
-  copyOpen.value = false;
-  showPaywall.value = true;
-}
+const { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded } = useCopyEntityToCampaign({
+  entity: () => puzzle.value,
+  noun: "puzzle",
+  onQuotaExceeded: () => {
+    showPaywall.value = true;
+  },
+});
 </script>

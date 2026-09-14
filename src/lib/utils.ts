@@ -174,6 +174,28 @@ export function signedNum(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
 }
 
+/**
+ * Splits `items` into consecutive groups of at most `size`. Shared by every
+ * caller that batches a Supabase `.in()`/insert/update to keep a request line
+ * under its length limit — `useBulkCampaignScope.ts` and `useCopyToCampaign.ts`
+ * each carried their own identical copy before this consolidated them (#598).
+ */
+export function chunkArray<T>(items: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+/**
+ * "1 item" / "3 items" — the count-plus-noun phrasing hand-written at 7+
+ * call sites across the bulk-scope and copy-to-campaign toasts (#598). Pass
+ * `plural` only for an irregular noun the naive `${singular}s` gets wrong
+ * (e.g. "species").
+ */
+export function pluralizeCount(count: number, singular: string, plural: string = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 export function formatChatTimestamp(iso: string, locale?: string): string {
   const d = new Date(iso);
   const now = new Date();

@@ -170,4 +170,10 @@ describe("SpellList — bulk selection (#875)", () => {
     await wrapper.findComponent(BulkSelectableCard).vm.$emit("toggle");
     expect(wrapper.emitted("toggle-select")).toEqual([["11111111-1111-4111-8111-111111111111"]]);
   });
+
+  it("puts the checkbox chip in the top-right corner, clear of the Edit button at top-left", () => {
+    mocks.spells = [makeSpell({ id: "11111111-1111-4111-8111-111111111111" })];
+    const wrapper = mountList({ selecting: true });
+    expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
+  });
 });

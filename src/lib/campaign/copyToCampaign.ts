@@ -44,6 +44,15 @@ export interface DroppedReference {
   names: string[];
   /** True when whole list entries were removed rather than a field cleared. */
   removedEntries: boolean;
+  /**
+   * Singular/plural noun for one dropped entry — e.g. `{ singular: "granted
+   * spell", plural: "granted spells" }`. Only rendered when `removedEntries`
+   * is true (a whole-entry-count message needs its own noun to pluralise; a
+   * field-cleared message reads off `label` and `names` instead), but set at
+   * every producer below regardless, so the type never carries an
+   * entry-shaped field that only half the producers remember to fill in.
+   */
+  entryNoun: { singular: string; plural: string };
 }
 
 export interface CopyPlan {
@@ -135,7 +144,12 @@ function clearScalarRef(
   if (!isNonEmptyString(id)) return;
   if (isVisible(id, targetCampaignId, referenced)) return;
   payload[column] = null;
-  dropped.push({ label, names: [referenceName(id, referenced)], removedEntries: false });
+  dropped.push({
+    label,
+    names: [referenceName(id, referenced)],
+    removedEntries: false,
+    entryNoun: { singular: label.toLowerCase(), plural: `${label.toLowerCase()}s` },
+  });
 }
 
 /** Tables whose rows carry `source_document_key`/`source_record_key`/
@@ -274,7 +288,12 @@ export function buildCopyPlan(
       const { kept, droppedNames } = filterArrayRef(stringArray(row.spell_ids), targetCampaignId, referenced);
       payload.spell_ids = kept;
       if (droppedNames.length) {
-        dropped.push({ label: "Linked spells", names: droppedNames, removedEntries: false });
+        dropped.push({
+          label: "Linked spells",
+          names: droppedNames,
+          removedEntries: false,
+          entryNoun: { singular: "linked spell", plural: "linked spells" },
+        });
       }
       break;
     }
@@ -304,7 +323,12 @@ export function buildCopyPlan(
       });
       payload.granted_spells = nextGrants;
       if (droppedNames.length) {
-        dropped.push({ label: "Granted spells", names: droppedNames, removedEntries: true });
+        dropped.push({
+          label: "Granted spells",
+          names: droppedNames,
+          removedEntries: true,
+          entryNoun: { singular: "granted spell", plural: "granted spells" },
+        });
       }
       break;
     }
@@ -326,7 +350,12 @@ export function buildCopyPlan(
       const { kept, droppedNames } = filterArrayRef(stringArray(row.monster_ids), targetCampaignId, referenced);
       payload.monster_ids = kept;
       if (droppedNames.length) {
-        dropped.push({ label: "Linked monsters", names: droppedNames, removedEntries: false });
+        dropped.push({
+          label: "Linked monsters",
+          names: droppedNames,
+          removedEntries: false,
+          entryNoun: { singular: "linked monster", plural: "linked monsters" },
+        });
       }
 
       const entries = unknownArray(row.entries).map((e) =>
@@ -349,7 +378,12 @@ export function buildCopyPlan(
       });
       payload.entries = nextEntries;
       if (removedItemNames.length) {
-        dropped.push({ label: "Loot entries", names: removedItemNames, removedEntries: true });
+        dropped.push({
+          label: "Loot entries",
+          names: removedItemNames,
+          removedEntries: true,
+          entryNoun: { singular: "loot entry", plural: "loot entries" },
+        });
       }
       break;
     }
@@ -368,13 +402,26 @@ export function buildCopyPlan(
       });
       payload.entries = nextEntries;
       if (droppedNames.length) {
-        dropped.push({ label: "Linked encounters", names: droppedNames, removedEntries: false });
+        dropped.push({
+          label: "Linked encounters",
+          names: droppedNames,
+          removedEntries: false,
+          entryNoun: { singular: "linked encounter", plural: "linked encounters" },
+        });
       }
       break;
     }
     case "spells":
     case "traps":
       break; // no cross-entity references
+    default: {
+      // Compile-time guard: if BulkScopeTable ever gains a member without a
+      // matching case above, this line stops typechecking. The switch has no
+      // runtime effect here — every branch above already `break`s into the
+      // shared `return` — this default exists purely for the assignment below.
+      const exhaustive: never = table;
+      void exhaustive;
+    }
   }
 
   return { payload, dropped };

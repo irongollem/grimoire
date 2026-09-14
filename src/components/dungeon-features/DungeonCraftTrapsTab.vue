@@ -16,15 +16,23 @@
     @empty-action="router.push('/traps/new')"
   >
     <template #filters>
-      <AppSelect v-model="trapsTypeFilter" tone="card" size="body">
+      <AppSelect v-model="trapsFilterType" tone="card" size="body">
         <option value="">All Types</option>
         <option v-for="t in TRAP_TYPES" :key="t" :value="t">{{ t }}</option>
       </AppSelect>
+      <AppButton
+        v-if="ui.trapsHasActiveFilters"
+        variant="subtle"
+        size="body"
+        label="Clear"
+        @click="ui.resetTrapsFilters()"
+      />
     </template>
     <template #card="{ selecting, isSelected, toggle }">
       <BulkSelectableCard
         v-for="trap in filteredTraps"
         :key="trap.id"
+        corner="top-right"
         :selected="isSelected(trap.id)"
         :selecting="selecting"
         @toggle="toggle(trap.id)"
@@ -62,13 +70,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed } from "vue";
+import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
 import { TRAP_TYPES, TRAP_TYPE_BG } from "@/types/trap.types";
+import { useUiStore } from "@/stores/ui";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import PlacedInLine from "./PlacedInLine.vue";
@@ -76,8 +87,10 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { data: traps, isLoading: trapsLoading } = useTraps();
-const trapsSearch     = ref("");
-const trapsTypeFilter = ref("");
+const ui = useUiStore();
+// Filter state lives in the UI store, not local refs, so it survives
+// navigating into a trap and back without outliving the session.
+const { trapsSearch, trapsFilterType } = storeToRefs(ui);
 
 // ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
 const trapIds = computed(() => (traps.value ?? []).map((t) => t.id));
@@ -85,7 +98,7 @@ const { placedInRows } = usePlacedInRooms("trap", trapIds);
 
 const filteredTraps = computed(() => {
   let list = traps.value ?? [];
-  if (trapsTypeFilter.value) list = list.filter((t) => t.trap_type === trapsTypeFilter.value);
+  if (trapsFilterType.value) list = list.filter((t) => t.trap_type === trapsFilterType.value);
   const q = trapsSearch.value.toLowerCase().trim();
   if (q) list = list.filter((t) =>
     t.name.toLowerCase().includes(q) ||

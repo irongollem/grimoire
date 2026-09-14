@@ -23,7 +23,7 @@
         size="md"
         :icon="IconCopy"
         label="Copy to campaign…"
-        @click="copyOpen = true"
+        @click="openCopy"
       />
       <AppButton
         variant="primary"
@@ -340,23 +340,17 @@
       </div>
     </AppModal>
 
-    <!--
-      Copy-to-campaign (#598, wave 2). No `@close`-then-navigate here: the copy
-      lands in another campaign, which neither this editor nor the trap list
-      can show, so the toast naming the destination (handleCopied below) is
-      the only confirmation there can be — a deliberate exception to
-      CLAUDE.md's Post-Mutation Navigation rule, not an oversight. traps
-      carries no enforce_quota trigger, so there is no paywall to wire here.
-    -->
+    <!-- Copy-to-campaign (#598, wave 2) — see useCopyEntityToCampaign's
+         docstring for the Post-Mutation Navigation rationale. traps carries
+         no enforce_quota trigger, so there is no paywall to wire here. -->
     <CopyToCampaignDialog
       v-if="trap"
       :open="copyOpen"
       table="traps"
-      :ids="[trap.id]"
-      :source-campaign-id="trap.campaign_id"
+      :ids="copyIds"
       label="trap"
       @close="copyOpen = false"
-      @copied="handleCopied"
+      @copied="onCopied"
     />
   </div>
 </template>
@@ -368,7 +362,7 @@ import { storeToRefs } from "pinia";
 import { IconCheck, IconClose, IconCopy, IconDelete, IconGenerate, IconSave } from '@/lib/icons';
 import { useCreateTrap, useUpdateTrap, useDeleteTrap } from "@/composables/dungeon-features/useTraps";
 import { useConfirm } from "@/composables/useConfirm";
-import { useToast } from "@/composables/useToast";
+import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { useCampaignStore } from "@/stores/campaign";
 import {
   TRAP_TYPES,
@@ -551,13 +545,10 @@ function onCancel() {
 
 // ── Copy to campaign (#598) ─────────────────────────────────────────────────
 
-const toast = useToast();
-const copyOpen = ref(false);
-
-function handleCopied({ targetName }: { copied: number; targetName: string }) {
-  toast.success(`Copied "${props.trap?.name ?? form.value.name}" to ${targetName}.`);
-  copyOpen.value = false;
-}
+const { copyOpen, copyIds, openCopy, onCopied } = useCopyEntityToCampaign({
+  entity: () => props.trap,
+  noun: "trap",
+});
 
 // ── CR Advisor ─────────────────────────────────────────────────────────────
 

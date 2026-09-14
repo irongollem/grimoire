@@ -321,10 +321,13 @@ export function useItem(id: Ref<string> | ComputedRef<string> | string) {
  * (embed-content, entity "library_item"), which is why there is no
  * queueLibraryItemEmbedding — shared content has no per-user write path.
  */
-export function queueItemEmbedding(id: string): void {
-  void supabase.functions
+export function queueItemEmbedding(id: string): Promise<void> {
+  // Resolves once the invocation has settled, errors already reported — so a
+  // bulk caller can bound how many are in flight (useCopyToCampaign's
+  // queueEmbeddingsInGroups) while single-row callers keep ignoring it.
+  return supabase.functions
     .invoke("embed-content", { body: { mode: "single", entity: "item", id } })
-    .catch((error) => reportHandledError(error, "queueItemEmbedding", { id }));
+    .then(() => undefined, (error: unknown) => { reportHandledError(error, "queueItemEmbedding", { id }); });
 }
 
 export function useCreateItem() {

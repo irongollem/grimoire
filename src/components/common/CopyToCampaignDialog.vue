@@ -27,20 +27,21 @@
           note) — so that scope is never offered here, which is also the only
           way this list can come up empty.
         -->
-        <p v-if="!hasTargets" class="mt-1.5 text-caption text-muted-foreground">
+        <p v-if="loadingSources" class="mt-1.5 text-caption text-muted-foreground">Loading…</p>
+        <p v-else-if="!hasTargets" class="mt-1.5 text-caption text-muted-foreground">
           No other campaign to copy into yet.
         </p>
       </div>
-
-      <p v-if="planning" class="text-caption text-muted-foreground">Checking what will travel…</p>
 
       <!--
         Rendered only when there is something to report — the common case (no
         dangling references) leaves this a picker and a Copy button and
         nothing else, per the spec: an empty "nothing will be dropped" panel
-        is ceremony nobody needs.
+        is ceremony nobody needs. `dropped` is derived synchronously from the
+        already-loaded source rows (see `plan` below), so this never waits on
+        a request the way the unenabled-sources notice below still does.
       -->
-      <div v-else-if="dropped.length" class="rounded-lg border border-border bg-muted/40 p-3 space-y-1.5">
+      <div v-if="dropped.length" class="rounded-lg border border-border bg-muted/40 p-3 space-y-1.5">
         <p v-for="d in dropped" :key="d.label" class="text-caption text-muted-foreground leading-snug">
           <template v-if="d.removedEntries">
             {{ removedEntriesMessage(d) }}
@@ -51,6 +52,7 @@
         </p>
       </div>
 
+      <p v-if="planning" class="text-caption text-muted-foreground">Checking shared-library sources…</p>
       <!--
         A separate panel from the drop report above, and deliberately toned as a
         note rather than a loss: nothing here is dropped. The copy carries these
@@ -58,12 +60,13 @@
         enabled the source that holds them, which is one toggle in its own
         settings. Saying "left behind" here would be false.
       -->
-      <div v-if="!planning && needsSources" class="rounded-lg border border-tone-caution/40 bg-tone-caution/5 p-3">
+      <div v-else-if="needsSources" class="rounded-lg border border-tone-caution/40 bg-tone-caution/5 p-3">
         <p class="text-caption text-ink-caution leading-snug">
           {{ needsSourcesMessage(needsSources) }}
         </p>
       </div>
 
+      <p v-if="loadError" class="text-caption text-destructive">{{ loadError }}</p>
       <p v-if="planError" class="text-caption text-destructive">{{ planError }}</p>
       <p v-if="copyError" class="text-caption text-destructive">{{ copyError }}</p>
     </div>
@@ -84,11 +87,31 @@
 
 <script setup lang="ts">
 /**
- * The shared copy-to-campaign dialog (#598, wave 1) — a picker for which of
- * the account's other campaigns (or "general") a selection of rows should be
- * copied into, plus a preview of what would be left behind. The eight
- * list/detail integrations that open this are separate stories; this
- * component owns only the picker, the preview and the confirm step.
+ * The shared copy-to-campaign dialog (#598, wave 1; reworked #875 wave 2) — a
+ * picker for which of the account's other campaigns (or "general") a
+ * selection of rows should be copied into, plus a preview of what would be
+ * left behind. The eight list/detail integrations that open this are
+ * separate stories; this component owns only the picker, the preview and the
+ * confirm step.
+ *
+ * **Source scope comes from the loaded rows, not a caller-supplied prop.**
+ * Every caller used to pass a single `sourceCampaignId` (the active
+ * campaign), but a bulk selection routinely mixes general rows
+ * (`campaign_id: null`) with campaign rows — and with a "show all scopes"
+ * toggle, rows from other campaigns too. A caller-supplied scope offered the
+ * exact same-scope duplicate the "No suffix" note in copyToCampaign.ts says
+ * cannot happen (#875 F17/F19). So on open this dialog fetches the source
+ * rows itself (`loadCopySources`) and excludes every scope any of them
+ * already occupies — the only thing that can answer this correctly.
+ *
+ * **Fetched once, planned per target purely (#875 F5/F21).** `loadCopySources`
+ * runs once when the dialog opens; changing the target picker re-plans with
+ * the synchronous, pure `planCopyFor` against the same loaded rows rather
+ * than re-fetching. Only the unenabled-library-sources notice
+ * (`resolveUnenabledSources`) still depends on a per-target fetch, so it
+ * alone stays async — both async steps carry a generation counter so a
+ * response that lands after the dialog closed or the target changed again
+ * can never land on screen.
  *
  * The dialog does not own a paywall. A quota_exceeded rejection (monsters,
  * puzzle_rooms) is recognised with `isQuotaExceeded` and surfaced as an
@@ -102,18 +125,24 @@ import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconCopy } from "@/lib/icons";
+import { pluralizeCount } from "@/lib/utils";
 import { useDmCampaigns } from "@/composables/campaign/useCampaigns";
-import { useCopyToCampaign, planCopy, type LibrarySourceNotice } from "@/composables/campaign/useCopyToCampaign";
+import {
+  useCopyToCampaign,
+  loadCopySources,
+  planCopyFor,
+  resolveUnenabledSources,
+  type CopySources,
+  type LibrarySourceNotice,
+} from "@/composables/campaign/useCopyToCampaign";
 import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 import type { DroppedReference } from "@/lib/campaign/copyToCampaign";
 import { isQuotaExceeded } from "@/lib/quotaError";
 
-const { open, table, ids, sourceCampaignId, label, labelPlural } = defineProps<{
+const { open, table, ids, label, labelPlural } = defineProps<{
   open: boolean;
   table: BulkScopeTable;
   ids: readonly string[];
-  /** The scope the selection is copying FROM — excluded from the target picker. */
-  sourceCampaignId: string | null;
   /** Singular noun for what is being copied, e.g. "item". */
   label: string;
   /** Plural form, for an irregular noun (e.g. "species") the naive `${label}s`
@@ -136,28 +165,60 @@ const emit = defineEmits<{
   "quota-exceeded": [];
 }>();
 
-const resolvedLabelPlural = computed(() => labelPlural ?? `${label}s`);
-const countLabel = computed(() => `${ids.length} ${ids.length === 1 ? label : resolvedLabelPlural.value}`);
+const countLabel = computed(() => pluralizeCount(ids.length, label, labelPlural));
 
-// ── Target picker ────────────────────────────────────────────────────────────
+// ── Source rows — fetched once per open, target-independent ────────────────
+
+const sources = ref<CopySources | null>(null);
+const loadingSources = ref(false);
+const loadError = ref("");
+// Declared with the other per-open state rather than beside `confirm()`:
+// the open/close watcher below runs immediately, and every list page mounts
+// this dialog closed, so its reset branch touches this ref during setup.
+const copyError = ref("");
+let loadGeneration = 0;
+
+async function load(): Promise<void> {
+  const generation = ++loadGeneration;
+  loadingSources.value = true;
+  loadError.value = "";
+  try {
+    const loaded = await loadCopySources({ table, ids });
+    if (generation !== loadGeneration) return; // dialog closed/reopened meanwhile
+    sources.value = loaded;
+  } catch (e) {
+    if (generation !== loadGeneration) return;
+    loadError.value = e instanceof Error ? e.message : "Could not load what would be copied.";
+  } finally {
+    if (generation === loadGeneration) loadingSources.value = false;
+  }
+}
+
+// ── Target picker — options derived from the loaded rows' own scopes ───────
 
 const { data: campaignList } = useDmCampaigns();
 const campaigns = computed(() => campaignList.value ?? []);
-const availableCampaigns = computed(() => campaigns.value.filter((c) => c.id !== sourceCampaignId));
-const offerGeneral = computed(() => sourceCampaignId !== null);
-const hasTargets = computed(() => offerGeneral.value || availableCampaigns.value.length > 0);
+const sourceCampaignIds = computed<Set<string | null>>(
+  () => new Set((sources.value?.sourceRows ?? []).map((r) => r.campaign_id as string | null)),
+);
+const availableCampaigns = computed(() =>
+  sources.value ? campaigns.value.filter((c) => !sourceCampaignIds.value.has(c.id)) : [],
+);
+const offerGeneral = computed(() => sources.value !== null && !sourceCampaignIds.value.has(null));
+const hasTargets = computed(
+  () => sources.value !== null && (offerGeneral.value || availableCampaigns.value.length > 0),
+);
 
-const selectedTarget = ref<string>(offerGeneral.value ? "general" : "");
+const selectedTarget = ref<string>("");
 
-// Picks a default once real campaigns arrive for the "source is already
-// general" case, where there is no "general" option to default to instead.
+// Picks a default once sources (and, if needed, real campaigns) have loaded.
 // A no-op once the DM has made (or already has) a selection.
 watch(
-  availableCampaigns,
-  (list) => {
-    if (selectedTarget.value === "" && !offerGeneral.value && list.length) {
-      selectedTarget.value = list[0].id;
-    }
+  [sources, availableCampaigns],
+  ([loaded, list]) => {
+    if (!loaded || selectedTarget.value !== "") return;
+    if (offerGeneral.value) selectedTarget.value = "general";
+    else if (list.length) selectedTarget.value = list[0].id;
   },
   { immediate: true },
 );
@@ -170,46 +231,59 @@ const targetName = computed(() =>
     : (availableCampaigns.value.find((c) => c.id === resolvedTargetId.value)?.name ?? "another campaign"),
 );
 
-watch(
-  () => open,
-  (isOpen) => {
-    if (isOpen) return;
-    selectedTarget.value = offerGeneral.value ? "general" : "";
-    dropped.value = [];
-    needsSources.value = null;
-    planError.value = "";
-    copyError.value = "";
-  },
-);
+// ── Plan — synchronous once sources are loaded, recomputed per target ──────
 
-// ── Drop preview ─────────────────────────────────────────────────────────────
+const plan = computed(() => (sources.value && hasSelection.value ? planCopyFor(sources.value, resolvedTargetId.value) : null));
+const dropped = computed<DroppedReference[]>(() => plan.value?.dropped ?? []);
 
-const dropped = ref<DroppedReference[]>([]);
+// ── Unenabled-library-sources notice — the one part of the preview that
+//    still depends on a per-target fetch, so it alone stays async ─────────
+
 const needsSources = ref<LibrarySourceNotice | null>(null);
 const planning = ref(false);
 const planError = ref("");
+let planGeneration = 0;
 
 watch(
-  [() => open, selectedTarget],
-  async ([isOpen, target]) => {
-    if (!isOpen || target === "") {
-      dropped.value = [];
+  [sources, selectedTarget],
+  async ([currentSources, target]) => {
+    if (!currentSources || target === "") {
       needsSources.value = null;
       return;
     }
+    const generation = ++planGeneration;
     planning.value = true;
     planError.value = "";
     try {
-      const preview = await planCopy({ table, ids, targetCampaignId: resolvedTargetId.value });
-      dropped.value = preview.dropped;
-      needsSources.value = preview.needsSources;
+      const notice = await resolveUnenabledSources(table, currentSources.sourceRows, resolvedTargetId.value);
+      if (generation !== planGeneration) return; // stale — target (or the dialog) moved on
+      needsSources.value = notice;
     } catch (e) {
+      if (generation !== planGeneration) return;
       planError.value = e instanceof Error ? e.message : "Could not check what would be dropped.";
-      dropped.value = [];
       needsSources.value = null;
     } finally {
-      planning.value = false;
+      if (generation === planGeneration) planning.value = false;
     }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => open,
+  (isOpen) => {
+    if (isOpen) {
+      void load();
+      return;
+    }
+    loadGeneration++; // invalidates any load still in flight when the dialog closed
+    sources.value = null;
+    loadingSources.value = false;
+    loadError.value = "";
+    selectedTarget.value = "";
+    needsSources.value = null;
+    planError.value = "";
+    copyError.value = "";
   },
   { immediate: true },
 );
@@ -229,23 +303,27 @@ function needsSourcesMessage(n: LibrarySourceNotice): string {
 
 function removedEntriesMessage(d: DroppedReference): string {
   const n = d.names.length;
-  const verb = n === 1 ? "points" : "point";
   const was = n === 1 ? "was" : "were";
-  return `${n} ${d.label.toLowerCase()} ${verb} at rows the target campaign cannot see and ${was} left out.`;
+  const verb = n === 1 ? "points" : "point";
+  return `${pluralizeCount(n, d.entryNoun.singular, d.entryNoun.plural)} ${verb} at rows the target campaign cannot see and ${was} left out.`;
 }
 
 // ── Confirm ──────────────────────────────────────────────────────────────────
 
 const { mutateAsync, isPending: copying } = useCopyToCampaign();
-const copyError = ref("");
 
-const canConfirm = computed(() => hasSelection.value && !planning.value);
+const canConfirm = computed(() => hasSelection.value && !planning.value && !loadingSources.value && plan.value !== null);
 
 async function confirm() {
-  if (!canConfirm.value) return;
+  if (!canConfirm.value || !plan.value) return;
   copyError.value = "";
   try {
-    const result = await mutateAsync({ table, ids, targetCampaignId: resolvedTargetId.value });
+    const result = await mutateAsync({
+      table,
+      payloads: plan.value.payloads,
+      dropped: plan.value.dropped,
+      needsSources: needsSources.value,
+    });
     // The caller shows the toast and closes — this dialog does not emit
     // `close` itself, matching every other confirm-then-let-caller-close
     // dialog in the app.

@@ -75,14 +75,15 @@
 import AppButton from "@/components/common/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
 
-const { count, busy = false, campaignName, selectableCount = 1 } = defineProps<{
+const { count, busy = false, campaignName, selectableCount } = defineProps<{
   count: number;
   busy?: boolean;
   /** How many rows on screen could be selected at all. Zero means every row
    *  here is shared-library content, which no campaign owns — the bar says so
-   *  instead of offering actions that cannot apply. Defaults to 1 so a caller
-   *  that does not know simply gets the ordinary bar. */
-  selectableCount?: number;
+   *  instead of offering actions that cannot apply. Required: all five
+   *  callers already compute this, so a caller that "does not know" is a bug
+   *  to fix at the call site, not a default to fall back on. */
+  selectableCount: number;
   /** The active campaign's name, or null when there is no active campaign.
    *  Resolved by the caller (mirrors CampaignScopeField's own lookup). */
   campaignName: string | null;

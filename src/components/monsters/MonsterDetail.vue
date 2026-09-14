@@ -17,7 +17,7 @@
     @cancel="onCancel"
     @delete="remove"
     @duplicate="duplicate"
-    @copy-to-campaign="copyOpen = true"
+    @copy-to-campaign="openCopy"
     @customize="customize"
     @scriptorium="sendToScriptorium"
     @generate="showGenerateDialog = true"
@@ -96,7 +96,7 @@
           size="md"
           :icon="IconCopy"
           label="Copy to campaign…"
-          @click="copyOpen = true"
+          @click="openCopy"
         />
       </template>
     </EntityEditorActionBar>
@@ -261,8 +261,7 @@
     v-if="props.monster"
     :open="copyOpen"
     table="monsters"
-    :ids="[props.monster.id]"
-    :source-campaign-id="props.monster.campaign_id"
+    :ids="copyIds"
     label="monster"
     @close="copyOpen = false"
     @copied="onCopied"
@@ -317,7 +316,7 @@ import type {
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
-import { useToast } from "@/composables/useToast";
+import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 
 const ALIGNMENTS = [
   "Lawful Good",
@@ -513,25 +512,13 @@ async function customize() {
 }
 
 // ── Copy to campaign (#598) ─────────────────────────────────────────────────
-//
-// Unlike Duplicate/Customize above, this deliberately does NOT navigate on
-// success — a Post-Mutation Navigation exception (see CLAUDE.md). The copy
-// lands in another campaign, which neither this page nor /monsters can show,
-// so the toast naming the destination is the only confirmation there can be;
-// navigating away from the record the DM is still looking at would be
-// strictly worse.
-const toast = useToast();
-const copyOpen = ref(false);
-
-function onCopied({ targetName }: { copied: number; targetName: string }) {
-  toast.success(`Copied "${props.monster?.name ?? "monster"}" to ${targetName}.`);
-  copyOpen.value = false;
-}
-
-function onQuotaExceeded() {
-  copyOpen.value = false;
-  showPaywall.value = true;
-}
+const { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded } = useCopyEntityToCampaign({
+  entity: () => props.monster,
+  noun: "monster",
+  onQuotaExceeded: () => {
+    showPaywall.value = true;
+  },
+});
 
 async function sendToScriptorium() {
   if (!props.monster) return;

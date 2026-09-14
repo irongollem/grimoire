@@ -14,7 +14,7 @@
           v-if="table"
           label="Copy to campaign…"
           :icon="IconCopy"
-          @click="copyOpen = true"
+          @click="openCopy"
         />
         <PageHeaderAction
           variant="primary"
@@ -242,23 +242,17 @@
     </div>
   </PageHeader>
 
-  <!--
-    Copy-to-campaign (#598, wave 2). No `@close`-then-navigate here: the copy
-    lands in another campaign, which neither this page nor the loot-table list
-    can show, so the toast naming the destination (handleCopied below) is the
-    only confirmation there can be — a deliberate exception to CLAUDE.md's
-    Post-Mutation Navigation rule, not an oversight. loot_tables carries no
-    enforce_quota trigger, so there is no paywall to wire here.
-  -->
+  <!-- Copy-to-campaign (#598, wave 2) — see useCopyEntityToCampaign's
+       docstring for the Post-Mutation Navigation rationale. loot_tables
+       carries no enforce_quota trigger, so there is no paywall to wire here. -->
   <CopyToCampaignDialog
     v-if="table"
     :open="copyOpen"
     table="loot_tables"
-    :ids="[table.id]"
-    :source-campaign-id="table.campaign_id"
+    :ids="copyIds"
     label="loot table"
     @close="copyOpen = false"
-    @copied="handleCopied"
+    @copied="onCopied"
   />
 </template>
 
@@ -268,7 +262,7 @@ import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
 import { IconClose, IconCopy, IconDelete, IconEdit, IconMonster } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
-import { useToast } from "@/composables/useToast";
+import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { useCampaignStore } from "@/stores/campaign";
 import {
   useLootTable,
@@ -477,11 +471,8 @@ async function onDelete() {
 
 // ── Copy to campaign (#598) ─────────────────────────────────────────────────
 
-const toast = useToast();
-const copyOpen = ref(false);
-
-function handleCopied({ targetName }: { copied: number; targetName: string }) {
-  toast.success(`Copied "${table.value?.name ?? form.value.name}" to ${targetName}.`);
-  copyOpen.value = false;
-}
+const { copyOpen, copyIds, openCopy, onCopied } = useCopyEntityToCampaign({
+  entity: () => table.value,
+  noun: "loot table",
+});
 </script>

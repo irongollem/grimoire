@@ -135,7 +135,7 @@ describe("SpellDetail copy to campaign", () => {
     mockRouterReplace.mockClear();
   });
 
-  it("opens the dialog scoped to this spell's own campaign_id when the header emits copyToCampaign", async () => {
+  it("opens the dialog for this spell when the header emits copyToCampaign", async () => {
     const wrapper = mountDetail(existing);
     wrapper.findComponent({ name: "SpellDetailHeader" }).vm.$emit("copyToCampaign");
     await wrapper.vm.$nextTick();
@@ -143,7 +143,6 @@ describe("SpellDetail copy to campaign", () => {
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
     expect(dialog.props("open")).toBe(true);
     expect(dialog.props("ids")).toEqual(["sp1"]);
-    expect(dialog.props("sourceCampaignId")).toBe("campaign-1");
     expect(dialog.props("table")).toBe("spells");
   });
 

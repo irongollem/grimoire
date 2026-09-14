@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient, type UseMutationReturnType } from "@tanstack/vue-query";
 import { supabase } from "@/lib/supabase";
+import { chunkArray } from "@/lib/utils";
 
 /**
  * Bulk re-scoping to the active campaign or to "every campaign" (#875) — the
@@ -63,12 +64,6 @@ export const BULK_SCOPE_QUERY_KEY: Record<BulkScopeTable, string> = {
  *  of rows never trips a request-line length limit. */
 const CHUNK_SIZE = 200;
 
-function chunkIds(ids: readonly string[], size: number): string[][] {
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += size) chunks.push(ids.slice(i, i + size));
-  return chunks;
-}
-
 export interface BulkScopeInput {
   table: BulkScopeTable;
   ids: readonly string[];
@@ -77,7 +72,7 @@ export interface BulkScopeInput {
 
 async function bulkUpdateCampaignScope({ table, ids, campaignId }: BulkScopeInput): Promise<{ moved: number }> {
   let moved = 0;
-  for (const chunk of chunkIds(ids, CHUNK_SIZE)) {
+  for (const chunk of chunkArray(ids, CHUNK_SIZE)) {
     const { data, error } = await supabase
       .from(table)
       .update({ campaign_id: campaignId })

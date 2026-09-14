@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { reactive, ref, computed, defineComponent, h, type Ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MonsterList from "./MonsterList.vue";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import type { Monster } from "@/types/monster.types";
 
 function monster(overrides: Partial<Monster> = {}): Monster {
@@ -97,7 +98,7 @@ vi.mock("@/composables/useToast", () => ({
 vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
-    props: ["open", "table", "ids", "sourceCampaignId", "label"],
+    props: ["open", "table", "ids", "label"],
     emits: ["close", "copied", "quota-exceeded"],
     setup(props) {
       return () => (props.open ? h("div", { class: "copy-dialog-stub" }) : null);
@@ -213,6 +214,13 @@ describe("MonsterList — bulk selection (#875)", () => {
     expect(wrapper.text()).toContain("2 selected");
   });
 
+  it("puts the checkbox chip in the top-right corner on the desktop grid, clear of the CR badge", async () => {
+    monstersData.value = [monster({ id: "m1" })];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleSelectMode();
+    expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
+  });
+
   it("moving to the active campaign calls the mutation with the table, selected ids and campaign id", async () => {
     monstersData.value = [monster({ id: "m1" }), monster({ id: "m2" }), monster({ id: "m3" })];
     mutateAsync.mockResolvedValue({ moved: 2 });
@@ -300,9 +308,6 @@ describe("MonsterList — copy to campaign (#598)", () => {
     expect(dialog.props("open")).toBe(true);
     expect(dialog.props("table")).toBe("monsters");
     expect([...(dialog.props("ids") as string[])].sort()).toEqual(["m1", "m2"]);
-    // The source is the active campaign, not any row's own scope — the one
-    // destination never offered is the campaign the DM is already standing in.
-    expect(dialog.props("sourceCampaignId")).toBe("camp-1");
     expect(dialog.props("label")).toBe("monster");
   });
 

@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils";
-import { h } from "vue";
+import { h, ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
@@ -12,7 +12,7 @@ import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 // emits, without standing up real query infrastructure — CopyToCampaignDialog
 // itself is covered by its own test file.
 const CopyToCampaignDialogStub = {
-  props: ["open", "table", "ids", "sourceCampaignId", "label"],
+  props: ["open", "table", "ids", "label"],
   emits: ["close", "copied", "quota-exceeded"],
   template: `<div data-testid="copy-dialog" />`,
 };
@@ -30,7 +30,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/composables/campaign/useBulkCampaignScope", () => ({
-  useBulkCampaignScope: () => ({ mutateAsync: mocks.mutateAsync, isPending: { value: false } }),
+  useBulkCampaignScope: () => ({ mutateAsync: mocks.mutateAsync, isPending: ref(false) }),
 }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
@@ -207,7 +207,7 @@ describe("DungeonCraftEntityGrid — copy to campaign (#598)", () => {
     expect(wrapper.find('[data-testid="copy-dialog"]').exists()).toBe(false);
   });
 
-  it("pressing Copy to campaign… opens the dialog with the pruned selection and the active campaign as source", async () => {
+  it("pressing Copy to campaign… opens the dialog with the pruned selection", async () => {
     const wrapper = mountGrid(baseProps({ table: "roll_tables", ids: ["a", "b"], copyLabel: "roll table" }));
 
     await findButton(wrapper, "Select")!.trigger("click");
@@ -219,7 +219,6 @@ describe("DungeonCraftEntityGrid — copy to campaign (#598)", () => {
       open: true,
       table: "roll_tables",
       ids: ["a"],
-      sourceCampaignId: "camp-1",
       label: "roll table",
     });
   });

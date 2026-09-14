@@ -355,10 +355,13 @@ export function useMonster(id: Ref<string>) {
  * short-circuits when the embed text's hash is unchanged, so a save that
  * touched an unrelated field costs no API call at all.
  */
-export function queueMonsterEmbedding(id: string): void {
-  void supabase.functions
+export function queueMonsterEmbedding(id: string): Promise<void> {
+  // Resolves once the invocation has settled, errors already reported — so a
+  // bulk caller can bound how many are in flight (useCopyToCampaign's
+  // queueEmbeddingsInGroups) while single-row callers keep ignoring it.
+  return supabase.functions
     .invoke("embed-monsters", { body: { mode: "single", monster_id: id } })
-    .catch((error) => reportHandledError(error, "queueMonsterEmbedding", { id }));
+    .then(() => undefined, (error: unknown) => { reportHandledError(error, "queueMonsterEmbedding", { id }); });
 }
 
 export function useCreateMonster() {

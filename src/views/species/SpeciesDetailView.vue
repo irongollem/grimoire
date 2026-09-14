@@ -20,7 +20,7 @@
       />
     </template>
     <template v-else-if="species" #actions>
-      <PageHeaderAction label="Copy to campaign…" :icon="IconCopy" @click="copyOpen = true" />
+      <PageHeaderAction label="Copy to campaign…" :icon="IconCopy" @click="openCopy" />
     </template>
 
     <div v-if="loading" class="flex justify-center py-16">
@@ -34,8 +34,7 @@
     v-if="species"
     :open="copyOpen"
     table="species"
-    :ids="[species.id]"
-    :source-campaign-id="species.campaign_id"
+    :ids="copyIds"
     label="species"
     label-plural="species"
     @close="copyOpen = false"
@@ -56,7 +55,7 @@ import DetailActions from "@/components/common/DetailActions.vue";
 import SpeciesDetail from "@/components/species/SpeciesDetail.vue";
 import SpeciesSheet from "@/components/species/SpeciesSheet.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
-import { useToast } from "@/composables/useToast";
+import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 
 const detailRef = ref<InstanceType<typeof SpeciesDetail> | null>(null);
 
@@ -108,18 +107,8 @@ function onCancel() {
 }
 
 // ── Copy to campaign (#598) ─────────────────────────────────────────────────
-//
-// Unlike Clone to customize above, this deliberately does NOT navigate on
-// success — a Post-Mutation Navigation exception (see CLAUDE.md). The copy
-// lands in another campaign, which neither this page nor the species list can
-// show, so the toast naming the destination is the only confirmation there
-// can be; navigating away from the record the DM is still looking at would be
-// strictly worse.
-const toast = useToast();
-const copyOpen = ref(false);
-
-function onCopied({ targetName }: { copied: number; targetName: string }) {
-  toast.success(`Copied "${species.value?.name ?? "species"}" to ${targetName}.`);
-  copyOpen.value = false;
-}
+const { copyOpen, copyIds, openCopy, onCopied } = useCopyEntityToCampaign({
+  entity: () => species.value,
+  noun: "species",
+});
 </script>

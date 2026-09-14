@@ -78,8 +78,8 @@ function mountView() {
         SourcesPickerPanel: true,
         // CopyToCampaignDialog reads useDmCampaigns (TanStack Query) — its own
         // internals are covered by CopyToCampaignDialog.test.ts; this file
-        // owns only the wiring one level up (open/ids/sourceCampaignId and the
-        // @copied handler), which the copy-to-campaign describe block below
+        // owns only the wiring one level up (open/ids and the @copied
+        // handler), which the copy-to-campaign describe block below
         // exercises against the stub directly.
         CopyToCampaignDialog: true,
       },
@@ -202,7 +202,6 @@ describe("SpellsView — bulk copy-to-campaign (#598)", () => {
     const dialog = findDialog(wrapper);
     expect(dialog.props("open")).toBe(true);
     expect(dialog.props("ids")).toEqual(["spell-1", "spell-2", "spell-3"]);
-    expect(dialog.props("sourceCampaignId")).toBe("campaign-1");
     expect(dialog.props("table")).toBe("spells");
   });
 

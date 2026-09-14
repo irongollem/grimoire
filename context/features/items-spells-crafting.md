@@ -86,6 +86,17 @@ implementation turns on, each with a reason worth keeping:
   write pointing at rows the DM could no longer see — the one way this feature
   could have silently re-scoped something nobody chose.
 
+`src/composables/campaign/useMoveToCampaignFlow.ts` is the one place the
+prune/mutate/toast/stop sequence above lives — all five surfaces (Vault,
+Spellbook, Bestiary, Species, and `DungeonCraftEntityGrid` for all four
+Dungeon Craft tabs) call it rather than hand-rolling their own block. The
+toast wording is canonical from there: `Moved 3 items to Curse of Strahd.` /
+`3 items are now available in all campaigns.` (singular: `1 item is now
+available in all campaigns.`). Before this consolidation the five had drifted
+three ways on punctuation and phrasing, and `DungeonCraftEntityGrid` never
+branched on the destination at all — it always reported "Moved N entries.",
+even when the destination was "all campaigns."
+
 **Copying to another campaign (#598) — the canonical description; the other
 feature docs point here.** Re-scoping *moves* a row: one row, somewhere else.
 The other half of the need is a second, independent row the DM can then let
@@ -112,8 +123,22 @@ Seven decisions worth keeping:
   different question — it creates a row where the original is not — so there is
   no single-row control for it to diverge from, and the active campaign is
   precisely the one destination a copy never wants. The picker therefore
-  excludes the source's own scope: from a campaign-scoped row, that campaign;
-  from a general one, "general".
+  excludes every scope the selection already occupies.
+- **The excluded scopes come from the selected rows themselves, not a
+  caller-supplied campaign id (#875).** Every caller used to pass one
+  `sourceCampaignId` — always the active campaign — but a bulk selection
+  routinely mixes general rows (`campaign_id: null`) with campaign rows, and
+  with ItemsView's "show all scopes" toggle, rows from other campaigns too. A
+  caller-supplied scope could offer "All campaigns (general)" while a
+  selected row was already general, or offer a selected row's own campaign as
+  a target — both the exact same-scope duplicate the "no dangling reference"
+  rule above says cannot happen. So the dialog fetches the source rows itself
+  on open (`loadCopySources`) and excludes the union of every row's own
+  `campaign_id`: a mixed selection (one general row, one from Curse of
+  Strahd) excludes both "general" and Curse of Strahd, leaving every other
+  campaign as a valid target. The same load also lets the target picker
+  re-plan synchronously (`planCopyFor`, pure) each time the DM tries a
+  different target, instead of re-fetching per pick.
 - **A reference is dropped only when it would actually dangle.** The ticket
   said to drop cross-entity references; the rule that ships is narrower. A
   referenced row travels when the target can see it — `campaign_id IS NULL`

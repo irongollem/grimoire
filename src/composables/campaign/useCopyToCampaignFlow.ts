@@ -1,5 +1,6 @@
 import { ref, type Ref } from "vue";
 import { useToast } from "@/composables/useToast";
+import { pluralizeCount } from "@/lib/utils";
 
 export interface CopyToCampaignFlowOptions {
   /** Singular noun for the toast, e.g. "monster". */
@@ -61,8 +62,7 @@ export function useCopyToCampaignFlow(options: CopyToCampaignFlowOptions): CopyT
   }
 
   function onCopied({ copied, targetName }: { copied: number; targetName: string }): void {
-    const label = copied === 1 ? noun : (nounPlural ?? `${noun}s`);
-    toast.success(`Copied ${copied} ${label} to ${targetName}.`);
+    toast.success(`Copied ${pluralizeCount(copied, noun, nounPlural)} to ${targetName}.`);
     copyOpen.value = false;
     // Ends selection mode, matching what every `move` handler already does.
     // A copy does not remove the originals from this list, so keeping the

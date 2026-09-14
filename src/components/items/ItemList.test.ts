@@ -122,6 +122,18 @@ describe("ItemList — bulk selection (#875)", () => {
     expect(cards[1].props("selecting")).toBe(false);
   });
 
+  it("in select mode an owned row shows neither Edit nor the Reference badge, a library row keeps Reference", () => {
+    mocks.items = [
+      makeItem({ id: "11111111-1111-4111-8111-111111111111", name: "Owned Sword" }),
+      makeItem({ id: "srd_owlbear_feather", name: "Owlbear Feather" }),
+    ];
+    const wrapper = mountList({ selecting: true });
+    const [owned, library] = wrapper.findAllComponents(BulkSelectableCard);
+    expect(owned.find('a[href*="edit=true"]').exists()).toBe(false);
+    expect(owned.text()).not.toContain("Reference");
+    expect(library.text()).toContain("Reference");
+  });
+
   it("does not enter selecting mode for any row when the list-wide flag is off", () => {
     mocks.items = [makeItem({ id: "11111111-1111-4111-8111-111111111111" })];
     const wrapper = mountList({ selecting: false });
@@ -147,5 +159,14 @@ describe("ItemList — bulk selection (#875)", () => {
     const wrapper = mountList({ selecting: true });
     await wrapper.findComponent(BulkSelectableCard).vm.$emit("toggle");
     expect(wrapper.emitted("toggle-select")).toEqual([["11111111-1111-4111-8111-111111111111"]]);
+  });
+
+  it("hides the Edit button while selecting, so it never collides with the checkbox chip", () => {
+    mocks.items = [makeItem({ id: "11111111-1111-4111-8111-111111111111" })];
+    const notSelecting = mountList({ selecting: false });
+    expect(notSelecting.find('[aria-label="Edit"]').exists()).toBe(true);
+
+    const selecting = mountList({ selecting: true });
+    expect(selecting.find('[aria-label="Edit"]').exists()).toBe(false);
   });
 });

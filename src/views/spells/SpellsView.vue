@@ -95,7 +95,6 @@
       :open="copyOpen"
       table="spells"
       :ids="copyIds"
-      :source-campaign-id="campaignStore.activeCampaignId"
       label="spell"
       @close="copyOpen = false"
       @copied="onCopied"
@@ -133,10 +132,9 @@ import SourcesPickerPanel from "@/components/common/SourcesPickerPanel.vue";
 import { SPELL_SCHOOLS, SPELL_CLASSES } from "@/types/spell.types";
 import { useEnabledSources, useAvailableLibrarySpellSources } from "@/composables/library/useEnabledSources";
 import { useBulkSelection } from "@/composables/useBulkSelection";
-import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
+import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
-import { useToast } from "@/composables/useToast";
 
 const ui = useUiStore();
 
@@ -165,9 +163,7 @@ const {
   stop: stopSelecting,
   pruneTo,
 } = useBulkSelection();
-const { mutateAsync: moveScope, isPending: isMovingScope } = useBulkCampaignScope();
 const campaignStore = useCampaignStore();
-const toast = useToast();
 const spellListRef = ref<InstanceType<typeof SpellList> | null>(null);
 
 function toggleSelecting() {
@@ -184,22 +180,14 @@ watch(
   (ids) => pruneTo(ids),
 );
 
-async function handleMove(campaignId: string | null) {
-  const ids = pruneTo(spellListRef.value?.selectableIds ?? []);
-  if (!ids.length) return;
-  try {
-    const { moved } = await moveScope({ table: "spells", ids, campaignId });
-    const noun = moved === 1 ? "spell" : "spells";
-    toast.success(
-      campaignId
-        ? `Moved ${moved} ${noun} to ${campaignStore.activeCampaign?.name ?? "the campaign"}`
-        : `${moved} ${noun} ${moved === 1 ? "is" : "are"} now available in all campaigns`,
-    );
-    stopSelecting();
-  } catch (error) {
-    toast.error(toast.fromError(error));
-  }
-}
+const { moving: isMovingScope, move: handleMove } = useMoveToCampaignFlow({
+  table: "spells",
+  noun: "spell",
+  selectableIds: () => spellListRef.value?.selectableIds ?? [],
+  pruneTo,
+  stop: stopSelecting,
+  campaignName: () => campaignStore.activeCampaign?.name ?? null,
+});
 
 // ── Bulk copy-to-campaign (#598) ─────────────────────────────────────────────
 // Same staleness discipline as handleMove: the selection can hold an id for a

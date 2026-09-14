@@ -90,7 +90,6 @@
       :open="copyOpen"
       table="items"
       :ids="copyIds"
-      :source-campaign-id="campaignStore.activeCampaignId"
       label="item"
       @close="copyOpen = false"
       @copied="onCopied"
@@ -129,10 +128,9 @@ import { ITEM_TYPES, ITEM_TYPE_LABELS, ITEM_RARITIES, ITEM_RARITY_LABELS, itemSo
 import { useUiStore } from "@/stores/ui";
 import { useAvailableLibraryItemSources } from "@/composables/library/useEnabledSources";
 import { useBulkSelection } from "@/composables/useBulkSelection";
-import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
+import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
-import { useToast } from "@/composables/useToast";
 
 const ui = useUiStore();
 const search = computed({
@@ -176,9 +174,7 @@ const {
   stop: stopSelecting,
   pruneTo,
 } = useBulkSelection();
-const { mutateAsync: moveScope, isPending: isMovingScope } = useBulkCampaignScope();
 const campaignStore = useCampaignStore();
-const toast = useToast();
 const itemListRef = ref<InstanceType<typeof ItemList> | null>(null);
 
 function toggleSelecting() {
@@ -195,22 +191,14 @@ watch(
   (ids) => pruneTo(ids),
 );
 
-async function handleMove(campaignId: string | null) {
-  const ids = pruneTo(itemListRef.value?.selectableIds ?? []);
-  if (!ids.length) return;
-  try {
-    const { moved } = await moveScope({ table: "items", ids, campaignId });
-    const noun = moved === 1 ? "item" : "items";
-    toast.success(
-      campaignId
-        ? `Moved ${moved} ${noun} to ${campaignStore.activeCampaign?.name ?? "the campaign"}`
-        : `${moved} ${noun} ${moved === 1 ? "is" : "are"} now available in all campaigns`,
-    );
-    stopSelecting();
-  } catch (error) {
-    toast.error(toast.fromError(error));
-  }
-}
+const { moving: isMovingScope, move: handleMove } = useMoveToCampaignFlow({
+  table: "items",
+  noun: "item",
+  selectableIds: () => itemListRef.value?.selectableIds ?? [],
+  pruneTo,
+  stop: stopSelecting,
+  campaignName: () => campaignStore.activeCampaign?.name ?? null,
+});
 
 // ── Bulk copy-to-campaign (#598) ──────────────────────────────────────────────
 // Unlike move, the source scope for a copy is always the active campaign —

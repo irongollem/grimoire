@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildCopyPlan, libraryReferencedIds, referencedIds, type ReferencedRow } from "./copyToCampaign";
-import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
+import { BULK_SCOPE_QUERY_KEY, type BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 
 const USER_ID = "user-1";
 const TARGET_CAMPAIGN = "campaign-target";
@@ -116,6 +118,7 @@ describe("buildCopyPlan — items", () => {
         label: "Linked spells",
         names: ["Mage Hand", "a row you no longer have access to"],
         removedEntries: false,
+        entryNoun: { singular: "linked spell", plural: "linked spells" },
       },
     ]);
   });
@@ -137,7 +140,14 @@ describe("buildCopyPlan — monsters", () => {
     const row = { id: "m1", lair_location_id: "loc-other" };
     const { payload, dropped } = buildCopyPlan("monsters", row, TARGET_CAMPAIGN, USER_ID, LOCATIONS);
     expect(payload.lair_location_id).toBeNull();
-    expect(dropped).toEqual([{ label: "Lair location", names: ["Frosthaven"], removedEntries: false }]);
+    expect(dropped).toEqual([
+      {
+        label: "Lair location",
+        names: ["Frosthaven"],
+        removedEntries: false,
+        entryNoun: { singular: "lair location", plural: "lair locations" },
+      },
+    ]);
   });
 
   it("keeps lair_location_id when the target campaign can see it", () => {
@@ -193,7 +203,14 @@ describe("buildCopyPlan — species (slug vs uuid split)", () => {
     expect(grants).toHaveLength(1);
     expect(grants[0].spell_id).toBe(SPELL_VISIBLE);
     expect(grants.some((g) => g.spell_id === null)).toBe(false);
-    expect(dropped).toEqual([{ label: "Granted spells", names: ["Mage Hand"], removedEntries: true }]);
+    expect(dropped).toEqual([
+      {
+        label: "Granted spells",
+        names: ["Mage Hand"],
+        removedEntries: true,
+        entryNoun: { singular: "granted spell", plural: "granted spells" },
+      },
+    ]);
   });
 
   it("a uuid spell_id the target campaign can see travels unchanged", () => {
@@ -207,7 +224,14 @@ describe("buildCopyPlan — species (slug vs uuid split)", () => {
     const row = { id: "sp1", granted_spells: [SPELL_OTHER_CAMPAIGN, LIBRARY_SLUG] };
     const { payload, dropped } = buildCopyPlan("species", row, TARGET_CAMPAIGN, USER_ID, REFERENCED);
     expect(payload.granted_spells).toEqual([LIBRARY_SLUG]);
-    expect(dropped).toEqual([{ label: "Granted spells", names: ["Mage Hand"], removedEntries: true }]);
+    expect(dropped).toEqual([
+      {
+        label: "Granted spells",
+        names: ["Mage Hand"],
+        removedEntries: true,
+        entryNoun: { singular: "granted spell", plural: "granted spells" },
+      },
+    ]);
   });
 });
 
@@ -222,7 +246,14 @@ describe("buildCopyPlan — puzzle_rooms", () => {
     const { payload, dropped } = buildCopyPlan("puzzle_rooms", row, TARGET_CAMPAIGN, USER_ID, LOOKUPS);
     expect(payload.location_id).toBe("loc-1"); // visible, kept
     expect(payload.dungeon_feature_id).toBeNull(); // other campaign, dropped
-    expect(dropped).toEqual([{ label: "Dungeon feature", names: ["Rune Door"], removedEntries: false }]);
+    expect(dropped).toEqual([
+      {
+        label: "Dungeon feature",
+        names: ["Rune Door"],
+        removedEntries: false,
+        entryNoun: { singular: "dungeon feature", plural: "dungeon features" },
+      },
+    ]);
   });
 
   it("always clears player_visible_to and is_shared, silently — never in the drop report", () => {
@@ -265,14 +296,28 @@ describe("buildCopyPlan — loot_tables", () => {
     const { payload, dropped } = buildCopyPlan("loot_tables", row, TARGET_CAMPAIGN, USER_ID, LOOKUPS);
     const entries = payload.entries as Array<{ id: string }>;
     expect(entries.map((e) => e.id)).toEqual(["e2", "e3"]);
-    expect(dropped).toEqual([{ label: "Loot entries", names: ["Vial of Acid"], removedEntries: true }]);
+    expect(dropped).toEqual([
+      {
+        label: "Loot entries",
+        names: ["Vial of Acid"],
+        removedEntries: true,
+        entryNoun: { singular: "loot entry", plural: "loot entries" },
+      },
+    ]);
   });
 
   it("an entry with type absent defaults to 'item' (matches validateEntries' own default)", () => {
     const row = { id: "lt1", monster_ids: [], entries: [{ id: "e1", item_id: "item-1", drop_chance: 50 }] };
     const { payload, dropped } = buildCopyPlan("loot_tables", row, TARGET_CAMPAIGN, USER_ID, LOOKUPS);
     expect(payload.entries).toEqual([]);
-    expect(dropped).toEqual([{ label: "Loot entries", names: ["Vial of Acid"], removedEntries: true }]);
+    expect(dropped).toEqual([
+      {
+        label: "Loot entries",
+        names: ["Vial of Acid"],
+        removedEntries: true,
+        entryNoun: { singular: "loot entry", plural: "loot entries" },
+      },
+    ]);
   });
 });
 
@@ -289,7 +334,14 @@ describe("buildCopyPlan — roll_tables", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].encounter_id).toBeNull();
     expect(entries[0].label).toBe("Wolves howl in the distance");
-    expect(dropped).toEqual([{ label: "Linked encounters", names: ["Ambush!"], removedEntries: false }]);
+    expect(dropped).toEqual([
+      {
+        label: "Linked encounters",
+        names: ["Ambush!"],
+        removedEntries: false,
+        entryNoun: { singular: "linked encounter", plural: "linked encounters" },
+      },
+    ]);
   });
 
   it("an entry with no encounter passes through untouched", () => {
@@ -406,5 +458,38 @@ describe("libraryReferencedIds", () => {
     const { payload, dropped } = buildCopyPlan("species", row, TARGET_CAMPAIGN, USER_ID, new Map());
     expect((payload.granted_spells as Array<{ spell_id: string }>)[0].spell_id).toBe(LIBRARY_SLUG);
     expect(dropped).toEqual([]);
+  });
+});
+
+// #598 F12: `referencedIds` and `buildCopyPlan` each hold a `switch (table)`
+// with no runtime default (they do different jobs, so they are deliberately
+// NOT collapsed into one config table — see the module's own comments). A
+// table silently falling through to the switch's absence-of-a-case case
+// wouldn't throw, so a behavioural test can't distinguish "handled" from
+// "fell through and happened to look empty". A structural check on the
+// source text can: this asserts every table in `BulkScopeTable` has its own
+// explicit `case` in both switches, so a ninth table added to the union
+// without a matching case in either function fails here rather than shipping
+// with silently-unhandled cross-entity references.
+describe("referencedIds and buildCopyPlan switches stay exhaustive over BulkScopeTable", () => {
+  const source = readFileSync(join(process.cwd(), "src/lib/campaign/copyToCampaign.ts"), "utf-8");
+
+  function functionBody(fnName: string): string {
+    const start = source.indexOf(`export function ${fnName}(`);
+    if (start === -1) throw new Error(`${fnName} not found in copyToCampaign.ts — did it get renamed?`);
+    const nextExport = source.indexOf("\nexport function ", start + 1);
+    return source.slice(start, nextExport === -1 ? source.length : nextExport);
+  }
+
+  const referencedIdsBody = functionBody("referencedIds");
+  const buildCopyPlanBody = functionBody("buildCopyPlan");
+  const tables = Object.keys(BULK_SCOPE_QUERY_KEY) as BulkScopeTable[];
+
+  it.each(tables)("referencedIds has an explicit case for %s, not the fallthrough path", (table) => {
+    expect(referencedIdsBody).toContain(`case "${table}"`);
+  });
+
+  it.each(tables)("buildCopyPlan has an explicit case for %s, not the fallthrough path", (table) => {
+    expect(buildCopyPlanBody).toContain(`case "${table}"`);
   });
 });

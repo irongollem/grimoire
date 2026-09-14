@@ -119,7 +119,7 @@ Traps are dangerous mechanisms placed in dungeons. They carry full D&D 5e combat
 
 ### How DMs use them
 
-- Browse the Traproom tab (filtered by type and/or keyword). The list is also implicitly scoped by campaign — general traps plus the active campaign's own, same as the Bestiary (`combat-encounters.md`) — with no "show all campaigns" override.
+- Browse the Traproom tab (filtered by type and/or keyword) — search and type filter live in `useUiStore` (`trapsSearch`/`trapsFilterType`, Filter State Pattern), so they survive navigating into a trap and back; a **Clear** button appears once `trapsHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general traps plus the active campaign's own, same as the Bestiary (`combat-encounters.md`) — with no "show all campaigns" override.
 - Tap any card to open `/traps/:id`.
 - The detail view renders a **TrapSheet** in view mode and a **TrapEditor** in edit mode (`?edit=true`).
 - New traps open at `/traps/new`.
@@ -185,7 +185,7 @@ Both are colour-coded; the card thumbnail shows the type badge top-left and the 
 
 #### Creating and editing puzzles
 
-- Browse the Enigmarium tab (filterable by type, difficulty, and keyword). The list is also implicitly scoped by campaign — general puzzles plus the active campaign's own, same as the Bestiary and Traproom — with no "show all campaigns" override.
+- Browse the Enigmarium tab (filterable by type, difficulty, and keyword) — search, type filter and difficulty filter live in `useUiStore` (`puzzlesSearch`/`puzzlesFilterType`/`puzzlesFilterDifficulty`, Filter State Pattern), so they survive navigating into a puzzle and back; a **Clear** button appears once `puzzlesHasActiveFilters` is true, same pattern as the Loot Tables tab. The list is also implicitly scoped by campaign — general puzzles plus the active campaign's own, same as the Bestiary and Traproom — with no "show all campaigns" override.
 - Tap any card to open `/puzzles/:id`.
 - The detail view has an inline **view/edit toggle** — existing puzzles open in view mode.
 - New puzzles open at `/puzzles/new`.
@@ -335,6 +335,8 @@ Loot tables define probabilistic hoards — each entry has its own independent d
 Loot tables are stored with an optional `campaign_id`; `useLootTables()` shows tables belonging to the active campaign plus global tables (`campaign_id = null`) together, same as Roll Tables above. The editor (`LootTableDetailView`) carries a `CampaignScopeField` (#596) alongside Tags — before this it had no scope control at all, and a new table's `campaign_id` was hardcoded to `null`. A new table now defaults to the active campaign instead; editing an existing one, including an already-global one, keeps whatever scope it already has.
 
 **Copying to another campaign (#598).** Re-scoping *moves* the row; copying makes a second, independent one in a campaign the account DMs, reachable from the Select surface's bar and from the detail editor's own actions. The rules — which cross-entity references travel, which are dropped and named, which are reported rather than dropped, and why the copy neither suffixes its name nor navigates afterwards — are written once in `items-spells-crafting.md` ("Copying to another campaign"). All four Dungeon Craft tabs share one implementation of it, in `DungeonCraftEntityGrid` — the tabs pass only their table and their noun. The per-type specifics: a loot entry whose item the target cannot see is removed whole (an item entry with no `item_id` fails `validateEntries`), a roll-table entry keeps its label and loses only its `encounter_id`, a puzzle's `location_id`, `dungeon_feature_id` and `player_visible_to` all clear (party members are never members of another campaign), and `puzzle_rooms` is one of only two of the eight tables carrying `enforce_quota`, so it is the only tab that ever needs a paywall.
+
+**Moving to another campaign** shares the same one-implementation shape: `DungeonCraftEntityGrid`'s move handler now calls `useMoveToCampaignFlow` (see "Re-scoping in bulk" in `items-spells-crafting.md`), which fixed a latent bug — the grid used to report "Moved N entries." unconditionally, even when the destination was "all campaigns" rather than a named one, because it never branched on the campaign id the way the other four bulk-move surfaces did.
 
 ### Entry types
 

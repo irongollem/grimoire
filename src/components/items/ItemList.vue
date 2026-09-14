@@ -55,7 +55,7 @@
                detail view's Clone action, which is the only way to change them. -->
           <template #actions-start>
             <AppButton
-              v-if="isUuid(item.id)"
+              v-if="isUuid(item.id) && !selecting"
               :to="`/vault/${item.id}?edit=true`"
               variant="ghost"
               size="xs"
@@ -68,8 +68,12 @@
               ]"
               tooltip="Edit item"
             />
+            <!-- Library rows only: an owned row in select mode shows nothing
+                 here, leaving this corner to BulkSelectableCard's checkbox.
+                 A plain v-else labelled the DM's own items "Reference" the
+                 moment select mode hid their Edit button. -->
             <span
-              v-else
+              v-else-if="!isUuid(item.id)"
               class="flex h-6 items-center rounded bg-black/50 px-1.5 text-label text-white backdrop-blur-sm"
             >Reference</span>
           </template>

@@ -77,7 +77,7 @@ vi.mock("@/composables/library/useEnabledSources", () => ({
 vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
-    props: ["open", "table", "ids", "sourceCampaignId", "label"],
+    props: ["open", "table", "ids", "label"],
     emits: ["close", "copied", "quota-exceeded"],
     setup(props) {
       return () => (props.open ? h("div", { class: "copy-dialog-stub" }) : null);
@@ -219,9 +219,6 @@ describe("ItemsView — bulk copy-to-campaign (#598)", () => {
     expect(dialog.props("open")).toBe(true);
     expect(dialog.props("table")).toBe("items");
     expect(dialog.props("ids")).toEqual(["item-1", "item-2", "item-3"]);
-    // The source is the active campaign, not any row's own scope — the one
-    // destination never offered is the campaign the DM is already standing in.
-    expect(dialog.props("sourceCampaignId")).toBe("campaign-1");
     expect(dialog.props("label")).toBe("item");
   });
 

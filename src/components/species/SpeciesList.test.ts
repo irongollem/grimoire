@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { reactive, ref, computed, defineComponent, h, type Ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SpeciesList from "./SpeciesList.vue";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import type { Species } from "@/types/species.types";
 
 /** A valid-looking uuid (matches `isUuid`'s v4 pattern) for a custom row. */
@@ -96,7 +97,7 @@ vi.mock("@/composables/useToast", () => ({
 vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
   default: defineComponent({
     name: "CopyToCampaignDialog",
-    props: ["open", "table", "ids", "sourceCampaignId", "label", "labelPlural"],
+    props: ["open", "table", "ids", "label", "labelPlural"],
     emits: ["close", "copied"],
     setup(props) {
       return () => (props.open ? h("div", { class: "copy-dialog-stub" }) : null);
@@ -197,6 +198,13 @@ describe("SpeciesList — bulk selection (#875)", () => {
     const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
     await selectAllBtn!.trigger("click");
     expect(wrapper.text()).toContain("2 selected");
+  });
+
+  it("puts the checkbox chip in the top-right corner, clear of the Edit link at top-left", async () => {
+    allSpecies.value = [customSpecies(1)];
+    const wrapper = mountList();
+    await exposed(wrapper).toggleBulkSelectMode();
+    expect(wrapper.findComponent(BulkSelectableCard).props("corner")).toBe("top-right");
   });
 
   it("moving to the active campaign calls the mutation with the table, selected ids and campaign id", async () => {
@@ -302,8 +310,6 @@ describe("SpeciesList — copy to campaign (#598)", () => {
     expect(dialog.props("open")).toBe(true);
     expect(dialog.props("table")).toBe("species");
     expect([...(dialog.props("ids") as string[])].sort()).toEqual([uuid(1), uuid(2)].sort());
-    // The source is the active campaign, not any row's own scope.
-    expect(dialog.props("sourceCampaignId")).toBe("camp-1");
     expect(dialog.props("label")).toBe("species");
     expect(dialog.props("labelPlural")).toBe("species");
   });

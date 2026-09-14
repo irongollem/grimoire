@@ -43,6 +43,7 @@
         <BulkSelectableCard
           v-for="spell in visibleItems"
           :key="spell.id"
+          corner="top-right"
           :selected="selectedIds.has(spell.id)"
           :selecting="selecting && !isSharedContent(spell)"
           @toggle="emit('toggle-select', spell.id)"

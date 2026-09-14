@@ -16,19 +16,27 @@
     @empty-action="router.push('/puzzles/new')"
   >
     <template #filters>
-      <AppSelect v-model="puzzlesTypeFilter" tone="card" size="body">
+      <AppSelect v-model="puzzlesFilterType" tone="card" size="body">
         <option value="">All Types</option>
         <option v-for="t in PUZZLE_TYPES" :key="t" :value="t">{{ t }}</option>
       </AppSelect>
-      <AppSelect v-model="puzzlesDifficultyFilter" tone="card" size="body">
+      <AppSelect v-model="puzzlesFilterDifficulty" tone="card" size="body">
         <option value="">All Difficulties</option>
         <option v-for="d in PUZZLE_DIFFICULTIES" :key="d" :value="d">{{ d }}</option>
       </AppSelect>
+      <AppButton
+        v-if="ui.puzzlesHasActiveFilters"
+        variant="subtle"
+        size="body"
+        label="Clear"
+        @click="ui.resetPuzzlesFilters()"
+      />
     </template>
     <template #card="{ selecting, isSelected, toggle }">
       <BulkSelectableCard
         v-for="puzzle in filteredPuzzles"
         :key="puzzle.id"
+        corner="top-right"
         :selected="isSelected(puzzle.id)"
         :selecting="selecting"
         @toggle="toggle(puzzle.id)"
@@ -74,7 +82,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed } from "vue";
+import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
 import { usePuzzles } from "@/composables/dungeon-features/usePuzzles";
 import { usePlacedInRooms } from "@/composables/dungeon-features/usePlacedInRooms";
@@ -82,8 +91,10 @@ import { directRoomPlacement } from "@/lib/dungeon-features/placedIn";
 import type { PlacedInRoom } from "@/lib/dungeon-features/placedIn";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES, PUZZLE_TYPE_BG, PUZZLE_DIFFICULTY_BG } from "@/types/puzzle.types";
 import type { PuzzleRoom } from "@/types/puzzle.types";
+import { useUiStore } from "@/stores/ui";
 import FocalImage from "@/components/common/FocalImage.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import AppButton from "@/components/common/AppButton.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import DungeonCraftEntityGrid from "./DungeonCraftEntityGrid.vue";
 import PlacedInLine from "./PlacedInLine.vue";
@@ -91,9 +102,10 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
 const { data: puzzles, isLoading: puzzlesLoading } = usePuzzles();
-const puzzlesSearch           = ref("");
-const puzzlesTypeFilter       = ref("");
-const puzzlesDifficultyFilter = ref("");
+const ui = useUiStore();
+// Filter state lives in the UI store, not local refs, so it survives
+// navigating into a puzzle and back without outliving the session.
+const { puzzlesSearch, puzzlesFilterType, puzzlesFilterDifficulty } = storeToRefs(ui);
 
 // ── Placed in (#868, S8, frame 11) ────────────────────────────────────────────
 // Not from `location_placements` — a puzzle anchors via its own
@@ -112,8 +124,8 @@ function placedInRows(puzzle: PuzzleRoom): PlacedInRoom[] {
 
 const filteredPuzzles = computed(() => {
   let list = puzzles.value ?? [];
-  if (puzzlesTypeFilter.value) list = list.filter((p) => p.puzzle_type === puzzlesTypeFilter.value);
-  if (puzzlesDifficultyFilter.value) list = list.filter((p) => p.difficulty === puzzlesDifficultyFilter.value);
+  if (puzzlesFilterType.value) list = list.filter((p) => p.puzzle_type === puzzlesFilterType.value);
+  if (puzzlesFilterDifficulty.value) list = list.filter((p) => p.difficulty === puzzlesFilterDifficulty.value);
   const q = puzzlesSearch.value.toLowerCase().trim();
   if (q) list = list.filter((p) =>
     p.name.toLowerCase().includes(q) ||

@@ -4,7 +4,7 @@
       v-if="bulk.selecting.value"
       :count="bulk.count.value"
       :selectable-count="selectableIds.length"
-      :busy="bulkScope.isPending.value"
+      :busy="bulkMoving"
       :campaign-name="activeCampaign?.name ?? null"
       class="mb-3"
       @select-all="selectAllShown"
@@ -52,7 +52,7 @@
         <BulkSelectableCard
           v-for="monster in visibleItems"
           :key="monster.id"
-          corner="top-right"
+          corner="bottom-right"
           :selected="bulk.isSelected(monster.id)"
           :selecting="bulk.selecting.value && !monster.is_shared"
           @toggle="bulk.toggle(monster.id)"
@@ -110,7 +110,6 @@
     :open="copyOpen"
     table="monsters"
     :ids="copyIds"
-    :source-campaign-id="activeCampaignId"
     label="monster"
     @close="copyOpen = false"
     @copied="onCopied"
@@ -143,10 +142,9 @@ import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
 import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
-import { useBulkCampaignScope } from "@/composables/campaign/useBulkCampaignScope";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
+import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 import { useCampaignStore } from "@/stores/campaign";
-import { useToast } from "@/composables/useToast";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
 const router = useRouter();
@@ -231,9 +229,7 @@ function monsterSubtitle(monster: Monster): string {
 // and hide the Edit action, so this reuses an existing distinction rather
 // than inventing a new one.
 const bulk = useBulkSelection();
-const bulkScope = useBulkCampaignScope();
-const toast = useToast();
-const { activeCampaign, activeCampaignId } = storeToRefs(useCampaignStore());
+const { activeCampaign } = storeToRefs(useCampaignStore());
 
 // Every row a bulk move may legally touch: passes the current filters and
 // isn't shared/library content. Reused by "select all" and by the prune
@@ -252,22 +248,14 @@ function selectAllShown() {
   bulk.selectAll(selectableIds.value);
 }
 
-async function moveSelection(campaignId: string | null) {
-  const ids = bulk.pruneTo(selectableIds.value);
-  if (!ids.length) return;
-  try {
-    const { moved } = await bulkScope.mutateAsync({ table: "monsters", ids, campaignId });
-    const noun = moved === 1 ? "monster" : "monsters";
-    toast.success(
-      campaignId
-        ? `Moved ${moved} ${noun} to ${activeCampaign.value?.name ?? "the campaign"}.`
-        : `Made ${moved} ${noun} available in all campaigns.`,
-    );
-    bulk.stop();
-  } catch (e) {
-    toast.error(toast.fromError(e));
-  }
-}
+const { moving: bulkMoving, move: moveSelection } = useMoveToCampaignFlow({
+  table: "monsters",
+  noun: "monster",
+  selectableIds: () => selectableIds.value,
+  pruneTo: bulk.pruneTo,
+  stop: bulk.stop,
+  campaignName: () => activeCampaign.value?.name ?? null,
+});
 
 function toggleSelectMode() {
   if (bulk.selecting.value) bulk.stop();
