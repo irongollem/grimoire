@@ -12,8 +12,11 @@
  * interrupted run is resumed by re-running it and a manifest that gained new
  * entries (new art, or a repost of #864's remaining sets) converges the same
  * way. `--dry-run` reports what it would upload without writing anything;
- * `--verify` copies nothing and reports objects missing from R2 or the wrong
- * size.
+ * `--verify` copies nothing and reports objects missing from R2 or holding
+ * different content. Where R2's HEAD carries no `content-length` — every `.svg`,
+ * whose text content type is compressed in transit — the object is read and
+ * compared byte for byte rather than reported as a mismatch. See
+ * `matchesStored`.
  *
  * NEVER DELETES. Unlike `r2-copy.ts`'s bucket mirror, this has no delete path
  * at all, not even a documented "separate step" — a hashed key from an older
@@ -31,7 +34,7 @@ import {
   IMMUTABLE_CACHE_CONTROL,
   type R2Config,
 } from "../supabase/functions/_shared/r2/config.ts";
-import { putObject, headObject } from "../supabase/functions/_shared/r2/client.ts";
+import { putObject, headObject, getObject } from "../supabase/functions/_shared/r2/client.ts";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MANIFEST_PATH = path.join(REPO_ROOT, "src/generated/artManifest.json");
@@ -110,6 +113,8 @@ async function pooled<T>(items: T[], limit: number, worker: (item: T) => Promise
 export interface PublishDeps {
   putObject: typeof putObject;
   headObject: typeof headObject;
+  /** Only called when HEAD reports no size — see `alreadyPublished`. */
+  getObject: typeof getObject;
   /** Injected so tests never need real bytes on disk. */
   readFile: (filePath: string) => Buffer;
   resolveSourceFile: (servedPath: string) => string;
@@ -135,24 +140,47 @@ export async function publish(
   let skipped = 0;
   const problems: string[] = [];
 
+  /**
+   * Whether R2 already holds these exact bytes.
+   *
+   * A matching content-length answers it without reading the object, which is
+   * the path 68 of the 91 objects take. The other 23 are `.svg`, and R2's HEAD
+   * response for them carries no `content-length` at all — a text content type
+   * is compressed in transit, and a compressed response is chunked. `headObject`
+   * honestly returns `null` for the size rather than coercing it to 0, so the
+   * old `existing.size === bytes.byteLength` check simply could not be true for
+   * an SVG. Two consequences, both seen on the first real publish (14 Sep 2026):
+   * `--verify` reported all 23 as "size mismatch … r2 unknown", which reads as
+   * a quarter of the publish having failed when every one of them was in fact
+   * byte-identical; and the skip-if-present resume re-uploaded all 23 on every
+   * run, so "skipped N already present" was never the truth for them.
+   *
+   * An unknown size is therefore settled by reading the object and comparing
+   * bytes — the strongest answer available, and paid for only by the objects
+   * HEAD cannot size.
+   */
+  async function matchesStored(remoteSize: number | null, local: Buffer, key: string): Promise<boolean> {
+    if (remoteSize !== null) return remoteSize === local.byteLength;
+    const remote = await deps.getObject(r2, key);
+    if (remote === null) return false;
+    return Buffer.from(remote).equals(local);
+  }
+
   const handleEntry = async ([servedPath, key]: [string, string]): Promise<void> => {
     const filePath = deps.resolveSourceFile(servedPath);
     const bytes = deps.readFile(filePath);
     const existing = await deps.headObject(r2, key);
 
-    // A known, matching size counts as already published — mirrors r2-copy's
-    // resume check. Unlike r2-copy's Supabase listing, the local size is
-    // never "unknown", so there is no third state to handle here.
-    if (existing && existing.size === bytes.byteLength) {
+    if (existing === null) {
+      if (options.verify) {
+        problems.push(`missing from r2: ${key}`);
+        return;
+      }
+    } else if (await matchesStored(existing.size, bytes, key)) {
       skipped++;
       return;
-    }
-    if (options.verify) {
-      problems.push(
-        existing
-          ? `size mismatch ${key}: local ${bytes.byteLength} vs r2 ${existing.size ?? "unknown"}`
-          : `missing from r2: ${key}`,
-      );
+    } else if (options.verify) {
+      problems.push(`content differs ${key}: local ${bytes.byteLength} bytes`);
       return;
     }
     if (options.dryRun) {
@@ -208,12 +236,13 @@ export async function run(argv = process.argv.slice(2)): Promise<number> {
   const result = await publish(entries, r2, options, {
     putObject,
     headObject,
+    getObject,
     readFile: (p) => readFileSync(p),
     resolveSourceFile,
   });
 
   if (options.verify) {
-    console.log(`  ${result.skipped} object(s) present in R2 at the correct size`);
+    console.log(`  ${result.skipped} object(s) present in R2 with matching content`);
     if (result.problems.length) {
       console.error(`  ${result.problems.length} problem(s):`);
       for (const problem of result.problems.slice(0, 50)) console.error(`    ${problem}`);

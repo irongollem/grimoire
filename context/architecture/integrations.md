@@ -99,6 +99,39 @@ flowchart LR
   `{userId}/` — mixing them up is the wipe-all-canonical-art hazard
   (CLAUDE.md § Storage Path Convention).
 
+### Static app art (#864/#877) — `app-art/` in the same bucket
+
+The 91 shipped art files (card backs, damage/movement/vision glyphs,
+placeholders, the Simulacrum vitruvian) are content-hash-keyed under
+`app-art/` in `grimoire-assets`, so they cannot collide with the migrated
+user/canonical objects. `src/generated/artManifest.json` maps served path →
+R2 key; `artUrl()` returns its argument unchanged when either the CDN base is
+unset **or** the path has no manifest entry, so an un-rolled-out environment
+is a silent no-op rather than a broken image.
+
+**Rollout order matters and is not reversible in the pleasant direction:**
+run `npm run art:publish` first, set `VITE_ASSET_CDN_URL` in Vercel second.
+The other order points the app at a CDN with nothing behind it. Published
+14 Sep 2026: all 91 objects uploaded and verified; `VITE_ASSET_CDN_URL` is
+still unset, so production continues to serve them from the build.
+
+`art:publish` never deletes — a hashed key from an older deploy may still be
+referenced by a client that has not reloaded, and a key nothing links to
+simply stops being requested. `--dry-run` plans, `--verify` checks without
+writing, and both are safe to re-run: the script is HEAD-first and
+skip-if-present, so an interrupted publish converges by running it again.
+
+**One trap in that resume check, found on the first real publish.** R2's HEAD
+response carries no `content-length` for a text content type — the response is
+compressed in transit, so it is chunked — and every `.svg` in the manifest is
+in that case. `headObject` honestly reports `null` rather than coercing to 0,
+so the old `size === bytes.byteLength` check could never be true for an SVG:
+`--verify` called all 23 of them "size mismatch … r2 unknown" when each was
+byte-identical, and the skip-if-present resume re-uploaded them on every run.
+`matchesStored` now settles an unknown size by reading the object and
+comparing bytes — the strongest answer available, paid for only by the objects
+HEAD cannot size.
+
 ## Content sources — Open5e
 
 - Browser-side importers (`src/lib/library/open5eApi.ts` + per-entity

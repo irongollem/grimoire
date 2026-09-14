@@ -16,6 +16,7 @@ function makeDeps(overrides: Partial<PublishDeps> = {}): PublishDeps {
   return {
     putObject: vi.fn(async () => undefined),
     headObject: vi.fn(async () => null),
+    getObject: vi.fn(async () => null),
     readFile: vi.fn(() => Buffer.from("fake-bytes")),
     resolveSourceFile: vi.fn((servedPath: string) => `/repo/public${servedPath}`),
     ...overrides,
@@ -89,5 +90,63 @@ describe("contentTypeFor", () => {
 
   it("falls back to octet-stream for an unknown extension", () => {
     expect(contentTypeFor("mystery.bin")).toBe("application/octet-stream");
+  });
+});
+
+// R2's HEAD carries no `content-length` for a text content type — the response
+// is compressed in transit, so it is chunked. Every `.svg` in the manifest is
+// in that case. Before this was handled, `--verify` reported all 23 as "size
+// mismatch … r2 unknown" on the first real publish (14 Sep 2026) when every one
+// was byte-identical, and the skip-if-present resume re-uploaded them every run.
+describe("art-publish when R2 reports no size", () => {
+  const BYTES = Buffer.from("<svg/>");
+  const SVG: [string, string] = ["/assets/vision/darkvision.svg", "app-art/assets/vision/darkvision.a92d9123.svg"];
+
+  function svgDeps(remote: Uint8Array | null, verify: boolean) {
+    return {
+      deps: makeDeps({
+        readFile: vi.fn(() => BYTES),
+        headObject: vi.fn(async () => ({ size: null })),
+        getObject: vi.fn(async () => remote),
+      }),
+      options: { dryRun: false, verify, concurrency: 4 },
+    };
+  }
+
+  it("settles an unknown size by comparing bytes, and skips a match", async () => {
+    const { deps, options } = svgDeps(new Uint8Array(BYTES), false);
+
+    const result = await publish([SVG], R2, options, deps);
+
+    expect(deps.getObject).toHaveBeenCalledWith(R2, SVG[1]);
+    expect(deps.putObject).not.toHaveBeenCalled();
+    expect(result).toEqual({ uploaded: 0, skipped: 1, problems: [] });
+  });
+
+  it("reports nothing wrong on verify when the bytes match", async () => {
+    const { deps, options } = svgDeps(new Uint8Array(BYTES), true);
+
+    const result = await publish([SVG], R2, options, deps);
+
+    expect(result.problems).toEqual([]);
+    expect(result.skipped).toBe(1);
+  });
+
+  it("still catches genuinely different content rather than trusting the unknown", async () => {
+    const { deps, options } = svgDeps(new Uint8Array(Buffer.from("<svg>different</svg>")), true);
+
+    const result = await publish([SVG], R2, options, deps);
+
+    expect(result.skipped).toBe(0);
+    expect(result.problems).toEqual([`content differs ${SVG[1]}: local ${BYTES.byteLength} bytes`]);
+  });
+
+  it("re-uploads when the object turns out not to be readable at all", async () => {
+    const { deps, options } = svgDeps(null, false);
+
+    const result = await publish([SVG], R2, options, deps);
+
+    expect(deps.putObject).toHaveBeenCalled();
+    expect(result.uploaded).toBe(1);
   });
 });
