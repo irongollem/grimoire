@@ -224,8 +224,8 @@
          mode now (#884) — duplicating that workbench inside the Details form
          is exactly the confusion this story removes, so a site gets a
          one-line pointer instead. The Layers panel that replaces this
-         pointer is story S5 — not built here. Every other location type is
-         untouched. -->
+         pointer (`SiteMapLayersPanel`, story S5) lives in Build mode itself,
+         not here. Every other location type is untouched. -->
     <div
       v-if="isSiteTypeLocal"
       class="rounded-md border border-dashed border-border bg-background px-3 py-2 text-caption text-muted-foreground"

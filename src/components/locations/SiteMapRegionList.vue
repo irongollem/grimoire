@@ -41,11 +41,25 @@
       <IconGridView class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <span class="text-label-lg font-semibold text-muted-foreground">Spaces</span>
       <span class="rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground">{{ spaces.length }}</span>
+      <!-- The door tool (#884) — a site-wide plan tool, not tied to a
+           particular traced shape, so it lives beside "Trace" rather than in
+           the region-scoped switcher below. Mutually exclusive with tracing
+           is enforced by `LocationMap.vue`, which owns both booleans. -->
       <AppButton
         v-if="building"
         variant="ghost"
         size="inline-xs"
         class="ml-auto"
+        :icon="IconDoor"
+        label="Doors"
+        :active="doorToolArmed"
+        tooltip="Click an edge on the plan to place a door there"
+        @click="emit('update:doorToolArmed', !doorToolArmed)"
+      />
+      <AppButton
+        v-if="building"
+        variant="ghost"
+        size="inline-xs"
         :icon="IconAdd"
         label="Trace"
         @click="addUnboundRegion"
@@ -204,7 +218,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
-import { IconAdd, IconDelete, IconGridView, IconPaint, IconPen, IconRoomTemplate } from "@/lib/icons";
+import { IconAdd, IconDelete, IconDoor, IconGridView, IconPaint, IconPen, IconRoomTemplate } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";
 import {
   dmEdit,
@@ -219,7 +233,7 @@ import { useUiStore } from "@/stores/ui";
 import type { TemplateShape, TraceTool } from "@/lib/locations/polygon";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
 
-const { locationId, spaces, regions, activeRegionId, canTrace, building = false } = defineProps<{
+const { locationId, spaces, regions, activeRegionId, canTrace, building = false, doorToolArmed = false } = defineProps<{
   /** The site these regions belong to — `createRegion` needs it as
    *  `site_location_id`. */
   locationId: string;
@@ -237,9 +251,16 @@ const { locationId, spaces, regions, activeRegionId, canTrace, building = false 
    *  looking at a plan wants to see which spaces are traced and click one.
    *  Only the affordances that *change* the plan are Build-only. */
   building?: boolean;
+  /** Whether the door tool (#884) is currently armed — `LocationMap.vue`
+   *  owns the actual boolean (mutual exclusion with `activeRegionId` lives
+   *  there); this panel only shows and toggles it. */
+  doorToolArmed?: boolean;
 }>();
 
-const emit = defineEmits<{ "update:activeRegionId": [id: string | null] }>();
+const emit = defineEmits<{
+  "update:activeRegionId": [id: string | null];
+  "update:doorToolArmed": [armed: boolean];
+}>();
 
 const { confirm } = useConfirm();
 const { error: toastError, fromError } = useToast();

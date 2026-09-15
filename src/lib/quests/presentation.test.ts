@@ -22,7 +22,7 @@ const edge = (id: string, source: string, target: string) => ({ id, source_beat_
 const transition = (from: string | null, to: string) => ({ from_beat_id: from, to_beat_id: to }) as QuestBeatTransition;
 const readiness = (over: Partial<SiteReadiness> = {}): SiteReadiness => ({
   mapped: true, calibrated: true, traced: true, bound: true, waysOut: true,
-  unboundSpaces: 0, untracedSpaces: 0, caption: null,
+  unboundSpaces: 0, untracedSpaces: 0, oneSidedWays: 0, caption: null,
   ...over,
 });
 

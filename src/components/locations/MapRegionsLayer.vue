@@ -3,11 +3,12 @@
     v-if="calibration"
     ref="canvasEl"
     class="absolute inset-0 h-full w-full"
-    :class="mode === 'browse' && activeRegionId ? 'cursor-crosshair' : 'cursor-pointer'"
-    @pointerdown="pointer.onPointerDown"
-    @pointermove="pointer.onPointerMove"
-    @pointerleave="pointer.onPointerLeave"
+    :class="doorToolArmed || (mode === 'browse' && activeRegionId) ? 'cursor-crosshair' : 'cursor-pointer'"
+    @pointerdown="doorToolArmed ? onDoorPointerDown($event) : pointer.onPointerDown($event)"
+    @pointermove="doorToolArmed ? onDoorPointerMove($event) : pointer.onPointerMove($event)"
+    @pointerleave="doorToolArmed ? onDoorPointerLeave() : pointer.onPointerLeave()"
     @dblclick="pointer.onDoubleClick"
+    @contextmenu="doorToolArmed ? $event.preventDefault() : undefined"
   />
 </template>
 
@@ -30,14 +31,17 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { dmEdit, useUpdateLocationMapRegion } from "@/composables/locations/useLocationMapRegions";
+import { useCreateLocationDoor, useDeleteLocationDoor, useUpdateLocationDoor } from "@/composables/locations/useLocationDoors";
 import { useRegionPointer, type UseRegionPointerOptions } from "@/composables/locations/useRegionPointer";
 import { canvasToGridPoint, gridPointToCanvas } from "@/composables/locations/useRegionPen";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useUiStore } from "@/stores/ui";
 import { cellAtImageFraction } from "@/lib/locations/gridCalibration";
+import { edgeAtImageFraction, indexSpacesByCell, resolveEdgeEndpoints } from "@/lib/locations/doors";
 import { cellsInsideRing, templateRing } from "@/lib/locations/polygon";
 import {
+  drawDoorToolHoverPass,
   drawGridPass,
   drawPenOverlay,
   drawSpacesPass,
@@ -72,6 +76,8 @@ const {
   showWays = true,
   nestedSiteIds = new Set<string>(),
   building = false,
+  doorToolArmed = false,
+  placingDoorId = null,
 } = defineProps<{
   regions: LocationMapRegion[];
   calibration: GridCalibration | null;
@@ -103,14 +109,15 @@ const {
   /** The `Grid` layer bar pill (#868). */
   showGrid?: boolean;
   /** Doors on this site, drawn as bars across their edge (frame 03) — only
-   *  ones with a `source_edge_key` actually draw. `LocationMap.vue` passes
+   *  ones with a `edge_key` actually draw. `LocationMap.vue` passes
    *  this next wave; optional here so the prop can land ahead of that. */
   ways?: ReadonlyArray<{
     id: string;
-    source_edge_key: SourceEdgeKey | null;
+    edge_key: SourceEdgeKey | null;
     door_kind: DoorKind;
     starts_locked: boolean;
     is_secret: boolean;
+    to_location_id: string | null;
   }>;
   /** The `Ways` layer bar pill (#868). On by default — a door is structural,
    *  not DM ink, the way a zone is. */
@@ -125,6 +132,18 @@ const {
    *  click-to-descend on an already-bound space stay live in Browse — see
    *  `activeRegion()` and `pointerOptions.onSelect` below. */
   building?: boolean;
+  /** The door tool (#884) — Build only, mutually exclusive with tracing
+   *  (`LocationMap.vue` clears whichever isn't this one). While armed, every
+   *  pointer gesture on this canvas means placing/cycling/deleting a door on
+   *  the nearest cell edge instead of whatever the trace tool would do —
+   *  see `onDoorPointerDown` below, which fully replaces the delegation to
+   *  `useRegionPointer` rather than teaching that composable a fifth tool. */
+  doorToolArmed?: boolean;
+  /** Set by `LocationMap.vue`'s "Place it" flow (`SiteWaysOutPanel`, #884
+   *  Build step 6) — an existing, never-placed door waiting for its first
+   *  edge click. The next click re-derives and writes *that* door's
+   *  endpoints instead of creating a new one. */
+  placingDoorId?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -137,6 +156,9 @@ const emit = defineEmits<{
    *  it. Fired on hover, not on click; a later story uses it for a caption
    *  chip and nothing here reacts to it itself. */
   "hover-region": [regionId: string | null];
+  /** A `placingDoorId` door just got its first (or new) edge — `LocationMap.vue`
+   *  clears the pending id on this so the tool goes back to plain "create". */
+  "door-placed": [doorId: string];
 }>();
 
 const router = useRouter();
@@ -288,6 +310,118 @@ const pointerOptions: UseRegionPointerOptions = {
 
 const pointer = useRegionPointer(pointerOptions);
 
+// ── Door tool (#884) ───────────────────────────────────────────────────────
+//
+// A separate, self-contained gesture path rather than a fifth `tool()` value
+// threaded through `useRegionPointer` — that composable's whole contract is
+// "how a *trace* gesture unfolds" (paint stroke, pen node, template drag);
+// placing a door shares none of that state machine (no stroke, no ring, no
+// tap-vs-drag distinction) and is mutually exclusive with tracing in any
+// case, so it gets its own pointerdown/pointermove pair the template swaps
+// to instead of `pointer.onPointerDown`/`onPointerMove` while armed.
+
+const createDoor = useCreateLocationDoor();
+const updateDoor = useUpdateLocationDoor();
+const deleteDoor = useDeleteLocationDoor();
+
+/** The edge the door tool would act on right now — null off the snap band
+ *  entirely. Drives both the hover highlight and what a click does. */
+const doorHoverEdgeKey = ref<SourceEdgeKey | null>(null);
+
+/** cell → bound space, rebuilt whenever the traced regions change — the same
+ *  index `resolveEdgeEndpoints` needs, computed once per render rather than
+ *  once per pointer event. */
+const cellToSpace = computed(() => indexSpacesByCell(regions));
+
+function doorEdgeAt(clientX: number, clientY: number): SourceEdgeKey | null {
+  const cal = calibration;
+  if (!cal || imageNaturalWidth <= 0 || imageNaturalHeight <= 0) return null;
+  const frac = toImageFraction(clientX, clientY);
+  return frac ? edgeAtImageFraction(frac.x, frac.y, cal, imageNaturalWidth, imageNaturalHeight) : null;
+}
+
+function existingDoorAtEdge(edgeKey: SourceEdgeKey): (typeof ways)[number] | null {
+  return ways.find((w) => w.edge_key === edgeKey) ?? null;
+}
+
+function onDoorPointerMove(e: PointerEvent): void {
+  doorHoverEdgeKey.value = doorEdgeAt(e.clientX, e.clientY);
+}
+
+function onDoorPointerLeave(): void {
+  doorHoverEdgeKey.value = null;
+}
+
+/**
+ * A click on the door tool. Alt-click (mirroring the pen tool's own
+ * alt-delete gesture, `handlePenPointerDown` above) or a right-click deletes
+ * whatever door sits on the targeted edge; a plain click on an edge that
+ * already carries a door cycles its kind between `door` and `arch` — the
+ * two horizontal kinds this 2D plan edge actually distinguishes, a stair or
+ * shaft only ever arrives by inference below; a plain click on a bare edge
+ * places a new door there (or, with `placingDoorId` set, moves that existing
+ * unplaced door onto it).
+ */
+async function onDoorPointerDown(e: PointerEvent): Promise<void> {
+  const edgeKey = doorEdgeAt(e.clientX, e.clientY);
+  if (!edgeKey) return;
+  const existing = existingDoorAtEdge(edgeKey);
+
+  if (e.altKey || e.button === 2) {
+    if (existing) deleteDoor.mutate(existing.id, { onError: (err) => toastError(fromError(err)) });
+    return;
+  }
+
+  if (existing && placingDoorId === null) {
+    const nextKind: DoorKind = existing.door_kind === "arch" ? "door" : "arch";
+    updateDoor.mutate({ id: existing.id, update: { door_kind: nextKind } }, { onError: (err) => toastError(fromError(err)) });
+    return;
+  }
+
+  const resolved = resolveEdgeEndpoints(edgeKey, cellToSpace.value);
+  if (!resolved) {
+    toastError("Trace a room on at least one side of this edge before placing a door there.");
+    return;
+  }
+  // A stair by default whenever either side is a nested site (#818) — a
+  // vertical connection, not a plain room-to-room door; everything else
+  // starts as a plain door and is cycled to an arch by a further click.
+  const kind: DoorKind =
+    nestedSiteIds.has(resolved.fromLocationId) || (resolved.toLocationId !== null && nestedSiteIds.has(resolved.toLocationId))
+      ? "stair"
+      : "door";
+
+  if (placingDoorId !== null) {
+    updateDoor.mutate(
+      {
+        id: placingDoorId,
+        update: {
+          edge_key: edgeKey,
+          from_location_id: resolved.fromLocationId,
+          to_location_id: resolved.toLocationId,
+          derived_from: "dm",
+        },
+      },
+      {
+        onSuccess: () => emit("door-placed", placingDoorId!),
+        onError: (err) => toastError(fromError(err)),
+      },
+    );
+    return;
+  }
+
+  createDoor.mutate(
+    {
+      from_location_id: resolved.fromLocationId,
+      to_location_id: resolved.toLocationId,
+      door_kind: kind,
+      edge_key: edgeKey,
+      derived_from: "dm",
+    },
+    { onError: (err) => toastError(fromError(err)) },
+  );
+}
+
 let resizeObserver: ResizeObserver | null = null;
 onMounted(() => {
   resizeObserver = new ResizeObserver(() => renderOverlay());
@@ -410,6 +544,14 @@ function renderOverlay(): void {
     const { shape, center, radius } = pointer.templateDraft.value;
     drawTemplatePreview(ctx, pointToCanvas, templateRing(shape, center, radius));
   }
+
+  // ── Door tool hover (#884) ────────────────────────────────────────────────
+  // Drawn last, over everything else, so the "you're about to place/cycle a
+  // door here" highlight always wins visually — the same reason the pen
+  // overlay and template preview above it already paint last.
+  if (doorToolArmed && doorHoverEdgeKey.value) {
+    drawDoorToolHoverPass(ctx, geometry, doorHoverEdgeKey.value, pointToCanvas);
+  }
 }
 
 watch(
@@ -434,6 +576,8 @@ watch(
     () => pointer.penHoverPoint.value,
     () => pointer.liveDrag.value,
     () => pointer.strokeCells.value,
+    () => doorToolArmed,
+    () => doorHoverEdgeKey.value,
   ],
   () => renderOverlay(),
   { flush: "post", immediate: true },

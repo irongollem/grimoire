@@ -5,7 +5,7 @@
       <PlacementRow
         v-for="view in doors"
         :key="view.door.id"
-        :to="`/locations/${view.otherRoomId}`"
+        :to="view.otherRoomId ? `/locations/${view.otherRoomId}` : parentId ? `/locations/${parentId}` : `/locations/${roomId}`"
         :name="view.otherRoomName"
       >
         <template #badge>
@@ -13,6 +13,15 @@
         </template>
         <template #actions>
           <template v-if="building">
+            <AppSelect
+              :model-value="view.door.door_kind"
+              size="xs"
+              class="w-24 shrink-0"
+              aria-label="Way-out kind"
+              @update:model-value="(kind) => commit(view.door, { door_kind: kind as DoorKind })"
+            >
+              <option v-for="kind in DOOR_KINDS" :key="kind" :value="kind">{{ DOOR_KIND_LABELS[kind] }}</option>
+            </AppSelect>
             <AppButton
               variant="ghost"
               size="xs"

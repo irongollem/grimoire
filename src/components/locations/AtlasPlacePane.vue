@@ -171,8 +171,15 @@
       with has nothing to switch between yet.
     -->
     <div v-if="hasMap || isSite" class="mb-3 flex flex-wrap items-center gap-2">
+      <!--
+        Reachable while building even with no layer yet (#884, S5) — Build
+        mode on a mapless site is exactly when the DM needs Map mode, to see
+        the Layers panel that starts the first one. Browsing a mapless site
+        has nothing to switch to, so the toggle stays hidden there, same as
+        before.
+      -->
       <SegmentedControl
-        v-if="hasMap"
+        v-if="hasMap || building"
         :model-value="paneMode"
         :options="MODE_OPTIONS"
         size="xs"
@@ -183,10 +190,12 @@
         v-if="isSite && paneMode === 'places'"
         :readiness="siteReadiness"
         class="ml-auto"
+        @open-map="onOpenMap"
       />
       <SiteMapLayerBar
         v-if="isSite && hasMap && paneMode === 'map'"
         :counts="siteLayerCounts"
+        :layers="siteImageLayers"
         class="ml-auto"
       />
     </div>
@@ -196,10 +205,14 @@
         `relative` so the zoom overlay AtlasSiteMapMode renders can sit
         exactly on the map frame the reader is already looking at, instead of
         being measured into place.
+
+        `building` alone (no `hasMap`) reaches this only on a site — see
+        `building`'s own definition below — so a mapless world/region page
+        (Map mode never even offered to it) can't land here by accident.
       -->
       <AtlasSiteMapMode
         :building="building"
-        v-if="hasMap && paneMode === 'map'"
+        v-if="(hasMap || building) && paneMode === 'map'"
         :location="location"
         :index="index"
         :children="children"
@@ -291,7 +304,7 @@ import {
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { isLocationOutOfEra } from "@/lib/locations/era";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
-import { hasAnyMapLayer } from "@/lib/locations/mapStack";
+import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { visibleTags } from "@/lib/locations/tags";
 import { groupByTier, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
 import type { LocationTier, TierGroup } from "@/lib/locations/tiers";
@@ -307,7 +320,7 @@ const { index, location, paneMode, todayYear } = defineProps<{
   todayYear: number;
 }>();
 
-defineEmits<{ select: [id: string]; "update:paneMode": [mode: "places" | "map"] }>();
+const emit = defineEmits<{ select: [id: string]; "update:paneMode": [mode: "places" | "map"] }>();
 
 const MODE_OPTIONS = [
   { value: "places", label: "Contents", icon: IconLocation },
@@ -335,6 +348,14 @@ const children = computed(() => (location ? childrenOf(index, location.id) : [])
 
 const isSite = computed(() => !!location && isSiteType(location.location_type));
 
+// Which image layers this place actually has, for the Show bar's Picture and
+// Drawing pills (#884). `buildMapStack` is the one reader of the stack's
+// columns; this is that answer narrowed to two booleans.
+const siteImageLayers = computed(() => {
+  const stack = buildMapStack(location);
+  return { picture: !!stack.picture, drawing: !!stack.drawing };
+});
+
 // Build is a route flag like `at` is (#884) — so Back leaves Build the way it
 // leaves a place, a deep link opens a site ready to work on, and a reload
 // keeps the DM where they were. Only ever true on a site: nothing else here
@@ -350,6 +371,15 @@ function toggleBuild(): void {
     return;
   }
   void router.push({ query: { ...route.query, build: "true" } });
+}
+
+/** The readiness meter's Mapped pill (#884, S5) — enters Build (if not
+ *  already there) and switches to Map mode, where the Layers panel lives.
+ *  Never leaves Build if the DM was already in it: only `toggleBuild`'s own
+ *  button should ever turn Build off. */
+function onOpenMap(): void {
+  if (!building.value) void router.push({ query: { ...route.query, build: "true" } });
+  emit("update:paneMode", "map");
 }
 
 // The map mode's own tracing state (AtlasSiteMapMode) — lives here rather

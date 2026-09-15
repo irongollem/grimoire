@@ -107,14 +107,6 @@
          dungeon's rooms are never rendered in two places at once. -->
     <section v-if="isSite" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Rooms</h2>
-      <!-- "Drawn in Cartographer" strip (#868, S6) — today `source_map_id`
-           only produces a link; this also says how stale the publish is. -->
-      <SiteMapSourceStrip
-        v-if="location.source_map_id"
-        :site="location"
-        :map="sourceMap"
-        :staleness="siteStaleness"
-      />
       <SiteRoomsPanel :location-id="location.id" :building="building" />
     </section>
 
@@ -216,7 +208,6 @@ import LocationDoors from "@/components/locations/LocationDoors.vue";
 import LocationLootPanel from "@/components/locations/LocationLootPanel.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
-import SiteMapSourceStrip from "@/components/locations/SiteMapSourceStrip.vue";
 import SiteRoomsPanel from "@/components/locations/SiteRoomsPanel.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import StoreInventory from "@/components/locations/StoreInventory.vue";
@@ -288,14 +279,13 @@ const isStoreType = computed(() => STORE_LOCATION_TYPES.has(location.location_ty
 const isSite = computed(() => isSiteType(location.location_type));
 const isRoom = computed(() => location.location_type === "room");
 
-// ── Site structure (#868, S6) — spaces for the Ways out panel, plus the
-//    published-drawing staleness the Rooms strip reads. `null` when this
-//    isn't a site keeps every query inside `useSiteStructure` disabled
-//    rather than fetching for a room or a continent. ─────────────────────────
+// ── Site structure (#868, S6) — spaces for the Ways out panel. `null` when
+//    this isn't a site keeps every query inside `useSiteStructure` disabled
+//    rather than fetching for a room or a continent. The published-drawing
+//    staleness this composable also derives now surfaces through the Layers
+//    panel (#884, S5) instead of a strip here — see `SiteMapLayersPanel`. ───
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
-const { spaces: siteSpaces, sourceMap: sourceMapQuery, staleness: siteStaleness } =
-  useSiteStructure(siteStructureLocation);
-const sourceMap = computed(() => sourceMapQuery.data.value);
+const { spaces: siteSpaces } = useSiteStructure(siteStructureLocation);
 
 const { data: allNpcs } = useNpcs();
 const ownerNpcName = computed(

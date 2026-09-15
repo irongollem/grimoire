@@ -40,6 +40,22 @@ vi.mock("@/composables/locations/useLocations", () => ({
 vi.mock("@/composables/locations/useLocationMapRegions", () => ({
   useLocationMapRegions: () => ({ data: { value: [] } }),
 }));
+// The Layers panel's inputs (#884, S5) — none of these tests exercise Build
+// mode, so a minimal shape is enough; the real composable pulls in
+// `useQuery` (`useSiteDoors`), which needs a `VueQueryPlugin` context this
+// file's plain mount doesn't provide.
+vi.mock("@/composables/locations/useSiteStructure", () => ({
+  useSiteStructure: () => ({
+    sourceMap: { data: { value: null } },
+    staleness: { value: null },
+    layerCounts: { value: { spaces: 0, ways: 0, zones: 0, prepared: 0 } },
+  }),
+}));
+// `useOpenSiteDrawing` pulls in `useCreateDungeonMap`, which needs the same
+// `VueQueryPlugin` context this file's plain mount doesn't provide.
+vi.mock("@/composables/locations/useOpenSiteDrawing", () => ({
+  useOpenSiteDrawing: () => ({ openDrawing: vi.fn() }),
+}));
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRoute: () => ({ query: {} }),

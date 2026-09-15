@@ -10,7 +10,7 @@
 // Explored/Cleared/Looted facts and door facts), `loot_placements`,
 // `location_placements` (traps/features/tables), and `map_published_rev` — a
 // clone is DM ink starting fresh, not a second copy of *play* that has
-// happened. `source_edge_key` and `dungeon_feature_id` on a cloned door are
+// happened. `edge_key` and `dungeon_feature_id` on a cloned door are
 // dropped for the same reason a room's own map/pins/sharing flags are: they
 // are either provenance of the ORIGINAL publish/feature, or player-facing
 // state that must not silently carry over to an unpublished copy.
@@ -165,6 +165,10 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
     }));
 
   const doorPlans: DoorPlan[] = doors
+    // A one-sided door (#884: `to_location_id === null`, leading to untraced
+    // space) has no far room to clone toward — excluded here the same way a
+    // door to a room outside this level already was.
+    .filter((d): d is LocationDoor & { to_location_id: string } => d.to_location_id !== null)
     .filter((d) => roomIds.has(d.from_location_id) && roomIds.has(d.to_location_id))
     .map((d) => ({
       fromSourceId: d.from_location_id,
@@ -177,7 +181,7 @@ export function planCloneLevel(source: CloneLevelSource): CloneLevelPlan {
         is_secret: d.is_secret,
         sort_order: d.sort_order,
         door_kind: d.door_kind,
-        source_edge_key: null,
+        edge_key: null,
         dungeon_feature_id: null,
       },
     }));

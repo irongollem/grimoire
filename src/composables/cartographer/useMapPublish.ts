@@ -364,10 +364,11 @@ export function useMapPublish(opts: {
             from_location_id: resolveWayEndpoint(change.fromSpaceId, spaceKeyToLocationId),
             to_location_id: resolveWayEndpoint(change.toSpaceId, spaceKeyToLocationId),
             door_kind: change.way.kind,
-            source_edge_key: change.way.edgeKey,
+            edge_key: change.way.edgeKey,
+            derived_from: "publish",
           });
         } else if (change.kind === "update") {
-          await updateDoor.mutateAsync({ id: change.door.id, update: { door_kind: change.after } });
+          await updateDoor.mutateAsync({ id: change.door.id, update: { door_kind: change.after, derived_from: "publish" } });
         } else if (change.kind === "create-stair") {
           // A stair is never re-matched by edge key on a later publish — it
           // has none — so this is a one-time write, same as a hand-made door.
@@ -375,7 +376,8 @@ export function useMapPublish(opts: {
             from_location_id: resolveWayEndpoint(change.fromSpaceId, spaceKeyToLocationId),
             to_location_id: resolveWayEndpoint(change.toSpaceId, spaceKeyToLocationId),
             door_kind: "stair",
-            source_edge_key: null,
+            edge_key: null,
+            derived_from: "publish",
           });
         }
       }

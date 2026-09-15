@@ -73,7 +73,8 @@ function makeDoor(overrides: Partial<LocationDoor> = {}): LocationDoor {
     is_secret: false,
     sort_order: null,
     door_kind: "door",
-    source_edge_key: "0,1:N",
+    edge_key: "0,1:N",
+    derived_from: "publish",
     dungeon_feature_id: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
@@ -422,50 +423,57 @@ describe("planPublish — ways", () => {
   });
 
   it("skips a matched door with no DM authoring", () => {
-    const door = makeDoor({ source_edge_key: "0,1:N", door_kind: "door", label: "" });
+    const door = makeDoor({ edge_key: "0,1:N", door_kind: "door", label: "" });
     const way = makeWay({ edgeKey: "0,1:N", kind: "door" });
     const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
     expect(plan.ways).toEqual([{ kind: "skip", way, door }]);
   });
 
   it("holds a way whose door starts_locked", () => {
-    const door = makeDoor({ source_edge_key: "0,1:N", starts_locked: true });
+    const door = makeDoor({ edge_key: "0,1:N", starts_locked: true });
     const way = makeWay({ edgeKey: "0,1:N" });
     const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
     expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
   });
 
   it("holds a way whose door is_secret", () => {
-    const door = makeDoor({ source_edge_key: "0,1:N", is_secret: true });
+    const door = makeDoor({ edge_key: "0,1:N", is_secret: true });
     const way = makeWay({ edgeKey: "0,1:N" });
     const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
     expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
   });
 
   it("holds a way whose door carries a lock_note", () => {
-    const door = makeDoor({ source_edge_key: "0,1:N", lock_note: "the brass key" });
+    const door = makeDoor({ edge_key: "0,1:N", lock_note: "the brass key" });
     const way = makeWay({ edgeKey: "0,1:N" });
     const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
     expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
   });
 
   it("holds a way whose door has a DM-authored label", () => {
-    const door = makeDoor({ source_edge_key: "0,1:N", label: "iron grille" });
+    const door = makeDoor({ edge_key: "0,1:N", label: "iron grille" });
     const way = makeWay({ edgeKey: "0,1:N" });
     const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
     expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
   });
 
   it("updates a door_kind mismatch when the door carries no DM authoring — the drawing changed, not the DM", () => {
-    const door = makeDoor({ source_edge_key: "0,1:N", door_kind: "stair" });
+    const door = makeDoor({ edge_key: "0,1:N", door_kind: "stair" });
     const way = makeWay({ edgeKey: "0,1:N", kind: "door" });
     const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
     expect(plan.ways).toEqual([{ kind: "update", way, door, before: "stair", after: "door" }]);
   });
 
   it("holds a door_kind mismatch instead of updating it when the door also carries DM authoring", () => {
-    const door = makeDoor({ source_edge_key: "0,1:N", door_kind: "stair", label: "iron grille" });
+    const door = makeDoor({ edge_key: "0,1:N", door_kind: "stair", label: "iron grille" });
     const way = makeWay({ edgeKey: "0,1:N", kind: "door" });
+    const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
+    expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
+  });
+
+  it("holds a door placed by the DM tool (#884: derived_from 'dm') even with no other authoring", () => {
+    const door = makeDoor({ edge_key: "0,1:N", door_kind: "door", label: "", derived_from: "dm" });
+    const way = makeWay({ edgeKey: "0,1:N", kind: "arch" });
     const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
     expect(plan.ways).toEqual([{ kind: "held", way, door, reason: "dm-edited" }]);
   });
@@ -701,7 +709,7 @@ describe("planPublish — summary", () => {
     const orphanRegion = makeRegion({ cells: ["8,8"], label: "Gone" });
 
     const newDoorWay = makeWay({ edgeKey: "0,1:N", fromKey: "s:new", toKey: "s:upd" });
-    const heldDoor = makeDoor({ source_edge_key: "2,3:W", starts_locked: true });
+    const heldDoor = makeDoor({ edge_key: "2,3:W", starts_locked: true });
     const heldWay = makeWay({ edgeKey: "2,3:W", fromKey: "s:upd", toKey: "s:held" });
 
     const roomA = makeRegion({ cells: ["3,3"], space_location_id: "room-A" });
@@ -735,7 +743,7 @@ describe("planPublish — summary", () => {
   });
 
   it("counts an un-authored door_kind mismatch as a door update, not a held way", () => {
-    const door = makeDoor({ source_edge_key: "0,1:N", door_kind: "stair" });
+    const door = makeDoor({ edge_key: "0,1:N", door_kind: "stair" });
     const way = makeWay({ edgeKey: "0,1:N", kind: "door" });
     const plan = planPublish(makeInput({ derived: makeDerived({ ways: [way] }), doors: [door] }));
     expect(plan.summary.doorUpdates).toBe(1);

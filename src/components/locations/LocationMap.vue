@@ -8,6 +8,7 @@
     <SiteMapLayerBar
       v-if="showRegions && hasRegionContent && !runMode && showLayerBar"
       :counts="layerCounts"
+      :layers="{ picture: !!stack.picture, drawing: !!stack.drawing }"
     />
 
     <!-- Tracing banner — Build mode only (#884); run mode has nothing to
@@ -20,6 +21,23 @@
         Tracing <strong>{{ activeRegionLabel }}</strong> — drag over cells below to add or remove them.
       </span>
       <AppButton variant="ghost" size="inline-xs" label="Done" @click="activeRegionId = null" />
+    </div>
+
+    <!-- Door tool banner (#884) — mutually exclusive with tracing above, so
+         only one of the two ever shows. `placingDoorId` set means an
+         existing, never-placed door is waiting for its first edge; unset
+         means a plain click creates a fresh one. -->
+    <div
+      v-if="showRegions && !runMode && building && doorToolArmed"
+      class="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5"
+    >
+      <span class="text-caption text-foreground">
+        <template v-if="placingDoorId">Click the edge where this door belongs.</template>
+        <template v-else>
+          Click an edge to place a door · click a placed one to cycle door/arch · <span class="font-semibold">alt</span>-click or right-click to remove.
+        </template>
+      </span>
+      <AppButton variant="ghost" size="inline-xs" label="Done" @click="doorToolArmed = false" />
     </div>
 
     <!--
@@ -61,9 +79,12 @@
               :ways="siteDoors ?? []"
               :nested-site-ids="nestedSiteIds"
               :building="building"
+              :door-tool-armed="doorToolArmed"
+              :placing-door-id="placingDoorId"
               @move-party="emit('move-party', $event)"
               @descend="emit('descend', $event)"
               @hover-region="emit('hover-region', $event)"
+              @door-placed="placingDoorId = null"
             />
             <!-- Prepared marks sit above regions/doors, below pins — a token
                  on the floor, not a pin above the whole map (#868, S8). -->
@@ -142,7 +163,9 @@
           :active-region-id="activeRegionId"
           :can-trace="!!stack.frameCalibration"
           :building="building"
+          :door-tool-armed="doorToolArmed"
           @update:active-region-id="activeRegionId = $event"
+          @update:door-tool-armed="doorToolArmed = $event"
         />
         <SiteMapZoneList
           :location-id="locationId!"
@@ -446,6 +469,27 @@ const activeRegion = computed(() => regions.find((r) => r.id === activeRegionId.
 watch(activeRegion, (region) => {
   if (region) uiStore.revealLayerForRegionRole(region.region_role);
 });
+
+// ── Door tool (#884) ───────────────────────────────────────────────────────
+// Local, per-session state — deliberately NOT `uiStore.siteMapTraceTool`
+// (that field is a fixed three-way trace-tool enum another executor is
+// wiring the Layers panel through right now; widening it, or its store,
+// isn't this story's to make). "Mutually exclusive with tracing" is enforced
+// here in both directions rather than in either list: arming one always
+// disarms the other, so a DM can never end up with both a region and a door
+// edge armed for the same click.
+const doorToolArmed = ref(false);
+/** Set only by `placeDoor` below — an existing, never-placed door waiting
+ *  for its first edge click. */
+const placingDoorId = ref<string | null>(null);
+
+watch(activeRegionId, (id) => {
+  if (id !== null) doorToolArmed.value = false;
+});
+watch(doorToolArmed, (armed) => {
+  if (armed) activeRegionId.value = null;
+  else placingDoorId.value = null; // disarming cancels any pending placement too
+});
 const activeRegionLabel = computed(() => {
   const region = activeRegion.value;
   if (!region) return "";
@@ -553,5 +597,15 @@ defineExpose({
     width: frameRef.value?.imageNaturalWidth ?? 0,
     height: frameRef.value?.imageNaturalHeight ?? 0,
   }),
+  /** #884, Build step 6: "Place it" on an unplaced door (`SiteWaysOutPanel`)
+   *  arms the door tool for that specific door — the next edge click writes
+   *  its `edge_key` and re-derives its endpoints instead of creating a new
+   *  door. `SiteWaysOutPanel` isn't a child of this component (it mounts via
+   *  a caller's `#aside` slot content), so whichever page composes the two
+   *  wires its "Place it" click to this. */
+  placeDoor: (doorId: string) => {
+    placingDoorId.value = doorId;
+    doorToolArmed.value = true;
+  },
 });
 </script>

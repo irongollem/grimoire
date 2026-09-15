@@ -248,7 +248,7 @@ function planSpaces(input: PublishInputs): { changes: SpaceChange[]; spaceIdFor:
 function planWays(input: PublishInputs, spaceIdFor: Map<string, string>): WayChange[] {
   const doorsByEdge = new Map<SourceEdgeKey, LocationDoor>();
   for (const door of input.doors) {
-    if (door.source_edge_key !== null) doorsByEdge.set(door.source_edge_key, door);
+    if (door.edge_key !== null) doorsByEdge.set(door.edge_key, door);
   }
 
   const spaceRefId = (spaceKey: string): string => spaceIdFor.get(spaceKey) ?? createdRef(spaceKey);
@@ -262,14 +262,17 @@ function planWays(input: PublishInputs, spaceIdFor: Map<string, string>): WayCha
       changes.push({ kind: "create", way, fromSpaceId: spaceRefId(way.fromKey), toSpaceId: spaceRefId(way.toKey) });
       continue;
     }
-    // `location_doors` carries no provenance column, so a `door_kind`
-    // mismatch alone can't tell "the DM set it to stair by hand" from "the
-    // drawing changed a closed door to an arch" — the same ambiguity a
-    // region's `derived_from` resolves for spaces. The proxy here is whether
-    // the door carries any OTHER field only a DM would set: with none of
-    // those, the door is still the drawing's to update; with any of them, a
-    // re-publish must not clobber the DM's decisions, kind included.
+    // Two signals, both held: `derived_from === "dm"` (#884) is the direct
+    // one — the door tool stamps it the moment a DM places or moves a door
+    // on the Atlas plan, the same column and the same rule `location_map_regions`
+    // already uses. The older field-level proxy stays alongside it rather
+    // than being replaced: editing a flag (secret, locked, label, lock note)
+    // through `LocationDoors.vue`/`SiteWaysOutPanel.vue` doesn't itself touch
+    // `derived_from`, so a 'publish'-provenance door the DM has since
+    // customised still needs catching by what it carries, not just by who
+    // positioned it.
     const dmAuthored =
+      door.derived_from === "dm" ||
       door.starts_locked ||
       door.is_secret ||
       door.lock_note !== null ||

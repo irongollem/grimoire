@@ -77,7 +77,8 @@ function door(over: Partial<LocationDoor> = {}): LocationDoor {
     is_secret: false,
     sort_order: null,
     door_kind: "door",
-    source_edge_key: "0,0:N",
+    edge_key: "0,0:N",
+    derived_from: "dm",
     dungeon_feature_id: "feature-1",
     created_at: "",
     updated_at: "",
@@ -172,7 +173,7 @@ describe("planCloneLevel", () => {
     expect(plan.doors).toHaveLength(1);
     expect(plan.doors[0].fromSourceId).toBe("room-1");
     expect(plan.doors[0].toSourceId).toBe("room-2");
-    expect(plan.doors[0].insert.source_edge_key).toBeNull();
+    expect(plan.doors[0].insert.edge_key).toBeNull();
     expect(plan.doors[0].insert.dungeon_feature_id).toBeNull();
   });
 
@@ -182,6 +183,16 @@ describe("planCloneLevel", () => {
       rooms: [room1],
       regions: [],
       doors: [door({ to_location_id: "level-2-stair-room" })],
+    });
+    expect(plan.doors).toHaveLength(0);
+  });
+
+  it("drops a one-sided door (#884) — no far room to clone toward", () => {
+    const plan = planCloneLevel({
+      site,
+      rooms: [room1, room2],
+      regions: [],
+      doors: [door({ to_location_id: null })],
     });
     expect(plan.doors).toHaveLength(0);
   });

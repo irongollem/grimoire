@@ -13,7 +13,11 @@
 export interface DoorEdge {
   id: string;
   from_location_id: string;
-  to_location_id: string;
+  /** Null for a one-sided door (#884) — an edge with a region on only one
+   *  side, leading to untraced space. `reachableRoomIds` below ignores it: a
+   *  party cannot walk through a doorway with no room on the other side of
+   *  it yet. */
+  to_location_id: string | null;
   is_one_way: boolean;
   starts_locked: boolean;
 }
@@ -67,6 +71,7 @@ export function reachableRoomIds(
     else adjacency.set(from, [to]);
   };
   for (const door of doors) {
+    if (door.to_location_id === null) continue; // leads to untraced space — nowhere to walk yet
     if (door.starts_locked && !unlockedDoorIds.has(door.id)) continue;
     addEdge(door.from_location_id, door.to_location_id);
     if (!door.is_one_way) addEdge(door.to_location_id, door.from_location_id);

@@ -44,7 +44,7 @@ export interface DerivedSpace {
 }
 
 export interface DerivedWay {
-  /** Canonical NW edge (`edges.ts`), which is also `location_doors.source_edge_key`. */
+  /** Canonical NW edge (`edges.ts`), which is also `location_doors.edge_key`. */
   edgeKey: SourceEdgeKey;
   /** `doorClosed` → `door`, `doorOpen` → `arch`. */
   kind: "door" | "arch";

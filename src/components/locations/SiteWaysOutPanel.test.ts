@@ -13,7 +13,11 @@ function door(overrides: Partial<SiteDoorWithSpaces> = {}): SiteDoorWithSpaces {
     label: "",
     is_one_way: false,
     door_kind: "door",
-    source_edge_key: null,
+    // Placed by default (#884) — most fixtures are testing an ordinary,
+    // fully-resolved door; the "unplaced"/"one-sided" tests below override
+    // this explicitly rather than every other test needing to.
+    edge_key: "0,0:N",
+    derived_from: "dm",
     dungeon_feature_id: null,
     starts_locked: false,
     lock_note: null,
@@ -191,6 +195,45 @@ describe("SiteWaysOutPanel", () => {
     it("shows the add form once building", () => {
       const wrapper = mountPanel({ building: true });
       expect(wrapper.findAllComponents({ name: "EntityCombobox" })).toHaveLength(2);
+    });
+  });
+
+  describe("unplaced and one-sided doors (#884)", () => {
+    it("offers 'Place it' for a never-placed door, and emits place-door with its id", async () => {
+      doorsRef.value = [door({ id: "d1", edge_key: null })];
+      const wrapper = mountPanel({ building: true, canPlace: true });
+
+      await findButton(wrapper, "Place it").trigger("click");
+      expect(wrapper.emitted("place-door")).toEqual([["d1"]]);
+    });
+
+    it("never offers 'Place it' in Browse, even for an unplaced door", () => {
+      doorsRef.value = [door({ id: "d1", edge_key: null })];
+      const wrapper = mountPanel({ canPlace: true });
+      expect(wrapper.findAllComponents({ name: "AppButton" }).some((b) => b.props("label") === "Place it")).toBe(false);
+    });
+
+    it("withholds 'Place it' where no plan is on screen to aim at", () => {
+      // The Contents-mode sections render this list with no map beside it, so
+      // the row still says the door is unplaced but the action is withheld
+      // rather than armed at nothing.
+      doorsRef.value = [door({ id: "d1", edge_key: null })];
+      const wrapper = mountPanel({ building: true });
+      expect(wrapper.findAllComponents({ name: "AppButton" }).some((b) => b.props("label") === "Place it")).toBe(false);
+      expect(wrapper.text()).toContain("Not placed");
+    });
+
+    it("never offers 'Place it' for an already-placed door", () => {
+      doorsRef.value = [door({ id: "d1", edge_key: "0,0:N" })];
+      const wrapper = mountPanel({ building: true, canPlace: true });
+      expect(wrapper.findAllComponents({ name: "AppButton" }).some((b) => b.props("label") === "Place it")).toBe(false);
+    });
+
+    it("titles a one-sided door with 'leads nowhere yet' instead of the far room's name, and chips it", () => {
+      doorsRef.value = [door({ id: "d1", edge_key: "0,0:N", to_location_id: null, to_location: null })];
+      const wrapper = mountPanel();
+      expect(wrapper.text()).toContain("Nave → leads nowhere yet");
+      expect(wrapper.text()).toContain("leads nowhere yet");
     });
   });
 });

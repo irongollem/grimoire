@@ -39,7 +39,7 @@ export interface PlayerSitePlanWay {
   from_space_id: string | null;
   to_space_id: string | null;
   door_kind: DoorKind;
-  source_edge_key: SourceEdgeKey | null;
+  edge_key: SourceEdgeKey | null;
 }
 
 /** A DM-marked zone, already clipped to explored cells by the RPC — this

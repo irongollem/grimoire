@@ -5,10 +5,11 @@
 // the Quest Board's gap chips. Everything here is pure derivation over data
 // `useSiteStructure` already gathers; nothing here writes anything.
 //
-// This module also holds `structureFromSite` and `publishStaleness`, the
-// other half of the frame-03 "stale" strip: reconstructing a `DerivedStructure`
-// from the Atlas's OWN regions/doors so it can be diffed against the live
-// Cartographer drawing with the same `structureDelta` the publish review uses.
+// This module also holds `structureFromSite` and `publishStaleness`, which
+// back the Layers panel's Drawing row (#884, S5): reconstructing a
+// `DerivedStructure` from the Atlas's OWN regions/doors so it can be diffed
+// against the live Cartographer drawing with the same `structureDelta` the
+// publish review uses.
 
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { SourceEdgeKey } from "@/types/locationDoor.types";
@@ -26,6 +27,11 @@ export interface ReadinessSpace {
 
 export interface ReadinessDoor {
   from_location_id: string;
+  /** Null means this way leads to untraced space (#884) — a gap `siteReadiness`
+   *  now counts, since it resolves itself only when the DM traces the far
+   *  side, exactly like an untraced room does. */
+  to_location_id: string | null;
+  edge_key: SourceEdgeKey | null;
 }
 
 export interface SiteReadinessInput {
@@ -46,6 +52,9 @@ export interface SiteReadiness {
   unboundSpaces: number;
   /** Bindable children with no region bound to them at all — named nowhere on the map. */
   untracedSpaces: number;
+  /** Placed doors (an `edge_key`) whose far side is still untraced (#884) —
+   *  a way out to nowhere yet. */
+  oneSidedWays: number;
   /** The single most pressing gap, or null when `bound` holds cleanly. */
   caption: string | null;
 }
@@ -76,22 +85,25 @@ export function siteReadiness(input: SiteReadinessInput): SiteReadiness {
   const traced = tracedRegions.length > 0;
   const bound = unboundSpaces === 0 && untracedSpaces === 0;
   const waysOut = doors.length > 0;
+  const oneSidedWays = doors.filter((d) => d.edge_key !== null && d.to_location_id === null).length;
 
   let caption: string | null = null;
   if (unboundSpaces > 0) {
     caption = `${unboundSpaces} space${unboundSpaces === 1 ? "" : "s"} unbound`;
   } else if (untracedSpaces > 0) {
     caption = `${untracedSpaces} room${untracedSpaces === 1 ? "" : "s"} untraced`;
+  } else if (oneSidedWays > 0) {
+    caption = `${oneSidedWays} way${oneSidedWays === 1 ? "" : "s"} out lead${oneSidedWays === 1 ? "s" : ""} nowhere yet`;
   }
 
-  return { mapped, calibrated, traced, bound, waysOut, unboundSpaces, untracedSpaces, caption };
+  return { mapped, calibrated, traced, bound, waysOut, unboundSpaces, untracedSpaces, oneSidedWays, caption };
 }
 
 // ── Publish staleness (frame 03) ─────────────────────────────────────────────
 
 /**
  * Rebuilds a minimal `DerivedStructure` from what the Atlas itself already
- * holds — its traced `space` regions and its doors' `source_edge_key`s — so
+ * holds — its traced `space` regions and its doors' `edge_key`s — so
  * it can stand as the "before" side of `structureDelta` against a fresh
  * `deriveStructure(map)`. Only the fields `structureDelta` actually reads
  * (`signature`/`cells` on a space, `edgeKey` on a way) need to be genuine;
@@ -100,7 +112,7 @@ export function siteReadiness(input: SiteReadinessInput): SiteReadiness {
  */
 export function structureFromSite(
   regions: readonly LocationMapRegion[],
-  doors: readonly { source_edge_key: SourceEdgeKey | null }[],
+  doors: readonly { edge_key: SourceEdgeKey | null }[],
 ): DerivedStructure {
   const spaceRegions = regions.filter((r) => r.region_role === "space" && r.cells.length > 0);
   const spaces = spaceRegions.map((r) => ({
@@ -111,9 +123,9 @@ export function structureFromSite(
     nameSource: null,
   }));
   const ways: DerivedWay[] = doors
-    .filter((d): d is { source_edge_key: NonNullable<typeof d.source_edge_key> } => d.source_edge_key !== null)
+    .filter((d): d is { edge_key: NonNullable<typeof d.edge_key> } => d.edge_key !== null)
     .map((d) => ({
-      edgeKey: d.source_edge_key,
+      edgeKey: d.edge_key,
       kind: "door",
       fromKey: "",
       toKey: "",
@@ -129,8 +141,8 @@ export interface PublishStaleness {
 
 /**
  * Null when there is nothing to compare (no source map, or the last publish
- * already carries the map's current rev) — the fresh state `SiteMapSourceStrip`
- * renders instead of the stale variant.
+ * already carries the map's current rev) — the fresh state `SiteMapLayersPanel`'s
+ * Drawing row renders instead of the stale variant.
  */
 export function publishStaleness(
   location: { map_published_rev: number | null },

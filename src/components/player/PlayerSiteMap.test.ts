@@ -96,7 +96,7 @@ describe("PlayerSiteMap", () => {
         { space_location_id: "room-b", name: "Crypt", cells: ["1,0"], label: null, sort_order: null, is_cleared: false, is_looted: false },
       ],
       ways: [
-        { from_space_id: "room-a", to_space_id: "room-b", door_kind: "door", source_edge_key: "0,0:N" },
+        { from_space_id: "room-a", to_space_id: "room-b", door_kind: "door", edge_key: "0,0:N" },
       ],
     });
     const wrapper = mount(PlayerSiteMap, { props: { siteLocationId: "site-1" } });
@@ -153,8 +153,8 @@ describe("PlayerSiteMap", () => {
     mocks.plan.data.value = emptyPlan({
       spaces: [{ space_location_id: "room-a", name: "Nave", cells: ["0,0"], label: null, sort_order: null, is_cleared: false, is_looted: false }],
       ways: [
-        { from_space_id: "room-a", to_space_id: null, door_kind: "door", source_edge_key: null },
-        { from_space_id: "room-a", to_space_id: null, door_kind: "door", source_edge_key: "0,0:N" },
+        { from_space_id: "room-a", to_space_id: null, door_kind: "door", edge_key: null },
+        { from_space_id: "room-a", to_space_id: null, door_kind: "door", edge_key: "0,0:N" },
       ],
     });
     const wrapper = mount(PlayerSiteMap, { props: { siteLocationId: "site-1" } });

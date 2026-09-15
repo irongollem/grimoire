@@ -278,7 +278,12 @@ const proposedNameByKey = computed(() => {
   return map;
 });
 
-function endpointName(id: string): string {
+// #884: a matched EXISTING door's `to_location_id` can itself be null now —
+// a one-sided door already sitting on the Atlas's plan, leading to untraced
+// space. Not a lookup miss (that's "an unmapped space" below), so it gets
+// its own text rather than being coerced into looking like one.
+function endpointName(id: string | null): string {
+  if (id === null) return "leads nowhere yet";
   if (id.startsWith("created:")) {
     return proposedNameByKey.value.get(createdRefKey(id)) ?? "the new room";
   }

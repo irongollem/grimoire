@@ -1,13 +1,18 @@
 <template>
   <div class="flex flex-col gap-3">
-    <!-- Stale variant only (#868, frame 03) — a fresh publish has nothing
-         urgent enough to repeat here; it already reads calmly in the
-         Rooms section below, in Contents mode. -->
-    <SiteMapSourceStrip
-      v-if="isSite && siteStaleness"
-      :site="location"
+    <!-- The Layers panel (#884, S5) — what this site's map is made of.
+         Build-only: every action here edits the stack, and Browse has
+         nothing here to edit. Its Drawing row now says everything
+         `SiteMapSourceStrip` used to (name, rev, staleness) — that strip is
+         retired app-wide as of this story, so this is the only surface
+         reporting it. -->
+    <SiteMapLayersPanel
+      v-if="isSite && building"
+      :location="location"
       :map="siteSourceMap"
       :staleness="siteStaleness"
+      :counts="siteLayerCounts"
+      @open-drawing="onOpenDrawing"
     />
 
     <!-- "<site> › Level N · <name> [chip]" (#868, frame 06) — the stairs
@@ -34,7 +39,12 @@
         @select="onLevelSelect"
       />
 
-      <div class="relative min-w-0 flex-1">
+      <!-- Nothing to render below a site with zero layers (#884, S5) — the
+           Layers panel above is the whole story in that case; `LocationMap`
+           needs a real stack to draw. Never gates a non-site place: the
+           parent only ever mounts this component once `hasMap` already
+           holds, so `mapStack.hasAnyLayer` is guaranteed true there. -->
+      <div v-if="mapStack.hasAnyLayer" class="relative min-w-0 flex-1">
         <LocationMap
           ref="mapRef"
           :stack="mapStack"
@@ -76,7 +86,20 @@
           </template>
 
           <template #aside>
-            <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" :building="building" />
+            <!--
+              "Place it" on an unplaced door arms the map's door tool with
+              that door, so the DM's next edge click gives it a position
+              (#884, S10). This is the one place the list and the plan are
+              composed together, which is why the wiring lives here rather
+              than in either of them.
+            -->
+            <SiteWaysOutPanel
+              :site-id="location.id"
+              :spaces="siteSpaces"
+              :building="building"
+              can-place
+              @place-door="mapRef?.placeDoor($event)"
+            />
           </template>
         </LocationMap>
 
@@ -121,9 +144,10 @@ import AppButton from "@/components/common/AppButton.vue";
 import AtlasMapZoom from "@/components/locations/AtlasMapZoom.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
-import SiteMapSourceStrip from "@/components/locations/SiteMapSourceStrip.vue";
+import SiteMapLayersPanel from "@/components/locations/SiteMapLayersPanel.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
+import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { IconChevronRight, IconChevronUp, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
@@ -166,13 +190,26 @@ const siteSpaces = computed(() => bindableSpaces(children));
 // ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────
 const mapStack = computed(() => buildMapStack(location));
 
-// ── Staleness / door graph (#868, S6) — one composable so the source strip
-//    and the vertical-ways count agree with the readiness meter the parent
-//    renders above this component. ───────────────────────────────────────────
+// ── Staleness / door graph / layer counts (#868, S6; #884, S5) — one
+//    composable so the Layers panel's Drawing/Plan rows, the vertical-ways
+//    count and the readiness meter the parent renders above this component
+//    all agree. ────────────────────────────────────────────────────────────
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
-const { staleness: siteStaleness, sourceMap: siteSourceMapQuery, doors: siteStructureDoors } =
-  useSiteStructure(siteStructureLocation);
+const {
+  staleness: siteStaleness,
+  sourceMap: siteSourceMapQuery,
+  doors: siteStructureDoors,
+  layerCounts: siteLayerCounts,
+} = useSiteStructure(siteStructureLocation);
 const siteSourceMap = computed(() => siteSourceMapQuery.data.value);
+
+// The Layers panel's Drawing row (#884, S5) — open the existing drawing, or
+// create one named after this site and open that. See `useOpenSiteDrawing`
+// for why `publishTo` is deliberately left off the navigation either way.
+const { openDrawing } = useOpenSiteDrawing();
+function onOpenDrawing() {
+  void openDrawing(location);
+}
 
 // ── Moving between maps ───────────────────────────────────────────────────────
 const zoomPlan = ref<ZoomPlan | null>(null);

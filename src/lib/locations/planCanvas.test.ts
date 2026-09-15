@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  drawDoorToolHoverPass,
   drawGridPass,
   drawPenOverlay,
   drawPersistedRingOutline,
@@ -224,7 +225,7 @@ describe("drawWaysPass", () => {
     drawWaysPass(
       ctx,
       GEOMETRY,
-      [{ source_edge_key: "0,0:N", door_kind: "door", starts_locked: false, is_secret: false }],
+      [{ edge_key: "0,0:N", door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
       identityPointToCanvas,
     );
     expect(calls).toContain("strokeStyle=#e7d9bd");
@@ -238,7 +239,7 @@ describe("drawWaysPass", () => {
     drawWaysPass(
       ctx,
       GEOMETRY,
-      [{ source_edge_key: "0,0:N", door_kind: "arch", starts_locked: true, is_secret: true }],
+      [{ edge_key: "0,0:N", door_kind: "arch", starts_locked: true, is_secret: true, to_location_id: "room-b" }],
       identityPointToCanvas,
     );
     expect(calls).toContain("strokeStyle=#a78bfa");
@@ -247,8 +248,36 @@ describe("drawWaysPass", () => {
 
   it("skips a way with no edge key", () => {
     const { ctx, calls } = createRecordingCtx();
-    drawWaysPass(ctx, GEOMETRY, [{ source_edge_key: null, door_kind: "door", starts_locked: false, is_secret: false }], identityPointToCanvas);
+    drawWaysPass(
+      ctx,
+      GEOMETRY,
+      [{ edge_key: null, door_kind: "door", starts_locked: false, is_secret: false, to_location_id: "room-b" }],
+      identityPointToCanvas,
+    );
     expect(calls).toHaveLength(0);
+  });
+
+  it("dashes a one-sided door (leads to untraced space) without changing its colour", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawWaysPass(
+      ctx,
+      GEOMETRY,
+      [{ edge_key: "0,0:N", door_kind: "door", starts_locked: false, is_secret: false, to_location_id: null }],
+      identityPointToCanvas,
+    );
+    expect(calls).toContain("strokeStyle=#e7d9bd");
+    expect(calls.some((c) => c.startsWith("setLineDash(") && c !== "setLineDash()")).toBe(true);
+    expect(calls).toContain("setLineDash()");
+  });
+});
+
+describe("drawDoorToolHoverPass", () => {
+  it("draws a highlighted bar across the hovered edge", () => {
+    const { ctx, calls } = createRecordingCtx();
+    drawDoorToolHoverPass(ctx, GEOMETRY, "0,0:N", identityPointToCanvas);
+    expect(calls).toContain("strokeStyle=rgba(96, 165, 250, 0.9)");
+    expect(calls.filter((c) => c.startsWith("moveTo"))).toHaveLength(1);
+    expect(calls).toContain("stroke()");
   });
 });
 

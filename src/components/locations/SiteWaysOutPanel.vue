@@ -22,8 +22,18 @@
           <span v-if="row.door.is_secret" class="shrink-0 rounded bg-tone-arcane/15 px-1.5 py-0.5 text-label uppercase text-ink-arcane">secret</span>
           <span v-if="row.door.starts_locked" class="shrink-0 rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">locked</span>
           <span v-if="row.isVertical" class="shrink-0 rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">{{ DOOR_KIND_LABELS[row.door.door_kind] }}</span>
+          <span v-if="row.isOneSided" class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">{{ ONE_SIDED_DOOR_LABEL }}</span>
 
           <template v-if="!verticalOnly && building">
+            <AppButton
+              v-if="row.isUnplaced && canPlace && building"
+              variant="ghost"
+              size="inline-xs"
+              label="Place it"
+              tooltip="Arm the door tool for this door — click an edge on the plan to position it"
+              class="shrink-0"
+              @click="emit('place-door', row.door.id)"
+            />
             <AppButton
               variant="ghost"
               size="icon-xs"
@@ -43,7 +53,10 @@
             />
           </template>
         </div>
-        <p class="pl-6 text-caption text-muted-foreground">{{ row.subtitle }}</p>
+        <p class="pl-6 text-caption text-muted-foreground">
+          <template v-if="row.isUnplaced">Not placed on the plan yet — {{ row.subtitle.toLowerCase() }}</template>
+          <template v-else>{{ row.subtitle }}</template>
+        </p>
 
         <Transition v-if="!verticalOnly && building" v-bind="drawerTransition()">
           <div v-if="expandedIds.has(row.door.id)" class="flex flex-col gap-2 border-t border-border pt-2">
@@ -208,7 +221,7 @@ import {
   useUpdateLocationDoor,
   useDeleteLocationDoor,
 } from "@/composables/locations/useLocationDoors";
-import { DOOR_KIND_ICONS, doorSubtitle, doorTitle, verticalWays } from "@/lib/locations/doors";
+import { DOOR_KIND_ICONS, ONE_SIDED_DOOR_LABEL, doorSubtitle, doorTitle, verticalWays } from "@/lib/locations/doors";
 import { DOOR_KINDS, DOOR_KIND_LABELS, VERTICAL_DOOR_KINDS } from "@/types/locationDoor.types";
 import type { DoorKind, LocationDoorInsert, LocationDoorUpdate } from "@/types/locationDoor.types";
 import type { DungeonFeatureType } from "@/types/dungeonFeature.types";
@@ -224,7 +237,7 @@ export interface WaysOutSpace {
 // key/route off it) but nothing in this story's rendering needs it — every
 // door this panel reads is already scoped by `spaces`, which is exhaustive
 // for the site it was fetched from.
-const { spaces, verticalOnly = false, hideHeader = false, building = false } = defineProps<{
+const { spaces, verticalOnly = false, hideHeader = false, building = false, canPlace = false } = defineProps<{
   siteId: string;
   spaces: WaysOutSpace[];
   /** Renders the frame-06 "Vertical ways out" variant: filtered, read-only,
@@ -237,6 +250,12 @@ const { spaces, verticalOnly = false, hideHeader = false, building = false } = d
    *  The row's own badges (secret/locked/kind) already read as facts, so
    *  Browse keeps showing them unconditionally. */
   building?: boolean;
+  /** Whether a plan the DM could click is on screen beside this list (#884).
+   *  "Place it" arms the door tool on that plan, so a caller that renders the
+   *  list without one — the Contents-mode sections — passes false rather than
+   *  offering a button with nothing to aim at. The row still says the door is
+   *  not on the map; only the action is withheld. */
+  canPlace?: boolean;
 }>();
 
 const toast = useToast();
@@ -254,18 +273,37 @@ interface WaysOutRow {
   title: string;
   subtitle: string;
   isVertical: boolean;
+  /** Never placed on the plan — no `edge_key` — a hand-made row from before
+   *  #884, or one added from this panel's own form since. "Place it" arms
+   *  the door tool for exactly this door (#884, Build step 6). */
+  isUnplaced: boolean;
+  /** Placed, but the edge it sits on has a region on only one side (#884) —
+   *  a way out to untraced space, not an error. Resolves itself once the far
+   *  side is traced; nothing to do here but say so. */
+  isOneSided: boolean;
 }
 
 const rows = computed<WaysOutRow[]>(() =>
   [...filteredDoors.value]
     .map((door) => ({
       door,
+      // `doorTitle` itself reads `ONE_SIDED_DOOR_LABEL` for a null
+      // `to_location_id` (#884) — see that function's own docstring.
       title: doorTitle(door, names.value),
       subtitle: doorSubtitle(door),
       isVertical: VERTICAL_DOOR_KINDS.has(door.door_kind),
+      isUnplaced: door.edge_key === null,
+      isOneSided: door.edge_key !== null && door.to_location_id === null,
     }))
     .sort((a, b) => a.title.localeCompare(b.title)),
 );
+
+/** #884, Build step 6 — arms the door tool for one specific unplaced door.
+ *  This panel doesn't hold the plan canvas itself (it mounts alongside
+ *  `LocationMap.vue` via a caller's own layout, not as its child), so it can
+ *  only ask for that; the caller wires this to `LocationMap`'s exposed
+ *  `placeDoor(doorId)`. */
+const emit = defineEmits<{ "place-door": [doorId: string] }>();
 
 // ── Expand / collapse ────────────────────────────────────────────────────────────
 const expandedIds = ref(new Set<string>());

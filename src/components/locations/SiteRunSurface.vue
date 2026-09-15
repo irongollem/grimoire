@@ -204,7 +204,10 @@ const mapStack = computed(() => buildMapStack(location));
 const secretUndiscoveredIds = computed(() => {
   const bySpace = new Map<string, typeof doors.value>();
   for (const door of doors.value) {
-    for (const spaceId of new Set([door.from_location_id, door.to_location_id])) {
+    // A one-sided door's far side (#884: `to_location_id === null`, leads to
+    // untraced space) is never a room this bucketing can key on.
+    const spaceIds = [door.from_location_id, door.to_location_id].filter((id): id is string => id !== null);
+    for (const spaceId of new Set(spaceIds)) {
       const existing = bySpace.get(spaceId);
       if (existing) existing.push(door);
       else bySpace.set(spaceId, [door]);

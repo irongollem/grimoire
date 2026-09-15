@@ -103,10 +103,10 @@ export function textureCells(cells: readonly CellKey[]): CellKey[] {
 }
 
 /**
- * The grid-unit segment a door's `source_edge_key` names. `"x,y:N"` is the
+ * The grid-unit segment a door's `edge_key` names. `"x,y:N"` is the
  * top of cell (x,y), from (x,y) to (x+1,y); `"x,y:W"` is its left side, from
  * (x,y) to (x,y+1) — the same NW ownership `src/cartographer/edges.ts` and
- * `LocationDoor.source_edge_key` use.
+ * `LocationDoor.edge_key` use.
  *
  * `inset` shortens the bar symmetrically from both ends (so it reads as a
  * gap in the wall rather than a full wall-length stroke); 0 draws the full

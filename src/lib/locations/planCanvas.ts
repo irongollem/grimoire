@@ -198,18 +198,26 @@ export function drawSpacesPass(
 // ── Ways pass (doors, arches, stairs) ───────────────────────────────────
 
 export interface WayLike {
-  source_edge_key: SourceEdgeKey | null;
+  edge_key: SourceEdgeKey | null;
   door_kind: DoorKind;
   starts_locked: boolean;
   is_secret: boolean;
+  /** Null means this way leads to untraced space (#884) — drawn dashed, the
+   *  same "not resolved yet" treatment a glimpsed footprint gets, since both
+   *  are a state that resolves itself once the DM traces the other side. */
+  to_location_id: string | null;
 }
 
 /**
  * Doors on the plan (#868, frame 03) — a bar across the door's own cell edge,
- * only for doors published with one (`source_edge_key`). Colour precedence
- * mirrors `sa-plan.js`: a secret door's violet dash wins over a locked door's
- * amber, which wins over an arch's plain brown, because the rarer, more
- * consequential fact is the one a DM's eye should catch first.
+ * only for doors placed on one (`edge_key`). Colour precedence mirrors
+ * `sa-plan.js`: a secret door's violet dash wins over a locked door's amber,
+ * which wins over an arch's plain brown, because the rarer, more
+ * consequential fact is the one a DM's eye should catch first. A one-sided
+ * door (#884) dashes on top of whichever colour that ladder picks — it is a
+ * gap, not a different kind of door, so it keeps its own colour and only
+ * borrows the secret door's "not fully known yet" dash *shape*, at a longer
+ * period so the two read as distinct at a glance.
  */
 export function drawWaysPass(
   ctx: CanvasRenderingContext2D,
@@ -220,7 +228,7 @@ export function drawWaysPass(
   const { calibration: cal, imageWidth: w, imageHeight: h, canvasWidth } = geometry;
 
   for (const way of ways) {
-    if (!way.source_edge_key) continue;
+    if (!way.edge_key) continue;
     const isArch = way.door_kind === "arch";
     const size = cellFractionSize(cal, w, h);
     const cellPxWidth = size ? size.cellWFrac * canvasWidth : 0;
@@ -230,20 +238,55 @@ export function drawWaysPass(
     // 100-unit cell, inset 5 units from the cell corners so the bar reads as
     // a gap in the wall rather than a full wall-length stroke.
     const lineWidth = Math.max(1, (isArch ? 0.06 : 0.08) * cellPxWidth);
-    const seg = edgeSegment(way.source_edge_key, 0.05);
+    const seg = edgeSegment(way.edge_key, 0.05);
     const p1 = pointToCanvas([seg.x1, seg.y1]);
     const p2 = pointToCanvas([seg.x2, seg.y2]);
+    const isOneSided = way.to_location_id === null;
 
     ctx.strokeStyle = way.is_secret ? "#a78bfa" : way.starts_locked ? "#fbbf24" : isArch ? "#6b5c47" : "#e7d9bd";
     ctx.lineWidth = lineWidth;
     ctx.lineCap = "butt";
     if (way.is_secret) ctx.setLineDash([lineWidth * 0.75, lineWidth * 0.5]);
+    else if (isOneSided) ctx.setLineDash([lineWidth * 1.4, lineWidth]);
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
     ctx.stroke();
-    if (way.is_secret) ctx.setLineDash([]);
+    if (way.is_secret || isOneSided) ctx.setLineDash([]);
   }
+}
+
+/**
+ * The door tool's own hover highlight (#884) — the edge a click would place
+ * or cycle a door on, shown before the click lands so "forced onto the edge
+ * of a room" is something the DM can see happening rather than a rule they
+ * have to trust. Drawn after the ways pass, so it reads on top of a door
+ * already sitting there (about to cycle) exactly as it does over bare wall
+ * (about to place a new one).
+ */
+export function drawDoorToolHoverPass(
+  ctx: CanvasRenderingContext2D,
+  geometry: RenderGeometry,
+  edgeKey: SourceEdgeKey,
+  pointToCanvas: PointToCanvas,
+): void {
+  const { calibration: cal, imageWidth: w, imageHeight: h, canvasWidth } = geometry;
+  const size = cellFractionSize(cal, w, h);
+  const cellPxWidth = size ? size.cellWFrac * canvasWidth : 0;
+  if (cellPxWidth <= 0) return;
+
+  const lineWidth = Math.max(2, 0.12 * cellPxWidth);
+  const seg = edgeSegment(edgeKey, 0.02);
+  const p1 = pointToCanvas([seg.x1, seg.y1]);
+  const p2 = pointToCanvas([seg.x2, seg.y2]);
+
+  ctx.strokeStyle = "rgba(96, 165, 250, 0.9)";
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.stroke();
 }
 
 // ── Zones pass ───────────────────────────────────────────────────────────

@@ -61,6 +61,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import PlacementRow from "@/components/locations/PlacementRow.vue";
 import { IconHide, IconLock, IconNavigate } from "@/lib/icons";
 import { DOOR_KIND_ICONS, doorSubtitle, doorsOfSpace } from "@/lib/locations/doors";
+import type { RoomDoorView } from "@/lib/locations/doors";
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
 import { useAssertDoorState } from "@/composables/locations/useLocationState";
 import { useCampaignStore } from "@/stores/campaign";
@@ -76,7 +77,14 @@ const { siteId, roomId, roomName, doors, doorState } = defineProps<{
   doorState: (doorId: string, fact: DoorStateFact) => LocationState | undefined;
 }>();
 
-const views = computed(() => doorsOfSpace(doors, roomId));
+// A one-sided door (#884: leads to untraced space) has no room on the other
+// side to move to or link this row's title at — excluded here, matching
+// run-mode reachability's own rule that a party cannot walk through one.
+const views = computed(() =>
+  doorsOfSpace(doors, roomId).filter(
+    (view): view is RoomDoorView<SiteDoorWithSpaces> & { otherRoomId: string } => view.otherRoomId !== null,
+  ),
+);
 
 function isSecret(door: SiteDoorWithSpaces): boolean {
   return door.is_secret && doorState(door.id, "found")?.value !== true;

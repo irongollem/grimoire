@@ -5,8 +5,14 @@ import {
   verticalWays,
   doorTitle,
   doorSubtitle,
+  edgeAtImageFraction,
+  indexSpacesByCell,
+  resolveDoorEndpoints,
+  resolveEdgeEndpoints,
   type DoorPerspectiveRow,
 } from "./doors";
+import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+import type { GridCalibration } from "@/types/location.types";
 
 function row(overrides: Partial<DoorPerspectiveRow> = {}): DoorPerspectiveRow {
   return {
@@ -63,6 +69,14 @@ describe("doorsFromRoomPerspective", () => {
   it("falls back to '???' when the joined room name is missing", () => {
     const rows = [row({ from_location_id: "room-a", to_location_id: "room-b", to_location: null })];
     expect(doorsFromRoomPerspective(rows, "room-a")[0].otherRoomName).toBe("???");
+  });
+
+  it("labels a one-sided door 'leads nowhere yet' rather than '???' (#884)", () => {
+    const rows = [row({ from_location_id: "room-a", to_location_id: null, to_location: null })];
+    const views = doorsFromRoomPerspective(rows, "room-a");
+    expect(views).toHaveLength(1);
+    expect(views[0].otherRoomId).toBeNull();
+    expect(views[0].otherRoomName).toBe("leads nowhere yet");
   });
 
   it("sorts by sort_order (nulls last), then by the other room's name", () => {
@@ -200,4 +214,124 @@ describe("doorSubtitle", () => {
   function subtitle(overrides: Partial<import("./doors").DoorSubtitleRow>): string {
     return doorSubtitle(subtitleRow(overrides));
   }
+});
+
+// ── Endpoints derived from the plan (#884) ───────────────────────────────────
+
+function mapRegion(over: Partial<LocationMapRegion> = {}): LocationMapRegion {
+  return {
+    id: "r1",
+    user_id: "u",
+    site_location_id: "site",
+    space_location_id: null,
+    cells: [],
+    label: null,
+    sort_order: null,
+    region_role: "space",
+    zone_kind: null,
+    zone_payload: {},
+    derived_from: "dm",
+    cell_signature: null,
+    vertices: null,
+    created_at: "",
+    updated_at: "",
+    ...over,
+  };
+}
+
+describe("indexSpacesByCell", () => {
+  it("indexes only bound space-role regions", () => {
+    const regions = [
+      mapRegion({ id: "a", space_location_id: "room-a", cells: ["0,0", "1,0"] }),
+      mapRegion({ id: "b", region_role: "zone", zone_kind: "hazard", space_location_id: null, cells: ["2,0"] }),
+      mapRegion({ id: "c", space_location_id: null, cells: ["3,0"] }), // traced but unbound
+    ];
+    const index = indexSpacesByCell(regions);
+    expect(index.get("0,0")).toBe("room-a");
+    expect(index.get("1,0")).toBe("room-a");
+    expect(index.has("2,0")).toBe(false);
+    expect(index.has("3,0")).toBe(false);
+  });
+});
+
+describe("resolveEdgeEndpoints", () => {
+  it("resolves both sides traced: the owner cell is from, the neighbour is to", () => {
+    // "1,1:N" is owned by cell (1,1); its N neighbour is (1,0).
+    const cellToSpace = new Map([
+      ["1,1", "room-south"],
+      ["1,0", "room-north"],
+    ] as const);
+    expect(resolveEdgeEndpoints("1,1:N", cellToSpace)).toEqual({ fromLocationId: "room-south", toLocationId: "room-north" });
+  });
+
+  it("resolves a W edge the same way, against its owner cell and its W neighbour", () => {
+    // "1,1:W" is owned by cell (1,1); its W neighbour is (0,1).
+    const cellToSpace = new Map([
+      ["1,1", "room-east"],
+      ["0,1", "room-west"],
+    ] as const);
+    expect(resolveEdgeEndpoints("1,1:W", cellToSpace)).toEqual({ fromLocationId: "room-east", toLocationId: "room-west" });
+  });
+
+  it("resolves one side traced: the traced side becomes from, to is null", () => {
+    const ownerOnly = new Map([["1,1", "room-south"]] as const);
+    expect(resolveEdgeEndpoints("1,1:N", ownerOnly)).toEqual({ fromLocationId: "room-south", toLocationId: null });
+
+    const neighborOnly = new Map([["1,0", "room-north"]] as const);
+    expect(resolveEdgeEndpoints("1,1:N", neighborOnly)).toEqual({ fromLocationId: "room-north", toLocationId: null });
+  });
+
+  it("resolves neither side traced to null", () => {
+    expect(resolveEdgeEndpoints("1,1:N", new Map())).toBeNull();
+  });
+
+  it("resolves both sides landing in the same region to null — not a way out", () => {
+    const sameRoom = new Map([
+      ["1,1", "room-a"],
+      ["1,0", "room-a"],
+    ] as const);
+    expect(resolveEdgeEndpoints("1,1:N", sameRoom)).toBeNull();
+  });
+});
+
+describe("resolveDoorEndpoints", () => {
+  const regions = [
+    mapRegion({ id: "south", space_location_id: "room-south", cells: ["1,1"] }),
+    mapRegion({ id: "north", space_location_id: "room-north", cells: ["1,0"] }),
+  ];
+
+  it("resolves every placed door against the region set", () => {
+    const doors = [
+      { id: "door-1", edge_key: "1,1:N" as const },
+      { id: "door-2", edge_key: null },
+    ];
+    const results = resolveDoorEndpoints(doors, regions);
+    expect(results).toEqual([{ doorId: "door-1", endpoints: { fromLocationId: "room-south", toLocationId: "room-north" } }]);
+  });
+
+  it("skips a never-placed door entirely — there is no edge to resolve", () => {
+    const results = resolveDoorEndpoints([{ id: "door-1", edge_key: null }], regions);
+    expect(results).toEqual([]);
+  });
+});
+
+describe("edgeAtImageFraction", () => {
+  const calibration: GridCalibration = { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 };
+
+  it("snaps to the nearest edge within the threshold band", () => {
+    // Cell (0,0) spans image fractions [0, 0.1) — near its top (N) edge.
+    const key = edgeAtImageFraction(0.05, 0.005, calibration, 1000, 1000);
+    expect(key).toBe("0,0:N");
+  });
+
+  it("returns null in the dead middle of a cell", () => {
+    const key = edgeAtImageFraction(0.05, 0.05, calibration, 1000, 1000);
+    expect(key).toBeNull();
+  });
+
+  it("canonicalises a south-edge hover to the neighbour's north edge", () => {
+    // Near the bottom of cell (0,0) is the same physical edge as the top of (0,1).
+    const key = edgeAtImageFraction(0.05, 0.095, calibration, 1000, 1000);
+    expect(key).toBe("0,1:N");
+  });
 });

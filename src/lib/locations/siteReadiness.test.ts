@@ -62,14 +62,27 @@ describe("siteReadiness", () => {
       location: siteLoc({ map_url: "/map.webp", grid_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 } }),
       spaces: [{ id: "room-1" }],
       regions: [region({ id: "reg-1", cells: ["0,0"], space_location_id: "room-1" })],
-      doors: [{ from_location_id: "room-1" }],
+      doors: [{ from_location_id: "room-1", to_location_id: "room-2", edge_key: "0,0:N" }],
     });
     expect(result.mapped).toBe(true);
     expect(result.calibrated).toBe(true);
     expect(result.traced).toBe(true);
     expect(result.bound).toBe(true);
     expect(result.waysOut).toBe(true);
+    expect(result.oneSidedWays).toBe(0);
     expect(result.caption).toBeNull();
+  });
+
+  it("reports a placed door that leads to untraced space (#884)", () => {
+    const result = siteReadiness({
+      location: siteLoc({ map_url: "/map.webp" }),
+      spaces: [{ id: "room-1" }],
+      regions: [region({ id: "reg-1", cells: ["0,0"], space_location_id: "room-1" })],
+      doors: [{ from_location_id: "room-1", to_location_id: null, edge_key: "0,0:N" }],
+    });
+    expect(result.oneSidedWays).toBe(1);
+    expect(result.bound).toBe(true); // spaces/regions still agree — this is a separate gap
+    expect(result.caption).toBe("1 way out leads nowhere yet");
   });
 
   it("reports an unbound traced region", () => {
@@ -155,7 +168,7 @@ describe("structureFromSite", () => {
   it("keeps only doors with a source edge key", () => {
     const structure = structureFromSite(
       [],
-      [{ source_edge_key: "0,0:N" }, { source_edge_key: null }],
+      [{ edge_key: "0,0:N" }, { edge_key: null }],
     );
     expect(structure.ways).toHaveLength(1);
     expect(structure.ways[0].edgeKey).toBe("0,0:N");

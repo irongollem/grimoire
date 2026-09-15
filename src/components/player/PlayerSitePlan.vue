@@ -203,9 +203,9 @@ const zoneLayers = computed(() =>
 
 const doorSegments = computed(() =>
   plan.ways
-    .filter((way) => way.source_edge_key !== null)
+    .filter((way) => way.edge_key !== null)
     .map((way) => {
-      const seg = edgeSegment(way.source_edge_key!);
+      const seg = edgeSegment(way.edge_key!);
       return { ...seg, width: way.door_kind === "arch" ? ARCH_WIDTH : DOOR_WIDTH };
     }),
 );

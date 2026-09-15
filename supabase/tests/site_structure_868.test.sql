@@ -1,7 +1,7 @@
 -- Epic #868 (Sites & Cartographer), the five schema migrations:
 --   20260908215640 a region has a role (zones)
 --   20260908215641 a way out has a kind and may join two spaces (door_kind,
---                  source_edge_key, dungeon_feature_id, the widened endpoint guard)
+--                  edge_key (was source_edge_key, #884), dungeon_feature_id, the widened endpoint guard)
 --   20260908215643 the publish remembers what it wrote (dungeon_maps.rev,
 --                  locations.map_published_rev, location_placements.source_cell_key,
 --                  the stale updated_at triggers)
@@ -12,7 +12,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(48);
+select plan(51);
 
 -- This file traces many locations, regions and doors across eight sections;
 -- none of it is what free-tier quotas exist to police, and a fixture that size
@@ -134,16 +134,16 @@ select throws_ok(
   'an invalid door_kind is rejected'
 );
 
--- source_edge_key format
+-- edge_key format
 select lives_ok(
-  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, source_edge_key)
+  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, edge_key)
     values ('86800000-0000-4000-8000-000000000001',
             '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000202', 'edge ok', '3,4:N')$$,
   'a well-formed edge key ("3,4:N") is accepted'
 );
 
 select throws_ok(
-  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, source_edge_key)
+  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, edge_key)
     values ('86800000-0000-4000-8000-000000000001',
             '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000202', 'edge bad', '3,4:E')$$,
   '23514', null,
@@ -151,16 +151,40 @@ select throws_ok(
 );
 
 -- one derived door per edge, per originating space
-insert into public.location_doors (id, user_id, from_location_id, to_location_id, label, source_edge_key)
+insert into public.location_doors (id, user_id, from_location_id, to_location_id, label, edge_key)
 values ('86800000-0000-4000-8000-000000000242', '86800000-0000-4000-8000-000000000001',
         '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000202', 'dup edge 1', '9,9:N');
 
 select throws_ok(
-  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, source_edge_key)
+  $$insert into public.location_doors (user_id, from_location_id, to_location_id, label, edge_key)
     values ('86800000-0000-4000-8000-000000000001',
             '86800000-0000-4000-8000-000000000201', '86800000-0000-4000-8000-000000000203', 'dup edge 2', '9,9:N')$$,
   '23505', null,
   'two doors from the same room with the same edge key collide, whatever they lead to'
+);
+
+-- #884: a door drawn on an edge with a region on only one side is a way out to
+-- untraced space, not an error -- it resolves itself when the far room is traced.
+select lives_ok(
+  $$insert into public.location_doors (user_id, from_location_id, label, edge_key)
+    values ('86800000-0000-4000-8000-000000000001',
+            '86800000-0000-4000-8000-000000000201', 'leads nowhere yet', '4,4:W')$$,
+  'a door with no far side is accepted -- it leads to untraced space'
+);
+
+select is(
+  (select derived_from from public.location_doors where label = 'leads nowhere yet'),
+  'dm',
+  'a hand-placed door records itself as the DM''s, not a publish''s'
+);
+
+-- The from side is still a real space, one-sided or not.
+select throws_ok(
+  $$insert into public.location_doors (user_id, from_location_id, label, edge_key)
+    values ('86800000-0000-4000-8000-000000000001',
+            '86800000-0000-4000-8000-000000000200', 'from the site itself', '5,5:N')$$,
+  '23514', null,
+  'a one-sided door still cannot start somewhere that is not a space in a place'
 );
 
 -- the widened guard: a room may now connect to a nested site with its own floor plan

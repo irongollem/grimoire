@@ -120,9 +120,24 @@
     </div>
 
     <!-- Map — pins and, on a site-tier place, traced room regions, both on
-         the one rendering of the map stack (#807, restacked #884). -->
-    <section v-if="hasAnyMapLayer(location)" class="flex flex-col gap-2">
+         the one rendering of the map stack (#807, restacked #884). Also
+         renders while Building a site with zero layers yet (#884, S5): that
+         is exactly when the Layers panel's invitations are needed, so the
+         section can't wait for `hasAnyMapLayer` to go true on its own. -->
+    <section v-if="hasAnyMapLayer(location) || building" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Map</h2>
+
+      <!-- The Layers panel (#884, S5) — what this site's map is made of.
+           Build-only, same as every other structural section below. -->
+      <SiteMapLayersPanel
+        v-if="isSite && building"
+        :location="location"
+        :map="sourceMap"
+        :staleness="siteStaleness"
+        :counts="siteLayerCounts"
+        @open-drawing="onOpenDrawing"
+      />
+
       <div class="flex items-start gap-3">
         <!-- Frame 06's levels sidebar, reused verbatim from the Atlas
              explorer (#868, S5b) — this is the surface most links actually
@@ -135,7 +150,9 @@
           :children="children ?? []"
           @select="onLevelSelect"
         />
-        <div class="min-w-0 flex-1">
+        <!-- `LocationMap` needs a real stack to draw — a mapless site being
+             Built has nothing here yet beyond the Layers panel above. -->
+        <div v-if="mapStack.hasAnyLayer" class="min-w-0 flex-1">
           <LocationMap
             :stack="mapStack"
             :pins="location.map_pins ?? []"
@@ -199,6 +216,8 @@ import {
 } from "@/composables/locations/useLocations";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
+import { useSiteStructure } from "@/composables/locations/useSiteStructure";
+import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
@@ -210,6 +229,7 @@ import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationDetailSections from "@/components/locations/LocationDetailSections.vue";
 import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
 import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
+import SiteMapLayersPanel from "@/components/locations/SiteMapLayersPanel.vue";
 
 const { location, building = false } = defineProps<{
   location: Location;
@@ -271,6 +291,21 @@ const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
 // such as a courtyard inside a dungeon (#818). The database decides this; the
 // helper exists so the picker never offers what the guard would refuse.
 const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
+
+// ── Drawing source + layer counts, for the Layers panel (#884, S5) — the
+//    same `useSiteStructure` read `AtlasPlacePane`/`AtlasSiteMapMode` use, so
+//    this page and the Atlas explorer never disagree about the same site. ──
+const siteStructureLocation = computed(() => (isSite.value ? location : null));
+const { sourceMap: sourceMapQuery, staleness: siteStaleness, layerCounts: siteLayerCounts } =
+  useSiteStructure(siteStructureLocation);
+const sourceMap = computed(() => sourceMapQuery.data.value);
+
+// The Layers panel's Drawing row (#884, S5) — open the existing drawing, or
+// create one named after this site and open that.
+const { openDrawing } = useOpenSiteDrawing();
+function onOpenDrawing() {
+  void openDrawing(location);
+}
 
 // ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────
 const mapStack = computed(() => buildMapStack(location));
