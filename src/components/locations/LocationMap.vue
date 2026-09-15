@@ -452,8 +452,21 @@ const layerCounts = computed(() => ({
 
 // Re-emitted whenever it changes so a caller suppressing `showLayerBar` (S6)
 // can still read the numbers without a second implementation of "how many
-// spaces/zones does this site have".
-watch(layerCounts, (counts) => emit("layer-counts", counts), { immediate: true });
+// spaces/zones does this site have". Also drives `revealPopulatedSiteMapLayers`
+// (#880, resurfaced after #884 removed the tracing-time fix): a structural
+// layer that now has content in it, and that the DM hasn't explicitly hidden,
+// should not still be sitting on its `false` default — see the store action's
+// own comment. `{ immediate: true }` matters here for the same reason it
+// matters for the emit: the first render, on an already-populated site, is
+// exactly when a layer needs revealing.
+watch(
+  layerCounts,
+  (counts) => {
+    emit("layer-counts", counts);
+    uiStore.revealPopulatedSiteMapLayers(counts);
+  },
+  { immediate: true },
+);
 
 /** `origin_cell_x/y` default to (0, 0) per `GridCalibration`'s documented
  *  default (`resolveOriginCell` in `gridCalibration.ts`, a file this story

@@ -79,7 +79,7 @@
          Locations redundant on a room, per the comment above. -->
     <section v-if="isRoom" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Ways out</h2>
-      <LocationDoors :room-id="location.id" :parent-id="location.parent_id" :building="building" />
+      <LocationDoors :room-id="location.id" :parent-id="location.parent_id" :building="authoring" />
     </section>
 
     <!-- Ways out, lifted to the site (#868, S6) — a site sees its whole door
@@ -116,8 +116,15 @@
          corridor, unlike Store/Rooms above which apply to a subset of types. -->
     <section class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Prepared Here</h2>
-      <LocationPlacements :location-id="location.id" :building="building" />
+      <LocationPlacements :location-id="location.id" :building="authoring" />
     </section>
+
+    <!-- Sort Into Rooms (#879) — the re-homing backlog: NPCs and encounters
+         assigned to this place before its rooms existed, still sitting one
+         level too coarse. Self-hiding (no children, nothing to sort into) and
+         self-titled, unlike the panels above, because its whole visibility
+         condition is data its own query already needs to fetch. -->
+    <LocationSortPanel :location-id="location.id" :building="authoring" />
 
     <!-- People in the Area — NPCs whose location is this or any descendant. -->
     <section v-if="locationNpcs?.length" class="flex flex-col gap-2">
@@ -207,6 +214,7 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import LocationDoors from "@/components/locations/LocationDoors.vue";
 import LocationLootPanel from "@/components/locations/LocationLootPanel.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
+import LocationSortPanel from "@/components/locations/LocationSortPanel.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import SiteRoomsPanel from "@/components/locations/SiteRoomsPanel.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
@@ -278,6 +286,25 @@ const membersHere = computed(() =>
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(location.location_type));
 const isSite = computed(() => isSiteType(location.location_type));
 const isRoom = computed(() => location.location_type === "room");
+
+/**
+ * Whether the two structural panels that render *outside* the site tier
+ * (Ways out on a room, Prepared Here everywhere) may be edited.
+ *
+ * #884 put every structural panel behind the site-only `building` prop, but
+ * Build only exists on a site-tier place (`LocationSheet`'s Build/Done pair
+ * is itself gated on `isSiteType`) — so a room's own Ways out, and Prepared
+ * Here on any non-site place, inherited a mode they can never enter and went
+ * permanently read-only. That was collateral, not #884's intent, which said
+ * non-site places "keep Edit as it is".
+ *
+ * A structural panel is editable when the place is in Build, or when the
+ * place has no Build state to enter at all. `SiteWaysOutPanel` and
+ * `SiteRoomsPanel` below stay on the raw `building` prop — both are already
+ * gated to site-tier places, where Build genuinely exists and #884's
+ * always-editable-in-Build intent holds exactly as written.
+ */
+const authoring = computed(() => building || !isSiteType(location.location_type));
 
 // ── Site structure (#868, S6) — spaces for the Ways out panel. `null` when
 //    this isn't a site keeps every query inside `useSiteStructure` disabled

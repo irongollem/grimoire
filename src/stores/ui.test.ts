@@ -102,3 +102,59 @@ describe("site map layers", () => {
     expect(store.siteMapLayers.prepared).toBe(false);
   });
 });
+
+describe("revealPopulatedSiteMapLayers (#880, resurfaced after #884)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  const emptyCounts = { spaces: 0, ways: 0, zones: 0, prepared: 0 };
+
+  it("reveals a hidden layer that has content and was never explicitly toggled", () => {
+    const store = useUiStore();
+    expect(store.siteMapLayers.zones).toBe(false);
+
+    store.revealPopulatedSiteMapLayers({ ...emptyCounts, zones: 3 });
+
+    expect(store.siteMapLayers.zones).toBe(true);
+  });
+
+  it("leaves a hidden layer with zero content hidden", () => {
+    const store = useUiStore();
+
+    store.revealPopulatedSiteMapLayers({ ...emptyCounts, zones: 0, prepared: 0 });
+
+    expect(store.siteMapLayers.zones).toBe(false);
+    expect(store.siteMapLayers.prepared).toBe(false);
+  });
+
+  it("does not fight a layer the DM explicitly toggled off, even with content", () => {
+    const store = useUiStore();
+    store.toggleSiteMapLayer("zones"); // on
+    store.toggleSiteMapLayer("zones"); // explicit off again
+    expect(store.siteMapLayers.zones).toBe(false);
+
+    store.revealPopulatedSiteMapLayers({ ...emptyCounts, zones: 5 });
+
+    expect(store.siteMapLayers.zones).toBe(false);
+  });
+
+  it("leaves an already-visible layer untouched", () => {
+    const store = useUiStore();
+    expect(store.siteMapLayers.spaces).toBe(true);
+
+    store.revealPopulatedSiteMapLayers({ ...emptyCounts, spaces: 4 });
+
+    expect(store.siteMapLayers.spaces).toBe(true);
+  });
+
+  it("never turns a layer off", () => {
+    const store = useUiStore();
+    expect(store.siteMapLayers.grid).toBe(true);
+
+    store.revealPopulatedSiteMapLayers(emptyCounts);
+
+    expect(store.siteMapLayers.grid).toBe(true);
+  });
+});

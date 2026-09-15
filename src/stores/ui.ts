@@ -798,8 +798,51 @@ export const useUiStore = defineStore("ui", () => {
     fog: false,
   });
 
+  // Which layers the DM has explicitly toggled this session — tracked here,
+  // inside the one action that changes a layer's visibility, so no call site
+  // can add a new way to flip `siteMapLayers` without also recording intent.
+  // `revealPopulatedSiteMapLayers` below reads this set to know which layers
+  // it must leave alone.
+  const touchedSiteMapLayers = new Set<keyof typeof siteMapLayers.value>();
+
   function toggleSiteMapLayer(key: keyof typeof siteMapLayers.value) {
+    touchedSiteMapLayers.add(key);
     siteMapLayers.value[key] = !siteMapLayers.value[key];
+  }
+
+  // #880 again, after #884 moved tracing out of this file's reach. The
+  // original fix (`revealLayerForRegionRole`, removed by #884) turned a
+  // structural layer on when the DM picked a region to trace *in
+  // `MapRegionsLayer`* — but #884 moved all tracing into `MapWorkbench`,
+  // which paints plan spaces/zones unconditionally, so that trigger no
+  // longer exists and restoring the old function verbatim would be dead
+  // code (CLAUDE.md's no-legacy rule). The defect survived anyway: `zones`
+  // and `prepared` still default to false (see `siteMapLayers` above), and
+  // `MapRegionsLayer`'s Browse/Run display path still gates on them, so a
+  // DM who traces zones in Build and returns to Browse still sees nothing.
+  //
+  // Keyed on content rather than on region role this time: any structural
+  // layer that has something in it and is still hidden gets revealed,
+  // which also covers `prepared` (identical default, identical symptom)
+  // and cannot regress when a third structural layer is added. It must
+  // never fight a toggle the DM made on purpose, which is what
+  // `touchedSiteMapLayers` is for, and it must never turn a layer off —
+  // only ever the opposite of what #880 needed.
+  function revealPopulatedSiteMapLayers(counts: {
+    spaces: number;
+    ways: number;
+    zones: number;
+    prepared: number;
+  }) {
+    for (const key of ["spaces", "ways", "zones", "prepared"] as const) {
+      if (
+        counts[key] > 0 &&
+        !siteMapLayers.value[key] &&
+        !touchedSiteMapLayers.has(key)
+      ) {
+        siteMapLayers.value[key] = true;
+      }
+    }
   }
 
   // Puzzles (Enigmarium) UI state
@@ -1276,6 +1319,7 @@ export const useUiStore = defineStore("ui", () => {
     collapseAllLocations,
     siteMapLayers,
     toggleSiteMapLayer,
+    revealPopulatedSiteMapLayers,
 
     // Puzzles
     puzzlesSearch,

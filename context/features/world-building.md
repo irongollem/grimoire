@@ -34,6 +34,10 @@ It exists because the Atlas pane needed the same sections the sheet already had,
 
 **Five sibling panels, deliberately not extracted.** `LocationDetailSections` now mounts `StoreInventory`, `SiteRoomsPanel`, `LocationPlacements`, `LocationDoors` and `LocationStateControls`. They look related because they share two idioms the app already had — the bordered list row (`rounded-md border border-border bg-card px-3 py-2`) and the dashed inline-add box ending in an `AppButton` — not because this work duplicated anything. Their interaction models genuinely differ: commerce pricing, drag reorder, a kind-typed exclusive-arc picker, a directional graph edge with three authored flags, and a flat row of state toggles.
 
+**Ways out and Prepared Here are not site-only, so `building` alone was the wrong gate for them (regression from epic #884, fixed alongside #879).** #884 put every structural panel behind the site-only `building` prop, but Build (`?build=true`) only exists on a site-tier place — `LocationSheet`'s own Build/Done pair is itself `v-if="isSiteType(location.location_type)"` — while a room's Ways out (`interior` tier) and Prepared Here (no type gate at all — a trap in a tavern's back room is as valid as one in a dungeon corridor) are not site-tier. Threading the raw `building` prop to them meant Build could never be entered to unlock them, so a room's doors and every non-site place's traps/features/tables became permanently read-only — corroborated by `location_placements` sitting at zero rows in production. `LocationDetailSections` derives `authoring = building || !isSiteType(location.location_type)` and passes *that* to `LocationDoors` and `LocationPlacements` instead: editable in Build, or unconditionally editable on a place with no Build state to enter. `SiteWaysOutPanel` and `SiteRoomsPanel` keep the raw `building` prop unchanged — both are already gated to site-tier places, where Build genuinely exists and #884's intent holds exactly as written.
+
+**Sorting residents into rooms after the fact** (`LocationSortPanel.vue`, [#879](https://github.com/irongollem/grimoire/issues/879)). NPCs and encounters get assigned to a site while it is still one place, and its rooms get built afterward — the maintainer's framing is "residence, not prep". Production measured 125 NPCs and 11 encounters left one level too coarse across 74 places this way, worst case a site with 8 rooms and 8 encounters still sitting directly on it. `LocationDetailSections` mounts this panel alongside — not instead of — the read-only "People in the Area"/"Encounters Here" sections below: those read the whole subtree for browsing; this one reads only the place plus its **direct** children, because a picker can only ever move something one level (parent → room), never arbitrarily deep. It lists every NPC and encounter homed at either scope, backlog rows (still on the parent) sorted first and badged "Needs a room", each with its own `EntityCombobox` committing a move immediately — no save button, the same per-row idiom `EncounterCombatants`' faction picker already uses. It renders nothing when the place has no children (an empty control offering nothing to sort into is worse than no control), and gates its picker on the same `authoring` predicate above — Browse shows each row's current room as plain text instead. This ships the list only; #879 explicitly defers drag-and-drop onto the map itself to a later pass over this same data. `useEncountersByLocations` (`useEncounters.ts`) arrived with it, added additively alongside the existing singular `useEncountersByLocation`, mirroring `useNpcsByLocations`' shape exactly (same query-key pattern, same `enabled` guard, `location_id` included in the select so the panel can tell an already-sorted row from a backlogged one).
+
 The map itself — and the room-shapes list that rides alongside it — is deliberately **not** one of these six: #807 removed the `SiteMapView` panel this section used to list here, because it rendered `map_url` a second time. Map placement genuinely differs per caller (the sheet's own section, the Atlas pane's mode toggle, the run surface's composed layout), so `LocationMap.vue` — the caller-owned composite — carries the regions canvas and `SiteMapRegionList` with it instead. See "Clickable rooms on a site's map" below.
 
 **The trigger for extracting, when it comes:** a *third* near-identical "list of typed relations with an `EntityCombobox` add-box" panel. Two is a coincidence of shared idiom; three is a recipe. Extracting at two would produce a slot-heavy component configured differently at each of its two call sites — the over-abstraction the granularity rule is not aiming at.
@@ -254,23 +258,37 @@ Cover: `src/lib/locations/siteMap.test.ts` (grid bounds, click-to-cell mapping, 
 
 Client side: `src/lib/locations/zones.ts` (pure — `ZONE_KIND_FILL` colours, `zoneSummary()` for the one-line read-out, `isPlayerVisible()`, `emptyZoneInsert()`), `SiteMapZoneList.vue` (the zone-CRUD sibling of `SiteMapRegionList`, mounted alongside it by `LocationMap.vue` in browse mode — same lifted-`activeRegionId` convention, same per-kind payload editor with fields that vary by `zone_kind`), `SiteMapLayerBar.vue` (the layer toggles, reading/writing `useUiStore().siteMapLayers` — `spaces`, `ways`, `zones`, `prepared`, `grid`, no v-model needed since every flag is session UI state), and `SiteMapLegend.vue`. Zones are DM ink by default (`visible_to_players` absent means false, not unknown); the player-visible projection clips a shown zone to the party's own explored cells (see "The player's plan is composed, not masked" below).
 
-**Picking a region to trace reveals its layer (#880).** `siteMapLayers.zones`
-starts off, and only `drawZonesPass` ever paints a zone's cells — its persisted
-fill *and* its in-progress paint stroke. So selecting a zone to draw into gave
-the DM a crosshair over an invisible layer: each stroke went through the same
-`commitCells` → `useUpdateLocationMapRegion` path a room's does and persisted
-correctly, and the screen stayed blank, which reads as a dead tool rather than
-a hidden one. `LocationMap` now watches `activeRegion` and calls
-`useUiStore().revealLayerForRegionRole(region.region_role)`, which maps the
-role to its layer (`space` → `spaces`, `zone` → `zones`) and turns that one on.
-The rule lives in the store rather than the map because it is a statement about
-the layer set, and it is keyed on the role rather than special-cased to zones so
-a third traceable role cannot bring the bug back. Turning the layer off again
-still works — it is now a choice the DM makes rather than the state they start
-in. Note the near miss that made this hard to spot: the pen tool's draft ring
-(`MapRegionsLayer.vue`) is *not* gated on `showZones`, so tracing a zone with
-the pen did show feedback and then lost the finished fill, while the default
-paint tool was dark end to end.
+**A populated layer reveals itself (#880, resurfaced after #884).** `siteMapLayers.zones`
+and `siteMapLayers.prepared` both default to off (see `SiteMapLayerBar.vue`'s
+layer set above), and only `drawZonesPass`/the Prepared pass ever paint what
+they hold. The original #880 fix caught this at the moment a DM *picked a
+region to trace*: `LocationMap` watched `activeRegion` and called a store
+action, `revealLayerForRegionRole(role)`, that mapped the picked region's role
+to its layer and turned it on. Epic #884 then moved all tracing out of this
+component into `MapWorkbench`, which paints plan spaces and zones
+unconditionally regardless of `siteMapLayers` — so the trigger that fix keyed
+on (picking a region to trace *here*) no longer exists, and `MapWorkbench`
+itself has no equivalent gap, because it doesn't gate its canvas on the layer
+toggles at all. #884 deleted `revealLayerForRegionRole` along with it.
+
+But the underlying defect wasn't the trace tool — it was that a layer with
+content can still be sitting on its hidden default, and `MapRegionsLayer`'s
+Browse/Run display path still gates on `siteMapLayers.zones`/`.prepared` the
+same as it always did. So a DM who traces zones in Build and then returns to
+Browse hit the exact #880 symptom again, just from a different door: nothing
+wrong with the tool, a layer nobody had ever explicitly shown. Restoring
+`revealLayerForRegionRole` verbatim would have been legacy code guarding a
+trigger that can't fire any more, so the replacement is keyed on *content*
+instead of *role*: `useUiStore().revealPopulatedSiteMapLayers(counts)`, called
+from the same `watch(layerCounts, …, { immediate: true })` in `LocationMap.vue`
+that already emits `layer-counts`, turns a layer on when its count is above
+zero and it's still off. This also covers `prepared`, which shares the exact
+same default and symptom and needed no role of its own to be caught, and
+can't regress when a third structural layer is added with the same off
+default. The store separately tracks, inside `toggleSiteMapLayer` itself,
+which layers the DM has explicitly flipped this session
+(`touchedSiteMapLayers`) — the reveal never overrides one of those, and it
+never turns a layer off; an explicit toggle-off is a choice, not a bug.
 
 **The Atlas place pane gains new apparatus** (epic #868, frames 02/03/06, gathered by `useSiteStructure.ts`). `AtlasPlacePane`'s readiness meter, its map-mode source strip, its layer bar and its levels rail all need the same facts about a site — its bindable spaces, its traced regions, its door graph, and (when it has one) the Cartographer drawing it was last published from. Gathering each of those independently is how a readiness pill and a staleness strip end up disagreeing about the same site, so `useSiteStructure(location)` is the one composable that gathers them all once.
 

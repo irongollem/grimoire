@@ -81,6 +81,32 @@ export function useEncountersByLocation(locationId: string | Ref<string>) {
   });
 }
 
+/** All the "sort into rooms" panel renders, and all it needs. Mirrors
+ *  `useNpcsByLocations`'s narrow shape exactly, `location_id` included so the
+ *  panel can tell a row already on a child from one still sitting on the
+ *  parent. */
+export type EncounterLocationSummary = Pick<Encounter, "id" | "name" | "is_finished" | "location_id">;
+const LOCATION_SUMMARY_COLUMNS = "id, name, is_finished, location_id";
+
+/** Fetch encounters across multiple location IDs (for "sort into rooms" with
+ *  a place plus its direct children). */
+export function useEncountersByLocations(locationIds: Ref<string[]>) {
+  return useQuery({
+    queryKey: computed(() => [QUERY_KEY, "by-locations", locationIds.value]),
+    queryFn: async () => {
+      if (!locationIds.value.length) return [];
+      const { data, error } = await supabase
+        .from("encounters")
+        .select(LOCATION_SUMMARY_COLUMNS)
+        .in("location_id", locationIds.value)
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data as EncounterLocationSummary[];
+    },
+    enabled: () => locationIds.value.length > 0,
+  });
+}
+
 export function useEncounter(id: string | Ref<string>) {
   const resolvedId = isRef(id) ? id : { value: id };
   return useQuery({
