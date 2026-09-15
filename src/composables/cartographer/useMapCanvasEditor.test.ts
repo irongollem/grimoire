@@ -85,20 +85,17 @@ function fakeRuntime(overrides: Partial<Record<PackCategory, number>> = {}): Til
 
 /** A narrow stand-in for useCartographerStructure's return value — only the
  *  members useCartographerStructureTools actually touches (structure,
- *  selectedSpaceKey, spaceRows, selectSpaceAt, renameSpace, paintZoneAt,
- *  eraseZoneAt), same approach as useCartographerStructureTools.test.ts's
- *  own fakeStructure(). Cast through the module's own return type via
- *  `unknown` rather than `any` so the fake stays structurally honest about
- *  what it's standing in for. */
+ *  selectedSpaceKey, spaceRows, selectSpaceAt, renameSpace), same approach as
+ *  useCartographerStructureTools.test.ts's own fakeStructure(). Cast through
+ *  the module's own return type via `unknown` rather than `any` so the fake
+ *  stays structurally honest about what it's standing in for. */
 function fakeStructure(): ReturnType<typeof useCartographerStructure> {
   const stub = {
-    structure: ref({ spaces: [], ways: [], stairs: [], zones: [], links: [] }),
+    structure: ref({ spaces: [], ways: [], stairs: [], links: [] }),
     selectedSpaceKey: ref<string | null>(null),
     spaceRows: ref([]),
     selectSpaceAt: vi.fn(),
     renameSpace: vi.fn(() => false),
-    paintZoneAt: vi.fn(() => false),
-    eraseZoneAt: vi.fn(() => false),
   };
   return stub as unknown as ReturnType<typeof useCartographerStructure>;
 }

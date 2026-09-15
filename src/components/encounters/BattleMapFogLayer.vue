@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
-import type { CellKey } from "@/lib/battlemap/fogMask";
+import { featherEdges, featherRect, type CellKey } from "@/lib/battlemap/fogMask";
 
 const {
   hostW,
@@ -44,7 +44,12 @@ function render() {
   if (cellPx <= 0 || hostW <= 0 || hostH <= 0) return;
 
   // Fill the entire viewport with fog, then punch holes for revealed cells.
-  ctx.fillStyle = opaque ? "rgba(0, 0, 0, 1)" : "rgba(20, 22, 30, 0.55)";
+  // A hidden cell stays fully opaque here, edge to edge — no exception is
+  // ever made near a border (the maintainer's ruling: "a blocked cell
+  // should be fully black").
+  const baseColor = opaque ? "0, 0, 0" : "20, 22, 30";
+  const baseAlpha = opaque ? 1 : 0.55;
+  ctx.fillStyle = `rgba(${baseColor}, ${baseAlpha})`;
   ctx.fillRect(0, 0, hostW, hostH);
 
   if (mask.size === 0) return;
@@ -61,6 +66,22 @@ function render() {
     ctx.fillRect(px, py, cellPx, cellPx);
   }
   ctx.globalCompositeOperation = "source-over";
+
+  // Feather: darken a thin band on the REVEALED side of every edge that
+  // borders a hidden cell, fading to nothing half a cell in — see
+  // `fogMask.ts`'s `featherEdges`/`featherRect` for the ruling this
+  // implements. Drawn after the punch-holes above, so it re-darkens only the
+  // sliver nearest the border rather than any hidden cell (those were never
+  // punched, so they're untouched by this pass entirely).
+  for (const edge of featherEdges(mask)) {
+    const rect = featherRect(edge, cellPx, originX, originY);
+    if (rect.x + rect.w < 0 || rect.y + rect.h < 0 || rect.x > hostW || rect.y > hostH) continue;
+    const gradient = ctx.createLinearGradient(rect.gradient.x0, rect.gradient.y0, rect.gradient.x1, rect.gradient.y1);
+    gradient.addColorStop(0, `rgba(${baseColor}, ${baseAlpha})`);
+    gradient.addColorStop(1, `rgba(${baseColor}, 0)`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  }
 }
 
 onMounted(render);

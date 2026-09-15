@@ -31,11 +31,11 @@ const { exploredRooms, parsePlayerSitePlan, usePlayerVisibleSiteState, wayCount 
   "./usePlayerVisibleSiteState"
 );
 
-function mountWidget(siteId: string, previewRef?: Ref<string | null>) {
+function mountWidget(siteId: string, previewRef?: Ref<string | null>, enabledRef?: Ref<boolean>) {
   mount(
     defineComponent({
       setup() {
-        usePlayerVisibleSiteState(ref(siteId), previewRef);
+        usePlayerVisibleSiteState(ref(siteId), previewRef, enabledRef);
         return () => h("div");
       },
     }),
@@ -93,6 +93,28 @@ describe("usePlayerVisibleSiteState", () => {
     expect(rpc).toHaveBeenCalledWith("get_player_visible_site_state", {
       p_site_location_id: "site-1",
       p_preview_party_member_id: null,
+    });
+  });
+
+  // #884, wave 4, S12: `SiteMapLayersPanel`'s "preview as players" toggle
+  // gates the query on an `enabled` ref until a DM has actually chosen an
+  // audience — every other caller omits it and is unaffected (default true).
+  it("does not query at all while an explicit enabled ref is false", async () => {
+    mountWidget("site-1", ref("member-1"), ref(false));
+    await flushPromises();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("queries once the enabled ref flips true", async () => {
+    const enabled = ref(false);
+    mountWidget("site-1", ref("member-1"), enabled);
+    await flushPromises();
+    expect(rpc).not.toHaveBeenCalled();
+    enabled.value = true;
+    await flushPromises();
+    expect(rpc).toHaveBeenCalledWith("get_player_visible_site_state", {
+      p_site_location_id: "site-1",
+      p_preview_party_member_id: "member-1",
     });
   });
 });

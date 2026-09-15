@@ -16,7 +16,6 @@
 
 import { computed, ref, watch } from "vue";
 import { useQueryClient } from "@tanstack/vue-query";
-import { useRoute, useRouter } from "vue-router";
 import { bakeMap, computeBakedDimensions } from "@/cartographer/bake";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
@@ -119,8 +118,6 @@ export function useMapPublish(opts: {
   glyphs: () => Record<CellKey, PackCategory>;
   structure: () => DerivedStructure;
 }) {
-  const route = useRoute();
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const open = ref(false);
@@ -147,23 +144,11 @@ export function useMapPublish(opts: {
       .map((l) => ({ id: l.id, name: l.name })),
   );
 
-  // Preselect from `?publishTo=` once the map has loaded (consumed once —
-  // the query is stripped straight back out so a later remount doesn't
-  // reopen the modal), else the first place this map already publishes to.
-  let consumedPublishToQuery = false;
+  // Preselect the first place this map already publishes to, once loaded.
   watch(
-    () => [mapId.value, route.query.publishTo, publishedSitesData.value] as const,
-    ([id, publishTo, published]) => {
+    () => [mapId.value, publishedSitesData.value] as const,
+    ([id, published]) => {
       if (!id) return;
-      if (typeof publishTo === "string" && publishTo && !consumedPublishToQuery) {
-        consumedPublishToQuery = true;
-        targetSiteId.value = publishTo;
-        open.value = true;
-        const rest = { ...route.query };
-        delete rest.publishTo;
-        void router.replace({ query: rest });
-        return;
-      }
       if (!targetSiteId.value && published && published.length > 0) {
         targetSiteId.value = published[0]!.id;
       }
@@ -331,32 +316,7 @@ export function useMapPublish(opts: {
         }
       }
 
-      // (c) Zones — same create/update shape, tagged `region_role: "zone"`.
-      for (const change of currentPlan.zones) {
-        if (change.kind === "create") {
-          await createRegion.mutateAsync({
-            site_location_id: targetSiteId.value,
-            region_role: "zone",
-            zone_kind: change.zone.kind,
-            label: change.zone.label,
-            cells: change.zone.cells,
-            cell_signature: change.zone.signature,
-            derived_from: "floodfill",
-          });
-        } else if (change.kind === "update" && change.region) {
-          await updateRegion.mutateAsync({
-            id: change.region.id,
-            update: {
-              cells: change.zone.cells,
-              cell_signature: change.zone.signature,
-              zone_kind: change.zone.kind,
-              label: change.zone.label,
-            },
-          });
-        }
-      }
-
-      // (d) Ways — doors, arches and newly-resolved stairs. Held and skipped
+      // (c) Ways — doors, arches and newly-resolved stairs. Held and skipped
       // rows, and stairs still unresolved, write nothing.
       for (const change of currentPlan.ways) {
         if (change.kind === "create") {
@@ -382,7 +342,7 @@ export function useMapPublish(opts: {
         }
       }
 
-      // (e) Placements — new trap/feature links, and re-anchors to whichever
+      // (d) Placements — new trap/feature links, and re-anchors to whichever
       // room now holds their cell.
       for (const change of currentPlan.placements) {
         if (change.kind === "create") {

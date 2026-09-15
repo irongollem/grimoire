@@ -19,7 +19,7 @@ import { cellKey, parseCellKey } from "@/types/dungeonMap.types";
 import type { SourceEdgeKey } from "@/types/locationDoor.types";
 import { canonicalCells, cellSignature } from "./cellSignature";
 import { canonicaliseEdge, type Side } from "./edges";
-import type { DerivedLink, DerivedSpace, DerivedStair, DerivedStructure, DerivedWay, DerivedZone } from "./structure.types";
+import type { DerivedLink, DerivedSpace, DerivedStair, DerivedStructure, DerivedWay } from "./structure.types";
 
 // ── Spaces ───────────────────────────────────────────────────────────────
 
@@ -189,31 +189,6 @@ export function deriveStairs(layers: DungeonMapLayers, spaces: readonly DerivedS
   });
 }
 
-// ── Zones ────────────────────────────────────────────────────────────────
-
-export function deriveZones(layers: DungeonMapLayers): DerivedZone[] {
-  const zoneLayer = layers.zone;
-  if (!zoneLayer) return [];
-
-  const byZoneId = new Map<string, CellKey[]>();
-  for (const key of Object.keys(zoneLayer) as CellKey[]) {
-    const zoneId = zoneLayer[key].zone_id;
-    const cells = byZoneId.get(zoneId);
-    if (cells) cells.push(key);
-    else byZoneId.set(zoneId, [key]);
-  }
-
-  const zones: DerivedZone[] = [];
-  for (const [zoneId, rawCells] of byZoneId) {
-    const cells = canonicalCells(rawCells);
-    // kind/label are repeated per cell by contract — any cell answers.
-    const first = zoneLayer[cells[0]];
-    zones.push({ zoneId, kind: first.kind, label: first.label, cells, signature: cellSignature(cells) });
-  }
-
-  return zones.sort((a, b) => (a.zoneId < b.zoneId ? -1 : a.zoneId > b.zoneId ? 1 : 0));
-}
-
 // ── Links ────────────────────────────────────────────────────────────────
 
 function hasMetadata(m: CellMetadata): boolean {
@@ -242,9 +217,8 @@ export function deriveStructure(map: Pick<DungeonMap, "layers" | "metadata">): D
   const spaces = deriveSpaces(map.layers);
   const ways = deriveWays(map.layers, spaces);
   const stairs = deriveStairs(map.layers, spaces);
-  const zones = deriveZones(map.layers);
   const links = deriveLinks(map.metadata, spaces);
-  return { spaces, ways, stairs, zones, links };
+  return { spaces, ways, stairs, links };
 }
 
 // ── Delta, for the editor's status line ─────────────────────────────────

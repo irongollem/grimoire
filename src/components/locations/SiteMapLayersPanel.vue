@@ -1,8 +1,44 @@
 <template>
   <div class="flex flex-col gap-1.5 rounded-md border border-border bg-card/60 px-3 py-2">
-    <span class="flex items-center gap-1.5 text-label-lg font-semibold text-muted-foreground">
-      <IconLayers class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />Layers
-    </span>
+    <div class="flex items-center justify-between gap-2">
+      <span class="flex items-center gap-1.5 text-label-lg font-semibold text-muted-foreground">
+        <IconLayers class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />Layers
+      </span>
+      <!-- "What the players see" (#884, wave 4, S12) — the DM checks what a
+           shared plan gives away before the session, without changing any
+           data: the player's own composed view (fog opaque, structure as
+           `get_player_visible_site_state` would actually return it). -->
+      <AppButton
+        variant="ghost"
+        size="inline-xs"
+        :icon="IconReveal"
+        :label="previewOpen ? 'Hide player preview' : 'Preview as players'"
+        :active="previewOpen"
+        @click="previewOpen = !previewOpen"
+      />
+    </div>
+
+    <div v-if="previewOpen" class="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-2.5">
+      <template v-if="!location.is_map_shared">
+        <p class="text-caption italic text-muted-foreground">This site isn't shared with players yet — there is nothing for a preview to show.</p>
+      </template>
+      <template v-else>
+        <label class="flex flex-col gap-1 text-caption font-semibold text-foreground">
+          Audience
+          <AppSelect v-model="previewAudienceId" aria-label="Preview audience">
+            <option value="">Choose a shared character…</option>
+            <option v-for="member in previewAudienceOptions" :key="member.id" :value="member.id">{{ member.name }}</option>
+          </AppSelect>
+        </label>
+        <p v-if="!previewAudienceOptions.length" class="text-caption text-tone-caution">This site isn't shared with a party character yet.</p>
+        <div v-else-if="!previewAudienceId" class="rounded-md border border-dashed border-border p-3 text-center text-caption text-muted-foreground">
+          Choose an audience to load the player-safe plan.
+        </div>
+        <LoadingSpinner v-else-if="previewQuery.isLoading.value" class="mx-auto my-4" />
+        <p v-else-if="previewQuery.error.value" role="alert" class="text-caption text-destructive">The player-safe plan could not be loaded.</p>
+        <PlayerSitePlan v-else-if="previewQuery.data.value" :plan="previewQuery.data.value" :opaque="true" class="max-w-sm" />
+      </template>
+    </div>
 
     <div class="flex flex-col divide-y divide-border/40">
       <!-- Picture — locations.map_url + grid_calibration. Bottom of the stack. -->
@@ -85,7 +121,7 @@
             <AppButton variant="ghost" size="inline-xs" label="Open" @click="emit('open-drawing')" />
             <template v-if="staleness">
               <span class="text-2xs text-muted-foreground/40">·</span>
-              <AppButton variant="ghost" size="inline-xs" :label="reviewLabel" :to="reviewUrl" />
+              <AppButton variant="ghost" size="inline-xs" :label="reviewLabel" @click="emit('review-changes')" />
             </template>
           </div>
         </template>
@@ -181,26 +217,33 @@
  * when there is no image beneath them). See `lib/locations/mapStack.ts` for
  * the stack itself — this panel is the one place that reads AND writes it.
  *
- * The Drawing row's primary action (`Open` on an existing drawing, `Start
- * drawing` on an empty one) is emitted rather than routed here: a later story
- * mounts the Cartographer inline, and only the caller will know where. Both
- * current callers answer it with `useOpenSiteDrawing` — see that composable
- * for the open-vs-create branch. `Review N changes`, by contrast, is a fully
- * determined URL the moment a drawing exists (`/cartographer/:id?publishTo=`)
- * — nothing for the caller to decide — so it routes directly, here.
+ * The Drawing row's actions are all emitted rather than routed here (#884
+ * S11: the Cartographer is mounted inline now, right below this panel, so
+ * there is nothing left to route to). `open-drawing` — `Open` on an existing
+ * drawing, `Start drawing` on an empty one — is answered by both current
+ * callers with `useOpenSiteDrawing`, which sets the site's own drawing in
+ * place rather than navigating away; see that composable. `review-changes`
+ * — `Review N changes` — tells the host to open the embedded workbench's own
+ * Publish modal already pointed at this site, replacing the old
+ * `/cartographer/:id?publishTo=` round trip.
  */
 import { computed, ref } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import AppSelect from "@/components/common/AppSelect.vue";
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
+import PlayerSitePlan from "@/components/player/PlayerSitePlan.vue";
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
+import { useParty } from "@/composables/party/useParty";
 import {
   useUpdateLocation,
   useUpdateLocationGridCalibration,
   useUpdateLocationPicture,
 } from "@/composables/locations/useLocations";
-import { IconGrid, IconImage, IconLayers, IconPencilLine } from "@/lib/icons";
+import { usePlayerVisibleSiteState } from "@/composables/locations/usePlayerVisibleSiteState";
+import { IconGrid, IconImage, IconLayers, IconPencilLine, IconReveal } from "@/lib/icons";
 import { buildMapStack } from "@/lib/locations/mapStack";
 import type { PublishStaleness } from "@/lib/locations/siteReadiness";
 import type { DungeonMap } from "@/types/dungeonMap.types";
@@ -218,6 +261,8 @@ const { location, map, staleness, counts } = defineProps<{
     | "plan_size"
     | "source_map_id"
     | "map_published_rev"
+    | "is_map_shared"
+    | "player_visible_to"
   >;
   /** The Cartographer drawing named by `location.source_map_id`. `null` while
    *  it loads or when there is none; `undefined` is not a state this panel
@@ -232,9 +277,22 @@ const { location, map, staleness, counts } = defineProps<{
   counts: { spaces: number; ways: number; zones: number };
 }>();
 
-const emit = defineEmits<{ "open-drawing": [] }>();
+const emit = defineEmits<{ "open-drawing": []; "review-changes": [] }>();
 
 const stack = computed(() => buildMapStack(location));
+
+// ── "Preview as players" (#884, wave 4, S12) — see the template comment
+//    above. The query only fires once a preview is open AND an audience is
+//    chosen (`usePlayerVisibleSiteState`'s `enabled` gate) — there is no
+//    sense asking the RPC before either is true, and the DM is never
+//    themselves a valid audience for it. ─────────────────────────────────
+const previewOpen = ref(false);
+const previewAudienceId = ref("");
+const { data: party } = useParty();
+const previewAudienceOptions = computed(() => (party.value ?? []).filter((member) => location.player_visible_to.includes(member.id)));
+const previewMemberIdRef = computed(() => previewAudienceId.value || null);
+const previewEnabled = computed(() => previewOpen.value && !!previewAudienceId.value);
+const previewQuery = usePlayerVisibleSiteState(computed(() => location.id), previewMemberIdRef, previewEnabled);
 
 // ── Picture ───────────────────────────────────────────────────────────────
 const pictureFileInput = ref<HTMLInputElement | null>(null);
@@ -286,7 +344,6 @@ async function onCalibrationSave(calibration: GridCalibration) {
 }
 
 // ── Drawing ───────────────────────────────────────────────────────────────
-const reviewUrl = computed(() => `/cartographer/${location.source_map_id}?publishTo=${location.id}`);
 const reviewLabel = computed(() => {
   if (!staleness) return "";
   const n = staleness.behind;

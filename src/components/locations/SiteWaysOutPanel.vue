@@ -26,15 +26,6 @@
 
           <template v-if="!verticalOnly && building">
             <AppButton
-              v-if="row.isUnplaced && canPlace && building"
-              variant="ghost"
-              size="inline-xs"
-              label="Place it"
-              tooltip="Arm the door tool for this door — click an edge on the plan to position it"
-              class="shrink-0"
-              @click="emit('place-door', row.door.id)"
-            />
-            <AppButton
               variant="ghost"
               size="icon-xs"
               :icon="expandedIds.has(row.door.id) ? IconChevronUp : IconChevronDown"
@@ -237,7 +228,7 @@ export interface WaysOutSpace {
 // key/route off it) but nothing in this story's rendering needs it — every
 // door this panel reads is already scoped by `spaces`, which is exhaustive
 // for the site it was fetched from.
-const { spaces, verticalOnly = false, hideHeader = false, building = false, canPlace = false } = defineProps<{
+const { spaces, verticalOnly = false, hideHeader = false, building = false } = defineProps<{
   siteId: string;
   spaces: WaysOutSpace[];
   /** Renders the frame-06 "Vertical ways out" variant: filtered, read-only,
@@ -250,12 +241,6 @@ const { spaces, verticalOnly = false, hideHeader = false, building = false, canP
    *  The row's own badges (secret/locked/kind) already read as facts, so
    *  Browse keeps showing them unconditionally. */
   building?: boolean;
-  /** Whether a plan the DM could click is on screen beside this list (#884).
-   *  "Place it" arms the door tool on that plan, so a caller that renders the
-   *  list without one — the Contents-mode sections — passes false rather than
-   *  offering a button with nothing to aim at. The row still says the door is
-   *  not on the map; only the action is withheld. */
-  canPlace?: boolean;
 }>();
 
 const toast = useToast();
@@ -297,13 +282,6 @@ const rows = computed<WaysOutRow[]>(() =>
     }))
     .sort((a, b) => a.title.localeCompare(b.title)),
 );
-
-/** #884, Build step 6 — arms the door tool for one specific unplaced door.
- *  This panel doesn't hold the plan canvas itself (it mounts alongside
- *  `LocationMap.vue` via a caller's own layout, not as its child), so it can
- *  only ask for that; the caller wires this to `LocationMap`'s exposed
- *  `placeDoor(doorId)`. */
-const emit = defineEmits<{ "place-door": [doorId: string] }>();
 
 // ── Expand / collapse ────────────────────────────────────────────────────────────
 const expandedIds = ref(new Set<string>());

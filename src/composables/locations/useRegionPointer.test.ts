@@ -5,6 +5,13 @@
 // to the canvas, so the missing component instance (and the dev warning
 // Vue prints for the no-op `onMounted` outside one) is irrelevant: nothing
 // here depends on that listener ever attaching.
+//
+// This module now covers tracing (paint/pen/template) plus the composed
+// click routing's own guard against a click resolving as a fresh selection
+// mid-trace. Plain hover/click-routing coverage — the read/navigate
+// contract this composes — moved to `useRegionNavPointer.test.ts` when
+// that half split out (#884 loose-end cleanup); the "tap vs. drag" cases
+// below stay as a regression that the composition itself is wired up.
 import { describe, it, expect, vi } from "vitest";
 import { useRegionPointer, type UseRegionPointerOptions } from "./useRegionPointer";
 import type { CellKey } from "@/types/dungeonMap.types";
@@ -200,6 +207,27 @@ describe("pen tool", () => {
 
     pointer.onKeyDown(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(pointer.draftRing.value).toEqual([]);
+  });
+});
+
+describe("composition — click while tracing", () => {
+  it("adding a draft node never also resolves as a fresh selection", () => {
+    // A pen click that misses every existing node just calls `pen.addPoint`
+    // locally — none of strokeCells/penDrag/templateDrag get set, so the
+    // pointerup would otherwise fall through to a plain click. The
+    // `hasActiveRegionId` guard in `handleClick` is what stops that from
+    // also routing through `useRegionNavPointer`'s click logic.
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: null });
+
+    pointer.onPointerDown(down(0, 0));
+    window.dispatchEvent(up(0, 0));
+
+    expect(pointer.draftRing.value).toEqual([[0, 0]]);
+    expect(options.regionAt).not.toHaveBeenCalled();
+    expect(options.onSelect).not.toHaveBeenCalled();
+    expect(options.onNavigate).not.toHaveBeenCalled();
   });
 });
 

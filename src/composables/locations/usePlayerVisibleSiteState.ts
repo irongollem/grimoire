@@ -126,10 +126,17 @@ async function fetchPlayerSitePlan(
  * would see the DM's own `campaign_members` row, whose `party_member_id` is
  * null and so matches nothing in `player_visible_to` — an empty plan for the
  * one person who needs to check what the plan shows.
+ *
+ * `enabled` (#884, wave 4, S12) additionally gates the query — for a
+ * caller like `SiteMapLayersPanel`'s "preview as players" toggle, where a
+ * chosen audience is required before the RPC's preview branch has anything
+ * to authorize against. Omit it (every existing caller) and the query runs
+ * whenever `siteLocationId` is set, unchanged.
  */
 export function usePlayerVisibleSiteState(
   siteLocationId: string | Ref<string>,
   previewPartyMemberId?: Ref<string | null>,
+  enabled?: Ref<boolean>,
 ) {
   const idRef = isRef(siteLocationId) ? siteLocationId : ref(siteLocationId);
   const ui = useUiStore();
@@ -137,7 +144,7 @@ export function usePlayerVisibleSiteState(
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, idRef.value, previewId.value]),
     queryFn: () => fetchPlayerSitePlan(idRef.value, previewId.value),
-    enabled: () => !!idRef.value,
+    enabled: () => !!idRef.value && (enabled?.value ?? true),
   });
 }
 

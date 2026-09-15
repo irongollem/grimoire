@@ -174,14 +174,14 @@
 <script setup lang="ts">
 /**
  * The zone-CRUD half of the site map apparatus (#868, frame 07 "Zones") —
- * `SiteMapRegionList`'s sibling, mounted beside it by `LocationMap.vue`
- * (browse mode only). Same split that component already draws: this owns
- * creating, labelling, editing and deleting zones; `MapRegionsLayer.vue`
- * keeps everything about painting cells into whichever one is active.
+ * `SiteMapRegionList`'s sibling, mounted beside it. As of #884 S11, mounted
+ * twice: read-only by `LocationMap.vue` in Browse (`building` false), and
+ * with full CRUD by `MapWorkbench`'s embedded Plan branch in Build — see
+ * `SiteMapRegionList`'s own docblock for why the tracing gesture itself
+ * lives entirely in the workbench now, not here.
  *
- * `activeRegionId` is lifted to the parent for the same reason as in
- * `SiteMapRegionList` — it also drives the map canvas's highlight and the
- * "Tracing X" banner above it, neither of which this component renders.
+ * `activeRegionId` is lifted to the caller for the same reason as in
+ * `SiteMapRegionList`.
  */
 import { computed, ref, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";

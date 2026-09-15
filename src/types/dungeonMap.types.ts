@@ -45,24 +45,11 @@ export interface CellMetadata {
   monster_spawn_ids?: string[];
 }
 
-/** A cell painted by the Cartographer's Zone tool (#868). Cells sharing a
- *  `zone_id` are one zone; kind and label are repeated per cell so the layer
- *  keeps the per-cell shape every other layer has, and the publish groups
- *  them. Stored inside `layers` (jsonb) — no column. */
-export interface ZoneCell {
-  zone_id: string;
-  kind: "terrain" | "hazard" | "light" | "trigger" | "marker";
-  label: string | null;
-}
-
 export interface DungeonMapLayers {
   floor: Record<CellKey, FloorCell>;
   solidBlock: Record<CellKey, SolidCell>;
   object: Record<CellKey, ObjectCell>;
   annotation: Record<CellKey, AnnotationCell>;
-  /** Absent on maps saved before #868; `emptyLayers()` and every reader treat
-   *  a missing key as `{}`. */
-  zone?: Record<CellKey, ZoneCell>;
 }
 
 export interface DungeonMap {
@@ -89,7 +76,7 @@ export type DungeonMapInsert = Omit<DungeonMap, "id" | "user_id" | "created_at" 
 export type DungeonMapUpdate = Partial<DungeonMapInsert>;
 
 export function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, object: {}, annotation: {}, zone: {} };
+  return { floor: {}, solidBlock: {}, object: {}, annotation: {} };
 }
 
 export function cellKey(x: number, y: number): CellKey {

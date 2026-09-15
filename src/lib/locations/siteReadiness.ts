@@ -130,7 +130,7 @@ export function structureFromSite(
       fromKey: "",
       toKey: "",
     }));
-  return { spaces, ways, stairs: [], zones: [], links: [] };
+  return { spaces, ways, stairs: [], links: [] };
 }
 
 export interface PublishStaleness {

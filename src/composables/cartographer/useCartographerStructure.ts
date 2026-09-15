@@ -3,9 +3,8 @@
 // `structure.ts` derives a `DerivedStructure` from a `DungeonMap` — pure and
 // framework-free. This composable is the seam between that pure model and
 // the editor: it holds the reactive derivation, the rail panel's read
-// model (`spaceRows`, `selectedSpaceInspector`), the Zone tool's ephemeral
-// paint state, and the few mutations (`renameSpace`, `paintZoneAt`,
-// `eraseZoneAt`) that write back into `layers`/`metadata`. Everything that
+// model (`spaceRows`, `selectedSpaceInspector`), and the one mutation
+// (`renameSpace`) that writes back into `layers`/`metadata`. Everything that
 // doesn't need a Vue ref lives in a plain exported function below so it can
 // be tested without mounting anything — see `useCartographerStructure.test.ts`.
 //
@@ -22,7 +21,6 @@ import {
   type DungeonMap,
   type DungeonMapLayers,
 } from "@/types/dungeonMap.types";
-import { ZONE_KIND_LABELS, type ZoneKind } from "@/types/locationMapRegion.types";
 import { deriveStructure, spaceContaining, structureDelta } from "@/cartographer/structure";
 import type { DerivedLink, DerivedSpace, DerivedStructure } from "@/cartographer/structure.types";
 import { useEncounters } from "@/composables/encounters/useEncounters";
@@ -41,22 +39,18 @@ export interface SpaceRow {
   hasName: boolean;
   provenance: "selected" | "annotation" | "unnamed";
   cellCount: number;
-  /** Zones with at least one cell inside this space. */
-  zoneCount: number;
   isSelected: boolean;
 }
 
 export function buildSpaceRows(structure: DerivedStructure, selectedSpaceKey: string | null): SpaceRow[] {
   return structure.spaces.map((space, i) => {
     const isSelected = space.key === selectedSpaceKey;
-    const zoneCount = structure.zones.filter((z) => z.cells.some((c) => space.cells.includes(c))).length;
     return {
       key: space.key,
       displayName: space.name ?? `Region ${i + 1}`,
       hasName: space.name !== null,
       provenance: isSelected ? "selected" : space.name !== null ? "annotation" : "unnamed",
       cellCount: space.cells.length,
-      zoneCount,
       isSelected,
     };
   });
@@ -152,33 +146,6 @@ function labelFor(kind: string, id: string, names: Map<string, string>): string 
   return name ? `${kind} '${name}'` : `${kind} linked`;
 }
 
-export function paintZoneCell(
-  layers: DungeonMapLayers,
-  x: number,
-  y: number,
-  zoneId: string,
-  kind: ZoneKind,
-  label: string | null,
-): boolean {
-  const zone = layers.zone ?? (layers.zone = {});
-  const k = cellKey(x, y);
-  const existing = zone[k];
-  if (existing?.zone_id === zoneId && existing?.kind === kind && existing?.label === label) return false;
-  zone[k] = { zone_id: zoneId, kind, label };
-  return true;
-}
-
-export function eraseZoneCell(layers: DungeonMapLayers, x: number, y: number): boolean {
-  const k = cellKey(x, y);
-  if (!layers.zone?.[k]) return false;
-  const next = { ...layers.zone };
-  delete next[k];
-  layers.zone = next;
-  return true;
-}
-
-export { ZONE_KIND_LABELS };
-
 // ── The composable ──────────────────────────────────────────────────────────
 
 export function useCartographerStructure(
@@ -211,7 +178,6 @@ export function useCartographerStructure(
     const space = selectedSpace.value;
     if (!space) return null;
     const sourceCell = findNameSourceCell(space, layers.value.annotation);
-    const zonesInside = structure.value.zones.filter((z) => z.cells.some((c) => space.cells.includes(c)));
     return {
       key: space.key,
       name: space.name,
@@ -219,11 +185,6 @@ export function useCartographerStructure(
       sourceCell,
       cellCount: space.cells.length,
       waysSummary: buildWaysSummary(space, structure.value),
-      zones: zonesInside.map((z) => ({
-        kind: z.kind,
-        kindLabel: ZONE_KIND_LABELS[z.kind],
-        label: z.label,
-      })),
       linked: buildLinkedSummary(structure.value.links, space.key, linkResolvers.value),
     };
   });
@@ -260,32 +221,6 @@ export function useCartographerStructure(
     return { ...delta, total: delta.changedSpaces + delta.newSpaces + delta.goneSpaces };
   });
 
-  // ── Zone tool state ────────────────────────────────────────────────────
-  const zoneKind = ref<ZoneKind>("terrain");
-  const zoneLabel = ref("");
-  const zoneMode = ref<"new" | "continue">("new");
-  const currentZoneId = ref<string | null>(null);
-
-  function startNewZone(): void {
-    zoneMode.value = "new";
-  }
-
-  function ensureZoneId(): string {
-    if (zoneMode.value === "new" || !currentZoneId.value) {
-      currentZoneId.value = crypto.randomUUID();
-      zoneMode.value = "continue";
-    }
-    return currentZoneId.value;
-  }
-
-  function paintZoneAt(x: number, y: number): boolean {
-    return paintZoneCell(layers.value, x, y, ensureZoneId(), zoneKind.value, zoneLabel.value.trim() || null);
-  }
-
-  function eraseZoneAt(x: number, y: number): boolean {
-    return eraseZoneCell(layers.value, x, y);
-  }
-
   return {
     structure,
     selectedSpaceKey,
@@ -296,11 +231,5 @@ export function useCartographerStructure(
     redetect,
     renameSpace,
     changedSinceLastPublish,
-    zoneKind,
-    zoneLabel,
-    zoneMode,
-    startNewZone,
-    paintZoneAt,
-    eraseZoneAt,
   };
 }

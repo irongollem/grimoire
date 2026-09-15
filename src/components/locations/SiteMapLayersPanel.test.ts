@@ -12,6 +12,11 @@ const mocks = vi.hoisted(() => ({
   upload: vi.fn(),
   remove: vi.fn().mockResolvedValue(undefined),
   confirm: vi.fn().mockResolvedValue(true),
+  party: [] as Array<{ id: string; name: string }>,
+  previewData: null as unknown,
+  previewLoading: false,
+  previewError: null as unknown,
+  previewEnabledRef: null as unknown,
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -23,6 +28,17 @@ vi.mock("@/composables/useImageUpload", () => ({
   useImageUpload: () => ({ isUploading: ref(false), upload: mocks.upload, remove: mocks.remove }),
 }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
+vi.mock("@/composables/party/useParty", () => ({ useParty: () => ({ data: ref(mocks.party) }) }));
+vi.mock("@/composables/locations/usePlayerVisibleSiteState", () => ({
+  usePlayerVisibleSiteState: (_siteId: unknown, _previewRef: unknown, enabledRef: unknown) => {
+    mocks.previewEnabledRef = enabledRef;
+    return {
+      data: { value: mocks.previewData },
+      isLoading: { value: mocks.previewLoading },
+      error: { value: mocks.previewError },
+    };
+  },
+}));
 
 type SiteMapLayersLocation = Pick<
   Location,
@@ -35,6 +51,8 @@ type SiteMapLayersLocation = Pick<
   | "plan_size"
   | "source_map_id"
   | "map_published_rev"
+  | "is_map_shared"
+  | "player_visible_to"
 >;
 
 function site(overrides: Partial<SiteMapLayersLocation> = {}): SiteMapLayersLocation {
@@ -48,11 +66,13 @@ function site(overrides: Partial<SiteMapLayersLocation> = {}): SiteMapLayersLoca
     plan_size: null,
     source_map_id: null,
     map_published_rev: null,
+    is_map_shared: false,
+    player_visible_to: [],
     ...overrides,
   };
 }
 
-const stubs = { GridCalibrationDialog: true, RouterLink: true };
+const stubs = { GridCalibrationDialog: true, RouterLink: true, PlayerSitePlan: true };
 
 function mountPanel(props: Partial<InstanceType<typeof SiteMapLayersPanel>["$props"]> = {}) {
   return mount(SiteMapLayersPanel, {
@@ -82,6 +102,11 @@ describe("SiteMapLayersPanel", () => {
     mocks.remove.mockClear();
     mocks.confirm.mockClear();
     mocks.confirm.mockResolvedValue(true);
+    mocks.party = [];
+    mocks.previewData = null;
+    mocks.previewLoading = false;
+    mocks.previewError = null;
+    mocks.previewEnabledRef = null;
   });
 
   describe("Picture row", () => {
@@ -161,7 +186,7 @@ describe("SiteMapLayersPanel", () => {
       expect(wrapper.text()).not.toContain("Review");
     });
 
-    it("offers Review N changes when stale, alongside Open", () => {
+    it("offers Review N changes when stale, alongside Open, and emits review-changes", async () => {
       const staleness: PublishStaleness = {
         behind: 3,
         delta: { changedSpaces: 0, newSpaces: 1, goneSpaces: 0, newWays: 2, goneWays: 0 },
@@ -172,8 +197,8 @@ describe("SiteMapLayersPanel", () => {
         staleness,
       });
       expect(wrapper.text()).toContain("plan at rev 12");
-      const review = findButton(wrapper, "Review 3 changes");
-      expect(review.props("to")).toBe("/cartographer/map-1?publishTo=site-1");
+      await findButton(wrapper, "Review 3 changes").trigger("click");
+      expect(wrapper.emitted("review-changes")).toHaveLength(1);
     });
 
     it("emits open-drawing from an existing drawing's Open too", async () => {
@@ -217,6 +242,47 @@ describe("SiteMapLayersPanel", () => {
       const wrapper = mountPanel({ location: site({ plan_size: { cols: 10, rows: 10 } }) });
       expect(wrapper.text()).not.toContain("Start a blank grid");
       expect(wrapper.text()).toContain("0 spaces");
+    });
+  });
+
+  describe("Preview as players", () => {
+    it("stays closed, and queries nothing, until the toggle is clicked", () => {
+      mountPanel();
+      expect((mocks.previewEnabledRef as { value: boolean } | null)?.value).toBe(false);
+    });
+
+    it("says there is nothing to preview when the site isn't shared", async () => {
+      const wrapper = mountPanel({ location: site({ is_map_shared: false }) });
+      await findButton(wrapper, "Preview as players").trigger("click");
+      expect(wrapper.text()).toContain("isn't shared with players yet");
+    });
+
+    it("lists only party members this site is shared with", async () => {
+      mocks.party = [{ id: "m1", name: "Mira" }, { id: "m2", name: "Hidden" }];
+      const wrapper = mountPanel({ location: site({ is_map_shared: true, player_visible_to: ["m1"] }) });
+      await findButton(wrapper, "Preview as players").trigger("click");
+      expect(wrapper.text()).toContain("Mira");
+      expect(wrapper.text()).not.toContain("Hidden");
+    });
+
+    it("does not enable the query until an audience is chosen", async () => {
+      mocks.party = [{ id: "m1", name: "Mira" }];
+      const wrapper = mountPanel({ location: site({ is_map_shared: true, player_visible_to: ["m1"] }) });
+      await findButton(wrapper, "Preview as players").trigger("click");
+      expect((mocks.previewEnabledRef as { value: boolean }).value).toBe(false);
+      const select = wrapper.findComponent({ name: "AppSelect" });
+      await select.setValue("m1");
+      expect((mocks.previewEnabledRef as { value: boolean }).value).toBe(true);
+    });
+
+    it("renders the player-safe plan once it loads", async () => {
+      mocks.party = [{ id: "m1", name: "Mira" }];
+      mocks.previewData = { spaces: [], glimpsed: [], ways: [], zones: [] };
+      const wrapper = mountPanel({ location: site({ is_map_shared: true, player_visible_to: ["m1"] }) });
+      await findButton(wrapper, "Preview as players").trigger("click");
+      const select = wrapper.findComponent({ name: "AppSelect" });
+      await select.setValue("m1");
+      expect(wrapper.findComponent({ name: "PlayerSitePlan" }).exists()).toBe(true);
     });
   });
 });

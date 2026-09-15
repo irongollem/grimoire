@@ -37,6 +37,29 @@ vi.mock("@/cartographer/packLoader", () => ({
   loadPack: vi.fn(() => Promise.reject(new Error("no manifest server in tests"))),
 }));
 
+// The Plan layer (#884 S7b) — `usePlanPalette` calls these for real
+// (TanStack Query/mutation composables), which need a QueryClient this
+// prop-surface smoke test never installs. Stubbed the same way every other
+// data-fetching composable above already is: this file is about the prop
+// surface, not about exercising Supabase.
+const { mutationStub } = vi.hoisted(() => ({
+  mutationStub: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(async () => ({ id: "stub-id" })), isPending: { value: false } }),
+}));
+vi.mock("@/composables/locations/useLocationMapRegions", () => ({
+  useLocationMapRegions: () => ({ data: ref([]) }),
+  useCreateLocationMapRegion: mutationStub,
+  useUpdateLocationMapRegion: mutationStub,
+  useDeleteLocationMapRegion: mutationStub,
+  dmEdit: (update: unknown) => ({ ...(update as object), derived_from: "dm" }),
+}));
+vi.mock("@/composables/locations/useLocationDoors", () => ({
+  useCreateLocationDoor: mutationStub,
+  useUpdateLocationDoor: mutationStub,
+  useDeleteLocationDoor: mutationStub,
+}));
+vi.mock("@/composables/locations/useSiteDoors", () => ({ useSiteDoors: () => ({ data: ref([]) }) }));
+vi.mock("@/composables/locations/useLocations", () => ({ useLocations: () => ({ data: ref([]) }) }));
+
 const baseMap: DungeonMap = {
   id: "map-1",
   user_id: "user-1",
@@ -53,7 +76,8 @@ const baseMap: DungeonMap = {
   updated_at: "2026-01-01T00:00:00Z",
 };
 
-const siteWithPicture: MapStackSource = {
+const siteWithPicture: MapStackSource & { id: string } = {
+  id: "site-1",
   map_url: "https://example.test/picture.webp",
   grid_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 },
   map_layer_url: null,
@@ -76,6 +100,44 @@ describe("MapWorkbench", () => {
     });
     expect(wrapper.exists()).toBe(true);
     expect(wrapper.text()).toContain("Reference");
+  });
+
+  // Edit mode additionally mounts CartographerInspectorPanel (CampaignScopeField's
+  // real Pinia/TanStack deps, same reason the file's own docblock gives for
+  // staying in view mode everywhere else) — stubbed out here since these two
+  // tests are only about the toolbox column above it, not the inspector.
+  // SiteMapRegionList/SiteMapZoneList (#884 S11, the Plan's own Spaces/Zones
+  // panels) are stubbed for the same reason: they reach for `useUiStore`
+  // (Pinia) and `useQuests`/`useQuestBeat`/`useQuestBeats` (TanStack Query),
+  // neither of which this prop-surface smoke test installs.
+  const editModeStubs = {
+    global: {
+      stubs: {
+        CartographerInspectorPanel: true,
+        CartographerStructurePanel: true,
+        SiteMapRegionList: true,
+        SiteMapZoneList: true,
+      },
+    },
+  };
+
+  it("shows no layer selector or Plan palette without a site, even in edit mode", () => {
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+    expect(wrapper.text()).not.toContain("Drawing");
+    expect(wrapper.text()).not.toContain("Claim");
+  });
+
+  it("shows the layer selector and switches to the Plan palette with a site, in edit mode", async () => {
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithPicture }, ...editModeStubs });
+    expect(wrapper.text()).toContain("Drawing");
+    expect(wrapper.text()).toContain("Plan");
+    // The Drawing's own tool palette is shown by default…
+    expect(wrapper.text()).toContain("Floor brush");
+
+    const planButton = wrapper.findAll("button").find((b) => b.text() === "Plan");
+    await planButton?.trigger("click");
+    // …and switches to the Plan's four tools once selected.
+    expect(wrapper.text()).toContain("Claim");
   });
 
   it("mounts with a null map (the unsaved-new-map case)", () => {

@@ -29,6 +29,21 @@
 
       <!-- The place — the map, in run mode, and the room stack under it. -->
       <div class="flex flex-col gap-4">
+        <div v-if="hasAnyMapLayer(location)" class="flex items-center justify-end">
+          <!-- Run mode keeps its own chrome rather than the Browse Show bar
+               (see `LocationMap.vue`'s own docstring) — this is a narrower,
+               purpose-built toggle for the fog hint below, not a second copy
+               of that bar's Spaces/Ways/Zones/Grid pills. -->
+          <AppCheckbox v-model="ui.siteMapLayers.fog" label="Fog" size="sm" />
+        </div>
+
+        <!-- The fog hint (#884 S11) — drawn straight onto the plan below,
+             not beside it: every traced room's shape stays visible,
+             explored ones lit, everything else shaded under translucent fog
+             (`MapRegionsLayer`'s own fog pass, fed by `siteFog.ts`'s
+             `.glimpsed` — "a hint, never a wall," the same treatment
+             `PlayerSitePlan.vue` draws for a player, just painted in the
+             map's own transform instead of a second, separately-scaled SVG). -->
         <LocationMap
           v-if="hasAnyMapLayer(location)"
           :stack="mapStack"
@@ -43,6 +58,8 @@
           run-mode
           :party-room-id="currentRoomId"
           :reachable-room-ids="reachable"
+          :show-fog="ui.siteMapLayers.fog"
+          :fog-glimpsed-cells="fogGlimpsedCells"
           @move-party="moveTo"
         />
 
@@ -112,6 +129,7 @@
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { RouteLocationRaw } from "vue-router";
+import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
 import LocationStateControls from "@/components/locations/LocationStateControls.vue";
 import SiteRoomList from "@/components/locations/SiteRoomList.vue";
@@ -122,6 +140,7 @@ import SiteRunRoomStack from "@/components/locations/SiteRunRoomStack.vue";
 import TriggerBeatPrompt from "@/components/locations/TriggerBeatPrompt.vue";
 import { useLocations } from "@/composables/locations/useLocations";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
+import { buildDmFogPlan } from "@/lib/locations/siteFog";
 import { bindableSpaces } from "@/lib/locations/tiers";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useLootPlacements, useQuestBeat } from "@/composables/quests/useQuestFlow";
@@ -130,6 +149,7 @@ import { useLocationStateForRooms, useDoorStateForSite } from "@/composables/loc
 import { useSetCampaignLocation } from "@/composables/campaign/useCampaigns";
 import { useBeatsStagedAt } from "@/composables/quests/useBeatsStagedAt";
 import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 import { useToast } from "@/composables/useToast";
 import { compareSiblings } from "@/lib/locations/tree";
 import { partyRoomInSite, reachableRoomIds as computeReachableRoomIds } from "@/lib/locations/siteRun";
@@ -144,6 +164,7 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const campaign = useCampaignStore();
+const ui = useUiStore();
 
 // ── Rooms, in the DM's manual order — the same comparator the Atlas and
 //    SiteRoomsPanel use, so this list matches how the DM already arranged
@@ -304,6 +325,23 @@ function moveTo(roomId: string): void {
 
 // ── Context: the site's own state at a glance ────────────────────────────────
 const { stateOf } = useLocationStateForRooms(roomIds);
+
+// ── Fog hint (#884; painted on the plan itself as of S11) — see `siteFog.ts`
+//    for why this reshapes the DM's own full room data into
+//    `buildDmFogPlan`'s explored/glimpsed split rather than withholding
+//    anything (only a player's own RPC does that). Only `.glimpsed`'s cells
+//    are read here — `MapRegionsLayer`'s fog pass shades exactly those,
+//    leaving every explored room's own fill/outline untouched underneath. ──
+const dmFogPlan = computed(() =>
+  buildDmFogPlan(
+    regions.value,
+    rooms.value,
+    (id) => stateOf(id, "explored")?.value === true,
+    (id) => stateOf(id, "cleared")?.value === true,
+    (id) => stateOf(id, "looted")?.value === true,
+  ),
+);
+const fogGlimpsedCells = computed(() => dmFogPlan.value.glimpsed.map((g) => g.cells));
 
 // ── Exit — same query-flag convention `LocationEditor`'s Cancel uses for
 //    `?edit=true`. ────────────────────────────────────────────────────────

@@ -14,19 +14,28 @@
 // rather than threaded through `options` — it's pure gesture state with no
 // host dependency, the same reason `useTemplateShape`'s singleton is read
 // here directly rather than passed in.
+//
+// This module now owns tracing only — #884 moved every trace gesture off
+// `MapRegionsLayer.vue` onto the Cartographer's Plan palette, and that
+// component's read-only click/hover needs live in `useRegionNavPointer.ts`
+// instead (it no longer satisfies this file's tracing contract with
+// no-op/lying stubs). Click routing itself isn't duplicated between the two:
+// `handleClick` below composes `useRegionNavPointer` — see its docblock —
+// and adds only the one thing tracing needs on top, a guard against a click
+// that's already mid-trace resolving as a fresh selection.
 
 import { onMounted, ref, type Ref } from "vue";
+import { useRegionPen, useTemplateShape } from "@/composables/locations/useRegionPen";
+import { useRegionNavPointer, type UseRegionNavPointerOptions } from "@/composables/locations/useRegionNavPointer";
 import {
   deleteRingVertex,
   insertRingVertex,
   isNearFirstNode,
   moveRingVertex,
-  useRegionPen,
-  useTemplateShape,
   type TemplateDragState,
-} from "@/composables/locations/useRegionPen";
+} from "@/lib/map/gestures/pen";
+import { applyBrushStroke, startBrushStroke, touchBrushStroke, type BrushStroke } from "@/lib/map/gestures/brush";
 import { nearestEdge, nearestVertex, snapPoint, templateCells, templateRing } from "@/lib/locations/polygon";
-import { toggleCell } from "@/lib/locations/siteMap";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
 
@@ -46,12 +55,7 @@ export interface LiveDrag {
   ring: GridPoint[];
 }
 
-export interface UseRegionPointerOptions {
-  /** The map cell under an event's client coordinates — the general lookup
-   *  hover and click routing use. No grid-bound filtering: a cell that
-   *  isn't actually laid across the image simply matches no region's
-   *  `cells`, which is why only painting needs `isPaintable` below. */
-  cellAt(clientX: number, clientY: number): CellKey | null;
+export interface UseRegionPointerOptions extends UseRegionNavPointerOptions {
   /** Whether a cell `cellAt` resolved is one of the whole cells the
    *  calibration actually lays across the image — painting's own
    *  addressability guard (`isCellOnImageGrid`). */
@@ -68,15 +72,6 @@ export interface UseRegionPointerOptions {
    *  never a fresh selection. */
   hasActiveRegionId(): boolean;
   tool(): "paint" | "pen" | "template";
-  mode(): "browse" | "run";
-  /** The bound *space* at a cell, for click routing. Zones are excluded on
-   *  purpose — see `MapRegionsLayer`'s own `handleClick` docstring: a click
-   *  can only ever mean something for the space underneath a zone, never
-   *  the zone itself. */
-  regionAt(cell: CellKey): LocationMapRegion | null;
-  /** The topmost region at a cell, for hover. Zones paint above spaces, so
-   *  hover follows the same stacking a DM actually sees. */
-  hoverRegionAt(cell: CellKey): LocationMapRegion | null;
   /** Fire-and-forget: write a finished paint stroke's cells. */
   commitCells(regionId: string, cells: CellKey[]): void;
   /** Write a pen-ring edit (drag/delete/insert, or a closing draft). Must
@@ -92,15 +87,6 @@ export interface UseRegionPointerOptions {
    *  stroke needs before it can start on a pen-traced region. `false` on
    *  cancel or failure (already toasted). */
   confirmConvert(region: LocationMapRegion): Promise<boolean>;
-  onSelect(regionId: string): void;
-  onNavigate(spaceId: string): void;
-  onDescend(spaceId: string): void;
-  onMoveParty(roomId: string): void;
-  isReachable(roomId: string): boolean;
-  /** Whether a bound space is itself a nested site (#818) rather than a
-   *  room — decides `onDescend` vs. `onNavigate`. */
-  isNestedSite(spaceId: string): boolean;
-  onHover(regionId: string | null): void;
 }
 
 export interface UseRegionPointerReturn {
@@ -132,12 +118,23 @@ export interface UseRegionPointerReturn {
 export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPointerReturn {
   const pen = useRegionPen();
   const templateShape = useTemplateShape();
+  // `options` already satisfies `UseRegionNavPointerOptions` structurally
+  // (this interface extends it), so this reuses that module's click routing
+  // verbatim rather than keeping a second copy. Only `nav.handleClick` is
+  // ever called below — never `nav.onPointerDown`/`onPointerMove` — so this
+  // never attaches a second set of `window` listeners or duplicates hover.
+  const nav = useRegionNavPointer(options);
 
   const strokeCells = ref<{ regionId: string; cells: CellKey[] } | null>(null) as Ref<{
     regionId: string;
     cells: CellKey[];
   } | null>;
-  let strokeMode: "paint" | "erase" | null = null;
+  /** The live paint/erase stroke (`src/lib/map/gestures/brush.ts`) — direction
+   *  locked from the first cell touched, per the merged Brush gesture (#884
+   *  S7a). `base` is the region's own cells at stroke start, so
+   *  `applyBrushStroke` can rebuild `strokeCells.value` from scratch on every
+   *  touch rather than mutating it in place. */
+  let activeBrush: { regionId: string; base: readonly CellKey[]; stroke: BrushStroke } | null = null;
 
   const liveDrag = ref<LiveDrag | null>(null) as Ref<LiveDrag | null>;
   /** Mirrors `liveDrag` but also remembers whether the ring it's dragging
@@ -184,45 +181,21 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
 
   let lastHoverRegionId: string | null = null;
 
-  function goToSpace(spaceId: string): void {
-    if (options.isNestedSite(spaceId)) options.onDescend(spaceId);
-    else options.onNavigate(spaceId);
-  }
-
   /**
    * Everything that isn't painting: selecting an unbound shape to trace,
    * navigating to a bound room's sheet, or — in run mode — moving the
-   * party.
-   *
-   * Zones are excluded from `regionAt` on purpose: they bind to nothing, so
-   * a click can only ever mean something for the space underneath one, and
-   * a DM's tap on an overlapping zone+space cell would otherwise resolve
-   * unpredictably depending on array order. Zones are only ever traced —
-   * selected for it from `SiteMapZoneList`'s Draw/Trace buttons, never from
-   * a plain tap on the map.
+   * party. The routing itself is `useRegionNavPointer`'s `handleClick`
+   * (see its docblock for the zones-excluded-from-`regionAt` rationale);
+   * the only thing added here is tracing's own guard — a click while a
+   * (possibly dangling) selection exists is still "already tracing
+   * something", never a fresh selection. Selecting a *new* shape to trace
+   * (from `SiteMapZoneList`'s Draw/Trace buttons) never goes through a tap
+   * on the map at all, which is why this guard is safe to apply whenever an
+   * active region id is set.
    */
   function handleClick(e: PointerEvent): void {
     if (options.mode() === "browse" && options.hasActiveRegionId()) return;
-    const key = options.cellAt(e.clientX, e.clientY);
-    if (!key) return;
-    const found = options.regionAt(key);
-    if (!found) return;
-
-    if (!found.space_location_id) {
-      if (options.mode() === "browse") options.onSelect(found.id);
-      return;
-    }
-
-    if (options.mode() === "run") {
-      if (options.isReachable(found.space_location_id)) {
-        options.onMoveParty(found.space_location_id);
-      } else {
-        goToSpace(found.space_location_id);
-      }
-      return;
-    }
-
-    goToSpace(found.space_location_id);
+    nav.handleClick(e);
   }
 
   /** Converting a pen-traced region to painted cells is one-way and lossy
@@ -244,8 +217,9 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
       }
     }
 
-    strokeMode = region.cells.includes(key) ? "erase" : "paint";
-    strokeCells.value = { regionId: region.id, cells: toggleCell(region.cells, key) };
+    const stroke = startBrushStroke(key, (c) => region.cells.includes(c));
+    activeBrush = { regionId: region.id, base: region.cells, stroke };
+    strokeCells.value = { regionId: region.id, cells: applyBrushStroke(stroke, region.cells) };
 
     // The physical pointerup can already have happened while `confirmConvert`
     // was awaiting (`onWindowPointerUp` recorded it and bailed, since there
@@ -374,13 +348,13 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
       movedBeyondTapThreshold = true;
     }
 
-    if (strokeCells.value) {
+    if (strokeCells.value && activeBrush) {
       const key = options.cellAt(e.clientX, e.clientY);
       if (!key || !options.isPaintable(key)) return;
-      const current = strokeCells.value;
-      const alreadyInStrokeDirection = strokeMode === "paint" ? current.cells.includes(key) : !current.cells.includes(key);
-      if (alreadyInStrokeDirection) return;
-      strokeCells.value = { regionId: current.regionId, cells: toggleCell(current.cells, key) };
+      const nextStroke = touchBrushStroke(activeBrush.stroke, key);
+      if (nextStroke === activeBrush.stroke) return; // direction lock: already touched this stroke
+      activeBrush = { ...activeBrush, stroke: nextStroke };
+      strokeCells.value = { regionId: activeBrush.regionId, cells: applyBrushStroke(nextStroke, activeBrush.base) };
       return;
     }
 
@@ -407,7 +381,7 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     const current = strokeCells.value;
     if (!current) return;
     strokeCells.value = null;
-    strokeMode = null;
+    activeBrush = null;
     options.commitCells(current.regionId, current.cells);
   }
 

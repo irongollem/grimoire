@@ -261,7 +261,7 @@ async function onSave(): Promise<void> {
     if (isNew.value) {
       const result = await createMutation.mutateAsync(payload);
       wb.markSaved();
-      await router.replace({ path: `/cartographer/${result.id}`, query: route.query }); // keeps ?publishTo= alive
+      await router.replace({ path: `/cartographer/${result.id}` });
     } else {
       await updateMutation.mutateAsync({ id: mapId.value, update: payload });
       wb.markSaved();

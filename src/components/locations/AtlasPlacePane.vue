@@ -216,7 +216,6 @@
         :location="location"
         :index="index"
         :children="children"
-        v-model:active-region-id="activeRegionId"
         @select="$emit('select', $event)"
         @descend="$emit('select', $event)"
       />
@@ -276,7 +275,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
+import { computed, onBeforeUnmount, useTemplateRef, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
@@ -382,12 +381,6 @@ function onOpenMap(): void {
   emit("update:paneMode", "map");
 }
 
-// The map mode's own tracing state (AtlasSiteMapMode) — lives here rather
-// than inside that component so it survives a paneMode toggle back to
-// Contents and resets cleanly on selection, same as before #868 S6 split it
-// out. See the watch below.
-const activeRegionId = ref<string | null>(null);
-
 // ── Readiness, staleness, layer counts (#868, S6) — one composable so the
 //    meter, the source strip and the layer bar all read the same facts. ────
 const siteStructureLocation = computed(() => (isSite.value ? location : null));
@@ -420,16 +413,6 @@ watch(
     }
   },
   { immediate: true },
-);
-
-// An active trace belongs to the place it was started on; carrying it into
-// the next selection would reopen a stale "Tracing X" banner on an unrelated
-// map, same reasoning as `npcsExpanded` in `LocationDetailSections`.
-watch(
-  () => location?.id,
-  () => {
-    activeRegionId.value = null;
-  },
 );
 
 /**

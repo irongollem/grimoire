@@ -56,6 +56,30 @@ vi.mock("@/composables/locations/useSiteStructure", () => ({
 vi.mock("@/composables/locations/useOpenSiteDrawing", () => ({
   useOpenSiteDrawing: () => ({ openDrawing: vi.fn() }),
 }));
+// The Build-mode workbench wiring (#884 S11) — `useSiteDrawingEditor` and
+// `useMapPublish` are both called unconditionally in `LocationSheet.vue`'s
+// setup (Vue composables can't be gated on a prop), so every test here would
+// otherwise reach their real TanStack Query internals — none of these tests
+// exercise Build mode, same reasoning as the `useSiteStructure` mock above.
+vi.mock("@/composables/locations/useSiteDrawingEditor", () => ({
+  useSiteDrawingEditor: () => ({
+    workbenchRef: { value: null },
+    dirty: { value: false },
+    saving: { value: false },
+    onDirtyChange: vi.fn(),
+    save: vi.fn(),
+  }),
+}));
+vi.mock("@/composables/cartographer/useMapPublish", () => ({
+  useMapPublish: () => ({
+    open: { value: false },
+    targetSiteId: { value: "" },
+    stairTargets: { value: {} },
+    siteContext: { value: { options: [], target: null, spaceNameById: new Map(), stairTargetOptions: [] } },
+    review: { value: { plan: null, bakedDims: null, mapRev: 0, publishing: false, error: null } },
+    publish: vi.fn(),
+  }),
+}));
 vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRoute: () => ({ query: {} }),
@@ -83,6 +107,8 @@ const stubs = {
   LocationMap: true,
   LocationDetailSections: true,
   LocationRevealControl: true,
+  MapWorkbench: true,
+  CartographerPublishModal: true,
 };
 
 // `sessionRunning` is shared module state, so a wrapper left mounted across

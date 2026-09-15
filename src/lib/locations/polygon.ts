@@ -11,8 +11,9 @@
 // it only adds the maths that fills a ring once one exists.
 //
 // The three room-template shapes are not reinvented here: `cellsInCircle` /
-// `cellsInOctagon` / `cellsInHex` (`src/cartographer/geometry.ts`) already
-// ship, unit-tested, for the Cartographer's room tool, and `templateCells`
+// `cellsInOctagon` / `cellsInHex` (`src/lib/map/gestures/template.ts`, moved
+// there from `cartographer/geometry.ts` by #884 S7a) already ship,
+// unit-tested, for the Cartographer's room tool, and `templateCells`
 // is a thin pass-through. `templateRing` is the new half — the polygon
 // outline the same template would draw, so a template drop is stored as
 // `vertices` and stays editable with the pen afterward. Those functions
@@ -24,7 +25,7 @@
 import type { GridPoint } from "@/types/locationMapRegion.types";
 import type { CellKey } from "@/types/dungeonMap.types";
 import { cellKey } from "@/types/dungeonMap.types";
-import { cellsForTemplate } from "@/cartographer/geometry";
+import { cellsForTemplate } from "@/lib/map/gestures/template";
 import { canonicalCells } from "@/cartographer/cellSignature";
 
 export type TraceTool = "paint" | "pen" | "template";

@@ -42,7 +42,7 @@
  * so this opens a plain new drawing instead of a half-built promise.
  */
 import { computed, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconCopy, IconPencilLine } from "@/lib/icons";
 import { useCreateLocation, useLocations } from "@/composables/locations/useLocations";
@@ -93,6 +93,7 @@ async function onClone() {
 
 // ── Draw level N ──────────────────────────────────────────────────────────────
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 const createLocation = useCreateLocation();
 const isDrawing = ref(false);
@@ -126,7 +127,17 @@ async function onDraw() {
       era_end: null,
       audio_theme: null,
     });
-    router.push(`/cartographer/new?publishTo=${newLevel.id}`);
+    // Opens the new level in Build mode in place (#884 S11) — the workbench
+    // is the map area now, so there is no separate Cartographer draft to
+    // route to first. The Atlas explorer selects a place via `?at=`; the
+    // standalone sheet is `/locations/:id` itself — same two conventions
+    // `LocationSheet.vue`'s own `onLevelSelect` and `AtlasExplorer.vue`'s
+    // `onSelect` already use for "go look at this place".
+    if (route.name === "locations") {
+      await router.push({ query: { ...route.query, at: newLevel.id, build: "true" } });
+    } else {
+      await router.push({ path: `/locations/${newLevel.id}`, query: { build: "true" } });
+    }
   } catch (e) {
     toast.error(toast.fromError(e));
   } finally {

@@ -5,7 +5,6 @@ import {
   deriveStairs,
   deriveStructure,
   deriveWays,
-  deriveZones,
   spaceContaining,
   structureDelta,
 } from "./structure";
@@ -15,7 +14,6 @@ import { cellKey } from "@/types/dungeonMap.types";
 import type { CellKey, CellMetadata, DungeonMapLayers, EdgeSegType, PackRef } from "@/types/dungeonMap.types";
 import type { DerivedSpace, DerivedStructure, DerivedWay } from "./structure.types";
 import type { PackCategory } from "./packSchema";
-import type { ZoneKind } from "@/types/locationMapRegion.types";
 
 // ── Fixture builders — a DungeonMapLayers assembled cell by cell, mirroring
 // how the editor itself writes these layers, rather than an ASCII plan: the
@@ -26,7 +24,7 @@ import type { ZoneKind } from "@/types/locationMapRegion.types";
 const PACK: PackRef = { pack_id: "p", pack_version: 1, variant: 0 };
 
 function emptyLayers(): DungeonMapLayers {
-  return { floor: {}, solidBlock: {}, object: {}, annotation: {}, zone: {} };
+  return { floor: {}, solidBlock: {}, object: {}, annotation: {} };
 }
 
 function addFloor(layers: DungeonMapLayers, x: number, y: number): void {
@@ -52,17 +50,6 @@ function addAnnotation(layers: DungeonMapLayers, x: number, y: number, text: str
 
 function addObject(layers: DungeonMapLayers, x: number, y: number, category: PackCategory): void {
   layers.object[cellKey(x, y)] = { ...PACK, category };
-}
-
-function addZone(
-  layers: DungeonMapLayers,
-  x: number,
-  y: number,
-  zoneId: string,
-  kind: ZoneKind,
-  label: string | null = null,
-): void {
-  layers.zone![cellKey(x, y)] = { zone_id: zoneId, kind, label };
 }
 
 function metaFor(fields: CellMetadata): CellMetadata {
@@ -306,30 +293,6 @@ describe("deriveStairs", () => {
   });
 });
 
-// ── deriveZones ──────────────────────────────────────────────────────────
-
-describe("deriveZones", () => {
-  it("returns an empty array when the zone layer is absent", () => {
-    const layers: DungeonMapLayers = { floor: {}, solidBlock: {}, object: {}, annotation: {} };
-    expect(deriveZones(layers)).toEqual([]);
-  });
-
-  it("groups zone cells by zone_id, sorted by zoneId, taking kind/label from the group", () => {
-    const layers = emptyLayers();
-    addZone(layers, 5, 5, "water", "hazard", "Flooded nave");
-    addZone(layers, 0, 0, "fire", "hazard", "Ash fall");
-    addZone(layers, 1, 0, "fire", "hazard", "Ash fall");
-
-    const zones = deriveZones(layers);
-    expect(zones.map((z) => z.zoneId)).toEqual(["fire", "water"]);
-    const fire = zones[0];
-    expect(fire.cells).toEqual(["0,0", "1,0"]);
-    expect(fire.kind).toBe("hazard");
-    expect(fire.label).toBe("Ash fall");
-    expect(fire.signature).toBe(cellSignature(["0,0", "1,0"]));
-  });
-});
-
 // ── deriveLinks ──────────────────────────────────────────────────────────
 
 describe("deriveLinks", () => {
@@ -372,21 +335,19 @@ describe("spaceContaining", () => {
 // ── deriveStructure ──────────────────────────────────────────────────────
 
 describe("deriveStructure", () => {
-  it("assembles spaces, ways, stairs, zones and links from one map", () => {
+  it("assembles spaces, ways, stairs and links from one map", () => {
     const layers = emptyLayers();
     addFloor(layers, 0, 0);
     addFloor(layers, 1, 0);
     addEdge(layers, 0, 0, "E", "doorClosed");
     addObject(layers, 1, 0, "stairsUp");
     addAnnotation(layers, 0, 0, "Antechamber");
-    addZone(layers, 0, 0, "gas", "hazard", "Poison gas");
     const metadata = { "1,0": metaFor({ trap_id: "t1" }) };
 
     const structure = deriveStructure({ layers, metadata });
     expect(structure.spaces).toHaveLength(2);
     expect(structure.ways).toHaveLength(1);
     expect(structure.stairs).toHaveLength(1);
-    expect(structure.zones).toHaveLength(1);
     expect(structure.links).toHaveLength(1);
   });
 });
@@ -399,7 +360,7 @@ function fakeSpace(cells: CellKey[]): DerivedSpace {
 }
 
 function fakeStructure(spaces: DerivedSpace[], ways: DerivedWay[] = []): DerivedStructure {
-  return { spaces, ways, stairs: [], zones: [], links: [] };
+  return { spaces, ways, stairs: [], links: [] };
 }
 
 describe("structureDelta", () => {

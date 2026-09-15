@@ -108,7 +108,7 @@ import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { useAuthStore } from "@/stores/auth";
 import BattleMapTokenLayer from "@/components/encounters/BattleMapTokenLayer.vue";
 import BattleMapFogLayer from "@/components/encounters/BattleMapFogLayer.vue";
-import { decodeFogMask } from "@/lib/battlemap/fogMask";
+import { decodeFogMask, revealedCombatants } from "@/lib/battlemap/fogMask";
 import { primaryImage } from "@/lib/locations/mapStack";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import { useCampaignStore } from "@/stores/campaign";
@@ -170,11 +170,9 @@ const liveCombatants = computed<RunCombatant[] | null>(() => {
   if (!showTokens.value) return [];
   const list = liveState.value?.combatants_live;
   if (!list) return null;
-  const mask = fogMask.value;
-  return list.filter((c) => {
-    if (!c.position) return true;
-    return mask.has(`${c.position.x},${c.position.y}`);
-  });
+  // "Tokens obey fog" (#884, wave 4): a monster that has walked out of
+  // revealed space disappears from the player's own map, VTT tokens or not.
+  return revealedCombatants(list, fogMask.value);
 });
 const activeInstanceId = computed(() => {
   const list = liveState.value?.combatants_live;

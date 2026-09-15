@@ -22,8 +22,8 @@ export type Tool =
   | "link"
   | "template"
   | "cave"
-  // Structure group (#868) — these don't paint pixels, they claim/annotate
-  // what the drawing MEANS: "space" selects the derived room under the
-  // cursor, "zone" paints the hazard/terrain/light/trigger/marker overlay.
-  | "space"
-  | "zone";
+  // Structure group (#868) — doesn't paint pixels, it claims/annotates what
+  // the drawing MEANS: "space" selects the derived room under the cursor.
+  // Zoning was retired (#884 S11) — a zone is now a Plan region authored
+  // once in the Plan palette, never derived from the Drawing.
+  | "space";

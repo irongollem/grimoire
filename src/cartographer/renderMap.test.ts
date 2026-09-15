@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderMap, ZONE_RENDER_COLOURS, type MapRenderScene } from "./renderMap";
+import { renderMap, type MapRenderScene } from "./renderMap";
 import { BASE_TILE_SIZE, type PackCategory } from "@/cartographer/packSchema";
 import type { TilePackManifest } from "@/cartographer/packSchema";
 import type { ValidationResult } from "@/cartographer/validatePack";
@@ -309,42 +309,6 @@ describe("renderMap — runtime fallback rule", () => {
     renderMap(scene);
 
     expect(rec.drawImages.filter((d) => sourceOf(d).category === "floor")).toHaveLength(0);
-  });
-});
-
-describe("renderMap — zone layer (#868)", () => {
-  it("fills and outlines a zone cell in its kind's colour", () => {
-    const layers = emptyLayers();
-    layers.zone![cellKey(1, 1)] = { zone_id: "z1", kind: "hazard", label: null };
-    const { scene, rec } = baseScene({ layers });
-    renderMap(scene);
-
-    expect(rec.fillStyles).toContain(ZONE_RENDER_COLOURS.hazard.fill);
-    expect(rec.strokeStyles).toContain(ZONE_RENDER_COLOURS.hazard.accent);
-    expect(rec.fillRects).toContainEqual({ x: 1 * 64, y: 1 * 64, w: 64, h: 64 });
-  });
-
-  it("tolerates a map saved before the zone layer existed", () => {
-    const layers = emptyLayers();
-    delete layers.zone;
-    const { scene } = baseScene({ layers });
-    expect(() => renderMap(scene)).not.toThrow();
-  });
-
-  it("draws the zone layer above objects and below annotations", () => {
-    const layers = emptyLayers();
-    layers.object[cellKey(0, 0)] = { pack_id: "stone-dungeon", pack_version: 1, variant: 0, category: "objectChest" };
-    layers.zone![cellKey(1, 1)] = { zone_id: "z1", kind: "terrain", label: null };
-    layers.annotation[cellKey(2, 2)] = { text: "Nave" };
-    const { scene, rec } = baseScene({ layers, runtimes: new Map([["stone-dungeon", makeRuntime("stone-dungeon")]]) });
-    renderMap(scene);
-
-    const objectIdx = rec.calls.indexOf("drawImage");
-    const zoneFillIdx = rec.calls.indexOf("fillRect", objectIdx); // [0] is the background fill, before any drawImage
-    const annotationIdx = rec.calls.indexOf("fillText");
-    expect(objectIdx).toBeGreaterThanOrEqual(0);
-    expect(zoneFillIdx).toBeGreaterThan(objectIdx);
-    expect(annotationIdx).toBeGreaterThan(zoneFillIdx);
   });
 });
 

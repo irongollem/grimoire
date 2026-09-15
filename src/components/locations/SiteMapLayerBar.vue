@@ -53,6 +53,37 @@
       :class="siteMapLayers.grid ? '' : 'opacity-50'"
       @click="toggleSiteMapLayer('grid')"
     />
+
+    <!-- Tokens/Fog (#884, wave 4, S12) — the stack's two PLAYED layers.
+         Offered only where a caller says play state actually exists (a run
+         surface, an encounter, Build's player preview) — never on a plain
+         Browse of a site with no play state at all, which is why this whole
+         group is absent unless `played.tokens`/`played.fog` says otherwise. -->
+    <template v-if="hasPlayedLayer">
+      <span class="h-4 w-px shrink-0 bg-border" aria-hidden="true" />
+      <AppButton
+        v-if="played?.tokens"
+        variant="outline"
+        shape="pill"
+        size="xs"
+        :icon="IconParty"
+        label="Tokens"
+        :active="siteMapLayers.tokens"
+        :class="siteMapLayers.tokens ? '' : 'opacity-50'"
+        @click="toggleSiteMapLayer('tokens')"
+      />
+      <AppButton
+        v-if="played?.fog"
+        variant="outline"
+        shape="pill"
+        size="xs"
+        :icon="IconFog"
+        label="Fog"
+        :active="siteMapLayers.fog"
+        :class="siteMapLayers.fog ? '' : 'opacity-50'"
+        @click="toggleSiteMapLayer('fog')"
+      />
+    </template>
   </div>
 </template>
 
@@ -78,15 +109,23 @@
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import AppButton from "@/components/common/AppButton.vue";
-import { IconBrush, IconGrid, IconImage, IconReveal } from "@/lib/icons";
+import { IconBrush, IconFog, IconGrid, IconImage, IconParty, IconReveal } from "@/lib/icons";
 import { useUiStore } from "@/stores/ui";
 
-const { counts, layers } = defineProps<{
+const { counts, layers, played } = defineProps<{
   counts: { spaces: number; ways: number; zones: number; prepared: number };
   /** Which image layers this site actually has (#884) — from `buildMapStack`.
    *  The caller knows; deriving it here would be a second reader of the
    *  stack for no gain. */
   layers?: { picture: boolean; drawing: boolean };
+  /** Which PLAYED layers this mount of the bar should offer (#884, wave 4,
+   *  S12) — Tokens and/or Fog. Unset (the default, every existing Browse
+   *  caller) offers neither: Browse has no play state for either one to
+   *  reflect. A caller with play state (`SiteRunSurface`, an encounter
+   *  surface, Build's player preview) opts in explicitly per layer, the same
+   *  way `layers.picture`/`layers.drawing` are per-layer rather than a
+   *  single "has images" flag. */
+  played?: { tokens?: boolean; fog?: boolean };
 }>();
 
 const uiStore = useUiStore();
@@ -105,6 +144,7 @@ const imagePills = computed(() => [
   { key: "drawing" as const, label: "Drawing", icon: IconBrush, present: !!layers?.drawing },
 ]);
 const hasImageLayer = computed(() => imagePills.value.some((p) => p.present));
+const hasPlayedLayer = computed(() => !!played?.tokens || !!played?.fog);
 
 const pills: Array<{ key: "spaces" | "ways" | "zones" | "prepared"; label: string; swatch: string }> = [
   { key: "spaces", label: "Spaces", swatch: "rgba(74, 222, 128, 0.6)" },

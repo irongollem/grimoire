@@ -13,6 +13,18 @@
 // against `map_url`/`grid_calibration` directly goes through `buildMapStack`
 // (or one of the narrow wrappers below) instead, so a site with only a
 // Drawing is never silently treated as mapless.
+//
+// Five layers, not three (epic #884, wave 4, S12). Picture, Drawing and Plan
+// above are AUTHORED — a DM sets them in Build. Two more are PLAYED, never
+// authored: Tokens (the party, monsters and NPCs — "the only one players can
+// interact with," and a player moves their own token and nothing else) and
+// Fog (what has been revealed — by room for a site, by cell for an
+// encounter; two resolutions of one layer, see `lib/battlemap/fogMask.ts`).
+// `MAP_STACK_LAYERS` below documents all five in stack order so a surface
+// that lists "what this map is made of" has one place to read the list from
+// — it is deliberately just a description: the fog mask and the token set
+// themselves are inputs a surface supplies (from `location_state_events` or
+// a live encounter), never something this module fetches.
 
 import type { GridCalibration, Location } from "@/types/location.types";
 
@@ -27,6 +39,32 @@ export type MapStackSource = Pick<
 >;
 
 export type MapLayerKind = "picture" | "drawing";
+
+/** All five layers of the stack, in bottom-up render order. */
+export type MapStackLayerName = "picture" | "drawing" | "plan" | "tokens" | "fog";
+
+export interface MapStackLayerInfo {
+  key: MapStackLayerName;
+  label: string;
+  /** Authored layers are set by the DM in Build (Picture, Drawing, Plan).
+   *  Played layers are never authored — they are computed from live state
+   *  (Tokens from combatants/party position, Fog from revealed cells) and a
+   *  surface only ever offers them where that state actually exists (a run
+   *  surface, an encounter, Build's player preview) — never on a plain
+   *  Browse of a site with no play state at all. */
+  authored: boolean;
+}
+
+/** The stack's own description of itself — see the module docstring above
+ *  for why Tokens and Fog belong here even though `buildMapStack` never
+ *  computes them. */
+export const MAP_STACK_LAYERS: readonly MapStackLayerInfo[] = [
+  { key: "picture", label: "Picture", authored: true },
+  { key: "drawing", label: "Drawing", authored: true },
+  { key: "plan", label: "Plan", authored: true },
+  { key: "tokens", label: "Tokens", authored: false },
+  { key: "fog", label: "Fog", authored: false },
+];
 
 export interface MapImageLayer {
   kind: MapLayerKind;

@@ -108,6 +108,11 @@ export { PenLine as IconAnnotate }
 export { Link2 as IconEntityLink }
 export { Hexagon as IconRoomTemplate }
 export { Cloud as IconCave }
+/** The site map's Fog layer toggle (#884, wave 4, S12) — same glyph as
+ *  `IconCave`, reused deliberately under its own alias: "cave" (an entity
+ *  type icon) and "fog" (a played map layer) never appear side by side, so
+ *  there is no ambiguity to resolve. */
+export { Cloud as IconFog }
 export { KeyRound as IconKey }
 export { Keyboard as IconKeyboard }
 export { Highlighter as IconHighlight }

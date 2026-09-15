@@ -12,101 +12,45 @@
 // knows the active region's `vertices`); this module only knows how to fold
 // one gesture into a ring.
 //
-// The reducers below are pure and exported for their own tests; the
-// `useRegionPen` composable at the bottom is the thin reactive wrapper
-// `MapRegionsLayer.vue` actually holds, so the component doesn't re-derive
-// "is the draft ring closeable" or "which node is under the cursor" itself.
+// The pure reducers moved to `src/lib/map/gestures/pen.ts` (epic #884 S7a,
+// the paint-systems merge) — re-exported below because `planCanvas.ts`
+// imports `isNearFirstNode`/`cellFractionSize` from *this* path and that
+// file belongs to another story's wave, so it cannot be repointed here.
+// `useRegionPen` below is the thin reactive wrapper `MapRegionsLayer.vue`
+// actually holds, so the component doesn't re-derive "is the draft ring
+// closeable" or "which node is under the cursor" itself.
 //
 // The actual canvas drawing (the pen/template overlay, the persisted-ring
 // outline) moved on to `src/lib/locations/planCanvas.ts` (#868 wave 2) —
 // that module holds every render pass `MapRegionsLayer.vue` composes, this
-// one keeps only the gesture state and its pure reducers.
+// one keeps only the gesture state and the canvas/grid-point conversions.
 
 import { ref, type Ref } from "vue";
 import {
-  insertVertex,
-  isClosed,
-  moveVertex,
-  nearestVertex,
-  removeVertex,
-  simplifyRing,
-  type TemplateShape,
-} from "@/lib/locations/polygon";
+  abandonDraft,
+  addDraftPoint,
+  closeDraft,
+  startTemplateDrag,
+  updateTemplateDrag,
+  type TemplateDragState,
+} from "@/lib/map/gestures/pen";
+import type { TemplateShape } from "@/lib/locations/polygon";
 import type { GridPoint } from "@/types/locationMapRegion.types";
 import type { GridCalibration } from "@/types/location.types";
 
-// ── Draft ring reducers (a pen trace not yet closed) ─────────────────────────
-
-/** Click adds a node (frame 12). Refused once the caller has already closed
- *  the draft — closing hands the ring off to the DB copy, and a draft has no
- *  further use for its own points afterward. */
-export function addDraftPoint(ring: readonly GridPoint[], point: GridPoint): GridPoint[] {
-  return [...ring, point];
-}
-
-/** A draft can close once it has ≥3 distinct points — the same rule
- *  `isClosed` already encodes for a persisted ring. */
-export function canCloseDraft(ring: readonly GridPoint[]): boolean {
-  return isClosed(ring);
-}
-
-/** Clicking the first node closes the draft (frame 12) — `null` when there
- *  aren't enough points yet, so the caller knows the click didn't land. */
-export function closeDraft(ring: readonly GridPoint[]): GridPoint[] | null {
-  if (!canCloseDraft(ring)) return null;
-  return simplifyRing(ring);
-}
-
-/** `Escape` abandons an unsaved ring (frame 12). */
-export function abandonDraft(): GridPoint[] {
-  return [];
-}
-
-// ── Persisted-ring reducers (editing a region that already has vertices) ────
-// Thin re-exports of `polygon.ts`'s own vertex ops under names that match the
-// gesture they serve here, so a reader of this file doesn't have to jump to
-// `polygon.ts` to see what "move a node" means for a pen trace.
-
-/** Drag a node to reshape (frame 12). */
-export const moveRingVertex = moveVertex;
-
-/** Alt-click deletes a node (frame 12) — refuses below 3 points. */
-export const deleteRingVertex = removeVertex;
-
-/** Double-click an edge inserts a node there (frame 12). */
-export const insertRingVertex = insertVertex;
-
-/** The gold-highlight test: is the cursor within snap range of the ring's
- *  first node, with enough points already placed that closing is possible?
- *  (frame 12: "it highlights gold when the cursor is on it.") */
-export function isNearFirstNode(
-  ring: readonly GridPoint[],
-  x: number,
-  y: number,
-  withinCells: number,
-): boolean {
-  if (!canCloseDraft(ring)) return false;
-  return nearestVertex(ring, x, y, withinCells) === 0;
-}
-
-// ── Template drag (frame 12: "click a centre, drag a radius, done.") ────────
-
-export interface TemplateDragState {
-  shape: TemplateShape;
-  center: GridPoint;
-  radius: number;
-}
-
-export function startTemplateDrag(shape: TemplateShape, center: GridPoint): TemplateDragState {
-  return { shape, center, radius: 0 };
-}
-
-/** The live preview radius while dragging — whole cells, since the template
- *  shapes (`cellsForTemplate`) are themselves defined on integer radii. */
-export function updateTemplateDrag(state: TemplateDragState, point: GridPoint): TemplateDragState {
-  const radius = Math.round(Math.hypot(point[0] - state.center[0], point[1] - state.center[1]));
-  return { ...state, radius };
-}
+export {
+  addDraftPoint,
+  canCloseDraft,
+  closeDraft,
+  abandonDraft,
+  moveRingVertex,
+  deleteRingVertex,
+  insertRingVertex,
+  isNearFirstNode,
+  startTemplateDrag,
+  updateTemplateDrag,
+  type TemplateDragState,
+} from "@/lib/map/gestures/pen";
 
 // ── Grid-point <-> canvas-pixel conversion ───────────────────────────────────
 // The inverse pair `gridCalibration.ts` doesn't have: that module converts

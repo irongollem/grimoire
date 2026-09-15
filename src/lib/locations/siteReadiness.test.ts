@@ -176,7 +176,7 @@ describe("structureFromSite", () => {
 });
 
 describe("publishStaleness", () => {
-  const before = { spaces: [], ways: [], stairs: [], zones: [], links: [] };
+  const before = { spaces: [], ways: [], stairs: [], links: [] };
 
   function map(over: Partial<DungeonMap> = {}): DungeonMap {
     return {

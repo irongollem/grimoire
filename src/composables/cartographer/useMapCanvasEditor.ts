@@ -13,12 +13,12 @@
 // refs the caller owns — nothing here is a copy, so watching those refs
 // elsewhere (structure derivation, dirty tracking) keeps working unchanged.
 
-import { onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import type { Tool } from "@/cartographer/tools";
 import { zoomAtPoint } from "@/cartographer/viewport";
 import { resolveKeyAction } from "@/cartographer/keymap";
-import { cellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
+import { cellKey, parseCellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
 import { BASE_TILE_SIZE, type PackCategory, type ObjectCategory } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { renderMap, type MapRenderReferenceImage } from "@/cartographer/renderMap";
@@ -29,9 +29,23 @@ import { canonicaliseEdge, type CellEdge } from "@/cartographer/edges";
 import { detectHoveredEdge } from "@/cartographer/edgeHover";
 import { floodFill, boundaryEdges } from "@/cartographer/floodFill";
 import { CommandStack } from "@/cartographer/commandStack";
-import { cellsForTemplate, caveBrushCells } from "@/cartographer/geometry";
+import { cellsForTemplate } from "@/lib/map/gestures/template";
+import { caveBrushCells } from "@/lib/map/gestures/caveBrush";
+import { cellsInRect, rectangleGesture } from "@/lib/map/gestures/rectangle";
+import { cellsInLine } from "@/lib/map/gestures/line";
 import { useCartographerStructureTools } from "@/composables/cartographer/useCartographerStructureTools";
 import type { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
+import { usePlanCanvasTools } from "@/composables/cartographer/usePlanCanvasTools";
+import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
+import {
+  drawPlanDoorHover,
+  drawPlanSpaces,
+  drawPlanTracingOverlay,
+  drawPlanWays,
+  drawPlanZones,
+  type TileViewport,
+} from "@/cartographer/planOverlay";
+import type { GridPoint } from "@/types/locationMapRegion.types";
 
 type TemplateShape = "circle" | "octagon" | "hex";
 
@@ -70,6 +84,14 @@ export interface MapCanvasEditorOptions {
    *  (the reference-layer toggle + its loaded image) — kept as an opaque
    *  list so this module doesn't need to know what they mean. */
   extraRenderDeps: unknown[];
+  /** The Plan layer (#884 S7b) — absent entirely when there's no `site`, the
+   *  same "the whole feature doesn't exist without a site" rule the
+   *  reference layer already follows. When present, `activeLayer` decides
+   *  whether a pointer gesture on this canvas means the Drawing (every tool
+   *  above) or the Plan (`planTools`, built from this composable's own
+   *  `plan`) — see `handleActiveLayerPointerDown` below for the split. */
+  plan?: ReturnType<typeof usePlanPalette>;
+  activeLayer?: Ref<"drawing" | "plan">;
 }
 
 // Edge-hover threshold: how close the cursor must get to a cell edge for it
@@ -81,6 +103,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     canvasEl, layers, metadata, dirty, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
     cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeTemplateShape,
     caveRadius, selectedCell, inspectorPanelRef, structure, mapKey, getReferenceImage, extraRenderDeps,
+    plan, activeLayer,
   } = opts;
 
   // Viewport state
@@ -131,19 +154,65 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     canRedo.value = cmdStack.canRedo();
   }
 
-  // The Space/Zone tools' pointer dispatch — built here, not passed in, since
-  // it needs this same snapshotStr/pushCommand pair for its own undo command
-  // (a Zone right-click erase groups into one undo step exactly like a stamp
-  // right-click erase does).
-  const structureTools = useCartographerStructureTools(structure, { activeTool, dirty, layers, snapshotStr, pushCommand });
+  // The Space tool's pointer dispatch — built here, not passed in, so it
+  // shares this composable's own `dirty` ref for its rename mutation.
+  const structureTools = useCartographerStructureTools(structure, { activeTool, dirty });
+
+  // ── Plan layer (#884 S7b) ────────────────────────────────────────────────
+  // Absent entirely without a `site` — `planTools` stays null and every
+  // `activeLayer`-gated branch below is dead code, same as `referencePicture`
+  // being null already makes the S6 reference layer a no-op on the standalone
+  // route. Geometry callbacks wrap this composable's own
+  // `viewportToCell`/`pointerToWorld`/`tilePixelSize` (defined further down —
+  // safe forward references, these are `function` declarations) so the Plan
+  // resolves a pointer event against the exact same tile grid the Drawing
+  // already paints onto, never a second coordinate system.
+  function planCellAt(clientX: number, clientY: number): CellKey | null {
+    const canvas = canvasEl.value;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const [x, y] = viewportToCell(clientX - rect.left, clientY - rect.top);
+    return cellKey(x, y);
+  }
+  function planGridPointAt(clientX: number, clientY: number): GridPoint | null {
+    const canvas = canvasEl.value;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const world = pointerToWorld({ x: clientX - rect.left, y: clientY - rect.top });
+    const tilePx = tilePixelSize();
+    if (tilePx <= 0) return null;
+    return [world.x / tilePx, world.y / tilePx];
+  }
+  function planWorldPointAt(clientX: number, clientY: number): { x: number; y: number } | null {
+    const canvas = canvasEl.value;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return pointerToWorld({ x: clientX - rect.left, y: clientY - rect.top });
+  }
+  const planTools = plan
+    ? usePlanCanvasTools({
+        plan,
+        layers,
+        cellAt: planCellAt,
+        gridPointAt: planGridPointAt,
+        worldPointAt: planWorldPointAt,
+        tilePixelSize,
+      })
+    : null;
+
+  function isPlanLayerActive(): boolean {
+    return !!planTools && activeLayer?.value === "plan";
+  }
 
   function undoEdit(): void {
+    if (isPlanLayerActive()) { void plan!.undo.undo(); return; }
     cmdStack.undo();
     canUndo.value = cmdStack.canUndo();
     canRedo.value = cmdStack.canRedo();
   }
 
   function redoEdit(): void {
+    if (isPlanLayerActive()) { void plan!.undo.redo(); return; }
     cmdStack.redo();
     canUndo.value = cmdStack.canUndo();
     canRedo.value = cmdStack.canRedo();
@@ -194,33 +263,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     return { layers: layers.value, packId: currentPackId.value, packVersion: activePackVersion() };
   }
 
-  // ── Geometry helpers ────────────────────────────────────────────────────
-
-  function cellsInRect(ax: number, ay: number, bx: number, by: number): Array<[number, number]> {
-    const x0 = Math.min(ax, bx), x1 = Math.max(ax, bx);
-    const y0 = Math.min(ay, by), y1 = Math.max(ay, by);
-    const out: Array<[number, number]> = [];
-    for (let y = y0; y <= y1; y++)
-      for (let x = x0; x <= x1; x++)
-        out.push([x, y]);
-    return out;
-  }
-
-  function cellsInLine(ax: number, ay: number, bx: number, by: number): Array<[number, number]> {
-    const out: Array<[number, number]> = [];
-    let x = ax, y = ay;
-    const dx = Math.abs(bx - ax), dy = Math.abs(by - ay);
-    const sx = ax <= bx ? 1 : -1, sy = ay <= by ? 1 : -1;
-    let err = dx - dy;
-    while (true) {
-      out.push([x, y]);
-      if (x === bx && y === by) break;
-      const e2 = 2 * err;
-      if (e2 > -dy) { err -= dy; x += sx; }
-      if (e2 < dx) { err += dx; y += sy; }
-    }
-    return out;
-  }
+  // Rectangle/line cell enumeration moved to `src/lib/map/gestures/` (epic
+  // #884 S7a, the paint-systems merge) — `cellsInRect`/`cellsInLine` are
+  // imported above, unchanged, now the shared home for any layer that wants
+  // the same shapes.
 
   // World pixel coords (canvas-pixel space) given an event on the canvas.
   function pointerToWorld(local: { x: number; y: number }): { x: number; y: number } {
@@ -362,13 +408,18 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
   }
 
-  // Rectangle fill: paint all cells in the bounding rect; optionally also wrap walls.
+  // Rectangle fill: paint all cells in the bounding rect; the shift-variant
+  // flag (`rectangleGesture`'s `variant`) means "also wrap walls" on this
+  // layer — a layer with no walls would simply leave it unused.
   function applyRect(ax: number, ay: number, bx: number, by: number, withWalls: boolean): void {
     if (!packRuntime.value) return;
-    const cells = cellsInRect(ax, ay, bx, by);
-    for (const [x, y] of cells) paintCell(x, y);
-    if (withWalls) {
-      const region = new Set<CellKey>(cells.map(([x, y]) => cellKey(x, y)));
+    const stroke = rectangleGesture(ax, ay, bx, by, withWalls);
+    for (const key of stroke.cells) {
+      const [x, y] = parseCellKey(key);
+      paintCell(x, y);
+    }
+    if (stroke.variant) {
+      const region = new Set<CellKey>(stroke.cells);
       for (const edge of boundaryEdges(region)) setWallEdgeIfEmpty(edge);
     }
   }
@@ -376,7 +427,10 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   // Line: Bresenham floor line between two cells.
   function applyLine(ax: number, ay: number, bx: number, by: number): void {
     if (!packRuntime.value) return;
-    for (const [x, y] of cellsInLine(ax, ay, bx, by)) paintCell(x, y);
+    for (const key of cellsInLine(ax, ay, bx, by)) {
+      const [x, y] = parseCellKey(key);
+      paintCell(x, y);
+    }
   }
 
   // Room template: fill the chosen shape centered on (ax, ay) and wrap walls.
@@ -476,6 +530,26 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       referenceImage: getReferenceImage(tilePx, viewportOffset.value),
       ...structureTools.renderStructureScene(),
     });
+
+    // ── Plan overlay (#884 S7b) — drawn over the Drawing, on the same
+    // canvas, in the same tile-pixel space `renderMap` just used. Always
+    // shown once a site's Plan exists (like the reference Picture's own
+    // ghost), not just while the Plan layer is the active one — a DM traces
+    // against the Drawing underneath, so both must be visible together.
+    if (planTools) {
+      const viewport: TileViewport = { tilePx, viewportOffset: viewportOffset.value };
+      const scene = planTools.renderScene();
+      drawPlanSpaces(ctx, viewport, scene.regions, scene.activeRegionId, scene.cellsOverride);
+      drawPlanWays(ctx, viewport, scene.ways);
+      drawPlanZones(ctx, viewport, scene.regions, scene.activeRegionId, scene.cellsOverride);
+      if (isPlanLayerActive()) {
+        drawPlanTracingOverlay(
+          ctx, viewport, scene.tracingRing, scene.tracingClosed, scene.tracingHoverPoint,
+          scene.templateDraft, scene.templateRingPreview,
+        );
+        if (scene.hoveredDoorEdge) drawPlanDoorHover(ctx, viewport, scene.hoveredDoorEdge);
+      }
+    }
   }
 
   let rafId = 0;
@@ -487,14 +561,22 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     });
   }
 
+  const planRenderDeps = planTools
+    ? [
+        plan!.regions, plan!.ways, plan!.activeRegionId, plan!.planTool, plan!.traceTool,
+        planTools.renderDeps.hoveredDoorEdge, planTools.renderDeps.strokeCells, planTools.renderDeps.draftRing,
+        planTools.renderDeps.templateDraft, planTools.renderDeps.liveDrag, planTools.renderDeps.penHoverPoint,
+      ]
+    : [];
   watch(
     [
       zoom, viewportOffset, layers, loadedRuntimes, currentPackId, hoverCell, hoveredEdge, activeTool,
-      previewCells, metadata, selectedCell, cellGlyphs, ...extraRenderDeps,
+      previewCells, metadata, selectedCell, cellGlyphs, ...extraRenderDeps, ...planRenderDeps,
     ],
     () => scheduleRender(),
     { deep: true },
   );
+  if (activeLayer) watch(activeLayer, () => scheduleRender());
   // viewMode is a getter over a prop, not a ref — watched separately so the
   // list above can stay a plain array of refs.
   watch(viewMode, () => scheduleRender());
@@ -513,6 +595,21 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     // View mode: pan only — skip all painting logic.
     if (viewMode()) {
       isPanning.value = true;
+      return;
+    }
+
+    // Plan layer (#884 S7b): every gesture routes to `planTools` instead of
+    // the Drawing tools below — EXCEPT a genuine pan trigger (RMB/middle/
+    // shift), which `planTools.onPointerDown` reports by returning false.
+    // Panning is handled directly here rather than by falling through into
+    // the Drawing-specific branches below: those key off `activeTool` (the
+    // Drawing's OWN tool selection, untouched while a DM works the Plan) and
+    // must never fire on a Plan-layer gesture just because `activeTool`
+    // happens to still be pointed at "wall" or "door" from earlier.
+    if (isPlanLayerActive()) {
+      if (planTools!.onPointerDown(ev)) return;
+      isPanning.value = true;
+      canvasEl.value?.setPointerCapture(ev.pointerId);
       return;
     }
 
@@ -611,14 +708,12 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     if (activeTool.value === "floor") paintCell(cx, cy);
     else if (activeTool.value === "solid") paintSolidAt(cx, cy);
     else if (activeTool.value === "stamp") paintObjectAt(cx, cy);
-    else if (activeTool.value === "zone") structureTools.handleStructurePointerMove(cx, cy);
     else if (activeTool.value === "eraser") {
       if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
       else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
       else if (layers.value.annotation[cellKey(cx, cy)]) {
         const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; dirty.value = true;
       }
-      else if (structureTools.handleStructurePointerMove(cx, cy)) { /* zone erased in preference to floor */ }
       else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
       else eraseCell(cx, cy);
     } else if (activeTool.value === "wall" && hoveredEdge.value) {
@@ -633,9 +728,17 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const [cx, cy] = viewportToCell(local.x, local.y);
     hoverCell.value = [cx, cy];
 
+    // Plan layer (#884 S7b) — its own hover/gesture tracking (door edge-snap,
+    // paint/pen/template) instead of the Drawing's edge-hover/tool-dispatch
+    // below (both keyed off `activeTool`, the Drawing's own tool selection).
+    // The shared pan-drag block further down still runs either way — panning
+    // stays universal across both layers.
+    const planLayerActive = isPlanLayerActive();
+    if (planLayerActive && !isPanning.value) planTools!.onPointerMove(ev);
+
     // Update edge-hover state for tools that target edges (wall, door, edge-eraser).
     const tool = activeTool.value;
-    if (tool === "wall" || tool === "door" || tool === "eraser") {
+    if (!planLayerActive && (tool === "wall" || tool === "door" || tool === "eraser")) {
       const world = pointerToWorld(local);
       let edge = detectHoveredEdge(world.x, world.y, tilePixelSize(), EDGE_HOVER_THRESHOLD);
       // If a stroke has locked its direction, suppress highlights for the
@@ -658,13 +761,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       };
     } else if (isPainting.value) {
       if (tool === "rect" && dragStartCell) {
-        previewCells.value = new Set(
-          cellsInRect(dragStartCell[0], dragStartCell[1], cx, cy).map(([x, y]) => cellKey(x, y)),
-        );
+        previewCells.value = new Set(cellsInRect(dragStartCell[0], dragStartCell[1], cx, cy));
       } else if (tool === "line" && dragStartCell) {
-        previewCells.value = new Set(
-          cellsInLine(dragStartCell[0], dragStartCell[1], cx, cy).map(([x, y]) => cellKey(x, y)),
-        );
+        previewCells.value = new Set(cellsInLine(dragStartCell[0], dragStartCell[1], cx, cy));
       } else if (tool === "template" && dragStartCell) {
         const r = Math.max(Math.abs(cx - dragStartCell[0]), Math.abs(cy - dragStartCell[1]));
         previewCells.value = new Set(cellsForTemplate(dragStartCell[0], dragStartCell[1], r, activeTemplateShape.value));
@@ -673,14 +772,12 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       } else if (tool === "floor") paintCell(cx, cy);
       else if (tool === "solid") paintSolidAt(cx, cy);
       else if (tool === "stamp") paintObjectAt(cx, cy);
-      else if (tool === "zone") structureTools.handleStructurePointerMove(cx, cy);
       else if (tool === "eraser") {
         if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
         else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
         else if (layers.value.annotation[cellKey(cx, cy)]) {
           const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; dirty.value = true;
         }
-        else if (structureTools.handleStructurePointerMove(cx, cy)) { /* zone erased in preference to floor */ }
         else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
         else eraseCell(cx, cy);
       } else if (tool === "wall" && hoveredEdge.value) {
@@ -694,6 +791,9 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   }
 
   function onPointerUp(ev: PointerEvent): void {
+    // Also bound to `@pointerleave` (MapWorkbench's template) — clears the
+    // Plan's hover state (door edge highlight, pen cursor tracking) either way.
+    planTools?.onPointerLeave();
     if (isPanning.value) {
       isPanning.value = false;
       canvasEl.value?.releasePointerCapture(ev.pointerId);
@@ -725,6 +825,14 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       canvasEl.value?.releasePointerCapture(ev.pointerId);
     }
     lastPointer = null;
+  }
+
+  /** The pen tool's "double-click an edge inserts a node" gesture (#884
+   *  S7b) — the Drawing has no double-click behaviour of its own, so this is
+   *  a pure pass-through to the Plan, a no-op everywhere else (including on
+   *  the standalone route, where `planTools` is null). */
+  function onDoubleClick(ev: MouseEvent): void {
+    if (isPlanLayerActive()) planTools!.onDoubleClick(ev);
   }
 
   function onWheel(ev: WheelEvent): void {
@@ -782,21 +890,30 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     window.removeEventListener("resize", onResize);
     window.removeEventListener("keydown", onKeyDown);
     if (rafId) cancelAnimationFrame(rafId);
+    planTools?.dispose();
   });
+
+  // Whichever stack the active layer owns — the Drawing's `CommandStack` or
+  // the Plan's `usePlanUndoStack` (#884 S7b). The toolbar's Undo/Redo buttons
+  // read these two regardless of layer; only what they invoke (`undoEdit`/
+  // `redoEdit`, already layer-aware above) and what they reflect changes.
+  const exposedCanUndo = computed(() => (isPlanLayerActive() ? plan!.undo.canUndo.value : canUndo.value));
+  const exposedCanRedo = computed(() => (isPlanLayerActive() ? plan!.undo.canRedo.value : canRedo.value));
 
   return {
     zoom,
     viewportOffset,
     hoverCell,
     hoveredEdge,
-    canUndo,
-    canRedo,
+    canUndo: exposedCanUndo,
+    canRedo: exposedCanRedo,
     undoEdit,
     redoEdit,
     centerMap,
     onPointerDown,
     onPointerMove,
     onPointerUp,
+    onDoubleClick,
     onWheel,
     structureTools,
   };

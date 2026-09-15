@@ -5,7 +5,38 @@
     class="w-full h-auto rounded-md"
     aria-hidden="true"
   >
-    <rect :x="viewBox.minX" :y="viewBox.minY" :width="viewBox.width" :height="viewBox.height" fill="#0b0907" />
+    <defs>
+      <!-- The feather (#884, wave 4, S12): fully opaque at the shared edge,
+           fading to transparent half a cell into the revealed floor — never
+           the other way round. One gradient per side; `gradientUnits`
+           defaults to objectBoundingBox, so each is reused unscaled for
+           every rect regardless of its own position/size. -->
+      <linearGradient id="fog-feather-top" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" :stop-color="fogColor" :stop-opacity="baseAlpha" />
+        <stop offset="1" :stop-color="fogColor" stop-opacity="0" />
+      </linearGradient>
+      <linearGradient id="fog-feather-bottom" x1="0" y1="1" x2="0" y2="0">
+        <stop offset="0" :stop-color="fogColor" :stop-opacity="baseAlpha" />
+        <stop offset="1" :stop-color="fogColor" stop-opacity="0" />
+      </linearGradient>
+      <linearGradient id="fog-feather-left" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" :stop-color="fogColor" :stop-opacity="baseAlpha" />
+        <stop offset="1" :stop-color="fogColor" stop-opacity="0" />
+      </linearGradient>
+      <linearGradient id="fog-feather-right" x1="1" y1="0" x2="0" y2="0">
+        <stop offset="0" :stop-color="fogColor" :stop-opacity="baseAlpha" />
+        <stop offset="1" :stop-color="fogColor" stop-opacity="0" />
+      </linearGradient>
+    </defs>
+
+    <rect
+      :x="viewBox.minX"
+      :y="viewBox.minY"
+      :width="viewBox.width"
+      :height="viewBox.height"
+      :fill="fogColor"
+      :fill-opacity="baseAlpha"
+    />
 
     <!-- Floor: only explored cells get one at all — a glimpsed footprint has
          nothing under it, which is the whole point of frame 16. -->
@@ -63,6 +94,20 @@
     </g>
 
     <path :d="exploredOutline" fill="none" stroke="#8a7a63" :stroke-width="EXPLORED_OUTLINE_WIDTH" stroke-linecap="square" />
+
+    <!-- The feather itself: a thin gradient darkening on the REVEALED side
+         of every explored cell's border with an unrevealed neighbour,
+         drawn over the floor so it reads as the fog softening inward
+         rather than a hard line at the outline above. -->
+    <rect
+      v-for="(f, fi) in featherRects"
+      :key="`feather-${fi}`"
+      :x="f.x"
+      :y="f.y"
+      :width="f.w"
+      :height="f.h"
+      :fill="`url(#fog-feather-${f.side})`"
+    />
 
     <!-- Doors: only ones the party has stood beside carry an edge key at
          all (see `get_player_visible_site_state`) — a secret, unfound door
@@ -133,14 +178,32 @@
  * is the accessible record of the same facts in words; this SVG is a visual
  * supplement to it, not a second source of truth a screen reader needs to
  * parse.
+ *
+ * The feather (#884, wave 4, S12) and the `opaque` prop below implement the
+ * same fog treatment as `BattleMapFogLayer.vue`, at room resolution instead
+ * of cell resolution — "two resolutions of one layer, not two features."
+ * `opaque` defaults to true (a player's own view, per the maintainer's
+ * ruling: fully black, edge to edge, right up to the feather); `SiteRunSurface`
+ * passes `false` for the DM's own translucent hint — "a hint, never a wall."
  */
 import { computed } from "vue";
+import { featherEdges, featherRect } from "@/lib/battlemap/fogMask";
 import { cellsRects, centroid, edgeSegment, outlinePath, planViewBox, textureCells as pickTextureCells } from "@/lib/locations/planSvg";
 import type { PlayerSitePlan } from "@/composables/locations/usePlayerVisibleSiteState";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { ZoneKind } from "@/types/locationMapRegion.types";
 
-const { plan } = defineProps<{ plan: PlayerSitePlan }>();
+const { plan, opaque = true } = defineProps<{
+  plan: PlayerSitePlan;
+  /** False renders the same fog translucently instead of solid black — the
+   *  DM's own "hint, never a wall" view of what the party has explored. */
+  opaque?: boolean;
+}>();
+
+const fogColor = "#0b0907";
+/** Matches `BattleMapFogLayer.vue`'s own translucent alpha, so a DM sees the
+ *  same darkness whichever resolution the fog happens to be drawn at. */
+const baseAlpha = computed(() => (opaque ? 1 : 0.55));
 
 const CELL_PX = 40;
 const px = (n: number) => n / CELL_PX;
@@ -185,6 +248,15 @@ const viewBoxAttr = computed(() => `${viewBox.value.minX} ${viewBox.value.minY} 
 const floorRects = computed(() => cellsRects(exploredCells.value));
 const textureRects = computed(() => cellsRects(pickTextureCells(exploredCells.value)));
 const exploredOutline = computed(() => outlinePath(exploredCells.value));
+
+/** One feather rect (unit-cell space: `cellPx: 1, origin: 0,0`, matching
+ *  every other geometry helper in this file) per explored cell's border
+ *  with a cell outside `exploredCells` — glimpsed or fully unrevealed alike,
+ *  since `featherEdges` only ever asks "is the neighbour in this set." */
+const exploredCellSet = computed(() => new Set(exploredCells.value));
+const featherRects = computed(() =>
+  featherEdges(exploredCellSet.value).map((edge) => ({ ...featherRect(edge, 1, 0, 0), side: edge.side })),
+);
 
 const glimpsedLayers = computed(() =>
   plan.glimpsed.map((g) => ({

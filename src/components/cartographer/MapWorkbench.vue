@@ -1,12 +1,39 @@
 <template>
   <div class="flex flex-col lg:flex-row gap-3 mt-2">
     <!-- Toolbox -->
-    <CartographerToolPalette
-      v-if="!viewMode"
-      :tools="TOOLS"
-      :active-tool="activeTool"
-      @update:active-tool="activeTool = $event as Tool"
-    />
+    <div v-if="!viewMode" class="flex flex-col gap-2">
+      <!-- Layer selector (#884 S7b) — only with a site: standalone
+           /cartographer/:id has no Plan to switch to, so it never renders
+           there, and `activeLayer` stays "drawing" forever. -->
+      <SegmentedControl
+        v-if="site"
+        :model-value="activeLayer"
+        :options="LAYER_OPTIONS"
+        size="xs"
+        block
+        @update:model-value="activeLayer = $event"
+      />
+      <CartographerToolPalette
+        v-if="activeLayer === 'drawing'"
+        :tools="TOOLS"
+        :active-tool="activeTool"
+        @update:active-tool="activeTool = $event as Tool"
+      />
+      <CartographerPlanPalette
+        v-else
+        :plan-tool="plan.planTool.value"
+        :trace-tool="plan.traceTool.value"
+        :template-shape="plan.templateShape.value"
+        :zone-kind="plan.zoneKind.value"
+        :zone-label="plan.zoneLabel.value"
+        @update:plan-tool="plan.planTool.value = $event"
+        @update:trace-tool="plan.traceTool.value = $event"
+        @update:template-shape="plan.templateShape.value = $event"
+        @update:zone-kind="plan.zoneKind.value = $event"
+        @update:zone-label="plan.zoneLabel.value = $event"
+        @start-new="plan.planTool.value === 'zone' ? plan.startNewZone() : plan.startNewSpace()"
+      />
+    </div>
 
     <!-- Canvas -->
     <div class="flex-1 min-w-0 relative bg-card border border-border rounded-lg overflow-hidden" style="min-height: 60vh">
@@ -18,6 +45,7 @@
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
         @pointerleave="onPointerUp"
+        @dblclick="onDoubleClick"
         @wheel.prevent="onWheel"
         @contextmenu.prevent
       ></canvas>
@@ -101,61 +129,83 @@
       </div>
     </div>
 
-    <!-- Inspector + Structure -->
+    <!-- Inspector + Structure (Drawing), or the Plan's own Spaces/Zones
+         panels (#884 S11) — the Plan palette on the left decides which
+         GESTURE a click means; binding a traced shape to a room, naming it,
+         and deleting it stay panel actions, which is what these two give it
+         once a site is embedded. Standalone /cartographer/:id has no site
+         and so always takes the Drawing branch. -->
     <div v-if="!viewMode" class="flex flex-col gap-3">
-      <CartographerInspectorPanel
-        ref="inspectorPanelRef"
-        :name="name"
-        :campaign-id="campaignId"
-        :current-pack-id="currentPackId"
-        :bundled-packs="selectablePacks"
-        :loaded-pack-ids="loadedPackIds"
-        :pack-validation-missing="packRuntime?.validation.missing.length ?? 0"
-        :active-tool="activeTool"
-        :active-object-category="activeObjectCategory"
-        :object-categories="OBJECT_CATEGORIES"
-        :stamp-rotation="stampRotation"
-        :selected-cell="selectedCell"
-        :annotation-text="annotationText"
-        :linked-note-id="linkedNoteId"
-        :linked-encounter-id="linkedEncounterId"
-        :linked-trap-id="linkedTrapId"
-        :linked-feature-id="linkedFeatureId"
-        :note-options="noteOptions"
-        :encounter-options="encounterOptions"
-        :trap-options="trapOptions"
-        :feature-options="featureOptions"
-        :active-template-shape="activeTemplateShape"
-        :template-shapes="TEMPLATE_SHAPES"
-        :cave-radius="caveRadius"
-        :zone-kind="structure.zoneKind.value"
-        :zone-label="structure.zoneLabel.value"
-        :zone-mode="structure.zoneMode.value"
-        @update:name="name = $event"
-        @update:campaign-id="campaignId = $event"
-        @update:current-pack-id="currentPackId = $event"
-        @update:active-object-category="activeObjectCategory = $event as ObjectCategory"
-        @update:stamp-rotation="stampRotation = $event"
-        @update:annotation-text="annotationText = $event"
-        @update:linked-note-id="linkedNoteId = $event"
-        @update:linked-encounter-id="linkedEncounterId = $event"
-        @update:linked-trap-id="linkedTrapId = $event"
-        @update:linked-feature-id="linkedFeatureId = $event"
-        @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
-        @update:cave-radius="caveRadius = $event"
-        @update:zone-kind="structure.zoneKind.value = $event"
-        @update:zone-label="structure.zoneLabel.value = $event"
-        @start-new-zone="structure.startNewZone()"
-      />
-      <CartographerStructurePanel
-        :space-rows="structure.spaceRows.value"
-        :selected-space-inspector="structure.selectedSpaceInspector.value"
-        :published-sites="publishedSites ?? []"
-        :map-rev="map?.rev ?? 0"
-        @select-space="(key) => (structure.selectedSpaceKey.value = key)"
-        @rename-space="structureTools.onRenameSpace"
-        @redetect="structure.redetect"
-      />
+      <template v-if="site && activeLayer === 'plan'">
+        <SiteMapRegionList
+          :location-id="site.id"
+          :spaces="spaces ?? []"
+          :regions="plan.regions.value"
+          :active-region-id="plan.activeRegionId.value"
+          :can-trace="true"
+          :building="true"
+          :door-tool-armed="plan.planTool.value === 'door'"
+          @update:active-region-id="(id) => setPlanActiveRegion(id, 'space')"
+          @update:door-tool-armed="(armed) => (plan.planTool.value = armed ? 'door' : 'space')"
+        />
+        <SiteMapZoneList
+          :location-id="site.id"
+          :regions="plan.regions.value"
+          :active-region-id="plan.activeRegionId.value"
+          :can-trace="true"
+          :building="true"
+          @update:active-region-id="(id) => setPlanActiveRegion(id, 'zone')"
+        />
+      </template>
+      <template v-else>
+        <CartographerInspectorPanel
+          ref="inspectorPanelRef"
+          :name="name"
+          :campaign-id="campaignId"
+          :current-pack-id="currentPackId"
+          :bundled-packs="selectablePacks"
+          :loaded-pack-ids="loadedPackIds"
+          :pack-validation-missing="packRuntime?.validation.missing.length ?? 0"
+          :active-tool="activeTool"
+          :active-object-category="activeObjectCategory"
+          :object-categories="OBJECT_CATEGORIES"
+          :stamp-rotation="stampRotation"
+          :selected-cell="selectedCell"
+          :annotation-text="annotationText"
+          :linked-note-id="linkedNoteId"
+          :linked-encounter-id="linkedEncounterId"
+          :linked-trap-id="linkedTrapId"
+          :linked-feature-id="linkedFeatureId"
+          :note-options="noteOptions"
+          :encounter-options="encounterOptions"
+          :trap-options="trapOptions"
+          :feature-options="featureOptions"
+          :active-template-shape="activeTemplateShape"
+          :template-shapes="TEMPLATE_SHAPES"
+          :cave-radius="caveRadius"
+          @update:name="name = $event"
+          @update:campaign-id="campaignId = $event"
+          @update:current-pack-id="currentPackId = $event"
+          @update:active-object-category="activeObjectCategory = $event as ObjectCategory"
+          @update:stamp-rotation="stampRotation = $event"
+          @update:annotation-text="annotationText = $event"
+          @update:linked-note-id="linkedNoteId = $event"
+          @update:linked-encounter-id="linkedEncounterId = $event"
+          @update:linked-trap-id="linkedTrapId = $event"
+          @update:linked-feature-id="linkedFeatureId = $event"
+          @update:active-template-shape="activeTemplateShape = $event as TemplateShape"
+          @update:cave-radius="caveRadius = $event"
+        />
+        <CartographerStructurePanel
+          :space-rows="structure.spaceRows.value"
+          :selected-space-inspector="structure.selectedSpaceInspector.value"
+          :published-sites="publishedSites ?? []"
+          :map-rev="map?.rev ?? 0"
+          @select-space="(key) => (structure.selectedSpaceKey.value = key)"
+          @rename-space="structureTools.onRenameSpace"
+          @redetect="structure.redetect"
+        />
+      </template>
     </div>
   </div>
 </template>
@@ -176,12 +226,18 @@
 // `viewMode` — read-only display: pan/zoom only, no toolbox, no inspector,
 //               no painting. The host derives this from its own route query.
 // `site`     — optional, `MapStackSource`-shaped (see
-//               `lib/locations/mapStack.ts`). When given, the site's Picture
-//               layer renders as a toggleable ghost reference beneath the
-//               canvas, positioned via its own `grid_calibration` against
-//               this component's viewport. Absent → identical to the
-//               pre-extraction standalone editor (the Plan/Drawing ghost is
-//               a later story, not built here).
+//               `lib/locations/mapStack.ts`) plus the site's own `id`. When
+//               given, the site's Picture layer renders as a toggleable
+//               ghost reference beneath the canvas (positioned via its own
+//               `grid_calibration` against this component's viewport), AND
+//               a layer selector appears (#884 S7b) switching between the
+//               Drawing (every tool above) and the Plan — a DM tracing
+//               `location_map_regions`/`location_doors` for this site
+//               directly on this same canvas, in the same tile-cell space
+//               the Drawing already paints (see `buildReferenceImage`'s own
+//               comment below for why that sharing is safe). Absent →
+//               identical to the pre-extraction standalone editor: no
+//               reference layer, no layer selector, no Plan palette.
 //
 // ── Emits ────────────────────────────────────────────────────────────────
 // `update:dirty` — fires whenever the unsaved-edit flag changes. The host
@@ -230,18 +286,22 @@ import {
   IconRoomTemplate,
   IconCave,
   IconSplitCell,
-  IconHighlight,
 } from "@/lib/icons";
 
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import CartographerToolPalette, { type ToolGroup } from "@/components/cartographer/CartographerToolPalette.vue";
+import CartographerPlanPalette from "@/components/cartographer/CartographerPlanPalette.vue";
 import CartographerInspectorPanel from "@/components/cartographer/CartographerInspectorPanel.vue";
 import CartographerStructurePanel from "@/components/cartographer/CartographerStructurePanel.vue";
+import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
+import SiteMapZoneList from "@/components/locations/SiteMapZoneList.vue";
 import { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
 import { useMapCanvasEditor } from "@/composables/cartographer/useMapCanvasEditor";
+import { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 import { usePublishedSites } from "@/composables/cartographer/usePublishedSites";
 
 import { useNotes } from "@/composables/notes/useNotes";
@@ -264,11 +324,18 @@ import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import type { MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { resolveCellGlyphs } from "@/cartographer/glyphs";
 import { buildMapStack, type MapStackSource } from "@/lib/locations/mapStack";
+import type { BindableSpace, RegionRole } from "@/types/locationMapRegion.types";
 
-const { map, viewMode, site } = defineProps<{
+const { map, viewMode, site, spaces } = defineProps<{
   map: DungeonMap | null;
   viewMode: boolean;
-  site?: MapStackSource;
+  site?: MapStackSource & { id: string };
+  /** The site's own bindable children (rooms, nested sites) — only
+   *  meaningful with `site`, and only read by the Plan's Spaces panel
+   *  (#884 S11) to offer a "Bind to space…" picker. The host already has
+   *  this (it built `site` from the same location), so it travels as its
+   *  own prop rather than a second query in here. */
+  spaces?: BindableSpace[];
 }>();
 
 const emit = defineEmits<{ "update:dirty": [boolean] }>();
@@ -345,7 +412,6 @@ const TOOLS: ToolDef[] = [
   // Structure group (#868) — "s" is already Solid block's shortcut, so Space
   // takes "p" instead of the frame's literal key; see the story report.
   { id: "space",     label: "Space",          icon: IconSplitCell,    shortcut: "p", group: "structure" },
-  { id: "zone",      label: "Zone",           icon: IconHighlight,    shortcut: "z", group: "structure" },
   { id: "link",      label: "Link entity",    icon: IconEntityLink,   shortcut: "k", group: "structure" },
   { id: "template",  label: "Room template",  icon: IconRoomTemplate, shortcut: "m" },
   { id: "cave",      label: "Cave brush",     icon: IconCave,         shortcut: "v" },
@@ -532,11 +598,37 @@ function buildReferenceImage(tilePx: number, viewportOffset: { x: number; y: num
   };
 }
 
+// ── Plan layer (#884 S7b) — the site's own `location_map_regions`/
+// `location_doors`, traced directly on this canvas once a `site` is given.
+// Built unconditionally (like `usePublishedSites` above): every query inside
+// `usePlanPalette` is `enabled`-guarded on a real site id, so this is inert
+// — no request, no mutation possible — on the standalone route, which has
+// no `site` at all and so never shows the layer selector that would let a
+// DM reach `activeLayer.value = "plan"` in the first place.
+const siteId = computed(() => site?.id ?? null);
+const plan = usePlanPalette(siteId);
+const activeLayer = ref<"drawing" | "plan">("drawing");
+const LAYER_OPTIONS: { value: "drawing" | "plan"; label: string }[] = [
+  { value: "drawing", label: "Drawing" },
+  { value: "plan", label: "Plan" },
+];
+
+/** The Plan's own Spaces/Zones panels (#884 S11) set `activeRegionId` via
+ *  their "Trace" buttons the same way the Atlas's region list always has —
+ *  this also swaps the Plan's own tool to match, so the canvas is actually
+ *  armed to paint into whichever role the DM just picked (a bare
+ *  `activeRegionId` write does nothing while `planTool` still points at
+ *  Door or Claim, per `usePlanCanvasTools.ts`'s `isTraceTool()`). */
+function setPlanActiveRegion(id: string | null, role: RegionRole): void {
+  plan.activeRegionId.value = id;
+  if (id) plan.planTool.value = role;
+}
+
 // ── Canvas engine (#884 S6) — viewport, pointer/paint dispatch, undo/redo,
 // variant picking, the render loop. See useMapCanvasEditor.ts.
 const {
   zoom, hoverCell, canUndo, canRedo, undoEdit, redoEdit, centerMap,
-  onPointerDown, onPointerMove, onPointerUp, onWheel, structureTools,
+  onPointerDown, onPointerMove, onPointerUp, onDoubleClick, onWheel, structureTools,
 } = useMapCanvasEditor({
   canvasEl, layers, metadata, dirty, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
   cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
@@ -544,6 +636,7 @@ const {
   selectedCell, inspectorPanelRef, structure, mapKey: computed(() => map?.id || "new"),
   getReferenceImage: buildReferenceImage,
   extraRenderDeps: [showPictureReference, referenceImageEl],
+  plan, activeLayer,
 });
 
 // ── Pack load ───────────────────────────────────────────────────────────────

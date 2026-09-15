@@ -4,6 +4,7 @@ import {
   buildMapStack,
   frameCalibration,
   hasAnyMapLayer,
+  MAP_STACK_LAYERS,
   placePicture,
   primaryImage,
   type MapStack,
@@ -118,6 +119,19 @@ describe("buildMapStack", () => {
     );
     expect(stack.blank).toBeNull();
     expect(stack.primary).toBe(stack.picture);
+  });
+});
+
+describe("MAP_STACK_LAYERS", () => {
+  it("describes all five layers, bottom-up", () => {
+    expect(MAP_STACK_LAYERS.map((l) => l.key)).toEqual(["picture", "drawing", "plan", "tokens", "fog"]);
+  });
+
+  it("marks Picture, Drawing and Plan as authored, and Tokens/Fog as played", () => {
+    const authored = new Set(MAP_STACK_LAYERS.filter((l) => l.authored).map((l) => l.key));
+    expect(authored).toEqual(new Set(["picture", "drawing", "plan"]));
+    const played = MAP_STACK_LAYERS.filter((l) => !l.authored).map((l) => l.key);
+    expect(played).toEqual(["tokens", "fog"]);
   });
 });
 

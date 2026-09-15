@@ -14,8 +14,6 @@ import type { SoundCategory } from "@/types/sound.types";
 import type { DowntimeDrawStatus } from "@/types/downtime.types";
 import type { MiniFormat, MiniStatus } from "@/types/mini.types";
 import type { AdminAuditAction } from "@/composables/admin/useAdminAuditLog";
-import type { TraceTool } from "@/lib/locations/polygon";
-import type { RegionRole } from "@/types/locationMapRegion.types";
 
 export const useUiStore = defineStore("ui", () => {
   // Notes UI state
@@ -781,32 +779,28 @@ export const useUiStore = defineStore("ui", () => {
   // reveals the Picture beneath it (when there is one), and turning the
   // Picture off hides it where nothing else covers it. Default both on, same
   // as every other layer here.
-  const siteMapLayers = ref({ spaces: true, ways: true, zones: false, prepared: false, grid: true, picture: true, drawing: true });
+  // `tokens`/`fog` (#884, wave 4, S12) are the stack's two PLAYED layers —
+  // see `lib/locations/mapStack.ts`'s `MAP_STACK_LAYERS`. Default off: unlike
+  // the authored layers above, a caller only ever offers these where play
+  // state actually exists (a run surface, an encounter, Build's player
+  // preview), so there is no "every other layer here" default to match —
+  // fog starting on would open a site run already fogged before the DM
+  // asked for it.
+  const siteMapLayers = ref({
+    spaces: true,
+    ways: true,
+    zones: false,
+    prepared: false,
+    grid: true,
+    picture: true,
+    drawing: true,
+    tokens: false,
+    fog: false,
+  });
 
   function toggleSiteMapLayer(key: keyof typeof siteMapLayers.value) {
     siteMapLayers.value[key] = !siteMapLayers.value[key];
   }
-
-  // You cannot trace into a layer you cannot see. `zones` is off by default
-  // above, so selecting a zone to draw into handed the DM a crosshair over an
-  // invisible layer: every stroke persisted through the same `commitCells`
-  // path a room uses, and nothing appeared on screen (#880). Selecting a
-  // region to trace is a statement of intent that outranks a viewing
-  // preference, so the layer that draws that region comes on with it. Keyed
-  // on the region's role rather than special-casing zones, so a third
-  // traceable role cannot reintroduce this; switching the layer back off
-  // afterwards stays available, and is now a choice rather than the default.
-  const LAYER_FOR_REGION_ROLE = { space: "spaces", zone: "zones" } as const satisfies Record<RegionRole, keyof typeof siteMapLayers.value>;
-
-  function revealLayerForRegionRole(role: RegionRole) {
-    siteMapLayers.value[LAYER_FOR_REGION_ROLE[role]] = true;
-  }
-
-  // Site map trace tool (#868, frame 12) — which of the three ways to trace a
-  // space is active. A plain ref alongside `siteMapLayers` for the same
-  // reason: which tool is selected is a working-session preference for
-  // whichever plan is open, not a durable setting.
-  const siteMapTraceTool = ref<TraceTool>("paint");
 
   // Puzzles (Enigmarium) UI state
   const puzzlesSearch = ref("");
@@ -1282,8 +1276,6 @@ export const useUiStore = defineStore("ui", () => {
     collapseAllLocations,
     siteMapLayers,
     toggleSiteMapLayer,
-    revealLayerForRegionRole,
-    siteMapTraceTool,
 
     // Puzzles
     puzzlesSearch,

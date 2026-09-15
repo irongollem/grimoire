@@ -9,7 +9,7 @@
 //                                   `DungeonMap` (flood fill cut at every edge
 //                                   segment and every solid block, door edges
 //                                   between two spaces, stairs, annotations,
-//                                   zones, cell links)
+//                                   cell links)
 //   src/lib/locations/publish.ts    reconciles it against what the Atlas
 //                                   already holds and produces a plan the
 //                                   review modal shows and the write path
@@ -27,7 +27,6 @@
 
 import type { CellKey, CellMetadata } from "@/types/dungeonMap.types";
 import type { SourceEdgeKey } from "@/types/locationDoor.types";
-import type { ZoneKind } from "@/types/locationMapRegion.types";
 
 export interface DerivedSpace {
   /** `s:<lowest cell key>` — stable within this derivation. */
@@ -62,16 +61,6 @@ export interface DerivedStair {
   spaceKey: string | null;
 }
 
-export interface DerivedZone {
-  /** `ZoneCell.zone_id` from the drawing. */
-  zoneId: string;
-  kind: ZoneKind;
-  label: string | null;
-  /** Sorted, unique. */
-  cells: CellKey[];
-  signature: string;
-}
-
 export interface DerivedLink {
   cellKey: CellKey;
   /** The space containing the cell, or null — a link on a corridor cell no
@@ -84,6 +73,5 @@ export interface DerivedStructure {
   spaces: DerivedSpace[];
   ways: DerivedWay[];
   stairs: DerivedStair[];
-  zones: DerivedZone[];
   links: DerivedLink[];
 }

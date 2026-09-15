@@ -1,41 +1,33 @@
-// ── "Start drawing" / "Open" for a site's own Drawing layer (#884, S5) ──────
+// ── "Start drawing" for a site's own Drawing layer (#884, S5; reworked S11) ──
 //
-// `SiteMapLayersPanel`'s Drawing row emits `open-drawing` rather than routing
-// itself — a later story mounts the Cartographer inline, and only the caller
-// will know where to put it — but both callers (`AtlasSiteMapMode`,
-// `LocationSheet`) need the exact same two-way branch: open the existing
-// drawing, or create one first. Rather than duplicate that branch verbatim in
-// two files (the thing this codebase's own component-extraction rule exists
-// to stop), it lives here once.
+// `SiteMapLayersPanel`'s Drawing row emits `open-drawing` rather than acting
+// itself — both callers (`AtlasSiteMapMode`, `LocationSheet`) need the exact
+// same branch, and the component-extraction rule this codebase already
+// follows says that lives once, here, rather than twice.
 //
-// Mirrors `SiteLevelReusePanel`'s "Draw level N" (create, then open) with one
-// deliberate difference. That flow pushes `/cartographer/new?publishTo=<id>`
-// and lets the FIRST SAVE create the row — `useMapPublish` only offers to
-// publish once a real map id exists, and at `/cartographer/new` there isn't
-// one yet, so the offer waits for actual content. A site's own Drawing
-// already has an obvious name (the site's own), so this pre-creates the row
-// instead of leaving it "Untitled Map" for the DM to rename — which means a
-// real map id exists the instant the Cartographer opens. `publishTo` is
-// deliberately left off the navigation for exactly that reason: carrying it
-// would open the Publish modal over a still-blank canvas, since the trigger
-// is "a map exists and `publishTo` is present," not "a map has been drawn."
-// The DM publishes from inside the Cartographer once there is something to
-// publish, same as any map opened from the plain `/cartographer/:id` route.
-import { useRouter } from "vue-router";
+// Before #884 S11 this navigated to `/cartographer/:id` — the Cartographer
+// was a separate page. It no longer is: `AtlasSiteMapMode`/`LocationSheet`
+// mount `MapWorkbench` directly in Build mode, and hand it `source_map_id`'s
+// own row (or `null`) as its `map` prop. So a site that already has a
+// drawing is *already showing it* the moment this fires — there is nothing
+// left to open, and this is a no-op. A site with none yet needs one CREATED
+// so the embedded workbench has a real row to autosave onto (mirroring
+// `useSiteDrawingEditor`'s own create-on-first-edit path, but immediate
+// rather than deferred to the first paint stroke — "Start drawing" is a
+// deliberate click, not an incidental one) — named after the site, same as
+// before, so it never sits as "Untitled Map" for the DM to rename.
 import { useCreateDungeonMap } from "@/composables/cartographer/useDungeonMaps";
+import { useUpdateLocation } from "@/composables/locations/useLocations";
 import type { Location } from "@/types/location.types";
 
 export function useOpenSiteDrawing() {
-  const router = useRouter();
   const createDungeonMap = useCreateDungeonMap();
+  const updateLocation = useUpdateLocation();
 
   async function openDrawing(site: Pick<Location, "id" | "name" | "source_map_id">): Promise<void> {
-    if (site.source_map_id) {
-      router.push(`/cartographer/${site.source_map_id}`);
-      return;
-    }
+    if (site.source_map_id) return; // already showing in the embedded workbench
     const created = await createDungeonMap.mutateAsync({ name: site.name });
-    router.push(`/cartographer/${created.id}`);
+    await updateLocation.mutateAsync({ id: site.id, update: { source_map_id: created.id } });
   }
 
   return { openDrawing };

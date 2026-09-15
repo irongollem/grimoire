@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { GridPoint } from "@/types/locationMapRegion.types";
 import { cellKey } from "@/types/dungeonMap.types";
-import { cellsInCircle } from "@/cartographer/geometry";
+import { cellsInCircle } from "@/lib/map/gestures/template";
 import { canonicalCells } from "@/cartographer/cellSignature";
 import {
   snapPoint,

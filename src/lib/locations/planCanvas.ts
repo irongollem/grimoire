@@ -359,6 +359,47 @@ export function drawZonesPass(
   }
 }
 
+// ── Fog pass (#884 S11) ───────────────────────────────────────────────────
+
+/**
+ * The DM's own site-fog hint, drawn straight onto the run surface's plan
+ * instead of beside it as a second, separately-scaled `PlayerSitePlan`
+ * (`siteFog.ts` builds the same explored/glimpsed split this reads its
+ * `glimpsedCellGroups` from — see that module for why the DM's own
+ * unexplored rooms get a translucent hint rather than nothing: their
+ * geometry is the DM's own ink, so there is nothing to withhold, only to
+ * shade). A hint, never a wall: every room the DM traced keeps its
+ * outline and fill from `drawSpacesPass` underneath this pass — fog only
+ * dims it, at `siteFog.ts`'s own translucent alpha (matching
+ * `PlayerSitePlan.vue`'s `opaque: false`), never blanks it out.
+ */
+export function drawFogPass(
+  ctx: CanvasRenderingContext2D,
+  geometry: RenderGeometry,
+  glimpsedCellGroups: readonly (readonly CellKey[])[],
+): void {
+  const { calibration: cal, imageWidth: w, imageHeight: h, canvasWidth, canvasHeight } = geometry;
+  const FOG_FILL = "rgba(11, 9, 7, 0.55)";
+  const FOG_OUTLINE = "rgba(180, 165, 140, 0.34)";
+
+  for (const cells of glimpsedCellGroups) {
+    ctx.fillStyle = FOG_FILL;
+    ctx.strokeStyle = FOG_OUTLINE;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 5]);
+    for (const key of cells) {
+      const rect = cellRectInImageFractions(key, cal, w, h);
+      const x = rect.x * canvasWidth;
+      const y = rect.y * canvasHeight;
+      const cw = rect.w * canvasWidth;
+      const ch = rect.h * canvasHeight;
+      ctx.fillRect(x, y, cw, ch);
+      ctx.strokeRect(x, y, cw, ch);
+    }
+    ctx.setLineDash([]);
+  }
+}
+
 // ── Pen / template overlay (#868, frame 12) ──────────────────────────────
 // Moved from `useRegionPen.ts` (#868 wave 2): these three are pure canvas
 // drawing, not pen/template *state* — the composable at that path keeps the

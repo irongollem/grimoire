@@ -3,12 +3,9 @@
     v-if="calibration"
     ref="canvasEl"
     class="absolute inset-0 h-full w-full"
-    :class="doorToolArmed || (mode === 'browse' && activeRegionId) ? 'cursor-crosshair' : 'cursor-pointer'"
-    @pointerdown="doorToolArmed ? onDoorPointerDown($event) : pointer.onPointerDown($event)"
-    @pointermove="doorToolArmed ? onDoorPointerMove($event) : pointer.onPointerMove($event)"
-    @pointerleave="doorToolArmed ? onDoorPointerLeave() : pointer.onPointerLeave()"
-    @dblclick="pointer.onDoubleClick"
-    @contextmenu="doorToolArmed ? $event.preventDefault() : undefined"
+    @pointerdown="pointer.onPointerDown"
+    @pointermove="pointer.onPointerMove"
+    @pointerleave="pointer.onPointerLeave"
   />
 </template>
 
@@ -18,46 +15,39 @@
  * so it inherits zoom/pan the same way pins and the image do (moved out of
  * `SiteMapView.vue`, #807). Deliberately no TanStack import for reads:
  * `regions`/`calibration` arrive as props from the composite
- * (`LocationMap.vue`), keeping this a pure renderer + interaction layer. It
- * does own the one write a canvas gesture needs — committing a stroke's
- * cells — the same split `SiteMapRegionList.vue` draws for bind/unbind.
+ * (`LocationMap.vue`), keeping this a pure renderer + interaction layer.
  *
- * The pointer/gesture state machine (paint stroke, pen node drag, template
- * drop, tap-vs-drag, hover) lives in `useRegionPointer` (#868 wave 3, split
- * out once this file crossed the 600-line soft cap): this component supplies
- * it plain callbacks onto its own props/emits/mutation and gets back the
- * handlers the canvas binds to, plus the reactive state `renderOverlay` draws.
+ * Read-only + click-to-navigate/descend (browse) and click-to-move-party
+ * (run) ONLY, as of #884 S11 — tracing (paint/pen/template) and the door
+ * tool both moved to `MapWorkbench`'s embedded Plan palette, which is the
+ * ONLY place Build mode mounts now (`AtlasSiteMapMode.vue`/`LocationSheet.vue`
+ * no longer render this component with editing affordances at all — Browse
+ * and Run are the only two modes left here). This surface uses
+ * `useRegionNavPointer`, the read/navigate half of what `useRegionPointer`
+ * used to be alone — that composable still exists for the Cartographer's
+ * Plan canvas (`usePlanCanvasTools.ts`), which still traces, but this
+ * component no longer satisfies its tracing contract with no-op/lying
+ * stubs (`activeRegion` always null, `commitCells` a no-op, …); it just
+ * never had anything to trace with in the first place.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { dmEdit, useUpdateLocationMapRegion } from "@/composables/locations/useLocationMapRegions";
-import { useCreateLocationDoor, useDeleteLocationDoor, useUpdateLocationDoor } from "@/composables/locations/useLocationDoors";
-import { useRegionPointer, type UseRegionPointerOptions } from "@/composables/locations/useRegionPointer";
-import { canvasToGridPoint, gridPointToCanvas } from "@/composables/locations/useRegionPen";
-import { useConfirm } from "@/composables/useConfirm";
-import { useToast } from "@/composables/useToast";
-import { useUiStore } from "@/stores/ui";
+import { useRegionNavPointer, type UseRegionNavPointerOptions } from "@/composables/locations/useRegionNavPointer";
+import { gridPointToCanvas } from "@/composables/locations/useRegionPen";
 import { cellAtImageFraction } from "@/lib/locations/gridCalibration";
-import { edgeAtImageFraction, indexSpacesByCell, resolveEdgeEndpoints } from "@/lib/locations/doors";
-import { cellsInsideRing, templateRing } from "@/lib/locations/polygon";
 import {
-  drawDoorToolHoverPass,
+  drawFogPass,
   drawGridPass,
-  drawPenOverlay,
   drawSpacesPass,
-  drawTemplatePreview,
   drawWaysPass,
   drawZonesPass,
   type RenderGeometry,
   type RoomFacts,
 } from "@/lib/locations/planCanvas";
-import { isCellOnImageGrid } from "@/lib/locations/siteMap";
 import type { CellKey } from "@/types/dungeonMap.types";
 import type { DoorKind, SourceEdgeKey } from "@/types/locationDoor.types";
 import type { GridCalibration } from "@/types/location.types";
 import type { GridPoint, LocationMapRegion } from "@/types/locationMapRegion.types";
-
-const activeRegionId = defineModel<string | null>("activeRegionId", { default: null });
 
 const {
   regions,
@@ -75,16 +65,16 @@ const {
   ways = [],
   showWays = true,
   nestedSiteIds = new Set<string>(),
-  building = false,
-  doorToolArmed = false,
-  placingDoorId = null,
+  showFog = false,
+  fogGlimpsedCells = [],
 } = defineProps<{
   regions: LocationMapRegion[];
   calibration: GridCalibration | null;
   imageNaturalWidth: number;
   imageNaturalHeight: number;
-  /** Browse: tracing/select/navigate (the sheet, the Atlas pane). Run:
-   *  click-to-move-party (`SiteRunSurface`). */
+  /** Browse: select/navigate (the sheet, the Atlas pane). Run:
+   *  click-to-move-party (`SiteRunSurface`). Tracing/editing both moved to
+   *  `MapWorkbench` (#884 S11) — neither mode here ever edits. */
   mode: "browse" | "run";
   /** The room the party currently occupies. Only meaningful in run mode. */
   partyRoomId?: string | null;
@@ -109,8 +99,7 @@ const {
   /** The `Grid` layer bar pill (#868). */
   showGrid?: boolean;
   /** Doors on this site, drawn as bars across their edge (frame 03) — only
-   *  ones with a `edge_key` actually draw. `LocationMap.vue` passes
-   *  this next wave; optional here so the prop can land ahead of that. */
+   *  ones with a `edge_key` actually draw. */
   ways?: ReadonlyArray<{
     id: string;
     edge_key: SourceEdgeKey | null;
@@ -127,23 +116,13 @@ const {
    *  sheet. Derived by `LocationMap.vue` from the same `spaces` prop that
    *  feeds `SiteMapRegionList`. */
   nestedSiteIds?: ReadonlySet<string>;
-  /** Build mode (#884) — gates *tracing* only: paint/pen/template gestures
-   *  and selecting an unbound shape to trace. Click-to-navigate and
-   *  click-to-descend on an already-bound space stay live in Browse — see
-   *  `activeRegion()` and `pointerOptions.onSelect` below. */
-  building?: boolean;
-  /** The door tool (#884) — Build only, mutually exclusive with tracing
-   *  (`LocationMap.vue` clears whichever isn't this one). While armed, every
-   *  pointer gesture on this canvas means placing/cycling/deleting a door on
-   *  the nearest cell edge instead of whatever the trace tool would do —
-   *  see `onDoorPointerDown` below, which fully replaces the delegation to
-   *  `useRegionPointer` rather than teaching that composable a fifth tool. */
-  doorToolArmed?: boolean;
-  /** Set by `LocationMap.vue`'s "Place it" flow (`SiteWaysOutPanel`, #884
-   *  Build step 6) — an existing, never-placed door waiting for its first
-   *  edge click. The next click re-derives and writes *that* door's
-   *  endpoints instead of creating a new one. */
-  placingDoorId?: string | null;
+  /** The DM's own site-fog hint (#884 S11) — drawn over the plan rather
+   *  than beside it as a second `PlayerSitePlan`. Each entry is one
+   *  unexplored space's own traced cells; `SiteRunSurface` builds this off
+   *  `siteFog.ts`'s `buildDmFogPlan` (its `.glimpsed`). Off by default —
+   *  only the run surface's Fog toggle turns it on. */
+  showFog?: boolean;
+  fogGlimpsedCells?: readonly (readonly CellKey[])[];
 }>();
 
 const emit = defineEmits<{
@@ -153,67 +132,24 @@ const emit = defineEmits<{
    *  navigates); this layer only knows it isn't a plain room push. */
   descend: [spaceId: string];
   /** The region under the pointer changed — including to `null` on leaving
-   *  it. Fired on hover, not on click; a later story uses it for a caption
-   *  chip and nothing here reacts to it itself. */
+   *  it. Fired on hover, not on click; used for a caption chip. */
   "hover-region": [regionId: string | null];
-  /** A `placingDoorId` door just got its first (or new) edge — `LocationMap.vue`
-   *  clears the pending id on this so the tool goes back to plain "create". */
-  "door-placed": [doorId: string];
 }>();
 
 const router = useRouter();
-const { error: toastError, fromError } = useToast();
-const { confirm } = useConfirm();
-const updateRegion = useUpdateLocationMapRegion();
-
-// Trace tool (#868, frame 12) — `paint` is the default, so browse mode is
-// unchanged until a DM deliberately switches. Read straight from the store
-// rather than as a prop: `SiteMapRegionList` writes the same field, and
-// `LocationMap.vue` doesn't otherwise mediate between these two siblings.
-const uiStore = useUiStore();
-const tool = computed(() => uiStore.siteMapTraceTool);
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
 // ── Interaction ──────────────────────────────────────────────────────────
-// `useRegionPointer` owns the gesture state machine; below is this
-// component's side of that contract: resolving an event to app state and
-// committing a finished gesture through `updateRegion`. `pointer` is built
-// before the render watch further down, which reads its state immediately.
+// `useRegionNavPointer` owns hover and click routing (tap-vs-drag, select
+// an unbound shape, navigate/descend, move the party in run mode) — the
+// only gestures this read-only surface has.
 
-// Geometry/lookup helpers the composable can't do itself (calibration, the
-// canvas element, the `regions` prop — all host-only). `regionAt` (click
-// routing) excludes zones on purpose — a click only ever means the space
-// underneath one, never traced from a plain tap; `hoverRegionAt` follows the
-// zone-over-space stacking a DM sees (`renderOverlay`).
 function cellAt(clientX: number, clientY: number): CellKey | null {
   const cal = calibration;
   if (!cal || imageNaturalWidth <= 0 || imageNaturalHeight <= 0) return null;
   const frac = toImageFraction(clientX, clientY);
   return frac ? cellAtImageFraction(frac.x, frac.y, cal, imageNaturalWidth, imageNaturalHeight) : null;
-}
-function isPaintable(cell: CellKey): boolean {
-  return !!calibration && isCellOnImageGrid(cell, calibration, imageNaturalWidth, imageNaturalHeight);
-}
-function gridPointAt(clientX: number, clientY: number): GridPoint | null {
-  const cal = calibration;
-  const canvas = canvasEl.value;
-  if (!cal || !canvas || imageNaturalWidth <= 0 || imageNaturalHeight <= 0) return null;
-  const frac = toImageFraction(clientX, clientY);
-  return frac
-    ? canvasToGridPoint(frac.x * canvas.width, frac.y * canvas.height, cal, imageNaturalWidth, imageNaturalHeight, canvas.width, canvas.height)
-    : null;
-}
-// Gated on `building` (#884) — this is what actually disarms the paint/pen/
-// template gestures in `useRegionPointer`'s `onPointerDown`: it only ever
-// reads a region to act on via `options.activeRegion()`, so returning `null`
-// here is sufficient regardless of what `activeRegionId` itself holds.
-function activeRegion(): LocationMapRegion | null {
-  if (!building) return null;
-  return regions.find((r) => r.id === activeRegionId.value) ?? null;
-}
-function hasActiveRegionId(): boolean {
-  return !!activeRegionId.value;
 }
 function regionAt(cell: CellKey): LocationMapRegion | null {
   return regions.find((r) => r.region_role === "space" && r.cells.includes(cell)) ?? null;
@@ -223,83 +159,18 @@ function hoverRegionAt(cell: CellKey): LocationMapRegion | null {
   return zone ?? regions.find((r) => r.region_role === "space" && r.cells.includes(cell)) ?? null;
 }
 
-function commitCells(regionId: string, cells: CellKey[]): void {
-  pendingStroke.value = { regionId, cells };
-  updateRegion.mutate(
-    { id: regionId, update: dmEdit({ cells }) },
-    {
-      onError: (err) => {
-        if (pendingStroke.value?.regionId === regionId) pendingStroke.value = null;
-        toastError(fromError(err));
-        renderOverlay();
-      },
-    },
-  );
-}
-
-// A ring edit (drag/alt-delete/double-click-insert/draft-close), re-deriving
-// `cells` alongside so the two never drift. Rethrows after toasting — the
-// draft-close gesture needs that signal to put its ring back; every other
-// caller swallows it.
-async function commitRing(regionId: string, ring: GridPoint[]): Promise<void> {
-  try {
-    await updateRegion.mutateAsync({ id: regionId, update: dmEdit({ vertices: ring, cells: cellsInsideRing(ring) }) });
-  } catch (err) {
-    toastError(fromError(err));
-    throw err;
-  }
-}
-
-// A finished template drop — separate from `commitRing` since a template's
-// cell fill (`templateCells`) is its own algorithm, not the generic
-// ring-fill `commitRing` uses for a hand-traced pen shape.
-function commitTemplate(regionId: string, ring: GridPoint[], cells: CellKey[]): void {
-  updateRegion.mutate({ id: regionId, update: dmEdit({ vertices: ring, cells }) }, { onError: (err) => toastError(fromError(err)) });
-}
-
-// Converting a pen-traced region to painted cells is one-way and lossy (the
-// diagonal is gone once `vertices` is null), so it's confirmed once here
-// rather than silently on the first paint stroke.
-async function confirmConvert(region: LocationMapRegion): Promise<boolean> {
-  const ok = await confirm("Painting converts this pen-traced shape to cells — the diagonal edges are lost. Continue?", { danger: true });
-  if (!ok) return false;
-  try {
-    await updateRegion.mutateAsync({ id: region.id, update: dmEdit({ vertices: null, cells: region.cells }) });
-    return true;
-  } catch (err) {
-    toastError(fromError(err));
-    return false;
-  }
-}
-
 // The nested-site case (#818) is `onDescend` in `pointerOptions` below
-// instead — `useRegionPointer` picks between the two via `isNestedSite`.
+// instead — `useRegionNavPointer` picks between the two via `isNestedSite`.
 function onNavigate(spaceId: string): void {
   router.push(`/locations/${spaceId}`);
 }
 
-const pointerOptions: UseRegionPointerOptions = {
+const pointerOptions: UseRegionNavPointerOptions = {
   cellAt,
-  isPaintable,
-  gridPointAt,
-  activeRegion,
-  hasActiveRegionId,
-  tool: () => tool.value,
   mode: () => mode,
   regionAt,
   hoverRegionAt,
-  commitCells,
-  commitRing,
-  commitTemplate,
-  confirmConvert,
-  // Selecting an unbound shape starts a trace (#884) — no-op outside Build,
-  // so a stray click on a leftover untraced shape in Browse can never arm
-  // `activeRegionId` and then have every further click swallowed by
-  // `handleClick`'s "already tracing something" guard with no Done button
-  // on screen to clear it.
-  onSelect: (regionId) => {
-    if (building) activeRegionId.value = regionId;
-  },
+  onSelect: () => {},
   onNavigate,
   onDescend: (spaceId) => emit("descend", spaceId),
   onMoveParty: (roomId) => emit("move-party", roomId),
@@ -308,119 +179,7 @@ const pointerOptions: UseRegionPointerOptions = {
   onHover: (regionId) => emit("hover-region", regionId),
 };
 
-const pointer = useRegionPointer(pointerOptions);
-
-// ── Door tool (#884) ───────────────────────────────────────────────────────
-//
-// A separate, self-contained gesture path rather than a fifth `tool()` value
-// threaded through `useRegionPointer` — that composable's whole contract is
-// "how a *trace* gesture unfolds" (paint stroke, pen node, template drag);
-// placing a door shares none of that state machine (no stroke, no ring, no
-// tap-vs-drag distinction) and is mutually exclusive with tracing in any
-// case, so it gets its own pointerdown/pointermove pair the template swaps
-// to instead of `pointer.onPointerDown`/`onPointerMove` while armed.
-
-const createDoor = useCreateLocationDoor();
-const updateDoor = useUpdateLocationDoor();
-const deleteDoor = useDeleteLocationDoor();
-
-/** The edge the door tool would act on right now — null off the snap band
- *  entirely. Drives both the hover highlight and what a click does. */
-const doorHoverEdgeKey = ref<SourceEdgeKey | null>(null);
-
-/** cell → bound space, rebuilt whenever the traced regions change — the same
- *  index `resolveEdgeEndpoints` needs, computed once per render rather than
- *  once per pointer event. */
-const cellToSpace = computed(() => indexSpacesByCell(regions));
-
-function doorEdgeAt(clientX: number, clientY: number): SourceEdgeKey | null {
-  const cal = calibration;
-  if (!cal || imageNaturalWidth <= 0 || imageNaturalHeight <= 0) return null;
-  const frac = toImageFraction(clientX, clientY);
-  return frac ? edgeAtImageFraction(frac.x, frac.y, cal, imageNaturalWidth, imageNaturalHeight) : null;
-}
-
-function existingDoorAtEdge(edgeKey: SourceEdgeKey): (typeof ways)[number] | null {
-  return ways.find((w) => w.edge_key === edgeKey) ?? null;
-}
-
-function onDoorPointerMove(e: PointerEvent): void {
-  doorHoverEdgeKey.value = doorEdgeAt(e.clientX, e.clientY);
-}
-
-function onDoorPointerLeave(): void {
-  doorHoverEdgeKey.value = null;
-}
-
-/**
- * A click on the door tool. Alt-click (mirroring the pen tool's own
- * alt-delete gesture, `handlePenPointerDown` above) or a right-click deletes
- * whatever door sits on the targeted edge; a plain click on an edge that
- * already carries a door cycles its kind between `door` and `arch` — the
- * two horizontal kinds this 2D plan edge actually distinguishes, a stair or
- * shaft only ever arrives by inference below; a plain click on a bare edge
- * places a new door there (or, with `placingDoorId` set, moves that existing
- * unplaced door onto it).
- */
-async function onDoorPointerDown(e: PointerEvent): Promise<void> {
-  const edgeKey = doorEdgeAt(e.clientX, e.clientY);
-  if (!edgeKey) return;
-  const existing = existingDoorAtEdge(edgeKey);
-
-  if (e.altKey || e.button === 2) {
-    if (existing) deleteDoor.mutate(existing.id, { onError: (err) => toastError(fromError(err)) });
-    return;
-  }
-
-  if (existing && placingDoorId === null) {
-    const nextKind: DoorKind = existing.door_kind === "arch" ? "door" : "arch";
-    updateDoor.mutate({ id: existing.id, update: { door_kind: nextKind } }, { onError: (err) => toastError(fromError(err)) });
-    return;
-  }
-
-  const resolved = resolveEdgeEndpoints(edgeKey, cellToSpace.value);
-  if (!resolved) {
-    toastError("Trace a room on at least one side of this edge before placing a door there.");
-    return;
-  }
-  // A stair by default whenever either side is a nested site (#818) — a
-  // vertical connection, not a plain room-to-room door; everything else
-  // starts as a plain door and is cycled to an arch by a further click.
-  const kind: DoorKind =
-    nestedSiteIds.has(resolved.fromLocationId) || (resolved.toLocationId !== null && nestedSiteIds.has(resolved.toLocationId))
-      ? "stair"
-      : "door";
-
-  if (placingDoorId !== null) {
-    updateDoor.mutate(
-      {
-        id: placingDoorId,
-        update: {
-          edge_key: edgeKey,
-          from_location_id: resolved.fromLocationId,
-          to_location_id: resolved.toLocationId,
-          derived_from: "dm",
-        },
-      },
-      {
-        onSuccess: () => emit("door-placed", placingDoorId!),
-        onError: (err) => toastError(fromError(err)),
-      },
-    );
-    return;
-  }
-
-  createDoor.mutate(
-    {
-      from_location_id: resolved.fromLocationId,
-      to_location_id: resolved.toLocationId,
-      door_kind: kind,
-      edge_key: edgeKey,
-      derived_from: "dm",
-    },
-    { onError: (err) => toastError(fromError(err)) },
-  );
-}
+const pointer = useRegionNavPointer(pointerOptions);
 
 let resizeObserver: ResizeObserver | null = null;
 onMounted(() => {
@@ -438,43 +197,6 @@ watch(canvasEl, (el, oldEl) => {
   if (el) resizeObserver?.observe(el);
 });
 
-const NODE_SIZE_PX = 9;
-// Mirrors `useRegionPointer`'s own hit-test radius (rendering only, not gesture logic).
-const SNAP_HIT_RADIUS_CELLS = 0.4;
-
-// A finished stroke's cells, echoed here until the refetch carries them back
-// (the mutation invalidates rather than writing through). The persisted half
-// of the override; `pointer.strokeCells` is the transient half — only this
-// component can compare either against the live `regions` prop.
-const pendingStroke = ref<{ regionId: string; cells: CellKey[] } | null>(null);
-
-function sameCells(a: readonly CellKey[], b: readonly CellKey[]): boolean {
-  if (a.length !== b.length) return false;
-  const set = new Set(a);
-  return b.every((k) => set.has(k));
-}
-
-watch(
-  () => regions,
-  (next) => {
-    const pending = pendingStroke.value;
-    if (!pending) return;
-    const region = next.find((r) => r.id === pending.regionId);
-    if (!region || sameCells(region.cells, pending.cells)) pendingStroke.value = null;
-  },
-);
-
-// The in-flight or pending-echo cells, keyed by region id, fed to both the
-// space and zone passes so an active trace never disagrees with itself.
-function cellsOverride(): ReadonlyMap<string, readonly CellKey[]> | undefined {
-  const overrides = new Map<string, readonly CellKey[]>();
-  const stroke = pointer.strokeCells.value;
-  if (stroke) overrides.set(stroke.regionId, stroke.cells);
-  const pending = pendingStroke.value;
-  if (pending && !overrides.has(pending.regionId)) overrides.set(pending.regionId, pending.cells);
-  return overrides.size > 0 ? overrides : undefined;
-}
-
 function renderOverlay(): void {
   const canvas = canvasEl.value;
   const cal = calibration;
@@ -491,25 +213,21 @@ function renderOverlay(): void {
   const h = imageNaturalHeight;
   const geometry: RenderGeometry = { calibration: cal, imageWidth: w, imageHeight: h, canvasWidth: canvas.width, canvasHeight: canvas.height };
 
-  /** A pen ring vertex (grid-point space) to this canvas's own pixels — the
-   *  same conversion the pen tool and the door bars below both need, since
-   *  neither draws in whole cells the way the grid/fill passes do. */
+  /** A door bar's endpoint (grid-point space) to this canvas's own pixels. */
   function pointToCanvas(point: GridPoint): { x: number; y: number } {
     return gridPointToCanvas(point, cal!, w, h, canvas!.width, canvas!.height);
   }
 
   if (showGrid) drawGridPass(ctx, geometry);
 
-  const overrides = cellsOverride();
-
   if (showSpaces) {
     drawSpacesPass(
       ctx,
       geometry,
       regions,
-      { mode, activeRegionId: activeRegionId.value, partyRoomId, reachableRoomIds, roomState },
+      { mode, activeRegionId: null, partyRoomId, reachableRoomIds, roomState },
       pointToCanvas,
-      overrides,
+      undefined,
     );
   }
 
@@ -519,46 +237,18 @@ function renderOverlay(): void {
 
   // Zones paint above spaces — a room is a floor to stand on, a zone is an
   // overlay ON that floor (water, ash, darkness) — and always dashed, so a
-  // zone reads as an area effect rather than a second, competing room shape
-  // (frame 07: "Zone layer over the space layer — dashed, so a zone never
-  // reads as a room.").
-  if (showZones) drawZonesPass(ctx, geometry, regions, activeRegionId.value, dpr, overrides);
+  // zone reads as an area effect rather than a second, competing room shape.
+  if (showZones) drawZonesPass(ctx, geometry, regions, null, dpr, undefined);
 
-  // ── Pen tool overlay (#868, frame 12) ────────────────────────────────────
-  // The ring being traced or edited right now: a live node drag wins over
-  // the persisted/draft ring it's dragging, the same override order
-  // `cellsOverride` already uses for the paint stroke above.
-  if (mode === "browse" && tool.value === "pen" && activeRegionId.value) {
-    const region = regions.find((r) => r.id === activeRegionId.value);
-    if (region) {
-      const persisted = region.vertices !== null;
-      const drag = pointer.liveDrag.value;
-      const dragging = drag && drag.regionId === region.id ? drag.ring : null;
-      const ring = dragging ?? (persisted ? region.vertices! : pointer.draftRing.value);
-      drawPenOverlay(ctx, pointToCanvas, ring, persisted, pointer.penHoverPoint.value, NODE_SIZE_PX, SNAP_HIT_RADIUS_CELLS);
-    }
-  }
-
-  // ── Template preview (#868, frame 12: "dropped in one drag") ─────────────
-  if (mode === "browse" && tool.value === "template" && pointer.templateDraft.value && pointer.templateDraft.value.radius > 0) {
-    const { shape, center, radius } = pointer.templateDraft.value;
-    drawTemplatePreview(ctx, pointToCanvas, templateRing(shape, center, radius));
-  }
-
-  // ── Door tool hover (#884) ────────────────────────────────────────────────
-  // Drawn last, over everything else, so the "you're about to place/cycle a
-  // door here" highlight always wins visually — the same reason the pen
-  // overlay and template preview above it already paint last.
-  if (doorToolArmed && doorHoverEdgeKey.value) {
-    drawDoorToolHoverPass(ctx, geometry, doorHoverEdgeKey.value, pointToCanvas);
-  }
+  // The DM's own site-fog hint (#884 S11) — drawn last, over everything
+  // else, so it reads as a shade over the plan rather than under it.
+  if (showFog && fogGlimpsedCells.length > 0) drawFogPass(ctx, geometry, fogGlimpsedCells);
 }
 
 watch(
   [
     () => regions,
     () => calibration,
-    activeRegionId,
     () => imageNaturalWidth,
     () => imageNaturalHeight,
     () => mode,
@@ -570,14 +260,8 @@ watch(
     () => showGrid,
     () => ways,
     () => showWays,
-    tool,
-    () => pointer.draftRing.value,
-    () => pointer.templateDraft.value,
-    () => pointer.penHoverPoint.value,
-    () => pointer.liveDrag.value,
-    () => pointer.strokeCells.value,
-    () => doorToolArmed,
-    () => doorHoverEdgeKey.value,
+    () => showFog,
+    () => fogGlimpsedCells,
   ],
   () => renderOverlay(),
   { flush: "post", immediate: true },

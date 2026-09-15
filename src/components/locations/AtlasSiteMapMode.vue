@@ -13,105 +13,127 @@
       :staleness="siteStaleness"
       :counts="siteLayerCounts"
       @open-drawing="onOpenDrawing"
+      @review-changes="onReviewChanges"
     />
 
-    <!-- "<site> › Level N · <name> [chip]" (#868, frame 06) — the stairs
-         chip travels with the level it counts, in the same trail row, rather
-         than as a standalone line the map otherwise has to make room for. -->
-    <div v-if="showLevelsRail" class="flex items-center gap-1.5 text-caption text-muted-foreground">
-      <span class="truncate">{{ levelsContainer?.name }}</span>
-      <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/50" />
-      <span class="truncate font-semibold text-foreground">Level {{ currentLevelOrdinal }} · {{ location.name }}</span>
-      <span class="ml-1 flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">
-        <IconStairs class="h-3 w-3 shrink-0" aria-hidden="true" />
-        {{ verticalWaysCount }} stair{{ verticalWaysCount === 1 ? "" : "s" }} down
-      </span>
-    </div>
-
-    <div class="flex items-start gap-3">
-      <!-- "A level is a sibling site" (#868, frame 06) — not a new table,
-           just this site's own child sites, or its parent's when this
-           place IS one of them. -->
-      <SiteLevelsColumn
-        v-if="showLevelsRail"
-        :location="location"
-        :children="children"
-        @select="onLevelSelect"
+    <!-- Build mode (#884 S11): the workbench IS the Build map area — the
+         Cartographer, embedded, with its Plan palette tracing this site's
+         spaces/zones/doors directly, on the site's own Drawing or a blank
+         grid alike (`map` is null until one exists; the Plan needs no
+         image under it at all — see MapWorkbench's own docblock). Folds the
+         levels rail/column so the workbench gets the pane's full width,
+         same as Map mode already folds the Atlas tree. -->
+    <div v-if="building" class="relative min-w-0 flex-1">
+      <MapWorkbench
+        ref="drawingWorkbenchRef"
+        :map="siteSourceMap ?? null"
+        :view-mode="false"
+        :site="location"
+        :spaces="siteSpaces"
+        @update:dirty="drawingEditor.onDirtyChange"
       />
-
-      <!-- Nothing to render below a site with zero layers (#884, S5) — the
-           Layers panel above is the whole story in that case; `LocationMap`
-           needs a real stack to draw. Never gates a non-site place: the
-           parent only ever mounts this component once `hasMap` already
-           holds, so `mapStack.hasAnyLayer` is guaranteed true there. -->
-      <div v-if="mapStack.hasAnyLayer" class="relative min-w-0 flex-1">
-        <LocationMap
-          ref="mapRef"
-          :stack="mapStack"
-          :building="building"
-          :pins="location.map_pins"
-          :children="children"
-          mode="view"
-          show-hidden-pins
-          compact
-          :offer-peek="false"
-          :location-id="location.id"
-          :show-regions="isSite"
-          :regions="siteRegions"
-          :spaces="siteSpaces"
-          :show-layer-bar="false"
-          v-model:active-region-id="activeRegionId"
-          @pin-click="descendTo"
-          @pin-go="descendTo"
-          @pin-watch="descendTo"
-          @descend="onDescendRegion"
-        >
-          <!--
-            Up one level, in the map's own idiom. Rendered through this
-            slot rather than as a sibling of `LocationMap` — a sibling
-            positions against the whole component's box, which since
-            #868's layer bar/tracing banner started rendering above the
-            frame is no longer the same box as the map itself.
-          -->
-          <template #frame-overlay>
-            <AppButton
-              v-if="ascendTarget && !zoomPlan"
-              variant="subtle"
-              size="xs"
-              class="absolute top-2 left-2 z-30 max-w-56 bg-background/85 backdrop-blur-sm"
-              :icon="IconChevronUp"
-              :label="`Up to ${ascendTarget.name}`"
-              @click="ascend"
-            />
-          </template>
-
-          <template #aside>
-            <!--
-              "Place it" on an unplaced door arms the map's door tool with
-              that door, so the DM's next edge click gives it a position
-              (#884, S10). This is the one place the list and the plan are
-              composed together, which is why the wiring lives here rather
-              than in either of them.
-            -->
-            <SiteWaysOutPanel
-              :site-id="location.id"
-              :spaces="siteSpaces"
-              :building="building"
-              can-place
-              @place-door="mapRef?.placeDoor($event)"
-            />
-          </template>
-        </LocationMap>
-
-        <AtlasMapZoom
-          v-if="zoomPlan"
-          :plan="zoomPlan"
-          :settling="zoomSettling"
-          compact
-          @done="finishDescent"
-        />
-      </div>
     </div>
+
+    <template v-else>
+      <!-- "<site> › Level N · <name> [chip]" (#868, frame 06) — the stairs
+           chip travels with the level it counts, in the same trail row, rather
+           than as a standalone line the map otherwise has to make room for. -->
+      <div v-if="showLevelsRail" class="flex items-center gap-1.5 text-caption text-muted-foreground">
+        <span class="truncate">{{ levelsContainer?.name }}</span>
+        <IconChevronRight class="h-3 w-3 shrink-0 text-muted-foreground/50" />
+        <span class="truncate font-semibold text-foreground">Level {{ currentLevelOrdinal }} · {{ location.name }}</span>
+        <span class="ml-1 flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-label text-muted-foreground">
+          <IconStairs class="h-3 w-3 shrink-0" aria-hidden="true" />
+          {{ verticalWaysCount }} stair{{ verticalWaysCount === 1 ? "" : "s" }} down
+        </span>
+      </div>
+
+      <div class="flex items-start gap-3">
+        <!-- "A level is a sibling site" (#868, frame 06) — not a new table,
+             just this site's own child sites, or its parent's when this
+             place IS one of them. -->
+        <SiteLevelsColumn
+          v-if="showLevelsRail"
+          :location="location"
+          :children="children"
+          @select="onLevelSelect"
+        />
+
+        <!-- Nothing to render below a site with zero layers (#884, S5) — the
+             Layers panel above is the whole story in that case (Build only);
+             `LocationMap` needs a real stack to draw. Never gates a non-site
+             place: the parent only ever mounts this component once `hasMap`
+             already holds, so `mapStack.hasAnyLayer` is guaranteed true there. -->
+        <div v-if="mapStack.hasAnyLayer" class="relative min-w-0 flex-1">
+          <LocationMap
+            ref="mapRef"
+            :stack="mapStack"
+            :pins="location.map_pins"
+            :children="children"
+            mode="view"
+            show-hidden-pins
+            compact
+            :offer-peek="false"
+            :location-id="location.id"
+            :show-regions="isSite"
+            :regions="siteRegions"
+            :spaces="siteSpaces"
+            :show-layer-bar="false"
+            @pin-click="descendTo"
+            @pin-go="descendTo"
+            @pin-watch="descendTo"
+            @descend="onDescendRegion"
+          >
+            <!--
+              Up one level, in the map's own idiom. Rendered through this
+              slot rather than as a sibling of `LocationMap` — a sibling
+              positions against the whole component's box, which since
+              #868's layer bar/tracing banner started rendering above the
+              frame is no longer the same box as the map itself.
+            -->
+            <template #frame-overlay>
+              <AppButton
+                v-if="ascendTarget && !zoomPlan"
+                variant="subtle"
+                size="xs"
+                class="absolute top-2 left-2 z-30 max-w-56 bg-background/85 backdrop-blur-sm"
+                :icon="IconChevronUp"
+                :label="`Up to ${ascendTarget.name}`"
+                @click="ascend"
+              />
+            </template>
+
+            <template #aside>
+              <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" />
+            </template>
+          </LocationMap>
+
+          <AtlasMapZoom
+            v-if="zoomPlan"
+            :plan="zoomPlan"
+            :settling="zoomSettling"
+            compact
+            @done="finishDescent"
+          />
+        </div>
+      </div>
+    </template>
+
+    <!-- The embedded workbench's own Publish (#884 S11) — "Review N changes"
+         on the Layers panel above opens this in place, replacing the old
+         `/cartographer/:id?publishTo=` round trip. Mounted unconditionally
+         (like the Plan/drawing composables it reads), gated purely by
+         `:model-value`, so it never tears down mid-flow. -->
+    <CartographerPublishModal
+      v-if="isSite"
+      v-model="mapPublish.open.value"
+      v-model:target-site-id="mapPublish.targetSiteId.value"
+      :site-context="mapPublish.siteContext.value"
+      :stair-targets="mapPublish.stairTargets.value"
+      :review="mapPublish.review.value"
+      @pick-stair-target="(cellKey, id) => (mapPublish.stairTargets.value = { ...mapPublish.stairTargets.value, [cellKey]: id })"
+      @publish="mapPublish.publish()"
+    />
   </div>
 </template>
 
@@ -146,8 +168,12 @@ import LocationMap from "@/components/locations/LocationMap.vue";
 import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
 import SiteMapLayersPanel from "@/components/locations/SiteMapLayersPanel.vue";
 import SiteWaysOutPanel from "@/components/locations/SiteWaysOutPanel.vue";
+import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
+import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";
+import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
+import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEditor";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { IconChevronRight, IconChevronUp, IconStairs } from "@/lib/icons";
 import { verticalWays } from "@/lib/locations/doors";
@@ -169,8 +195,6 @@ const { location, index, children, building = false } = defineProps<{
 }>();
 
 const emit = defineEmits<{ select: [id: string]; descend: [id: string] }>();
-
-const activeRegionId = defineModel<string | null>("activeRegionId", { required: true });
 
 // The map component itself (#868, S6) — only for reading the loaded image's
 // natural size when a region-click descent needs to anchor on the region's
@@ -205,10 +229,42 @@ const siteSourceMap = computed(() => siteSourceMapQuery.data.value);
 
 // The Layers panel's Drawing row (#884, S5) — open the existing drawing, or
 // create one named after this site and open that. See `useOpenSiteDrawing`
-// for why `publishTo` is deliberately left off the navigation either way.
+// for why this no longer navigates at all (#884 S11).
 const { openDrawing } = useOpenSiteDrawing();
 function onOpenDrawing() {
   void openDrawing(location);
+}
+
+// ── Build mode (#884 S11): the workbench IS the map area ─────────────────
+// `useSiteDrawingEditor` owns the Drawing's autosave/create-on-first-edit —
+// see its own docblock for why it takes `siteSourceMap` rather than
+// querying `location.source_map_id` a second time.
+const locationForDrawing = computed(() => location);
+const drawingEditor = useSiteDrawingEditor(locationForDrawing, siteSourceMap);
+const drawingWorkbenchRef = drawingEditor.workbenchRef;
+
+/** The embedded workbench's own Publish (#884 S11) — reads the Drawing's
+ *  live-edited layers/metadata straight off `drawingWorkbenchRef`. Unlike
+ *  `CartographerEditorView.vue`'s own `requireWorkbench()`, this can't throw
+ *  on a missing ref as a "should never happen" bug: `useMapPublish`'s own
+ *  computeds (`mapId`, `bakedDims`, `plan`) read these getters continuously,
+ *  not just while the modal is open, and the workbench is genuinely unmounted
+ *  whenever the DM is Browsing rather than Building — so every getter here
+ *  degrades to the same "nothing to publish" empty value instead. */
+const mapPublish = useMapPublish({
+  map: () => {
+    const wb = drawingWorkbenchRef.value;
+    return wb && siteSourceMap.value
+      ? { ...siteSourceMap.value, layers: wb.getLayers(), metadata: wb.getMetadata() }
+      : null;
+  },
+  runtimes: () => drawingWorkbenchRef.value?.getRuntimes() ?? new Map(),
+  glyphs: () => drawingWorkbenchRef.value?.getCellGlyphs() ?? {},
+  structure: () => drawingWorkbenchRef.value?.getStructure() ?? { spaces: [], ways: [], stairs: [], links: [] },
+});
+function onReviewChanges(): void {
+  mapPublish.targetSiteId.value = location.id;
+  mapPublish.open.value = true;
 }
 
 // ── Moving between maps ───────────────────────────────────────────────────────

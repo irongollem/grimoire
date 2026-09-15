@@ -30,7 +30,7 @@
           <span class="min-w-0 flex-1 text-left">
             <span class="block truncate font-medium">{{ row.displayName }}</span>
             <span class="block text-caption-sm text-muted-foreground">
-              {{ PROVENANCE_LABEL[row.provenance] }} · {{ row.cellCount }} cell{{ row.cellCount === 1 ? "" : "s" }}<template v-if="row.zoneCount"> · {{ row.zoneCount }} zone{{ row.zoneCount === 1 ? "" : "s" }} inside</template>
+              {{ PROVENANCE_LABEL[row.provenance] }} · {{ row.cellCount }} cell{{ row.cellCount === 1 ? "" : "s" }}
             </span>
           </span>
         </AppButton>
@@ -57,10 +57,6 @@
         <div>
           <dt class="text-muted-foreground inline">Ways out — </dt>
           <dd class="inline text-foreground">{{ selectedSpaceInspector.waysSummary }}</dd>
-        </div>
-        <div v-for="zone in selectedSpaceInspector.zones" :key="`${zone.kind}:${zone.label ?? ''}`">
-          <dt class="text-muted-foreground inline">Zone — </dt>
-          <dd class="inline text-foreground">{{ zone.label ? `${zone.label} · ${zone.kindLabel}` : zone.kindLabel }}</dd>
         </div>
         <div v-for="link in selectedSpaceInspector.linked" :key="link">
           <dt class="text-muted-foreground inline">Linked — </dt>
@@ -99,20 +95,12 @@ import { IconCheck, IconCircle, IconLocation, IconSplitCell } from "@/lib/icons"
 import { timeAgo } from "@/lib/utils";
 import type { SpaceRow } from "@/composables/cartographer/useCartographerStructure";
 import type { PublishedSite } from "@/composables/cartographer/usePublishedSites";
-import type { ZoneKind } from "@/types/locationMapRegion.types";
-
-export interface SpaceInspectorZone {
-  kind: ZoneKind;
-  kindLabel: string;
-  label: string | null;
-}
 
 export interface SelectedSpaceInspector {
   key: string;
   name: string | null;
   sourceCell: string | null;
   waysSummary: string;
-  zones: SpaceInspectorZone[];
   linked: string[];
 }
 

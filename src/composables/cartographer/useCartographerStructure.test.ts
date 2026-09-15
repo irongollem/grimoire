@@ -6,9 +6,7 @@ import {
   buildLinkedSummary,
   buildSpaceRows,
   buildWaysSummary,
-  eraseZoneCell,
   findNameSourceCell,
-  paintZoneCell,
 } from "./useCartographerStructure";
 
 function space(over: Partial<DerivedSpace>): DerivedSpace {
@@ -16,7 +14,7 @@ function space(over: Partial<DerivedSpace>): DerivedSpace {
 }
 
 function structure(over: Partial<DerivedStructure>): DerivedStructure {
-  return { spaces: [], ways: [], stairs: [], zones: [], links: [], ...over };
+  return { spaces: [], ways: [], stairs: [], links: [], ...over };
 }
 
 describe("buildSpaceRows", () => {
@@ -28,12 +26,10 @@ describe("buildSpaceRows", () => {
     expect(rows[1]).toMatchObject({ displayName: "Region 2", hasName: false, provenance: "unnamed" });
   });
 
-  it("marks the selected row and counts zones inside it", () => {
+  it("marks the selected row", () => {
     const cistern = space({ key: "s:cistern", cells: ["1,1", "1,2"] as CellKey[] });
-    const zoneInside = { zoneId: "z1", kind: "hazard" as const, label: "Flooded", cells: ["1,1"] as CellKey[], signature: "1:x" };
-    const zoneOutside = { zoneId: "z2", kind: "light" as const, label: null, cells: ["9,9"] as CellKey[], signature: "1:y" };
-    const rows = buildSpaceRows(structure({ spaces: [cistern], zones: [zoneInside, zoneOutside] }), "s:cistern");
-    expect(rows[0]).toMatchObject({ provenance: "selected", isSelected: true, zoneCount: 1, cellCount: 2 });
+    const rows = buildSpaceRows(structure({ spaces: [cistern] }), "s:cistern");
+    expect(rows[0]).toMatchObject({ provenance: "selected", isSelected: true, cellCount: 2 });
   });
 });
 
@@ -133,36 +129,5 @@ describe("buildLinkedSummary", () => {
   it("ignores links belonging to a different space", () => {
     const links: DerivedLink[] = [{ cellKey: "1,1" as CellKey, spaceKey: "s:nave", metadata: { encounter_id: "e1" } }];
     expect(buildLinkedSummary(links, "s:cistern", resolvers)).toEqual([]);
-  });
-});
-
-describe("paintZoneCell / eraseZoneCell", () => {
-  it("paints a zone cell and is a no-op when nothing changed", () => {
-    const layers = emptyLayers();
-    expect(paintZoneCell(layers, 1, 1, "z1", "hazard", "Flooded")).toBe(true);
-    expect(layers.zone?.["1,1" as CellKey]).toEqual({ zone_id: "z1", kind: "hazard", label: "Flooded" });
-    expect(paintZoneCell(layers, 1, 1, "z1", "hazard", "Flooded")).toBe(false);
-  });
-
-  it("repaints a cell into a different zone", () => {
-    const layers = emptyLayers();
-    paintZoneCell(layers, 1, 1, "z1", "hazard", null);
-    expect(paintZoneCell(layers, 1, 1, "z2", "light", "Torchlit")).toBe(true);
-    expect(layers.zone?.["1,1" as CellKey]).toEqual({ zone_id: "z2", kind: "light", label: "Torchlit" });
-  });
-
-  it("tolerates a map saved before the zone layer existed", () => {
-    const layers = emptyLayers();
-    delete layers.zone;
-    expect(paintZoneCell(layers, 0, 0, "z1", "terrain", null)).toBe(true);
-    expect(layers.zone?.["0,0" as CellKey]).toEqual({ zone_id: "z1", kind: "terrain", label: null });
-  });
-
-  it("erases a zone cell and is a no-op when nothing was there", () => {
-    const layers = emptyLayers();
-    paintZoneCell(layers, 1, 1, "z1", "hazard", null);
-    expect(eraseZoneCell(layers, 1, 1)).toBe(true);
-    expect(layers.zone?.["1,1" as CellKey]).toBeUndefined();
-    expect(eraseZoneCell(layers, 1, 1)).toBe(false);
   });
 });

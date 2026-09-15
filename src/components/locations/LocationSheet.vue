@@ -136,9 +136,26 @@
         :staleness="siteStaleness"
         :counts="siteLayerCounts"
         @open-drawing="onOpenDrawing"
+        @review-changes="onReviewChanges"
       />
 
-      <div class="flex items-start gap-3">
+      <!-- Build mode (#884 S11): the workbench IS the Build map area — see
+           `AtlasSiteMapMode.vue`'s own copy of this branch for why (the
+           Cartographer, embedded, editing this site's Drawing/Plan
+           together; `map` is null until a Drawing exists, which the Plan
+           needs anyway). -->
+      <div v-if="building" class="min-w-0 flex-1">
+        <MapWorkbench
+          ref="drawingWorkbenchRef"
+          :map="sourceMap ?? null"
+          :view-mode="false"
+          :site="location"
+          :spaces="siteSpaces"
+          @update:dirty="drawingEditor.onDirtyChange"
+        />
+      </div>
+
+      <div v-else class="flex items-start gap-3">
         <!-- Frame 06's levels sidebar, reused verbatim from the Atlas
              explorer (#868, S5b) — this is the surface most links actually
              land on, so it had none of frame 06 until now. Shown whenever
@@ -150,8 +167,7 @@
           :children="children ?? []"
           @select="onLevelSelect"
         />
-        <!-- `LocationMap` needs a real stack to draw — a mapless site being
-             Built has nothing here yet beyond the Layers panel above. -->
+        <!-- `LocationMap` needs a real stack to draw. -->
         <div v-if="mapStack.hasAnyLayer" class="min-w-0 flex-1">
           <LocationMap
             :stack="mapStack"
@@ -163,13 +179,25 @@
             :show-regions="isSiteType(location.location_type)"
             :regions="siteRegions"
             :spaces="siteSpaces"
-            :building="building"
-            v-model:active-region-id="activeRegionId"
             @pin-click="onPinClick"
           />
         </div>
       </div>
     </section>
+
+    <!-- The embedded workbench's own Publish (#884 S11) — see
+         `AtlasSiteMapMode.vue`'s identical mount for why this is
+         unconditional and gated only by `:model-value`. -->
+    <CartographerPublishModal
+      v-if="isSite"
+      v-model="mapPublish.open.value"
+      v-model:target-site-id="mapPublish.targetSiteId.value"
+      :site-context="mapPublish.siteContext.value"
+      :stair-targets="mapPublish.stairTargets.value"
+      :review="mapPublish.review.value"
+      @pick-stair-target="(cellKey, id) => (mapPublish.stairTargets.value = { ...mapPublish.stairTargets.value, [cellKey]: id })"
+      @publish="mapPublish.publish()"
+    />
 
     <!-- Sub-locations — read-only list linking into each child. -->
     <section v-if="subLocations.length" class="flex flex-col gap-2">
@@ -218,6 +246,8 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
+import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEditor";
+import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
@@ -230,6 +260,8 @@ import LocationDetailSections from "@/components/locations/LocationDetailSection
 import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
 import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
 import SiteMapLayersPanel from "@/components/locations/SiteMapLayersPanel.vue";
+import CartographerPublishModal from "@/components/cartographer/CartographerPublishModal.vue";
+import MapWorkbench from "@/components/cartographer/MapWorkbench.vue";
 
 const { location, building = false } = defineProps<{
   location: Location;
@@ -281,7 +313,6 @@ const mapPinnableChildren = computed(() => {
 
 // ── Site regions (#807) — only ever queried for a site-tier place; the
 //    empty-string id below keeps the query disabled everywhere else. ────────
-const activeRegionId = ref<string | null>(null);
 const isSite = computed(() => isSiteType(location.location_type));
 const siteRegionsQuery = useLocationMapRegions(
   computed(() => (isSite.value ? location.id : "")),
@@ -301,10 +332,32 @@ const { sourceMap: sourceMapQuery, staleness: siteStaleness, layerCounts: siteLa
 const sourceMap = computed(() => sourceMapQuery.data.value);
 
 // The Layers panel's Drawing row (#884, S5) — open the existing drawing, or
-// create one named after this site and open that.
+// create one named after this site and open that. See `useOpenSiteDrawing`
+// for why this no longer navigates at all (#884 S11).
 const { openDrawing } = useOpenSiteDrawing();
 function onOpenDrawing() {
   void openDrawing(location);
+}
+
+// ── Build mode (#884 S11): the workbench IS the map area — see
+//    `AtlasSiteMapMode.vue`'s identical wiring for why. ────────────────────
+const locationForDrawing = computed(() => location);
+const drawingEditor = useSiteDrawingEditor(locationForDrawing, sourceMap);
+const drawingWorkbenchRef = drawingEditor.workbenchRef;
+const mapPublish = useMapPublish({
+  map: () => {
+    const wb = drawingWorkbenchRef.value;
+    return wb && sourceMap.value
+      ? { ...sourceMap.value, layers: wb.getLayers(), metadata: wb.getMetadata() }
+      : null;
+  },
+  runtimes: () => drawingWorkbenchRef.value?.getRuntimes() ?? new Map(),
+  glyphs: () => drawingWorkbenchRef.value?.getCellGlyphs() ?? {},
+  structure: () => drawingWorkbenchRef.value?.getStructure() ?? { spaces: [], ways: [], stairs: [], links: [] },
+});
+function onReviewChanges(): void {
+  mapPublish.targetSiteId.value = location.id;
+  mapPublish.open.value = true;
 }
 
 // ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────

@@ -10,27 +10,12 @@
        Atlas tree, re-created by accident. This list is about each space's
        *shape on the map*, which is a different thing, and naming it so
        makes the relationship informative instead of confusing.
-       Only mounted in browse mode — see the `v-if` at the call site in
-       `LocationMap.vue` (#807) — run mode renders its own click-to-move
-       room list instead. -->
-  <!-- Trace tool switcher (#868, frame 12 "Three ways to trace a space") —
-       shown only while a region is actively being traced. Template gains its
-       own shape picker underneath; the caption mirrors the frame's own
-       toolbar hint. -->
-  <div v-if="building && activeRegionId" class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2">
-    <SegmentedControl v-model="traceTool" :options="TRACE_TOOL_OPTIONS" size="inline-xs" />
-    <SegmentedControl
-      v-if="traceTool === 'template'"
-      v-model="templateShape"
-      :options="TEMPLATE_SHAPE_OPTIONS"
-      variant="ghost"
-      size="inline-xs"
-    />
-    <span class="text-caption text-muted-foreground">
-      Snap: intersections · <span class="font-semibold">alt</span> half-cell · <span class="font-semibold">esc</span> abandon
-    </span>
-  </div>
-
+       Read in Browse (the sheet, the Atlas pane); binding, naming and
+       deleting a shape stay panel actions here in Build too (#884 S11), now
+       mounted alongside `MapWorkbench`'s Plan palette — which owns HOW a
+       trace gesture unfolds (paint/pen/template, its own switcher shown the
+       moment `planTool` picks Space or Zone) so this panel doesn't need a
+       second copy of that picker. -->
   <div class="flex flex-col gap-1.5">
     <!-- Frame 03 "Spaces panel header: icon + 'Spaces' + count chip + Trace
          button" — the same header treatment as `SiteMapZoneList`'s, with the
@@ -200,25 +185,23 @@
 /**
  * The region-CRUD half of the site map apparatus — split out of
  * `SiteMapView.vue` (#805 slice 2) once that file's canvas/calibration/
- * drag-to-paint rewrite pushed it past the 600-line soft max, and now
- * mounted by `LocationMap.vue` (#807, once `SiteMapView` itself was
- * deleted). This owns creating, binding, labelling and deleting regions;
- * the canvas (`MapRegionsLayer.vue`) keeps everything about painting cells
- * into whichever region is active.
+ * drag-to-paint rewrite pushed it past the 600-line soft max. Mounted twice
+ * as of #884 S11: read-only by `LocationMap.vue` in Browse (`building`
+ * false, `activeRegionId` always null there — nothing sets it), and with
+ * full CRUD by `MapWorkbench`'s embedded Plan branch in Build, where
+ * `activeRegionId`/`building` are the workbench's own `usePlanPalette`
+ * state — the canvas that actually paints cells into whichever region is
+ * active is `MapWorkbench`'s, not this component's.
  *
- * `activeRegionId` is lifted to the parent — it also drives the map canvas's
- * highlight and the "Tracing X" banner above it, neither of which this
- * component renders — so it travels as a prop + `update:activeRegionId`
- * rather than living here.
+ * `activeRegionId` is lifted to the caller either way, so it travels as a
+ * prop + `update:activeRegionId` rather than living here.
  */
 import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
-import SegmentedControl from "@/components/common/SegmentedControl.vue";
-import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
-import { IconAdd, IconDelete, IconDoor, IconGridView, IconPaint, IconPen, IconRoomTemplate } from "@/lib/icons";
+import { IconAdd, IconDelete, IconDoor, IconGridView, IconPen } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";
 import {
   dmEdit,
@@ -226,11 +209,8 @@ import {
   useDeleteLocationMapRegion,
   useUpdateLocationMapRegion,
 } from "@/composables/locations/useLocationMapRegions";
-import { TEMPLATE_SHAPES, TEMPLATE_SHAPE_LABELS, useTemplateShape } from "@/composables/locations/useRegionPen";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
-import { useUiStore } from "@/stores/ui";
-import type { TemplateShape, TraceTool } from "@/lib/locations/polygon";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
 
 const { locationId, spaces, regions, activeRegionId, canTrace, building = false, doorToolArmed = false } = defineProps<{
@@ -264,30 +244,6 @@ const emit = defineEmits<{
 
 const { confirm } = useConfirm();
 const { error: toastError, fromError } = useToast();
-
-// Trace tool switcher (#868, frame 12) — `siteMapTraceTool` lives in the UI
-// store beside `siteMapLayers` (a working-session preference, not a durable
-// setting); the template shape is a smaller-lived singleton shared with
-// `MapRegionsLayer` — see `useTemplateShape`'s own docstring for why.
-const uiStore = useUiStore();
-const traceTool = computed<TraceTool>({
-  get: () => uiStore.siteMapTraceTool,
-  set: (value) => {
-    uiStore.siteMapTraceTool = value;
-  },
-});
-const templateShape = useTemplateShape();
-
-const TRACE_TOOL_OPTIONS: SegmentedOption<TraceTool>[] = [
-  { value: "paint", label: "Paint cells", icon: IconPaint },
-  { value: "pen", label: "Pen", icon: IconPen },
-  { value: "template", label: "Template", icon: IconRoomTemplate },
-];
-
-const TEMPLATE_SHAPE_OPTIONS: SegmentedOption<TemplateShape>[] = TEMPLATE_SHAPES.map((shape) => ({
-  value: shape,
-  label: TEMPLATE_SHAPE_LABELS[shape],
-}));
 
 // Regions carry a `region_role` now (#868) — a zone's `space_location_id` is
 // always null by rule, which would otherwise land it in "Untitled shapes"

@@ -11,35 +11,6 @@
       :layers="{ picture: !!stack.picture, drawing: !!stack.drawing }"
     />
 
-    <!-- Tracing banner — Build mode only (#884); run mode has nothing to
-         trace, and Browse no longer offers tracing at all. -->
-    <div
-      v-if="showRegions && !runMode && building && activeRegion"
-      class="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5"
-    >
-      <span class="text-caption text-foreground">
-        Tracing <strong>{{ activeRegionLabel }}</strong> — drag over cells below to add or remove them.
-      </span>
-      <AppButton variant="ghost" size="inline-xs" label="Done" @click="activeRegionId = null" />
-    </div>
-
-    <!-- Door tool banner (#884) — mutually exclusive with tracing above, so
-         only one of the two ever shows. `placingDoorId` set means an
-         existing, never-placed door is waiting for its first edge; unset
-         means a plain click creates a fresh one. -->
-    <div
-      v-if="showRegions && !runMode && building && doorToolArmed"
-      class="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5"
-    >
-      <span class="text-caption text-foreground">
-        <template v-if="placingDoorId">Click the edge where this door belongs.</template>
-        <template v-else>
-          Click an edge to place a door · click a placed one to cycle door/arch · <span class="font-semibold">alt</span>-click or right-click to remove.
-        </template>
-      </span>
-      <AppButton variant="ghost" size="inline-xs" label="Done" @click="doorToolArmed = false" />
-    </div>
-
     <!--
       Frame 03 "Map mode, for a site": the map (with its legend underneath)
       on the left, a 340px column of the space/zone lists — and whatever a
@@ -62,7 +33,6 @@
                  pins are markers placed on top of it. -->
             <MapRegionsLayer
               v-if="showRegions && hasRegionContent"
-              v-model:active-region-id="activeRegionId"
               :regions="regions"
               :calibration="stack.frameCalibration"
               :image-natural-width="frameRef?.imageNaturalWidth ?? 0"
@@ -78,13 +48,11 @@
               :show-ways="siteMapLayers.ways"
               :ways="siteDoors ?? []"
               :nested-site-ids="nestedSiteIds"
-              :building="building"
-              :door-tool-armed="doorToolArmed"
-              :placing-door-id="placingDoorId"
+              :show-fog="showFog"
+              :fog-glimpsed-cells="fogGlimpsedCells"
               @move-party="emit('move-party', $event)"
               @descend="emit('descend', $event)"
               @hover-region="emit('hover-region', $event)"
-              @door-placed="placingDoorId = null"
             />
             <!-- Prepared marks sit above regions/doors, below pins — a token
                  on the floor, not a pin above the whole map (#868, S8). -->
@@ -146,12 +114,11 @@
         />
       </div>
 
-      <!-- The Spaces/Zones column reads in Browse and edits in Build (#884):
-           a DM looking at a plan wants to see which spaces are traced and
-           click one, so the rows, names and counts stay and only Trace /
-           Bind / Draw / delete are Build-only — gated inside each list, not
-           by unmounting the column. Run mode renders its own click-to-move
-           room list instead (`SiteRunSurface`), which needs no side column. -->
+      <!-- The Spaces/Zones column reads in Browse (#884: editing them is
+           Build-only now, and Build no longer mounts this component at all —
+           see `MapWorkbench`'s own embedded copy of these two lists). Run
+           mode renders its own click-to-move room list instead
+           (`SiteRunSurface`), which needs no side column. -->
       <div
         v-if="showRegions && hasRegionContent && !runMode"
         class="flex w-full flex-col gap-3 lg:w-85 lg:shrink-0"
@@ -160,20 +127,14 @@
           :location-id="locationId!"
           :spaces="spaces"
           :regions="regions"
-          :active-region-id="activeRegionId"
-          :can-trace="!!stack.frameCalibration"
-          :building="building"
-          :door-tool-armed="doorToolArmed"
-          @update:active-region-id="activeRegionId = $event"
-          @update:door-tool-armed="doorToolArmed = $event"
+          :active-region-id="null"
+          :can-trace="false"
         />
         <SiteMapZoneList
           :location-id="locationId!"
           :regions="regions"
-          :active-region-id="activeRegionId"
-          :can-trace="!!stack.frameCalibration"
-          :building="building"
-          @update:active-region-id="activeRegionId = $event"
+          :active-region-id="null"
+          :can-trace="false"
         />
         <!-- Frame 10 "Prepared here · Nave of Ash" — a Prepared mark's own
              room, opened beside the plan instead of navigating away. Reuses
@@ -188,7 +149,7 @@
             <span class="truncate text-label-lg font-semibold text-muted-foreground">Prepared here · {{ preparedRoomName }}</span>
             <AppButton variant="ghost" size="icon-xs" :icon="IconClose" tooltip="Close" @click="preparedRoomId = null" />
           </div>
-          <LocationPlacements :location-id="preparedRoomId!" :building="building" />
+          <LocationPlacements :location-id="preparedRoomId!" />
         </div>
         <!-- S6: SiteWaysOutPanel mounts here via a caller's #aside content. -->
         <slot name="aside" />
@@ -239,34 +200,6 @@
         </AppButton>
       </div>
     </template>
-
-    <!-- Site regions: calibration gate, ahead of anything that needs the
-         grid to exist. The room-shapes/zone lists themselves moved into the
-         `lg` side column above — this is the one thing that stayed put.
-         Offered only for a Picture: a Drawing is calibrated by construction
-         (the Cartographer bake computes `map_layer_calibration` itself) and
-         a blank grid's calibration is synthetic — neither has anything for
-         the DM to set here (#884). -->
-    <div
-      v-if="showRegions && hasRegionContent && building && !stack.frameCalibration && stack.primary?.kind === 'picture'"
-      class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2"
-    >
-      <span class="text-caption text-muted-foreground">
-        A grid has to be matched to this map before spaces can be traced on it.
-      </span>
-      <AppButton variant="primary" size="sm" label="Calibrate grid" @click="calibrationOpen = true" />
-    </div>
-
-    <!-- Mounted unconditionally, same idiom as `LocationEditor.vue` — gated
-         purely by `:open`, not by a v-if that would tear it down mid-flow. -->
-    <GridCalibrationDialog
-      v-if="showRegions"
-      :open="calibrationOpen"
-      :map-url="stack.picture?.url ?? null"
-      :existing="stack.frameCalibration"
-      @cancel="calibrationOpen = false"
-      @save="onCalibrationSave"
-    />
   </div>
 </template>
 
@@ -275,7 +208,6 @@ import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { IconClose, IconLocation, IconRuler } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
-import GridCalibrationDialog from "@/components/locations/GridCalibrationDialog.vue";
 import LocationPlacements from "@/components/locations/LocationPlacements.vue";
 import MapFrame from "@/components/locations/MapFrame.vue";
 import MapPinsLayer from "@/components/locations/MapPinsLayer.vue";
@@ -285,11 +217,9 @@ import SiteMapLegend from "@/components/locations/SiteMapLegend.vue";
 import SiteMapRegionList from "@/components/locations/SiteMapRegionList.vue";
 import SiteMapZoneList from "@/components/locations/SiteMapZoneList.vue";
 import MapPreparedLayer from "@/components/locations/MapPreparedLayer.vue";
-import { useUpdateLocationGridCalibration } from "@/composables/locations/useLocations";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
-import { useToast } from "@/composables/useToast";
 import { isSiteType } from "@/lib/locations/tiers";
 import type { MapStack } from "@/lib/locations/mapStack";
 import type { RoomFacts } from "@/lib/locations/planCanvas";
@@ -297,12 +227,9 @@ import { useUiStore } from "@/stores/ui";
 import { LOCATION_TYPE_COLORS } from "@/types/location.types";
 import type { GridCalibration, LocationType, MapPin as MapPinType } from "@/types/location.types";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
+import type { CellKey } from "@/types/dungeonMap.types";
 
 const pins = defineModel<MapPinType[]>("pins", { required: true });
-/** Which region is selected for tracing (browse mode) — lifted so the
- *  canvas (`MapRegionsLayer`) and the room-shapes list (`SiteMapRegionList`)
- *  below it, and the tracing banner above it, all agree on one answer. */
-const activeRegionId = defineModel<string | null>("activeRegionId", { default: null });
 
 const {
   stack,
@@ -320,7 +247,8 @@ const {
   partyRoomId = null,
   reachableRoomIds = null,
   showLayerBar = true,
-  building = false,
+  showFog = false,
+  fogGlimpsedCells = [],
 } = defineProps<{
   /** The site's map stack — Picture, Drawing, and/or a blank grid (#884).
    *  Callers build it with `buildMapStack()` and gate mounting this
@@ -350,12 +278,11 @@ const {
    *  travelling is already cheap (the Atlas explorer's own zoom). */
   offerPeek?: boolean;
   /** The location this map belongs to. Required whenever `showRegions` is
-   *  true — it feeds the calibration mutation and `SiteMapRegionList`'s
-   *  region-create calls. */
+   *  true — it feeds `SiteMapRegionList`'s region-create calls. */
   locationId?: string | null;
   /** Whether this place has a floor plan (site tier — building, dungeon,
-   *  store, tavern, inn, #810) and should render the regions layer, the
-   *  calibration gate, and the room-shapes list alongside pins. */
+   *  store, tavern, inn, #810) and should render the regions layer and the
+   *  room-shapes list alongside pins. */
   showRegions?: boolean;
   regions?: LocationMapRegion[];
   /** The direct children that can carry a shape on this map — a room, or a
@@ -363,8 +290,10 @@ const {
    *  region list and the tracing banner's name lookup. Only meaningful when
    *  `showRegions`. */
   spaces?: BindableSpace[];
-  /** Regions interaction: browse (trace/select/navigate, default) or run
-   *  (click-to-move-party, `SiteRunSurface`). Ignored when `!showRegions`. */
+  /** Regions interaction: browse (select/navigate, default) or run
+   *  (click-to-move-party, `SiteRunSurface`). Ignored when `!showRegions`.
+   *  Tracing/editing both moved to `MapWorkbench` (#884 S11) — this
+   *  component is read-only + click-to-navigate in every mode it still has. */
   runMode?: boolean;
   /** The room the party currently occupies. Only meaningful when `runMode`. */
   partyRoomId?: string | null;
@@ -377,12 +306,11 @@ const {
    *  off the `layer-counts` emit instead. Default true so every other caller
    *  (the sheet, the run surface) is unaffected. */
   showLayerBar?: boolean;
-  /** Build mode (#884) — the site workbench. Gates the tracing banner, the
-   *  Spaces/Zones/Trace/Bind side column, the "Calibrate grid" prompt, and
-   *  (via `MapRegionsLayer`) the paint/pen/template gestures themselves.
-   *  Click-to-navigate and the layer-bar view toggles are unaffected —
-   *  those are Browse behaviour, not editing. */
-  building?: boolean;
+  /** The DM's own site-fog hint (#884 S11) — `SiteRunSurface`'s Fog toggle
+   *  and its `buildDmFogPlan(...).glimpsed` cells, forwarded straight to
+   *  `MapRegionsLayer`. Off/empty for every other caller. */
+  showFog?: boolean;
+  fogGlimpsedCells?: readonly (readonly CellKey[])[];
 }>();
 
 const emit = defineEmits<{
@@ -462,55 +390,6 @@ const placingChildName = computed(
 // itself the moment they do.
 const hasRegionContent = computed(() => spaces.length > 0 || regions.length > 0);
 
-const activeRegion = computed(() => regions.find((r) => r.id === activeRegionId.value) ?? null);
-
-// Selecting a region to trace reveals the layer that draws it — see
-// `revealLayerForRegionRole` in the ui store for why (#880).
-watch(activeRegion, (region) => {
-  if (region) uiStore.revealLayerForRegionRole(region.region_role);
-});
-
-// ── Door tool (#884) ───────────────────────────────────────────────────────
-// Local, per-session state — deliberately NOT `uiStore.siteMapTraceTool`
-// (that field is a fixed three-way trace-tool enum another executor is
-// wiring the Layers panel through right now; widening it, or its store,
-// isn't this story's to make). "Mutually exclusive with tracing" is enforced
-// here in both directions rather than in either list: arming one always
-// disarms the other, so a DM can never end up with both a region and a door
-// edge armed for the same click.
-const doorToolArmed = ref(false);
-/** Set only by `placeDoor` below — an existing, never-placed door waiting
- *  for its first edge click. */
-const placingDoorId = ref<string | null>(null);
-
-watch(activeRegionId, (id) => {
-  if (id !== null) doorToolArmed.value = false;
-});
-watch(doorToolArmed, (armed) => {
-  if (armed) activeRegionId.value = null;
-  else placingDoorId.value = null; // disarming cancels any pending placement too
-});
-const activeRegionLabel = computed(() => {
-  const region = activeRegion.value;
-  if (!region) return "";
-  if (region.space_location_id) return spaces.find((sp) => sp.id === region.space_location_id)?.name ?? "this space";
-  return region.label || "this shape";
-});
-
-const calibrationOpen = ref(false);
-const updateCalibration = useUpdateLocationGridCalibration();
-const { error: toastError, fromError } = useToast();
-
-async function onCalibrationSave(next: GridCalibration): Promise<void> {
-  if (!locationId) return;
-  try {
-    await updateCalibration.mutateAsync({ id: locationId, calibration: next });
-    calibrationOpen.value = false;
-  } catch (e) {
-    toastError(fromError(e));
-  }
-}
-
 // ── Zones + layer bar (#868) ──────────────────────────────────────────────────
 
 /** Bound spaces that are themselves a nested site (#818), so `MapRegionsLayer`
@@ -523,8 +402,7 @@ const nestedSiteIds = computed(
 // ── Doors drawn on the map + Prepared layer (#868, S8) ────────────────────────
 //
 // Both read the same `spaceIds` `MapRegionsLayer`'s own bindable-space props
-// already imply — fetched here rather than passed in from a caller, the same
-// call this component already makes for its own calibration mutation, so
+// already imply — fetched here rather than passed in from a caller, so
 // `SiteWaysOutPanel`'s side list (fed from outside, via `#aside`) and this
 // component's own bars/legend never need to agree on a shared prop shape.
 const spaceIds = computed(() => spaces.map((s) => s.id));
@@ -557,16 +435,14 @@ const hasRoomFacts = computed(() => Array.from(roomState.value.values()).some((f
 // The room a Prepared mark was last clicked into — `MapPreparedLayer` only
 // emits, this decides what "selected" means (a panel beside the plan) and
 // toggles the same room off on a repeat click, same idiom `activeRegionId`
-// already uses for tracing.
+// used to, back when this component still owned tracing.
 const preparedRoomId = ref<string | null>(null);
 const preparedRoomName = computed(() => spaces.find((s) => s.id === preparedRoomId.value)?.name ?? "");
 function onSelectPreparedRoom(spaceId: string): void {
   preparedRoomId.value = preparedRoomId.value === spaceId ? null : spaceId;
 }
 
-/** Feeds `SiteMapLayerBar`'s pill counts. Both `ways` and `prepared` now read
- *  real data (#868 S8) — the placeholder comment this replaced predates
- *  `useSiteDoors`/`useSitePrepared` existing at all. */
+/** Feeds `SiteMapLayerBar`'s pill counts. */
 const layerCounts = computed(() => ({
   spaces: spaces.length,
   ways: siteDoors.value?.length ?? 0,
@@ -597,15 +473,5 @@ defineExpose({
     width: frameRef.value?.imageNaturalWidth ?? 0,
     height: frameRef.value?.imageNaturalHeight ?? 0,
   }),
-  /** #884, Build step 6: "Place it" on an unplaced door (`SiteWaysOutPanel`)
-   *  arms the door tool for that specific door — the next edge click writes
-   *  its `edge_key` and re-derives its endpoints instead of creating a new
-   *  door. `SiteWaysOutPanel` isn't a child of this component (it mounts via
-   *  a caller's `#aside` slot content), so whichever page composes the two
-   *  wires its "Place it" click to this. */
-  placeDoor: (doorId: string) => {
-    placingDoorId.value = doorId;
-    doorToolArmed.value = true;
-  },
 });
 </script>
