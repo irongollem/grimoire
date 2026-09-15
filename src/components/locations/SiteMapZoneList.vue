@@ -8,10 +8,11 @@
     <div class="flex flex-wrap items-center gap-2">
       <span class="text-label-lg font-semibold text-muted-foreground">Zones on this plan</span>
       <span class="rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground">{{ zones.length }}</span>
-      <AppSelect v-model="newZoneKind" size="xs" tone="card" class="ml-auto">
+      <AppSelect v-if="building" v-model="newZoneKind" size="xs" tone="card" class="ml-auto">
         <option v-for="kind in ZONE_KINDS" :key="kind" :value="kind">{{ ZONE_KIND_LABELS[kind] }}</option>
       </AppSelect>
       <AppButton
+        v-if="building"
         variant="ghost"
         size="inline-xs"
         :icon="IconAdd"
@@ -70,6 +71,7 @@
             @click="expandedId = expandedId === zone.id ? null : zone.id"
           />
           <AppButton
+            v-if="building"
             variant="ghost"
             tone="danger"
             size="icon-xs"
@@ -204,7 +206,7 @@ import { emptyZoneInsert, isPlayerVisible, LIGHT_LEVELS, TERRAIN_MOVEMENT_COSTS,
 import { ZONE_KIND_LABELS, ZONE_KINDS } from "@/types/locationMapRegion.types";
 import type { LocationMapRegion, ZoneKind, ZonePayload } from "@/types/locationMapRegion.types";
 
-const { locationId, regions, activeRegionId, canTrace } = defineProps<{
+const { locationId, regions, activeRegionId, canTrace, building = false } = defineProps<{
   /** The site these zones belong to — `createRegion` needs it as
    *  `site_location_id`, same as `SiteMapRegionList`. */
   locationId: string;
@@ -213,6 +215,8 @@ const { locationId, regions, activeRegionId, canTrace } = defineProps<{
   /** Whether the map has a grid to trace onto at all — see
    *  `SiteMapRegionList`'s prop of the same name. */
   canTrace: boolean;
+  /** Build mode (#884) — see `SiteMapRegionList`'s prop of the same name. */
+  building?: boolean;
 }>();
 
 const emit = defineEmits<{ "update:activeRegionId": [id: string | null] }>();

@@ -31,6 +31,7 @@
       v-else-if="location"
       :key="location.id"
       :location="location"
+      :building="isBuilding && isSiteType(location.location_type)"
     />
   </PageHeader>
 </template>
@@ -51,6 +52,11 @@ const route      = useRoute();
 const isNew      = computed(() => route.name === "location-new");
 const isEditing  = computed(() => route.query.edit === "true");
 const isRunning  = computed(() => route.query.run === "true");
+// Build mode (epic #884, S4) — the site workbench: structural edits
+// (rooms, ways out, placements, region tracing) are written live here, same
+// as they always were, but only ever rendered while this is true. Browse
+// (the default) keeps only play actions live.
+const isBuilding = computed(() => route.query.build === "true");
 const id         = computed(() => (isNew.value ? "" : (route.params.id as string)));
 const parentId   = computed(() => (route.query.parent as string | undefined));
 const initialName = computed(() => (route.query.name as string | undefined));

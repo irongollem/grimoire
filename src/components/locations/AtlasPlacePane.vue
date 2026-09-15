@@ -106,18 +106,45 @@
         </div>
       </div>
       <!--
-        Edit, not Open. The pane now renders the same body as the detail page,
-        so a link to that page would lead somewhere the reader already is; the
-        only thing left up there that this surface cannot do is change the place.
+        Build, not Open. The pane now renders the same body as the detail
+        page, so a link to that page would lead somewhere the reader already
+        is; the only thing left up there that this surface cannot do is
+        change the place. On a site (#884) that means two links — Build (the
+        workbench: every structural affordance below this pane, live) and
+        Details (name/description/type — today's Edit form). A non-site
+        place keeps the single Edit link it always had.
       -->
       <div class="flex shrink-0 items-center gap-1.5">
         <!--
-          Reveal sits beside Edit because revealing is not editing: it is the
-          thing a DM does mid-session, and it should never cost a trip through
-          the full edit form.
+          Reveal sits beside Build/Edit because revealing is not editing: it
+          is the thing a DM does mid-session, and it should never cost a trip
+          through the full edit form.
         -->
         <LocationRevealControl :location="location" />
+        <template v-if="isSite">
+          <!--
+            Build is a state of this pane, not a trip to the detail page: the
+            Atlas IS the site's workbench (#884, decision 2), and sending the
+            DM away to build would reintroduce exactly the round trip this
+            epic removes. `Done` drops the flag and leaves them where they are.
+          -->
+          <AppButton
+            :variant="building ? 'outline' : 'primary'"
+            size="sm"
+            :icon="IconTool"
+            :label="building ? 'Done' : 'Build'"
+            @click="toggleBuild"
+          />
+          <AppButton
+            variant="outline"
+            size="sm"
+            :icon="IconEdit"
+            label="Details"
+            :to="`/locations/${location.id}?edit=true`"
+          />
+        </template>
         <AppButton
+          v-else
           variant="outline"
           size="sm"
           :icon="IconEdit"
@@ -171,6 +198,7 @@
         being measured into place.
       -->
       <AtlasSiteMapMode
+        :building="building"
         v-if="hasMap && paneMode === 'map'"
         :location="location"
         :index="index"
@@ -221,7 +249,7 @@
           </ul>
         </section>
 
-        <LocationDetailSections ref="sectionsRef" :location="location" />
+        <LocationDetailSections ref="sectionsRef" :location="location" :building="building" />
 
         <p
           v-if="!groups.length && !sections?.hasSubstance"
@@ -236,6 +264,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
@@ -257,6 +286,7 @@ import {
   IconLocation,
   IconMap,
   IconQuest,
+  IconTool,
 } from "@/lib/icons";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import { isLocationOutOfEra } from "@/lib/locations/era";
@@ -304,6 +334,23 @@ const trail = computed(() => (location ? ancestorPath(index, location.id) : []))
 const children = computed(() => (location ? childrenOf(index, location.id) : []));
 
 const isSite = computed(() => !!location && isSiteType(location.location_type));
+
+// Build is a route flag like `at` is (#884) — so Back leaves Build the way it
+// leaves a place, a deep link opens a site ready to work on, and a reload
+// keeps the DM where they were. Only ever true on a site: nothing else here
+// has a workbench to enter.
+const route = useRoute();
+const router = useRouter();
+const building = computed(() => isSite.value && route.query.build === "true");
+
+function toggleBuild(): void {
+  if (building.value) {
+    const { build: _leaving, ...rest } = route.query;
+    void router.push({ query: rest });
+    return;
+  }
+  void router.push({ query: { ...route.query, build: "true" } });
+}
 
 // The map mode's own tracing state (AtlasSiteMapMode) — lives here rather
 // than inside that component so it survives a paneMode toggle back to

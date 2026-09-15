@@ -491,9 +491,15 @@ Three things that are easy to get wrong here, all of which cost something real:
 Cover: `supabase/tests/dungeon_maps_campaign_scope.test.sql`, which is also the repo's first regression test for `20260809000004`'s owner confinement.
 
 
-## Editor UX (`src/views/cartographer/CartographerEditor.vue`)
+## Editor UX (`src/components/cartographer/MapWorkbench.vue` + `CartographerEditorView.vue`)
 
-### Layout
+**The editor is a component, not a route (epic [#884](https://github.com/irongollem/grimoire/issues/884), wave 2).** It was a ~1,490-line view, which meant the only way to draw was to leave wherever you were and come back — "moving back and forth is unnecessary extra steps". It now splits three ways: `MapWorkbench.vue` is the embeddable editor (toolbox, canvas, inspector, structure rail, pack loading, the site-reference ghost) and reads no route at all; `useMapCanvasEditor.ts` is its interaction and render engine (viewport, pointer, undo/redo, every per-tool paint operation, the render loop) — one cohesive canvas engine, deliberately not split further; and `CartographerEditorView.vue` is a thin host holding the route, the `dungeon_maps` row, Save/Cancel/Delete, the Publish modal and the AI-style flow. Behaviour at `/cartographer/:id` is unchanged.
+
+The host pulls state through `defineExpose` getters rather than two-way binding, and the workbench emits only `update:dirty`: painting mutates `layers`/`metadata` on nearly every pointer move, so a continuous emit surface would deep-clone per frame. The host takes a snapshot at the moments it needs one — Save, Cancel, Publish, AI Style, the PNG bake — the same "closures called on demand" shape `useMapExport`/`useMapPublish` already use.
+
+An optional `site` prop (a `MapStackSource`, see world-building.md's map stack) draws that site's **Picture** as a toggleable reference ghost beneath the canvas, in the cell space the two already share through `grid_calibration` — which is how "paint extra rooms onto a book map" works without any data conversion. `/cartographer/:id` passes no `site`. Mounting the workbench inside the Atlas's Build mode is a later story.
+
+### Layout (unchanged)
 
 ```text
 +--------------------------------------------------------------+

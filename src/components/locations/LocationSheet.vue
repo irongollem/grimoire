@@ -15,8 +15,12 @@
       <span class="text-foreground">{{ location.name }}</span>
     </div>
 
-    <!-- Action bar — Edit + Delete. Edit flips the view wrapper's ?edit=true
-         query; delete is DM-dangerous so kept right-aligned separately. -->
+    <!-- Action bar. A site-tier place has three modes (#884): Build (the
+         workbench — every structural edit, written live, superseding the
+         old always-editable-in-view-mode panels), Run (unchanged), and
+         Details (today's Edit form, relabeled since it no longer owns the
+         structural affordances). A non-site place keeps exactly the old
+         Edit + Delete pair — it has no workbench to switch into. -->
     <div class="flex flex-wrap items-center justify-end gap-2">
       <span
         v-if="location.location_type"
@@ -35,18 +39,42 @@
         :disabled="isDeleting"
         @click="onDelete"
       />
-      <!-- The site runner (#791, epic #780) — one surface to run a dungeon
-           at the table. Site-tier only: a room's own sheet has nothing to
-           run, and every other tier has no rooms to move a party between. -->
+      <template v-if="isSiteType(location.location_type)">
+        <AppButton
+          v-if="building"
+          variant="primary"
+          size="md"
+          :icon="IconCheck"
+          label="Done"
+          @click="router.push({ query: withoutBuild() })"
+        />
+        <AppButton
+          v-else
+          variant="primary"
+          size="md"
+          :icon="IconTool"
+          label="Build"
+          @click="router.push({ query: { ...route.query, build: 'true' } })"
+        />
+        <!-- The site runner (#791, epic #780) — one surface to run a dungeon
+             at the table. -->
+        <AppButton
+          variant="outline"
+          size="md"
+          :icon="IconPlay"
+          label="Run"
+          @click="router.push({ query: { ...route.query, run: 'true' } })"
+        />
+        <AppButton
+          variant="outline"
+          size="md"
+          :icon="IconEdit"
+          label="Details"
+          @click="router.push({ query: { ...route.query, edit: 'true' } })"
+        />
+      </template>
       <AppButton
-        v-if="isSiteType(location.location_type)"
-        variant="outline"
-        size="md"
-        :icon="IconPlay"
-        label="Run"
-        @click="router.push({ query: { ...route.query, run: 'true' } })"
-      />
-      <AppButton
+        v-else
         variant="primary"
         size="md"
         :icon="IconEdit"
@@ -118,6 +146,7 @@
             :show-regions="isSiteType(location.location_type)"
             :regions="siteRegions"
             :spaces="siteSpaces"
+            :building="building"
             v-model:active-region-id="activeRegionId"
             @pin-click="onPinClick"
           />
@@ -149,14 +178,14 @@
 
     <!-- Description, Related, Store, People, Encounters, Currently Here.
          Shared verbatim with the Atlas explorer pane. -->
-    <LocationDetailSections :location="location" />
+    <LocationDetailSections :location="location" :building="building" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
-import { IconDelete, IconEdit, IconPlay } from '@/lib/icons';
+import { IconCheck, IconDelete, IconEdit, IconPlay, IconTool } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
 import { useUiStore } from "@/stores/ui";
@@ -182,11 +211,24 @@ import LocationDetailSections from "@/components/locations/LocationDetailSection
 import LocationRevealControl from "@/components/locations/LocationRevealControl.vue";
 import SiteLevelsColumn from "@/components/locations/SiteLevelsColumn.vue";
 
-const props = defineProps<{ location: Location }>();
+const { location, building = false } = defineProps<{
+  location: Location;
+  /** Build mode (#884) — the site workbench. Only ever true on a site-tier
+   *  place; threaded to the map (regions/tracing) and the structural
+   *  sections below. Never gates a play panel. */
+  building?: boolean;
+}>();
 const route   = useRoute();
 const router  = useRouter();
 const { confirm } = useConfirm();
 const ui = useUiStore();
+
+/** Drops `build` from the current query — the "Done" action. Mirrors
+ *  `LocationEditor`'s own `onCancel`, which does the same for `edit`. */
+function withoutBuild() {
+  const { build: _build, ...rest } = route.query;
+  return rest;
+}
 
 // ── Ancestor chain, same as editor ──────────────────────────────────────────
 const { data: allLocations } = useAllLocations();
@@ -204,25 +246,25 @@ function buildAncestorChain(parentId: string | null | undefined, all: Location[]
   }
   return chain;
 }
-const shownTags = computed(() => visibleTags(props.location));
+const shownTags = computed(() => visibleTags(location));
 
 const ancestors = computed(() =>
-  buildAncestorChain(props.location.parent_id, allLocations.value ?? []),
+  buildAncestorChain(location.parent_id, allLocations.value ?? []),
 );
 
 // ── Children + pinnable descendants (for the map viewer) ────────────────────
-const { data: children } = useLocations(props.location.id);
+const { data: children } = useLocations(location.id);
 const mapPinnableChildren = computed(() => {
   if (!allLocations.value?.length) return [];
-  return getPinnableDescendants(props.location.id, allLocations.value);
+  return getPinnableDescendants(location.id, allLocations.value);
 });
 
 // ── Site regions (#807) — only ever queried for a site-tier place; the
 //    empty-string id below keeps the query disabled everywhere else. ────────
 const activeRegionId = ref<string | null>(null);
-const isSite = computed(() => isSiteType(props.location.location_type));
+const isSite = computed(() => isSiteType(location.location_type));
 const siteRegionsQuery = useLocationMapRegions(
-  computed(() => (isSite.value ? props.location.id : "")),
+  computed(() => (isSite.value ? location.id : "")),
 );
 const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
 // Every child that can carry a shape on this map — a room, or a nested site
@@ -231,7 +273,7 @@ const siteRegions = computed(() => siteRegionsQuery.data.value ?? []);
 const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
 
 // ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────
-const mapStack = computed(() => buildMapStack(props.location));
+const mapStack = computed(() => buildMapStack(location));
 
 // ── Identity row: rooms, sub-sites, levels (#868, frame 06) ─────────────────
 //
@@ -249,7 +291,7 @@ const levelsSuffix = computed(() =>
 );
 
 const captionText = computed(() => {
-  const type = props.location.location_type ? LOCATION_TYPE_LABELS[props.location.location_type] : "";
+  const type = location.location_type ? LOCATION_TYPE_LABELS[location.location_type] : "";
   if (!isSite.value) return type;
   const parts = [type];
   if (roomCount.value > 0) parts.push(`${roomCount.value} room${roomCount.value === 1 ? "" : "s"}`);
@@ -297,11 +339,11 @@ const { mutateAsync: deleteLocation } = useDeleteLocation();
 const isDeleting = ref(false);
 
 async function onDelete() {
-  if (!(await confirm(`Delete "${props.location.name}"? This cannot be undone.`))) return;
+  if (!(await confirm(`Delete "${location.name}"? This cannot be undone.`))) return;
   isDeleting.value = true;
   try {
     router.push("/locations");
-    await deleteLocation(props.location.id);
+    await deleteLocation(location.id);
   } finally {
     isDeleting.value = false;
   }
@@ -327,7 +369,7 @@ function onPinClick(childId: string) {
 //
 // The preview inherits too (#868), off the same `allLocations` list already
 // fetched above for the breadcrumb — a DM previewing a themeless room hears
-// what the party would hear there, not silence. `props.location` is merged
+// what the party would hear there, not silence. `location` is merged
 // in over whatever `allLocations` currently holds for that id: it is this
 // sheet's own live prop, so resolving its *own* theme must never depend on
 // the shared list having refetched since the last save, and a brand-new
@@ -335,11 +377,11 @@ function onPinClick(childId: string) {
 const ambienceById = computed(() => {
   const index = buildAtlasIndex(allLocations.value ?? []).byId;
   const merged = new Map(index);
-  merged.set(props.location.id, props.location);
+  merged.set(location.id, location);
   return merged;
 });
 
-// `heldSourceId` (rather than deriving straight from `props.location.id`)
+// `heldSourceId` (rather than deriving straight from `location.id`)
 // is what lets one function answer both triggers below: a location change
 // and a session starting or ending mid-browse must produce the exact same
 // request-then-release behaviour, including the case where a session starts
@@ -375,8 +417,8 @@ function syncAmbience(loc: Location): void {
   heldSourceId.value = next;
 }
 
-watch(() => props.location.id, () => syncAmbience(props.location), { immediate: true });
-watch(() => ui.sessionRunning, () => syncAmbience(props.location));
+watch(() => location.id, () => syncAmbience(location), { immediate: true });
+watch(() => ui.sessionRunning, () => syncAmbience(location));
 
 onUnmounted(() => {
   if (heldSourceId.value) releaseAudioTheme(heldSourceId.value);

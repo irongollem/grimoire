@@ -7,11 +7,11 @@
          worth inventing, so the row simply goes. -->
 
     <!-- Site-default ambience (#868) — the floor every themeless room here
-         falls back to. Dashed border marks it as the fallback row, not a
-         room, the same way the "Add a room…" row below reads as an affordance
-         rather than a room. -->
+         falls back to. Build only (#884): the cell mixes display with its own
+         edit control (`RoomAmbienceCell`), and assigning a theme is a prep
+         decision, not something read off mid-session. -->
     <div
-      v-if="site"
+      v-if="site && building"
       class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2"
     >
       <span class="min-w-0 shrink-0 truncate font-cinzel text-xs font-semibold text-foreground">{{ site.name }}</span>
@@ -24,15 +24,14 @@
       />
     </div>
 
-    <!-- Room list -->
-    <VueDraggable
+    <!-- Room list. Draggable only in Build (#884) — the static <div> fallback
+         never receives drag attributes, same idiom `PlayerJournalMyTab` uses
+         for its own manual-sort/static split. -->
+    <component
+      :is="building ? VueDraggable : 'div'"
       v-if="dragList.length"
-      v-model="dragList"
+      v-bind="dragBindings"
       class="flex flex-col gap-1.5"
-      handle=".room-drag-handle"
-      :animation="150"
-      ghost-class="opacity-40"
-      @end="persistOrder"
     >
       <div
         v-for="(room, idx) in dragList"
@@ -41,6 +40,7 @@
       >
         <div class="flex items-center gap-2">
           <div
+            v-if="building"
             class="room-drag-handle shrink-0 cursor-grab text-muted-foreground/40 transition-colors hover:text-muted-foreground/80 active:cursor-grabbing"
             title="Drag to reorder"
           >
@@ -50,7 +50,7 @@
           <span class="w-5 shrink-0 text-caption-sm tabular-nums text-muted-foreground">{{ idx + 1 }}.</span>
 
           <AppInput
-            v-if="editingId === room.id"
+            v-if="building && editingId === room.id"
             ref="renameInput"
             v-model="nameDraft"
             size="xs"
@@ -64,8 +64,9 @@
             class="min-w-0 flex-1 truncate font-cinzel text-xs font-semibold text-foreground"
           >{{ room.name }}</span>
 
-          <!-- Read-only cleared/looted markers (#787, epic #780). The toggles
-               themselves live on the room's own detail page (LocationStateControls);
+          <!-- Read-only cleared/looted markers (#787, epic #780) — a play
+               fact, so it stays visible in Browse. The toggles themselves
+               live on the room's own detail page (LocationStateControls);
                this is a glance-only indicator, so it shows only a positive
                assertion — an "unknown" or explicit-false room renders no marker
                at all, keeping the row exactly as dense as before this feature. -->
@@ -82,29 +83,32 @@
             title="Looted"
           />
 
-          <AppButton
-            v-if="editingId !== room.id"
-            variant="ghost"
-            size="icon-xs"
-            :icon="IconEdit"
-            tooltip="Rename room"
-            class="shrink-0"
-            @click="startRename(room)"
-          />
-          <AppButton
-            variant="ghost"
-            tone="danger"
-            size="icon-xs"
-            :icon="IconClose"
-            tooltip="Delete room"
-            class="shrink-0"
-            @click="removeRoom(room)"
-          />
+          <template v-if="building">
+            <AppButton
+              v-if="editingId !== room.id"
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconEdit"
+              tooltip="Rename room"
+              class="shrink-0"
+              @click="startRename(room)"
+            />
+            <AppButton
+              variant="ghost"
+              tone="danger"
+              size="icon-xs"
+              :icon="IconClose"
+              tooltip="Delete room"
+              class="shrink-0"
+              @click="removeRoom(room)"
+            />
+          </template>
         </div>
 
-        <!-- Ambience (#868) — indented under the drag handle + index so it
-             reads as this room's own second line, not a sibling row. -->
-        <div class="pl-7">
+        <!-- Ambience (#868) — Build only, same reasoning as the site-default
+             row above. Indented under the drag handle + index so it reads as
+             this room's own second line, not a sibling row. -->
+        <div v-if="building" class="pl-7">
           <RoomAmbienceCell
             :location-id="room.id"
             :own-theme="room.audio_theme"
@@ -114,12 +118,17 @@
           />
         </div>
       </div>
-    </VueDraggable>
+    </component>
 
-    <p v-else class="text-caption text-muted-foreground italic">No rooms yet — add the first one below.</p>
+    <p v-else class="text-caption text-muted-foreground italic">
+      {{ building ? "No rooms yet — add the first one below." : "No rooms yet. Build the site to add them." }}
+    </p>
 
-    <!-- Inline add -->
-    <div class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
+    <!-- Inline add — Build only. -->
+    <div
+      v-if="building"
+      class="flex items-center gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2"
+    >
       <IconAdd class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       <AppInput
         v-model="newRoomName"
@@ -174,12 +183,19 @@ import type { Location, LocationInsert } from "@/types/location.types";
  * panel adds is the missing *order* (`sort_order`, reordered via drag) and a
  * dedicated surface to add/rename/remove them without opening full edit.
  *
- * Mirrors `StoreInventory`'s shape: a self-contained, always-editable view-mode
- * component keyed off a `locationId` prop rather than a route param, because
- * `AtlasPlacePane` reuses one mounted instance across every selected location
- * instead of remounting per id.
+ * Mirrors `StoreInventory`'s shape: a self-contained view-mode component keyed
+ * off a `locationId` prop rather than a route param, because `AtlasPlacePane`
+ * reuses one mounted instance across every selected location instead of
+ * remounting per id.
+ *
+ * Structural (add, reorder, rename, delete, ambience) only in Build mode
+ * (#884, `building` prop) — Browse renders the numbered list read-only, plus
+ * the cleared/looted markers, which are play facts and stay live everywhere.
  */
-const { locationId } = defineProps<{ locationId: string }>();
+const { locationId, building = false } = defineProps<{
+  locationId: string;
+  building?: boolean;
+}>();
 
 const locationIdRef = computed(() => locationId);
 const { data: children } = useLocations(locationIdRef);
@@ -227,6 +243,22 @@ const { mutate: reorder } = useReorderLocations();
 function persistOrder() {
   reorder(dragList.value.map((r) => r.id));
 }
+
+// VueDraggable props are only bound in Build — the static <div> fallback
+// never receives stray drag attributes. Same idiom as `PlayerJournalMyTab`'s
+// manual-sort/static split.
+const dragBindings = computed(() =>
+  building
+    ? {
+        modelValue: dragList.value,
+        "onUpdate:modelValue": (v: Location[]) => { dragList.value = v; },
+        handle: ".room-drag-handle",
+        animation: 150,
+        ghostClass: "opacity-40",
+        onEnd: persistOrder,
+      }
+    : {},
+);
 
 // ── Add ─────────────────────────────────────────────────────────────────────────
 const newRoomName = ref("");

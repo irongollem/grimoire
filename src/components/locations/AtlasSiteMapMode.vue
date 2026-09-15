@@ -38,6 +38,7 @@
         <LocationMap
           ref="mapRef"
           :stack="mapStack"
+          :building="building"
           :pins="location.map_pins"
           :children="children"
           mode="view"
@@ -75,7 +76,7 @@
           </template>
 
           <template #aside>
-            <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" />
+            <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" :building="building" />
           </template>
         </LocationMap>
 
@@ -134,11 +135,13 @@ import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
 import type { AtlasIndex } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
 
-const { location, index, children } = defineProps<{
+const { location, index, children, building = false } = defineProps<{
   /** Only ever mounted once the caller has confirmed `hasMap` — never null. */
   location: Location;
   index: AtlasIndex;
   children: Location[];
+  /** Build mode (#884): the plan edits in place instead of only reading. */
+  building?: boolean;
 }>();
 
 const emit = defineEmits<{ select: [id: string]; descend: [id: string] }>();

@@ -139,7 +139,7 @@ describe("SiteWaysOutPanel", () => {
 
   describe("inline add", () => {
     it("creates a door from the picked spaces, kind, and flags", async () => {
-      const wrapper = mountPanel();
+      const wrapper = mountPanel({ building: true });
 
       const comboboxes = wrapper.findAllComponents({ name: "EntityCombobox" });
       expect(comboboxes).toHaveLength(2); // from, to — no row is expanded to add a third
@@ -167,12 +167,30 @@ describe("SiteWaysOutPanel", () => {
     });
 
     it("does not create a door when from and to are the same space", async () => {
-      const wrapper = mountPanel();
+      const wrapper = mountPanel({ building: true });
       const comboboxes = wrapper.findAllComponents({ name: "EntityCombobox" });
       await comboboxes[0]!.vm.$emit("update:modelValue", "nave");
       await comboboxes[1]!.vm.$emit("update:modelValue", "nave");
 
       expect(findButton(wrapper, "Add").props("disabled")).toBe(true);
+    });
+  });
+
+  describe("Browse vs Build (#884)", () => {
+    it("hides the add form and every edit affordance in Browse", () => {
+      doorsRef.value = [door({ id: "d1", starts_locked: true, is_secret: true })];
+      const wrapper = mountPanel();
+
+      expect(wrapper.findAllComponents({ name: "EntityCombobox" })).toHaveLength(0);
+      expect(wrapper.text()).not.toContain("Add");
+      // The three facts still read, as badges rather than toggles.
+      expect(wrapper.text()).toContain("secret");
+      expect(wrapper.text()).toContain("locked");
+    });
+
+    it("shows the add form once building", () => {
+      const wrapper = mountPanel({ building: true });
+      expect(wrapper.findAllComponents({ name: "EntityCombobox" })).toHaveLength(2);
     });
   });
 });

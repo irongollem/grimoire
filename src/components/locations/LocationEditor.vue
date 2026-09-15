@@ -220,35 +220,54 @@
       :all-locations="allLocations ?? []"
     />
 
-    <!-- Map section -->
-    <LocationMapEditor
-      :location-id="props.location?.id ?? null"
-      :map-url="mapUrl"
-      :map-pins="mapPins"
-      :is-map-shared="isMapShared"
-      :is-battle-map="isBattleMap"
-      :is-new="isNew"
-      :children="children ?? []"
-      :map-pinnable-children="mapPinnableChildren"
-      :source-map-id="props.location?.source_map_id ?? null"
-      :map-layer-url="props.location?.map_layer_url ?? null"
-      :map-layer-calibration="props.location?.map_layer_calibration ?? null"
-      :plan-size="props.location?.plan_size ?? null"
-      :grid-calibration="props.location?.grid_calibration ?? null"
-      @update:map-url="onMapUrlUpdate"
-      @update:map-pins="mapPins = $event"
-      @update:is-map-shared="isMapShared = $event"
-      @update:is-battle-map="isBattleMap = $event"
-      @open-calibration="calibrationOpen = true"
-    />
+    <!-- Map section. A site's map, rooms and region tracing live in Build
+         mode now (#884) — duplicating that workbench inside the Details form
+         is exactly the confusion this story removes, so a site gets a
+         one-line pointer instead. The Layers panel that replaces this
+         pointer is story S5 — not built here. Every other location type is
+         untouched. -->
+    <div
+      v-if="isSiteTypeLocal"
+      class="rounded-md border border-dashed border-border bg-background px-3 py-2 text-caption text-muted-foreground"
+    >
+      This site's map, rooms and ways out live in Build mode.
+      <RouterLink
+        v-if="!isNew"
+        :to="`/locations/${props.location!.id}?build=true`"
+        class="text-primary hover:underline"
+      >Open Build</RouterLink>
+      <template v-else>Save this location, then open Build from its detail page.</template>
+    </div>
+    <template v-else>
+      <LocationMapEditor
+        :location-id="props.location?.id ?? null"
+        :map-url="mapUrl"
+        :map-pins="mapPins"
+        :is-map-shared="isMapShared"
+        :is-battle-map="isBattleMap"
+        :is-new="isNew"
+        :children="children ?? []"
+        :map-pinnable-children="mapPinnableChildren"
+        :source-map-id="props.location?.source_map_id ?? null"
+        :map-layer-url="props.location?.map_layer_url ?? null"
+        :map-layer-calibration="props.location?.map_layer_calibration ?? null"
+        :plan-size="props.location?.plan_size ?? null"
+        :grid-calibration="props.location?.grid_calibration ?? null"
+        @update:map-url="onMapUrlUpdate"
+        @update:map-pins="mapPins = $event"
+        @update:is-map-shared="isMapShared = $event"
+        @update:is-battle-map="isBattleMap = $event"
+        @open-calibration="calibrationOpen = true"
+      />
 
-    <GridCalibrationDialog
-      :open="calibrationOpen"
-      :map-url="mapUrl"
-      :existing="props.location?.grid_calibration ?? null"
-      @cancel="calibrationOpen = false"
-      @save="onCalibrationSave"
-    />
+      <GridCalibrationDialog
+        :open="calibrationOpen"
+        :map-url="mapUrl"
+        :existing="props.location?.grid_calibration ?? null"
+        @cancel="calibrationOpen = false"
+        @save="onCalibrationSave"
+      />
+    </template>
   </div>
 </template>
 
@@ -302,6 +321,7 @@ import type {
 } from "@/types/location.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { deepEqual } from "@/lib/utils";
+import { isSiteType } from "@/lib/locations/tiers";
 
 const props = defineProps<{
   location: Location | null;
@@ -398,6 +418,11 @@ const name = ref(props.location?.name ?? props.initialName ?? "");
 const locationType = ref<LocationType>(
   props.location?.location_type ?? "other",
 );
+// Reactive to the type picker, not the saved record — switching a new or
+// existing location into a site type swaps the map section immediately,
+// same as `STORE_LOCATION_TYPES.has(locationType)` already does for the
+// Store section below.
+const isSiteTypeLocal = computed(() => isSiteType(locationType.value));
 const tags = ref<string[]>(
   props.location?.tags ? [...props.location.tags] : [],
 );

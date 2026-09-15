@@ -71,6 +71,7 @@ const {
   ways = [],
   showWays = true,
   nestedSiteIds = new Set<string>(),
+  building = false,
 } = defineProps<{
   regions: LocationMapRegion[];
   calibration: GridCalibration | null;
@@ -119,6 +120,11 @@ const {
    *  sheet. Derived by `LocationMap.vue` from the same `spaces` prop that
    *  feeds `SiteMapRegionList`. */
   nestedSiteIds?: ReadonlySet<string>;
+  /** Build mode (#884) — gates *tracing* only: paint/pen/template gestures
+   *  and selecting an unbound shape to trace. Click-to-navigate and
+   *  click-to-descend on an already-bound space stay live in Browse — see
+   *  `activeRegion()` and `pointerOptions.onSelect` below. */
+  building?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -176,7 +182,12 @@ function gridPointAt(clientX: number, clientY: number): GridPoint | null {
     ? canvasToGridPoint(frac.x * canvas.width, frac.y * canvas.height, cal, imageNaturalWidth, imageNaturalHeight, canvas.width, canvas.height)
     : null;
 }
+// Gated on `building` (#884) — this is what actually disarms the paint/pen/
+// template gestures in `useRegionPointer`'s `onPointerDown`: it only ever
+// reads a region to act on via `options.activeRegion()`, so returning `null`
+// here is sufficient regardless of what `activeRegionId` itself holds.
 function activeRegion(): LocationMapRegion | null {
+  if (!building) return null;
   return regions.find((r) => r.id === activeRegionId.value) ?? null;
 }
 function hasActiveRegionId(): boolean {
@@ -259,7 +270,14 @@ const pointerOptions: UseRegionPointerOptions = {
   commitRing,
   commitTemplate,
   confirmConvert,
-  onSelect: (regionId) => (activeRegionId.value = regionId),
+  // Selecting an unbound shape starts a trace (#884) — no-op outside Build,
+  // so a stray click on a leftover untraced shape in Browse can never arm
+  // `activeRegionId` and then have every further click swallowed by
+  // `handleClick`'s "already tracing something" guard with no Done button
+  // on screen to clear it.
+  onSelect: (regionId) => {
+    if (building) activeRegionId.value = regionId;
+  },
   onNavigate,
   onDescend: (spaceId) => emit("descend", spaceId),
   onMoveParty: (roomId) => emit("move-party", roomId),

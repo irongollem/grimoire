@@ -32,6 +32,7 @@
         </template>
         <template #actions>
           <AppButton
+            v-if="building"
             variant="ghost"
             tone="danger"
             size="icon-xs"
@@ -45,16 +46,20 @@
           cell {{ p.source_cell_key }}
         </p>
         <PlacementNoteInput
+          v-if="building"
           :model-value="p.note"
           placeholder="Note — what it's doing in this room…"
           @commit="(value) => onNoteCommit(p, value)"
         />
+        <p v-else-if="p.note" class="text-caption-sm text-muted-foreground italic">{{ p.note }}</p>
       </PlacementRow>
     </div>
-    <p v-else class="text-caption text-muted-foreground italic">Nothing prepared here yet.</p>
+    <p v-else class="text-caption text-muted-foreground italic">
+      {{ building ? "Nothing prepared here yet." : "Nothing prepared here yet. Build the site to add something." }}
+    </p>
 
-    <!-- Inline add -->
-    <div class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
+    <!-- Inline add — Build only. -->
+    <div v-if="building" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
       <SegmentedControl v-model="newKind" :options="KIND_OPTIONS" size="xs" block />
       <div class="flex items-center gap-2">
         <EntityCombobox
@@ -115,7 +120,13 @@ import { useLootTables } from "@/composables/dungeon-features/useLootTables";
 import { LOCATION_PLACEMENT_KIND_LABELS, placementKind } from "@/types/locationPlacement.types";
 import type { LocationPlacementInsert, LocationPlacementKind } from "@/types/locationPlacement.types";
 
-const { locationId } = defineProps<{ locationId: string }>();
+const { locationId, building = false } = defineProps<{
+  locationId: string;
+  /** Build mode (#884) — gates the add picker, note editing, and remove.
+   *  Browse still shows every placed entry (it links out regardless) plus
+   *  any already-written note, read-only. */
+  building?: boolean;
+}>();
 
 const locationIdRef = computed(() => locationId);
 const { data: placements } = useLocationPlacements(locationIdRef);

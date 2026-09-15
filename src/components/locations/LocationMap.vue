@@ -10,9 +10,10 @@
       :counts="layerCounts"
     />
 
-    <!-- Tracing banner — browse mode only; run mode has nothing to trace. -->
+    <!-- Tracing banner — Build mode only (#884); run mode has nothing to
+         trace, and Browse no longer offers tracing at all. -->
     <div
-      v-if="showRegions && !runMode && activeRegion"
+      v-if="showRegions && !runMode && building && activeRegion"
       class="flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5"
     >
       <span class="text-caption text-foreground">
@@ -59,6 +60,7 @@
               :show-ways="siteMapLayers.ways"
               :ways="siteDoors ?? []"
               :nested-site-ids="nestedSiteIds"
+              :building="building"
               @move-party="emit('move-party', $event)"
               @descend="emit('descend', $event)"
               @hover-region="emit('hover-region', $event)"
@@ -123,9 +125,12 @@
         />
       </div>
 
-      <!-- Editing-only, same as `LocationEditor`'s inline panels — run mode
-           renders its own click-to-move room list instead (`SiteRunSurface`),
-           which needs no side column. -->
+      <!-- The Spaces/Zones column reads in Browse and edits in Build (#884):
+           a DM looking at a plan wants to see which spaces are traced and
+           click one, so the rows, names and counts stay and only Trace /
+           Bind / Draw / delete are Build-only — gated inside each list, not
+           by unmounting the column. Run mode renders its own click-to-move
+           room list instead (`SiteRunSurface`), which needs no side column. -->
       <div
         v-if="showRegions && hasRegionContent && !runMode"
         class="flex w-full flex-col gap-3 lg:w-85 lg:shrink-0"
@@ -136,6 +141,7 @@
           :regions="regions"
           :active-region-id="activeRegionId"
           :can-trace="!!stack.frameCalibration"
+          :building="building"
           @update:active-region-id="activeRegionId = $event"
         />
         <SiteMapZoneList
@@ -143,6 +149,7 @@
           :regions="regions"
           :active-region-id="activeRegionId"
           :can-trace="!!stack.frameCalibration"
+          :building="building"
           @update:active-region-id="activeRegionId = $event"
         />
         <!-- Frame 10 "Prepared here · Nave of Ash" — a Prepared mark's own
@@ -158,7 +165,7 @@
             <span class="truncate text-label-lg font-semibold text-muted-foreground">Prepared here · {{ preparedRoomName }}</span>
             <AppButton variant="ghost" size="icon-xs" :icon="IconClose" tooltip="Close" @click="preparedRoomId = null" />
           </div>
-          <LocationPlacements :location-id="preparedRoomId!" />
+          <LocationPlacements :location-id="preparedRoomId!" :building="building" />
         </div>
         <!-- S6: SiteWaysOutPanel mounts here via a caller's #aside content. -->
         <slot name="aside" />
@@ -218,7 +225,7 @@
          a blank grid's calibration is synthetic — neither has anything for
          the DM to set here (#884). -->
     <div
-      v-if="showRegions && hasRegionContent && !stack.frameCalibration && stack.primary?.kind === 'picture'"
+      v-if="showRegions && hasRegionContent && building && !stack.frameCalibration && stack.primary?.kind === 'picture'"
       class="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3 py-2"
     >
       <span class="text-caption text-muted-foreground">
@@ -290,6 +297,7 @@ const {
   partyRoomId = null,
   reachableRoomIds = null,
   showLayerBar = true,
+  building = false,
 } = defineProps<{
   /** The site's map stack — Picture, Drawing, and/or a blank grid (#884).
    *  Callers build it with `buildMapStack()` and gate mounting this
@@ -346,6 +354,12 @@ const {
    *  off the `layer-counts` emit instead. Default true so every other caller
    *  (the sheet, the run surface) is unaffected. */
   showLayerBar?: boolean;
+  /** Build mode (#884) — the site workbench. Gates the tracing banner, the
+   *  Spaces/Zones/Trace/Bind side column, the "Calibrate grid" prompt, and
+   *  (via `MapRegionsLayer`) the paint/pen/template gestures themselves.
+   *  Click-to-navigate and the layer-bar view toggles are unaffected —
+   *  those are Browse behaviour, not editing. */
+  building?: boolean;
 }>();
 
 const emit = defineEmits<{

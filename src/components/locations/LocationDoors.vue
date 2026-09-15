@@ -12,60 +12,86 @@
           <component :is="DOOR_KIND_ICONS[view.door.door_kind]" class="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
         </template>
         <template #actions>
-          <AppButton
-            variant="ghost"
-            size="xs"
-            :active="view.door.is_one_way"
-            tooltip="Passable only from this side"
-            class="shrink-0"
-            @click="toggleFlag(view.door, 'is_one_way')"
-          >One-way</AppButton>
-          <AppButton
-            variant="ghost"
-            size="icon-xs"
-            :icon="IconLock"
-            :active="view.door.starts_locked"
-            :tooltip="view.door.lock_note ? `Starts locked — ${view.door.lock_note}` : 'Starts locked'"
-            class="shrink-0"
-            @click="toggleFlag(view.door, 'starts_locked')"
-          />
-          <AppButton
-            variant="ghost"
-            size="icon-xs"
-            :icon="IconHide"
-            :active="view.door.is_secret"
-            tooltip="Secret — hidden until the party finds it"
-            class="shrink-0"
-            @click="toggleFlag(view.door, 'is_secret')"
-          />
+          <template v-if="building">
+            <AppButton
+              variant="ghost"
+              size="xs"
+              :active="view.door.is_one_way"
+              tooltip="Passable only from this side"
+              class="shrink-0"
+              @click="toggleFlag(view.door, 'is_one_way')"
+            >One-way</AppButton>
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconLock"
+              :active="view.door.starts_locked"
+              :tooltip="view.door.lock_note ? `Starts locked — ${view.door.lock_note}` : 'Starts locked'"
+              class="shrink-0"
+              @click="toggleFlag(view.door, 'starts_locked')"
+            />
+            <AppButton
+              variant="ghost"
+              size="icon-xs"
+              :icon="IconHide"
+              :active="view.door.is_secret"
+              tooltip="Secret — hidden until the party finds it"
+              class="shrink-0"
+              @click="toggleFlag(view.door, 'is_secret')"
+            />
 
-          <AppButton
-            variant="ghost"
-            tone="danger"
-            size="icon-xs"
-            :icon="IconClose"
-            tooltip="Remove this door"
-            class="shrink-0"
-            @click="removeDoor(view.door.id)"
+            <AppButton
+              variant="ghost"
+              tone="danger"
+              size="icon-xs"
+              :icon="IconClose"
+              tooltip="Remove this door"
+              class="shrink-0"
+              @click="removeDoor(view.door.id)"
+            />
+          </template>
+          <!-- Browse: the same three facts, read-only (#884). -->
+          <template v-else>
+            <span
+              v-if="view.door.is_one_way"
+              class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground"
+            >one-way</span>
+            <IconLock
+              v-if="view.door.starts_locked"
+              class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+              :aria-label="view.door.lock_note ? `Starts locked — ${view.door.lock_note}` : 'Starts locked'"
+              :title="view.door.lock_note ? `Starts locked — ${view.door.lock_note}` : 'Starts locked'"
+            />
+            <IconHide
+              v-if="view.door.is_secret"
+              class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+              aria-label="Secret"
+              title="Secret — hidden until the party finds it"
+            />
+          </template>
+        </template>
+        <template v-if="building">
+          <PlacementNoteInput
+            v-if="view.door.starts_locked"
+            :model-value="view.door.lock_note"
+            placeholder="What opens it — e.g. the brass key"
+            @commit="(value) => onLockNoteCommit(view.door, value)"
+          />
+          <PlacementNoteInput
+            :model-value="view.door.label"
+            placeholder="Label — e.g. iron grille"
+            @commit="(value) => onLabelCommit(view.door, value)"
           />
         </template>
-        <PlacementNoteInput
-          v-if="view.door.starts_locked"
-          :model-value="view.door.lock_note"
-          placeholder="What opens it — e.g. the brass key"
-          @commit="(value) => onLockNoteCommit(view.door, value)"
-        />
-        <PlacementNoteInput
-          :model-value="view.door.label"
-          placeholder="Label — e.g. iron grille"
-          @commit="(value) => onLabelCommit(view.door, value)"
-        />
+        <p v-else-if="view.door.label" class="text-caption-sm text-muted-foreground italic">{{ view.door.label }}</p>
       </PlacementRow>
     </div>
-    <p v-else class="text-caption text-muted-foreground italic">No ways out yet — add one below.</p>
+    <p v-else class="text-caption text-muted-foreground italic">
+      {{ building ? "No ways out yet — add one below." : "No ways out yet. Build the site to add them." }}
+    </p>
 
-    <!-- Inline add -->
-    <div class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
+    <!-- Inline add — Build only. -->
+    <div v-if="building" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
       <EntityCombobox v-model="newRoomId" :options="siblingSpaces" placeholder="Pick a room or nested site…" />
       <AppSelect v-model="newKind" size="xs" aria-label="Way-out kind">
         <option v-for="kind in DOOR_KINDS" :key="kind" :value="kind">{{ DOOR_KIND_LABELS[kind] }}</option>
@@ -153,7 +179,14 @@ import type { LocationDoorWithRooms } from "@/composables/locations/useLocationD
 import { DOOR_KINDS, DOOR_KIND_LABELS } from "@/types/locationDoor.types";
 import type { DoorKind, LocationDoorInsert, LocationDoorUpdate } from "@/types/locationDoor.types";
 
-const { roomId, parentId } = defineProps<{ roomId: string; parentId: string | null }>();
+const { roomId, parentId, building = false } = defineProps<{
+  roomId: string;
+  parentId: string | null;
+  /** Build mode (#884) — gates the add form and every edit affordance
+   *  (toggles, note editing, remove). Browse shows the same three facts as
+   *  read-only badges instead. */
+  building?: boolean;
+}>();
 
 const roomIdRef = computed(() => roomId);
 const { doors } = useLocationDoors(roomIdRef);

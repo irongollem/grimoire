@@ -23,7 +23,7 @@
           <span v-if="row.door.starts_locked" class="shrink-0 rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">locked</span>
           <span v-if="row.isVertical" class="shrink-0 rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">{{ DOOR_KIND_LABELS[row.door.door_kind] }}</span>
 
-          <template v-if="!verticalOnly">
+          <template v-if="!verticalOnly && building">
             <AppButton
               variant="ghost"
               size="icon-xs"
@@ -45,7 +45,7 @@
         </div>
         <p class="pl-6 text-caption text-muted-foreground">{{ row.subtitle }}</p>
 
-        <Transition v-if="!verticalOnly" v-bind="drawerTransition()">
+        <Transition v-if="!verticalOnly && building" v-bind="drawerTransition()">
           <div v-if="expandedIds.has(row.door.id)" class="flex flex-col gap-2 border-t border-border pt-2">
             <div class="flex flex-wrap items-center gap-4">
               <AppButton
@@ -122,11 +122,11 @@
       </div>
     </div>
     <p v-else class="text-caption italic text-muted-foreground">
-      {{ verticalOnly ? "No ways up or down yet." : "No ways out yet — add one below." }}
+      {{ verticalOnly ? "No ways up or down yet." : building ? "No ways out yet — add one below." : "No ways out yet. Build the site to add them." }}
     </p>
 
-    <!-- Inline add -->
-    <div v-if="!verticalOnly" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
+    <!-- Inline add — Build only. -->
+    <div v-if="!verticalOnly && building" class="flex flex-col gap-2 rounded-md border border-dashed border-border bg-background px-3 py-2">
       <div class="grid grid-cols-2 gap-2">
         <EntityCombobox v-model="newFromId" :options="spaces" placeholder="From…" />
         <EntityCombobox v-model="newToId" :options="toOptions" placeholder="To…" />
@@ -224,7 +224,7 @@ export interface WaysOutSpace {
 // key/route off it) but nothing in this story's rendering needs it — every
 // door this panel reads is already scoped by `spaces`, which is exhaustive
 // for the site it was fetched from.
-const { spaces, verticalOnly = false, hideHeader = false } = defineProps<{
+const { spaces, verticalOnly = false, hideHeader = false, building = false } = defineProps<{
   siteId: string;
   spaces: WaysOutSpace[];
   /** Renders the frame-06 "Vertical ways out" variant: filtered, read-only,
@@ -233,6 +233,10 @@ const { spaces, verticalOnly = false, hideHeader = false } = defineProps<{
   /** Suppresses the icon+title+count header — for a caller (`LocationDetailSections`)
    *  that already renders its own "Ways out" section heading above this. */
   hideHeader?: boolean;
+  /** Build mode (#884) — gates the add form, expand-to-edit, and remove.
+   *  The row's own badges (secret/locked/kind) already read as facts, so
+   *  Browse keeps showing them unconditionally. */
+  building?: boolean;
 }>();
 
 const toast = useToast();

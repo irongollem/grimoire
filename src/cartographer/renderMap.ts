@@ -70,6 +70,27 @@ export interface MapRenderScene {
    */
   derivedSpaces?: { key: string; cells: CellKey[]; displayName: string; nameSource: "annotation" | null }[];
   selectedSpaceKey?: string | null;
+  /**
+   * A site's Picture layer, shown as a ghost reference beneath everything
+   * else (epic #884 S6 — MapWorkbench embedded in the Atlas). Positioning is
+   * computed by the caller from the site's `grid_calibration` against this
+   * frame's own `tilePx`/`viewportOffset` — this function only draws it, the
+   * same "plain values in" rule as every other field here. Absent for the
+   * standalone `/cartographer/:id` route, which passes no site.
+   */
+  referenceImage?: MapRenderReferenceImage | null;
+}
+
+export interface MapRenderReferenceImage {
+  source: CanvasImageSource;
+  /** Canvas-pixel (device-pixel, same space as `tilePx`) position of the
+   *  image's own top-left pixel. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** 0..1 — kept low so the reference reads as a trace-beneath, not a second drawing. */
+  opacity: number;
 }
 
 // ── Geometry helpers ───────────────────────────────────────────────────────
@@ -98,12 +119,22 @@ export function renderMap(scene: MapRenderScene): void {
     previewCells,
     derivedSpaces,
     selectedSpaceKey,
+    referenceImage,
   } = scene;
   const { minX, minY, maxX, maxY } = bounds;
 
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = "rgb(20, 18, 16)";
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  // Reference layer (#884 S6) — drawn right after the background fill so
+  // every painted layer sits above it, ghost-faint underneath the drawing.
+  if (referenceImage) {
+    ctx.save();
+    ctx.globalAlpha = referenceImage.opacity;
+    ctx.drawImage(referenceImage.source, referenceImage.x, referenceImage.y, referenceImage.width, referenceImage.height);
+    ctx.restore();
+  }
 
   const rt = (pid: string): TilePackRuntime | null =>
     runtimes.get(pid) ?? fallbackRuntime ?? null;

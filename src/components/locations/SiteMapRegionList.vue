@@ -17,7 +17,7 @@
        shown only while a region is actively being traced. Template gains its
        own shape picker underneath; the caption mirrors the frame's own
        toolbar hint. -->
-  <div v-if="activeRegionId" class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2">
+  <div v-if="building && activeRegionId" class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2">
     <SegmentedControl v-model="traceTool" :options="TRACE_TOOL_OPTIONS" size="inline-xs" />
     <SegmentedControl
       v-if="traceTool === 'template'"
@@ -42,6 +42,7 @@
       <span class="text-label-lg font-semibold text-muted-foreground">Spaces</span>
       <span class="rounded-full bg-muted px-2 py-0.5 text-label font-semibold text-muted-foreground">{{ spaces.length }}</span>
       <AppButton
+        v-if="building"
         variant="ghost"
         size="inline-xs"
         class="ml-auto"
@@ -90,6 +91,7 @@
             L{{ nestedSiteIndexBySpace.get(space.id) }}
           </span>
           <AppButton
+            v-if="building"
             variant="ghost"
             size="inline-xs"
             label="Trace"
@@ -99,12 +101,14 @@
             @click="toggleActive(boundRegionBySpace.get(space.id)!.id)"
           />
           <AppButton
+            v-if="building"
             variant="ghost"
             size="inline-xs"
             label="Unbind"
             @click="unbind(boundRegionBySpace.get(space.id)!)"
           />
           <AppButton
+            v-if="building"
             variant="ghost"
             tone="danger"
             size="icon-xs"
@@ -113,7 +117,8 @@
             @click="removeRegion(boundRegionBySpace.get(space.id)!)"
           />
         </template>
-        <AppButton v-else variant="ghost" size="inline-xs" label="Add region" @click="addRegionForSpace(space)" />
+        <AppButton v-else-if="building" variant="ghost" size="inline-xs" label="Add region" @click="addRegionForSpace(space)" />
+        <span v-else class="shrink-0 text-caption text-muted-foreground italic">Not traced</span>
       </div>
     </div>
   </div>
@@ -131,6 +136,7 @@
         class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
       >
         <AppInput
+          v-if="building"
           :model-value="region.label ?? ''"
           :model-modifiers="{ lazy: true }"
           type="text"
@@ -140,7 +146,9 @@
           class="min-w-0 flex-1"
           @update:model-value="commitLabel(region, $event as string)"
         />
+        <span v-else class="min-w-0 flex-1 truncate text-caption text-muted-foreground">{{ region.label || "Untitled shape" }}</span>
         <EntityCombobox
+          v-if="building"
           :model-value="''"
           :options="unclaimedSpaces"
           placeholder="Bind to space…"
@@ -152,6 +160,7 @@
           {{ regionProvenanceText(region) }}
         </span>
         <AppButton
+          v-if="building"
           variant="ghost"
           size="inline-xs"
           label="Trace"
@@ -210,7 +219,7 @@ import { useUiStore } from "@/stores/ui";
 import type { TemplateShape, TraceTool } from "@/lib/locations/polygon";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
 
-const { locationId, spaces, regions, activeRegionId, canTrace } = defineProps<{
+const { locationId, spaces, regions, activeRegionId, canTrace, building = false } = defineProps<{
   /** The site these regions belong to — `createRegion` needs it as
    *  `site_location_id`. */
   locationId: string;
@@ -224,6 +233,10 @@ const { locationId, spaces, regions, activeRegionId, canTrace } = defineProps<{
    *  set) — the caller disables "Trace" rather than opening a tracing UI
    *  with nothing calibrated to paint on. */
   canTrace: boolean;
+  /** Build mode (#884): the rows, names and counts read in Browse too — a DM
+   *  looking at a plan wants to see which spaces are traced and click one.
+   *  Only the affordances that *change* the plan are Build-only. */
+  building?: boolean;
 }>();
 
 const emit = defineEmits<{ "update:activeRegionId": [id: string | null] }>();

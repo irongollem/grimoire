@@ -79,7 +79,7 @@
          Locations redundant on a room, per the comment above. -->
     <section v-if="isRoom" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Ways out</h2>
-      <LocationDoors :room-id="location.id" :parent-id="location.parent_id" />
+      <LocationDoors :room-id="location.id" :parent-id="location.parent_id" :building="building" />
     </section>
 
     <!-- Ways out, lifted to the site (#868, S6) — a site sees its whole door
@@ -88,7 +88,7 @@
          one-room view; this is the other end of the same graph. -->
     <section v-if="isSite" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Ways out</h2>
-      <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" hide-header />
+      <SiteWaysOutPanel :site-id="location.id" :spaces="siteSpaces" hide-header :building="building" />
     </section>
 
     <!-- Store inventory — self-contained editable component. Useful enough
@@ -115,7 +115,7 @@
         :map="sourceMap"
         :staleness="siteStaleness"
       />
-      <SiteRoomsPanel :location-id="location.id" />
+      <SiteRoomsPanel :location-id="location.id" :building="building" />
     </section>
 
     <!-- Prepared Here — traps, dungeon features, roll tables and loot
@@ -124,7 +124,7 @@
          corridor, unlike Store/Rooms above which apply to a subset of types. -->
     <section class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Prepared Here</h2>
-      <LocationPlacements :location-id="location.id" />
+      <LocationPlacements :location-id="location.id" :building="building" />
     </section>
 
     <!-- People in the Area — NPCs whose location is this or any descendant. -->
@@ -235,7 +235,14 @@ import { effectiveLocationId } from "@/lib/partyPosition";
 import { LOCATION_TYPE_COLORS, STORE_LOCATION_TYPES } from "@/types/location.types";
 import type { Location } from "@/types/location.types";
 
-const { location } = defineProps<{ location: Location }>();
+const { location, building = false } = defineProps<{
+  location: Location;
+  /** Build mode (#884) — the site workbench. Threaded to the four
+   *  structural sections (Ways out, Rooms, Prepared Here); the play
+   *  sections (Progress, Loot, Store) never take it — they stay live in
+   *  Browse the same as they always have. */
+  building?: boolean;
+}>();
 
 const NPC_PREVIEW = 3;
 const npcsExpanded = ref(false);
