@@ -313,6 +313,33 @@ describe("resolveDoorEndpoints", () => {
     const results = resolveDoorEndpoints([{ id: "door-1", edge_key: null }], regions);
     expect(results).toEqual([]);
   });
+
+  // The defect this pins: while only the north room was traced, the door had
+  // to be from=north. Tracing the south room later would hand `from` to
+  // whichever cell owns the edge (south, by the NW convention) and silently
+  // reverse a door the DM had set one-way. Geometry is derived; direction is
+  // authored. Found by the #884 review pass.
+  it("keeps the authored direction when the far side is traced later", () => {
+    const onlyNorth = [mapRegion({ id: "north", space_location_id: "room-north", cells: ["1,0"] })];
+    const oneSided = resolveDoorEndpoints([{ id: "d", edge_key: "1,1:N" as const }], onlyNorth);
+    expect(oneSided[0].endpoints).toEqual({ fromLocationId: "room-north", toLocationId: null });
+
+    const nowBoth = resolveDoorEndpoints(
+      // `from_location_id` is the whole input: the far side is what the edge
+      // now says it is, the near side is what the DM authored.
+      [{ id: "d", edge_key: "1,1:N" as const, from_location_id: "room-north" }],
+      regions,
+    );
+    expect(nowBoth[0].endpoints).toEqual({ fromLocationId: "room-north", toLocationId: "room-south" });
+  });
+
+  it("takes the derivation when the door's own from is no longer one of the two spaces", () => {
+    const results = resolveDoorEndpoints(
+      [{ id: "d", edge_key: "1,1:N" as const, from_location_id: "room-elsewhere" }],
+      regions,
+    );
+    expect(results[0].endpoints).toEqual({ fromLocationId: "room-south", toLocationId: "room-north" });
+  });
 });
 
 describe("edgeAtImageFraction", () => {

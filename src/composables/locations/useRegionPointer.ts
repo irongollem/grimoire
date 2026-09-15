@@ -113,6 +113,18 @@ export interface UseRegionPointerReturn {
    *  `onUnmounted` (which already removes its resize observer there), the
    *  same place the original component's cleanup always ran. */
   dispose: () => void;
+  /** Abandons whatever gesture is in flight — paint/erase stroke, a live
+   *  drag on a persisted pen ring, a template drag, or an unsaved pen draft
+   *  — without committing it, and detaches the `window` listeners the
+   *  gesture attached. `Escape` already abandons an unsaved pen draft
+   *  (`onKeyDown` below); this is the same abandonment applied to every
+   *  gesture kind, for a caller that needs to cut one short from outside a
+   *  keypress — the Cartographer's Plan layer calls this when the DM
+   *  switches the active layer away from Plan mid-gesture (#884 review
+   *  finding 2): nothing used to stop these `window` listeners on a layer
+   *  switch, so the eventual pointerup would still commit the abandoned
+   *  gesture onto whatever region was active when it started. */
+  abandonGesture: () => void;
 }
 
 export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPointerReturn {
@@ -501,6 +513,29 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     window.removeEventListener("keydown", onKeyDown);
   }
 
+  function abandonGesture(): void {
+    // The window listeners `onPointerDown` attaches outlive a layer switch
+    // (only `dispose()` on unmount removes them) — detach them here too, or
+    // the physical pointerup still in flight would fall through to
+    // `handleClick` once every gesture branch below reports nothing left to
+    // commit (#884 review finding 2).
+    window.removeEventListener("pointermove", onWindowPointerMove);
+    window.removeEventListener("pointerup", onWindowPointerUp);
+    pointerDownAt = null;
+    movedBeyondTapThreshold = false;
+
+    if (strokeCells.value) {
+      strokeCells.value = null;
+      activeBrush = null;
+    }
+    if (penDrag) {
+      penDrag = null;
+      liveDrag.value = null;
+    }
+    if (pen.templateDrag.value) pen.endTemplate();
+    if (pen.draftRing.value.length > 0) pen.abandon();
+  }
+
   onMounted(() => window.addEventListener("keydown", onKeyDown));
 
   return {
@@ -515,5 +550,6 @@ export function useRegionPointer(options: UseRegionPointerOptions): UseRegionPoi
     liveDrag,
     penHoverPoint,
     dispose,
+    abandonGesture,
   };
 }

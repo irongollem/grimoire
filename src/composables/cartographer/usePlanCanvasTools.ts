@@ -236,6 +236,14 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     regionPointer.dispose();
   }
 
+  /** Abandons whatever Space/Zone gesture is in flight without committing it
+   *  — the Door and Claim tools have no in-flight gesture to abandon (each
+   *  is a single click). See `useRegionPointer.abandonGesture`'s own
+   *  docblock (#884 review finding 2). */
+  function abandonGesture(): void {
+    regionPointer.abandonGesture();
+  }
+
   function renderScene(): PlanRenderScene {
     const overrides = regionPointer.strokeCells.value
       ? new Map([[regionPointer.strokeCells.value.regionId, regionPointer.strokeCells.value.cells]])
@@ -281,6 +289,7 @@ export function usePlanCanvasTools(opts: PlanCanvasToolsOptions) {
     onPointerLeave,
     onDoubleClick,
     dispose,
+    abandonGesture,
     renderScene,
     // Exposed only so the caller's render-triggering `watch` array can see
     // them (`useMapCanvasEditor.ts`'s `scheduleRender` deps) — every actual

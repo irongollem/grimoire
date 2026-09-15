@@ -244,6 +244,12 @@
 //               mirrors it into its own ref for `useUnsavedGuard` and the
 //               status line — both are host-owned because both need route
 //               state (`isNew`) this component doesn't have.
+// `update:editRevision` — fires on every edit, not just the false→true
+//               `dirty` transition (#884 review finding 1: `dirty` staying
+//               `true` across a second edit fires no `update:dirty` at all).
+//               `useSiteDrawingEditor` re-arms its autosave debounce off
+//               this so a stroke made while a save is already in flight
+//               isn't silently dropped.
 //
 // ── Exposed (defineExpose) ──────────────────────────────────────────────
 // Painting mutates `layers`/`metadata` on nearly every pointer move, so a
@@ -262,6 +268,7 @@
 //   getStructure      — derived spaces/ways/zones/links, Publish's input
 //   getCellsPainted / getPackName — the status line's two workbench-owned segments
 //   isDirty           — imperative read of the same flag `update:dirty` emits
+//   getEditRevision   — imperative read of the same counter `update:editRevision` emits
 //   resetEdits()      — discard in-progress edits, restore from `map` prop (Cancel)
 //   markSaved()       — clear the dirty flag after the host's mutation resolves
 import { computed, onMounted, ref, watch, type Component } from "vue";
@@ -338,7 +345,7 @@ const { map, viewMode, site, spaces } = defineProps<{
   spaces?: BindableSpace[];
 }>();
 
-const emit = defineEmits<{ "update:dirty": [boolean] }>();
+const emit = defineEmits<{ "update:dirty": [boolean]; "update:editRevision": [number] }>();
 
 const BUNDLED_PACKS = [
   { pack_id: "stone-dungeon", pack_version: 1, name: "Stone Dungeon",  manifestUrl: "/cartographer/stone-dungeon/v1/manifest.json" },
@@ -379,6 +386,19 @@ const packRuntime = computed(() => loadedRuntimes.value.get(currentPackId.value)
 const loadedPackIds = computed(() => new Set(loadedRuntimes.value.keys()));
 const dirty = ref(false);
 watch(dirty, (v) => emit("update:dirty", v), { immediate: true });
+
+// Bumped on every edit, not just the false→true `dirty` transition — see
+// `useMapCanvasEditor.ts`'s `editRevision` docblock for why the host's
+// autosave (`useSiteDrawingEditor`) needs this to notice a stroke made while
+// `dirty` was already `true` (#884 review finding 1).
+const editRevision = ref(0);
+watch(editRevision, (rev) => emit("update:editRevision", rev));
+/** The setters below (link/annotation) aren't routed through
+ *  `useMapCanvasEditor`'s own `markDirty()`, so they bump this directly. */
+function markDirty(): void {
+  dirty.value = true;
+  editRevision.value++;
+}
 
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 
@@ -491,7 +511,7 @@ const linkedNoteId = computed({
     if (!selectedCell.value) return;
     const k = cellKey(...selectedCell.value);
     metadata.value[k] = { ...metadata.value[k], note_id: id || undefined };
-    dirty.value = true;
+    markDirty();
   },
 });
 const linkedEncounterId = computed({
@@ -500,7 +520,7 @@ const linkedEncounterId = computed({
     if (!selectedCell.value) return;
     const k = cellKey(...selectedCell.value);
     metadata.value[k] = { ...metadata.value[k], encounter_id: id || undefined };
-    dirty.value = true;
+    markDirty();
   },
 });
 const linkedTrapId = computed({
@@ -509,7 +529,7 @@ const linkedTrapId = computed({
     if (!selectedCell.value) return;
     const k = cellKey(...selectedCell.value);
     metadata.value[k] = { ...metadata.value[k], trap_id: id || undefined };
-    dirty.value = true;
+    markDirty();
   },
 });
 const linkedFeatureId = computed({
@@ -518,7 +538,7 @@ const linkedFeatureId = computed({
     if (!selectedCell.value) return;
     const k = cellKey(...selectedCell.value);
     metadata.value[k] = { ...metadata.value[k], feature_id: id || undefined };
-    dirty.value = true;
+    markDirty();
   },
 });
 
@@ -535,7 +555,7 @@ const annotationText = computed({
     } else {
       layers.value.annotation[k] = { text: v.trim() };
     }
-    dirty.value = true;
+    markDirty();
   },
 });
 
@@ -630,7 +650,7 @@ const {
   zoom, hoverCell, canUndo, canRedo, undoEdit, redoEdit, centerMap,
   onPointerDown, onPointerMove, onPointerUp, onDoubleClick, onWheel, structureTools,
 } = useMapCanvasEditor({
-  canvasEl, layers, metadata, dirty, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
+  canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
   cellGlyphs, activeTool, tools: TOOLS, viewMode: () => viewMode,
   activeObjectCategory, stampRotation, activeTemplateShape, caveRadius,
   selectedCell, inspectorPanelRef, structure, mapKey: computed(() => map?.id || "new"),
@@ -719,6 +739,10 @@ defineExpose({
   getCellsPainted: () => cellsPainted.value,
   getPackName: () => packRuntime.value?.manifest.name ?? currentPackId.value,
   isDirty: () => dirty.value,
+  /** The autosave's own "has anything changed since I started saving?"
+   *  check (#884 review finding 1) — see `useMapCanvasEditor.ts`'s
+   *  `editRevision` docblock. */
+  getEditRevision: () => editRevision.value,
   resetEdits,
   markSaved,
 });

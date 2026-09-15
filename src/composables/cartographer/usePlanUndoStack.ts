@@ -16,8 +16,15 @@
 // inverse can't be expressed faithfully must not be pushed at all — see
 // `usePlanPalette.ts`'s own comment on why CREATE's redo needs a mutable
 // id handle rather than a plain string.
+//
+// A rejected inverse mutation is toasted HERE, not by the mutation composable
+// it calls (#884 review finding 3) — `usePlanPalette.ts`'s undo/redo closures
+// call `mutateAsync` directly, which has no `onError` of its own to toast
+// from, so without this a stale row, an RLS denial or a dropped connection
+// made Ctrl+Z do nothing, repeatedly, with no feedback at all.
 
 import { ref } from "vue";
+import { useToast } from "@/composables/useToast";
 
 export interface PlanUndoEntry {
   /** Debugging/tests only — never shown in the UI (the toolbar's Undo/Redo
@@ -28,6 +35,8 @@ export interface PlanUndoEntry {
 }
 
 export function usePlanUndoStack() {
+  const { error: toastError, fromError } = useToast();
+
   const past: PlanUndoEntry[] = [];
   const future: PlanUndoEntry[] = [];
   // Plain counters, not the arrays themselves, so Vue only re-renders on a
@@ -57,10 +66,12 @@ export function usePlanUndoStack() {
     try {
       await entry.undo();
       future.push(entry);
-    } catch {
-      // Already toasted by whichever mutation composable ran; put the entry
-      // back so a retry (another Ctrl+Z) can try again rather than silently
-      // dropping it off the stack.
+    } catch (err) {
+      // The closures in `usePlanPalette.ts` call `mutateAsync` directly, so
+      // nothing else toasts this — do it here, and put the entry back so a
+      // retry (another Ctrl+Z) can try again rather than the stack silently
+      // going dead.
+      toastError(fromError(err, "Couldn't undo that — try again."));
       past.push(entry);
     } finally {
       busy.value = false;
@@ -76,7 +87,8 @@ export function usePlanUndoStack() {
     try {
       await entry.redo();
       past.push(entry);
-    } catch {
+    } catch (err) {
+      toastError(fromError(err, "Couldn't redo that — try again."));
       future.push(entry);
     } finally {
       busy.value = false;

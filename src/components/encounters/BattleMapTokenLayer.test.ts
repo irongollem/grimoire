@@ -95,6 +95,29 @@ beforeEach(() => {
 });
 
 describe("BattleMapTokenLayer — render-key memoization", () => {
+  // The leak this pins: an "unseen" combatant paints a "???" silhouette on
+  // its canvas, but the wrapper's native `title` used to carry the real name,
+  // so a player hovering the mystery token read "Ash-wight" in a browser
+  // tooltip. Found by the #884 review pass.
+  it("withholds a silhouetted combatant's name from its tooltip", async () => {
+    const props = baseProps();
+    const hidden = { ...props.combatants[0], reveal_state: "unseen" as const };
+    const wrapper = mount(BattleMapTokenLayer, {
+      props: { ...props, combatants: [hidden], silhouetteUnseen: true },
+    });
+    await nextTick();
+    expect(wrapper.find(".token").attributes("title")).toBeUndefined();
+  });
+
+  it("still names a revealed combatant in its tooltip", async () => {
+    const props = baseProps();
+    const wrapper = mount(BattleMapTokenLayer, {
+      props: { ...props, combatants: [props.combatants[0]], silhouetteUnseen: true },
+    });
+    await nextTick();
+    expect(wrapper.find(".token").attributes("title")).toBe(props.combatants[0].name);
+  });
+
   it("draws each token exactly once on initial mount", async () => {
     mount(BattleMapTokenLayer, { props: baseProps() });
     await nextTick();

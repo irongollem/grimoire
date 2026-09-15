@@ -31,6 +31,7 @@
         :site="location"
         :spaces="siteSpaces"
         @update:dirty="drawingEditor.onDirtyChange"
+        @update:edit-revision="drawingEditor.onEditRevision"
       />
     </div>
 
@@ -162,6 +163,7 @@
  * is real at the point each event is emitted, and cheap to keep honest.
  */
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import AtlasMapZoom from "@/components/locations/AtlasMapZoom.vue";
 import LocationMap from "@/components/locations/LocationMap.vue";
@@ -242,6 +244,24 @@ function onOpenDrawing() {
 const locationForDrawing = computed(() => location);
 const drawingEditor = useSiteDrawingEditor(locationForDrawing, siteSourceMap);
 const drawingWorkbenchRef = drawingEditor.workbenchRef;
+
+// #884 review finding 1: a debounced autosave that's still pending when the
+// DM navigates away used to be dropped outright — nothing ever flushed it.
+// `onBeforeUnmount` covers this component unmounting outright (this place is
+// mounted `:key="location.id"` by `LocationDetailView`, so switching to a
+// different location remounts rather than reusing the instance);
+// `onBeforeRouteLeave` covers leaving the route entirely before that unmount
+// runs, so the pending save is awaited — and, per `flush()`'s own docblock,
+// toasted on failure — before the navigation completes.
+onBeforeUnmount(() => { void drawingEditor.flush(); });
+onBeforeRouteLeave(async () => { await drawingEditor.flush(); });
+// "Done" (`building` → false) unmounts `MapWorkbench` via its own `v-if`
+// without unmounting this component or leaving the route — neither hook
+// above fires, so a pending save would otherwise be dropped the same way.
+watch(
+  () => building,
+  (curr, prev) => { if (prev && !curr) void drawingEditor.flush(); },
+);
 
 /** The embedded workbench's own Publish (#884 S11) — reads the Drawing's
  *  live-edited layers/metadata straight off `drawingWorkbenchRef`. Unlike

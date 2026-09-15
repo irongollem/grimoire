@@ -240,7 +240,10 @@ export interface EdgeEndpoints {
  * - One side traced → that side becomes `from` regardless of which cell owns
  *   the edge, `to` is null. This is the one place ownership does NOT decide
  *   `from`: the traced side is the only one that can be a `from_location_id`
- *   at all, an untraced cell has no location to be one.
+ *   at all, an untraced cell has no location to be one. Note that this is
+ *   also why ownership alone cannot be trusted across the one-sided →
+ *   two-sided transition — see `resolveDoorEndpoints`, which preserves a
+ *   door's existing direction rather than re-deciding it here.
  * - Neither side traced → null. There is nothing to place a door against yet.
  * - Both sides traced but land in the SAME region → null. The edge doesn't
  *   actually separate two spaces (a line drawn across the middle of one
@@ -267,8 +270,8 @@ export function resolveEdgeEndpoints(edgeKey: SourceEdgeKey, cellToSpace: Readon
 
 export interface DoorEndpointResolution {
   doorId: string;
-  /** Whatever `resolveEdgeEndpoints` returned for this door's edge — null
-   *  means "cannot resolve; do not touch this door's endpoints". */
+  /** Whatever this door's edge currently implies — null means "cannot
+   *  resolve; do not touch this door's endpoints". */
   endpoints: EdgeEndpoints | null;
 }
 
@@ -278,18 +281,49 @@ export interface DoorEndpointResolution {
  * and site-wide re-derivation need, so neither has to rebuild the index
  * itself. A door with no `edge_key` (never placed) is skipped: there is no
  * edge to resolve anything from.
+ *
+ * **Geometry is derived; direction is authored.** Which two spaces an edge
+ * separates is a fact about the plan and is re-derived freely. Which of them
+ * is `from` is not: `is_one_way` reads it, so flipping it silently reverses
+ * a door the DM deliberately made one-way. So when the door's current `from`
+ * is still one of the edge's two spaces, it stays `from` and the other side
+ * becomes `to`, whatever the edge's ownership convention would have said.
+ *
+ * The case this exists for is the one-sided → two-sided transition, which
+ * `resolveEdgeEndpoints` alone gets wrong by construction: while only one
+ * side was traced that side had to be `from`, and tracing the far side later
+ * would otherwise hand `from` to whichever cell owns the edge — reversing a
+ * door nobody touched. When the current `from` is *not* one of the two (it
+ * was never set, or the space it named is no longer traced), the edge
+ * genuinely separates a different pair and the derivation stands.
  */
 export function resolveDoorEndpoints(
-  doors: readonly { id: string; edge_key: SourceEdgeKey | null }[],
+  doors: readonly {
+    id: string;
+    edge_key: SourceEdgeKey | null;
+    from_location_id?: string | null;
+  }[],
   regions: readonly LocationMapRegion[],
 ): DoorEndpointResolution[] {
   const cellToSpace = indexSpacesByCell(regions);
   const results: DoorEndpointResolution[] = [];
   for (const door of doors) {
     if (door.edge_key === null) continue;
-    results.push({ doorId: door.id, endpoints: resolveEdgeEndpoints(door.edge_key, cellToSpace) });
+    const derived = resolveEdgeEndpoints(door.edge_key, cellToSpace);
+    results.push({ doorId: door.id, endpoints: keepAuthoredDirection(derived, door.from_location_id ?? null) });
   }
   return results;
+}
+
+/** See `resolveDoorEndpoints`: the edge decides which spaces, the door keeps
+ *  which way round. */
+function keepAuthoredDirection(derived: EdgeEndpoints | null, currentFrom: string | null): EdgeEndpoints | null {
+  if (!derived || !currentFrom) return derived;
+  if (derived.fromLocationId === currentFrom) return derived;
+  if (derived.toLocationId === currentFrom) {
+    return { fromLocationId: currentFrom, toLocationId: derived.fromLocationId };
+  }
+  return derived;
 }
 
 // ── The door tool's own edge targeting (#884) ────────────────────────────────

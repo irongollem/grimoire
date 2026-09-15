@@ -23,6 +23,19 @@
 // place, so every entry — however old — reads the *current* id when it
 // finally runs. Nothing here ever needs to touch two boxes at once, so
 // there's no ordering hazard to worry about.
+//
+// ── Why `commitCells`/`commitRing`/`commitTemplate` don't read `before` off
+// `regions.value` alone (#884 review finding 4) ────────────────────────────
+// The query only reflects a commit once its `onSuccess` invalidation AND
+// `afterRegionMutation`'s door-reconciliation round trip both land — real
+// network round trips, not one microtask. Two of these fired back to back
+// (two quick strokes on the same region) would both read the SAME stale
+// `before` off `regions.value`, so undoing the second would silently revert
+// the first too. `localRegionState` tracks, per region, what THIS palette
+// instance itself last wrote — read in preference to the query, and kept in
+// step by every one of these functions (including their own undo/redo) — so
+// a rapid second edit reads the first edit's result as its `before`, not
+// whatever the lagging query still shows.
 
 import { computed, ref, type ComputedRef } from "vue";
 import { useConfirm } from "@/composables/useConfirm";
@@ -126,6 +139,16 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
       undo.busy.value,
   );
 
+  // See the module docblock (#884 review finding 4) for why this exists.
+  const localRegionState = new Map<string, { vertices: GridPoint[] | null; cells: CellKey[] }>();
+
+  function regionStateNow(regionId: string): { vertices: GridPoint[] | null; cells: CellKey[] } {
+    const cached = localRegionState.get(regionId);
+    if (cached) return cached;
+    const region = regions.value.find((r) => r.id === regionId);
+    return { vertices: region?.vertices ?? null, cells: region?.cells ?? [] };
+  }
+
   /** Creates a region and pushes its CREATE undo entry. Returns the ref box
    *  future entries in this lineage should close over instead of the id. */
   async function createRegionTracked(insert: LocationMapRegionInsert): Promise<{ region: LocationMapRegion; handle: EntityRef } | null> {
@@ -181,7 +204,8 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
    *  `useRegionPointer`'s `commitCells` contract. Captures the region's
    *  pre-stroke cells for the undo entry before the mutation lands. */
   function commitCells(regionId: string, cells: CellKey[]): void {
-    const before = regions.value.find((r) => r.id === regionId)?.cells ?? [];
+    const prior = regionStateNow(regionId);
+    localRegionState.set(regionId, { vertices: prior.vertices, cells });
     const handle: EntityRef = { id: regionId };
     updateRegion.mutate(
       { id: regionId, update: dmEdit({ cells }) },
@@ -189,8 +213,14 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
         onSuccess: () => {
           undo.push({
             label: "paint stroke",
-            undo: async () => { await updateRegion.mutateAsync({ id: handle.id, update: dmEdit({ cells: before }) }); },
-            redo: async () => { await updateRegion.mutateAsync({ id: handle.id, update: dmEdit({ cells }) }); },
+            undo: async () => {
+              localRegionState.set(handle.id, { vertices: prior.vertices, cells: prior.cells });
+              await updateRegion.mutateAsync({ id: handle.id, update: dmEdit({ cells: prior.cells }) });
+            },
+            redo: async () => {
+              localRegionState.set(handle.id, { vertices: prior.vertices, cells });
+              await updateRegion.mutateAsync({ id: handle.id, update: dmEdit({ cells }) });
+            },
           });
         },
         onError: (err) => toastError(fromError(err)),
@@ -201,18 +231,25 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
   /** Pen-ring commit — `useRegionPointer`'s `commitRing` contract. Must
    *  reject on failure (the draft-close gesture puts its ring back). */
   async function commitRing(regionId: string, ring: GridPoint[]): Promise<void> {
-    const region = regions.value.find((r) => r.id === regionId);
-    const before = { vertices: region?.vertices ?? null, cells: region?.cells ?? [] };
+    const before = regionStateNow(regionId);
     const after = { vertices: ring, cells: cellsInsideRing(ring) };
     const handle: EntityRef = { id: regionId };
+    localRegionState.set(regionId, after);
     try {
       await updateRegion.mutateAsync({ id: regionId, update: dmEdit(after) });
       undo.push({
         label: "pen ring",
-        undo: async () => { await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(before) }); },
-        redo: async () => { await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(after) }); },
+        undo: async () => {
+          localRegionState.set(handle.id, before);
+          await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(before) });
+        },
+        redo: async () => {
+          localRegionState.set(handle.id, after);
+          await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(after) });
+        },
       });
     } catch (err) {
+      localRegionState.set(regionId, before);
       toastError(fromError(err));
       throw err;
     }
@@ -222,18 +259,24 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
    *  `cells` arrives pre-computed (the template's own algorithm, not the
    *  generic ring fill `commitRing` uses). */
   function commitTemplate(regionId: string, ring: GridPoint[], cells: CellKey[]): void {
-    const region = regions.value.find((r) => r.id === regionId);
-    const before = { vertices: region?.vertices ?? null, cells: region?.cells ?? [] };
+    const before = regionStateNow(regionId);
     const after = { vertices: ring, cells };
     const handle: EntityRef = { id: regionId };
+    localRegionState.set(regionId, after);
     updateRegion.mutate(
       { id: regionId, update: dmEdit(after) },
       {
         onSuccess: () => {
           undo.push({
             label: "template drop",
-            undo: async () => { await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(before) }); },
-            redo: async () => { await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(after) }); },
+            undo: async () => {
+              localRegionState.set(handle.id, before);
+              await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(before) });
+            },
+            redo: async () => {
+              localRegionState.set(handle.id, after);
+              await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(after) });
+            },
           });
         },
         onError: (err) => toastError(fromError(err)),
@@ -250,18 +293,38 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
     const before = { vertices: region.vertices, cells: region.cells };
     const after = { vertices: null, cells: region.cells };
     const handle: EntityRef = { id: region.id };
+    localRegionState.set(region.id, after);
     try {
       await updateRegion.mutateAsync({ id: region.id, update: dmEdit(after) });
       undo.push({
         label: "convert to cells",
-        undo: async () => { await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(before) }); },
-        redo: async () => { await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(after) }); },
+        undo: async () => {
+          localRegionState.set(handle.id, before);
+          await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(before) });
+        },
+        redo: async () => {
+          localRegionState.set(handle.id, after);
+          await updateRegion.mutateAsync({ id: handle.id, update: dmEdit(after) });
+        },
       });
       return true;
     } catch (err) {
+      localRegionState.set(region.id, before);
       toastError(fromError(err));
       return false;
     }
+  }
+
+  /** An existing space region that already covers some of `cells` — claiming
+   *  the same floor twice (or floor already traced as a Space by hand) must
+   *  select it rather than insert a second, overlapping row (#884 review
+   *  finding 5). Any overlap counts as "already covered": a repeat claim's
+   *  flood fill returns the identical connected component, and a hand-traced
+   *  space over the same floor need not match cell-for-cell to be the same
+   *  room. */
+  function findCoveringSpace(cells: readonly CellKey[]): LocationMapRegion | null {
+    const claimed = new Set(cells);
+    return regions.value.find((r) => r.region_role === "space" && r.cells.some((c) => claimed.has(c))) ?? null;
   }
 
   /** The Claim tool (#884): a floodfilled floor region off the Drawing,
@@ -271,6 +334,11 @@ export function usePlanPalette(siteId: ComputedRef<string | null>) {
    *  read off the painted floor, same as Publish's own detection. */
   async function claimFloorRegion(cells: CellKey[]): Promise<void> {
     if (!siteId.value || cells.length === 0) return;
+    const covering = findCoveringSpace(cells);
+    if (covering) {
+      activeRegionId.value = covering.id;
+      return;
+    }
     const insert: LocationMapRegionInsert = {
       site_location_id: siteId.value,
       region_role: "space",

@@ -30,6 +30,7 @@ import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { renderMap, type MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { pickVariant } from "@/cartographer/tileVariants";
 import type { useCartographerStructure } from "@/composables/cartographer/useCartographerStructure";
+import type { usePlanPalette } from "@/composables/cartographer/usePlanPalette";
 
 vi.mock("@/cartographer/renderMap", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/cartographer/renderMap")>();
@@ -37,6 +38,73 @@ vi.mock("@/cartographer/renderMap", async (importOriginal) => {
 });
 
 const mockedRenderMap = vi.mocked(renderMap);
+
+// The Plan layer's own pointer dispatch (#884 review finding 2 — see the
+// "Plan layer" describe block below). Mocked wholesale: this file exercises
+// the Drawing's own wiring, and the one thing it needs to prove about the
+// Plan here is that a layer switch calls `abandonGesture()` — everything
+// else `usePlanCanvasTools` does has its own coverage in
+// usePlanCanvasTools.ts's own consumers (`useRegionPointer.test.ts`).
+const { abandonGestureMock } = vi.hoisted(() => ({ abandonGestureMock: vi.fn() }));
+vi.mock("@/composables/cartographer/usePlanCanvasTools", () => ({
+  usePlanCanvasTools: () => ({
+    onPointerDown: vi.fn(() => false),
+    onPointerMove: vi.fn(),
+    onPointerLeave: vi.fn(),
+    onDoubleClick: vi.fn(),
+    dispose: vi.fn(),
+    abandonGesture: abandonGestureMock,
+    renderScene: vi.fn(() => ({
+      regions: [], ways: [], activeRegionId: null, cellsOverride: undefined,
+      hoveredDoorEdge: null, tracingRing: null, tracingClosed: false, tracingHoverPoint: null,
+      templateDraft: null, templateRingPreview: [],
+    })),
+    renderDeps: {
+      hoveredDoorEdge: ref(null), strokeCells: ref(null), draftRing: ref([]),
+      templateDraft: ref(null), liveDrag: ref(null), penHoverPoint: ref(null),
+    },
+  }),
+}));
+
+/** A narrow stand-in for `usePlanPalette`'s return value — only what
+ *  `useMapCanvasEditor` itself reads directly (the render-dep refs, and
+ *  `undo.{undo,redo,canUndo,canRedo}`); `usePlanCanvasTools` is mocked above
+ *  so nothing else here needs to behave like the real thing. */
+function fakePlan(): ReturnType<typeof usePlanPalette> {
+  const stub = {
+    regions: ref([]),
+    ways: ref([]),
+    planTool: ref("space"),
+    traceTool: ref("paint"),
+    templateShape: ref("circle"),
+    zoneKind: ref("terrain"),
+    zoneLabel: ref(""),
+    activeRegionId: ref(null),
+    activeRegion: computed(() => null),
+    undo: {
+      push: vi.fn(),
+      undo: vi.fn(async () => {}),
+      redo: vi.fn(async () => {}),
+      clear: vi.fn(),
+      canUndo: ref(false),
+      canRedo: ref(false),
+      busy: ref(false),
+    },
+    isBusy: computed(() => false),
+    startNewSpace: vi.fn(),
+    startNewZone: vi.fn(),
+    commitCells: vi.fn(),
+    commitRing: vi.fn(async () => {}),
+    commitTemplate: vi.fn(),
+    confirmConvert: vi.fn(async () => true),
+    claimFloorRegion: vi.fn(async () => {}),
+    existingDoorAtEdge: vi.fn(() => null),
+    placeDoorAt: vi.fn(),
+    cycleDoorKind: vi.fn(),
+    removeDoor: vi.fn(),
+  };
+  return stub as unknown as ReturnType<typeof usePlanPalette>;
+}
 
 // requestAnimationFrame runs synchronously so a watched-ref mutation's
 // scheduled render happens immediately — happy-dom's own rAF is
@@ -103,6 +171,7 @@ function fakeStructure(): ReturnType<typeof useCartographerStructure> {
 interface Harness {
   layers: Ref<DungeonMapLayers>;
   dirty: Ref<boolean>;
+  editRevision: Ref<number>;
   activeTool: Ref<Tool>;
   canvasEl: Ref<HTMLCanvasElement | null>;
   editor: ReturnType<typeof useMapCanvasEditor>;
@@ -113,6 +182,7 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
   const layers = ref<DungeonMapLayers>(emptyLayers());
   const metadata = ref<Record<CellKey, CellMetadata>>({});
   const dirty = ref(false);
+  const editRevision = ref(0);
   const activeTool = ref<Tool>("floor");
   const canvasEl = ref<HTMLCanvasElement | null>(fakeCanvas());
   const loadedRuntimes = ref(new Map<string, TilePackRuntime>());
@@ -125,6 +195,7 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
     layers,
     metadata,
     dirty,
+    editRevision,
     currentPackId: ref("pack-1"),
     packRuntime,
     selectablePacks: computed(() => [{ pack_id: "pack-1", pack_version: 3 }]),
@@ -150,7 +221,7 @@ function makeHarness(over: Partial<MapCanvasEditorOptions> = {}): Harness {
   };
 
   const editor = useMapCanvasEditor(opts);
-  return { layers, dirty, activeTool, canvasEl, editor, getReferenceImage };
+  return { layers, dirty, editRevision, activeTool, canvasEl, editor, getReferenceImage };
 }
 
 function down(x: number, y: number, init: PointerEventInit = {}): PointerEvent {
@@ -559,5 +630,78 @@ describe("render wiring", () => {
     const lastCall = mockedRenderMap.mock.calls.at(-1);
     expect(lastCall).toBeDefined();
     expect(lastCall![0].referenceImage).toBe(fakeImage);
+  });
+});
+
+// ── editRevision (#884 review finding 1) ────────────────────────────────────
+// The host's autosave debounce re-arms off this, not off `dirty` — `dirty`
+// only reports its false→true edge, so a second edit while already `true`
+// would otherwise go unnoticed. Every `dirty.value = true` site in this
+// module funnels through `markDirty()`, which bumps both.
+
+describe("editRevision", () => {
+  it("bumps on every edit that marks dirty, not just the first", () => {
+    // Not asserting an exact count: pushCommand's registered apply() (run
+    // once immediately by CommandStack.apply, then again on every redo)
+    // calls markDirty() itself on top of the direct paint call, so one
+    // click legitimately bumps more than once. What finding 1 needs is that
+    // it keeps bumping on a SECOND edit while `dirty` was already `true` —
+    // a plain `watch(dirty, ...)` would miss that entirely.
+    const { editor, editRevision } = makeHarness();
+    expect(editRevision.value).toBe(0);
+
+    clickCell(editor, 10, 10); // (0,0)
+    const afterFirstClick = editRevision.value;
+    expect(afterFirstClick).toBeGreaterThan(0);
+
+    clickCell(editor, 138, 10); // (1,0) — dirty was already true; must still bump
+    expect(editRevision.value).toBeGreaterThan(afterFirstClick);
+  });
+
+  it("also bumps on undo/redo, which mutate layers the same as a fresh edit", () => {
+    const { editor, editRevision } = makeHarness();
+    clickCell(editor, 10, 10);
+    const afterPaint = editRevision.value;
+
+    editor.undoEdit();
+    expect(editRevision.value).toBeGreaterThan(afterPaint);
+
+    const afterUndo = editRevision.value;
+    editor.redoEdit();
+    expect(editRevision.value).toBeGreaterThan(afterUndo);
+  });
+
+  it("does not bump for a click that changes nothing", () => {
+    const { editor, editRevision } = makeHarness({ activeTool: ref<Tool>("eraser") });
+    clickCell(editor, 10, 10); // eraser on an already-empty cell — no-op
+    expect(editRevision.value).toBe(0);
+  });
+});
+
+// ── Plan layer (#884 review finding 2) ──────────────────────────────────────
+// A Space/Zone stroke, pen drag or template drag started on the Plan and
+// released after switching to Drawing used to still commit — nothing tore
+// down `useRegionPointer`'s window listeners on a layer switch, only on
+// unmount. `abandonGesture()` (see usePlanCanvasTools.ts / useRegionPointer.ts)
+// is what the switch below must call.
+
+describe("Plan layer", () => {
+  beforeEach(() => { abandonGestureMock.mockClear(); });
+
+  it("abandons an in-flight Plan gesture when the active layer switches away from Plan", async () => {
+    const activeLayer = ref<"drawing" | "plan">("plan");
+    makeHarness({ plan: fakePlan(), activeLayer });
+    await nextTick();
+
+    activeLayer.value = "drawing";
+    await nextTick();
+
+    expect(abandonGestureMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not abandon anything while staying on the Plan layer, or with no site at all", async () => {
+    makeHarness(); // no `plan`/`activeLayer` — the standalone-route shape
+    await nextTick();
+    expect(abandonGestureMock).not.toHaveBeenCalled();
   });
 });

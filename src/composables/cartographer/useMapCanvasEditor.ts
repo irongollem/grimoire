@@ -13,7 +13,7 @@
 // refs the caller owns — nothing here is a copy, so watching those refs
 // elsewhere (structure derivation, dirty tracking) keeps working unchanged.
 
-import { computed, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
+import { computed, customRef, onBeforeUnmount, onMounted, ref, watch, type ComputedRef, type Ref } from "vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import type { Tool } from "@/cartographer/tools";
 import { zoomAtPoint } from "@/cartographer/viewport";
@@ -54,6 +54,13 @@ export interface MapCanvasEditorOptions {
   layers: Ref<DungeonMapLayers>;
   metadata: Ref<Record<CellKey, CellMetadata>>;
   dirty: Ref<boolean>;
+  /** Bumped on every edit that sets `dirty` — not just the false→true
+   *  transition `dirty` itself only reports once. The host's autosave
+   *  (`useSiteDrawingEditor`) re-arms its debounce off this so a stroke made
+   *  while a save is already in flight doesn't go unscheduled (#884 review
+   *  finding 1: `dirty` staying `true` across a second edit fires no
+   *  `update:dirty` event at all). */
+  editRevision: Ref<number>;
   currentPackId: Ref<string>;
   packRuntime: ComputedRef<TilePackRuntime | null>;
   selectablePacks: ComputedRef<ReadonlyArray<{ pack_id: string; pack_version: number }>>;
@@ -100,11 +107,19 @@ const EDGE_HOVER_THRESHOLD = 0.25;
 
 export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   const {
-    canvasEl, layers, metadata, dirty, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
+    canvasEl, layers, metadata, dirty, editRevision, currentPackId, packRuntime, selectablePacks, loadedRuntimes,
     cellGlyphs, activeTool, tools, viewMode, activeObjectCategory, stampRotation, activeTemplateShape,
     caveRadius, selectedCell, inspectorPanelRef, structure, mapKey, getReferenceImage, extraRenderDeps,
     plan, activeLayer,
   } = opts;
+
+  /** Every edit funnels through here instead of writing `dirty.value = true`
+   *  directly — see `editRevision`'s docblock above for why the bump matters
+   *  beyond the flag itself. */
+  function markDirty(): void {
+    dirty.value = true;
+    editRevision.value++;
+  }
 
   // Viewport state
   const zoom = ref(1);
@@ -143,11 +158,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     cmdStack.apply({
       apply() {
         const s = JSON.parse(afterStr) as { layers: DungeonMapLayers; metadata: Record<CellKey, CellMetadata> };
-        layers.value = s.layers; metadata.value = s.metadata; dirty.value = true;
+        layers.value = s.layers; metadata.value = s.metadata; markDirty();
       },
       revert() {
         const s = JSON.parse(beforeStr) as { layers: DungeonMapLayers; metadata: Record<CellKey, CellMetadata> };
-        layers.value = s.layers; metadata.value = s.metadata; dirty.value = true;
+        layers.value = s.layers; metadata.value = s.metadata; markDirty();
       },
     });
     canUndo.value = cmdStack.canUndo();
@@ -156,7 +171,20 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
 
   // The Space tool's pointer dispatch — built here, not passed in, so it
   // shares this composable's own `dirty` ref for its rename mutation.
-  const structureTools = useCartographerStructureTools(structure, { activeTool, dirty });
+  // Hands the Structure tools (Space rename) a `dirty` ref whose setter also
+  // bumps `editRevision` — that file isn't ours to edit directly, but its one
+  // `dirty.value = true` write needs the same bump every other edit gets, or
+  // a rename made while a save is in flight would go unscheduled exactly
+  // like the `dirty.value = true` call sites `markDirty()` replaces above.
+  const dirtyWithRevision = customRef<boolean>((track, trigger) => ({
+    get() { track(); return dirty.value; },
+    set(v) {
+      dirty.value = v;
+      if (v) editRevision.value++;
+      trigger();
+    },
+  }));
+  const structureTools = useCartographerStructureTools(structure, { activeTool, dirty: dirtyWithRevision });
 
   // ── Plan layer (#884 S7b) ────────────────────────────────────────────────
   // Absent entirely without a `site` — `planTools` stays null and every
@@ -316,11 +344,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   function paintSolidAt(x: number, y: number): void {
     if (!packRuntime.value) return;
     const variant = pickSolidVariant(x, y);
-    if (paintOps.paintSolidAt(paintContext(), x, y, variant)) dirty.value = true;
+    if (paintOps.paintSolidAt(paintContext(), x, y, variant)) markDirty();
   }
 
   function eraseSolidAt(x: number, y: number): void {
-    if (paintOps.eraseSolidAt(paintContext(), x, y)) dirty.value = true;
+    if (paintOps.eraseSolidAt(paintContext(), x, y)) markDirty();
   }
 
   // ── Object stamp tool ───────────────────────────────────────────────────
@@ -330,11 +358,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const changed = paintOps.paintObjectAt(
       paintContext(), x, y, activeObjectCategory.value, variant, stampRotation.value,
     );
-    if (changed) dirty.value = true;
+    if (changed) markDirty();
   }
 
   function eraseObjectAt(x: number, y: number): void {
-    if (paintOps.eraseObjectAt(paintContext(), x, y)) dirty.value = true;
+    if (paintOps.eraseObjectAt(paintContext(), x, y)) markDirty();
   }
 
   // ── Wall placement (edge-based, NW ownership) ──────────────────────────
@@ -343,7 +371,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
     const variant = pickWallVariant(canon.x, canon.y, canon.side);
     strokeState.active = isPainting.value;
-    if (paintOps.paintWallAtCellEdge(paintContext(), edge, strokeState, variant)) dirty.value = true;
+    if (paintOps.paintWallAtCellEdge(paintContext(), edge, strokeState, variant)) markDirty();
   }
 
   // Writes a wall edge directly, skipping stroke tracking. Used by wrap-walls,
@@ -351,7 +379,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   function setWallEdgeIfEmpty(edge: CellEdge): void {
     const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
     const variant = pickWallVariant(canon.x, canon.y, canon.side);
-    if (paintOps.setWallEdgeIfEmpty(paintContext(), edge, variant)) dirty.value = true;
+    if (paintOps.setWallEdgeIfEmpty(paintContext(), edge, variant)) markDirty();
   }
 
   // ── Door tool (edge-based) ──────────────────────────────────────────────
@@ -360,19 +388,19 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
     const cat: PackCategory = canon.side === "N" ? "doorClosedH" : "doorClosedV";
     const newDoorVariant = pickDoorVariant(canon.x, canon.y, cat);
-    if (paintOps.paintDoorAtEdge(paintContext(), edge, strokeState, newDoorVariant)) dirty.value = true;
+    if (paintOps.paintDoorAtEdge(paintContext(), edge, strokeState, newDoorVariant)) markDirty();
   }
 
   // Right-click on door edge: revert to plain wall (preserves the edge, removes door).
   function removeDoorAtEdge(edge: CellEdge): void {
     const canon = canonicaliseEdge(edge.x, edge.y, edge.side);
     const wallVariant = pickWallVariant(canon.x, canon.y, canon.side);
-    if (paintOps.removeDoorAtEdge(paintContext(), edge, wallVariant)) dirty.value = true;
+    if (paintOps.removeDoorAtEdge(paintContext(), edge, wallVariant)) markDirty();
   }
 
   function eraseWallAtCellEdge(edge: CellEdge): void {
     strokeState.active = isPainting.value;
-    if (paintOps.eraseWallAtCellEdge(paintContext(), edge, strokeState)) dirty.value = true;
+    if (paintOps.eraseWallAtCellEdge(paintContext(), edge, strokeState)) markDirty();
   }
 
   // ── Floor tool ──────────────────────────────────────────────────────────
@@ -380,11 +408,11 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
   function paintCell(x: number, y: number): void {
     if (!packRuntime.value) return;
     const variant = pickFloorVariant(x, y);
-    if (paintOps.paintCell(paintContext(), x, y, variant)) dirty.value = true;
+    if (paintOps.paintCell(paintContext(), x, y, variant)) markDirty();
   }
 
   function eraseCell(x: number, y: number): void {
-    if (paintOps.eraseCell(paintContext(), x, y)) dirty.value = true;
+    if (paintOps.eraseCell(paintContext(), x, y)) markDirty();
   }
 
   // ── One-shot actions ────────────────────────────────────────────────────
@@ -576,7 +604,18 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
     () => scheduleRender(),
     { deep: true },
   );
-  if (activeLayer) watch(activeLayer, () => scheduleRender());
+  if (activeLayer) {
+    watch(activeLayer, (next, prev) => {
+      scheduleRender();
+      // #884 review finding 2: `useRegionPointer`'s window-level pointermove/
+      // pointerup listeners outlive a layer switch — nothing used to tear
+      // them down here, only on unmount — so a stroke/pen-drag/template-drag
+      // started on Plan and released after switching to Drawing would still
+      // commit through those stale listeners. Abandon it, the same way
+      // Escape already abandons an unsaved pen draft.
+      if (prev === "plan" && next !== "plan") planTools?.abandonGesture();
+    });
+  }
   // viewMode is a getter over a prop, not a ref — watched separately so the
   // list above can stay a plain array of refs.
   watch(viewMode, () => scheduleRender());
@@ -712,7 +751,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
       if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
       else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
       else if (layers.value.annotation[cellKey(cx, cy)]) {
-        const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; dirty.value = true;
+        const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; markDirty();
       }
       else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
       else eraseCell(cx, cy);
@@ -776,7 +815,7 @@ export function useMapCanvasEditor(opts: MapCanvasEditorOptions) {
         if (hoveredEdge.value) eraseWallAtCellEdge(hoveredEdge.value);
         else if (layers.value.object[cellKey(cx, cy)]) eraseObjectAt(cx, cy);
         else if (layers.value.annotation[cellKey(cx, cy)]) {
-          const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; dirty.value = true;
+          const next = { ...layers.value.annotation }; delete next[cellKey(cx, cy)]; layers.value.annotation = next; markDirty();
         }
         else if (layers.value.solidBlock[cellKey(cx, cy)]) eraseSolidAt(cx, cy);
         else eraseCell(cx, cy);

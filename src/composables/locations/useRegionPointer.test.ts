@@ -114,6 +114,78 @@ describe("paint stroke", () => {
   });
 });
 
+describe("abandonGesture (#884 review finding 2)", () => {
+  it("an abandoned paint stroke's stray pointerup does not commit it", () => {
+    // The bug this reproduces: a DM starts a Space/Zone brush stroke, then
+    // switches the active layer away from Plan with the pointer still down.
+    // The window pointermove/pointerup listeners `onPointerDown` attached
+    // outlive that switch (nothing used to tear them down), so the eventual
+    // pointerup would otherwise still commit the abandoned stroke.
+    const { pointer, options, region } = makeHarness();
+    region.current = makeRegion({ cells: [] });
+
+    pointer.onPointerDown(down(2, 2));
+    window.dispatchEvent(move(3, 3));
+    expect(pointer.strokeCells.value?.cells).toEqual(["2,2", "3,3"]);
+
+    pointer.abandonGesture();
+    expect(pointer.strokeCells.value).toBeNull();
+
+    // The stray pointerup a caller can no longer prevent from firing.
+    window.dispatchEvent(up(3, 3));
+    expect(options.commitCells).not.toHaveBeenCalled();
+  });
+
+  it("abandons a live drag on a persisted pen ring without committing it", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: [[0, 0], [4, 0], [4, 4], [0, 4]] });
+
+    pointer.onPointerDown(down(0, 0)); // grabs the first vertex
+    expect(pointer.liveDrag.value).not.toBeNull();
+
+    pointer.abandonGesture();
+    expect(pointer.liveDrag.value).toBeNull();
+
+    window.dispatchEvent(up(1, 1));
+    expect(options.commitRing).not.toHaveBeenCalled();
+  });
+
+  it("abandons a template drag without committing it", () => {
+    const { pointer, options, region, tool } = makeHarness();
+    tool.current = "template";
+    region.current = makeRegion();
+
+    pointer.onPointerDown(down(5, 5));
+    window.dispatchEvent(move(8, 9));
+    expect(pointer.templateDraft.value?.radius).toBe(5);
+
+    pointer.abandonGesture();
+    expect(pointer.templateDraft.value).toBeNull();
+
+    window.dispatchEvent(up(8, 9));
+    expect(options.commitTemplate).not.toHaveBeenCalled();
+  });
+
+  it("abandons an unsaved pen draft, same as Escape", () => {
+    const { pointer, tool, region } = makeHarness();
+    tool.current = "pen";
+    region.current = makeRegion({ vertices: null });
+
+    pointer.onPointerDown(down(0, 0));
+    pointer.onPointerDown(down(4, 0));
+    expect(pointer.draftRing.value).toHaveLength(2);
+
+    pointer.abandonGesture();
+    expect(pointer.draftRing.value).toEqual([]);
+  });
+
+  it("is a harmless no-op when nothing is in flight", () => {
+    const { pointer } = makeHarness();
+    expect(() => pointer.abandonGesture()).not.toThrow();
+  });
+});
+
 describe("tap vs. drag", () => {
   it("resolves a plain, unmoved tap into a click", () => {
     const { pointer, options, region } = makeHarness();

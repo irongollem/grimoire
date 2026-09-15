@@ -67,7 +67,9 @@ vi.mock("@/composables/locations/useSiteDrawingEditor", () => ({
     dirty: { value: false },
     saving: { value: false },
     onDirtyChange: vi.fn(),
+    onEditRevision: vi.fn(),
     save: vi.fn(),
+    flush: vi.fn(async () => {}),
   }),
 }));
 vi.mock("@/composables/cartographer/useMapPublish", () => ({

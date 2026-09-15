@@ -96,7 +96,9 @@
         :cell-px="cellPx"
         :origin-x="gridOrigin.x"
         :origin-y="gridOrigin.y"
-        :combatants="store.combatants"
+        :combatants="previewAsPlayer ? revealedCombatants(store.combatants, fogMask) : store.combatants"
+        :hide-hidden="previewAsPlayer"
+        :silhouette-unseen="previewAsPlayer"
         :factions="store.factions"
         :monsters="store.availableMonsters"
         :npcs="store.availableNpcs"
@@ -107,6 +109,14 @@
         :class="{ 'pointer-events-none': tool !== 'pan' }"
       />
 
+      <!-- "As player" has to mean the whole player view, not just the fog.
+           It used to darken the map and leave every token named, positioned
+           and portrait-lit exactly as the DM sees them — so a DM checking
+           whether their ambush was hidden was told "yes" by a preview that
+           was not showing them a player's map at all. It now applies the
+           same three rules the player's own view applies: fogged-out
+           combatants dropped, `hidden` ones omitted, `unseen` ones reduced to
+           a silhouette. Found by the #884 review pass. -->
       <!-- Fog layer: off by default in the DM's own view (frame 13 —
            "Fog (off)"); the fog toolbox's brushes still edit the mask
            regardless. "As player" preview forces it on and opaque, since
@@ -162,6 +172,7 @@ import {
   cellBrushCells,
   decodeFogMask,
   encodeFogMask,
+  revealedCombatants,
   roundBrushCells,
   shouldSeedFog,
   type BrushMode,

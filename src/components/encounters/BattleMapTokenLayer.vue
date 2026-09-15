@@ -6,7 +6,7 @@
       class="token"
       :class="{ 'token-dead': tok.dead, 'token-draggable': tok.draggable }"
       :style="tokenStyle(tok)"
-      :title="tok.combatant.name"
+      :title="tok.silhouette ? undefined : tok.combatant.name"
       @pointerdown="tok.draggable ? onTokenPointerDown(tok.combatant.instance_id, $event) : undefined"
     >
       <canvas
@@ -105,6 +105,10 @@ interface RenderedToken {
   active: boolean;
   dead: boolean;
   draggable: boolean;
+  /** Renders the "???" silhouette *and* withholds the name from the token's
+   *  own tooltip: a canvas that paints a question mark while the wrapper's
+   *  `title` still says "Ash-wight" hands the name to any player who hovers.
+   *  Found by the #884 review pass. */
   silhouette: boolean;
   /** Resolved once here — the mini override, or the combatant's own
    *  portrait_url — so rendering never has to re-decide the precedence. */

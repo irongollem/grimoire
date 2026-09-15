@@ -152,6 +152,7 @@
           :site="location"
           :spaces="siteSpaces"
           @update:dirty="drawingEditor.onDirtyChange"
+          @update:edit-revision="drawingEditor.onEditRevision"
         />
       </div>
 
@@ -228,8 +229,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onUnmounted } from "vue";
-import { useRoute, useRouter, RouterLink } from "vue-router";
+import { computed, ref, watch, onBeforeUnmount, onUnmounted } from "vue";
+import { useRoute, useRouter, RouterLink, onBeforeRouteLeave } from "vue-router";
 import { IconCheck, IconDelete, IconEdit, IconPlay, IconTool } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { requestAudioTheme, releaseAudioTheme } from "@/lib/audio/audioTriggers";
@@ -344,6 +345,25 @@ function onOpenDrawing() {
 const locationForDrawing = computed(() => location);
 const drawingEditor = useSiteDrawingEditor(locationForDrawing, sourceMap);
 const drawingWorkbenchRef = drawingEditor.workbenchRef;
+
+// #884 review finding 1: a debounced autosave still pending when the DM
+// navigates away used to be dropped outright — nothing ever flushed it.
+// `onBeforeUnmount` covers this component unmounting outright (this page is
+// mounted `:key="location.id"` by `LocationDetailView`, so switching sites
+// remounts rather than reusing the instance, and so does switching to Run/
+// Details/a fresh Edit — all three replace this component in their parent's
+// `v-else-if` chain); `onBeforeRouteLeave` covers leaving the route entirely
+// before that unmount runs. "Done" (`building` → false) unmounts
+// `MapWorkbench` via its own `v-if` without unmounting this component or
+// leaving the route, so neither hook above would catch it — the trailing
+// watch does.
+onBeforeUnmount(() => { void drawingEditor.flush(); });
+onBeforeRouteLeave(async () => { await drawingEditor.flush(); });
+watch(
+  () => building,
+  (curr, prev) => { if (prev && !curr) void drawingEditor.flush(); },
+);
+
 const mapPublish = useMapPublish({
   map: () => {
     const wb = drawingWorkbenchRef.value;

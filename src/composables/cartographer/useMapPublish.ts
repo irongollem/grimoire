@@ -262,8 +262,6 @@ export function useMapPublish(opts: {
         },
         sourceMapId: map.id,
       });
-      await updateLocation.mutateAsync({ id: targetSiteId.value, update: { map_published_rev: map.rev } });
-
       // (b) Spaces — create rooms + bind fresh regions; reshape existing ones;
       // clear an orphan's geometry without touching the room it still names.
       const spaceKeyToLocationId = new Map<string, string>();
@@ -365,6 +363,17 @@ export function useMapPublish(opts: {
           });
         }
       }
+
+      // (e) Only now does the site claim this rev. Writing it with the bake
+      // said "published rev N" before the rooms, ways and placements behind
+      // it existed — so a failure partway through (a quota trigger on the
+      // third room, an RLS denial, a dropped connection) left a site that
+      // read as fully published, which also hid the Layers panel's "Review
+      // changes" button, since that renders only while there is staleness to
+      // report. The DM was left with a half-applied plan and no way back to
+      // it from Build. Last write, after everything it claims. Found by the
+      // #884 review pass.
+      await updateLocation.mutateAsync({ id: targetSiteId.value, update: { map_published_rev: map.rev } });
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["location-map-regions"] }),
