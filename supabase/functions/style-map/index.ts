@@ -7,6 +7,7 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
+import { isPromptRejected } from "../_shared/moderation.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
@@ -164,14 +165,16 @@ serve(withCors(async (req: Request) => {
   try {
     imgResult = await generateImage({
       provider: img.provider, model: img.model, apiKey: img.apiKey,
+      screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "map_style" },
       prompt, size: "1024x1024", quality: img.imageQuality, sourceImages: [mapBlob],
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
     const msg = e instanceof Error ? e.message : "Image generation failed";
+    // A refused prompt is the DM's to reword, not a provider outage.
     return new Response(
       JSON.stringify({ error: msg }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
+      { status: isPromptRejected(e) ? 400 : 502, headers: { "Content-Type": "application/json" } },
     );
   }
 

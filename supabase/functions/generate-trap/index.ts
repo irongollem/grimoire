@@ -226,6 +226,7 @@ serve(withCors(async (req: Request) => {
 
       imgResult = await generateImage({
         provider: img.provider, model: img.model, apiKey: img.apiKey,
+        screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "trap_image" },
         prompt: finalPrompt, size: "1024x1536", quality: img.imageQuality, boostStyle: true, sourceImages,
       });
       // EU AI Act Art 50(2) — mark before the bytes leave this pipeline. No

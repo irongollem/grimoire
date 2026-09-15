@@ -144,6 +144,7 @@ async function runStylize(args: {
   provider: ImageProviderKey;
   model: string;
   apiKey: string;
+  moderationKey: string | null;
   quality: string | null;
   prompt: string;
   portraitUrl: string;
@@ -154,7 +155,7 @@ async function runStylize(args: {
   reservationIds: string[];
 }): Promise<void> {
   const {
-    jobId, miniId, userId, provider, model, apiKey, quality, prompt, portraitUrl,
+    jobId, miniId, userId, provider, model, apiKey, moderationKey, quality, prompt, portraitUrl,
     previousStatus, previousHadImage, isByok, cost, reservationIds,
   } = args;
 
@@ -176,6 +177,7 @@ async function runStylize(args: {
     // plain-background render every mini format requires.
     const { b64, contentType, usage } = await generateImage({
       provider, model, apiKey, prompt, size: "1024x1024", quality, boostStyle: false, sourceImages,
+      screening: { apiKey: moderationKey, admin, userId, generationType: "mini_style" },
     });
 
     const imageUrl = await uploadStyleImage(b64, contentType, userId, miniId, usage.provider, model);
@@ -412,6 +414,7 @@ async function handleStylize(
     provider: img.provider,
     model: img.model,
     apiKey: img.apiKey,
+    moderationKey: img.moderationKey,
     quality: img.imageQuality,
     prompt,
     portraitUrl: source.portrait,

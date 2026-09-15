@@ -7,6 +7,7 @@ import { fetchProviderConfigs, applyMultiplier } from "../_shared/provider-confi
 import { fetchCreditCost, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse, sizeMultiplier } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { generateImage, resolveImageProvider } from "../_shared/imageGen.ts";
+import { isPromptRejected } from "../_shared/moderation.ts";
 import {
   AI_PROMPT_LIMIT_LONG,
   INJECTION_GUARD_SUFFIX,
@@ -193,10 +194,19 @@ serve(withCors(async (req: Request) => {
   try {
     imgResult = await generateImage({
       provider: img.provider, model: img.model, apiKey: img.apiKey,
+      screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "entity_image" },
       prompt: imagePrompt, size: ENTITY_IMAGE_SIZE, quality: img.imageQuality, boostStyle: true,
     });
   } catch (e) {
     await releaseCredits(admin, reservation.ids);
+    // A prompt the screen refused is the DM's to reword, not a provider
+    // outage — 400 rather than 502, and no error log for an ordinary refusal.
+    if (isPromptRejected(e)) {
+      return new Response(
+        JSON.stringify({ error: e.message }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
     console.error("Entity image generation failed:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Image generation failed" }),

@@ -202,6 +202,9 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Prompt screening calibration -->
+    <AdminPromptScreeningPanel />
   </div>
 </template>
 
@@ -216,6 +219,7 @@ import type { CalibrationHint } from "@/composables/admin/useAdminCalibration";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
+import AdminPromptScreeningPanel from "@/components/admin/AdminPromptScreeningPanel.vue";
 
 const pricingQuery = useAdminPricing();
 const calibrationQuery = useAdminCalibration();

@@ -420,6 +420,50 @@ periods now live in `context/compliance/retention.md` — 7 years for the ledger
 365 for AI generation receipts, and **indefinite for `ready` image jobs**, which
 are not a log at all but the user's Gallery.
 
+## 6b. Image-prompt screening (16 Sep 2026)
+
+Voluntary safeguard, like 6a — no Art 50 duty attaches to it. Every image
+prompt on the **server path** is classified by OpenAI's free
+`omni-moderation-latest` before the render, in
+`supabase/functions/_shared/moderation.ts`, and a small number are refused
+before any provider is paid. gpt-image calls additionally set
+`moderation: "low"`, the least restrictive setting the image API offers.
+
+**The gate ignores the endpoint's own `flagged` verdict and reads
+`category_scores` against a five-category table.** This is the decision worth
+recording: `flagged` is a single calibration for all OpenAI customers, and in a
+D&D app it fires on the subject matter — measured on 16 Sep 2026, seven of eight
+representative prompts were flagged, including a torture chamber, a
+throat-slitting and a genocidal warlord, all of them legitimate art for this
+product. Gating on it would have refused most of a DM's library. `violence`,
+`violence/graphic`, `illicit`, `illicit/violent` and `harassment` are therefore
+deliberately absent from the table; what remains is `sexual/minors` (held hard),
+`sexual`, `hate`, `hate/threatening` and `self-harm/instructions`.
+
+**It fails open.** If the classifier 404s, rate-limits or times out, the render
+proceeds. The screen sits in front of the providers' own moderation and does not
+replace it, so an outage at OpenAI degrades a cost optimisation rather than
+removing a safeguard.
+
+**Calibration log, and what it stores.** `prompt_screenings`
+(`20260915225357_prompt_screening_log.sql`) records the scores, the categories
+crossed, and the threshold table in force, then stamps each row with what the
+renderer actually did (`provider_outcome`). A prompt we allowed that gpt-image
+then refused is the evidence that a threshold sits too high; neither half says
+anything alone. `get_prompt_screening_hints` (admin-only) reads it back.
+
+Prompt **text** is stored only where a human must read it to judge the call:
+within 0.05 of a threshold, over one, or refused by the renderer after we
+allowed it. Ordinary passes store scores alone, so the table does not become a
+durable record of every image every DM has asked for.
+
+**This does not touch the local-key promise in 6a.** Screening runs only in the
+edge functions, where the prompt is composed server-side and is already on our
+server by construction. The client-direct generators in `src/ai/` (BYOK-cloud
+and local-key) are not screened and write no screening row — consistent with
+BYOK being legacy and new AI work shipping server-path-only. No prompt text
+reaches the server from local-key mode as a result of this change.
+
 ## 7. Provider register
 
 This table is the AI-specific subset of Grimoire's processor list. It

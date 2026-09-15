@@ -71,7 +71,10 @@ export function createOpenAiImageProvider(
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ model, prompt, size, output_format: "webp" }),
+        // moderation: "low" — least restrictive gpt-image filtering, so
+        // ordinary fantasy art is not refused. Generations only: the edit
+        // endpoint below has no such parameter. See _shared/imageGen.ts.
+        body: JSON.stringify({ model, prompt, size, output_format: "webp", moderation: "low" }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

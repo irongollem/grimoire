@@ -339,6 +339,8 @@ async function generateSlot(userId: string, body: Record<string, unknown>): Prom
       provider: "openai",
       model: MODEL,
       apiKey,
+      // Same key: this path is openai-only, so the renderer's key screens too.
+      screening: { apiKey, admin, userId, generationType: "tile_pack" },
       prompt: job.prompt.final_prompt,
       size: job.execution.requested_size,
       quality: QUALITY,

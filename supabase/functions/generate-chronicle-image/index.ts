@@ -124,6 +124,7 @@ async function runGeneration(args: {
   provider: ImageProviderKey;
   model: string;
   apiKey: string;
+  moderationKey: string | null;
   prompt: string;
   size: string;
   quality: string | null;
@@ -134,7 +135,7 @@ async function runGeneration(args: {
   purpose: ImagePurpose;
   source_image_b64: string | null;
 }) {
-  const { jobId, userId, provider, model, apiKey, prompt, size, quality, portrait_urls, isByok, cost, reservationIds, purpose, source_image_b64 } = args;
+  const { jobId, userId, provider, model, apiKey, moderationKey, prompt, size, quality, portrait_urls, isByok, cost, reservationIds, purpose, source_image_b64 } = args;
 
   try {
     // Fetch reference portrait blobs in parallel (openai + gemini compose them).
@@ -161,6 +162,7 @@ async function runGeneration(args: {
 
     const { b64, contentType, usage } = await generateImage({
       provider, model, apiKey, prompt, size, quality, boostStyle: PURPOSE_CONFIG[purpose].boostStyle,
+      screening: { apiKey: moderationKey, admin, userId, generationType: purpose },
       sourceImages: portraitBlobs.length > 0 ? portraitBlobs : undefined,
     });
 
@@ -352,7 +354,7 @@ serve(withCors(async (req: Request) => {
   // past response. Deno Deploy's EdgeRuntime keeps the isolate alive for waitUntil.
   // @ts-ignore — EdgeRuntime is a Deno Deploy global, not in Deno's type defs.
   EdgeRuntime.waitUntil(runGeneration({
-    jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey,
+    jobId, userId: user.id, provider: img.provider, model, apiKey: img.apiKey, moderationKey: img.moderationKey,
     prompt, size, quality: img.imageQuality, portrait_urls, isByok, cost: imageCost,
     reservationIds: reservation.ids, purpose, source_image_b64,
   }));

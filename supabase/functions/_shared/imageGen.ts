@@ -5,6 +5,12 @@
  * switch arm instead of edits in six functions.
  */
 
+import {
+  screenImagePrompt,
+  recordScreeningOutcome,
+  type ScreeningContext,
+} from "./moderation.ts";
+
 export type ImageProviderKey = "openai" | "openai-mini" | "gemini";
 
 export interface ImageGenUsage {
@@ -29,6 +35,26 @@ export interface ImageGenResult {
    */
   contentType: string;
   usage: ImageGenUsage;
+}
+
+/**
+ * A provider declining the prompt on content grounds — NOT an outage, a bad
+ * key, or a rate limit. The distinction is the whole value of the screening
+ * log: "we allowed it and the renderer refused" is evidence a threshold is too
+ * high, while "we allowed it and the request timed out" is evidence of nothing.
+ */
+export class ProviderRefusedError extends Error {
+  readonly provider: string;
+
+  constructor(provider: string, message: string) {
+    super(message);
+    this.name = "ProviderRefusedError";
+    this.provider = provider;
+  }
+}
+
+export function isProviderRefusal(e: unknown): e is ProviderRefusedError {
+  return e instanceof ProviderRefusedError;
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -79,6 +105,22 @@ function sizeToAspect(size: string, quality?: string | null): { aspectRatio: str
 
 // ── OpenAI ──────────────────────────────────────────────────────────────────
 
+/**
+ * A refused prompt comes back as a 400 whose `error.code` is
+ * `moderation_blocked` (`content_policy_violation` on the older image models).
+ * The message alone cannot be trusted to classify it — it is prose, and it is
+ * localised — so the code is what this reads.
+ */
+async function openaiError(res: Response, kind: string): Promise<Error> {
+  const body = await res.json().catch(() => ({}));
+  const error = body?.error;
+  const message = error?.message ?? `OpenAI image ${kind} error ${res.status}`;
+  if (error?.code === "moderation_blocked" || error?.code === "content_policy_violation") {
+    return new ProviderRefusedError("openai", message);
+  }
+  return new Error(message);
+}
+
 function openaiUsage(data: {
   usage?: { input_tokens?: number; input_tokens_details?: { text_tokens?: number; image_tokens?: number }; output_tokens?: number };
 }, model: string): ImageGenUsage {
@@ -114,12 +156,18 @@ async function openaiGenerate(
     const res = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST", headers: { Authorization: `Bearer ${apiKey}` }, body: form,
     });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `OpenAI image edit error ${res.status}`);
+    if (!res.ok) throw await openaiError(res, "edit");
     const data = await res.json();
     // Both OpenAI calls below explicitly request output_format: "webp" — the
     // response is reliably webp, unlike Gemini which gets no such ask.
     return { b64: data.data[0].b64_json as string, contentType: "image/webp", usage: openaiUsage(data, model) };
   }
+  // `moderation: "low"` is the least restrictive value gpt-image offers; the
+  // default ("auto") refuses a great deal of ordinary fantasy art — wounds,
+  // undead, a weapon drawn on a person — while "low" still enforces the hard
+  // prohibitions. It is a /v1/images/generations parameter *only*: OpenAI's
+  // CreateImageEditRequest has no such field, so the edit form above cannot
+  // ask for it and an edit is moderated at the default level.
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -128,11 +176,12 @@ async function openaiGenerate(
       prompt,
       size,
       output_format: "webp",
+      moderation: "low",
       ...(q ? { quality: q } : {}),
       ...(background ? { background } : {}),
     }),
   });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error?.message ?? `OpenAI image error ${res.status}`);
+  if (!res.ok) throw await openaiError(res, "generation");
   const data = await res.json();
   return { b64: data.data[0].b64_json as string, contentType: "image/webp", usage: openaiUsage(data, model) };
 }
@@ -165,7 +214,18 @@ async function geminiGenerate(apiKey: string, model: string, prompt: string, siz
   }
   const imgPart = (outParts as GeminiImagePart[]).find((p) => p?.inlineData?.data ?? p?.inline_data?.data);
   const b64 = imgPart?.inlineData?.data ?? imgPart?.inline_data?.data;
-  if (!b64) throw new Error("Gemini returned no image");
+  if (!b64) {
+    // Gemini answers 200 with no image part when it declines, so the reason
+    // has to be read out of the body: promptFeedback.blockReason when the
+    // prompt was rejected outright, the candidate's finishReason when the
+    // render was stopped. Anything else genuinely is an empty response.
+    const blockReason: string | undefined = data?.promptFeedback?.blockReason;
+    const finishReason: string | undefined = data?.candidates?.[0]?.finishReason;
+    const refusal = blockReason ??
+      (["SAFETY", "IMAGE_SAFETY", "PROHIBITED_CONTENT"].includes(finishReason ?? "") ? finishReason : undefined);
+    if (refusal) throw new ProviderRefusedError("gemini", `Gemini refused the prompt (${refusal})`);
+    throw new Error("Gemini returned no image");
+  }
   // No output format is requested above, so Gemini returns its own default
   // (png) — inlineData.mimeType carries whatever it actually rendered.
   const contentType = normalizeContentType(
@@ -207,14 +267,51 @@ export async function generateImage(opts: {
   sourceImages?: Blob[];
   /** OpenAI output background. Ignored by providers that do not expose it. */
   background?: "transparent" | "opaque" | "auto";
+  /**
+   * Screening context (see moderation.ts). Its `apiKey` is an OpenAI key even
+   * when the campaign renders on Gemini, because screening is always OpenAI's
+   * free classifier — and Gemini needs it most: its adjustable safety filters
+   * default to off on 2.5/3 models, so nothing else stands between a prompt
+   * and a billed render. `imageProvider` is filled in here rather than by the
+   * caller, which would only be restating `provider`. Omit the whole object
+   * and the render is unscreened and unlogged.
+   */
+  screening?: Omit<ScreeningContext, "imageProvider">;
 }): Promise<ImageGenResult> {
-  const { provider, model, apiKey, prompt, size, quality, boostStyle, sourceImages, background } = opts;
-  switch (provider) {
-    case "gemini": {
-      const geminiPrompt = boostStyle ? `${prompt} — ${GEMINI_STYLE_BOOSTER}` : prompt;
-      return geminiGenerate(apiKey, model, geminiPrompt, size, quality, sourceImages);
+  const { provider, model, apiKey, prompt, size, quality, boostStyle, sourceImages, background, screening } = opts;
+
+  const dispatch = () => {
+    switch (provider) {
+      case "gemini": {
+        const geminiPrompt = boostStyle ? `${prompt} — ${GEMINI_STYLE_BOOSTER}` : prompt;
+        return geminiGenerate(apiKey, model, geminiPrompt, size, quality, sourceImages);
+      }
+      default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages, background); // openai + openai-mini
     }
-    default:       return openaiGenerate(apiKey, model, prompt, size, quality, sourceImages, background); // openai + openai-mini
+  };
+
+  if (!screening) return dispatch();
+
+  // Before anything billable. Throws PromptRejectedError on a refusal (the row
+  // is written first, so a block is logged); fails open when the classifier is
+  // unavailable, in which case there is no row to stamp an outcome onto.
+  const logged = await screenImagePrompt(prompt, { ...screening, imageProvider: provider });
+  if (!logged.id) return dispatch();
+
+  try {
+    const result = await dispatch();
+    await recordScreeningOutcome(screening.admin, logged.id, "rendered");
+    return result;
+  } catch (e) {
+    // The half of the loop our own verdict cannot supply: what the renderer
+    // did with a prompt we allowed. The prompt text is kept only on a refusal
+    // — at screen time we could not know this row would need reading, and its
+    // score may have been nowhere near a threshold, which is the finding.
+    const refused = isProviderRefusal(e);
+    await recordScreeningOutcome(
+      screening.admin, logged.id, refused ? "refused" : "error", refused ? prompt : undefined,
+    );
+    throw e;
   }
 }
 
@@ -231,6 +328,8 @@ export interface ResolvedImageProvider {
   base: "openai" | "gemini";
   model: string;
   apiKey: string;
+  /** OpenAI key for prompt screening, independent of the chosen renderer (null when the account has none). */
+  moderationKey: string | null;
   isByok: boolean;
   /** Credit multiplier from provider_config (1.0 if unset). */
   imageMultiplier: number;
@@ -269,6 +368,11 @@ export function resolveImageProvider(args: {
     base,
     model,
     apiKey,
+    // Screening is always OpenAI's classifier, so it reads the OpenAI keys
+    // rather than `base`'s — a Gemini campaign on a platform OpenAI key is
+    // still screened. Null only when neither key exists, and the caller then
+    // renders unscreened rather than not at all.
+    moderationKey: args.campaignKeys.openai ?? args.platformKeys.openai ?? null,
     isByok: !!campaignKey,
     imageMultiplier: args.providerConfigs[base]?.image_multiplier ?? 1.0,
     imageQuality: args.providerConfigs[base]?.image_quality ?? null,

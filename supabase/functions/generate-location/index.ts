@@ -207,6 +207,7 @@ serve(withCors(async (req: Request) => {
       generate_image
         ? generateImage({
             provider: img.provider, model: img.model, apiKey: img.apiKey,
+            screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "location_scene" },
             prompt: buildSimpleImagePrompt({
               base: imageBasePrompt,
               setting: campaign.ai_setting_prompt ?? "",
@@ -218,6 +219,7 @@ serve(withCors(async (req: Request) => {
       generate_map
         ? generateImage({
             provider: img.provider, model: img.model, apiKey: img.apiKey,
+            screening: { apiKey: img.moderationKey, admin, userId: user.id, generationType: "location_map" },
             prompt: [MAP_BASE_PROMPT, String(locationData.map_prompt ?? "").slice(0, MAX_IMAGE_SUBJECT_CHARS)].filter(Boolean).join(" — "),
             size: "1024x1024", quality: img.imageQuality,
           })
