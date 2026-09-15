@@ -85,6 +85,28 @@ const siteWithPicture: MapStackSource & { id: string } = {
   plan_size: null,
 };
 
+// #878 S2 — a site with nothing drawn yet: `hasAnyMapLayer` is false, so
+// Build should still open on the Drawing (there is no image to trace over).
+const siteWithNoImagery: MapStackSource & { id: string } = {
+  id: "site-2",
+  map_url: null,
+  grid_calibration: null,
+  map_layer_url: null,
+  map_layer_calibration: null,
+  plan_size: null,
+};
+
+// A Drawing-only site (no Picture) — `hasAnyMapLayer` must read Drawing too,
+// not just Picture, so this is the second half of "any map imagery".
+const siteWithDrawing: MapStackSource & { id: string } = {
+  id: "site-3",
+  map_url: null,
+  grid_calibration: null,
+  map_layer_url: "https://example.test/drawing.webp",
+  map_layer_calibration: { cells_per_image_width: 10, origin_x_pct: 0, origin_y_pct: 0 },
+  plan_size: null,
+};
+
 describe("MapWorkbench", () => {
   it("mounts without a site prop, and shows no reference-layer toggle", () => {
     const wrapper = mount(MapWorkbench, {
@@ -127,17 +149,78 @@ describe("MapWorkbench", () => {
     expect(wrapper.text()).not.toContain("Claim");
   });
 
-  it("shows the layer selector and switches to the Plan palette with a site, in edit mode", async () => {
-    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithPicture }, ...editModeStubs });
+  it("shows the layer selector with a site, in edit mode, and can switch layers by hand", async () => {
+    const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false, site: siteWithNoImagery }, ...editModeStubs });
     expect(wrapper.text()).toContain("Drawing");
     expect(wrapper.text()).toContain("Plan");
-    // The Drawing's own tool palette is shown by default…
+    // A site with nothing drawn yet opens on the Drawing's own tool palette…
     expect(wrapper.text()).toContain("Floor brush");
 
     const planButton = wrapper.findAll("button").find((b) => b.text() === "Plan");
     await planButton?.trigger("click");
-    // …and switches to the Plan's four tools once selected.
+    // …and switches to the Plan's four tools once selected by hand.
     expect(wrapper.text()).toContain("Claim");
+  });
+
+  // #878 S2 — the DM who traced rooms could never find Pen/Shape because
+  // Build always opened on the Drawing, even for a site that already had
+  // imagery to trace over. These four cover the new initial-default rule.
+  describe("initial layer default (#878 S2)", () => {
+    it("opens on Drawing without a site at all (the standalone /cartographer route)", () => {
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      expect(wrapper.text()).toContain("Floor brush");
+      expect(wrapper.text()).not.toContain("Claim");
+    });
+
+    it("opens on Drawing for a site with no map imagery yet", () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false, site: siteWithNoImagery },
+        ...editModeStubs,
+      });
+      expect(wrapper.text()).toContain("Floor brush");
+      expect(wrapper.text()).not.toContain("Claim");
+    });
+
+    it("opens on Plan for a site whose imagery is a Picture", () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false, site: siteWithPicture },
+        ...editModeStubs,
+      });
+      expect(wrapper.text()).toContain("Claim");
+      // "Floor brush" alone isn't a safe negative check — the status bar's
+      // "Brush: <label>" segment names the Drawing's OWN active tool
+      // regardless of which layer is showing. "Eraser" only ever appears in
+      // the Drawing tool palette itself.
+      expect(wrapper.text()).not.toContain("Eraser");
+    });
+
+    it("opens on Plan for a site whose imagery is a Drawing (no Picture)", () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false, site: siteWithDrawing },
+        ...editModeStubs,
+      });
+      expect(wrapper.text()).toContain("Claim");
+      expect(wrapper.text()).not.toContain("Eraser");
+    });
+
+    it("keeps the DM's own layer choice — a later prop update does not force it back", async () => {
+      const wrapper = mount(MapWorkbench, {
+        props: { map: baseMap, viewMode: false, site: siteWithPicture },
+        ...editModeStubs,
+      });
+      // Starts on Plan (site has a Picture)…
+      expect(wrapper.text()).toContain("Claim");
+
+      const drawingButton = wrapper.findAll("button").find((b) => b.text() === "Drawing");
+      await drawingButton?.trigger("click");
+      expect(wrapper.text()).toContain("Floor brush");
+
+      // …a prop change that would re-run any watcher must not force Plan
+      // back — the default is read once at setup, never re-applied.
+      await wrapper.setProps({ map: { ...baseMap, name: "Renamed" } });
+      expect(wrapper.text()).toContain("Floor brush");
+      expect(wrapper.text()).not.toContain("Claim");
+    });
   });
 
   it("mounts with a null map (the unsaved-new-map case)", () => {

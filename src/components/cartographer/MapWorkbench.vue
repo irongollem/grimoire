@@ -330,7 +330,7 @@ import { OBJECT_CATEGORIES, type ObjectCategory } from "@/cartographer/packSchem
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import type { MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { resolveCellGlyphs } from "@/cartographer/glyphs";
-import { buildMapStack, type MapStackSource } from "@/lib/locations/mapStack";
+import { buildMapStack, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
 import type { BindableSpace, RegionRole } from "@/types/locationMapRegion.types";
 
 const { map, viewMode, site, spaces } = defineProps<{
@@ -627,7 +627,20 @@ function buildReferenceImage(tilePx: number, viewportOffset: { x: number; y: num
 // DM reach `activeLayer.value = "plan"` in the first place.
 const siteId = computed(() => site?.id ?? null);
 const plan = usePlanPalette(siteId);
-const activeLayer = ref<"drawing" | "plan">("drawing");
+// Initial layer (#878 S2): a DM opening Build on a site that already has a
+// Drawing or a Picture came here to trace it, so land on Plan directly — the
+// old unconditional "drawing" default was the whole reason the Plan's own
+// Pen/Shape tracing tools went unfound (issue #878, item 3). A site with
+// nothing drawn yet has no image to trace *over*, so Drawing is still the
+// honest first step there. `hasAnyMapLayer` (mapStack.ts) is deliberately the
+// one reader of "does this place have a map" — this must not grow its own
+// `!!map_url` test. Read ONCE at setup, not watched: once the DM picks a
+// layer by hand, that choice stands for the rest of the session (see
+// LAYER_OPTIONS's SegmentedControl above, which is the only other writer of
+// this ref). The standalone `/cartographer/:id` route passes no `site` at
+// all, so `site &&` short-circuits it to "drawing" unconditionally, same as
+// before.
+const activeLayer = ref<"drawing" | "plan">(site && hasAnyMapLayer(site) ? "plan" : "drawing");
 const LAYER_OPTIONS: { value: "drawing" | "plan"; label: string }[] = [
   { value: "drawing", label: "Drawing" },
   { value: "plan", label: "Plan" },
