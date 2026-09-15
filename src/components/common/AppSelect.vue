@@ -29,7 +29,7 @@
  * (`"quest_complete" | "objective_done"`) keeps that type through `v-model`
  * instead of widening to `string` and forcing a cast at the call site.
  */
-import { useTemplateRef, type HTMLAttributes } from "vue";
+import { onMounted, onUpdated, useTemplateRef, type HTMLAttributes } from "vue";
 import { cn } from "@/lib/utils";
 import {
   fieldVariants,
@@ -99,10 +99,45 @@ function onChange(event: Event) {
   model.value = coerced as T;
 }
 
+const el = useTemplateRef<HTMLSelectElement>("el");
+
+/**
+ * Re-select by the option's stashed `_value` when the `:value` binding could not.
+ *
+ * `:value="model"` sets `select.value`, which is a STRING — so the two model
+ * types this component's generic explicitly admits alongside strings cannot
+ * always be expressed through it. `null` is the case that actually breaks:
+ * Vue removes the attribute for `<option :value="null">` entirely, so the
+ * option's DOM value degrades to its TEXT, nothing matches `""`, and the
+ * select renders blank with `selectedIndex === -1` — the control shows no
+ * choice at all while the model holds a perfectly good one.
+ *
+ * `onChange` above already reads `_value` for exactly this reason; this is the
+ * same fix on the write side, and it mirrors what Vue's own `v-model` does.
+ * For the ordinary string case the `:value` binding has already selected the
+ * right option, `findIndex` agrees with it, and this is a no-op.
+ *
+ * On `onUpdated` as well as `onMounted` because the options are a slot: they
+ * frequently arrive after the first render (a query resolving), and a model
+ * set before its options exist would otherwise stay visually unselected.
+ */
+function syncSelection() {
+  const select = el.value;
+  if (!select) return;
+  const options = [...select.options] as OptionWithValue[];
+  const index = options.findIndex((o) => ("_value" in o ? o._value : o.value) === model.value);
+  // -1 means the model genuinely matches no option — leave the select blank
+  // rather than inventing a selection.
+  if (index !== -1 && select.selectedIndex !== index) select.selectedIndex = index;
+}
+
+onMounted(syncSelection);
+onUpdated(syncSelection);
+
 // A bare `ref` on this component would resolve to the component instance, so
 // `selectRef.value?.focus()` at a call site would silently do nothing. Expose the
 // element and the handful of methods callers actually reach for.
-const el = useTemplateRef<HTMLSelectElement>("el");
+
 defineExpose({
   el,
   focus: (options?: FocusOptions) => el.value?.focus(options),
