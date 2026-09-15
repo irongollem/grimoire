@@ -1277,6 +1277,47 @@ family, `on_location_id`/`on_location_fact`, and a trigger on
 event, quest). See "one rule engine" above for the mechanism and its
 decisions, and `QuestRulesPanel.vue` for where a DM authors "when a place…".
 
+**A second authoring surface, from the room itself (#878 S3).** #869 shipped
+the mechanism but left it reachable only from `QuestRulesPanel.vue`, where the
+DM re-finds the room in a campaign-wide combobox — the complaint that opened
+#878: "I can't hang quest outcomes/beats etc. to these zones where needed."
+`SiteMapRegionList.vue` (the Spaces panel on a site's floor plan, Build mode
+only) now carries a "Rules" toggle on every **bound space** row, opening
+`SiteMapRoomRules.vue` — list the room's existing rules, add a new one: pick a
+quest, pick which fact (`explored`/`cleared`/`looted`), pick the ledger verb,
+pick the objective. Both components read `useQuestConsequencesByLocations`
+(`useQuestFlow.ts`), a plural-lookup query batched over every space on the
+site at once — the same idiom as `useNpcsByLocations` — rather than one query
+per row; `useQuestConsequences` alone can't answer "what rules watch this
+room" since it is keyed on `quest_id`, not `on_location_id`.
+
+**Only a bound space (a room, or a nested site) can carry this rule — never a
+zone, on purpose.** `quest_consequences.on_location_id` is a real FK to
+`locations`, and the fact it watches is asserted per location
+(`location_state_events`). A zone deliberately binds to no location —
+`guard_location_map_region_space` raises if a zone-role region is given a
+`space_location_id` ("a zone binds to nothing," migration `20260908215640`) —
+so a zone has no identity for a rule to watch at all, not merely one this
+surface declined to wire up. `SiteMapZoneList.vue`'s own quest hook (a
+`trigger`-kind zone naming a `beat_id`, #868 S12) is a different mechanism
+entirely — it prompts a beat's advance when the party's token enters the
+zone, not a durable place-fact — and this story left it untouched.
+
+**Ledger verbs only, not the full seven-action vocabulary.** `QuestRulesPanel.vue`
+lets a location condition drive any of the four ledger verbs or three world
+actions (calendar events, NPC shifts/favours, quest unlocks, knowledge,
+milestones) alike. Reproducing every one of those forms in the room-scoped
+editor too would duplicate roughly half that file's markup with no shared
+component to route both through, and `QuestRulesPanel.vue` is a different
+story's file. `SiteMapRoomRules.vue` therefore authors the four ledger verbs
+only (`raise`/`reveal`/`complete`/`fail`), which is the case the complaint
+actually named ("Cleared → complete objective X") — a DM who wants a world
+action on a room-fact condition still has it, on the quest's own overview.
+The room panel's existing-rules list still *displays* any rule on that room
+regardless of which surface authored it, via the shared
+`describeQuestConsequenceAction` — a world-action rule created on
+`QuestRulesPanel.vue` shows there too, just not addable from the room.
+
 **One room surface, two callers.** `SiteRoomList.vue`, `SiteRunWaysOut.vue`
 and `SiteRunRoomStack.vue` (`src/components/locations/`) are now shared
 verbatim between `QuestSiteHandoff` and `SiteRunSurface`'s Atlas Run action —

@@ -1020,6 +1020,49 @@ export function useDeleteQuestConsequence() {
   });
 }
 
+/** Query-key prefix for {@link useQuestConsequencesByLocations} — exported so a
+ *  caller that writes through {@link useCreateQuestConsequence} /
+ *  {@link useDeleteQuestConsequence} can invalidate this branch too. Those two
+ *  mutations only know the per-quest key (`[CONSEQUENCES_KEY, questId]`), which
+ *  is a different branch of the cache than `[CONSEQUENCES_KEY, "by-locations",
+ *  ids]` — invalidating one never touches the other, so a room-scoped rule
+ *  editor that mutates through the shared composables above has to invalidate
+ *  this key itself after a write. */
+export const CONSEQUENCES_BY_LOCATIONS_KEY = [CONSEQUENCES_KEY, "by-locations"] as const;
+
+/**
+ * Rules that watch a place's fact (#869), read **per room** rather than per
+ * quest — `useQuestConsequences` is keyed on `quest_id`, so it cannot answer
+ * "what rules watch this room." Added for #878 S3 (hang a quest outcome on a
+ * room, from the site): a DM standing on a traced room wants to see and edit
+ * the rules pinned to it without first knowing which quest wrote them.
+ *
+ * Mirrors `useNpcsByLocations`' plural-lookup idiom (`src/composables/npcs/useNpcs.ts`) —
+ * called once with every bound space id a site map panel has on screen, not
+ * once per row. RLS (`quest_consequences_select`) is owner-scoped through the
+ * quest (`EXISTS … quests q WHERE q.id = quest_consequences.quest_id AND
+ * q.user_id = auth.uid()`), so filtering by `on_location_id` alone already
+ * returns only the caller's own quests' rules — there is no `campaign_id` on
+ * this table to additionally filter by, and adding one would be inventing a
+ * column that does not exist.
+ */
+export function useQuestConsequencesByLocations(locationIds: Ref<string[]>) {
+  return useQuery({
+    queryKey: computed(() => [...CONSEQUENCES_BY_LOCATIONS_KEY, locationIds.value]),
+    queryFn: async (): Promise<QuestConsequence[]> => {
+      if (!locationIds.value.length) return [];
+      const { data, error } = await supabase
+        .from("quest_consequences")
+        .select("*")
+        .in("on_location_id", locationIds.value)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as QuestConsequence[];
+    },
+    enabled: () => locationIds.value.length > 0,
+  });
+}
+
 export interface QuestUnlockEntry {
   /** The bridge rule's own `entry_beat_id` — null means "the target's own
    *  entry", same as the column's meaning on `quest_consequences`. */

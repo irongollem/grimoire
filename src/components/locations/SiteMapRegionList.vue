@@ -55,69 +55,90 @@
       <div
         v-for="(space, i) in spaces"
         :key="space.id"
-        class="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
+        class="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2"
       >
-        <div class="min-w-0 flex-1">
-          <RouterLink
-            :to="`/locations/${space.id}`"
-            class="block truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
-          ><template v-if="boundRegionBySpace.get(space.id)">{{ i + 1 }}. </template>{{ space.name }}</RouterLink>
-          <!-- Frame 03 "7. The Drowned Stair — Nested site · click to descend
-               [L2]" — a nested site's second line names what clicking it on
-               the map does, in place of the plain cell-count/provenance line
-               every other bound space shows. -->
-          <p
-            v-if="boundRegionBySpace.get(space.id) && space.location_type && isSiteType(space.location_type)"
-            class="truncate text-caption-sm text-muted-foreground"
-          >
-            Nested site · click to descend
-          </p>
-          <p
-            v-else-if="boundRegionBySpace.get(space.id)"
-            class="flex items-center gap-1 truncate text-caption-sm text-muted-foreground"
-          >
-            <IconPen v-if="boundRegionBySpace.get(space.id)!.vertices" class="h-3 w-3 shrink-0" aria-hidden="true" />
-            {{ regionProvenanceText(boundRegionBySpace.get(space.id)!) }}
-          </p>
+        <div class="flex items-center gap-2">
+          <div class="min-w-0 flex-1">
+            <RouterLink
+              :to="`/locations/${space.id}`"
+              class="block truncate font-cinzel text-xs font-semibold text-foreground transition-colors hover:text-primary"
+            ><template v-if="boundRegionBySpace.get(space.id)">{{ i + 1 }}. </template>{{ space.name }}</RouterLink>
+            <!-- Frame 03 "7. The Drowned Stair — Nested site · click to descend
+                 [L2]" — a nested site's second line names what clicking it on
+                 the map does, in place of the plain cell-count/provenance line
+                 every other bound space shows. -->
+            <p
+              v-if="boundRegionBySpace.get(space.id) && space.location_type && isSiteType(space.location_type)"
+              class="truncate text-caption-sm text-muted-foreground"
+            >
+              Nested site · click to descend
+            </p>
+            <p
+              v-else-if="boundRegionBySpace.get(space.id)"
+              class="flex items-center gap-1 truncate text-caption-sm text-muted-foreground"
+            >
+              <IconPen v-if="boundRegionBySpace.get(space.id)!.vertices" class="h-3 w-3 shrink-0" aria-hidden="true" />
+              {{ regionProvenanceText(boundRegionBySpace.get(space.id)!) }}
+            </p>
+          </div>
+
+          <template v-if="boundRegionBySpace.get(space.id)">
+            <span
+              v-if="nestedSiteIndexBySpace.get(space.id)"
+              class="shrink-0 rounded bg-muted/40 px-1.5 py-0.5 font-cinzel text-2xs font-bold text-muted-foreground"
+              :title="`Nested site — level ${nestedSiteIndexBySpace.get(space.id)}`"
+            >
+              L{{ nestedSiteIndexBySpace.get(space.id) }}
+            </span>
+            <!-- #878 S3 — a bound space (room or nested site) is the only
+                 shape that can carry a #869 location-fact rule; a zone binds
+                 to nothing and so has no identity for a quest rule to watch
+                 (see `SiteMapRoomRules.vue`'s own docblock). -->
+            <AppButton
+              v-if="building"
+              variant="ghost"
+              size="inline-xs"
+              :label="rulesForSpace(space.id).length ? `Rules (${rulesForSpace(space.id).length})` : 'Rules'"
+              :active="expandedRulesSpaceId === space.id"
+              tooltip="Hang a quest outcome on this room"
+              @click="expandedRulesSpaceId = expandedRulesSpaceId === space.id ? null : space.id"
+            />
+            <AppButton
+              v-if="building"
+              variant="ghost"
+              size="inline-xs"
+              label="Trace"
+              :active="activeRegionId === boundRegionBySpace.get(space.id)!.id"
+              :disabled="!canTrace"
+              :tooltip="canTrace ? undefined : 'Calibrate the grid before tracing'"
+              @click="toggleActive(boundRegionBySpace.get(space.id)!.id)"
+            />
+            <AppButton
+              v-if="building"
+              variant="ghost"
+              size="inline-xs"
+              label="Unbind"
+              @click="unbind(boundRegionBySpace.get(space.id)!)"
+            />
+            <AppButton
+              v-if="building"
+              variant="ghost"
+              tone="danger"
+              size="icon-xs"
+              :icon="IconDelete"
+              tooltip="Delete this space's shape"
+              @click="removeRegion(boundRegionBySpace.get(space.id)!)"
+            />
+          </template>
+          <AppButton v-else-if="building" variant="ghost" size="inline-xs" label="Add region" @click="addRegionForSpace(space)" />
+          <span v-else class="shrink-0 text-caption text-muted-foreground italic">Not traced</span>
         </div>
 
-        <template v-if="boundRegionBySpace.get(space.id)">
-          <span
-            v-if="nestedSiteIndexBySpace.get(space.id)"
-            class="shrink-0 rounded bg-muted/40 px-1.5 py-0.5 font-cinzel text-2xs font-bold text-muted-foreground"
-            :title="`Nested site — level ${nestedSiteIndexBySpace.get(space.id)}`"
-          >
-            L{{ nestedSiteIndexBySpace.get(space.id) }}
-          </span>
-          <AppButton
-            v-if="building"
-            variant="ghost"
-            size="inline-xs"
-            label="Trace"
-            :active="activeRegionId === boundRegionBySpace.get(space.id)!.id"
-            :disabled="!canTrace"
-            :tooltip="canTrace ? undefined : 'Calibrate the grid before tracing'"
-            @click="toggleActive(boundRegionBySpace.get(space.id)!.id)"
-          />
-          <AppButton
-            v-if="building"
-            variant="ghost"
-            size="inline-xs"
-            label="Unbind"
-            @click="unbind(boundRegionBySpace.get(space.id)!)"
-          />
-          <AppButton
-            v-if="building"
-            variant="ghost"
-            tone="danger"
-            size="icon-xs"
-            :icon="IconDelete"
-            tooltip="Delete this space's shape"
-            @click="removeRegion(boundRegionBySpace.get(space.id)!)"
-          />
-        </template>
-        <AppButton v-else-if="building" variant="ghost" size="inline-xs" label="Add region" @click="addRegionForSpace(space)" />
-        <span v-else class="shrink-0 text-caption text-muted-foreground italic">Not traced</span>
+        <SiteMapRoomRules
+          v-if="building && boundRegionBySpace.get(space.id) && expandedRulesSpaceId === space.id"
+          :location-id="space.id"
+          :rules="rulesForSpace(space.id)"
+        />
       </div>
     </div>
   </div>
@@ -196,11 +217,12 @@
  * `activeRegionId` is lifted to the caller either way, so it travels as a
  * prop + `update:activeRegionId` rather than living here.
  */
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
+import SiteMapRoomRules from "@/components/locations/SiteMapRoomRules.vue";
 import { IconAdd, IconDelete, IconDoor, IconGridView, IconPen } from "@/lib/icons";
 import { isSiteType } from "@/lib/locations/tiers";
 import {
@@ -209,9 +231,11 @@ import {
   useDeleteLocationMapRegion,
   useUpdateLocationMapRegion,
 } from "@/composables/locations/useLocationMapRegions";
+import { useQuestConsequencesByLocations } from "@/composables/quests/useQuestFlow";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import type { BindableSpace, LocationMapRegion } from "@/types/locationMapRegion.types";
+import type { QuestConsequence } from "@/types/quest.types";
 
 const { locationId, spaces, regions, activeRegionId, canTrace, building = false, doorToolArmed = false } = defineProps<{
   /** The site these regions belong to — `createRegion` needs it as
@@ -272,6 +296,33 @@ const nestedSiteIndexBySpace = computed(() => {
   }
   return map;
 });
+
+// ── Quest rules on a room (#878 S3) ─────────────────────────────────────────
+// Fetched once for every space on this site rather than per expanded row —
+// `useQuestConsequencesByLocations` mirrors the site map's other
+// plural-lookup composables (see its own docblock). Held to `[]` outside
+// Build so a DM merely browsing a site never fires this query at all; the
+// button and panel that read it are Build-only regardless.
+const spaceIds = computed(() => (building ? spaces.map((s) => s.id) : []));
+const { data: roomRules } = useQuestConsequencesByLocations(spaceIds);
+const rulesBySpace = computed(() => {
+  const map = new Map<string, QuestConsequence[]>();
+  for (const rule of roomRules.value ?? []) {
+    if (!rule.on_location_id) continue;
+    const existing = map.get(rule.on_location_id);
+    if (existing) existing.push(rule);
+    else map.set(rule.on_location_id, [rule]);
+  }
+  return map;
+});
+function rulesForSpace(spaceId: string): QuestConsequence[] {
+  return rulesBySpace.value.get(spaceId) ?? [];
+}
+// Which bound space's rule editor is open — at most one at a time, like the
+// zone panel's own `expandedId`. Ephemeral UI state, not a list filter, so a
+// local ref rather than `useUiStore` (Filter State Pattern governs filters
+// over the list on screen, not a row's own disclosure toggle).
+const expandedRulesSpaceId = ref<string | null>(null);
 
 /** "18 cells · from flood fill" — the cell count every row earns once it has
  *  been traced, plus how it got there when a human didn't draw it by hand.
