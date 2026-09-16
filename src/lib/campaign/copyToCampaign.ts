@@ -93,6 +93,24 @@ export interface DroppedReference {
    * entry-shaped field that only half the producers remember to fill in.
    */
   entryNoun: { singular: string; plural: string };
+  /**
+   * Why the row could not travel, when the answer is not the ordinary one.
+   *
+   * Absent means the visibility rule (rule 2 in the module docstring): the row
+   * points at something the target campaign cannot see. That is every producer
+   * in this module but one, which is why it is absent rather than required --
+   * unlike `entryNoun` above, absence here has a single, stated meaning rather
+   * than being a field half the producers forgot.
+   *
+   * `"needs-campaign"` is the exception: a row in a join table whose own
+   * `campaign_id` is NOT NULL (`JOIN_TABLES_REQUIRING_CAMPAIGN`) cannot exist
+   * in the general scope at all, whatever it points at. Telling the DM their
+   * inventory line "points at rows the target campaign cannot see" would be a
+   * wrong explanation for a right outcome, and a wrong explanation is worse
+   * than a terse one -- it sends them looking for a visibility problem that is
+   * not there.
+   */
+  reason?: "needs-campaign";
 }
 
 export interface CopyPlan {
@@ -206,9 +224,11 @@ const SOURCE_IDENTITY_TABLES = new Set<BulkScopeTable>(["items", "spells", "mons
  * row. Keyed by referenced table name so the caller can batch one `.in()`
  * lookup per target table across a whole selection.
  *
- * `puzzle_rooms.player_visible_to` is deliberately absent — it names the
+ * `puzzle_rooms.player_visible_to`, `npcs.player_visible_to` and
+ * `factions.player_visible_to` are all deliberately absent — each names the
  * *source* campaign's party members, a categorical clear rather than a
- * dangling-reference case (see `buildCopyPlan`), so it is never looked up.
+ * dangling-reference case (see `buildCopyPlan`), so none of them is ever
+ * looked up.
  */
 export function referencedIds(table: BulkScopeTable, row: Record<string, unknown>): Record<string, string[]> {
   switch (table) {
@@ -485,11 +505,28 @@ export function buildCopyPlan(
       clearScalarRef(payload, "location_id", targetCampaignId, referenced, "Location", dropped);
       clearScalarRef(payload, "linked_monster_id", targetCampaignId, referenced, "Linked monster", dropped);
       clearScalarRef(payload, "scriptorium_doc_id", targetCampaignId, referenced, "Linked document", dropped);
+      // Categorical, not a dangling-reference case — same reasoning as
+      // puzzle_rooms above: player_visible_to names the SOURCE campaign's
+      // party members, who are not members of the target campaign at all, so
+      // it is cleared silently and never appears in `dropped`. is_revealed
+      // follows it in lockstep: it is the disguise-reveal flag that sits with
+      // disguise_name/disguise_portrait_url (npc.types.ts:222-225), and no
+      // player in the target campaign has ever met this NPC to have had the
+      // disguise revealed to them. player_visible_fields is left alone — it
+      // is the DM's authored choice of *which* fields a reveal would show,
+      // not an audience, so it travels with the copy.
+      payload.player_visible_to = [];
+      payload.is_revealed = false;
       break;
     }
     case "factions":
       // No reference columns at all — an NPC/faction/location/item/deity
       // membership lives in a join table, not here. See `buildJoinRowPayload`.
+      // player_visible_to is still cleared, though, for the same categorical
+      // reason as npcs and puzzle_rooms above: it names the SOURCE campaign's
+      // party members. Factions have no is_shared/is_revealed sibling to
+      // follow it.
+      payload.player_visible_to = [];
       break;
     default: {
       // Compile-time guard: if BulkScopeTable ever gains a member without a
@@ -522,6 +559,36 @@ export type CopyJoinTable =
   | "faction_items"
   | "faction_deities"
   | "faction_relations";
+
+/**
+ * Join tables whose own `campaign_id` is **NOT NULL** in the database, keyed to
+ * the column naming the entity they hang off.
+ *
+ * This is not bookkeeping — it is a rule about what these rows can be. A row
+ * here is scoped to one campaign by construction, so it cannot follow its owner
+ * into the general scope ("available in all campaigns", `campaign_id null`):
+ * there is no such thing as an inventory line belonging to every campaign at
+ * once. Writing the null anyway is what the database refuses.
+ *
+ * Both paths that move an entity between scopes have to consult this:
+ *
+ *  - **copy** (`buildJoinRowPayload`) drops such a row when the target is
+ *    general, and names it, rather than planning an insert Postgres will
+ *    reject *after* the entity rows have already committed — which would
+ *    leave a half-copied record behind a raw constraint error.
+ *  - **move** (`bulkUpdateCampaignScope`) carries these rows along with their
+ *    owner, and the general target is not offered for an entity that has any.
+ *
+ * The other four join tables (`faction_npcs`, `faction_locations`,
+ * `faction_items`, `faction_relations`) carry no `campaign_id` at all — they
+ * are scoped transitively through the faction — and `npc_relationships` has
+ * one that is nullable, so it can legitimately go general. Verified against
+ * production, not inferred from the migrations.
+ */
+export const JOIN_TABLES_REQUIRING_CAMPAIGN: Readonly<Partial<Record<CopyJoinTable, string>>> = {
+  npc_inventory: "npc_id",
+  faction_deities: "faction_id",
+};
 
 /**
  * Which join tables a batch containing this entity table might carry rows
@@ -622,7 +689,65 @@ function resolveEndpoint(
  *  row-level one (rule 3: `payload` is `null`). */
 interface JoinRowResult {
   payload: Record<string, unknown> | null;
-  dropped: { label: string; name: string; entryNoun: { singular: string; plural: string }; removedEntries: boolean }[];
+  dropped: {
+    label: string;
+    name: string;
+    entryNoun: { singular: string; plural: string };
+    removedEntries: boolean;
+    reason?: DroppedReference["reason"];
+  }[];
+}
+
+/**
+ * The row-level drop `buildJoinRowPayload` returns for a `JOIN_TABLES_REQUIRING_CAMPAIGN`
+ * table meeting a general-scope target ("All campaigns", `targetCampaignId`
+ * null). This can never resolve no matter what either endpoint points at —
+ * see the guard at the top of `buildJoinRowPayload` and this constant's own
+ * docstring — so it is reported on its own terms rather than through
+ * `dropRow`/`resolveRowIdentity`: the point for the DM to understand is "this
+ * belongs to one campaign, and you're copying to all of them," never the
+ * `23502` Postgres would have raised.
+ */
+function generalScopeDrop(
+  table: "npc_inventory" | "faction_deities",
+  row: Record<string, unknown>,
+  referenced: ReadonlyMap<string, ReferencedRow>,
+): JoinRowResult {
+  if (table === "npc_inventory") {
+    // An inventory entry carries its own free-text name (see the module
+    // docstring's "npc_inventory is the one join table..." paragraph) —
+    // that name identifies the dropped row far better than anything we'd
+    // look up by id.
+    const name = isNonEmptyString(row.name) ? row.name : "an inventory item";
+    return {
+      payload: null,
+      dropped: [
+        {
+          label: "NPC inventory",
+          name,
+          entryNoun: { singular: "inventory item", plural: "inventory items" },
+          removedEntries: true,
+          reason: "needs-campaign",
+        },
+      ],
+    };
+  }
+  // faction_deities carries no name of its own beyond the deity it links —
+  // name it by that when we can resolve it, same as resolveRowIdentity would.
+  const deityId = row.deity_id;
+  const name = isNonEmptyString(deityId) ? referenceName(deityId, referenced) : "a linked deity";
+  return {
+    payload: null,
+    dropped: [
+      {
+        label: "Faction deities",
+        name,
+        entryNoun: { singular: "deity", plural: "deities" },
+        removedEntries: true,
+        reason: "needs-campaign",
+      },
+    ],
+  };
 }
 
 /**
@@ -640,6 +765,18 @@ function buildJoinRowPayload(
   idMap: ReadonlyMap<string, string>,
   referenced: ReadonlyMap<string, ReferencedRow>,
 ): JoinRowResult {
+  // Rule 3, one level earlier than the endpoint checks below: a table in
+  // JOIN_TABLES_REQUIRING_CAMPAIGN has its own campaign_id column NOT NULL
+  // in the database, so a general-scope target has no campaign for it to
+  // hold — the row cannot exist there, independent of whether npc_id/
+  // faction_id/deity_id/item_id resolve. Caught here, before any payload is
+  // built: the executor inserts entity rows before join rows, so letting
+  // this reach Postgres would leave the already-committed entity copies
+  // behind a raw not-null-violation on the join insert.
+  if (targetCampaignId === null && JOIN_TABLES_REQUIRING_CAMPAIGN[table] !== undefined) {
+    return generalScopeDrop(table as "npc_inventory" | "faction_deities", row, referenced);
+  }
+
   const payload: Record<string, unknown> = { ...row };
   delete payload.id;
   delete payload.created_at;
@@ -648,34 +785,64 @@ function buildJoinRowPayload(
 
   const dropped: JoinRowResult["dropped"] = [];
 
-  /** Rule 3: resolve a column that IS half of the row's identity. Reports and
-   *  returns false, rather than throwing, so a sibling endpoint still gets
-   *  its own chance to resolve and report — a row failing on both ends names
-   *  both rather than only the first one checked. */
-  function endpoint(column: string, label: string, entryNoun: { singular: string; plural: string }): boolean {
-    const sourceId = row[column];
-    const resolved = resolveEndpoint(sourceId, idMap, targetCampaignId, referenced);
-    if (resolved === null) {
-      const name = isNonEmptyString(sourceId) ? referenceName(sourceId, referenced) : "an incomplete row";
-      dropped.push({ label, name, entryNoun, removedEntries: true });
-      return false;
+  /** Rule 3: resolve every column that is part of the row's identity before
+   *  deciding anything, so a row broken on both ends still gets both named —
+   *  never short-circuiting on the first failure. This used to resolve each
+   *  column through its own call and push a `dropped` entry per failure, so
+   *  a row failing on two columns pushed two entries under the same label,
+   *  and `removedEntriesMessage` counted both — one broken *row* rendered as
+   *  "2 relationships were left out." This pushes once per row instead,
+   *  joining however many names failed into that one entry, so the count
+   *  `buildCopySetPlan`'s collector produces matches the number of rows
+   *  actually lost. */
+  function resolveRowIdentity(
+    columns: readonly string[],
+  ): { ok: true; resolved: Record<string, string> } | { ok: false; failedNames: string[] } {
+    const resolved: Record<string, string> = {};
+    const failedNames: string[] = [];
+    for (const column of columns) {
+      const sourceId = row[column];
+      const r = resolveEndpoint(sourceId, idMap, targetCampaignId, referenced);
+      if (r === null) failedNames.push(isNonEmptyString(sourceId) ? referenceName(sourceId, referenced) : "an incomplete row");
+      else resolved[column] = r;
     }
-    payload[column] = resolved;
-    return true;
+    return failedNames.length ? { ok: false, failedNames } : { ok: true, resolved };
+  }
+
+  /** Rule 3 for a whole row: resolve its identity columns, and on failure push
+   *  exactly one `dropped` entry naming every column that failed. */
+  function dropRow(
+    columns: readonly string[],
+    label: string,
+    entryNoun: { singular: string; plural: string },
+  ): Record<string, string> | null {
+    const result = resolveRowIdentity(columns);
+    if (result.ok) return result.resolved;
+    dropped.push({ label, name: result.failedNames.join(" and "), entryNoun, removedEntries: true });
+    return null;
   }
 
   switch (table) {
     case "npc_relationships": {
+      const resolved = dropRow(
+        ["npc_id", "related_npc_id"],
+        "NPC relationships",
+        { singular: "relationship", plural: "relationships" },
+      );
+      if (!resolved) return { payload: null, dropped };
       payload.campaign_id = targetCampaignId;
-      const noun = { singular: "relationship", plural: "relationships" };
-      const npcOk = endpoint("npc_id", "NPC relationships", noun);
-      const relatedOk = endpoint("related_npc_id", "NPC relationships", noun);
-      return { payload: npcOk && relatedOk ? payload : null, dropped };
+      payload.npc_id = resolved.npc_id;
+      payload.related_npc_id = resolved.related_npc_id;
+      return { payload, dropped };
     }
     case "npc_inventory": {
+      const resolved = dropRow(["npc_id"], "NPC inventory", {
+        singular: "inventory item",
+        plural: "inventory items",
+      });
+      if (!resolved) return { payload: null, dropped };
       payload.campaign_id = targetCampaignId;
-      const npcOk = endpoint("npc_id", "NPC inventory", { singular: "inventory item", plural: "inventory items" });
-      if (!npcOk) return { payload: null, dropped };
+      payload.npc_id = resolved.npc_id;
       // item_id is a scalar reference, not the row's second endpoint — an
       // inventory entry has its own name/quantity (unlike faction_items
       // below, which has no identity beyond the item it names), so a
@@ -684,8 +851,8 @@ function buildJoinRowPayload(
       // above already carried it through untouched, and is never looked up.
       const itemId = row.item_id;
       if (isNonEmptyString(itemId)) {
-        const resolved = resolveEndpoint(itemId, idMap, targetCampaignId, referenced);
-        if (resolved === null) {
+        const resolvedItem = resolveEndpoint(itemId, idMap, targetCampaignId, referenced);
+        if (resolvedItem === null) {
           payload.item_id = null;
           dropped.push({
             label: "Linked item",
@@ -694,48 +861,66 @@ function buildJoinRowPayload(
             removedEntries: false,
           });
         } else {
-          payload.item_id = resolved;
+          payload.item_id = resolvedItem;
         }
       }
       return { payload, dropped };
     }
     case "faction_npcs": {
-      const noun = { singular: "member", plural: "members" };
-      const factionOk = endpoint("faction_id", "Faction members", noun);
-      const npcOk = endpoint("npc_id", "Faction members", noun);
-      return { payload: factionOk && npcOk ? payload : null, dropped };
+      const resolved = dropRow(["faction_id", "npc_id"], "Faction members", {
+        singular: "member",
+        plural: "members",
+      });
+      if (!resolved) return { payload: null, dropped };
+      payload.faction_id = resolved.faction_id;
+      payload.npc_id = resolved.npc_id;
+      return { payload, dropped };
     }
     case "faction_locations": {
-      const noun = { singular: "location", plural: "locations" };
-      const factionOk = endpoint("faction_id", "Faction locations", noun);
-      const locationOk = endpoint("location_id", "Faction locations", noun);
-      return { payload: factionOk && locationOk ? payload : null, dropped };
+      const resolved = dropRow(["faction_id", "location_id"], "Faction locations", {
+        singular: "location",
+        plural: "locations",
+      });
+      if (!resolved) return { payload: null, dropped };
+      payload.faction_id = resolved.faction_id;
+      payload.location_id = resolved.location_id;
+      return { payload, dropped };
     }
     case "faction_items": {
-      const noun = { singular: "item", plural: "items" };
-      const factionOk = endpoint("faction_id", "Faction items", noun);
       // Mirrors ItemRefColumns (src/lib/itemRef.ts): at most one of item_id /
       // library_item_id is ever set. Unlike npc_inventory, a faction_items row
       // carries no name of its own beyond the item it names, so a dangling
       // item_id drops the whole row (rule 3) rather than clearing the field.
       // A library_item_id, if that is the one set instead, always travels —
       // the spread above already carried it through, and item_id being empty
-      // here is not itself a failure.
-      const itemOk = isNonEmptyString(row.item_id) ? endpoint("item_id", "Faction items", noun) : true;
-      return { payload: factionOk && itemOk ? payload : null, dropped };
+      // here is not itself a failure, so it is not one of the columns checked.
+      const columns = isNonEmptyString(row.item_id) ? ["faction_id", "item_id"] : ["faction_id"];
+      const resolved = dropRow(columns, "Faction items", { singular: "item", plural: "items" });
+      if (!resolved) return { payload: null, dropped };
+      payload.faction_id = resolved.faction_id;
+      if (columns.includes("item_id")) payload.item_id = resolved.item_id;
+      return { payload, dropped };
     }
     case "faction_deities": {
+      const resolved = dropRow(["faction_id", "deity_id"], "Faction deities", {
+        singular: "deity",
+        plural: "deities",
+      });
+      if (!resolved) return { payload: null, dropped };
       payload.campaign_id = targetCampaignId;
-      const noun = { singular: "deity", plural: "deities" };
-      const factionOk = endpoint("faction_id", "Faction deities", noun);
-      const deityOk = endpoint("deity_id", "Faction deities", noun);
-      return { payload: factionOk && deityOk ? payload : null, dropped };
+      payload.faction_id = resolved.faction_id;
+      payload.deity_id = resolved.deity_id;
+      return { payload, dropped };
     }
     case "faction_relations": {
-      const noun = { singular: "relation", plural: "relations" };
-      const factionOk = endpoint("faction_id", "Faction relations", noun);
-      const targetOk = endpoint("target_faction_id", "Faction relations", noun);
-      return { payload: factionOk && targetOk ? payload : null, dropped };
+      const resolved = dropRow(["faction_id", "target_faction_id"], "Faction relations", {
+        singular: "relation",
+        plural: "relations",
+      });
+      if (!resolved) return { payload: null, dropped };
+      payload.faction_id = resolved.faction_id;
+      payload.target_faction_id = resolved.target_faction_id;
+      return { payload, dropped };
     }
   }
 }
@@ -747,17 +932,28 @@ function buildJoinRowPayload(
  * exactly like a single-row one.
  */
 function makeDropCollector(): {
-  add: (label: string, name: string, entryNoun: { singular: string; plural: string }, removedEntries: boolean) => void;
+  add: (
+    label: string,
+    name: string,
+    entryNoun: { singular: string; plural: string },
+    removedEntries: boolean,
+    reason?: DroppedReference["reason"],
+  ) => void;
   finish: () => DroppedReference[];
 } {
-  const byLabel = new Map<string, DroppedReference>();
+  // Keyed on label AND reason, not label alone: the same label can lose rows
+  // for two different reasons in one batch (an inventory line dropped because
+  // the general scope cannot hold it, another because its NPC was not copied),
+  // and merging those would put one explanation on top of both.
+  const byKey = new Map<string, DroppedReference>();
   return {
-    add(label, name, entryNoun, removedEntries) {
-      const existing = byLabel.get(label);
+    add(label, name, entryNoun, removedEntries, reason) {
+      const key = `${label}\u0000${reason ?? ""}`;
+      const existing = byKey.get(key);
       if (existing) existing.names.push(name);
-      else byLabel.set(label, { label, names: [name], removedEntries, entryNoun });
+      else byKey.set(key, { label, names: [name], removedEntries, entryNoun, ...(reason ? { reason } : {}) });
     },
-    finish: () => [...byLabel.values()],
+    finish: () => [...byKey.values()],
   };
 }
 
@@ -816,7 +1012,7 @@ export function buildCopySetPlan(
 
   const payloads = entities.map(({ table, row }) => {
     const { payload, dropped } = buildCopyPlan(table, row, targetCampaignId, userId, referenced, idMap);
-    for (const d of dropped) for (const name of d.names) collector.add(d.label, name, d.entryNoun, d.removedEntries);
+    for (const d of dropped) for (const name of d.names) collector.add(d.label, name, d.entryNoun, d.removedEntries, d.reason);
     return { table, payload };
   });
 
@@ -824,7 +1020,7 @@ export function buildCopySetPlan(
   for (const { table, row } of joinRows) {
     const { payload, dropped } = buildJoinRowPayload(table, row, targetCampaignId, userId, idMap, referenced);
     if (payload) (linkPayloads[table] ??= []).push(payload);
-    for (const d of dropped) collector.add(d.label, d.name, d.entryNoun, d.removedEntries);
+    for (const d of dropped) collector.add(d.label, d.name, d.entryNoun, d.removedEntries, d.reason);
   }
 
   return { payloads, linkPayloads, dropped: collector.finish(), idMap };

@@ -519,10 +519,37 @@ describe("buildCopyPlan — npcs and factions (single row, no batch)", () => {
     ]);
   });
 
-  it("factions carry nothing to filter — the row passes through untouched", () => {
-    const row = { id: "f1", name: "The Iron Circle", faction_type: "Guild" };
+  it("factions carry nothing else to filter — the row passes through untouched", () => {
+    const row = { id: "f1", name: "The Iron Circle", faction_type: "Guild", player_visible_to: [] };
     const { payload, dropped } = buildCopyPlan("factions", row, TARGET_CAMPAIGN, USER_ID, new Map());
     expect(payload.name).toBe("The Iron Circle");
+    expect(dropped).toEqual([]);
+  });
+
+  // #885 defect 1: player_visible_to (and, for npcs, is_revealed) name the
+  // SOURCE campaign's party members / reveal state — nothing a DM in the
+  // target campaign was ever asked about. Categorical, like puzzle_rooms
+  // above: cleared silently, never reported in `dropped`.
+  it("an npc copy arrives unrevealed to nobody, with player_visible_fields intact", () => {
+    const row = {
+      id: "n1",
+      player_visible_to: ["pm-1", "pm-2"],
+      is_revealed: true,
+      player_visible_fields: ["portrait", "name"],
+    };
+    const { payload, dropped } = buildCopyPlan("npcs", row, TARGET_CAMPAIGN, USER_ID, new Map());
+    expect(payload.player_visible_to).toEqual([]);
+    expect(payload.is_revealed).toBe(false);
+    // The DM's authored choice of *which* fields a reveal would show is not
+    // an audience — it travels with the copy untouched.
+    expect(payload.player_visible_fields).toEqual(["portrait", "name"]);
+    expect(dropped).toEqual([]);
+  });
+
+  it("a faction copy arrives visible to nobody", () => {
+    const row = { id: "f1", name: "The Iron Circle", player_visible_to: ["pm-1"] };
+    const { payload, dropped } = buildCopyPlan("factions", row, TARGET_CAMPAIGN, USER_ID, new Map());
+    expect(payload.player_visible_to).toEqual([]);
     expect(dropped).toEqual([]);
   });
 });
@@ -748,6 +775,158 @@ describe("buildCopySetPlan", () => {
         names: ["a row you no longer have access to"],
         removedEntries: false,
         entryNoun: { singular: "linked item", plural: "linked items" },
+      },
+    ]);
+  });
+
+  // #885 defect 2: npc_inventory.campaign_id and faction_deities.campaign_id
+  // are NOT NULL in production, so a general-scope target ("All campaigns",
+  // targetCampaignId null) has nowhere for that column to point. Planning the
+  // insert anyway would fail at the database after the entity rows in the
+  // same batch already committed — JOIN_TABLES_REQUIRING_CAMPAIGN exists so
+  // the planner catches this itself and drops the row, named, instead.
+  it("npc_inventory is dropped and named when the target is general — its campaign_id is NOT NULL", () => {
+    const entities = [npcRow("npc-a", "Aldric")];
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "npc_inventory",
+        row: {
+          id: "inv-1",
+          campaign_id: OTHER_CAMPAIGN,
+          npc_id: "npc-a",
+          item_id: null,
+          name: "Rusty Dagger",
+          quantity: 1,
+          library_item_id: null,
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, null, USER_ID, new Map());
+    expect(plan.linkPayloads.npc_inventory).toBeUndefined();
+    expect(plan.dropped).toEqual([
+      {
+        label: "NPC inventory",
+        reason: "needs-campaign",
+        names: ["Rusty Dagger"],
+        removedEntries: true,
+        entryNoun: { singular: "inventory item", plural: "inventory items" },
+      },
+    ]);
+  });
+
+  it("npc_inventory survives when the target is a real campaign", () => {
+    const entities = [npcRow("npc-a", "Aldric")];
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "npc_inventory",
+        row: {
+          id: "inv-1",
+          campaign_id: OTHER_CAMPAIGN,
+          npc_id: "npc-a",
+          item_id: null,
+          name: "Rusty Dagger",
+          quantity: 1,
+          library_item_id: null,
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, new Map());
+    const inv = plan.linkPayloads.npc_inventory;
+    expect(inv).toHaveLength(1);
+    expect(inv![0].campaign_id).toBe(TARGET_CAMPAIGN);
+    expect(plan.dropped).toEqual([]);
+  });
+
+  it("faction_deities is dropped and named when the target is general — its campaign_id is NOT NULL", () => {
+    const entities = [factionRow("fac-a", "The Iron Circle")];
+    const referenced = refMap([{ id: "deity-1", name: "Bahamut", campaignId: null }]);
+    const joinRows: CopySetJoinRow[] = [
+      { table: "faction_deities", row: { id: "fd-1", campaign_id: OTHER_CAMPAIGN, faction_id: "fac-a", deity_id: "deity-1" } },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, null, USER_ID, referenced);
+    expect(plan.linkPayloads.faction_deities).toBeUndefined();
+    expect(plan.dropped).toEqual([
+      {
+        label: "Faction deities",
+        reason: "needs-campaign",
+        names: ["Bahamut"],
+        removedEntries: true,
+        entryNoun: { singular: "deity", plural: "deities" },
+      },
+    ]);
+  });
+
+  it("faction_deities survives when the target is a real campaign", () => {
+    const entities = [factionRow("fac-a", "The Iron Circle")];
+    const referenced = refMap([{ id: "deity-1", name: "Bahamut", campaignId: null }]);
+    const joinRows: CopySetJoinRow[] = [
+      { table: "faction_deities", row: { id: "fd-1", campaign_id: OTHER_CAMPAIGN, faction_id: "fac-a", deity_id: "deity-1" } },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, referenced);
+    const fd = plan.linkPayloads.faction_deities;
+    expect(fd).toHaveLength(1);
+    expect(fd![0].campaign_id).toBe(TARGET_CAMPAIGN);
+    expect(fd![0].faction_id).toBe(plan.idMap.get("fac-a"));
+    expect(fd![0].deity_id).toBe("deity-1"); // not in this batch, but visible (general library-ish row)
+    expect(plan.dropped).toEqual([]);
+  });
+
+  // npc_relationships.campaign_id IS nullable (verified live against
+  // production) — it must keep travelling to the general scope exactly as it
+  // does today, unlike npc_inventory/faction_deities above.
+  it("npc_relationships still travels to a general-scope target — its campaign_id is nullable", () => {
+    const entities = [npcRow("npc-a", "Aldric"), npcRow("npc-b", "Brenna")];
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "npc_relationships",
+        row: {
+          id: "rel-1",
+          campaign_id: OTHER_CAMPAIGN,
+          npc_id: "npc-a",
+          related_npc_id: "npc-b",
+          relationship_type: "ally",
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, null, USER_ID, new Map());
+    expect(plan.dropped).toEqual([]);
+    const rel = plan.linkPayloads.npc_relationships;
+    expect(rel).toHaveLength(1);
+    expect(rel![0].campaign_id).toBeNull();
+    expect(rel![0].npc_id).toBe(plan.idMap.get("npc-a"));
+    expect(rel![0].related_npc_id).toBe(plan.idMap.get("npc-b"));
+  });
+
+  // #885 defect 3: a join row broken on both ends used to push one `dropped`
+  // entry per failed column, so `removedEntriesMessage` counted 2 for a
+  // single lost row. It must count 1.
+  it("a relationship broken at both ends yields ONE dropped entry naming both", () => {
+    const entities = [npcRow("npc-a", "Aldric")];
+    // One end resolvable-but-wrong-campaign (named via `referenced`), the
+    // other unreadable entirely (absent from `referenced`) — chosen to be
+    // distinguishable, so the single entry's name can be shown to carry both.
+    const referenced = refMap([{ id: "npc-other-campaign", name: "Cedric", campaignId: OTHER_CAMPAIGN }]);
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "npc_relationships",
+        row: {
+          id: "rel-1",
+          campaign_id: OTHER_CAMPAIGN,
+          npc_id: "npc-other-campaign",
+          related_npc_id: "npc-unreadable",
+          relationship_type: "ally",
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, referenced);
+    expect(plan.linkPayloads.npc_relationships).toBeUndefined();
+    expect(plan.dropped).toEqual([
+      {
+        label: "NPC relationships",
+        // ONE entry, not two — its single name carries both failed ends.
+        names: ["Cedric and a row you no longer have access to"],
+        removedEntries: true,
+        entryNoun: { singular: "relationship", plural: "relationships" },
       },
     ]);
   });

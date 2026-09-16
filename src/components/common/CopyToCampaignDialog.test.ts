@@ -263,6 +263,55 @@ describe("CopyToCampaignDialog — drop report", () => {
     wrapper.unmount();
   });
 
+  // #885 — a row can be left out for two different reasons, and giving the
+  // wrong one sends the DM hunting a visibility problem that is not there.
+  it("says a campaign-scoped row cannot travel to all campaigns, not that it cannot be seen", async () => {
+    mocks.planCopyFor.mockReturnValue({
+      payloads: [{}],
+      linkPayloads: {},
+      dropped: [
+        {
+          label: "NPC inventory",
+          names: ["Sealed courier satchel"],
+          removedEntries: true,
+          entryNoun: { singular: "inventory item", plural: "inventory items" },
+          reason: "needs-campaign",
+        },
+      ],
+    });
+    const wrapper = openDialog();
+    await flushPromises();
+
+    expect(bodyText()).toContain(
+      "1 inventory item belongs to a single campaign and cannot travel to all campaigns, so it was left out.",
+    );
+    expect(bodyText()).not.toContain("cannot see");
+    wrapper.unmount();
+  });
+
+  it("pluralises the campaign-scoped message", async () => {
+    mocks.planCopyFor.mockReturnValue({
+      payloads: [{}],
+      linkPayloads: {},
+      dropped: [
+        {
+          label: "NPC inventory",
+          names: ["Abacus", "Dagger"],
+          removedEntries: true,
+          entryNoun: { singular: "inventory item", plural: "inventory items" },
+          reason: "needs-campaign",
+        },
+      ],
+    });
+    const wrapper = openDialog();
+    await flushPromises();
+
+    expect(bodyText()).toContain(
+      "2 inventory items belong to a single campaign and cannot travel to all campaigns, so they were left out.",
+    );
+    wrapper.unmount();
+  });
+
   it("re-plans synchronously when the target changes, with no further fetch", async () => {
     mocks.loadCopySources.mockResolvedValue(scopedSources(["i1", "i2"], "camp-1"));
     const wrapper = openDialog();

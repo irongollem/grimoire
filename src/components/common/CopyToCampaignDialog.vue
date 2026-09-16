@@ -324,7 +324,17 @@ function removedEntriesMessage(d: DroppedReference): string {
   const n = d.names.length;
   const was = n === 1 ? "was" : "were";
   const verb = n === 1 ? "points" : "point";
-  return `${pluralizeCount(n, d.entryNoun.singular, d.entryNoun.plural)} ${verb} at rows the target campaign cannot see and ${was} left out.`;
+  const what = pluralizeCount(n, d.entryNoun.singular, d.entryNoun.plural);
+  // A row can be left out for two different reasons, and saying the wrong one
+  // sends the DM looking for a problem that is not there (#885). The default
+  // is the visibility rule; "needs-campaign" is a row that belongs to exactly
+  // one campaign by construction and so cannot follow a copy into the general
+  // scope, whatever it points at.
+  if (d.reason === "needs-campaign") {
+    const belong = n === 1 ? "belongs" : "belong";
+    return `${what} ${belong} to a single campaign and cannot travel to all campaigns, so ${n === 1 ? "it" : "they"} ${was} left out.`;
+  }
+  return `${what} ${verb} at rows the target campaign cannot see and ${was} left out.`;
 }
 
 // ── Confirm ──────────────────────────────────────────────────────────────────
