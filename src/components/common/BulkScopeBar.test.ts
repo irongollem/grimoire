@@ -69,6 +69,23 @@ describe("BulkScopeBar", () => {
   });
 });
 
+describe("allowGeneralScope (#885)", () => {
+  it("still offers 'Make available in all campaigns' by default, for the eight existing callers", () => {
+    const wrapper = mount(BulkScopeBar, { props: { count: 2, campaignName: "Curse of Strahd", selectableCount: 1 } });
+    expect(wrapper.findAll("button").some((b) => b.text().includes("Make available in all campaigns"))).toBe(true);
+  });
+
+  it("hides 'Make available in all campaigns' when allowGeneralScope is false", () => {
+    const wrapper = mount(BulkScopeBar, {
+      props: { count: 2, campaignName: "Curse of Strahd", selectableCount: 1, allowGeneralScope: false },
+    });
+    expect(wrapper.findAll("button").some((b) => b.text().includes("Make available in all campaigns"))).toBe(false);
+    // Move-to-campaign and Copy stay unaffected — only the general scope is suppressed.
+    expect(wrapper.findAll("button").some((b) => b.text().includes("Move to Curse of Strahd"))).toBe(true);
+    expect(wrapper.findAll("button").some((b) => b.text().includes("Copy to campaign"))).toBe(true);
+  });
+});
+
 describe("copy to campaign (#598)", () => {
   it("offers Copy alongside Move, and emits without naming a target — the dialog picks one", async () => {
     const wrapper = mount(BulkScopeBar, { props: { count: 3, campaignName: "Icewind Dale", selectableCount: 1 } });

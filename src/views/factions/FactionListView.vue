@@ -64,6 +64,7 @@
       :selectable-count="selectableIds.length"
       :busy="isMovingScope"
       :campaign-name="campaign.activeCampaign?.name ?? null"
+      :allow-general-scope="allowGeneralScope"
       class="mb-3"
       @select-all="selectAll(selectableIds)"
       @clear="clearSelection"
@@ -154,9 +155,15 @@ import { useScrollRestore } from "@/composables/useScrollRestore";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
+import { bulkScopeAllowsGeneral } from "@/composables/campaign/useBulkCampaignScope";
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
+
+// faction_deities has a NOT NULL campaign_id (#885) — a general move can
+// never carry a faction's deity links, so the bar never offers it here. See
+// bulkScopeAllowsGeneral's docstring and BulkScopeBar's allowGeneralScope.
+const allowGeneralScope = bulkScopeAllowsGeneral("factions");
 const { data: factions, isLoading } = useAllFactions();
 const { mutate: updateFaction } = useUpdateFaction();
 

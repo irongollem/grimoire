@@ -6,6 +6,7 @@
       :selectable-count="selectableIds.length"
       :busy="bulkMoving"
       :campaign-name="activeCampaign?.name ?? null"
+      :allow-general-scope="allowGeneralScope"
       class="mb-3"
       @select-all="selectAllShown"
       @clear="bulk.clear"
@@ -167,6 +168,7 @@ import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useBulkSelection } from "@/composables/useBulkSelection";
 import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
 import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
+import { bulkScopeAllowsGeneral } from "@/composables/campaign/useBulkCampaignScope";
 import { useCampaignStore } from "@/stores/campaign";
 
 const router = useRouter();
@@ -315,6 +317,11 @@ function isShared(npc: Npc): boolean {
 // library content, so every filtered row is selectable.
 const bulk = useBulkSelection();
 const { activeCampaign } = storeToRefs(useCampaignStore());
+
+// npc_inventory has a NOT NULL campaign_id (#885) — a general move can never
+// carry an NPC's inventory, so the bar never offers it here. See
+// bulkScopeAllowsGeneral's docstring and BulkScopeBar's allowGeneralScope.
+const allowGeneralScope = bulkScopeAllowsGeneral("npcs");
 
 // Every row a bulk move/copy may legally touch: passes the current filters.
 // Reused by "select all" and by the prune below, so both always agree on

@@ -64,6 +64,10 @@ vi.mock("@/composables/billing/useCreateGate", () => ({
 const mutateAsync = vi.fn().mockResolvedValue({ moved: 0 });
 vi.mock("@/composables/campaign/useBulkCampaignScope", () => ({
   useBulkCampaignScope: () => ({ mutateAsync, isPending: ref(false) }),
+  // faction_deities has a NOT NULL campaign_id (#885) — the real function
+  // returns false for "factions" for exactly this reason; pinned here rather
+  // than re-derived so this file breaks if FactionListView stops calling it.
+  bulkScopeAllowsGeneral: (table: string) => table !== "factions",
 }));
 
 const toastSuccess = vi.fn();
@@ -241,23 +245,23 @@ describe("FactionListView — bulk selection (#885)", () => {
     expect(call.ids).toEqual(["f1"]);
   });
 
-  it("making rows available in all campaigns calls the mutation with a null campaign id", async () => {
+  // faction_deities carries a NOT NULL campaign_id, so a general move can
+  // never fully succeed for a faction — bulkScopeAllowsGeneral("factions") is
+  // false, and FactionListView wires that straight to BulkScopeBar's
+  // allowGeneralScope (#885). "Make available in all campaigns" is therefore
+  // never offered here at all, rather than being offered and left to fail
+  // against the database.
+  it("never offers 'Make available in all campaigns' — a faction's deity links can't follow it there", async () => {
     factionsData.value = [faction({ id: "f1" })];
-    mutateAsync.mockResolvedValue({ moved: 1 });
     const wrapper = mountView();
     await toggleSelecting(wrapper);
 
     const selectAllBtn = wrapper.findAll("button").find((b) => b.text() === "Select all shown");
     await selectAllBtn!.trigger("click");
 
-    const allCampaignsBtn = wrapper.findAll("button").find((b) => b.text() === "Make available in all campaigns");
-    await allCampaignsBtn!.trigger("click");
-    await flushMicrotasks();
-
-    expect(mutateAsync).toHaveBeenCalledTimes(1);
-    const call = mutateAsync.mock.calls[0]![0] as { table: string; ids: string[]; campaignId: string | null };
-    expect(call.campaignId).toBeNull();
-    expect(call.ids).toEqual(["f1"]);
+    expect(wrapper.findAll("button").some((b) => b.text() === "Make available in all campaigns")).toBe(false);
+    // Move to the active campaign is unaffected — only the general scope is suppressed.
+    expect(wrapper.findAll("button").some((b) => b.text() === "Move to Neverwinter")).toBe(true);
   });
 });
 

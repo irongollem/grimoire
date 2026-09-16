@@ -26,7 +26,7 @@
         @click="onMoveToCampaign"
       />
       <AppButton
-        v-if="selectableCount > 0"
+        v-if="selectableCount > 0 && allowGeneralScope"
         variant="outline"
         size="sm"
         label="Make available in all campaigns"
@@ -71,11 +71,25 @@
  * a copy is never wanted. The asymmetry that leaves — you may copy into any
  * campaign but still move only between the active one and general — is the
  * shape of #596's decision, not an oversight to tidy up here.
+ *
+ * **`allowGeneralScope` narrows the pair to one option, and that is a
+ * different kind of exception again (#885).** NPCs and factions carry
+ * campaign-scoped children — `npc_inventory`, `faction_deities` — whose own
+ * `campaign_id` is **NOT NULL**. There is no such thing as an inventory line
+ * or a deity link belonging to every campaign at once, so "Make available in
+ * all campaigns" cannot be offered for those two lists: not because the
+ * entity row itself couldn't take a null `campaign_id`, but because a row it
+ * owns cannot. This is not a third scope and does not touch the no-picker
+ * rule above — it is the same two-option pair with one option suppressed
+ * when it is known in advance to fail. Default `true` so the other eight
+ * callers' bars are unchanged; `useBulkCampaignScope.ts`'s
+ * `bulkScopeAllowsGeneral(table)` is where the "known in advance" part is
+ * decided, so a caller never re-derives the reasoning itself.
  */
 import AppButton from "@/components/common/AppButton.vue";
 import { useCampaignStore } from "@/stores/campaign";
 
-const { count, busy = false, campaignName, selectableCount } = defineProps<{
+const { count, busy = false, campaignName, selectableCount, allowGeneralScope = true } = defineProps<{
   count: number;
   busy?: boolean;
   /** How many rows on screen could be selected at all. Zero means every row
@@ -87,6 +101,11 @@ const { count, busy = false, campaignName, selectableCount } = defineProps<{
   /** The active campaign's name, or null when there is no active campaign.
    *  Resolved by the caller (mirrors CampaignScopeField's own lookup). */
   campaignName: string | null;
+  /** False to hide "Make available in all campaigns" outright — for a list
+   *  whose rows can carry a NOT-NULL-campaign_id child, where that action
+   *  would always fail. See the docstring above (#885). Defaults to true so
+   *  the other eight callers keep their existing two-option bar. */
+  allowGeneralScope?: boolean;
 }>();
 
 const emit = defineEmits<{
