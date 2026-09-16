@@ -56,22 +56,41 @@ describe("useCopyToCampaignFlow", () => {
 
   it("onCopied toasts the singular noun for a count of one", () => {
     const { flow } = makeFlow({ noun: "monster" });
-    flow.onCopied({ copied: 1, targetName: "Neverwinter" });
+    flow.onCopied({ copied: 1, linked: 0, targetName: "Neverwinter" });
     expect(toastSuccess).toHaveBeenCalledWith("Copied 1 monster to Neverwinter.");
   });
 
   it("onCopied toasts the naive plural for counts other than one", () => {
     const { flow } = makeFlow({ noun: "monster" });
-    flow.onCopied({ copied: 3, targetName: "Neverwinter" });
+    flow.onCopied({ copied: 3, linked: 0, targetName: "Neverwinter" });
     expect(toastSuccess).toHaveBeenCalledWith("Copied 3 monsters to Neverwinter.");
   });
 
   it("onCopied uses the supplied irregular plural instead of the naive one", () => {
     const { flow } = makeFlow({ noun: "species", nounPlural: "species" });
-    flow.onCopied({ copied: 2, targetName: "Neverwinter" });
+    flow.onCopied({ copied: 2, linked: 0, targetName: "Neverwinter" });
     expect(toastSuccess).toHaveBeenCalledWith("Copied 2 species to Neverwinter.");
-    flow.onCopied({ copied: 1, targetName: "Neverwinter" });
+    flow.onCopied({ copied: 1, linked: 0, targetName: "Neverwinter" });
     expect(toastSuccess).toHaveBeenCalledWith("Copied 1 species to Neverwinter.");
+  });
+
+  // #885 — a batch can now carry join rows (relationships, faction
+  // memberships, inventory) alongside the entities. The dialog has just told
+  // the DM what was left BEHIND, so a bare "Copied 2 NPCs" after that reads
+  // as though nothing came with them.
+  it("onCopied names the links that travelled when there were any", () => {
+    const { flow } = makeFlow({ noun: "NPC" });
+    flow.onCopied({ copied: 2, linked: 1, targetName: "Neverwinter" });
+    expect(toastSuccess).toHaveBeenCalledWith("Copied 2 NPCs and 1 link to Neverwinter.");
+
+    flow.onCopied({ copied: 2, linked: 7, targetName: "Neverwinter" });
+    expect(toastSuccess).toHaveBeenCalledWith("Copied 2 NPCs and 7 links to Neverwinter.");
+  });
+
+  it("onCopied says nothing about links at zero — the original eight never have any", () => {
+    const { flow } = makeFlow({ noun: "monster" });
+    flow.onCopied({ copied: 3, linked: 0, targetName: "Neverwinter" });
+    expect(toastSuccess).toHaveBeenCalledWith("Copied 3 monsters to Neverwinter.");
   });
 
   it("onCopied closes the dialog and stops selection", () => {
@@ -79,7 +98,7 @@ describe("useCopyToCampaignFlow", () => {
     flow.openCopy();
     expect(flow.copyOpen.value).toBe(true);
 
-    flow.onCopied({ copied: 3, targetName: "Neverwinter" });
+    flow.onCopied({ copied: 3, linked: 0, targetName: "Neverwinter" });
 
     expect(flow.copyOpen.value).toBe(false);
     expect(stop).toHaveBeenCalledTimes(1);

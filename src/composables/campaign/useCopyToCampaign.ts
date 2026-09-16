@@ -3,14 +3,27 @@ import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useInvalidateQuota } from "@/composables/billing/useQuota";
 import { queueItemEmbedding } from "@/composables/items/useItems";
 import { queueMonsterEmbedding } from "@/composables/monsters/useMonsters";
+import { queueNpcEmbedding } from "@/composables/npcs/useNpcs";
+import { queueFactionEmbedding } from "@/composables/factions/useFactions";
 import { chunkArray } from "@/lib/utils";
 import { BULK_SCOPE_QUERY_KEY, type BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
-import { buildCopyPlan, libraryReferencedIds, referencedIds, type DroppedReference, type ReferencedRow } from "@/lib/campaign/copyToCampaign";
+import {
+  buildCopyPlan,
+  buildCopySetPlan,
+  JOIN_TABLES_FOR_ENTITY,
+  joinRowReferencedIds,
+  libraryReferencedIds,
+  referencedIds,
+  type CopyJoinTable,
+  type CopySetJoinRow,
+  type DroppedReference,
+  type ReferencedRow,
+} from "@/lib/campaign/copyToCampaign";
 
 /**
  * The copy-to-campaign mutation (#598, wave 1; reworked #875 wave 2 to fetch
  * sources once and plan per target purely — see `loadCopySources`/
- * `planCopyFor` below). Copies a selection of rows from one of the eight
+ * `planCopyFor` below). Copies a selection of rows from one of the ten
  * bulk-scope tables into another campaign the account DMs (or into "every
  * campaign", targetCampaignId null). The planning — what to drop, what to
  * clear, what travels — lives in `copyToCampaign.ts`; this module only
@@ -18,8 +31,25 @@ import { buildCopyPlan, libraryReferencedIds, referencedIds, type DroppedReferen
  *
  * No migration backs this: RLS's INSERT `WITH CHECK` is
  * `auth.uid() = user_id AND (campaign_id IS NULL OR private.is_campaign_dm(campaign_id))`
- * on all eight tables (verified in production 14 Sep 2026), so an insert into
+ * on all ten tables (verified in production 14 Sep 2026), so an insert into
  * any campaign the account DMs already works.
+ *
+ * ## Batch copying npcs/factions (#885)
+ *
+ * Those two tables reference each other mostly through join tables
+ * (`npc_relationships`, `npc_inventory`, `faction_npcs`, `faction_locations`,
+ * `faction_items`, `faction_deities`, `faction_relations`), so a copy of them
+ * has to see the whole selection at once rather than planning row by row —
+ * see `copyToCampaign.ts`'s "Copying a batch" doc for the three rules this
+ * follows. This module's job in that story is unchanged in kind, only in
+ * shape: `loadCopySources` also fetches the batch's join rows and everything
+ * *they* reference (`joinRowReferencedIds`); `planCopyFor` hands the whole
+ * batch to `buildCopySetPlan` instead of looping `buildCopyPlan` per row; and
+ * `copyToCampaign()` inserts the entity rows first, then the join rows — a
+ * join row names an entity's *minted* id (see `buildCopySetPlan`'s idMap), so
+ * it must not be inserted before that entity exists. The eight original
+ * tables never produce a join row, so `linkPayloads` is always `{}` for them
+ * and every step below is a no-op — their path is exactly what it was.
  */
 
 /** A long `.in()` list travels in the URL — chunk exactly like
@@ -36,6 +66,13 @@ export interface LoadCopySourcesInput {
   ids: readonly string[];
 }
 
+/** The two entity tables whose batches carry join rows — see the module
+ *  docstring's "Batch copying npcs/factions" section. A plain `Set` rather
+ *  than folding this into `JOIN_TABLES_FOR_ENTITY`'s own keys, because a
+ *  runtime check needs an `unknown`-safe membership test and
+ *  `JOIN_TABLES_FOR_ENTITY` is typed to require the narrowed key already. */
+const JOIN_ENTITY_TABLES = new Set<BulkScopeTable>(["npcs", "factions"]);
+
 /**
  * Everything a copy plan needs that does NOT depend on which target campaign
  * is picked: the source rows themselves, every row they reference (so
@@ -47,12 +84,18 @@ export interface LoadCopySourcesInput {
 export interface CopySources {
   table: BulkScopeTable;
   sourceRows: Record<string, unknown>[];
+  /** Join-table rows riding along with the batch — always empty for the
+   *  eight tables that never produce one. See `JOIN_TABLES_FOR_ENTITY`. */
+  joinRows: CopySetJoinRow[];
   referenced: ReadonlyMap<string, ReferencedRow>;
   userId: string;
 }
 
 export interface CopyPlanForTarget {
   payloads: Record<string, unknown>[];
+  /** Join-table insert payloads, keyed by table — always `{}` for the eight
+   *  tables that never produce one. See `buildCopySetPlan`. */
+  linkPayloads: Partial<Record<CopyJoinTable, Record<string, unknown>[]>>;
   dropped: DroppedReference[];
 }
 
@@ -76,6 +119,9 @@ export interface CopyToCampaignInput {
   table: BulkScopeTable;
   /** Already-planned insert payloads for the chosen target, from `planCopyFor`. */
   payloads: Record<string, unknown>[];
+  /** Already-planned join-row insert payloads, from `planCopyFor` — always
+   *  `{}` for the eight tables that never produce one. */
+  linkPayloads: Partial<Record<CopyJoinTable, Record<string, unknown>[]>>;
   /** The plan's own drop report, carried straight through to the result — the
    *  write does not change what was dropped, only whether it happened. */
   dropped: DroppedReference[];
@@ -85,41 +131,95 @@ export interface CopyToCampaignInput {
 
 export interface CopyToCampaignResult {
   copied: number;
+  /** Join rows (relationships, memberships, …) inserted alongside the
+   *  entities — always 0 for the eight tables that never produce one. Not
+   *  folded into `copied`: those rows are not copies of anything the DM
+   *  selected, they are the links between the copies, so a caller building a
+   *  toast can say "3 NPCs (7 relationships)" rather than either inflating
+   *  the headline count or silently dropping how many links travelled. */
+  linked: number;
   dropped: DroppedReference[];
   needsSources: LibrarySourceNotice | null;
 }
 
-async function fetchRows(table: string, ids: readonly string[], columns: string): Promise<Record<string, unknown>[]> {
+async function fetchRows(
+  table: string,
+  ids: readonly string[],
+  columns: string,
+  /** Column to match `ids` against. Defaults to the row's own id — every
+   *  caller except the join-row fetch below wants that; a join row is looked
+   *  up by one of ITS OWN foreign-key columns instead (`npc_id`,
+   *  `related_npc_id`, …), because the ids in hand there are the batch's
+   *  entity ids, not the join row's own id. */
+  idColumn = "id",
+): Promise<Record<string, unknown>[]> {
   const rows: Record<string, unknown>[] = [];
   for (const chunk of chunkArray(ids, CHUNK_SIZE)) {
     if (!chunk.length) continue;
-    const { data, error } = await supabase.from(table).select(columns).in("id", chunk);
+    const { data, error } = await supabase.from(table).select(columns).in(idColumn, chunk);
     if (error) throw error;
-    // `table` and `columns` are both runtime strings (one of the eight
-    // bulk-scope tables, or one of the tables they reference), so supabase-js
-    // cannot infer a row shape here — the cast is genuinely from `unknown`.
+    // `table` and `columns` are both runtime strings (one of the ten
+    // bulk-scope tables, one of the tables they reference, or a join table),
+    // so supabase-js cannot infer a row shape here — the cast is genuinely
+    // from `unknown`.
     rows.push(...((data ?? []) as unknown as Record<string, unknown>[]));
   }
   return rows;
 }
 
+/**
+ * The join-table rows a batch of npcs/factions carries, per
+ * `JOIN_TABLES_FOR_ENTITY`: one `.in(column, batchIds)` read per
+ * `(joinTable, matchColumn)` pair, all fired concurrently — a two-column
+ * match (an NPC-to-NPC relationship, a faction-to-faction relation) can
+ * return the same row from both sides, so results are de-duplicated by the
+ * join row's own id before returning. Empty, with no request at all, for
+ * every other table (`JOIN_ENTITY_TABLES` guards the one call site).
+ */
+async function fetchJoinRowsForBatch(
+  table: "npcs" | "factions",
+  ids: readonly string[],
+): Promise<CopySetJoinRow[]> {
+  const reads = JOIN_TABLES_FOR_ENTITY[table].flatMap(({ table: joinTable, matchColumns }) =>
+    matchColumns.map((column) =>
+      fetchRows(joinTable, ids, "*", column).then((rows) => ({ joinTable, rows })),
+    ),
+  );
+  const results = await Promise.all(reads);
+
+  const byId = new Map<string, CopySetJoinRow>();
+  for (const { joinTable, rows } of results) {
+    for (const row of rows) {
+      const rowId = row.id as string;
+      if (!byId.has(rowId)) byId.set(rowId, { table: joinTable, row });
+    }
+  }
+  return [...byId.values()];
+}
+
 /** One `id, name, campaign_id` lookup per referenced table, for the union of
- *  ids every source row's `referencedIds()` names — so a 50-row selection
- *  costs one request per distinct referenced table, not one per row. The
- *  per-table reads run concurrently: nothing here depends on another
- *  referenced table's result. */
+ *  ids every source row's `referencedIds()` names, plus — for a batch that
+ *  carries join rows — every id `joinRowReferencedIds()` names (a join row's
+ *  endpoint can point outside the batch, e.g. a faction membership for an NPC
+ *  the DM didn't select to copy; the visibility rule still needs a
+ *  `ReferencedRow` for it). A 50-row selection still costs one request per
+ *  distinct referenced table, not one per row. The per-table reads run
+ *  concurrently: nothing here depends on another referenced table's result. */
 async function resolveReferencedRows(
   table: BulkScopeTable,
   sourceRows: readonly Record<string, unknown>[],
+  joinRows: readonly CopySetJoinRow[],
 ): Promise<Map<string, ReferencedRow>> {
   const idsByTable = new Map<string, Set<string>>();
-  for (const row of sourceRows) {
-    for (const [refTable, ids] of Object.entries(referencedIds(table, row))) {
+  const addAll = (byTable: Record<string, string[]>): void => {
+    for (const [refTable, ids] of Object.entries(byTable)) {
       const set = idsByTable.get(refTable) ?? new Set<string>();
       for (const id of ids) set.add(id);
       idsByTable.set(refTable, set);
     }
-  }
+  };
+  for (const row of sourceRows) addAll(referencedIds(table, row));
+  for (const { table: joinTable, row } of joinRows) addAll(joinRowReferencedIds(joinTable, row));
 
   const referenced = new Map<string, ReferencedRow>();
   const results = await Promise.all(
@@ -168,15 +268,22 @@ function mergeDropped(entries: readonly DroppedReference[]): DroppedReference[] 
  * for each target the DM tries in the picker, with no further request.
  */
 export async function loadCopySources({ table, ids }: LoadCopySourcesInput): Promise<CopySources> {
-  const sourceRows = await fetchRows(table, ids, "*");
-  const referenced = await resolveReferencedRows(table, sourceRows);
+  // The join-row read is independent of the source-row read (different
+  // tables, different columns), so they fire together rather than one after
+  // the other — `joinRows` is `[]` with no request at all for the eight
+  // tables that never produce one.
+  const [sourceRows, joinRows] = await Promise.all([
+    fetchRows(table, ids, "*"),
+    JOIN_ENTITY_TABLES.has(table) ? fetchJoinRowsForBatch(table as "npcs" | "factions", ids) : Promise.resolve([]),
+  ]);
+  const referenced = await resolveReferencedRows(table, sourceRows, joinRows);
   // The copy is owned by whoever is copying (see buildCopyPlan). No session
   // means no owner to give it, and RLS would reject the insert anyway — say
   // so here rather than letting a non-null assertion throw a TypeError two
   // frames later with nothing in it a reader can act on.
   const user = getCurrentUser();
   if (!user) throw new Error("Sign in again to copy content to another campaign.");
-  return { table, sourceRows, referenced, userId: user.id };
+  return { table, sourceRows, joinRows, referenced, userId: user.id };
 }
 
 /**
@@ -184,8 +291,26 @@ export async function loadCopySources({ table, ids }: LoadCopySourcesInput): Pro
  * fetching — `sources.referenced` already carries enough (each row's own
  * `campaignId`) to decide visibility in ANY target locally, which is what
  * lets this run synchronously every time the DM changes the picker.
+ *
+ * npcs/factions branch into `buildCopySetPlan` (#885): those two tables'
+ * batches carry join rows that reference each other's *minted* ids, which
+ * only a whole-batch planner can resolve — see the module docstring. The
+ * other eight tables keep the original per-row loop unchanged; their
+ * `linkPayloads` is always `{}`, because `sources.joinRows` is always `[]`
+ * for them.
  */
 export function planCopyFor(sources: CopySources, targetCampaignId: string | null): CopyPlanForTarget {
+  const table = sources.table;
+  if (table === "npcs" || table === "factions") {
+    const entities = sources.sourceRows.map((row) => ({ table, row }));
+    const setPlan = buildCopySetPlan(entities, sources.joinRows, targetCampaignId, sources.userId, sources.referenced);
+    return {
+      payloads: setPlan.payloads.map((p) => p.payload),
+      linkPayloads: setPlan.linkPayloads,
+      dropped: setPlan.dropped,
+    };
+  }
+
   const payloads: Record<string, unknown>[] = [];
   const dropped: DroppedReference[] = [];
   for (const row of sources.sourceRows) {
@@ -193,7 +318,7 @@ export function planCopyFor(sources: CopySources, targetCampaignId: string | nul
     payloads.push(plan.payload);
     dropped.push(...plan.dropped);
   }
-  return { payloads, dropped: mergeDropped(dropped) };
+  return { payloads, linkPayloads: {}, dropped: mergeDropped(dropped) };
 }
 
 /**
@@ -259,7 +384,7 @@ async function queueEmbeddingsInGroups(
 }
 
 async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaignResult> {
-  const { table, payloads, dropped, needsSources } = input;
+  const { table, payloads, linkPayloads, dropped, needsSources } = input;
 
   const insertedIds: string[] = [];
   // One background chain for the whole copy, so the in-flight bound holds
@@ -270,8 +395,8 @@ async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaig
   for (const chunk of chunkArray(payloads, CHUNK_SIZE)) {
     if (!chunk.length) continue;
     // A quota_exceeded error from the enforce_quota trigger (monsters,
-    // puzzle_rooms) rejects here uncaught — the caller turns it into the
-    // paywall, this mutation does not own that decision.
+    // puzzle_rooms, npcs, factions) rejects here uncaught — the caller turns
+    // it into the paywall, this mutation does not own that decision.
     const { data, error } = await supabase.from(table).insert(chunk).select("id");
     if (error) throw error;
     const chunkIds = (data ?? []).map((r) => r.id as string);
@@ -282,15 +407,57 @@ async function copyToCampaign(input: CopyToCampaignInput): Promise<CopyToCampaig
     // unretrievable until the next admin backfill (mirrors useNpcs.ts:409 and
     // useLocations.ts:513). Queued right after THIS chunk's insert succeeds,
     // not after the whole loop, so a later chunk's failure cannot leave an
-    // earlier chunk's rows unembedded. Only items and monsters have an
-    // embedding corpus among the eight bulk-scope tables.
+    // earlier chunk's rows unembedded. Four of the ten bulk-scope tables have
+    // an embedding corpus.
     if (table === "items") embedding = embedding.then(() => queueEmbeddingsInGroups(chunkIds, queueItemEmbedding));
     if (table === "monsters") embedding = embedding.then(() => queueEmbeddingsInGroups(chunkIds, queueMonsterEmbedding));
+    if (table === "npcs") embedding = embedding.then(() => queueEmbeddingsInGroups(chunkIds, queueNpcEmbedding));
+    if (table === "factions") embedding = embedding.then(() => queueEmbeddingsInGroups(chunkIds, queueFactionEmbedding));
   }
   void embedding;
 
-  return { copied: insertedIds.length, dropped, needsSources };
+  // Join rows name an entity's *minted* id (buildCopySetPlan mints every
+  // copy's id before planning any payload — see copyToCampaign.ts), so they
+  // must not be inserted until every entity row above has actually committed.
+  // A throw anywhere in the loop above exits before this point is ever
+  // reached, which is exactly right: a join row must never be written
+  // pointing at an entity insert that didn't happen. `linkPayloads` is `{}`
+  // for the eight tables that never produce one, so this is a no-op for them.
+  let linked = 0;
+  for (const [joinTable, rows] of Object.entries(linkPayloads) as [CopyJoinTable, Record<string, unknown>[]][]) {
+    if (!rows.length) continue;
+    for (const chunk of chunkArray(rows, CHUNK_SIZE)) {
+      if (!chunk.length) continue;
+      const { data, error } = await supabase.from(joinTable).insert(chunk).select("id");
+      if (error) throw error;
+      linked += (data ?? []).length;
+    }
+  }
+
+  return { copied: insertedIds.length, linked, dropped, needsSources };
 }
+
+/** Each join table's own list-query key(s) to invalidate when a batch copy
+ *  inserted at least one row into it — mirrors `BULK_SCOPE_QUERY_KEY` above,
+ *  but a join table can be read from either endpoint (a faction's own member
+ *  list AND an NPC's own faction list), so some entries carry two keys.
+ *  Sourced from useNpcRelations.ts, useNpcInventory.ts and useFactions.ts —
+ *  copied rather than imported for the same reason `BULK_SCOPE_QUERY_KEY`'s
+ *  own docstring gives: importing the owning composables here would pull
+ *  faction and NPC detail machinery into every page that can bulk-copy
+ *  anything. Deliberately broad (the table-level key, not a specific
+ *  npc/faction id): a batch's new ids are scattered across however many
+ *  entities it copied, and invalidating the collection is the same trade the
+ *  eight-table `BULK_SCOPE_QUERY_KEY` invalidation already makes. */
+const JOIN_TABLE_QUERY_KEYS: Record<CopyJoinTable, string[]> = {
+  npc_relationships: ["npc_relationships"],
+  npc_inventory: ["npc-inventory"],
+  faction_npcs: ["faction-npcs", "npc-factions"],
+  faction_locations: ["faction-locations"],
+  faction_items: ["faction-items"],
+  faction_deities: ["faction-deities", "deity-factions"],
+  faction_relations: ["faction-relations"],
+};
 
 export function useCopyToCampaign() {
   const queryClient = useQueryClient();
@@ -298,10 +465,16 @@ export function useCopyToCampaign() {
 
   return useMutation({
     mutationFn: copyToCampaign,
-    onSuccess: (_data, { table }) => {
+    onSuccess: (_data, { table, linkPayloads }) => {
       queryClient.invalidateQueries({ queryKey: [BULK_SCOPE_QUERY_KEY[table]] });
-      // Only these two of the eight tables carry an enforce_quota trigger.
-      if (table === "monsters" || table === "puzzle_rooms") invalidateQuota(table);
+      // Four of the ten tables carry an enforce_quota trigger.
+      if (table === "monsters" || table === "puzzle_rooms" || table === "npcs" || table === "factions") {
+        invalidateQuota(table);
+      }
+      for (const [joinTable, rows] of Object.entries(linkPayloads) as [CopyJoinTable, Record<string, unknown>[]][]) {
+        if (!rows.length) continue;
+        for (const key of JOIN_TABLE_QUERY_KEYS[joinTable]) queryClient.invalidateQueries({ queryKey: [key] });
+      }
     },
   });
 }

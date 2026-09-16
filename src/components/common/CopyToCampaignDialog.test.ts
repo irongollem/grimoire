@@ -83,7 +83,7 @@ beforeEach(() => {
   mocks.loadCopySources.mockReset().mockImplementation(async ({ ids }: { table: string; ids: readonly string[] }) =>
     scopedSources(ids),
   );
-  mocks.planCopyFor.mockReset().mockReturnValue({ payloads: [{}], dropped: [] });
+  mocks.planCopyFor.mockReset().mockReturnValue({ payloads: [{}], linkPayloads: {}, dropped: [] });
   mocks.resolveUnenabledSources.mockReset().mockResolvedValue(null);
   mocks.mutateAsync.mockReset();
   if (mocks.isPending) mocks.isPending.value = false;
@@ -192,7 +192,7 @@ describe("CopyToCampaignDialog — target picker", () => {
 
 describe("CopyToCampaignDialog — drop report", () => {
   it("renders nothing extra when the plan drops nothing — a picker and a Copy button, no ceremony", async () => {
-    mocks.planCopyFor.mockReturnValue({ payloads: [{}], dropped: [] });
+    mocks.planCopyFor.mockReturnValue({ payloads: [{}], linkPayloads: {}, dropped: [] });
     const wrapper = openDialog();
     await flushPromises();
 
@@ -204,6 +204,7 @@ describe("CopyToCampaignDialog — drop report", () => {
   it("names the rows left behind for a field-cleared reference", async () => {
     mocks.planCopyFor.mockReturnValue({
       payloads: [{}],
+      linkPayloads: {},
       dropped: [
         {
           label: "Linked spells",
@@ -224,6 +225,7 @@ describe("CopyToCampaignDialog — drop report", () => {
   it("reports a whole-entry removal with the count-based wording, using the noun's plural for two", async () => {
     mocks.planCopyFor.mockReturnValue({
       payloads: [{}],
+      linkPayloads: {},
       dropped: [
         {
           label: "Loot entries",
@@ -243,6 +245,7 @@ describe("CopyToCampaignDialog — drop report", () => {
   it("uses the noun's singular for exactly one removed entry — the grammar F22 fixed", async () => {
     mocks.planCopyFor.mockReturnValue({
       payloads: [{}],
+      linkPayloads: {},
       dropped: [
         {
           label: "Granted spells",
@@ -284,8 +287,9 @@ describe("CopyToCampaignDialog — confirm", () => {
   it("sends the plan's payloads (not raw ids) to the mutation, and emits copied with the destination's name", async () => {
     mocks.loadCopySources.mockResolvedValue(scopedSources(["i1", "i2"], "camp-1"));
     const dropped: never[] = [];
-    mocks.planCopyFor.mockReturnValue({ payloads: [{ campaign_id: null, name: "Whatever" }], dropped });
-    mocks.mutateAsync.mockResolvedValue({ copied: 2, dropped: [], needsSources: null });
+    const linkPayloads = {};
+    mocks.planCopyFor.mockReturnValue({ payloads: [{ campaign_id: null, name: "Whatever" }], linkPayloads, dropped });
+    mocks.mutateAsync.mockResolvedValue({ copied: 2, linked: 0, dropped: [], needsSources: null });
     const wrapper = openDialog();
     await flushPromises();
 
@@ -295,13 +299,50 @@ describe("CopyToCampaignDialog — confirm", () => {
     expect(mocks.mutateAsync).toHaveBeenCalledWith({
       table: "items",
       payloads: [{ campaign_id: null, name: "Whatever" }],
+      linkPayloads,
       dropped,
       needsSources: null,
     });
     // The name travels with the count because the caller's toast is the only
     // confirmation there is — the copies landed somewhere this list cannot show.
-    expect(wrapper.emitted("copied")).toEqual([[{ copied: 2, targetName: "all campaigns" }]]);
+    // `linked` is 0 here — items never produce a join row (#885) — but still
+    // travels through the emit so a future npcs/factions caller can read it.
+    expect(wrapper.emitted("copied")).toEqual([[{ copied: 2, linked: 0, targetName: "all campaigns" }]]);
     expect(wrapper.emitted("close")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  // #885: an npcs/factions batch's plan carries linkPayloads — this component
+  // doesn't build that shape (planCopyFor does, and it's mocked away here),
+  // but it must pass it through to the mutation untouched and surface the
+  // mutation's own `linked` count on the emit, exactly like `copied`.
+  it("passes linkPayloads through for an npcs/factions batch and reports how many join rows the copy created", async () => {
+    mocks.loadCopySources.mockResolvedValue({
+      table: "npcs",
+      sourceRows: [
+        { id: "n1", campaign_id: "camp-1" },
+        { id: "n2", campaign_id: "camp-1" },
+      ],
+      referenced: new Map(),
+      userId: "user-1",
+    });
+    const linkPayloads = { npc_relationships: [{ npc_id: "new-1", related_npc_id: "new-2" }] };
+    mocks.planCopyFor.mockReturnValue({ payloads: [{ id: "new-1" }, { id: "new-2" }], linkPayloads, dropped: [] });
+    mocks.mutateAsync.mockResolvedValue({ copied: 2, linked: 1, dropped: [], needsSources: null });
+    const wrapper = openDialog({ table: "npcs", ids: ["n1", "n2"], label: "NPC" });
+    await flushPromises();
+
+    copyButton()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await flushPromises();
+
+    expect(mocks.mutateAsync).toHaveBeenCalledWith({
+      table: "npcs",
+      payloads: [{ id: "new-1" }, { id: "new-2" }],
+      linkPayloads,
+      dropped: [],
+      needsSources: null,
+    });
+    expect(wrapper.emitted("copied")).toEqual([[{ copied: 2, linked: 1, targetName: "all campaigns" }]]);
     wrapper.unmount();
   });
 

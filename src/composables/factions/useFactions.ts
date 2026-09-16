@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/vue-query";
 import { computed, toValue, type Ref, type MaybeRefOrGetter } from "vue";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { reportHandledError } from "@/lib/observability/sentry";
 import { useCampaignStore } from "@/stores/campaign";
 import { getSetting } from "@/settings/index";
 import { matchSettingRowIds, stampSettingSource } from "@/lib/populateSetting/settingContent";
@@ -87,11 +88,24 @@ export function usePlayerVisibleFactions() {
  * unembedded and the next backfill sweep collects it. The edge function
  * short-circuits when the embed text's hash is unchanged, so a save that
  * touched an unrelated field costs no API call at all.
+ *
+ * Exported and `Promise<void>`-returning (#885): a copy-to-campaign batch
+ * bulk-inserts factions directly, bypassing `useCreateFaction`'s own
+ * `onSuccess` — see `copyToCampaign()` in useCopyToCampaign.ts, which calls
+ * this once per newly inserted faction via `queueEmbeddingsInGroups`, the
+ * same bulk path `queueItemEmbedding`/`queueMonsterEmbedding`/
+ * `queueNpcEmbedding` already support. That path needs to await one
+ * settling to bound how many are in flight, so this can no longer be a bare
+ * `void`-returning fire-and-forget the way it was when only single-row
+ * callers below used it — they keep ignoring the return value.
  */
-function queueFactionEmbedding(id: string): void {
-  void supabase.functions
+export function queueFactionEmbedding(id: string): Promise<void> {
+  return supabase.functions
     .invoke("embed-content", { body: { mode: "single", entity: "faction", id } })
-    .catch(() => { /* non-fatal — see above */ });
+    .then(
+      () => undefined,
+      (error: unknown) => { reportHandledError(error, "queueFactionEmbedding", { id }); },
+    );
 }
 
 export function useCreateFaction() {

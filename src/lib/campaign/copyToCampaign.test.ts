@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildCopyPlan, libraryReferencedIds, referencedIds, type ReferencedRow } from "./copyToCampaign";
+import {
+  buildCopyPlan,
+  buildCopySetPlan,
+  JOIN_TABLES_FOR_ENTITY,
+  joinRowReferencedIds,
+  libraryReferencedIds,
+  referencedIds,
+  type CopyJoinTable,
+  type CopySetJoinRow,
+  type CopySetSourceRow,
+  type ReferencedRow,
+} from "./copyToCampaign";
 import { BULK_SCOPE_QUERY_KEY, type BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope";
 
 const USER_ID = "user-1";
@@ -458,6 +469,350 @@ describe("libraryReferencedIds", () => {
     const { payload, dropped } = buildCopyPlan("species", row, TARGET_CAMPAIGN, USER_ID, new Map());
     expect((payload.granted_spells as Array<{ spell_id: string }>)[0].spell_id).toBe(LIBRARY_SLUG);
     expect(dropped).toEqual([]);
+  });
+});
+
+describe("referencedIds — npcs and factions", () => {
+  it("npcs: location_id, linked_monster_id, scriptorium_doc_id", () => {
+    expect(
+      referencedIds("npcs", {
+        location_id: "loc-1",
+        linked_monster_id: "mon-1",
+        scriptorium_doc_id: "doc-1",
+      }),
+    ).toEqual({ locations: ["loc-1"], monsters: ["mon-1"], scriptorium_documents: ["doc-1"] });
+    expect(referencedIds("npcs", { location_id: null, linked_monster_id: null, scriptorium_doc_id: null })).toEqual(
+      {},
+    );
+  });
+
+  it("factions: no reference columns at all", () => {
+    expect(referencedIds("factions", { name: "The Iron Circle" })).toEqual({});
+  });
+});
+
+describe("buildCopyPlan — npcs and factions (single row, no batch)", () => {
+  const LOOKUPS = refMap([
+    { id: "loc-1", name: "The Sunken Keep", campaignId: TARGET_CAMPAIGN },
+    { id: "mon-1", name: "Owlbear", campaignId: OTHER_CAMPAIGN },
+  ]);
+
+  it("clears location_id/linked_monster_id/scriptorium_doc_id per the visibility rule", () => {
+    const row = { id: "n1", location_id: "loc-1", linked_monster_id: "mon-1", scriptorium_doc_id: "doc-missing" };
+    const { payload, dropped } = buildCopyPlan("npcs", row, TARGET_CAMPAIGN, USER_ID, LOOKUPS);
+    expect(payload.location_id).toBe("loc-1"); // visible, kept
+    expect(payload.linked_monster_id).toBeNull(); // other campaign, dropped
+    expect(payload.scriptorium_doc_id).toBeNull(); // unreadable, dropped
+    expect(dropped).toEqual([
+      {
+        label: "Linked monster",
+        names: ["Owlbear"],
+        removedEntries: false,
+        entryNoun: { singular: "linked monster", plural: "linked monsters" },
+      },
+      {
+        label: "Linked document",
+        names: ["a row you no longer have access to"],
+        removedEntries: false,
+        entryNoun: { singular: "linked document", plural: "linked documents" },
+      },
+    ]);
+  });
+
+  it("factions carry nothing to filter — the row passes through untouched", () => {
+    const row = { id: "f1", name: "The Iron Circle", faction_type: "Guild" };
+    const { payload, dropped } = buildCopyPlan("factions", row, TARGET_CAMPAIGN, USER_ID, new Map());
+    expect(payload.name).toBe("The Iron Circle");
+    expect(dropped).toEqual([]);
+  });
+});
+
+// #885: mixing npcs/factions into the tables covered by the pre-existing
+// generic switch-exhaustiveness/id-stripping behaviour, without disturbing the
+// original eight's own assertions (which still run, unmodified, above).
+describe("buildCopyPlan — npcs and factions follow the same universal shape as the original eight", () => {
+  it.each(["npcs", "factions"] as BulkScopeTable[])(
+    "strips id/created_at/updated_at and re-scopes campaign_id + user_id for %s",
+    (table) => {
+      const row = {
+        id: "src-row",
+        user_id: "someone-else",
+        created_at: "2020-01-01",
+        updated_at: "2020-01-02",
+        campaign_id: OTHER_CAMPAIGN,
+        name: "Whatever",
+      };
+      const { payload } = buildCopyPlan(table, row, TARGET_CAMPAIGN, USER_ID, new Map());
+      expect(payload.id).toBeUndefined();
+      expect(payload.campaign_id).toBe(TARGET_CAMPAIGN);
+      expect(payload.user_id).toBe(USER_ID);
+    },
+  );
+
+  it.each(["npcs", "factions"] as BulkScopeTable[])("has no source-identity columns to strip for %s", (table) => {
+    const row = { id: "src-row", name: "Whatever" };
+    const { payload } = buildCopyPlan(table, row, TARGET_CAMPAIGN, USER_ID, new Map());
+    expect("source_document_key" in payload).toBe(false);
+  });
+});
+
+// ── joinRowReferencedIds ─────────────────────────────────────────────────────
+
+describe("joinRowReferencedIds", () => {
+  it("npc_relationships: both npc columns, keyed under npcs", () => {
+    expect(joinRowReferencedIds("npc_relationships", { npc_id: "npc-a", related_npc_id: "npc-b" })).toEqual({
+      npcs: ["npc-a", "npc-b"],
+    });
+  });
+
+  it("npc_inventory: npc_id under npcs, item_id under items, never library_item_id", () => {
+    expect(
+      joinRowReferencedIds("npc_inventory", { npc_id: "npc-a", item_id: "item-1", library_item_id: LIBRARY_SLUG }),
+    ).toEqual({ npcs: ["npc-a"], items: ["item-1"] });
+    expect(joinRowReferencedIds("npc_inventory", { npc_id: "npc-a", item_id: null })).toEqual({ npcs: ["npc-a"] });
+  });
+
+  it("faction_npcs, faction_locations, faction_items, faction_deities: faction_id plus the other endpoint", () => {
+    expect(joinRowReferencedIds("faction_npcs", { faction_id: "fac-a", npc_id: "npc-a" })).toEqual({
+      factions: ["fac-a"],
+      npcs: ["npc-a"],
+    });
+    expect(joinRowReferencedIds("faction_locations", { faction_id: "fac-a", location_id: "loc-1" })).toEqual({
+      factions: ["fac-a"],
+      locations: ["loc-1"],
+    });
+    expect(joinRowReferencedIds("faction_items", { faction_id: "fac-a", item_id: "item-1" })).toEqual({
+      factions: ["fac-a"],
+      items: ["item-1"],
+    });
+    expect(joinRowReferencedIds("faction_deities", { faction_id: "fac-a", deity_id: "deity-1" })).toEqual({
+      factions: ["fac-a"],
+      deities: ["deity-1"],
+    });
+  });
+
+  it("faction_relations: both faction columns, keyed under factions", () => {
+    expect(joinRowReferencedIds("faction_relations", { faction_id: "fac-a", target_faction_id: "fac-b" })).toEqual({
+      factions: ["fac-a", "fac-b"],
+    });
+  });
+});
+
+// ── buildCopySetPlan ─────────────────────────────────────────────────────────
+
+describe("buildCopySetPlan", () => {
+  function npcRow(id: string, name: string): CopySetSourceRow {
+    return {
+      table: "npcs",
+      row: { id, name, campaign_id: OTHER_CAMPAIGN, location_id: null, linked_monster_id: null, scriptorium_doc_id: null },
+    };
+  }
+
+  function factionRow(id: string, name: string): CopySetSourceRow {
+    return { table: "factions", row: { id, name, campaign_id: OTHER_CAMPAIGN, faction_type: "Guild" } };
+  }
+
+  it("mints a uuid per entity row, distinct from the source id", () => {
+    const { idMap } = buildCopySetPlan([npcRow("npc-a", "Aldric")], [], TARGET_CAMPAIGN, USER_ID, new Map());
+    const minted = idMap.get("npc-a");
+    expect(minted).toBeDefined();
+    expect(minted).not.toBe("npc-a");
+    expect(minted).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("two NPCs referencing each other keep the relationship, rewritten to minted ids", () => {
+    const entities = [npcRow("npc-a", "Aldric"), npcRow("npc-b", "Brenna")];
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "npc_relationships",
+        row: {
+          id: "rel-1",
+          user_id: "someone-else",
+          campaign_id: OTHER_CAMPAIGN,
+          npc_id: "npc-a",
+          related_npc_id: "npc-b",
+          relationship_type: "ally",
+          notes: null,
+          created_at: "2020-01-01",
+          updated_at: "2020-01-01",
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, new Map());
+
+    expect(plan.dropped).toEqual([]);
+    expect(plan.payloads).toHaveLength(2);
+    const mintedA = plan.idMap.get("npc-a");
+    const mintedB = plan.idMap.get("npc-b");
+    expect(mintedA).toBeDefined();
+    expect(mintedB).toBeDefined();
+
+    const rel = plan.linkPayloads.npc_relationships;
+    expect(rel).toHaveLength(1);
+    expect(rel![0].npc_id).toBe(mintedA);
+    expect(rel![0].related_npc_id).toBe(mintedB);
+    expect(rel![0].campaign_id).toBe(TARGET_CAMPAIGN);
+    expect(rel![0].id).toBeUndefined(); // Postgres mints the join row's own id
+    expect(rel![0].user_id).toBe(USER_ID);
+  });
+
+  it("an NPC relationship to an NPC outside the batch follows the visibility rule", () => {
+    const entities = [npcRow("npc-a", "Aldric")];
+    const referenced = refMap([{ id: "npc-outside", name: "Cedric", campaignId: TARGET_CAMPAIGN }]);
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "npc_relationships",
+        row: {
+          id: "rel-1",
+          campaign_id: OTHER_CAMPAIGN,
+          npc_id: "npc-a",
+          related_npc_id: "npc-outside",
+          relationship_type: "ally",
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, referenced);
+    expect(plan.dropped).toEqual([]);
+    expect(plan.linkPayloads.npc_relationships![0].related_npc_id).toBe("npc-outside"); // unchanged, visible
+  });
+
+  it("a join row with one endpoint unresolvable is dropped and named", () => {
+    const entities = [factionRow("fac-a", "The Iron Circle")];
+    const joinRows: CopySetJoinRow[] = [
+      { table: "faction_npcs", row: { id: "fn-1", faction_id: "fac-a", npc_id: "npc-unreadable", role: "Member" } },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, new Map());
+    expect(plan.linkPayloads.faction_npcs).toBeUndefined();
+    expect(plan.dropped).toEqual([
+      {
+        label: "Faction members",
+        names: ["a row you no longer have access to"],
+        removedEntries: true,
+        entryNoun: { singular: "member", plural: "members" },
+      },
+    ]);
+  });
+
+  it("npc_inventory re-scopes its campaign_id to the target", () => {
+    const entities = [npcRow("npc-a", "Aldric")];
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "npc_inventory",
+        row: {
+          id: "inv-1",
+          campaign_id: OTHER_CAMPAIGN,
+          user_id: "someone-else",
+          npc_id: "npc-a",
+          item_id: null,
+          name: "Rusty Dagger",
+          quantity: 1,
+          notes: null,
+          updated_at: "2020-01-01",
+          library_item_id: null,
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, new Map());
+    const inv = plan.linkPayloads.npc_inventory;
+    expect(inv).toHaveLength(1);
+    expect(inv![0].campaign_id).toBe(TARGET_CAMPAIGN);
+    expect(inv![0].user_id).toBe(USER_ID);
+    expect(inv![0].npc_id).toBe(plan.idMap.get("npc-a"));
+    expect(inv![0].name).toBe("Rusty Dagger"); // free-text loot survives untouched
+  });
+
+  it("npc_inventory clears a dangling item_id but keeps the entry (unlike a hard endpoint)", () => {
+    const entities = [npcRow("npc-a", "Aldric")];
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "npc_inventory",
+        row: {
+          id: "inv-1",
+          campaign_id: OTHER_CAMPAIGN,
+          npc_id: "npc-a",
+          item_id: "item-unreadable",
+          name: "Vial of Acid",
+          quantity: 1,
+          library_item_id: null,
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, new Map());
+    const inv = plan.linkPayloads.npc_inventory;
+    expect(inv).toHaveLength(1); // survives
+    expect(inv![0].item_id).toBeNull();
+    expect(inv![0].name).toBe("Vial of Acid");
+    expect(plan.dropped).toEqual([
+      {
+        label: "Linked item",
+        names: ["a row you no longer have access to"],
+        removedEntries: false,
+        entryNoun: { singular: "linked item", plural: "linked items" },
+      },
+    ]);
+  });
+
+  it("faction_party_members never appears among the join tables a batch fetches", () => {
+    const allTables = Object.values(JOIN_TABLES_FOR_ENTITY)
+      .flat()
+      .map((e) => e.table);
+    expect(allTables).not.toContain("faction_party_members" as unknown as CopyJoinTable);
+  });
+
+  it("play-state tables never appear among the join tables a batch fetches", () => {
+    const allTables = Object.values(JOIN_TABLES_FOR_ENTITY)
+      .flat()
+      .map((e) => e.table);
+    for (const playState of ["npc_pc_notes", "npc_player_notes", "player_npc_ratings", "npc_favors"]) {
+      expect(allTables).not.toContain(playState as unknown as CopyJoinTable);
+    }
+  });
+
+  it("two factions referencing each other via faction_relations rewrite to minted ids", () => {
+    const entities = [factionRow("fac-a", "The Iron Circle"), factionRow("fac-b", "The Crimson Hand")];
+    const joinRows: CopySetJoinRow[] = [
+      {
+        table: "faction_relations",
+        row: {
+          id: "fr-1",
+          faction_id: "fac-a",
+          target_faction_id: "fac-b",
+          relation_type: "rival",
+          notes: null,
+          created_at: "2020-01-01",
+          updated_at: "2020-01-01",
+        },
+      },
+    ];
+    const plan = buildCopySetPlan(entities, joinRows, TARGET_CAMPAIGN, USER_ID, new Map());
+    expect(plan.dropped).toEqual([]);
+    const rel = plan.linkPayloads.faction_relations;
+    expect(rel).toHaveLength(1);
+    expect(rel![0].faction_id).toBe(plan.idMap.get("fac-a"));
+    expect(rel![0].target_faction_id).toBe(plan.idMap.get("fac-b"));
+  });
+
+  it("a batch mixing npcs with one of the original eight still mints every row its own id", () => {
+    // buildCopySetPlan mints uniformly across every entity in `entities` —
+    // it has no way to know in advance which tables' rows a join row might
+    // someday need to address, so an item copied alongside an NPC batch gets
+    // a minted id exactly like the NPCs do. Nothing currently points *at* an
+    // item from inside a batch, so this is unused today, but it costs nothing
+    // and keeps the rule uniform rather than special-cased per table.
+    const entities: CopySetSourceRow[] = [
+      npcRow("npc-a", "Aldric"),
+      { table: "items", row: { id: "item-a", name: "Longsword", spell_ids: [] } },
+    ];
+    const plan = buildCopySetPlan(entities, [], TARGET_CAMPAIGN, USER_ID, new Map());
+    const itemPayload = plan.payloads.find((p) => p.table === "items")!.payload;
+    expect(itemPayload.id).toBe(plan.idMap.get("item-a"));
+    expect(itemPayload.id).not.toBe("item-a");
+  });
+
+  it("calling buildCopyPlan directly (no batch, no idMap) still leaves the original eight's id to Postgres", () => {
+    const row = { id: "item-a", name: "Longsword", spell_ids: [] };
+    const { payload } = buildCopyPlan("items", row, TARGET_CAMPAIGN, USER_ID, new Map());
+    expect(payload.id).toBeUndefined();
   });
 });
 

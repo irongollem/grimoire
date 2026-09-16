@@ -161,16 +161,27 @@ export function useNpc(id: string | Ref<string>) {
  * Queue this NPC for semantic-search embedding (#600) so retrieval can find it
  * without waiting for the next admin backfill.
  *
- * Fire-and-forget on purpose: the NPC is already saved, so a failed embed
- * is not worth a toast, a spinner or a delayed mutation — the row simply stays
- * unembedded and the next backfill sweep collects it. The edge function
- * short-circuits when the embed text's hash is unchanged, so a save that
- * touched an unrelated field costs no API call at all.
+ * Fire-and-forget for a single-row caller: the NPC is already saved, so a
+ * failed embed is not worth a toast, a spinner or a delayed mutation — the
+ * row simply stays unembedded and the next backfill sweep collects it. The
+ * edge function short-circuits when the embed text's hash is unchanged, so a
+ * save that touched an unrelated field costs no API call at all.
+ *
+ * Returns `Promise<void>`, resolving once the invocation has settled and any
+ * error already reported — mirrors `queueItemEmbedding`/
+ * `queueMonsterEmbedding` (useItems.ts:324, useMonsters.ts:358) for the same
+ * reason theirs does: a bulk caller (useCopyToCampaign's
+ * `queueEmbeddingsInGroups`, #885) needs to bound how many are in flight,
+ * which only works if it can await one settling. Single-row callers below
+ * keep ignoring the return value.
  */
-export function queueNpcEmbedding(id: string): void {
-  void supabase.functions
+export function queueNpcEmbedding(id: string): Promise<void> {
+  return supabase.functions
     .invoke("embed-content", { body: { mode: "single", entity: "npc", id } })
-    .catch((error) => reportHandledError(error, "queueNpcEmbedding", { id }));
+    .then(
+      () => undefined,
+      (error: unknown) => { reportHandledError(error, "queueNpcEmbedding", { id }); },
+    );
 }
 
 export function useCreateNpc() {

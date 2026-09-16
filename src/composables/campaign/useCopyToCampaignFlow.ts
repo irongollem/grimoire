@@ -32,7 +32,7 @@ export interface CopyToCampaignFlow {
   copyOpen: Ref<boolean>;
   copyIds: Ref<string[]>;
   openCopy: () => void;
-  onCopied: (result: { copied: number; targetName: string }) => void;
+  onCopied: (result: { copied: number; linked: number; targetName: string }) => void;
   onQuotaExceeded: () => void;
 }
 
@@ -61,8 +61,16 @@ export function useCopyToCampaignFlow(options: CopyToCampaignFlowOptions): CopyT
     copyOpen.value = true;
   }
 
-  function onCopied({ copied, targetName }: { copied: number; targetName: string }): void {
-    toast.success(`Copied ${pluralizeCount(copied, noun, nounPlural)} to ${targetName}.`);
+  function onCopied({ copied, linked, targetName }: { copied: number; linked: number; targetName: string }): void {
+    // `linked` counts the join rows that travelled with the batch (#885) --
+    // relationships, faction memberships, inventory. Saying it matters
+    // because the dialog has just told the DM what was *left behind*, and a
+    // bare "Copied 2 NPCs" after that reads as though nothing came with
+    // them. Omitted entirely at zero rather than said as "and 0 links",
+    // which is the case for all eight original tables, none of which has a
+    // join row to carry.
+    const withLinks = linked > 0 ? ` and ${pluralizeCount(linked, "link")}` : "";
+    toast.success(`Copied ${pluralizeCount(copied, noun, nounPlural)}${withLinks} to ${targetName}.`);
     copyOpen.value = false;
     // Ends selection mode, matching what every `move` handler already does.
     // A copy does not remove the originals from this list, so keeping the

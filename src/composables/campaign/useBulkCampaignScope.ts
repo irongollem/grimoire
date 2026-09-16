@@ -29,19 +29,24 @@ export type BulkScopeTable =
   | "traps"
   | "puzzle_rooms"
   | "loot_tables"
-  | "roll_tables";
+  | "roll_tables"
+  | "npcs"
+  | "factions";
 
 /**
- * Each table's list-query key. Every one of the eight owning composables keeps
- * its key module-private (`const QUERY_KEY = "<table>"` — `useItems.ts:24`,
+ * Each table's list-query key. Eight of the ten owning composables keep their
+ * key module-private (`const QUERY_KEY = "<table>"` — `useItems.ts:24`,
  * `useMonsters.ts:19`, `useSpecies.ts:14`, `useSpells.ts:17`, `useTraps.ts:12`,
- * `usePuzzles.ts:13`, `useLootTables.ts:7`, `useRollTables.ts:8`), so these are
- * copies, not imports, and could in principle drift from them.
+ * `usePuzzles.ts:13`, `useLootTables.ts:7`, `useRollTables.ts:8`); `useNpcs.ts:13`
+ * follows the same `const QUERY_KEY = "npcs"` shape, while `useFactions.ts`
+ * inlines the literal `"factions"` at every call site instead of naming a
+ * constant — same key, no constant to point at. So these are copies, not
+ * imports, and could in principle drift from them.
  *
- * Exporting the eight and importing them here was the alternative and is worse:
- * it would pull all eight feature composables into every page that can bulk
+ * Exporting the ten and importing them here was the alternative and is worse:
+ * it would pull all ten feature composables into every page that can bulk
  * re-scope anything, so opening the Vault would load the bestiary, the codex
- * and Dungeon Craft. The convention those eight follow is that the key IS the
+ * and Dungeon Craft. The convention those ten follow is that the key IS the
  * table name, which `useBulkCampaignScope.test.ts` asserts for all of them — so
  * a future key that departs from its table name has to be a deliberate edit
  * here rather than a silent mismatch.
@@ -58,6 +63,8 @@ export const BULK_SCOPE_QUERY_KEY: Record<BulkScopeTable, string> = {
   puzzle_rooms: "puzzle_rooms",
   loot_tables: "loot_tables",
   roll_tables: "roll_tables",
+  npcs: "npcs",
+  factions: "factions",
 };
 
 /** A long `.in()` list travels in the URL — chunk so a bulk move of hundreds

@@ -26,7 +26,47 @@ import type { BulkScopeTable } from "@/composables/campaign/useBulkCampaignScope
  * copy now sit side by side and need a name that tells them apart. A copy to
  * another campaign answers a different question: it lands somewhere the
  * original is not, so nothing needs telling apart, and the name is free. Do not
- * add a suffix here — that would be solving a problem this feature doesn't have.
+ * add a suffix here -- that would be solving a problem this feature doesn't have.
+ *
+ * ## Copying a batch (#885)
+ *
+ * The eight tables above only point outward, at other tables, so a strictly
+ * per-row planner was enough. NPCs and factions point at each other, mostly
+ * through join tables (npc_relationships, faction_relations, faction_npcs,
+ * faction_locations, faction_items, faction_deities) rather than columns, so
+ * copying more than one at a time needs to see the whole batch, not one row.
+ *
+ * The nearest prior art is src/lib/locations/cloneLevel.ts, which expresses a
+ * clone's internal relationships by *source* id and leaves resolving them to
+ * its executor, because at planning time it has no ids for rows it hasn't
+ * created yet. This module can do better, because it controls its own insert
+ * payloads: buildCopySetPlan mints a uuid per copied row with
+ * crypto.randomUUID() before anything is inserted, so a source-to-copy id map
+ * exists at planning time. buildCopyPlan gained an optional idMap parameter so
+ * a mint can be threaded in -- the eight original tables never pass one, so
+ * their behaviour is exactly what it was.
+ *
+ * One rule covers every reference a batch touches, column or join row alike:
+ *
+ * 1. Points at a row in this batch -- rewrite to that row's minted id.
+ * 2. Points at a row outside the batch -- the visibility rule above,
+ *    unchanged: travels if the target campaign can see it, otherwise dropped
+ *    and named.
+ * 3. A join row travels only when both endpoints resolve by rule 1 or 2 -- a
+ *    membership with one end missing is not a membership.
+ *
+ * npc_inventory is the one join table where an endpoint is a scalar reference
+ * rather than the row's own identity: an inventory entry has its own name and
+ * quantity, so a dangling item_id clears the field (rule 2, field-level, same
+ * as clearScalarRef below) rather than dropping the whole entry. Every other
+ * join table's two columns ARE the membership, so either one failing drops
+ * the row (rule 3).
+ *
+ * Four tables never travel with a copy, because they record what happened at
+ * a table rather than what the table is: npc_pc_notes, npc_player_notes,
+ * player_npc_ratings, npc_favors -- the same "never state or loot" line
+ * cloneLevel.ts draws for a cloned level's rooms. faction_party_members never
+ * travels either: a party belongs to a campaign, not to a copy of one.
  */
 
 /** A row the copy points at, as seen from the copying account. */
@@ -213,6 +253,18 @@ export function referencedIds(table: BulkScopeTable, row: Record<string, unknown
     case "spells":
     case "traps":
       return {};
+    case "npcs": {
+      const out: Record<string, string[]> = {};
+      if (isNonEmptyString(row.location_id)) out.locations = [row.location_id];
+      if (isNonEmptyString(row.linked_monster_id)) out.monsters = [row.linked_monster_id];
+      if (isNonEmptyString(row.scriptorium_doc_id)) out.scriptorium_documents = [row.scriptorium_doc_id];
+      return out;
+    }
+    case "factions":
+      // Factions have no reference columns at all — every relationship a
+      // faction holds lives in a join table (npc/faction membership, faction
+      // relations), which `joinRowReferencedIds` covers instead.
+      return {};
   }
 }
 
@@ -250,6 +302,15 @@ export function buildCopyPlan(
   targetCampaignId: string | null,
   userId: string,
   referenced: ReadonlyMap<string, ReferencedRow>,
+  /**
+   * source row id → minted copy id, from `buildCopySetPlan`. Only a batch copy
+   * supplies this — the eight original tables never do, so `delete payload.id`
+   * below still runs for them exactly as it always has and Postgres still
+   * mints their id. When present, it means this row's copy id was already
+   * decided before planning started, because something else in the same batch
+   * (a join row, another row's own reference) needs to be able to name it.
+   */
+  idMap?: ReadonlyMap<string, string>,
 ): CopyPlan {
   const dropped: DroppedReference[] = [];
   // Image columns (image_url, mundane_image_url, focal points, …) are carried
@@ -261,8 +322,14 @@ export function buildCopyPlan(
   // object, because the original owner deleting it would break the copy.
   const payload: Record<string, unknown> = { ...row };
 
-  // A copy is a new row — never the source's identity or timestamps.
-  delete payload.id;
+  // A copy is a new row — never the source's identity or timestamps. Its id is
+  // usually Postgres's to mint (delete and let the insert assign one); a batch
+  // copy is the exception, because a same-batch reference has to be able to
+  // name this row's copy before the insert has even run — see `idMap` above.
+  const sourceId = row.id;
+  const mintedId = idMap && isNonEmptyString(sourceId) ? idMap.get(sourceId) : undefined;
+  if (mintedId) payload.id = mintedId;
+  else delete payload.id;
   delete payload.created_at;
   delete payload.updated_at;
 
@@ -414,6 +481,16 @@ export function buildCopyPlan(
     case "spells":
     case "traps":
       break; // no cross-entity references
+    case "npcs": {
+      clearScalarRef(payload, "location_id", targetCampaignId, referenced, "Location", dropped);
+      clearScalarRef(payload, "linked_monster_id", targetCampaignId, referenced, "Linked monster", dropped);
+      clearScalarRef(payload, "scriptorium_doc_id", targetCampaignId, referenced, "Linked document", dropped);
+      break;
+    }
+    case "factions":
+      // No reference columns at all — an NPC/faction/location/item/deity
+      // membership lives in a join table, not here. See `buildJoinRowPayload`.
+      break;
     default: {
       // Compile-time guard: if BulkScopeTable ever gains a member without a
       // matching case above, this line stops typechecking. The switch has no
@@ -425,4 +502,330 @@ export function buildCopyPlan(
   }
 
   return { payload, dropped };
+}
+
+// ── Batch copying (#885) ────────────────────────────────────────────────────
+// See the module docstring's "Copying a batch" section for the three-rule
+// summary this whole section implements.
+
+/**
+ * The seven join tables a batch of NPCs/factions may carry membership or
+ * relationship rows from. Deliberately not a `BulkScopeTable` member — nothing
+ * ever selects a join row directly to copy; it only ever rides along with the
+ * entity rows its columns name.
+ */
+export type CopyJoinTable =
+  | "npc_relationships"
+  | "npc_inventory"
+  | "faction_npcs"
+  | "faction_locations"
+  | "faction_items"
+  | "faction_deities"
+  | "faction_relations";
+
+/**
+ * Which join tables a batch containing this entity table might carry rows
+ * from, and which column(s) to filter on: `.in(column, sourceIds)` for each
+ * of `matchColumns`, where `sourceIds` are the batch's own rows for `entity`.
+ * `faction_npcs` and `faction_relations` each list two match columns because a
+ * source id on either side of the join still names a row this batch's copies
+ * need to carry (a faction's own membership row, or its relation to another
+ * faction in the same batch). The composable de-duplicates rows fetched twice
+ * when a batch copies NPCs and factions together — `faction_npcs` is reachable
+ * from both sides.
+ */
+export const JOIN_TABLES_FOR_ENTITY: Record<"npcs" | "factions", { table: CopyJoinTable; matchColumns: string[] }[]> =
+  {
+    npcs: [
+      { table: "npc_relationships", matchColumns: ["npc_id", "related_npc_id"] },
+      { table: "npc_inventory", matchColumns: ["npc_id"] },
+      { table: "faction_npcs", matchColumns: ["npc_id"] },
+    ],
+    factions: [
+      { table: "faction_npcs", matchColumns: ["faction_id"] },
+      { table: "faction_locations", matchColumns: ["faction_id"] },
+      { table: "faction_items", matchColumns: ["faction_id"] },
+      { table: "faction_deities", matchColumns: ["faction_id"] },
+      { table: "faction_relations", matchColumns: ["faction_id", "target_faction_id"] },
+    ],
+  };
+
+/**
+ * Which ids a join row points at, keyed by the table that holds them — the
+ * same convention `referencedIds` follows, so the caller can batch one `.in()`
+ * lookup per table across a whole batch's join rows. Unlike `referencedIds`,
+ * a key here can itself be `"npcs"`/`"factions"`: a join row's entity columns
+ * may name a row *outside* this batch (a faction membership for an NPC the DM
+ * didn't select to copy), and that row still needs a `ReferencedRow` behind it
+ * for the visibility rule (rule 2) to resolve.
+ *
+ * `library_item_id` (`npc_inventory`, `faction_items`) is deliberately absent
+ * — shared content, never dangles, never looked up, same as
+ * `libraryReferencedIds` above.
+ */
+export function joinRowReferencedIds(table: CopyJoinTable, row: Record<string, unknown>): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  const add = (key: string, id: unknown): void => {
+    if (!isNonEmptyString(id)) return;
+    out[key] = out[key] ? [...out[key], id] : [id];
+  };
+  switch (table) {
+    case "npc_relationships":
+      add("npcs", row.npc_id);
+      add("npcs", row.related_npc_id);
+      return out;
+    case "npc_inventory":
+      add("npcs", row.npc_id);
+      add("items", row.item_id);
+      return out;
+    case "faction_npcs":
+      add("factions", row.faction_id);
+      add("npcs", row.npc_id);
+      return out;
+    case "faction_locations":
+      add("factions", row.faction_id);
+      add("locations", row.location_id);
+      return out;
+    case "faction_items":
+      add("factions", row.faction_id);
+      add("items", row.item_id);
+      return out;
+    case "faction_deities":
+      add("factions", row.faction_id);
+      add("deities", row.deity_id);
+      return out;
+    case "faction_relations":
+      add("factions", row.faction_id);
+      add("factions", row.target_faction_id);
+      return out;
+  }
+}
+
+/** Rule 1 then rule 2 for one id a join row's column names: the batch's own
+ *  mint if the id is in this batch, otherwise the existing visibility rule.
+ *  `null` means neither resolved it. */
+function resolveEndpoint(
+  id: unknown,
+  idMap: ReadonlyMap<string, string>,
+  targetCampaignId: string | null,
+  referenced: ReadonlyMap<string, ReferencedRow>,
+): string | null {
+  if (!isNonEmptyString(id)) return null;
+  const minted = idMap.get(id);
+  if (minted) return minted;
+  return isVisible(id, targetCampaignId, referenced) ? id : null;
+}
+
+/** One join row's copy, plus whatever it has to report. `dropped` can carry a
+ *  report even when `payload` is non-null — `npc_inventory`'s `item_id` is a
+ *  field-level drop (rule 2: the row survives, the link is cleared), not a
+ *  row-level one (rule 3: `payload` is `null`). */
+interface JoinRowResult {
+  payload: Record<string, unknown> | null;
+  dropped: { label: string; name: string; entryNoun: { singular: string; plural: string }; removedEntries: boolean }[];
+}
+
+/**
+ * Builds one join row's copy per the module docstring's "Copying a batch"
+ * rules. `id`/`created_at`/`updated_at` are always Postgres's to mint —
+ * nothing in a batch ever needs to name a join row's own id ahead of time
+ * (only an *entity* row's id gets referenced by something else), so there is
+ * no `idMap` entry for one and none is needed.
+ */
+function buildJoinRowPayload(
+  table: CopyJoinTable,
+  row: Record<string, unknown>,
+  targetCampaignId: string | null,
+  userId: string,
+  idMap: ReadonlyMap<string, string>,
+  referenced: ReadonlyMap<string, ReferencedRow>,
+): JoinRowResult {
+  const payload: Record<string, unknown> = { ...row };
+  delete payload.id;
+  delete payload.created_at;
+  delete payload.updated_at;
+  payload.user_id = userId;
+
+  const dropped: JoinRowResult["dropped"] = [];
+
+  /** Rule 3: resolve a column that IS half of the row's identity. Reports and
+   *  returns false, rather than throwing, so a sibling endpoint still gets
+   *  its own chance to resolve and report — a row failing on both ends names
+   *  both rather than only the first one checked. */
+  function endpoint(column: string, label: string, entryNoun: { singular: string; plural: string }): boolean {
+    const sourceId = row[column];
+    const resolved = resolveEndpoint(sourceId, idMap, targetCampaignId, referenced);
+    if (resolved === null) {
+      const name = isNonEmptyString(sourceId) ? referenceName(sourceId, referenced) : "an incomplete row";
+      dropped.push({ label, name, entryNoun, removedEntries: true });
+      return false;
+    }
+    payload[column] = resolved;
+    return true;
+  }
+
+  switch (table) {
+    case "npc_relationships": {
+      payload.campaign_id = targetCampaignId;
+      const noun = { singular: "relationship", plural: "relationships" };
+      const npcOk = endpoint("npc_id", "NPC relationships", noun);
+      const relatedOk = endpoint("related_npc_id", "NPC relationships", noun);
+      return { payload: npcOk && relatedOk ? payload : null, dropped };
+    }
+    case "npc_inventory": {
+      payload.campaign_id = targetCampaignId;
+      const npcOk = endpoint("npc_id", "NPC inventory", { singular: "inventory item", plural: "inventory items" });
+      if (!npcOk) return { payload: null, dropped };
+      // item_id is a scalar reference, not the row's second endpoint — an
+      // inventory entry has its own name/quantity (unlike faction_items
+      // below, which has no identity beyond the item it names), so a
+      // dangling link clears the field (rule 2) rather than dropping the
+      // entry. library_item_id, shared content, always travels — the spread
+      // above already carried it through untouched, and is never looked up.
+      const itemId = row.item_id;
+      if (isNonEmptyString(itemId)) {
+        const resolved = resolveEndpoint(itemId, idMap, targetCampaignId, referenced);
+        if (resolved === null) {
+          payload.item_id = null;
+          dropped.push({
+            label: "Linked item",
+            name: referenceName(itemId, referenced),
+            entryNoun: { singular: "linked item", plural: "linked items" },
+            removedEntries: false,
+          });
+        } else {
+          payload.item_id = resolved;
+        }
+      }
+      return { payload, dropped };
+    }
+    case "faction_npcs": {
+      const noun = { singular: "member", plural: "members" };
+      const factionOk = endpoint("faction_id", "Faction members", noun);
+      const npcOk = endpoint("npc_id", "Faction members", noun);
+      return { payload: factionOk && npcOk ? payload : null, dropped };
+    }
+    case "faction_locations": {
+      const noun = { singular: "location", plural: "locations" };
+      const factionOk = endpoint("faction_id", "Faction locations", noun);
+      const locationOk = endpoint("location_id", "Faction locations", noun);
+      return { payload: factionOk && locationOk ? payload : null, dropped };
+    }
+    case "faction_items": {
+      const noun = { singular: "item", plural: "items" };
+      const factionOk = endpoint("faction_id", "Faction items", noun);
+      // Mirrors ItemRefColumns (src/lib/itemRef.ts): at most one of item_id /
+      // library_item_id is ever set. Unlike npc_inventory, a faction_items row
+      // carries no name of its own beyond the item it names, so a dangling
+      // item_id drops the whole row (rule 3) rather than clearing the field.
+      // A library_item_id, if that is the one set instead, always travels —
+      // the spread above already carried it through, and item_id being empty
+      // here is not itself a failure.
+      const itemOk = isNonEmptyString(row.item_id) ? endpoint("item_id", "Faction items", noun) : true;
+      return { payload: factionOk && itemOk ? payload : null, dropped };
+    }
+    case "faction_deities": {
+      payload.campaign_id = targetCampaignId;
+      const noun = { singular: "deity", plural: "deities" };
+      const factionOk = endpoint("faction_id", "Faction deities", noun);
+      const deityOk = endpoint("deity_id", "Faction deities", noun);
+      return { payload: factionOk && deityOk ? payload : null, dropped };
+    }
+    case "faction_relations": {
+      const noun = { singular: "relation", plural: "relations" };
+      const factionOk = endpoint("faction_id", "Faction relations", noun);
+      const targetOk = endpoint("target_faction_id", "Faction relations", noun);
+      return { payload: factionOk && targetOk ? payload : null, dropped };
+    }
+  }
+}
+
+/**
+ * Groups the report entries `buildCopyPlan`/`buildJoinRowPayload` produce
+ * across a whole batch into one `DroppedReference` per label — the shape a
+ * single row's `dropped` array already uses, so a batch's drop report renders
+ * exactly like a single-row one.
+ */
+function makeDropCollector(): {
+  add: (label: string, name: string, entryNoun: { singular: string; plural: string }, removedEntries: boolean) => void;
+  finish: () => DroppedReference[];
+} {
+  const byLabel = new Map<string, DroppedReference>();
+  return {
+    add(label, name, entryNoun, removedEntries) {
+      const existing = byLabel.get(label);
+      if (existing) existing.names.push(name);
+      else byLabel.set(label, { label, names: [name], removedEntries, entryNoun });
+    },
+    finish: () => [...byLabel.values()],
+  };
+}
+
+/** One entity row to copy, alongside the table it belongs to — a batch can mix
+ *  NPCs and factions in one call. */
+export interface CopySetSourceRow {
+  table: BulkScopeTable;
+  row: Record<string, unknown>;
+}
+
+/** One join-table row riding along with the batch, per `JOIN_TABLES_FOR_ENTITY`. */
+export interface CopySetJoinRow {
+  table: CopyJoinTable;
+  row: Record<string, unknown>;
+}
+
+export interface CopySetPlan {
+  /** One entry per copied entity row, in `entities` order, tagged with the
+   *  table it inserts into — a batch mixing NPCs and factions still needs to
+   *  know which is which at insert time. */
+  payloads: { table: BulkScopeTable; payload: Record<string, unknown> }[];
+  /** Join-table rows, keyed by table, inserted after both endpoints exist.
+   *  Only tables with at least one surviving row appear as keys. */
+  linkPayloads: Partial<Record<CopyJoinTable, Record<string, unknown>[]>>;
+  dropped: DroppedReference[];
+  /** source row id → minted copy id. */
+  idMap: ReadonlyMap<string, string>;
+}
+
+/**
+ * The set-level entry point: plans a batch of entity copies plus the join
+ * rows that connect them, per the module docstring's "Copying a batch"
+ * section. Still pure — `entities` and `joinRows` are already-fetched rows,
+ * `referenced` is an already-fetched lookup map built the same way a per-row
+ * caller of `buildCopyPlan` already builds one, and nothing here talks to
+ * Supabase.
+ */
+export function buildCopySetPlan(
+  entities: readonly CopySetSourceRow[],
+  joinRows: readonly CopySetJoinRow[],
+  targetCampaignId: string | null,
+  userId: string,
+  referenced: ReadonlyMap<string, ReferencedRow>,
+): CopySetPlan {
+  // Mint every copy's id up front, before any payload is built — see the
+  // `idMap` parameter comment on `buildCopyPlan` for why this has to happen
+  // first: a join row (or another entity row's own reference, for a future
+  // batch that has one) needs to be able to name a copy's id before that
+  // copy has been inserted, which only minting ahead of time makes possible.
+  const idMap = new Map<string, string>();
+  for (const { row } of entities) {
+    if (isNonEmptyString(row.id)) idMap.set(row.id, crypto.randomUUID());
+  }
+
+  const collector = makeDropCollector();
+
+  const payloads = entities.map(({ table, row }) => {
+    const { payload, dropped } = buildCopyPlan(table, row, targetCampaignId, userId, referenced, idMap);
+    for (const d of dropped) for (const name of d.names) collector.add(d.label, name, d.entryNoun, d.removedEntries);
+    return { table, payload };
+  });
+
+  const linkPayloads: Partial<Record<CopyJoinTable, Record<string, unknown>[]>> = {};
+  for (const { table, row } of joinRows) {
+    const { payload, dropped } = buildJoinRowPayload(table, row, targetCampaignId, userId, idMap, referenced);
+    if (payload) (linkPayloads[table] ??= []).push(payload);
+    for (const d of dropped) collector.add(d.label, d.name, d.entryNoun, d.removedEntries);
+  }
+
+  return { payloads, linkPayloads, dropped: collector.finish(), idMap };
 }

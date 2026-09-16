@@ -114,10 +114,21 @@
  * can never land on screen.
  *
  * The dialog does not own a paywall. A quota_exceeded rejection (monsters,
- * puzzle_rooms) is recognised with `isQuotaExceeded` and surfaced as an
- * emitted `quota-exceeded` — the caller already owns a `<PaywallModal>` for
- * its own create flow (see MonsterDetail.vue:559-563, EncounterDetail.vue:570)
- * and reuses it here rather than this dialog growing a second copy.
+ * puzzle_rooms, npcs, factions) is recognised with `isQuotaExceeded` and
+ * surfaced as an emitted `quota-exceeded` — the caller already owns a
+ * `<PaywallModal>` for its own create flow (see MonsterDetail.vue:559-563,
+ * EncounterDetail.vue:570) and reuses it here rather than this dialog
+ * growing a second copy.
+ *
+ * **npcs/factions batches (#885).** `table`/`ids` are already generic over
+ * all ten bulk-scope tables, so this component needed no shape change for
+ * the two that now carry join rows (npc relationships, faction membership,
+ * …) — `planCopyFor` branches internally and hands back the same
+ * `{ payloads, linkPayloads, dropped }` shape either way (`linkPayloads` is
+ * always `{}` for the other eight). The dropped-reference preview below
+ * already renders whatever `plan.value.dropped` contains, which includes a
+ * join row that could not travel (see `copyToCampaign.ts`'s
+ * `buildJoinRowPayload`) without this component knowing that case exists.
  */
 import { computed, ref, watch } from "vue";
 import AppModal from "@/components/common/AppModal.vue";
@@ -160,8 +171,16 @@ const emit = defineEmits<{
    *  the new rows are in another campaign, which the list the DM is standing
    *  in does not show, so naming the destination is the only confirmation
    *  there can be. See the Post-Mutation Navigation note in
-   *  context/features/items-spells-crafting.md. */
-  copied: [{ copied: number; targetName: string }];
+   *  context/features/items-spells-crafting.md.
+   *
+   *  `linked` (#885) is the count of join rows — relationships, faction
+   *  memberships, and the like — the batch created alongside the entities
+   *  themselves; 0 for every table but npcs/factions, which never produce
+   *  one. Carried through rather than folded into `copied` so a caller can
+   *  report it ("3 NPCs, 7 relationships") instead of the count silently
+   *  going missing — none of today's eight callers read it, since npcs and
+   *  factions have no "Copy to campaign…" entry point yet. */
+  copied: [{ copied: number; linked: number; targetName: string }];
   "quota-exceeded": [];
 }>();
 
@@ -321,13 +340,14 @@ async function confirm() {
     const result = await mutateAsync({
       table,
       payloads: plan.value.payloads,
+      linkPayloads: plan.value.linkPayloads,
       dropped: plan.value.dropped,
       needsSources: needsSources.value,
     });
     // The caller shows the toast and closes — this dialog does not emit
     // `close` itself, matching every other confirm-then-let-caller-close
     // dialog in the app.
-    emit("copied", { copied: result.copied, targetName: targetName.value });
+    emit("copied", { copied: result.copied, linked: result.linked, targetName: targetName.value });
   } catch (e) {
     if (isQuotaExceeded(e)) {
       emit("quota-exceeded");

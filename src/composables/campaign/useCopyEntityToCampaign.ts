@@ -1,5 +1,6 @@
 import { computed, ref, type ComputedRef, type Ref } from "vue";
 import { useToast } from "@/composables/useToast";
+import { pluralizeCount } from "@/lib/utils";
 
 export interface CopyEntityToCampaignOptions {
   /**
@@ -26,7 +27,7 @@ export interface CopyEntityToCampaignFlow {
   copyOpen: Ref<boolean>;
   copyIds: ComputedRef<string[]>;
   openCopy: () => void;
-  onCopied: (result: { copied: number; targetName: string }) => void;
+  onCopied: (result: { copied: number; linked: number; targetName: string }) => void;
   onQuotaExceeded: () => void;
 }
 
@@ -68,10 +69,17 @@ export function useCopyEntityToCampaign(options: CopyEntityToCampaignOptions): C
     copyOpen.value = true;
   }
 
-  function onCopied({ targetName }: { copied: number; targetName: string }): void {
+  function onCopied({ linked, targetName }: { copied: number; linked: number; targetName: string }): void {
     const name = entity()?.name;
     const label = name ? `"${name}"` : `the ${noun}`;
-    toast.success(`Copied ${label} to ${targetName}.`);
+    // One row still travels with its links (#885): an NPC copied alone keeps
+    // the relationships and memberships whose other end the target campaign
+    // can already see, and its inventory. `copied` stays unread here — it is
+    // always 1 on this flow, and the record's own name says more than the
+    // number does. Omitted at zero, which is every one of the eight original
+    // tables, none of which has a join row to carry.
+    const withLinks = linked > 0 ? ` with ${pluralizeCount(linked, "link")}` : "";
+    toast.success(`Copied ${label}${withLinks} to ${targetName}.`);
     copyOpen.value = false;
   }
 
