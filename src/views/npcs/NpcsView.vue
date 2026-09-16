@@ -25,6 +25,12 @@
         @click="ui.npcGeneratorOpen = true"
       />
       <ListActionButton
+        :active="npcListRef?.selecting ?? false"
+        :icon="IconCheck"
+        label="Select"
+        @click="npcListRef?.toggleSelectMode()"
+      />
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New NPC"
@@ -88,6 +94,7 @@
     </template>
 
     <NpcList
+      ref="npcListRef"
       :search="search"
       :status-filter="statusFilter"
       :rel-filter="relFilter"
@@ -182,6 +189,7 @@
          The shell's <main> already reserves space for the docked bar. -->
     <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-1">
       <NpcList
+        ref="npcListRef"
         :search="search"
         :status-filter="statusFilter"
         :rel-filter="relFilter"
@@ -297,6 +305,15 @@
             <component :is="populateMutation.isPending.value ? IconLoading : IconPopulate" class="size-5 shrink-0 text-muted-foreground" />
           </template>
         </AppButton>
+        <AppButton
+          variant="menu"
+          size="body"
+          block
+          :label="npcListRef?.selecting ? 'Cancel selection' : 'Select NPCs'"
+          @click="overflowOpen = false; npcListRef?.toggleSelectMode()"
+        >
+          <template #icon><IconCheck class="size-5 shrink-0 text-muted-foreground" /></template>
+        </AppButton>
       </div>
     </MobileSheet>
   </div>
@@ -317,7 +334,7 @@ import { ref, computed } from "vue";
 import { useMediaQuery } from "@vueuse/core";
 import type { NpcStatus, NpcRelationship } from "@/types/npc.types";
 import {
-  IconAdd, IconClose, IconGenerate, IconLayers, IconLoading,
+  IconAdd, IconCheck, IconClose, IconGenerate, IconLayers, IconLoading,
   IconNetwork, IconPopulate, IconSearch, IconSettings,
 } from '@/lib/icons';
 import ListPageLayout from "@/components/common/ListPageLayout.vue";
@@ -361,6 +378,7 @@ const { showList } = useDetailModal("/npcs");
 
 const filtersOpen = ref(false);
 const overflowOpen = ref(false);
+const npcListRef = ref<InstanceType<typeof NpcList> | null>(null);
 const { locationOptions, getDescendantIds } = useLocationTree();
 const { data: party } = useParty();
 const { data: npcs } = useNpcs();

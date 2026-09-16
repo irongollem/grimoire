@@ -63,6 +63,7 @@ When an NPC becomes visible to a player for the first time while a **session is 
 - **Web** — navigates to the Relationship Web
 - **Populate Setting** — shown only when the active campaign has a recognised setting (e.g. Faerûn). Bulk-inserts seed NPCs from the setting's Hall of Heroes list, deduplicating by name. Reports how many were added or whether already up to date. Also back-fills portrait URLs for existing NPCs that previously had none.
 - **Generate** — opens the NPC Generator panel
+- **Select** (#885) — toggles bulk-selection mode (`NpcList.vue` owns `useBulkSelection`, mirroring `MonsterList.vue`; `NpcsView.vue` only holds a template ref and toggles it, same split as monsters). Selecting shows `BulkScopeBar` with "Move to campaign", "Make available in all campaigns" and "Copy to campaign…" — every NPC row is selectable (no library/shared-content concept for NPCs, unlike monsters). `npcs` carries the `enforce_quota` trigger, so a copy past quota reopens the same `showPaywall` the list already mounts for its own create-gate.
 - **New NPC** — navigates to `/npcs/new`; blocked by paywall if the campaign's NPC quota is exceeded.
 
 ---
@@ -94,6 +95,7 @@ Toggling between modes does not lose unsaved work because edit mode is URL-drive
 | View                     | Existing NPC       | Drops `?edit=true`, returning to the modal over the grid (or the phone sheet) |
 | Delete                   | Existing NPC       | Confirms, deletes NPC + storage images, navigates to `/npcs`              |
 | Scriptorium              | Existing NPC       | Formats NPC as a Scriptorium document and pushes to `/scriptorium/:docId` |
+| Copy to campaign…        | Existing NPC       | (#885) Opens `CopyToCampaignDialog` — `NpcDetail.vue` owns the flow (`useCopyEntityToCampaign`) and mounts the dialog on both layouts; the desktop button lives in `NpcDetailView.vue`'s `PageHeader` (calling the exposed `npcDetail.openCopy()`, same pattern as `sendToScriptorium`) and the mobile twin is an overflow-sheet item in `NpcEditMobile.vue` emitting `copy-to-campaign`. Not offered from the read-only sheet (`NpcSheet.vue`/`NpcDetailModal.vue`), matching `ItemDetail`'s edit-only placement. Reuses the file's existing `showPaywall` for a quota-exceeded copy. |
 | Reveal                   | Existing NPC       | `AudienceRevealControl` — who sees it, plus the field list in `#what`      |
 | Revealed / Concealed     | NPC has disguise   | Toggles `is_revealed` in-place                                            |
 | Generate (AI)            | API key configured | Opens `NpcGenerateDialog`                                                 |

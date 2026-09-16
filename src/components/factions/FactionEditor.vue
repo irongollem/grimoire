@@ -113,6 +113,14 @@
       <div class="flex items-center justify-end gap-2">
         <AppButton
           v-if="!isNew"
+          variant="subtle"
+          size="md"
+          :icon="IconCopy"
+          label="Copy to campaign…"
+          @click="openCopy"
+        />
+        <AppButton
+          v-if="!isNew"
           variant="destructive"
           size="md"
           :icon="IconDelete"
@@ -138,12 +146,25 @@
       </div>
     </div>
   </div>
+
+  <PaywallModal v-model="showPaywall" resource="factions" />
+
+  <CopyToCampaignDialog
+    v-if="!isNew && faction"
+    :open="copyOpen"
+    table="factions"
+    :ids="copyIds"
+    label="faction"
+    @close="copyOpen = false"
+    @copied="onCopied"
+    @quota-exceeded="onQuotaExceeded"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconDelete, IconSave, IconShield } from '@/lib/icons';
+import { IconCopy, IconDelete, IconSave, IconShield } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
 import {
@@ -162,6 +183,9 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 
 const props = defineProps<{
   faction: Faction | null;
@@ -193,6 +217,20 @@ const deleting = ref(false);
 const uploading = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 const tags = ref<string[]>([]);
+
+// ── Copy to campaign (#885) ─────────────────────────────────────────────────
+// factions carries the enforce_quota trigger, so a rejected insert opens this
+// dedicated paywall rather than surfacing a raw error — the copy flow's own
+// quota, distinct from the create-quota gate FactionListView's "New Faction"
+// button already enforces before this editor is ever reached.
+const showPaywall = ref(false);
+const { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded } = useCopyEntityToCampaign({
+  entity: () => props.faction,
+  noun: "faction",
+  onQuotaExceeded: () => {
+    showPaywall.value = true;
+  },
+});
 
 const form = ref({
   name: "",

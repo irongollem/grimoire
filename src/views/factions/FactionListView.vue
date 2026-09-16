@@ -18,6 +18,12 @@
         @click="ui.factionGeneratorOpen = true"
       />
       <ListActionButton
+        :active="selecting"
+        :icon="IconCheck"
+        label="Select"
+        @click="toggleSelecting"
+      />
+      <ListActionButton
         variant="primary"
         :icon="IconAdd"
         label="New Faction"
@@ -52,6 +58,19 @@
     </EmptyState>
 
     <template v-else>
+    <BulkScopeBar
+      v-if="selecting"
+      :count="selectedCount"
+      :selectable-count="selectableIds.length"
+      :busy="isMovingScope"
+      :campaign-name="campaign.activeCampaign?.name ?? null"
+      class="mb-3"
+      @select-all="selectAll(selectableIds)"
+      @clear="clearSelection"
+      @stop="stopSelecting"
+      @move="handleMove"
+      @copy="handleCopyOpen"
+    />
     <!--
       Paged and position-restoring like the NPC and monster grids. No mobile
       card swap, though, and that is deliberate rather than unfinished:
@@ -62,25 +81,32 @@
       can hold a button, and it already reflows to one column.
     -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <EntityListRow
+        <BulkSelectableCard
           v-for="faction in visibleItems"
           :key="faction.id"
-          :to="`/factions/${faction.id}`"
-          :title="faction.name"
-          :subtitle="faction.faction_type"
-          :image-url="faction.emblem_url"
-          :fallback-icon="IconShield"
-          :tags="faction.tags"
+          corner="top-left"
+          :selected="isSelected(faction.id)"
+          :selecting="selecting"
+          @toggle="toggleRowSelection(faction.id)"
         >
-          <template #actions>
-            <AudienceRevealControl
-              :name="faction.name"
-              :visible-to="faction.player_visible_to"
-              form="inline"
-              @change="(next) => revealFaction(faction.id, next)"
-            />
-          </template>
-        </EntityListRow>
+          <EntityListRow
+            :to="`/factions/${faction.id}`"
+            :title="faction.name"
+            :subtitle="faction.faction_type"
+            :image-url="faction.emblem_url"
+            :fallback-icon="IconShield"
+            :tags="faction.tags"
+          >
+            <template #actions>
+              <AudienceRevealControl
+                :name="faction.name"
+                :visible-to="faction.player_visible_to"
+                form="inline"
+                @change="(next) => revealFaction(faction.id, next)"
+              />
+            </template>
+          </EntityListRow>
+        </BulkSelectableCard>
       </div>
     </template>
 
@@ -88,11 +114,21 @@
   </ListPageLayout>
 
   <PaywallModal v-model="showPaywall" resource="factions" />
+
+  <CopyToCampaignDialog
+    :open="copyOpen"
+    table="factions"
+    :ids="copyIds"
+    label="faction"
+    @close="copyOpen = false"
+    @copied="onCopied"
+    @quota-exceeded="onQuotaExceeded"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { IconAdd, IconGenerate, IconLoading, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
+import { ref, computed, watch } from "vue";
+import { IconAdd, IconCheck, IconGenerate, IconLoading, IconNavFactions, IconPopulate, IconShield } from '@/lib/icons';
 import { useAllFactions, usePopulateFactions, useUpdateFaction } from "@/composables/factions/useFactions";
 import { FACTION_TYPES } from "@/types/faction.types";
 import { useUiStore } from "@/stores/ui";
@@ -109,9 +145,15 @@ import EntityListRow from "@/components/common/EntityListRow.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
+import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { useCreateGate } from "@/composables/billing/useCreateGate";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
 import { useScrollRestore } from "@/composables/useScrollRestore";
+import { useBulkSelection } from "@/composables/useBulkSelection";
+import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
+import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
 
 const ui = useUiStore();
 const campaign = useCampaignStore();
@@ -167,4 +209,59 @@ async function handlePopulate() {
     populateError.value = e instanceof Error ? e.message : "Unknown error";
   }
 }
+
+// ── Bulk selection (#885) ───────────────────────────────────────────────────
+//
+// Owned here, not in useUiStore: transient per-visit selection, not a list
+// filter — mirrors MonsterList.vue/NpcList.vue. No faction row is shared/
+// library content, so every filtered row is selectable.
+const {
+  selecting,
+  count: selectedCount,
+  isSelected,
+  toggle: toggleRowSelection,
+  selectAll,
+  clear: clearSelection,
+  stop: stopSelecting,
+  pruneTo,
+} = useBulkSelection();
+
+function toggleSelecting() {
+  if (selecting.value) stopSelecting();
+  else selecting.value = true;
+}
+
+// Every row a bulk move/copy may legally touch: passes the current filters.
+// Reused by "select all" and by the prune below, so both always agree on
+// what's selectable.
+const selectableIds = computed(() => filtered.value.map((f) => f.id));
+
+// The filters can change (or the underlying list refetch) while rows are
+// selected; prune whenever the selectable set changes so a stale id from a
+// now-hidden row never lingers in the selection or reaches the mutation
+// (#875).
+watch(selectableIds, (ids) => pruneTo(ids));
+
+const { moving: isMovingScope, move: handleMove } = useMoveToCampaignFlow({
+  table: "factions",
+  noun: "faction",
+  selectableIds: () => selectableIds.value,
+  pruneTo,
+  stop: stopSelecting,
+  campaignName: () => campaign.activeCampaign?.name ?? null,
+});
+
+// ── Copy to campaign (#885) ─────────────────────────────────────────────────
+//
+// factions carries the enforce_quota trigger — the dialog surfaces a rejected
+// insert as a `quota-exceeded` event rather than owning a paywall itself; this
+// reuses the same PaywallModal this file already mounts for its own create
+// flow via the flow's callback.
+const { copyOpen, copyIds, openCopy: handleCopyOpen, onCopied, onQuotaExceeded } = useCopyToCampaignFlow({
+  noun: "faction",
+  selectableIds: () => selectableIds.value,
+  pruneTo,
+  stop: stopSelecting,
+  onQuotaExceeded: () => { showPaywall.value = true; },
+});
 </script>

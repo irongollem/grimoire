@@ -55,6 +55,12 @@
           :icon="IconScrollText"
           @click="npcDetail.sendToScriptorium()"
         />
+        <PageHeaderAction
+          v-if="npc?.id"
+          label="Copy to campaign…"
+          :icon="IconCopy"
+          @click="npcDetail.openCopy()"
+        />
         <!--
           Draft-bound: this editor owns its Save, so the reveal edits the form
           rather than writing through. Both halves are here — the field list
@@ -126,7 +132,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
-import { IconDelete, IconDocument, IconGenerate, IconHide, IconReveal, IconScrollText } from '@/lib/icons';
+import { IconCopy, IconDelete, IconDocument, IconGenerate, IconHide, IconReveal, IconScrollText } from '@/lib/icons';
 import { useNpc } from "@/composables/npcs/useNpcs";
 import { useDetailModal } from "@/composables/useDetailModal";
 import { useRecentNpcs } from "@/composables/dashboard/useRecentNpcs";

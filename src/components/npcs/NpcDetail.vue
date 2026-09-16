@@ -19,6 +19,7 @@
     @delete="confirmDelete"
     @generate="showGenerateDialog = true"
     @scriptorium="sendToScriptorium"
+    @copy-to-campaign="openCopy"
     @apply-template="applyTemplate"
     @link-monster="onMonsterLinked"
     @update:has-stat-block="hasStatBlock = $event"
@@ -198,6 +199,17 @@
   />
 
   <PaywallModal v-model="showPaywall" resource="npcs" />
+
+  <CopyToCampaignDialog
+    v-if="props.npc"
+    :open="copyOpen"
+    table="npcs"
+    :ids="copyIds"
+    label="NPC"
+    @close="copyOpen = false"
+    @copied="onCopied"
+    @quota-exceeded="onQuotaExceeded"
+  />
 </template>
 
 <script setup lang="ts">
@@ -232,6 +244,8 @@ import { useCampaignStore } from '@/stores/campaign'
 import EntityCombobox from '@/components/common/EntityCombobox.vue'
 import PlayerNotesWidget from '@/components/common/PlayerNotesWidget.vue'
 import PaywallModal from '@/components/common/PaywallModal.vue'
+import CopyToCampaignDialog from '@/components/common/CopyToCampaignDialog.vue'
+import { useCopyEntityToCampaign } from '@/composables/campaign/useCopyEntityToCampaign'
 import { isQuotaExceeded } from '@/lib/quotaError'
 import { getNpcDisplayName, getNpcPlayerFacingName, NPC_UNNAMED_IN_PROSE } from '@/lib/npcDisplay'
 import TabBar from '@/components/common/TabBar.vue'
@@ -657,6 +671,18 @@ function onMobileCancel() {
   else router.push('/npcs')
 }
 
+// ── Copy to campaign (#885) ─────────────────────────────────────────────────
+// npcs carries the enforce_quota trigger, so a rejected insert reopens the
+// same showPaywall this file already mounts for its own create flow (matches
+// MonsterDetail.vue's reuse of one showPaywall ref for both purposes).
+const { copyOpen, copyIds, openCopy, onCopied, onQuotaExceeded } = useCopyEntityToCampaign({
+  entity: () => props.npc,
+  noun: 'NPC',
+  onQuotaExceeded: () => {
+    showPaywall.value = true
+  },
+})
+
 defineExpose({
   isSaving,
   isSendingToScriptorium,
@@ -666,6 +692,7 @@ defineExpose({
   form,
   sendToScriptorium,
   confirmDelete,
+  openCopy,
 })
 </script>
 

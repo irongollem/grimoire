@@ -267,6 +267,22 @@
         <template #icon><IconScrollText class="size-4 shrink-0 text-muted-foreground" /></template>
         {{ isSendingToScriptorium ? "Exporting…" : "Send to Scriptorium" }}
       </AppButton>
+      <!--
+        The phone's twin of the desktop bar's "Copy to campaign…" (#885,
+        matching MonsterEditMobile's #598 wiring). NpcDetail owns the dialog
+        and mounts both layouts, so this is one emit rather than a second copy
+        of the flow.
+      -->
+      <AppButton
+        variant="menu"
+        size="md"
+        block
+        class="gap-3"
+        @click="runAction('copyToCampaign')"
+      >
+        <template #icon><IconCopy class="size-4 shrink-0 text-muted-foreground" /></template>
+        Copy to campaign…
+      </AppButton>
       <AppButton
         variant="menu"
         tone="danger"
@@ -301,7 +317,7 @@ import RelationshipWheel from "./RelationshipWheel.vue";
 import NpcLoreTab from "./NpcLoreTab.vue";
 import NpcRelationsSection from "./NpcRelationsSection.vue";
 import NpcAccordionSection from "./NpcAccordionSection.vue";
-import { IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
+import { IconCopy, IconDelete, IconGenerate, IconScrollText } from "@/lib/icons";
 
 type ArtTab = "true-form" | "alter-ego";
 
@@ -340,6 +356,7 @@ const emit = defineEmits<{
   delete: [];
   generate: [];
   scriptorium: [];
+  copyToCampaign: [];
   "update:hasStatBlock": [value: boolean];
   "update:artTab": [value: ArtTab];
   "apply-template": [id: string];
@@ -380,10 +397,11 @@ function templatesByCategory(cat: string) {
   return NPC_TEMPLATES.filter((t) => t.category === cat);
 }
 
-function runAction(action: "generate" | "scriptorium" | "delete") {
+function runAction(action: "generate" | "scriptorium" | "copyToCampaign" | "delete") {
   showMenu.value = false;
   if (action === "generate") emit("generate");
   else if (action === "scriptorium") emit("scriptorium");
+  else if (action === "copyToCampaign") emit("copyToCampaign");
   else emit("delete");
 }
 </script>

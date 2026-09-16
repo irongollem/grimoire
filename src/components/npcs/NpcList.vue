@@ -1,5 +1,19 @@
 <template>
   <div>
+    <BulkScopeBar
+      v-if="bulk.selecting.value"
+      :count="bulk.count.value"
+      :selectable-count="selectableIds.length"
+      :busy="bulkMoving"
+      :campaign-name="activeCampaign?.name ?? null"
+      class="mb-3"
+      @select-all="selectAllShown"
+      @clear="bulk.clear"
+      @stop="bulk.stop"
+      @move="moveSelection"
+      @copy="openCopyDialog"
+    />
+
     <div v-if="isLoading" class="flex justify-center py-16">
       <LoadingSpinner />
     </div>
@@ -44,24 +58,31 @@
             : 'flex flex-col gap-2 pb-2'
         "
       >
-        <EntityMobileCard
+        <BulkSelectableCard
           v-for="npc in visibleItems"
           :key="npc.id"
-          :layout="layout"
-          :to="`/npcs/${npc.id}`"
-          :title="getNpcDisplayName(npc) ?? '???'"
-          :subtitle="npcSubtitle(npc)"
-          :image-url="getNpcDisplayPortrait(npc)"
-          :focal-point="getNpcDisplayFocalPoint(npc)"
-          :placeholder="placeholderUrl('npc')"
-          :badge-text="npc.relationship"
-          :badge-class="npcRelationshipBg(npc.relationship)"
-          :status-class="npcStatusBg(npc.status)"
-          :location="
-            npc.location_id ? locationName(npc.location_id) : undefined
-          "
-          :shared="isShared(npc)"
-        />
+          corner="bottom-right"
+          :selected="bulk.isSelected(npc.id)"
+          :selecting="bulk.selecting.value"
+          @toggle="bulk.toggle(npc.id)"
+        >
+          <EntityMobileCard
+            :layout="layout"
+            :to="`/npcs/${npc.id}`"
+            :title="getNpcDisplayName(npc) ?? '???'"
+            :subtitle="npcSubtitle(npc)"
+            :image-url="getNpcDisplayPortrait(npc)"
+            :focal-point="getNpcDisplayFocalPoint(npc)"
+            :placeholder="placeholderUrl('npc')"
+            :badge-text="npc.relationship"
+            :badge-class="npcRelationshipBg(npc.relationship)"
+            :status-class="npcStatusBg(npc.status)"
+            :location="
+              npc.location_id ? locationName(npc.location_id) : undefined
+            "
+            :shared="isShared(npc)"
+          />
+        </BulkSelectableCard>
       </div>
     </template>
 
@@ -70,15 +91,22 @@
       v-else
       class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
     >
-      <NpcGridCard
+      <BulkSelectableCard
         v-for="npc in visibleItems"
         :key="npc.id"
-        :npc="npc"
-        :location-name="
-          npc.location_id ? locationName(npc.location_id) : undefined
-        "
-        :locked="lockedNpcIds.has(npc.id)"
-      />
+        corner="bottom-right"
+        :selected="bulk.isSelected(npc.id)"
+        :selecting="bulk.selecting.value"
+        @toggle="bulk.toggle(npc.id)"
+      >
+        <NpcGridCard
+          :npc="npc"
+          :location-name="
+            npc.location_id ? locationName(npc.location_id) : undefined
+          "
+          :locked="lockedNpcIds.has(npc.id)"
+        />
+      </BulkSelectableCard>
     </div>
 
     <div ref="sentinelRef" />
@@ -92,10 +120,20 @@
   </div>
 
   <PaywallModal v-model="showPaywall" resource="npcs" />
+
+  <CopyToCampaignDialog
+    :open="copyOpen"
+    table="npcs"
+    :ids="copyIds"
+    label="NPC"
+    @close="copyOpen = false"
+    @copied="onCopied"
+    @quota-exceeded="onQuotaExceeded"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { useInfiniteScroll } from "@/composables/useInfiniteScroll";
@@ -122,6 +160,14 @@ import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 import type { Npc } from "@/types/npc.types";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
+import { storeToRefs } from "pinia";
+import BulkScopeBar from "@/components/common/BulkScopeBar.vue";
+import BulkSelectableCard from "@/components/common/BulkSelectableCard.vue";
+import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
+import { useBulkSelection } from "@/composables/useBulkSelection";
+import { useCopyToCampaignFlow } from "@/composables/campaign/useCopyToCampaignFlow";
+import { useMoveToCampaignFlow } from "@/composables/campaign/useMoveToCampaignFlow";
+import { useCampaignStore } from "@/stores/campaign";
 
 const router = useRouter();
 const { canCreate, quota: npcQuota } = useQuota("npcs");
@@ -261,4 +307,66 @@ function npcSubtitle(npc: Npc): string | undefined {
 function isShared(npc: Npc): boolean {
   return npc.player_visible_to.length > 0;
 }
+
+// ── Bulk selection (#885) ───────────────────────────────────────────────────
+//
+// Owned here, not in useUiStore: transient per-visit selection, not a list
+// filter — mirrors MonsterList.vue. Unlike monsters, no NPC row is shared/
+// library content, so every filtered row is selectable.
+const bulk = useBulkSelection();
+const { activeCampaign } = storeToRefs(useCampaignStore());
+
+// Every row a bulk move/copy may legally touch: passes the current filters.
+// Reused by "select all" and by the prune below, so both always agree on
+// what's selectable.
+const selectableIds = computed(() => filtered.value.map((n) => n.id));
+
+// The filters can change (or the underlying list refetch) while rows are
+// selected; prune whenever the selectable set changes so a stale id from a
+// now-hidden row never lingers in the selection or reaches the mutation
+// (#875).
+watch(selectableIds, (ids) => bulk.pruneTo(ids));
+
+function selectAllShown() {
+  // "Shown" means every row passing the current filters, not just the
+  // windowed/painted subset — taken from `filtered`, not `visibleItems`.
+  bulk.selectAll(selectableIds.value);
+}
+
+const { moving: bulkMoving, move: moveSelection } = useMoveToCampaignFlow({
+  table: "npcs",
+  noun: "NPC",
+  selectableIds: () => selectableIds.value,
+  pruneTo: bulk.pruneTo,
+  stop: bulk.stop,
+  campaignName: () => activeCampaign.value?.name ?? null,
+});
+
+function toggleSelectMode() {
+  if (bulk.selecting.value) bulk.stop();
+  else bulk.selecting.value = true;
+}
+
+// ── Copy to campaign (#885) ─────────────────────────────────────────────────
+//
+// Same pruning discipline as moveSelection — `useCopyToCampaignFlow` owns
+// that. npcs carries the enforce_quota trigger — the dialog surfaces a
+// rejected insert as a `quota-exceeded` event rather than owning a paywall
+// itself; this reuses the same PaywallModal this file already mounts for its
+// own create flow via the flow's callback.
+const {
+  copyOpen,
+  copyIds,
+  openCopy: openCopyDialog,
+  onCopied,
+  onQuotaExceeded,
+} = useCopyToCampaignFlow({
+  noun: "NPC",
+  selectableIds: () => selectableIds.value,
+  pruneTo: bulk.pruneTo,
+  stop: bulk.stop,
+  onQuotaExceeded: () => { showPaywall.value = true; },
+});
+
+defineExpose({ selecting: bulk.selecting, toggleSelectMode });
 </script>
