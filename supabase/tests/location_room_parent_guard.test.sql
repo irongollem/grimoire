@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(24);
 
 -- Story #783 (epic #780). Two invariants ship together and neither has a
 -- client-side equivalent that can be trusted: a room must sit somewhere that
@@ -22,7 +22,7 @@ insert into public.locations (id, user_id, campaign_id, name, location_type) val
   ('78300000-0000-4000-8000-000000000022', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'Ilvaren Reach', 'region'),
   ('78300000-0000-4000-8000-000000000023', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'The White Quarter', 'district'),
   ('78300000-0000-4000-8000-000000000024', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'The Frost Moors', 'wilderness'),
-  ('78300000-0000-4000-8000-000000000025', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'Sunken Courtyard', 'grounds');
+  ('78300000-0000-4000-8000-000000000025', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'Sunken Courtyard', 'wilds');
 
 -- ── a room's parent ─────────────────────────────────────────────────────────
 
@@ -130,24 +130,95 @@ select lives_ok(
   'get_player_visible_locations still matches the widened locations rowtype'
 );
 
--- ── an outdoor site is still a site (#817) ──────────────────────────────────
+-- ── an outdoor site is still a site (#817, retargeted by #886) ──────────────
 --
--- `grounds` exists because every other site type is roofed, so a garden or a
--- courtyard fell out to `wilderness` and became terrain. It has a floor plan
--- like the rest, so it holds rooms like the rest.
+-- This case exists because every other site type is roofed, so a wood or a
+-- courtyard fell out to `wilderness` and became terrain. The outdoor *site* is
+-- now `wilds`; `grounds` moved down to the interior tier, where it had always
+-- belonged (see the section below). A wilds has a floor plan like the rest of
+-- the site tier, so it holds interiors like the rest.
 select lives_ok(
   $$insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type)
     values ('78300000-0000-4000-8000-000000000032', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', '78300000-0000-4000-8000-000000000025', 'Broken Well', 'room')$$,
-  'a room may sit inside grounds'
+  'a room may sit inside a wilds'
 );
 
 -- A site inside a site is ordinary and nothing forbids it: a dungeon with an
--- outdoor courtyard in it, which in turn has rooms. Only `room` children are
--- constrained by parent type at all.
+-- outdoor courtyard in it, which in turn has rooms. Only *interior* children
+-- are constrained by parent type at all.
 select lives_ok(
   $$update public.locations set parent_id = '78300000-0000-4000-8000-000000000020'
     where id = '78300000-0000-4000-8000-000000000025'$$,
   'a dungeon may contain an outdoor site that itself holds rooms'
+);
+
+-- ── the interior tier: a grounds is an open-air room (#886) ─────────────────
+--
+-- `grounds` dropped from the site tier on 16 Sep 2026. It was always meant to
+-- be "an outdoor area inside a site" and had been filed as a container, so a
+-- DM dividing a wood had to call its glades Rooms. Everything the guard says
+-- about a room must now say the same about a grounds — which is exactly why
+-- the guard asks `private.location_is_interior` rather than comparing to
+-- `'room'` twice. These cases are the proof that the predicate is wired in,
+-- not merely defined.
+
+select lives_ok(
+  $$insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type)
+    values ('78300000-0000-4000-8000-000000000033', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', '78300000-0000-4000-8000-000000000020', 'Cloister Garden', 'grounds')$$,
+  'a grounds may sit inside a building'
+);
+
+select lives_ok(
+  $$insert into public.locations (id, user_id, campaign_id, parent_id, name, location_type)
+    values ('78300000-0000-4000-8000-000000000034', '78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', '78300000-0000-4000-8000-000000000025', 'Hedge Maze', 'grounds')$$,
+  'a grounds may sit inside a wilds — the case the whole change exists for'
+);
+
+select throws_ok(
+  $$insert into public.locations (user_id, campaign_id, name, location_type)
+    values ('78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', 'Orphan glade', 'grounds')$$,
+  '23514',
+  null,
+  'a grounds may not be top-level, exactly as a room may not'
+);
+
+select throws_ok(
+  $$insert into public.locations (user_id, campaign_id, parent_id, name, location_type)
+    values ('78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', '78300000-0000-4000-8000-000000000024', 'Clearing', 'grounds')$$,
+  '23514',
+  null,
+  'a grounds may not hang off a wilderness — that is the pin map, not a plan'
+);
+
+-- The distinction the two types exist to draw: `wilderness` is land-tier and
+-- takes pins (#810), `wilds` is site-tier and takes traced regions. A grounds
+-- belongs to the second and never to the first.
+select throws_ok(
+  $$insert into public.locations (user_id, campaign_id, parent_id, name, location_type)
+    values ('78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', '78300000-0000-4000-8000-000000000030', 'Nook', 'grounds')$$,
+  '23514',
+  null,
+  'a grounds may not sit inside a room'
+);
+
+select throws_ok(
+  $$insert into public.locations (user_id, campaign_id, parent_id, name, location_type)
+    values ('78300000-0000-4000-8000-000000000001', '78300000-0000-4000-8000-000000000010', '78300000-0000-4000-8000-000000000033', 'Inner bed', 'grounds')$$,
+  '23514',
+  null,
+  'a grounds may not sit inside another grounds — an interior holds nothing'
+);
+
+-- The demotion half of the guard has to count interiors, not rooms. A wilds
+-- whose only children are `grounds` would have been seen as childless by the
+-- old `c.location_type = 'room'` test and allowed to become terrain, stranding
+-- them.
+select throws_ok(
+  $$update public.locations set location_type = 'wilderness'
+    where id = '78300000-0000-4000-8000-000000000025'$$,
+  '23514',
+  null,
+  'a wilds holding a grounds cannot become a wilderness'
 );
 
 -- ── a row that predates the rule stays editable (#810) ──────────────────────

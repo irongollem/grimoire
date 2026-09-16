@@ -1,0 +1,22 @@
+-- Migration: wilds_is_a_site_type
+-- Adds the `wilds` location type. Split from its own follow-up on purpose.
+--
+-- Postgres will not let a transaction USE an enum label that the same
+-- transaction added, and the Supabase CLI runs each migration file in one
+-- transaction. The companion migration (`grounds_is_an_outdoor_room`) both
+-- reads `wilds` in a function body and writes it to a row, so the label has to
+-- be committed before that file starts. Hence two files rather than one.
+--
+-- WHAT `wilds` IS, since the name will not say it on its own: a *site-tier*
+-- natural place -- a wood, a marsh, a graveyard, a scree slope -- that the DM
+-- draws a plan on and divides into parts. It is deliberately NOT `wilderness`,
+-- which stays exactly where #810 put it: land tier, a large-scale pin map whose
+-- children are placed as points. The same forest can legitimately be both at
+-- once: a `wilderness` on the world map that the party travels across, and a
+-- `wilds` site for the stretch of it they actually walk through room by room.
+-- #810's ruling ("inside buildings and dungeons we should go to the polys
+-- system, but in bigger things remain the pins") is untouched by this; `wilds`
+-- is on the polys side of that line, which is why it is a new type rather than
+-- a promotion of `wilderness`.
+
+alter type public.location_type_enum add value if not exists 'wilds';
