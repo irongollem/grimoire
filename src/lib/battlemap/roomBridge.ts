@@ -18,6 +18,7 @@ import type { GridCalibration, Location } from "@/types/location.types";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 import type { RunCombatant } from "@/types/encounter.types";
 import { primaryImage } from "@/lib/locations/mapStack";
+import { isInteriorType } from "@/lib/locations/tiers";
 
 function originOf(calibration: GridCalibration): { x: number; y: number } {
   return { x: calibration.origin_cell_x ?? 0, y: calibration.origin_cell_y ?? 0 };
@@ -93,9 +94,11 @@ export function resolveBattleSurface(params: {
     };
   }
 
-  // A room with no map of its own opens on its site's plan, focused on the
-  // cells the DM traced for it.
-  if (encounterLocation.location_type === "room" && parent) {
+  // An interior space (room or grounds — #886) with no map of its own opens
+  // on its site's plan, focused on the cells the DM traced for it.
+  // `isInteriorType` is the single reader of that distinction; this must not
+  // go back to comparing `location_type` inline.
+  if (isInteriorType(encounterLocation.location_type) && parent) {
     const parentImage = primaryImage(parent);
     if (parentImage?.calibration) {
       const calibration = parentImage.calibration;

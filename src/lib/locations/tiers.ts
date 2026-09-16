@@ -16,10 +16,19 @@ import type { Location, LocationType } from "@/types/location.types";
  * A tier now says **what kind of map a place has, and therefore how its
  * children get placed on it**: pins down through `district`, traced regions
  * on a floor plan at `site`. `venue` is gone — a tavern is a building, one of
- * five types with a floor plan. `wilderness` moved to `land`, beside
+ * six types with a floor plan. `wilderness` moved to `land`, beside
  * continent/region/country, where "no floor plan, children placed by pins"
  * actually describes it. `district` earned its own rung: its children are
  * buildings on a geography map, not traced rooms.
+ *
+ * The sixth of those six is `wilds` (#886), which #810 had no name for: a
+ * *site*-scale natural place — a wood, a marsh, a graveyard — that carries its
+ * own plan. It is emphatically not `wilderness`, which stays up at `land` on
+ * pins; the same forest can be both, a `wilderness` the party crosses on the
+ * world map and a `wilds` for the stretch they walk through part by part. The
+ * same change moved `grounds` the other way, down to `interior`, where it had
+ * always belonged — a glade or a hedge maze is an open-air *room*, not a
+ * container. See `isInteriorType` below.
  *
  * Type still says what a place *is* (that is the label's job); the tier says
  * what kind of map it gets.
@@ -77,11 +86,12 @@ export const LOCATION_TYPE_TIER: Record<LocationType, LocationTier | null> = {
   district: "district",
   building: "site",
   dungeon: "site",
-  grounds: "site",
   store: "site",
   tavern: "site",
   inn: "site",
+  wilds: "site",
   room: "interior",
+  grounds: "interior",
   other: null,
 };
 
@@ -104,7 +114,7 @@ export const TIER_COLORS: Record<LocationTier, string> = Object.fromEntries(
 ) as Record<LocationTier, string>;
 
 /**
- * Whether an arbitrary value is one of the 18 location types. `LOCATION_TYPE_TIER`
+ * Whether an arbitrary value is one of the 19 location types. `LOCATION_TYPE_TIER`
  * is keyed by every one of them, so membership in it *is* the check — which keeps
  * callers holding loosely-typed data (realtime payloads) from having to assert a
  * shape they cannot actually see.
@@ -118,12 +128,16 @@ export function tierOf(type: LocationType): LocationTier | null {
 }
 
 /**
- * True for the `site` tier — building, dungeon, store, tavern, inn: the five
- * types with a floor plan. This is the single answer to "does this place get
- * a Rooms panel (#783) and traced map regions (#784) instead of pins" —
- * `private.location_can_hold_rooms` mirrors this same five-type set in the
- * database, so the panel and the constraint agree by construction rather than
- * being two predicates that happen to line up.
+ * True for the `site` tier — building, dungeon, store, tavern, inn, wilds:
+ * the six types with a floor plan. This is the single answer to "does this
+ * place get a Rooms panel (#783) and traced map regions (#784) instead of
+ * pins" — `private.location_can_hold_rooms` mirrors this same six-type set
+ * in the database, so the panel and the constraint agree by construction
+ * rather than being two predicates that happen to line up. `wilds` replaced
+ * `grounds` here in #886: `grounds` moved down to `interior`, beside `room`
+ * — it is now a *space inside* a site's floor plan rather than a site of its
+ * own, while `wilds` (a wood, a marsh, a graveyard the party walks through
+ * part by part) is the thing that carries the plan.
  *
  * Keeps the name `isSiteType` rather than becoming `isStructureType` or
  * similar: "site" is already a term of art across this epic —
@@ -132,6 +146,20 @@ export function tierOf(type: LocationType): LocationTier | null {
  */
 export function isSiteType(type: LocationType): boolean {
   return LOCATION_TYPE_TIER[type] === "site";
+}
+
+/**
+ * True for the `interior` tier — `room` and `grounds`: the two types bound
+ * to another place's floor plan rather than carrying one of their own. This
+ * is the client mirror of `private.location_is_interior` in the database —
+ * the database is the authority, and this exists so the UI never offers what
+ * it will refuse. `room` is walled and roofed; `grounds` is the same idea
+ * without a roof (a glade, a grave plot, a hedge maze bound to a site's
+ * plan) — both differ from `wilds`, which is open air but carries its own
+ * floor plan and so sits at `site` instead.
+ */
+export function isInteriorType(type: LocationType): boolean {
+  return LOCATION_TYPE_TIER[type] === "interior";
 }
 
 /** Ladder position, for the scale rail. `null` tier sorts last. */
@@ -189,10 +217,11 @@ export function occupiedTiers(locations: readonly Location[]): Set<LocationTier>
 /**
  * The children of a site that can carry a traced region on its map (#818).
  *
- * A room, or a nested site — a `grounds` courtyard inside a dungeon occupies an
- * area of the dungeon's floor plan exactly as a room does, and tracing its
- * footprint to click through into it is the same descent a pin already gives,
- * drawn as a polygon instead of a point.
+ * An interior space (a room, or a `grounds` courtyard — #886 moved `grounds`
+ * to the `interior` tier), or a nested site — either occupies an area of the
+ * parent's floor plan exactly as a room does, and tracing its footprint to
+ * click through into it is the same descent a pin already gives, drawn as a
+ * polygon instead of a point.
  *
  * Direct children only: the database guard requires the bound location to be a
  * child of the site the region is drawn on, so offering a grandchild here would
@@ -204,5 +233,5 @@ export function occupiedTiers(locations: readonly Location[]): Set<LocationTier>
 export function bindableSpaces<T extends { location_type: LocationType }>(
   children: readonly T[],
 ): T[] {
-  return children.filter((c) => c.location_type === "room" || isSiteType(c.location_type));
+  return children.filter((c) => isInteriorType(c.location_type) || isSiteType(c.location_type));
 }

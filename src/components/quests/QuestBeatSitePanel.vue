@@ -112,7 +112,7 @@ import { useLocationMapRegions } from "@/composables/locations/useLocationMapReg
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
-import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
+import { bindableSpaces, isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { reachableRoomIds } from "@/lib/locations/siteRun";
 import { siteReadiness } from "@/lib/locations/siteReadiness";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
@@ -136,17 +136,21 @@ const site = computed(() => {
   const staged = stagedLocation.value;
   if (!staged) return null;
   if (isSiteType(staged.location_type)) return staged;
-  if (staged.location_type !== "room" || !staged.parent_id) return null;
+  // #886: `grounds` moved to the interior tier beside `room`, so a beat staged
+  // at a `wilds` site's grounds must resolve the same way a room does — the
+  // predicate is the single reader of that fact, not a copy of it, so it does
+  // not silently miss the day a third interior type joins `room`.
+  if (!isInteriorType(staged.location_type) || !staged.parent_id) return null;
   const parent = locationOptions.value.find((candidate) => candidate.id === staged.parent_id);
   return parent && isSiteType(parent.location_type) ? parent : null;
 });
 const openingRoom = computed(() => {
   const staged = stagedLocation.value;
-  return staged && staged.location_type === "room" && site.value ? staged : null;
+  return staged && isInteriorType(staged.location_type) && site.value ? staged : null;
 });
 
 const siteRooms = computed(() => site.value
-  ? locationOptions.value.filter((candidate) => candidate.parent_id === site.value!.id && candidate.location_type === "room")
+  ? locationOptions.value.filter((candidate) => candidate.parent_id === site.value!.id && isInteriorType(candidate.location_type))
   : []);
 const roomCount = computed(() => siteRooms.value.length);
 
@@ -179,10 +183,13 @@ const siteMetaCaption = computed(() => {
 });
 
 // The picker offers every site-tier location AND, indented beneath each, its
-// bindable spaces (rooms and nested sites) — the same depth-indented shape
-// `useLocationTree` already produces for every other location combobox.
-const siteAndRoomOptions = computed(() => locationOptions.value.filter((candidate) =>
-  isSiteType(candidate.location_type) || candidate.location_type === "room"));
+// bindable spaces (rooms, grounds and nested sites) — the same depth-indented
+// shape `useLocationTree` already produces for every other location combobox.
+// This was `isSiteType(...) || location_type === "room"` inline — exactly
+// `bindableSpaces` re-implemented by hand, and the copy is why it never
+// picked up `grounds` when #886 moved it into the interior tier. Calling the
+// shared predicate means a third interior type only needs to change there.
+const siteAndRoomOptions = computed(() => bindableSpaces(locationOptions.value));
 
 const choosingSite = ref(false);
 const staging = ref(false);

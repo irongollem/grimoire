@@ -9,6 +9,11 @@ vi.mock("@/composables/locations/useLocations", () => ({
     { id: "room-1", name: "Room 1", location_type: "room", parent_id: "site-1", depth: 1 },
     { id: "room-2", name: "Room 2", location_type: "room", parent_id: "site-1", depth: 1 },
     { id: "room-3", name: "Room 3", location_type: "room", parent_id: "site-1", depth: 1 },
+    // #886: a `wilds` site whose only interior children are `grounds`, not
+    // `room` — regression fixture for the `isInteriorType` predicate fix.
+    { id: "site-2", name: "The Thornwood", location_type: "wilds", parent_id: null, depth: 0 },
+    { id: "grounds-1", name: "The clearing", location_type: "grounds", parent_id: "site-2", depth: 1 },
+    { id: "grounds-2", name: "The grave plot", location_type: "grounds", parent_id: "site-2", depth: 1 },
   ] } }),
 }));
 
@@ -17,6 +22,7 @@ const beats = [
   beat,
   { id: "beat-confess", quest_id: "quest-1", title: "Testify before the Guild", kind: "social" },
   { id: "beat-crypt", quest_id: "quest-1", title: "The cloister's sealed crypt", kind: "explore", staged_at_location_id: "site-1" },
+  { id: "beat-wilds", quest_id: "quest-1", title: "The Thornwood's edge", kind: "explore", staged_at_location_id: "site-2" },
 ] as QuestBeat[];
 const global = { stubs: { RouterLink: RouterLinkStub } };
 
@@ -59,6 +65,18 @@ describe("QuestBeatRoutesPanel", () => {
     const row = wrapper.get("li");
     expect(row.text()).toContain("opens Thread C");
     expect(row.text()).toContain("site · 3 rooms");
+  });
+
+  // #886: `grounds` moved into the interior tier beside `room` — a wilds
+  // site's own children must still be counted here, or the chip vanishes
+  // entirely (`v-if="route.site && route.site.roomCount > 0"`).
+  it("counts a wilds site's grounds, not just its rooms", () => {
+    const edges = [
+      { id: "edge-wilds", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-wilds", route_kind: "parallel", thread_label: "Thread C" },
+    ] as QuestBeatEdge[];
+    const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges, beats }, global });
+    const row = wrapper.get("li");
+    expect(row.text()).toContain("site · 2 rooms");
   });
 
   it("sends Edit route to the story flow with this beat and that edge selected", () => {

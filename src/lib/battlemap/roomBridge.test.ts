@@ -200,6 +200,30 @@ describe("resolveBattleSurface", () => {
     expect(resolveBattleSurface({ encounterLocation: room, parent: site, regions: [] })).toBeNull();
   });
 
+  it("a grounds space with no map of its own opens on its site's plan too (#886)", () => {
+    // `grounds` moved to the interior tier alongside `room` (#886): the
+    // resolution routes through `isInteriorType`, so an open-air space traced
+    // on a site's plan must behave exactly as a room does here.
+    const calibration = makeCalibration({ origin_cell_x: -2, origin_cell_y: -2 });
+    const grounds = makeLocation({ id: "grounds-1", location_type: "grounds", parent_id: "site-1" });
+    const site = makeLocation({
+      id: "site-1",
+      location_type: "dungeon",
+      map_url: "https://example.test/site.webp",
+      grid_calibration: calibration,
+    });
+    const region = makeRegion({
+      site_location_id: "site-1",
+      space_location_id: "grounds-1",
+      cells: ["0,0", "1,0", "0,1"],
+    });
+    const surface = resolveBattleSurface({ encounterLocation: grounds, parent: site, regions: [region] });
+    expect(surface).not.toBeNull();
+    expect(surface?.mapLocation).toBe(site);
+    expect(surface?.focusRoomId).toBe("grounds-1");
+    expect(surface?.focusCells.sort()).toEqual(["2,2", "3,2", "2,3"].sort());
+  });
+
   it("returns null for a non-room location with no map of its own", () => {
     const location = makeLocation({ id: "loc-1", location_type: "dungeon", map_url: null });
     expect(resolveBattleSurface({ encounterLocation: location, parent: null, regions: [] })).toBeNull();

@@ -3,6 +3,7 @@ import { useEncounter } from "@/composables/encounters/useEncounters";
 import { useLocation } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { regionCellToBattleCell, resolveBattleSurface } from "@/lib/battlemap/roomBridge";
+import { isInteriorType } from "@/lib/locations/tiers";
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
 
 /**
@@ -18,15 +19,24 @@ export function useLocationBattleSurface(locationId: MaybeRefOrGetter<string>) {
   const { data: location } = useLocation(computed(() => toValue(locationId)));
 
   // A room's own map (its parent site's, when it has none of its own) is
-  // resolved through its parent; anything else already IS the site.
+  // resolved through its parent; anything else already IS the site. Interior
+  // spaces only — `isInteriorType` is the single reader of that distinction,
+  // so this must never go back to comparing `location_type` inline (#886).
+  //
+  // The `?? ""` below is not the null-coercion this repo otherwise bans: `""`
+  // is the sentinel `useLocation`'s `enabled: () => !!idRef.value` reads to
+  // skip the query, so it has to stay exactly this shape rather than being
+  // "fixed" into an honest absent-parent branch.
   const parentId = computed(() =>
-    location.value?.location_type === "room" ? (location.value.parent_id ?? "") : "",
+    location.value && isInteriorType(location.value.location_type) ? (location.value.parent_id ?? "") : "",
   );
   const { data: parent } = useLocation(parentId);
 
   const siteId = computed(() => {
     if (!location.value) return "";
-    return location.value.location_type === "room" ? (location.value.parent_id ?? "") : location.value.id;
+    return isInteriorType(location.value.location_type)
+      ? (location.value.parent_id ?? "")
+      : location.value.id;
   });
   const { data: regions } = useLocationMapRegions(siteId);
 

@@ -25,9 +25,9 @@
          dungeon can be looted, not only a room.
          Titled "Progress" rather than "Site State" precisely because there is
          no gate — this renders on rooms, districts and continents too, and a
-         room is not a site. "Site" means building, dungeon, store, tavern or
-         inn (#810) — the five types with a floor plan — so the word was
-         actively wrong wherever this panel is most used. -->
+         room is not a site. "Site" means building, dungeon, store, tavern,
+         inn or wilds (#810, #886) — the six types with a floor plan — so the
+         word was actively wrong wherever this panel is most used. -->
     <section class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Progress</h2>
       <LocationStateControls :location-id="location.id" />
@@ -46,13 +46,14 @@
     </section>
 
     <!-- Related Locations — non-hierarchical links (trade routes, tunnels,
-         connected districts). Hidden on room-typed places: Ways out below is
-         the room-scoped version of "what this connects to", and rendering
-         both would be the same list of connections twice, in two mechanisms —
-         the duplication #783 already removed from the Atlas tree's Interiors
-         group. `related_location_ids` itself is untouched; a room simply
-         doesn't render this section. -->
-    <section v-if="relatedLocations.length && !isRoom" class="flex flex-col gap-2">
+         connected districts). Hidden on interior places (room, and #886's
+         `grounds`): Ways out below is the interior-scoped version of "what
+         this connects to", and rendering both would be the same list of
+         connections twice, in two mechanisms — the duplication #783 already
+         removed from the Atlas tree's Interiors group. `related_location_ids`
+         itself is untouched; an interior space simply doesn't render this
+         section. -->
+    <section v-if="relatedLocations.length && !isInteriorSpace" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
         Related Locations
         <span class="font-fell font-normal text-muted-foreground">({{ relatedLocations.length }})</span>
@@ -73,11 +74,12 @@
       </div>
     </section>
 
-    <!-- Ways out — named, directional, lockable doors to sibling rooms
-         (#785, epic #780). Same self-contained, always-editable shape as
-         Rooms/Prepared Here below; this is the section that makes Related
-         Locations redundant on a room, per the comment above. -->
-    <section v-if="isRoom" class="flex flex-col gap-2">
+    <!-- Ways out — named, directional, lockable doors to sibling interior
+         spaces (#785, epic #780; `grounds` joined `room` at #886). Same
+         self-contained, always-editable shape as Rooms/Prepared Here below;
+         this is the section that makes Related Locations redundant on an
+         interior space, per the comment above. -->
+    <section v-if="isInteriorSpace" class="flex flex-col gap-2">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Ways out</h2>
       <LocationDoors :room-id="location.id" :parent-id="location.parent_id" :building="authoring" />
     </section>
@@ -99,14 +101,14 @@
       <StoreInventory :location-id="location.id" :owner-npc-name="ownerNpcName" />
     </section>
 
-    <!-- Site rooms — numbered, orderable rooms inside a site-tier place
-         (building/dungeon/store/tavern/inn — the five types with a floor
-         plan, #810). Same self-contained, always-editable shape as Store
-         above; replaces the Atlas tree's
-         "Interiors" group for site-tier locations (AtlasPlacePane), so a
-         dungeon's rooms are never rendered in two places at once. -->
+    <!-- Site rooms — numbered, orderable interior spaces inside a site-tier
+         place (building/dungeon/store/tavern/inn/wilds — the six types with
+         a floor plan, #810, #886). Same self-contained, always-editable
+         shape as Store above; replaces the Atlas tree's "Interiors" group
+         for site-tier locations (AtlasPlacePane), so a dungeon's rooms (or a
+         wilds site's grounds) are never rendered in two places at once. -->
     <section v-if="isSite" class="flex flex-col gap-2">
-      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">Rooms</h2>
+      <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">{{ siteSpacesHeading }}</h2>
       <SiteRoomsPanel :location-id="location.id" :building="building" />
     </section>
 
@@ -227,7 +229,7 @@ import { useNpcs, useNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
 import { IconChevronRight } from "@/lib/icons";
-import { isSiteType } from "@/lib/locations/tiers";
+import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { buildAtlasIndex, descendantsOf } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";
 import { effectiveLocationId } from "@/lib/partyPosition";
@@ -285,7 +287,13 @@ const membersHere = computed(() =>
 
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(location.location_type));
 const isSite = computed(() => isSiteType(location.location_type));
-const isRoom = computed(() => location.location_type === "room");
+// #886: `SiteRoomsPanel` renders no heading of its own (see the comment atop
+// its template) — this is the only place the word appears, so it has to be
+// the place that knows a `wilds` site's children are `grounds`, not rooms.
+const siteSpacesHeading = computed(() => (location.location_type === "wilds" ? "Grounds" : "Rooms"));
+// Room, or #886's `grounds` — the two interior types, bound to another
+// place's floor plan rather than carrying one of their own.
+const isInteriorSpace = computed(() => isInteriorType(location.location_type));
 
 /**
  * Whether the two structural panels that render *outside* the site tier
@@ -350,10 +358,10 @@ const hasSubstance = computed(
   () =>
     hasDescription.value ||
     // Only counts when the Related Locations section itself would render —
-    // on a room it never does (Ways out replaces it), so a stray
-    // `related_location_ids` set before the place became a room must not
-    // claim substance the body no longer shows.
-    (relatedLocations.value.length > 0 && !isRoom.value) ||
+    // on an interior space it never does (Ways out replaces it), so a stray
+    // `related_location_ids` set before the place became a room or grounds
+    // must not claim substance the body no longer shows.
+    (relatedLocations.value.length > 0 && !isInteriorSpace.value) ||
     (locationNpcs.value?.length ?? 0) > 0 ||
     (locationEncounters.value?.length ?? 0) > 0 ||
     membersHere.value.length > 0,

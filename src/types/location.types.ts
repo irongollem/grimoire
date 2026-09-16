@@ -17,6 +17,7 @@ export type LocationType =
   | "room"
   | "dungeon"
   | "grounds"
+  | "wilds"
   | "wilderness"
   | "other";
 
@@ -66,12 +67,13 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
 
   building: "Building",
   dungeon: "Dungeon",
-  grounds: "Grounds",
   store: "Store",
   tavern: "Tavern",
   inn: "Inn",
+  wilds: "Wilds",
 
   room: "Room",
+  grounds: "Grounds",
 
   other: "Other",
 };
@@ -100,11 +102,22 @@ export const LOCATION_TYPE_LABELS: Record<LocationType, string> = {
  * Within a tier, lightness steps by **enclosure**, darkest = most enclosed.
  * `land` runs continent → region → country → wilderness, lightest last:
  * `wilderness` is the least enclosed thing on the ladder. `site` now steps
- * five types instead of three — dungeon (underground, windowless) darkest,
- * then building, then store/tavern/inn lightest — so `dungeon` reads darkest
- * of the whole ramp. `dungeon` and `wilderness` no longer share a hue family;
- * under the old ladder they did, which was the bug (#810) — they are not the
- * same kind of map, whatever their footprint on the page.
+ * six types — dungeon (underground, windowless) darkest, then building, then
+ * store/tavern/inn, then `wilds` lightest of all: it is a site with a floor
+ * plan (regions, doors, placements) but no roof, so it takes the site ramp's
+ * lightest rung rather than a hue of its own. `dungeon` and `wilderness` no
+ * longer share a hue family; under the old ladder they did, which was the bug
+ * (#810) — they are not the same kind of map, whatever their footprint on the
+ * page.
+ *
+ * `interior` also now steps two types instead of one (#886): `room` darkest
+ * — walled and roofed, fully enclosed — then `grounds` lighter — an outdoor
+ * area *inside* a site (a glade, a grave plot, a hedge maze), open air like
+ * `wilds` but bound to a floor plan the way a room is, not a site of its own.
+ * `grounds` and `wilds` sit one hue-step apart across the site/interior seam
+ * rather than sharing a family, the same reasoning as `dungeon`/`wilderness`:
+ * a wood the party walks through *is* a site (it has its own floor plan);
+ * a clearing traced inside another site's floor plan is one of its rooms.
  *
  * Values stay 6-digit hex: several call sites append an alpha pair
  * (`LOCATION_TYPE_COLORS[t] + "22"`) to derive a tint.
@@ -126,12 +139,13 @@ export const LOCATION_TYPE_COLORS: Record<LocationType, string> = {
 
   building: "#92400e",
   dungeon: "#78350f",
-  grounds: "#a16207",
   store: "#b45309",
   tavern: "#d97706",
   inn: "#f59e0b",
+  wilds: "#fbbf24",
 
   room: "#9a3412",
+  grounds: "#c2410c",
 
   other: "#6b7280",
 };

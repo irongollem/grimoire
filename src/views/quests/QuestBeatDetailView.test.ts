@@ -191,6 +191,20 @@ describe("QuestBeatDetailView", () => {
     expect(wrapper.text()).toContain("staged at · opens at this room in The sealed crypt — 2 rooms");
   });
 
+  // #886: `grounds` moved into the interior tier beside `room` — the count
+  // must read `isInteriorType`, not the `=== "room"` comparison this test
+  // would otherwise let regress to 0 for a wilds site.
+  it("counts a wilds site's grounds in the room count, not just rooms", () => {
+    mocks.beat = beat({ staged_at_location_id: "site-1" });
+    mocks.locationOptions = [
+      { id: "site-1", name: "The Thornwood", location_type: "wilds", parent_id: null },
+      { id: "grounds-1", name: "The clearing", location_type: "grounds", parent_id: "site-1" },
+      { id: "grounds-2", name: "The grave plot", location_type: "grounds", parent_id: "site-1" },
+    ];
+    const wrapper = mountView();
+    expect(wrapper.text()).toContain("staged at · site: 2 rooms");
+  });
+
   it("adds the site's readiness to the beat's own prep gap count once staged there", () => {
     mocks.beat = beat({ staged_at_location_id: "site-1", dm_content: "Prepared", how_it_plays: "Explore", visibility: "hidden" });
     mocks.locationOptions = [{ id: "site-1", name: "The sealed crypt", location_type: "dungeon", parent_id: null }];

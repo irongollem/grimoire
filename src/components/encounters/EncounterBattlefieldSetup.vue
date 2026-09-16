@@ -110,6 +110,7 @@ import { useLocationBattleSurface } from "@/composables/encounters/useEncounterR
 import { useMapCanvas } from "@/composables/encounters/useMapCanvas";
 import { sizeToFootprint } from "@/lib/battlemap/tokenFootprint";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
+import { isInteriorType } from "@/lib/locations/tiers";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 import {
   cellSizeInDisplay,
@@ -150,11 +151,12 @@ const readinessHint = computed(() => {
   if (!location.value) return "Loading location…";
   const s = surface.value;
   if (!s) {
-    // Check the map stack first: a room can carry its own uncalibrated
-    // Picture or Drawing even while its site's plan is also uncalibrated —
-    // that needs "calibrate", not "no map of its own", since the room does
-    // have one.
-    if (location.value.location_type === "room") {
+    // Check the map stack first: an interior space (room or grounds — #886)
+    // can carry its own uncalibrated Picture or Drawing even while its
+    // site's plan is also uncalibrated — that needs "calibrate", not "no
+    // map of its own", since the room does have one. `isInteriorType` is
+    // the single reader of that distinction.
+    if (isInteriorType(location.value.location_type)) {
       return hasAnyMapLayer(location.value)
         ? "This room's map isn't calibrated yet — calibrate it to enable placement."
         : "This room has no map of its own, and its site isn't calibrated either.";

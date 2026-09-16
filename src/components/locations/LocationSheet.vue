@@ -250,7 +250,7 @@ import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
 import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEditor";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
-import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
+import { bindableSpaces, isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import { visibleTags } from "@/lib/locations/tags";
 import type { Location } from "@/types/location.types";
@@ -383,13 +383,18 @@ function onReviewChanges(): void {
 // ── The map stack (#884) — Picture, Drawing, and/or a blank grid. ──────────
 const mapStack = computed(() => buildMapStack(location));
 
-// ── Identity row: rooms, sub-sites, levels (#868, frame 06) ─────────────────
+// ── Identity row: interior spaces, sub-sites, levels (#868, frame 06) ───────
 //
 // "Ashmouth Undercroft — three levels" / "Dungeon · 7 rooms · 2 sub-sites" —
 // `childSites` is the same "this site's own children that are themselves
 // sites" reading `SiteLevelsColumn` uses to build its rail, so the level
 // count here and the rail below always agree by construction.
-const roomCount = computed(() => (children.value ?? []).filter((l) => l.location_type === "room").length);
+//
+// `spaceCount` counts interior spaces generally (room, and #886's `grounds`)
+// — a `wilds` site's children are grounds, not rooms, so the caption's word
+// follows this place's own type rather than assuming "room".
+const spaceCount = computed(() => (children.value ?? []).filter((l) => isInteriorType(l.location_type)).length);
+const spaceWord = computed(() => (location.location_type === "wilds" ? "grounds" : "room"));
 const childSites = computed(() => (children.value ?? []).filter((l) => isSiteType(l.location_type)));
 
 /** The site itself is level 1, so a stack of N child sites reads as N + 1
@@ -402,7 +407,13 @@ const captionText = computed(() => {
   const type = location.location_type ? LOCATION_TYPE_LABELS[location.location_type] : "";
   if (!isSite.value) return type;
   const parts = [type];
-  if (roomCount.value > 0) parts.push(`${roomCount.value} room${roomCount.value === 1 ? "" : "s"}`);
+  if (spaceCount.value > 0) {
+    // "grounds" is already the plural/collective form of itself (see
+    // `LOCATION_TYPE_LABELS`), so it takes no trailing "s" the way "room"
+    // does for a count above one.
+    const plural = spaceWord.value === "grounds" ? "grounds" : `${spaceWord.value}${spaceCount.value === 1 ? "" : "s"}`;
+    parts.push(`${spaceCount.value} ${plural}`);
+  }
   if (childSites.value.length > 0) {
     parts.push(`${childSites.value.length} sub-site${childSites.value.length === 1 ? "" : "s"}`);
   }
@@ -422,9 +433,10 @@ function onLevelSelect(id: string) {
 }
 
 /**
- * Sub-locations, minus the rooms — a site's rooms are owned by the Rooms panel
- * below (`SiteRoomsPanel`, via `LocationDetailSections`), which numbers and
- * orders them, and by the traced regions on the map above.
+ * Sub-locations, minus the interior spaces — a site's rooms (and #886's
+ * `grounds`) are owned by the Rooms/Grounds panel below (`SiteRoomsPanel`,
+ * via `LocationDetailSections`), which numbers and orders them, and by the
+ * traced regions on the map above.
  *
  * Without this a dungeon lists every room twice on one page: once here as a
  * plain child and once as a numbered room. #783 made exactly this cut in the
@@ -433,12 +445,12 @@ function onLevelSelect(id: string) {
  * pins made the duplication look like three views of one thing rather than
  * two lists of the same thing.
  *
- * Only on a place that *has* the Rooms panel: everywhere else a room-typed
+ * Only on a place that *has* that panel: everywhere else an interior-typed
  * child has no other home, and hiding it would lose it.
  */
 const subLocations = computed(() =>
   isSite.value
-    ? (children.value ?? []).filter((l) => l.location_type !== "room")
+    ? (children.value ?? []).filter((l) => !isInteriorType(l.location_type))
     : (children.value ?? []),
 );
 

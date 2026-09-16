@@ -217,7 +217,7 @@ import { useQuest, useQuestObjectives } from "@/composables/quests/useQuests";
 import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuests } from "@/composables/quests/useQuests";
 import { useAllLocations } from "@/composables/locations/useLocations";
-import { isSiteType } from "@/lib/locations/tiers";
+import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { resolveStartBeatId } from "@/lib/quests/entry";
 import { rootBeatIds } from "@/lib/quests/graph";
 import { rankQuestJumpTargets, soleOpenOutgoingEdgeId, type RankedQuestJumpTarget } from "@/lib/quests/run";
@@ -454,7 +454,10 @@ const stagedSiteWithRooms = computed(() => {
     ? staged
     : (locationsQuery.data.value ?? []).find((location) => location.id === staged.parent_id) ?? null;
   if (!site || !isSiteType(site.location_type)) return null;
-  const hasRooms = (locationsQuery.data.value ?? []).some((row) => row.parent_id === site.id && row.location_type === "room");
+  // #886: a fully built `wilds` site has `grounds`, not `room`, children — the
+  // interior predicate is the single reader, so a wood no longer reads as
+  // having no rooms and losing the site handoff because of it.
+  const hasRooms = (locationsQuery.data.value ?? []).some((row) => row.parent_id === site.id && isInteriorType(row.location_type));
   return hasRooms ? site : null;
 });
 const showSiteHandoff = computed(() => !!stagedSiteWithRooms.value && !siteHandoffDismissed.value);

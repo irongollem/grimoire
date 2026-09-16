@@ -352,7 +352,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useBelow } from "@/composables/useBreakpoint";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
-import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
+import { bindableSpaces, isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { compareSiblings } from "@/lib/locations/tree";
 import { partyRoomInSite, reachableRoomIds as computeReachableRoomIds } from "@/lib/locations/siteRun";
 import { threadBadge, threadBadges } from "@/lib/quests/threads";
@@ -407,12 +407,16 @@ const siteId = computed(() => {
 });
 const { data: site } = useLocation(siteId);
 const { data: children } = useLocations(siteId);
+// #886: `grounds` (a `wilds` site's open-air interior space) reads as a
+// "room" here, same as everywhere else in the run surface — `isInteriorType`
+// is the single predicate for that, so this list does not silently drop a
+// wood's grounds the way a literal `=== "room"` comparison did.
 const rooms = computed<Location[]>(() =>
-  (children.value ?? []).filter((l) => l.location_type === "room").sort(compareSiblings));
+  (children.value ?? []).filter((l) => isInteriorType(l.location_type)).sort(compareSiblings));
 const roomIds = computed(() => rooms.value.map((r) => r.id));
 const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
 const pinnableChildren = computed<Location[]>(() =>
-  (children.value ?? []).filter((l) => l.location_type !== "room"));
+  (children.value ?? []).filter((l) => !isInteriorType(l.location_type)));
 
 const unwrittenIds = computed(() => unwrittenRoomIds(rooms.value));
 
@@ -422,7 +426,7 @@ const unwrittenIds = computed(() => unwrittenRoomIds(rooms.value));
 // every other room, this is only what the "not yet inside" caption points at.
 const openingRoom = computed(() => {
   const staged = stagedLocationRecord.value;
-  return staged && staged.location_type === "room" ? rooms.value.find((r) => r.id === staged.id) ?? null : null;
+  return staged && isInteriorType(staged.location_type) ? rooms.value.find((r) => r.id === staged.id) ?? null : null;
 });
 
 const currentRoomId = computed(() =>

@@ -174,7 +174,7 @@ import { useQuestThreads } from "@/composables/quests/useQuestThreads";
 import { useQuestObjectives } from "@/composables/quests/useQuests";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useSiteBeatGaps } from "@/composables/quests/useSiteBeatGaps";
-import { isSiteType } from "@/lib/locations/tiers";
+import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { questSurfaceReturnTo } from "@/lib/quests/navigation";
 import { deriveQuestBeatPresentations, tallyQuestReach, visitedRouteEdgeIds, type QuestBeatSiteInput } from "@/lib/quests/presentation";
 import { deriveQuestRouteGates } from "@/lib/quests/gates";
@@ -296,8 +296,11 @@ const sites = computed<Record<string, QuestBeatSiteInput>>(() => {
   const allLocations = allLocationsRef.value;
   const result: Record<string, QuestBeatSiteInput> = {};
   for (const [stagedId, site] of stagedSites.value) {
+    // #886: a `wilds` site's children are `grounds`, not `room` — the same
+    // interior predicate `SiteRoomsPanel` reads, so a wilds beat's card stops
+    // reporting 0 rooms for a fully built wood.
     const rooms = allLocations
-      .filter((candidate) => candidate.parent_id === site.id && candidate.location_type === "room")
+      .filter((candidate) => candidate.parent_id === site.id && isInteriorType(candidate.location_type))
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     const unwrittenRooms = rooms
       .map((room, index) => ({ position: index + 1, written: extractTiptapText(room.description, 1).length > 0 }))

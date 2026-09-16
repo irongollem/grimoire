@@ -136,4 +136,24 @@ describe("resolveBattleMapGate", () => {
     const gate = resolveBattleMapGate({ hasLocationId: true, location: room, surface });
     expect(gate).toEqual({ canOpen: true, reason: "" });
   });
+
+  // `grounds` moved to the interior tier alongside `room` (#886) — the gate
+  // routes through `isInteriorType`, so an open-air space must ride its
+  // site's publish exactly as a room does, not fall through to "no map".
+  it("opens a grounds space riding its site's publish, same as a room (#886)", () => {
+    const grounds = makeLocation({ location_type: "grounds", map_url: null });
+    const surface = makeSurface({
+      focusRoomId: grounds.id,
+      mapLocation: { ...makeLocation({ location_type: "dungeon" }), is_battle_map: false },
+    });
+    const gate = resolveBattleMapGate({ hasLocationId: true, location: grounds, surface });
+    expect(gate).toEqual({ canOpen: true, reason: "" });
+  });
+
+  it("says 'no map of its own' for a grounds space with no map and no calibrated site (#886)", () => {
+    const grounds = makeLocation({ location_type: "grounds", map_url: null });
+    const gate = resolveBattleMapGate({ hasLocationId: true, location: grounds, surface: null });
+    expect(gate.canOpen).toBe(false);
+    expect(gate.reason).toBe("This room has no map of its own, and its site isn't calibrated either");
+  });
 });

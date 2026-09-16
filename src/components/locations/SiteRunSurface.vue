@@ -141,7 +141,7 @@ import TriggerBeatPrompt from "@/components/locations/TriggerBeatPrompt.vue";
 import { useLocations } from "@/composables/locations/useLocations";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { buildDmFogPlan } from "@/lib/locations/siteFog";
-import { bindableSpaces } from "@/lib/locations/tiers";
+import { bindableSpaces, isInteriorType } from "@/lib/locations/tiers";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useLootPlacements, useQuestBeat } from "@/composables/quests/useQuestFlow";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
@@ -168,21 +168,24 @@ const ui = useUiStore();
 
 // ── Rooms, in the DM's manual order — the same comparator the Atlas and
 //    SiteRoomsPanel use, so this list matches how the DM already arranged
-//    them rather than inventing a second order. ─────────────────────────────
+//    them rather than inventing a second order. `rooms` below reads as
+//    "this site's interior spaces" — room, and #886's `grounds` — not the
+//    literal `room` type; a `wilds` site's grounds run this surface exactly
+//    like a dungeon's rooms do. ─────────────────────────────────────────────
 const siteId = computed(() => location.id);
 const { data: children } = useLocations(siteId);
 const rooms = computed<Location[]>(() =>
-  (children.value ?? []).filter((l) => l.location_type === "room").sort(compareSiblings),
+  (children.value ?? []).filter((l) => isInteriorType(l.location_type)).sort(compareSiblings),
 );
 const roomIds = computed(() => rooms.value.map((r) => r.id));
-// What a traced shape on this map may be bound to: a room, or a nested site
-// such as a courtyard inside this dungeon (#818).
+// What a traced shape on this map may be bound to: an interior space, or a
+// nested site such as a courtyard inside this dungeon (#818).
 const siteSpaces = computed(() => bindableSpaces(children.value ?? []));
 
-// Pins are for this site's non-room children (another nested site, say) —
-// rooms are placed by a region, never a pin (#807).
+// Pins are for this site's non-interior children (another nested site, say)
+// — interior spaces are placed by a region, never a pin (#807).
 const pinnableChildren = computed<Location[]>(() =>
-  (children.value ?? []).filter((l) => l.location_type !== "room"),
+  (children.value ?? []).filter((l) => !isInteriorType(l.location_type)),
 );
 
 // ── Where the party is, and what it can reach from there ────────────────────

@@ -5,6 +5,7 @@ import { useAssertLocationState } from "@/composables/locations/useLocationState
 import { decodeFogMask } from "@/lib/battlemap/fogMask";
 import { roomsRevealedInCombat, type BattleSurface } from "@/lib/battlemap/roomBridge";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
+import { isInteriorType } from "@/lib/locations/tiers";
 import type { Location } from "@/types/location.types";
 
 /**
@@ -29,11 +30,12 @@ export function resolveBattleMapGate(params: {
   if (!location) return { canOpen: false, reason: "" };
 
   if (!surface) {
-    // Check the map stack first: a room can carry its own uncalibrated
-    // Picture or Drawing even while its site's plan is also uncalibrated,
-    // and that needs "calibrate", not "no map of its own" — the room does
-    // have one.
-    if (location.location_type === "room") {
+    // Check the map stack first: an interior space (room or grounds — #886)
+    // can carry its own uncalibrated Picture or Drawing even while its
+    // site's plan is also uncalibrated, and that needs "calibrate", not "no
+    // map of its own" — the room does have one. `isInteriorType` is the
+    // single reader of that distinction.
+    if (isInteriorType(location.location_type)) {
       return {
         canOpen: false,
         reason: hasAnyMapLayer(location)

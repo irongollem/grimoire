@@ -50,6 +50,7 @@ import { useLocationMapRegions } from "@/composables/locations/useLocationMapReg
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useCloneSiteLevel } from "@/composables/locations/useCloneSiteLevel";
 import { useToast } from "@/composables/useToast";
+import { isInteriorType } from "@/lib/locations/tiers";
 import type { Location, LocationType } from "@/types/location.types";
 
 const { containerId, containerCampaignId, levelType, currentLevel, nextLevelNumber } = defineProps<{
@@ -74,7 +75,11 @@ const { containerId, containerCampaignId, levelType, currentLevel, nextLevelNumb
 // ── Clone this level ─────────────────────────────────────────────────────────
 const currentLevelId = computed(() => currentLevel?.id ?? "");
 const { data: currentLevelChildren } = useLocations(currentLevelId);
-const rooms = computed(() => (currentLevelChildren.value ?? []).filter((c) => c.location_type === "room"));
+// `rooms` (and `CloneLevelSource.rooms` below) is "this level's interior
+// spaces" — room, and #886's `grounds` — not literally the `room` type;
+// `planCloneLevel` copies each child's own `location_type` forward, so a
+// wilds level's grounds clone as grounds, not as rooms.
+const rooms = computed(() => (currentLevelChildren.value ?? []).filter((c) => isInteriorType(c.location_type)));
 const { data: currentLevelRegions } = useLocationMapRegions(currentLevelId);
 const roomIds = computed(() => rooms.value.map((r) => r.id));
 const { data: currentLevelDoors } = useSiteDoors(roomIds);

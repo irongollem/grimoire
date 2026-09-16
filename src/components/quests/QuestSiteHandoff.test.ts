@@ -145,6 +145,12 @@ function room(overrides: Partial<Location> = {}): Location {
   return { id: "room-1", name: "The flooded shaft", location_type: "room", description: null, ...overrides } as Location;
 }
 
+// #886: `grounds` is a `wilds` site's interior child, open-air but bound to
+// its plan the same way a room is bound to a building's.
+function grounds(overrides: Partial<Location> = {}): Location {
+  return { id: "grounds-1", name: "The clearing", location_type: "grounds", description: null, ...overrides } as Location;
+}
+
 function triggerZone(overrides: Partial<LocationMapRegion> = {}): LocationMapRegion {
   return {
     id: "zone-1", region_role: "zone", zone_kind: "trigger", cells: [], zone_payload: {},
@@ -232,6 +238,23 @@ describe("QuestSiteHandoff", () => {
     const wrapper = mountHandoff({ beat: beat({ staged_at_location_id: "room-1" }) });
     expect(wrapper.text()).toContain("The Tithe of Ashmouth");
     expect(wrapper.text()).toContain("not yet inside — opens at The flooded shaft");
+    const list = wrapper.findComponent({ name: "SiteRoomList" });
+    expect(list.props("siteId")).toBe("site-1");
+    expect(list.props("rooms")).toHaveLength(2);
+  });
+
+  // #886: the same resolution, staged at a `wilds` site's `grounds` directly
+  // rather than a `room` — `isInteriorType` is the single reader now, not a
+  // copy of the `=== "room"` comparison this regression test would have
+  // caught missing `grounds` entirely (the crawl silently would not run).
+  it("resolves the site from a grounds staging and names it as where the party opens", () => {
+    mocks.locationsById = {
+      "grounds-1": { id: "grounds-1", name: "The clearing", location_type: "grounds", parent_id: "site-1" },
+      "site-1": { id: "site-1", name: "The Thornwood", location_type: "wilds", map_url: null, map_pins: [], is_map_shared: false, grid_calibration: null },
+    };
+    mocks.children = [grounds({ id: "grounds-1" }), grounds({ id: "grounds-2", name: "The grave plot" })];
+    const wrapper = mountHandoff({ beat: beat({ staged_at_location_id: "grounds-1" }) });
+    expect(wrapper.text()).toContain("not yet inside — opens at The clearing");
     const list = wrapper.findComponent({ name: "SiteRoomList" });
     expect(list.props("siteId")).toBe("site-1");
     expect(list.props("rooms")).toHaveLength(2);

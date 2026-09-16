@@ -182,6 +182,37 @@ describe("QuestBeatSitePanel", () => {
     expect(wrapper.text()).toContain("Site readiness is a beat gap.");
   });
 
+  // #886: `grounds` moved into the interior tier beside `room` — a beat staged
+  // directly at a `wilds` site's grounds must still resolve to its parent
+  // site and show as the opening point, the same way a room does.
+  it("resolves a wilds site from a grounds staging and shows the grounds as the opening point", () => {
+    mocks.locationOptions = [
+      ...defaultLocations(),
+      { id: "wilds-1", name: "The Thornwood", location_type: "wilds", parent_id: null, depth: 0, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+      { id: "grounds-1", name: "The clearing", location_type: "grounds", parent_id: "wilds-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+    ];
+    const wrapper = mount(QuestBeatSitePanel, {
+      props: { beat: beat({ staged_at_location_id: "grounds-1" }) },
+      global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+    });
+    expect(wrapper.text()).toContain("The Thornwood");
+    expect(wrapper.text()).toContain("Opens at");
+    expect(wrapper.text()).toContain("The clearing");
+  });
+
+  it("offers a wilds site's grounds in the picker alongside rooms", async () => {
+    mocks.locationOptions = [
+      ...defaultLocations(),
+      { id: "wilds-1", name: "The Thornwood", location_type: "wilds", parent_id: null, depth: 0, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+      { id: "grounds-1", name: "The clearing", location_type: "grounds", parent_id: "wilds-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+    ];
+    const wrapper = mount(QuestBeatSitePanel, { props: { beat: beat() }, global: { stubs: { EntityCombobox: true } } });
+    await wrapper.findAllComponents({ name: "AppButton" }).find((button) => button.props("label") === "Choose site")!.trigger("click");
+
+    const combo = wrapper.findComponent({ name: "EntityCombobox" });
+    expect((combo.props("options") as Array<{ id: string }>).map((option) => option.id)).toContain("grounds-1");
+  });
+
   it("does not treat a room under a non-site parent as staged at a site", () => {
     const wrapper = mount(QuestBeatSitePanel, {
       props: { beat: beat({ staged_at_location_id: "room-3" }) },

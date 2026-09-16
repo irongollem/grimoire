@@ -122,6 +122,16 @@ describe("formatSiteSummary", () => {
     expect(formatSiteSummary({ name: "The Ossuary", location_type: "dungeon" }, 1, 0))
       .toBe("The Ossuary · dungeon · 1 room · 0 explored");
   });
+
+  // #886: a `wilds` site's interior children are `grounds`, not `room` —
+  // "grounds" is already its own collective form and takes no trailing "s",
+  // even above a count of one.
+  it("says grounds, not rooms, for a wilds site", () => {
+    expect(formatSiteSummary({ name: "The Thornwood", location_type: "wilds" }, 3, 1))
+      .toBe("The Thornwood · wilds · 3 grounds · 1 explored");
+    expect(formatSiteSummary({ name: "The Thornwood", location_type: "wilds" }, 1, 0))
+      .toBe("The Thornwood · wilds · 1 grounds · 0 explored");
+  });
 });
 
 const threadCursor = (overrides: Partial<QuestThreadCursor> = {}): QuestThreadCursor => ({

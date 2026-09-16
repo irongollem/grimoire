@@ -70,7 +70,7 @@ import { useAllLocations } from "@/composables/locations/useLocations";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { levelsOf } from "@/lib/locations/levels";
 import { buildMapStack } from "@/lib/locations/mapStack";
-import { bindableSpaces } from "@/lib/locations/tiers";
+import { bindableSpaces, isInteriorType } from "@/lib/locations/tiers";
 import { buildAtlasIndex, childrenOf } from "@/lib/locations/tree";
 import type { Location } from "@/types/location.types";
 
@@ -101,13 +101,17 @@ const levelsContainer = computed<Location | null>(() => levelsInfo.value?.contai
 
 const levelSites = computed<Location[]>(() => levelsInfo.value?.levels ?? []);
 
+// `roomCount` below (feeding `SiteLevelSummary`, a type this component does
+// not own) counts interior spaces — room, and #886's `grounds` — not only
+// the literal `room` type, so a wilds level's cleared/explored progress
+// still rolls up here the same way a dungeon level's does.
 const levelRoomIdsByLevel = computed(() => {
   const byLevel = new Map<string, string[]>();
   for (const level of levelSites.value) {
     byLevel.set(
       level.id,
       childrenOf(index.value, level.id)
-        .filter((c) => c.location_type === "room")
+        .filter((c) => isInteriorType(c.location_type))
         .map((c) => c.id),
     );
   }

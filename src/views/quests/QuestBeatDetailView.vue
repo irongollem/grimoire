@@ -236,7 +236,7 @@ import { useLocationTree } from "@/composables/locations/useLocations";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useConfirm } from "@/composables/useConfirm";
 import { questReturnLabel, questSurfaceReturnTo, safeQuestReturnTo } from "@/lib/quests/navigation";
-import { isSiteType } from "@/lib/locations/tiers";
+import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { threadBadge } from "@/lib/quests/threads";
 import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps, questBeatKindLabel, QUEST_BEAT_VISIBILITY_LABELS } from "@/lib/quests/presentation";
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
@@ -345,7 +345,9 @@ const stagedSiteCaption = computed(() => {
   if (!loc) return "nowhere yet";
   const site = resolvedSite.value;
   if (!site) return "not a site — no room surface";
-  const roomCount = locationOptions.value.filter((candidate) => candidate.parent_id === site.id && candidate.location_type === "room").length;
+  // #886: counts `grounds` too — the interior predicate is the single reader,
+  // so a `wilds` site's beat caption stops reporting 0 rooms.
+  const roomCount = locationOptions.value.filter((candidate) => candidate.parent_id === site.id && isInteriorType(candidate.location_type)).length;
   const rooms = `${roomCount} room${roomCount === 1 ? "" : "s"}`;
   return loc.id === site.id ? `site: ${rooms}` : `opens at this room in ${site.name} — ${rooms}`;
 });
@@ -488,8 +490,9 @@ const attachmentsFoldCaption = computed(() => {
 });
 const attachmentsFoldTone = computed(() => prepGaps.value.some((gap) => gap.kind === "attachment") ? "caution" : "muted");
 
+// #886: counts `grounds` too — same predicate, same reason as `stagedSiteCaption` above.
 const siteRoomCountForFold = computed(() => resolvedSite.value
-  ? locationOptions.value.filter((candidate) => candidate.parent_id === resolvedSite.value!.id && candidate.location_type === "room").length
+  ? locationOptions.value.filter((candidate) => candidate.parent_id === resolvedSite.value!.id && isInteriorType(candidate.location_type)).length
   : 0);
 const siteFoldCaption = computed(() => resolvedSite.value
   ? `${resolvedSite.value.name} · ${siteRoomCountForFold.value} room${siteRoomCountForFold.value === 1 ? "" : "s"}`

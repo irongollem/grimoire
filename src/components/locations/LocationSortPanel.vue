@@ -2,17 +2,17 @@
   <section v-if="children.length" class="flex flex-col gap-3">
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
-        Sort Into Rooms
+        Sort Into {{ spaceHeading }}
         <span v-if="rows.length" class="font-fell font-normal text-muted-foreground">({{ rows.length }})</span>
       </h2>
     </div>
 
     <p v-if="rows.length && unsortedCount > 0" class="text-caption text-muted-foreground">
-      {{ unsortedCount }} of {{ rows.length }} still on {{ ownName }}, waiting for a room.
+      {{ unsortedCount }} of {{ rows.length }} still on {{ ownName }}, waiting to be placed.
     </p>
-    <p v-else-if="rows.length" class="text-caption text-muted-foreground">Everyone has a room.</p>
+    <p v-else-if="rows.length" class="text-caption text-muted-foreground">Everyone is placed.</p>
     <p v-else class="text-caption text-muted-foreground italic">
-      Nothing homed here or in its rooms yet.
+      Nothing homed here or in its {{ spacePlural }} yet.
     </p>
 
     <div v-if="rows.length" class="flex flex-col gap-1.5">
@@ -38,7 +38,7 @@
           <span
             v-if="row.location_id === locationId"
             class="shrink-0 rounded bg-tone-caution/15 px-1.5 py-0.5 text-2xs font-medium text-ink-caution"
-          >Needs a room</span>
+          >{{ needsLabel }}</span>
         </div>
 
         <!-- Build only (same `authoring` reasoning as Ways out / Prepared Here
@@ -110,6 +110,23 @@ const ownName = computed(() => locationData.value?.name ?? "this place");
 
 const { data: childrenData } = useLocations(computed(() => locationId));
 const children = computed(() => childrenData.value ?? []);
+
+/**
+ * The noun for a child place follows this place's own type (#886): a `wilds` —
+ * a wood, a marsh, a graveyard — divides into open-air `grounds`, everything
+ * else into walled `room`s. Same rule as `LocationSheet`'s `spaceWord` and
+ * `SiteRoomsPanel`'s `childType`, and "grounds" is deliberately bare: it takes
+ * no article and does not change in the plural ("Needs grounds", "its grounds").
+ *
+ * This panel sits directly beneath `SiteRoomsPanel` on the page, so a heading
+ * saying "Rooms" under one saying "Grounds" is visible in a single glance —
+ * which is why this is worth a computed rather than being left to the wider
+ * wording sweep in #887.
+ */
+const isWilds = computed(() => locationData.value?.location_type === "wilds");
+const spaceHeading = computed(() => (isWilds.value ? "Grounds" : "Rooms"));
+const spacePlural = computed(() => (isWilds.value ? "grounds" : "rooms"));
+const needsLabel = computed(() => (isWilds.value ? "Needs grounds" : "Needs a room"));
 
 /** Where a row can be moved to: this place itself (the "still needs sorting"
  *  state) plus every direct child. `EntityCombobox` only needs {id, name},

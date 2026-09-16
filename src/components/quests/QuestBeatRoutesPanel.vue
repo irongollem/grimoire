@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
-import { isSiteType } from "@/lib/locations/tiers";
+import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
 import { IconAdd, IconLayers, IconShuffle } from "@/lib/icons";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
@@ -65,7 +65,9 @@ function beatById(id: string): QuestBeat | undefined {
 function siteFacts(locationId: string | null) {
   const location = locationId ? locationOptions.value.find((candidate) => candidate.id === locationId) : undefined;
   if (!location || !isSiteType(location.location_type)) return null;
-  const roomCount = locationOptions.value.filter((candidate) => candidate.parent_id === location.id && candidate.location_type === "room").length;
+  // #886: `grounds` is this room count's interior sibling on a `wilds` site —
+  // the predicate is the single reader, not a copy of it.
+  const roomCount = locationOptions.value.filter((candidate) => candidate.parent_id === location.id && isInteriorType(candidate.location_type)).length;
   return { roomCount };
 }
 

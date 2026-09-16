@@ -305,7 +305,7 @@ import { isLocationOutOfEra } from "@/lib/locations/era";
 import { levelOrdinal, levelsOf } from "@/lib/locations/levels";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
 import { visibleTags } from "@/lib/locations/tags";
-import { groupByTier, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
+import { groupByTier, isInteriorType, isSiteType, occupiedTiers } from "@/lib/locations/tiers";
 import type { LocationTier, TierGroup } from "@/lib/locations/tiers";
 import { ancestorPath, childrenOf, descendantsOf } from "@/lib/locations/tree";
 import type { AtlasIndex, AtlasRow } from "@/lib/locations/tree";
@@ -387,9 +387,12 @@ const siteStructureLocation = computed(() => (isSite.value ? location : null));
 const { readiness: siteReadiness, layerCounts: siteLayerCounts } = useSiteStructure(siteStructureLocation);
 
 // ── Quests staged here (#868, frame 02) — the site itself, or any of its
-//    own rooms; not deeper levels, which are a different place to stage at.
-const roomIds = computed(() => children.value.filter((c) => c.location_type === "room").map((c) => c.id));
-const questStageSpaceIds = computed(() => (location ? [location.id, ...roomIds.value] : []));
+//    own interior spaces (rooms, and #886's `grounds`); not deeper levels,
+//    which are a different place to stage at.
+const interiorIds = computed(() =>
+  children.value.filter((c) => isInteriorType(c.location_type)).map((c) => c.id),
+);
+const questStageSpaceIds = computed(() => (location ? [location.id, ...interiorIds.value] : []));
 const { data: stagedQuestBeats } = useBeatsStagedAt(questStageSpaceIds);
 const stagedQuestCount = computed(() => new Set((stagedQuestBeats.value ?? []).map((b) => b.quest_id)).size);
 
@@ -417,14 +420,15 @@ watch(
 
 /**
  * On a site-tier place, `LocationDetailSections` mounts `SiteRoomsPanel`
- * below — an ordered, editable view of the same `room` children. Grouping
- * them into an "Interiors" tile here too would render every room twice, in
- * two different orders (this list is scale-then-name; the panel is the DM's
- * manual `sort_order`). Every other tier still groups normally.
+ * below — an ordered, editable view of the same interior children (rooms,
+ * and #886's `grounds`). Grouping them into an "Interiors" tile here too
+ * would render every one of them twice, in two different orders (this list
+ * is scale-then-name; the panel is the DM's manual `sort_order`). Every
+ * other tier still groups normally.
  */
 const groups = computed(() => {
   const kids = location && isSiteType(location.location_type)
-    ? children.value.filter((c) => c.location_type !== "room")
+    ? children.value.filter((c) => !isInteriorType(c.location_type))
     : children.value;
   return groupByTier(kids);
 });

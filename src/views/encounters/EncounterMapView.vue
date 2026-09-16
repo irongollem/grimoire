@@ -179,6 +179,7 @@ import {
   type CellKey,
 } from "@/lib/battlemap/fogMask";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
+import { isInteriorType } from "@/lib/locations/tiers";
 import { DEFAULT_GRID_OPACITY } from "@/types/location.types";
 
 const route = useRoute();
@@ -396,11 +397,12 @@ const loadingState = computed(() => {
   }
   if (!encounterLocation.value) return "Loading location…";
   if (!surface.value) {
-    // Check the map stack first: a room can have its own uncalibrated
-    // Picture or Drawing even while its site's plan is also uncalibrated,
-    // and that case needs "calibrate", not "no map of its own" — the room
-    // does have one.
-    if (encounterLocation.value.location_type === "room") {
+    // Check the map stack first: an interior space (room or grounds — #886)
+    // can have its own uncalibrated Picture or Drawing even while its site's
+    // plan is also uncalibrated, and that case needs "calibrate", not "no
+    // map of its own" — the room does have one. `isInteriorType` is the
+    // single reader of that distinction.
+    if (isInteriorType(encounterLocation.value.location_type)) {
       return hasAnyMapLayer(encounterLocation.value)
         ? "This room's map is not calibrated yet. Open the location and click \"Calibrate grid\" to set the 5-ft scale."
         : "This room has no map of its own, and its site isn't calibrated either. Trace and publish a plan for the site first.";

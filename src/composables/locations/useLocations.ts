@@ -11,6 +11,7 @@ import { VAGUE_LOCATION_TYPES } from "@/types/location.types";
 import { SETTING_LOCATIONS, PLANAR_LOCATIONS } from "@/data/settingLocations";
 import { matchSettingRowIds, stampSettingSource, PLANAR_SOURCE } from "@/lib/populateSetting/settingContent";
 import { persistReorder, toReorderEntries } from "@/lib/reorder";
+import { isInteriorType } from "@/lib/locations/tiers";
 
 /** A location enriched with the chain of vague-container names we traversed
  *  to reach it, starting with the outermost region and ending with the
@@ -51,15 +52,19 @@ export function getPinnableDescendants(
     const children = byParent.get(parentId) ?? [];
     for (const child of children) {
       if (result.length >= MAX_RESULTS) break;
-      // A room is placed by a traced region on its site's floor plan
-      // (location_map_regions), never by a pin (#807) — a site can be both
-      // pinned on ITS parent's map and hold rooms of its own, but the rooms
-      // themselves aren't pin candidates. This is a pinnability exclusion,
-      // not a recursion one, so it does not belong in VAGUE_LOCATION_TYPES
-      // (which controls walking *through* a container to reach concrete
-      // descendants) — a room is already a concrete leaf, just not a
-      // mappable point on this axis.
-      if (child.location_type === "room") continue;
+      // An interior space (room, or #886's `grounds`) is placed by a traced
+      // region on its site's floor plan (location_map_regions), never by a
+      // pin (#807) — a site can be both pinned on ITS parent's map and hold
+      // interior spaces of its own, but those spaces themselves aren't pin
+      // candidates. This is a pinnability exclusion, not a recursion one, so
+      // it does not belong in VAGUE_LOCATION_TYPES (which controls walking
+      // *through* a container to reach concrete descendants) — an interior
+      // space is already a concrete leaf, just not a mappable point on this
+      // axis. `isInteriorType` mirrors `private.location_is_interior`; a
+      // literal `=== "room"` here missed `grounds` the same way three SQL
+      // functions each inlined this comparison before the #886 migration
+      // routed them through the database's own predicate.
+      if (isInteriorType(child.location_type)) continue;
       const isVague = VAGUE_LOCATION_TYPES.has(child.location_type);
       const grandchildren = byParent.get(child.id) ?? [];
       // Only recurse through vague containers at most 3 levels deep to avoid

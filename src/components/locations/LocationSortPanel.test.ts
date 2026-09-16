@@ -78,7 +78,7 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
     ];
     const wrapper = mountPanel(true);
 
-    expect(wrapper.text()).toContain("1 of 2 still on Ashmouth Undercroft, waiting for a room.");
+    expect(wrapper.text()).toContain("1 of 2 still on Ashmouth Undercroft, waiting to be placed.");
     expect(wrapper.text()).toContain("Needs a room");
     // Only one row earns the badge — the sorted one does not.
     expect(wrapper.findAll(".text-ink-caution")).toHaveLength(1);
@@ -91,7 +91,7 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
 
     expect(wrapper.text()).toContain("Ambush");
     expect(wrapper.text()).toContain("Done");
-    expect(wrapper.text()).toContain("Everyone has a room.");
+    expect(wrapper.text()).toContain("Everyone is placed.");
   });
 
   it("Browse: shows the current room as text, no picker", () => {
@@ -122,6 +122,28 @@ describe("LocationSortPanel — the #879 re-homing backlog", () => {
       { id: "enc-1", update: { location_id: "room-a" } },
       expect.anything(),
     );
+  });
+
+  // #886 — the noun follows the place's own type. This panel sits directly
+  // under `SiteRoomsPanel`, which already does this, so a heading saying
+  // "Rooms" beneath one saying "Grounds" would be wrong in a single glance.
+  it("says Rooms on an ordinary site", () => {
+    childrenRef.value = [room("room-a", "Flooded Nave")];
+    const wrapper = mountPanel(true);
+    expect(wrapper.text()).toContain("Sort Into Rooms");
+    expect(wrapper.text()).not.toContain("Sort Into Grounds");
+  });
+
+  it("says Grounds on a wilds, including the empty line and the backlog badge", () => {
+    locationRef.value = place({ location_type: "wilds", name: "Thornwood Deeps" });
+    childrenRef.value = [room("room-a", "Sunken Clearing")];
+    expect(mountPanel(true).text()).toContain("Nothing homed here or in its grounds yet.");
+
+    npcsRef.value = [{ id: "npc-1", name: "The Hanged Man", location_id: "site-1" }];
+    const wrapper = mountPanel(true);
+    expect(wrapper.text()).toContain("Sort Into Grounds");
+    expect(wrapper.text()).toContain("Needs grounds");
+    expect(wrapper.text()).not.toContain("Needs a room");
   });
 
   it("ignores a clear (empty id) from the picker — no unset affordance exists here", () => {
