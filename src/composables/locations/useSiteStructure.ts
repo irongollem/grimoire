@@ -44,6 +44,7 @@ export function useSiteStructure(location: Ref<Location | null | undefined>) {
 
   const readiness = computed(() =>
     siteReadiness({
+      siteType: location.value?.location_type,
       location: {
         map_url: location.value?.map_url ?? null,
         grid_calibration: location.value?.grid_calibration ?? null,

@@ -2,7 +2,7 @@
   <section v-if="children.length" class="flex flex-col gap-3">
     <div class="flex items-center justify-between">
       <h2 class="font-cinzel text-sm font-bold tracking-wide text-foreground">
-        Sort Into {{ spaceHeading }}
+        Sort Into {{ spaceHeadingText }}
         <span v-if="rows.length" class="font-fell font-normal text-muted-foreground">({{ rows.length }})</span>
       </h2>
     </div>
@@ -91,6 +91,7 @@ import { useToast } from "@/composables/useToast";
 import { useLocation, useLocations } from "@/composables/locations/useLocations";
 import { useNpcsByLocations, useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { useEncountersByLocations, useUpdateEncounter } from "@/composables/encounters/useEncounters";
+import { childSpaceType, spaceHeading, spaceNoun } from "@/lib/locations/tiers";
 
 const { locationId, building = false } = defineProps<{
   locationId: string;
@@ -112,21 +113,24 @@ const { data: childrenData } = useLocations(computed(() => locationId));
 const children = computed(() => childrenData.value ?? []);
 
 /**
- * The noun for a child place follows this place's own type (#886): a `wilds` —
- * a wood, a marsh, a graveyard — divides into open-air `grounds`, everything
- * else into walled `room`s. Same rule as `LocationSheet`'s `spaceWord` and
- * `SiteRoomsPanel`'s `childType`, and "grounds" is deliberately bare: it takes
- * no article and does not change in the plural ("Needs grounds", "its grounds").
+ * The noun for a child place follows this place's own type — see
+ * `childSpaceType`'s docstring for the rule (#886).
  *
  * This panel sits directly beneath `SiteRoomsPanel` on the page, so a heading
  * saying "Rooms" under one saying "Grounds" is visible in a single glance —
  * which is why this is worth a computed rather than being left to the wider
  * wording sweep in #887.
  */
-const isWilds = computed(() => locationData.value?.location_type === "wilds");
-const spaceHeading = computed(() => (isWilds.value ? "Grounds" : "Rooms"));
-const spacePlural = computed(() => (isWilds.value ? "grounds" : "rooms"));
-const needsLabel = computed(() => (isWilds.value ? "Needs grounds" : "Needs a room"));
+const spaceHeadingText = computed(() => spaceHeading(locationData.value?.location_type));
+const spaceNounPair = computed(() => spaceNoun(locationData.value?.location_type));
+const spacePlural = computed(() => spaceNounPair.value.plural);
+// "grounds" takes no article ("Needs grounds"); "room" does ("Needs a room") —
+// the article itself isn't part of `spaceNoun`'s pair, so it stays a small
+// branch here, keyed off the single source of truth rather than a fresh
+// `location_type === "wilds"` check.
+const needsLabel = computed(() =>
+  childSpaceType(locationData.value?.location_type) === "grounds" ? "Needs grounds" : "Needs a room",
+);
 
 /** Where a row can be moved to: this place itself (the "still needs sorting"
  *  state) plus every direct child. `EntityCombobox` only needs {id, name},

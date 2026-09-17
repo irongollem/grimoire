@@ -24,7 +24,7 @@
           <span v-if="route.edge.route_kind === 'parallel' && route.edge.thread_label" class="rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">
             opens {{ route.edge.thread_label }}
           </span>
-          <span v-if="route.site && route.site.roomCount > 0" class="ml-auto text-label text-ink-info">site · {{ route.site.roomCount }} room{{ route.site.roomCount === 1 ? '' : 's' }}</span>
+          <span v-if="route.site && route.site.roomCount > 0" class="ml-auto text-label text-ink-info">site · {{ route.site.roomLabel }}</span>
         </div>
         <h4 class="mt-1 font-cinzel text-label-lg font-bold text-foreground">{{ route.targetTitle }}</h4>
         <p class="text-muted-foreground">{{ route.caption }}</p>
@@ -44,7 +44,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useLocationTree } from "@/composables/locations/useLocations";
-import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
+import { isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
 import { IconAdd, IconLayers, IconShuffle } from "@/lib/icons";
 import type { QuestBeat, QuestBeatEdge } from "@/types/quest.types";
 import AppButton from "@/components/common/AppButton.vue";
@@ -68,7 +69,9 @@ function siteFacts(locationId: string | null) {
   // #886: `grounds` is this room count's interior sibling on a `wilds` site —
   // the predicate is the single reader, not a copy of it.
   const roomCount = locationOptions.value.filter((candidate) => candidate.parent_id === location.id && isInteriorType(candidate.location_type)).length;
-  return { roomCount };
+  // #887: the chip's noun follows the site's own type, same single reader.
+  const { singular, plural } = spaceNoun(location.location_type);
+  return { roomCount, roomLabel: pluralizeCount(roomCount, singular, plural) };
 }
 
 const outgoing = computed(() => edges

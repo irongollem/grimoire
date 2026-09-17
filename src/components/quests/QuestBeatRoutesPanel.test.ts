@@ -70,13 +70,14 @@ describe("QuestBeatRoutesPanel", () => {
   // #886: `grounds` moved into the interior tier beside `room` — a wilds
   // site's own children must still be counted here, or the chip vanishes
   // entirely (`v-if="route.site && route.site.roomCount > 0"`).
-  it("counts a wilds site's grounds, not just its rooms", () => {
+  // #887: and once counted, the chip must call them `grounds`, not `rooms`.
+  it("counts a wilds site's grounds, not just its rooms, and calls them grounds", () => {
     const edges = [
       { id: "edge-wilds", quest_id: "quest-1", source_beat_id: "beat-fork", target_beat_id: "beat-wilds", route_kind: "parallel", thread_label: "Thread C" },
     ] as QuestBeatEdge[];
     const wrapper = mount(QuestBeatRoutesPanel, { props: { beat, edges, beats }, global });
     const row = wrapper.get("li");
-    expect(row.text()).toContain("site · 2 rooms");
+    expect(row.text()).toContain("site · 2 grounds");
   });
 
   it("sends Edit route to the story flow with this beat and that edge selected", () => {

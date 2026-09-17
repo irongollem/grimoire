@@ -15,7 +15,7 @@
       <span v-if="presentation?.payoffCount" class="rounded bg-muted px-1.5 py-0.5">{{ presentation.payoffCount }} payoff{{ presentation.payoffCount === 1 ? '' : 's' }}</span>
       <span v-if="presentation?.loot.undispatched" class="rounded bg-muted px-1.5 py-0.5">{{ presentation.loot.undispatched }} loot held</span>
       <span v-if="presentation?.convergeLabel" class="rounded bg-muted px-1.5 py-0.5">converge · {{ presentation.convergeLabel }}</span>
-      <span v-if="presentation?.site" class="rounded bg-tone-info/15 px-1.5 py-0.5 text-ink-info">site · {{ presentation.site.roomCount }} room{{ presentation.site.roomCount === 1 ? '' : 's' }}</span>
+      <span v-if="presentation?.site" class="rounded bg-tone-info/15 px-1.5 py-0.5 text-ink-info">site · {{ presentation.site.spaceCountLabel }}</span>
       <span v-if="presentation?.site?.emptyRoomLabel" class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-ink-caution">{{ presentation.site.emptyRoomLabel }}</span>
       <span v-if="presentation?.unlocksQuest" class="rounded bg-muted px-1.5 py-0.5">unlocks a quest</span>
     </div>

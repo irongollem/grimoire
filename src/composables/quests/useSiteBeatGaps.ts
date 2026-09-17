@@ -74,6 +74,7 @@ export function deriveReadinessBySite(
     if (!location) continue;
     const spaceIds = new Set(spaceIdsBySite.get(siteId) ?? []);
     result[siteId] = siteReadiness({
+      siteType: location.location_type,
       location: {
         map_url: location.map_url,
         grid_calibration: location.grid_calibration,

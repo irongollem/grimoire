@@ -283,7 +283,27 @@ describe("quest beat presentation", () => {
       attachments: [],
       sites: { "loc-1": { locationId: "loc-1", name: "The Drowned Vault", roomCount: 6, unwrittenRooms: [4, 5, 6] } },
     });
-    expect(withGaps.dungeon!.site).toEqual({ name: "The Drowned Vault", roomCount: 6, emptyRoomLabel: "rooms 4–6 empty" });
+    expect(withGaps.dungeon!.site).toEqual({
+      name: "The Drowned Vault",
+      roomCount: 6,
+      spaceCountLabel: "6 rooms",
+      emptyRoomLabel: "rooms 4–6 empty",
+    });
+
+    // #887 — the count and the word for it are one fact. QuestFlowNode and
+    // QuestSelectedBeatPanel only ever receive a presentation, so if the label
+    // were not carried here they would have to re-derive the noun with no site
+    // row to ask, which is exactly how both of them came to say "rooms" about
+    // a wood.
+    const wilds = deriveQuestBeatPresentations({
+      beats: [staged],
+      edges: [],
+      attachments: [],
+      sites: {
+        "loc-1": { locationId: "loc-1", name: "Thornwood Deeps", roomCount: 3, unwrittenRooms: [], siteType: "wilds" },
+      },
+    });
+    expect(wilds.dungeon!.site!.spaceCountLabel).toBe("3 grounds");
 
     const complete = deriveQuestBeatPresentations({
       beats: [staged],
@@ -306,6 +326,19 @@ describe("quest beat presentation", () => {
     const unstaged = deriveQuestBeatPresentations({ beats: [beat("a")], edges: [], attachments: [] });
     expect(unstaged.a!.site).toBeNull();
   });
+
+  // #887: a `wilds` site's unwritten parts are `grounds`, not `room`s —
+  // `siteType` is threaded through to `formatUnwrittenRoomsLabel` for this.
+  it("calls a wilds site's unwritten parts grounds, not rooms", () => {
+    const staged = { ...beat("wilds"), staged_at_location_id: "loc-1" } as QuestBeat;
+    const result = deriveQuestBeatPresentations({
+      beats: [staged],
+      edges: [],
+      attachments: [],
+      sites: { "loc-1": { locationId: "loc-1", name: "The Thornwood", roomCount: 3, unwrittenRooms: [2], siteType: "wilds" } },
+    });
+    expect(result.wilds!.site!.emptyRoomLabel).toBe("grounds 2 empty");
+  });
 });
 
 describe("formatUnwrittenRoomsLabel", () => {
@@ -323,5 +356,17 @@ describe("formatUnwrittenRoomsLabel", () => {
 
   it("says nothing when every room is written", () => {
     expect(formatUnwrittenRoomsLabel([])).toBeNull();
+  });
+
+  // #887: the noun follows `siteType` — a `wilds` site's parts are `grounds`,
+  // singular and plural alike, and an absent type keeps the "room"/"rooms"
+  // default every existing caller already expects.
+  it("uses grounds for a wilds site, singular and plural alike", () => {
+    expect(formatUnwrittenRoomsLabel([4, 5, 6], "wilds")).toBe("grounds 4–6 empty");
+    expect(formatUnwrittenRoomsLabel([4], "wilds")).toBe("grounds 4 empty");
+  });
+
+  it("defaults to room/rooms when no site type is given", () => {
+    expect(formatUnwrittenRoomsLabel([4, 5, 6])).toBe("rooms 4–6 empty");
   });
 });

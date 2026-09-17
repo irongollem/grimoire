@@ -236,7 +236,8 @@ import { useLocationTree } from "@/composables/locations/useLocations";
 import { useSiteStructure } from "@/composables/locations/useSiteStructure";
 import { useConfirm } from "@/composables/useConfirm";
 import { questReturnLabel, questSurfaceReturnTo, safeQuestReturnTo } from "@/lib/quests/navigation";
-import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
+import { childSpaceType, isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
 import { threadBadge } from "@/lib/quests/threads";
 import { countQuestBeatContentBlocks, deriveQuestBeatPrepGaps, questBeatKindLabel, QUEST_BEAT_VISIBILITY_LABELS } from "@/lib/quests/presentation";
 import { QUEST_BEAT_ATTACHMENT_ADAPTERS } from "@/lib/quests/attachments";
@@ -348,8 +349,12 @@ const stagedSiteCaption = computed(() => {
   // #886: counts `grounds` too — the interior predicate is the single reader,
   // so a `wilds` site's beat caption stops reporting 0 rooms.
   const roomCount = locationOptions.value.filter((candidate) => candidate.parent_id === site.id && isInteriorType(candidate.location_type)).length;
-  const rooms = `${roomCount} room${roomCount === 1 ? "" : "s"}`;
-  return loc.id === site.id ? `site: ${rooms}` : `opens at this room in ${site.name} — ${rooms}`;
+  // #887: the noun (and, for the "opens at" phrasing, the demonstrative)
+  // follows the site's own type — a `wilds` site's parts are `grounds`.
+  const { singular, plural } = spaceNoun(site.location_type);
+  const rooms = pluralizeCount(roomCount, singular, plural);
+  const demonstrative = childSpaceType(site.location_type) === "grounds" ? "these grounds" : "this room";
+  return loc.id === site.id ? `site: ${rooms}` : `opens at ${demonstrative} in ${site.name} — ${rooms}`;
 });
 const { readiness: siteReadiness } = useSiteStructure(resolvedSite);
 
@@ -494,8 +499,12 @@ const attachmentsFoldTone = computed(() => prepGaps.value.some((gap) => gap.kind
 const siteRoomCountForFold = computed(() => resolvedSite.value
   ? locationOptions.value.filter((candidate) => candidate.parent_id === resolvedSite.value!.id && isInteriorType(candidate.location_type)).length
   : 0);
-const siteFoldCaption = computed(() => resolvedSite.value
-  ? `${resolvedSite.value.name} · ${siteRoomCountForFold.value} room${siteRoomCountForFold.value === 1 ? "" : "s"}`
-  : "not staged");
+// #887: the noun follows the site's own type, same as `stagedSiteCaption` above.
+const siteFoldCaption = computed(() => {
+  const site = resolvedSite.value;
+  if (!site) return "not staged";
+  const { singular, plural } = spaceNoun(site.location_type);
+  return `${site.name} · ${pluralizeCount(siteRoomCountForFold.value, singular, plural)}`;
+});
 const siteFoldTone = computed(() => prepGaps.value.some((gap) => gap.kind === "site") ? "caution" : "muted");
 </script>

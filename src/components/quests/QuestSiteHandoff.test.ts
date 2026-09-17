@@ -225,6 +225,30 @@ describe("QuestSiteHandoff", () => {
     expect(wrapper.text()).toContain("room 2 of 2");
   });
 
+  // #887: a `wilds` site's parts are `grounds`, not `room`s — the heading,
+  // the position label and the empty-state caption all follow the site's
+  // own type, not a literal "room" left over from before #886 moved
+  // `grounds` into the interior tier.
+  it("calls a wilds site's parts grounds, not rooms, throughout the crawl surface", () => {
+    mocks.site = { id: "site-1", name: "The Thornwood", location_type: "wilds", map_url: null, map_pins: [], is_map_shared: false, grid_calibration: null };
+    mocks.locationsById = { "site-1": mocks.site };
+    mocks.children = [grounds({ id: "grounds-1", sort_order: 0 }), grounds({ id: "grounds-2", name: "The grave plot", sort_order: 1 })];
+    mocks.currentLocationId = "grounds-2";
+    const wrapper = mountHandoff();
+    const text = wrapper.text();
+    expect(text).toContain("Grounds");
+    expect(text).not.toContain("Rooms");
+    expect(text).toContain("grounds 2 of 2");
+  });
+
+  it("says the party hasn't entered grounds yet, not a room, at a wilds site with nobody inside", () => {
+    mocks.site = { id: "site-1", name: "The Thornwood", location_type: "wilds", map_url: null, map_pins: [], is_map_shared: false, grid_calibration: null };
+    mocks.locationsById = { "site-1": mocks.site };
+    mocks.children = [grounds({ id: "grounds-1", sort_order: 0 })];
+    const wrapper = mountHandoff();
+    expect(wrapper.text()).toContain("The party hasn't entered grounds here yet");
+  });
+
   // #868 S12: `staged_at_location_id` may now name a room directly — "Opens
   // at" in `QuestBeatSitePanel`. The crawl still has to run at that room's
   // PARENT site (a room has no rooms/map/doors of its own), and "not yet

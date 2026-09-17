@@ -175,7 +175,7 @@ import {
 } from "@/composables/locations/useLocations";
 import { useLocationStateForRooms } from "@/composables/locations/useLocationState";
 import { buildAtlasIndex } from "@/lib/locations/tree";
-import { isInteriorType } from "@/lib/locations/tiers";
+import { childSpaceType, isInteriorType, spaceNoun } from "@/lib/locations/tiers";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
 import { collectThemes } from "@/lib/audio/audioThemes";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
@@ -275,14 +275,12 @@ const dragBindings = computed(() =>
 );
 
 // ── Add ─────────────────────────────────────────────────────────────────────────
-// The type a new space gets follows the parent (#886): `wilds` creates
-// `grounds`, every other site type creates `room`. `site` is this panel's
-// own location (looked up above for the ambience row), so its `location_type`
-// is already in scope — no second query.
-const childType = computed<Extract<LocationType, "room" | "grounds">>(() =>
-  site.value?.location_type === "wilds" ? "grounds" : "room",
-);
-const childTypePlural = computed(() => (childType.value === "grounds" ? "grounds" : "rooms"));
+// The type a new space gets follows the parent — see `childSpaceType`'s
+// docstring for the rule. `site` is this panel's own location (looked up
+// above for the ambience row), so its `location_type` is already in scope —
+// no second query.
+const childType = computed(() => childSpaceType(site.value?.location_type));
+const childTypePlural = computed(() => spaceNoun(site.value?.location_type).plural);
 // "grounds" reads fine bare ("Add grounds…", like "Add supplies…"); "room"
 // needs its article back once it's no longer the fixed word in a template
 // literal.

@@ -3,10 +3,13 @@ import {
   LOCATION_TIERS,
   LOCATION_TYPE_TIER,
   bindableSpaces,
+  childSpaceType,
   groupByTier,
   isInteriorType,
   isSiteType,
   occupiedTiers,
+  spaceHeading,
+  spaceNoun,
   tierIndex,
   tierOf,
 } from "./tiers";
@@ -277,5 +280,38 @@ describe("bindableSpaces", () => {
     // `wilds` (site tier), which does. Conflating the two here would be
     // exactly the #886 regression this predicate exists to prevent.
     expect(bindableSpaces([loc("Icewind Dale", "wilderness")])).toEqual([]);
+  });
+});
+
+describe("childSpaceType / spaceNoun / spaceHeading (#886, #887)", () => {
+  // Every other site type, not just one representative — the point of #887
+  // was that six call sites had each hand-rolled `=== "wilds"` slightly
+  // differently, so the coverage here is deliberately the closed complement
+  // rather than a single example like "building".
+  const nonWildsSiteTypes = (Object.keys(LOCATION_TYPE_TIER) as (keyof typeof LOCATION_TYPE_TIER)[]).filter(
+    (t) => t !== "wilds",
+  );
+
+  it("gives a `wilds` site grounds/Grounds", () => {
+    expect(childSpaceType("wilds")).toBe("grounds");
+    expect(spaceNoun("wilds")).toEqual({ singular: "grounds", plural: "grounds" });
+    expect(spaceHeading("wilds")).toBe("Grounds");
+  });
+
+  it("gives every other site type room/Rooms", () => {
+    for (const type of nonWildsSiteTypes) {
+      expect(childSpaceType(type)).toBe("room");
+      expect(spaceNoun(type)).toEqual({ singular: "room", plural: "rooms" });
+      expect(spaceHeading(type)).toBe("Rooms");
+    }
+  });
+
+  it("treats null/undefined like a non-wilds site", () => {
+    expect(childSpaceType(null)).toBe("room");
+    expect(childSpaceType(undefined)).toBe("room");
+    expect(spaceNoun(null)).toEqual({ singular: "room", plural: "rooms" });
+    expect(spaceNoun(undefined)).toEqual({ singular: "room", plural: "rooms" });
+    expect(spaceHeading(null)).toBe("Rooms");
+    expect(spaceHeading(undefined)).toBe("Rooms");
   });
 });

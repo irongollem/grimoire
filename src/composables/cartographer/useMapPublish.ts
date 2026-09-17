@@ -21,7 +21,7 @@ import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase";
-import { bindableSpaces, isSiteType } from "@/lib/locations/tiers";
+import { bindableSpaces, childSpaceType, isSiteType } from "@/lib/locations/tiers";
 import {
   planPublish,
   isCreatedRef,
@@ -269,15 +269,12 @@ export function useMapPublish(opts: {
         if (change.kind === "create") {
           const room = await createLocation.mutateAsync({
             name: change.proposedName,
-            // The created space follows the site's own nature (#886): a `wilds`
-            // -- a wood, a marsh, a graveyard -- divides into open-air
-            // `grounds`, everything else into walled `room`s. Publishing a
-            // traced wood used to hand back a list of "rooms", which is the
-            // naming complaint that moved `grounds` down to the interior tier
-            // in the first place. Same rule as `SiteRoomsPanel`'s add row, so
-            // a space arrives with the same type however it was created; the
-            // type stays editable on the child afterwards either way.
-            location_type: targetSite.value?.location_type === "wilds" ? "grounds" : "room",
+            // The created space follows the site's own nature — see
+            // `childSpaceType`'s docstring for the rule (#886). Same rule as
+            // `SiteRoomsPanel`'s add row, so a space arrives with the same
+            // type however it was created; the type stays editable on the
+            // child afterwards either way.
+            location_type: childSpaceType(targetSite.value?.location_type),
             parent_id: targetSiteId.value,
             campaign_id: targetSite.value?.campaign_id ?? null,
             description: null,

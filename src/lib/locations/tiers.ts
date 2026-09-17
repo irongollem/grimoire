@@ -162,6 +162,41 @@ export function isInteriorType(type: LocationType): boolean {
   return LOCATION_TYPE_TIER[type] === "interior";
 }
 
+/**
+ * What a site's parts *are*, and what to call them (#886, #887).
+ *
+ * A site divides into interior spaces, and which interior type those are
+ * follows the site's own nature: a `wilds` — a wood, a marsh, a graveyard —
+ * divides into open-air `grounds`, everything else into walled `room`s.
+ *
+ * These three live together, and here rather than in a module of their own,
+ * because they are all the same fact read three ways: the type a new part is
+ * created as, the noun a count is rendered with, and the heading a panel of
+ * them carries. Six call sites had hand-rolled `location_type === "wilds"`
+ * before this existed, and the display strings around them had not followed —
+ * so a wood's parts were counted correctly and still called "rooms". That is
+ * the shape of a rule that needs one reader, not a seventh copy.
+ *
+ * "grounds" is deliberately invariant in the plural and takes no article:
+ * "Add grounds…", "3 grounds", "Needs grounds". `pluralizeCount` handles that
+ * given the pair below; do not special-case it at a call site.
+ */
+export function childSpaceType(siteType: LocationType | null | undefined): Extract<LocationType, "room" | "grounds"> {
+  return siteType === "wilds" ? "grounds" : "room";
+}
+
+/** The noun for a site's parts, as a `pluralizeCount` pair. */
+export function spaceNoun(siteType: LocationType | null | undefined): { singular: string; plural: string } {
+  return childSpaceType(siteType) === "grounds"
+    ? { singular: "grounds", plural: "grounds" }
+    : { singular: "room", plural: "rooms" };
+}
+
+/** Title-case heading for a panel listing a site's parts — "Rooms" / "Grounds". */
+export function spaceHeading(siteType: LocationType | null | undefined): string {
+  return childSpaceType(siteType) === "grounds" ? "Grounds" : "Rooms";
+}
+
 /** Ladder position, for the scale rail. `null` tier sorts last. */
 export function tierIndex(type: LocationType): number {
   const tier = LOCATION_TYPE_TIER[type];

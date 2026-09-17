@@ -115,7 +115,7 @@ describe("QuestFlowNode", () => {
           isReady: true, isCurrent: false, isVisited: false, isDisconnected: false,
           reach: "ahead", currentThreadIds: [],
           payoffCount: 2, unlocksQuest: true, convergeLabel: "all",
-          site: { name: "The Drowned Vault", roomCount: 6, emptyRoomLabel: "rooms 4–6 empty" },
+          site: { name: "The Drowned Vault", roomCount: 6, spaceCountLabel: "6 rooms", emptyRoomLabel: "rooms 4–6 empty" },
         },
       },
       global: { stubs: { Handle: true } },

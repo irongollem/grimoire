@@ -200,6 +200,22 @@ describe("QuestBeatSitePanel", () => {
     expect(wrapper.text()).toContain("The clearing");
   });
 
+  // #887: the header chip's noun follows the site's own type — a `wilds`
+  // site's parts are `grounds`, not `room`s.
+  it("calls a wilds site's parts grounds in the header chip", () => {
+    mocks.locationOptions = [
+      ...defaultLocations(),
+      { id: "wilds-1", name: "The Thornwood", location_type: "wilds", parent_id: null, depth: 0, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+      { id: "grounds-1", name: "The clearing", location_type: "grounds", parent_id: "wilds-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+      { id: "grounds-2", name: "The grave plot", location_type: "grounds", parent_id: "wilds-1", depth: 1, map_url: null, grid_calibration: null, audio_theme: null, map_published_rev: null },
+    ];
+    const wrapper = mount(QuestBeatSitePanel, {
+      props: { beat: beat({ staged_at_location_id: "wilds-1" }) },
+      global: { stubs: { EntityCombobox: true, RouterLink: RouterLinkStub } },
+    });
+    expect(wrapper.text()).toContain("site · 2 grounds");
+  });
+
   it("offers a wilds site's grounds in the picker alongside rooms", async () => {
     mocks.locationOptions = [
       ...defaultLocations(),

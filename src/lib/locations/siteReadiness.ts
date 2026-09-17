@@ -12,6 +12,9 @@
 // publish review uses.
 
 import type { LocationMapRegion } from "@/types/locationMapRegion.types";
+import type { LocationType } from "@/types/location.types";
+import { spaceNoun } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
 import type { SourceEdgeKey } from "@/types/locationDoor.types";
 import type { DungeonMap } from "@/types/dungeonMap.types";
 import { deriveStructure, structureDelta } from "@/cartographer/structure";
@@ -36,6 +39,21 @@ export interface ReadinessDoor {
 
 export interface SiteReadinessInput {
   location: MapStackSource;
+  /**
+   * The site's own type, for the noun its parts are counted with (#887) — a
+   * `wilds` divides into `grounds`, everything else into `room`s.
+   *
+   * It sits here rather than on `location` deliberately: `MapStackSource` is
+   * `Pick<Location, "map_url" | "grid_calibration" | ...>`, a type about map
+   * *layers*, and `location_type` is not a map-stack fact. Widening it to
+   * carry one would push the field onto every map-stack reader to satisfy a
+   * caption in this module.
+   *
+   * Optional, so a caller that genuinely does not know defaults to
+   * "room"/"rooms" through `spaceNoun` — the wording every caller expected
+   * before this existed.
+   */
+  siteType?: LocationType | null;
   /** This site's bindable children — rooms and nested sites alike. */
   spaces: readonly ReadinessSpace[];
   regions: readonly LocationMapRegion[];
@@ -69,7 +87,7 @@ export interface SiteReadiness {
  * ink drawn, so the cheaper fix leads.
  */
 export function siteReadiness(input: SiteReadinessInput): SiteReadiness {
-  const { location, spaces, regions, doors } = input;
+  const { location, siteType, spaces, regions, doors } = input;
   const tracedRegions = regions.filter((r) => r.region_role === "space" && r.cells.length > 0);
 
   const unboundSpaces = tracedRegions.filter((r) => r.space_location_id === null).length;
@@ -91,7 +109,11 @@ export function siteReadiness(input: SiteReadinessInput): SiteReadiness {
   if (unboundSpaces > 0) {
     caption = `${unboundSpaces} space${unboundSpaces === 1 ? "" : "s"} unbound`;
   } else if (untracedSpaces > 0) {
-    caption = `${untracedSpaces} room${untracedSpaces === 1 ? "" : "s"} untraced`;
+    // The noun follows the site's own type (#887) — a wood's untraced parts
+    // are grounds, not rooms. `spaceNoun` is the single reader; see its
+    // docstring in tiers.ts for why the three site-parts facts live together.
+    const noun = spaceNoun(siteType);
+    caption = `${pluralizeCount(untracedSpaces, noun.singular, noun.plural)} untraced`;
   } else if (oneSidedWays > 0) {
     caption = `${oneSidedWays} way${oneSidedWays === 1 ? "" : "s"} out lead${oneSidedWays === 1 ? "s" : ""} nowhere yet`;
   }

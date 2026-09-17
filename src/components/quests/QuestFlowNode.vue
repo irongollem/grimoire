@@ -31,7 +31,7 @@
         <span v-if="presentation?.loot.unclaimed">{{ presentation.loot.unclaimed }} loot unclaimed</span>
         <span v-if="presentation?.isDisconnected">Staging</span>
         <span v-if="presentation?.convergeLabel">converge · {{ presentation.convergeLabel }}</span>
-        <span v-if="presentation?.site" class="is-site"><IconDungeon class="h-3 w-3" aria-hidden="true" />site · {{ presentation.site.roomCount }} room{{ presentation.site.roomCount === 1 ? '' : 's' }}</span>
+        <span v-if="presentation?.site" class="is-site"><IconDungeon class="h-3 w-3" aria-hidden="true" />site · {{ presentation.site.spaceCountLabel }}</span>
         <span v-if="presentation?.site?.emptyRoomLabel" class="is-gap">{{ presentation.site.emptyRoomLabel }}</span>
         <span v-if="presentation?.unlocksQuest">unlocks a quest</span>
         <span v-if="reachLabel" :class="reachClass">{{ reachLabel }}</span>

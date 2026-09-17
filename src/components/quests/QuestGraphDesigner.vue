@@ -306,7 +306,9 @@ const sites = computed<Record<string, QuestBeatSiteInput>>(() => {
       .map((room, index) => ({ position: index + 1, written: extractTiptapText(room.description, 1).length > 0 }))
       .filter((room) => !room.written)
       .map((room) => room.position);
-    result[stagedId] = { locationId: stagedId, name: site.name, roomCount: rooms.length, unwrittenRooms, readiness: readinessBySite.value[site.id] };
+    // #887: `siteType` lets `formatUnwrittenRoomsLabel` call a wilds site's
+    // empty parts "grounds", not "rooms" — this loop already holds `site`.
+    result[stagedId] = { locationId: stagedId, name: site.name, roomCount: rooms.length, unwrittenRooms, readiness: readinessBySite.value[site.id], siteType: site.location_type };
   }
   return result;
 });

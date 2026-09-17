@@ -250,7 +250,8 @@ import { useOpenSiteDrawing } from "@/composables/locations/useOpenSiteDrawing";
 import { useSiteDrawingEditor } from "@/composables/locations/useSiteDrawingEditor";
 import { useMapPublish } from "@/composables/cartographer/useMapPublish";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
-import { bindableSpaces, isInteriorType, isSiteType } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
+import { bindableSpaces, isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
 import { LOCATION_TYPE_LABELS, LOCATION_TYPE_COLORS } from "@/types/location.types";
 import { visibleTags } from "@/lib/locations/tags";
 import type { Location } from "@/types/location.types";
@@ -391,10 +392,10 @@ const mapStack = computed(() => buildMapStack(location));
 // count here and the rail below always agree by construction.
 //
 // `spaceCount` counts interior spaces generally (room, and #886's `grounds`)
-// — a `wilds` site's children are grounds, not rooms, so the caption's word
-// follows this place's own type rather than assuming "room".
+// — the caption's word follows this place's own type (`spaceNoun`) rather
+// than assuming "room".
 const spaceCount = computed(() => (children.value ?? []).filter((l) => isInteriorType(l.location_type)).length);
-const spaceWord = computed(() => (location.location_type === "wilds" ? "grounds" : "room"));
+const spaceNounPair = computed(() => spaceNoun(location.location_type));
 const childSites = computed(() => (children.value ?? []).filter((l) => isSiteType(l.location_type)));
 
 /** The site itself is level 1, so a stack of N child sites reads as N + 1
@@ -408,11 +409,7 @@ const captionText = computed(() => {
   if (!isSite.value) return type;
   const parts = [type];
   if (spaceCount.value > 0) {
-    // "grounds" is already the plural/collective form of itself (see
-    // `LOCATION_TYPE_LABELS`), so it takes no trailing "s" the way "room"
-    // does for a count above one.
-    const plural = spaceWord.value === "grounds" ? "grounds" : `${spaceWord.value}${spaceCount.value === 1 ? "" : "s"}`;
-    parts.push(`${spaceCount.value} ${plural}`);
+    parts.push(pluralizeCount(spaceCount.value, spaceNounPair.value.singular, spaceNounPair.value.plural));
   }
   if (childSites.value.length > 0) {
     parts.push(`${childSites.value.length} sub-site${childSites.value.length === 1 ? "" : "s"}`);

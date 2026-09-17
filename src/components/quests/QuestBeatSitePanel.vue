@@ -3,7 +3,7 @@
     <header class="flex items-center gap-2">
       <h3 class="font-cinzel text-sm font-bold text-foreground">Site</h3>
       <span class="ml-auto rounded bg-muted px-1.5 py-0.5 text-label uppercase text-muted-foreground">
-        {{ site ? `site · ${roomCount} room${roomCount === 1 ? '' : 's'}` : 'none' }}
+        {{ site ? `site · ${roomCountLabel}` : 'none' }}
       </span>
     </header>
 
@@ -112,7 +112,8 @@ import { useLocationMapRegions } from "@/composables/locations/useLocationMapReg
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useSitePrepared } from "@/composables/locations/useSitePrepared";
 import { useUpdateQuestBeat } from "@/composables/quests/useQuestFlow";
-import { bindableSpaces, isInteriorType, isSiteType } from "@/lib/locations/tiers";
+import { bindableSpaces, isInteriorType, isSiteType, spaceNoun } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
 import { reachableRoomIds } from "@/lib/locations/siteRun";
 import { siteReadiness } from "@/lib/locations/siteReadiness";
 import { resolveInheritedTheme } from "@/lib/locations/ambience";
@@ -153,6 +154,13 @@ const siteRooms = computed(() => site.value
   ? locationOptions.value.filter((candidate) => candidate.parent_id === site.value!.id && isInteriorType(candidate.location_type))
   : []);
 const roomCount = computed(() => siteRooms.value.length);
+// The header chip's noun follows the site's own type (#886, #887): a
+// `wilds` site's parts are `grounds`, not `room`s — `spaceNoun` is the
+// single reader, shared with every other surface that counts a site's parts.
+const roomCountLabel = computed(() => {
+  const { singular, plural } = spaceNoun(site.value?.location_type);
+  return pluralizeCount(roomCount.value, singular, plural);
+});
 
 // Frame 15's site row ("Ashmouth Undercroft — Dungeon · 3 levels · plan
 // published rev 14") — a level is a nested site (a floor), same set
@@ -277,6 +285,7 @@ const ambienceCaption = computed(() => {
 //    already runs for the Atlas, over this one site's own data. ────────────
 const readiness = computed(() => site.value
   ? siteReadiness({
+    siteType: site.value.location_type,
     location: {
       map_url: site.value.map_url,
       grid_calibration: site.value.grid_calibration,

@@ -5,7 +5,8 @@ import { useAssertLocationState } from "@/composables/locations/useLocationState
 import { decodeFogMask } from "@/lib/battlemap/fogMask";
 import { roomsRevealedInCombat, type BattleSurface } from "@/lib/battlemap/roomBridge";
 import { hasAnyMapLayer } from "@/lib/locations/mapStack";
-import { isInteriorType } from "@/lib/locations/tiers";
+import { isInteriorType, spaceNoun } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
 import type { Location } from "@/types/location.types";
 
 /**
@@ -87,8 +88,14 @@ export function useCombatExploration(encounterId: MaybeRefOrGetter<string>) {
     if (!s?.focusRoomId || !fogMaskAtEnd) return;
     const revealedRoomIds = roomsRevealedInCombat(decodeFogMask(fogMaskAtEnd), regions.value ?? [], s.calibration);
     if (revealedRoomIds.length === 0) return;
+    // `s.mapLocation` is the *site* whose plan these cells were revealed on
+    // (#886/#887) — when there's a focus room, `resolveBattleSurface` sets
+    // `mapLocation` to that room's parent, never the room itself — so its
+    // `location_type` is the one `spaceNoun` needs, not the encounter's own
+    // (possibly interior) location.
+    const noun = spaceNoun(s.mapLocation.location_type);
     const confirmed = await confirm(
-      `Mark ${revealedRoomIds.length} room${revealedRoomIds.length === 1 ? "" : "s"} revealed in combat as explored?`,
+      `Mark ${pluralizeCount(revealedRoomIds.length, noun.singular, noun.plural)} revealed in combat as explored?`,
       { danger: false, confirmLabel: "Mark explored" },
     );
     if (!confirmed) return;

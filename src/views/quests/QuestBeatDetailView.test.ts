@@ -194,7 +194,9 @@ describe("QuestBeatDetailView", () => {
   // #886: `grounds` moved into the interior tier beside `room` — the count
   // must read `isInteriorType`, not the `=== "room"` comparison this test
   // would otherwise let regress to 0 for a wilds site.
-  it("counts a wilds site's grounds in the room count, not just rooms", () => {
+  // #887: and once counted, the noun must follow the site's own type —
+  // `grounds`, not `rooms`.
+  it("counts a wilds site's grounds in the room count, not just rooms, and calls them grounds", () => {
     mocks.beat = beat({ staged_at_location_id: "site-1" });
     mocks.locationOptions = [
       { id: "site-1", name: "The Thornwood", location_type: "wilds", parent_id: null },
@@ -202,7 +204,21 @@ describe("QuestBeatDetailView", () => {
       { id: "grounds-2", name: "The grave plot", location_type: "grounds", parent_id: "site-1" },
     ];
     const wrapper = mountView();
-    expect(wrapper.text()).toContain("staged at · site: 2 rooms");
+    expect(wrapper.text()).toContain("staged at · site: 2 grounds");
+  });
+
+  // #887: staged directly at one of the wilds site's own grounds, the "opens
+  // at" phrasing must use a demonstrative that agrees with "grounds" — "this
+  // room" would be as wrong here as calling the count "2 rooms" above.
+  it("describes a beat staged at a wilds site's grounds with a demonstrative that agrees", () => {
+    mocks.beat = beat({ staged_at_location_id: "grounds-1" });
+    mocks.locationOptions = [
+      { id: "site-1", name: "The Thornwood", location_type: "wilds", parent_id: null },
+      { id: "grounds-1", name: "The clearing", location_type: "grounds", parent_id: "site-1" },
+      { id: "grounds-2", name: "The grave plot", location_type: "grounds", parent_id: "site-1" },
+    ];
+    const wrapper = mountView();
+    expect(wrapper.text()).toContain("staged at · opens at these grounds in The Thornwood — 2 grounds");
   });
 
   it("adds the site's readiness to the beat's own prep gap count once staged there", () => {

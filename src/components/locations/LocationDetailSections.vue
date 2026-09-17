@@ -229,7 +229,7 @@ import { useNpcs, useNpcsByLocations } from "@/composables/npcs/useNpcs";
 import { useParty } from "@/composables/party/useParty";
 import { useCampaignStore } from "@/stores/campaign";
 import { IconChevronRight } from "@/lib/icons";
-import { isInteriorType, isSiteType } from "@/lib/locations/tiers";
+import { isInteriorType, isSiteType, spaceHeading } from "@/lib/locations/tiers";
 import { buildAtlasIndex, descendantsOf } from "@/lib/locations/tree";
 import { extractTiptapText } from "@/lib/utils";
 import { effectiveLocationId } from "@/lib/partyPosition";
@@ -287,10 +287,10 @@ const membersHere = computed(() =>
 
 const isStoreType = computed(() => STORE_LOCATION_TYPES.has(location.location_type));
 const isSite = computed(() => isSiteType(location.location_type));
-// #886: `SiteRoomsPanel` renders no heading of its own (see the comment atop
-// its template) — this is the only place the word appears, so it has to be
-// the place that knows a `wilds` site's children are `grounds`, not rooms.
-const siteSpacesHeading = computed(() => (location.location_type === "wilds" ? "Grounds" : "Rooms"));
+// #886/#887: `SiteRoomsPanel` renders no heading of its own (see the comment
+// atop its template) — this is the only place the word appears. The
+// room/grounds rule itself lives in `spaceHeading`'s docstring.
+const siteSpacesHeading = computed(() => spaceHeading(location.location_type));
 // Room, or #886's `grounds` — the two interior types, bound to another
 // place's floor plan rather than carrying one of their own.
 const isInteriorSpace = computed(() => isInteriorType(location.location_type));

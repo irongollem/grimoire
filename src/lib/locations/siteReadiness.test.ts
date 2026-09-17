@@ -113,6 +113,30 @@ describe("siteReadiness", () => {
     expect(result.caption).toBe("1 room untraced");
   });
 
+  // #887 — the caption's noun follows the site's own type. A wood's untraced
+  // parts are grounds; calling them rooms is the same drift the count itself
+  // was fixed for in #886.
+  it("says grounds, not rooms, for an untraced part of a wilds", () => {
+    const result = siteReadiness({
+      siteType: "wilds",
+      location: siteLoc({ map_url: "/map.webp" }),
+      spaces: [{ id: "space-1" }, { id: "space-2" }],
+      regions: [region({ id: "reg-1", cells: ["0,0"], space_location_id: "space-1" })],
+      doors: [],
+    });
+    expect(result.caption).toBe("1 grounds untraced");
+  });
+
+  it("defaults to rooms when the caller does not supply a site type", () => {
+    const result = siteReadiness({
+      location: siteLoc({ map_url: "/map.webp" }),
+      spaces: [{ id: "room-1" }, { id: "room-2" }, { id: "room-3" }],
+      regions: [region({ id: "reg-1", cells: ["0,0"], space_location_id: "room-1" })],
+      doors: [],
+    });
+    expect(result.caption).toBe("2 rooms untraced");
+  });
+
   it("is mapped and calibrated from a Drawing layer alone (#884 — no Picture needed)", () => {
     const result = siteReadiness({
       location: siteLoc({

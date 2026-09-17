@@ -11,6 +11,9 @@ import {
   type QuestRuntimeState,
 } from "@/types/quest.types";
 import type { SiteReadiness } from "@/lib/locations/siteReadiness";
+import { spaceNoun } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
+import type { LocationType } from "@/types/location.types";
 
 /** `QUEST_BEAT_KIND_LABELS` falls back to the raw value for a kind an editor
  *  does not recognise (#780's note: never silently rewrite an unknown kind to
@@ -73,20 +76,51 @@ export interface QuestBeatSiteInput {
    *  staged at a site the DM hasn't opened this session gets no site gap
    *  rather than a false "unbound" one derived from an empty read. */
   readiness?: SiteReadiness;
+  /** The staged site's own type (#887) — a `wilds` site's parts are
+   *  `grounds`, not `room`s, and `formatUnwrittenRoomsLabel` needs this to
+   *  get the noun right. Optional rather than widening every fixture: an
+   *  absent value defaults to "room"/"rooms" through `spaceNoun`, exactly
+   *  the wording every caller already expected before this field existed. */
+  siteType?: LocationType | null;
 }
 
 export interface QuestBeatSitePresentation {
   name: string;
   roomCount: number;
+  /**
+   * `roomCount` already rendered with the noun the site's own type calls for
+   * (#887) — "3 grounds" on a `wilds`, "3 rooms" everywhere else.
+   *
+   * It is carried here rather than left to each consumer because the two that
+   * only ever receive a *presentation* (`QuestFlowNode`, `QuestSelectedBeatPanel`)
+   * have no site row to ask, and both had hand-rolled `room{{s}}` off
+   * `roomCount` instead. A count and the word for it are one fact; splitting
+   * them is what let the word drift from the count in the first place.
+   */
+  spaceCountLabel: string;
   /** Null when every room already has a description. */
   emptyRoomLabel: string | null;
+}
+
+/** `n` rendered with the noun the site's own type calls for (#887) — the same
+ *  `spaceNoun` pair `formatUnwrittenRoomsLabel` below reads, so a site's count
+ *  and its "N empty" chip can never disagree about the word. */
+function spaceCountLabelFor(n: number, siteType: LocationType | null | undefined): string {
+  const { singular, plural } = spaceNoun(siteType);
+  return pluralizeCount(n, singular, plural);
 }
 
 /** Collapses consecutive room positions into ranges ("rooms 4–6 empty"); a
  *  scattered set reads as a comma list ("rooms 2, 4–5 empty"). Null input
  *  (nothing unwritten) has nothing to say, so the caller never renders the
- *  chip at all rather than a chip that says "0 empty". */
-export function formatUnwrittenRoomsLabel(unwrittenRooms: number[]): string | null {
+ *  chip at all rather than a chip that says "0 empty".
+ *
+ *  `siteType` (#887) picks the noun the same way every other site-parts
+ *  count does — `spaceNoun`, so a `wilds` site's chip says "grounds 4 empty"
+ *  rather than "room 4 empty". Optional and defaulting to "room"/"rooms"
+ *  (`spaceNoun`'s own fallback for a missing type) so a caller that has not
+ *  been widened to carry the site's type yet keeps its exact prior wording. */
+export function formatUnwrittenRoomsLabel(unwrittenRooms: number[], siteType?: LocationType | null): string | null {
   if (!unwrittenRooms.length) return null;
   const sorted = [...unwrittenRooms].sort((a, b) => a - b);
   const ranges: string[] = [];
@@ -98,7 +132,8 @@ export function formatUnwrittenRoomsLabel(unwrittenRooms: number[]): string | nu
     ranges.push(start === prev ? `${start}` : `${start}–${prev}`);
     if (current !== undefined) { start = current; prev = current; }
   }
-  const word = sorted.length === 1 ? "room" : "rooms";
+  const { singular, plural } = spaceNoun(siteType);
+  const word = sorted.length === 1 ? singular : plural;
   return `${word} ${ranges.join(", ")} empty`;
 }
 
@@ -336,7 +371,12 @@ export function deriveQuestBeatPresentations(input: QuestBeatPresentationInput) 
       unlocksQuest: beatConsequences.some((consequence) => consequence.action === "unlock_quest"),
       convergeLabel: incomingCount >= 2 ? beat.converge_mode : null,
       site: siteInput && siteInput.roomCount > 0
-        ? { name: siteInput.name, roomCount: siteInput.roomCount, emptyRoomLabel: formatUnwrittenRoomsLabel(siteInput.unwrittenRooms) }
+        ? {
+            name: siteInput.name,
+            roomCount: siteInput.roomCount,
+            spaceCountLabel: spaceCountLabelFor(siteInput.roomCount, siteInput.siteType),
+            emptyRoomLabel: formatUnwrittenRoomsLabel(siteInput.unwrittenRooms, siteInput.siteType),
+          }
         : null,
     };
   }

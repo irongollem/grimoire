@@ -58,6 +58,8 @@ import { computed } from "vue";
 import PlayerSitePlan from "@/components/player/PlayerSitePlan.vue";
 import { usePlayerVisibleLocation } from "@/composables/locations/useLocations";
 import { exploredRooms, usePlayerVisibleSiteState, wayCount } from "@/composables/locations/usePlayerVisibleSiteState";
+import { spaceNoun } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
 import { IconLoot, IconShieldCheck } from "@/lib/icons";
 
 const { siteLocationId } = defineProps<{ siteLocationId: string }>();
@@ -74,9 +76,11 @@ const planValue = computed(() => plan.value);
 const rooms = computed(() => (plan.value ? exploredRooms(plan.value) : []));
 const canShow = computed(() => !!site.value?.is_map_shared && rooms.value.length > 0);
 
+// The noun follows the site's own type (#886, #887): a wilds site's walked
+// parts are grounds, not rooms — `spaceNoun` is the single reader of that.
 const roomCountLabel = computed(() => {
-  const n = rooms.value.length;
-  return `${n} ${n === 1 ? "room" : "rooms"} walked`;
+  const { singular, plural } = spaceNoun(site.value?.location_type);
+  return `${pluralizeCount(rooms.value.length, singular, plural)} walked`;
 });
 const wayCountLabel = computed(() => {
   const n = plan.value ? wayCount(plan.value) : 0;

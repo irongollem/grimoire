@@ -168,7 +168,7 @@
               <span v-else class="block text-caption text-destructive">{{ routeCondition(route.gate)?.text }}</span>
             </span>
             <span v-if="route.site" class="shrink-0 rounded bg-tone-info/15 px-1.5 py-0.5 text-label uppercase text-ink-info">
-              site · {{ route.site.room_count }} room{{ route.site.room_count === 1 ? "" : "s" }}
+              site · {{ routeSiteLabel(route.site) }}
             </span>
           </AppCheckbox>
         </div>
@@ -278,11 +278,14 @@ import { computed, ref, watch, type Component } from "vue";
 import type {
   QuestConsequenceAction,
   QuestRoutePayoff,
+  QuestRouteSite,
   QuestRuntimeContext,
   RelationshipShiftConsequencePayload,
 } from "@/types/quest.types";
 import { isVersionConflictError, planAdvance, type PlanAdvanceResult } from "@/lib/quests/advance";
 import { routeCondition } from "@/lib/quests/ledger";
+import { spaceNoun } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
 import { describeQuestConsequenceAction, relationshipShiftIsGain } from "@/lib/quests/consequences";
 import { useQuestRuntimeCommand, useQuestRuntimeImprovise } from "@/composables/quests/useQuestFlow";
 import { useBelow } from "@/composables/useBreakpoint";
@@ -309,6 +312,17 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
+
+/** A route's destination, counted with the noun its own type calls for (#887)
+ *  — "3 grounds" for a wood, "3 rooms" otherwise. The runtime RPC carries
+ *  `location_type` on the site payload (`20260917061415`) precisely so this
+ *  dialog, which never loads locations, does not have to fetch one to pick a
+ *  word. An older cached payload without the key falls back to rooms, which
+ *  is what it said before. */
+function routeSiteLabel(site: QuestRouteSite): string {
+  const noun = spaceNoun(site.location_type);
+  return pluralizeCount(site.room_count, noun.singular, noun.plural);
+}
 
 const props = defineProps<{
   open: boolean;

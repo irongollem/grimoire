@@ -69,7 +69,7 @@
       <!-- Rooms -->
       <section class="flex min-h-0 flex-col gap-2 rounded-xl border border-border bg-card p-3">
         <header class="flex items-center gap-2">
-          <h2 class="font-cinzel text-sm font-bold text-foreground">Rooms</h2>
+          <h2 class="font-cinzel text-sm font-bold text-foreground">{{ siteSpaceHeading }}</h2>
           <span v-if="unwrittenIds.size" class="ml-auto rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">
             {{ unwrittenIds.size }} unwritten
           </span>
@@ -87,7 +87,7 @@
           @move="moveTo"
         />
         <p class="text-caption text-muted-foreground">
-          Rooms are the site's own content, not beats. The last room may hand the thread on to a real beat — which is how a crawl ends without a fake "you leave the dungeon" beat.
+          {{ roomsFooterCaption }}
         </p>
       </section>
 
@@ -127,7 +127,7 @@
           :campaign-id="campaign.activeCampaignId"
         />
         <p v-else class="rounded-xl border border-dashed border-border p-4 text-caption italic text-muted-foreground">
-          The party hasn't entered a room here yet — click one on the left to move them in.
+          {{ emptyRoomCaption }}
         </p>
 
         <section v-if="otherThreads.length" class="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
@@ -247,16 +247,16 @@
           </div>
         </section>
         <p v-else class="rounded-xl border border-dashed border-border p-4 text-caption italic text-muted-foreground">
-          The party hasn't entered a room here yet — open Rooms below to move them in.
+          {{ emptyRoomCaptionMobile }}
         </p>
       </div>
 
       <DockBar hide-from="xl">
-        <AppButton variant="subtle" size="md" class="min-h-12 flex-1" :label="`Rooms · ${rooms.length}`" @click="roomsSheetOpen = true" />
+        <AppButton variant="subtle" size="md" class="min-h-12 flex-1" :label="roomsDockLabel" @click="roomsSheetOpen = true" />
         <AppButton variant="primary" size="md" class="min-h-12 flex-1" :icon="IconCheck" label="Advance beat" @click="emit('advance')" />
       </DockBar>
 
-      <MobileSheet v-model:open="roomsSheetOpen" show-until="xl" title="Rooms">
+      <MobileSheet v-model:open="roomsSheetOpen" show-until="xl" :title="siteSpaceHeading">
         <div v-if="unwrittenIds.size" class="mb-2 flex justify-end">
           <span class="rounded bg-tone-caution/15 px-1.5 py-0.5 text-label uppercase text-ink-caution">{{ unwrittenIds.size }} unwritten</span>
         </div>
@@ -352,7 +352,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
 import { useBelow } from "@/composables/useBreakpoint";
 import { buildMapStack, hasAnyMapLayer } from "@/lib/locations/mapStack";
-import { bindableSpaces, isInteriorType, isSiteType } from "@/lib/locations/tiers";
+import { bindableSpaces, childSpaceType, isInteriorType, isSiteType, spaceHeading, spaceNoun } from "@/lib/locations/tiers";
 import { compareSiblings } from "@/lib/locations/tree";
 import { partyRoomInSite, reachableRoomIds as computeReachableRoomIds } from "@/lib/locations/siteRun";
 import { threadBadge, threadBadges } from "@/lib/quests/threads";
@@ -420,6 +420,13 @@ const pinnableChildren = computed<Location[]>(() =>
 
 const unwrittenIds = computed(() => unwrittenRoomIds(rooms.value));
 
+// #887: every "room"/"Rooms" surfaced below follows the site's own type — a
+// `wilds` site's parts are `grounds`, not `room`s. One set of computeds,
+// read everywhere this component names them, rather than a ternary per string.
+const siteSpaceNoun = computed(() => spaceNoun(site.value?.location_type));
+const siteSpaceHeading = computed(() => spaceHeading(site.value?.location_type));
+const siteIsGrounds = computed(() => childSpaceType(site.value?.location_type) === "grounds");
+
 // The room the beat is staged at directly, when it is one — "the party
 // starts here when Run enters the site" (frame 15). Never moves the party on
 // its own: the room list already requires a click to move them in, same as
@@ -434,10 +441,12 @@ const currentRoomId = computed(() =>
 const currentRoom = computed(() => rooms.value.find((r) => r.id === currentRoomId.value) ?? null);
 const roomOrdinalValue = computed(() => roomOrdinal(currentRoomId.value, roomIds.value));
 const positionLabel = computed(() => {
-  if (roomOrdinalValue.value !== null) return `room ${roomOrdinalValue.value} of ${rooms.value.length}`;
+  if (roomOrdinalValue.value !== null) return `${siteSpaceNoun.value.singular} ${roomOrdinalValue.value} of ${rooms.value.length}`;
   return openingRoom.value ? `not yet inside — opens at ${openingRoom.value.name}` : "not yet inside";
 });
-const switchingCaption = computed(() => roomOrdinalValue.value === null ? "Switching back leaves this site" : `Switching back leaves this site at room ${roomOrdinalValue.value}`);
+const switchingCaption = computed(() => roomOrdinalValue.value === null
+  ? "Switching back leaves this site"
+  : `Switching back leaves this site at ${siteSpaceNoun.value.singular} ${roomOrdinalValue.value}`);
 
 // ── Doors, and the unlock facts that widen reachability past `starts_locked`
 //    (#868) — the same graph `SiteRunSurface` walks for the Atlas Run action. ─
@@ -501,6 +510,20 @@ const zoneNotes = computed(() => {
 // Frame 4's current-room card reads this same map for its own "Party is
 // here · <zone>" caption, keyed off the current room the same way.
 const currentRoomZoneNote = computed(() => currentRoomId.value ? zoneNotes.value.get(currentRoomId.value) : undefined);
+
+// #887: "grounds" takes no article ("entered grounds", not "entered a
+// grounds") — the same bare-noun handling `SiteRoomsPanel`'s own
+// `childTypeArticled` uses on the location side, mirrored here since this
+// prose needs an article and `pluralizeCount`/`spaceNoun` do not cover one.
+const emptySpaceEntry = computed(() => (siteIsGrounds.value ? "grounds" : "a room"));
+const emptyRoomCaption = computed(() => `The party hasn't entered ${emptySpaceEntry.value} here yet — click one on the left to move them in.`);
+const emptyRoomCaptionMobile = computed(() => `The party hasn't entered ${emptySpaceEntry.value} here yet — open ${siteSpaceHeading.value} below to move them in.`);
+const roomsFooterCaption = computed(() =>
+  // "The last one" rather than "The last room"/"The last grounds" — repeating
+  // the site's own noun here would read as "The last grounds may hand...",
+  // which is no cleaner than the thing this story exists to fix.
+  `${siteSpaceHeading.value} are the site's own content, not beats. The last one may hand the thread on to a real beat — which is how a crawl ends without a fake "you leave the dungeon" beat.`);
+const roomsDockLabel = computed(() => `${siteSpaceHeading.value} · ${rooms.value.length}`);
 
 // ── A zone can name a beat (#868 S12) — a trigger zone whose payload names
 //    THIS beat, traced over the room the party is currently standing in.

@@ -103,6 +103,20 @@ describe("PlayerSiteMap", () => {
     expect(wrapper.text()).toContain("2 rooms walked · 1 way on");
   });
 
+  // #887: a `wilds` site's walked parts are `grounds`, not `room`s — the
+  // header chip's noun follows the site's own type, same as everywhere else
+  // this fact is counted.
+  it("says grounds, not rooms, walked at a wilds site", () => {
+    mocks.site.data.value = site({ location_type: "wilds" });
+    mocks.plan.data.value = emptyPlan({
+      spaces: [
+        { space_location_id: "grounds-a", name: "The clearing", cells: ["0,0"], label: null, sort_order: null, is_cleared: false, is_looted: false },
+      ],
+    });
+    const wrapper = mount(PlayerSiteMap, { props: { siteLocationId: "site-1" } });
+    expect(wrapper.text()).toContain("1 grounds walked");
+  });
+
   it("marks a cleared room without hiding a room that has not been looted", () => {
     mocks.site.data.value = site();
     mocks.plan.data.value = emptyPlan({

@@ -90,6 +90,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import PublishPlanPreview from "@/components/cartographer/PublishPlanPreview.vue";
 import PublishPlanRows from "@/components/cartographer/PublishPlanRows.vue";
 import { IconLocation, IconUpload } from "@/lib/icons";
+import { spaceNoun } from "@/lib/locations/tiers";
 import type { PublishSiteContext, PublishReview } from "@/composables/cartographer/useMapPublish";
 import type { CellKey } from "@/types/dungeonMap.types";
 
@@ -131,7 +132,13 @@ const writeParts = computed<WritePart[]>(() => {
   if (!plan) return [];
   const s = plan.summary;
   const parts: WritePart[] = [];
-  if (s.newRooms > 0) parts.push({ count: s.newRooms, label: `room${s.newRooms === 1 ? "" : "s"}` });
+  // The noun follows the site being published to (#887): a wood's new parts
+  // are grounds, not rooms. `siteContext.target` is the full Location, so the
+  // type is already here — no lookup needed.
+  if (s.newRooms > 0) {
+    const noun = spaceNoun(siteContext.target?.location_type);
+    parts.push({ count: s.newRooms, label: s.newRooms === 1 ? noun.singular : noun.plural });
+  }
   if (s.regionUpdates > 0) parts.push({ count: s.regionUpdates, label: `region update${s.regionUpdates === 1 ? "" : "s"}` });
   const doorWrites = s.newDoors + s.doorUpdates;
   if (doorWrites > 0) parts.push({ count: doorWrites, label: `door${doorWrites === 1 ? "" : "s"}` });

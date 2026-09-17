@@ -1,4 +1,5 @@
-import { isSiteType } from "@/lib/locations/tiers";
+import { isSiteType, spaceNoun } from "@/lib/locations/tiers";
+import { pluralizeCount } from "@/lib/utils";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { LocationType } from "@/types/location.types";
 import { ledgerVerbOf } from "./ledger";
@@ -74,10 +75,10 @@ export function resolveCurrentSite<T extends SiteGraphLocation>(
  * the run cockpit's "where the party is" panel leads with, so a DM reads the
  * site's shape without opening the Atlas.
  *
- * The noun follows the site's own type (#886): a `wilds` site's interior
- * children are `grounds`, and "grounds" is already its own plural/collective
- * form (see `LOCATION_TYPE_LABELS`) — it takes no trailing "s" the way "room"
- * does above one. Same idiom as `LocationSheet`'s `spaceWord`.
+ * The noun follows the site's own type (#886, #887): a `wilds` site's
+ * interior children are `grounds`, everything else's are `room`s —
+ * `spaceNoun` is the single reader of that fact, shared with every other
+ * surface that counts a site's parts.
  */
 export function formatSiteSummary(
   site: { name: string; location_type: LocationType },
@@ -85,8 +86,8 @@ export function formatSiteSummary(
   exploredCount: number,
 ): string {
   const typeLabel = LOCATION_TYPE_LABELS[site.location_type].toLowerCase();
-  const roomWord = site.location_type === "wilds" ? "grounds" : roomCount === 1 ? "room" : "rooms";
-  return `${site.name} · ${typeLabel} · ${roomCount} ${roomWord} · ${exploredCount} explored`;
+  const { singular, plural } = spaceNoun(site.location_type);
+  return `${site.name} · ${typeLabel} · ${pluralizeCount(roomCount, singular, plural)} · ${exploredCount} explored`;
 }
 
 /**
