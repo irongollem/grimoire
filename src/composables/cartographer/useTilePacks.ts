@@ -1,8 +1,9 @@
 import { computed, type Ref } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
+import { readEmbeddedXmp, inheritXmpIntoVariant } from "@/lib/storage";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
-import { normalizeGeneratedTile } from "@/cartographer/normalizeGeneratedTile";
+import { normalizeGeneratedTile, decodeBase64 } from "@/cartographer/normalizeGeneratedTile";
 import { styleReferenceFrom } from "@/cartographer/styleReference";
 import { preparePackUpload } from "@/cartographer/packUpload";
 import type { TilePackGenerationJob, TilePackGenerationRun, UserTilePack } from "@/cartographer/userPack.types";
@@ -157,10 +158,22 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
       mechanics: job.job.mechanics,
       slot: job.job.slot,
     });
+    // The edge function already marked `generated.image_b64` with provenance
+    // (EU AI Act Art 50) before sending it here — but normalizeGeneratedTile
+    // canvas-decodes and re-encodes the tile (`canvasToWebp`), and canvas
+    // never preserves embedded metadata, so the XMP packet does not survive
+    // that trip. It has to be read back out of the still-marked source and
+    // re-embedded into the freshly-encoded normalized blob, which is always
+    // webp regardless of the source format — the same inheritance the image
+    // library uses for canvas-resized variants (`src/lib/storage/upload.ts`).
+    const sourceBytes = decodeBase64(generated.image_b64);
+    const sourceXmp = await readEmbeddedXmp(new Blob([sourceBytes.buffer as ArrayBuffer], { type: generated.content_type }));
+    const markedNormalized = await inheritXmpIntoVariant(normalized, sourceXmp);
     // Proof slots become the style references for every pack-phase call, so the
     // 256px reduction is built here while the raw is already decoded — the edge
     // runtime has no image library, and at full resolution those references cost
-    // several times the tile they help produce.
+    // several times the tile they help produce. Purely an internal generation
+    // input (never shown to any user), so it carries no provenance of its own.
     const styleRef = job.phase === "proof"
       ? await styleReferenceFrom(generated.image_b64, generated.content_type)
       : null;
@@ -168,7 +181,7 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
       action: "complete",
       run_id: run.id,
       job_id: job.id,
-      image_b64: await toBase64(normalized),
+      image_b64: await toBase64(markedNormalized),
       ...(styleRef ? { style_ref_b64: await toBase64(styleRef) } : {}),
     });
     await Promise.all([

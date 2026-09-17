@@ -7,6 +7,8 @@ import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { generateImage } from "../_shared/imageGen.ts";
+import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
+import { buildTileProvenance } from "./tileProvenance.ts";
 import { fetchCreditCost, recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
@@ -349,7 +351,15 @@ async function generateSlot(userId: string, body: Record<string, unknown>): Prom
     });
     const attemptNumber = ((claimed.attempts as unknown[] | null)?.length ?? 0) + 1;
     const rawPath = `${run.user_tile_packs.user_id}/${run.user_tile_packs.pack_id}/v${run.user_tile_packs.pack_version}/raw/${job.id.replaceAll(":", "-")}-${attemptNumber}.webp`;
-    const rawBytes = decodeBase64(result.b64);
+    // Marked here, once, right where the bytes come back from the provider —
+    // every downstream consumer (the raw upload below, and the b64 handed
+    // back to the client for normalization) shares this one marked copy.
+    // `result.contentType` is the provider-reported format, not an assumed
+    // webp (imageGen.ts's ImageGenResult docstring) — required so the XMP
+    // embedder picks the matching binary format rather than silently no-op'ing.
+    const prov = buildTileProvenance(result.usage.provider, MODEL);
+    const markedB64 = markGeneratedImageB64(result.b64, result.contentType, prov);
+    const rawBytes = decodeBase64(markedB64);
     const { error: uploadError } = await admin.storage.from("tile-packs").upload(rawPath, rawBytes, {
       contentType: result.contentType,
       upsert: false,
@@ -396,7 +406,7 @@ async function generateSlot(userId: string, body: Record<string, unknown>): Prom
     }).eq("id", jobId);
     await admin.from("tile_pack_generation_runs").update({ charged_credits: run.charged_credits + cost }).eq("id", runId);
     await appendPlanAttempt(runId, run.plan, job.id, "generated", attempt, { raw: rawPath });
-    return json({ job_id: jobId, slot_id: job.id, image_b64: result.b64, content_type: result.contentType, mechanics: job.mechanics });
+    return json({ job_id: jobId, slot_id: job.id, image_b64: markedB64, content_type: result.contentType, mechanics: job.mechanics });
   } catch (error) {
     await releaseCredits(admin, reservation.ids);
     const message = error instanceof Error ? error.message : "Image generation failed";
@@ -461,7 +471,25 @@ async function completeSlot(userId: string, body: Record<string, unknown>): Prom
     ...(styleRefPath ? { style_ref_path: styleRefPath } : {}),
     attempts: [...((row.attempts as unknown[] | null) ?? []), normalizedAttempt],
   }).eq("id", jobId);
-  await admin.from("user_tile_packs").update({ manifest }).eq("id", run.tile_pack_id);
+  // EU AI Act Art 50 (#889 S2). The per-tile XMP packet is the authoritative
+  // mark; this is the queryable copy `AiGeneratedBadge` renders from, in the
+  // same `ai_provenance jsonb` shape the other generator-fed tables carry
+  // (20260917173931). Taken from this job's own "generated" attempt rather
+  // than re-derived, so it records the provider and model that actually
+  // produced the bytes — not whatever the constants happen to say today.
+  //
+  // Written on every normalized tile rather than once at completion: a run can
+  // be cancelled or fail partway, and a pack holding generated art must say so
+  // even when it never reached `completed`. The value is identical each time,
+  // so the repeated write costs a column update and buys that guarantee.
+  const generated = (row.attempts as { action: string; execution?: { provider: string; model: string } }[] | null)
+    ?.findLast((attempt) => attempt.action === "generated");
+  const aiProvenance = generated?.execution
+    ? buildTileProvenance(generated.execution.provider, generated.execution.model)
+    : null;
+  await admin.from("user_tile_packs")
+    .update(aiProvenance ? { manifest, ai_provenance: aiProvenance } : { manifest })
+    .eq("id", run.tile_pack_id);
   await appendPlanAttempt(runId, run.plan, job.id, "normalized", normalizedAttempt, { normalized: normalizedPath });
 
   const { count: completed } = await admin.from("tile_pack_generation_jobs")
