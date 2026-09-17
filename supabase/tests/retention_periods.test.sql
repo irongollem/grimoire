@@ -351,7 +351,8 @@ select is(
         'class_spellcasting_policies', 'metamagic_options',
         'multiclass_prerequisites', 'system_classes', 'content_sources',
         'library_items', 'library_monsters', 'library_rules', 'library_species',
-        'library_spells', 'library_art_defaults', 'library_monster_art_canonical',
+        'library_spells', 'library_tile_packs',
+        'library_art_defaults', 'library_monster_art_canonical',
         'library_spell_art_canonical', 'library_item_embeddings',
         'library_monster_embeddings', 'sound_library'
       ])

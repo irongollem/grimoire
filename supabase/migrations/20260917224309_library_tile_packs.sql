@@ -163,13 +163,65 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
--- The bucket is public, so objects resolve through the public endpoint and the
--- CDN Worker without consulting this. It exists for the authenticated storage
--- API, and for parity with every other public bucket in the registry.
+-- HOW A DRAFT PACK'S BYTES ARE ACTUALLY PROTECTED, because it is not by this
+-- policy and the distinction matters:
+--
+-- Every registry bucket's writes go to R2 and are read back through the CDN
+-- Worker (#577), which consults neither `storage.objects` RLS nor the bucket's
+-- `public` flag. So in this app *bytes are world-readable by URL* — for NPC
+-- portraits, monster art, everything — and confidentiality comes from the path
+-- being unguessable, which is why every other bucket keys its objects by uuid.
+--
+-- A library pack is authored in the open: tiles land here slot by slot, days or
+-- weeks before anyone publishes the pack. Keying those objects by the pack's
+-- *slug* would have made an unreleased pack's every tile fetchable by anyone who
+-- guessed its name, so library objects are keyed by the pack row's **uuid**
+-- instead (`<library_tile_pack_id>/v<n>/<slot>.webp`, see packTarget.ts). That
+-- puts a draft pack exactly where every other unpublished asset in the app
+-- already is, rather than one guess away.
+--
+-- This policy governs the other half — the Supabase storage API, where `list()`
+-- would otherwise enumerate every folder in the bucket and hand out the uuids
+-- that the paragraph above relies on being unknown. So it is scoped to packs
+-- that are actually published; drafts and archived packs are admin-only here,
+-- matching the table policy above rather than contradicting it.
+--
+-- The predicate goes through a `private.` SECURITY DEFINER helper rather than an
+-- inline `exists`, for the same reason `tile_packs_private_select` uses
+-- `private.can_read_tile_pack` (20260825220648): an `exists` reaching from a
+-- `storage.objects` policy into an RLS-protected `public` table evaluates to
+-- false even when the row is plainly visible to that role in an ordinary query.
+-- Measured, not assumed — the inline form was written first and silently hid
+-- every object in the bucket from anon and authenticated alike. A definer
+-- helper is also where CLAUDE.md requires an RLS predicate to live.
+create or replace function private.is_published_library_pack(p_row_id text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(exists (
+    select 1
+    from public.library_tile_packs p
+    where p.id::text = p_row_id
+      and p.status = 'published'
+  ), false)
+$$;
+
+revoke all on function private.is_published_library_pack(text) from public;
+grant execute on function private.is_published_library_pack(text) to anon, authenticated, service_role;
+
 drop policy if exists "library_tile_packs_object_select" on storage.objects;
 create policy "library_tile_packs_object_select" on storage.objects
   for select to anon, authenticated
-  using (bucket_id = 'library-tile-packs');
+  using (
+    bucket_id = 'library-tile-packs'
+    and (
+      private.is_app_admin()
+      or private.is_published_library_pack((storage.foldername(name))[1])
+    )
+  );
 
 -- ── Attribution source ────────────────────────────────────────────────────
 --
