@@ -33,5 +33,6 @@ export const LOCAL_BUCKETS: ReadonlyArray<{
   { id: "sounds", public: true, maxBytes: 20971520, mimeTypes: ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm", "audio/aac", "audio/flac"] },
   { id: "sound-images", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
   { id: "chronicle", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "image/jpeg"] },
+  { id: "library-tile-packs", public: true, maxBytes: 5242880, mimeTypes: ["image/webp", "application/json"] },
   { id: "mini-models", public: true, maxBytes: 52428800, mimeTypes: ["model/gltf-binary", "model/stl", "application/octet-stream", "image/webp"] },
 ];

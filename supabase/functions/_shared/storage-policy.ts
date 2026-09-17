@@ -75,6 +75,10 @@ const MINI_MODEL_MIMES = [
   "image/webp",
 ] as const;
 
+// A pack is tiles plus the manifest that describes them, so the manifest's
+// content type has to be writable to the same bucket as the art.
+const TILE_PACK_MIMES = ["image/webp", "application/json"] as const;
+
 const AUDIO_MIMES = [
   "audio/mpeg",
   "audio/mp3",
@@ -117,6 +121,19 @@ export const STORAGE_WRITE_POLICY: readonly BucketWritePolicy[] = [
     // referenced by many DMs' `sounds` rows (with `storage_path: null`), so one
     // DM's delete must never reach them — the same invariant `srd/` gives art.
     adminPrefixes: ["library"],
+  },
+  {
+    id: "library-tile-packs",
+    maxBytes: FIVE_MB,
+    mimeTypes: TILE_PACK_MIMES,
+    // No shared prefix: every object in this bucket is shared content, so there
+    // is no per-user half to carve an admin prefix out of.
+    adminPrefixes: [],
+    // Service-role only. Library packs are written by the admin generation lane
+    // (#889 S3) and by nothing else — no client, admin or otherwise, presigns a
+    // write here. Without this flag the generic `{userId}/` owner rule would let
+    // any authenticated user write into a bucket every other user reads from.
+    clientWrites: false,
   },
   {
     id: "mini-models",

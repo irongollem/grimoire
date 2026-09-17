@@ -75,6 +75,10 @@ const FIFTY_MB  = 50 * 1024 * 1024;
 
 const IMAGE_MIMES = ["image/webp", "image/jpeg"] as const;
 
+// Tiles plus the manifest describing them — see the matching entry in
+// STORAGE_WRITE_POLICY.
+const TILE_PACK_MIMES = ["image/webp", "application/json"] as const;
+
 const MINI_MODEL_MIMES = [
   "model/gltf-binary",
   "model/stl",
@@ -214,6 +218,20 @@ export const BUCKETS = {
     mimeTypes: IMAGE_MIMES,
     public: true,
     generateVariants: false, // Displayed as thumbnails via CSS; no FocalImage variants needed
+    cdn: true,
+  },
+  libraryTilePacks: {
+    id: "library-tile-packs",
+    maxBytes: FIVE_MB,
+    mimeTypes: TILE_PACK_MIMES,
+    // Public, unlike the private `tile-packs` bucket holding DMs' own packs.
+    // A single map render pulls 20-60 tiles at once, so a signed URL per tile is
+    // the right shape for a private pack and the wrong one for shared content —
+    // and `tile-packs` cannot simply be flipped public, because that would expose
+    // every user's private pack along with it. Hence a second bucket rather than
+    // a second prefix. Writes are service-role only; see STORAGE_WRITE_POLICY.
+    public: true,
+    generateVariants: false, // Tiles are rendered at map scale, not through FocalImage
     cdn: true,
   },
   miniModels: {
