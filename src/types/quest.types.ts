@@ -1,4 +1,5 @@
 import type { NpcRelationship } from "@/types/npc.types";
+import type { LocationType } from "@/types/location.types";
 import type { AiProvenance } from "@/ai/provenance";
 import { LOCATION_STATE_FACT_LABELS, type LocationStateFact } from "@/types/locationState.types";
 
@@ -628,6 +629,18 @@ export interface QuestRouteSite {
   location_id: string;
   name: string;
   room_count: number;
+  /**
+   * The site's own type, so a route card can name its parts correctly (#887)
+   * — a `wilds` divides into `grounds`, everything else into `room`s.
+   *
+   * Carried on the payload rather than looked up because the Advance dialog
+   * never loads locations at all; it renders what the runtime RPC hands it,
+   * and fetching a location to choose a noun would be a query for a word.
+   * Optional because the key was added by `20260917061415` and a client
+   * reading an older cached payload simply falls back to "room"/"rooms"
+   * through `spaceNoun`, which is what it said before.
+   */
+  location_type?: LocationType | null;
 }
 
 /**
