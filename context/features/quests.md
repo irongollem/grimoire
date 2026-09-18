@@ -884,14 +884,16 @@ premise), generating one (`QuestGeneratorPanel.vue`, opened from the list's
 (`QuestPasteImportPanel.vue`, a `SegmentedControl` mode inside
 `QuestFlowStarter.vue` itself). The paste mode does **not** run a second
 extraction contract; it drives the same `document_imports` row and the same
-`useDocumentImportRunner`/`runImportKind` machinery
-`DocumentImportWizard.vue` uses (see `context/features/document-import.md`),
-just through one compact confirmation instead of a step per entity kind. The
-quest lands first (same `?view=overview` landing `createFlow` already used);
-anything else the page yielded (locations, NPCs, monsters…) is a per-group
-toggle in that same confirmation, defaulted on. The full step-per-kind wizard
-in Campaign Settings → Document Import is unchanged and still the way to
-bulk-import a whole chapter.
+`useDocumentImportRunner`/`runImportSweep` machinery `DocumentImportWizard.vue`
+uses (see `context/features/document-import.md`), just through one compact
+confirmation instead of a step per entity kind. The quest lands first (same
+`?view=overview` landing `createFlow` already used) via its own title/premise
+editor with a caution line if the campaign already has a same-titled quest;
+anything else the page yielded (locations, NPCs, monsters…) gets one
+`ImportKindReview` group per kind — the same link/create/generate/ignore
+per-entity decision the settings wizard offers, not a per-group toggle. The
+full step-per-kind wizard in Campaign Settings → Document Import is otherwise
+unchanged and still the way to bulk-import a whole chapter.
 
 **Paste a page and Design it appear only while the campaign's AI is on** —
 both run the campaign's AI (an extraction, a model conversation), so a DM who

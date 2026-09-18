@@ -148,7 +148,7 @@ import { useRouter } from "vue-router";
 import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
-import { useCreateMonster } from "@/composables/monsters/useMonsters";
+import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
@@ -157,9 +157,8 @@ import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
-import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import { useMonsterGenerationCost } from "@/composables/monsters/useMonsterGenerationCost";
 import { useMonsterGeneration } from "@/ai/useMonsterGeneration";
-import { toTiptapJson } from "@/ai/useNpcGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
@@ -167,21 +166,21 @@ import { MONSTER_SIZES as SIZES, MONSTER_TYPES } from "@/types/monster.types";
 const ui = useUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
-const { mutateAsync: createMonster } = useCreateMonster();
-const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useMonsterGeneration();
+const { generateAndCreateMonster } = useGenerateMonster();
+// `isGenerating`/`completedEntityId`/`concept` are the shared generation
+// state `useGenerateMonster` drives underneath — this panel still reads them
+// directly for its own loading/paywall UI, which isn't that composable's
+// concern.
+const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted } = useMonsterGeneration();
 
 const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
 
-const { costOf, affordable } = useAiCredits();
-const { textMultiplierFor } = useProviderConfig();
-const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
+const { affordable } = useAiCredits();
+const { credits: textCreditCost } = useMonsterGenerationCost();
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
-const textCreditCost = computed(
-  () => Math.round(costOf("monster_stat_block") * textMultiplierFor(textProvider.value) * 100) / 100,
-);
 
 const concept = ref("");
 const constraints = reactive({ challenge_rating: "", monster_type: "", size: "" });
@@ -191,41 +190,22 @@ async function generateAndCreate() {
   genConcept.value = concept.value.trim();
   clearCompleted();
 
-  const result = await generate(
-    concept.value.trim(),
-    {
-      challenge_rating: constraints.challenge_rating.trim() || undefined,
-      monster_type: constraints.monster_type || undefined,
-      size: constraints.size || undefined,
-      generateImage: generateImage.value,
-    },
-  );
-  if (!result) return;
-
-  const created = await createMonster({
-    // Scoped to the campaign it was generated for; the DM can widen it to all
-    // campaigns from the monster's Scope control.
-    campaign_id: campaign.activeCampaignId,
-    name: result.name,
-    monster_type: result.monster_type,
-    size: result.size,
-    alignment: (result.alignment || "unaligned").toLowerCase(),
-    habitat: result.habitat || null,
-    source: "Grimoire:AI",
-    tags: result.tags ?? [],
-    description: result.description ? toTiptapJson(result.description) : null,
-    notes: result.notes ? toTiptapJson(result.notes) : null,
-    image_url: result.image_url ?? null,
-    portrait_focal_point: null,
-    stat_block: result.stat_block,
-    ai_provenance: result.ai_provenance ?? null,
+  const { id } = await generateAndCreateMonster(concept.value.trim(), {
+    challenge_rating: constraints.challenge_rating.trim() || undefined,
+    monster_type: constraints.monster_type || undefined,
+    size: constraints.size || undefined,
+    generateImage: generateImage.value,
   });
+  // A failure already left its message on the shared `genError` ref
+  // (`useMonsterGeneration`'s own state, which this panel already renders),
+  // so there is nothing further to do here on a `null` id.
+  if (!id) return;
 
   if (ui.monsterGeneratorOpen) {
     ui.monsterGeneratorOpen = false;
-    router.push(`/monsters/${created.id}`);
+    router.push(`/monsters/${id}`);
   } else {
-    completedEntityId.value = created.id;
+    completedEntityId.value = id;
   }
 }
 

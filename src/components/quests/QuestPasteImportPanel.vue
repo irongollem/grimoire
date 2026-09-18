@@ -45,13 +45,22 @@
       </div>
     </template>
 
-    <!-- ── Review: the compact confirmation ─────────────────────────────────── -->
+    <!-- ── Review ────────────────────────────────────────────────────────────── -->
     <template v-else-if="isReview && row">
       <template v-if="hasQuest">
         <div>
           <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">Quest title</label>
           <AppInput v-model="questTitle" size="lg" placeholder="The road beneath the lake…" />
         </div>
+        <p v-if="duplicateQuestCandidate" class="text-caption text-tone-caution">
+          Your campaign already has a quest called
+          <AppButton
+            variant="link"
+            size="inline-caption"
+            :label="`“${duplicateQuestCandidate.name}”`"
+            :to="{ path: `/quests/${duplicateQuestCandidate.targetId}`, query: { view: 'overview' } }"
+          />.
+        </p>
         <div>
           <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">
             Premise <span class="font-normal">(optional)</span>
@@ -78,28 +87,39 @@
         <p v-else class="text-caption text-muted-foreground">Nothing usable was found on this page.</p>
       </template>
 
-      <div v-if="otherGroups.length" class="space-y-2 rounded-md border border-border bg-muted/30 p-3">
-        <p class="text-label-lg font-semibold text-muted-foreground">Also found</p>
-        <AppCheckbox
-          v-for="group in otherGroups"
-          :key="group.kind"
-          v-model="includeKind[group.kind]"
-          size="md"
-          :label="`${group.entities.length} ${group.label}`"
-        />
+      <div v-if="matches.error.value" class="flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+        <p class="text-caption text-destructive">Couldn't check your campaign for existing entries.</p>
+        <AppButton variant="subtle" size="inline" label="Retry" @click="matches.refetch()" />
       </div>
+
+      <ImportKindReview
+        v-for="group in otherGroups"
+        :key="group.kind"
+        :kind="group.kind"
+        :entities="group.entities"
+        :label="group.label"
+        :candidates-by-ref="matches.candidatesFor(group.kind)"
+        :matches-ready="!matches.isLoading.value && !matches.error.value"
+        :decisions="decisionMapFor(group.kind)"
+        :edits="editMapFor(group.kind)"
+        @update:decisions="(m: Map<string, ImportDecision>) => (decisionsByKind[group.kind] = m)"
+        @update:edits="(m: Map<string, Record<string, unknown>>) => (editsByKind[group.kind] = m)"
+      />
 
       <p v-if="row.ai_provenance == null" class="text-caption text-destructive">
         This document's generation info is missing, so nothing here can be imported. Re-run extraction and try again.
       </p>
+      <ImportQuotaWarning :shortfalls="shortfalls" />
+      <p v-if="progress" class="text-caption text-muted-foreground">{{ progressLabel }}</p>
       <p v-if="confirmError" class="text-caption text-destructive">{{ confirmError }}</p>
 
-      <div class="flex flex-wrap justify-end gap-2 pt-2">
+      <div class="flex flex-wrap items-center justify-end gap-2 pt-2">
+        <GenerationCostBadge v-if="totalGenerateCount > 0" :credits="totalGenerateCredits" />
         <AppButton variant="subtle" size="md" label="Discard" :disabled="isConfirming" @click="discardMine" />
         <AppButton
           variant="primary"
           size="md"
-          :label="hasQuest ? 'Create quest' : 'Import selected'"
+          :label="confirmLabel"
           :icon="IconGenerate"
           :loading="isConfirming"
           :disabled="!canConfirm"
@@ -165,17 +185,13 @@
  * would be exactly the fork #780 exists to undo. It creates the same
  * `document_imports` row (`source_kind: "text"`), runs the same
  * `import-extract` pass, and imports through the very same
- * `useDocumentImportRunner` (`runImportKind`, `buildImportPlan`,
- * `writeQuestSpine`, the link resolvers) `DocumentImportWizard.vue` uses —
- * only the *review surface* is different: one compact confirmation instead
- * of a step per kind. The quest is the headline and lands first; anything
- * else the page yielded (`questPasteReview.ts`'s "also found" groups) is a
- * per-group toggle, defaulted on, so a DM who wants only the quest unticks
- * the rest and is done in two clicks.
- *
- * `DocumentImportWizard.vue`'s full review is still there, unchanged, for
- * genuine bulk imports — this is a second door to the same room, not a
- * replacement.
+ * `useDocumentImportRunner` (`runImportSweep`) `DocumentImportWizard.vue`
+ * uses — only the *review surface* is different: the quest is the headline
+ * (its own title/premise editor, no accordion — a quest always defaults to
+ * `create`, see `entityMatching.ts`), and everything else the page yielded
+ * gets one `ImportKindReview` group each, exactly like a wizard step, so the
+ * DM sees the same link/create/generate/ignore choice either door offers
+ * (#837/#838's successor).
  *
  * ── One import in flight per campaign ────────────────────────────────────────
  *
@@ -200,7 +216,7 @@
  * creating the quest when it reaches that step — this is a known, accepted
  * degradation for a flow meant to be finished in one sitting, not a bug.
  */
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
@@ -215,12 +231,20 @@ import {
   useImportCost,
 } from "@/composables/campaign/useDocumentImport";
 import { useDocumentImportRunner } from "@/composables/campaign/useDocumentImportRunner";
+import { useImportEntityMatches } from "@/composables/campaign/useImportEntityMatches";
+import { useMonsterGenerationCost } from "@/composables/monsters/useMonsterGenerationCost";
 import { pagesForText, validateTextImport, type UploadValidationResult } from "@/lib/documentImport/limits";
 import { tiptapToMarkdown } from "@/lib/tiptap/tiptapToMarkdown";
 import { deriveImportDisplayName, selectPrimaryQuest, summarizeOtherKinds } from "@/lib/documentImport/questPasteReview";
+import { getEntityKindEntry } from "@/lib/documentImport/entityKinds";
+import { quotaShortfalls, rowsAddedToQuota, tallyDecisions } from "@/lib/documentImport/reviewDecisions";
+import { useImportQuotaRoom } from "@/composables/campaign/useImportQuotaRoom";
+import ImportQuotaWarning from "@/components/campaign/ImportQuotaWarning.vue";
+import type { ImportDecision } from "@/lib/documentImport/entityMatching";
+import type { UsableEntity } from "@/lib/documentImport/sanitizeEntities";
 import { QUEST_SUMMARY_MAX } from "@/lib/quests/summary";
-import { supabase } from "@/lib/supabase";
-import { IMPORT_ENTITY_KINDS, type ExtractedEntity, type ImportEntityKind } from "@/types/documentImport.types";
+import { IMPORT_ENTITY_KINDS, type ImportEntityKind } from "@/types/documentImport.types";
+import type { ImportSweepInput, ImportSweepProgress } from "@/composables/campaign/useDocumentImportRunner";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
@@ -228,6 +252,7 @@ import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
 import DocumentPasteEditor from "@/components/campaign/DocumentPasteEditor.vue";
+import ImportKindReview from "@/components/campaign/ImportKindReview.vue";
 import { IconGenerate } from "@/lib/icons";
 
 const { parentId = null } = defineProps<{ parentId?: string | null }>();
@@ -289,7 +314,7 @@ const createImport = useCreateDocumentImport();
 const startExtraction = useStartExtraction();
 const retryImport = useRetryDocumentImport();
 const abandonImport = useAbandonDocumentImport();
-const { runKind, finalizeImport } = useDocumentImportRunner();
+const { runImportSweep } = useDocumentImportRunner();
 
 const content = ref("");
 const pasteEditorRef = ref<InstanceType<typeof DocumentPasteEditor> | null>(null);
@@ -392,17 +417,25 @@ const beatCount = computed(() => {
 
 const questTitle = ref("");
 const questSummary = ref("");
-/** A full `Record`, not `Partial` — every kind defaults `false` so
- *  `includeKind[group.kind]` is always a plain `boolean` for `AppCheckbox`'s
- *  v-model, never `boolean | undefined` for a kind the current row happens
- *  not to have found anything for. */
-const includeKind = ref<Record<ImportEntityKind, boolean>>(
-  Object.fromEntries(IMPORT_ENTITY_KINDS.map((kind) => [kind, false])) as Record<ImportEntityKind, boolean>,
-);
+
+/** One decision/edit map per kind this row yielded (including `quests`,
+ *  which only ever holds the single headline entity), keyed and mutated in
+ *  place — see `ImportKindReview.vue`'s own doc comment on why a `Map`
+ *  behind `reactive()`/`ref()` tracks `.set()` without needing a whole-map
+ *  replacement. */
+const decisionsByKind = reactive<Partial<Record<ImportEntityKind, Map<string, ImportDecision>>>>({});
+const editsByKind = reactive<Partial<Record<ImportEntityKind, Map<string, Record<string, unknown>>>>>({});
+
+function decisionMapFor(kind: ImportEntityKind): Map<string, ImportDecision> {
+  return (decisionsByKind[kind] ??= new Map());
+}
+function editMapFor(kind: ImportEntityKind): Map<string, Record<string, unknown>> {
+  return (editsByKind[kind] ??= new Map());
+}
 
 // Seeded once per row, the moment it first lands on "review" — never
 // re-derived on every render, so a DM's own edits to the title/premise or
-// toggles aren't clobbered by an unrelated reactive update.
+// decisions aren't clobbered by an unrelated reactive update.
 watch(
   () => (row.value?.status === "review" ? row.value.id : null),
   (id) => {
@@ -410,124 +443,196 @@ watch(
     const entity = primaryQuest.value.entity;
     questTitle.value = typeof entity?.data.title === "string" ? entity.data.title : "";
     questSummary.value = typeof entity?.data.summary === "string" ? entity.data.summary : "";
-    const next = Object.fromEntries(IMPORT_ENTITY_KINDS.map((kind) => [kind, false])) as Record<ImportEntityKind, boolean>;
-    for (const group of otherGroups.value) next[group.kind] = true;
-    includeKind.value = next;
+    for (const key of Object.keys(decisionsByKind)) delete decisionsByKind[key as ImportEntityKind];
+    for (const key of Object.keys(editsByKind)) delete editsByKind[key as ImportEntityKind];
+    // The headline quest always creates — see `defaultDecision`'s own doc
+    // comment: a printed adventure's headline quest is never silently merged
+    // into an existing one, only flagged as a possible duplicate.
+    if (entity) decisionMapFor("quests").set(entity.ref, { action: "create" });
   },
   { immediate: true },
 );
 
-const selectedOtherCount = computed(() =>
-  otherGroups.value.filter((g) => includeKind.value[g.kind]).reduce((sum, g) => sum + g.entities.length, 0),
-);
+const entitiesByKindForMatch = computed<Partial<Record<ImportEntityKind, readonly UsableEntity[]>>>(() => {
+  const map: Partial<Record<ImportEntityKind, readonly UsableEntity[]>> = {};
+  const entity = primaryQuest.value.entity;
+  if (entity) map.quests = [entity];
+  for (const group of otherGroups.value) map[group.kind] = group.entities;
+  return map;
+});
 
-const isConfirming = ref(false);
-const confirmError = ref<string | null>(null);
+const importRowIdForMatch = computed(() => (row.value && isReview.value ? row.value.id : null));
+const matches = useImportEntityMatches(importRowIdForMatch, entitiesByKindForMatch);
+
+const duplicateQuestCandidate = computed(() => {
+  const entity = primaryQuest.value.entity;
+  if (!entity) return null;
+  return matches.candidatesFor("quests").get(entity.ref)?.[0] ?? null;
+});
+
+/** Rows each kind would insert against a plan limit — the headline quest
+ *  counts too (it is always one `create`). */
+const quotaAdds = computed(() => {
+  const adds: Partial<Record<ImportEntityKind, number>> = {};
+  if (hasQuest.value) adds.quests = 1;
+  for (const group of otherGroups.value) {
+    const decisions = decisionsByKind[group.kind];
+    if (!decisions) continue;
+    adds[group.kind] = rowsAddedToQuota(group.kind, tallyDecisions(group.entities.map((e) => e.ref), decisions));
+  }
+  return adds;
+});
+const { roomFor, isLoading: quotaLoading } = useImportQuotaRoom();
+const shortfalls = computed(() => quotaShortfalls(quotaAdds.value, roomFor.value));
 
 const canConfirm = computed(() => {
   const r = row.value;
   if (!r || r.status !== "review" || r.ai_provenance == null || isConfirming.value) return false;
-  return hasQuest.value ? questTitle.value.trim().length > 0 : selectedOtherCount.value > 0;
+  // A failed duplicate check seeds no decisions, and an entity with no
+  // decision is not imported — so confirming then would create the quest and
+  // silently drop the rest of the page. Nothing goes until the check has run.
+  if (matches.isLoading.value || matches.error.value) return false;
+  if (quotaLoading.value || shortfalls.value.length > 0) return false;
+  if (hasQuest.value) return questTitle.value.trim().length > 0;
+  return otherGroups.value.some((group) => {
+    const decisions = decisionsByKind[group.kind];
+    if (!decisions) return false;
+    return group.entities.some((e) => decisions.get(e.ref) !== undefined && decisions.get(e.ref)?.action !== "ignore");
+  });
 });
+
+/** Link/adopt/create/generate counts across every "also found" group — the
+ *  headline quest is excluded (it's always exactly one `create`, not
+ *  something these tallies need to explain). */
+const totalTally = computed(() => {
+  let link = 0, adopt = 0, create = 0, generate = 0;
+  for (const group of otherGroups.value) {
+    const decisions = decisionsByKind[group.kind];
+    if (!decisions) continue;
+    const t = tallyDecisions(group.entities.map((e) => e.ref), decisions);
+    link += t.link;
+    adopt += t.adopt;
+    create += t.create;
+    generate += t.generate;
+  }
+  return { link, adopt, create, generate };
+});
+const totalGenerateCount = computed(() => totalTally.value.generate);
+
+const { credits: perMonsterGenerateCredits } = useMonsterGenerationCost();
+const totalGenerateCredits = computed(
+  () => totalTally.value.generate * perMonsterGenerateCredits.value,
+);
+
+const confirmLabel = computed(() => {
+  const base = hasQuest.value ? "Create quest" : "Import selected";
+  const newCount = totalTally.value.create + totalTally.value.generate;
+  const linkedCount = totalTally.value.link;
+  const adoptCount = totalTally.value.adopt;
+  if (newCount === 0 && linkedCount === 0 && adoptCount === 0) return base;
+  const parts = [
+    newCount > 0 ? `${newCount} new` : null,
+    linkedCount > 0 ? `${linkedCount} linked` : null,
+    adoptCount > 0 ? `${adoptCount} from library` : null,
+  ].filter((p): p is string => p !== null);
+  return `${base} · ${parts.join(", ")}`;
+});
+
+const isConfirming = ref(false);
+const confirmError = ref<string | null>(null);
+const progress = ref<ImportSweepProgress | null>(null);
+const progressLabel = computed(() => {
+  const p = progress.value;
+  if (!p) return "";
+  if (p.phase === "linking") return "Linking…";
+  const label = p.kind ? getEntityKindEntry(p.kind).labelPlural : "entries";
+  return `Importing ${label} ${p.done}/${p.total}…`;
+});
+
+function buildEntitiesByKind(): ImportSweepInput["entitiesByKind"] {
+  const out: Partial<Record<ImportEntityKind, readonly UsableEntity[]>> = {};
+  const entity = primaryQuest.value.entity;
+  if (entity) {
+    out.quests = [
+      {
+        ...entity,
+        data: { ...entity.data, title: questTitle.value.trim(), summary: questSummary.value.trim() || undefined },
+      },
+    ];
+  }
+  for (const group of otherGroups.value) {
+    const edits = editsByKind[group.kind];
+    out[group.kind] = group.entities.map((e) => ({ ...e, data: edits?.get(e.ref) ?? e.data }));
+  }
+  return out;
+}
+
+function buildDecisions(): ImportSweepInput["decisions"] {
+  const map = new Map<ImportEntityKind, ReadonlyMap<string, ImportDecision>>();
+  for (const kind of IMPORT_ENTITY_KINDS) {
+    const decisions = decisionsByKind[kind];
+    if (decisions && decisions.size > 0) map.set(kind, decisions);
+  }
+  return map;
+}
 
 async function confirmImport(): Promise<void> {
   const r = row.value;
   if (!r || !canConfirm.value) return;
   isConfirming.value = true;
   confirmError.value = null;
+  progress.value = null;
   try {
-    const counts: Partial<Record<ImportEntityKind, number>> = { ...r.imported_counts };
-    let createdQuestId: string | null = null;
-    let questQuotaHit = false;
-    const importedElsewhere: { label: string; count: number }[] = [];
-    // A kind the DM asked for that came back short — quota or a row-level
-    // failure. Surfaced explicitly rather than folded into `importedElsewhere`
-    // silently: a DM who ticked "2 Locations" and got a quest with nothing
-    // else must be told why, not left to guess. See runImportKind.ts's own
-    // `ImportRunReport` for `stoppedAtQuota`/`planned` vs `imported`.
-    const shortfalls: { label: string; imported: number; planned: number; quota: boolean }[] = [];
-
-    for (const kind of IMPORT_ENTITY_KINDS) {
-      // Already reviewed on another surface (the settings wizard, before
-      // this panel's row became "mine") — never touch it twice.
-      if (r.imported_counts[kind] !== undefined) continue;
-
-      if (kind === "quests") {
-        const entity = primaryQuest.value.entity;
-        if (!entity) {
-          counts.quests = 0;
-          continue;
-        }
-        const edited = {
-          ref: entity.ref,
-          page: entity.page,
-          confidence: entity.confidence,
-          data: { ...entity.data, title: questTitle.value.trim(), summary: questSummary.value.trim() || undefined },
-        };
-        const result = await runKind(r, "quests", [edited] as unknown as ExtractedEntity<"quests">[], new Set([entity.ref]));
-        counts.quests = result.report.imported;
-        createdQuestId = result.insertedIds.get(entity.ref) ?? null;
-        questQuotaHit = result.report.stoppedAtQuota;
-        continue;
-      }
-
-      const group = otherGroups.value.find((g) => g.kind === kind);
-      if (!group || !includeKind.value[kind]) {
-        counts[kind] = 0;
-        continue;
-      }
-      const selected = new Set(group.entities.map((e) => e.ref));
-      const result = await runKind(r, kind, group.entities as unknown as ExtractedEntity<typeof kind>[], selected);
-      counts[kind] = result.report.imported;
-      if (result.report.imported > 0) importedElsewhere.push({ label: group.label, count: result.report.imported });
-      if (result.report.imported < result.report.planned) {
-        shortfalls.push({
-          label: group.label,
-          imported: result.report.imported,
-          planned: result.report.planned,
-          quota: result.report.stoppedAtQuota,
-        });
-      }
-    }
-
-    // A sub-quest created under a parent (QuestFlowStarter's own `parentId`
-    // prop) — done as a follow-up update rather than threaded through
-    // `runKind`, which has no notion of quest parentage: `mapExtractedQuest`
-    // always produces `parent_quest_id: null`, correctly, since a printed
-    // page cannot know it is being imported as anyone's sub-quest.
-    if (createdQuestId && parentId) {
-      try {
-        await supabase.from("quests").update({ parent_quest_id: parentId }).eq("id", createdQuestId);
-      } catch {
-        // Best-effort, like the link/spine writes inside runKind: the quest
-        // already landed and is already counted as imported.
-      }
-    }
-
-    await finalizeImport(r.id, counts);
+    const input: ImportSweepInput = {
+      entitiesByKind: buildEntitiesByKind(),
+      decisions: buildDecisions(),
+      parentQuestId: parentId ?? null,
+    };
+    const report = await runImportSweep(r, input, (p) => {
+      progress.value = p;
+    });
     rememberRow(null);
 
-    const note = importedElsewhere.map((s) => `${s.count} ${s.label.toLowerCase()}`).join(", ");
-    const shortfallNote = shortfalls
-      .map((s) => `${s.label}: ${s.quota ? "plan limit reached" : "not all imported"} (${s.imported} of ${s.planned})`)
-      .join(". ");
-    if (createdQuestId) {
-      const parts = [note && `Also imported: ${note}.`, shortfallNote && `${shortfallNote}.`].filter(Boolean);
+    const noteParts: string[] = [];
+    const shortfallParts: string[] = [];
+    for (const kind of IMPORT_ENTITY_KINDS) {
+      if (kind === "quests") continue;
+      const outcome = report.perKind[kind];
+      if (!outcome) continue;
+      const label = getEntityKindEntry(kind).labelPlural.toLowerCase();
+      const landed = outcome.imported + outcome.linked + outcome.adopted;
+      if (landed > 0) noteParts.push(`${landed} ${label}`);
+      if (outcome.imported < outcome.planned) {
+        shortfallParts.push(
+          `${label}: ${outcome.stoppedAtQuota ? "plan limit reached" : "not all imported"} (${outcome.imported} of ${outcome.planned})`,
+        );
+      }
+    }
+    const note = noteParts.join(", ");
+    const shortfallNote = shortfallParts.join(". ");
+    const unresolvedNote = report.unresolvedLinks.length ? `Couldn't match a reference to: ${report.unresolvedLinks.join(", ")}.` : "";
+
+    if (report.createdQuestId) {
+      const parts = [note && `Also imported: ${note}.`, shortfallNote && `${shortfallNote}.`, unresolvedNote].filter(Boolean);
       if (parts.length) toast.info(parts.join(" "), 8000);
-      await router.push({ path: `/quests/${createdQuestId}`, query: { view: "overview" } });
+      await router.push({ path: `/quests/${report.createdQuestId}`, query: { view: "overview" } });
     } else {
+      const questOutcome = report.perKind.quests;
+      const questQuotaHit = questOutcome?.stoppedAtQuota ?? false;
       const base = questQuotaHit
         ? "Your quest limit has been reached, so this one couldn't be created."
         : note
           ? `Imported: ${note}.`
           : "Nothing was imported.";
-      toast.info(shortfallNote ? `${base} ${shortfallNote}.` : base, 8000);
+      const parts = [base, shortfallNote && `${shortfallNote}.`, unresolvedNote].filter(Boolean);
+      toast.info(parts.join(" "), 8000);
       await router.push("/quests");
     }
   } catch (err) {
     confirmError.value = toast.fromError(err, "Something went wrong while importing.");
   } finally {
     isConfirming.value = false;
+    progress.value = null;
   }
 }
 </script>

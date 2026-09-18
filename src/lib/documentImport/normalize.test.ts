@@ -195,6 +195,12 @@ describe("mapExtractedNpc", () => {
     // no such id was fabricated onto any field on the row.
     expect(JSON.stringify(row)).not.toContain("Thieves' Guild");
   });
+
+  it("defers an npc's usual location as npc_location_name, never a fabricated location_id", () => {
+    const { row, links } = mapExtractedNpc({ name: "X", location_name: "The Rusty Anchor" }, CAMPAIGN_ID, PROVENANCE);
+    expect(row.location_id).toBeNull();
+    expect(links).toEqual({ npc_location_name: "The Rusty Anchor" });
+  });
 });
 
 // ── Locations ────────────────────────────────────────────────────────────────
@@ -269,6 +275,12 @@ describe("mapExtractedLocation", () => {
     expect(row.campaign_id).toBe(CAMPAIGN_ID);
     expect(row.ai_provenance).toBe(PROVENANCE);
     expect(links.parent_name).toBe("The Sundered Coast");
+  });
+
+  it("defers a location's owner npc as owner_npc_name, never a fabricated npc_owner_id", () => {
+    const { row, links } = mapExtractedLocation({ name: "The Rusty Anchor", owner_npc_name: "Old Gaffer" }, CAMPAIGN_ID, PROVENANCE);
+    expect(row.npc_owner_id).toBeNull();
+    expect(links.owner_npc_name).toBe("Old Gaffer");
   });
 
   it("maps a name-only payload to a valid row with schema defaults", () => {
@@ -515,6 +527,39 @@ describe("mapExtractedQuest", () => {
     expect(questSpine?.beats[1]?.dm_content).toBe("The water is waist-deep and rising.");
   });
 
+  it("carries a beat's cross-entity name references through untouched — resolved only in the sweep's linking phase", () => {
+    const { questSpine } = mapExtractedQuest(
+      {
+        title: "The Sunken Bell",
+        beats: [
+          {
+            key: "b1",
+            title: "Into the crypt",
+            kind: "explore",
+            dm_content: "The water is waist-deep and rising.",
+            location_name: "The Flooded Cathedral",
+            npc_names: ["Father Corvin"],
+            monster_names: ["Zombie", "Wraith"],
+            encounter_names: ["Ambush at the altar"],
+            item_names: ["Silver bell"],
+            faction_names: ["The Ashen Circle"],
+          },
+        ],
+      },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+
+    expect(questSpine?.beats[0]).toMatchObject({
+      location_name: "The Flooded Cathedral",
+      npc_names: ["Father Corvin"],
+      monster_names: ["Zombie", "Wraith"],
+      encounter_names: ["Ambush at the altar"],
+      item_names: ["Silver bell"],
+      faction_names: ["The Ashen Circle"],
+    });
+  });
+
   it("maps a name-only payload to a valid row with schema defaults, and no spine to write", () => {
     const { row, links, questSpine } = mapExtractedQuest({ title: "A Rumor" }, CAMPAIGN_ID, PROVENANCE);
 
@@ -633,7 +678,7 @@ describe("mapExtractedFaction", () => {
   });
 
   it("maps a name-only payload to a valid row with schema defaults", () => {
-    const { row } = mapExtractedFaction({ name: "The Unnamed" }, CAMPAIGN_ID, PROVENANCE);
+    const { row, linkLists } = mapExtractedFaction({ name: "The Unnamed" }, CAMPAIGN_ID, PROVENANCE);
 
     expect(row.faction_type).toBeNull();
     expect(row.description).toBeNull();
@@ -641,6 +686,16 @@ describe("mapExtractedFaction", () => {
     expect(row.alignment).toBeNull();
     expect(row.player_visible_to).toEqual([]);
     expect(row.tags).toEqual([]);
+    expect(linkLists).toEqual({ location_names: undefined });
+  });
+
+  it("defers a faction's held locations as linkLists.location_names, never faction_locations rows here", () => {
+    const { linkLists } = mapExtractedFaction(
+      { name: "The Ashen Circle", location_names: ["Dock Ward", "The Sunken Temple"] },
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
+    expect(linkLists).toEqual({ location_names: ["Dock Ward", "The Sunken Temple"] });
   });
 
   it("caps an over-limit description on a word boundary", () => {

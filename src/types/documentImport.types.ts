@@ -45,35 +45,33 @@ import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult 
 // ── Entity kinds ─────────────────────────────────────────────────────────────
 
 /**
- * The eight kinds, in wizard order — which is a **dependency order**, not a
- * presentation preference. Each kind is imported in turn, and a cross-entity
- * link can only resolve against rows that already exist, so a kind must come
- * after everything it points at:
+ * The eight kinds, in wizard step order.
  *
- *   factions   ← nothing
- *   monsters   ← nothing
- *   npcs       ← factions          (`faction_name`)
- *   locations  ← locations         (`parent_name`, resolved within the step)
- *   items      ← nothing
- *   spells     ← nothing
- *   quests     ← npcs, locations   (`giver_npc_name`, `location_name`)
- *   encounters ← monsters, npcs, locations (`combatants[].name`, `location_name`)
+ * Before #893 this was also a **dependency order**: the wizard resolved each
+ * kind's links immediately after importing it, so a kind had to come after
+ * everything it pointed at, and `factions` led specifically because an NPC's
+ * `faction_name` needed it to already exist. An earlier revision put
+ * `factions` last, which reads more naturally, and the consequence was that
+ * an NPC's faction link could never resolve — nothing failed, nothing
+ * errored, the link was simply always dropped, and it took importing a real
+ * document to notice.
  *
- * `factions` leads for that reason alone. An earlier revision of this list put
- * it last — which reads more naturally, since monsters and NPCs are what a DM
- * opens a setting book for — and the consequence was that an NPC's faction link
- * could never resolve: by the time factions existed, the NPC step was long past.
- * Nothing failed, nothing errored; the link was simply always dropped, and it
- * took importing a real document to notice.
+ * `runImportSweep` (`src/lib/documentImport/importSweep.ts`, #893) changed
+ * that: every kind now imports first, in this order, and only afterward does
+ * one linking phase resolve every cross-entity reference against a registry
+ * built from the *whole* sweep. A link can now resolve against a kind that
+ * imports **later** — an NPC's `location_name` (`locations` imports after
+ * `npcs`) and a quest beat's `encounter_names` (`encounters` is last) both
+ * depend on exactly that. So this order is no longer required for
+ * correctness; it stays fixed because `runImportSweep` still imports kind by
+ * kind (for deterministic, attributable per-kind quota accounting — see
+ * `runImportKind.ts`'s own header) and the wizard still reviews one kind at a
+ * time, not because reordering it would break a link.
  *
- * `encounters` trails everything for the same reason `quests` trails `npcs`
- * and `locations`: a proposed encounter (#840) names the room it happens in
- * and the creatures fighting in it, and both references only resolve against
- * rows earlier steps have already produced — combatants against `monsters`
- * and `npcs`, the room against `locations`.
- *
- * `document_import_dependency_order.test.ts` pins this against the link fields
- * declared below, so adding a link to a payload without reordering fails.
+ * `dependencyOrder.test.ts` still pins `factions` before `npcs` and
+ * `encounters` last, as the two pairings a past reordering actually got
+ * wrong — not because either is load-bearing today, but because "we already
+ * fixed this once" is worth keeping visible.
  */
 export const IMPORT_ENTITY_KINDS = [
   "factions",
@@ -142,6 +140,15 @@ export interface ExtractedNpc {
   notes?: string;
   /** Name of a faction in the same document, resolved against `factions` at import. */
   faction_name?: string;
+  /**
+   * Name of the location this NPC is usually found at, resolved against this
+   * same document's `locations` → `npcs.location_id`. `locations` imports
+   * *after* `npcs` in `IMPORT_ENTITY_KINDS` order, so this is exactly the
+   * "link to a kind imported later" case the single sweep-wide linking phase
+   * exists to handle — the old per-kind link resolution could never have
+   * resolved this field.
+   */
+  location_name?: string;
 }
 
 export interface ExtractedLocation {
@@ -173,6 +180,9 @@ export interface ExtractedLocation {
    * up in a second pass after the whole kind is imported.
    */
   parent_name?: string;
+  /** Name of the NPC who owns/runs this location, resolved against this same
+   *  document's `npcs` → `locations.npc_owner_id`. */
+  owner_npc_name?: string;
 }
 
 export interface ExtractedItem {
@@ -237,6 +247,57 @@ export interface ExtractedSpell {
  * #353, imported material stays private to the importing account, is never
  * promoted to `library_*`, and is never reused as seed or training data.
  */
+/**
+ * One of `ExtractedQuest.beats` — the generator/importer's shared
+ * `QuestSpineBeatResult` (src/ai/types.ts), widened with the cross-entity
+ * references a *page* can name that a generated hook never could: the room a
+ * scene happens in, and the NPCs/monsters/encounters/items/factions it
+ * involves. Every one of these is a name, resolved against this same sweep's
+ * own entities (or the campaign's existing rows) in `importSweep.ts`'s single
+ * linking phase — never here, and never by `mapExtractedQuest`, for the same
+ * reason every other cross-entity field in this file is deferred (file
+ * header): the beat this field lives on may not have a real id yet, and the
+ * entity it names may not either.
+ *
+ * Deliberately NOT a new beat type. `QuestSpineBeatResult` is shared with the
+ * AI generator (#822); adding these fields to a parallel importer-only shape
+ * would be the same fork epic #780 exists to undo. The generator simply never
+ * populates them.
+ */
+export interface ExtractedQuestBeat extends QuestSpineBeatResult {
+  /** Name of the room this beat is staged at → `quest_beats.staged_at_location_id`. */
+  location_name?: string;
+  /** Named individuals present at this beat → a `quest_beat_attachments` row
+   *  per name (`attachment_type: "npc"`). */
+  npc_names?: string[];
+  /**
+   * Creatures involved in this beat → a `quest_beat_attachments` row per name
+   * (`attachment_type: "monster"`) when the match is a campaign row. A name
+   * that only resolves to a *shared library* creature cannot become a beat
+   * attachment — `quest_beat_attachments`'s validation trigger requires
+   * `ref_id` to cast to a uuid naming a real `monsters` row, which a library
+   * row's stable text id is not — so it is linked at the quest level
+   * (`quest_refs`) only, and reported rather than silently attached nowhere.
+   */
+  monster_names?: string[];
+  /** Encounters that happen at this beat → a `quest_beat_attachments` row per
+   *  name (`attachment_type: "encounter"`). */
+  encounter_names?: string[];
+  /**
+   * Items found or given at this beat. Resolved against `loot_placements`
+   * (`beat_id`+`quest_id` home, `kind: "item"`) rather than a
+   * `quest_beat_attachments` row — see `context/features/document-import.md`
+   * for why a beat's loot uses the loot-placement model instead of the
+   * generic attachment table. Same library caveat as `monster_names`:
+   * `loot_placements.item_id` is a uuid FK into `items`, so a library item
+   * name is linked at the quest level only.
+   */
+  item_names?: string[];
+  /** Factions with a stake in this beat → a `quest_beat_attachments` row per
+   *  name (`attachment_type: "faction"`). */
+  faction_names?: string[];
+}
+
 export interface ExtractedQuest {
   title: string;
   /**
@@ -253,7 +314,7 @@ export interface ExtractedQuest {
    * author by hand. Inventing an "Opening beat" to fill the hole is how the
    * generation-one shape would survive its own deletion (#822).
    */
-  beats?: QuestSpineBeatResult[];
+  beats?: ExtractedQuestBeat[];
   /** Directed edges between `beats`, by `key`. Optional for the same reason. */
   routes?: QuestSpineRouteResult[];
   /**
@@ -272,6 +333,9 @@ export interface ExtractedFaction {
   faction_type?: string;
   alignment?: string;
   description?: string;
+  /** Locations this faction holds/operates from, resolved against this same
+   *  document's `locations` → one `faction_locations` join row per name. */
+  location_names?: string[];
 }
 
 /**

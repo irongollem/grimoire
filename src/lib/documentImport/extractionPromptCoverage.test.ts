@@ -75,4 +75,28 @@ describe("the document_import prompt covers the extraction contract", () => {
       expect(prompt, `the prompt no longer asks for a quest's \`${field}\``).toContain(field);
     }
   });
+
+  /**
+   * #893's new extraction fields — an NPC's usual location, a location's
+   * owner NPC, a faction's held locations, and a beat's cross-entity
+   * references. Every one of them is a real property on the wire schema
+   * (`extractionSchema.ts`) as of this change, but the schema only shapes
+   * what the model is ALLOWED to answer — the prompt still has to tell it to
+   * look for these, or (per this file's own history: #822, #829, #840) it
+   * will just keep answering null/empty for a field it was never told about.
+   *
+   * `20260918144110_import_prompt_links_every_entity.sql` already covers all
+   * six, landed alongside this change — so unlike the other two checks in
+   * this file, there is no gap here to flag as expected-red.
+   */
+  it("names the sweep's new cross-entity fields (#893)", () => {
+    const prompt = latestPromptBody();
+    const missing = ["location_name", "owner_npc_name", "location_names", "npc_names", "encounter_names", "item_names"].filter(
+      (field) => !prompt.includes(field),
+    );
+    expect(
+      missing,
+      `the prompt does not mention: ${missing.join(", ")}. A field the model is never told about is a field it never returns.`,
+    ).toEqual([]);
+  });
 });

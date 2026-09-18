@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { runImportKind, type RunImportKindDeps } from "./runImportKind";
-import type { NameLookupRow } from "./importPlan";
-import type { ExtractedEncounter, ExtractedNpc, ExtractedQuest } from "@/types/documentImport.types";
+import type { ImportDecision } from "./entityMatching";
+import type { ExtractedMonster, ExtractedNpc } from "@/types/documentImport.types";
 import type { AiProvenance } from "@/ai/provenance";
 
 const CAMPAIGN_ID = "11111111-1111-1111-1111-111111111111";
@@ -14,8 +14,16 @@ const PROVENANCE: AiProvenance = {
   edited: false,
 };
 
+const CREATE: ImportDecision = { action: "create" };
+const GENERATE: ImportDecision = { action: "generate" };
+const IGNORE: ImportDecision = { action: "ignore" };
+
 function entity<T>(ref: string, data: T, page: number | null = 1) {
   return { ref, page, confidence: "complete" as const, data };
+}
+
+function decisions(entries: readonly [string, ImportDecision][]): ReadonlyMap<string, ImportDecision> {
+  return new Map(entries);
 }
 
 /** A deps object whose every function fails the test if called — callers
@@ -25,26 +33,22 @@ function fakeDeps(overrides: Partial<RunImportKindDeps> = {}): RunImportKindDeps
     insertRow: vi.fn(async () => {
       throw new Error("insertRow should not be called in this test");
     }),
-    fetchNameLookup: vi.fn(async () => []),
-    applyLinkResolution: vi.fn(async () => {}),
-    writeQuestSpine: vi.fn(async () => {
-      throw new Error("writeQuestSpine should not be called in this test");
+    generateMonster: vi.fn(async () => {
+      throw new Error("generateMonster should not be called in this test");
     }),
-    resolveMonsterNames: vi.fn(async () => new Map()),
-    updateEncounterCombatants: vi.fn(async () => {}),
     ...overrides,
   };
 }
 
 describe("runImportKind", () => {
-  it("inserts every selected row and reports their ids", async () => {
+  it("inserts every 'create'-decided row and reports their ids", async () => {
     const entities = [entity("a", { name: "Kobold" }), entity("b", { name: "Owlbear" })];
     let call = 0;
     const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: `id-${++call}` }));
     const deps = fakeDeps({ insertRow });
 
     const result = await runImportKind(
-      { kind: "monsters", entities, selectedRefs: new Set(["a", "b"]), linkedRefs: new Set(), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
+      { kind: "monsters", entities, decisions: decisions([["a", CREATE], ["b", CREATE]]), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
       deps,
     );
 
@@ -60,23 +64,34 @@ describe("runImportKind", () => {
       ],
     });
     expect(result.insertedIds).toEqual(new Map([["a", "id-1"], ["b", "id-2"]]));
-    expect(result.unresolvedLinkNames).toEqual([]);
   });
 
-  it("only inserts selected, non-linked entities", async () => {
-    const entities = [entity("a", { name: "Kobold" }), entity("b", { name: "Owlbear" }), entity("c", { name: "Troll" })];
+  it("plans nothing for a 'link' or 'ignore' decision, and nothing for an entity absent from the map", async () => {
+    const entities = [entity("a", { name: "Kobold" }), entity("b", { name: "Owlbear" }), entity("c", { name: "Troll" }), entity("d", { name: "Ghost" })];
     const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "new-id" }));
     const deps = fakeDeps({ insertRow });
 
     const result = await runImportKind(
-      { kind: "monsters", entities, selectedRefs: new Set(["a", "b"]), linkedRefs: new Set(["b"]), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
+      {
+        kind: "monsters",
+        entities,
+        decisions: decisions([
+          ["a", CREATE],
+          ["b", { action: "link", candidate: { targetId: "mon-1", source: "campaign", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }],
+          ["c", IGNORE],
+          // "d" is absent from the map entirely.
+        ]),
+        campaignId: CAMPAIGN_ID,
+        provenance: PROVENANCE,
+      },
       deps,
     );
 
-    // "b" is selected but linked to an existing row, so it produces no insert.
     expect(insertRow).toHaveBeenCalledTimes(1);
     expect(result.report.planned).toBe(1);
+    expect(result.insertedIds.has("a")).toBe(true);
     expect(result.insertedIds.has("b")).toBe(false);
+    expect(result.insertedIds.has("d")).toBe(false);
   });
 
   it("stops at the first quota_exceeded outcome and reports the rest as not attempted", async () => {
@@ -90,7 +105,7 @@ describe("runImportKind", () => {
     const deps = fakeDeps({ insertRow });
 
     const result = await runImportKind(
-      { kind: "monsters", entities, selectedRefs: new Set(["a", "b", "c"]), linkedRefs: new Set(), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
+      { kind: "monsters", entities, decisions: decisions([["a", CREATE], ["b", CREATE], ["c", CREATE]]), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
       deps,
     );
 
@@ -114,7 +129,7 @@ describe("runImportKind", () => {
     const deps = fakeDeps({ insertRow });
 
     const result = await runImportKind(
-      { kind: "monsters", entities, selectedRefs: new Set(["a", "b"]), linkedRefs: new Set(), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
+      { kind: "monsters", entities, decisions: decisions([["a", CREATE], ["b", CREATE]]), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
       deps,
     );
 
@@ -123,110 +138,115 @@ describe("runImportKind", () => {
     expect(result.report.rows[0]).toEqual({ ref: "a", status: "failed", message: "boom" });
   });
 
-  it("resolves an npc's faction_name against fetchNameLookup and applies it", async () => {
-    const npc: ExtractedNpc = { name: "Reyes", faction_name: "The Watch" };
+  it("captures links/linkLists/questSpine only for a 'create'-decided (planned) entity", async () => {
+    const npc: ExtractedNpc = { name: "Reyes", faction_name: "The Watch", location_name: "The Rusty Anchor" };
     const entities = [entity("a", npc)];
     const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "npc-1" }));
-    const fetchNameLookup = vi.fn(async (): Promise<readonly NameLookupRow[]> => [{ id: "faction-1", name: "The Watch" }]);
-    const applyLinkResolution = vi.fn(async (_resolution: Parameters<RunImportKindDeps["applyLinkResolution"]>[0]) => {});
-    const deps = fakeDeps({ insertRow, fetchNameLookup, applyLinkResolution });
+    const deps = fakeDeps({ insertRow });
 
     const result = await runImportKind(
-      { kind: "npcs", entities, selectedRefs: new Set(["a"]), linkedRefs: new Set(), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
+      { kind: "npcs", entities, decisions: decisions([["a", CREATE]]), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
       deps,
     );
 
-    expect(fetchNameLookup).toHaveBeenCalledWith("factions");
-    expect(applyLinkResolution).toHaveBeenCalledTimes(1);
-    expect(applyLinkResolution.mock.calls[0]![0]).toMatchObject({
-      status: "resolved",
-      sourceId: "npc-1",
-      field: "faction_name",
-      name: "The Watch",
-      targetId: "faction-1",
+    const captured = result.linkedEntities.get("a");
+    expect(captured?.links).toEqual({ faction_name: "The Watch", npc_location_name: "The Rusty Anchor" });
+    expect(captured?.linkLists).toEqual({});
+    expect(captured?.questSpine).toBeUndefined();
+    expect(captured?.row).toMatchObject({ name: "Reyes" });
+  });
+
+  it("captures no linkedEntities entry for a 'link', 'ignore', or 'generate' decision", async () => {
+    const entities = [entity("a", { name: "Owlbear" } satisfies ExtractedMonster), entity("b", { name: "Grell" } satisfies ExtractedMonster)];
+    const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "should-not-happen" }));
+    const generateMonster = vi.fn(async () => ({ status: "inserted" as const, id: "gen-1" }));
+    const deps = fakeDeps({ insertRow, generateMonster });
+
+    const result = await runImportKind(
+      {
+        kind: "monsters",
+        entities,
+        decisions: decisions([
+          ["a", { action: "link", candidate: { targetId: "mon-1", source: "campaign", name: "Owlbear", matchKind: "exact", detail: null, distance: null } }],
+          ["b", GENERATE],
+        ]),
+        campaignId: CAMPAIGN_ID,
+        provenance: PROVENANCE,
+      },
+      deps,
+    );
+
+    expect(result.linkedEntities.size).toBe(0);
+    expect(result.insertedIds).toEqual(new Map([["b", "gen-1"]]));
+  });
+
+  describe("the 'generate' decision (monsters only)", () => {
+    it("sends a 'generate'-decided monster through deps.generateMonster instead of insertRow", async () => {
+      const grell: ExtractedMonster = { name: "Grell" };
+      const entities = [entity("a", grell)];
+      const generateMonster = vi.fn(async () => ({ status: "inserted" as const, id: "gen-1" }));
+      const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "should-not-happen" }));
+      const deps = fakeDeps({ generateMonster, insertRow });
+
+      const result = await runImportKind(
+        { kind: "monsters", entities, decisions: decisions([["a", GENERATE]]), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
+        deps,
+      );
+
+      expect(generateMonster).toHaveBeenCalledTimes(1);
+      expect(generateMonster).toHaveBeenCalledWith(grell);
+      expect(insertRow).not.toHaveBeenCalled();
+      expect(result.report).toEqual({
+        kind: "monsters",
+        planned: 1,
+        imported: 1,
+        stoppedAtQuota: false,
+        rows: [{ ref: "a", status: "inserted", id: "gen-1" }],
+      });
+      expect(result.insertedIds).toEqual(new Map([["a", "gen-1"]]));
     });
-    expect(result.unresolvedLinkNames).toEqual([]);
-  });
 
-  it("reports an unresolved link name instead of guessing", async () => {
-    const npc: ExtractedNpc = { name: "Reyes", faction_name: "The Watch" };
-    const entities = [entity("a", npc)];
-    const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "npc-1" }));
-    const applyLinkResolution = vi.fn(async () => {});
-    const deps = fakeDeps({ insertRow, applyLinkResolution }); // fetchNameLookup defaults to []
+    it("interleaves create and generate attempts in the entities' own order for quota accounting", async () => {
+      // "b" (generate) trips quota — "c" (create) must never be attempted,
+      // exactly as a create tripping it would stop a later generate.
+      const entities = [entity("a", { name: "One" }), entity("b", { name: "Grell" }), entity("c", { name: "Three" })];
+      const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "insert-id" }));
+      const generateMonster = vi.fn(async () => ({ status: "quota_exceeded" as const }));
+      const deps = fakeDeps({ insertRow, generateMonster });
 
-    const result = await runImportKind(
-      { kind: "npcs", entities, selectedRefs: new Set(["a"]), linkedRefs: new Set(), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
-      deps,
-    );
+      const result = await runImportKind(
+        {
+          kind: "monsters",
+          entities,
+          decisions: decisions([["a", CREATE], ["b", GENERATE], ["c", CREATE]]),
+          campaignId: CAMPAIGN_ID,
+          provenance: PROVENANCE,
+        },
+        deps,
+      );
 
-    expect(applyLinkResolution).not.toHaveBeenCalled();
-    expect(result.unresolvedLinkNames).toEqual(["The Watch"]);
-  });
+      expect(insertRow).toHaveBeenCalledTimes(1); // only "a"
+      expect(generateMonster).toHaveBeenCalledTimes(1); // "b" trips quota
+      expect(result.report.rows).toEqual([
+        { ref: "a", status: "inserted", id: "insert-id" },
+        { ref: "b", status: "quota_exceeded" },
+        { ref: "c", status: "not_attempted" },
+      ]);
+      expect(result.report.stoppedAtQuota).toBe(true);
+    });
 
-  it("writes a quest's spine exactly once per inserted quest that has one", async () => {
-    const withSpine: ExtractedQuest = {
-      title: "The Sunken Bell",
-      beats: [{ key: "b1", title: "Arrival", kind: "neutral", dm_content: "The party arrives." }],
-    };
-    const withoutSpine: ExtractedQuest = { title: "No beats here" };
-    const entities = [entity("a", withSpine), entity("b", withoutSpine)];
-    const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "quest-1" }));
-    const writeQuestSpine = vi.fn(async (_input: Parameters<RunImportKindDeps["writeQuestSpine"]>[0]) => {});
-    const deps = fakeDeps({ insertRow, writeQuestSpine });
+    it("ignores a 'generate' decision for a non-monster kind rather than calling deps.generateMonster", async () => {
+      const entities = [entity("a", { name: "Reyes" } satisfies ExtractedNpc)];
+      const generateMonster = vi.fn(async () => ({ status: "inserted" as const, id: "should-not-happen" }));
+      const deps = fakeDeps({ generateMonster });
 
-    await runImportKind(
-      { kind: "quests", entities, selectedRefs: new Set(["a", "b"]), linkedRefs: new Set(), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
-      deps,
-    );
+      const result = await runImportKind(
+        { kind: "npcs", entities, decisions: decisions([["a", GENERATE]]), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
+        deps,
+      );
 
-    expect(writeQuestSpine).toHaveBeenCalledTimes(1);
-    expect(writeQuestSpine.mock.calls[0]![0]).toMatchObject({ questId: "quest-1", campaignId: CAMPAIGN_ID });
-  });
-
-  it("never calls writeQuestSpine for a non-quest kind", async () => {
-    const entities = [entity("a", { name: "Kobold" })];
-    const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "id-1" }));
-    const writeQuestSpine = vi.fn(async () => {});
-    const deps = fakeDeps({ insertRow, writeQuestSpine });
-
-    await runImportKind(
-      { kind: "monsters", entities, selectedRefs: new Set(["a"]), linkedRefs: new Set(), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
-      deps,
-    );
-
-    expect(writeQuestSpine).not.toHaveBeenCalled();
-  });
-
-  it("resolves an encounter's combatants against npcs and monsters, and reports the rest unresolved", async () => {
-    const encounter: ExtractedEncounter = {
-      name: "Ambush",
-      combatants: [{ name: "Captain Reyes", count: 1 }, { name: "Kobold", count: 3 }, { name: "Nobody", count: 1 }],
-    };
-    const entities = [entity("a", encounter)];
-    const insertRow = vi.fn(async () => ({ status: "inserted" as const, id: "encounter-1" }));
-    const fetchNameLookup = vi.fn(async (kind: string): Promise<readonly NameLookupRow[]> =>
-      kind === "npcs" ? [{ id: "npc-1", name: "Captain Reyes" }] : [],
-    );
-    const resolveMonsterNames = vi.fn(async () => new Map([["Kobold", { targetId: "monster-1" }]]));
-    const updateEncounterCombatants = vi.fn(
-      async (_id: string, _combatants: Parameters<RunImportKindDeps["updateEncounterCombatants"]>[1]) => {},
-    );
-    const deps = fakeDeps({ insertRow, fetchNameLookup, resolveMonsterNames, updateEncounterCombatants });
-
-    const result = await runImportKind(
-      { kind: "encounters", entities, selectedRefs: new Set(["a"]), linkedRefs: new Set(), campaignId: CAMPAIGN_ID, provenance: PROVENANCE },
-      deps,
-    );
-
-    expect(resolveMonsterNames).toHaveBeenCalledWith(["Captain Reyes", "Kobold", "Nobody"]);
-    expect(updateEncounterCombatants).toHaveBeenCalledTimes(1);
-    const [, resolvedCombatants] = updateEncounterCombatants.mock.calls[0]!;
-    expect(resolvedCombatants).toEqual([
-      expect.objectContaining({ npc_id: "npc-1", monster_id: null, custom_name: null }),
-      expect.objectContaining({ monster_id: "monster-1", npc_id: null, custom_name: null }),
-      expect.objectContaining({ custom_name: "Nobody" }),
-    ]);
-    expect(result.unresolvedLinkNames).toEqual(["Nobody"]);
+      expect(generateMonster).not.toHaveBeenCalled();
+      expect(result.report.planned).toBe(0);
+    });
   });
 });

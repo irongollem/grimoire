@@ -58,7 +58,16 @@ import type {
   ExtractedSpell,
   ImportEntityKind,
 } from "@/types/documentImport.types";
-import { ENTITY_MAPPERS, type EntityLinks, type ImportRowMap, type MappedEntity, type QuestSpinePayload } from "./normalize";
+import {
+  ENTITY_MAPPERS,
+  type EntityLinkLists,
+  type EntityLinks,
+  type ImportRowMap,
+  type MappedEntity,
+  type QuestSpinePayload,
+} from "./normalize";
+import { normalizeEntityName } from "./entityName";
+import type { ImportDecision } from "./entityMatching";
 
 // ── Building the plan ────────────────────────────────────────────────────────
 
@@ -72,6 +81,9 @@ export interface PlannedInsert<K extends ImportEntityKind = ImportEntityKind> {
   ref: string;
   row: ImportRowMap[K];
   links: EntityLinks;
+  /** See `EntityLinkLists`'s own doc comment — a raw-name field resolving to
+   *  more than one row (today: only a faction's `location_names`). */
+  linkLists: EntityLinkLists;
   questSpine?: QuestSpinePayload;
 }
 
@@ -89,7 +101,7 @@ export interface PlannedInsert<K extends ImportEntityKind = ImportEntityKind> {
  * the `as` casts only restate, at each already-proven-correct branch, what
  * `kind === K`'s single possible value in that branch already establishes.
  */
-function mapEntity<K extends ImportEntityKind>(
+export function mapEntity<K extends ImportEntityKind>(
   kind: K,
   data: ExtractedPayloadMap[K],
   campaignId: string,
@@ -116,39 +128,37 @@ function mapEntity<K extends ImportEntityKind>(
 }
 
 /**
- * Turns one wizard step's review-card selections into an ordered insert plan.
+ * Turns one review surface's per-entity decisions into an ordered insert
+ * plan — the `action === "create"` entities only.
  *
- * `selectedRefs` accepts anything iterable of ref strings — a `Set` built from
- * checkbox state is the expected caller shape, but the order it iterates in is
- * never what decides plan order (see file header): `entities`' own order does.
+ * `decisions` replaced the old `selectedRefs`/`linkedRefs` pair (#837/#838):
+ * every entity now gets one explicit `ImportDecision` (`entityMatching.ts`)
+ * rather than two independent booleans, and an entity **absent** from the
+ * map is not planned — absence is not consent. That is a deliberate reversal
+ * from the old "selected by default unless excluded" shape: a review surface
+ * must now say what it wants for every entity it means to act on, including
+ * the common case where the decision is `create`.
  *
- * `linkedRefs` (#837/#838) names entities the DM chose to link to an existing
- * campaign or library row instead of creating a new one — resolved ahead of
- * time by `resolve_monster_references` / `resolve_item_references` and
- * defaulted-to-link by the wizard, with the DM able to switch any one of them
- * back to "create new" per `entityMatching.ts`. A linked entity produces no
- * insert at all: the row it would have duplicated already exists, so there is
- * nothing for this module to plan. It is still filtered on `selectedRefs`
- * first — deselecting a card means "skip it entirely," not "force-create it,"
- * so a ref can be linked and unselected at once with the same "not planned"
- * result as being merely unselected. The caller counts linked entities
- * separately from `PlannedInsert`s (see `DocumentImportWizard.vue`), since
- * this module's whole job is deciding what to *insert*.
+ * `link`, `generate` and `ignore` entities all produce no insert here, for
+ * the same underlying reason in each case: `link` because the row it would
+ * have duplicated already exists; `ignore` because the DM said no; `generate`
+ * because `runImportKind.ts` sends it through the AI generator instead of a
+ * plain insert (monsters only — see `entityMatching.ts`'s `canCreateFromPage`).
+ * This module's whole job is deciding what to *insert*, so all three are
+ * simply not its concern; the caller accounts for them separately.
  */
 export function buildImportPlan<K extends ImportEntityKind>(
   kind: K,
   entities: readonly ExtractedEntity<K>[],
-  selectedRefs: Iterable<string>,
+  decisions: ReadonlyMap<string, ImportDecision>,
   campaignId: string,
   provenance: AiProvenance,
-  linkedRefs: ReadonlySet<string> = new Set(),
 ): PlannedInsert<K>[] {
-  const selected = new Set(selectedRefs);
   return entities
-    .filter((entity) => selected.has(entity.ref) && !linkedRefs.has(entity.ref))
+    .filter((entity) => decisions.get(entity.ref)?.action === "create")
     .map((entity) => {
-      const { row, links, questSpine } = mapEntity(kind, entity.data, campaignId, provenance);
-      return { ref: entity.ref, row, links, questSpine };
+      const { row, links, linkLists, questSpine } = mapEntity(kind, entity.data, campaignId, provenance);
+      return { ref: entity.ref, row, links, linkLists: linkLists ?? {}, questSpine };
     });
 }
 
@@ -272,20 +282,47 @@ const LINK_TARGETS = {
     targetKind: "locations",
     apply: { kind: "fk_update", table: "encounters", column: "location_id" },
   },
+  // NPC → the location they're usually found at. `locations` extracts *after*
+  // `npcs` in IMPORT_ENTITY_KINDS order — the reason this link can only be
+  // resolved in the sweep's single linking phase, once every kind has
+  // imported, rather than in this kind's own per-kind pass. See
+  // `EntityLinks.npc_location_name`'s own doc comment (normalize.ts).
+  npc_location_name: {
+    sourceKind: "npcs",
+    targetKind: "locations",
+    apply: { kind: "fk_update", table: "npcs", column: "location_id" },
+  },
+  owner_npc_name: {
+    sourceKind: "locations",
+    targetKind: "npcs",
+    apply: { kind: "fk_update", table: "locations", column: "npc_owner_id" },
+  },
 } as const satisfies Record<keyof EntityLinks, LinkTarget>;
 
+/**
+ * `field` is a plain `string` rather than `keyof EntityLinks` because
+ * `resolveLinkLists` below reports through this same shape for a
+ * `keyof EntityLinkLists` field — the two never collide in practice (checked
+ * by each of `LINK_TARGETS`/`LINK_LIST_TARGETS`'s own `satisfies`), and every
+ * consumer of `field` only ever displays it, never branches on it.
+ */
 export type LinkResolution =
-  | { status: "resolved"; sourceId: string; field: keyof EntityLinks; name: string; targetId: string; apply: LinkApplication }
-  | { status: "unresolved"; sourceId: string; field: keyof EntityLinks; name: string };
+  | { status: "resolved"; sourceId: string; field: string; name: string; targetId: string; apply: LinkApplication }
+  | { status: "unresolved"; sourceId: string; field: string; name: string };
 
 /**
- * Case-insensitive name match, same rule as `matchSettingRowIds`
- * (`src/lib/populateSetting/settingContent.ts`): a document's printed name and
- * the DM's edited row name only need to agree on casing, not on it exactly.
+ * Matches through `normalizeEntityName` (`entityName.ts`) rather than plain
+ * case-insensitive equality — a document's printed name and an existing row's
+ * name only need to agree once articles and pluralisation are stripped, not
+ * exactly. This is what lets "Blue Clam" (a page's raw heading) find "The
+ * Blue Clam" (a hand-created row), which a bare `.toLowerCase()` never did.
+ * A name that normalizes to nothing (`null`) matches nothing — never every
+ * other blank name — so two unrelated rows with no usable name don't collide.
  */
 function findByName(candidates: readonly NameLookupRow[], name: string): NameLookupRow | undefined {
-  const needle = name.trim().toLowerCase();
-  return candidates.find((candidate) => candidate.name.trim().toLowerCase() === needle);
+  const needle = normalizeEntityName(name);
+  if (needle === null) return undefined;
+  return candidates.find((candidate) => normalizeEntityName(candidate.name) === needle);
 }
 
 /**
@@ -326,6 +363,64 @@ export function resolveLinks(
           ? { status: "resolved", sourceId: row.id, field, name, targetId: match.id, apply: target.apply }
           : { status: "unresolved", sourceId: row.id, field, name },
       );
+    }
+  }
+  return results;
+}
+
+// ── Link-list resolution (a raw-name field naming several rows) ─────────────
+
+/** Every raw-name-*list* field `EntityLinkLists` (normalize.ts) can carry.
+ *  Same exhaustiveness idiom as `LINK_TARGETS` above. */
+const LINK_LIST_TARGETS = {
+  location_names: {
+    sourceKind: "factions",
+    targetKind: "locations",
+    apply: { kind: "join_insert", table: "faction_locations", sourceColumn: "faction_id", targetColumn: "location_id" },
+  },
+} as const satisfies Record<keyof EntityLinkLists, LinkTarget>;
+
+/** One already-inserted row's captured link-lists, keyed by its real id —
+ *  the list-field counterpart of `LinkedRow`. */
+export interface LinkedRowList {
+  id: string;
+  linkLists: EntityLinkLists;
+}
+
+/**
+ * The list-field counterpart of `resolveLinks`: each name in the array gets
+ * its own `LinkResolution`, since a faction naming three locations needs
+ * three `faction_locations` rows, not one. `applyLinkResolution` (the
+ * composable) already knows how to apply a `join_insert` — this function
+ * changes nothing about how a resolution is *applied*, only how it's found,
+ * so no new apply path was needed to add this field.
+ */
+export function resolveLinkLists(
+  sourceKind: ImportEntityKind,
+  rows: readonly LinkedRowList[],
+  lookups: Partial<Record<ImportEntityKind, readonly NameLookupRow[]>>,
+): LinkResolution[] {
+  const fields = (Object.keys(LINK_LIST_TARGETS) as (keyof EntityLinkLists)[]).filter(
+    (field) => LINK_LIST_TARGETS[field].sourceKind === sourceKind,
+  );
+  if (fields.length === 0) return [];
+
+  const results: LinkResolution[] = [];
+  for (const row of rows) {
+    for (const field of fields) {
+      const names = row.linkLists[field];
+      if (names === undefined) continue;
+
+      const target = LINK_LIST_TARGETS[field];
+      const candidates = lookups[target.targetKind] ?? [];
+      for (const name of names) {
+        const match = findByName(candidates, name);
+        results.push(
+          match
+            ? { status: "resolved", sourceId: row.id, field, name, targetId: match.id, apply: target.apply }
+            : { status: "unresolved", sourceId: row.id, field, name },
+        );
+      }
     }
   }
   return results;

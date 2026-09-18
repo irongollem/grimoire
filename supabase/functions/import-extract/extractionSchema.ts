@@ -11,6 +11,16 @@
  * The mirroring is manual and has to stay that way: `documentImport.types.ts` is
  * a Vite/browser module and this is Deno, so it cannot be imported. Adding a
  * field to an `Extracted*` interface means adding it here too.
+ *
+ * `runImportSweep` (src/lib/documentImport/importSweep.ts) is what this
+ * contract now feeds: every kind imports first, and only then does one
+ * linking phase resolve every name reference this schema asks for — the new
+ * `NPC_DATA.location_name`, `LOCATION_DATA.owner_npc_name`,
+ * `FACTION_DATA.location_names`, and `QUEST_BEAT`'s own `location_name`/
+ * `npc_names`/`monster_names`/`encounter_names`/`item_names`/`faction_names`
+ * among them. Naming a kind that imports *later* in `IMPORT_ENTITY_KINDS`
+ * (an NPC's `location_name`, say — `locations` extracts after `npcs`) is
+ * exactly the case the old per-kind resolution could never have handled.
  */
 
 // ── Extraction JSON Schema ───────────────────────────────────────────────────
@@ -126,6 +136,10 @@ const NPC_DATA = obj({
   backstory: NULLABLE_STRING,
   notes: NULLABLE_STRING,
   faction_name: NULLABLE_STRING,
+  // Where this NPC is usually found → npcs.location_id, resolved by name in
+  // the sweep's linking phase (documentImport.types.ts's own comment on this
+  // field explains why: `locations` extracts *after* `npcs`).
+  location_name: NULLABLE_STRING,
 });
 
 const LOCATION_DATA = obj({
@@ -140,6 +154,8 @@ const LOCATION_DATA = obj({
   read_aloud: NULLABLE_STRING,
   notes: NULLABLE_STRING,
   parent_name: NULLABLE_STRING,
+  // Who owns/runs this place → locations.npc_owner_id.
+  owner_npc_name: NULLABLE_STRING,
 });
 
 const ITEM_DATA = obj({
@@ -194,6 +210,15 @@ const QUEST_BEAT = obj({
   // adventure hands the extractor a real typographic signal instead of asking
   // it to judge — see the prompt's read-aloud guidance in index.ts.
   read_aloud: NULLABLE_STRING,
+  // Cross-entity references this scene involves, resolved by name in the
+  // sweep's single linking phase (never here — see ExtractedQuestBeat's own
+  // doc comment in documentImport.types.ts).
+  location_name: NULLABLE_STRING,
+  npc_names: NULLABLE_STRING_ARRAY,
+  monster_names: NULLABLE_STRING_ARRAY,
+  encounter_names: NULLABLE_STRING_ARRAY,
+  item_names: NULLABLE_STRING_ARRAY,
+  faction_names: NULLABLE_STRING_ARRAY,
 });
 
 const QUEST_ROUTE = obj({
@@ -223,6 +248,9 @@ const FACTION_DATA = obj({
   faction_type: NULLABLE_STRING,
   alignment: NULLABLE_STRING,
   description: NULLABLE_STRING,
+  // Locations this faction holds/operates from → one faction_locations row
+  // per name, resolved in the sweep's linking phase.
+  location_names: NULLABLE_STRING_ARRAY,
 });
 
 // A room's occupants, when they add up to a fight (#840). Mirrors

@@ -2,15 +2,25 @@ import { describe, expect, it } from "vitest";
 import {
   buildImportPlan,
   buildImportRunReport,
+  resolveLinkLists,
   resolveLinks,
   type ImportRowOutcome,
   type LinkedRow,
+  type LinkedRowList,
   type PlannedInsert,
 } from "./importPlan";
 import { ENTITY_MAPPERS } from "./normalize";
+import type { ImportDecision } from "./entityMatching";
 import { IMPORT_ENTITY_KINDS, type ExtractedEntity, type ExtractedPayloadMap, type ImportEntityKind } from "@/types/documentImport.types";
 import { getEntityKindEntry } from "./entityKinds";
 import type { AiProvenance } from "@/ai/provenance";
+
+const CREATE: ImportDecision = { action: "create" };
+const IGNORE: ImportDecision = { action: "ignore" };
+
+function decisions(entries: readonly [string, ImportDecision][]): ReadonlyMap<string, ImportDecision> {
+  return new Map(entries);
+}
 
 const CAMPAIGN_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -53,7 +63,7 @@ describe("buildImportPlan", () => {
   it("dispatches to the correct ENTITY_MAPPERS entry for every kind", () => {
     for (const kind of IMPORT_ENTITY_KINDS) {
       const data = SAMPLE_ENTITY_DATA[kind];
-      const [planned] = buildImportPlan(kind, [entity(kind, data)], [kind], CAMPAIGN_ID, PROVENANCE);
+      const [planned] = buildImportPlan(kind, [entity(kind, data)], decisions([[kind, CREATE]]), CAMPAIGN_ID, PROVENANCE);
       const mapper = ENTITY_MAPPERS[kind] as unknown as AnyEntityMapper;
       const direct = mapper(data, CAMPAIGN_ID, PROVENANCE);
 
@@ -68,25 +78,31 @@ describe("buildImportPlan", () => {
     }
   });
 
-  it("includes only the selected refs", () => {
+  it("includes only the entities decided 'create'", () => {
     const entities = [
       entity<"npcs">("r1", { name: "Alice" }),
       entity<"npcs">("r2", { name: "Bob" }),
       entity<"npcs">("r3", { name: "Cara" }),
     ];
-    const plan = buildImportPlan("npcs", entities, ["r1", "r3"], CAMPAIGN_ID, PROVENANCE);
+    const plan = buildImportPlan(
+      "npcs",
+      entities,
+      decisions([["r1", CREATE], ["r2", IGNORE], ["r3", CREATE]]),
+      CAMPAIGN_ID,
+      PROVENANCE,
+    );
     expect(plan.map((p) => p.ref)).toEqual(["r1", "r3"]);
   });
 
-  it("orders the plan by the entities list, not by selectedRefs iteration order", () => {
+  it("orders the plan by the entities list, not by the decisions map's iteration order", () => {
     const entities = [
       entity<"npcs">("r1", { name: "Alice" }),
       entity<"npcs">("r2", { name: "Bob" }),
       entity<"npcs">("r3", { name: "Cara" }),
     ];
-    // A Set built in the opposite order — insertion order is r3, r1, r2.
-    const selection = new Set(["r3", "r1", "r2"]);
-    const plan = buildImportPlan("npcs", entities, selection, CAMPAIGN_ID, PROVENANCE);
+    // A Map built in the opposite order — insertion order is r3, r1, r2.
+    const decided = decisions([["r3", CREATE], ["r1", CREATE], ["r2", CREATE]]);
+    const plan = buildImportPlan("npcs", entities, decided, CAMPAIGN_ID, PROVENANCE);
     expect(plan.map((p) => p.ref)).toEqual(["r1", "r2", "r3"]);
   });
 
@@ -96,25 +112,25 @@ describe("buildImportPlan", () => {
       entity<"monsters">("m2", { name: "Beholder" }),
       entity<"monsters">("m3", { name: "Displacer Beast" }),
     ];
-    const selected = ["m3", "m2", "m1"];
-    const first = buildImportPlan("monsters", entities, selected, CAMPAIGN_ID, PROVENANCE);
-    const second = buildImportPlan("monsters", entities, selected, CAMPAIGN_ID, PROVENANCE);
+    const decided = decisions([["m3", CREATE], ["m2", CREATE], ["m1", CREATE]]);
+    const first = buildImportPlan("monsters", entities, decided, CAMPAIGN_ID, PROVENANCE);
+    const second = buildImportPlan("monsters", entities, decided, CAMPAIGN_ID, PROVENANCE);
     expect(first.map((p) => p.ref)).toEqual(second.map((p) => p.ref));
     expect(first.map((p) => p.ref)).toEqual(["m1", "m2", "m3"]);
   });
 
   it("carries raw-name links through unresolved, for npcs → faction", () => {
     const entities = [entity<"npcs">("r1", { name: "Renn", faction_name: "The Zhentarim" })];
-    const [planned] = buildImportPlan("npcs", entities, ["r1"], CAMPAIGN_ID, PROVENANCE);
+    const [planned] = buildImportPlan("npcs", entities, decisions([["r1", CREATE]]), CAMPAIGN_ID, PROVENANCE);
     expect(planned.links).toEqual({ faction_name: "The Zhentarim" });
   });
 
-  it("produces an empty plan when nothing is selected", () => {
+  it("produces an empty plan when no entity is decided", () => {
     const entities = [entity<"items">("i1", { name: "Sword" })];
-    expect(buildImportPlan("items", entities, [], CAMPAIGN_ID, PROVENANCE)).toEqual([]);
+    expect(buildImportPlan("items", entities, decisions([]), CAMPAIGN_ID, PROVENANCE)).toEqual([]);
   });
 
-  it("excludes a selected-but-linked entity from the plan (#837/#838)", () => {
+  it("excludes an entity decided 'link' from the plan (#837/#838)", () => {
     const entities = [
       entity<"monsters">("m1", { name: "Kobold" }),
       entity<"monsters">("m2", { name: "Owlbear" }),
@@ -122,24 +138,26 @@ describe("buildImportPlan", () => {
     const plan = buildImportPlan(
       "monsters",
       entities,
-      ["m1", "m2"],
+      decisions([
+        ["m1", { action: "link", candidate: { targetId: "mon-1", source: "campaign", name: "Kobold", matchKind: "exact", detail: null, distance: null } }],
+        ["m2", CREATE],
+      ]),
       CAMPAIGN_ID,
       PROVENANCE,
-      new Set(["m1"]),
     );
     expect(plan.map((p) => p.ref)).toEqual(["m2"]);
   });
 
-  it("treats an unselected entity as excluded even when it is also linked", () => {
-    const entities = [entity<"items">("i1", { name: "Potion of Healing" })];
-    const plan = buildImportPlan("items", entities, [], CAMPAIGN_ID, PROVENANCE, new Set(["i1"]));
+  it("excludes an entity decided 'generate' from the plan — that goes through the AI generator, not an insert", () => {
+    const entities = [entity<"monsters">("m1", { name: "Grell" })];
+    const plan = buildImportPlan("monsters", entities, decisions([["m1", { action: "generate" }]]), CAMPAIGN_ID, PROVENANCE);
     expect(plan).toEqual([]);
   });
 
-  it("defaults to linking nothing when linkedRefs is omitted", () => {
-    const entities = [entity<"monsters">("m1", { name: "Kobold" })];
-    const plan = buildImportPlan("monsters", entities, ["m1"], CAMPAIGN_ID, PROVENANCE);
-    expect(plan.map((p) => p.ref)).toEqual(["m1"]);
+  it("treats an entity absent from the decisions map as not planned — absence is not consent", () => {
+    const entities = [entity<"items">("i1", { name: "Potion of Healing" })];
+    const plan = buildImportPlan("items", entities, decisions([]), CAMPAIGN_ID, PROVENANCE);
+    expect(plan).toEqual([]);
   });
 });
 
@@ -324,5 +342,86 @@ describe("resolveLinks", () => {
 
   it("returns an empty array when there are no rows", () => {
     expect(resolveLinks("npcs", [], { factions: [{ id: "f1", name: "The Zhentarim" }] })).toEqual([]);
+  });
+
+  it("resolves an npc's usual location, even though locations extract after npcs", () => {
+    // The whole reason this link exists as a scalar EntityLinks field at all
+    // (rather than being unresolvable): the sweep's linking phase runs after
+    // every kind has imported, so it doesn't matter that `locations` comes
+    // after `npcs` in IMPORT_ENTITY_KINDS.
+    const rows: LinkedRow[] = [{ id: "npc-1", links: { npc_location_name: "The Rusty Anchor" } }];
+    const result = resolveLinks("npcs", rows, { locations: [{ id: "loc-1", name: "The Rusty Anchor" }] });
+
+    expect(result).toEqual([
+      {
+        status: "resolved",
+        sourceId: "npc-1",
+        field: "npc_location_name",
+        name: "The Rusty Anchor",
+        targetId: "loc-1",
+        apply: { kind: "fk_update", table: "npcs", column: "location_id" },
+      },
+    ]);
+  });
+
+  it("resolves a location's owner npc", () => {
+    const rows: LinkedRow[] = [{ id: "loc-1", links: { owner_npc_name: "Old Gaffer" } }];
+    const result = resolveLinks("locations", rows, { npcs: [{ id: "npc-1", name: "Old Gaffer" }] });
+
+    expect(result).toEqual([
+      {
+        status: "resolved",
+        sourceId: "loc-1",
+        field: "owner_npc_name",
+        name: "Old Gaffer",
+        targetId: "npc-1",
+        apply: { kind: "fk_update", table: "locations", column: "npc_owner_id" },
+      },
+    ]);
+  });
+});
+
+describe("resolveLinkLists", () => {
+  it("resolves each name in a faction's location_names to its own join_insert", () => {
+    const rows: LinkedRowList[] = [{ id: "faction-1", linkLists: { location_names: ["Dock Ward", "The Thieves' Den"] } }];
+    const result = resolveLinkLists("factions", rows, {
+      locations: [{ id: "loc-1", name: "Dock Ward" }, { id: "loc-2", name: "The Thieves' Den" }],
+    });
+
+    expect(result).toEqual([
+      {
+        status: "resolved",
+        sourceId: "faction-1",
+        field: "location_names",
+        name: "Dock Ward",
+        targetId: "loc-1",
+        apply: { kind: "join_insert", table: "faction_locations", sourceColumn: "faction_id", targetColumn: "location_id" },
+      },
+      {
+        status: "resolved",
+        sourceId: "faction-1",
+        field: "location_names",
+        name: "The Thieves' Den",
+        targetId: "loc-2",
+        apply: { kind: "join_insert", table: "faction_locations", sourceColumn: "faction_id", targetColumn: "location_id" },
+      },
+    ]);
+  });
+
+  it("reports one unresolved name per miss, without dropping the rest of the list", () => {
+    const rows: LinkedRowList[] = [{ id: "faction-1", linkLists: { location_names: ["Dock Ward", "Nowhere"] } }];
+    const result = resolveLinkLists("factions", rows, { locations: [{ id: "loc-1", name: "Dock Ward" }] });
+
+    expect(result).toContainEqual({ status: "resolved", sourceId: "faction-1", field: "location_names", name: "Dock Ward", targetId: "loc-1", apply: expect.anything() });
+    expect(result).toContainEqual({ status: "unresolved", sourceId: "faction-1", field: "location_names", name: "Nowhere" });
+  });
+
+  it("skips a row with no location_names captured", () => {
+    const rows: LinkedRowList[] = [{ id: "faction-1", linkLists: {} }];
+    expect(resolveLinkLists("factions", rows, {})).toEqual([]);
+  });
+
+  it("returns an empty array for a kind with no link-list fields at all", () => {
+    expect(resolveLinkLists("npcs", [{ id: "npc-1", linkLists: {} }], {})).toEqual([]);
   });
 });

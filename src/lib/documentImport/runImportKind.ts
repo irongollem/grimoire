@@ -1,51 +1,44 @@
 /**
- * The document importer's per-kind run: turn one kind's selections into
- * inserts, resolve the cross-entity links those inserts captured, and (for
- * the two kinds that need a second pass) write a quest's beat graph or wire
- * an encounter's combatants.
+ * The document importer's per-kind INSERT step: turn one kind's decisions
+ * into inserts (and, for a `generate`-decided monster, a generation call),
+ * row by row, and report what landed.
  *
- * Extracted out of `DocumentImportWizard.vue` (#353) rather than left as that
- * component's private `runImport()` so the compact create-quest paste review
- * (#839) can run the *same* insert/link/spine logic instead of forking it —
- * #839 is explicit that a second, smaller review surface is fine, but a
- * second copy of this orchestration is exactly the fork epic #780 exists to
- * undo. The wizard runs this once per reviewed step; the compact review runs
- * it once per kind it has anything to do for, in `IMPORT_ENTITY_KINDS`
- * dependency order, in a single confirm action.
+ * This used to also own cross-entity link resolution, the quest-spine write,
+ * and encounter-combatant resolution — all three needed a lookup against
+ * *other* kinds' rows, which only worked when every kind a source kind could
+ * point at had already imported. `IMPORT_ENTITY_KINDS`' dependency order
+ * covers most fields (`factions` before `npcs`, etc.), but not all of them —
+ * an NPC's `location_name` (#893) names a `locations` row, and `locations`
+ * extracts *after* `npcs`, so that field could never have resolved under the
+ * old per-kind scheme. `runImportSweep` (`importSweep.ts`) is the fix: import
+ * every kind first, *then* run one linking phase against a registry built
+ * from the whole sweep. This module is now purely the first half — the
+ * second half moved to `importSweep.ts`, which calls this once per kind.
  *
- * Pure by the same rule as `spineWrite.ts`: every side effect is injected via
- * `RunImportKindDeps` rather than importing `supabase` directly, so this file
- * has no Vue/Supabase dependency and is unit-testable with fake deps. Each
- * caller supplies its own thin Supabase-backed implementation (see
- * `useDocumentImportRunner.ts`) — the two callers share the *decisions* this
- * module makes; only the wiring to the database is theirs individually to
- * request the way their own composable already does.
+ * Pure by the same rule as `importPlan.ts`: every side effect is injected via
+ * `RunImportKindDeps`, so this has no Vue/Supabase dependency and is
+ * unit-testable with fake deps.
  *
  * ── Why insert order is deterministic and caller-independent ────────────────
  *
- * `enforce_quota` is a BEFORE INSERT trigger, so a free DM importing many
- * rows of one kind can be refused partway through — which row "partway"
- * means depends entirely on insert order. `buildImportPlan` orders the plan
- * by `entities`' own order (the extraction's page order), never by whatever
- * selection structure the caller happens to be using, so re-running an
- * import with the same selections always stops at the same row. This module
- * inherits that guarantee unchanged — it does not reorder `plan`.
+ * `enforce_quota` is a BEFORE INSERT trigger, so a free DM importing many rows
+ * of one kind can be refused partway through — which row "partway" means
+ * depends entirely on insert order. `buildImportPlan` orders the plan by
+ * `entities`' own order (the extraction's page order), never by whatever
+ * selection structure the caller happens to be using, so re-running an import
+ * with the same selections always stops at the same row. This module inherits
+ * that guarantee unchanged — it does not reorder `plan`.
  */
 import type { AiProvenance } from "@/ai/provenance";
-import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult } from "@/ai/types";
 import {
   buildImportPlan,
   buildImportRunReport,
-  resolveLinks,
   type ImportRowOutcome,
   type ImportRunReport,
-  type LinkedRow,
-  type LinkResolution,
-  type NameLookupRow,
 } from "./importPlan";
-import { resolveEncounterCombatants } from "./normalize";
+import type { EntityLinkLists, EntityLinks, QuestSpinePayload } from "./normalize";
+import type { ImportDecision } from "./entityMatching";
 import type { ExtractedEntity, ImportEntityKind } from "@/types/documentImport.types";
-import type { CombatantDef, EncounterInsert } from "@/types/encounter.types";
 
 // ── Deps ─────────────────────────────────────────────────────────────────────
 
@@ -55,214 +48,140 @@ export type InsertRowOutcome =
   | { status: "failed"; message: string };
 
 /**
- * Everything one call to `runImportKind` needs from the outside world,
- * supplied by the caller so this module never talks to Supabase directly.
- *
+ * Everything one call to `runImportKind` needs from the outside world.
  * `insertRow` is called once per planned row, in plan order (never batched —
- * see the file header), and classifies its own outcome: the caller is the
- * one holding the actual Supabase error, so it (not this module) decides
+ * see the file header), and classifies its own outcome: the caller is the one
+ * holding the actual Supabase error, so it (not this module) decides
  * `quota_exceeded` vs `failed` via `isQuotaExceeded`.
  */
 export interface RunImportKindDeps {
   insertRow: (row: Record<string, unknown>) => Promise<InsertRowOutcome>;
-  /** Existing rows of `targetKind` in this campaign, for link resolution —
-   *  called once per target kind a source kind's links can point at. */
-  fetchNameLookup: (targetKind: ImportEntityKind) => Promise<readonly NameLookupRow[]>;
-  /** Applies one resolved link. Best-effort by convention: a link write
-   *  failing must not undo the row it points from, which already landed. */
-  applyLinkResolution: (resolution: Extract<LinkResolution, { status: "resolved" }>) => Promise<void>;
-  /** Only ever invoked for `kind === "quests"`, once per inserted quest that
-   *  carries a spine. */
-  writeQuestSpine: (input: {
-    questId: string;
-    campaignId: string;
-    beats: QuestSpineBeatResult[] | undefined;
-    routes: QuestSpineRouteResult[] | undefined;
-    objectives: QuestObjectiveResult[] | undefined;
-  }) => Promise<void>;
-  /** Only ever invoked for `kind === "encounters"`: resolves combatant names
-   *  against this campaign's monsters and the shared library, keyed by the
-   *  name that was queried (mirrors `resolve_monster_references`'s own
-   *  `distinct on (query_name)` contract). */
-  resolveMonsterNames: (names: readonly string[]) => Promise<ReadonlyMap<string, { targetId: string }>>;
-  /** Only ever invoked for `kind === "encounters"`, once per inserted
-   *  encounter, once its combatants' ids have been resolved. */
-  updateEncounterCombatants: (encounterId: string, combatants: readonly CombatantDef[]) => Promise<void>;
+  /**
+   * Only ever invoked for `kind === "monsters"`, once per entity whose
+   * decision is `generate` (`entityMatching.ts`) — a page that named a
+   * creature without ever printing its stats. Returns the same outcome shape
+   * `insertRow` does, classified the same way, because a generated monster
+   * still lands as one real `monsters` row and still counts against the same
+   * quota resource as a plain insert.
+   */
+  generateMonster: (data: Record<string, unknown>) => Promise<InsertRowOutcome>;
 }
-
-// ── Which other kinds a source kind's links resolve against ─────────────────
-
-/**
- * Mirrors (only the shape of) `importPlan.ts`'s own `LINK_TARGETS`, which
- * isn't exported — the resolution algorithm itself still comes from
- * `resolveLinks`, this only tells this module which lookups to fetch first.
- *
- * `encounters` lists both targets its own combatant resolution needs
- * (`npcs`, for a named individual) alongside the one `resolveLinks` itself
- * consumes (`locations`, for `encounter_location_name`) — see the encounters
- * block below, which reuses this same `lookups.npcs` fetch rather than
- * issuing a second one.
- */
-const LINK_LOOKUP_TARGETS: Partial<Record<ImportEntityKind, ImportEntityKind[]>> = {
-  npcs: ["factions"],
-  locations: ["locations"],
-  quests: ["npcs", "locations"],
-  encounters: ["locations", "npcs"],
-};
 
 // ── Result ───────────────────────────────────────────────────────────────────
 
+/** What a `create`-decided (planned) entity's mapper captured, for
+ *  `importSweep.ts`'s later linking phase to resolve against the rest of the
+ *  sweep. Absent for a `link`/`ignore`/`generate`-decided entity — none of
+ *  those three ever produced a `PlannedInsert` in the first place (see
+ *  `buildImportPlan`'s own doc comment), so there is nothing here to defer. */
+export interface RunImportKindLinkedEntity {
+  links: EntityLinks;
+  linkLists: EntityLinkLists;
+  questSpine?: QuestSpinePayload;
+  /** The exact row handed to `deps.insertRow` — the sweep's only way to reach
+   *  a mapped field that isn't part of `EntityLinks`, e.g. an encounter's
+   *  resolved `combatants` array (`normalize.ts`'s `mapExtractedEncounter`
+   *  builds the slot shape; the sweep only resolves the names within it). */
+  row: Record<string, unknown>;
+}
+
 export interface RunImportKindResult {
   report: ImportRunReport;
-  /** Names `resolveLinks` (or, for `encounters`, combatant resolution)
-   *  couldn't match against an existing or freshly-inserted row — reported,
-   *  never silently dropped, since the referent may simply not exist. */
-  unresolvedLinkNames: string[];
   /** Every inserted row's plan `ref` resolved to the id it actually got —
-   *  the caller's only way to learn a created row's id, since this module
-   *  otherwise reports only counts. */
+   *  the caller's only way to learn a created row's id, since `report` only
+   *  carries counts. */
   insertedIds: ReadonlyMap<string, string>;
+  /** Keyed by the same `ref` as `insertedIds` — see `RunImportKindLinkedEntity`. */
+  linkedEntities: ReadonlyMap<string, RunImportKindLinkedEntity>;
 }
 
 /**
- * Runs one kind's plan end to end: build it, insert row by row (stopping at
- * the first quota refusal — see the file header), resolve and apply the
- * cross-entity links the inserted rows captured, and run the one extra pass
- * `quests` or `encounters` needs.
+ * Runs one kind's plan end to end: insert (and, for monsters, generate) row
+ * by row in the entities' own order (stopping at the first quota refusal —
+ * see the file header).
  *
- * `linkedRefs` (#837/#838) names entities the caller already resolved to an
- * existing campaign/library row — passing an empty set (the compact review's
- * only use of this parameter) means every selected entity is created fresh,
- * which is a legitimate, simpler choice for a surface that doesn't offer a
- * per-entity link-vs-create decision at all.
+ * `decisions` additionally interprets the `generate` action (monsters only):
+ * an entity so decided is never part of `buildImportPlan`'s output (nothing
+ * to insert — see there), but it *is* attempted here, through
+ * `deps.generateMonster`, in the same single ordered pass as every `create`
+ * — never a separate loop, because a create and a generate both draw on the
+ * same `monsters` quota resource, and running them as two loops would let a
+ * generate slip in after a create already tripped the limit (or vice versa).
  */
 export async function runImportKind<K extends ImportEntityKind>(
   params: {
     kind: K;
     entities: readonly ExtractedEntity<K>[];
-    selectedRefs: ReadonlySet<string>;
-    linkedRefs: ReadonlySet<string>;
+    decisions: ReadonlyMap<string, ImportDecision>;
     campaignId: string;
     provenance: AiProvenance;
   },
   deps: RunImportKindDeps,
 ): Promise<RunImportKindResult> {
-  const { kind, entities, selectedRefs, linkedRefs, campaignId, provenance } = params;
+  const { kind, entities, decisions, campaignId, provenance } = params;
 
-  const plan = buildImportPlan(kind, entities, selectedRefs, campaignId, provenance, linkedRefs);
+  const plan = buildImportPlan(kind, entities, decisions, campaignId, provenance);
+  const plannedByRef = new Map(plan.map((planned) => [planned.ref, planned] as const));
 
-  // Row by row (never a single batched insert) so a mid-batch quota
-  // rejection can be attributed to the row that tripped it and every row
-  // ahead of it is still known to have landed.
+  // The ordered list of every attempt this run makes — a plain insert for
+  // each planned `create`, plus (monsters only) a generation call for each
+  // `generate` — interleaved in `entities`' own order, the same determinism
+  // rule `buildImportPlan` itself follows (file header) and for the same
+  // reason: which row a mid-run quota refusal falls on must not depend on
+  // which of the two kinds of attempt happens to run first.
+  const attempts: { ref: string; run: () => Promise<InsertRowOutcome> }[] = [];
+  for (const entity of entities) {
+    const decision = decisions.get(entity.ref);
+    if (decision?.action === "create") {
+      const planned = plannedByRef.get(entity.ref);
+      if (planned) attempts.push({ ref: entity.ref, run: () => deps.insertRow(planned.row as Record<string, unknown>) });
+    } else if (kind === "monsters" && decision?.action === "generate") {
+      attempts.push({ ref: entity.ref, run: () => deps.generateMonster(entity.data as unknown as Record<string, unknown>) });
+    }
+  }
+
+  // Row by row (never batched) so a mid-batch quota rejection can be
+  // attributed to the attempt that tripped it and every attempt ahead of it
+  // is still known to have landed.
   const outcomes: ImportRowOutcome[] = [];
-  for (const planned of plan) {
-    const result = await deps.insertRow(planned.row as Record<string, unknown>);
+  for (const attempt of attempts) {
+    const result = await attempt.run();
     if (result.status === "quota_exceeded") {
-      outcomes.push({ ref: planned.ref, status: "quota_exceeded" });
+      outcomes.push({ ref: attempt.ref, status: "quota_exceeded" });
       break; // retrying the rest would fail identically — see importPlan.ts
     }
     if (result.status === "failed") {
-      outcomes.push({ ref: planned.ref, status: "failed", message: result.message });
+      outcomes.push({ ref: attempt.ref, status: "failed", message: result.message });
       continue;
     }
-    outcomes.push({ ref: planned.ref, status: "inserted", id: result.id });
+    outcomes.push({ ref: attempt.ref, status: "inserted", id: result.id });
   }
 
-  const report = buildImportRunReport(kind, plan, outcomes);
+  // `buildImportRunReport` only ever reads `.ref` off each entry, so a
+  // generated attempt (no `PlannedInsert` — nothing was ever planned to
+  // insert for it) satisfies this the same way a planned one does. This is
+  // how "planned"/"imported" come to include generated rows without any
+  // change to that function itself.
+  const report = buildImportRunReport(kind, attempts, outcomes);
 
   const insertedIds = new Map<string, string>();
-  const linkedRows: LinkedRow[] = [];
+  const linkedEntities = new Map<string, RunImportKindLinkedEntity>();
   for (const outcome of outcomes) {
     if (outcome.status !== "inserted") continue;
     insertedIds.set(outcome.ref, outcome.id);
-    const planned = plan.find((p) => p.ref === outcome.ref);
-    if (planned) linkedRows.push({ id: outcome.id, links: planned.links });
-  }
-
-  const lookupTargets = LINK_LOOKUP_TARGETS[kind] ?? [];
-  const lookups: Partial<Record<ImportEntityKind, readonly NameLookupRow[]>> = {};
-  for (const targetKind of lookupTargets) {
-    lookups[targetKind] = await deps.fetchNameLookup(targetKind);
-  }
-
-  const resolutions = resolveLinks(kind, linkedRows, lookups);
-  const unresolvedLinkNames: string[] = [];
-  for (const resolution of resolutions) {
-    if (resolution.status === "unresolved") {
-      unresolvedLinkNames.push(resolution.name);
-      continue;
-    }
-    await deps.applyLinkResolution(resolution);
-  }
-
-  // A second pass like the link resolution above, for the same reason: every
-  // beat needs the quest's own id, which does not exist until here.
-  if (kind === "quests") {
-    for (const outcome of outcomes) {
-      if (outcome.status !== "inserted") continue;
-      const spine = plan.find((p) => p.ref === outcome.ref)?.questSpine;
-      if (!spine) continue;
-      try {
-        await deps.writeQuestSpine({
-          questId: outcome.id,
-          campaignId,
-          beats: spine.beats,
-          routes: spine.routes,
-          objectives: spine.objectives,
-        });
-      } catch {
-        // Best-effort: a partially wired spine doesn't undo the quest, which
-        // already landed and is already counted as imported.
-      }
+    // Only a `create`d row carries captured links — a generated monster has
+    // none (mappers never run for it), and monsters are never the *source*
+    // of a link field regardless.
+    const planned = plannedByRef.get(outcome.ref);
+    if (planned) {
+      linkedEntities.set(outcome.ref, {
+        links: planned.links,
+        linkLists: planned.linkLists,
+        questSpine: planned.questSpine,
+        row: planned.row as Record<string, unknown>,
+      });
     }
   }
 
-  // A second pass like the two above, and for the same reason — a
-  // combatant's real id can't exist until the encounter row it lives inside
-  // does — but this one doesn't go through `resolveLinks`/link lookups like
-  // `encounter_location_name` just did: a combatant name resolves against
-  // *either* `npcs` or `monsters`/`library_monsters`, never one fixed
-  // target, which is exactly what that resolver cannot express.
-  if (kind === "encounters") {
-    const insertedEncounters: { id: string; row: EncounterInsert }[] = [];
-    for (const outcome of outcomes) {
-      if (outcome.status !== "inserted") continue;
-      const planned = plan.find((p) => p.ref === outcome.ref);
-      if (planned) insertedEncounters.push({ id: outcome.id, row: planned.row as unknown as EncounterInsert });
-    }
-
-    // Every combatant name across every encounter in this run, deduped, in
-    // one lookup — never one per card.
-    const allCombatantNames = [
-      ...new Set(
-        insertedEncounters.flatMap((inserted) =>
-          inserted.row.combatants.map((combatant) => combatant.custom_name).filter((name): name is string => name !== null),
-        ),
-      ),
-    ];
-    const monsterMatches = allCombatantNames.length > 0 ? await deps.resolveMonsterNames(allCombatantNames) : new Map();
-    // Reuses the same fetch `resolveLinks` above just consumed — `encounters`
-    // is declared with `npcs` in `LINK_LOOKUP_TARGETS` for exactly this.
-    const npcLookup = lookups.npcs ?? [];
-
-    for (const inserted of insertedEncounters) {
-      const resolvedCombatants = resolveEncounterCombatants(inserted.row.combatants, npcLookup, monsterMatches);
-      // A combatant left with neither id is a real, meaningful outcome —
-      // never silently dropped — so it's reported the same way an
-      // unresolved FK link is.
-      unresolvedLinkNames.push(
-        ...resolvedCombatants
-          .filter((combatant) => !combatant.monster_id && !combatant.npc_id && combatant.custom_name)
-          .map((combatant) => combatant.custom_name as string),
-      );
-      try {
-        await deps.updateEncounterCombatants(inserted.id, resolvedCombatants);
-      } catch {
-        // Best-effort, like the link writes and quest-spine write above: the
-        // encounter already landed and is already counted as imported.
-      }
-    }
-  }
-
-  return { report, unresolvedLinkNames, insertedIds };
+  return { report, insertedIds, linkedEntities };
 }

@@ -43,7 +43,7 @@
  * of a scalar FK column.
  */
 import type { AiProvenance } from "@/ai/provenance";
-import type { QuestObjectiveResult, QuestSpineBeatResult, QuestSpineRouteResult } from "@/ai/types";
+import type { QuestObjectiveResult, QuestSpineRouteResult } from "@/ai/types";
 import type {
   ExtractedEncounter,
   ExtractedFaction,
@@ -53,6 +53,7 @@ import type {
   ExtractedNpc,
   ExtractedPayloadMap,
   ExtractedQuest,
+  ExtractedQuestBeat,
   ExtractedSpell,
   ImportEntityKind,
 } from "@/types/documentImport.types";
@@ -71,6 +72,7 @@ import type { QuestInsert } from "@/types/quest.types";
 import { splitQuestSummary } from "@/lib/quests/summary";
 import type { SpellInsert, SpellSchool } from "@/types/spell.types";
 import { SPELL_SCHOOLS } from "@/types/spell.types";
+import { normalizeEntityName } from "./entityName";
 
 // ── The return envelope ──────────────────────────────────────────────────────
 
@@ -108,6 +110,31 @@ export interface EntityLinks {
    * (`encounters.location_id` vs `quests.location_id`).
    */
   encounter_location_name?: string;
+  /**
+   * NPC → the location they're usually found at, by name. Named distinctly
+   * from Quest's `location_name` for the same reason `encounter_location_name`
+   * is — this one targets `npcs.location_id`. `locations` extracts *after*
+   * `npcs` in `IMPORT_ENTITY_KINDS` order, so this field is only resolvable at
+   * all once the whole sweep (not just this kind) has finished importing —
+   * see `importSweep.ts`.
+   */
+  npc_location_name?: string;
+  /** Location → the NPC who owns/runs it, by name → `locations.npc_owner_id`. */
+  owner_npc_name?: string;
+}
+
+/**
+ * A raw-name field that resolves to more than one row, unlike every field in
+ * `EntityLinks` above (one name, one FK). Kept as its own small type rather
+ * than widening `EntityLinks` to `string | string[]` per field, since every
+ * consumer of `EntityLinks` (the scalar `resolveLinks`) would otherwise have
+ * to branch on which shape a given field actually is.
+ */
+export interface EntityLinkLists {
+  /** Faction → the locations it holds/operates from, by name — one
+   *  `faction_locations` join row per name (see `resolveLinkLists`,
+   *  importPlan.ts). */
+  location_names?: string[];
 }
 
 /**
@@ -129,7 +156,14 @@ export interface EntityLinks {
  * generator. Doing it here as well would be two validators for one contract.
  */
 export interface QuestSpinePayload {
-  beats: QuestSpineBeatResult[];
+  /**
+   * `ExtractedQuestBeat[]`, not the bare `QuestSpineBeatResult[]` this
+   * carried before — every beat still has everything `writeQuestSpine`
+   * (src/lib/quests/spineWrite.ts) needs to create the row, plus the raw
+   * cross-entity name references (`location_name`, `npc_names`, …) that
+   * `importSweep.ts`'s linking phase resolves once the beat has a real id.
+   */
+  beats: ExtractedQuestBeat[];
   routes: QuestSpineRouteResult[];
   objectives: QuestObjectiveResult[];
 }
@@ -137,6 +171,9 @@ export interface QuestSpinePayload {
 export interface MappedEntity<K extends ImportEntityKind = ImportEntityKind> {
   row: ImportRowMap[K];
   links: EntityLinks;
+  /** Only ever populated for factions (`location_names`) today — see
+   *  `EntityLinkLists`'s own doc comment for why this isn't folded into `links`. */
+  linkLists?: EntityLinkLists;
   questSpine?: QuestSpinePayload;
 }
 
@@ -315,6 +352,7 @@ export function mapExtractedNpc(
     alignment: payload.alignment ?? null, // NPC alignment is free text, no schema default
     age: payload.age ?? null,
     occupation: payload.occupation ?? null,
+    location_id: null, // resolved from links.npc_location_name in the sweep's linking phase, see file header
     appearance: capProse(payload.appearance),
     personality: capProse(payload.personality),
     backstory: capProse(payload.backstory),
@@ -338,7 +376,7 @@ export function mapExtractedNpc(
     player_visible_fields: [], // schema default '{}'
     ai_provenance: provenance,
   };
-  return { row, links: { faction_name: payload.faction_name } };
+  return { row, links: { faction_name: payload.faction_name, npc_location_name: payload.location_name } };
 }
 
 // ── Locations ────────────────────────────────────────────────────────────────
@@ -380,7 +418,7 @@ export function mapExtractedLocation(
     is_description_shared: false, // schema default
     is_npcs_shared: false, // schema default
     is_inventory_shared: false, // schema default
-    npc_owner_id: null,
+    npc_owner_id: null, // resolved from links.owner_npc_name in the sweep's linking phase, see file header
     related_location_ids: [], // schema default '{}'
     source_map_id: null,
     is_battle_map: false, // schema default
@@ -391,7 +429,7 @@ export function mapExtractedLocation(
     // audio_theme omitted — its own type comment says to omit for the column
     // default of null, which is exactly what applies here.
   };
-  return { row, links: { parent_name: payload.parent_name } };
+  return { row, links: { parent_name: payload.parent_name, owner_npc_name: payload.owner_npc_name } };
 }
 
 /**
@@ -572,7 +610,7 @@ export function mapExtractedQuest(
   //
   // It should be rare either way: the contract now asks for a one-line summary,
   // so a tail means the model overran a field it was told the width of.
-  const withOverflow: QuestSpineBeatResult[] = !summaryTail
+  const withOverflow: ExtractedQuestBeat[] = !summaryTail
     ? beats
     : beats.length > 0
       ? beats.map((beat, i) =>
@@ -618,7 +656,7 @@ export function mapExtractedFaction(
     tags: [], // schema default '{}'; not extracted
     ai_provenance: provenance,
   };
-  return { row, links: {} };
+  return { row, links: {}, linkLists: { location_names: payload.location_names } };
 }
 
 // ── Encounters ───────────────────────────────────────────────────────────────
@@ -728,17 +766,21 @@ export function resolveEncounterCombatants(
 }
 
 /**
- * Case-insensitive name match — mirrors importPlan.ts's own `findByName`
- * (same rule as `matchSettingRowIds`). Duplicated rather than imported: see
- * `resolveEncounterCombatants`'s doc comment for why this module doesn't
- * import from importPlan.ts.
+ * Matches through `normalizeEntityName` — mirrors importPlan.ts's own
+ * `findByName`, which uses the same normalizer for the same reason (a page's
+ * raw name and an existing row's name only need to agree once articles and
+ * pluralisation are stripped). Duplicated rather than imported from
+ * importPlan.ts: see `resolveEncounterCombatants`'s doc comment for why this
+ * module doesn't import from there; `entityName.ts` sits below both, so
+ * importing the normalizer itself is not the same cycle.
  */
 function findEncounterCandidateByName<T extends { name: string }>(
   candidates: readonly T[],
   name: string,
 ): T | undefined {
-  const needle = name.trim().toLowerCase();
-  return candidates.find((c) => c.name.trim().toLowerCase() === needle);
+  const needle = normalizeEntityName(name);
+  if (needle === null) return undefined;
+  return candidates.find((c) => normalizeEntityName(c.name) === needle);
 }
 
 // ── Dispatcher ───────────────────────────────────────────────────────────────

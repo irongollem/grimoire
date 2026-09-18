@@ -19,6 +19,12 @@ import type { RulesetKey } from "@/types/ruleset.types";
 const QUERY_KEY = "monsters";
 const SOURCES_KEY = "monster-sources";
 const OPEN5E_DOCS_KEY = "open5e-monster-documents";
+const UNIQUE_VIOLATION = "23505";
+
+function isUniqueViolation(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "code" in e
+    && (e as { code?: unknown }).code === UNIQUE_VIOLATION;
+}
 
 async function fetchMonsters(): Promise<Monster[]> {
   const all: Monster[] = [];
@@ -399,17 +405,42 @@ export function useDeleteMonster() {
 }
 
 
+/**
+ * The library→`MonsterInsert` field mapping shared by every path that copies
+ * a `library_monsters` row into the caller's own `monsters` table: the
+ * manual "Customize" clone below (`useCloneLibraryMonster`, used by
+ * `MonsterDetail.vue`/`MonsterSheetMobile.vue`'s Customize button) and the
+ * document importer's get-or-create adoption (`useEnsureOwnedMonster`,
+ * consumed by `useDocumentImportRunner.ts`'s `adoptLibraryMonster` dep). One
+ * mapping, not two, so a field added to a library monster's shape only ever
+ * needs updating here.
+ */
+function libraryMonsterToInsert(libraryMonster: Monster, campaignId: string | null): MonsterInsert {
+  const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url } = libraryMonster;
+  return {
+    name,
+    monster_type,
+    size,
+    alignment,
+    habitat,
+    source: `${source ?? "SRD 5.1"} (customized)`,
+    tags,
+    stat_block,
+    notes,
+    image_url,
+    campaign_id: campaignId,
+  };
+}
+
 /** Clone an SRD monster into the user's own collection. Returns the new Monster. */
 export function useCloneLibraryMonster() {
   const queryClient = useQueryClient();
   const { activeCampaignId } = storeToRefs(useCampaignStore());
   return useMutation({
-    mutationFn: async (libraryMonster: Monster): Promise<Monster> => {
-      const { name, monster_type, size, alignment, habitat, source, tags, stat_block, notes, image_url } = libraryMonster;
-      // Scoped to the campaign the DM cloned it in, like any other new
-      // creation — the shared original stays available everywhere regardless.
-      return createMonster({ name, monster_type, size, alignment, habitat, source: `${source ?? "SRD 5.1"} (customized)`, tags, stat_block, notes, image_url, campaign_id: activeCampaignId.value });
-    },
+    // Scoped to the campaign the DM cloned it in, like any other new
+    // creation — the shared original stays available everywhere regardless.
+    mutationFn: async (libraryMonster: Monster): Promise<Monster> =>
+      createMonster(libraryMonsterToInsert(libraryMonster, activeCampaignId.value)),
     onSuccess: (monster) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       // This path calls createMonster() directly rather than going through
@@ -419,6 +450,99 @@ export function useCloneLibraryMonster() {
       queueMonsterEmbedding(monster.id);
     },
   });
+}
+
+/**
+ * Get-or-create a library monster into the DM's own `monsters` table — the
+ * document importer's "choosing a library candidate means add it from the
+ * library" adoption (`context/features/document-import.md`). Unlike
+ * `useCloneLibraryMonster`'s manual "Customize" clone above, this is
+ * idempotent and always global (`campaign_id: null`), for reasons that are
+ * about the database as much as the feature:
+ *
+ *  - `monsters_source_identity_unique` is `(user_id, source_document_key,
+ *    source_record_key)` — no `campaign_id` column at all — so a DM can only
+ *    ever own ONE copy of a given library monster, full stop, across every
+ *    campaign. Scoping the copy to "the importing campaign" would make a
+ *    second import (a different campaign, or a re-run of this one) collide
+ *    with that constraint the moment it named the same monster again.
+ *  - `campaign_id: null` is already this app's own meaning for "the DM's,
+ *    available in every campaign" (see `Monster.campaign_id`'s own doc
+ *    comment) — exactly the shape `useDocumentImportRunner.ts`'s
+ *    `fetchNameLookup` already understands via `KINDS_WITH_GLOBAL_ROWS` as "a
+ *    personal monster used everywhere," and exactly what `useEnsureOwnedItem`
+ *    (`useItems.ts`) already does for the identical items case. A global row
+ *    also always satisfies the RLS `WITH CHECK` (`campaign_id IS NULL OR
+ *    private.is_campaign_dm(campaign_id)`) and the
+ *    `validate_quest_beat_attachment` trigger's null-campaign branch for the
+ *    owning DM, in any campaign — a copy scoped to the importing campaign
+ *    alone would fail that trigger the moment a *later* import (a different
+ *    campaign) tried to attach the very same copy to one of its own beats.
+ *
+ * Mirrors `useEnsureOwnedItem`'s shape exactly: look for the DM's own row by
+ * source identity first, and only insert on a genuine miss; a
+ * unique-violation race (two imports resolving the same monster at once, or
+ * this import racing a manual Customize of the same monster) re-queries for
+ * the winner's row rather than failing.
+ */
+export function useEnsureOwnedMonster() {
+  const queryClient = useQueryClient();
+
+  async function ensureOwnedMonster(libraryMonster: Monster): Promise<Monster> {
+    const user = getCurrentUser();
+    if (!user) throw new Error("Not authenticated");
+    if (!libraryMonster.source_document_key || !libraryMonster.source_record_key) {
+      throw new Error("Library monster is missing source identity");
+    }
+
+    const findExisting = async (): Promise<Monster | null> => {
+      const { data, error } = await supabase
+        .from("monsters")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("source_document_key", libraryMonster.source_document_key as string)
+        .eq("source_record_key", libraryMonster.source_record_key as string)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Monster | null;
+    };
+
+    const existing = await findExisting();
+    if (existing) return existing;
+
+    const payload: MonsterInsert = {
+      ...libraryMonsterToInsert(libraryMonster, null),
+      ruleset: libraryMonster.ruleset,
+      conceptual_key: libraryMonster.conceptual_key,
+      source_document_key: libraryMonster.source_document_key,
+      source_record_key: libraryMonster.source_record_key,
+      source_revision: libraryMonster.source_revision,
+      source_license: libraryMonster.source_license,
+      provenance: libraryMonster.provenance,
+    };
+
+    try {
+      const created = await createMonster(payload);
+      // Same reasoning as useEnsureOwnedItem's own comment: without this the
+      // copy would be the one creation route that stays unretrievable until
+      // the next admin backfill.
+      queueMonsterEmbedding(created.id);
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      return created;
+    } catch (e) {
+      // Two concurrent adoptions (or an adoption racing a manual Customize)
+      // can race to create the same monster — the loser hits
+      // monsters_source_identity_unique; re-query for the winner's row
+      // instead of failing, mirroring useEnsureOwnedItem's own retry.
+      if (isUniqueViolation(e)) {
+        const retried = await findExisting();
+        if (retried) return retried;
+      }
+      throw e;
+    }
+  }
+
+  return { ensureOwnedMonster };
 }
 
 // ── Open5e runtime import ────────────────────────────────────────────────────
