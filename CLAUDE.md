@@ -232,6 +232,8 @@ learns about it.
 
 Do **not** add an `import.meta.env.DEV` auto-login to `src/` instead. The repo is public, so auth-bypass-shaped code is readable whether or not it ships; and because every read is RLS-scoped on `auth.uid()`, a faked client session renders zero rows — you would be checking layouts against an empty world.
 
+**`npm run dev:import-fixture` gives the DM fixture a document import already sitting in review**, so the paste-a-page and settings-wizard review screens have something to look at without spending a real AI extraction call. It seeds one `document_imports` row (a wholly invented flooded-mine adventure) exercising every review state at once — library and campaign name matches, a full-stat-block monster, a stats-free one, a plural that resolves to a singular library entry, and a branching quest spine — plus three campaign-owned "Goblin" monsters so the candidate picker is a real A/B/C choice. Costs nothing; run it again to replace its own row, or `-- --clear` to remove just what it made.
+
 ## Sanctioned Exceptions
 
 Deliberate departures from the rules above and in the feature docs. They look like oversights, get "fixed", and regress — so they are written down.
