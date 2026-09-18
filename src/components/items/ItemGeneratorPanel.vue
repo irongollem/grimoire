@@ -114,7 +114,7 @@
 
         <!-- Generating state -->
         <div
-          v-else-if="isGenerating"
+          v-if="isGenerating"
           class="flex flex-col items-center gap-3 py-4"
         >
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />

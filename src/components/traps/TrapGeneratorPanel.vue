@@ -82,7 +82,7 @@
 
         <!-- No API key nudge -->
         <!-- Generating state -->
-        <div v-else-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
+        <div v-if="isGenerating" class="flex flex-col items-center gap-3 py-4">
           <IconGenerate class="h-7 w-7 text-primary animate-pulse" />
           <p class="text-body text-muted-foreground italic text-center">{{ currentLoadingQuote }}</p>
           <AppButton
