@@ -87,6 +87,7 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 | `generate-roll-table` | text | same | |
 | `generate-loot` | text | same | loot-table hoards, grounded in the DM's own item vault (#602); server-path only, no client-direct twin |
 | `generate-complication` | text | same | mid-fight complication/reinforcement proposals for the encounter runner, grounded in the DM's own bestiary and campaign entities (#604); server-path only, no client-direct twin |
+| `generate-entity-text` | text | same | spell, monster, item and faction generators — one function keyed by generator (`ai_system_prompts` row + ledger reason); their art goes through `generate-entity-image`. Added 18 Sep 2026: until then these four were client-direct only and failed for every DM without a local key |
 | `generate-chronicle-text` | text | same | session recap text |
 | `generate-npc-voice` | text | same | "NPC Voice Coach" — generates speakable-as-is lines only; ephemeral, nothing persisted |
 | `generate-chronicle-image` | image | OpenAI (gpt-image-2 / gpt-image-1.5 / gpt-image-1-mini), Gemini (gemini-3.1-flash-image, "Nano Banana") via `_shared/imageGen.ts` | also the promotional-reuse surface (§2) |
@@ -103,9 +104,11 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 
 ### Client-direct generators (`src/ai/`, browser-side, BYOK-cloud or local-key only)
 
-`useMonsterGeneration.ts`, `useItemGeneration.ts`, `useFactionGeneration.ts`,
-`usePuzzleGeneration.ts`, `useSpellGeneration.ts` (via `spellAiAdapter.ts`),
-and `useTextEnhancement.ts` all call `getTextProvider()` from
+The spell, monster, item and faction generators still have a client-direct
+branch, but only in local-key mode; by default they go through
+`generate-entity-text` (`src/ai/entityTextGeneration.ts` picks the path).
+
+`usePuzzleGeneration.ts` and `useTextEnhancement.ts` call `getTextProvider()` from
 `src/ai/providers/` (`openai.ts`, `anthropic.ts`, `gemini.ts`)
 directly from the browser, using the campaign's configured key (BYOK-cloud)
 or a locally-vaulted key (local-key tier) — never touching an edge function.

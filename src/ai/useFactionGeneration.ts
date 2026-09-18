@@ -1,7 +1,4 @@
-import {
-  buildCampaignContext,
-} from "./utils";
-import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
+import { generateEntityText } from "./entityTextGeneration";
 import { useRuleset } from "@/composables/rules/useRuleset";
 import type { FactionAiResult, FactionAiGenerated } from "./types";
 import {
@@ -11,12 +8,7 @@ import {
 } from "./aiGenerationState";
 import { registerAiGenerator, isAnyAiGenerating } from "./aiGeneratorRegistry";
 import { useUiStore } from "@/stores/ui";
-import { getTextProvider } from "./providers";
-import { wrapUserInput } from "./utils";
-import { logUsage } from "@/composables/ai/useAiCredits";
-import type { TextUsage } from "./providers/types";
 import { captureImageGenerationContext, generateImage } from "./useImageGeneration";
-import { buildAiProvenance } from "@/ai/provenance";
 
 // ── Module-level singleton state ────────────────────────────────────────────
 const _state = createAiGenerationState();
@@ -61,36 +53,22 @@ export function useFactionGeneration() {
       stopAiQuotes();
       return null;
     }
-    const settingPrompt = imageContext.settingPrompt;
-    let textUsage: TextUsage | undefined;
 
     try {
-      const textProvider = getTextProvider();
-
-      const [basePrompt, rulesetContext] = await Promise.all([
-        fetchSystemPrompt("faction"),
-        fetchRulesetContext(ruleset.value),
-      ]);
-      if (!basePrompt) throw new Error("Faction system prompt not configured.");
-      const systemContent = `${basePrompt}${rulesetContext ? `\n\n${rulesetContext}` : ""}${buildCampaignContext({
-        setting: settingPrompt,
-      })}`;
-
       const constraints: string[] = [];
       if (options?.faction_type)      constraints.push(`Faction Type: ${options.faction_type}`);
       if (options?.alignment)         constraints.push(`Alignment: ${options.alignment}`);
       if (options?.leader_name)       constraints.push(`Leader: ${options.leader_name}`);
       if (options?.headquarters_name) constraints.push(`Headquarters: ${options.headquarters_name}`);
 
-      const wrappedPrompt = wrapUserInput(userPrompt);
-      const userContent = constraints.length
-        ? `${wrappedPrompt}\n\nConstraints:\n${constraints.join("\n")}`
-        : wrappedPrompt;
-
-      const { content, usage: _textUsage } = await textProvider.complete(systemContent, userContent);
-      textUsage = _textUsage;
-      const factionData = JSON.parse(content) as FactionAiResult;
-      factionData.ai_provenance = buildAiProvenance("faction_generation", _textUsage.provider, _textUsage.model);
+      const factionData = await generateEntityText<FactionAiResult>({
+        generator: "faction",
+        campaignId: imageContext.campaignId,
+        settingPrompt: imageContext.settingPrompt,
+        ruleset: ruleset.value,
+        prompt: userPrompt,
+        constraints,
+      });
 
       // ── Emblem ─────────────────────────────────────────────────────────────
       let image_url: string | null = null;
@@ -107,7 +85,6 @@ export function useFactionGeneration() {
         }
       }
 
-      logUsage({ reason: "faction_generation", textUsage });
       return { ...factionData, image_url };
     } catch (e) {
       _state.error.value = e instanceof Error ? e.message : "Generation failed";

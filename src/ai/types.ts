@@ -50,7 +50,7 @@ export interface MonsterAiResult {
   stat_block: MonsterStatBlock;
   /** Subject description for image generation */
   image_prompt: string;
-  /** Attached by buildAiProvenance() — monster generation is client-direct BYOK, no server draft. */
+  /** Built by `generate-entity-text` (or buildAiProvenance() on the local-key path). */
   ai_provenance?: AiProvenance;
 }
 
@@ -87,7 +87,7 @@ export interface ItemAiResult {
   tags: string[];
   /** Subject description for image generation */
   image_prompt: string;
-  /** Attached by buildAiProvenance() — item generation is client-direct BYOK, no server draft. */
+  /** Built by `generate-entity-text` (or buildAiProvenance() on the local-key path). */
   ai_provenance?: AiProvenance;
 }
 
@@ -163,7 +163,7 @@ export interface SpellAiResult {
   tags: string[];
   /** Effect-in-flight description for image generation */
   image_prompt: string;
-  /** Attached by buildAiProvenance() — spell generation is client-direct BYOK, no server draft. */
+  /** Built by `generate-entity-text` (or buildAiProvenance() on the local-key path). */
   ai_provenance?: AiProvenance;
 }
 
@@ -210,7 +210,7 @@ export interface FactionAiResult {
   tags: string[];
   /** Square emblem description for image generation */
   image_prompt: string;
-  /** Attached by buildAiProvenance() — faction generation is client-direct BYOK, no server draft. */
+  /** Built by `generate-entity-text` (or buildAiProvenance() on the local-key path). */
   ai_provenance?: AiProvenance;
 }
 
