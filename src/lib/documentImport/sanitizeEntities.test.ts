@@ -72,4 +72,27 @@ describe("sanitizeEntities", () => {
     expect(dropped).toBe(0);
     expect(entities[0]?.data.title).toBe("The Sunken Bell");
   });
+  it("drops the model's null answers so optional fields read as absent, not null", () => {
+    const { entities } = sanitizeEntities(
+      [
+        {
+          ref: "n1",
+          data: {
+            name: "Foreman Dresk",
+            backstory: null,
+            personality: "Gruff",
+            stat_block: { actions: null, skills: [{ name: "Athletics", bonus: 4 }] },
+            tags: ["miner", null],
+          },
+        },
+      ],
+      "name",
+    );
+    expect(entities[0]?.data).toEqual({
+      name: "Foreman Dresk",
+      personality: "Gruff",
+      stat_block: { skills: [{ name: "Athletics", bonus: 4 }] },
+      tags: ["miner"],
+    });
+  });
 });

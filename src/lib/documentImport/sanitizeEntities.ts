@@ -57,7 +57,32 @@ export function sanitizeEntities(raw: unknown, displayField: "name" | "title"): 
     const ref = typeof rec.ref === "string" && rec.ref.length > 0 ? rec.ref : crypto.randomUUID();
     const page = typeof rec.page === "number" ? rec.page : null;
     const confidence: ImportConfidence = rec.confidence === "partial" ? "partial" : "complete";
-    entities.push({ ref, page, confidence, data: dataRec });
+    entities.push({ ref, page, confidence, data: stripNulls(dataRec) });
   }
   return { entities, dropped };
+}
+
+/**
+ * The provider schema (`supabase/functions/import-extract/extractionSchema.ts`)
+ * is strict, so every optional field is `["string", "null"]` and the model
+ * answers `null` for anything the page doesn't say — an NPC with no backstory,
+ * a location with no read-aloud box. The client's `Extracted*` types spell the
+ * same absence as an omitted `?:` field, and every mapper downstream guards
+ * `undefined` only: `capProse(null)` threw `Cannot read properties of null
+ * (reading 'trim')` on the first NPC of a real paste. Absence is translated
+ * here, once, so those types are true rather than guarded at each call site.
+ */
+function stripNulls(rec: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(rec)) {
+    if (value === null) continue;
+    out[key] = stripNullsDeep(value);
+  }
+  return out;
+}
+
+function stripNullsDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.filter((v) => v !== null).map(stripNullsDeep);
+  if (value && typeof value === "object") return stripNulls(value as Record<string, unknown>);
+  return value;
 }

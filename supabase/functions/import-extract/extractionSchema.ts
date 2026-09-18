@@ -39,6 +39,14 @@
 // later wizard step). Asking the model to fill it would only produce
 // fabricated ids — the exact failure mode the type file's header comment
 // warns against for every other FK-shaped field.
+//
+// A second divergence, forced by the same `required` rule: every optional
+// field in the contract (`backstory?: string`) is required-but-nullable here,
+// so the stored row carries `null` wherever the page was silent — not the
+// omitted key the TS types describe. The client translates on read, in
+// `src/lib/documentImport/sanitizeEntities.ts` (`stripNulls`); every mapper
+// behind it guards `undefined` only, so a row that bypasses that function
+// will throw on its first silent field.
 
 function obj(properties: Record<string, unknown>): Record<string, unknown> {
   return { type: "object", properties, required: Object.keys(properties), additionalProperties: false };
