@@ -1,6 +1,7 @@
 <template>
   <div class="relative">
-    <!-- Trigger button -->
+    <!-- Trigger button. No tooltip while open: the native title lingers under
+         the cursor and the panel opens right beneath it, covering the dice. -->
     <AppButton
       ref="triggerRef"
       variant="subtle"
@@ -10,7 +11,8 @@
       :active="isOpen"
       :icon="IconDiceRoll"
       icon-size="md"
-      tooltip="Dice Roller"
+      aria-label="Dice Roller"
+      :tooltip="isOpen ? undefined : 'Dice Roller'"
       @click="togglePanel"
     />
 
