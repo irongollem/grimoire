@@ -274,7 +274,10 @@ describe("mapExtractedLocation", () => {
     expect(row.parent_id).toBeNull();
     expect(row.campaign_id).toBe(CAMPAIGN_ID);
     expect(row.ai_provenance).toBe(PROVENANCE);
-    expect(links.parent_name).toBe("The Sundered Coast");
+    // `parent_name` is deliberately absent from `links` — resolved at insert
+    // time by `runLocationsImportKind` (runImportKind.ts), never through this
+    // module's own deferred-link machinery. See the file header on why.
+    expect(links).not.toHaveProperty("parent_name");
   });
 
   it("defers a location's owner npc as owner_npc_name, never a fabricated npc_owner_id", () => {

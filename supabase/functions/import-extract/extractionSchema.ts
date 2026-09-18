@@ -76,6 +76,30 @@ function nullableArrayOf(items: Record<string, unknown>): Record<string, unknown
 }
 
 const NULLABLE_STRING = { type: ["string", "null"] };
+
+// Mirrors `LOCATION_TYPE_TIER`'s keys (src/lib/locations/tiers.ts), which is
+// itself the TypeScript form of the DB's own `location_type_enum` (verified
+// live 18 Sep 2026: `select enum_range(NULL::location_type_enum)` — 19
+// members, exactly these). This file is Deno and `tiers.ts` is Vite, so the
+// list has to be hand-copied rather than imported; `extractionSchemaLocationTypes.test.ts`
+// (src/lib/documentImport/) pins the two lists equal so they cannot drift.
+//
+// Before this, `location_type` was a bare nullable string, and a real
+// production extraction returned "mine", "mine room", "mountain", "underground
+// region" — none of which `resolveEnum` (normalize.ts) can match, so every one
+// of them silently landed as `other`. That mattered beyond cosmetics: `other`
+// is not a type `private.location_can_hold_rooms` accepts, so a keyed area's
+// own container could never satisfy the room-parent guard
+// (`guard_location_room_parent`) no matter what the page actually said —
+// constraining the wire schema to the real enum is the fix at the source.
+const LOCATION_TYPE_ENUM = {
+  type: ["string", "null"],
+  enum: [
+    "continent", "region", "country", "city", "town", "village", "district",
+    "building", "room", "dungeon", "wilderness", "other", "world", "plane",
+    "store", "tavern", "inn", "grounds", "wilds", null,
+  ],
+};
 const NULLABLE_NUMBER = { type: ["number", "null"] };
 const NULLABLE_INTEGER = { type: ["integer", "null"] };
 const NULLABLE_BOOLEAN = { type: ["boolean", "null"] };
@@ -144,7 +168,7 @@ const NPC_DATA = obj({
 
 const LOCATION_DATA = obj({
   name: { type: "string" },
-  location_type: NULLABLE_STRING,
+  location_type: LOCATION_TYPE_ENUM,
   description: NULLABLE_STRING,
   // A keyed area's boxed text. Most of the read-aloud prose in an adventure
   // chapter belongs to rooms rather than to narrative beats (14 of 17 blocks in
@@ -156,6 +180,10 @@ const LOCATION_DATA = obj({
   parent_name: NULLABLE_STRING,
   // Who owns/runs this place → locations.npc_owner_id.
   owner_npc_name: NULLABLE_STRING,
+  // Loot found in this room → one loot_placements row per name (location_id
+  // home), resolved in the sweep's linking phase. Mirrors QUEST_BEAT's own
+  // item_names, which uses the same model for a beat's (non-room) loot.
+  item_names: NULLABLE_STRING_ARRAY,
 });
 
 const ITEM_DATA = obj({

@@ -20,6 +20,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { supabase, getCurrentUser } from "@/lib/supabase";
 import { useCampaignStore } from "@/stores/campaign";
 import { getEntityKindEntry } from "@/lib/documentImport/entityKinds";
+import { isLocationType } from "@/lib/locations/tiers";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { normalizeMonsterReferenceRows } from "@/lib/documentImport/entityMatching";
 import { monsterGenerationConcept, monsterGenerationOptionsFromPage } from "@/lib/documentImport/monsterGenerationConcept";
@@ -165,7 +166,17 @@ function buildDeps(
 
     fetchNameLookup: async (targetKind): Promise<readonly NameLookupRow[]> => {
       const targetEntry = getEntityKindEntry(targetKind);
-      let query = supabase.from(targetEntry.table).select(`id, ${targetEntry.displayField}`);
+      // `locations` also needs `location_type` on every row — `runLocationsImportKind`
+      // (runImportKind.ts) checks it before writing a resolved `parent_name`
+      // as `parent_id`, since `guard_location_room_parent` only accepts a
+      // parent whose type can actually hold a room. No other kind's lookup
+      // has a use for it. Kept as two literal `.select()` calls (rather than
+      // one built from a computed string) so the query builder's own
+      // template-literal column inference still applies to each.
+      let query =
+        targetKind === "locations"
+          ? supabase.from(targetEntry.table).select(`id, ${targetEntry.displayField}, location_type`)
+          : supabase.from(targetEntry.table).select(`id, ${targetEntry.displayField}`);
       // A DM's own global rows (null campaign_id) are exactly what their
       // list views for this kind already show alongside this campaign's
       // rows, so a link target search that skipped them would miss
@@ -187,7 +198,9 @@ function buildDeps(
       for (const row of data as Record<string, unknown>[]) {
         const id = row.id;
         const name = row[targetEntry.displayField];
-        if (typeof id === "string" && id.length > 0 && typeof name === "string") rows.push({ id, name });
+        if (typeof id !== "string" || id.length === 0 || typeof name !== "string") continue;
+        const locationType = targetKind === "locations" && isLocationType(row.location_type) ? row.location_type : undefined;
+        rows.push(locationType ? { id, name, locationType } : { id, name });
       }
       return rows;
     },
@@ -252,7 +265,22 @@ function buildDeps(
     },
 
     insertLootPlacement: async (placement: LootPlacementWrite) => {
-      const { error } = await supabase.from("loot_placements").insert(placement);
+      // `LootPlacementWrite.home` is exactly one of the two shapes
+      // `loot_placements_one_home`/`loot_placements_beat_pair` (the database)
+      // allow — a beat's own loot (`beat_id`+`quest_id`) or a room's own loot
+      // (`location_id` alone). Widened into the real row shape here, at the
+      // one place this dep actually talks to Supabase.
+      const row = {
+        campaign_id: placement.campaign_id,
+        kind: placement.kind,
+        item_id: placement.item_id,
+        quantity: placement.quantity,
+        label: placement.label,
+        beat_id: "beat_id" in placement.home ? placement.home.beat_id : null,
+        quest_id: "beat_id" in placement.home ? placement.home.quest_id : null,
+        location_id: "location_id" in placement.home ? placement.home.location_id : null,
+      };
+      const { error } = await supabase.from("loot_placements").insert(row);
       if (error) throw error;
     },
 

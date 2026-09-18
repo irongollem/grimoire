@@ -175,14 +175,32 @@ export interface ExtractedLocation {
   read_aloud?: string;
   notes?: string;
   /**
-   * Name of another location in the same document. The mapper cannot resolve
-   * this to a uuid — the parent may not be inserted yet — so hierarchy is wired
-   * up in a second pass after the whole kind is imported.
+   * Name of another location in the same document. Unlike every other
+   * deferred name reference (`giver_npc_name`, `faction_name`, …), this one is
+   * resolved AT INSERT rather than in the sweep's post-import linking phase —
+   * `guard_location_room_parent`, a live BEFORE INSERT trigger, requires an
+   * interior row (`room`/`grounds`) to already carry a valid parent the
+   * moment it's created. See `runLocationsImportKind` (src/lib/documentImport/
+   * runImportKind.ts).
    */
   parent_name?: string;
   /** Name of the NPC who owns/runs this location, resolved against this same
    *  document's `npcs` → `locations.npc_owner_id`. */
   owner_npc_name?: string;
+  /**
+   * Loot found in this room, resolved against this same document's `items` →
+   * one `loot_placements` row per name (`location_id` home, `kind: "item"`).
+   * The design (context/features/quests.md, quoting the Sites sheet) is that a
+   * dungeon's loot lives in the room that holds it, not on a beat staged at
+   * the site — "a dungeon needs no beats inside it… rooms are places, not
+   * events." Mirrors `ExtractedQuestBeat.item_names`, which uses the same
+   * loot-placement model for a beat's own (non-room) loot; same library
+   * caveat — a name resolving only to a shared-library item can't become a
+   * loot placement (`loot_placements.item_id` is a uuid FK into `items`), so
+   * it's simply reported as unresolved rather than attached anywhere (a
+   * location has no quest to fall back to linking at, unlike a beat's item).
+   */
+  item_names?: string[];
 }
 
 export interface ExtractedItem {

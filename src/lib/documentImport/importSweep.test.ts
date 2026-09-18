@@ -62,7 +62,7 @@ function fakeDeps(overrides: Partial<ImportSweepDeps> = {}): ImportSweepDeps {
 }
 
 function input(overrides: Partial<ImportSweepInput> = {}): ImportSweepInput {
-  return { entitiesByKind: {}, decisions: new Map(), parentQuestId: null, ...overrides };
+  return { entitiesByKind: {}, decisions: new Map(), parentQuestId: null, sourceTitle: null, ...overrides };
 }
 
 describe("runImportSweep", () => {
@@ -330,7 +330,7 @@ describe("runImportSweep", () => {
 
       expect(deps.insertBeatAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "monster", ref_id: "monsters-1" }));
       expect(deps.insertLootPlacement).toHaveBeenCalledWith(
-        expect.objectContaining({ beat_id: "beat-1", quest_id: "quests-1", kind: "item", item_id: "items-1", label: "Silver bell" }),
+        expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, kind: "item", item_id: "items-1", label: "Silver bell" }),
       );
       expect(report.unresolvedLinks).toEqual([]);
     });
@@ -463,6 +463,283 @@ describe("runImportSweep", () => {
       expect(adoptLibraryMonster).toHaveBeenCalledTimes(1);
       expect(report.perKind.monsters?.adopted).toBe(0);
       expect(report.unresolvedLinks.filter((m) => m.includes("monster limit"))).toHaveLength(2);
+    });
+  });
+
+  describe("a room's own item_names — loot lives in the room, not on a beat (#site-workbench)", () => {
+    it("places a campaign-sourced item as location-homed loot for a CREATEd room", async () => {
+      const deps = fakeDeps();
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            locations: [usable("r1", { name: "M1. Tool Room", location_type: "room", item_names: ["Rusty Pick"] })],
+            items: [usable("i1", { name: "Rusty Pick" })],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["locations", new Map([["r1", CREATE]])],
+            ["items", new Map([["i1", CREATE]])],
+          ]),
+        }),
+        deps,
+      );
+
+      expect(deps.insertLootPlacement).toHaveBeenCalledWith(
+        expect.objectContaining({ home: { location_id: "locations-1" }, kind: "item", item_id: "items-1", label: "Rusty Pick" }),
+      );
+      // The room has no parent on this page, so it's downgraded to `other`
+      // (unrelated to this test — see the "locations: parent_name" describe
+      // block below); its loot resolves regardless of that downgrade.
+      expect(report.unresolvedLinks).toEqual([expect.stringContaining("M1. Tool Room")]);
+    });
+
+    it("still places the room's loot when the room itself was LINKED to an existing row", async () => {
+      const deps = fakeDeps();
+      await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            locations: [usable("r1", { name: "M1. Tool Room", location_type: "room", item_names: ["Rusty Pick"] })],
+            items: [usable("i1", { name: "Rusty Pick" })],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            [
+              "locations",
+              new Map([
+                ["r1", { action: "link", candidate: { targetId: "existing-room", source: "campaign", name: "Tool Room", matchKind: "contains", detail: null, distance: null } }],
+              ]),
+            ],
+            ["items", new Map([["i1", CREATE]])],
+          ]),
+        }),
+        deps,
+      );
+
+      expect(deps.insertLootPlacement).toHaveBeenCalledWith(
+        expect.objectContaining({ home: { location_id: "existing-room" }, kind: "item", item_id: "items-1", label: "Rusty Pick" }),
+      );
+    });
+
+    it("reports (never attaches) an item that only resolves to a shared-library row — a location has no quest to fall back to", async () => {
+      const deps = fakeDeps({ fetchNameLookup: vi.fn(async () => []) });
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            locations: [usable("r1", { name: "M1. Tool Room", location_type: "room", item_names: ["Bag of Holding"] })],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["locations", new Map([["r1", CREATE]])]]),
+        }),
+        deps,
+      );
+
+      expect(deps.insertLootPlacement).not.toHaveBeenCalled();
+      expect(report.unresolvedLinks).toContain('Location "M1. Tool Room" → item "Bag of Holding"');
+    });
+
+    it("contributes no loot for an ignored or undecided room — absence is not consent", async () => {
+      const deps = fakeDeps();
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            locations: [usable("r1", { name: "M1. Tool Room", location_type: "room", item_names: ["Rusty Pick"] })],
+            items: [usable("i1", { name: "Rusty Pick" })],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["locations", new Map([["r1", IGNORE]])],
+            ["items", new Map([["i1", CREATE]])],
+          ]),
+        }),
+        deps,
+      );
+
+      expect(deps.insertLootPlacement).not.toHaveBeenCalled();
+      expect(report.unresolvedLinks).toEqual([]);
+    });
+  });
+
+  describe("a beat does not re-list what its site's rooms already hold (#site-workbench)", () => {
+    it("skips an encounter and an item the site's own room already holds, but still attaches an encounter staged elsewhere", async () => {
+      const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            locations: [
+              usable("site", { name: "Sunless Citadel", location_type: "dungeon" }),
+              usable("room", { name: "M1. Guardroom", location_type: "room", parent_name: "Sunless Citadel", item_names: ["Rusty Pick"] }),
+            ],
+            items: [usable("i1", { name: "Rusty Pick" }), usable("i2", { name: "Torch" })],
+            encounters: [
+              usable("e1", { name: "Guardroom Fight", location_name: "M1. Guardroom" }),
+              usable("e2", { name: "Ambush on the Road" }),
+            ],
+            quests: [
+              usable("q1", {
+                title: "The Mine",
+                beats: [
+                  {
+                    key: "b1",
+                    title: "Explore the mine",
+                    kind: "explore",
+                    dm_content: "",
+                    location_name: "Sunless Citadel",
+                    encounter_names: ["Guardroom Fight", "Ambush on the Road"],
+                    item_names: ["Rusty Pick", "Torch"],
+                  },
+                ],
+              }),
+            ],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["locations", new Map([["site", CREATE], ["room", CREATE]])],
+            ["items", new Map([["i1", CREATE], ["i2", CREATE]])],
+            ["encounters", new Map([["e1", CREATE], ["e2", CREATE]])],
+            ["quests", new Map([["q1", CREATE]])],
+          ]),
+        }),
+        deps,
+      );
+
+      // The room keeps its own loot, homed on the room itself.
+      const lootCalls = (deps.insertLootPlacement as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+      expect(lootCalls).toContainEqual(expect.objectContaining({ home: { location_id: "locations-2" }, item_id: "items-1", label: "Rusty Pick" }));
+
+      // The beat staged at the site does NOT re-list the room's own fight...
+      const attachmentCalls = (deps.insertBeatAttachment as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
+      expect(attachmentCalls.find((a) => a.ref_id === "encounters-1")).toBeUndefined(); // Guardroom Fight
+      // ...or the room's own loot, as a second, beat-homed placement.
+      expect(lootCalls.find((l) => l.item_id === "items-1" && "beat_id" in l.home)).toBeUndefined();
+
+      // But an encounter staged elsewhere (not the site, not one of its
+      // rooms) still attaches to the beat exactly as it always has...
+      expect(attachmentCalls).toContainEqual(expect.objectContaining({ attachment_type: "encounter", ref_id: "encounters-2" }));
+      // ...and so does an item that was never the site's own room loot.
+      expect(lootCalls).toContainEqual(expect.objectContaining({ home: { beat_id: "beat-1", quest_id: "quests-1" }, item_id: "items-2", label: "Torch" }));
+
+      // The skip is silent — it is not a failure the DM needs reported.
+      expect(report.unresolvedLinks.some((m) => m.includes("Rusty Pick") || m.includes("Guardroom Fight"))).toBe(false);
+    });
+
+    it("does not skip anything for a beat staged at a location that is neither a site nor a room", async () => {
+      const deps = fakeDeps({ writeQuestSpine: vi.fn(async () => ({ beatIdByKey: new Map([["b1", "beat-1"]]) })) });
+      await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            locations: [usable("l1", { name: "The Rusty Anchor", location_type: "tavern" })],
+            encounters: [usable("e1", { name: "Tavern Brawl", location_name: "The Rusty Anchor" })],
+            quests: [
+              usable("q1", {
+                title: "A Quiet Drink",
+                beats: [
+                  {
+                    key: "b1",
+                    title: "The brawl breaks out",
+                    kind: "combat",
+                    dm_content: "",
+                    location_name: "The Rusty Anchor",
+                    encounter_names: ["Tavern Brawl"],
+                  },
+                ],
+              }),
+            ],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["locations", new Map([["l1", CREATE]])],
+            ["encounters", new Map([["e1", CREATE]])],
+            ["quests", new Map([["q1", CREATE]])],
+          ]),
+        }),
+        deps,
+      );
+
+      // "The Rusty Anchor" has no rooms of its own in this sweep, so the
+      // site/room skip never applies — the encounter attaches normally even
+      // though it's staged at the exact same location as the beat.
+      expect(deps.insertBeatAttachment).toHaveBeenCalledWith(expect.objectContaining({ attachment_type: "encounter", ref_id: "encounters-1" }));
+    });
+  });
+
+  describe("locations: parent_name resolved at insert, not the linking phase (guard_location_room_parent)", () => {
+    it("resolves a room's parent to a dungeon created in the same sweep, regardless of page order", async () => {
+      const deps = fakeDeps();
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: {
+            locations: [
+              usable("room", { name: "M1. Tool Room", location_type: "room", parent_name: "Sunless Citadel" }),
+              usable("dungeon", { name: "Sunless Citadel", location_type: "dungeon" }),
+            ],
+          },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([
+            ["locations", new Map([["room", CREATE], ["dungeon", CREATE]])],
+          ]),
+        }),
+        deps,
+      );
+
+      expect(report.unresolvedLinks).toEqual([]);
+      const calls = (deps.insertRow as ReturnType<typeof vi.fn>).mock.calls as [ImportEntityKind, Record<string, unknown>][];
+      // Parents-first: the dungeon (no parent of its own) must be attempted
+      // before the room, even though the room was listed first on the page.
+      expect(calls[0]![1]).toMatchObject({ name: "Sunless Citadel" });
+      expect(calls[1]![1]).toMatchObject({ name: "M1. Tool Room", parent_id: "locations-1", location_type: "room" });
+    });
+
+    it("resolves a room's parent against an existing campaign location fetched via fetchNameLookup", async () => {
+      const deps = fakeDeps({
+        fetchNameLookup: vi.fn(async (kind: ImportEntityKind): Promise<readonly NameLookupRow[]> =>
+          kind === "locations" ? [{ id: "existing-dungeon", name: "Sunless Citadel", locationType: "dungeon" }] : [],
+        ),
+      });
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: { locations: [usable("room", { name: "M1. Tool Room", location_type: "room", parent_name: "Sunless Citadel" })] },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["locations", new Map([["room", CREATE]])]]),
+        }),
+        deps,
+      );
+
+      expect(report.unresolvedLinks).toEqual([]);
+      expect(deps.insertRow).toHaveBeenCalledWith("locations", expect.objectContaining({ parent_id: "existing-dungeon" }));
+    });
+
+    it("downgrades an interior row with no resolvable holder parent to 'other', and reports why", async () => {
+      const deps = fakeDeps();
+      const report = await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: { locations: [usable("room", { name: "A Lonely Cell", location_type: "room" })] },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["locations", new Map([["room", CREATE]])]]),
+        }),
+        deps,
+      );
+
+      expect(report.unresolvedLinks).toContainEqual(expect.stringContaining('Location "A Lonely Cell"'));
+      expect(deps.insertRow).toHaveBeenCalledWith("locations", expect.objectContaining({ location_type: "other", parent_id: null }));
+      expect(report.perKind.locations?.imported).toBe(1); // still lands, just detached and retyped
+    });
+
+    it("still resolves a non-interior location's parent normally, untouched by the room guard", async () => {
+      const deps = fakeDeps({
+        fetchNameLookup: vi.fn(async (kind: ImportEntityKind): Promise<readonly NameLookupRow[]> =>
+          kind === "locations" ? [{ id: "waterdeep-id", name: "Waterdeep", locationType: "city" }] : [],
+        ),
+      });
+      await runImportSweep(
+        IMPORT_ROW,
+        input({
+          entitiesByKind: { locations: [usable("d1", { name: "Dock Ward", location_type: "district", parent_name: "Waterdeep" })] },
+          decisions: new Map<ImportEntityKind, Map<string, ImportDecision>>([["locations", new Map([["d1", CREATE]])]]),
+        }),
+        deps,
+      );
+
+      expect(deps.insertRow).toHaveBeenCalledWith("locations", expect.objectContaining({ parent_id: "waterdeep-id", location_type: "district" }));
     });
   });
 

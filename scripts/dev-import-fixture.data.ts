@@ -56,7 +56,10 @@ import type { MonsterStatBlock } from "@/types/monster.types";
  *  `monsters`, this script's own rows (for `--clear`). Never matched against
  *  anything a real DM might type by hand. */
 export const FIXTURE_IMPORT_DISPLAY_NAME = "Dev fixture — The Hollow Seam";
-export const FIXTURE_MONSTER_SOURCE_MARKER = "dev-import-fixture";
+// Doubles as a real `source` value, and the review's "Source book" picker
+// offers every source the DM has used — so it reads as a book title, not a
+// machine tag, while staying unique enough for `--clear` to match on.
+export const FIXTURE_MONSTER_SOURCE_MARKER = "The Hollow Seam (dev fixture)";
 
 /** One entity envelope — `ExtractedEntity` (documentImport.types.ts) without
  *  importing it, so this file's `data` shapes are free to carry fields that

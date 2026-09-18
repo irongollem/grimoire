@@ -52,6 +52,22 @@
         </li>
       </ul>
 
+      <div v-if="showSourceTitleField" class="space-y-1">
+        <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">
+          Source book <span class="font-normal">(optional)</span>
+        </label>
+        <AppInput
+          v-model="sourceTitleInput"
+          :list="sourceTitleListId"
+          tone="filled"
+          size="body"
+          placeholder="Icewind Dale: Rime of the Frostmaiden…"
+        />
+        <datalist :id="sourceTitleListId">
+          <option v-for="opt in sourceOptions" :key="opt.value" :value="opt.value" />
+        </datalist>
+      </div>
+
       <p v-if="importRow.ai_provenance == null" class="text-caption text-destructive">
         This document's generation info is missing, so nothing here can be imported. Re-run extraction and try again.
       </p>
@@ -135,8 +151,9 @@
  * every kind's entities at once — never re-called per step. By the time the
  * DM reaches a later step the candidates are almost always already in.
  */
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, useId, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import WizardStepIndicator from "@/components/common/WizardStepIndicator.vue";
@@ -145,7 +162,9 @@ import ImportKindReview from "@/components/campaign/ImportKindReview.vue";
 import { getEntityKindEntry, listEntityKindsInWizardOrder } from "@/lib/documentImport/entityKinds";
 import { sanitizeEntities, type UsableEntity } from "@/lib/documentImport/sanitizeEntities";
 import { ignoreAllDecisions, quotaShortfalls, rowsAddedToQuota, tallyDecisions } from "@/lib/documentImport/reviewDecisions";
+import { hasSourcedCreate, normalizeSourceTitle } from "@/lib/documentImport/sourceTitle";
 import { useImportQuotaRoom } from "@/composables/campaign/useImportQuotaRoom";
+import { useImportSourceOptions } from "@/composables/campaign/useImportSourceOptions";
 import ImportQuotaWarning from "@/components/campaign/ImportQuotaWarning.vue";
 import type { EntityCandidate, ImportDecision } from "@/lib/documentImport/entityMatching";
 import { useDocumentImportRunner } from "@/composables/campaign/useDocumentImportRunner";
@@ -292,6 +311,31 @@ const totalGenerateCredits = computed(
   () => totalTally.value.generate * perMonsterGenerateCredits.value,
 );
 
+// ── Source book (#site-workbench decision, 18 Sep 2026) ──────────────────────
+//
+// Only shown once the review would actually create a monster/item/spell —
+// linked and generated rows keep their own source, so the field would have
+// nothing to attach to otherwise.
+const showSourceTitleField = computed(() => hasSourcedCreate(decisionsByKind));
+
+const { options: sourceOptions, defaultSourceTitle, isLoading: sourceOptionsLoading } = useImportSourceOptions();
+const sourceTitleInput = ref("");
+const sourceTitleListId = `document-import-source-${useId()}`;
+
+// Seeded exactly once, the moment the DM's own source history has loaded —
+// never again after that, so a DM who clears the field (wants no book on
+// file) or types their own title isn't fought by a reactive re-seed.
+let sourceTitleSeeded = false;
+watch(
+  [defaultSourceTitle, sourceOptionsLoading],
+  ([def, loading]) => {
+    if (sourceTitleSeeded || loading) return;
+    sourceTitleSeeded = true;
+    sourceTitleInput.value = def ?? "";
+  },
+  { immediate: true },
+);
+
 // ── The sweep ────────────────────────────────────────────────────────────────
 
 const { runImportSweep } = useDocumentImportRunner();
@@ -342,7 +386,7 @@ async function runSweep(): Promise<void> {
 
     sweepReport.value = await runImportSweep(
       importRow,
-      { entitiesByKind, decisions, parentQuestId: null },
+      { entitiesByKind, decisions, parentQuestId: null, sourceTitle: normalizeSourceTitle(sourceTitleInput.value) },
       (p) => {
         sweepProgress.value = p;
       },

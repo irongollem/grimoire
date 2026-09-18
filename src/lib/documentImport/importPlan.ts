@@ -32,10 +32,10 @@
  *
  * ── Why link resolution reports two different write shapes ──────────────────
  *
- * Three of the four raw names `normalize.ts` defers (`EntityLinks`) resolve to
- * a plain FK column on the row that carries them: `locations.parent_id`,
- * `quests.giver_npc_id`, `quests.location_id`. NPC → faction is not a fourth
- * column — `npcs` has no `faction_id` at all. Faction membership is the
+ * Most of the raw names `normalize.ts` defers (`EntityLinks`) resolve to a
+ * plain FK column on the row that carries them: `quests.giver_npc_id`,
+ * `quests.location_id`, `locations.npc_owner_id`. NPC → faction is not a
+ * fourth column — `npcs` has no `faction_id` at all. Faction membership is the
  * `faction_npcs` join table (id, faction_id, npc_id, role, status — see
  * `useFactions.ts` / `FactionNpc` in faction.types.ts), the same table a
  * hand-created membership goes through. `resolveLinks` reports which shape a
@@ -58,6 +58,7 @@ import type {
   ExtractedSpell,
   ImportEntityKind,
 } from "@/types/documentImport.types";
+import type { LocationType } from "@/types/location.types";
 import {
   ENTITY_MAPPERS,
   type EntityLinkLists,
@@ -101,23 +102,32 @@ export interface PlannedInsert<K extends ImportEntityKind = ImportEntityKind> {
  * the `as` casts only restate, at each already-proven-correct branch, what
  * `kind === K`'s single possible value in that branch already establishes.
  */
+/**
+ * `sourceTitle` is the DM's chosen "Source book" for the whole sweep — only
+ * `monsters`/`items`/`spells` mappers read it (their own `source` column);
+ * every other kind's mapper simply ignores the trailing argument, exactly
+ * like it already ignores any other parameter it has no use for. Defaults to
+ * `null` so every pre-existing caller (before this feature existed) keeps
+ * compiling without having to name an argument it doesn't care about either.
+ */
 export function mapEntity<K extends ImportEntityKind>(
   kind: K,
   data: ExtractedPayloadMap[K],
   campaignId: string,
   provenance: AiProvenance,
+  sourceTitle: string | null = null,
 ): MappedEntity<K> {
   switch (kind) {
     case "monsters":
-      return ENTITY_MAPPERS.monsters(data as ExtractedMonster, campaignId, provenance) as MappedEntity<K>;
+      return ENTITY_MAPPERS.monsters(data as ExtractedMonster, campaignId, provenance, sourceTitle) as MappedEntity<K>;
     case "npcs":
       return ENTITY_MAPPERS.npcs(data as ExtractedNpc, campaignId, provenance) as MappedEntity<K>;
     case "locations":
       return ENTITY_MAPPERS.locations(data as ExtractedLocation, campaignId, provenance) as MappedEntity<K>;
     case "items":
-      return ENTITY_MAPPERS.items(data as ExtractedItem, campaignId, provenance) as MappedEntity<K>;
+      return ENTITY_MAPPERS.items(data as ExtractedItem, campaignId, provenance, sourceTitle) as MappedEntity<K>;
     case "spells":
-      return ENTITY_MAPPERS.spells(data as ExtractedSpell, campaignId, provenance) as MappedEntity<K>;
+      return ENTITY_MAPPERS.spells(data as ExtractedSpell, campaignId, provenance, sourceTitle) as MappedEntity<K>;
     case "quests":
       return ENTITY_MAPPERS.quests(data as ExtractedQuest, campaignId, provenance) as MappedEntity<K>;
     case "factions":
@@ -153,11 +163,14 @@ export function buildImportPlan<K extends ImportEntityKind>(
   decisions: ReadonlyMap<string, ImportDecision>,
   campaignId: string,
   provenance: AiProvenance,
+  /** The DM's chosen "Source book" for this sweep — see `mapEntity`'s own
+   *  doc comment for which kinds actually read it. */
+  sourceTitle: string | null = null,
 ): PlannedInsert<K>[] {
   return entities
     .filter((entity) => decisions.get(entity.ref)?.action === "create")
     .map((entity) => {
-      const { row, links, linkLists, questSpine } = mapEntity(kind, entity.data, campaignId, provenance);
+      const { row, links, linkLists, questSpine } = mapEntity(kind, entity.data, campaignId, provenance, sourceTitle);
       return { ref: entity.ref, row, links, linkLists: linkLists ?? {}, questSpine };
     });
 }
@@ -232,6 +245,16 @@ export interface LinkedRow {
 export interface NameLookupRow {
   id: string;
   name: string;
+  /**
+   * Only ever populated when the target kind is `locations` — the existing
+   * row's own `location_type`. `runLocationsImportKind` (runImportKind.ts)
+   * needs it to check whether a resolved `parent_name` can actually hold a
+   * room (`private.location_can_hold_rooms`, mirrored by `isSiteType` in
+   * `src/lib/locations/tiers.ts`) before writing it as `parent_id` — every
+   * other kind's lookup has no use for a type at all, so this stays optional
+   * rather than widening every caller's shape.
+   */
+  locationType?: LocationType;
 }
 
 /** How a resolved link becomes a write — see the file header for why NPC →
@@ -259,11 +282,12 @@ const LINK_TARGETS = {
     targetKind: "factions",
     apply: { kind: "join_insert", table: "faction_npcs", sourceColumn: "npc_id", targetColumn: "faction_id" },
   },
-  parent_name: {
-    sourceKind: "locations",
-    targetKind: "locations",
-    apply: { kind: "fk_update", table: "locations", column: "parent_id" },
-  },
+  // Deliberately no `parent_name` entry here — a location's own parent is
+  // resolved AT INSERT (`runLocationsImportKind`, runImportKind.ts), never in
+  // this second pass, because `guard_location_room_parent` checks it on the
+  // very insert that creates an interior row. `EntityLinks` (normalize.ts) no
+  // longer declares the field either, so there is nothing left to resolve
+  // twice — see that file's header for the full reasoning.
   giver_npc_name: {
     sourceKind: "quests",
     targetKind: "npcs",

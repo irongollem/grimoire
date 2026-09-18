@@ -66,6 +66,7 @@ import {
   IMPORT_ENTITY_KINDS,
   type DocumentImport,
   type ExtractedEntity,
+  type ExtractedLocation,
   type ExtractedQuestBeat,
   type ImportEntityKind,
 } from "@/types/documentImport.types";
@@ -77,9 +78,12 @@ import type { EntityMatchSource, ImportDecision } from "./entityMatching";
 import { getEntityKindEntry } from "./entityKinds";
 import { normalizeEntityName } from "./entityName";
 import {
+  buildSiteRoomIndex,
   resolveBeatCrossReferences,
   resolveEncounters,
+  resolveLocationLoot,
   type EncounterCombatantContext,
+  type LocationLootContext,
   type QuestBeatContext,
 } from "./importSweepLinking";
 import {
@@ -92,7 +96,14 @@ import {
   type LinkResolution,
   type NameLookupRow,
 } from "./importPlan";
-import { runImportKind, type InsertRowOutcome, type RunImportKindLinkedEntity } from "./runImportKind";
+import {
+  runImportKind,
+  runLocationsImportKind,
+  type InsertRowOutcome,
+  type LocationParentCandidate,
+  type RunImportKindLinkedEntity,
+  type RunImportKindResult,
+} from "./runImportKind";
 
 // ── The public contract ──────────────────────────────────────────────────────
 
@@ -109,6 +120,17 @@ export interface ImportSweepInput {
    *  paste review (#839), the caller this parameter actually serves, only
    *  ever creates one. */
   parentQuestId: string | null;
+  /**
+   * The DM's chosen "Source book" (#site-workbench decision, 18 Sep 2026) —
+   * written as `source` on every CREATED monster/item/spell this sweep
+   * inserts (`mapEntity`'s own doc comment, importPlan.ts, says which kinds
+   * actually read it). Trimmed, empty → `null` — see `normalizeSourceTitle`
+   * (`src/lib/documentImport/sourceTitle.ts`), which the review surface runs
+   * this through before it ever reaches here. `null` means the DM left the
+   * field blank, which every created row then carries honestly as "no book
+   * on file" rather than an invented value.
+   */
+  sourceTitle: string | null;
 }
 
 export type ImportSweepPhase = "importing" | "linking";
@@ -157,9 +179,17 @@ export interface BeatAttachmentWrite {
   sort_order: number;
 }
 
+/** A loot placement's home — exactly one, mirroring `loot_placements_one_home`
+ *  / `loot_placements_beat_pair` in the database. A beat's own loot
+ *  (`ExtractedQuestBeat.item_names`) is `beat_id`+`quest_id`; a room's own
+ *  loot (`ExtractedLocation.item_names`) is `location_id` alone — see
+ *  `context/features/document-import.md`'s "loot found in a keyed room lives
+ *  in the ROOM" for why the two are different rows rather than the room's
+ *  loot riding on the beat staged at its site. */
+export type LootPlacementHome = { beat_id: string; quest_id: string } | { location_id: string };
+
 export interface LootPlacementWrite {
-  beat_id: string;
-  quest_id: string;
+  home: LootPlacementHome;
   campaign_id: string;
   kind: "item";
   item_id: string;
@@ -466,7 +496,7 @@ export async function runImportSweep(
     throw new Error("This document's generation info is missing, so nothing here can be imported.");
   }
   const campaignId = importRow.campaign_id;
-  const { entitiesByKind, decisions, parentQuestId } = input;
+  const { entitiesByKind, decisions, parentQuestId, sourceTitle } = input;
 
   const importedCounts: Partial<Record<ImportEntityKind, number>> = { ...importRow.imported_counts };
   const perKind: Partial<Record<ImportEntityKind, ImportKindOutcome>> = {};
@@ -514,10 +544,35 @@ export async function runImportSweep(
       continue;
     }
 
-    const result = await runImportKind(
-      { kind, entities, decisions: kindDecisions, campaignId, provenance },
-      { insertRow: (row) => deps.insertRow(kind, row), generateMonster: deps.generateMonster },
-    );
+    let result: RunImportKindResult;
+    if (kind === "locations") {
+      // `locations` resolves its own `parent_name` at insert, not in phase 2
+      // below — see `runLocationsImportKind`'s own file header
+      // (runImportKind.ts) for why the sweep's usual post-import linking
+      // phase runs too late for this one column.
+      const existingRaw = await deps.fetchNameLookup("locations");
+      const existingLocations: LocationParentCandidate[] = [];
+      for (const row of existingRaw) {
+        if (row.locationType) existingLocations.push({ id: row.id, name: row.name, locationType: row.locationType });
+      }
+      const locationsResult = await runLocationsImportKind(
+        {
+          entities: entities as unknown as readonly ExtractedEntity<"locations">[],
+          decisions: kindDecisions,
+          campaignId,
+          provenance,
+          existingLocations,
+        },
+        { insertRow: (row) => deps.insertRow(kind, row) },
+      );
+      unresolvedLinks.push(...locationsResult.parentFallbackMessages);
+      result = locationsResult;
+    } else {
+      result = await runImportKind(
+        { kind, entities, decisions: kindDecisions, campaignId, provenance, sourceTitle },
+        { insertRow: (row) => deps.insertRow(kind, row), generateMonster: deps.generateMonster },
+      );
+    }
 
     perKind[kind] = { ...result.report, linked, ignored, adopted };
     importedCounts[kind] = result.report.imported;
@@ -613,12 +668,20 @@ export async function runImportSweep(
   const plainLookups: Partial<Record<ImportEntityKind, NameLookupRow[]>> = {};
   for (const kind of LOOKUP_TARGET_KINDS) plainLookups[kind] = plainRows(lookups[kind]);
 
+  // An encounter's own resolved `location_id`, captured off this same loop's
+  // `encounters` pass — a beat's site/room skip (below) needs to know WHERE
+  // an encounter is staged, which its own id can't say.
+  const encounterLocationById = new Map<string, string>();
+
   for (const kind of LINK_SOURCE_KINDS) {
     const rows = linkedRowsByKind[kind] ?? [];
     for (const resolution of resolveLinks(kind, rows, plainLookups)) {
       if (resolution.status === "unresolved") {
         unresolvedLinks.push(formatUnresolvedLink(kind, resolution, displayNameById));
         continue;
+      }
+      if (kind === "encounters" && resolution.field === "encounter_location_name") {
+        encounterLocationById.set(resolution.sourceId, resolution.targetId);
       }
       try {
         await deps.applyLinkResolution(resolution);
@@ -644,7 +707,67 @@ export async function runImportSweep(
   }
 
   await resolveEncounters(encounterContexts, lookups, deps, unresolvedLinks, addSweepRef);
-  await resolveBeatCrossReferences(questContexts, lookups, deps, unresolvedLinks, addSweepRef);
+
+  // Which resolved location ids are a site (has rooms) or a room of one, per
+  // THIS sweep's own `parent_name` wiring — built before the room-loot pass
+  // below so both it and the beat pass that follows can consult it. See
+  // `SiteRoomIndex`'s own doc comment (importSweepLinking.ts).
+  const locationsRegistry = registry.locations;
+  const locationsRegistryIdByName = new Map<string, string>();
+  if (locationsRegistry) for (const [name, entry] of locationsRegistry) locationsRegistryIdByName.set(name, entry.id);
+  const siteRoomIndex = buildSiteRoomIndex(
+    (entitiesByKind.locations ?? []) as unknown as readonly ExtractedEntity<"locations">[],
+    locationsRegistryIdByName,
+  );
+
+  // A room's own `item_names` (`ExtractedLocation`) — resolved against the
+  // sweep-wide `locations` registry (already covers a `create`d/`link`ed
+  // room, exactly what `buildKindRegistry` built while the `locations` kind
+  // imported) rather than a context list built during phase 1, since the
+  // registry already IS "this entity's own printed name → its resolved id."
+  // A location with no registry entry (ignored, undecided, or — the same
+  // documented resume gap `buildKindRegistry` already carries — a `create`
+  // from a call that crashed before this one) contributes no loot; that
+  // mirrors "absence is not consent" for the location itself.
+  //
+  // Runs BEFORE the beat pass below, on purpose: `roomLootByLocation` is what
+  // lets a beat staged at the same site know not to re-list an item its own
+  // room already holds.
+  const locationLootContexts: LocationLootContext[] = [];
+  if (locationsRegistry) {
+    for (const entity of (entitiesByKind.locations ?? []) as unknown as readonly ExtractedEntity<"locations">[]) {
+      const data = entity.data as ExtractedLocation;
+      const itemNames = data.item_names;
+      if (!itemNames || itemNames.length === 0) continue;
+      if (typeof data.name !== "string") continue;
+      const norm = normalizeEntityName(data.name);
+      if (norm === null) continue;
+      const resolved = locationsRegistry.get(norm);
+      if (!resolved) continue;
+      locationLootContexts.push({ locationId: resolved.id, locationName: data.name, itemNames });
+    }
+  }
+  const roomLootByLocation = new Map<string, Set<string>>();
+  const recordRoomLoot = (locationId: string, itemId: string) => {
+    let placed = roomLootByLocation.get(locationId);
+    if (!placed) {
+      placed = new Set();
+      roomLootByLocation.set(locationId, placed);
+    }
+    placed.add(itemId);
+  };
+  await resolveLocationLoot(locationLootContexts, lookups.items ?? [], campaignId, deps, unresolvedLinks, addSweepRef, recordRoomLoot);
+
+  await resolveBeatCrossReferences(
+    questContexts,
+    lookups,
+    deps,
+    unresolvedLinks,
+    addSweepRef,
+    siteRoomIndex,
+    roomLootByLocation,
+    encounterLocationById,
+  );
 
   // Every entity this sweep created or linked (any kind but quests/spells —
   // QuestRefType has no member for either) becomes a quest_refs row for

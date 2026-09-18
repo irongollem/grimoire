@@ -38,7 +38,10 @@ import {
 } from "./importPlan";
 import type { EntityLinkLists, EntityLinks, QuestSpinePayload } from "./normalize";
 import type { ImportDecision } from "./entityMatching";
-import type { ExtractedEntity, ImportEntityKind } from "@/types/documentImport.types";
+import { normalizeEntityName } from "./entityName";
+import { isSiteType, LOCATION_TYPE_TIER } from "@/lib/locations/tiers";
+import type { ExtractedEntity, ExtractedLocation, ImportEntityKind } from "@/types/documentImport.types";
+import type { LocationType } from "@/types/location.types";
 
 // ── Deps ─────────────────────────────────────────────────────────────────────
 
@@ -115,12 +118,16 @@ export async function runImportKind<K extends ImportEntityKind>(
     decisions: ReadonlyMap<string, ImportDecision>;
     campaignId: string;
     provenance: AiProvenance;
+    /** The DM's chosen "Source book" for this sweep — only a `monsters`
+     *  create actually reads it (its own `source` column); see
+     *  `mapEntity`'s own doc comment (importPlan.ts). */
+    sourceTitle?: string | null;
   },
   deps: RunImportKindDeps,
 ): Promise<RunImportKindResult> {
-  const { kind, entities, decisions, campaignId, provenance } = params;
+  const { kind, entities, decisions, campaignId, provenance, sourceTitle = null } = params;
 
-  const plan = buildImportPlan(kind, entities, decisions, campaignId, provenance);
+  const plan = buildImportPlan(kind, entities, decisions, campaignId, provenance, sourceTitle);
   const plannedByRef = new Map(plan.map((planned) => [planned.ref, planned] as const));
 
   // The ordered list of every attempt this run makes — a plain insert for
@@ -184,4 +191,280 @@ export async function runImportKind<K extends ImportEntityKind>(
   }
 
   return { report, insertedIds, linkedEntities };
+}
+
+// ── Locations: parent resolution happens AT INSERT, not the linking phase ────
+//
+// `guard_location_room_parent` (a live BEFORE INSERT trigger on `locations`,
+// via `private.location_is_interior`/`private.location_can_hold_rooms`)
+// requires an interior row (`room`/`grounds`) to already carry a `parent_id`
+// pointing at a row that can hold one (the `site` tier — `building`, `dungeon`,
+// `store`, `tavern`, `inn`, `wilds`; mirrored client-side by `isSiteType`,
+// src/lib/locations/tiers.ts) on the very insert that creates it. The sweep's
+// usual post-import linking phase (`importSweep.ts`) resolves every other
+// deferred name only once every kind has finished importing — far too late
+// for this one column, which the database checks immediately. So `locations`
+// gets its own insert runner: it orders this kind's own creates parents-first
+// (a room whose dungeon is elsewhere on the same page must not be attempted
+// before that dungeon exists), and resolves each row's `parent_name` right
+// before that row's own insert, against whatever has already landed in this
+// same batch plus the campaign's pre-existing rows.
+//
+// An interior row that still can't find a holder parent — the page named
+// none, or named something that turns out not to be one — is not dropped and
+// not left to fail the trigger: it's imported anyway as `location_type: "other"`
+// (which the trigger never constrains), and the sweep reports why. Losing a
+// keyed room entirely because its container didn't resolve would be worse
+// than importing it detached and letting the DM re-parent it by hand.
+
+/** One resolvable parent candidate: an existing row (fetched once before this
+ *  kind's loop starts) or a row this same batch already inserted. */
+export interface LocationParentCandidate {
+  id: string;
+  name: string;
+  locationType: LocationType;
+}
+
+export interface RunLocationsImportKindDeps {
+  insertRow: (row: Record<string, unknown>) => Promise<InsertRowOutcome>;
+}
+
+export interface RunLocationsImportKindResult extends RunImportKindResult {
+  /** One line per interior row this run downgraded to `location_type: "other"`
+   *  for lack of a resolvable holder parent — folded into the sweep's
+   *  `unresolvedLinks` by the caller (`importSweep.ts`), exactly like any
+   *  other unresolved reference. */
+  parentFallbackMessages: string[];
+}
+
+/**
+ * Orders `entities` so that any entity named as another entity's `parent_name`
+ * (matched via `normalizeEntityName`, same as every other name match in this
+ * feature) comes before it — a stable topological sort over this batch alone,
+ * never touching rows outside it.
+ *
+ * A parent named here but decided `link`/`ignore` (never inserted) or not
+ * present in this batch at all rides along in its original position — nothing
+ * to order it against, since its resolution (if any) comes from the existing-
+ * rows lookup instead, which doesn't care about this batch's insert order.
+ *
+ * Cycles and self-references never hang this: once no remaining entity has an
+ * already-placed (or absent) parent, whatever is left is appended in its
+ * original relative order rather than spun on forever. Whichever of those
+ * entities actually needed the cycle to resolve will end up in the "no
+ * resolvable parent" fallback below — a real, reported outcome, not a hang.
+ */
+export function orderLocationsParentsFirst(
+  entities: readonly ExtractedEntity<"locations">[],
+): readonly ExtractedEntity<"locations">[] {
+  const nameToIndex = new Map<string, number>();
+  entities.forEach((entity, i) => {
+    const name = (entity.data as ExtractedLocation).name;
+    const norm = typeof name === "string" ? normalizeEntityName(name) : null;
+    if (norm !== null && !nameToIndex.has(norm)) nameToIndex.set(norm, i); // first entity with a given name wins a duplicate
+  });
+
+  // child index -> in-batch parent index, only when the parent is a distinct
+  // entity actually present in this same batch.
+  const parentIndex = new Map<number, number>();
+  entities.forEach((entity, i) => {
+    const parentName = (entity.data as ExtractedLocation).parent_name;
+    if (typeof parentName !== "string") return;
+    const norm = normalizeEntityName(parentName);
+    if (norm === null) return;
+    const pIdx = nameToIndex.get(norm);
+    if (pIdx === undefined || pIdx === i) return;
+    parentIndex.set(i, pIdx);
+  });
+
+  const placed = new Set<number>();
+  const order: number[] = [];
+  let remaining = entities.map((_, i) => i);
+  while (remaining.length > 0) {
+    const ready = remaining.filter((i) => {
+      const p = parentIndex.get(i);
+      return p === undefined || placed.has(p);
+    });
+    if (ready.length === 0) {
+      // A cycle among what's left (A's parent is B, B's parent is A) — no
+      // ordering can satisfy both, so take them as they came rather than loop.
+      order.push(...remaining);
+      break;
+    }
+    for (const i of ready) {
+      order.push(i);
+      placed.add(i);
+    }
+    remaining = remaining.filter((i) => !placed.has(i));
+  }
+
+  return order.map((i) => entities[i]!);
+}
+
+/** `LOCATION_TYPE_TIER`'s own insertion order already lists the site tier as
+ *  building, dungeon, store, tavern, inn, wilds — deriving the phrase from it
+ *  rather than hand-typing a second copy is what keeps this message unable to
+ *  drift from `isSiteType`'s own definition. */
+function siteTypesPhrase(): string {
+  const names = Object.entries(LOCATION_TYPE_TIER)
+    .filter(([, tier]) => tier === "site")
+    .map(([type]) => type);
+  return `${names.slice(0, -1).join(", ")} or ${names.at(-1)}`;
+}
+
+function findLocationParent(
+  candidates: readonly LocationParentCandidate[],
+  name: string,
+): LocationParentCandidate | undefined {
+  const needle = normalizeEntityName(name);
+  if (needle === null) return undefined;
+  return candidates.find((c) => normalizeEntityName(c.name) === needle);
+}
+
+/**
+ * A room's `parent_name` can name a container the DM chose to LINK rather
+ * than create — the page's "Termalaine Gem Mine" linked to the DM's existing
+ * "Gem Mine" (a `dungeon`). That container never gets inserted (a `link`
+ * decision produces no row — see `buildImportPlan`'s own doc comment), so it
+ * is absent from `batchResolved`, and its *printed* name ("Termalaine Gem
+ * Mine") matches no name in `existingLocations` either — only the target
+ * row's own name ("Gem Mine") is in there. Without this, every room in that
+ * container is silently downgraded to `location_type: "other"`.
+ *
+ * The fix: build one candidate per this batch's own `locations` `link`
+ * decision, keyed by the extracted entity's *own* printed name, pointing at
+ * the linked target — with the target's `location_type` looked up in
+ * `existingLocations` by id, since a `link` candidate's `targetId` is always
+ * one of those rows. A candidate whose target isn't found there (shouldn't
+ * happen — a `link` decision is only ever offered against an existing row)
+ * is skipped rather than guessed at.
+ */
+function buildLinkedLocationCandidates(
+  entities: readonly ExtractedEntity<"locations">[],
+  decisions: ReadonlyMap<string, ImportDecision>,
+  existingLocations: readonly LocationParentCandidate[],
+): LocationParentCandidate[] {
+  const existingById = new Map(existingLocations.map((c) => [c.id, c] as const));
+  const linked: LocationParentCandidate[] = [];
+  for (const entity of entities) {
+    const decision = decisions.get(entity.ref);
+    if (decision?.action !== "link") continue;
+
+    const name = (entity.data as ExtractedLocation).name;
+    if (typeof name !== "string" || name.trim() === "") continue;
+
+    const target = existingById.get(decision.candidate.targetId);
+    if (!target) continue;
+
+    linked.push({ id: target.id, name, locationType: target.locationType });
+  }
+  return linked;
+}
+
+/**
+ * The `locations` kind's own insert runner — see the section header above for
+ * why this can't be the generic `runImportKind`. Shares its quota/failure
+ * classification and its "stop at the first quota_exceeded, report the rest
+ * not_attempted" rule exactly; the only real difference is insert order
+ * (parents-first rather than page order) and that `row.parent_id` is filled
+ * in immediately before each insert rather than left for a later pass.
+ *
+ * `existingLocations` is fetched once by the caller before this loop starts
+ * (`fetchNameLookup("locations")`, extended with `location_type`) — every
+ * campaign (and the DM's own global) location that existed before this sweep
+ * ran, including anything a `link` decision elsewhere in this same kind
+ * points at (a linked row is, by definition, one of these).
+ *
+ * A room's `parent_name` resolves against, in order: this batch's own
+ * inserted rows, then this batch's own `link` decisions (by the *linked*
+ * entity's printed name — see `buildLinkedLocationCandidates`), then
+ * `existingLocations` by the target row's own name — the same "linked rows
+ * win" precedence the sweep's post-import linking phase already uses.
+ */
+export async function runLocationsImportKind(
+  params: {
+    entities: readonly ExtractedEntity<"locations">[];
+    decisions: ReadonlyMap<string, ImportDecision>;
+    campaignId: string;
+    provenance: AiProvenance;
+    existingLocations: readonly LocationParentCandidate[];
+  },
+  deps: RunLocationsImportKindDeps,
+): Promise<RunLocationsImportKindResult> {
+  const { decisions, campaignId, provenance, existingLocations } = params;
+  const orderedEntities = orderLocationsParentsFirst(params.entities);
+  const plan = buildImportPlan("locations", orderedEntities, decisions, campaignId, provenance);
+  const plannedByRef = new Map(plan.map((planned) => [planned.ref, planned] as const));
+
+  // This batch's own `link` decisions, by the linked entity's printed name —
+  // see `buildLinkedLocationCandidates`'s own doc comment for why a room's
+  // `parent_name` needs this on top of `batchResolved`/`existingLocations`.
+  const linkedParents = buildLinkedLocationCandidates(params.entities, decisions, existingLocations);
+
+  // Grows as each row lands — a room whose dungeon is earlier in this very
+  // batch needs THAT row's id, which cannot be in `existingLocations` (it
+  // didn't exist before this sweep ran).
+  const batchResolved: LocationParentCandidate[] = [];
+  const parentFallbackMessages: string[] = [];
+  const outcomes: ImportRowOutcome[] = [];
+
+  for (const entity of orderedEntities) {
+    const planned = plannedByRef.get(entity.ref);
+    if (!planned) continue; // link/ignore — nothing to insert, nothing to resolve
+
+    const row = planned.row as Record<string, unknown>;
+    const displayName = typeof row.name === "string" ? row.name : "";
+    const ownType = row.location_type as LocationType;
+    const parentName = (entity.data as ExtractedLocation).parent_name;
+
+    const resolvedParent =
+      typeof parentName === "string" && parentName.trim() !== ""
+        ? (findLocationParent(batchResolved, parentName) ??
+          findLocationParent(linkedParents, parentName) ??
+          findLocationParent(existingLocations, parentName))
+        : undefined;
+
+    const isInterior = LOCATION_TYPE_TIER[ownType] === "interior";
+    if (isInterior && (!resolvedParent || !isSiteType(resolvedParent.locationType))) {
+      row.location_type = "other";
+      row.parent_id = null;
+      parentFallbackMessages.push(
+        `Location "${displayName}": no ${siteTypesPhrase()} to sit in on this page, so it was imported as "other".`,
+      );
+    } else if (resolvedParent) {
+      row.parent_id = resolvedParent.id;
+    }
+
+    const result = await deps.insertRow(row);
+    if (result.status === "quota_exceeded") {
+      outcomes.push({ ref: entity.ref, status: "quota_exceeded" });
+      break; // retrying the rest would fail identically — see the file header above
+    }
+    if (result.status === "failed") {
+      outcomes.push({ ref: entity.ref, status: "failed", message: result.message });
+      continue;
+    }
+    outcomes.push({ ref: entity.ref, status: "inserted", id: result.id });
+    batchResolved.push({ id: result.id, name: displayName, locationType: row.location_type as LocationType });
+  }
+
+  const report = buildImportRunReport("locations", plan, outcomes);
+
+  const insertedIds = new Map<string, string>();
+  const linkedEntities = new Map<string, RunImportKindLinkedEntity>();
+  for (const outcome of outcomes) {
+    if (outcome.status !== "inserted") continue;
+    insertedIds.set(outcome.ref, outcome.id);
+    const planned = plannedByRef.get(outcome.ref);
+    if (planned) {
+      linkedEntities.set(outcome.ref, {
+        links: planned.links,
+        linkLists: planned.linkLists,
+        questSpine: planned.questSpine,
+        row: planned.row as Record<string, unknown>,
+      });
+    }
+  }
+
+  return { report, insertedIds, linkedEntities, parentFallbackMessages };
 }

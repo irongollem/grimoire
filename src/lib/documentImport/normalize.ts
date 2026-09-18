@@ -20,9 +20,8 @@
  *
  * ── Why cross-entity name references never become uuids here ────────────────
  *
- * `ExtractedNpc.faction_name`, `ExtractedLocation.parent_name`,
- * `ExtractedQuest.giver_npc_name` / `location_name`, and
- * `ExtractedEncounter.location_name` name another entity in the same
+ * `ExtractedNpc.faction_name`, `ExtractedQuest.giver_npc_name` / `location_name`,
+ * and `ExtractedEncounter.location_name` name another entity in the same
  * document, which may not have a row yet — the wizard imports kinds in
  * `IMPORT_ENTITY_KINDS` order, but even within a kind, insert order isn't
  * guaranteed to match reference order. Resolving them here would mean
@@ -30,6 +29,16 @@
  * which is worse than always deferring the resolution. So a mapper leaves
  * the FK column null and returns the raw name in `links`; a second pass over
  * the *already-inserted* rows for that document does the name → id lookup.
+ *
+ * `ExtractedLocation.parent_name` is the one exception, and deliberately not
+ * part of this scheme: `guard_location_room_parent` (a live BEFORE INSERT
+ * trigger on `locations`) requires an interior row (`room`/`grounds`) to
+ * already carry a valid `parent_id` on the very insert that creates it, which
+ * is long before the sweep's second pass ever runs. `mapExtractedLocation`
+ * still leaves `parent_id: null` here — this module has no database lookup to
+ * resolve it with — but `payload.parent_name` is read directly off the raw
+ * entity and resolved by `runLocationsImportKind` (runImportKind.ts)
+ * immediately before each row's insert, never through `links`/`EntityLinks`.
  *
  * `ExtractedEncounter.combatants` names entities too (#840) but does NOT go
  * through `EntityLinks`/`links` — each combatant needs one of *two* possible
@@ -96,8 +105,6 @@ export interface ImportRowMap {
 export interface EntityLinks {
   /** NPC → faction, by name. */
   faction_name?: string;
-  /** Location → parent location, by name. */
-  parent_name?: string;
   /** Quest → quest-giver NPC, by name. */
   giver_npc_name?: string;
   /** Quest → location, by name. */
@@ -315,10 +322,20 @@ function coerceStatBlock(partial: Partial<MonsterStatBlock> | undefined): Monste
 
 // ── Monsters ─────────────────────────────────────────────────────────────────
 
+/**
+ * `sourceTitle` is the DM-chosen "Source book" for this whole sweep (#site-
+ * workbench decision, 18 Sep 2026) — `ImportSweepInput.sourceTitle`, threaded
+ * down through `buildImportPlan`/`mapEntity` rather than read from module
+ * state, so this stays a pure function of its arguments like every other
+ * mapper here. It is `null` when the DM left the field blank, which is the
+ * honest "no book on file" a hand-created row can also carry — never
+ * coerced to `""`.
+ */
 export function mapExtractedMonster(
   payload: ExtractedMonster,
   campaignId: string,
   provenance: AiProvenance,
+  sourceTitle: string | null = null,
 ): MappedEntity<"monsters"> {
   const row: MonsterInsert = {
     campaign_id: campaignId,
@@ -327,7 +344,7 @@ export function mapExtractedMonster(
     size: resolveEnum<MonsterSize>(payload.size, MONSTER_SIZES, "medium"),
     alignment: payload.alignment ?? "unaligned", // schema default (monsters.alignment)
     habitat: payload.habitat ?? null,
-    source: null, // not an Open5e import
+    source: sourceTitle, // the DM's chosen "Source book" for this sweep — see this function's own doc comment
     tags: [], // schema default '{}'; not extracted
     stat_block: coerceStatBlock(payload.stat_block),
     description: capProse(payload.description),
@@ -388,7 +405,15 @@ export function mapExtractedLocation(
 ): MappedEntity<"locations"> {
   const row: LocationInsert = {
     campaign_id: campaignId,
-    parent_id: null, // resolved from links.parent_name in a second pass, see file header
+    // NOT resolved from `links` the way every other deferred name is (file
+    // header) — `guard_location_room_parent` (a BEFORE INSERT trigger) needs
+    // this column already correct on the very insert that creates an interior
+    // row, which is before the sweep's post-import linking phase has even
+    // started. `runLocationsImportKind` (runImportKind.ts) resolves
+    // `payload.parent_name` itself, immediately before this row is inserted,
+    // and overwrites this field — `null` here is only the value a `link`- or
+    // `ignore`-decided sibling (never inserted, so never mutated) would keep.
+    parent_id: null,
     name: payload.name,
     location_type: resolveEnum<LocationType>(payload.location_type, LOCATION_TYPES, "other"),
     // Boxed text leads the description: in an adventure it *is* what the room
@@ -429,7 +454,7 @@ export function mapExtractedLocation(
     // audio_theme omitted — its own type comment says to omit for the column
     // default of null, which is exactly what applies here.
   };
-  return { row, links: { parent_name: payload.parent_name, owner_npc_name: payload.owner_npc_name } };
+  return { row, links: { owner_npc_name: payload.owner_npc_name } };
 }
 
 /**
@@ -446,10 +471,12 @@ function joinRoomProse(readAloud: string | undefined, description: string | unde
 
 // ── Items ────────────────────────────────────────────────────────────────────
 
+/** `sourceTitle` — see `mapExtractedMonster`'s own doc comment. */
 export function mapExtractedItem(
   payload: ExtractedItem,
   campaignId: string,
   provenance: AiProvenance,
+  sourceTitle: string | null = null,
 ): MappedEntity<"items"> {
   const row: ItemInsert = {
     name: payload.name,
@@ -469,7 +496,7 @@ export function mapExtractedItem(
     weapon_range: payload.weapon_range ?? null,
     versatile_damage: payload.versatile_damage ?? null,
     description: payload.description ?? "", // schema default ''; MECHANICAL — never capped, see file header of documentImport.types.ts
-    source: null, // not an Open5e import
+    source: sourceTitle,
     tags: [], // not extracted
     image_url: null,
     is_arcane_focus: false, // schema default
@@ -490,10 +517,12 @@ function isValidSpellLevel(level: number | undefined): level is number {
   return typeof level === "number" && Number.isInteger(level) && level >= 0 && level <= 9;
 }
 
+/** `sourceTitle` — see `mapExtractedMonster`'s own doc comment. */
 export function mapExtractedSpell(
   payload: ExtractedSpell,
   campaignId: string,
   provenance: AiProvenance,
+  sourceTitle: string | null = null,
 ): MappedEntity<"spells"> {
   const row: SpellInsert = {
     name: payload.name,
@@ -524,7 +553,7 @@ export function mapExtractedSpell(
     higher_level_healing: null,
     classes: payload.classes ?? [], // schema default '{}'
     tags: [], // not extracted
-    source: null, // not an Open5e import
+    source: sourceTitle,
     source_title: null,
     source_url: null,
     open5e_import: false, // schema default

@@ -263,21 +263,11 @@ describe("resolveLinks", () => {
     ]);
   });
 
-  it("resolves locations.parent_name against other locations (self-referential)", () => {
-    const rows: LinkedRow[] = [{ id: "loc-2", links: { parent_name: "Waterdeep" } }];
-    const result = resolveLinks("locations", rows, { locations: [{ id: "loc-1", name: "Waterdeep" }] });
-
-    expect(result).toEqual([
-      {
-        status: "resolved",
-        sourceId: "loc-2",
-        field: "parent_name",
-        name: "Waterdeep",
-        targetId: "loc-1",
-        apply: { kind: "fk_update", table: "locations", column: "parent_id" },
-      },
-    ]);
-  });
+  // A location's own `parent_name` is deliberately absent from this file's
+  // machinery — resolved at insert time instead (`runLocationsImportKind.test.ts`
+  // covers it), because `guard_location_room_parent` checks it on the very
+  // insert that creates an interior row, long before this second pass runs.
+  // See importPlan.ts's own `LINK_TARGETS` comment.
 
   it("resolves both quest links independently on the same row", () => {
     const rows: LinkedRow[] = [

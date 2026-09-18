@@ -106,6 +106,22 @@
         @update:edits="(m: Map<string, Record<string, unknown>>) => (editsByKind[group.kind] = m)"
       />
 
+      <div v-if="showSourceTitleField" class="space-y-1">
+        <label class="block text-eyebrow font-semibold text-muted-foreground mb-1">
+          Source book <span class="font-normal">(optional)</span>
+        </label>
+        <AppInput
+          v-model="sourceTitleInput"
+          :list="sourceTitleListId"
+          tone="filled"
+          size="body"
+          placeholder="Icewind Dale: Rime of the Frostmaiden…"
+        />
+        <datalist :id="sourceTitleListId">
+          <option v-for="opt in sourceOptions" :key="opt.value" :value="opt.value" />
+        </datalist>
+      </div>
+
       <p v-if="row.ai_provenance == null" class="text-caption text-destructive">
         This document's generation info is missing, so nothing here can be imported. Re-run extraction and try again.
       </p>
@@ -216,7 +232,7 @@
  * creating the quest when it reaches that step — this is a known, accepted
  * degradation for a flow meant to be finished in one sitting, not a bug.
  */
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, useId, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import { useToast } from "@/composables/useToast";
@@ -232,12 +248,14 @@ import {
 } from "@/composables/campaign/useDocumentImport";
 import { useDocumentImportRunner } from "@/composables/campaign/useDocumentImportRunner";
 import { useImportEntityMatches } from "@/composables/campaign/useImportEntityMatches";
+import { useImportSourceOptions } from "@/composables/campaign/useImportSourceOptions";
 import { useMonsterGenerationCost } from "@/composables/monsters/useMonsterGenerationCost";
 import { pagesForText, validateTextImport, type UploadValidationResult } from "@/lib/documentImport/limits";
 import { tiptapToMarkdown } from "@/lib/tiptap/tiptapToMarkdown";
 import { deriveImportDisplayName, selectPrimaryQuest, summarizeOtherKinds } from "@/lib/documentImport/questPasteReview";
 import { getEntityKindEntry } from "@/lib/documentImport/entityKinds";
 import { quotaShortfalls, rowsAddedToQuota, tallyDecisions } from "@/lib/documentImport/reviewDecisions";
+import { hasSourcedCreate, normalizeSourceTitle } from "@/lib/documentImport/sourceTitle";
 import { useImportQuotaRoom } from "@/composables/campaign/useImportQuotaRoom";
 import ImportQuotaWarning from "@/components/campaign/ImportQuotaWarning.vue";
 import type { ImportDecision } from "@/lib/documentImport/entityMatching";
@@ -524,6 +542,28 @@ const totalGenerateCredits = computed(
   () => totalTally.value.generate * perMonsterGenerateCredits.value,
 );
 
+// ── Source book (#site-workbench decision, 18 Sep 2026) ──────────────────────
+//
+// Same field, same seed-once behaviour as `DocumentImportWizard.vue`'s own —
+// shown only once at least one monster/item/spell "also found" group is
+// decided `create` (the headline quest itself never has a `source` column).
+const showSourceTitleField = computed(() => hasSourcedCreate(decisionsByKind));
+
+const { options: sourceOptions, defaultSourceTitle, isLoading: sourceOptionsLoading } = useImportSourceOptions();
+const sourceTitleInput = ref("");
+const sourceTitleListId = `quest-paste-source-${useId()}`;
+
+let sourceTitleSeeded = false;
+watch(
+  [defaultSourceTitle, sourceOptionsLoading],
+  ([def, loading]) => {
+    if (sourceTitleSeeded || loading) return;
+    sourceTitleSeeded = true;
+    sourceTitleInput.value = def ?? "";
+  },
+  { immediate: true },
+);
+
 const confirmLabel = computed(() => {
   const base = hasQuest.value ? "Create quest" : "Import selected";
   const newCount = totalTally.value.create + totalTally.value.generate;
@@ -587,6 +627,7 @@ async function confirmImport(): Promise<void> {
       entitiesByKind: buildEntitiesByKind(),
       decisions: buildDecisions(),
       parentQuestId: parentId ?? null,
+      sourceTitle: normalizeSourceTitle(sourceTitleInput.value),
     };
     const report = await runImportSweep(r, input, (p) => {
       progress.value = p;

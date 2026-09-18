@@ -56,8 +56,10 @@ resolve (see "One sweep, one linking phase" below):
 | `monsterGenerationConcept.ts` | Turns one page's monster payload into a generation concept + constrained options, for a `generate`-decided monster; also `monsterGenerationCreditCost`, the shared credit formula every `generate` decision's cost badge reads |
 | `importPlan.ts` | Decisions → ordered inserts, partial-failure accounting, link resolution |
 | `sanitizeEntities.ts` | Validates one kind's raw `extracted[kind]` array into renderable entities, dropping malformed ones — shared by the wizard and the compact review (#839) |
-| `runImportKind.ts` | One kind's insert/generate loop — with every side effect injected (`RunImportKindDeps`) — now called by `importSweep.ts` rather than by either UI directly |
-| `importSweep.ts` (#893) | `runImportSweep` — every kind imports first, then ONE linking phase resolves every name reference across the whole extraction (a link to a kind that imports *later*, e.g. an NPC's `location_name`, could never resolve under the old per-kind resolution). Owns the sweep-wide `normalizeEntityName → { id, source }` registry, the beat-attachment/loot/quest-ref writes a beat's resolved references produce, and marking the row complete |
+| `runImportKind.ts` | One kind's insert/generate loop — with every side effect injected (`RunImportKindDeps`) — now called by `importSweep.ts` rather than by either UI directly. Also owns `runLocationsImportKind`/`orderLocationsParentsFirst`, the `locations` kind's own insert runner — see "A location resolves its own parent AT INSERT" below for why it can't share the generic loop |
+| `importSweep.ts` (#893) | `runImportSweep` — every kind imports first, then ONE linking phase resolves every name reference across the whole extraction (a link to a kind that imports *later*, e.g. an NPC's `location_name`, could never resolve under the old per-kind resolution). Owns the sweep-wide `normalizeEntityName → { id, source }` registry, the beat-attachment/loot/quest-ref writes a beat's resolved references produce, the site/room index and room-loot-by-location map the beat pass needs (below), and marking the row complete |
+| `importSweepLinking.ts` | Split out of `importSweep.ts` to stay under its line cap: `resolveEncounters` (combatant resolution) and `resolveBeatCrossReferences` (a beat's location/npc/faction/encounter/monster/item names), plus `resolveLocationLoot` and `buildSiteRoomIndex`/`SiteRoomIndex` (below) — the shared `attachItemLoot` helper both loot resolvers use, parameterised by `LootPlacementHome` rather than duplicated per caller |
+| `sourceTitle.ts` | The "Source book" field's pure half (below): `normalizeSourceTitle`, `rankSourceOptions`/`pickDefaultSourceTitle` (the DM's own naming history, ranked and prefilled), `hasSourcedCreate` (whether the review would even create a sourced row) |
 | `questPasteReview.ts` | Pure helpers for the compact review only: pick the headline quest, summarize the other kinds found, derive a default staging-row name |
 
 **Composable** (`src/composables/campaign/`, `src/composables/monsters/`) —
@@ -75,6 +77,11 @@ own AI-generation panel. `useMonsters.ts`'s `useEnsureOwnedMonster` and
 `useItems.ts`'s `useEnsureOwnedItem` are the idempotent get-or-create
 adoptions `useDocumentImportRunner.ts`'s `adoptLibraryMonster`/`adoptLibraryItem`
 deps call — see "Choosing a library candidate ADOPTS it" below.
+`useImportSourceOptions.ts` is the "Source book" field's Supabase-backed
+half: three plain reads of the DM's own `monsters`/`items`/`spells` rows
+(excluding anything Open5e/library-sourced), reduced through `sourceTitle.ts`'s
+pure ranking into the suggestion list and campaign-aware prefill both review
+surfaces show.
 
 **UI** (`src/components/campaign/`) — `DocumentImportTab.vue`,
 `DocumentImportWizard.vue`, `ImportKindReview.vue` (one kind's whole review
@@ -387,6 +394,8 @@ own decisions produced."
 | `npc_names` / `faction_names` / `encounter_names` | a quest beat | one `quest_beat_attachments` row per name (`attachment_type: "npc"/"faction"/"encounter"`) |
 | `monster_names` | a quest beat | a `quest_beat_attachments` row (`attachment_type: "monster"`) — **campaign rows only**, see below |
 | `item_names` | a quest beat | a `loot_placements` row (`beat_id`+`quest_id` home, `kind: "item"`) — **campaign rows only**, see below |
+| `item_names` | `ExtractedLocation` | a `loot_placements` row (`location_id` home, `kind: "item"`) — same shape, a room's OWN loot; see "A room's own loot lives in the room" below |
+| `parent_name` | `ExtractedLocation` | `locations.parent_id` — **not** through this table. Resolved AT INSERT by `runLocationsImportKind`, not this linking phase — see the section below. |
 
 The two new scalar fields (`npc_location_name` internally, to avoid colliding
 with quest's own `location_name` in `LINK_TARGETS` — same reason
@@ -545,6 +554,199 @@ registry from this call — the sweep has no way to learn which id a prior,
 crashed call's insert actually produced without a query this design doesn't
 add. In practice this only matters when two rows of that kind share a printed
 name, since `fetchNameLookup` will otherwise find the right one by name alone.
+
+### A location resolves its own parent AT INSERT, never in the linking phase
+
+Every other deferred name reference goes through the sweep's one post-import
+linking phase (above) — resolved once every kind has already been inserted.
+`ExtractedLocation.parent_name` is the one exception, and production found out
+why the hard way: `guard_location_room_parent`, a live `BEFORE INSERT` trigger
+on `locations`, requires an interior row (`room`/`grounds`,
+`private.location_is_interior`) to already carry a `parent_id` pointing at a
+row that can hold one (the `site` tier — `building`/`dungeon`/`store`/`tavern`/
+`inn`/`wilds`, `private.location_can_hold_rooms`) on the very insert that
+creates it. The linking phase runs far too late for that column — it fires
+after every kind, including `locations` itself, has already been inserted with
+`parent_id: null`, so a keyed room's insert hit the trigger and every one of
+them 400'd (`"M1. Tool Room" has no parent`).
+
+**The fix: `locations` gets its own insert runner**, `runLocationsImportKind`
+(`runImportKind.ts`), called by `importSweep.ts` instead of the generic
+`runImportKind` for this one kind. It does two things the generic runner
+doesn't:
+
+1. **Orders this kind's own creates parents-first** — `orderLocationsParentsFirst`,
+   a stable topological sort over the batch by matching `parent_name` against
+   other entities' `name` (via `normalizeEntityName`, same as every other name
+   match in this feature). A room whose dungeon is elsewhere on the same page,
+   in *either* page order, is reordered so the dungeon is attempted first. A
+   parent cycle or a self-reference never hangs the sort — once nothing left
+   is ready, whatever remains is appended in original order and reported
+   unresolved below, rather than spun on forever.
+2. **Resolves each row's `parent_name` immediately before that row's own
+   insert** — against a map that grows as rows land in this same batch, then
+   `existingLocations` (`fetchNameLookup("locations")`, fetched once up front
+   and extended with `location_type` for exactly this reason — the one place
+   `NameLookupRow.locationType` is ever populated). A `link`-decided sibling's
+   target is already inside `existingLocations` by construction, so no special
+   case is needed for it.
+
+**An interior row with no resolvable holder parent — none named, or named
+something that turns out not to be one (a `town`, say) — is not dropped and
+not left to fail the trigger.** It's imported anyway as `location_type: "other"`
+(a type the trigger never constrains), and the sweep pushes a line to
+`unresolvedLinks` explaining why: `Location "M1. Tool Room": no building,
+dungeon, store, tavern, inn or wilds to sit in on this page, so it was
+imported as "other".` The site-type list in that message is derived from
+`LOCATION_TYPE_TIER` (`src/lib/locations/tiers.ts`), not hand-typed, so it
+cannot drift from `isSiteType`'s own definition. A **non-interior** location
+with a resolvable parent still gets it written normally — the guard, and this
+whole detour, only ever applies to `room`/`grounds`.
+
+`EntityLinks` (normalize.ts) no longer declares `parent_name` at all, and
+`LINK_TARGETS` (importPlan.ts) has no entry for it — removed together, since a
+field resolved before insert has nothing left to resolve a second time in the
+post-import phase. `mapExtractedLocation` still leaves `row.parent_id: null`
+(it has no database lookup to resolve it with); `runLocationsImportKind`
+overwrites that field itself, immediately before each row's insert.
+
+**Root cause upstream, fixed at the source too:** the room-parent 400s traced
+back to `LOCATION_DATA.location_type` (`supabase/functions/import-extract/extractionSchema.ts`)
+being an unconstrained nullable string. A real production extraction returned
+free-text types the model invented — "mine", "mine room", "mountain",
+"underground region" — none of which `resolveEnum` (normalize.ts) can match,
+so every one of them silently became `other` before a single row was even
+inserted, and `other` can never hold a room regardless of how good the parent
+resolution above is. The wire schema now constrains `location_type` to the
+real 19-member `location_type_enum` (verified live), hand-copied into
+`extractionSchema.ts` as `LOCATION_TYPE_ENUM` since that module is Deno and
+cannot import `tiers.ts`; `extractionSchemaLocationTypes.test.ts`
+(src/lib/documentImport/) pins the copy equal to `LOCATION_TYPE_TIER`'s keys
+so the two can't drift apart again.
+
+**A room's parent can be a container the DM LINKED under a different printed
+name.** A real production case: the page's own container "Termalaine Gem
+Mine" was linked by the DM to their existing "Gem Mine" (a `dungeon`) — the
+container itself is never inserted (a `link` decision produces no row), so it
+never appears in `batchResolved`, and its *printed* name doesn't match
+`existingLocations` either (only the target row's own name, "Gem Mine", is in
+there). Every room in that mine was silently downgraded to `location_type:
+"other"` for lack of a resolvable parent, even though the DM had, in fact,
+already told the importer exactly where the mine lived.
+
+The fix: `runLocationsImportKind` also builds `buildLinkedLocationCandidates`
+— one candidate per this batch's own `locations` `link` decision, keyed by
+the **linked entity's own printed name** ("Termalaine Gem Mine"), pointing at
+the target's real id and `location_type` (looked up in `existingLocations` by
+id, since a `link` candidate's `targetId` is always one of those rows). A
+room's `parent_name` now resolves against, in order: this batch's own
+inserted rows, then this batch's own `link` decisions, then `existingLocations`
+by the target's own name — the same "linked rows win" precedence the sweep's
+post-import linking phase already uses everywhere else.
+
+### A room's own loot lives in the room
+
+`ExtractedLocation.item_names` (mirroring a beat's own `item_names`) is loot
+the page found in a keyed room — treasure in a chest, a weapon on a corpse.
+Per the design (context/features/quests.md, quoting the Sites sheet): a
+dungeon's loot lives in the room that holds it, not on the beat staged at the
+site as a whole. Resolved in the sweep's linking phase into a `location_id`-
+homed `loot_placements` row per name (`kind: "item"`), through the same
+`attachItemLoot` helper (`importSweepLinking.ts`) a beat's own `item_names`
+already used — parameterised by `LootPlacementHome` (`{ beat_id, quest_id }`
+or `{ location_id }`) rather than duplicated into two write paths. Same
+library caveat as a beat's items: a name resolving only to a shared-library
+row can't become a placement (`loot_placements.item_id` is a uuid FK into
+`items`), and is simply reported as unresolved — a location has no quest to
+fall back to linking at the way a beat does.
+
+**Resolved against the sweep-wide `locations` registry, not a phase-1
+context list.** `importSweep.ts` walks every `locations` entity after the
+whole sweep has imported, looks its own printed name up in
+`registry.locations` (already "create/generate/link'd entity's name → its
+resolved id," built while the `locations` kind imported), and only builds a
+`LocationLootContext` when that lookup lands — an ignored, undecided, or
+(the same documented resume gap `buildKindRegistry` already carries) crashed-
+before-registering room contributes no loot, the same "absence is not
+consent" rule as everywhere else in this sweep. A room the DM **linked** to
+an existing one still gets the page's loot — additive, like a linked
+faction's `location_names` — since the registry doesn't distinguish how a row
+was resolved once it has an id.
+
+### A beat does not re-list what its site's rooms already hold
+
+A beat staged at a site (or one of its rooms) must not re-list an encounter
+or an item its own room structure already supplies — "a dungeon needs no
+beats inside it… rooms are places, not events," and a room's fights/loot
+belong to the room (`encounters.location_id`, `loot_placements.location_id`),
+not to a beat that covers the whole site.
+
+`importSweep.ts` builds a `SiteRoomIndex` (`importSweepLinking.ts`) once
+per sweep, from this batch's own `locations` entities and the ids the
+registry gave them — `buildSiteRoomIndex` matches `parent_name` to another
+entity's own `name` the same way `orderLocationsParentsFirst`/
+`runLocationsImportKind` do, **never** a database query: the whole point is
+"what did this import's own page wire together," not the campaign's full
+location tree, which a beat staged at an unrelated pre-existing location has
+no business reaching into. A location with no known site/room relationship
+in this sweep (an isolated location, one this sweep didn't touch) appears in
+neither map, so no skip ever applies to a beat staged there — this is why
+"Tavern Brawl" still attaches to a beat staged at a plain tavern with no
+rooms of its own, even though it's staged at that same exact location.
+
+`resolveBeatCrossReferences` computes, per beat, the site + all its rooms
+(`null` when the staged location is neither — every reference then resolves
+exactly as it always did) and skips silently (no `unresolvedLinks` entry —
+this is a design decision, not a failure):
+
+- an `encounter_names` entry whose own resolved `location_id` (captured from
+  the earlier `encounters` pass of `resolveLinks`, since an encounter's own
+  id says nothing about where it's staged) falls inside that set;
+- an `item_names` entry whose resolved item id was already placed as one of
+  the site's own rooms' loot — `resolveLocationLoot` (which runs *before* the
+  beat pass, on purpose) records `(locationId, itemId)` pairs into
+  `roomLootByLocation` as each placement lands, and the beat pass consults it.
+
+Everything else — an encounter or item genuinely staged/found elsewhere —
+attaches to the beat exactly as it always has.
+
+### "Source book" for created items, monsters and spells
+
+Before this the importer always wrote `source: null` on a created item,
+monster or spell — every row an import created carried no book at all, unlike
+the maintainer's own content (`source` = the book title, e.g. "Icewind Dale:
+Rime of the Frostmaiden") or an AI-generated monster (`source: "Grimoire:AI"`,
+set by `useGenerateMonster.ts` and left alone here — a generated monster is
+invented, not sourced from this document).
+
+`ImportSweepInput.sourceTitle: string | null` carries the DM's typed title for
+the whole sweep, normalized (`normalizeSourceTitle` — trimmed, empty → `null`)
+before it ever reaches `runImportSweep`. It's threaded — never read from
+module state — through `runImportKind` → `buildImportPlan` → `mapEntity` down
+to the three mappers that have a `source` column at all (`mapExtractedMonster`/
+`mapExtractedItem`/`mapExtractedSpell`); every other mapper simply has an
+unused trailing parameter, the same as it already ignores whichever of its
+neighbours' parameters it has no use for. Only a `create`-decided row is
+affected — a `link`ed row keeps whatever source it already had, and a
+`generate`d monster keeps `Grimoire:AI`.
+
+**The field itself is a DM-typed value with suggestions, not a picker over a
+fixed enum** — `AppInput` with a native `<datalist>`, the same "free-text
+label with suggestions" idiom `ThemeInput.vue` already established for audio
+themes (`EntityCombobox` only ever resolves to an *existing row's id*, which a
+brand-new book title is not). Shown only when `hasSourcedCreate` says the
+review would actually create at least one monster/item/spell — a review that
+only links/generates/ignores has nothing for the field to attach to.
+`useImportSourceOptions.ts` supplies the suggestion list and the prefill: the
+DM's own **non-library** `source` values (`open5e_import = false` and
+`source_document_key is null` — `items` has no `open5e_import` column at all,
+so only the second half of that filter applies there) across `monsters`/
+`items`/`spells`, ranked by how many rows use them. The prefill is the
+most-used title *within the campaign being imported into*, falling back to
+the most-used title overall (a DM's global rows, or another campaign's),
+falling back to an empty field — seeded exactly once, the moment that query
+settles, so a DM who clears the field or types their own title isn't fought
+by a reactive re-seed.
 
 ### One quest, compact review (#839)
 
