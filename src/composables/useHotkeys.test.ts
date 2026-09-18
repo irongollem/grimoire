@@ -195,6 +195,31 @@ describe("useHotkeys", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  // Production, 18 Sep 2026, on /dashboard: `Cannot read properties of
+  // undefined (reading 'toLowerCase')` at hotkeys.ts:58. `KeyboardEvent.key` is
+  // typed `string` and the DOM's typing is lying — this is a document-level
+  // listener, so a password manager, accessibility tool or extension can
+  // dispatch a plain Event at it, which carries no `key` at all.
+  it("ignores a synthetic keydown that carries no key at all", () => {
+    const handler = vi.fn();
+    register([{ combo: "k", description: "Plain k", handler }]);
+
+    // Deliberately not `keyEvent()`: a real KeyboardEvent always has a string
+    // `key` (defaulting to ""), so only a bare Event reproduces what shipped.
+    expect(() => document.dispatchEvent(new Event("keydown", { bubbles: true, cancelable: true })))
+      .not.toThrow();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("still ignores, rather than matches, a KeyboardEvent whose key is empty", () => {
+    const handler = vi.fn();
+    register([{ combo: "k", description: "Plain k", handler }]);
+
+    dispatch(keyEvent({}));
+
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it("throws synchronously when a registered combo is malformed", () => {
     expect(() => register([{ combo: "shift+", description: "Broken", handler: vi.fn() }])).toThrow();
   });

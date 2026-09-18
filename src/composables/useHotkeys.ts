@@ -142,6 +142,21 @@ function handleKeydown(event: KeyboardEvent): void {
   // sense — acting on them would fire hotkeys mid-composition.
   if (event.isComposing) return;
 
+  // `KeyboardEvent.key` is typed `string`, and the DOM's typing is lying: this
+  // is a document-level listener, so anything on the page may dispatch a
+  // synthetic "keydown" at it — a password manager, an accessibility tool, a
+  // browser extension. A plain `new Event("keydown")` carries no `key` at all,
+  // and TypeScript cannot see that because the listener is handed a
+  // `KeyboardEvent` by declaration rather than by check.
+  //
+  // That is how `normaliseEventKey` came to call `.toLowerCase()` on undefined
+  // in production (18 Sep 2026, on /dashboard). Guarded here rather than inside
+  // the matcher because this is where untrusted input enters, and the matcher
+  // runs once per registered binding — the check belongs once per event, not
+  // once per comparison. An event with no key can match no binding, so there is
+  // nothing to do but leave.
+  if (typeof event.key !== "string") return;
+
   const inTextEntry = isTextEntryTarget(event.target);
 
   const overlayActive = registrations.value.some(
