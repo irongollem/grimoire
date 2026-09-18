@@ -18,6 +18,9 @@
     <!-- SRD Art Defaults -->
     <LibraryArtPublishPanel />
 
+    <!-- Library Sets — tile pack authoring (#889 S4/S5) -->
+    <LibraryTilePackPanel />
+
     <!-- Placeholder Art Focal Points -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-4">
       <div>
@@ -94,6 +97,7 @@ import MonsterEmbeddingBackfill from "@/components/admin/MonsterEmbeddingBackfil
 import LibraryArtRepairPanel from "@/components/admin/LibraryArtRepairPanel.vue";
 import VariantSweepPanel from "@/components/admin/VariantSweepPanel.vue";
 import LibraryArtPublishPanel from "@/components/admin/LibraryArtPublishPanel.vue";
+import LibraryTilePackPanel from "@/components/admin/LibraryTilePackPanel.vue";
 import { useAdminPlaceholderFocalPoints } from "@/composables/admin/useAdminPlaceholderFocalPoints";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 

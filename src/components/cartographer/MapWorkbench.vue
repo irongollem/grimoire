@@ -93,7 +93,7 @@
           @click="redoEdit"
         />
         <span>
-          Pack: <strong class="text-foreground">{{ packRuntime?.manifest.name ?? currentPackId }}</strong>
+          Pack: <strong class="text-foreground">{{ packLabel }}</strong>
           <span v-if="packLoadError" class="text-red-500"> ({{ packLoadError }})</span>
         </span>
         <span v-if="cellsPainted > 0">
@@ -122,10 +122,19 @@
 
       <!-- Overlay hint while the default pack loads -->
       <div
-        v-if="!loadedRuntimes.has(DEFAULT_PACK_ID)"
+        v-if="awaitingDefaultPack"
         class="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm"
       >
         <LoadingSpinner />
+      </div>
+      <!-- Genuinely empty library — the query has answered and there is
+           nothing published. Not a fallback to a hardcoded pack (rule 1):
+           a real, readable state instead. -->
+      <div
+        v-else-if="!hasPublishedPacks"
+        class="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm px-4 text-center"
+      >
+        <p class="text-caption text-muted-foreground">No tile packs are published yet.</p>
       </div>
     </div>
 
@@ -316,6 +325,7 @@ import { useEncounters } from "@/composables/encounters/useEncounters";
 import { useTraps } from "@/composables/dungeon-features/useTraps";
 import { useDungeonFeatures } from "@/composables/dungeon-features/useDungeonFeatures";
 import { loadUserPack, useTilePacks } from "@/composables/cartographer/useTilePacks";
+import { loadLibraryPack, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useCampaignStore } from "@/stores/campaign";
 import type { Tool } from "@/cartographer/tools";
 import {
@@ -327,7 +337,7 @@ import {
   type CellMetadata,
 } from "@/types/dungeonMap.types";
 import { OBJECT_CATEGORIES, type ObjectCategory } from "@/cartographer/packSchema";
-import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
+import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { MapRenderReferenceImage } from "@/cartographer/renderMap";
 import { resolveCellGlyphs } from "@/cartographer/glyphs";
 import { buildMapStack, hasAnyMapLayer, type MapStackSource } from "@/lib/locations/mapStack";
@@ -347,25 +357,20 @@ const { map, viewMode, site, spaces } = defineProps<{
 
 const emit = defineEmits<{ "update:dirty": [boolean]; "update:editRevision": [number] }>();
 
-const BUNDLED_PACKS = [
-  { pack_id: "stone-dungeon", pack_version: 1, name: "Stone Dungeon",  manifestUrl: "/cartographer/stone-dungeon/v1/manifest.json" },
-  { pack_id: "icy-cave",      pack_version: 1, name: "Icy Cave",       manifestUrl: "/cartographer/icy-cave/v1/manifest.json" },
-  { pack_id: "wood-interior", pack_version: 1, name: "Wood Interior",  manifestUrl: "/cartographer/wood-interior/v1/manifest.json" },
-  { pack_id: "sandy-ruins",   pack_version: 1, name: "Sandy Ruins",    manifestUrl: "/cartographer/sandy-ruins/v1/manifest.json" },
-  { pack_id: "forest",        pack_version: 1, name: "Forest",         manifestUrl: "/cartographer/forest/v1/manifest.json" },
-  { pack_id: "black-rock",    pack_version: 1, name: "Black Rock",     manifestUrl: "/cartographer/black-rock/v1/manifest.json" },
-  { pack_id: "lava-cavern",   pack_version: 1, name: "Lava Cavern",    manifestUrl: "/cartographer/lava-cavern/v1/manifest.json" },
-  { pack_id: "underdark",     pack_version: 1, name: "Underdark",      manifestUrl: "/cartographer/underdark/v1/manifest.json" },
-  { pack_id: "water",         pack_version: 1, name: "Water",          manifestUrl: "/cartographer/water/v1/manifest.json" },
-  { pack_id: "sewer-swamp",   pack_version: 1, name: "Sewer / Swamp",  manifestUrl: "/cartographer/sewer-swamp/v1/manifest.json" },
-  { pack_id: "marble-palace", pack_version: 1, name: "Marble Palace",  manifestUrl: "/cartographer/marble-palace/v1/manifest.json" },
-] as const;
-const DEFAULT_PACK_ID = "stone-dungeon";
+// Shared, admin-authored tile packs (#889) — replaces the old hardcoded
+// BUNDLED_PACKS array entirely. `publishedPacks` is already `sort_order`-
+// then-`name` ordered (see useLibraryTilePacks.ts), which is also the
+// ordering an admin controls for the picker AND the source of the default.
+const { packs: libraryPacksQuery, publishedPacks } = useLibraryTilePacks();
 const mapStyleCampaign = useCampaignStore();
 const activeCampaignId = computed(() => mapStyleCampaign.activeCampaignId);
 const { campaignPacks } = useTilePacks(activeCampaignId, false);
 const selectablePacks = computed(() => [
-  ...BUNDLED_PACKS,
+  ...publishedPacks.value.map((pack) => ({
+    pack_id: pack.pack_id,
+    pack_version: pack.pack_version,
+    name: pack.name,
+  })),
   ...campaignPacks.value.filter((pack) => pack.status === "ready").map((pack) => ({
     pack_id: pack.pack_id,
     pack_version: pack.pack_version,
@@ -379,11 +384,52 @@ const name = ref("Untitled Map");
 // watch below overwrites this from the loaded map's own campaign_id.
 const campaignId = ref<string | null>(activeCampaignId.value);
 const layers = ref<DungeonMapLayers>(emptyLayers());
-const currentPackId = ref(DEFAULT_PACK_ID);
+// `useMapCanvasEditor`/`CartographerInspectorPanel` both type this as a plain
+// Empty until the library query answers. That emptiness is internal
+// bookkeeping only — "has a pack been chosen yet" — and nothing downstream
+// reads it as a pack id: `packRuntime` misses the map, and every branch that
+// means "there is no pack" asks `hasPublishedPacks` or the query below rather
+// than comparing this to "". Kept a plain `Ref<string>` because that is what
+// `useMapCanvasEditor` takes and what its consumers (`renderMap`,
+// `paintOps`) require — and they only ever run once a pack exists, since the
+// canvas is replaced by the empty state otherwise.
+const currentPackId = ref("");
+/** The picker's default: the first published pack, or null when the library
+ *  has none. Null rather than "" — absence here is a real answer, and the
+ *  one place that turns it into a chosen id does so explicitly. */
+const firstPublishedPackId = computed<string | null>(() => publishedPacks.value[0]?.pack_id ?? null);
+const hasPublishedPacks = computed(() => publishedPacks.value.length > 0);
+// Resolves `currentPackId` once the library query answers, but only while
+// nothing else has claimed it yet (a stored `map.default_pack_id` applied by
+// `applyMapToState`, or the DM's own pick in the inspector) — so a later
+// query refetch (e.g. an admin republishing) never clobbers a live choice.
+watch(firstPublishedPackId, (id) => {
+  if (!currentPackId.value && id) currentPackId.value = id;
+}, { immediate: true });
 const packLoadError = ref<string | null>(null);
 const loadedRuntimes = ref(new Map<string, TilePackRuntime>());
 const packRuntime = computed(() => loadedRuntimes.value.get(currentPackId.value) ?? null);
 const loadedPackIds = computed(() => new Set(loadedRuntimes.value.keys()));
+// True while the canvas has nothing to paint with yet: either the library
+// query is still in flight, or a pack id is known but its runtime hasn't
+// loaded. Once the query has answered and there simply is no pack (the
+// genuinely-empty library case), this settles to false so the overlay below
+// can show a real empty state instead of spinning forever.
+const awaitingDefaultPack = computed(() => {
+  if (libraryPacksQuery.isLoading.value) return true;
+  if (!hasPublishedPacks.value) return false;
+  return !loadedRuntimes.value.has(currentPackId.value);
+});
+
+/** What the status bar calls the active pack. Never the raw `currentPackId`
+ *  while it is still unresolved — that would surface the empty string as if
+ *  it were a pack's name. */
+const packLabel = computed(() => {
+  if (packRuntime.value) return packRuntime.value.manifest.name;
+  if (libraryPacksQuery.isLoading.value) return "Loading packs…";
+  if (!hasPublishedPacks.value) return "No packs published";
+  return currentPackId.value;
+});
 const dirty = ref(false);
 watch(dirty, (v) => emit("update:dirty", v), { immediate: true });
 
@@ -675,14 +721,21 @@ const {
 // ── Pack load ───────────────────────────────────────────────────────────────
 
 async function ensurePackLoaded(): Promise<void> {
-  const toLoad = BUNDLED_PACKS.filter((p) => !loadedRuntimes.value.has(p.pack_id));
+  // Every published library pack is eagerly preloaded, same as the old
+  // BUNDLED_PACKS behaviour — a per-pack try/catch so one pack's missing
+  // manifest or dead CDN object can't take the whole picker down. A pack
+  // whose art hasn't been generated yet (or 404s) still resolves: `loadPack`
+  // only rejects on a bad manifest fetch, never on an individual tile image
+  // failing to load — those fall back to procedural placeholders inside
+  // `packLoader.ts`, and that fallback is load-bearing, not a bug to guard
+  // against here.
+  const toLoad = publishedPacks.value.filter((p) => !loadedRuntimes.value.has(p.pack_id));
   await Promise.all(
-    toLoad.map(async (p) => {
+    toLoad.map(async (pack) => {
       try {
-        const runtime = await loadPack(p.manifestUrl);
-        loadedRuntimes.value.set(p.pack_id, runtime);
+        loadedRuntimes.value.set(pack.pack_id, await loadLibraryPack(pack));
       } catch (e) {
-        if (p.pack_id === DEFAULT_PACK_ID) {
+        if (pack.pack_id === currentPackId.value) {
           packLoadError.value = e instanceof Error ? e.message : String(e);
         }
       }
@@ -702,6 +755,7 @@ async function ensurePackLoaded(): Promise<void> {
   }));
 }
 
+watch(publishedPacks, () => { void ensurePackLoaded(); });
 watch(campaignPacks, () => { void ensurePackLoaded(); });
 onMounted(() => { void ensurePackLoaded(); });
 
@@ -723,7 +777,9 @@ function applyMapToState(m: DungeonMap | null): void {
     campaignId.value = m.campaign_id;
     layers.value = cloneLayers(m.layers);
     metadata.value = JSON.parse(JSON.stringify(m.metadata ?? {})) as Record<CellKey, CellMetadata>;
-    currentPackId.value = m.default_pack_id ?? DEFAULT_PACK_ID;
+    // Neither present means the library has not answered yet; keep whatever
+    // is there and let the `firstPublishedPackId` watch above resolve it.
+    currentPackId.value = m.default_pack_id ?? firstPublishedPackId.value ?? currentPackId.value;
   }
   dirty.value = false;
 }
@@ -750,7 +806,7 @@ defineExpose({
   getCellGlyphs: () => cellGlyphs.value,
   getStructure: () => structure.structure.value,
   getCellsPainted: () => cellsPainted.value,
-  getPackName: () => packRuntime.value?.manifest.name ?? currentPackId.value,
+  getPackName: () => packLabel.value,
   isDirty: () => dirty.value,
   /** The autosave's own "has anything changed since I started saving?"
    *  check (#884 review finding 1) — see `useMapCanvasEditor.ts`'s

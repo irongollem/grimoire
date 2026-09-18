@@ -6,18 +6,12 @@ import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import { normalizeGeneratedTile, decodeBase64 } from "@/cartographer/normalizeGeneratedTile";
 import { styleReferenceFrom } from "@/cartographer/styleReference";
 import { preparePackUpload } from "@/cartographer/packUpload";
+import { invokeTilePackGenerator as invoke } from "./tilePackGenerator";
 import type { TilePackGenerationJob, TilePackGenerationRun, UserTilePack } from "@/cartographer/userPack.types";
-import type { TilePackManifest } from "@/cartographer/packSchema";
+import { cloneManifest } from "@/cartographer/cloneManifest";
 
 const PACKS_KEY = "user-tile-packs";
 const RUNS_KEY = "tile-pack-generation-runs";
-
-async function invoke<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("tile-pack-generator", { body });
-  if (error) throw new Error((data as { error?: string } | null)?.error ?? error.message);
-  if ((data as { error?: string } | null)?.error) throw new Error((data as { error: string }).error);
-  return data as T;
-}
 
 async function fetchPacks(): Promise<UserTilePack[]> {
   const { data, error } = await supabase.from("user_tile_packs")
@@ -79,7 +73,7 @@ async function uploadPrepared(files: File[]): Promise<UserTilePack> {
 }
 
 export async function loadUserPack(pack: UserTilePack): Promise<TilePackRuntime> {
-  const manifest = structuredClone(pack.manifest) as TilePackManifest;
+  const manifest = cloneManifest(pack.manifest);
   const paths: string[] = [];
   const slots: { url: string }[] = [];
   for (const entries of Object.values(manifest.assets)) {

@@ -42,18 +42,30 @@ These decisions are locked. The reasoning is preserved here so future agents und
 - **WebGL / Pixi.js** — overkill for static tile painting. Kept as a future escape hatch if perf on huge maps demands it.
 - **WebAssembly** — painting is GPU/draw-bound, not CPU-bound. WASM adds complexity with no win. Reserve for future pathfinding / fog-of-war / line-of-sight calc.
 
-### Storage: private Supabase Storage bucket + bundled starter packs
+### Storage: two buckets, because shared and private are different access models
 
 **Chosen:**
 
-- User tile packs live in the private Supabase Storage bucket `tile-packs/` under `<user_id>/<pack_id>/v<version>/`. Owners and members of campaigns to which a pack is shared receive signed URLs.
-- The **Stone Dungeon** starter pack ships in `public/cartographer/stone/` so the editor never shows a "loading theme" spinner on first open.
-- Bundled packs remain under `public/cartographer/`; custom packs are lazy-loaded from signed Storage URLs as the user picks them.
+- **A DM's own packs** live in the private bucket `tile-packs/` under `<user_id>/<pack_id>/v<version>/`. Owners and members of campaigns the pack is shared into receive signed URLs.
+- **Shared packs** live in the public, CDN-fronted bucket `library-tile-packs/` under `<library_tile_packs row uuid>/v<version>/`, and their rows live in `library_tile_packs` (#889). A map render pulls 20–60 tiles at once, so signing each one is the wrong shape for content meant to reach everybody.
+- `public/cartographer/` is now **source material only** — the twelve manifests the seed script reads. Nothing in the app loads from it at runtime.
 
 **Rejected:**
 
-- Bundling everything in `public/` — bloats deploys past one starter pack.
-- Public object URLs for private packs — a guessable URL must not bypass ownership or campaign membership.
+- One bucket for both. `tile-packs` is private and holds users' own packs; flipping it public to serve shared content would expose every one of them, and a single prefix bug in a mixed bucket is a data exposure rather than a display glitch.
+- A hardcoded pack list. `BUNDLED_PACKS` in `MapWorkbench.vue` was exactly that until #889 S6 deleted it. A constant shadowing the table is the legacy path CLAUDE.md's rule 1 forbids, and it meant adding a pack needed a deploy.
+- Keying shared objects by the pack's slug. Every registry bucket's bytes are read back through the CDN Worker, which consults neither storage RLS nor the bucket's `public` flag — so bytes are world-readable by URL and confidentiality comes from the path being unguessable. A library pack is authored in the open, tiles landing weeks before publication, so a name-derived path would put an unannounced pack one guess away. The row's uuid costs nothing and survives a rename.
+- Public object URLs for *private* packs — a guessable URL must not bypass ownership or campaign membership.
+
+### The library lane (#889)
+
+An app admin authors a shared pack from Admin → Content, through the same generation engine a Pro DM uses. A run carries exactly one of `tile_pack_id` or `library_tile_pack_id`; the library lane has no campaign, no Pro check and no credit charge, and is gated on `private.is_app_admin()`. The engine resolves a `PackTarget` (bucket, table, prefix, row id) from the run row's own foreign keys — never from anything the caller sends — which is what keeps the two lanes from bleeding into each other.
+
+**Generation is free but accounted.** No credits are reserved or spent, yet every call still goes through `recordFreeGeneration`, so the real provider cost stays visible to cost reporting and `get_credit_calibration_hints`. Free to the admin is not free to us, and a cost nobody can see is one the calibration hints will quietly recommend cutting.
+
+**Publishing is a server-validated transition, not a column write.** `publish_library_pack` runs `validatePack` first and refuses an incomplete pack: RLS cannot make that check, and a published pack with missing slots breaks the Cartographer for every DM who picks it. So `library_tile_packs.status` is a *publication* gate — `draft`/`published`/`archived` — and never carries the user lane's `ready`/`failed`. A published pack cannot be deleted either; its `PackRef` is referenced by maps in every DM's campaign, so unpublishing is the retirement path.
+
+**Ten of the twelve migrated packs ship no art, and that is the pre-existing state, faithfully carried over.** Only `wood-interior` (24 tiles) and `celestial-observatory` (29) have real WebPs; the rest declare their full slot list and rely on `packLoader.ts` drawing procedural placeholder tiles from the manifest's `palette`. Filling them in is what the admin generation lane is *for*, one pack at a time, with no code change. The 53 tiles that do exist were produced before the generator learned to mark its output, so `scripts/seed-library-tile-packs.ts` embeds the XMP provenance packet as it uploads them (EPIC #611); `wood-interior` records `provider`/`model` as `unknown` because no record of how it was made survives, and the Art 50 obligation is to disclose *that* an image is AI-generated, not to invent a model id.
 
 The project is on **Supabase Pro tier** (250 GB egress/mo); tile-pack bandwidth is a non-issue.
 

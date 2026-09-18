@@ -14,12 +14,15 @@
 // encounters/traps/features/published-sites/tile-packs/campaign store) is
 // mocked out — this test is about the prop surface, not about exercising
 // Supabase.
-import { mount } from "@vue/test-utils";
-import { ref } from "vue";
-import { describe, expect, it, vi } from "vitest";
+import { mount, flushPromises, enableAutoUnmount } from "@vue/test-utils";
+import { computed, ref } from "vue";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MapWorkbench from "./MapWorkbench.vue";
+import CartographerInspectorPanel from "./CartographerInspectorPanel.vue";
 import { emptyLayers, type DungeonMap } from "@/types/dungeonMap.types";
 import type { MapStackSource } from "@/lib/locations/mapStack";
+import type { LibraryTilePack } from "@/cartographer/userPack.types";
+import type { TilePackManifest } from "@/cartographer/packSchema";
 
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({ activeCampaignId: null }),
@@ -33,9 +36,84 @@ vi.mock("@/composables/cartographer/useTilePacks", () => ({
   useTilePacks: () => ({ campaignPacks: ref([]) }),
   loadUserPack: vi.fn(),
 }));
-vi.mock("@/cartographer/packLoader", () => ({
-  loadPack: vi.fn(() => Promise.reject(new Error("no manifest server in tests"))),
+
+// Shared tile packs (#889 S6) — MapWorkbench now reads the library table via
+// this composable instead of a hardcoded BUNDLED_PACKS array. `mockLibraryRows`
+// is a real ref (mutable by a test even after mount, to simulate a query
+// refetch) that every call to the mocked `useLibraryTilePacks()` derives its
+// `publishedPacks` from, so a test can arrange the table's contents before
+// mounting and/or mutate it mid-test. `vi.mock` factories are hoisted above
+// every other module-level statement, so the shared state they close over
+// must itself be built inside `vi.hoisted` — a bare top-level `const` here
+// would still be in the temporal dead zone when the factory below runs.
+const { mockLibraryRows, mockLibraryLoading, mockLoadLibraryPack } = vi.hoisted(() => {
+  // eslint-disable-next-line no-restricted-imports -- see note below
+  const { ref } = require("vue") as typeof import("vue");
+  type LibraryTilePackLike = { pack_id: string; status: string; manifest: { name: string } };
+  return {
+    mockLibraryRows: ref<LibraryTilePackLike[]>([]),
+    mockLibraryLoading: ref(false),
+    mockLoadLibraryPack: vi.fn((pack: LibraryTilePackLike) =>
+      pack.pack_id === "no-assets"
+        ? Promise.reject(new Error("no CDN objects for this pack in tests"))
+        : Promise.resolve({
+            manifest: pack.manifest,
+            validation: { valid: true, missing: [], extras: [], warnings: [] },
+            getTile: () => ({ source: new Image(), isPlaceholder: true }),
+            variantCount: () => 1,
+          }),
+    ),
+  };
+});
+vi.mock("@/composables/cartographer/useLibraryTilePacks", () => ({
+  useLibraryTilePacks: () => ({
+    packs: { isLoading: mockLibraryLoading },
+    publishedPacks: computed(() => mockLibraryRows.value.filter((p) => p.status === "published")),
+  }),
+  loadLibraryPack: mockLoadLibraryPack,
 }));
+
+function libraryPack(overrides: Partial<LibraryTilePack> & { pack_id: string; name: string }): LibraryTilePack {
+  const manifest: TilePackManifest = {
+    pack_id: overrides.pack_id,
+    name: overrides.name,
+    description: "",
+    pack_version: 1,
+    schema_version: 1,
+    base_tile_size: 128,
+    assets: {},
+  };
+  return {
+    id: `row-${overrides.pack_id}`,
+    pack_version: 1,
+    description: "",
+    schema_version: 1,
+    manifest,
+    status: "published",
+    content_source_key: "grimoire-art",
+    license_keys: ["cc0"],
+    ai_provenance: null,
+    sort_order: 0,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  mockLibraryRows.value = [];
+  mockLibraryLoading.value = false;
+  mockLoadLibraryPack.mockClear();
+});
+
+// Several tests below mount MapWorkbench against a shared, mutable
+// `mockLibraryRows` (needed so the "refetch" test can react to a post-mount
+// mutation) — every other component ever mounted in this file subscribes to
+// that same ref via the mocked `useLibraryTilePacks`, so a wrapper left
+// mounted past its own test would still react to a later test's mutation
+// and patch against a torn-down tree. Auto-unmounting after every test (not
+// just the new ones) is the fix, not a per-test workaround.
+enableAutoUnmount(afterEach);
 
 // The Plan layer (#884 S7b) — `usePlanPalette` calls these for real
 // (TanStack Query/mutation composables), which need a QueryClient this
@@ -220,6 +298,92 @@ describe("MapWorkbench", () => {
       await wrapper.setProps({ map: { ...baseMap, name: "Renamed" } });
       expect(wrapper.text()).toContain("Floor brush");
       expect(wrapper.text()).not.toContain("Claim");
+    });
+  });
+
+  // #889 S6 — the picker used to be a hardcoded BUNDLED_PACKS array; it now
+  // reads the `library_tile_packs` table via `useLibraryTilePacks`.
+  describe("tile-pack picker reads the library table (#889 S6)", () => {
+    it("offers published library packs instead of a hardcoded list, and excludes drafts", async () => {
+      mockLibraryRows.value = [
+        libraryPack({ pack_id: "sunny-meadow", name: "Sunny Meadow", sort_order: 0 }),
+        libraryPack({ pack_id: "unpublished-pack", name: "Draft Pack", status: "draft", sort_order: 1 }),
+      ];
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      await flushPromises();
+
+      const inspector = wrapper.findComponent(CartographerInspectorPanel);
+      const bundledPacks = inspector.props("bundledPacks");
+      expect(bundledPacks.map((p) => p.pack_id)).toEqual(["sunny-meadow"]);
+    });
+
+    it("shows a real empty state when nothing is published, never a fallback constant", async () => {
+      mockLibraryRows.value = [];
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
+      await flushPromises();
+
+      expect(wrapper.text()).toContain("No tile packs are published yet");
+      const vm = wrapper.vm as unknown as { getCurrentPackId: () => string };
+      expect(vm.getCurrentPackId()).toBe("");
+    });
+
+    it("defaults to the first published pack the query returns", async () => {
+      mockLibraryRows.value = [
+        libraryPack({ pack_id: "aaa-first", name: "Aaa First", sort_order: 0 }),
+        libraryPack({ pack_id: "zzz-last", name: "Zzz Last", sort_order: 1 }),
+      ];
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: true } });
+      await flushPromises();
+
+      const vm = wrapper.vm as unknown as { getCurrentPackId: () => string };
+      expect(vm.getCurrentPackId()).toBe("aaa-first");
+    });
+
+    it("keeps a pack with no loadable assets in the picker (procedural-fallback guarantee)", async () => {
+      mockLibraryRows.value = [
+        libraryPack({ pack_id: "stone-dungeon", name: "Stone Dungeon", sort_order: 0 }),
+        libraryPack({ pack_id: "no-assets", name: "No Assets Yet", sort_order: 1 }),
+      ];
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      await flushPromises();
+
+      // Still listed even though its own runtime load rejects below — the
+      // picker's contents come from the table, never from load success.
+      const inspector = wrapper.findComponent(CartographerInspectorPanel);
+      const bundledPacks = inspector.props("bundledPacks");
+      expect(bundledPacks.map((p) => p.pack_id)).toEqual(["stone-dungeon", "no-assets"]);
+
+      const vm = wrapper.vm as unknown as { getRuntimes: () => Map<string, unknown> };
+      expect(vm.getRuntimes().has("stone-dungeon")).toBe(true);
+      // The one pack whose load rejected never got a runtime entry — but
+      // that per-pack failure didn't take the rest of the component down.
+      expect(vm.getRuntimes().has("no-assets")).toBe(false);
+      expect(wrapper.exists()).toBe(true);
+    });
+
+    it("keeps a DM's own pack choice when the library query refetches", async () => {
+      mockLibraryRows.value = [
+        libraryPack({ pack_id: "stone-dungeon", name: "Stone Dungeon", sort_order: 0 }),
+        libraryPack({ pack_id: "icy-cave", name: "Icy Cave", sort_order: 1 }),
+      ];
+      const wrapper = mount(MapWorkbench, { props: { map: baseMap, viewMode: false }, ...editModeStubs });
+      await flushPromises();
+      const vm = wrapper.vm as unknown as { getCurrentPackId: () => string };
+      expect(vm.getCurrentPackId()).toBe("stone-dungeon");
+
+      const inspector = wrapper.findComponent(CartographerInspectorPanel);
+      inspector.vm.$emit("update:currentPackId", "icy-cave");
+      await flushPromises();
+      expect(vm.getCurrentPackId()).toBe("icy-cave");
+
+      // Simulate a refetch (e.g. an admin republishing a pack) that reorders
+      // the table — this must not force the DM back to whatever is now first.
+      mockLibraryRows.value = [
+        libraryPack({ pack_id: "icy-cave", name: "Icy Cave", sort_order: 0 }),
+        libraryPack({ pack_id: "stone-dungeon", name: "Stone Dungeon", sort_order: 1 }),
+      ];
+      await flushPromises();
+      expect(vm.getCurrentPackId()).toBe("icy-cave");
     });
   });
 

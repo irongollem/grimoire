@@ -47,7 +47,8 @@
     "dev:buckets": "tsx --tsconfig tsconfig.node.json scripts/dev-buckets.ts",
     "cartographer:pack": "tsx --tsconfig tsconfig.node.json scripts/cartographer-pack.ts",
     "art:manifest": "tsx --tsconfig tsconfig.node.json scripts/art-manifest.ts",
-    "art:publish": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/art-publish.ts"
+    "art:publish": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/art-publish.ts",
+    "seed-library-tile-packs": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-tile-packs.ts"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",
