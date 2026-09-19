@@ -265,7 +265,11 @@ describe("component tags resolve to real imports", () => {
   // three more, and all three were `:icon="IconDelete"` inside multi-line tags
   // that a `<[^>]*>` strip had truncated on a `>` inside an attribute expression.
   // Text nodes are a thing the compiler knows and a regex does not.
-  it("no component name is rendered as literal text", () => {
+  // 20s, not the 5s default: this one test compiles every SFC in the app
+  // (~2.5s alone on a warm machine), and under the full suite's contention it
+  // crossed the default and failed as a timeout rather than on an assertion —
+  // a flake that says "component rendered as text" when nothing is wrong.
+  it("no component name is rendered as literal text", { timeout: 20_000 }, () => {
     const violations: string[] = [];
     let checked = 0;
 
