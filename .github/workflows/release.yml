@@ -292,6 +292,8 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # Not a secret — a team slug is in every Vercel URL.
+      VERCEL_TEAM_SLUG: irongollem-3997s-projects
     steps:
       # Fails the release loudly rather than skipping: once Vercel's Git
       # deploys are off, a missing secret here means nothing ships at all.
@@ -312,9 +314,26 @@ jobs:
         run: npm ci
       - name: Install the Vercel CLI
         run: npm install --global vercel@58
+      # Diagnostic only, and never fatal: the deploy token is PROJECT-scoped
+      # ("has access to this project: grimoire"), and `whoami` asks which USER
+      # a token belongs to — a question a project token may refuse. Its output
+      # still tells the next reader which kind of credential is in play when
+      # the steps below fail.
+      - name: Whose token is this? (diagnostic)
+        continue-on-error: true
+        run: vercel whoami --token="$VERCEL_TOKEN"
+      # --scope and --project rather than relying on VERCEL_ORG_ID /
+      # VERCEL_PROJECT_ID being picked up implicitly: the env-var form links a
+      # directory that has no `.vercel/` yet, and on a bare CI checkout that is
+      # exactly the case that failed. The ids stay in secrets; only how they
+      # reach the CLI changes.
+      #
+      # --scope takes the team SLUG here, not the team id: a project-scoped
+      # token resolves its own team, and the slug is what the CLI matches
+      # against. --project takes the project id from the secret.
       - name: Pull Vercel's production settings and env
-        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+        run: vercel pull --yes --environment=production --scope="$VERCEL_TEAM_SLUG" --project="$VERCEL_PROJECT_ID" --token="$VERCEL_TOKEN"
       - name: Build with the production env
         run: vercel build --prod --token="$VERCEL_TOKEN"
       - name: Deploy to Vercel production
-        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        run: vercel deploy --prebuilt --prod --scope="$VERCEL_TEAM_SLUG" --token="$VERCEL_TOKEN"
