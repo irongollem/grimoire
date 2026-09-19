@@ -43,14 +43,15 @@
     <!-- Sticky header region — sticky on mobile, static on desktop -->
     <div class="sticky top-0 z-20 bg-background px-4 pt-3 md:px-6 md:pt-6">
       <!-- Title + actions row -->
-      <div class="flex items-start justify-between gap-3 md:gap-4">
+      <div class="flex items-start justify-between gap-3 md:flex-wrap md:gap-4">
         <!--
           Title + description hidden on <md. AppTopBar renders the page
           title on mobile, so repeating a big h1 here duplicates the label
           and eats ~70px of vertical space right above the action row that
           users would rather spend on the list itself.
         -->
-        <div class="hidden md:block md:min-w-0 md:flex-1">
+        <!-- Content-sized and unshrinkable; the action row wraps instead. -->
+        <div class="hidden md:block md:min-w-0 md:max-w-full md:shrink-0">
           <h1
             class="font-cinzel text-xl md:text-3xl font-bold text-foreground tracking-wide flex min-w-0 items-center gap-2"
           >
@@ -69,14 +70,26 @@
           Actions wrapper:
           - On mobile: capped width + overflow-x-auto so long action rows stay
             reachable via horizontal scroll instead of pushing off the viewport.
-          - On ≥md: natural width, no scroll.
+          - On ≥md: natural width, no scroll — and this is the column that
+            gives way. The title column used to be `md:flex-1` against a
+            `shrink-0` action row, so it only ever got the leftovers and six
+            actions were enough to clip "NPC Tracker" down to "NPC …" at
+            1100px. Now the row wraps, the title is content-sized and
+            unshrinkable, and this column keeps a content-sized basis so it is
+            what overflows the line and wraps below it. The page's own name is
+            worth more than keeping the buttons on one line. Same trade, and
+            the same three-part wiring, as `PageHeader`.
+          - `md:shrink` undoes the mobile `shrink-0` on purpose. Below md the
+            row must keep its max-content width so `overflow-x-auto` has
+            something to scroll; at md+ that same `shrink-0` stopped it fitting
+            the line at all, so it ran off the right edge instead of wrapping.
           - Negative-margin/padding trick so the scroll area extends to the
             viewport edge on mobile rather than being clipped by the
             surrounding px-4.
         -->
         <div
           v-if="hasActions"
-          class="flex items-center gap-2 shrink-0 -mr-4 pr-4 md:mr-0 md:pr-0 max-w-full md:max-w-none overflow-x-auto md:overflow-visible list-actions-row"
+          class="flex items-center gap-2 shrink-0 md:shrink md:grow md:flex-wrap md:justify-end -mr-4 pr-4 md:mr-0 md:pr-0 max-w-full md:max-w-none overflow-x-auto md:overflow-visible list-actions-row"
         >
           <slot name="actions" />
         </div>

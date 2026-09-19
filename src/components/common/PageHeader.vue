@@ -17,9 +17,15 @@
     <!-- Header section -->
     <div class="max-w-full min-w-0 bg-background px-4 pt-4 md:px-6 md:pt-6">
       <div
-        class="flex min-w-0 max-w-full flex-col gap-2 lg:flex-row lg:items-start lg:justify-between lg:gap-4"
+        class="flex min-w-0 max-w-full flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-start lg:justify-between lg:gap-4"
       >
-        <div class="min-w-0 max-w-full hidden md:block lg:flex-1">
+        <!--
+          `lg:shrink-0`, and the row above it wraps. The title takes the width
+          its own text needs; when the actions beside it no longer fit, they
+          wrap onto a line of their own rather than taking it from here. See
+          the note on the actions column.
+        -->
+        <div class="min-w-0 max-w-full hidden md:block lg:shrink-0">
           <h1
             class="wrap-break-word font-cinzel text-2xl md:text-3xl font-bold text-foreground tracking-wide inline-flex items-center gap-2"
           >
@@ -34,18 +40,25 @@
           </p>
         </div>
         <!--
-          No `lg:shrink-0` here on purpose. With the title column at `lg:flex-1`
-          (flex-basis 0%), its shrink contribution is weighted at zero, so it no
-          longer gives up width to a crowded action row — a `shrink-0` action
-          column instead sizes to its own max-content and never triggers
-          `flex-wrap`, which is what let eight buttons hold one unbroken row while
-          squeezing the page's own title to one letter per line. On a detail page
-          the title is the page's identity, so the buttons wrap and the name
-          keeps its width.
+          This column gives way, not the title. It was `lg:shrink-0` against a
+          title that could shrink to zero, so a crowded header pushed 100% of
+          the overflow into the name: eight buttons held one unbroken row while
+          the NPC editor rendered "Thorin Hood" one letter per line at 1100px.
+
+          The fix is which item is allowed to yield, and it has to be said in
+          three places at once or it does nothing. The row wraps
+          (`lg:flex-wrap`), the title refuses to shrink (`lg:shrink-0`), and
+          this column keeps a content-sized flex basis so that it is what
+          overflows the line and wraps below. `lg:flex-1` here would be the
+          quiet way to break it again — basis 0 always fits, so the line would
+          never break and the title would be back to taking the leftovers.
+
+          `lg:grow` so the wrapped row still fills its line and `justify-end`
+          still means the right margin.
         -->
         <div
           v-if="$slots.actions"
-          class="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end"
+          class="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:grow lg:justify-end"
         >
           <slot name="actions" />
         </div>

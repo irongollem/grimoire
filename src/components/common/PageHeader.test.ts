@@ -23,29 +23,34 @@ describe("PageHeader", () => {
     expect(body.classes()).not.toContain("lg:overflow-y-auto");
   });
 
-  // A crowded action row used to refuse to give up any width, so the title
-  // column absorbed 100% of the overflow and rendered one letter per line at
-  // ~1100px. `lg:flex-1` on the title plus dropping `lg:shrink-0` from the
-  // actions column is what lets the actions wrap instead — both are the kind
-  // of class an unrelated change removes without noticing.
-  it("lets the title column claim its share of row width instead of collapsing", () => {
-    const wrapper = mount(PageHeader, {
+  // A crowded action row used to refuse to give up any width while the title
+  // column could shrink to zero, so the title absorbed 100% of the overflow
+  // and rendered one letter per line at ~1100px. The fix is three classes that
+  // only work together — the row wraps, the title does not shrink, and the
+  // actions keep a content-sized basis so they are what wraps. Any one of them
+  // going missing restores the bug quietly, hence a test per class.
+  const headerWithActions = () =>
+    mount(PageHeader, {
       props: { title: "Quest" },
       slots: { actions: "<button>Action</button>" },
     });
 
-    const titleWrapper = wrapper.get("h1").element.parentElement!;
-    expect(titleWrapper.className).toContain("lg:flex-1");
+  it("wraps the header row rather than squeezing the title", () => {
+    const row = headerWithActions().get("h1").element.parentElement!.parentElement!;
+    expect(row.className).toContain("lg:flex-wrap");
   });
 
-  it("lets the actions column wrap instead of refusing to shrink", () => {
-    const wrapper = mount(PageHeader, {
-      props: { title: "Quest" },
-      slots: { actions: "<button>Action</button>" },
-    });
+  it("keeps the title at the width its own text needs", () => {
+    const titleWrapper = headerWithActions().get("h1").element.parentElement!;
+    expect(titleWrapper.className).toContain("lg:shrink-0");
+  });
 
-    const actionsWrapper = wrapper.get("button").element.parentElement!;
+  it("makes the actions the column that gives way", () => {
+    const actionsWrapper = headerWithActions().get("button").element.parentElement!;
     expect(actionsWrapper.className).toContain("flex-wrap");
     expect(actionsWrapper.className).not.toContain("lg:shrink-0");
+    // `lg:flex-1` here would set a zero flex basis, which always fits — the
+    // line would never break and the title would be back to taking leftovers.
+    expect(actionsWrapper.className).not.toContain("lg:flex-1");
   });
 });
