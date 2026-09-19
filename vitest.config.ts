@@ -49,6 +49,8 @@ export default defineConfig({
     // happy-dom gives DOM globals when we mount components or touch canvas.
     // For pure-function tests it costs ~nothing.
     environment: "happy-dom",
+    // Removes Web Animations from the test DOM — see the file for why.
+    setupFiles: ["./vitest.setup.ts"],
     // supabase/functions/**: edge functions are Deno, but their PURE logic modules
     // (no Deno/https imports — e.g. _shared/credit-math.ts) are unit-tested here.
     // infra/**: the Cloudflare Worker is plain JS with no build step and no
