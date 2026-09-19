@@ -223,11 +223,8 @@ jobs:
   # minutes before the `import-match` function it calls (every DM got a 404),
   # and a page pasted in that window was extracted with the previous prompt
   # (the new one landed 98 seconds later) — and #649 shipped against a schema
-  # that never got its migration on 9 Aug. So this is meant to be the only
-  # door: once it has released green, `vercel.json` turns off the Git
-  # integration's production deploys for `main`. Until then both deploy the
-  # same commit, which is harmless and keeps Vercel as the safety net while
-  # this job proves itself.
+  # that never got its migration on 9 Aug. So `vercel.json` turns off the Git
+  # integration's production deploys for `main`, and this is the only door.
   #
   # Runs when production-release succeeded OR was skipped (a push with no
   # Supabase changes has nothing to wait for) — never after it failed, which
