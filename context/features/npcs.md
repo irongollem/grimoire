@@ -76,7 +76,7 @@ Route: `/npcs/:id` (also `/npcs/new`)
 
 **Reading** (`/npcs/:id`) is a modal over the grid on tablet and up. The route is a **child** of `/npcs`, so `NpcsView` stays mounted behind it and keeps its scroll position and the revealed page of its infinite scroll — that is the whole reason for the nesting. Deep links from elsewhere in the app (global search, party tracker, faction members, chat, quest attachments) point at the same unchanged URL and land on grid-plus-modal; the grid costs nothing extra to draw, because `useNpcs` is one campaign-scoped query that 58 files already share. Closing is `router.replace("/npcs")`, so Back still returns to wherever the reader came from. On phones the same route is the full-screen `NpcDetailMobile` takeover, and the grid is not rendered at all.
 
-**Editing** (`?edit=true`) keeps the full page at every width. Reading is a glance, editing is a commitment, and a modal's best property — that it is cheap to dismiss — is the wrong property for a form with unsaved work: backdrop and Escape would become a data-loss surface, `NpcDetail` already opens three overlays of its own (`NpcGenerateDialog`, `PaywallModal`, delete confirm), and its seven header actions need a page header rather than a dialog's title bar. Saving an existing NPC returns to `/npcs/:id` on desktop — the grid with the sheet open on the saved record — and to `/npcs` on a phone, where that path is a takeover rather than a list.
+**Editing** (`?edit=true`) keeps the full page at every width. Reading is a glance, editing is a commitment, and a modal's best property — that it is cheap to dismiss — is the wrong property for a form with unsaved work: backdrop and Escape would become a data-loss surface, `NpcDetail` already opens three overlays of its own (`NpcGenerateDialog`, `PaywallModal`, delete confirm), and its header actions need a page header rather than a dialog's title bar. Saving an existing NPC returns to `/npcs/:id` on desktop — the grid with the sheet open on the saved record — and to `/npcs` on a phone, where that path is a takeover rather than a list.
 
 `useDetailModal` (`src/composables/useDetailModal.ts`) owns the decision, and both halves ask it the same question: `NpcsView` asks `showList`, `NpcDetailView` asks `asModal`, so the two can never disagree about which one the user is looking at.
 
@@ -92,14 +92,27 @@ Toggling between modes does not lose unsaved work because edit mode is URL-drive
 
 | Button                   | Condition          | Behaviour                                                                 |
 | ------------------------ | ------------------ | ------------------------------------------------------------------------- |
-| View                     | Existing NPC       | Drops `?edit=true`, returning to the modal over the grid (or the phone sheet) |
+| Cancel                   | Always             | Leaves without saving: drops `?edit=true` for an existing NPC (the sheet over the grid, exactly where Save lands), `/npcs` for a new one. The desktop twin of `NpcEditMobile`'s Cancel. |
 | Delete                   | Existing NPC       | Confirms, deletes NPC + storage images, navigates to `/npcs`              |
-| Scriptorium              | Existing NPC       | Formats NPC as a Scriptorium document and pushes to `/scriptorium/:docId` |
-| Copy to campaign…        | Existing NPC       | (#885) Opens `CopyToCampaignDialog` — `NpcDetail.vue` owns the flow (`useCopyEntityToCampaign`) and mounts the dialog on both layouts; the desktop button lives in `NpcDetailView.vue`'s `PageHeader` (calling the exposed `npcDetail.openCopy()`, same pattern as `sendToScriptorium`) and the mobile twin is an overflow-sheet item in `NpcEditMobile.vue` emitting `copy-to-campaign`. Not offered from the read-only sheet (`NpcSheet.vue`/`NpcDetailModal.vue`), matching `ItemDetail`'s edit-only placement. Reuses the file's existing `showPaywall` for a quota-exceeded copy. |
-| Reveal                   | Existing NPC       | `AudienceRevealControl` — who sees it, plus the field list in `#what`      |
-| Revealed / Concealed     | NPC has disguise   | Toggles `is_revealed` in-place                                            |
+| Send to… ▾               | Existing NPC       | `EntitySendMenu` — **Send to Scriptorium** (formats the NPC as a Scriptorium document and pushes to `/scriptorium/:docId`) and **Copy to campaign…** (#885, opens `CopyToCampaignDialog`). `NpcDetail.vue` owns both flows and mounts the copy dialog on both layouts; the desktop menu calls the exposed `sendToScriptorium()` / `openCopy()`, and the mobile twin is the same pair of rows in `NpcEditMobile.vue`'s overflow sheet. Neither is offered from the read-only sheet (`NpcSheet.vue`/`NpcDetailModal.vue`), matching `ItemDetail`'s edit-only placement. A quota-exceeded copy reuses the file's existing `showPaywall`. |
 | Generate (AI)            | API key configured | Opens `NpcGenerateDialog`                                                 |
+| Reveal                   | Existing NPC       | `AudienceRevealControl` — the face in `#identity`, who sees it, and the field list in `#what` |
 | Save / Create NPC        | Always             | Submits the `#npc-detail-form`                                            |
+
+Six controls, and the count is the point. There were eight, and the row never
+wrapped: `PageHeader`'s actions column was `shrink-0`, so at around 1100px it
+held its single line and the title column beside it — which could shrink to
+zero — collapsed to one letter per line. Both halves were fixed: the header now
+lets the buttons wrap and keeps the page's own name (see the note in
+`PageHeader.vue`), and the row itself was thinned —
+
+- **View → Cancel.** View dropped `?edit=true` and landed on the sheet over the
+  grid, which is where Save already lands; what desktop actually lacked was an
+  honest way to leave without saving.
+- **Scriptorium + Copy to campaign… → one "Send to…" menu.** Two destinations,
+  one verb, and the same two labels the phone's overflow sheet already used.
+- **Revealed / Concealed → the reveal control's "SEEN AS" section**, next to the
+  audience it decides the face for. See [Reveal](#reveal-741) below.
 
 ### Left Column — Portrait + Meta
 
@@ -200,12 +213,21 @@ NPCs were the worst case the unified reveal control was built to fix: **four** s
 
 `NpcRevealControl` (`src/components/npcs/NpcRevealControl.vue`) now owns all three behaviours and is mounted on every NPC surface — list card (`overlay` form), mobile app bar and action bar, detail header. It carries:
 
+- **Which face** — `NpcAlterEgoControl` in `RevealBody`'s `#identity` slot, shown only when the NPC has a `disguise_name` or `disguise_portrait_url`. See below.
 - **Who** — party members, written to `player_visible_to`
 - **What** — `RevealedFieldsPanel` over `NPC_PLAYER_FIELDS`: Portrait, Name, Species, Occupation, Location
 - **First-reveal defaults** — `fieldsForFirstReveal` (`lib/npcDisplay.ts`) seeds name + portrait when the DM has never picked any, so a reveal is not a blank card. Only when empty: re-revealing must not re-add a field they removed.
-- **Play-mode narration** — `sendNarrativeEvent` on a first reveal
+- **Play-mode narration** — `sendNarrativeEvent` on a first reveal, and again when the true form is revealed
 
-The **editor** is the exception, and deliberately: `NpcDetailView` binds `AudienceRevealControl` to the draft rather than the row, because the editor owns its Save and writing through on every checkbox would commit changes the DM has not agreed to and fight the form's dirty tracking.
+The **editor** is the exception, and deliberately: `NpcDetailView` binds `AudienceRevealControl` to the draft rather than the row, because the editor owns its Save and writing through on every checkbox would commit changes the DM has not agreed to and fight the form's dirty tracking. That includes the face: the editor's "SEEN AS" writes `form.is_revealed` and lands with Save, while every read surface writes it through immediately.
+
+#### The identity half — "SEEN AS"
+
+`RevealBody`'s section order is **identity → who → what**. Identity comes first because it decides *which* entity the rest of the popover is about; "what" comes last because choosing fields for an entity nobody can see is meaningless.
+
+That last point is why the `#identity` slot is **not** dimmed with the `#what` slot at `state === 'private'`. Which face an NPC is wearing changes what the **DM's own** grid card and page title render (`getNpcDisplayName` and friends key off `is_revealed`), whether or not a single player can see the NPC — so it stays live for a completely hidden NPC. Do not "fix" it into the dimmed block.
+
+`NpcAlterEgoControl` is presentation only — a `SegmentedControl` over **Alter ego** / **True form**, no state and no mutation — so the write-through read surfaces and the draft-bound editor can share one control. The two labels are the same pair the editor's portrait tabs already use (`artTab` in `NpcDetail.vue`); the options carry no icons on purpose, because the only ones that fit are this control's own eye/eye-off, which mean "players can see this" everywhere else in the popover.
 
 ### Shared-NPC notes panel
 
@@ -219,7 +241,7 @@ When an NPC is shared with at least one player, a panel appears at the top of th
 
 The read-only sheet uses a two-column layout (portrait column fixed 208 px, content column scrolls).
 
-Left column: portrait (portrait format), status + relationship badges, tags, faction links (clickable), alter-ego section with a quick Reveal/Conceal toggle (saves immediately, no edit-mode required; fires a chat event on reveal while a session is running).
+Left column: portrait (portrait format), status + relationship badges, tags, faction links (clickable), and an alter-ego line stating which face is showing. The toggle itself is not repeated here — it is the "SEEN AS" section of the reveal control in `NpcDetailModal`'s own header, which saves immediately and fires the chat event while a session is running.
 
 Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / Inventory / Relations / Combat / Voice tabs. The Relations tab embeds both `NpcRelationsSection` (NPC↔NPC) and `NpcPcNotesSection` (NPC↔party-member connections) so both are visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
 
@@ -482,7 +504,7 @@ Clicking a card opens a modal with:
 ## Key Capabilities / USPs
 
 - **Field-level player visibility**: rather than showing all-or-nothing, the DM controls exactly which of 7 fields are visible per NPC (portrait, name, status, species, occupation, relationship, location). This allows mysteries — an NPC can be "known" (portrait shown, location shown) but still anonymous (name hidden).
-- **Alter-ego / disguise system**: NPCs can have a parallel identity (separate name, portrait, focal point). The DM toggles `is_revealed` at any time from the sheet header or the list; a chat event fires automatically when the reveal happens during a session.
+- **Alter-ego / disguise system**: NPCs can have a parallel identity (separate name, portrait, focal point). The DM toggles `is_revealed` from the "SEEN AS" section of the reveal control, which is on every NPC surface — list card, sheet header, mobile bars, editor; a chat event fires automatically when the reveal happens during a session.
 - **Per-PC connection notes**: the DM can write individual notes for each party member's relationship with an NPC. Each player sees only their own note in the portal lightbox, creating personalised backstory.
 - **Relationship Web with inline editing**: a force-directed graph of all NPC connections. Edges are clickable to edit/delete. Shift+click creates new connections directly on the graph without leaving the view.
 - **13-type directional relationship taxonomy** with automatic inverse type: storing "Mentor" from NPC A's side automatically reads as "Apprentice" from NPC B's side.

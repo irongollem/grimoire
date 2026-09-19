@@ -22,6 +22,9 @@
     dirty tracking.
   -->
   <RevealControl :adapter="adapter" :entity-name="name" :form="form">
+    <template v-if="$slots.identity" #identity>
+      <slot name="identity" />
+    </template>
     <template v-if="$slots.what" #what>
       <slot name="what" />
     </template>

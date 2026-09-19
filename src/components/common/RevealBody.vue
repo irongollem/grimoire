@@ -5,11 +5,26 @@
     two presentations own their own markup they start to differ, which is how
     the app ended up with four reveal UIs in the first place.
 
-    Order is deliberate — "who" first, then "what". Choosing fields for an
-    entity nobody can see is meaningless, so the audience decision comes first
-    and gates the rest.
+    Order is now identity → who → what. Identity comes first because it
+    decides *which* entity the rest of the popover is about — an NPC's alter
+    ego toggle picks the face before "who can see it" has any meaning to pick
+    a face for. Then "who", then "what": choosing fields for an entity nobody
+    can see is meaningless, so the audience decision comes before that.
   -->
   <div class="flex flex-col">
+    <!--
+      "Identity" — which face of the entity the rest of this popover is about
+      (an NPC's alter ego vs. true form). Deliberately NOT dimmed with the
+      "what" slot below: "what" decides how much of a *shared* thing to show,
+      which is meaningless while nothing is shared, but which face an NPC is
+      wearing changes what the DM's own grid and header render right now,
+      whether or not any player can see this NPC at all. So it stays live even
+      at `state === 'private'`.
+    -->
+    <div v-if="$slots.identity" class="border-b border-border px-3 py-3">
+      <slot name="identity" />
+    </div>
+
     <div class="px-3 pt-3">
       <p class="mb-2 font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">
         VISIBLE TO

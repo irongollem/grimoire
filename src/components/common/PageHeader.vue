@@ -19,7 +19,7 @@
       <div
         class="flex min-w-0 max-w-full flex-col gap-2 lg:flex-row lg:items-start lg:justify-between lg:gap-4"
       >
-        <div class="min-w-0 max-w-full hidden md:block">
+        <div class="min-w-0 max-w-full hidden md:block lg:flex-1">
           <h1
             class="wrap-break-word font-cinzel text-2xl md:text-3xl font-bold text-foreground tracking-wide inline-flex items-center gap-2"
           >
@@ -33,9 +33,19 @@
             {{ description }}
           </p>
         </div>
+        <!--
+          No `lg:shrink-0` here on purpose. With the title column at `lg:flex-1`
+          (flex-basis 0%), its shrink contribution is weighted at zero, so it no
+          longer gives up width to a crowded action row — a `shrink-0` action
+          column instead sizes to its own max-content and never triggers
+          `flex-wrap`, which is what let eight buttons hold one unbroken row while
+          squeezing the page's own title to one letter per line. On a detail page
+          the title is the page's identity, so the buttons wrap and the name
+          keeps its width.
+        -->
         <div
           v-if="$slots.actions"
-          class="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:shrink-0 lg:justify-end"
+          class="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end"
         >
           <slot name="actions" />
         </div>

@@ -28,14 +28,27 @@
     :title="displayName"
     :description="npc ? subtitle : 'Fill in the details below to add a new NPC to your realm'"
   >
+    <!--
+      Six controls, reading left to right as the shape of the task: the two
+      ways out, the two things you might do to this record, then its state and
+      the commit. There were eight, and at ~1100px the row held its single line
+      while the page title was squeezed to one letter per line beside it — see
+      the wrap note in PageHeader for that half. This half is the thinning:
+
+        View                  → Cancel. It dropped `?edit=true` and landed on the
+                                sheet over the grid, which is where Save and
+                                Cancel already land; what was missing on desktop
+                                was an honest way to leave without saving.
+        Scriptorium + Copy…   → one "Send to…" menu. Two destinations, one verb.
+        Revealed / Concealed  → the reveal control's own "SEEN AS" section, next
+                                to the audience it decides the face for.
+    -->
     <template #actions>
-      <!-- Back to reading — which on desktop means back to the modal over the
-           grid, and on a phone the full-screen sheet. -->
       <PageHeaderAction
-        v-if="!isNewNpc"
-        label="View"
-        :icon="IconDocument"
-        @click="stopEditing"
+        label="Cancel"
+        variant="ghost"
+        :collapse-label-on-mobile="false"
+        @click="cancelEdit"
       />
 
       <!-- Edit-mode actions (only once NpcDetail is mounted) -->
@@ -47,25 +60,25 @@
           variant="destructive"
           @click="npcDetail.confirmDelete()"
         />
-        <PageHeaderAction
+        <EntitySendMenu
           v-if="npc?.id"
-          :label="npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Scriptorium'"
-          :tooltip="npcDetail.isSendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium'"
-          :disabled="npcDetail.isSendingToScriptorium"
-          :icon="IconScrollText"
-          @click="npcDetail.sendToScriptorium()"
+          :sending-to-scriptorium="npcDetail.isSendingToScriptorium"
+          @scriptorium="npcDetail.sendToScriptorium()"
+          @copy="npcDetail.openCopy()"
         />
         <PageHeaderAction
-          v-if="npc?.id"
-          label="Copy to campaign…"
-          :icon="IconCopy"
-          @click="npcDetail.openCopy()"
+          v-if="npcDetail.isAiEnabled"
+          label="Generate"
+          :icon="IconGenerate"
+          @click="npcDetail.showGenerateDialog = true"
         />
         <!--
           Draft-bound: this editor owns its Save, so the reveal edits the form
-          rather than writing through. Both halves are here — the field list
-          used to be a separate panel bolted to the top of the form, which is
-          how an NPC ended up with four reveal UIs.
+          rather than writing through. All three halves are here — who sees this
+          NPC, which face they see, and which fields. The field list used to be a
+          separate panel bolted to the top of the form and the face used to be a
+          header button of its own, which is how an NPC ended up with four reveal
+          UIs and three alter-ego toggles.
         -->
         <AudienceRevealControl
           v-if="npc?.id"
@@ -73,6 +86,15 @@
           :visible-to="npcDetail.form.player_visible_to"
           @change="npcDetail.form.player_visible_to = $event"
         >
+          <template
+            v-if="npcDetail.form.disguise_name || npcDetail.form.disguise_portrait_url"
+            #identity
+          >
+            <NpcAlterEgoControl
+              :revealed="npcDetail.form.is_revealed"
+              @change="npcDetail.form.is_revealed = $event"
+            />
+          </template>
           <template #what>
             <p class="mb-2 font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">
               THEY ALSO SEE
@@ -84,19 +106,6 @@
             />
           </template>
         </AudienceRevealControl>
-        <PageHeaderAction
-          v-if="npc?.id && (npcDetail.form.disguise_name || npcDetail.form.disguise_portrait_url)"
-          :label="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
-          :tooltip="npcDetail.form.is_revealed ? 'Revealed' : 'Concealed'"
-          :icon="npcDetail.form.is_revealed ? IconReveal : IconHide"
-          @click="npcDetail.form.is_revealed = !npcDetail.form.is_revealed"
-        />
-        <PageHeaderAction
-          v-if="npcDetail.isAiEnabled"
-          label="Generate"
-          :icon="IconGenerate"
-          @click="npcDetail.showGenerateDialog = true"
-        />
         <!-- form= attribute submits the NpcDetail form from outside it -->
         <PageHeaderAction
           type="submit"
@@ -132,7 +141,7 @@
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
-import { IconCopy, IconDelete, IconDocument, IconGenerate, IconHide, IconReveal, IconScrollText } from '@/lib/icons';
+import { IconDelete, IconGenerate } from '@/lib/icons';
 import { useNpc } from "@/composables/npcs/useNpcs";
 import { useDetailModal } from "@/composables/useDetailModal";
 import { useRecentNpcs } from "@/composables/dashboard/useRecentNpcs";
@@ -143,6 +152,8 @@ import NpcDetail from "@/components/npcs/NpcDetail.vue";
 import NpcDetailModal from "@/components/npcs/NpcDetailModal.vue";
 import NpcDetailMobile from "@/components/npcs/NpcDetailMobile.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import EntitySendMenu from "@/components/common/EntitySendMenu.vue";
+import NpcAlterEgoControl from "@/components/npcs/NpcAlterEgoControl.vue";
 import RevealedFieldsPanel from "@/components/common/RevealedFieldsPanel.vue";
 import { getNpcDisplayName, NPC_PLAYER_FIELDS } from "@/lib/npcDisplay";
 
@@ -168,7 +179,19 @@ const showMobileRead = computed(() => isMobile.value && !isEditing.value && !isN
 const showMobileEdit = computed(() => isMobile.value && isEditing.value && !isLoading.value);
 const showDesktopEdit = computed(() => !isMobile.value && isEditing.value);
 
-function stopEditing() {
+/**
+ * Leave the editor without saving — the desktop twin of `NpcEditMobile`'s
+ * Cancel, which `NpcDetail.onMobileCancel` already handles the same two ways.
+ *
+ * An existing NPC only has to drop `?edit=true`: the read view is this same
+ * route, so the sheet opens over the grid exactly where Save would have landed.
+ * A new one has no record to go back to, so it goes to the list.
+ */
+function cancelEdit() {
+  if (isNewNpc.value) {
+    void router.push("/npcs");
+    return;
+  }
   const q = { ...route.query };
   delete q.edit;
   void router.replace({ query: q });

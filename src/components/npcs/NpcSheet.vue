@@ -40,25 +40,16 @@
         </div>
       </div>
 
-      <!-- Alter ego reveal control (DM only — always visible in the sheet) -->
+      <!--
+        ALTER EGO status, at a glance. The toggle itself now lives in the
+        reveal control in this modal's header (`NpcDetailModal.vue`), so the
+        app has exactly one of it.
+      -->
       <div v-if="hasDisguise" class="pt-1 border-t border-border/50">
         <p class="font-cinzel text-2xs tracking-widest text-muted-foreground mb-1.5">ALTER EGO</p>
-        <div class="flex flex-col gap-1.5">
-          <p class="text-caption text-muted-foreground italic">
-            {{ npc.is_revealed ? `True form revealed` : `Disguised as ${npc.disguise_name || 'unknown'}` }}
-          </p>
-          <button
-            type="button"
-            :disabled="isToggling"
-            class="w-full py-1 text-label font-semibold rounded border transition-colors disabled:opacity-50"
-            :class="npc.is_revealed
-              ? 'border-border text-muted-foreground hover:border-foreground/40'
-              : 'border-amber-500/50 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'"
-            @click="toggleReveal"
-          >
-            {{ isToggling ? '…' : (npc.is_revealed ? '◈ Conceal' : '✦ Reveal') }}
-          </button>
-        </div>
+        <p class="text-caption text-muted-foreground italic">
+          {{ npc.is_revealed ? `True form revealed` : `Disguised as ${npc.disguise_name || 'unknown'}` }}
+        </p>
       </div>
     </div>
 
@@ -70,15 +61,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { RouterLink } from "vue-router";
 import FocalImage from "@/components/common/FocalImage.vue";
 import NpcTabContent from "@/components/npcs/NpcTabContent.vue";
-import { useUpdateNpc } from "@/composables/npcs/useNpcs";
 import { useNpcFactions } from "@/composables/factions/useFactions";
-import { getNpcDisplayPortrait, getNpcDisplayFocalPoint, getNpcPlayerFacingName } from "@/lib/npcDisplay";
-import { useUiStore } from "@/stores/ui";
-import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
+import { getNpcDisplayPortrait, getNpcDisplayFocalPoint } from "@/lib/npcDisplay";
 import type { Npc } from "@/types/npc.types";
 import { placeholderUrl } from "@/lib/placeholderFocalPoints";
 
@@ -92,36 +80,4 @@ const hasDisguise = computed(() =>
 
 const displayPortrait = computed(() => getNpcDisplayPortrait(props.npc));
 const displayFocalPoint = computed(() => getNpcDisplayFocalPoint(props.npc));
-
-// Quick reveal/conceal toggle — saves immediately without opening edit mode
-const { mutateAsync: updateNpc } = useUpdateNpc();
-const isToggling = ref(false);
-const ui = useUiStore();
-const { sendNarrativeEvent } = useCampaignMessages();
-
-async function toggleReveal() {
-  if (isToggling.value) return;
-  isToggling.value = true;
-  const revealing = !props.npc.is_revealed;
-  try {
-    await updateNpc({ id: props.npc.id, update: { is_revealed: revealing } });
-    // Announce reveal to players in play mode (fire-and-forget).
-    //
-    // Both halves of the sentence come from the player projection's own rule,
-    // never from `npc.name`: the DM can reveal the alter ego while leaving the
-    // name field unticked, and the old wording posted the true name into chat
-    // regardless — a name the portal card still renders as "???".
-    if (revealing && ui.dmMode === "play") {
-      const cover = getNpcPlayerFacingName({ ...props.npc, is_revealed: false });
-      const revealed = getNpcPlayerFacingName({ ...props.npc, is_revealed: true });
-      const msg =
-        revealed && cover && cover !== revealed ? `${cover} is revealed to be ${revealed}.`
-        : revealed ? `${revealed} has been revealed.`
-        : "A disguise falls away.";
-      void sendNarrativeEvent(msg, props.npc.id);
-    }
-  } finally {
-    isToggling.value = false;
-  }
-}
 </script>

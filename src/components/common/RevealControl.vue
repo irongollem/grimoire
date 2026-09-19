@@ -64,6 +64,9 @@
           :state="state"
           @close="open = false"
         >
+          <template v-if="$slots.identity" #identity>
+            <slot name="identity" />
+          </template>
           <slot name="what" />
         </RevealBody>
       </div>
@@ -77,6 +80,9 @@
         :state="state"
         @close="open = false"
       >
+        <template v-if="$slots.identity" #identity>
+          <slot name="identity" />
+        </template>
         <slot name="what" />
       </RevealBody>
     </MobileSheet>

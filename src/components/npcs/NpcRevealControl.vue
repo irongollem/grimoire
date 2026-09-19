@@ -12,6 +12,9 @@
     This owns all three behaviours, so every NPC surface gets the same one.
   -->
   <RevealControl :adapter="adapter" :entity-name="npc.name" :form="form">
+    <template v-if="hasDisguise" #identity>
+      <NpcAlterEgoControl :revealed="isRevealed" @change="setRevealed" />
+    </template>
     <template #what>
       <p class="mb-2 font-cinzel text-2xs font-semibold tracking-widest text-muted-foreground">
         THEY ALSO SEE
@@ -26,9 +29,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import RevealControl from "@/components/common/RevealControl.vue";
 import RevealedFieldsPanel from "@/components/common/RevealedFieldsPanel.vue";
+import NpcAlterEgoControl from "@/components/npcs/NpcAlterEgoControl.vue";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useParty } from "@/composables/party/useParty";
 import { useUpdateNpc } from "@/composables/npcs/useNpcs";
@@ -55,14 +59,18 @@ const ui = useUiStore();
 /** Local optimistic state, so a toggle lands without waiting for the refetch. */
 const visibleTo = ref<string[]>([...npc.player_visible_to]);
 const fields = ref<string[]>([...npc.player_visible_fields]);
+const isRevealed = ref<boolean>(npc.is_revealed);
 
 watch(
   () => npc,
   (next) => {
     visibleTo.value = [...next.player_visible_to];
     fields.value = [...next.player_visible_fields];
+    isRevealed.value = next.is_revealed;
   },
 );
+
+const hasDisguise = computed(() => !!(npc.disguise_name || npc.disguise_portrait_url));
 
 /**
  * Written out rather than built on `arrayRevealAdapter` because an NPC's
@@ -132,5 +140,35 @@ function announcedName(nextFields: string[]): string {
 function setFields(next: string[]) {
   fields.value = next;
   updateNpc({ id: npc.id, update: { player_visible_fields: next } });
+}
+
+/**
+ * The alter-ego toggle: which face this NPC is wearing. Independent of the
+ * audience above it — it changes what the DM's own grid and header render,
+ * whether or not a single player can see this NPC.
+ *
+ * Dropping the disguise in play mode announces it, fire-and-forget. Both
+ * halves of the sentence come from the player projection's own rule, never
+ * from `npc.name`: the DM can reveal the alter ego while leaving the name
+ * field unticked, and the old wording posted the true name into chat
+ * regardless — a name the portal card still renders as "???".
+ *
+ * Read against the local `fields` ref rather than the row, for the reason
+ * `announcedName` above spells out: a field the DM just ticked is still in
+ * flight, and the row would announce under a name they have already shared.
+ */
+function setRevealed(next: boolean) {
+  isRevealed.value = next;
+  updateNpc({ id: npc.id, update: { is_revealed: next } });
+  if (next && ui.dmMode === "play") {
+    const seen = { ...npc, player_visible_fields: fields.value };
+    const cover = getNpcPlayerFacingName({ ...seen, is_revealed: false });
+    const revealed = getNpcPlayerFacingName({ ...seen, is_revealed: true });
+    const msg =
+      revealed && cover && cover !== revealed ? `${cover} is revealed to be ${revealed}.`
+      : revealed ? `${revealed} has been revealed.`
+      : "A disguise falls away.";
+    void sendNarrativeEvent(msg, npc.id);
+  }
 }
 </script>
