@@ -4,7 +4,6 @@
   // tsconfig and do not follow project references, so without this copy they
   // cannot resolve a single `@/…` import.
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@edge-shared/*": ["./supabase/functions/_shared/*"]
