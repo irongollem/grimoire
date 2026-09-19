@@ -1,6 +1,6 @@
 #!/bin/sh
 # Local mirror of the "Verify content referential integrity" step in
-# .github/workflows/test.yml, which runs this same SQL against PRODUCTION
+# .github/workflows/release.yml, which runs this same SQL against PRODUCTION
 # immediately after `supabase db push` and fails the release on any returned
 # row. Running it locally first means a migration that strands text-id
 # references to shared content is caught before it can fail a deploy — and a

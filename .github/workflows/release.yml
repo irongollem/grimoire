@@ -1,4 +1,4 @@
-name: Application and Spell Rules
+name: Test and release
 
 on:
   pull_request:

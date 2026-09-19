@@ -369,7 +369,7 @@ export default defineConfig(({ mode }) => {
       swPlugin(assetCdnOrigin),
       // Last: it needs the finished bundle. Skipped entirely without a token, so
       // `npm run build` stays a zero-configuration command for contributors and
-      // for the CI gate in test.yml (which builds only to prove the build works
+      // for the CI gate in release.yml (which builds only to prove the build works
       // — a PR branch has no business minting production releases).
       ...(sentryAuthToken
         ? [

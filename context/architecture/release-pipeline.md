@@ -1,47 +1,68 @@
 # Release Pipeline & Deploy Topology
 
-How a merged commit becomes production, and — more importantly for outage
-tracing — the fact that **one push fans out into two independent deploy
-pipelines** that can land at different times or one-without-the-other.
+How a merged commit becomes production, in what order, and where the
+remaining windows are for outage tracing.
 
-## The two pipelines
+**One push, one ordered pipeline** — `.github/workflows/release.yml`
+("Test and release"). The frontend used to deploy separately, straight from
+Vercel's Git integration and in parallel with the backend; since 19 Sep 2026
+it ships last, from the commit CI tested, only after the backend it calls.
+
+## The pipeline
 
 ```mermaid
 flowchart TB
     push(["Push to main"])
 
-    subgraph gha ["GitHub Actions — test.yml (one ordered release gate)"]
-        app["application job<br/>lint · vitest · build"]
-        db["spell-database job<br/>migration-version guard ·<br/>supabase start · pgTAP ·<br/>content-integrity self-test ·<br/>spell concurrency"]
+    subgraph gha ["GitHub Actions — release.yml · Test and release"]
+        app["application<br/>lint · vitest · build"]
+        db["spell-database<br/>migration-version guard ·<br/>supabase start · pgTAP ·<br/>content-integrity self-test ·<br/>spell concurrency"]
         detect["release-changes<br/>did supabase/** change?"]
         rel["production-release<br/>(only if supabase changed)<br/>1. stripe:check (webhook parity — BEFORE db push)<br/>2. supabase db push (migrations → prod)<br/>3. content-integrity gate (Management API)<br/>4. deploy ALL edge functions (3 attempts)"]
+        fe["frontend-release<br/>(after production-release succeeded or was skipped)<br/>vercel pull → vercel build --prod →<br/>vercel deploy --prebuilt --prod"]
         app --> rel
         db --> rel
         detect --> rel
+        rel --> fe
+        app --> fe
+        db --> fe
     end
 
-    vercel["Vercel<br/>builds + deploys frontend<br/>(own pipeline, no gate shared with CI)"]
-
     push --> app & db & detect
-    push --> vercel
 
     rel --> supaprod[("Supabase production<br/>schema + edge functions")]
-    vercel --> web["dungeongrimoire.com app"]
+    fe --> web["dungeongrimoire.com app (Vercel)"]
 
     plans[("plans table changes")] -- "pg_net deploy hook<br/>(Vault: marketing_deploy_hook)" --> marketing["Vercel marketing site<br/>(separate static build)"]
 ```
 
+`production-release` and `frontend-release` share the concurrency group
+`supabase-production` and are never cancelled, so releases queue in order and
+an older run cannot deploy over a newer one.
+
+**Vercel's Git integration no longer deploys `main`** (`vercel.json`:
+`"git": { "deploymentEnabled": { "main": false } }`). Preview deploys for
+other branches and PRs are unaffected. `frontend-release` needs the
+`VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` repository secrets and
+fails loudly without them — with the Git deploys off, a skipped job would mean
+nothing ships. A red test run now also blocks the frontend, which it never did
+before.
+
 Separate PR-time check: `supabase-migrations.yml` applies all migrations to a
 throwaway Postgres on any PR touching `supabase/migrations/**`.
 
-## The three skew windows (root cause of past red releases)
+## The skew windows (root cause of past red releases)
 
-1. **Frontend ahead of schema.** Vercel deploys on every main push;
-   migrations only push when CI's gates pass *and* `supabase/**` changed. A
-   migration rejected by `db push` (e.g. a version at or below the newest
-   applied — the #649 release kill) means the app ships against a schema that
-   never got the change. *Symptom:* new UI erroring on missing
-   column/RPC → compare Vercel deploy time vs the `production-release` run.
+1. **Frontend ahead of the backend — closed by ordering, 19 Sep 2026.** Vercel
+   used to deploy on every main push while migrations and functions shipped
+   only after CI. That window shipped #649 against a schema that never got its
+   migration (9 Aug), and on 18 Sep the import review went live minutes before
+   the `import-match` function it calls (a 404 for every DM) while pages were
+   still being extracted with the previous prompt. `frontend-release` now runs
+   after `production-release`. *If a new UI errors on a missing column, RPC or
+   function anyway,* check whether `production-release` failed — the frontend
+   job does not run after a failed backend release, so a new UI in front of an
+   old backend means something bypassed CI (a manual `vercel deploy`).
 2. **Schema ahead of functions.** Inside `production-release`, `db push`
    lands before `functions deploy`, and function bundling resolves deps over
    the network (esm.sh/deno.land) at deploy time — a CDN blip after a
@@ -70,7 +91,7 @@ core:
   any new text-id reference to shared content must be added there in the same
   migration.
 
-## Client-side rollout (after Vercel deploys)
+## Client-side rollout (after frontend-release deploys)
 
 Users don't get the new build instantly — the service worker adopts it:
 poll every 5 min / on foreground, reload immediately unless the user is

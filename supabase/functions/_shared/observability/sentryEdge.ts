@@ -7,7 +7,7 @@ import { scrubEvent, redactText, redactUrl } from "./scrub.ts";
  *
  * Adding the SDK would put an npm dependency into all 45 function bundles, and
  * edge deploys resolve every dependency over the network at deploy time — the
- * `Deploy Edge Functions` step in test.yml retries three times precisely
+ * `Deploy Edge Functions` step in release.yml retries three times precisely
  * because an esm.sh blip has already killed a release *after* `db push` had
  * landed, leaving production schema ahead of function code. Paying that risk on
  * every deploy, for the error reporter, is the wrong trade.
