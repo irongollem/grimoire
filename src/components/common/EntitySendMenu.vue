@@ -26,9 +26,12 @@
     clipped by it. `useAnchoredPopover` positions against the trigger's
     viewport rect instead, so clipping never enters into it.
 
-    The two destinations are fixed rather than slot-driven: every entity
-    editor in the app carries exactly this pair (Scriptorium export, copy to
-    another campaign), so there is nothing here for a slot to vary.
+    The two destinations are fixed rather than slot-driven: every entity editor
+    in the app carries exactly this pair of actions (Scriptorium export, copy to
+    another campaign), so there is nothing here for a slot to vary. The NPC
+    editor is the first to route them through this menu; #895 tracks the rest,
+    and notes the one trap — `ItemSendMenu` already owns a differently-meaning
+    "Send to…" in the item header.
 
     `role="dialog"` with a label, not `role="menu"`, and the same on the
     trigger's `aria-haspopup` — deliberately the shape `RevealControl` already
