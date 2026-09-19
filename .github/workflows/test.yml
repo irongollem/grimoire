@@ -215,3 +215,69 @@ jobs:
           done
           echo "::error::Edge Function deploy failed after 3 attempts. Migrations from this release are already applied, so production schema is now ahead of the deployed function code — re-run this job before assuming the release landed."
           exit 1
+
+  # The frontend ships LAST, from the commit this workflow tested, after the
+  # schema and functions it calls are live. Vercel's own Git integration used
+  # to deploy `main` on push, in parallel with production-release, and that
+  # race is not theoretical: on 18 Sep 2026 the new import review shipped
+  # minutes before the `import-match` function it calls (every DM got a 404),
+  # and a page pasted in that window was extracted with the previous prompt
+  # (the new one landed 98 seconds later) — and #649 shipped against a schema
+  # that never got its migration on 9 Aug. So this is meant to be the only
+  # door: once it has released green, `vercel.json` turns off the Git
+  # integration's production deploys for `main`. Until then both deploy the
+  # same commit, which is harmless and keeps Vercel as the safety net while
+  # this job proves itself.
+  #
+  # Runs when production-release succeeded OR was skipped (a push with no
+  # Supabase changes has nothing to wait for) — never after it failed, which
+  # would put a frontend in front of a half-released backend. `always()` is
+  # what lets a skipped dependency through at all.
+  #
+  # Same concurrency group as production-release, never cancelled: releases
+  # queue behind each other, so an older run can't deploy over a newer one.
+  #
+  # `vercel pull` fetches the project's production env vars and build settings
+  # into .vercel/, `vercel build --prod` builds this exact checkout with them,
+  # and `--prebuilt` uploads that output rather than letting Vercel rebuild
+  # whatever `main` points at by then (which a deploy hook would do).
+  frontend-release:
+    if: >-
+      always()
+      && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && needs.application.result == 'success'
+      && needs.spell-database.result == 'success'
+      && (needs.production-release.result == 'success' || needs.production-release.result == 'skipped')
+    needs: [application, spell-database, release-changes, production-release]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: supabase-production
+      cancel-in-progress: false
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      # Fails the release loudly rather than skipping: once Vercel's Git
+      # deploys are off, a missing secret here means nothing ships at all.
+      - name: Vercel credentials are configured
+        run: |
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set in the repository secrets. Once Vercel's Git deploys for main are off (vercel.json), the frontend is never released without it."
+              exit 1
+            fi
+          done
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm install --global vercel@58
+      - name: Pull production settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy to production
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
