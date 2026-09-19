@@ -2,7 +2,7 @@ version: 2
 
 # Dependabot version updates. Free on this repo (public), as are the Actions
 # minutes the resulting PRs spend — and those PRs do run the full gate, because
-# neither `application` nor `spell-database` in test.yml reads a secret. A
+# neither `application` nor `spell-database` in release.yml reads a secret. A
 # Dependabot PR therefore proves lint + tests + build + a full migration replay
 # before you look at it.
 #
@@ -27,7 +27,7 @@ version: 2
 # Not covered here, so do not read a green Dependabot week as "everything is
 # current":
 #   - supabase/functions/* Deno imports — Dependabot has no Deno ecosystem.
-#   - The Supabase CLI version pinned as `with: version: 2.109.1` in test.yml —
+#   - The Supabase CLI version pinned as `with: version: 2.109.1` in release.yml —
 #     that is a workflow input, not a dependency, and nothing watches it.
 #   - infra/ (Cloudflare Worker) — wrangler.toml only, no manifest to parse.
 

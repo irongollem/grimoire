@@ -16,7 +16,7 @@ flowchart TB
 
     subgraph gha ["GitHub Actions — release.yml · Test and release"]
         app["application<br/>lint · vitest · build"]
-        db["spell-database<br/>migration-version guard ·<br/>supabase start · pgTAP ·<br/>content-integrity self-test ·<br/>spell concurrency"]
+        db["database<br/>migration-version guard ·<br/>supabase start · pgTAP ·<br/>content-integrity self-test ·<br/>spell concurrency"]
         detect["release-changes<br/>did supabase/** change?"]
         rel["production-release<br/>(only if supabase changed)<br/>1. stripe:check (webhook parity — BEFORE db push)<br/>2. supabase db push (migrations → prod)<br/>3. content-integrity gate (Management API)<br/>4. deploy ALL edge functions (3 attempts)"]
         fe["frontend-release<br/>(after production-release succeeded or was skipped)<br/>vercel pull → vercel build --prod →<br/>vercel deploy --prebuilt --prod"]
@@ -48,8 +48,12 @@ fails loudly without them — with the Git deploys off, a skipped job would mean
 nothing ships. A red test run now also blocks the frontend, which it never did
 before.
 
-Separate PR-time check: `supabase-migrations.yml` applies all migrations to a
-throwaway Postgres on any PR touching `supabase/migrations/**`.
+Pull requests run the same `application` and `database` gates
+(`database` replays every migration from scratch on every PR), and a
+newer push to a PR cancels its older run; pushes to `main` are never
+cancelled. There used to be a second workflow, `supabase-migrations.yml`,
+that replayed migrations on PRs touching them. It was removed on 19 Sep 2026
+because `database` already does that on every PR, with pgTAP on top.
 
 ## The skew windows (root cause of past red releases)
 

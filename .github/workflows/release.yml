@@ -6,22 +6,49 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Least privilege for the automatic GITHUB_TOKEN. No job writes to the repo;
+# production credentials come from secrets, not from this token.
+permissions:
+  contents: read
+
+# A newer push to the same PR makes the older run pointless (Dependabot
+# rebases its PR on every main merge), so PR runs cancel their predecessor.
+# A push to main is NEVER cancelled: each one may carry migrations, and the
+# release jobs below also queue on their own `supabase-production` group.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   application:
+    name: Application — lint, tests, build
     runs-on: ubuntu-latest
+    # Ceilings, not estimates (these jobs take 2–7 minutes): the default is six
+    # hours, and a hung `supabase start` or deploy would sit on it.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test -- --run
-      - run: npm run build
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint (oxlint)
+        run: npm run lint
+      - name: Unit tests (vitest)
+        run: npm test
+      - name: Typecheck and build (vue-tsc, vite)
+        run: npm run build
 
-  spell-database:
+  # Everything that needs a real Postgres: the migration-version guard, a
+  # full replay of every migration, pgTAP, the embed check, the content-
+  # integrity self-test and the spell concurrency test. Called
+  # `spell-database` until 19 Sep 2026, after the spell test it started as.
+  database:
+    name: Database — migrations, pgTAP, integrity
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         # Full history: the version guard below compares this branch's
@@ -39,18 +66,23 @@ jobs:
       # precisely so it can run here, before anything is installed, and in a
       # pre-push hook. Adding an install step to this job would cost more than
       # the check it guards.
-      - name: Migration versions are unique and land after main
+      - name: Migration versions are unique and newer than main
         run: node scripts/migration-rebase/cli.mjs --check
+      # Pinned to a commit SHA, not the moving `v3` tag: it is the one
+      # third-party action here, and in production-release it runs in the same
+      # job as SUPABASE_ACCESS_TOKEN and the production DB password. Dependabot
+      # (github-actions ecosystem) still proposes updates to the SHA.
+      #
       # setup-cli v3 installs the CLI from the npm `supabase` package rather
       # than a GitHub release, so a version pinned here must exist on npm — the
       # two publication streams are not guaranteed to carry the same tags. It
       # also dropped the `github-token` input, which this repo never passed.
-      - uses: supabase/setup-cli@v3
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
         with:
           version: 2.109.1
-      - name: Start migrated local database
+      - name: Replay every migration into a fresh database
         run: supabase start
-      - name: Direct API and transaction rules
+      - name: Database tests (pgTAP — RLS, RPCs, triggers)
         run: supabase test db
       # Asks a real PostgREST to resolve every embed the app ships. Nothing else
       # in CI talks to PostgREST, so an ambiguous embed typechecks, lints and
@@ -58,7 +90,7 @@ jobs:
       # which is exactly what #728 did, undetected, until a log trawl found it.
       # The ambiguity is a property of the schema, so this guards code nobody
       # touched: an unrelated new table can break a query that was always fine.
-      - name: Client embeds resolve to one relationship
+      - name: PostgREST embeds are unambiguous
         run: sh scripts/check-embeds.sh
       # The deploy gate is itself code, and it has been wrong in both
       # directions: it missed nine live referrers (#553 stranded 33 references
@@ -66,14 +98,16 @@ jobs:
       # item as dangling — a false positive there fails the release and strands
       # every migration queued behind it. This plants damage and requires the
       # gate to catch it, then plants valid rows and requires silence.
-      - name: Content integrity guard catches what it claims to
+      - name: Self-test the content-integrity gate
         run: sh scripts/test-content-integrity.sh
-      - name: Concurrent spell transactions
+      - name: Spell transactions under concurrency
         run: scripts/test-spell-concurrency.sh
 
   release-changes:
+    name: Detect backend changes
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       supabase: ${{ steps.changes.outputs.supabase }}
     steps:
@@ -83,12 +117,12 @@ jobs:
           # available so path detection covers the complete push.
           fetch-depth: 0
 
-      - name: Detect Supabase production changes
+      - name: Did this push change migrations or Edge Functions?
         id: changes
         env:
           BEFORE_SHA: ${{ github.event.before }}
         run: |
-          if git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- .github/workflows/test.yml supabase/migrations supabase/functions supabase/config.toml; then
+          if git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- .github/workflows/release.yml supabase/migrations supabase/functions supabase/config.toml; then
             echo "supabase=false" >> "$GITHUB_OUTPUT"
           else
             echo "supabase=true" >> "$GITHUB_OUTPUT"
@@ -99,9 +133,11 @@ jobs:
   # in one job guarantees that a function bundle can never reach production
   # before the schema it depends on.
   production-release:
+    name: Release backend — migrations, Edge Functions
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.release-changes.outputs.supabase == 'true'
-    needs: [application, spell-database, release-changes]
+    needs: [application, database, release-changes]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     concurrency:
       group: supabase-production
       cancel-in-progress: false
@@ -119,7 +155,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: supabase/setup-cli@v3
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
         with:
           version: 2.109.1
 
@@ -136,7 +172,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Install deps for the Stripe check
+      - name: Install dependencies (for the Stripe check)
         if: env.STRIPE_SECRET_KEY != ''
         run: npm ci
       - name: Stripe webhook configuration matches the code
@@ -150,16 +186,16 @@ jobs:
         run: |
           echo "::warning::STRIPE_SECRET_KEY is not set, so the Stripe webhook configuration was NOT verified. Add it to the repository secrets (a restricted key with read access to webhook endpoints is enough) so config drift fails the release instead of a customer's payment."
 
-      - name: Link the production project
+      - name: Link the Supabase CLI to production
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
 
-      - name: Push migrations to production
+      - name: Apply migrations to production
         run: supabase db push
 
       # A data migration that strands text-id references to shared content
       # (the #553 "Unknown creature" class) fails the release here instead of
       # surfacing as a player report.
-      - name: Verify content referential integrity
+      - name: Content-integrity gate (production)
         run: |
           payload=$(jq -Rs '{query: .}' < supabase/checks/content_integrity.sql)
           result=$(curl -sf -X POST \
@@ -239,14 +275,16 @@ jobs:
   # and `--prebuilt` uploads that output rather than letting Vercel rebuild
   # whatever `main` points at by then (which a deploy hook would do).
   frontend-release:
+    name: Release frontend — Vercel
     if: >-
       always()
       && github.event_name == 'push' && github.ref == 'refs/heads/main'
       && needs.application.result == 'success'
-      && needs.spell-database.result == 'success'
+      && needs.database.result == 'success'
       && (needs.production-release.result == 'success' || needs.production-release.result == 'skipped')
-    needs: [application, spell-database, release-changes, production-release]
+    needs: [application, database, release-changes, production-release]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     concurrency:
       group: supabase-production
       cancel-in-progress: false
@@ -257,7 +295,7 @@ jobs:
     steps:
       # Fails the release loudly rather than skipping: once Vercel's Git
       # deploys are off, a missing secret here means nothing ships at all.
-      - name: Vercel credentials are configured
+      - name: Check the Vercel credentials
         run: |
           for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
             if [ -z "${!name}" ]; then
@@ -270,11 +308,13 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm install --global vercel@58
-      - name: Pull production settings
+      - name: Install dependencies
+        run: npm ci
+      - name: Install the Vercel CLI
+        run: npm install --global vercel@58
+      - name: Pull Vercel's production settings and env
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-      - name: Build
+      - name: Build with the production env
         run: vercel build --prod --token="$VERCEL_TOKEN"
-      - name: Deploy to production
+      - name: Deploy to Vercel production
         run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
