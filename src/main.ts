@@ -6,6 +6,7 @@ import App from "./App.vue";
 import { vRollMode } from "./directives/vRollMode";
 import { routes, setupRouterGuard } from "./router/index";
 import { supabase, onSessionLost, consumeRefusedRead } from "./lib/supabase";
+import { createIdentityChangeGate } from "./lib/authIdentityChange";
 import { createSessionRecovery } from "./lib/sessionRecovery";
 import { track } from "./lib/analytics";
 import { getAiGeneratorRegistry } from "./ai/aiGeneratorRegistry";
@@ -107,6 +108,28 @@ supabase.auth.onAuthStateChange((event) => {
   if (event !== "TOKEN_REFRESHED") return;
   if (!consumeRefusedRead()) return;
   setTimeout(() => void queryClient.invalidateQueries(), 0);
+});
+
+// And the same remedy for the other way a query can hold an answer that was
+// right when it arrived: cached while signed out, served once signed in. See
+// `authIdentityChange.ts` for the production report and why nothing else
+// catches it — `authAwareFetch` refuses an anon read only when the app already
+// believes it is signed in, which is precisely not this case.
+//
+// Gated on the identity actually changing, because auth-js re-emits SIGNED_IN
+// for a session it already had (tab focus, a restored session) and refetching
+// the whole app on each of those would be a storm for nothing. Deferred by a
+// tick for the same reason as the handler above: this runs inside the auth lock.
+const identityChanged = createIdentityChangeGate();
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (!identityChanged(session?.user?.id ?? null)) return;
+  setTimeout(() => {
+    // Cancel before invalidating: a read that left anonymously a moment ago is
+    // still in flight, and left alone it resolves AFTER the refetch and writes
+    // its empty answer over the real one — the same wrong screen by a shorter
+    // route. Cancelling rolls those back, then everything re-asks with a token.
+    void queryClient.cancelQueries().then(() => queryClient.invalidateQueries());
+  }, 0);
 });
 
 // Every AI generator registers itself so the badge can discover it without
