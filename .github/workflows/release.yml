@@ -314,11 +314,17 @@ jobs:
         run: npm ci
       - name: Install the Vercel CLI
         run: npm install --global vercel@58
-      # Diagnostic only, and never fatal: the deploy token is PROJECT-scoped
-      # ("has access to this project: grimoire"), and `whoami` asks which USER
-      # a token belongs to — a question a project token may refuse. Its output
-      # still tells the next reader which kind of credential is in play when
-      # the steps below fail.
+      # Diagnostic only, and never fatal — but read its output before anything
+      # else when this job goes red. `whoami` asks which USER the token belongs
+      # to, and a PROJECT-scoped token has no answer: Vercel documents it as
+      # denying "any request to another project, to a user-level resource, or
+      # to a team-level resource". The CLI resolves the user on EVERY command,
+      # so a project-scoped token does not merely fail `whoami` — it fails
+      # `pull`, `build` and `deploy` too, all with "User not found. (404)".
+      # VERCEL_TOKEN must therefore be a TEAM- or account-scoped token
+      # (vercel.com/account/tokens → Scope → the team → All Projects). Verify a
+      # new one with `vercel whoami --token=…` locally before setting it here:
+      # if it prints a username, this job will work.
       - name: Whose token is this? (diagnostic)
         continue-on-error: true
         run: vercel whoami --token="$VERCEL_TOKEN"
