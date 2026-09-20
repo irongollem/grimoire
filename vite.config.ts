@@ -664,7 +664,11 @@ export default defineConfig(({ mode }) => {
               // door open. The `polyfills` group below still isolates core-js
               // into its own chunk, which is not the same thing as making it
               // lazy: a chunk is only as lazy as the chunks that import it.
-              // Measured: 620.0 kB → 604.6 kB gzip of boot payload (#897).
+              // Measured: 620.0 kB over 40 files → 571.7 kB over 38 of boot
+              // payload (#897). Deleting `canvg` from this line reproduces the
+              // 620.0 kB, and `bootBudgetPlugin` above then fails the build on
+              // it — so the budget catches this exact regression at its real
+              // ceiling, not only at a threshold lowered to demonstrate it.
               { name: "pdf", test: /node_modules[\\/](jspdf|html2canvas|canvg)/ },
               // Visualisation — NPC relationship web only
               { name: "viz", test: /node_modules[\\/](d3|v-network-graph)/ },
