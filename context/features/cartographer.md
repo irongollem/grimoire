@@ -502,7 +502,6 @@ Three things that are easy to get wrong here, all of which cost something real:
 
 Cover: `supabase/tests/dungeon_maps_campaign_scope.test.sql`, which is also the repo's first regression test for `20260809000004`'s owner confinement.
 
-
 ## Editor UX (`src/components/cartographer/MapWorkbench.vue` + `CartographerEditorView.vue`)
 
 **The editor is a component, not a route (epic [#884](https://github.com/irongollem/grimoire/issues/884), wave 2).** It was a ~1,490-line view, which meant the only way to draw was to leave wherever you were and come back — "moving back and forth is unnecessary extra steps". It now splits three ways: `MapWorkbench.vue` is the embeddable editor (toolbox, canvas, inspector, structure rail, pack loading, the site-reference ghost) and reads no route at all; `useMapCanvasEditor.ts` is its interaction and render engine (viewport, pointer, undo/redo, every per-tool paint operation, the render loop) — one cohesive canvas engine, deliberately not split further; and `CartographerEditorView.vue` is a thin host holding the route, the `dungeon_maps` row, Save/Cancel/Delete, the Publish modal and the AI-style flow. Behaviour at `/cartographer/:id` is unchanged.
