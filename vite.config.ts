@@ -6,6 +6,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 import path from "node:path";
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { build as esbuildBuild } from "esbuild";
 
 /**
@@ -356,6 +357,94 @@ function polyfillsPlugin(): Plugin {
   };
 }
 
+/**
+ * Fails the build when the boot payload grows past its budget.
+ *
+ * WHAT IT MEASURES, AND WHY THAT AND NOT THE SHELL. `swPlugin` already has
+ * `SHELL_BUDGET_BYTES`, and it did not catch #897: that one counts *raw* bytes
+ * of the whole precache including art, so at 2.4 MB against a 4 MB ceiling it
+ * had ~1.6 MB of slack — a 48 kB JS regression disappears into it without a
+ * ripple. This counts only what `index.html` makes the browser fetch to start
+ * (the entry script and its modulepreloads), gzipped, which is the number that
+ * decides how long someone stares at a blank page on a phone.
+ *
+ * WHY IT EXISTS. #897 put 150 kB raw / 48 kB gzip of PDF-only code into every
+ * first load because `canvg` matched no chunk-group rule and fell into the
+ * `vendor` catch-all, which the entry statically imports. Nothing failed. The
+ * tests passed, the build was green, and the only way to find it was to go
+ * looking. A dependency added tomorrow can do exactly the same thing, and the
+ * chunk-group comments below cannot stop it — they are prose, and prose does
+ * not run.
+ *
+ * Tripping this is not automatically a defect: real features land in the boot
+ * path. Raise the number deliberately, with a reason and a re-measurement, or
+ * move the code out of the entry's static graph — exactly the contract
+ * `SHELL_BUDGET_BYTES` states. What must not happen is the number drifting
+ * upward while nobody is looking, which is the state this whole file's
+ * chunking comments exist to prevent.
+ *
+ * The measurement prints on every build, so the trend is visible in CI logs
+ * long before the ceiling is reached.
+ */
+function bootBudgetPlugin(): Plugin {
+  /**
+   * Measured 620.0 kB gzip before #897, 571.7 kB after. Set just above the
+   * latter: enough headroom for ordinary growth, tight enough that another
+   * accidental import of a lazy subsystem breaks the build rather than the
+   * first-load experience.
+   */
+  const BOOT_BUDGET_GZIP_BYTES = 600 * 1024;
+
+  return {
+    name: "grimoire-boot-budget",
+    apply: "build",
+    closeBundle() {
+      const distDir = path.resolve(import.meta.dirname, "dist");
+      const html = readFileSync(path.join(distDir, "index.html"), "utf8");
+
+      // Scripts plus modulepreloads only. Stylesheets, icons and the manifest
+      // are the shell's business, not the JS boot graph's, and mixing them in
+      // is how the existing budget ended up too slack to mean anything.
+      const refs = new Set<string>();
+      for (const [, src] of html.matchAll(/<script\b[^>]*\bsrc="(\/assets\/[^"]+)"/gi)) {
+        refs.add(src);
+      }
+      for (const [, tag] of html.matchAll(/<link\b([^>]*)>/gi)) {
+        const rel = tag.match(/\brel="([^"]+)"/i)?.[1]?.toLowerCase().trim();
+        const href = tag.match(/\bhref="(\/assets\/[^"]+)"/i)?.[1];
+        if (rel === "modulepreload" && href) refs.add(href);
+      }
+
+      const sized = [...refs]
+        .filter((ref) => existsSync(path.join(distDir, ref.slice(1))))
+        .map((ref) => ({
+          ref,
+          gzip: gzipSync(readFileSync(path.join(distDir, ref.slice(1)))).length,
+        }))
+        .sort((a, b) => b.gzip - a.gzip);
+
+      const total = sized.reduce((sum, entry) => sum + entry.gzip, 0);
+      const kb = (n: number) => (n / 1024).toFixed(1) + " kB";
+
+      this.info?.(`boot payload: ${sized.length} files, ${kb(total)} gzip (budget ${kb(BOOT_BUDGET_GZIP_BYTES)})`);
+
+      if (total > BOOT_BUDGET_GZIP_BYTES) {
+        const worst = sized
+          .slice(0, 8)
+          .map((entry) => `  ${kb(entry.gzip).padStart(9)}  ${entry.ref}`)
+          .join("\n");
+        throw new Error(
+          `boot payload is ${kb(total)} gzip, over the ${kb(BOOT_BUDGET_GZIP_BYTES)} budget. ` +
+            `Every first visit downloads this before the app is usable.\n\nLargest boot chunks:\n${worst}\n\n` +
+            `Usually this means something lazy leaked into the entry's static graph — check whether a new ` +
+            `dependency fell through to the \`vendor\` catch-all in codeSplitting.groups below, the way canvg ` +
+            `did in #897. If the growth is deliberate, raise BOOT_BUDGET_GZIP_BYTES in vite.config.ts with a reason.`,
+        );
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   /**
    * Source-map upload for error tracking (#644).
@@ -431,6 +520,9 @@ export default defineConfig(({ mode }) => {
       // contract between them.
       artStripPlugin(assetCdnBase),
       swPlugin(assetCdnOrigin),
+      // After swPlugin: it only reads the finished dist/, and failing here
+      // should not leave a half-written service worker behind.
+      bootBudgetPlugin(),
       // Last: it needs the finished bundle. Skipped entirely without a token, so
       // `npm run build` stays a zero-configuration command for contributors and
       // for the CI gate in release.yml (which builds only to prove the build works
@@ -559,7 +651,25 @@ export default defineConfig(({ mode }) => {
               // ever points the other way.
               { name: "vendor", test: /node_modules[\\/]@babel[\\/]runtime/ },
               // PDF/print — only needed in Card Forge and character-sheet export.
-              { name: "pdf", test: /node_modules[\\/](jspdf|html2canvas)/ },
+              //
+              // `canvg` is in this list for a reason that is invisible from the
+              // name: it is jspdf's SVG renderer, and it (like jspdf itself)
+              // depends on core-js. Matched by neither `jspdf` nor
+              // `html2canvas`, it fell through to the `node_modules` catch-all
+              // and landed in `vendor` — which the entry statically imports —
+              // dragging 40,882 bytes of core-js into the boot graph for a
+              // feature almost nobody uses on first load. `useCharacterSheetPdf`
+              // defers jspdf until someone exports a sheet; that work bought
+              // nothing while a sibling of jspdf sat in `vendor` holding the
+              // door open. The `polyfills` group below still isolates core-js
+              // into its own chunk, which is not the same thing as making it
+              // lazy: a chunk is only as lazy as the chunks that import it.
+              // Measured: 620.0 kB over 40 files → 571.7 kB over 38 of boot
+              // payload (#897). Deleting `canvg` from this line reproduces the
+              // 620.0 kB, and `bootBudgetPlugin` above then fails the build on
+              // it — so the budget catches this exact regression at its real
+              // ceiling, not only at a threshold lowered to demonstrate it.
+              { name: "pdf", test: /node_modules[\\/](jspdf|html2canvas|canvg)/ },
               // Visualisation — NPC relationship web only
               { name: "viz", test: /node_modules[\\/](d3|v-network-graph)/ },
               // Supabase client
