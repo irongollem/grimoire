@@ -6,6 +6,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 import path from "node:path";
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { build as esbuildBuild } from "esbuild";
 
 /**
  * Hand-rolled service worker builder.
@@ -294,6 +295,67 @@ function artStripPlugin(assetCdnBase: string | null): Plugin {
   };
 }
 
+/**
+ * Bundles src/lib/polyfills/install.ts to an IIFE and inlines it at the very
+ * top of index.html's <head>.
+ *
+ * THE PLACEMENT IS THE WHOLE POINT. `TypeError: Object.hasOwn is not a
+ * function` took /login down in production, and the obvious fix — importing a
+ * shim first in main.ts — does not work: ES imports hoist, so it would run
+ * only after every chunk main.ts imports had already been evaluated. That is
+ * not a theoretical race. Tracing the real bundle in a browser shows core-js
+ * calling `Object.hasOwn` 64 times at module-evaluation time during boot, so a
+ * module-installed shim would already have lost. A classic, non-deferred
+ * script in the head runs before all of it, unconditionally.
+ *
+ * Built rather than hand-written into index.html so the source stays ordinary
+ * TypeScript — lintable, type-checked and unit-tested like anything else —
+ * and so `structuredClone` can come from a real package instead of a
+ * hand-rolled clone that silently drops Dates, Maps and cycles. An earlier
+ * draft of this fix did write the script into index.html by hand, which capped
+ * it at what one can safely write inline; that is exactly how a half-polyfill
+ * that fixes the login screen and leaves the date picker broken gets shipped.
+ *
+ * `target: es2015` because the engine that needs this file is by definition
+ * too old to be trusted with modern syntax: one arrow function it cannot parse
+ * and the script fails before installing anything. Feature-detected internally,
+ * so on a current browser it costs the bytes and two `typeof` checks.
+ *
+ * Runs in dev too, so a dev run boots through the same code path as production.
+ */
+function polyfillsPlugin(): Plugin {
+  let inlined: string | null = null;
+
+  return {
+    name: "grimoire-polyfills",
+    transformIndexHtml: {
+      order: "pre",
+      async handler() {
+        if (inlined === null) {
+          const result = await esbuildBuild({
+            entryPoints: [path.resolve(import.meta.dirname, "src/lib/polyfills/install.ts")],
+            bundle: true,
+            write: false,
+            format: "iife",
+            target: "es2015",
+            minify: true,
+            platform: "browser",
+          });
+          inlined = result.outputFiles[0].text;
+        }
+        return [
+          {
+            tag: "script",
+            attrs: { id: "es-polyfills" },
+            children: inlined,
+            injectTo: "head-prepend",
+          },
+        ];
+      },
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   /**
    * Source-map upload for error tracking (#644).
@@ -352,6 +414,8 @@ export default defineConfig(({ mode }) => {
       __PREVIEW_BUILD__: JSON.stringify(process.env.VERCEL_ENV === "preview"),
     },
     plugins: [
+      // First: it injects the pre-boot polyfill script into index.html's head.
+      polyfillsPlugin(),
       vue({
         template: {
           compilerOptions: {
