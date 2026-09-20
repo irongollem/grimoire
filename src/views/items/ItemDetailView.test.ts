@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { reactive, ref, defineComponent, h } from "vue";
 import ItemDetailView from "./ItemDetailView.vue";
@@ -10,6 +10,13 @@ import ItemDetailView from "./ItemDetailView.vue";
  * records the props it was given and lets a test fire `copied` on demand;
  * the dialog's own picker/plan/confirm behaviour is CopyToCampaignDialog.test.ts's
  * job, not this view's.
+ *
+ * Since #895, "Copy to campaign…" is no longer its own header button — it is
+ * the second row of the edit-mode `EntitySendMenu`. `EntitySendMenu` is left
+ * unstubbed so these tests still exercise the real trigger-click-then-panel-
+ * row flow, the same pattern EntitySendMenu.test.ts establishes: open the
+ * teleported `[role="dialog"][aria-label="Send to…"]` panel and click its
+ * second button.
  */
 const mocks = vi.hoisted(() => ({
   route: {
@@ -62,9 +69,24 @@ vi.mock("@/components/common/CopyToCampaignDialog.vue", () => ({
   }),
 }));
 
-function findButton(wrapper: Awaited<ReturnType<typeof mountView>>, label: string) {
-  return wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label);
+// `EntitySendMenu`'s panel is teleported to document.body and only exists
+// while open (see EntitySendMenu.test.ts) — this view is mounted with
+// `attachTo: document.body` so that teleport lands somewhere real, and every
+// test cleans the body up afterwards.
+function sendMenuPanel() {
+  return document.body.querySelector<HTMLElement>('[role="dialog"][aria-label="Send to…"]');
 }
+
+async function openCopyFromSendMenu(wrapper: Awaited<ReturnType<typeof mountView>>) {
+  await wrapper.get('[aria-haspopup="dialog"]').trigger("click");
+  const rows = sendMenuPanel()!.querySelectorAll("button");
+  rows[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await flushPromises();
+}
+
+afterEach(() => {
+  document.body.innerHTML = "";
+});
 
 // The edit-mode action row is gated on `isEditing && itemDetail` — the
 // second half is a template ref to ItemDetail, which Vue settles on the
@@ -72,6 +94,7 @@ function findButton(wrapper: Awaited<ReturnType<typeof mountView>>, label: strin
 // caller awaits one tick before reading the header actions.
 async function mountView() {
   const wrapper = mount(ItemDetailView, {
+    attachTo: document.body,
     global: {
       stubs: {
         ItemSheet: true,
@@ -103,10 +126,9 @@ describe("ItemDetailView — copy to campaign (#598)", () => {
     mocks.toastError.mockClear();
   });
 
-  it("offers Copy to campaign… for an owned item in edit mode, wired to the item's own scope", async () => {
+  it("offers Copy to campaign… (via the Send to… menu) for an owned item in edit mode, wired to the item's own scope", async () => {
     const wrapper = await mountView();
-    const button = findButton(wrapper, "Copy to campaign…");
-    expect(button).toBeTruthy();
+    expect(wrapper.find('[aria-haspopup="dialog"]').exists()).toBe(true);
 
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
     expect(dialog.props("open")).toBe(false);
@@ -115,22 +137,22 @@ describe("ItemDetailView — copy to campaign (#598)", () => {
     expect(dialog.props("label")).toBe("item");
   });
 
-  it("clicking the action opens the dialog", async () => {
+  it("clicking the Copy to campaign… row in the Send to… menu opens the dialog", async () => {
     const wrapper = await mountView();
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+    await openCopyFromSendMenu(wrapper);
 
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(true);
   });
 
-  it("does not offer Copy to campaign… for a shared/library item", async () => {
+  it("does not offer the Send to… menu for a shared/library item", async () => {
     mocks.isShared = true;
     const wrapper = await mountView();
-    expect(findButton(wrapper, "Copy to campaign…")).toBeUndefined();
+    expect(wrapper.find('[aria-haspopup="dialog"]').exists()).toBe(false);
   });
 
   it("a copied event toasts the item name and destination, closes the dialog, and never navigates", async () => {
     const wrapper = await mountView();
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+    await openCopyFromSendMenu(wrapper);
 
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
     await dialog.vm.$emit("copied", { copied: 1, targetName: "Icewind Dale" });

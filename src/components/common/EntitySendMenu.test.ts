@@ -54,6 +54,31 @@ describe("EntitySendMenu", () => {
     wrapper.unmount();
   });
 
+  /**
+   * The trigger is a `PageHeaderAction`, so its label collapses to icon-only
+   * below `lg` by default — right inside a `PageHeader`, wrong beside the
+   * always-labelled buttons in MonsterDetail's and SpellDetailHeader's action
+   * rows, where one icon-only control among labelled ones reads as a bug
+   * rather than a choice (#895). The prop is the only thing keeping those two
+   * call sites honest, so it gets cover rather than being trusted to
+   * pass-through by inspection.
+   */
+  it("collapses the trigger label below lg by default", () => {
+    const wrapper = open();
+
+    expect(wrapper.get("button").html()).toContain("max-lg:hidden");
+    wrapper.unmount();
+  });
+
+  it("keeps the trigger label at every width when collapseLabelOnMobile is false", () => {
+    const wrapper = open({ collapseLabelOnMobile: false });
+
+    const trigger = wrapper.get("button");
+    expect(trigger.html()).not.toContain("max-lg:hidden");
+    expect(trigger.text()).toContain("Send to…");
+    wrapper.unmount();
+  });
+
   it("disables the Scriptorium row and renames it while exporting", async () => {
     const wrapper = open({ sendingToScriptorium: true });
     await wrapper.get("button").trigger("click");

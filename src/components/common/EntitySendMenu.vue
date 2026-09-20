@@ -11,6 +11,7 @@
       label="Send to…"
       :icon="IconSend"
       :icon-right="IconChevronDown"
+      :collapse-label-on-mobile="collapseLabelOnMobile"
       :aria-expanded="open"
       aria-haspopup="dialog"
       @click="open = !open"
@@ -26,12 +27,15 @@
     clipped by it. `useAnchoredPopover` positions against the trigger's
     viewport rect instead, so clipping never enters into it.
 
-    The two destinations are fixed rather than slot-driven: every entity editor
-    in the app carries exactly this pair of actions (Scriptorium export, copy to
-    another campaign), so there is nothing here for a slot to vary. The NPC
-    editor is the first to route them through this menu; #895 tracks the rest,
-    and notes the one trap — `ItemSendMenu` already owns a differently-meaning
-    "Send to…" in the item header.
+    The two destinations are fixed rather than slot-driven, and the reason is
+    narrower than it first looks (#895). Four editors carry this exact pair and
+    all four route through here: NPC, item, monster, spell. Seven others —
+    species, puzzles, traps, factions, roll tables, loot tables, and the quest
+    lifecycle — carry only *one* of the two, and they deliberately keep their
+    plain button: a dropdown holding a single row spends a click and buys
+    nothing. So there is nothing for a slot to vary among this component's
+    call sites, because a header that would need a third destination or a
+    different pair is not a call site at all.
 
     `role="dialog"` with a label, not `role="menu"`, and the same on the
     trigger's `aria-haspopup` — deliberately the shape `RevealControl` already
@@ -80,10 +84,17 @@
 <script setup lang="ts">
 /**
  * The header's "put this record somewhere else" menu — one trigger collecting
- * the two actions ("Send to Scriptorium", "Copy to campaign…") that every
- * entity detail header used to carry as two separate buttons standing side by
- * side. Purely a menu: it performs no mutation itself, the call site owns
- * both actions via `@scriptorium` / `@copy`.
+ * the two actions ("Send to Scriptorium", "Copy to campaign…") that the NPC,
+ * item, monster and spell editors each used to carry as two separate buttons
+ * standing side by side. Purely a menu: it performs no mutation itself, the
+ * call site owns both actions via `@scriptorium` / `@copy`.
+ *
+ * Not to be confused with `ItemSendMenu`, which sends an *item* to the table
+ * (stash, a player, chat) rather than the record elsewhere. It was labelled
+ * "Send to…" too until #895; it is "Hand out…" now, because an item header
+ * shows one of the two in view mode and the other in edit mode, and a label
+ * that changes meaning when you press Edit is a collision even though the two
+ * triggers never appear at once.
  *
  * Labels are copied verbatim from the phone's overflow sheet
  * (`NpcEditMobile.vue`), which already names these two actions — an action
@@ -95,8 +106,17 @@ import PageHeaderAction from "./PageHeaderAction.vue";
 import { useAnchoredPopover } from "@/composables/useAnchoredPopover";
 import { IconChevronDown, IconCopy, IconScrollText, IconSend } from "@/lib/icons";
 
-const { sendingToScriptorium = false } = defineProps<{
+const { sendingToScriptorium = false, collapseLabelOnMobile = true } = defineProps<{
   sendingToScriptorium?: boolean;
+  /**
+   * Forwarded to `PageHeaderAction`. The default `true` is right inside a
+   * `PageHeader`, whose action row is tight enough that every label collapses
+   * below `lg`. Pass `false` where the neighbouring buttons keep their labels
+   * at every width — `EntityEditorActionBar`'s `#extra-actions` (MonsterDetail)
+   * and `SpellDetailHeader`'s row — or this trigger alone goes icon-only
+   * between `md` and `lg` and reads as a rendering bug rather than a control.
+   */
+  collapseLabelOnMobile?: boolean;
 }>();
 
 const emit = defineEmits<{

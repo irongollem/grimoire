@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { shallowMount } from "@vue/test-utils";
+import { mount, shallowMount } from "@vue/test-utils";
 import { reactive, ref } from "vue";
 import SpellDetail from "./SpellDetail.vue";
+import SpellDetailHeader from "./SpellDetailHeader.vue";
 import type { Spell } from "@/types/spell.types";
 
 /**
@@ -27,7 +28,13 @@ vi.mock("@/stores/campaign", () => ({
 }));
 const mockRouterPush = vi.hoisted(() => vi.fn());
 const mockRouterReplace = vi.hoisted(() => vi.fn());
-vi.mock("vue-router", () => ({ useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace }) }));
+vi.mock("vue-router", () => ({
+  useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace }),
+  // SpellDetail itself never renders a RouterLink (shallowMount stubs
+  // SpellDetailHeader out entirely), but the "SpellDetailHeader send
+  // actions" suite below mounts the real header, which does.
+  RouterLink: { name: "RouterLink", template: "<a><slot /></a>" },
+}));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 vi.mock("@/composables/library/useLibrarySpellArt", () => ({
   useUpsertLibrarySpellArt: () => ({ mutateAsync: vi.fn() }),
@@ -161,5 +168,53 @@ describe("SpellDetail copy to campaign", () => {
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
     expect(mockRouterPush).not.toHaveBeenCalled();
     expect(mockRouterReplace).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * #895: SpellDetailHeader folds Send to Scriptorium + Copy to campaign… into
+ * one EntitySendMenu trigger — but only for an owned spell. A shared
+ * (reference) spell has no campaign to copy into, so it keeps standing on
+ * its own bare Send to Scriptorium button rather than opening a menu with a
+ * single row in it. Mounted directly (not through SpellDetail, which stubs
+ * the header) so these assertions see the real conditional template.
+ */
+describe("SpellDetailHeader send actions", () => {
+  const baseProps = {
+    hasSpell: true,
+    isAiEnabled: false,
+    isSaving: false,
+    isDeleting: false,
+    isSendingToScriptorium: false,
+    canSave: true,
+  };
+
+  function mountHeader(isShared: boolean) {
+    return mount(SpellDetailHeader, { props: { ...baseProps, isShared } });
+  }
+
+  it("owned spell: renders the combined Send to… trigger instead of a bare Send to Scriptorium button", () => {
+    const wrapper = mountHeader(false);
+
+    expect(wrapper.find('[aria-haspopup="dialog"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("Send to…");
+    expect(wrapper.text()).not.toContain("Copy to campaign…");
+  });
+
+  it("shared spell: keeps the standalone Send to Scriptorium button and renders no Send to… trigger", () => {
+    const wrapper = mountHeader(true);
+
+    expect(wrapper.find('[aria-haspopup="dialog"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("Send to Scriptorium");
+    expect(wrapper.text()).not.toContain("Copy to campaign…");
+  });
+
+  it("shared spell: clicking the bare button still emits sendToScriptorium", async () => {
+    const wrapper = mountHeader(true);
+
+    await wrapper.get("button").trigger("click");
+
+    expect(wrapper.emitted("sendToScriptorium")).toHaveLength(1);
+    expect(wrapper.emitted("copyToCampaign")).toBeUndefined();
   });
 });

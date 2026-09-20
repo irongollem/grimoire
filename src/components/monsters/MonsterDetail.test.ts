@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { ref, defineComponent, h } from "vue";
 import MonsterDetail from "./MonsterDetail.vue";
@@ -12,6 +12,14 @@ import type { Monster } from "@/types/monster.types";
  * that records the props it was given and lets a test fire `copied` /
  * `quota-exceeded` on demand — the dialog's own picker/plan/confirm behaviour
  * is CopyToCampaignDialog.test.ts's job, not this component's.
+ *
+ * Since #895, "Copy to campaign…" is no longer its own header button — it is
+ * one row of the shared EntitySendMenu (see EntitySendMenu.test.ts for that
+ * component's own coverage), which is real here, not stubbed. Its panel is
+ * teleported to `document.body` and only exists while open, so reaching the
+ * row means mounting `attachTo: document.body`, clicking the "Send to…"
+ * trigger, and querying the teleported panel directly — the same pattern
+ * EntitySendMenu.test.ts establishes.
  */
 
 function monster(overrides: Partial<Monster> = {}): Monster {
@@ -101,9 +109,25 @@ function findButton(wrapper: ReturnType<typeof mountDetail>, label: string) {
   return wrapper.findAllComponents({ name: "AppButton" }).find((b) => b.props("label") === label);
 }
 
+// The EntitySendMenu panel, teleported to <body> and only present while open —
+// same helper EntitySendMenu.test.ts uses.
+function sendMenuPanel() {
+  return document.body.querySelector<HTMLElement>('[role="dialog"][aria-label="Send to…"]');
+}
+
+async function openSendMenu(wrapper: ReturnType<typeof mountDetail>) {
+  await findButton(wrapper, "Send to…")!.trigger("click");
+}
+
+function copyRow() {
+  // Row 0 is Scriptorium, row 1 is Copy to campaign — EntitySendMenu's fixed order.
+  return sendMenuPanel()!.querySelectorAll("button")[1];
+}
+
 function mountDetail(monsterProp: Monster | null) {
   return mount(MonsterDetail, {
     props: { monster: monsterProp },
+    attachTo: document.body,
     global: {
       stubs: {
         MonsterEditMobile: true,
@@ -127,38 +151,49 @@ describe("MonsterDetail — copy to campaign (#598)", () => {
     toastSuccess.mockClear();
   });
 
-  it("offers Copy to campaign… for an owned monster", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("offers Copy to campaign… (via the Send to… menu) for an owned monster", async () => {
     const wrapper = mountDetail(monster());
-    const button = findButton(wrapper, "Copy to campaign…");
-    expect(button).toBeTruthy();
+    expect(findButton(wrapper, "Send to…")).toBeTruthy();
 
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
     expect(dialog.props("open")).toBe(false);
     expect(dialog.props("table")).toBe("monsters");
     expect(dialog.props("ids")).toEqual(["monster-1"]);
     expect(dialog.props("label")).toBe("monster");
+
+    await openSendMenu(wrapper);
+    expect(sendMenuPanel()).not.toBeNull();
+    expect(copyRow().textContent).toContain("Copy to campaign…");
   });
 
-  it("clicking the action opens the dialog", async () => {
+  it("clicking the Copy to campaign… row opens the dialog", async () => {
     const wrapper = mountDetail(monster());
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+    await openSendMenu(wrapper);
+    copyRow().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await wrapper.vm.$nextTick();
 
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(true);
   });
 
-  it("does not offer Copy to campaign… for a shared/library monster", () => {
+  it("does not offer the Send to… menu for a shared/library monster", () => {
     const wrapper = mountDetail(monster({ is_shared: true }));
-    expect(findButton(wrapper, "Copy to campaign…")).toBeUndefined();
+    expect(findButton(wrapper, "Send to…")).toBeUndefined();
   });
 
-  it("does not offer Copy to campaign… for a brand-new (unsaved) monster", () => {
+  it("does not offer the Send to… menu for a brand-new (unsaved) monster", () => {
     const wrapper = mountDetail(null);
-    expect(findButton(wrapper, "Copy to campaign…")).toBeUndefined();
+    expect(findButton(wrapper, "Send to…")).toBeUndefined();
   });
 
   it("a copied event toasts the monster name and destination, closes the dialog, and never navigates", async () => {
     const wrapper = mountDetail(monster({ name: "Owlbear" }));
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+    await openSendMenu(wrapper);
+    copyRow().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await wrapper.vm.$nextTick();
 
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
     await dialog.vm.$emit("copied", { copied: 1, targetName: "Icewind Dale" });
@@ -173,7 +208,9 @@ describe("MonsterDetail — copy to campaign (#598)", () => {
 
   it("a quota-exceeded event closes the dialog and opens the paywall, reusing the existing modal", async () => {
     const wrapper = mountDetail(monster());
-    await findButton(wrapper, "Copy to campaign…")!.trigger("click");
+    await openSendMenu(wrapper);
+    copyRow().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await wrapper.vm.$nextTick();
 
     const dialog = wrapper.findComponent({ name: "CopyToCampaignDialog" });
     await dialog.vm.$emit("quota-exceeded");

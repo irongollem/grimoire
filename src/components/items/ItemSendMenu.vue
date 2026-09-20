@@ -3,12 +3,20 @@
     <!-- Transparent click-outside overlay -->
     <div v-if="open" class="fixed inset-0 z-10" @click="open = false" />
 
+    <!--
+      "Hand out…", not "Send to…" (#895). This menu puts the *item* in front of
+      the table; `EntitySendMenu` sends the *record* elsewhere (Scriptorium,
+      another campaign) and owns "Send to…" app-wide. The item header shows this
+      one in view mode and that one in edit mode, so the two never stand side by
+      side — but one label meaning two unrelated things depending on which mode
+      you are in is the same collision, spread over time instead of space.
+    -->
     <AppButton
       variant="subtle"
       size="md"
-      :icon="IconSend"
+      :icon="IconHand"
       :icon-right="IconChevronDown"
-      label="Send to…"
+      label="Hand out…"
       @click="open = !open"
     />
 
@@ -97,7 +105,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { IconArchive, IconChevronDown, IconChevronRight, IconComment, IconSend, IconUser } from '@/lib/icons';
+import { IconArchive, IconChevronDown, IconChevronRight, IconComment, IconHand, IconUser } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import { useUiStore } from "@/stores/ui";
 import { useParty } from "@/composables/party/useParty";

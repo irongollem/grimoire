@@ -17,8 +17,33 @@
         label="Generate"
         @click="$emit('generate')"
       />
+      <!--
+        #895: Send to Scriptorium and Copy to campaign… fold into one
+        EntitySendMenu trigger everywhere else this pair appears (NPC, item,
+        monster) — but here the two actions don't share a condition, so the
+        branch below is load-bearing rather than tidy-uppable.
+
+        Copy to campaign… duplicates *your* record into another of your
+        campaigns. A shared spell is a `library_spells` row: it isn't owned by
+        a campaign and it already resolves in every one of them, so there is
+        nothing for the copy to do — which is why the pre-#895 template had
+        that button inside `v-if="!isShared"` while Scriptorium sat outside it.
+        (Unlike monsters and items, a shared spell has no Customize path at
+        all — the `v-else` branch below says "art only" — so there is no owned
+        copy for a campaign copy to act on either.) A shared spell therefore
+        has exactly one of the pair, and gets the bare button for the same
+        reason the seven single-action editors do: a dropdown holding one row
+        spends a click and buys nothing.
+      -->
+      <EntitySendMenu
+        v-if="hasSpell && !isShared"
+        :sending-to-scriptorium="isSendingToScriptorium"
+        :collapse-label-on-mobile="false"
+        @scriptorium="$emit('sendToScriptorium')"
+        @copy="$emit('copyToCampaign')"
+      />
       <AppButton
-        v-if="hasSpell"
+        v-else-if="hasSpell && isShared"
         variant="subtle"
         size="md"
         :disabled="isSendingToScriptorium"
@@ -27,14 +52,6 @@
         @click="$emit('sendToScriptorium')"
       />
       <template v-if="!isShared">
-        <AppButton
-          v-if="hasSpell"
-          variant="subtle"
-          size="md"
-          :icon="IconCopy"
-          label="Copy to campaign…"
-          @click="$emit('copyToCampaign')"
-        />
         <AppButton
           v-if="hasSpell"
           variant="destructive"
@@ -60,8 +77,9 @@
 
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
-import { IconCopy, IconDelete, IconGenerate, IconSave, IconScrollText } from "@/lib/icons";
+import { IconDelete, IconGenerate, IconSave, IconScrollText } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
+import EntitySendMenu from "@/components/common/EntitySendMenu.vue";
 
 defineProps<{
   hasSpell: boolean;

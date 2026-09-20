@@ -216,11 +216,8 @@ they actually wrote.
 
 **Header actions on existing items:**
 
-- "Send to…" dropdown (`ItemSendMenu`) — "Add to Party Stash" (party-wide shared inventory) or "Assign to Player" (sends directly to a player character's backpack).
-- "Edit" — enters edit mode.
-- "Scriptorium" — creates a Scriptorium document formatted as an item entry.
-- "Clone" — duplicates the item.
-- "Delete" — confirmation prompt then removal (also deletes associated storage images).
+- View mode — "Hand out…" dropdown (`ItemSendMenu`) — "Add to Party Stash" (party-wide shared inventory), "Assign to Player" (sends directly to a player character's backpack) or "Drop in Chat" (posts it to the campaign feed as a drop the party can claim) — and "Edit", which enters edit mode. Labelled "Hand out…" rather than "Send to…" since #895: this menu puts the item in front of the table, while "Send to…" means sending the record elsewhere everywhere else in the app.
+- Edit mode — "Send to…" dropdown (`EntitySendMenu`, shared with the NPC/monster/spell editors, #895) holding Scriptorium export and Copy to campaign, plus separate "Clone" and "Delete" actions.
 
 **Filter state** — search, type, rarity, source, and the "show all scopes" toggle are persisted in `useUiStore` (`vaultSearch`, `vaultFilterType`, `vaultFilterRarity`, `vaultFilterSource`, `vaultShowAllScopes`) so they survive navigation within a session.
 

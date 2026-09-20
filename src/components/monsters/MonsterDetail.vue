@@ -71,15 +71,19 @@
           label="Generate"
           @click="showGenerateDialog = true"
         />
-        <AppButton
+        <!-- Send to Scriptorium + Copy to campaign… fold into one "Send to…"
+             menu (#895) — the same shared control the NPC editor already
+             uses. `collapse-label-on-mobile="false"` because its neighbours
+             here (Generate, Duplicate, EntityEditorActionBar's own
+             Cancel/Save) are plain AppButtons that keep their labels at
+             every width; left at the component's PageHeader-tuned default,
+             this one trigger alone would go icon-only between md and lg. -->
+        <EntitySendMenu
           v-if="props.monster"
-          variant="outline"
-          fill="muted"
-          size="md"
-          :disabled="sendingToScriptorium"
-          :icon="IconScrollText"
-          :label="sendingToScriptorium ? 'Exporting…' : 'Send to Scriptorium'"
-          @click="sendToScriptorium"
+          :sending-to-scriptorium="sendingToScriptorium"
+          :collapse-label-on-mobile="false"
+          @scriptorium="sendToScriptorium"
+          @copy="openCopy"
         />
         <AppButton
           v-if="props.monster"
@@ -89,14 +93,6 @@
           :icon="IconCopy"
           :label="duplicating ? 'Copying…' : 'Duplicate'"
           @click="duplicate"
-        />
-        <AppButton
-          v-if="props.monster"
-          variant="subtle"
-          size="md"
-          :icon="IconCopy"
-          label="Copy to campaign…"
-          @click="openCopy"
         />
       </template>
     </EntityEditorActionBar>
@@ -276,10 +272,11 @@ import { ref, reactive, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useMediaQuery } from "@vueuse/core";
 import { storeToRefs } from "pinia";
-import { IconCopy, IconGenerate, IconScrollText } from "@/lib/icons";
+import { IconCopy, IconGenerate } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import EntitySendMenu from "@/components/common/EntitySendMenu.vue";
 import MonsterEditMobile from "@/components/monsters/MonsterEditMobile.vue";
 import MonsterGenerateDialog from "@/ai/MonsterGenerateDialog.vue";
 import { toTiptapJson } from "@/ai/useNpcGeneration";

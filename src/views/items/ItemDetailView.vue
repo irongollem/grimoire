@@ -34,13 +34,15 @@
           :icon="IconDocument"
           @click="stopEditing"
         />
-        <PageHeaderAction
+        <!-- Scriptorium export and Copy to campaign used to stand here as two
+             separate buttons; #895 folds this editor's pair into the same
+             EntitySendMenu the NPC editor already uses — both are "send this
+             record elsewhere" actions sharing one verb, not two different ones. -->
+        <EntitySendMenu
           v-if="item"
-          :label="itemDetail.isSendingToScriptorium ? 'Sending…' : 'Scriptorium'"
-          :tooltip="itemDetail.isSendingToScriptorium ? 'Sending…' : 'Send to Scriptorium'"
-          :disabled="itemDetail.isSendingToScriptorium"
-          :icon="IconScrollText"
-          @click="itemDetail.sendToScriptorium()"
+          :sending-to-scriptorium="itemDetail.isSendingToScriptorium"
+          @scriptorium="itemDetail.sendToScriptorium()"
+          @copy="openCopy"
         />
         <PageHeaderAction
           v-if="item"
@@ -48,12 +50,6 @@
           :disabled="itemDetail.isCloning"
           :icon="IconCopy"
           @click="itemDetail.cloneItem()"
-        />
-        <PageHeaderAction
-          v-if="item"
-          label="Copy to campaign…"
-          :icon="IconCopy"
-          @click="openCopy"
         />
         <PageHeaderAction
           v-if="item"
@@ -104,7 +100,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconCopy, IconDelete, IconDocument, IconEdit, IconSave, IconScrollText } from '@/lib/icons';
+import { IconCopy, IconDelete, IconDocument, IconEdit, IconSave } from '@/lib/icons';
 import { useResolvedItem, useEnsureOwnedItem } from "@/composables/items/useItems";
 import { useToast } from "@/composables/useToast";
 import { ITEM_TYPE_LABELS, ITEM_RARITY_LABELS } from "@/types/item.types";
@@ -116,6 +112,7 @@ import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToC
 import ItemDetail from "@/components/items/ItemDetail.vue";
 import ItemSheet from "@/components/items/ItemSheet.vue";
 import ItemSendMenu from "@/components/items/ItemSendMenu.vue";
+import EntitySendMenu from "@/components/common/EntitySendMenu.vue";
 
 const route = useRoute();
 const router = useRouter();
