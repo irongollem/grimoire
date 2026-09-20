@@ -386,21 +386,30 @@ function polyfillsPlugin(): Plugin {
  * The measurement prints on every build, so the trend is visible in CI logs
  * long before the ceiling is reached.
  *
- * MEASURE IT WITH `vercel build --prod`, NEVER `npm run build`. One commit
- * gives three different answers, because the chunk graph depends on which
- * secrets are present:
+ * MEASURE IT WITH `vercel build --prod`, NEVER `npm run build`. The two
+ * disagree, and only one of them ships:
  *
- *     npm run build                       38 files, 580.5 kB  (no secrets)
- *     npm run build + SENTRY_AUTH_TOKEN   40 files, 626.1 kB
- *     vercel build --prod                 28 files, 608.6 kB  <- what ships
+ *     npm run build         38 files, 580.5 kB
+ *     vercel build --prod   28 files, 608.6 kB  <- what ships
  *
- * `sourcemap` flips to "hidden" when SENTRY_AUTH_TOKEN exists (see `build`
- * below), and the production env adds VITE_ASSET_CDN_URL and friends on top;
- * each reshuffles the grouping. This plugin shipped calibrated to the first
- * row, which is the only one no user ever downloads, so the ceiling landed
- * 8.6 kB BELOW the real payload and the release job failed on every push
- * until it was corrected. If you re-measure after a bare `npm run build`, you
- * are reading a number about a build that does not exist.
+ * Ten fewer chunks and 28 kB more. `vercel build` supplies the production env
+ * (VITE_ASSET_CDN_URL and friends) and runs its own install; which of the two
+ * drives the regrouping is not pinned down, and for this budget it does not
+ * need to be — what matters is that the bare command understates the payload.
+ * This plugin shipped calibrated to the 580.5 row, so its first ceiling landed
+ * BELOW the real payload and the release job failed on every push to main
+ * until it was corrected.
+ *
+ * SENTRY_AUTH_TOKEN is NOT the variable, though it looks like one: it flips
+ * `sourcemap` to "hidden" (see `build` below) and changes nothing about the
+ * boot graph — 38 files and 580.5 kB either way.
+ *
+ * ONE TRAP WHEN MEASURING. `vercel build` runs `npm install` itself and leaves
+ * node_modules in a different state than `npm ci` does, which silently changes
+ * the chunk graph. Readings taken either side of a `vercel build` are not
+ * comparable, and comparing across one produced a confident, wholly wrong
+ * conclusion about this very rule (see #899). Run `npm ci` before measuring,
+ * and take both sides of any A/B with the same command.
  */
 function bootBudgetPlugin(): Plugin {
   /**
@@ -681,16 +690,13 @@ export default defineConfig(({ mode }) => {
               // door open. The `polyfills` group below still isolates core-js
               // into its own chunk, which is not the same thing as making it
               // lazy: a chunk is only as lazy as the chunks that import it.
-              // Measured on a bare `npm run build`: 620.0 kB over 40 boot
-              // files → 571.7 kB over 38. BUT THAT SAVING DOES NOT REACH
-              // PRODUCTION. On the build that actually ships
-              // (`vercel build --prod`), deleting `canvg` from this line
-              // changes the boot payload by zero bytes — same 608.6 kB over
-              // the same 28 chunks, `polyfills` among them. Whatever puts
-              // core-js in the shipped entry graph is not this rule, and
-              // #897's real cause is therefore still open (see #899). The
-              // rule stays because `canvg` genuinely belongs beside jspdf,
-              // not because it was shown to save anything where it counts.
+              // Measured on the build that ships (`vercel build --prod`),
+              // which is the only measurement that means anything here:
+              // deleting `canvg` from this line takes the boot payload from
+              // 608.6 kB over 28 chunks to 657.4 kB over 30, and puts
+              // `polyfills` — core-js — back in the entry's static graph,
+              // reachable from `vendor` and four route chunks. Adding it is
+              // worth 48.8 kB gzip on every first visit.
               { name: "pdf", test: /node_modules[\\/](jspdf|html2canvas|canvg)/ },
               // Visualisation — NPC relationship web only
               { name: "viz", test: /node_modules[\\/](d3|v-network-graph)/ },
