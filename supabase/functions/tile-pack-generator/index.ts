@@ -19,8 +19,26 @@ import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts"
 import { tilePackSlug, webpDimensions } from "../_shared/tilePackGeneration.ts";
 import { attemptCharge, attemptsRemaining, canAttempt } from "../../../src/cartographer/generationBudget.ts";
 import { chunk, listAllFilePaths, type StorageEntry } from "../_shared/storage-purge.ts";
+import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 
-const MODEL = "gpt-image-2";
+/**
+ * Fallback only. The active model comes from `provider_config.image_model`,
+ * the same row every other image feature resolves through
+ * (`resolveImageProvider` in _shared/imageGen.ts) — this function used to
+ * hardcode the id and so kept rendering on `gpt-image-2` long after the
+ * platform moved to `gpt-image-2.5-flare`, which is faster, better and
+ * cheaper. It was the only image path not reading the config, and nothing
+ * surfaced it because a stale-but-valid model id renders perfectly well.
+ */
+const FALLBACK_MODEL = "gpt-image-2";
+
+/**
+ * Quality stays pinned rather than following `provider_config.image_quality`,
+ * and that is deliberate: a tile's whole economy rests on it. `low` is ~196
+ * output tokens against thousands for `high`, and the 12-credit price covers
+ * four attempts on that basis. An admin raising image quality for portraits
+ * must not silently multiply the cost of a 57-tile pack.
+ */
 const QUALITY = "low";
 const MAX_NORMALIZED_B64 = 512_000;
 
@@ -757,9 +775,11 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
 
   try {
     const references = allowedPhase === "pack" ? await styleReferences(runId, run.target) : [];
+    const providerConfigs = await fetchProviderConfigs(admin, ["openai"]);
+    const model = providerConfigs.openai?.image_model ?? FALLBACK_MODEL;
     const result = await generateImage({
       provider: "openai",
-      model: MODEL,
+      model,
       apiKey,
       // Same key: this path is openai-only, so the renderer's key screens too.
       screening: { apiKey, admin, userId, generationType: "tile_pack" },
@@ -777,7 +797,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
     // `result.contentType` is the provider-reported format, not an assumed
     // webp (imageGen.ts's ImageGenResult docstring) — required so the XMP
     // embedder picks the matching binary format rather than silently no-op'ing.
-    const prov = buildTileProvenance(result.usage.provider, MODEL);
+    const prov = buildTileProvenance(result.usage.provider, model);
     const markedB64 = markGeneratedImageB64(result.b64, result.contentType, prov);
     const rawBytes = decodeBase64(markedB64);
     const { error: uploadError } = await admin.storage.from(run.target.bucket).upload(rawPath, rawBytes, {
@@ -788,7 +808,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
 
     await releaseCredits(admin, reservation.ids);
     const usage = {
-      model: MODEL,
+      model,
       quality: QUALITY,
       size: job.execution.requested_size,
       provider: result.usage.provider,
@@ -820,7 +840,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
       source_path: rawPath,
       execution: {
         provider: result.usage.provider,
-        model: MODEL,
+        model,
         quality: QUALITY,
         input_text_tokens: result.usage.input_tokens,
         input_image_tokens: result.usage.input_image_tokens,
