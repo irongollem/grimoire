@@ -61,7 +61,11 @@
 
     <!-- Live per-slot state. -->
     <div class="space-y-2">
-      <div>
+      <!-- A gap-filling run on a pack that already has its floor/wall/solidBlock
+           tiles plans no proof jobs at all (#900), so this group would render as
+           a heading over an empty row. Before that, every run had a proof phase
+           and the heading could be unconditional. -->
+      <div v-if="proofJobs.length">
         <p class="text-eyebrow text-muted-foreground mb-1">Proof</p>
         <div class="flex flex-wrap gap-1">
           <div

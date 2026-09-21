@@ -22,7 +22,36 @@ import { supabase } from "@/lib/supabase";
  */
 export async function invokeTilePackGenerator<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("tile-pack-generator", { body });
-  if (error) throw new Error((data as { error?: string } | null)?.error ?? error.message);
-  if ((data as { error?: string } | null)?.error) throw new Error((data as { error: string }).error);
+  const payload = data as Record<string, unknown> | null;
+  // The body's code wins over the transport message in BOTH branches: a
+  // refusal arrives as a 4xx *and* a JSON `{ error }`, so `error.message` is
+  // only ever the fallback for a call that failed before the function replied.
+  const code = typeof payload?.error === "string" ? payload.error : null;
+  if (error) throw edgeFailure(payload, code ?? error.message);
+  if (code) throw edgeFailure(payload, code);
   return data as T;
+}
+
+/**
+ * Build the Error a refusal becomes, carrying the rest of the body with it.
+ *
+ * A refusal is not always just a code. `publish_library_pack` answers
+ * `{ error: "pack_incomplete", required, requiredDrawn }`, and those two
+ * numbers are the whole difference between "this pack is incomplete" and
+ * "6 required slots are still blank" — which is the sentence
+ * `describeLibraryPackError` is written to produce. `new Error(code)` drops
+ * them silently, so every field but `error` is copied onto the Error and the
+ * detail survives as far as the UI.
+ *
+ * Worth stating because a unit test cannot catch the regression: a test that
+ * constructs the error object itself will pass whether or not this function
+ * preserves anything, so the assertion that matters is the one over THIS
+ * function, not over the describer.
+ */
+function edgeFailure(payload: Record<string, unknown> | null, message: string): Error {
+  const failure = new Error(message);
+  for (const [key, value] of Object.entries(payload ?? {})) {
+    if (key !== "error") Object.assign(failure, { [key]: value });
+  }
+  return failure;
 }

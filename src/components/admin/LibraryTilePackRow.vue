@@ -16,7 +16,7 @@
           </span>
         </div>
         <p class="text-caption text-muted-foreground">
-          {{ pack.pack_id }} · v{{ pack.pack_version }} · {{ artCount }}/{{ slotCount }} slots drawn
+          {{ pack.pack_id }} · v{{ pack.pack_version }} · {{ counts.drawn }}/{{ counts.declared }} slots drawn
         </p>
         <p class="mt-1 line-clamp-2 text-caption text-muted-foreground">{{ pack.description || "No description" }}</p>
         <div v-if="pack.license_keys.length" class="mt-1 flex flex-wrap gap-1">
@@ -39,13 +39,21 @@
 
     <div class="flex flex-wrap items-center gap-2">
       <AppButton
+        variant="outline"
+        size="xs"
+        :icon="IconEdit"
+        :label="editing ? 'Close editor' : 'Edit'"
+        @click="editing = !editing"
+      />
+      <AppButton
         v-if="pack.status !== 'published'"
         variant="primary"
         size="xs"
         :icon="IconGlobe"
         label="Publish"
         :loading="publish.isPending.value"
-        :disabled="publish.isPending.value"
+        :disabled="!publishable || publish.isPending.value"
+        :tooltip="publishable ? undefined : `${counts.required - counts.requiredDrawn} required slots still have no art`"
         @click="handlePublish"
       />
       <AppButton
@@ -71,6 +79,8 @@
     </div>
     <p v-if="actionError" class="text-caption text-tone-danger">{{ actionError }}</p>
 
+    <LibraryTilePackEditor v-if="editing" :pack="pack" />
+
     <LibraryTilePackRunProgress v-if="run && expanded" :pack="pack" :run="run" />
     <p v-else-if="run && run.status === 'completed'" class="text-caption text-muted-foreground">
       Generation complete — {{ run.completed_jobs }}/{{ run.total_jobs }} tiles.
@@ -90,9 +100,11 @@
  */
 import { ref, computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { IconGlobe, IconArchive, IconDelete, IconChevronUp, IconChevronDown, IconGenerate } from "@/lib/icons";
-import { useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
+import { IconGlobe, IconArchive, IconDelete, IconChevronUp, IconChevronDown, IconGenerate, IconEdit } from "@/lib/icons";
+import { describeLibraryPackError, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useConfirm } from "@/composables/useConfirm";
+import { coverageCounts } from "@/cartographer/packCoverage";
+import LibraryTilePackEditor from "./LibraryTilePackEditor.vue";
 import LibraryTilePackRunProgress from "./LibraryTilePackRunProgress.vue";
 import type { LibraryTilePack, TilePackGenerationJob, TilePackGenerationRun } from "@/cartographer/userPack.types";
 
@@ -110,32 +122,23 @@ const { confirm } = useConfirm();
 // failed and needs attention, starts open. A manual toggle wins after that —
 // this only sets the initial state.
 const expanded = ref(props.run ? !["completed", "cancelled"].includes(props.run.status) : false);
+const editing = ref(false);
 const actionError = ref("");
 
 // Declared slots vs slots that actually have art. Reporting only the declared
 // count would say "57 tiles" for a pack holding none — every bundled pack
-// declares its full slot list, and ten of the twelve ship zero images and
-// render as procedural placeholders. Since finding and filling those packs is
-// what this surface is for, the number it shows has to be able to tell them
-// apart. `byteSize` is written per slot by the generator when a tile lands,
-// and back-filled for the bundled packs by scripts/seed-library-tile-packs.ts.
-const slotCount = computed(() => {
-  let total = 0;
-  for (const slots of Object.values(props.pack.manifest.assets)) {
-    if (slots) total += slots.length;
-  }
-  return total;
-});
+// declares its full slot list, and ten of the twelve shipped zero images and
+// rendered as procedural placeholders. Since finding and filling those packs
+// is what this surface is for, the number it shows has to tell them apart.
+// The walk itself lives in `packCoverage` because the editor, the slot grid
+// and the publish gate all need the same answer (#900).
+const counts = computed(() => coverageCounts(props.pack.manifest));
 
-const artCount = computed(() => {
-  let drawn = 0;
-  for (const slots of Object.values(props.pack.manifest.assets)) {
-    for (const slot of slots ?? []) {
-      if (typeof slot.byteSize === "number" && slot.byteSize > 0) drawn += 1;
-    }
-  }
-  return drawn;
-});
+// The same condition `publish_library_pack` enforces (`hasCompleteArt`), read
+// here only to disable the button and say why. The server stays the authority
+// — this is not a second gate, it is the reason shown before a round trip that
+// could only ever come back refused.
+const publishable = computed(() => counts.value.requiredDrawn === counts.value.required);
 
 const statusBadgeClass = computed(() => {
   if (props.pack.status === "published") return "bg-tone-success/15 text-tone-success";
@@ -148,19 +151,12 @@ const aiTooltip = computed(() => {
   return provenance ? `${provenance.provider} · ${provenance.model}` : undefined;
 });
 
-function describeError(caught: unknown): string {
-  const message = caught instanceof Error ? caught.message : String(caught);
-  if (message === "pack_incomplete") return "This pack still has unfilled slots — finish generating it before publishing.";
-  if (message === "unpublish_before_deleting") return "Unpublish this pack before deleting it.";
-  return message;
-}
-
 async function handlePublish(): Promise<void> {
   actionError.value = "";
   try {
     await publish.mutateAsync(props.pack.id);
   } catch (caught) {
-    actionError.value = describeError(caught);
+    actionError.value = describeLibraryPackError(caught);
   }
 }
 
@@ -169,7 +165,7 @@ async function handleUnpublish(): Promise<void> {
   try {
     await unpublish.mutateAsync(props.pack.id);
   } catch (caught) {
-    actionError.value = describeError(caught);
+    actionError.value = describeLibraryPackError(caught);
   }
 }
 
@@ -183,7 +179,7 @@ async function handleDelete(): Promise<void> {
   try {
     await remove.mutateAsync(props.pack.id);
   } catch (caught) {
-    actionError.value = describeError(caught);
+    actionError.value = describeLibraryPackError(caught);
   }
 }
 </script>

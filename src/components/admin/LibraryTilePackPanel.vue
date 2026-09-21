@@ -89,7 +89,7 @@ import AppInput from "@/components/common/AppInput.vue";
 import { IconAdd } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { fieldVariants } from "@/components/common/fieldVariants";
-import { useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
+import { describeLibraryPackError, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
 import { useTilePacks } from "@/composables/cartographer/useTilePacks";
 import LibraryTilePackRow from "./LibraryTilePackRow.vue";
 import type { TilePackGenerationJob, TilePackGenerationRun } from "@/cartographer/userPack.types";
@@ -118,16 +118,6 @@ const createError = ref("");
 
 const textareaClass = cn(fieldVariants({ tone: "default", size: "body" }), "w-full resize-y min-h-20");
 
-function describeCreateError(caught: unknown): string {
-  const message = caught instanceof Error ? caught.message : String(caught);
-  if (message === "invalid_pack_id") {
-    return 'That pack id isn\'t valid — use lowercase letters, numbers and hyphens, and it can\'t start with "custom-".';
-  }
-  if (message === "invalid_pack_concept") return "Give the pack a name (a description over 1000 characters won't fit).";
-  if (message === "admin_required") return "Only an admin can create library packs.";
-  return message;
-}
-
 async function submitCreate(): Promise<void> {
   createError.value = "";
   try {
@@ -144,7 +134,7 @@ async function submitCreate(): Promise<void> {
     // run's progress card appears immediately instead of after a wait.
     await runs.refetch();
   } catch (caught) {
-    createError.value = describeCreateError(caught);
+    createError.value = describeLibraryPackError(caught);
   }
 }
 </script>

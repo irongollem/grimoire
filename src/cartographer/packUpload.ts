@@ -39,7 +39,14 @@ function resolveEntry(base: string, relative: string): string {
   return parts.join("/");
 }
 
-async function assertWebp128(blob: Blob, label: string): Promise<void> {
+/**
+ * Assert a single blob is a 128×128 WebP tile.
+ *
+ * Exported (unchanged) so `useLibraryTilePacks`'s `uploadTile` mutation can run
+ * the same check the bulk pack upload already relies on — it already takes one
+ * blob at a time, so no wrapper is needed for that call shape.
+ */
+export async function assertWebp128(blob: Blob, label: string): Promise<void> {
   const bytes = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
   const signature = String.fromCharCode(...bytes);
   if (!signature.startsWith("RIFF") || signature.slice(8, 12) !== "WEBP") {

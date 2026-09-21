@@ -1,7 +1,8 @@
 import { serve } from "std/http/server.ts";
 import { createClient, type User } from "@supabase/supabase-js";
-import { createDraftManifest, createGenerationPlan, slotRelativePath, type GenerationAttempt, type GenerationJob, type GenerationPlan, type PackArtBible } from "../../../src/cartographer/authoringPlan.ts";
+import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, slotId, slotRelativePath, type GenerationAttempt, type GenerationJob, type GenerationPlan, type PackArtBible } from "../../../src/cartographer/authoringPlan.ts";
 import { validatePack } from "../../../src/cartographer/validatePack.ts";
+import { coverageCounts, hasCompleteArt, undrawnSlotIds } from "../../../src/cartographer/packCoverage.ts";
 import type { TilePackManifest } from "../../../src/cartographer/packSchema.ts";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
@@ -9,7 +10,8 @@ import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
 import { generateImage } from "../_shared/imageGen.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import { buildTileProvenance } from "./tileProvenance.ts";
-import { libraryPackTarget, mintLibraryPackId, packPrefix, userPackTarget } from "./packTarget.ts";
+import { libraryPackTarget, mintLibraryPackId, packPrefix, userPackTarget, type PackTarget } from "./packTarget.ts";
+import { PROOF_SLOT_IDENTITIES, PROOF_SLOTS, initialGenerationStatus, parseTileSlot, validateLibraryPackPatch } from "./libraryActions.ts";
 import { fetchCreditCost, recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
@@ -21,7 +23,6 @@ import { chunk, listAllFilePaths, type StorageEntry } from "../_shared/storage-p
 const MODEL = "gpt-image-2";
 const QUALITY = "low";
 const MAX_NORMALIZED_B64 = 512_000;
-const PROOF_SLOTS = new Set(["floor:0", "wallSegmentH:0", "solidBlock:0"]);
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -275,11 +276,24 @@ async function createLibraryRun(user: User, body: Record<string, unknown>): Prom
  * below), so flipping it to `published` is always an explicit admin act
  * rather than something the generation run reaches on its own.
  *
- * Publishing re-validates the manifest first: RLS cannot call `validatePack`,
- * and publishing a pack with missing slots breaks the Cartographer for every
- * DM who picks it. Un-publishing (`archived`) needs no validation — retiring
- * a pack is always safe, and must stay possible even for a pack that never
- * finished.
+ * Publishing checks two different things, and both are kept because they
+ * answer different questions:
+ *
+ *  - `validatePack` is declaration-based — does the manifest describe a
+ *    well-formed pack (no extra/unknown slots, no bad shapes)? Its `extras`
+ *    and `warnings` are still worth surfacing to the admin.
+ *  - `hasCompleteArt` (from `packCoverage.ts`) is byte-based — does every
+ *    required slot actually carry drawn bytes? `validatePack` cannot see
+ *    this: it reports a slot present once the manifest declares it with a
+ *    URL, which is exactly the shape of the ten packs #889 S7 migrated with
+ *    a full slot list and zero images behind any of it. `validatePack(...).valid`
+ *    was `true` for every one of them, which is how all twelve library packs
+ *    ended up published while ten held no art at all. The publish gate is
+ *    therefore `hasCompleteArt`, not `validatePack(...).valid` — a manifest
+ *    can be well-formed and still have nothing drawn.
+ *
+ * Un-publishing (`archived`) needs no validation — retiring a pack is always
+ * safe, and must stay possible even for a pack that never finished.
  */
 async function setLibraryPackStatus(user: User, body: Record<string, unknown>, publish: boolean): Promise<Response> {
   if (!isAppAdmin(user)) return json({ error: "admin_required" }, 403);
@@ -287,8 +301,17 @@ async function setLibraryPackStatus(user: User, body: Record<string, unknown>, p
   const { data: pack } = await admin.from("library_tile_packs").select("id, manifest").eq("id", packId).maybeSingle();
   if (!pack) return json({ error: "pack_not_found" }, 404);
   if (publish) {
-    const validation = validatePack(pack.manifest as TilePackManifest);
-    if (!validation.valid) return json({ error: "pack_incomplete", validation }, 409);
+    const manifest = pack.manifest as TilePackManifest;
+    // Structural findings only — `validation.valid` is deliberately not the
+    // gate, but the findings themselves still travel with a refusal. Its
+    // warnings (a duplicate slot, a non-WebP url, a schema newer than this
+    // build) are the likeliest explanation for why a slot the admin believes
+    // they filled is not being counted, and they are invisible anywhere else.
+    const validation = validatePack(manifest);
+    if (!hasCompleteArt(manifest)) {
+      const { required, requiredDrawn } = coverageCounts(manifest);
+      return json({ error: "pack_incomplete", required, requiredDrawn, validation }, 409);
+    }
     const { error } = await admin.from("library_tile_packs").update({ status: "published" }).eq("id", pack.id);
     if (error) return json({ error: error.message }, 500);
     return json({ status: "published" });
@@ -296,6 +319,180 @@ async function setLibraryPackStatus(user: User, body: Record<string, unknown>, p
   const { error } = await admin.from("library_tile_packs").update({ status: "archived" }).eq("id", pack.id);
   if (error) return json({ error: error.message }, 500);
   return json({ status: "archived" });
+}
+
+/**
+ * Partial update of a library pack's admin-editable metadata. Validates only
+ * the fields actually present (`validateLibraryPackPatch`), then checks
+ * `content_source_key` against the `content_sources` catalogue here — the one
+ * piece of that validation that needs the database.
+ *
+ * When `name` or `description` changes, the manifest's own copies are patched
+ * in the same update. `manifest.name`/`manifest.description` are not mirrors
+ * kept for display: `createGenerationPlan` reads them straight into
+ * `pack_local_theme` (via `artBible`) to brief every future generation run.
+ * Leaving them stale after a rename means the next run for this pack is
+ * briefed from text the admin already changed.
+ */
+async function updateLibraryPack(user: User, body: Record<string, unknown>): Promise<Response> {
+  if (!isAppAdmin(user)) return json({ error: "admin_required" }, 403);
+  const packId = typeof body.pack_id === "string" ? body.pack_id : "";
+  const { data: pack } = await admin.from("library_tile_packs").select("*").eq("id", packId).maybeSingle();
+  if (!pack) return json({ error: "pack_not_found" }, 404);
+
+  const validation = validateLibraryPackPatch(body);
+  if (!validation.ok) return json({ error: validation.error }, 400);
+  const { patch } = validation;
+
+  if (patch.content_source_key) {
+    const { data: source } = await admin.from("content_sources").select("key").eq("key", patch.content_source_key).maybeSingle();
+    if (!source) return json({ error: "invalid_content_source" }, 400);
+  }
+
+  const update: Record<string, unknown> = { ...patch };
+  if (patch.name !== undefined || patch.description !== undefined) {
+    const manifest = structuredClone(pack.manifest as TilePackManifest);
+    if (patch.name !== undefined) manifest.name = patch.name;
+    if (patch.description !== undefined) manifest.description = patch.description;
+    update.manifest = manifest;
+  }
+
+  const { data: updated, error } = await admin.from("library_tile_packs").update(update).eq("id", pack.id).select().single();
+  if (error) return json({ error: error.message }, 500);
+  return json({ pack: updated });
+}
+
+/**
+ * Uploads one human-drawn tile directly onto a library pack, bypassing
+ * generation entirely. Mirrors `completeSlot`'s manifest patch
+ * (`index.ts:659-670` at the time this was written) exactly, minus the
+ * generation-run bookkeeping that action owns — there is no job, no run, no
+ * attempt history, because nothing was generated.
+ */
+async function uploadLibraryTile(user: User, body: Record<string, unknown>): Promise<Response> {
+  if (!isAppAdmin(user)) return json({ error: "admin_required" }, 403);
+  const packId = typeof body.pack_id === "string" ? body.pack_id : "";
+  const { data: pack } = await admin.from("library_tile_packs").select("*").eq("id", packId).maybeSingle();
+  if (!pack) return json({ error: "pack_not_found" }, 404);
+
+  // Absent and oversized are different failures and must not share an error:
+  // "that image is too large" is actively misleading for a request that
+  // carried no image at all, and it is the only feedback the admin gets.
+  const imageB64 = typeof body.image_b64 === "string" ? body.image_b64 : "";
+  if (!imageB64) return json({ error: "invalid_image" }, 400);
+  if (imageB64.length > MAX_NORMALIZED_B64) return json({ error: "image_too_large" }, 400);
+
+  const knownSlotIds = new Set(enumerateSchemaSlots(true).map(slotId));
+  const parsed = parseTileSlot(body.slot, knownSlotIds);
+  if (!parsed.ok) return json({ error: "invalid_slot" }, 400);
+  const slot = parsed.slot;
+
+  const bytes = decodeBase64(imageB64);
+  const dimensions = webpDimensions(bytes);
+  if (!dimensions || dimensions.width !== 128 || dimensions.height !== 128) {
+    return json({ error: "invalid_image" }, 400);
+  }
+
+  const target = libraryPackTarget(pack);
+  const relative = slotRelativePath(slot);
+  const { error: uploadError } = await admin.storage.from(target.bucket).upload(`${target.prefix}/${relative}`, bytes, {
+    contentType: "image/webp",
+    upsert: true,
+  });
+  if (uploadError) return json({ error: uploadError.message }, 500);
+
+  const manifest = structuredClone(pack.manifest as TilePackManifest);
+  const slots = [...(manifest.assets[slot.category] ?? [])].filter((existing) =>
+    existing.variant !== slot.variant || existing.side !== slot.side
+  );
+  slots.push({
+    ...(slot.side ? { side: slot.side } : {}),
+    variant: slot.variant,
+    url: relative,
+    byteSize: bytes.byteLength,
+  });
+  manifest.assets[slot.category] = slots;
+  // Deliberately no `ai_provenance` write here — see #900 decision 4.
+  // `completeSlot` sets it on every normalize because that path only ever
+  // handles model output; this action's bytes are human-drawn, so there is no
+  // generation to attest to. Writing a provenance record for a human upload
+  // would be a false AI-provenance claim, not a completeness fix.
+  const { error } = await admin.from("library_tile_packs").update({ manifest }).eq("id", pack.id);
+  if (error) return json({ error: error.message }, 500);
+  return json({ slot_id: slotId(slot), relative_path: relative, byte_size: bytes.byteLength });
+}
+
+/**
+ * Starts a generation run against an existing library pack for a chosen
+ * subset of its slots (or every undrawn one). This is `createLibraryRun`'s
+ * sibling for a pack that already exists — it never creates a
+ * `library_tile_packs` row, so its failure path only ever has a run and jobs
+ * to roll back, never the pack. Getting that backwards would delete a
+ * published pack on an insert failure.
+ */
+async function generateLibraryPack(user: User, body: Record<string, unknown>): Promise<Response> {
+  if (!isAppAdmin(user)) return json({ error: "admin_required" }, 403);
+  const packId = typeof body.pack_id === "string" ? body.pack_id : "";
+  const { data: pack } = await admin.from("library_tile_packs").select("*").eq("id", packId).maybeSingle();
+  if (!pack) return json({ error: "pack_not_found" }, 404);
+
+  const { count: activeRuns } = await admin.from("tile_pack_generation_runs")
+    .select("id", { count: "exact", head: true }).eq("library_tile_pack_id", pack.id)
+    .in("status", ["proof_pending", "awaiting_approval", "generating", "cancelling"]);
+  if ((activeRuns ?? 0) > 0) return json({ error: "generation_already_running" }, 409);
+
+  const manifest = pack.manifest as TilePackManifest;
+  const requestedIds = Array.isArray(body.slot_ids) && body.slot_ids.length > 0
+    ? body.slot_ids as unknown[]
+    : undrawnSlotIds(manifest);
+  if (requestedIds.length === 0) return json({ error: "nothing_to_generate" }, 400);
+
+  const knownSlots = new Map(enumerateSchemaSlots(true).map((slot) => [slotId(slot), slot]));
+  const selection: string[] = [];
+  for (const rawId of requestedIds) {
+    if (typeof rawId !== "string" || !knownSlots.has(rawId)) {
+      return json({ error: "unknown_slot_id", slot_id: rawId }, 400);
+    }
+    selection.push(rawId);
+  }
+
+  // createGenerationPlan throws `Unknown schema slot: <id>` on an id it
+  // cannot resolve — every id in `selection` was just checked against the
+  // same schema slot set above, so this cannot throw here.
+  const plan = createGenerationPlan({
+    manifest,
+    artBible: artBible(pack.name, pack.description),
+    selectedSlotIds: selection,
+  });
+
+  const status = initialGenerationStatus(plan.jobs);
+
+  const { data: run, error: runError } = await admin.from("tile_pack_generation_runs").insert({
+    user_id: user.id,
+    library_tile_pack_id: pack.id,
+    status,
+    plan,
+    total_jobs: plan.jobs.length,
+  }).select().single();
+  if (runError || !run) return json({ error: runError?.message ?? "run_create_failed" }, 500);
+
+  const { error: jobsError } = await admin.from("tile_pack_generation_jobs").insert(
+    plan.jobs.map((job, ordinal) => ({
+      run_id: run.id,
+      ordinal,
+      slot_id: job.id,
+      phase: PROOF_SLOTS.has(job.id) ? "proof" : "pack",
+      job,
+    })),
+  );
+  if (jobsError) {
+    // Roll back the run and its jobs only — this action did not create the
+    // pack, so the pack is never part of this rollback. See the docstring
+    // above: getting this backwards destroys a published pack.
+    await admin.from("tile_pack_generation_runs").delete().eq("id", run.id);
+    return json({ error: jobsError.message }, 500);
+  }
+  return json({ run_id: run.id, total_jobs: plan.jobs.length, status }, 201);
 }
 
 async function registerUpload(userId: string, body: Record<string, unknown>): Promise<Response> {
@@ -430,15 +627,33 @@ async function deleteLibraryPack(user: User, body: Record<string, unknown>): Pro
  * about five times the tile they help produce, on every call and every retry.
  * `raw_path` remains the fallback so a run started before 20260826215832 still
  * completes — correctly, just expensively.
+ *
+ * `generate_library_pack` (#900 S2) can start a run whose plan skips the
+ * proof phase entirely — filling gaps in a pack that already has its
+ * floor/wall/solidBlock tiles (see `initialGenerationStatus`) — so this run's
+ * own proof-job query above can come back empty even though the pack it is
+ * joining has plenty of art to match. Falling back to that pack's own
+ * existing tiles (in `PROOF_SLOT_IDENTITIES` order, skipping any that fail to
+ * download) is not just the fix for that empty-reference case: a run
+ * extending an existing pack should be briefed by that pack's own tiles
+ * regardless, so a new "generating" doorway matches the floor already drawn
+ * for it rather than whatever a fresh proof pass happened to produce.
  */
-async function styleReferences(runId: string, bucket: "tile-packs" | "library-tile-packs"): Promise<Blob[]> {
+async function styleReferences(runId: string, target: PackTarget): Promise<Blob[]> {
   const { data } = await admin.from("tile_pack_generation_jobs").select("style_ref_path, raw_path")
     .eq("run_id", runId).eq("phase", "proof").eq("status", "normalized")
     .not("raw_path", "is", null).order("ordinal").limit(3);
   const blobs: Blob[] = [];
   for (const row of data ?? []) {
     const path = (row.style_ref_path as string | null) ?? (row.raw_path as string);
-    const { data: file } = await admin.storage.from(bucket).download(path);
+    const { data: file } = await admin.storage.from(target.bucket).download(path);
+    if (file) blobs.push(file);
+  }
+  if (blobs.length > 0) return blobs;
+
+  for (const slot of PROOF_SLOT_IDENTITIES) {
+    if (blobs.length >= 3) break;
+    const { data: file } = await admin.storage.from(target.bucket).download(`${target.prefix}/${slotRelativePath(slot)}`);
     if (file) blobs.push(file);
   }
   return blobs;
@@ -541,7 +756,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
   }
 
   try {
-    const references = allowedPhase === "pack" ? await styleReferences(runId, run.target.bucket) : [];
+    const references = allowedPhase === "pack" ? await styleReferences(runId, run.target) : [];
     const result = await generateImage({
       provider: "openai",
       model: MODEL,
@@ -818,6 +1033,9 @@ serve(withCors(async (req: Request) => {
     case "delete_library_pack": return deleteLibraryPack(user, body);
     case "publish_library_pack": return setLibraryPackStatus(user, body, true);
     case "unpublish_library_pack": return setLibraryPackStatus(user, body, false);
+    case "update_library_pack": return updateLibraryPack(user, body);
+    case "upload_library_tile": return uploadLibraryTile(user, body);
+    case "generate_library_pack": return generateLibraryPack(user, body);
     case "generate": return generateSlot(user, body);
     case "complete": return completeSlot(user, body);
     case "approve_proof":

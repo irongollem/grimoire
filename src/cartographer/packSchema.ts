@@ -134,3 +134,28 @@ export interface TilePackManifest {
 export function categoryDef(cat: PackCategory): CategoryDef {
   return TILE_PACK_SCHEMA.categories[cat] as CategoryDef;
 }
+
+/**
+ * `wallSegmentH` → `wall segment H`, `hazardPressurePlate` → `hazard pressure plate`.
+ *
+ * The schema's category keys are camelCase identifiers, and two callers were
+ * each putting one in front of a human — or a model — verbatim:
+ *
+ *  - the admin slot grid rendered `WALLSEGMENTH` and `HAZARDCOLLAPSINGFLOOR`
+ *    as group headings (`text-eyebrow` uppercases whatever it is handed), in
+ *    a list whose entire purpose is scanning for the right slot;
+ *  - `categoryRequest`'s fallback branch — which serves every one of the ~30
+ *    optional categories — interpolated the key straight into the prompt, so
+ *    gpt-image-2 was being asked for "a top-down hazardPressurePlate overlay".
+ *
+ * Single-character words are left capitalised, because the trailing `H`/`V`
+ * on the directional categories is an axis, not the start of a word.
+ */
+export function categoryLabel(category: PackCategory | string): string {
+  return category
+    .replace(/([A-Z])/g, " $1")
+    .trim()
+    .split(/\s+/)
+    .map((word) => (word.length === 1 ? word : word.toLowerCase()))
+    .join(" ");
+}

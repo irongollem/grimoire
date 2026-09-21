@@ -2,6 +2,7 @@ import {
   BASE_TILE_SIZE,
   TILE_PACK_SCHEMA,
   categoryDef,
+  categoryLabel,
   type AssetSlot,
   type PackCategory,
   type TilePackManifest,
@@ -283,7 +284,14 @@ function categoryRequest(slot: SlotIdentity, mechanics: SlotMechanics): string {
       // "fill the complete square canvas" constraint in the same prompt.
       return `A solid wall junction block for the exact ${slot.side} connection: wall mass fills the entire canvas edge to edge, reading as the same material as the ${jointEdges(slot.side).join(", ")} walls that meet here, with no floor, gap or background anywhere in frame.`;
     default:
-      return `A top-down ${slot.category} overlay centred in one tile. ${variation}`;
+      // `categoryLabel`, not the raw key: this branch serves every optional
+      // category, so the model was being asked for "a top-down
+      // hazardPressurePlate overlay". Note this only makes the *subject*
+      // legible — it does not give two neighbouring categories genuinely
+      // different art direction, which is a separate question (see #902):
+      // `rubble` and `debris` still differ by one word and come back nearly
+      // identical.
+      return `A top-down ${categoryLabel(slot.category)} overlay centred in one tile. ${variation}`;
   }
 }
 

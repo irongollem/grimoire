@@ -5,6 +5,7 @@ import { getPublicUrl } from "@/lib/storage";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import type { LibraryTilePack } from "@/cartographer/userPack.types";
 import { cloneManifest } from "@/cartographer/cloneManifest";
+import { assertWebp128 } from "@/cartographer/packUpload";
 import { invokeTilePackGenerator } from "./tilePackGenerator";
 
 const LIBRARY_PACKS_KEY = "library-tile-packs";
@@ -103,5 +104,155 @@ export function useLibraryTilePacks() {
     onSuccess: invalidate,
   });
 
-  return { packs, publishedPacks, createRun, publish, unpublish, remove };
+  /**
+   * `update`, `uploadTile` and `generateMissing` route through the edge
+   * function for the same reason as every mutation above, plus a second,
+   * stronger one for the latter two: the `library-tile-packs` bucket is
+   * declared `clientWrites: false` in `supabase/functions/_shared/storage-policy.ts`,
+   * so no browser can write these bytes at all — the edge function is not an
+   * extra hop around a client write, it is the only path that exists.
+   */
+  const update = useMutation({
+    mutationFn: (input: {
+      packRowId: string;
+      name?: string;
+      description?: string;
+      licenseKeys?: string[];
+      contentSourceKey?: string | null;
+      sortOrder?: number;
+    }) =>
+      invokeTilePackGenerator<{ pack: LibraryTilePack }>({
+        action: "update_library_pack",
+        pack_id: input.packRowId,
+        // Only the keys actually supplied go on the wire: `undefined` means
+        // "leave it", `null` (for contentSourceKey) is a meaningful clear.
+        // Spreading a conditional object per field keeps `undefined` from
+        // ever being serialized, which `{ ...input }` would not.
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.licenseKeys !== undefined ? { license_keys: input.licenseKeys } : {}),
+        ...(input.contentSourceKey !== undefined ? { content_source_key: input.contentSourceKey } : {}),
+        ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
+      }),
+    onSuccess: invalidate,
+  });
+
+  const uploadTile = useMutation({
+    mutationFn: async (input: {
+      packRowId: string;
+      slot: { category: string; side?: string; variant: number };
+      file: File | Blob;
+    }) => {
+      const label = `${input.slot.category}${input.slot.side ? `/${input.slot.side}` : ""}/${input.slot.variant}`;
+      // Validate before spending a round trip: a 128×128 WebP check is free
+      // here and catches the mistake before a doomed payload reaches the edge
+      // function, whose own rejection would otherwise be the only feedback.
+      await assertWebp128(input.file, label);
+      const image_b64 = await blobToBase64(input.file);
+      return invokeTilePackGenerator<{ slot_id: string; relative_path: string; byte_size: number }>({
+        action: "upload_library_tile",
+        pack_id: input.packRowId,
+        slot: {
+          category: input.slot.category,
+          ...(input.slot.side ? { side: input.slot.side } : {}),
+          variant: input.slot.variant,
+        },
+        image_b64,
+      });
+    },
+    onSuccess: invalidate,
+  });
+
+  const generateMissing = useMutation({
+    mutationFn: (input: { packRowId: string; slotIds?: string[] }) =>
+      invokeTilePackGenerator<{ run_id: string; total_jobs: number; status: "proof_pending" | "generating" }>({
+        action: "generate_library_pack",
+        pack_id: input.packRowId,
+        ...(input.slotIds ? { slot_ids: input.slotIds } : {}),
+      }),
+    onSuccess: invalidate,
+  });
+
+  return { packs, publishedPacks, createRun, publish, unpublish, remove, update, uploadTile, generateMissing };
+}
+
+/**
+ * Base64-encode a blob for the edge function's `image_b64` fields.
+ *
+ * Deliberately a byte-by-byte loop rather than
+ * `btoa(String.fromCharCode(...bytes))` — spreading a `Uint8Array` into
+ * `String.fromCharCode` blows the engine's argument-count limit on anything
+ * past a few tens of KB, which a generated or scanned tile can exceed even at
+ * 128×128. Mirrors `useTilePacks.ts`'s `toBase64`; not shared because that one
+ * is local to its own module and neither composable is the other's dependency.
+ */
+async function blobToBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+interface LibraryPackErrorDetail {
+  message?: string;
+  required?: number;
+  requiredDrawn?: number;
+}
+
+/**
+ * Translate an edge-function error code into a sentence a DM can act on.
+ *
+ * `LibraryTilePackPanel.vue` and `LibraryTilePackRow.vue` each carry their own
+ * local `describeCreateError` / `describeError` today, covering only the codes
+ * their own actions could throw. A third copy for these three new mutations is
+ * exactly what CLAUDE.md's extraction rule exists to prevent, so this is the
+ * one place going forward — those two components should adopt it rather than
+ * grow a fourth translation of the same codes.
+ */
+export function describeLibraryPackError(caught: unknown): string {
+  const message = caught instanceof Error ? caught.message : String(caught);
+  const detail = caught as LibraryPackErrorDetail | null;
+  switch (message) {
+    case "admin_required":
+      return "Only an admin can manage library packs.";
+    case "pack_not_found":
+      return "That library pack no longer exists.";
+    case "invalid_pack_id":
+      return 'That pack id isn\'t valid — use lowercase letters, numbers and hyphens, and it can\'t start with "custom-".';
+    case "invalid_pack_concept":
+      return "Give the pack a name (a description over 1000 characters won't fit).";
+    case "invalid_license_keys":
+      return "One or more of those licenses isn't recognized.";
+    case "invalid_content_source":
+      return "That content source isn't recognized.";
+    case "invalid_sort_order":
+      return "Sort order must be a whole number.";
+    case "no_changes":
+      return "Nothing to save — change a field first.";
+    case "invalid_slot":
+      return "That tile slot isn't part of this pack's schema.";
+    case "image_too_large":
+      return "That image is too large to upload.";
+    case "invalid_image":
+      return "That file isn't a valid 128×128 WebP tile.";
+    case "generation_already_running":
+      return "This pack already has a generation run in progress.";
+    case "nothing_to_generate":
+      return "Every slot already has art — there is nothing left to generate.";
+    case "unknown_slot_id":
+      return "One of those slots isn't part of this pack's schema.";
+    case "pack_incomplete": {
+      if (typeof detail?.required === "number" && typeof detail?.requiredDrawn === "number") {
+        const missing = detail.required - detail.requiredDrawn;
+        return `This pack still has ${missing} unfilled required slot${missing === 1 ? "" : "s"} — finish generating it before publishing.`;
+      }
+      return "This pack still has unfilled slots — finish generating it before publishing.";
+    }
+    case "unpublish_before_deleting":
+      return "Unpublish this pack before deleting it.";
+    case "cancel_generation_before_deleting":
+      return "Cancel this pack's generation run before deleting it.";
+    default:
+      return message;
+  }
 }
