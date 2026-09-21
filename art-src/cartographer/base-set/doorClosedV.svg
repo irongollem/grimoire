@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- A shut door fills its opening, so the leaf sits flush in the band and the
+       only thing telling it apart from the wall is hardware and the seams at
+       either jamb. Those are load-bearing: under a uniform material (wet brick)
+       a leaf with no hardware restyles into more wall. -->
+  <defs>
+    <linearGradient id="band" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b6b6b6"/><stop offset=".45" stop-color="#909090"/><stop offset="1" stop-color="#6b6b6b"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="468.5" x2="0" y2="555.5" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d0d0d0"/><stop offset="1" stop-color="#888888"/>
+    </linearGradient>
+    <linearGradient id="shut" x1="0" y1="404" x2="0" y2="620" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#cfcfcf"/><stop offset="1" stop-color="#8a8a8a"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(90 512 512)">
+    <rect x="0" y="384" width="256" height="256" fill="url(#band)"/>
+    <rect x="768" y="384" width="256" height="256" fill="url(#band)"/>
+    <rect x="256" y="404" width="512" height="216" fill="url(#shut)"/>
+    <line x1="259" y1="404" x2="259" y2="620" stroke="#1e1e1e" stroke-opacity=".7" stroke-width="8"/>
+    <line x1="765" y1="404" x2="765" y2="620" stroke="#1e1e1e" stroke-opacity=".7" stroke-width="8"/>
+    <rect x="256" y="404" width="512" height="10" fill="#ffffff" opacity=".35"/>
+    <circle cx="292" cy="452" r="15" fill="#464646"/>
+    <circle cx="292" cy="572" r="15" fill="#464646"/>
+    <circle cx="712" cy="512" r="17" fill="#3f3f3f"/>
+  </g>
+</svg>

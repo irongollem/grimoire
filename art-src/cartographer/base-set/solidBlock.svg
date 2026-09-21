@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Also full-bleed, but must read as MASS rather than surface — it is what
+       a wall's interior is made of. The inset rim is the only articulation:
+       enough to say "a raised solid block", not enough to dictate a material. -->
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9a9a9a"/><stop offset="1" stop-color="#6e6e6e"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#b)"/>
+  <rect x="26" y="26" width="972" height="972" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="10"/>
+  <rect x="26" y="26" width="972" height="972" fill="none" stroke="#1e1e1e" stroke-opacity=".30" stroke-width="4"/>
+</svg>

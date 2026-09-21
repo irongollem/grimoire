@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Validated shape (21 Sep 2026): hinge knuckles, handle and an edge seam
+       are what survive a restyle into a material that would otherwise merge the
+       leaf into the wall. The leaf is as long as the opening is wide and swings
+       60 degrees, reaching 443px into the 512px half-cell the tile covers. -->
+  <defs>
+    <linearGradient id="band" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b6b6b6"/><stop offset=".45" stop-color="#909090"/><stop offset="1" stop-color="#6b6b6b"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="468.5" x2="0" y2="555.5" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d0d0d0"/><stop offset="1" stop-color="#888888"/>
+    </linearGradient>
+    <linearGradient id="shut" x1="0" y1="404" x2="0" y2="620" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#cfcfcf"/><stop offset="1" stop-color="#8a8a8a"/>
+    </linearGradient>
+  </defs>
+  <g transform="rotate(90 512 512)">
+    <rect x="0" y="384" width="256" height="256" fill="url(#band)"/>
+    <rect x="768" y="384" width="256" height="256" fill="url(#band)"/>
+    <g transform="rotate(60 256 512)">
+      <rect x="270" y="486.5" width="512" height="87" fill="#000000" opacity=".28"/>
+      <rect x="256" y="468.5" width="512" height="87" fill="url(#leaf)" stroke="#1e1e1e" stroke-opacity=".6" stroke-width="3"/>
+      <rect x="256" y="468.5" width="512" height="9" fill="#ffffff" opacity=".45"/>
+      <line x1="734" y1="468.5" x2="734" y2="555.5" stroke="#1e1e1e" stroke-opacity=".8" stroke-width="5"/>
+      <circle cx="708" cy="512" r="12" fill="#3f3f3f"/>
+    </g>
+    <circle cx="256" cy="478" r="15" fill="#464646"/>
+    <circle cx="256" cy="546" r="15" fill="#464646"/>
+  </g>
+</svg>

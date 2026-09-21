@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Full-bleed and deliberately featureless. A floor carries no geometry to
+       transfer, only the constraint "fills the cell, opaque, edge to edge, no
+       border". Structural joints are withheld on purpose: flagstone seams here
+       would bias every pack's floor toward masonry, including the plank ones. -->
+  <defs>
+    <radialGradient id="f" cx="0.5" cy="0.42" r="0.75">
+      <stop offset="0" stop-color="#a5a5a5"/><stop offset="1" stop-color="#8b8b8b"/>
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#f)"/>
+</svg>
