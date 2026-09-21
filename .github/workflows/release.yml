@@ -40,6 +40,15 @@ jobs:
         run: npm test
       - name: Typecheck and build (vue-tsc, vite)
         run: npm run build
+      # Reads dist/, so it has to follow the build. Catches the class of break
+      # that took /login down in #896: a dependency calling a runtime API that
+      # older browsers lack. No build target polyfills those, and every gate
+      # above runs on Node, which has all of them — so nothing else here can
+      # see it. Gates on the set of API *names*, not on counts, so a known
+      # false positive is triaged once in pinned.mjs rather than argued about
+      # on every build.
+      - name: Runtime APIs older browsers lack
+        run: npm run check:runtime-apis
 
   # Everything that needs a real Postgres: the migration-version guard, a
   # full replay of every migration, pgTAP, the embed check, the content-
