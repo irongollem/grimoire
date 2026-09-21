@@ -262,10 +262,21 @@ function categoryRequest(slot: SlotIdentity, mechanics: SlotMechanics): string {
     case "floor":
       return `A seamless walkable floor tile viewed directly from above. ${variation}`;
     case "solidBlock":
-      return `A seamless full-cell mass of substantial architecture, visibly heavier than the walkable floor. ${variation}`;
+      // "Substantial architecture" invited the model to draw ARCHITECTURE: the
+      // first run returned a miniature dungeon floor plan, complete with four
+      // doors and corridors, for a tile that is supposed to be the inside of a
+      // wall. A pack's brief names its doors and walls, and that brief is
+      // appended to every slot's prompt, so a category that does not say what
+      // it excludes inherits the whole pack's vocabulary.
+      return `A single unbroken mass of solid stone filling the entire cell — the INSIDE of a wall, quarried rock seen from above, visibly denser and heavier than the walkable floor. It is not a room and not a plan: no doors, no corridors, no chambers, no floor, no openings, nothing a creature could stand on or pass through. ${variation}`;
     case "wallSegmentH":
     case "wallSegmentV":
-      return `A straight wall running through the exact canvas centre on the ${mechanics.footprint === "centered-horizontal-edge" ? "horizontal" : "vertical"} axis. ${variation}`;
+      // Explicitly wall ONLY. The first run put a heavy oak door in the middle
+      // of the plain wall segment — reasonably, since the pack brief mentions
+      // its doors and every slot prompt carries that brief. A wall segment is
+      // the most repeated tile on a map, so a door baked into it appears in
+      // every wall run in the dungeon.
+      return `A straight unbroken wall running through the exact canvas centre on the ${mechanics.footprint === "centered-horizontal-edge" ? "horizontal" : "vertical"} axis. Wall only, along its whole length: no door, no gate, no archway, no window, no opening or break of any kind — those are separate tiles. ${variation}`;
     case "doorClosedH":
     case "doorClosedV":
       return `An unmistakably closed door integrated into a centred ${mechanics.footprint === "centered-horizontal-edge" ? "horizontal" : "vertical"} wall threshold.`;

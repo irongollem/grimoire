@@ -98,7 +98,7 @@
  * a shared mutation instance across every row would light up every button's
  * spinner for one pack's publish.
  */
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { IconGlobe, IconArchive, IconDelete, IconChevronUp, IconChevronDown, IconGenerate, IconEdit } from "@/lib/icons";
 import { describeLibraryPackError, useLibraryTilePacks } from "@/composables/cartographer/useLibraryTilePacks";
@@ -121,7 +121,20 @@ const { confirm } = useConfirm();
 // Terminal-and-quiet runs start collapsed; anything still in progress, or that
 // failed and needs attention, starts open. A manual toggle wins after that —
 // this only sets the initial state.
-const expanded = ref(props.run ? !["completed", "cancelled"].includes(props.run.status) : false);
+const busy = (status: string) => !["completed", "cancelled"].includes(status);
+const expanded = ref(props.run ? busy(props.run.status) : false);
+
+// ...and the same rule again when a run ARRIVES, which is now the common case.
+// The runs query polls, so a row rendered before its run exists mounts with
+// `run` undefined and would stay collapsed for ever — the progress card simply
+// never appeared. That was survivable when the only way to get a run was
+// `create_library`, which made the pack and the run together; #900 lets an
+// admin start a run against a pack already on screen, so the row is always
+// mounted first. Keyed on the run's id rather than its presence so a manual
+// collapse is not undone on every poll.
+watch(() => props.run?.id, (id, previousId) => {
+  if (id && id !== previousId && props.run) expanded.value = busy(props.run.status);
+});
 const editing = ref(false);
 const actionError = ref("");
 

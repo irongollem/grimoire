@@ -1,13 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Also full-bleed, but must read as MASS rather than surface — it is what
-       a wall's interior is made of. The inset rim is the only articulation:
-       enough to say "a raised solid block", not enough to dictate a material. -->
+  <!-- Full-bleed and deliberately WITHOUT a border.
+       An earlier version carried an inset rim, and it cost a generation: a
+       rectangle inside a square reads as a room outline, and combined with a
+       prompt that said "substantial architecture" the model returned a
+       miniature dungeon floor plan — four doors, corridors, alcoves — for a
+       tile that is the inside of a wall.
+       The lesson generalises. On the doors, articulation helped because every
+       mark MEANT something: a hinge is a hinge. A mark that means nothing is
+       not neutral, it is an invitation to interpret. So the only structure here
+       is coarse irregular block seams that say "quarried mass", set off-centre
+       and running off every edge so nothing reads as a bounding shape. -->
   <defs>
     <linearGradient id="b" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#9a9a9a"/><stop offset="1" stop-color="#6e6e6e"/>
+      <stop offset="0" stop-color="#8f8f8f"/><stop offset="1" stop-color="#626262"/>
     </linearGradient>
   </defs>
   <rect x="0" y="0" width="1024" height="1024" fill="url(#b)"/>
-  <rect x="26" y="26" width="972" height="972" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="10"/>
-  <rect x="26" y="26" width="972" height="972" fill="none" stroke="#1e1e1e" stroke-opacity=".30" stroke-width="4"/>
+  <g stroke="#1e1e1e" stroke-opacity=".34" stroke-width="9" fill="none">
+    <path d="M0 296 H1024"/>
+    <path d="M0 688 H1024"/>
+    <path d="M392 0 V296"/>
+    <path d="M736 296 V688"/>
+    <path d="M232 688 V1024"/>
+    <path d="M652 688 V1024"/>
+  </g>
+  <g stroke="#ffffff" stroke-opacity=".16" stroke-width="5" fill="none">
+    <path d="M0 305 H1024"/>
+    <path d="M0 697 H1024"/>
+  </g>
 </svg>
