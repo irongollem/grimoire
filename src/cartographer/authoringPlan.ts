@@ -337,10 +337,22 @@ function categoryRequest(slot: SlotIdentity, mechanics: SlotMechanics): string {
       return `A straight unbroken wall running through the exact canvas centre on the ${mechanics.footprint === "centered-horizontal-edge" ? "horizontal" : "vertical"} axis. Wall only, along its whole length: no door, no gate, no archway, no window, no opening or break of any kind — those are separate tiles. ${variation}`;
     case "doorClosedH":
     case "doorClosedV":
-      return `An unmistakably closed door integrated into a centred ${mechanics.footprint === "centered-horizontal-edge" ? "horizontal" : "vertical"} wall threshold.`;
+      // Every other category restates the viewpoint in this line; the doors
+      // were the only ones that did not, and they are the category with the
+      // strongest prior pulling the other way — "a closed door", unqualified,
+      // means a front-facing door to any image model. The convention was in
+      // the shared rendering notes and the constraints, and it lost to the
+      // subject line, which is what generated door FACES: panelled, handled,
+      // an elevation laid into a wall.
+      return `Seen from DIRECTLY ABOVE, looking down on the top edge of a single closed door. Its face is not visible — from this angle a door is a narrow slab filling the gap in the wall, showing only the end grain of its boards, its hinges at one side and a handle projecting from the other. ONE leaf, never a pair. It sits inside the wall's opening with the frame's rebate visible on either side of it.`;
     case "doorOpenH":
     case "doorOpenV":
-      return `An unmistakably open doorway integrated into a centred ${mechanics.footprint === "centered-horizontal-edge" ? "horizontal" : "vertical"} wall threshold, keeping the crossing visibly clear.`;
+      // This line used to ask for "an unmistakably open DOORWAY ... keeping the
+      // crossing visibly clear". A doorway is an opening, so the prompt was
+      // literally requesting a hole — and every generation duly minimised the
+      // leaf into a threshold lip or omitted it. The failure was compliance,
+      // not misunderstanding. What is wanted is a DOOR, standing open.
+      return `Seen from DIRECTLY ABOVE, looking down on a single door STANDING OPEN. The door itself is the subject: one leaf, swung back on its hinges so it juts out from the wall into the space beside it, seen as a narrow slab showing the end grain of its boards. Its face is not visible from this angle. ONE leaf, never a pair. The gap it has left in the wall is empty, with nothing drawn across it.`;
     case "stairsUp":
     case "stairsDown":
       return `A top-down ${slot.category === "stairsUp" ? "ascending" : "descending"} stair tile oriented toward ${slot.side}.`;
@@ -482,9 +494,27 @@ function sharedTheme(artBible: PackArtBible): string {
   return sections.filter(Boolean).join("\n");
 }
 
+/**
+ * The camera, stated on the line that names the subject.
+ *
+ * "exact orthographic top-down view" was already in the shared rendering
+ * conventions AND repeated in the constraints, and the doors ignored both,
+ * because the PRIMARY REQUEST said only "a closed door" — and an unqualified
+ * door is a front-facing door to an image model. Measured across the whole
+ * schema when that was found: 124 of the slots named no viewpoint in their
+ * subject line at all. The doors were simply the category whose prior was
+ * strong enough to make the omission visible.
+ *
+ * Prefixed here rather than written into each of the forty-odd branches, so a
+ * category added later cannot be the one that forgets. Branches that state the
+ * viewpoint again in their own words are not redundant — being told twice is
+ * exactly what stopped the doors coming back as elevations.
+ */
+const VIEWPOINT = "Seen from directly above, in plan, as on a battle map.";
+
 function buildPrompt(slot: SlotIdentity, artBible: PackArtBible, mechanics: SlotMechanics): PromptSpec {
   const theme = sharedTheme(artBible);
-  const request = categoryRequest(slot, mechanics);
+  const request = `${VIEWPOINT} ${categoryRequest(slot, mechanics)}`;
   const constraints = mechanicalConstraints(mechanics);
   return {
     use_case: "stylized-concept",

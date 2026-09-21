@@ -1,54 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- OPEN. The same leaf as doorClosedH, rotated 60 degrees about the
-       hinge at (256,512); the hinge barrels stay on the jamb where they belong.
-       Leaf length equals the opening width, so the swing reaches 443px into the
-       512px half-cell this tile covers.
+  <!-- OPEN: the SAME slab as doorClosedH, turned 60 degrees on the hinge at
+       (256,512). Same length, same thickness, same board-ends, same lever — a
+       door standing open is the shut door rotated, and if the two tiles
+       disagree about how substantial it is then the reference is telling the
+       model two stories.
 
-       The threshold is left transparent — the floor shows through a doorway
-       that is open, and the normalizer no longer punches that hole itself
-       (it used to, and it erased the leaf doing so). -->
+       The threshold is left clear so the floor shows through. -->
   <defs>
     <linearGradient id="band" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#b6b6b6"/><stop offset=".45" stop-color="#909090"/><stop offset="1" stop-color="#6b6b6b"/>
+      <stop offset="0" stop-color="#6d6d6d"/><stop offset=".5" stop-color="#8e8e8e"/><stop offset="1" stop-color="#6d6d6d"/>
     </linearGradient>
     <linearGradient id="leaf" x1="0" y1="470" x2="0" y2="554" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#cfcfcf"/><stop offset=".5" stop-color="#b0b0b0"/><stop offset="1" stop-color="#8a8a8a"/>
+      <stop offset="0" stop-color="#b9b9b9"/><stop offset=".5" stop-color="#a2a2a2"/><stop offset="1" stop-color="#8a8a8a"/>
     </linearGradient>
     <linearGradient id="reveal" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#4c4c4c"/><stop offset=".5" stop-color="#606060"/><stop offset="1" stop-color="#454545"/>
+      <stop offset="0" stop-color="#3f3f3f"/><stop offset=".5" stop-color="#535353"/><stop offset="1" stop-color="#3f3f3f"/>
     </linearGradient>
   </defs>
   <g>
     <rect x="0" y="384" width="256" height="256" fill="url(#band)"/>
     <rect x="768" y="384" width="256" height="256" fill="url(#band)"/>
-    <rect x="248" y="384" width="16" height="256" fill="#000000" opacity=".30"/>
-    <rect x="760" y="384" width="16" height="256" fill="#000000" opacity=".30"/>
+    <rect x="244" y="384" width="14" height="256" fill="#000000" opacity=".35"/>
+    <rect x="766" y="384" width="14" height="256" fill="#000000" opacity=".35"/>
     <g transform="rotate(60 256 512)">
-      <rect x="276" y="488" width="500" height="84" fill="#000000" opacity=".26"/>
-      <!-- leaf slab -->
-      <rect x="262" y="470" width="500" height="84" rx="4" fill="url(#leaf)" stroke="#1a1a1a" stroke-opacity=".75" stroke-width="4"/>
-      <!-- raised outer frame of the leaf -->
-      <rect x="272" y="478" width="480" height="68" rx="3" fill="none" stroke="#ffffff" stroke-opacity=".34" stroke-width="5"/>
-      <!-- two recessed panels with a muntin between: the strongest top-down
-           read that this slab is a DOOR and not a plank of wall -->
-      <rect x="296" y="492" width="196" height="40" rx="2" fill="#000000" opacity=".20"/>
-      <rect x="296" y="492" width="196" height="40" rx="2" fill="none" stroke="#1a1a1a" stroke-opacity=".6" stroke-width="3"/>
-      <rect x="532" y="492" width="196" height="40" rx="2" fill="#000000" opacity=".20"/>
-      <rect x="532" y="492" width="196" height="40" rx="2" fill="none" stroke="#1a1a1a" stroke-opacity=".6" stroke-width="3"/>
-      <rect x="500" y="478" width="24" height="68" fill="#9d9d9d"/>
-      <rect x="500" y="478" width="24" height="68" fill="none" stroke="#1a1a1a" stroke-opacity=".5" stroke-width="3"/>
-      <!-- handle: lever on a backplate, near the free edge -->
-      <rect x="700" y="494" width="34" height="36" rx="3" fill="#3c3c3c"/>
-      <rect x="706" y="506" width="44" height="12" rx="6" fill="#565656" stroke="#1a1a1a" stroke-opacity=".7" stroke-width="3"/>
+      <rect x="278" y="486" width="500" height="84" fill="#000000" opacity=".25"/>
+      <rect x="262" y="470" width="500" height="84" fill="url(#leaf)" stroke="#1a1a1a" stroke-opacity=".8" stroke-width="5"/>
+      <g stroke="#1a1a1a" stroke-opacity=".45" stroke-width="4">
+        <path d="M330 470 V554"/><path d="M398 470 V554"/><path d="M466 470 V554"/>
+        <path d="M534 470 V554"/><path d="M602 470 V554"/><path d="M670 470 V554"/>
+      </g>
+      <rect x="262" y="470" width="500" height="9" fill="#ffffff" opacity=".38"/>
+      <rect x="262" y="545" width="500" height="9" fill="#000000" opacity=".30"/>
+      <rect x="700" y="554" width="46" height="18" rx="7" fill="#3f3f3f" stroke="#1a1a1a" stroke-opacity=".7" stroke-width="3"/>
     </g>
-    <!-- hinge barrels straddling the jamb-to-leaf seam, knuckled -->
-    <g fill="#3c3c3c" stroke="#1a1a1a" stroke-opacity=".8" stroke-width="3">
-      <rect x="238" y="482" width="48" height="22" rx="11"/>
-      <rect x="238" y="520" width="48" height="22" rx="11"/>
-    </g>
-    <g fill="#5a5a5a">
-      <rect x="252" y="486" width="6" height="14"/><rect x="266" y="486" width="6" height="14"/>
-      <rect x="252" y="524" width="6" height="14"/><rect x="266" y="524" width="6" height="14"/>
+    <g fill="#3c3c3c" stroke="#1a1a1a" stroke-opacity=".85" stroke-width="3">
+      <rect x="240" y="478" width="44" height="20" rx="10"/>
+      <rect x="240" y="526" width="44" height="20" rx="10"/>
     </g>
   </g>
 </svg>

@@ -282,3 +282,37 @@ describe("rotation-derived slots", () => {
     }
   });
 });
+
+describe("every category states its viewpoint in the subject line (#902)", () => {
+  /**
+   * The shared rendering conventions and the constraints both say "exact
+   * orthographic top-down view", and the doors ignored both — because the
+   * PRIMARY REQUEST, the line naming the subject, said only "a closed door",
+   * and an unqualified door is a front-facing door to an image model. Every
+   * other category restated the viewpoint; the doors were the sole omission
+   * and the sole category generating elevations.
+   */
+  it("names the viewpoint in every category_request", () => {
+    const plan = createGenerationPlan({
+      manifest: createDraftManifest({ packId: "t", name: "T", description: "d", packVersion: 1 }),
+      artBible: bible,
+      selectedSlotIds: enumerateSchemaSlots(true).map(slotId),
+    });
+    const silent = plan.jobs
+      .filter((job) => !/seen from directly above|top-down|viewed directly from above/i.test(job.prompt.category_request))
+      .map((job) => job.id);
+    expect(silent, "categories whose subject line never says where the camera is").toEqual([]);
+  });
+
+  it("asks the open door for a door, not for a doorway", () => {
+    const plan = createGenerationPlan({
+      manifest: createDraftManifest({ packId: "t", name: "T", description: "d", packVersion: 1 }),
+      artBible: bible,
+      selectedSlotIds: ["doorOpenH:0", "doorClosedH:0"],
+    });
+    const open = plan.jobs.find((job) => job.id === "doorOpenH:0")!.prompt.category_request;
+    expect(open).toMatch(/standing open/i);
+    expect(open).not.toMatch(/doorway/i);
+    for (const job of plan.jobs) expect(job.prompt.category_request).toMatch(/one leaf, never a pair/i);
+  });
+});
