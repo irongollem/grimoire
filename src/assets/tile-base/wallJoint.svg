@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- ONE geometry serves all nine sides. The renderer scales this to a
+       band-by-band square at the grid intersection (renderMap.ts: drawImage at
+       thickness x thickness), so a junction block is full-bleed wall mass
+       whatever meets there — L, T or cross. `side` tells the generator which
+       walls to match materially, not what shape to draw, so nine files would be
+       nine copies. Reference lookup falls back from `category:side` to
+       `category` for exactly this case.
+
+       Opaque edge to edge: any transparency here shows as a hole punched at
+       every corner of every room. -->
+  <defs>
+    <linearGradient id="j" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b0b0b0"/><stop offset=".5" stop-color="#8e8e8e"/><stop offset="1" stop-color="#6b6b6b"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#j)"/>
+  <rect x="0" y="0" width="1024" height="34" fill="#ffffff" opacity=".28"/>
+  <rect x="0" y="990" width="1024" height="34" fill="#1e1e1e" opacity=".34"/>
+</svg>

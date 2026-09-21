@@ -50,3 +50,46 @@ business in a folder the repo deliberately ignores.
 Rasterise with `node scripts/base-set-raster.mjs`, which writes to
 `dist/tile-base/` (already gitignored). The bitmaps are always derived — never
 committed — so the SVG cannot silently disagree with what the generator sees.
+
+## Progress
+
+60 distinct geometries, one per `(category, side)` — variants of a category
+share a shape, so `floor:0` and `floor:7` need one reference between them. That
+is fewer files than a pack has slots (52-57) and they are authored once for
+every pack ever generated.
+
+| group | files | done |
+|---|---|---|
+| structural — floor, solidBlock, wallSegment H/V | 4 | yes |
+| doors — closed and open, H/V | 4 | yes |
+| joints — wallJoint, wallRoundJoint x4 | 5 | yes |
+| stairs — up/down x4 sides | 8 | yes |
+| scatter — rubble, debris | 2 | no |
+| objects — chest, barrel, table, statue, pillar, brazier | 6 | no |
+| hazards | 12 | no — convert `hazardPlaceholders.ts` |
+| features | 11 | no — convert `featurePlaceholders.ts` |
+
+The first eight are exactly the schema's REQUIRED categories, so every pack's
+20 mandatory slots now has a geometry reference; everything remaining is an
+optional category a pack may ship nothing for.
+
+**`wallJoint` needs one file, not nine.** The renderer scales it to a
+band-sized square at the grid intersection, full-bleed, so an L, a T and a
+cross are the same shape — `side` tells the generator which walls to match
+materially, not what to draw. Reference lookup should fall back from
+`category:side` to `category`. `wallRoundJoint` is the opposite case: its
+quarter-circle is carved from a different corner per side, so it genuinely
+needs four.
+
+## Validating a tile
+
+A base tile is accepted on its RESTYLES, never on itself. Restyle it into two
+materials with nothing in common and check the geometry and part boundaries
+survive both. Under a sympathetic material everything passes — oak's planks and
+iron banding differentiate a door from a wall by themselves — so a single
+material tells you nothing.
+
+Pass the footprint correctly when testing, mirroring `job.mechanics.alpha`:
+a full-cell tile restyled under "make everything outside the shapes
+transparent" comes back with holes punched through it and objects invented in
+the gaps. That was a harness bug that briefly looked like a bad tile.

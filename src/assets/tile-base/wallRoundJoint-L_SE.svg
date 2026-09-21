@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- A broad 90-degree corner: wall mass fills the tile except for one clean
+       quarter-circle carved from the interior side. The carve centre (0,0)
+       and radius 666 mirror clearRoundedInterior() in normalizeGeneratedTile,
+       so a generated tile and this reference describe the same arc rather than
+       two arcs that happen to look similar.
+
+       Drawn full-tile centred on the intersection (renderMap.ts), so unlike
+       wallJoint this one straddles four cells and its curve must land where
+       the renderer expects it. -->
+  <defs>
+    <linearGradient id="j" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b0b0b0"/><stop offset=".5" stop-color="#8e8e8e"/><stop offset="1" stop-color="#6b6b6b"/>
+    </linearGradient>
+    <mask id="carve">
+      <rect x="0" y="0" width="1024" height="1024" fill="#ffffff"/>
+      <circle cx="0" cy="0" r="666" fill="#000000"/>
+    </mask>
+  </defs>
+  <g mask="url(#carve)">
+    <rect x="0" y="0" width="1024" height="1024" fill="url(#j)"/>
+  </g>
+  <circle cx="0" cy="0" r="666" fill="none" stroke="#1e1e1e" stroke-opacity=".45" stroke-width="7" mask="url(#carve)"/>
+  <circle cx="0" cy="0" r="655" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="9" mask="url(#carve)"/>
+</svg>

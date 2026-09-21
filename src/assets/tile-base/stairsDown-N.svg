@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Full-cell and OPAQUE. Stairs replace the floor rather than sitting on it
+       (slotMechanics: full-cell/opaque, unlike the scatter overlays), so the
+       eight treads are contiguous — 8 x 128 covering the cell exactly. Leaving
+       gaps between them, as a first pass did, is transparency: the floor shows
+       through the staircase in stripes.
+
+       Tread 0 sits at the NORTH edge, which is the leading edge of travel, and
+       `side` rotates the whole run about the cell centre so E/S/W cannot drift
+       from N.
+
+       Descending: darkest at the leading edge, rising back behind, every lip a hard shadow — it reads as dropping into a shaft fully desaturated.
+       Up and down differ by VALUE DIRECTION and lip treatment, never by hue —
+       hue is exactly what a restyle replaces, so stairs distinguished only by
+       colour would generate as two identical tiles. -->
+  <g>
+    <rect x="0" y="0" width="1024" height="128" fill="rgb(79,79,79)"/>
+    <rect x="0" y="128" width="1024" height="128" fill="rgb(96,96,96)"/>
+    <rect x="0" y="256" width="1024" height="128" fill="rgb(113,113,113)"/>
+    <rect x="0" y="384" width="1024" height="128" fill="rgb(130,130,130)"/>
+    <rect x="0" y="512" width="1024" height="128" fill="rgb(147,147,147)"/>
+    <rect x="0" y="640" width="1024" height="128" fill="rgb(164,164,164)"/>
+    <rect x="0" y="768" width="1024" height="128" fill="rgb(181,181,181)"/>
+    <rect x="0" y="896" width="1024" height="128" fill="rgb(198,198,198)"/>
+    <rect x="0" y="120" width="1024" height="8" fill="#1e1e1e" opacity=".60"/>
+    <rect x="0" y="128" width="1024" height="9" fill="#ffffff" opacity=".22"/>
+    <rect x="0" y="248" width="1024" height="8" fill="#1e1e1e" opacity=".60"/>
+    <rect x="0" y="256" width="1024" height="9" fill="#ffffff" opacity=".22"/>
+    <rect x="0" y="376" width="1024" height="8" fill="#1e1e1e" opacity=".60"/>
+    <rect x="0" y="384" width="1024" height="9" fill="#ffffff" opacity=".22"/>
+    <rect x="0" y="504" width="1024" height="8" fill="#1e1e1e" opacity=".60"/>
+    <rect x="0" y="512" width="1024" height="9" fill="#ffffff" opacity=".22"/>
+    <rect x="0" y="632" width="1024" height="8" fill="#1e1e1e" opacity=".60"/>
+    <rect x="0" y="640" width="1024" height="9" fill="#ffffff" opacity=".22"/>
+    <rect x="0" y="760" width="1024" height="8" fill="#1e1e1e" opacity=".60"/>
+    <rect x="0" y="768" width="1024" height="9" fill="#ffffff" opacity=".22"/>
+    <rect x="0" y="888" width="1024" height="8" fill="#1e1e1e" opacity=".60"/>
+    <rect x="0" y="896" width="1024" height="9" fill="#ffffff" opacity=".22"/>
+  </g>
+</svg>
