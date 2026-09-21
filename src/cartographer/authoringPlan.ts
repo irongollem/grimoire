@@ -283,14 +283,95 @@ function categoryRequest(slot: SlotIdentity, mechanics: SlotMechanics): string {
       // filled canvas. Asking for arms reaching declared edges contradicted the
       // "fill the complete square canvas" constraint in the same prompt.
       return `A solid wall junction block for the exact ${slot.side} connection: wall mass fills the entire canvas edge to edge, reading as the same material as the ${jointEdges(slot.side).join(", ")} walls that meet here, with no floor, gap or background anywhere in frame.`;
+    // ── Scatter (#902) ───────────────────────────────────────────────────
+    // These two shared the fallback branch and so differed by a single noun,
+    // which is why they generated as the same picture. What separates them is
+    // the SIZE and ORIGIN of the pieces, not the material — material is what a
+    // restyle replaces, so it can never be the distinguishing feature.
+    case "rubble":
+      return `A loose scatter of broken masonry chunks — fist-sized to head-sized fragments of the surrounding architecture, fallen and settled. Occupies roughly half the cell with clear floor showing between and around the pieces. ${variation}`;
+    case "debris":
+      return `A litter of small light refuse — splinters, shards, grit and fragments, none larger than a hand, the leavings of use rather than collapse. Finer and more thinly spread than a rubble pile, covering more of the cell but obscuring less of it. ${variation}`;
+
+    // ── Objects (#902) ───────────────────────────────────────────────────
+    // Furniture and fittings a party can see and interact with. Each is
+    // described by silhouette first, because at one cell on a battle map the
+    // outline is nearly all a DM reads.
+    case "objectChest":
+      return `A closed lidded chest seen from directly above: a rectangle roughly two-thirds the cell, its lid banded and its lock plate visible on the front edge. ${variation}`;
+    case "objectBarrel":
+      return `An upright barrel seen from directly above: a circle with concentric hoop rings and a visible lid seam, about half the cell across. ${variation}`;
+    case "objectTable":
+      return `A table seen from directly above: a broad flat rectangular top filling most of the cell, its legs just visible beyond the corners of the top. ${variation}`;
+    case "objectStatue":
+      return `A plain standing monument seen from directly above — a tapered obelisk or plinth on a square base, reading as a simple geometric mass with no limbs or face. Deliberately unlike the robed figure of a feature statue. ${variation}`;
+    case "objectPillar":
+      return `A structural column seen from directly above: a circle within a square base, reading as something that carries the ceiling rather than something placed on the floor. ${variation}`;
+    case "objectBrazier":
+      return `A standing fire bowl seen from directly above: a ring of metal enclosing glowing coals, on a narrow footed base. The flame is contained by the bowl, unlike a flame jet firing bare from the floor. ${variation}`;
+
+    // ── Trap hazard glyphs (#804, art direction #902) ────────────────────
+    // A DM has to tell these apart at a glance on a 128px cell, so each is
+    // pinned to a distinct SILHOUETTE rather than a distinct colour — the same
+    // rule `hazardPlaceholders.ts` states for the procedural fallbacks, whose
+    // shapes these descriptions follow so a pack's art and its placeholder
+    // read as the same hazard.
+    case "hazardPit":
+      return `An open pit seen from directly above: a dark void with a lighter broken rim, reading as an ABSENCE in the floor rather than an object on it. Nothing bridges or covers it.`;
+    case "hazardPressurePlate":
+      return `A flush floor plate: a square panel set level with the floor, its bevelled edge showing a hairline gap all round and a rivet at each corner. Flat and intact — nothing protrudes, nothing is broken.`;
+    case "hazardTripwire":
+      return `A single taut wire stretched low across the cell between two small anchor posts at opposite edges. Almost all floor; the wire is a thin line, not a mesh.`;
+    case "hazardFallingBlock":
+      return `A heavy slab poised overhead: a large squared mass of stone filling most of the cell, its face split by deep cracks, casting a hard shadow onto the floor beneath it.`;
+    case "hazardDartWall":
+      return `A row of small dart holes bored through a narrow wall strip along one edge of the cell — a line of dark circular mouths in a band of masonry, the rest of the cell clear floor.`;
+    case "hazardBlade":
+      return `A single scything blade on the diagonal: a long tapered steel edge with a bright honed line down its length, sweeping across the cell.`;
+    case "hazardFlameJet":
+      return `A tongue of flame firing straight up out of a bare floor nozzle — no bowl, no housing, no fuel. A bright core inside a softer outer flame.`;
+    case "hazardGlyph":
+      return `An arcane rune inscribed flat into the floor: an angular figure enclosed by a circle, cut or burned into the surface and faintly luminous. Lines only — nothing is raised above the floor.`;
+    case "hazardNet":
+      return `A cross-hatched rope mesh lying over the floor: two sets of cords crossing at a diagonal, with open gaps between them through which the floor shows.`;
+    case "hazardAlarm":
+      return `A mounted warning bell: a bell-shaped body with a clapper beneath it on a small bracket, reading unmistakably as something that makes noise rather than something that harms.`;
+    case "hazardCollapsingFloor":
+      return `Floor about to give way: the surrounding floor material spidered with cracks radiating from a centre point, still whole and unbroken — a fracture, never a hole.`;
+    case "hazardGeneric":
+      return `A blank hazard marker: a plain warning triangle standing alone on clear floor, the sign for a trap whose nature has not been chosen. Deliberately generic — it must not resemble any specific trap.`;
+
+    // ── Dungeon feature glyphs (#804, art direction #902) ────────────────
+    case "featureSecretDoor":
+      return `A concealed door in a wall: a wall-thick band of masonry with a fine door-shaped seam cracked into it, hinge line down one side. The wall is unbroken — there is no opening, only the outline of one.`;
+    case "featureHiddenPassage":
+      return `A dark archway receding into shadow: an opening whose interior fades to black with depth, reading as a way through rather than a recess.`;
+    case "featureCache":
+      return `A small buried stash: a disturbed mound of earth or flagstones with a glint of coin or metal showing through the top. Deliberately unlike a chest — no lid, no box, nothing squared off.`;
+    case "featureMovingWall":
+      return `A sliding wall block: a squared mass of wall material with a directional chevron cut into its face and a track groove at its base, showing which way it travels.`;
+    case "featureLever":
+      return `A pull lever on a wall-mounted plate: a short handle angled out from a small rectangular mounting, clearly a thing a hand grips.`;
+    case "featureAltar":
+      return `A raised stone altar: a thick rectangular slab lifted on a solid base, its upper surface catching a faint light from within. Raised and solid, never flush with the floor.`;
+    case "featureFountain":
+      return `A circular basin holding water, with a central jet breaking the surface into ripples that spread to the rim.`;
+    case "featureStatue":
+      return `A carved humanoid figure on a plinth, seen from above: a robed body with discernible head and shoulders. Deliberately unlike the plain tapered obelisk of an object statue — this one reads as a person.`;
+    case "featureRubble":
+      return `A heaped mound of overlapping stones piled together into a single solid mass that blocks the cell. Distinct from scattered floor rubble: this is one impassable heap, not loose pieces with floor showing between them.`;
+    case "featureInscription":
+      return `A carved tablet or inscribed panel set into the floor: a bordered rectangular field of incised lines suggesting text, with no legible letters.`;
+    case "featureGeneric":
+      return `A blank feature marker: a plain unadorned marker stone standing on clear floor, the sign for a dungeon feature whose nature has not been chosen. Deliberately generic — it must not resemble any specific feature.`;
+
     default:
-      // `categoryLabel`, not the raw key: this branch serves every optional
-      // category, so the model was being asked for "a top-down
-      // hazardPressurePlate overlay". Note this only makes the *subject*
-      // legible — it does not give two neighbouring categories genuinely
-      // different art direction, which is a separate question (see #902):
-      // `rubble` and `debris` still differ by one word and come back nearly
-      // identical.
+      // Reached only if a category is added to the schema without art
+      // direction here. `categoryLabel` rather than the raw key, so the model
+      // is at least asked for "a hazard pressure plate" and not
+      // "hazardPressurePlate" — but a category landing here is a gap to fill,
+      // not a resting place: every neighbour sharing this branch is how
+      // `rubble` and `debris` came back as the same picture (#902).
       return `A top-down ${categoryLabel(slot.category)} overlay centred in one tile. ${variation}`;
   }
 }

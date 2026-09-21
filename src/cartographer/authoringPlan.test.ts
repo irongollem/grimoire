@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, slotMechanics, upsertManifestSlot, type PackArtBible } from "./authoringPlan";
+import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, slotId, slotMechanics, upsertManifestSlot, type PackArtBible } from "./authoringPlan";
 import { TILE_PACK_SCHEMA } from "./packSchema";
 
 const bible: PackArtBible = {
@@ -169,4 +169,59 @@ it("adds a normalized slot at its canonical manifest URL", () => {
   upsertManifestSlot(draft, { category: "wallSegmentH", variant: 0 }, 1234);
 
   expect(draft.assets.wallSegmentH).toEqual([{ variant: 0, url: "wallSegmentH/0.webp", byteSize: 1234 }]);
+});
+
+describe("categoryRequest coverage (#902)", () => {
+  /** Every legal slot, one per (category, side), planned in one go. */
+  function everyCategoryPlan() {
+    const slots = enumerateSchemaSlots(true);
+    const seen = new Set<string>();
+    const ids: string[] = [];
+    for (const slot of slots) {
+      const key = `${slot.category}:${slot.side ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      ids.push(slotId(slot));
+    }
+    return createGenerationPlan({
+      manifest: createDraftManifest({ packId: "t", name: "T", description: "d", packVersion: 1 }),
+      artBible: bible,
+      selectedSlotIds: ids,
+    });
+  }
+
+  /**
+   * The regression #902 is about. Every optional category used to share one
+   * fallback branch, so neighbouring categories differed by a single noun —
+   * `rubble` and `debris` generated as the same picture, and 23 glyphs that a
+   * DM must tell apart were described identically.
+   */
+  it("gives every category its own art direction, with none left on the fallback", () => {
+    const jobs = everyCategoryPlan().jobs;
+    const fallback = jobs.filter((job) => / overlay centred in one tile\./.test(job.prompt.category_request));
+    expect(fallback.map((job) => job.id), "categories still sharing the generic fallback branch").toEqual([]);
+  });
+
+  it("never describes two different categories the same way", () => {
+    const byRequest = new Map<string, string[]>();
+    for (const job of everyCategoryPlan().jobs) {
+      // Strip the per-variant sentence; it varies by number, not by subject.
+      const subject = job.prompt.category_request.replace(/Variant \d+;.*$/, "").trim();
+      byRequest.set(subject, [...(byRequest.get(subject) ?? []), job.id]);
+    }
+    const collisions = [...byRequest.entries()].filter(([, ids]) => new Set(ids.map((i) => i.split(":")[0])).size > 1);
+    expect(collisions.map(([, ids]) => ids), "distinct categories sharing one description").toEqual([]);
+  });
+
+  it("keeps the pairs that were being confused apart in words", () => {
+    const by = new Map(everyCategoryPlan().jobs.map((job) => [job.id.split(":")[0], job.prompt.category_request]));
+    // Each pair reads as the same thing unless the prompt says otherwise.
+    expect(by.get("rubble")).not.toBe(by.get("debris"));
+    expect(by.get("featureRubble")).toMatch(/mound|heap/i);
+    expect(by.get("rubble")).toMatch(/scatter|loose/i);
+    expect(by.get("objectStatue")).toMatch(/obelisk|plinth/i);
+    expect(by.get("featureStatue")).toMatch(/humanoid|robed/i);
+    expect(by.get("featureCache")).toMatch(/no lid|no box|buried|mound/i);
+    expect(by.get("hazardFlameJet")).toMatch(/no bowl|no housing|bare/i);
+  });
 });
