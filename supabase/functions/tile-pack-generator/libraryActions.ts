@@ -155,3 +155,41 @@ export function validateLibraryPackPatch(body: Record<string, unknown>): PatchVa
   if (!touched) return { ok: false, error: "no_changes" };
   return { ok: true, patch };
 }
+
+/**
+ * Where the neutral base tile set lives, and which file answers for a slot.
+ *
+ * The set is the geometry reference every pack is generated from (#904):
+ * 21 tiles under a reserved `_base/` prefix in the `library-tile-packs`
+ * bucket, seeded by `scripts/seed-tile-base.ts`. It is shared platform
+ * content, not a pack — both lanes read the same objects, so a Pro DM's
+ * custom pack is briefed from the same geometry a library pack is.
+ *
+ * `_base` is not a uuid, so the bucket's select policy (which matches the
+ * first path segment against a published pack's row id) makes it unreadable
+ * to clients without needing a rule of its own. The edge function reads it as
+ * service role.
+ */
+export const TILE_BASE_PREFIX = "_base/v1";
+
+/**
+ * Candidate object names for a slot's base reference, most specific first.
+ *
+ * Directional categories mostly need a file per side — `wallRoundJoint`'s
+ * quarter-circle is carved from a different corner each time, `stairsUp-N`
+ * and `stairsUp-E` are different rotations. `wallJoint` is the exception that
+ * makes the fallback necessary: the renderer scales it to a band-sized square
+ * at the grid intersection, so an L, a T and a cross are one shape and one
+ * file answers for all nine sides. Rather than special-casing that category,
+ * the lookup simply tries `category-side` and then `category`, which is true
+ * for every category and needs no list to be kept in step.
+ *
+ * A slot with no base tile at all — every overlay, deliberately (see
+ * `src/assets/tile-base/_defs.md`) — yields candidates that resolve to
+ * nothing, and the caller sends no geometry reference. That is the intended
+ * outcome for scatter and glyphs, not a gap.
+ */
+export function baseReferenceCandidates(slot: { category: string; side?: string }): string[] {
+  const names = slot.side ? [`${slot.category}-${slot.side}`, slot.category] : [slot.category];
+  return names.map((name) => `${TILE_BASE_PREFIX}/${name}.webp`);
+}

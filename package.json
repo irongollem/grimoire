@@ -49,7 +49,8 @@
     "cartographer:pack": "tsx --tsconfig tsconfig.node.json scripts/cartographer-pack.ts",
     "art:manifest": "tsx --tsconfig tsconfig.node.json scripts/art-manifest.ts",
     "art:publish": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/art-publish.ts",
-    "seed-library-tile-packs": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-tile-packs.ts"
+    "seed-library-tile-packs": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-library-tile-packs.ts",
+    "seed-tile-base": "tsx --tsconfig tsconfig.node.json --env-file=.env.local scripts/seed-tile-base.ts"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",

@@ -68,14 +68,6 @@ function alphaBounds(data: Uint8ClampedArray, width: number, height: number) {
   return maxX < minX ? null : { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
 }
 
-function clearRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
-  ctx.save();
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(x, y, width, height);
-  ctx.restore();
-}
-
 function clearRoundedInterior(ctx: CanvasRenderingContext2D, side: string | undefined): void {
   const corner = side === "L_NE" ? [0, BASE_TILE_SIZE]
     : side === "L_SE" ? [0, 0]
@@ -97,9 +89,6 @@ function canvasToWebp(canvas: HTMLCanvasElement): Promise<Blob> {
   ));
 }
 
-/** Fraction of the tile the doorway opening spans across the wall band. */
-const THRESHOLD_GAP = Math.round(BASE_TILE_SIZE * 0.28);
-
 /**
  * Whether a tile's art is cropped and redrawn *into* the wall band.
  *
@@ -112,27 +101,6 @@ const THRESHOLD_GAP = Math.round(BASE_TILE_SIZE * 0.28);
 export function squashesOntoBand(category: SlotIdentity["category"], footprint: SlotMechanics["footprint"]): boolean {
   if (category === "doorOpenH" || category === "doorOpenV") return false;
   return footprint === "centered-horizontal-edge" || footprint === "centered-vertical-edge";
-}
-
-/**
- * The doorway opening cut through an open door's wall band, or null for every
- * other category.
- *
- * Confined to the band on purpose. Clearing the full height (or width) of the
- * tile — which is what this did before — erases the region an ajar leaf
- * occupies, so no open door could ever show a leaf no matter how well it was
- * drawn.
- */
-export function thresholdClearRect(
-  category: SlotIdentity["category"],
-  tileSize: number = BASE_TILE_SIZE,
-  band: number = BAND,
-): { x: number; y: number; width: number; height: number } | null {
-  const bandStart = Math.floor((tileSize - band) / 2);
-  const gapStart = Math.round((tileSize - THRESHOLD_GAP) / 2);
-  if (category === "doorOpenH") return { x: gapStart, y: bandStart, width: THRESHOLD_GAP, height: band };
-  if (category === "doorOpenV") return { x: bandStart, y: gapStart, width: band, height: THRESHOLD_GAP };
-  return null;
 }
 
 export async function normalizeGeneratedTile(input: {
@@ -217,10 +185,22 @@ export async function normalizeGeneratedTile(input: {
   // unmistakably open within that reach. A true right-angle swing would need a
   // non-square asset or a per-category draw scale, and the 128x128 invariant is
   // enforced in four places (here, completeSlot, preparePackUpload, the schema).
-  const threshold = thresholdClearRect(input.slot.category);
-  if (threshold) {
-    clearRect(ctx, threshold.x, threshold.y, threshold.width, threshold.height);
-  } else if (input.mechanics.footprint === "rounded-junction") {
+  // An open door's threshold is NOT punched out here any more.
+  //
+  // It used to be: clear a band-height column through the middle so the
+  // crossing read as open. That was a crutch for having nothing to tell the
+  // model where the opening went, and it is destructive the moment the model
+  // draws a leaf — the leaf occupies the threshold, which is precisely the
+  // region being cleared. Observed 21 Sep 2026: given a base geometry
+  // reference the model returned a handsome pair of hinged leaves swung into
+  // the doorway, and this clear erased both, leaving the wall-with-a-hole the
+  // reference existed to eliminate. There is no width that removes wall and
+  // spares a leaf, because nothing here knows where the leaf is.
+  //
+  // The opening now comes from the reference (#904), which carries a
+  // transparent crossing that an edit preserves. A tile that comes back with
+  // the crossing filled in is a retry, not something to mutilate into shape.
+  if (input.mechanics.footprint === "rounded-junction") {
     clearRoundedInterior(ctx, input.slot.side);
   }
   return canvasToWebp(output);

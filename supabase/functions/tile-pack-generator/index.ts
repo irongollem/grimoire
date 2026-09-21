@@ -11,7 +11,7 @@ import { generateImage } from "../_shared/imageGen.ts";
 import { markGeneratedImageB64 } from "../_shared/provenance/mark.ts";
 import { buildTileProvenance } from "./tileProvenance.ts";
 import { libraryPackTarget, mintLibraryPackId, packPrefix, userPackTarget, type PackTarget } from "./packTarget.ts";
-import { PROOF_SLOT_IDENTITIES, PROOF_SLOTS, initialGenerationStatus, parseTileSlot, validateLibraryPackPatch } from "./libraryActions.ts";
+import { PROOF_SLOT_IDENTITIES, PROOF_SLOTS, baseReferenceCandidates, initialGenerationStatus, parseTileSlot, validateLibraryPackPatch } from "./libraryActions.ts";
 import { fetchCreditCost, recordFreeGeneration, recordGeneration, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
@@ -657,6 +657,50 @@ async function deleteLibraryPack(user: User, body: Record<string, unknown>): Pro
  * regardless, so a new "generating" doorway matches the floor already drawn
  * for it rather than whatever a fresh proof pass happened to produce.
  */
+/**
+ * The neutral base tile for a slot, or null where the set deliberately has none.
+ *
+ * Always read from the `library-tile-packs` bucket regardless of lane: the set
+ * is shared platform content, so a Pro DM's private pack is briefed from the
+ * same geometry a library pack is. That is the point — the user lane needs this
+ * more than we do, being capped at four attempts with no way to hand-repair a
+ * tile.
+ */
+async function baseReference(slot: GenerationJob["slot"]): Promise<Blob | null> {
+  for (const candidate of baseReferenceCandidates(slot)) {
+    const { data } = await admin.storage.from("library-tile-packs").download(candidate);
+    if (data) return data;
+  }
+  return null;
+}
+
+/**
+ * Every image the renderer is given for one slot: geometry first, then style.
+ *
+ * The ordering is the message. The base tile says what SHAPE this is — where
+ * the wall band sits, how thick it is, that a door has a hinged leaf rather
+ * than being a hole — and the style references say what it is MADE OF. Measured
+ * 21 Sep 2026, geometry is the half that collapses without a reference: under a
+ * material with no internal contrast a door leaf restyles into more wall, while
+ * a reference carrying hinge, handle and seam survives.
+ *
+ * Capped at three. Each reference is ~1148 input image tokens, so the cap is
+ * what keeps a 57-tile pack's reference cost near half a dollar rather than
+ * unbounded.
+ *
+ * The proof phase gets references now, where before it got none at all
+ * (`allowedPhase === "pack" ? ... : []`). Its three tiles anchor every other
+ * tile in the pack, so they were the slots generated with least to go on and
+ * the ones whose errors propagated furthest.
+ */
+async function slotReferences(runId: string, target: PackTarget, slot: GenerationJob["slot"], phase: "proof" | "pack"): Promise<Blob[]> {
+  const base = await baseReference(slot);
+  const references = base ? [base] : [];
+  if (phase === "proof") return references;
+  const style = await styleReferences(runId, target);
+  return [...references, ...style].slice(0, 3);
+}
+
 async function styleReferences(runId: string, target: PackTarget): Promise<Blob[]> {
   const { data } = await admin.from("tile_pack_generation_jobs").select("style_ref_path, raw_path")
     .eq("run_id", runId).eq("phase", "proof").eq("status", "normalized")
@@ -774,7 +818,7 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
   }
 
   try {
-    const references = allowedPhase === "pack" ? await styleReferences(runId, run.target) : [];
+    const references = await slotReferences(runId, run.target, job.slot, allowedPhase);
     const providerConfigs = await fetchProviderConfigs(admin, ["openai"]);
     const model = providerConfigs.openai?.image_model ?? FALLBACK_MODEL;
     const result = await generateImage({
@@ -790,7 +834,23 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
       background: job.mechanics.alpha === "transparent-outside-footprint" ? "transparent" : "opaque",
     });
     const attemptNumber = ((claimed.attempts as unknown[] | null)?.length ?? 0) + 1;
-    const rawPath = `${run.target.prefix}/raw/${job.id.replaceAll(":", "-")}-${attemptNumber}.webp`;
+    // Scoped by RUN, not just by slot and attempt. `attemptNumber` counts
+    // attempts within one job row and so restarts at 1 for every new run, while
+    // the path was keyed only on slot and attempt — so a second run touching a
+    // slot some earlier run had already drawn tried to write a path that
+    // existed, and the upload's `upsert: false` failed it with "The resource
+    // already exists". The slot's whole generation then failed for a reason
+    // that had nothing to do with the image.
+    //
+    // Latent until #900: before it, a pack got exactly one run, created with
+    // the pack itself. `generate_library_pack` makes re-running a slot the
+    // normal case — filling gaps and redrawing a tile you dislike are the two
+    // things it exists for — so every regeneration would have hit this.
+    //
+    // Keyed rather than upserted so an earlier run's raw survives as evidence:
+    // `styleReferences` reads whatever `raw_path` the job recorded, and
+    // deleting a pack still sweeps the entire prefix.
+    const rawPath = `${run.target.prefix}/raw/${runId}/${job.id.replaceAll(":", "-")}-${attemptNumber}.webp`;
     // Marked here, once, right where the bytes come back from the provider —
     // every downstream consumer (the raw upload below, and the b64 handed
     // back to the client for normalization) shares this one marked copy.

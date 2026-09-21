@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { squashesOntoBand, stripBoundaryLightPixels, thresholdClearRect } from "./normalizeGeneratedTile";
+import { squashesOntoBand, stripBoundaryLightPixels } from "./normalizeGeneratedTile";
 import { WALL_BAND_PX, WALL_BAND_RATIO } from "./packSchema";
 
 describe("stripBoundaryLightPixels", () => {
@@ -42,47 +42,6 @@ describe("squashesOntoBand", () => {
     expect(squashesOntoBand("floor", "full-cell")).toBe(false);
     expect(squashesOntoBand("rubble", "centered-overlay")).toBe(false);
     expect(squashesOntoBand("wallRoundJoint", "rounded-junction")).toBe(false);
-  });
-});
-
-describe("thresholdClearRect", () => {
-  it("cuts the doorway across the band only, never the full tile", () => {
-    const rect = thresholdClearRect("doorOpenH", 128, 32)!;
-    expect(rect.height).toBe(32);
-    expect(rect.height).toBeLessThan(128);
-    // Centred on the gridline: the band runs 48..80 of a 128px tile.
-    expect(rect.y).toBe(48);
-    expect(rect.y + rect.height).toBe(80);
-  });
-
-  it("mirrors the axes for a vertical door", () => {
-    const rect = thresholdClearRect("doorOpenV", 128, 32)!;
-    expect(rect.width).toBe(32);
-    expect(rect.x).toBe(48);
-    expect(rect.height).toBe(thresholdClearRect("doorOpenH", 128, 32)!.width);
-  });
-
-  it("keeps the opening inside the tile and centred on it", () => {
-    for (const category of ["doorOpenH", "doorOpenV"] as const) {
-      const rect = thresholdClearRect(category, 128, 32)!;
-      expect(rect.x).toBeGreaterThanOrEqual(0);
-      expect(rect.y).toBeGreaterThanOrEqual(0);
-      expect(rect.x + rect.width).toBeLessThanOrEqual(128);
-      expect(rect.y + rect.height).toBeLessThanOrEqual(128);
-      expect(rect.x + rect.width / 2).toBe(64);
-      expect(rect.y + rect.height / 2).toBe(64);
-    }
-  });
-
-  it("returns null for everything that is not an open door", () => {
-    for (const category of ["floor", "wallSegmentH", "doorClosedH", "rubble", "stairsUp"] as const) {
-      expect(thresholdClearRect(category)).toBeNull();
-    }
-  });
-
-  it("tracks the band it is given, so it cannot drift from WALL_BAND_PX", () => {
-    expect(thresholdClearRect("doorOpenH", 128, 20)!.height).toBe(20);
-    expect(thresholdClearRect("doorOpenH", 128, 40)!.height).toBe(40);
   });
 });
 

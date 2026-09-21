@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   PROOF_SLOTS,
+  TILE_BASE_PREFIX,
+  baseReferenceCandidates,
   initialGenerationStatus,
   parseTileSlot,
   validateLibraryPackPatch,
@@ -139,5 +141,69 @@ describe("validateLibraryPackPatch", () => {
 
   it("returns the first invalid field's error even when other fields are valid", () => {
     expect(validateLibraryPackPatch({ name: "Fine", sort_order: -1 })).toEqual({ ok: false, error: "invalid_sort_order" });
+  });
+});
+
+describe("baseReferenceCandidates", () => {
+  it("tries the side-specific file before the category-wide one", () => {
+    expect(baseReferenceCandidates({ category: "wallRoundJoint", side: "L_NE" })).toEqual([
+      "_base/v1/wallRoundJoint-L_NE.webp",
+      "_base/v1/wallRoundJoint.webp",
+    ]);
+  });
+
+  /**
+   * The case the fallback exists for. `wallJoint` is one geometry serving all
+   * nine sides — the renderer scales it to a band-sized square at the grid
+   * intersection, so an L, a T and a cross are the same shape. Nine files would
+   * be nine copies, so the lookup drops to the category file instead.
+   */
+  it("falls back to the category file, which is how one wallJoint serves nine sides", () => {
+    for (const side of ["L_NE", "T_N", "CROSS"]) {
+      expect(baseReferenceCandidates({ category: "wallJoint", side })).toContain("_base/v1/wallJoint.webp");
+    }
+  });
+
+  it("asks for one file when a category has no sides", () => {
+    expect(baseReferenceCandidates({ category: "floor" })).toEqual(["_base/v1/floor.webp"]);
+    expect(baseReferenceCandidates({ category: "doorOpenH" })).toEqual(["_base/v1/doorOpenH.webp"]);
+  });
+
+  it("names every file the seed script actually writes", async () => {
+    // Guards the one thing a unit test can check about a two-sided contract:
+    // that the edge function asks for names `scripts/seed-tile-base.ts` uploads.
+    // A typo either side means a silently missing reference — the generator
+    // would carry on and simply produce worse tiles.
+    const { readdirSync } = await import("node:fs");
+    const seeded = new Set(
+      readdirSync("src/assets/tile-base")
+        .filter((f) => f.endsWith(".svg"))
+        .map((f) => `${TILE_BASE_PREFIX}/${f.replace(/\.svg$/, "")}.webp`),
+    );
+    const grid = [
+      { category: "floor" }, { category: "solidBlock" },
+      { category: "wallSegmentH" }, { category: "wallSegmentV" },
+      { category: "doorClosedH" }, { category: "doorClosedV" },
+      { category: "doorOpenH" }, { category: "doorOpenV" },
+      { category: "wallJoint", side: "CROSS" },
+      { category: "wallRoundJoint", side: "L_SW" },
+      { category: "stairsUp", side: "E" }, { category: "stairsDown", side: "W" },
+    ];
+    for (const slot of grid) {
+      const hit = baseReferenceCandidates(slot).find((c) => seeded.has(c));
+      expect(hit, `no seeded base tile answers for ${slot.category}/${slot.side ?? "-"}`).toBeTruthy();
+    }
+  });
+
+  it("resolves to nothing for the overlays, which deliberately have no base tile", async () => {
+    const { readdirSync } = await import("node:fs");
+    const seeded = new Set(
+      readdirSync("src/assets/tile-base")
+        .filter((f) => f.endsWith(".svg"))
+        .map((f) => `${TILE_BASE_PREFIX}/${f.replace(/\.svg$/, "")}.webp`),
+    );
+    for (const category of ["rubble", "debris", "objectChest", "hazardPit", "featureAltar"]) {
+      expect(baseReferenceCandidates({ category }).some((c) => seeded.has(c))).toBe(false);
+    }
   });
 });
