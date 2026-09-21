@@ -64,8 +64,8 @@ every pack ever generated.
 | doors — closed and open, H/V | 4 | yes |
 | joints — wallJoint, wallRoundJoint x4 | 5 | yes |
 | stairs — up/down x4 sides | 8 | yes |
-| scatter — rubble, debris | 2 | no |
-| objects — chest, barrel, table, statue, pillar, brazier | 6 | no |
+| scatter — rubble, debris | — | **not in the set** (see below) |
+| objects — chest, barrel, table, statue, pillar, brazier | — | **not in the set** (see below) |
 | hazards | 12 | no — convert `hazardPlaceholders.ts` |
 | features | 11 | no — convert `featurePlaceholders.ts` |
 
@@ -93,3 +93,25 @@ Pass the footprint correctly when testing, mirroring `job.mechanics.alpha`:
 a full-cell tile restyled under "make everything outside the shapes
 transparent" comes back with holes punched through it and objects invented in
 the gaps. That was a harness bug that briefly looked like a bad tile.
+
+## What deliberately has no base tile
+
+**Scatter and objects — rubble, debris, and the six `object*` categories.** A
+reference would carry nothing they need. Their footprint is already imposed
+downstream: `normalizeGeneratedTile` insets every `centered-overlay` tile by
+10% and strips the boundary alpha whatever the model drew, so "centred, inside
+the cell, transparent around it" is mechanical rather than something a
+reference has to teach. And their shape is exactly where model diversity is
+welcome — a pile of rubble does not have to fit anything, and forcing every
+pack's rubble to one silhouette would make twelve packs look like one.
+
+What they actually lack is distinct prompt text: `rubble` and `debris` share
+`categoryRequest`'s fallback branch and so differ by a single noun, which is
+why they generate as the same picture. That is #902, and no base tile fixes it.
+
+**Hazards and features are the opposite case, despite also being overlays.**
+Their job is to be distinguishable FROM EACH OTHER — a DM has to tell a pit
+from a pressure plate from a tripwire at a glance on a 128px cell. That is a
+functional requirement, not creative latitude, and describing 23 distinct small
+shapes in prose is what a prompt is worst at. Hence references for these and
+not for scatter.
