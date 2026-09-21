@@ -5,6 +5,8 @@ import { readEmbeddedXmp, inheritXmpIntoVariant } from "@/lib/storage";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import { normalizeGeneratedTile, decodeBase64 } from "@/cartographer/normalizeGeneratedTile";
 import { styleReferenceFrom } from "@/cartographer/styleReference";
+import { rotateTile } from "@/cartographer/rotateTile";
+import { rotationsOf } from "@/cartographer/authoringPlan";
 import { preparePackUpload } from "@/cartographer/packUpload";
 import { invokeTilePackGenerator as invoke } from "./tilePackGenerator";
 import type { TilePackGenerationJob, TilePackGenerationRun, UserTilePack } from "@/cartographer/userPack.types";
@@ -178,6 +180,30 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
       image_b64: await toBase64(markedNormalized),
       ...(styleRef ? { style_ref_b64: await toBase64(styleRef) } : {}),
     });
+    // Slots that are this one turned a quarter, half or three-quarter turn.
+    // A vertical wall is the horizontal wall rotated; rendering it separately
+    // costs a second call and lets the two drift — `celestial-observatory` was
+    // authored tile by tile with a human approving each and still ended up with
+    // 22px horizontal walls against 14px vertical ones. The plan never makes
+    // jobs for these (`createGenerationPlan` collapses them onto the source),
+    // so they are produced here and written by `complete_rotation`, which
+    // re-checks against the same table that the slot really is a rotation of
+    // this job's.
+    //
+    // Rotation happens client-side for the same reason normalization does: the
+    // edge runtime has no image library. The marked, normalized blob is the
+    // input, so the derived tile inherits the source's provenance packet rather
+    // than claiming a render of its own.
+    for (const derived of rotationsOf(job.job.id)) {
+      const turned = await rotateTile(markedNormalized, derived.degrees);
+      await invoke({
+        action: "complete_rotation",
+        run_id: run.id,
+        job_id: job.id,
+        slot_id: derived.id,
+        image_b64: await toBase64(turned),
+      });
+    }
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [PACKS_KEY] }),
       queryClient.invalidateQueries({ queryKey: [RUNS_KEY] }),

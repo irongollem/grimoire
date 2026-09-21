@@ -1,21 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- The band is the whole tile's content: 25% of a cell, centred on the
-       gridline, running edge to edge. Crisp boundary lines top and bottom so a
-       restyle keeps the band's thickness rather than feathering it outward. -->
-  <defs>
-    <linearGradient id="band" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#b6b6b6"/><stop offset=".45" stop-color="#909090"/><stop offset="1" stop-color="#6b6b6b"/>
-    </linearGradient>
-    <linearGradient id="leaf" x1="0" y1="468.5" x2="0" y2="555.5" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#d0d0d0"/><stop offset="1" stop-color="#888888"/>
-    </linearGradient>
-    <linearGradient id="shut" x1="0" y1="404" x2="0" y2="620" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#cfcfcf"/><stop offset="1" stop-color="#8a8a8a"/>
-    </linearGradient>
-  </defs>
+  <!-- WALL SEGMENT: the same coursed masonry as solidBlock, confined to the
+       32/128 band on the gridline. An earlier version was a plain band with two
+       edge lines and the model filled it with repeating rungs — the generated
+       walls read as ladders. Nothing in the reference had said "stone", so it
+       invented a pattern.
+
+       SHADING IS SYMMETRIC ACROSS THE BAND — light along the centre, shadow at
+       both edges — which is both what a wall top actually looks like from
+       above and the only shading that survives a 90-degree turn unchanged. The
+       vertical variants are derived by rotating these, so a directional
+       gradient would put the light on the side of every vertical wall and
+       disagree with its horizontal neighbour at every corner. -->
   <g transform="rotate(90 512 512)">
-    <rect x="0" y="384" width="1024" height="256" fill="url(#band)"/>
-    <line x1="0" y1="387" x2="1024" y2="387" stroke="#ffffff" stroke-opacity=".30" stroke-width="6"/>
-    <line x1="0" y1="637" x2="1024" y2="637" stroke="#1e1e1e" stroke-opacity=".45" stroke-width="6"/>
+    <rect x="0" y="384" width="1024" height="256" fill="#5d5d5d"/>
+    <g stroke="#232323" stroke-width="14" stroke-opacity=".9" fill="none">
+      <path d="M0 512 H1024"/>
+      <path d="M180 384 V512 M600 384 V512 M980 384 V512"/>
+      <path d="M390 512 V640 M810 512 V640"/>
+    </g>
+    <rect x="0" y="470" width="1024" height="84" fill="#ffffff" opacity=".10"/>
+    <rect x="0" y="384" width="1024" height="26" fill="#000000" opacity=".34"/>
+    <rect x="0" y="614" width="1024" height="26" fill="#000000" opacity=".34"/>
   </g>
 </svg>

@@ -1,12 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Full-bleed and deliberately featureless. A floor carries no geometry to
-       transfer, only the constraint "fills the cell, opaque, edge to edge, no
-       border". Structural joints are withheld on purpose: flagstone seams here
-       would bias every pack's floor toward masonry, including the plank ones. -->
-  <defs>
-    <radialGradient id="f" cx="0.5" cy="0.42" r="0.75">
-      <stop offset="0" stop-color="#a5a5a5"/><stop offset="1" stop-color="#8b8b8b"/>
-    </radialGradient>
-  </defs>
-  <rect x="0" y="0" width="1024" height="1024" fill="url(#f)"/>
+  <!-- FLOOR: the LIGHT, FINE member of the material hierarchy.
+       An earlier version was a plain grey square, and `solidBlock`'s was too —
+       so the reference was telling the model the two were the same thing, and
+       the generated pack came back with floor and wall-interior indistinguishable.
+       On a map you must be able to tell what you can walk on at a glance.
+       Three properties carry that, and all three are set here against the block:
+       lighter value, SMALLER units, thinner joints.
+       Slabs rather than a texture: a 4x4 grid says "paved surface at this
+       scale" without dictating a material, so a plank floor and a flagstone
+       floor can both come out of it. Lighting is flat and even — no gradient —
+       so the tile is rotation- and tile-invariant. -->
+  <rect x="0" y="0" width="1024" height="1024" fill="#a6a6a6"/>
+  <g stroke="#6f6f6f" stroke-width="7" stroke-opacity=".85">
+    <path d="M256 0 V1024 M512 0 V1024 M768 0 V1024"/>
+    <path d="M0 256 H1024 M0 512 H1024 M0 768 H1024"/>
+  </g>
+  <g fill="#ffffff" fill-opacity=".16">
+    <rect x="4" y="4" width="248" height="6"/><rect x="260" y="260" width="248" height="6"/>
+    <rect x="516" y="4" width="248" height="6"/><rect x="772" y="516" width="248" height="6"/>
+    <rect x="4" y="772" width="248" height="6"/><rect x="516" y="516" width="248" height="6"/>
+  </g>
 </svg>

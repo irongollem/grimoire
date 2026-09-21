@@ -151,6 +151,64 @@ const OVERLAY_CATEGORIES = new Set<PackCategory>([
   "featureRubble", "featureInscription", "featureGeneric",
 ]);
 
+/**
+ * Slots that are a rotation of another slot, and never generated on their own.
+ *
+ * A vertical wall is a horizontal wall turned ninety degrees. Generating it
+ * separately costs a render and — worse — lets it drift: `celestial-observatory`
+ * was authored through the CLI with a human choosing every tile, and its
+ * horizontal walls measure 22px against its vertical walls' 14px. Careful
+ * supervision still produced two different walls. Deriving makes the two
+ * identical by construction rather than by diligence.
+ *
+ * The plan format anticipated this: `GenerationJob.transforms_visually_safe`
+ * has been declared since it was written, typed as the empty tuple and set to
+ * `[]` everywhere, by someone who saw the idea and did not build it.
+ *
+ * Safe only because the art bible forbids directional cast shadows and the
+ * base references shade symmetrically across the band — a gradient running
+ * light-to-dark across a horizontal wall would, once turned, light every
+ * vertical wall from the side and disagree with its neighbour at every corner.
+ */
+export const ROTATION_DERIVED: Readonly<Record<string, { readonly from: string; readonly degrees: 90 | 180 | 270 }>> = {
+  "wallSegmentV:0": { from: "wallSegmentH:0", degrees: 90 },
+  "wallSegmentV:1": { from: "wallSegmentH:1", degrees: 90 },
+  "wallSegmentV:2": { from: "wallSegmentH:2", degrees: 90 },
+  "wallSegmentV:3": { from: "wallSegmentH:3", degrees: 90 },
+  "wallSegmentV:4": { from: "wallSegmentH:4", degrees: 90 },
+  "wallSegmentV:5": { from: "wallSegmentH:5", degrees: 90 },
+  "doorClosedV:0": { from: "doorClosedH:0", degrees: 90 },
+  "doorClosedV:1": { from: "doorClosedH:1", degrees: 90 },
+  "doorClosedV:2": { from: "doorClosedH:2", degrees: 90 },
+  "doorOpenV:0": { from: "doorOpenH:0", degrees: 90 },
+  "doorOpenV:1": { from: "doorOpenH:1", degrees: 90 },
+  "doorOpenV:2": { from: "doorOpenH:2", degrees: 90 },
+  // Stairs and round joints rotate about the cell centre from their N / L_NE
+  // original. The joint order follows `clearRoundedInterior`'s carve corners:
+  // bottom-left turns to top-left, then top-right, then bottom-right.
+  "stairsUp:E:0": { from: "stairsUp:N:0", degrees: 90 },
+  "stairsUp:S:0": { from: "stairsUp:N:0", degrees: 180 },
+  "stairsUp:W:0": { from: "stairsUp:N:0", degrees: 270 },
+  "stairsDown:E:0": { from: "stairsDown:N:0", degrees: 90 },
+  "stairsDown:S:0": { from: "stairsDown:N:0", degrees: 180 },
+  "stairsDown:W:0": { from: "stairsDown:N:0", degrees: 270 },
+  "wallRoundJoint:L_SE:0": { from: "wallRoundJoint:L_NE:0", degrees: 90 },
+  "wallRoundJoint:L_SW:0": { from: "wallRoundJoint:L_NE:0", degrees: 180 },
+  "wallRoundJoint:L_NW:0": { from: "wallRoundJoint:L_NE:0", degrees: 270 },
+};
+
+/** The rotation that produces this slot, or null if it must be generated. */
+export function rotationFor(id: string): { from: string; degrees: 90 | 180 | 270 } | null {
+  return ROTATION_DERIVED[id] ?? null;
+}
+
+/** Slots derived from this one, in the order they should be written. */
+export function rotationsOf(sourceId: string): { id: string; degrees: 90 | 180 | 270 }[] {
+  return Object.entries(ROTATION_DERIVED)
+    .filter(([, spec]) => spec.from === sourceId)
+    .map(([id, spec]) => ({ id, degrees: spec.degrees }));
+}
+
 function jointEdges(side: string | undefined): readonly ("N" | "E" | "S" | "W")[] {
   if (!side) return [];
   if (side === "CROSS") return ["N", "E", "S", "W"];
@@ -503,10 +561,19 @@ export function createGenerationPlan(input: CreatePlanInput): GenerationPlan {
   const included = new Set(jobs.map((job) => job.id));
   for (const slot of selected) {
     const id = slotId(slot);
-    if (!included.has(id)) {
-      jobs.push(createJob(slot, input.artBible, references, pack));
-      included.add(id);
-    }
+    // A rotation-derived slot never becomes a job. Asking for `wallSegmentV:0`
+    // plans `wallSegmentH:0` instead and the vertical is produced by turning
+    // the result — so it is identical by construction, and a pack costs one
+    // render rather than two for every wall, door, stair direction and rounded
+    // corner. Deduplication happens naturally: selecting both H and V adds the
+    // source once, because `included` already holds it.
+    const rotation = rotationFor(id);
+    const generatedId = rotation ? rotation.from : id;
+    if (included.has(generatedId)) continue;
+    const generatedSlot = byId.get(generatedId);
+    if (!generatedSlot) throw new Error(`Unknown schema slot: ${generatedId}`);
+    jobs.push(createJob(generatedSlot, input.artBible, references, pack));
+    included.add(generatedId);
   }
 
   const refreshedJobs = jobs.map((job) => {

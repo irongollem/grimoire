@@ -1,6 +1,6 @@
 import { serve } from "std/http/server.ts";
 import { createClient, type User } from "@supabase/supabase-js";
-import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, slotId, slotRelativePath, type GenerationAttempt, type GenerationJob, type GenerationPlan, type PackArtBible } from "../../../src/cartographer/authoringPlan.ts";
+import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, rotationFor, slotId, slotRelativePath, type GenerationAttempt, type GenerationJob, type GenerationPlan, type PackArtBible } from "../../../src/cartographer/authoringPlan.ts";
 import { validatePack } from "../../../src/cartographer/validatePack.ts";
 import { coverageCounts, hasCompleteArt, undrawnSlotIds } from "../../../src/cartographer/packCoverage.ts";
 import type { TilePackManifest } from "../../../src/cartographer/packSchema.ts";
@@ -924,6 +924,70 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
   }
 }
 
+/**
+ * Writes a slot that is a ROTATION of one this run generated.
+ *
+ * A vertical wall is the horizontal wall turned ninety degrees, so it is
+ * produced rather than rendered — no provider call, no ledger row, no credit,
+ * and no chance of the two drifting apart the way `celestial-observatory`'s
+ * did (22px horizontal against 14px vertical, hand-authored).
+ *
+ * The client does the turning, because rotation needs a canvas and the edge
+ * runtime has no image library. What is checked HERE is the part a client must
+ * not be trusted with: that `slot_id` really is a declared rotation of the
+ * source job's slot. Without that a caller could hand any bytes to any slot
+ * under cover of a legitimate run.
+ */
+async function completeRotation(user: User, body: Record<string, unknown>): Promise<Response> {
+  const runId = typeof body.run_id === "string" ? body.run_id : "";
+  const sourceJobId = typeof body.job_id === "string" ? body.job_id : "";
+  const derivedId = typeof body.slot_id === "string" ? body.slot_id : "";
+  const imageB64 = typeof body.image_b64 === "string" ? body.image_b64 : "";
+  const run = await requireGenerationRun(runId, user);
+  if (!run) return json({ error: "run_not_found" }, 404);
+  if (!imageB64) return json({ error: "invalid_image" }, 400);
+  if (imageB64.length > MAX_NORMALIZED_B64) return json({ error: "image_too_large" }, 400);
+
+  const { data: row } = await admin.from("tile_pack_generation_jobs").select("job")
+    .eq("id", sourceJobId).eq("run_id", runId).eq("status", "normalized").maybeSingle();
+  if (!row) return json({ error: "source_not_normalized" }, 409);
+  const source = row.job as GenerationJob;
+
+  const rotation = rotationFor(derivedId);
+  if (!rotation || rotation.from !== source.id) return json({ error: "not_a_rotation_of_source" }, 400);
+  const slot = enumerateSchemaSlots(true).find((candidate) => slotId(candidate) === derivedId);
+  if (!slot) return json({ error: "invalid_slot" }, 400);
+
+  const bytes = decodeBase64(imageB64);
+  const dimensions = webpDimensions(bytes);
+  if (!dimensions || dimensions.width !== 128 || dimensions.height !== 128) {
+    return json({ error: "invalid_image" }, 400);
+  }
+
+  const relative = slotRelativePath(slot);
+  const { error: uploadError } = await admin.storage.from(run.target.bucket)
+    .upload(`${run.target.prefix}/${relative}`, bytes, { contentType: "image/webp", upsert: true });
+  if (uploadError) return json({ error: uploadError.message }, 500);
+
+  const manifest = structuredClone(run.target.manifest);
+  const slots = [...(manifest.assets[slot.category] ?? [])].filter((existing) =>
+    existing.variant !== slot.variant || existing.side !== slot.side
+  );
+  slots.push({
+    ...(slot.side ? { side: slot.side } : {}),
+    variant: slot.variant,
+    url: relative,
+    byteSize: bytes.byteLength,
+  });
+  manifest.assets[slot.category] = slots;
+  // `ai_provenance` is not touched: it is already on the row from the source
+  // tile, which is what was generated. A rotation adds no new model output to
+  // attest to, and re-stamping it would claim a render that never happened.
+  const { error } = await admin.from(run.target.table).update({ manifest }).eq("id", run.target.rowId);
+  if (error) return json({ error: error.message }, 500);
+  return json({ slot_id: derivedId, relative_path: relative, byte_size: bytes.byteLength });
+}
+
 async function completeSlot(user: User, body: Record<string, unknown>): Promise<Response> {
   const runId = typeof body.run_id === "string" ? body.run_id : "";
   const jobId = typeof body.job_id === "string" ? body.job_id : "";
@@ -1118,6 +1182,7 @@ serve(withCors(async (req: Request) => {
     case "generate_library_pack": return generateLibraryPack(user, body);
     case "generate": return generateSlot(user, body);
     case "complete": return completeSlot(user, body);
+    case "complete_rotation": return completeRotation(user, body);
     case "approve_proof":
     case "cancel":
     case "retry_job": return updateRun(user, body);

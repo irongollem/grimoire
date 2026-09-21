@@ -10,6 +10,10 @@ import {
 import {
   createDraftManifest,
   createGenerationPlan,
+  enumerateSchemaSlots,
+  rotationsOf,
+  slotId,
+  slotRelativePath,
   upsertManifestSlot,
   type GenerationAttempt,
   type GenerationJob,
@@ -350,6 +354,25 @@ export async function importJob(input: {
   else await normalizeTransparent(accepted, normalized, job);
   const normalizedStat = await stat(normalized);
   upsertManifestSlot(state.manifest, job.slot, normalizedStat.size);
+
+  // Slots that are this one turned. The plan stopped making jobs for them when
+  // `createGenerationPlan` learned to collapse a rotation onto its source, so
+  // without this the CLI would accept a horizontal wall and leave the vertical
+  // one missing — the pack would never validate. Deriving them here gives the
+  // interactive tool the same guarantee the generator gets: a vertical wall is
+  // the horizontal wall, not a second attempt at one.
+  for (const derived of rotationsOf(job.id)) {
+    const slot = enumerateSchemaSlots(true).find((candidate) => slotId(candidate) === derived.id);
+    if (!slot) continue;
+    const target = path.join(
+      input.repoRoot, "public", "cartographer", state.manifest.pack_id,
+      `v${state.manifest.pack_version}`, slotRelativePath(slot),
+    );
+    await mkdir(path.dirname(target), { recursive: true });
+    await sharp(normalized).rotate(derived.degrees).toFile(target);
+    upsertManifestSlot(state.manifest, slot, (await stat(target)).size);
+  }
+
   job.status = "normalized";
   job.attempts.push({ at: input.now ?? new Date().toISOString(), action: "normalized", source_path: acceptedRelative });
   await saveWorkspace(state);

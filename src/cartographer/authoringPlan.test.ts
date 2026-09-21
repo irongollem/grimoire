@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDraftManifest, createGenerationPlan, enumerateSchemaSlots, slotId, slotMechanics, upsertManifestSlot, type PackArtBible } from "./authoringPlan";
+import { ROTATION_DERIVED, createDraftManifest, createGenerationPlan, enumerateSchemaSlots, rotationFor, rotationsOf, slotId, slotMechanics, upsertManifestSlot, type PackArtBible } from "./authoringPlan";
 import { TILE_PACK_SCHEMA } from "./packSchema";
 
 const bible: PackArtBible = {
@@ -25,12 +25,21 @@ function manifest() {
 }
 
 describe("createGenerationPlan", () => {
-  it("derives exactly the 20 minimum required jobs from the live schema", () => {
+  it("plans 16 renders for the schema's 20 required slots, the other 4 being rotations", () => {
     const plan = createGenerationPlan({ manifest: manifest(), artBible: bible, now: "2026-08-25T00:00:00.000Z" });
 
-    expect(plan.jobs).toHaveLength(20);
+    // The required floor is 20 slots; four of them — wallSegmentV x2,
+    // doorClosedV, doorOpenV — are their horizontal counterparts turned
+    // ninety degrees, so they are produced rather than rendered. A pack pays
+    // for 16 and receives 20, and the vertical walls cannot drift from the
+    // horizontal ones the way `celestial-observatory`'s did (22px against 14px).
+    expect(enumerateSchemaSlots(false)).toHaveLength(20);
+    expect(plan.jobs).toHaveLength(16);
+    expect(plan.jobs.map((job) => job.id).filter((id) => rotationFor(id))).toEqual([]);
     expect(plan.jobs.filter((job) => job.slot.category === "floor")).toHaveLength(8);
     expect(plan.jobs.filter((job) => job.slot.category === "solidBlock")).toHaveLength(4);
+    expect(plan.jobs.filter((job) => job.slot.category === "wallSegmentH")).toHaveLength(2);
+    expect(plan.jobs.filter((job) => job.slot.category === "wallSegmentV")).toHaveLength(0);
     expect(plan.schema_version).toBe(TILE_PACK_SCHEMA.version);
     expect(plan.authoring).toEqual({
       default_mode: "interactive-imagegen",
@@ -223,5 +232,53 @@ describe("categoryRequest coverage (#902)", () => {
     expect(by.get("featureStatue")).toMatch(/humanoid|robed/i);
     expect(by.get("featureCache")).toMatch(/no lid|no box|buried|mound/i);
     expect(by.get("hazardFlameJet")).toMatch(/no bowl|no housing|bare/i);
+  });
+});
+
+describe("rotation-derived slots", () => {
+  const plan = (ids: string[]) => createGenerationPlan({
+    manifest: createDraftManifest({ packId: "t", name: "T", description: "d", packVersion: 1 }),
+    artBible: bible,
+    selectedSlotIds: ids,
+  });
+
+  it("plans the horizontal source when the vertical is asked for", () => {
+    expect(plan(["wallSegmentV:0"]).jobs.map((j) => j.id)).toEqual(["wallSegmentH:0"]);
+    expect(plan(["doorOpenV:0"]).jobs.map((j) => j.id)).toEqual(["doorOpenH:0"]);
+  });
+
+  it("plans one job when both a source and its rotation are selected", () => {
+    expect(plan(["wallSegmentH:0", "wallSegmentV:0"]).jobs.map((j) => j.id)).toEqual(["wallSegmentH:0"]);
+  });
+
+  it("collapses all four stair directions onto the north original", () => {
+    const ids = plan(["stairsUp:N:0", "stairsUp:E:0", "stairsUp:S:0", "stairsUp:W:0"]).jobs.map((j) => j.id);
+    expect(ids).toEqual(["stairsUp:N:0"]);
+  });
+
+  it("collapses the four rounded corners onto L_NE", () => {
+    const ids = plan(["wallRoundJoint:L_SE:0", "wallRoundJoint:L_SW:0", "wallRoundJoint:L_NW:0"]).jobs.map((j) => j.id);
+    expect(ids).toEqual(["wallRoundJoint:L_NE:0"]);
+  });
+
+  it("never lists a derived slot as its own source", () => {
+    for (const [id, spec] of Object.entries(ROTATION_DERIVED)) {
+      expect(spec.from, `${id} derives from itself`).not.toBe(id);
+      expect(rotationFor(spec.from), `${spec.from} is both a source and derived`).toBeNull();
+    }
+  });
+
+  it("names only slots the schema actually defines", () => {
+    const known = new Set(enumerateSchemaSlots(true).map(slotId));
+    for (const [id, spec] of Object.entries(ROTATION_DERIVED)) {
+      expect(known.has(id), `${id} is not a schema slot`).toBe(true);
+      expect(known.has(spec.from), `${spec.from} is not a schema slot`).toBe(true);
+    }
+  });
+
+  it("round-trips: every derived slot is listed by its source", () => {
+    for (const [id, spec] of Object.entries(ROTATION_DERIVED)) {
+      expect(rotationsOf(spec.from).map((r) => r.id)).toContain(id);
+    }
   });
 });

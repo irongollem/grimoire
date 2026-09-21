@@ -1,31 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Full-bleed and deliberately WITHOUT a border.
-       An earlier version carried an inset rim, and it cost a generation: a
-       rectangle inside a square reads as a room outline, and combined with a
-       prompt that said "substantial architecture" the model returned a
-       miniature dungeon floor plan — four doors, corridors, alcoves — for a
-       tile that is the inside of a wall.
-       The lesson generalises. On the doors, articulation helped because every
-       mark MEANT something: a hinge is a hinge. A mark that means nothing is
-       not neutral, it is an invitation to interpret. So the only structure here
-       is coarse irregular block seams that say "quarried mass", set off-centre
-       and running off every edge so nothing reads as a bounding shape. -->
-  <defs>
-    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#8f8f8f"/><stop offset="1" stop-color="#626262"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="1024" height="1024" fill="url(#b)"/>
-  <g stroke="#1e1e1e" stroke-opacity=".34" stroke-width="9" fill="none">
-    <path d="M0 296 H1024"/>
-    <path d="M0 688 H1024"/>
-    <path d="M392 0 V296"/>
-    <path d="M736 296 V688"/>
-    <path d="M232 688 V1024"/>
-    <path d="M652 688 V1024"/>
+  <!-- SOLID BLOCK: the DARK, COARSE member. This is the inside of a wall, and
+       its whole job is to be unmistakable against the floor at a glance —
+       darker, far larger units, deep joints. Two courses of big offset blocks
+       running off every edge: no bounding rectangle, because a rectangle inside
+       a square reads as a room outline and cost a generation when it did
+       (the model returned a dungeon floor plan).
+       Same masonry language as wallSegment, deliberately: a wall and a wall's
+       interior are the same substance, and a pack where they are not looks
+       wrong wherever a wall ends. -->
+  <rect x="0" y="0" width="1024" height="1024" fill="#5d5d5d"/>
+  <g stroke="#232323" stroke-width="16" stroke-opacity=".9" fill="none">
+    <path d="M0 512 H1024"/>
+    <path d="M336 0 V512 M760 0 V512"/>
+    <path d="M150 512 V1024 M600 512 V1024"/>
   </g>
-  <g stroke="#ffffff" stroke-opacity=".16" stroke-width="5" fill="none">
-    <path d="M0 305 H1024"/>
-    <path d="M0 697 H1024"/>
+  <g fill="#ffffff" fill-opacity=".13">
+    <rect x="0" y="24" width="1024" height="10"/>
+    <rect x="0" y="536" width="1024" height="10"/>
+  </g>
+  <g fill="#000000" fill-opacity=".22">
+    <rect x="0" y="478" width="1024" height="18"/>
+    <rect x="0" y="990" width="1024" height="18"/>
   </g>
 </svg>
