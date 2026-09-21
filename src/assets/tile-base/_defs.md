@@ -53,10 +53,10 @@ committed — so the SVG cannot silently disagree with what the generator sees.
 
 ## Progress
 
-60 distinct geometries, one per `(category, side)` — variants of a category
-share a shape, so `floor:0` and `floor:7` need one reference between them. That
-is fewer files than a pack has slots (52-57) and they are authored once for
-every pack ever generated.
+**The set is complete at 21.** One geometry per `(category, side)` for every
+category that is grid-bound — variants share a shape, so `floor:0` and
+`floor:7` need one reference between them. Authored once, for every pack ever
+generated.
 
 | group | files | done |
 |---|---|---|
@@ -66,8 +66,8 @@ every pack ever generated.
 | stairs — up/down x4 sides | 8 | yes |
 | scatter — rubble, debris | — | **not in the set** (see below) |
 | objects — chest, barrel, table, statue, pillar, brazier | — | **not in the set** (see below) |
-| hazards | 12 | no — convert `hazardPlaceholders.ts` |
-| features | 11 | no — convert `featurePlaceholders.ts` |
+| hazards | — | **not in the set** (see below) |
+| features | — | **not in the set** (see below) |
 
 The first eight are exactly the schema's REQUIRED categories, so every pack's
 20 mandatory slots now has a geometry reference; everything remaining is an
@@ -94,9 +94,25 @@ a full-cell tile restyled under "make everything outside the shapes
 transparent" comes back with holes punched through it and objects invented in
 the gaps. That was a harness bug that briefly looked like a bad tile.
 
-## What deliberately has no base tile
+## What belongs in the set, and what does not
 
-**Scatter and objects — rubble, debris, and the six `object*` categories.** A
+**The test is fit: a tile needs a geometry reference only if it looks wrong
+when it does not line up exactly.** That selects the grid-bound categories and
+nothing else — floor and solidBlock (gaps unless full-bleed), wall segments
+(the band must land on the gridline at a matching thickness), doors (must align
+to that band), joints (bulge at every corner unless exactly band-thick), stairs
+(must span the cell). Twelve categories, 21 geometries. Everything else is a
+centred stamp with a margin, free to be whatever the model makes of it.
+
+The rule cuts along a different axis from "is this shape important". A hazard
+glyph matters a great deal — a DM must tell a pit from a pressure plate — but
+nothing breaks if one pack's pit is shaped unlike another's, so it needs
+IDENTITY guidance, not FIT guidance, and identity lives in prompt text. Pinning
+it to a reference would make twelve packs' hazards identical, which is the same
+homogenisation that keeps rubble out.
+
+**Scatter, objects, hazards and features — rubble, debris, the six `object*`
+categories, and all 23 glyphs.** A
 reference would carry nothing they need. Their footprint is already imposed
 downstream: `normalizeGeneratedTile` insets every `centered-overlay` tile by
 10% and strips the boundary alpha whatever the model drew, so "centred, inside
@@ -105,13 +121,13 @@ reference has to teach. And their shape is exactly where model diversity is
 welcome — a pile of rubble does not have to fit anything, and forcing every
 pack's rubble to one silhouette would make twelve packs look like one.
 
-What they actually lack is distinct prompt text: `rubble` and `debris` share
-`categoryRequest`'s fallback branch and so differ by a single noun, which is
-why they generate as the same picture. That is #902, and no base tile fixes it.
+What all of them actually lack is distinct prompt text. Every one shares
+`categoryRequest`'s single fallback branch, so neighbouring categories differ
+by one noun — which is why `rubble` and `debris` generate as the same picture,
+and why 23 glyphs that must be told apart are described identically. That is
+#902, and no base tile fixes it.
 
-**Hazards and features are the opposite case, despite also being overlays.**
-Their job is to be distinguishable FROM EACH OTHER — a DM has to tell a pit
-from a pressure plate from a tripwire at a glance on a 128px cell. That is a
-functional requirement, not creative latitude, and describing 23 distinct small
-shapes in prose is what a prompt is worst at. Hence references for these and
-not for scatter.
+`hazardPlaceholders.ts` and `featurePlaceholders.ts` already hold 23 distinct
+silhouettes drawn to the right principle. They stay where they are, as the
+procedural fallback; they are a good source of WORDS for #902's prompts, not
+tiles for this set.
