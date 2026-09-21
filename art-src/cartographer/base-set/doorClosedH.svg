@@ -1,8 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- A shut door fills its opening, so the leaf sits flush in the band and the
-       only thing telling it apart from the wall is hardware and the seams at
-       either jamb. Those are load-bearing: under a uniform material (wet brick)
-       a leaf with no hardware restyles into more wall. -->
+  <!-- SHUT: the leaf below is byte-identical to doorOpenH's, at rotation 0.
+       A closed door and an open door are the SAME door — same length, same
+       thickness, same hardware, same pivot — so the only difference between
+       these two files is the rotation applied to the leaf group. Drawing them
+       as unrelated shapes (the first attempt did) means a DM toggling a door
+       watches it turn into a different object.
+
+       Behind the leaf is the reveal: the door frame's rebate, recessed and
+       darker, filling the rest of the band across the opening. It is what you
+       see beside a shut door from directly above, and it is also what tells a
+       restyle that the leaf sits INSIDE an opening rather than being wall. -->
   <defs>
     <linearGradient id="band" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#b6b6b6"/><stop offset=".45" stop-color="#909090"/><stop offset="1" stop-color="#6b6b6b"/>
@@ -10,19 +17,23 @@
     <linearGradient id="leaf" x1="0" y1="468.5" x2="0" y2="555.5" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#d0d0d0"/><stop offset="1" stop-color="#888888"/>
     </linearGradient>
-    <linearGradient id="shut" x1="0" y1="404" x2="0" y2="620" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#cfcfcf"/><stop offset="1" stop-color="#8a8a8a"/>
+    <linearGradient id="reveal" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5f5f5f"/><stop offset=".5" stop-color="#727272"/><stop offset="1" stop-color="#565656"/>
     </linearGradient>
   </defs>
   <g>
     <rect x="0" y="384" width="256" height="256" fill="url(#band)"/>
     <rect x="768" y="384" width="256" height="256" fill="url(#band)"/>
-    <rect x="256" y="404" width="512" height="216" fill="url(#shut)"/>
-    <line x1="259" y1="404" x2="259" y2="620" stroke="#1e1e1e" stroke-opacity=".7" stroke-width="8"/>
-    <line x1="765" y1="404" x2="765" y2="620" stroke="#1e1e1e" stroke-opacity=".7" stroke-width="8"/>
-    <rect x="256" y="404" width="512" height="10" fill="#ffffff" opacity=".35"/>
-    <circle cx="292" cy="452" r="15" fill="#464646"/>
-    <circle cx="292" cy="572" r="15" fill="#464646"/>
-    <circle cx="712" cy="512" r="17" fill="#3f3f3f"/>
+    <rect x="256" y="384" width="512" height="256" fill="url(#reveal)"/>
+    <line x1="259" y1="384" x2="259" y2="640" stroke="#1e1e1e" stroke-opacity=".7" stroke-width="8"/>
+    <line x1="765" y1="384" x2="765" y2="640" stroke="#1e1e1e" stroke-opacity=".7" stroke-width="8"/>
+    <g>
+      <rect x="256" y="468.5" width="512" height="87" fill="url(#leaf)" stroke="#1e1e1e" stroke-opacity=".6" stroke-width="3"/>
+      <rect x="256" y="468.5" width="512" height="9" fill="#ffffff" opacity=".45"/>
+      <line x1="734" y1="468.5" x2="734" y2="555.5" stroke="#1e1e1e" stroke-opacity=".8" stroke-width="5"/>
+      <circle cx="708" cy="512" r="12" fill="#3f3f3f"/>
+    </g>
+    <circle cx="256" cy="478" r="15" fill="#464646"/>
+    <circle cx="256" cy="546" r="15" fill="#464646"/>
   </g>
 </svg>
