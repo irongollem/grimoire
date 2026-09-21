@@ -1,10 +1,10 @@
 /**
- * Rasterise the neutral base tile set (art-src/cartographer/base-set/*.svg).
+ * Rasterise the neutral base tile set (src/assets/tile-base/*.svg).
  *
- * The SVGs are the source of truth — hand-authored, diffable, and reviewable in
- * a PR. The bitmaps are derived, which is why they are gitignored: a geometry
- * reference that can drift from its source is the exact failure this set exists
- * to prevent.
+ * The SVGs are the source of truth — hand-authored, diffable, reviewable in a
+ * PR, and tracked like any other asset. The bitmaps are derived and land in
+ * dist/, which is already gitignored: a geometry reference that can drift from
+ * its source is the exact failure this set exists to prevent.
  *
  * Rendered with sharp (librsvg), not a browser, so the output is deterministic
  * and reproducible in CI.
@@ -15,8 +15,8 @@ import { readdirSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 
-const SRC = "art-src/cartographer/base-set";
-const OUT = join(SRC, "raster");
+const SRC = "src/assets/tile-base";
+const OUT = "dist/tile-base";
 const sizeArg = process.argv.indexOf("--size");
 const SIZE = sizeArg > -1 ? Number(process.argv[sizeArg + 1]) : 1024;
 

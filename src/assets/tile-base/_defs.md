@@ -40,15 +40,13 @@ different fill colour" — which is the principle to carry into the glyph tiles.
   `templates/` PNGs carried labels and red dashed guides; an edit reproduces
   those as painted art. That is why they were never usable.
 
-## Why these files are force-added
+## Where these live
 
-`art-src/` is gitignored wholesale (.gitignore:61) and individual sources are
-force-added when they are authored input worth keeping — the same treatment
-`art-src/crafting/gen-glyphs.mjs` and the 13 tracked SVGs elsewhere get. These
-SVGs are the source of truth for every pack's geometry, so they are tracked:
+`src/assets/tile-base/` — tracked like any other asset, beside
+`src/assets/brands/`. They are authored source, not scratch: `art-src/` is a
+gitignored dump for raw material, and an asset that must not drift has no
+business in a folder the repo deliberately ignores.
 
-    git add -f art-src/cartographer/base-set/*.svg art-src/cartographer/base-set/_defs.md
-
-`raster/` stays untracked and is regenerated with
-`node scripts/base-set-raster.mjs`. A geometry reference that can drift from
-its source defeats the point of having one.
+Rasterise with `node scripts/base-set-raster.mjs`, which writes to
+`dist/tile-base/` (already gitignored). The bitmaps are always derived — never
+committed — so the SVG cannot silently disagree with what the generator sees.
