@@ -697,16 +697,26 @@ async function slotReferences(runId: string, target: PackTarget, slot: Generatio
   const base = await baseReference(slot);
   const references = base ? [base] : [];
   if (phase === "proof") return references;
-  const style = await styleReferences(runId, target);
+  const style = await styleReferences(runId, target, slot.category);
   return [...references, ...style].slice(0, 3);
 }
 
-async function styleReferences(runId: string, target: PackTarget): Promise<Blob[]> {
-  const { data } = await admin.from("tile_pack_generation_jobs").select("style_ref_path, raw_path")
+async function styleReferences(runId: string, target: PackTarget, category?: string): Promise<Blob[]> {
+  const { data } = await admin.from("tile_pack_generation_jobs").select("slot_id, style_ref_path, raw_path")
     .eq("run_id", runId).eq("phase", "proof").eq("status", "normalized")
     .not("raw_path", "is", null).order("ordinal").limit(3);
+  // A tile's OWN category leads, and this is not a nicety. The caller keeps
+  // only the first two of these after the geometry reference, and the proof
+  // slots order floor:0, wallSegmentH:0, solidBlock:0 by ordinal — so a
+  // `solidBlock:1` render used to be handed the floor it must look UNLIKE and
+  // have `solidBlock:0`, the approved block it must match, dropped off the
+  // end. The blocks duly came back looking like the floor.
+  const rows = [...(data ?? [])].sort((a, b) => {
+    const rank = (row: { slot_id: string }) => (category && row.slot_id.split(":")[0] === category ? 0 : 1);
+    return rank(a as { slot_id: string }) - rank(b as { slot_id: string });
+  });
   const blobs: Blob[] = [];
-  for (const row of data ?? []) {
+  for (const row of rows) {
     const path = (row.style_ref_path as string | null) ?? (row.raw_path as string);
     const { data: file } = await admin.storage.from(target.bucket).download(path);
     if (file) blobs.push(file);

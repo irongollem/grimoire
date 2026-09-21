@@ -195,7 +195,16 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
     // input, so the derived tile inherits the source's provenance packet rather
     // than claiming a render of its own.
     for (const derived of rotationsOf(job.job.id)) {
-      const turned = await rotateTile(markedNormalized, derived.degrees);
+      // Canvas drops embedded metadata, so the turn loses the XMP packet the
+      // same way normalization does a few lines above — and a derived tile is
+      // still AI output, so it still owes the EU AI Act Art 50 disclosure. Its
+      // provenance is re-inherited from the marked source rather than rebuilt:
+      // it records the render that actually produced these pixels, which is
+      // the source's, because a rotation is not a second generation.
+      const turned = await inheritXmpIntoVariant(
+        await rotateTile(markedNormalized, derived.degrees),
+        await readEmbeddedXmp(markedNormalized),
+      );
       await invoke({
         action: "complete_rotation",
         run_id: run.id,
