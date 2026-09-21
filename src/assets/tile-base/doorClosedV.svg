@@ -1,39 +1,58 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- SHUT: the leaf below is byte-identical to doorOpenV's, at rotation 0.
-       A closed door and an open door are the SAME door — same length, same
-       thickness, same hardware, same pivot — so the only difference between
-       these two files is the rotation applied to the leaf group. Drawing them
-       as unrelated shapes (the first attempt did) means a DM toggling a door
-       watches it turn into a different object.
+  <!-- SHUT. The leaf here is byte-identical to doorOpenV's at rotation 0 —
+       same slab, panels, hinges and handle — so a door does not change into a
+       different object when it opens.
 
-       Behind the leaf is the reveal: the door frame's rebate, recessed and
-       darker, filling the rest of the band across the opening. It is what you
-       see beside a shut door from directly above, and it is also what tells a
-       restyle that the leaf sits INSIDE an opening rather than being wall. -->
+       DRAWN TO BE RECOGNISABLE, not merely correctly measured. An earlier pass
+       was a plain grey slab with three dots for hardware; every measurement
+       passed (32px band, 128px span) and it still did not read as a door, so
+       generations from it invented their own doorness — a face-on elevation in
+       one pack, a cross junction in another. Seen from directly above a closed
+       door IS a rectangle, and nearly everything that says "door" lives on the
+       face you cannot see. The cues that remain are all here and all drawn
+       rather than gestured at: the recessed reveal it sits in, two panels
+       divided by a muntin, hinge barrels with visible knuckles straddling the
+       jamb seam, and a lever handle on a backplate at the free edge. -->
   <defs>
     <linearGradient id="band" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#b6b6b6"/><stop offset=".45" stop-color="#909090"/><stop offset="1" stop-color="#6b6b6b"/>
     </linearGradient>
-    <linearGradient id="leaf" x1="0" y1="468.5" x2="0" y2="555.5" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#d0d0d0"/><stop offset="1" stop-color="#888888"/>
+    <linearGradient id="leaf" x1="0" y1="470" x2="0" y2="554" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#cfcfcf"/><stop offset=".5" stop-color="#b0b0b0"/><stop offset="1" stop-color="#8a8a8a"/>
     </linearGradient>
     <linearGradient id="reveal" x1="0" y1="384" x2="0" y2="640" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5f5f5f"/><stop offset=".5" stop-color="#727272"/><stop offset="1" stop-color="#565656"/>
+      <stop offset="0" stop-color="#4c4c4c"/><stop offset=".5" stop-color="#606060"/><stop offset="1" stop-color="#454545"/>
     </linearGradient>
   </defs>
   <g transform="rotate(90 512 512)">
     <rect x="0" y="384" width="256" height="256" fill="url(#band)"/>
     <rect x="768" y="384" width="256" height="256" fill="url(#band)"/>
     <rect x="256" y="384" width="512" height="256" fill="url(#reveal)"/>
-    <line x1="259" y1="384" x2="259" y2="640" stroke="#1e1e1e" stroke-opacity=".7" stroke-width="8"/>
-    <line x1="765" y1="384" x2="765" y2="640" stroke="#1e1e1e" stroke-opacity=".7" stroke-width="8"/>
-    <g>
-      <rect x="256" y="468.5" width="512" height="87" fill="url(#leaf)" stroke="#1e1e1e" stroke-opacity=".6" stroke-width="3"/>
-      <rect x="256" y="468.5" width="512" height="9" fill="#ffffff" opacity=".45"/>
-      <line x1="734" y1="468.5" x2="734" y2="555.5" stroke="#1e1e1e" stroke-opacity=".8" stroke-width="5"/>
-      <circle cx="708" cy="512" r="12" fill="#3f3f3f"/>
+    <rect x="256" y="384" width="512" height="14" fill="#000000" opacity=".35"/>
+    <rect x="256" y="626" width="512" height="14" fill="#000000" opacity=".35"/>
+    <!-- leaf slab -->
+      <rect x="262" y="470" width="500" height="84" rx="4" fill="url(#leaf)" stroke="#1a1a1a" stroke-opacity=".75" stroke-width="4"/>
+      <!-- raised outer frame of the leaf -->
+      <rect x="272" y="478" width="480" height="68" rx="3" fill="none" stroke="#ffffff" stroke-opacity=".34" stroke-width="5"/>
+      <!-- two recessed panels with a muntin between: the strongest top-down
+           read that this slab is a DOOR and not a plank of wall -->
+      <rect x="296" y="492" width="196" height="40" rx="2" fill="#000000" opacity=".20"/>
+      <rect x="296" y="492" width="196" height="40" rx="2" fill="none" stroke="#1a1a1a" stroke-opacity=".6" stroke-width="3"/>
+      <rect x="532" y="492" width="196" height="40" rx="2" fill="#000000" opacity=".20"/>
+      <rect x="532" y="492" width="196" height="40" rx="2" fill="none" stroke="#1a1a1a" stroke-opacity=".6" stroke-width="3"/>
+      <rect x="500" y="478" width="24" height="68" fill="#9d9d9d"/>
+      <rect x="500" y="478" width="24" height="68" fill="none" stroke="#1a1a1a" stroke-opacity=".5" stroke-width="3"/>
+      <!-- handle: lever on a backplate, near the free edge -->
+      <rect x="700" y="494" width="34" height="36" rx="3" fill="#3c3c3c"/>
+      <rect x="706" y="506" width="44" height="12" rx="6" fill="#565656" stroke="#1a1a1a" stroke-opacity=".7" stroke-width="3"/>
+    <!-- hinge barrels straddling the jamb-to-leaf seam, knuckled -->
+    <g fill="#3c3c3c" stroke="#1a1a1a" stroke-opacity=".8" stroke-width="3">
+      <rect x="238" y="482" width="48" height="22" rx="11"/>
+      <rect x="238" y="520" width="48" height="22" rx="11"/>
     </g>
-    <circle cx="256" cy="478" r="15" fill="#464646"/>
-    <circle cx="256" cy="546" r="15" fill="#464646"/>
+    <g fill="#5a5a5a">
+      <rect x="252" y="486" width="6" height="14"/><rect x="266" y="486" width="6" height="14"/>
+      <rect x="252" y="524" width="6" height="14"/><rect x="266" y="524" width="6" height="14"/>
+    </g>
   </g>
 </svg>
