@@ -159,3 +159,33 @@ export function categoryLabel(category: PackCategory | string): string {
     .map((word) => (word.length === 1 ? word : word.toLowerCase()))
     .join(" ");
 }
+
+/**
+ * How thick a wall band is, as a fraction of the tile — the width of the strip
+ * a `wallSegment`, `door*` or joint paints across the gridline.
+ *
+ * **25%, which is exactly 32px at the 128px base tile.** The number is chosen
+ * to stay an integer at every zoom the renderer uses (32 → 16 → 8); 20% would
+ * be 25.6px and fractional at almost every tile size.
+ *
+ * It lives here because four places independently decided this and all four
+ * disagreed, which is visible on a map as a wall that changes width where it
+ * meets a corner. Measured 21 Sep 2026:
+ *
+ * | source | band |
+ * |---|---|
+ * | `normalizeGeneratedTile` (every generated tile) | 23px (0.18) |
+ * | `placeholderTile` (every procedural fallback) | 23px (0.18) |
+ * | `renderMap` / `bake` corner joints | 35px (35/128) |
+ * | `wood-interior`'s extracted art | 37px |
+ * | `celestial-observatory` horizontal walls | 22px |
+ * | `celestial-observatory` **vertical** walls | **14px** |
+ *
+ * The last two are the same pack — hand-authored through the CLI, tile by
+ * tile, with its vertical walls at half the thickness of its horizontal ones.
+ * No amount of care catches this by eye; it needs one constant.
+ */
+export const WALL_BAND_RATIO = 0.25;
+
+/** `WALL_BAND_RATIO` in pixels of a base tile — 32. */
+export const WALL_BAND_PX = Math.round(BASE_TILE_SIZE * WALL_BAND_RATIO);

@@ -3,7 +3,7 @@
 // so maps look consistent across reloads. Real WebP assets replace these once
 // the AI generation pipeline ships.
 
-import { BASE_TILE_SIZE, type PackCategory } from "./packSchema";
+import { BASE_TILE_SIZE, WALL_BAND_PX, type PackCategory } from "./packSchema";
 import { drawHazardGlyph, isHazardCategory } from "./hazardPlaceholders";
 import { drawFeatureGlyph, isFeatureCategory } from "./featurePlaceholders";
 
@@ -140,7 +140,7 @@ export function getPlaceholderTile(k: PlaceholderKey, palette?: Palette): HTMLCa
     ctx.clearRect(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
     ctx.fillStyle = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
     const isHorizontal = k.category.endsWith("H");
-    const thickness = Math.round(BASE_TILE_SIZE * 0.18);
+    const thickness = WALL_BAND_PX;
     const offset = Math.round((BASE_TILE_SIZE - thickness) / 2);
     if (isHorizontal) {
       ctx.fillRect(0, offset, BASE_TILE_SIZE, thickness);

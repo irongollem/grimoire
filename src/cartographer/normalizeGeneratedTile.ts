@@ -1,7 +1,8 @@
-import { BASE_TILE_SIZE } from "./packSchema";
+import { BASE_TILE_SIZE, WALL_BAND_PX } from "./packSchema";
 import type { SlotMechanics, SlotIdentity } from "./authoringPlan";
 
-const BAND = Math.round(BASE_TILE_SIZE * 0.18);
+/** The canonical wall band — see WALL_BAND_RATIO. Was an independent 0.18. */
+const BAND = WALL_BAND_PX;
 
 export function decodeBase64(value: string): Uint8Array {
   const binary = atob(value);
@@ -96,6 +97,44 @@ function canvasToWebp(canvas: HTMLCanvasElement): Promise<Blob> {
   ));
 }
 
+/** Fraction of the tile the doorway opening spans across the wall band. */
+const THRESHOLD_GAP = Math.round(BASE_TILE_SIZE * 0.28);
+
+/**
+ * Whether a tile's art is cropped and redrawn *into* the wall band.
+ *
+ * True for a wall or a shut door, whose art lives entirely on the gridline —
+ * squashing it there is what guarantees a consistent band whatever the model
+ * drew. False for an open door, which is the one edge category with art
+ * deliberately outside the band: an ajar leaf hangs into the adjacent
+ * half-cell, and squashing flattens it back onto the wall.
+ */
+export function squashesOntoBand(category: SlotIdentity["category"], footprint: SlotMechanics["footprint"]): boolean {
+  if (category === "doorOpenH" || category === "doorOpenV") return false;
+  return footprint === "centered-horizontal-edge" || footprint === "centered-vertical-edge";
+}
+
+/**
+ * The doorway opening cut through an open door's wall band, or null for every
+ * other category.
+ *
+ * Confined to the band on purpose. Clearing the full height (or width) of the
+ * tile — which is what this did before — erases the region an ajar leaf
+ * occupies, so no open door could ever show a leaf no matter how well it was
+ * drawn.
+ */
+export function thresholdClearRect(
+  category: SlotIdentity["category"],
+  tileSize: number = BASE_TILE_SIZE,
+  band: number = BAND,
+): { x: number; y: number; width: number; height: number } | null {
+  const bandStart = Math.floor((tileSize - band) / 2);
+  const gapStart = Math.round((tileSize - THRESHOLD_GAP) / 2);
+  if (category === "doorOpenH") return { x: gapStart, y: bandStart, width: THRESHOLD_GAP, height: band };
+  if (category === "doorOpenV") return { x: bandStart, y: gapStart, width: band, height: THRESHOLD_GAP };
+  return null;
+}
+
 export async function normalizeGeneratedTile(input: {
   imageB64: string;
   contentType: string;
@@ -124,8 +163,25 @@ export async function normalizeGeneratedTile(input: {
   output.height = BASE_TILE_SIZE;
   const ctx = output.getContext("2d");
   if (!ctx) throw new Error("Canvas is unavailable");
-  const horizontal = input.mechanics.footprint === "centered-horizontal-edge";
-  const vertical = input.mechanics.footprint === "centered-vertical-edge";
+  // An open door is an edge tile that must NOT be squashed onto the edge.
+  //
+  // The branch below takes whatever the model drew, crops to its alpha bounds
+  // and redraws it *into* the wall band — which is right for a wall or a shut
+  // door, whose art is entirely on the gridline, and fatal for an open one. An
+  // ajar leaf hangs off that line into the adjacent half-cell; squashing the
+  // whole image into a 32px strip flattens the leaf back onto the wall, and
+  // then the threshold clear below removes what is left. Between them the two
+  // steps could only ever produce a wall with a hole in it, whatever the model
+  // supplied.
+  //
+  // So an open door is drawn 1:1 and only its threshold is cleared. Its band
+  // alignment then comes from the source art rather than from being forced,
+  // which is the whole premise of generating from an approved reference tile:
+  // geometry is carried in, not imposed afterwards.
+  const horizontal = squashesOntoBand(input.slot.category, input.mechanics.footprint)
+    && input.mechanics.footprint === "centered-horizontal-edge";
+  const vertical = squashesOntoBand(input.slot.category, input.mechanics.footprint)
+    && input.mechanics.footprint === "centered-vertical-edge";
   if (horizontal || vertical) {
     const pixels = sourceCtx.getImageData(0, 0, BASE_TILE_SIZE, BASE_TILE_SIZE);
     const bounds = alphaBounds(pixels.data, BASE_TILE_SIZE, BASE_TILE_SIZE) ?? { x: 0, y: 0, width: BASE_TILE_SIZE, height: BASE_TILE_SIZE };
@@ -144,12 +200,26 @@ export async function normalizeGeneratedTile(input: {
     ctx.drawImage(sourceCanvas, 0, 0);
   }
 
-  if (input.slot.category === "doorOpenH") {
-    const gap = Math.round(BASE_TILE_SIZE * 0.28);
-    clearRect(ctx, Math.round((BASE_TILE_SIZE - gap) / 2), 0, gap, BASE_TILE_SIZE);
-  } else if (input.slot.category === "doorOpenV") {
-    const gap = Math.round(BASE_TILE_SIZE * 0.28);
-    clearRect(ctx, 0, Math.round((BASE_TILE_SIZE - gap) / 2), BASE_TILE_SIZE, gap);
+  // An open door's threshold is cleared across the WALL BAND ONLY, never the
+  // full height of the tile.
+  //
+  // This used to clear the entire column (or row), which made a swung leaf
+  // impossible by construction: a leaf hangs off the wall line into the
+  // adjacent half-cell, which is exactly the region that clear was wiping. The
+  // best the pipeline could then produce was "a wall with a hole in it", and
+  // that is what every generated open door came back as — the model was not at
+  // fault, the geometry had already been decided here.
+  //
+  // Clearing just the band opens the doorway through the wall and leaves
+  // everything outside the band untouched, so an ajar leaf survives. A leaf
+  // cannot swing a full 90° — the tile only reaches half a cell either side of
+  // the gridline — so the art convention is ajar, around 30-40°, which reads
+  // unmistakably open within that reach. A true right-angle swing would need a
+  // non-square asset or a per-category draw scale, and the 128x128 invariant is
+  // enforced in four places (here, completeSlot, preparePackUpload, the schema).
+  const threshold = thresholdClearRect(input.slot.category);
+  if (threshold) {
+    clearRect(ctx, threshold.x, threshold.y, threshold.width, threshold.height);
   } else if (input.mechanics.footprint === "rounded-junction") {
     clearRoundedInterior(ctx, input.slot.side);
   }

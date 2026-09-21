@@ -7,7 +7,7 @@
 // Mirrors the render logic in CartographerEditorView but without viewport/zoom
 // dependencies: cells are drawn at 1:1 scale (BASE_TILE_SIZE px per cell).
 
-import { BASE_TILE_SIZE, type PackCategory } from "./packSchema";
+import { BASE_TILE_SIZE, WALL_BAND_RATIO, type PackCategory } from "./packSchema";
 import type { TilePackRuntime } from "./packLoader";
 import type { CellKey, DungeonMap } from "@/types/dungeonMap.types";
 import { classifyJoint } from "./edges";
@@ -170,7 +170,9 @@ function renderToCanvas(
   }
 
   // Corner joints
-  const thickness = ts * (35 / 128);
+  // A joint is exactly as thick as the walls meeting it — anything else
+  // steps in or out at every intersection. Was an independent 35/128.
+  const thickness = ts * WALL_BAND_RATIO;
   const halfThick = thickness / 2;
   ctx.fillStyle = "rgb(40, 36, 32)";
   for (let jy = minY - 1; jy <= maxY + 2; jy++) {

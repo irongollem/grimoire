@@ -6,7 +6,7 @@
 // "vue". The view stays responsible for reading its refs each frame and
 // building the `MapRenderScene`.
 
-import type { PackCategory } from "@/cartographer/packSchema";
+import { WALL_BAND_RATIO, type PackCategory } from "@/cartographer/packSchema";
 import type { TilePackRuntime } from "@/cartographer/packLoader";
 import { cellKey, type CellKey, type DungeonMapLayers, type CellMetadata } from "@/types/dungeonMap.types";
 import { classifyJoint, type CellEdge } from "@/cartographer/edges";
@@ -213,8 +213,9 @@ export function renderMap(scene: MapRenderScene): void {
     // Corner joints — fill / tile the gap at every grid intersection where H and
     // V wall strips meet. Uses the pack's optional wallJoint directional art when
     // available; falls back to a programmatic filled square otherwise.
-    // Match tile strip width: actual extracted assets use ~35/128 of tile height.
-    const thickness = tilePx * (35 / 128);
+  // A joint is exactly as thick as the walls meeting it — anything else
+    // steps in or out at every intersection. Was an independent 35/128.
+    const thickness = tilePx * WALL_BAND_RATIO;
     const halfThick = thickness / 2;
     for (let jy = minY; jy <= maxY + 1; jy++) {
       for (let jx = minX; jx <= maxX + 1; jx++) {
