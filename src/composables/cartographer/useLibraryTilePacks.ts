@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { getPublicUrl } from "@/lib/storage";
 import { loadPack, type TilePackRuntime } from "@/cartographer/packLoader";
 import type { LibraryTilePack } from "@/cartographer/userPack.types";
+import type { AssetSlot } from "@/cartographer/packSchema";
 import { cloneManifest } from "@/cartographer/cloneManifest";
 import { assertWebp128 } from "@/cartographer/packUpload";
 import { invokeTilePackGenerator } from "./tilePackGenerator";
@@ -45,6 +46,22 @@ async function fetchLibraryPacks(): Promise<LibraryTilePack[]> {
 }
 
 /**
+ * One tile's public URL, cache-keyed on the bytes actually stored there.
+ *
+ * The CDN Worker serves every object as `public, max-age=2592000, immutable`,
+ * and a replaced tile keeps its path — so without a discriminator a
+ * regenerated door renders as the old door for a month, for the admin who
+ * replaced it and for every DM who had already loaded the pack. `rev` is
+ * stamped by the edge function on each write; a tile written before that field
+ * existed falls back to the pack version, which is exactly what its URL
+ * carried before.
+ */
+export function libraryTileUrl(pack: LibraryTilePack, slot: Pick<AssetSlot, "url" | "rev">): string {
+  const base = getPublicUrl("libraryTilePacks", libraryPackObjectPath(pack, slot.url));
+  return `${base}?v=${slot.rev ?? pack.pack_version}`;
+}
+
+/**
  * Load a library pack's runtime from its public, CDN-fronted bytes.
  *
  * The sibling `loadUserPack` signs a URL per tile, because a DM's pack is
@@ -56,7 +73,7 @@ export async function loadLibraryPack(pack: LibraryTilePack): Promise<TilePackRu
   const manifest = cloneManifest(pack.manifest);
   for (const entries of Object.values(manifest.assets)) {
     for (const slot of entries ?? []) {
-      slot.url = getPublicUrl("libraryTilePacks", libraryPackObjectPath(pack, slot.url));
+      slot.url = libraryTileUrl(pack, slot);
     }
   }
   const manifestUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: "application/json" }));

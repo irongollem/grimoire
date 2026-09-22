@@ -36,22 +36,31 @@
           >{{ entry.slot.side ?? entry.slot.variant }}</span>
 
           <!-- Always present, never hover-only: an affordance that appears on
-               hover does not exist on a touch device, and this is the single
-               control that puts art into a pack. It sits on its own scrim so
-               it stays legible over a tile of any colour. -->
-          <div class="absolute bottom-0.5 right-0.5 rounded bg-background/75">
+               hover does not exist on a touch device, and these are the only
+               controls that put art into a pack. They sit on their own scrim so
+               they stay legible over a tile of any colour. -->
+          <div class="absolute bottom-0.5 right-0.5 flex rounded bg-background/75">
+            <AppButton
+              variant="ghost"
+              size="icon-2xs"
+              :icon="IconGenerate"
+              :aria-label="`${entry.drawn ? 'Regenerate' : 'Generate'} ${entry.id}`"
+              :tooltip="regenerateTooltip(entry)"
+              :disabled="busy"
+              @click="regenerate(entry)"
+            />
             <AppButton
               variant="ghost"
               size="icon-2xs"
               :icon="IconUpload"
               :aria-label="`Upload art for ${entry.id}`"
-              :disabled="uploadingSlotId !== null"
+              :disabled="busy"
               @click="pickFileFor(entry)"
             />
           </div>
 
           <span
-            v-if="uploadingSlotId === entry.id"
+            v-if="uploadingSlotId === entry.id || generatingSlotId === entry.id"
             class="absolute inset-0 flex items-center justify-center bg-background/80"
           >
             <IconLoading class="h-4 w-4 animate-spin text-primary" />
@@ -69,8 +78,16 @@
 
 <script setup lang="ts">
 /**
- * #900 S4 — every slot a library pack is answerable for, and the only way to
- * put a human-drawn tile into one.
+ * #900 S4 — every slot a library pack is answerable for, and the two ways to
+ * put art into one: regenerate it, or upload a human-drawn tile.
+ *
+ * Per-slot regeneration is here rather than beside the editor's bulk
+ * "Generate N tiles" button because the two answer different questions. The
+ * bulk button fills *gaps*, so it disappears the moment a pack is complete —
+ * and a complete pack is exactly when one tile turns out wrong. Reference
+ * geometry and prompt wording both improved after `celestial-observatory` was
+ * generated, and correcting its four doors meant either redrawing them by hand
+ * or regenerating all 29 tiles.
  *
  * The cells are deliberately uniform whether or not they hold art: a pack is
  * authored by filling gaps, so "what is still blank" is the question this grid
@@ -85,38 +102,41 @@
  */
 import { computed, ref, useTemplateRef } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
-import { IconLoading, IconUpload } from "@/lib/icons";
+import { IconGenerate, IconLoading, IconUpload } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
-import { getPublicUrl } from "@/lib/storage";
+import { useConfirm } from "@/composables/useConfirm";
 import {
   describeLibraryPackError,
-  libraryPackObjectPath,
+  libraryTileUrl,
   useLibraryTilePacks,
 } from "@/composables/cartographer/useLibraryTilePacks";
+import { useTilePacks } from "@/composables/cartographer/useTilePacks";
 import { packCoverage, type SlotCoverage } from "@/cartographer/packCoverage";
 import { categoryLabel } from "@/cartographer/packSchema";
+import { rotationFor } from "@/cartographer/authoringPlan";
 import type { LibraryTilePack } from "@/cartographer/userPack.types";
 
 const props = defineProps<{ pack: LibraryTilePack }>();
 
-const { uploadTile } = useLibraryTilePacks();
+const { uploadTile, generateMissing } = useLibraryTilePacks();
+const { runUntilPause } = useTilePacks();
 const toast = useToast();
+const { confirm } = useConfirm();
 
 const fileInput = useTemplateRef<HTMLInputElement>("fileInput");
 const pendingSlot = ref<SlotCoverage | null>(null);
 const uploadingSlotId = ref<string | null>(null);
+const generatingSlotId = ref<string | null>(null);
 
 /**
- * Cache-busting stamps for tiles replaced in this session.
+ * One write at a time across the whole grid.
  *
- * A replaced tile lands at the *same* CDN path as the one it replaced — the
- * path is derived from the slot's identity, not its contents — so both the
- * browser and the CDN Worker will happily keep serving the old bytes, and the
- * upload will look like it silently failed. `byteSize` is not a sufficient
- * discriminator either: two different 128×128 WebPs can encode to the same
- * length. A stamp taken at upload time always differs.
+ * Not per-cell: `generate_library_pack` refuses a second run while one is
+ * active (`generation_already_running`), so a grid that let two cells be
+ * clicked would spend the second click on an error toast. Disabling every
+ * button says that up front.
  */
-const bustedAt = ref<Record<string, number>>({});
+const busy = computed(() => uploadingSlotId.value !== null || generatingSlotId.value !== null);
 
 const coverage = computed(() => packCoverage(props.pack.manifest));
 
@@ -136,9 +156,7 @@ const groups = computed(() => {
 });
 
 function tileUrl(entry: SlotCoverage): string {
-  const base = getPublicUrl("libraryTilePacks", libraryPackObjectPath(props.pack, entry.relativePath));
-  const stamp = bustedAt.value[entry.id];
-  return stamp ? `${base}?t=${stamp}` : `${base}?v=${props.pack.pack_version}`;
+  return libraryTileUrl(props.pack, { url: entry.relativePath, ...(entry.rev !== undefined ? { rev: entry.rev } : {}) });
 }
 
 function titleFor(entry: SlotCoverage): string {
@@ -165,12 +183,75 @@ async function onFileChosen(event: Event): Promise<void> {
   uploadingSlotId.value = entry.id;
   try {
     await uploadTile.mutateAsync({ packRowId: props.pack.id, slot: entry.slot, file });
-    bustedAt.value = { ...bustedAt.value, [entry.id]: Date.now() };
     toast.success(`Uploaded ${entry.id}.`);
   } catch (caught) {
     toast.error(describeLibraryPackError(caught));
   } finally {
     uploadingSlotId.value = null;
+  }
+}
+
+/**
+ * The slot a regeneration actually renders, which is not always the one clicked.
+ *
+ * A vertical wall or door is its horizontal twin turned a quarter — the plan
+ * never makes a job for one (`createGenerationPlan` collapses it onto the
+ * source) and `runJob` derives it from the result. So asking for
+ * `doorClosedV:0` renders `doorClosedH:0` and writes both, and the tooltip has
+ * to say so: an admin who regenerates the vertical door three times running,
+ * wondering why the horizontal one keeps changing too, is the confusion this
+ * one line prevents.
+ */
+function renderedSlotFor(entry: SlotCoverage): string {
+  return rotationFor(entry.id)?.from ?? entry.id;
+}
+
+function regenerateTooltip(entry: SlotCoverage): string {
+  const rendered = renderedSlotFor(entry);
+  const verb = entry.drawn ? "Regenerate" : "Generate";
+  return rendered === entry.id
+    ? `${verb} this tile`
+    : `${verb} ${rendered} — this tile is that one turned, so both are rewritten`;
+}
+
+/**
+ * Regenerate one slot, and drive its run to completion here.
+ *
+ * A single-slot run carries no proof phase — `initialGenerationStatus` opens
+ * it straight in `generating` whenever the plan holds none of the three proof
+ * slots — so there is nothing for the run card to gate on and no reason to
+ * make the admin find a second button. Where the plan *does* include a proof
+ * slot (regenerating the floor, the horizontal wall or the solid block, which
+ * is how you re-style a whole pack), the run opens in `proof_pending`,
+ * `runUntilPause` renders the proof and stops at `awaiting_approval` — and the
+ * pack's run card, which is already on screen above this grid, is where the
+ * approval lives. Both paths therefore end somewhere the admin can see.
+ */
+async function regenerate(entry: SlotCoverage): Promise<void> {
+  // Only for a published pack. A draft is work in progress and re-rolling a
+  // tile is the work; a published pack's tiles are live content for every DM,
+  // and the old bytes are not recoverable once overwritten.
+  if (entry.drawn && props.pack.status === "published") {
+    const accepted = await confirm(
+      `Replace the art in ${entry.id}? "${props.pack.name}" is published, so this changes what every DM sees, and the current tile cannot be recovered.`,
+      { title: "Regenerate a published tile?", confirmLabel: "Regenerate" },
+    );
+    if (!accepted) return;
+  }
+
+  generatingSlotId.value = entry.id;
+  try {
+    const run = await generateMissing.mutateAsync({ packRowId: props.pack.id, slotIds: [entry.id] });
+    await runUntilPause(run.run_id);
+    toast.success(
+      run.status === "proof_pending"
+        ? `${renderedSlotFor(entry)} regenerated — approve the style to keep it.`
+        : `Regenerated ${renderedSlotFor(entry)}.`,
+    );
+  } catch (caught) {
+    toast.error(describeLibraryPackError(caught));
+  } finally {
+    generatingSlotId.value = null;
   }
 }
 </script>

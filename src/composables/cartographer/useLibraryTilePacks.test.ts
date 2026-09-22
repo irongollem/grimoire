@@ -27,10 +27,19 @@ vi.mock("@/lib/supabase", () => ({
         return { data: { ok: true }, error: null };
       }),
     },
+    // `getPublicUrl` reaches for this when no asset CDN is configured, which is
+    // the case under vitest. What the host is does not matter to these tests —
+    // the path and the cache-busting query do.
+    storage: {
+      from: vi.fn((bucket: string) => ({
+        getPublicUrl: (path: string) => ({ data: { publicUrl: `https://storage.test/${bucket}/${path}` } }),
+      })),
+    },
   },
 }));
 
-import { describeLibraryPackError, libraryPackObjectPath, useLibraryTilePacks } from "./useLibraryTilePacks";
+import { describeLibraryPackError, libraryPackObjectPath, libraryTileUrl, useLibraryTilePacks } from "./useLibraryTilePacks";
+import type { LibraryTilePack } from "@/cartographer/userPack.types";
 
 /** Mounts the composable inside a real component so its `useQuery` has a
  *  query client to attach to — same helper shape as useUnembeddedContent.test.ts. */
@@ -70,6 +79,31 @@ describe("libraryPackObjectPath", () => {
     const path = libraryPackObjectPath({ id: "3f1b0c2e-0000-4000-8000-000000000001", pack_version: 1 }, "wall/h/0.webp");
     expect(path).not.toContain("haunted-manor");
     expect(path.split("/")[0]).toBe("3f1b0c2e-0000-4000-8000-000000000001");
+  });
+});
+
+describe("libraryTileUrl", () => {
+  const pack = { id: "3f1b0c2e-0000-4000-8000-000000000001", pack_version: 1 } as LibraryTilePack;
+
+  // The CDN serves these `immutable` for a month, and a replaced tile keeps its
+  // path — so the stamp is the only thing that tells a browser the door it
+  // cached yesterday is not the door stored there now.
+  it("cache-keys on the slot's own rev when it has one", () => {
+    const url = libraryTileUrl(pack, { url: "doorClosedH/0.webp", rev: 1758529974000 });
+
+    expect(url).toContain("/3f1b0c2e-0000-4000-8000-000000000001/v1/doorClosedH/0.webp");
+    expect(url.endsWith("?v=1758529974000")).toBe(true);
+  });
+
+  it("falls back to the pack version for a tile written before revs existed", () => {
+    expect(libraryTileUrl(pack, { url: "floor/0.webp" }).endsWith("?v=1")).toBe(true);
+  });
+
+  it("gives two revisions of one slot different URLs", () => {
+    const before = libraryTileUrl(pack, { url: "doorClosedH/0.webp", rev: 1758529974000 });
+    const after = libraryTileUrl(pack, { url: "doorClosedH/0.webp", rev: 1758529999000 });
+
+    expect(before).not.toBe(after);
   });
 });
 

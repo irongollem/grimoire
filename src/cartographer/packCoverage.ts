@@ -52,6 +52,8 @@ export interface SlotCoverage {
   readonly drawn: boolean;
   /** Part of the schema's required floor — the 20 tiles a pack cannot render without. */
   readonly required: boolean;
+  /** When these bytes were last written; the cache key a reader must use. See `AssetSlot.rev`. */
+  readonly rev?: number;
 }
 
 export interface CoverageCounts {
@@ -130,6 +132,7 @@ export function packCoverage(manifest: TilePackManifest): SlotCoverage[] {
         declared: asset !== undefined,
         drawn: asset !== undefined && isDrawn(asset),
         required: required.has(id),
+        ...(asset?.rev !== undefined ? { rev: asset.rev } : {}),
       };
     });
 }

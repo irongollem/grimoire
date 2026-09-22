@@ -115,6 +115,23 @@ export interface AssetSlot {
   variant: number;
   url: string;
   byteSize?: number;
+  /**
+   * When these bytes were last written, as a millisecond epoch.
+   *
+   * A replaced tile lands at the *same* path as the one it replaces — the path
+   * is derived from the slot's identity, not its contents — and the CDN Worker
+   * hands every object back as `public, max-age=2592000, immutable`. So a tile
+   * regenerated or re-uploaded on a pack a DM has already loaded would keep
+   * rendering as the old art for a month, in their browser and at the edge.
+   * Readers append this as a query parameter, which changes the cache key
+   * without moving the object. `byteSize` cannot stand in for it: two
+   * different 128x128 WebPs can encode to the same length.
+   *
+   * Optional because every tile written before 22 Sep 2026 predates it — an
+   * absent `rev` simply falls back to the pack version, which is what those
+   * URLs already carried.
+   */
+  rev?: number;
 }
 
 export interface TilePackManifest {

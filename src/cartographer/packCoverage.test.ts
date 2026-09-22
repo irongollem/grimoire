@@ -80,6 +80,18 @@ describe("packCoverage", () => {
     expect(coverageCounts(declaredButEmpty).drawn).toBe(0);
   });
 
+  it("carries each drawn slot's rev, so a reader can cache-key on the bytes stored", () => {
+    const manifest = manifestWith([{ category: "floor", variant: 0, byteSize: 900 }]);
+    manifest.assets.floor![0]!.rev = 1758529974000;
+    const coverage = packCoverage(manifest);
+
+    expect(coverage.find((entry) => entry.id === "floor:0")?.rev).toBe(1758529974000);
+    // A tile written before the field existed, and an undrawn slot, both leave
+    // it absent rather than inventing a stamp — `libraryTileUrl` falls back to
+    // the pack version for exactly those.
+    expect(coverage.find((entry) => entry.id === "solidBlock:0")?.rev).toBeUndefined();
+  });
+
   it("treats a zero byteSize as undrawn", () => {
     const coverage = packCoverage(manifestWith([{ category: "floor", variant: 0, byteSize: 0 }]));
     expect(coverage.find((entry) => entry.id === "floor:0")?.drawn).toBe(false);

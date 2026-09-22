@@ -87,7 +87,7 @@
           variant="primary"
           size="xs"
           :icon="IconGenerate"
-          :label="`Generate ${requiredOnly ? undrawnRequired.length : undrawnAll.length} tiles`"
+          :label="`Generate ${targetSlotIds.length} ${targetSlotIds.length === 1 ? 'tile' : 'tiles'}`"
           :loading="generateMissing.isPending.value"
           :disabled="generateMissing.isPending.value || targetSlotIds.length === 0"
           @click="startGeneration"
@@ -196,7 +196,21 @@ const drawnPct = computed(() =>
 const undrawnAll = computed(() => undrawnSlotIds(props.pack.manifest));
 const undrawnRequired = computed(() => undrawnSlotIds(props.pack.manifest, { requiredOnly: true }));
 
+/**
+ * Required first, because that is the cost lever — but never a scope that has
+ * nothing in it.
+ *
+ * A pack whose required floor is complete and whose optional variants are not
+ * is the ordinary end state of a generation run, and it rendered this control
+ * as "Required (0)" beside a disabled "Generate 0 tiles" — a button offering
+ * to do nothing, with the 37 slots it could actually fill one unexplained
+ * click away. The watch keeps that true as the pack fills, since the last
+ * required slot landing is exactly when the default stops making sense.
+ */
 const scope = ref<"required" | "all">("required");
+watch([undrawnRequired, undrawnAll], ([required, all]) => {
+  if (required.length === 0 && all.length > 0) scope.value = "all";
+}, { immediate: true });
 const requiredOnly = computed(() => scope.value === "required");
 const targetSlotIds = computed(() => (requiredOnly.value ? undrawnRequired.value : undrawnAll.value));
 

@@ -428,6 +428,7 @@ async function uploadLibraryTile(user: User, body: Record<string, unknown>): Pro
     variant: slot.variant,
     url: relative,
     byteSize: bytes.byteLength,
+    rev: Date.now(),
   });
   manifest.assets[slot.category] = slots;
   // Deliberately no `ai_provenance` write here — see #900 decision 4.
@@ -988,6 +989,7 @@ async function completeRotation(user: User, body: Record<string, unknown>): Prom
     variant: slot.variant,
     url: relative,
     byteSize: bytes.byteLength,
+    rev: Date.now(),
   });
   manifest.assets[slot.category] = slots;
   // `ai_provenance` is not touched: it is already on the row from the source
@@ -1032,6 +1034,10 @@ async function completeSlot(user: User, body: Record<string, unknown>): Promise<
     variant: job.slot.variant,
     url: relative,
     byteSize: bytes.byteLength,
+    // Stamped on every write, not only a replacement: the writer cannot know
+    // whether anyone has already cached this path, and the whole point of the
+    // field is that the reader needs no such knowledge either. See `AssetSlot`.
+    rev: Date.now(),
   });
   manifest.assets[job.slot.category] = slots;
   // Proof slots only: these are the three that become style references.
