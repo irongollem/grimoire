@@ -9,6 +9,7 @@ import { rotateTile } from "@/cartographer/rotateTile";
 import { rotationsOf } from "@/cartographer/authoringPlan";
 import { preparePackUpload } from "@/cartographer/packUpload";
 import { invokeTilePackGenerator as invoke } from "./tilePackGenerator";
+import { LIBRARY_PACKS_KEY } from "./useLibraryTilePacks";
 import type { TilePackGenerationJob, TilePackGenerationRun, UserTilePack } from "@/cartographer/userPack.types";
 import { cloneManifest } from "@/cartographer/cloneManifest";
 
@@ -213,10 +214,7 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
         image_b64: await toBase64(turned),
       });
     }
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: [PACKS_KEY] }),
-      queryClient.invalidateQueries({ queryKey: [RUNS_KEY] }),
-    ]);
+    await refreshAfterJob();
   }
 
   async function runNext(run: TilePackGenerationRun & { tile_pack_generation_jobs: TilePackGenerationJob[] }): Promise<boolean> {
@@ -228,18 +226,37 @@ export function useTilePacks(campaignId?: Ref<string | null>, includeRuns = true
     return true;
   }
 
+  /**
+   * Both lanes' pack rows, plus the runs.
+   *
+   * A completed tile writes its bytes and patches the owning pack's manifest
+   * server-side, so the row the editor renders from is stale the moment a job
+   * finishes — and this loop drives library runs as well as user ones (the
+   * edge function resolves the lane from the run row, so the caller does not
+   * say which). Invalidating only `user-tile-packs` is what made a library
+   * run report "completed 16/16" over a grid of blank cells that filled in
+   * only on a page refresh.
+   */
+  async function refreshAfterJob(): Promise<void> {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: [PACKS_KEY] }),
+      queryClient.invalidateQueries({ queryKey: [LIBRARY_PACKS_KEY] }),
+      queryClient.invalidateQueries({ queryKey: [RUNS_KEY] }),
+    ]);
+  }
+
   async function runUntilPause(runId: string): Promise<void> {
     while (true) {
       const current = await fetchRun(runId);
       if (current.cancel_requested || !["proof_pending", "generating"].includes(current.status)) break;
       if (!(await runNext(current))) break;
     }
-    await queryClient.invalidateQueries({ queryKey: [RUNS_KEY] });
+    await refreshAfterJob();
   }
 
   async function action(runId: string, actionName: "approve_proof" | "cancel" | "retry_job" | "regenerate_job", jobId?: string): Promise<void> {
     await invoke({ action: actionName, run_id: runId, ...(jobId ? { job_id: jobId } : {}) });
-    await queryClient.invalidateQueries({ queryKey: [RUNS_KEY] });
+    await refreshAfterJob();
   }
 
   async function signJobAssets(jobs: TilePackGenerationJob[]): Promise<{ jobId: string; url: string }[]> {

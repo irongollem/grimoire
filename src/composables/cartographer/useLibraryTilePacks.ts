@@ -8,7 +8,14 @@ import { cloneManifest } from "@/cartographer/cloneManifest";
 import { assertWebp128 } from "@/cartographer/packUpload";
 import { invokeTilePackGenerator } from "./tilePackGenerator";
 
-const LIBRARY_PACKS_KEY = "library-tile-packs";
+/**
+ * Exported because the generation loop lives in `useTilePacks` and drives
+ * BOTH lanes (the edge function resolves the lane from the run row), so it
+ * has to invalidate this lane's rows too — a library run that only
+ * invalidated `user-tile-packs` left the pack editor and its slot grid
+ * showing blank cells until a manual page refresh.
+ */
+export const LIBRARY_PACKS_KEY = "library-tile-packs";
 
 /**
  * Where a library pack's objects live: `<row id>/v<version>/<relative>`.
