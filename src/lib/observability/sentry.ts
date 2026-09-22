@@ -56,8 +56,42 @@ const DENY_URLS: RegExp[] = [
  * dev run and every build made outside Vercel — so no configuration is needed
  * to work on this repo, and dev noise never reaches the production project.
  */
+/**
+ * A DSN Sentry can actually use.
+ *
+ * Emptiness is not the only way this value goes wrong, and the other way is
+ * silent. On 22 Sep 2026 production shipped `dsn: "[SENSITIVE]"` — the literal
+ * string Vercel writes for a Sensitive environment variable, which a CI build
+ * receives in place of the value because `vercel pull` never returns it. It is
+ * truthy, so a bare `if (!dsn)` let it through; `Sentry.init` then failed to
+ * parse it and quietly disabled the client. `window.__SENTRY__` was present,
+ * the app looked instrumented, and not one browser error was reported until
+ * somebody noticed the Issues feed had gone quiet.
+ *
+ * So the guard checks the value is a URL rather than merely present, and says
+ * so out loud when it is not. An inert client that looks alive is worse than
+ * no client.
+ */
+function usableDsn(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("scheme");
+    return value;
+  } catch {
+    console.error(
+      `[sentry] VITE_SENTRY_DSN is set but is not a URL (${JSON.stringify(value)}); error reporting is OFF. ` +
+      "In Vercel this usually means the variable is marked Sensitive — a CI build cannot read those, " +
+      "so it receives the string \"[SENSITIVE]\". Store it as Config instead.",
+    );
+    return null;
+  }
+}
+
+export { usableDsn };
+
 export function initErrorTracking(app: App, router: Router): void {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
+  const dsn = usableDsn(import.meta.env.VITE_SENTRY_DSN);
   if (!dsn) return;
 
   Sentry.init({

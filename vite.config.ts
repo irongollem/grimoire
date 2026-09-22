@@ -484,6 +484,36 @@ export default defineConfig(({ mode }) => {
    */
   const sentryAuthToken = loadEnv(mode, import.meta.dirname, "SENTRY_").SENTRY_AUTH_TOKEN;
 
+  /**
+   * Refuse to ship a build whose Sentry configuration is present but unusable.
+   *
+   * On 22 Sep 2026 production shipped with `VITE_SENTRY_DSN` inlined as the
+   * literal string `[SENSITIVE]`. That is what Vercel writes for a Sensitive
+   * environment variable: `vercel pull` never returns the value, and since
+   * this project builds in CI rather than on Vercel's own infrastructure, the
+   * build receives the placeholder. The string is truthy, so `Sentry.init`
+   * ran, failed to parse it, and disabled the client — browser error reporting
+   * was off for an hour and nothing anywhere said so. The same trap applies to
+   * the auth token, which 401s instead of uploading source maps.
+   *
+   * Both are build-time values, so both must be stored as Config rather than
+   * Sensitive. Failing the build is the point: a release that silently stops
+   * reporting errors is the one you least want to ship quietly.
+   */
+  for (const [name, value] of [["VITE_SENTRY_DSN", loadEnv(mode, import.meta.dirname, "VITE_").VITE_SENTRY_DSN], ["SENTRY_AUTH_TOKEN", sentryAuthToken]] as const) {
+    if (value === undefined || value === "") continue;
+    const broken = value.includes("[SENSITIVE]")
+      || (name === "VITE_SENTRY_DSN" && !/^https?:\/\//.test(value));
+    if (broken) {
+      throw new Error(
+        `${name} is set but unusable (${JSON.stringify(value.slice(0, 24))}). ` +
+        "In Vercel this means the variable is marked Sensitive: a CI build cannot read those and gets " +
+        "\"[SENSITIVE]\" instead. Store it as Config. Refusing to build rather than ship a release that " +
+        "reports no errors.",
+      );
+    }
+  }
+
   // Sentry pairs an event with the right source maps by debug id, so this is
   // only the human-readable label on the release. Empty off-Vercel.
   const release = process.env.VERCEL_GIT_COMMIT_SHA ?? "";
