@@ -18,10 +18,10 @@
  * A titled explanation with a row of actions, in a plain card.
  *
  * The shell of the notices that stand above a page and say why it looks the
- * way it does — `NoDmCampaignsNotice` and `CampaignLensNotice` both sit on the
- * dashboard and were, between them, two byte-identical copies of this markup
- * (#847). One would have drifted from the other, and they are meant to read as
- * the same voice: they can appear in the same place, for related reasons.
+ * way it does — `CampaignLensNotice` on the dashboard. Extracted in #847 when
+ * it had a twin (the no-DM-campaigns notice, since grown into
+ * `DmCampaignGate`, which replaces the page rather than annotating it); the
+ * next notice of this kind should reach for it rather than re-typing it.
  *
  * The body is a slot rather than a prop because these paragraphs name controls
  * mid-sentence and need markup to do it.

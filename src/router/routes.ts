@@ -232,13 +232,14 @@ export const routes: RouteRecordRaw[] = [
     path: "/billing",
     name: "billing",
     component: () => import("@/views/BillingView.vue"),
-    meta: { requiresAuth: true, title: "Billing & Subscription" },
+    // accountScoped: reachable in DM mode with no campaign — see DmCampaignGate.
+    meta: { requiresAuth: true, accountScoped: true, title: "Billing & Subscription" },
   },
   {
     path: "/account",
     name: "account",
     component: () => import("@/views/AccountSettingsView.vue"),
-    meta: { requiresAuth: true, title: "My Account" },
+    meta: { requiresAuth: true, accountScoped: true, title: "My Account" },
   },
   {
     path: "/campaign/settings",

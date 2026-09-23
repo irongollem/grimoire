@@ -27,7 +27,9 @@
         <div v-if="returnTo" class="border-b border-border bg-card px-3 py-2">
           <AppButton :to="returnTo" label="Back to quest beat" size="sm" variant="subtle" />
         </div>
-        <slot />
+        <DmCampaignGate>
+          <slot />
+        </DmCampaignGate>
       </main>
     </div>
 
@@ -86,6 +88,7 @@ import AppSidebar from "@/components/layout/AppSidebar.vue";
 import AppTopBar from "@/components/layout/AppTopBar.vue";
 import DmBottomNav from "@/components/layout/DmBottomNav.vue";
 import StaleSessionPrompt from "@/components/layout/StaleSessionPrompt.vue";
+import DmCampaignGate from "@/components/campaign/DmCampaignGate.vue";
 import CampaignChat from "@/components/chat/CampaignChat.vue";
 import AiGenerationBadge from "@/components/common/AiGenerationBadge.vue";
 import SoundboardWidget from "@/components/soundboard/SoundboardWidget.vue";
