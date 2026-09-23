@@ -91,6 +91,7 @@ vi.mock("@/lib/supabase", () => ({
 const {
   useCreateLocation,
   useAllLocations,
+  useLocations,
 } = await import("@/composables/locations/useLocations");
 
 function place(over: Partial<Location> & { id: string }): Location {
@@ -174,6 +175,30 @@ describe("location list reads", () => {
     // row above would already have been silently dropped by supabase.
     const orCall = mocks.calls.find((c) => c.method === "or");
     expect(orCall?.args[0]).toBe("campaign_id.eq.campaign-1,campaign_id.is.null");
+    unmount();
+  });
+
+  it("holds a children query whose parent is not known yet, instead of sending parent_id=eq.", async () => {
+    mocks.rows = [];
+    const parent = ref<string | null>("");
+    const { result: query, unmount } = withQueryClient(() => useLocations(parent));
+    await flushPromises();
+
+    expect(mocks.calls).toEqual([]);
+    expect(query.fetchStatus.value).toBe("idle");
+
+    parent.value = "site-1";
+    await flushPromises();
+    expect(mocks.calls.find((c) => c.method === "eq")?.args).toEqual(["parent_id", "site-1"]);
+    unmount();
+  });
+
+  it("still reads roots for a null parent", async () => {
+    mocks.rows = [];
+    const { unmount } = withQueryClient(() => useLocations(null));
+    await flushPromises();
+
+    expect(mocks.calls.find((c) => c.method === "is")?.args).toEqual(["parent_id", null]);
     unmount();
   });
 });

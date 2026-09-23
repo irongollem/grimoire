@@ -181,6 +181,12 @@ async function deleteLocation(id: string): Promise<void> {
  * instead — `AtlasPlacePane` never remounts `LocationDetailSections` when the
  * selection changes, so `SiteRoomsPanel` needs the query to react to its own
  * `locationId` prop rather than freezing on whichever parent mounted first.
+ *
+ * `""` is "no parent known yet" and holds the query, the same convention
+ * `useLocation` and `useLocationMapRegions` use — callers deriving a site id
+ * from a record still loading pass one. `null` is different: it means roots.
+ * Sent as-is, `""` became `parent_id=eq.`, which PostgREST rejects as an
+ * invalid uuid, so the query 400'd and retried on every such mount.
  */
 export function useLocations(parentId: string | null | Ref<string | null> = null) {
   const campaign = useCampaignStore();
@@ -189,7 +195,7 @@ export function useLocations(parentId: string | null | Ref<string | null> = null
   return useQuery({
     queryKey: computed(() => [QUERY_KEY, campaignId.value, parentIdRef.value]),
     queryFn: () => fetchLocations(campaignId.value!, parentIdRef.value),
-    enabled: () => !!campaignId.value,
+    enabled: () => !!campaignId.value && parentIdRef.value !== "",
   });
 }
 
