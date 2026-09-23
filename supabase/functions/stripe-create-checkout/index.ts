@@ -5,6 +5,7 @@ import { withCors } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 import { reportEdgeError } from "../_shared/observability/report.ts";
+import { hasLiveStripeSubscription } from "../_shared/subscriptionGuard.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2026-07-29.dahlia",
@@ -58,7 +59,7 @@ serve(withCors(async (req: Request) => {
     // Get or create Stripe Customer
     const { data: sub } = await admin
       .from("user_subscriptions")
-      .select("status, suspended_at")
+      .select("status, suspended_at, stripe_subscription_id")
       .eq("user_id", user.id)
       .single();
 
@@ -68,7 +69,8 @@ serve(withCors(async (req: Request) => {
     // Don't let an already-subscribed user open a second subscription checkout —
     // the webhook would overwrite stripe_subscription_id and orphan the first
     // (still-billing) subscription. Send them to the billing portal instead.
-    if (sub?.status === "active" || sub?.status === "trialing") {
+    // Never test `status` alone here: see hasLiveStripeSubscription (#905).
+    if (hasLiveStripeSubscription(sub)) {
       return json({ error: "already_subscribed" }, 409);
     }
 
