@@ -7,19 +7,21 @@
 // `/locations?at=<newId>` — not the list: a clone's whole point is to open the
 // copy and keep drawing, and the Atlas explorer's own route-is-the-selection
 // convention already makes that id a real destination, not a special case.
+//
+// Errors are rethrown rather than toasted here: cloning creates locations, so
+// a free DM at the cap gets a quota rejection, which needs the paywall rather
+// than a raw string — and only the caller (`SiteLevelReusePanel`) can show one.
 
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useCreateLocation } from "@/composables/locations/useLocations";
 import { useCreateLocationMapRegion } from "@/composables/locations/useLocationMapRegions";
 import { useCreateLocationDoor } from "@/composables/locations/useLocationDoors";
-import { useToast } from "@/composables/useToast";
 import { planCloneLevel } from "@/lib/locations/cloneLevel";
 import type { CloneLevelSource } from "@/lib/locations/cloneLevel";
 
 export function useCloneSiteLevel() {
   const router = useRouter();
-  const toast = useToast();
   const createLocation = useCreateLocation();
   const createRegion = useCreateLocationMapRegion();
   const createDoor = useCreateLocationDoor();
@@ -61,8 +63,6 @@ export function useCloneSiteLevel() {
       }
 
       router.push(`/locations?at=${newSite.id}`);
-    } catch (e) {
-      toast.error(toast.fromError(e));
     } finally {
       isCloning.value = false;
     }

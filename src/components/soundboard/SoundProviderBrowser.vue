@@ -126,6 +126,8 @@
       />
     </div>
   </div>
+
+  <PaywallModal v-model="showPaywall" resource="sounds" />
 </template>
 
 <script setup lang="ts">
@@ -135,6 +137,7 @@ import { refDebounced } from "@vueuse/core";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import SoundProviderRow from "./SoundProviderRow.vue";
 import { useProviderSearch } from "@/composables/soundboard/useProviderSearch";
 import {
@@ -148,6 +151,8 @@ import {
   type SoundProvider,
 } from "@/lib/audio/providers";
 import { useCreateSound } from "@/composables/soundboard/useSounds";
+import { useToast } from "@/composables/useToast";
+import { isQuotaExceeded } from "@/lib/quotaError";
 
 const { pageId = null } = defineProps<{
   pageId?: string | null;
@@ -275,6 +280,8 @@ onBeforeUnmount(stopPreview);
 
 const { mutateAsync } = useCreateSound();
 const addingId = ref<string | null>(null);
+const showPaywall = ref(false);
+const toast = useToast();
 
 async function addHit(hit: ProviderHit) {
   addingId.value = hit.id;
@@ -300,6 +307,9 @@ async function addHit(hit: ProviderHit) {
       thumbnail_url: null,
     });
     emit("saved");
+  } catch (e) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
   } finally {
     addingId.value = null;
   }

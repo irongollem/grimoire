@@ -114,12 +114,17 @@
       <AppButton label="Delete quest" variant="destructive" :disabled="deleting" @click="removeQuest" />
     </div>
   </section>
+
+  <PaywallModal v-model="showScriptoriumPaywall" resource="scriptorium_documents" />
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useToast } from "@/composables/useToast";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import AppInput from "@/components/common/AppInput.vue";
 import EntityCalendarSection from "@/components/calendar/EntityCalendarSection.vue";
 import { IconAdd, IconClose, IconHide, IconReveal } from "@/lib/icons";
@@ -161,6 +166,8 @@ const { mutateAsync: updateObjective } = useUpdateObjective();
 const { mutateAsync: deleteObjective } = useDeleteObjective();
 const { mutateAsync: deleteQuest } = useDeleteQuest();
 const { mutateAsync: createScriptoriumDocument } = useCreateScriptoriumDocument();
+const toast = useToast();
+const showScriptoriumPaywall = ref(false);
 const deleting = ref(false);
 const sendingToScriptorium = ref(false);
 const newObjective = ref("");
@@ -233,6 +240,9 @@ async function sendToScriptorium() {
       locationName,
     ));
     await router.push(`/scriptorium/${document.id}`);
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
   } finally {
     sendingToScriptorium.value = false;
   }

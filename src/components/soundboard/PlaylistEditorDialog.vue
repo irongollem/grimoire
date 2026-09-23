@@ -136,6 +136,8 @@
       />
     </div>
   </AppModal>
+
+  <PaywallModal v-model="showPaywall" resource="soundboard_playlists" />
 </template>
 
 <script setup lang="ts">
@@ -157,6 +159,9 @@ import TagInput from "@/components/common/TagInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { useToast } from "@/composables/useToast";
+import { isQuotaExceeded } from "@/lib/quotaError";
 
 interface TrackListItem {
   sound: Sound;
@@ -200,6 +205,8 @@ const trackList = ref<TrackListItem[]>([]);
 const trackListSeeded = ref(false);
 const addSoundId = ref("");
 const saving = ref(false);
+const showPaywall = ref(false);
+const toast = useToast();
 
 const noun = computed(() => PLAYLIST_NOUNS[localType.value]);
 
@@ -312,6 +319,9 @@ async function save() {
       }
     }
     emit("close");
+  } catch (e) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
   } finally {
     saving.value = false;
   }

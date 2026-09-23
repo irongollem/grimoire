@@ -216,7 +216,11 @@ describe("MonsterDetail — copy to campaign (#598)", () => {
     await dialog.vm.$emit("quota-exceeded");
 
     expect(wrapper.findComponent({ name: "CopyToCampaignDialog" }).props("open")).toBe(false);
-    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
-    expect(wrapper.findAllComponents({ name: "PaywallModal" })).toHaveLength(1);
+    // Two PaywallModals live here now (monsters, send-to-Scriptorium) — the
+    // copy-to-campaign quota reopens the monsters one specifically, same ref
+    // this file already mounts for its own create flow.
+    const paywalls = wrapper.findAllComponents({ name: "PaywallModal" });
+    expect(paywalls).toHaveLength(2);
+    expect(paywalls.find((p) => p.props("resource") === "monsters")?.props("modelValue")).toBe(true);
   });
 });

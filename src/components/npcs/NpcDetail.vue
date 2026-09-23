@@ -199,6 +199,8 @@
   />
 
   <PaywallModal v-model="showPaywall" resource="npcs" />
+  <PaywallModal v-model="showScriptoriumPaywall" resource="scriptorium_documents" />
+  <PaywallModal v-model="showMonsterPaywall" resource="monsters" />
 
   <CopyToCampaignDialog
     v-if="props.npc"
@@ -253,6 +255,8 @@ import StatBlockEditor from '@/components/common/StatBlockEditor.vue'
 
 const { confirm, notify } = useConfirm();
 const showPaywall = ref(false);
+const showScriptoriumPaywall = ref(false);
+const showMonsterPaywall = ref(false);
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -343,6 +347,9 @@ async function sendToScriptorium() {
     const doc = await createScriptoriumDoc(importData)
     await updateNpc({ id: props.npc.id, update: { scriptorium_doc_id: doc.id } })
     router.push(`/scriptorium/${doc.id}`)
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return }
+    notify('Failed to send to Scriptorium. Please try again.')
   } finally {
     isSendingToScriptorium.value = false
   }
@@ -380,6 +387,9 @@ async function promoteToMonster() {
     form.linked_monster_id = monster.id
     await updateNpc({ id: props.npc.id, update: { linked_monster_id: monster.id } })
     router.push(`/monsters/${monster.id}`)
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showMonsterPaywall.value = true; return }
+    notify('Failed to promote to monster. Please try again.')
   } finally {
     isPromoting.value = false
   }

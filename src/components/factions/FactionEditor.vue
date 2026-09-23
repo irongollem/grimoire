@@ -167,6 +167,8 @@ import { useRoute, useRouter } from "vue-router";
 import { IconCopy, IconDelete, IconSave, IconShield } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
+import { useToast } from "@/composables/useToast";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import {
   useCreateFaction,
   useUpdateFaction,
@@ -212,6 +214,7 @@ const alignmentStr = computed({
 const createFaction = useCreateFaction();
 const updateFaction = useUpdateFaction();
 const deleteFaction = useDeleteFaction();
+const toast = useToast();
 const saving = ref(false);
 const deleting = ref(false);
 const uploading = ref(false);
@@ -288,6 +291,9 @@ async function handleSave() {
       await updateFaction.mutateAsync({ id: props.faction.id, update: payload });
     }
     router.push("/factions");
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
   } finally {
     saving.value = false;
   }

@@ -252,6 +252,7 @@
   />
 
   <PaywallModal v-model="showPaywall" resource="monsters" />
+  <PaywallModal v-model="showScriptoriumPaywall" resource="scriptorium_documents" />
 
   <CopyToCampaignDialog
     v-if="props.monster"
@@ -314,6 +315,7 @@ import PaywallModal from "@/components/common/PaywallModal.vue";
 import CopyToCampaignDialog from "@/components/common/CopyToCampaignDialog.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
+import { useToast } from "@/composables/useToast";
 
 const ALIGNMENTS = [
   "Lawful Good",
@@ -476,8 +478,10 @@ const { mutateAsync: update } = useUpdateMonster();
 const { mutateAsync: del } = useDeleteMonster();
 const { mutateAsync: clone } = useCloneLibraryMonster();
 const { mutateAsync: createScriptoriumDoc } = useCreateScriptoriumDocument();
+const toast = useToast();
 const saving = ref(false);
 const showPaywall = ref(false);
+const showScriptoriumPaywall = ref(false);
 const cloning = ref(false);
 const duplicating = ref(false);
 const saveError = ref("");
@@ -524,6 +528,9 @@ async function sendToScriptorium() {
     const importData = formatMonsterForScriptorium(props.monster);
     const doc = await createScriptoriumDoc(importData);
     router.push(`/scriptorium/${doc.id}`);
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
   } finally {
     sendingToScriptorium.value = false;
   }

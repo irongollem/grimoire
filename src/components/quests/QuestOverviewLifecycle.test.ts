@@ -75,6 +75,10 @@ function mountLifecycle() {
         QuestBackfillPanel: true,
         EntityCalendarSection: true,
         QuestSidebarPanels: true,
+        // Needs Pinia (useQuota/useSubscription) to render for real — this
+        // file has no store set up, and the quota paywall it opens on a
+        // scriptorium_documents rejection isn't what these tests exercise.
+        PaywallModal: true,
       },
     },
   });

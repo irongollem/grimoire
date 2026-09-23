@@ -83,11 +83,15 @@
     </div>
     <p v-if="error" role="alert" class="text-caption text-destructive">{{ error }}</p>
   </section>
+
+  <PaywallModal v-model="showPaywall" resource="encounters" />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useCreateQuestBeatAttachment, useDeleteQuestBeatAttachment, useSetQuestBeatAttachmentRequired } from "@/composables/quests/useQuestFlow";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCreateEncounter, useEncounters } from "@/composables/encounters/useEncounters";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useNotes } from "@/composables/notes/useNotes";
@@ -125,6 +129,7 @@ const opened = ref<QuestBeatAttachmentSummary | null>(null);
 const removingId = ref("");
 const updatingId = ref("");
 const error = ref("");
+const showPaywall = ref(false);
 const createAttachment = useCreateQuestBeatAttachment();
 const deleteAttachment = useDeleteQuestBeatAttachment();
 const updateRequired = useSetQuestBeatAttachmentRequired();
@@ -261,7 +266,10 @@ async function quickCreateEncounter() {
       attachment_type: "encounter", ref_id: encounter.id,
     });
     quickEncounterName.value = "";
-  } catch (caught) { error.value = caught instanceof Error ? caught.message : "Could not create this encounter"; }
+  } catch (caught) {
+    if (isQuotaExceeded(caught)) { showPaywall.value = true; return; }
+    error.value = caught instanceof Error ? caught.message : "Could not create this encounter";
+  }
   finally { quickCreating.value = false; }
 }
 </script>

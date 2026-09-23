@@ -36,6 +36,9 @@ vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]) }
 vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({ usePlaylists: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/soundboard/useSounds", () => ({ useSounds: () => ({ data: ref([]) }) }));
 
+const canCreate = ref(true);
+vi.mock("@/composables/billing/useQuota", () => ({ useQuota: () => ({ canCreate }) }));
+
 const mocks = vi.hoisted(() => ({
   create: vi.fn().mockResolvedValue({ id: "new-location" }),
   update: vi.fn().mockResolvedValue({ id: "existing-location" }),
@@ -67,6 +70,7 @@ const stubs = {
   AppSelect: true,
   AppInput: true,
   EntityCalendarSection: true,
+  PaywallModal: true,
 };
 
 function mountEditor(location: Location | null = null) {
@@ -76,6 +80,7 @@ function mountEditor(location: Location | null = null) {
 describe("LocationEditor scope default", () => {
   beforeEach(() => {
     activeCampaignId.value = "campaign-1";
+    canCreate.value = true;
     mocks.create.mockClear();
     mocks.update.mockClear();
   });
@@ -106,5 +111,42 @@ describe("LocationEditor scope default", () => {
     expect(mocks.update).toHaveBeenCalledWith(
       expect.objectContaining({ update: expect.objectContaining({ campaign_id: null }) }),
     );
+  });
+});
+
+// Nadia, 23 Sep 2026: a free DM at the 10-location cap reached this editor from
+// a path that never checked the quota, filled in a place, and got a bare
+// `quota_exceeded` on save — which read as a bug. The cap must say what it is.
+describe("LocationEditor at the free-tier cap", () => {
+  beforeEach(() => {
+    activeCampaignId.value = "campaign-1";
+    mocks.create.mockReset();
+  });
+
+  function paywallOpen(wrapper: ReturnType<typeof mountEditor>): boolean {
+    return wrapper.findComponent({ name: "PaywallModal" }).attributes("modelvalue") === "true";
+  }
+
+  it("says so on arrival for a new location, before anything is typed", () => {
+    canCreate.value = false;
+    expect(paywallOpen(mountEditor(null))).toBe(true);
+  });
+
+  it("does not interrupt editing an existing location", () => {
+    canCreate.value = false;
+    const existing = { id: "loc1", campaign_id: "campaign-1", name: "Keep" } as Location;
+    expect(paywallOpen(mountEditor(existing))).toBe(false);
+  });
+
+  it("turns a refused save into the paywall rather than the raw error", async () => {
+    canCreate.value = true;
+    mocks.create.mockRejectedValueOnce(new Error("quota_exceeded"));
+    const wrapper = mountEditor(null);
+    (wrapper.vm as unknown as { name: string }).name = "Eleventh Tower";
+    await (wrapper.vm as unknown as { save: () => Promise<void> }).save();
+    await wrapper.vm.$nextTick();
+
+    expect(paywallOpen(wrapper)).toBe(true);
+    expect((wrapper.vm as unknown as { saveError: string }).saveError).toBe("");
   });
 });

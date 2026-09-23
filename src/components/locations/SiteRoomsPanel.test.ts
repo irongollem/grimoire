@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   update: vi.fn(),
   remove: vi.fn(),
   reorder: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock("@/composables/locations/useLocations", () => ({
@@ -47,13 +48,16 @@ vi.mock("@/composables/soundboard/useSoundboardPlaylists", () => ({
 vi.mock("@/composables/soundboard/useSounds", () => ({
   useSounds: () => ({ data: ref([]) }),
 }));
-vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: vi.fn(), fromError: vi.fn() }) }));
+vi.mock("@/composables/useToast", () => ({ useToast: () => ({ error: mocks.toastError, fromError: (e: unknown) => e }) }));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: vi.fn() }) }));
 
 // SortableJS needs a real DOM drag/drop apparatus this environment doesn't
 // have; the panel only cares that VueDraggable is *mounted* in Build and
-// *not* in Browse, not that it actually reorders.
-const stubs = { VueDraggable: { template: "<div><slot /></div>" } };
+// *not* in Browse, not that it actually reorders. PaywallModal is stubbed
+// the same way NpcDetail.test.ts does it — mounting the real component would
+// also need useQuota/usePlan/useRouter wired up, when all these tests care
+// about is which resource it opens with.
+const stubs = { VueDraggable: { template: "<div><slot /></div>" }, PaywallModal: true };
 
 function mountPanel(building = false) {
   return mount(SiteRoomsPanel, { props: { locationId: "site-1", building }, global: { stubs } });
@@ -64,6 +68,7 @@ describe("SiteRoomsPanel — Browse vs Build (#884)", () => {
     roomsRef.value = [];
     allLocationsRef.value = [];
     mocks.create.mockClear();
+    mocks.toastError.mockClear();
   });
 
   it("Browse: renders rooms read-only — no add row, no drag handle, no rename/delete, no ambience control", () => {
@@ -97,6 +102,39 @@ describe("SiteRoomsPanel — Browse vs Build (#884)", () => {
   it("Build: the empty state points at adding a room, not at Build itself", () => {
     const wrapper = mountPanel(true);
     expect(wrapper.text()).toContain("add the first one below");
+  });
+});
+
+describe("SiteRoomsPanel — quota rejection opens the paywall, not a raw error (#addSpace)", () => {
+  beforeEach(() => {
+    roomsRef.value = [];
+    allLocationsRef.value = [];
+    mocks.create.mockClear();
+    mocks.toastError.mockClear();
+  });
+
+  it("opens the locations paywall instead of toasting the raw quota_exceeded error", async () => {
+    mocks.create.mockImplementation((_payload, opts) => {
+      opts.onError({ message: "quota_exceeded" });
+    });
+    const wrapper = mountPanel(true);
+    await wrapper.find('input[placeholder="Add a room…"]').setValue("Ossuary");
+    await wrapper.find('input[placeholder="Add a room…"]').trigger("keydown.enter");
+
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+    expect(mocks.toastError).not.toHaveBeenCalled();
+  });
+
+  it("still toasts a non-quota failure, and leaves the paywall closed", async () => {
+    mocks.create.mockImplementation((_payload, opts) => {
+      opts.onError({ message: "network error" });
+    });
+    const wrapper = mountPanel(true);
+    await wrapper.find('input[placeholder="Add a room…"]').setValue("Ossuary");
+    await wrapper.find('input[placeholder="Add a room…"]').trigger("keydown.enter");
+
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(false);
+    expect(mocks.toastError).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -154,6 +154,8 @@
         @click="addSpace"
       />
     </div>
+
+    <PaywallModal v-model="showPaywall" resource="locations" />
   </div>
 </template>
 
@@ -162,9 +164,11 @@ import { computed, nextTick, ref, watch } from "vue";
 import { VueDraggable } from "vue-draggable-plus";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import { IconAdd, IconClose, IconDrag, IconEdit, IconLoot, IconShieldCheck } from "@/lib/icons";
 import { useToast } from "@/composables/useToast";
 import { useConfirm } from "@/composables/useConfirm";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import {
   useLocations,
   useAllLocations,
@@ -295,6 +299,7 @@ function spaceWord(space: Location): string {
 
 const newSpaceName = ref("");
 const { mutate: createLocation, isPending: isCreating } = useCreateLocation();
+const showPaywall = ref(false);
 
 function buildSpaceInsert(name: string, type: LocationType): Omit<LocationInsert, "campaign_id"> {
   return {
@@ -333,7 +338,10 @@ function addSpace() {
   // silently.
   createLocation(buildSpaceInsert(trimmed, childType.value), {
     onSuccess: () => { newSpaceName.value = ""; },
-    onError: (e) => toast.error(toast.fromError(e)),
+    onError: (e) => {
+      if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+      toast.error(toast.fromError(e));
+    },
   });
 }
 

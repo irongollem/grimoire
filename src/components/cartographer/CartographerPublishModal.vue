@@ -53,6 +53,8 @@
       <p v-if="review.error" class="px-5 pb-3 text-caption text-destructive">{{ review.error }}</p>
     </div>
 
+    <PaywallModal v-model="showPaywall" resource="locations" />
+
     <div class="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
       <p class="text-caption-sm text-muted-foreground">
         {{ footerWritesText }}<template v-if="siteContext.target?.map_published_rev"> · Undo is a re-publish of rev {{ siteContext.target.map_published_rev }}.</template>
@@ -81,12 +83,13 @@
  * renders their shape and forwards its events, per CartographerEditorView's
  * "mount the modal from a thin wrapper" instruction.
  */
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import PublishPlanPreview from "@/components/cartographer/PublishPlanPreview.vue";
 import PublishPlanRows from "@/components/cartographer/PublishPlanRows.vue";
 import { IconLocation, IconUpload } from "@/lib/icons";
@@ -111,6 +114,16 @@ const emit = defineEmits<{
 
 const changingPlace = ref(false);
 const showSitePicker = computed(() => changingPlace.value || !targetSiteId);
+
+// The composable rethrows a quota rejection rather than formatting it as
+// display text — this modal is the thing that shows errors, so it owns the
+// paywall too, same reasoning as NpcDetail/NoteEditor/EncounterDetail's own
+// `isQuotaExceeded` checks in their create catch.
+const showPaywall = ref(false);
+watch(
+  () => review.quotaExceeded,
+  (exceeded) => { if (exceeded) showPaywall.value = true; },
+);
 
 function onPickSite(id: string): void {
   emit("update:targetSiteId", id);

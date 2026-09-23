@@ -47,7 +47,7 @@ describe("QuestFlowStarter", () => {
     mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
     const wrapper = mount(QuestFlowStarter, {
       props: { parentId: "parent-1" },
-      global: { stubs: { RouterLink: RouterLinkStub } },
+      global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } },
     });
 
     await wrapper.findAll("input")[0]!.setValue("  The Sunken Road  ");
@@ -69,7 +69,7 @@ describe("QuestFlowStarter", () => {
   // `entry_beat_id` itself, only writes the beat.
   it("writes the rumor beat with the quest, titled The rumor, with no route", async () => {
     mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
-    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
 
     await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
     await wrapper.get('button[aria-label="Create quest"]').trigger("click");
@@ -92,7 +92,7 @@ describe("QuestFlowStarter", () => {
   it("keeps the failure in context when the rumor beat cannot be created, and never navigates away", async () => {
     mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
     mocks.createBeat.mockRejectedValue(new Error("Beat insert failed"));
-    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
 
     await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
     await wrapper.get('button[aria-label="Create quest"]').trigger("click");
@@ -108,7 +108,7 @@ describe("QuestFlowStarter", () => {
   // call happened.
   it("never sends the deleted reward columns on the created quest", async () => {
     mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
-    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
 
     await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
     await wrapper.get('button[aria-label="Create quest"]').trigger("click");
@@ -126,7 +126,7 @@ describe("QuestFlowStarter", () => {
   // The database enforces this too (`quests_summary_is_one_line`, migration
   // 20260906160921) — this is the fast, friendly version of the same rule.
   it("caps the premise input at QUEST_SUMMARY_MAX and names the player audience in its placeholder", () => {
-    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
     const summaryInput = wrapper.findAll("input")[1]!;
     expect(summaryInput.attributes("maxlength")).toBe(String(QUEST_SUMMARY_MAX));
     expect(summaryInput.attributes("placeholder")).toContain("Players see this");
@@ -139,7 +139,7 @@ describe("QuestFlowStarter", () => {
   it("leaves a running session alone", async () => {
     mocks.create.mockResolvedValue({ id: "quest-new", campaign_id: "camp-1" });
     const wrapper = mount(QuestFlowStarter, {
-      global: { stubs: { RouterLink: RouterLinkStub } },
+      global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } },
     });
 
     await wrapper.findAll("input")[0]!.setValue("The Sunken Road");
@@ -151,7 +151,7 @@ describe("QuestFlowStarter", () => {
 
   it("keeps creation failures in context", async () => {
     mocks.create.mockRejectedValue(new Error("Quest insert failed"));
-    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    const wrapper = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
     await wrapper.findAll("input")[0]!.setValue("Broken road");
     await wrapper.get('button[aria-label="Create quest"]').trigger("click");
     await flushPromises();
@@ -164,7 +164,7 @@ describe("QuestFlowStarter", () => {
   it("renders the quest designer panel in Design it mode", async () => {
     const wrapper = mount(QuestFlowStarter, {
       props: { parentId: "parent-1" },
-      global: { stubs: { RouterLink: RouterLinkStub } },
+      global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } },
     });
 
     await wrapper.get('button[aria-label="Design it"]').trigger("click");
@@ -175,12 +175,12 @@ describe("QuestFlowStarter", () => {
   });
 
   it("offers Paste a page and Design it only while the campaign's AI is on", () => {
-    const on = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    const on = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
     expect(on.text()).toContain("Paste a page");
     expect(on.text()).toContain("Design it");
 
     mocks.campaign.isAiEnabled = false;
-    const off = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub } } });
+    const off = mount(QuestFlowStarter, { global: { stubs: { RouterLink: RouterLinkStub, PaywallModal: true } } });
     expect(off.text()).toContain("Type it");
     expect(off.text()).not.toContain("Paste a page");
     expect(off.text()).not.toContain("Design it");

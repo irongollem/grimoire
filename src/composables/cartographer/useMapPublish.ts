@@ -21,6 +21,7 @@ import type { TilePackRuntime } from "@/cartographer/packLoader";
 import type { PackCategory } from "@/cartographer/packSchema";
 import { uploadToBucket } from "@/lib/storage";
 import { getCurrentUser } from "@/lib/supabase";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import { bindableSpaces, childSpaceType, isSiteType } from "@/lib/locations/tiers";
 import {
   planPublish,
@@ -68,6 +69,10 @@ export interface PublishReview {
   mapRev: number;
   publishing: boolean;
   error: string | null;
+  /** A room create hit the free-plan location quota — the modal owns the
+   *  paywall (it is the component that shows the error), this composable
+   *  only tells it which failure this was. */
+  quotaExceeded: boolean;
 }
 
 // A placement with no cell yet (added from the room sheet) that a re-publish
@@ -131,6 +136,7 @@ export function useMapPublish(opts: {
   const stairTargets = ref<Record<CellKey, string>>({});
   const publishing = ref(false);
   const error = ref<string | null>(null);
+  const quotaExceeded = ref(false);
 
   const mapId = computed(() => opts.map()?.id ?? null);
   const { data: publishedSitesData } = usePublishedSites(computed(() => mapId.value ?? ""));
@@ -165,7 +171,10 @@ export function useMapPublish(opts: {
     stairTargets.value = {};
   });
   watch(open, (isOpen) => {
-    if (!isOpen) stairTargets.value = {};
+    if (!isOpen) {
+      stairTargets.value = {};
+      quotaExceeded.value = false;
+    }
   });
 
   const { data: targetSiteData } = useLocation(computed(() => targetSiteId.value));
@@ -239,6 +248,7 @@ export function useMapPublish(opts: {
 
     publishing.value = true;
     error.value = null;
+    quotaExceeded.value = false;
     try {
       // (a) Bake the Drawing — transparent, so the Picture beneath shows
       // through wherever nothing is painted — and write it + its own
@@ -392,7 +402,11 @@ export function useMapPublish(opts: {
       open.value = false;
       stairTargets.value = {};
     } catch (e) {
-      error.value = publishErrorMessage(e);
+      if (isQuotaExceeded(e)) {
+        quotaExceeded.value = true;
+      } else {
+        error.value = publishErrorMessage(e);
+      }
     } finally {
       publishing.value = false;
     }
@@ -413,6 +427,7 @@ export function useMapPublish(opts: {
     mapRev: opts.map()?.rev ?? 0,
     publishing: publishing.value,
     error: error.value,
+    quotaExceeded: quotaExceeded.value,
   }));
 
   return { open, targetSiteId, stairTargets, siteContext, review, publish };

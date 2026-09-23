@@ -25,6 +25,8 @@
       @click="onDraw"
     />
     <p class="pl-6 text-caption-sm text-muted-foreground">Opens Cartographer to draw it.</p>
+
+    <PaywallModal v-model="showPaywall" resource="locations" />
   </div>
 </template>
 
@@ -44,12 +46,14 @@
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import { IconCopy, IconPencilLine } from "@/lib/icons";
 import { useCreateLocation, useLocations } from "@/composables/locations/useLocations";
 import { useLocationMapRegions } from "@/composables/locations/useLocationMapRegions";
 import { useSiteDoors } from "@/composables/locations/useSiteDoors";
 import { useCloneSiteLevel } from "@/composables/locations/useCloneSiteLevel";
 import { useToast } from "@/composables/useToast";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import { isInteriorType } from "@/lib/locations/tiers";
 import type { Location, LocationType } from "@/types/location.types";
 
@@ -85,15 +89,21 @@ const roomIds = computed(() => rooms.value.map((r) => r.id));
 const { data: currentLevelDoors } = useSiteDoors(roomIds);
 
 const { cloneLevel, isCloning } = useCloneSiteLevel();
+const showPaywall = ref(false);
 
 async function onClone() {
   if (!currentLevel) return;
-  await cloneLevel({
-    site: currentLevel,
-    rooms: rooms.value,
-    regions: currentLevelRegions.value ?? [],
-    doors: currentLevelDoors.value ?? [],
-  });
+  try {
+    await cloneLevel({
+      site: currentLevel,
+      rooms: rooms.value,
+      regions: currentLevelRegions.value ?? [],
+      doors: currentLevelDoors.value ?? [],
+    });
+  } catch (e) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
+  }
 }
 
 // ── Draw level N ──────────────────────────────────────────────────────────────
@@ -144,6 +154,7 @@ async function onDraw() {
       await router.push({ path: `/locations/${newLevel.id}`, query: { build: "true" } });
     }
   } catch (e) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     toast.error(toast.fromError(e));
   } finally {
     isDrawing.value = false;

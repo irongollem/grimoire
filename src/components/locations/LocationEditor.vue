@@ -268,6 +268,8 @@
         @save="onCalibrationSave"
       />
     </template>
+
+    <PaywallModal v-model="showPaywall" resource="locations" />
   </div>
 </template>
 
@@ -295,6 +297,9 @@ import LocationResidents from "@/components/locations/LocationResidents.vue";
 import LocationMapEditor from "@/components/locations/LocationMapEditor.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import AppInput from "@/components/common/AppInput.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { isQuotaExceeded } from "@/lib/quotaError";
+import { useQuota } from "@/composables/billing/useQuota";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { usePlaylists } from "@/composables/soundboard/useSoundboardPlaylists";
 import { useSounds } from "@/composables/soundboard/useSounds";
@@ -466,6 +471,19 @@ const aiProvenance = ref<AiProvenance | null>(props.location?.ai_provenance ?? n
 const saving = ref(false);
 const deleting = ref(false);
 const saveError = ref("");
+// Every entry into a new location lands here — the Atlas button, the bottom
+// nav, the dashboard's quick-create, "add a place inside" — and only the first
+// of those checked the quota before navigating, so a DM at the free cap filled
+// in a whole place and got the trigger's bare `quota_exceeded` on save. A cap
+// must never read as a bug: say so on arrival, before any typing is wasted,
+// and again on save for the race where the cap is reached in another tab.
+const showPaywall = ref(false);
+const { canCreate } = useQuota("locations");
+watch(
+  () => isNew.value && !canCreate.value,
+  (atCap) => { if (atCap) showPaywall.value = true; },
+  { immediate: true },
+);
 
 // ── Description ────────────────────────────────────────────────────────────────
 const description = ref<string>(props.location?.description ?? "");
@@ -608,6 +626,7 @@ async function save() {
       router.push(`/locations/${created.id}`);
     }
   } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
     saveError.value = e instanceof Error ? e.message : "Failed to save";
   } finally {
     saving.value = false;

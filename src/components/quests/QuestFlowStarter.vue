@@ -56,6 +56,8 @@
     <QuestPasteImportPanel v-else-if="startMode === 'paste'" :parent-id="parentId ?? null" />
     <QuestDesignerPanel v-else-if="startMode === 'design'" :parent-id="parentId ?? null" />
   </section>
+
+  <PaywallModal v-model="showPaywall" resource="quests" />
 </template>
 
 <script setup lang="ts">
@@ -69,9 +71,11 @@ import { QUEST_STATUSES, QUEST_STATUS_LABELS, type QuestStatus } from "@/types/q
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import SegmentedControl, { type SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import QuestPasteImportPanel from "@/components/quests/QuestPasteImportPanel.vue";
 import QuestDesignerPanel from "@/components/quests/QuestDesignerPanel.vue";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import { IconClipboard, IconEdit, IconGenerate } from "@/lib/icons";
 
 const { parentId = null } = defineProps<{ parentId?: string | null }>();
@@ -113,6 +117,7 @@ const summary = ref("");
 const status = ref<QuestStatus>("undiscovered");
 const saving = ref(false);
 const error = ref("");
+const showPaywall = ref(false);
 
 async function createFlow() {
   if (!title.value.trim() || saving.value) return;
@@ -167,6 +172,7 @@ async function createFlow() {
     // unannounced with nothing to connect it to. See #758.
     await router.push({ path: `/quests/${created.id}`, query: { view: "overview" } });
   } catch (cause) {
+    if (isQuotaExceeded(cause)) { showPaywall.value = true; return; }
     error.value = cause instanceof Error ? cause.message : "The quest flow could not be created";
   } finally {
     saving.value = false;

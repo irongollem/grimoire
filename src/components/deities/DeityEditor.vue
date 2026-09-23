@@ -189,6 +189,8 @@
 
     </div>
   </div>
+
+  <PaywallModal v-model="showPaywall" resource="deities" />
 </template>
 
 <script setup lang="ts">
@@ -197,6 +199,8 @@ import { useRouter } from "vue-router";
 import { IconSun } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
+import { useToast } from "@/composables/useToast";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCreateDeity, useUpdateDeity, useDeleteDeity, useAllPantheons } from "@/composables/deities/useDeities";
 import { CLERIC_DOMAINS, DEITY_ALIGNMENTS, type Deity } from "@/types/deity.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -207,6 +211,7 @@ import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 
 const { deity, isNew } = defineProps<{ deity: Deity | null; isNew: boolean }>();
 
@@ -228,6 +233,8 @@ const alignmentStr = computed({
 const createDeity = useCreateDeity();
 const updateDeity = useUpdateDeity();
 const deleteDeity = useDeleteDeity();
+const toast = useToast();
+const showPaywall = ref(false);
 const saving = ref(false);
 const uploading = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -309,6 +316,9 @@ async function handleSave() {
       await updateDeity.mutateAsync({ id: deity.id, update: payload });
     }
     router.push("/deities");
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
   } finally {
     saving.value = false;
   }

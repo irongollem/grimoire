@@ -244,6 +244,15 @@
         <p v-if="isBusy" class="text-caption text-muted-foreground text-center">{{ statusText }}</p>
         <p v-if="uploadError" class="text-caption text-destructive">{{ uploadError }}</p>
       </div>
+
+      <!-- url/spotify create failures — neither tab has a display element of
+           its own; both reuse `uploadError`, same ref the upload tab already
+           shows above. Kept outside the tab v-if/else-if chain so it doesn't
+           break it. -->
+      <p
+        v-if="(activeSourceTab === 'url' || activeSourceTab === 'spotify') && uploadError"
+        class="text-caption text-destructive"
+      >{{ uploadError }}</p>
     </div>
 
     <!-- Actions -->
@@ -266,6 +275,8 @@
       />
     </div>
   </form>
+
+  <PaywallModal v-model="showPaywall" resource="sounds" />
 </template>
 
 <script setup lang="ts">
@@ -288,6 +299,8 @@ import {
   waitForAiGenerationJob,
 } from "@/ai/useAiGenerationJob";
 import SoundProviderBrowser from "@/components/soundboard/SoundProviderBrowser.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import type { SoundCategory } from "@/types/sound.types";
 
 const spotifyStore = useSpotifyStore();
@@ -307,6 +320,7 @@ const emit = defineEmits<{
 
 const { mutateAsync, isPending } = useCreateSound();
 const { isBusy, statusText, upload } = useSoundUpload();
+const showPaywall = ref(false);
 
 type SourceTab = "url" | "upload" | "spotify" | "generate" | "browse";
 
@@ -571,6 +585,13 @@ async function handleSubmit() {
   // Browse tab has its own per-row add flow; nothing for the form to do.
   if (activeSourceTab.value === "browse") return;
 
+  // Wraps every branch below: none of the four `mutateAsync` create calls
+  // (url, spotify, generated-then-uploaded, plain upload) had a catch of
+  // their own, so a quota rejection — or any other failure — on the actual
+  // create wrote nothing to the screen at all, not even the per-branch
+  // `uploadError`/`generateError` those branches already show for their own
+  // (upload/generation) steps.
+  try {
   if (activeSourceTab.value === "url") {
     await mutateAsync({
       name: form.value.name.trim(),
@@ -745,6 +766,12 @@ async function handleSubmit() {
   });
   emit("saved");
   resetForm();
+  } catch (e) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    const msg = e instanceof Error ? e.message : "Something went wrong";
+    if (activeSourceTab.value === "generate") generateError.value = msg;
+    else uploadError.value = msg;
+  }
 }
 
 function resetForm() {

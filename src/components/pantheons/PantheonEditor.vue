@@ -88,6 +88,8 @@
 
     </div>
   </div>
+
+  <PaywallModal v-model="showPaywall" resource="pantheons" />
 </template>
 
 <script setup lang="ts">
@@ -96,6 +98,8 @@ import { useRouter } from "vue-router";
 import { IconFire } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 import { useImageUpload } from "@/composables/useImageUpload";
+import { useToast } from "@/composables/useToast";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import { useCreatePantheon, useUpdatePantheon, useDeletePantheon } from "@/composables/deities/useDeities";
 import type { Pantheon } from "@/types/deity.types";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
@@ -104,6 +108,7 @@ import TagInput from "@/components/common/TagInput.vue";
 import RichTextEditor from "@/components/common/RichTextEditor.vue";
 import AudienceRevealControl from "@/components/common/AudienceRevealControl.vue";
 import FocalImage from "@/components/common/FocalImage.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 
 const { pantheon, isNew } = defineProps<{ pantheon: Pantheon | null; isNew: boolean }>();
 
@@ -113,6 +118,8 @@ const { confirm } = useConfirm();
 const createPantheon = useCreatePantheon();
 const updatePantheon = useUpdatePantheon();
 const deletePantheon = useDeletePantheon();
+const toast = useToast();
+const showPaywall = ref(false);
 const saving = ref(false);
 const uploading = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -155,6 +162,9 @@ async function handleSave() {
       await updatePantheon.mutateAsync({ id: pantheon.id, update: payload });
     }
     router.push("/pantheons");
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
   } finally {
     saving.value = false;
   }

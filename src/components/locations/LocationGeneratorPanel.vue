@@ -157,6 +157,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCreateLocation, useLocationTree } from "@/composables/locations/useLocations";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useSubscription } from "@/composables/billing/useSubscription";
+import { useToast } from "@/composables/useToast";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -186,6 +187,7 @@ const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 const { isPro } = useSubscription();
 const showPaywall = ref(false);
+const toast = useToast();
 
 const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
 const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
@@ -237,31 +239,41 @@ async function generateAndCreate() {
 
   if (!result) return;
 
-  const location = await createLocation({
-    name:                  result.name,
-    location_type:         (constraints.location_type as LocationType) || "other",
-    description:           toTiptapJson(result.description),
-    player_summary:        result.player_summary || null,
-    tags:                  result.tags,
-    notes:                 result.notes || null,
-    era_start:             null,
-    era_end:               null,
-    parent_id:             parentLocationId.value || null,
-    image_url:             result.image_url,
-    map_url:               result.map_url,
-    map_pins:              [],
-    is_map_shared:         false,
-    player_visible_to:     [],
-    is_description_shared: false,
-    is_npcs_shared:        false,
-    is_inventory_shared:   false,
-    npc_owner_id:          null,
-    related_location_ids:  [],
-    source_map_id:         null,
-    is_battle_map:         false,
-    grid_calibration:      null,
-    ai_provenance:         result.ai_provenance ?? null,
-  });
+  // The generation has already been paid for, so a failed save must say so
+  // rather than vanish as an unhandled rejection. No quota branch: generating
+  // is Pro-only (non-Pro gets the paywall above before anything runs), and Pro
+  // has no location cap.
+  let location;
+  try {
+    location = await createLocation({
+      name:                  result.name,
+      location_type:         (constraints.location_type as LocationType) || "other",
+      description:           toTiptapJson(result.description),
+      player_summary:        result.player_summary || null,
+      tags:                  result.tags,
+      notes:                 result.notes || null,
+      era_start:             null,
+      era_end:               null,
+      parent_id:             parentLocationId.value || null,
+      image_url:             result.image_url,
+      map_url:               result.map_url,
+      map_pins:              [],
+      is_map_shared:         false,
+      player_visible_to:     [],
+      is_description_shared: false,
+      is_npcs_shared:        false,
+      is_inventory_shared:   false,
+      npc_owner_id:          null,
+      related_location_ids:  [],
+      source_map_id:         null,
+      is_battle_map:         false,
+      grid_calibration:      null,
+      ai_provenance:         result.ai_provenance ?? null,
+    });
+  } catch (e) {
+    toast.error(toast.fromError(e));
+    return;
+  }
 
   // Log generated scene + map to the Gallery, linked back to the new location.
   if (result.image_url) {

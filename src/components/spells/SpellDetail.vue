@@ -225,11 +225,16 @@
     @close="copyOpen = false"
     @copied="onCopied"
   />
+
+  <PaywallModal v-model="showScriptoriumPaywall" resource="scriptorium_documents" />
 </template>
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
+import { useToast } from "@/composables/useToast";
+import { isQuotaExceeded } from "@/lib/quotaError";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import { ref, computed, reactive, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { buildEntityContext, toPlainText } from "@/ai/utils";
@@ -672,6 +677,8 @@ function onAiGenerated(result: SpellAiGenerated) {
 // ── Send to Scriptorium ───────────────────────────────────────────────────────
 const { mutateAsync: createDoc } = useCreateScriptoriumDocument();
 const isSendingToScriptorium = ref(false);
+const showScriptoriumPaywall = ref(false);
+const toast = useToast();
 
 async function sendToScriptorium() {
   if (!props.spell) return;
@@ -680,6 +687,9 @@ async function sendToScriptorium() {
     const data = formatSpellForScriptorium(props.spell);
     const doc = await createDoc(data);
     router.push(`/scriptorium/${doc.id}`);
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
   } finally {
     isSendingToScriptorium.value = false;
   }

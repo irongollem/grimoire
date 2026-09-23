@@ -397,6 +397,8 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useCopyEntityToCampaign } from "@/composables/campaign/useCopyEntityToCampaign";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
 import { cn, deepEqual } from "@/lib/utils";
+import { isQuotaExceeded } from "@/lib/quotaError";
+import { useToast } from "@/composables/useToast";
 import { fieldVariants } from "@/components/common/fieldVariants";
 import { PUZZLE_TYPES, PUZZLE_DIFFICULTIES } from "@/types/puzzle.types";
 import type { PuzzleHint, PuzzleSkillCheck } from "@/types/puzzle.types";
@@ -593,6 +595,7 @@ function addSkillCheck() {
 
 const createMutation = useCreatePuzzle();
 const deleteMutation = useDeletePuzzle();
+const toast           = useToast();
 const saving         = ref(false);
 const solutionOpen   = ref(false);
 
@@ -657,6 +660,9 @@ async function save() {
       await updateMutation.mutateAsync({ id: id.value!, update: payload });
       mode.value = "view";
     }
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showPaywall.value = true; return; }
+    toast.error(toast.fromError(e));
   } finally {
     saving.value = false;
   }

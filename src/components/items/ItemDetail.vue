@@ -348,12 +348,16 @@
 
     </div>
   </div>
+
+  <PaywallModal v-model="showScriptoriumPaywall" resource="scriptorium_documents" />
 </template>
 
 <script setup lang="ts">
 import { IconClose } from '@/lib/icons';
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm, notify } = useConfirm();
+import { isQuotaExceeded } from "@/lib/quotaError";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import AppButton from "@/components/common/AppButton.vue";
@@ -689,6 +693,7 @@ async function cloneItem() {
 // ── Scriptorium ───────────────────────────────────────────────────────────────
 const { mutateAsync: createDoc } = useCreateScriptoriumDocument();
 const isSendingToScriptorium = ref(false);
+const showScriptoriumPaywall = ref(false);
 
 async function sendToScriptorium() {
   if (!props.item) return;
@@ -697,6 +702,9 @@ async function sendToScriptorium() {
     const data = formatItemForScriptorium(props.item, selectedSpells.value);
     const doc = await createDoc(data);
     router.push(`/scriptorium/${doc.id}`);
+  } catch (e: unknown) {
+    if (isQuotaExceeded(e)) { showScriptoriumPaywall.value = true; return; }
+    notify('Failed to send to Scriptorium. Please try again.');
   } finally {
     isSendingToScriptorium.value = false;
   }

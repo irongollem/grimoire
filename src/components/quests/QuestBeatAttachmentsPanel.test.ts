@@ -106,7 +106,7 @@ describe("QuestBeatAttachmentsPanel", () => {
     helpers.createAttachment.mockReset();
     const wrapper = mount(QuestBeatAttachmentsPanel, {
       props: { beat, attachments: [] },
-      global: { stubs: { EntityCombobox: true, QuestRunContainedTool: true, RouterLink: { template: "<a><slot /></a>" } } },
+      global: { stubs: { EntityCombobox: true, QuestRunContainedTool: true, RouterLink: { template: "<a><slot /></a>" }, PaywallModal: true } },
     });
 
     await wrapper.get('[aria-label="Attachment type"]').setValue("check");
