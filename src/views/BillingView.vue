@@ -113,9 +113,9 @@
       </template>
     </div>
 
-    <!-- Upgrade CTA (free / lapsed users) -->
+    <!-- Upgrade CTA (free, lapsed and beta-tester accounts — see canStartProCheckout) -->
     <div
-      v-if="!isLoading && !isPro"
+      v-if="!isLoading && canUpgrade"
       class="rounded-xl border border-amber-500/30 bg-amber-500/5 relative overflow-hidden p-6 space-y-5"
     >
       <div
@@ -377,7 +377,7 @@ const creditPurchaseSuccess = computed(() => route.query.credit_purchase === "su
 const subConsent = ref(false);
 const packConsent = ref(false);
 
-const { subscription, isPro, isPendingCancellation, isLoading } = useSubscription();
+const { subscription, isPro, canUpgrade, isPendingCancellation, isLoading } = useSubscription();
 const {
   loading: stripeLoading,
   error: stripeError,

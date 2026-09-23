@@ -12,6 +12,19 @@ async function fetchSubscription(): Promise<UserSubscription | null> {
   return data as UserSubscription | null;
 }
 
+/**
+ * Whether this account may start a Pro checkout. Deliberately not `!isPro`:
+ * a beta tester already counts as Pro, but tester is a comp the maintainer
+ * hands out (often to smooth over a client's bad experience), and they must be
+ * able to move to paid whenever they choose. Only a `pro` plan closes the door
+ * — the webhook sets it once a subscription is paid and resets the account to
+ * `free` when that subscription ends, which mirrors the server's own guard in
+ * `stripe-create-checkout` (a live Stripe subscription, never `status` alone).
+ */
+export function canStartProCheckout(sub: Pick<UserSubscription, "plan_id"> | null): boolean {
+  return sub?.plan_id !== "pro";
+}
+
 export function useSubscription() {
   const auth = useAuthStore();
 
@@ -37,8 +50,10 @@ export function useSubscription() {
     return !!sub?.cancel_at_period_end && !!sub.cancel_at;
   });
 
+  const canUpgrade = computed(() => canStartProCheckout(data.value ?? null));
+
   const isSuspended = computed(() => !!data.value?.suspended_at);
   const suspensionReason = computed(() => data.value?.suspension_reason ?? null);
 
-  return { subscription: data, isPro, isPendingCancellation, isSuspended, suspensionReason, isLoading };
+  return { subscription: data, isPro, canUpgrade, isPendingCancellation, isSuspended, suspensionReason, isLoading };
 }
