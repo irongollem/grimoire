@@ -25,6 +25,20 @@ export function canStartProCheckout(sub: Pick<UserSubscription, "plan_id"> | nul
   return sub?.plan_id !== "pro";
 }
 
+/**
+ * Whether a cancellation is scheduled but has not landed yet. Keyed on
+ * `cancel_at` alone: on this API version the Stripe customer portal schedules
+ * an end-of-period cancellation by setting `cancel_at` and leaves
+ * `cancel_at_period_end` false, so requiring both hid every real cancellation
+ * and the page kept promising a renewal that will never happen. The webhook
+ * writes both fields verbatim; the date is the one that always carries it.
+ */
+export function isCancellationPending(
+  sub: Pick<UserSubscription, "cancel_at" | "status"> | null,
+): boolean {
+  return !!sub?.cancel_at && sub.status !== "canceled";
+}
+
 export function useSubscription() {
   const auth = useAuthStore();
 
@@ -45,10 +59,7 @@ export function useSubscription() {
     );
   });
 
-  const isPendingCancellation = computed(() => {
-    const sub = data.value;
-    return !!sub?.cancel_at_period_end && !!sub.cancel_at;
-  });
+  const isPendingCancellation = computed(() => isCancellationPending(data.value ?? null));
 
   const canUpgrade = computed(() => canStartProCheckout(data.value ?? null));
 

@@ -1,6 +1,21 @@
 export type PlanId = 'free' | 'tester' | 'pro'
 
-export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'cancelled'
+/**
+ * Stripe's own subscription statuses, spelled as Stripe spells them — the
+ * webhook writes `sub.status` verbatim and `"canceled"` on deletion, and the
+ * column has no check constraint. This once read `'cancelled'`, which no row can
+ * hold, so every check against it was dead code ("Your Pro subscription has
+ * ended" never showed).
+ */
+export type SubscriptionStatus =
+  | 'active'
+  | 'trialing'
+  | 'past_due'
+  | 'canceled'
+  | 'incomplete'
+  | 'incomplete_expired'
+  | 'unpaid'
+  | 'paused'
 
 /** Mirrors Stripe's price `tax_behavior`. `inclusive` = tax baked into the
  * displayed amount (EU/UK VAT convention); `exclusive` = tax added on top at
