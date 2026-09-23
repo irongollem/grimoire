@@ -107,6 +107,9 @@
           label="Manage billing"
           @click="openBillingPortal()"
         />
+        <p v-if="stripeError && stripeErrorFrom === 'portal'" role="alert" class="text-caption text-red-400 italic">
+          {{ stripeError }}
+        </p>
       </template>
     </div>
 
@@ -252,6 +255,13 @@
         "
         @click="createCheckoutSession(annual ? 'year' : 'month', subConsent)"
       />
+      <p
+        v-if="stripeError && stripeErrorFrom === 'checkout'"
+        role="alert"
+        class="text-caption text-red-400 italic text-center"
+      >
+        {{ stripeError }}
+      </p>
 
       <p class="text-caption text-muted-foreground italic text-center">
         Cancel anytime from the billing portal. No hidden fees. Taxes calculated at checkout.
@@ -370,6 +380,8 @@ const packConsent = ref(false);
 const { subscription, isPro, isPendingCancellation, isLoading } = useSubscription();
 const {
   loading: stripeLoading,
+  error: stripeError,
+  errorFrom: stripeErrorFrom,
   createCheckoutSession,
   openBillingPortal,
 } = useStripe();

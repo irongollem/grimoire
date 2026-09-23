@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { withCors } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
+import { reportEdgeError } from "../_shared/observability/report.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2026-07-29.dahlia",
@@ -118,6 +119,9 @@ serve(withCors(async (req: Request) => {
       allow_promotion_codes: promoCodesEnabled,
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },
+      // Required by both lines above whenever `customer` is passed — see the
+      // same line in stripe-create-checkout for the Stripe errors it prevents.
+      customer_update: { address: "auto", name: "auto" },
       // Emit an invoice so the confirmation email carries the Dashboard "Default
       // footer" (the receipt can't carry custom text); footer text is managed there.
       invoice_creation: { enabled: true },
@@ -152,6 +156,10 @@ serve(withCors(async (req: Request) => {
     });
   } catch (err) {
     console.error("Stripe checkout creation failed:", err);
-    return new Response("Failed to create checkout session", { status: 500 });
+    await reportEdgeError(err, req);
+    return new Response(JSON.stringify({ error: "checkout_failed" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }));

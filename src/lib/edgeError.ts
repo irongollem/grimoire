@@ -27,6 +27,13 @@ export async function edgeErrorMessage(
       const left = body.balance !== undefined ? ` (${body.balance} left)` : "";
       return `Insufficient credits${left}. Buy a credit pack or wait for the monthly refresh.`;
     }
+    case "already_subscribed":
+      return "You already have an active subscription. Use Manage billing to change it.";
+    case "withdrawal_consent_required":
+      return "Tick the withdrawal-waiver box above before continuing to payment.";
+    case "checkout_failed":
+    case "Internal server error":
+      return "We couldn't open the payment page. Please try again in a moment, or email info@dungeongrimoire.com if it keeps happening.";
     default:
       return body?.error ?? body?.message ?? fnError.message ?? "The request failed. Please try again.";
   }
