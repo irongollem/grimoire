@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { withCors } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
+import { reportEdgeError } from "../_shared/observability/report.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2026-07-29.dahlia",
@@ -115,6 +116,14 @@ serve(withCors(async (req: Request) => {
       line_items: [{ price: priceId, quantity: 1 }],
       automatic_tax: { enabled: true },
       tax_id_collection: { enabled: true },
+      // Required by both lines above whenever `customer` is passed, which it
+      // always is: Stripe rejects the session outright ("Automatic tax
+      // calculation in Checkout requires a valid address on the Customer" /
+      // "tax_id_collection requires updating business name on the customer")
+      // unless Checkout may write the address and name it collects back to the
+      // customer. getOrCreateStripeCustomer creates customers with an email
+      // only, so without this every upgrade 500'd before reaching Stripe (#905).
+      customer_update: { address: "auto", name: "auto" },
       // Stripe-recorded ToS acceptance. The separate withdrawal waiver is its
       // own app checkbox (recorded in purchase_consents) + the invoice footer.
       // (Enum shape is correct for apiVersion 2026-07-29.dahlia; requires a ToS URL set
@@ -140,6 +149,9 @@ serve(withCors(async (req: Request) => {
     return json({ url: session.url });
   } catch (err) {
     console.error("stripe-create-checkout:", err);
+    // Caught here, so withCors never sees it: report it ourselves, or a
+    // checkout that fails for every buyer is invisible (#905).
+    await reportEdgeError(err, req);
     return json({ error: "Internal server error" }, 500);
   }
 }));

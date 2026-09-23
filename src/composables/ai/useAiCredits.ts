@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { supabase } from '@/lib/supabase'
+import { edgeErrorMessage } from '@/lib/edgeError'
 import { CREDIT_COST, type CreditBuckets } from '@/types/subscription.types'
 import { useGenerationCreditCosts } from '@/composables/billing/useCreditConfig'
 import type { TextUsage, ImageUsage } from '@/ai/providers/types'
@@ -146,7 +147,7 @@ export function useAiCredits() {
         'stripe-create-credit-checkout',
         { body: { packId, withdrawalConsent } },
       )
-      if (error) throw new Error(error.message)
+      if (error) throw new Error(await edgeErrorMessage(error))
       if (data?.url) window.location.href = data.url
     } catch (err) {
       purchaseError.value = err instanceof Error ? err.message : 'Failed to start checkout'
