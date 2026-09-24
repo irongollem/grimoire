@@ -11,7 +11,9 @@ import { previewDraw, useResolveDraw, useCancelDraw, useApplyEffects } from "@/c
 import { isAutoAppliedKind, describeEffect } from "@/lib/downtime/downtimeEffects";
 import { useDowntimeGeneration } from "@/ai/useDowntimeGeneration";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import type { AiProvenance } from "@/ai/provenance";
 import type { DowntimeDeckBack, DowntimeDraw, DowntimeEffect, DrawResult } from "@/types/downtime.types";
@@ -93,7 +95,8 @@ const applyEffects = useApplyEffects();
 // the RPC, apply ticked effects) with no parallel plumbing.
 const campaign = useCampaignStore();
 const { generate, isGenerating, error: draftError } = useDowntimeGeneration();
-const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { textMultiplierFor } = useProviderConfig();
 
 const steer = ref("");
@@ -109,20 +112,10 @@ const effectiveCreditCost = computed(() =>
     : Math.round(costOf("downtime_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
 );
 
-const canAfford = computed(
-  () => creditsLoading.value || (balance.value ?? 0) >= effectiveCreditCost.value,
-);
-
-const creditLine = computed(() => {
-  const cost = parseFloat(effectiveCreditCost.value.toFixed(2));
-  if (cost === 0) return "Your own API key — no credits spent";
-  const bal = parseFloat(((balance.value ?? 0) as number).toFixed(2));
-  return `${cost === 1 ? "1 credit" : `${cost} credits`} · Balance: ${bal}`;
-});
-
 async function onDraft() {
   if (!activity.value) return;
   errorMessage.value = null;
+  if (!requireCredits(effectiveCreditCost.value, textIsByok.value)) return;
   const draft = await generate({
     activity: activity.value,
     characterName: memberName,
@@ -222,16 +215,13 @@ async function onCancel() {
               tone="primary"
               emphasis="outline"
               size="xs"
-              :disabled="isGenerating || !canAfford"
+              :disabled="isGenerating"
               :label="isGenerating ? 'Drafting…' : 'Draft'"
               class="shrink-0"
               @click="onDraft"
             />
           </div>
-          <p class="mt-1 text-caption-sm text-muted-foreground">{{ creditLine }}</p>
-          <p v-if="!canAfford" class="mt-1 text-caption-sm text-destructive">
-            Not enough credits to draft this outcome.
-          </p>
+          <GenerationCostBadge class="mt-1" :credits="effectiveCreditCost" :byok="textIsByok" />
           <p v-if="draftError" class="mt-1 text-caption-sm text-destructive">{{ draftError }}</p>
         </div>
 

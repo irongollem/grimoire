@@ -148,7 +148,6 @@ function artBible(name: string, description: string): PackArtBible {
 }
 
 async function createRun(userId: string, body: Record<string, unknown>): Promise<Response> {
-  if (!(await isUserPro(admin, userId))) return json({ error: "pro_required" }, 403);
   const campaignId = typeof body.campaign_id === "string" ? body.campaign_id : "";
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
@@ -210,10 +209,10 @@ async function createRun(userId: string, body: Record<string, unknown>): Promise
 }
 
 /**
- * Mirrors `createRun` above for the library lane: no `isUserPro` check (there
- * is no subscription to gate — the caller must simply be an admin), no
- * campaign of any kind, and the new pack row lands in `library_tile_packs`
- * rather than `user_tile_packs`. Same rollback-on-failure sequence.
+ * Mirrors `createRun` above for the library lane: no campaign of any kind —
+ * the caller must simply be an admin — and the new pack row lands in
+ * `library_tile_packs` rather than `user_tile_packs`. Same
+ * rollback-on-failure sequence.
  */
 async function createLibraryRun(user: User, body: Record<string, unknown>): Promise<Response> {
   if (!isAppAdmin(user)) return json({ error: "admin_required" }, 403);
@@ -515,6 +514,9 @@ async function generateLibraryPack(user: User, body: Record<string, unknown>): P
 }
 
 async function registerUpload(userId: string, body: Record<string, unknown>): Promise<Response> {
+  // Uploading your own pack is a Pro feature in its own right, not AI:
+  // generating a pack is open to every plan with credits, uploading one is not
+  // (the same split as the soundboard's own-audio upload).
   if (!(await isUserPro(admin, userId))) return json({ error: "pro_required" }, 403);
   const manifest = body.manifest as TilePackManifest | undefined;
   if (!manifest || manifest.schema_version !== 2 || manifest.base_tile_size !== 128 || !manifest.pack_id.startsWith("custom-")) {
@@ -662,7 +664,7 @@ async function deleteLibraryPack(user: User, body: Record<string, unknown>): Pro
  * The neutral base tile for a slot, or null where the set deliberately has none.
  *
  * Always read from the `library-tile-packs` bucket regardless of lane: the set
- * is shared platform content, so a Pro DM's private pack is briefed from the
+ * is shared platform content, so a DM's private pack is briefed from the
  * same geometry a library pack is. That is the point — the user lane needs this
  * more than we do, being capped at four attempts with no way to hand-repair a
  * tile.
@@ -761,19 +763,19 @@ async function generateSlot(user: User, body: Record<string, unknown>): Promise<
   }
 
   // Which gate applies depends on the lane, and the lane is only known once
-  // the run (and its target) is resolved above — so this replaces the single
-  // up-front isUserPro()/campaign check the user lane used to open with.
+  // the run (and its target) is resolved above.
   let campaign: Awaited<ReturnType<typeof campaignForGeneration>> = null;
   if (run.lane === "user") {
-    if (!(await isUserPro(admin, userId))) return json({ error: "pro_required" }, 403);
     // tile_pack_generation_runs_campaign_matches_lane guarantees campaign_id
-    // is set whenever tile_pack_id (user lane) is.
+    // is set whenever tile_pack_id (user lane) is. campaignForGeneration is
+    // the ai_enabled gate for this lane — every plan may generate once it's
+    // on, same as every other generator.
     campaign = await campaignForGeneration(run.campaign_id!, userId);
     if (!campaign) return json({ error: "campaign_forbidden" }, 403);
   }
   // Library lane: the admin claim was already verified inside
-  // requireGenerationRun. There is no campaign and no Pro concept for
-  // platform-authored content.
+  // requireGenerationRun. There is no campaign and no per-user plan to check
+  // for platform-authored content.
   if (!(await checkRateLimit(admin, userId, "ai_generation"))) return json({ error: "rate_limited" }, 429);
 
   const allowedPhase = run.status === "proof_pending" ? "proof" : run.status === "generating" ? "pack" : null;

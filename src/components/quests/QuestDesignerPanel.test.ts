@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { flushPromises, mount } from "@vue/test-utils";
+import { flushPromises, mount, RouterLinkStub } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import QuestDesignerPanel from "./QuestDesignerPanel.vue";
 import type { QuestDesignTree, QuestDesignQuestion } from "@/lib/quests/designer";
@@ -34,22 +34,33 @@ vi.mock("vue-router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("vue-router")>()),
   useRouter: () => ({ push: mocks.push }),
 }));
+const isAiEnabled = ref(true);
+// The free-plan quests quota — each propose/answer turn spends a credit, so
+// this is checked before every turn, separately from the AI-on/off toggle.
+const canCreateQuest = ref(true);
+
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
-    isAiEnabled: true,
+    get isAiEnabled() {
+      return isAiEnabled.value;
+    },
     activeCampaign: { text_provider: "openai" },
     decryptedApiKey: null,
   }),
 }));
-vi.mock("@/composables/billing/useSubscription", () => ({ useSubscription: () => ({ isPro: ref(true) }) }));
 vi.mock("@/composables/npcs/useNpcs", () => ({ useNpcs: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/locations/useLocations", () => ({ useAllLocations: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/factions/useFactions", () => ({ useAllFactions: () => ({ data: ref([]) }) }));
 vi.mock("@/composables/quests/useCreateQuestFromHook", () => ({
   useCreateQuestFromHook: () => ({ createFromHook: mocks.createFromHook }),
 }));
-vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1, affordable: () => true }) }));
+vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 1 }) }));
+const requireCredits = vi.fn(() => true);
+vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
 vi.mock("@/composables/ai/useProviderConfig", () => ({ useProviderConfig: () => ({ textMultiplierFor: () => 1 }) }));
+vi.mock("@/composables/billing/useQuota", () => ({
+  useQuota: () => ({ canCreate: canCreateQuest, quota: ref(null) }),
+}));
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm: mocks.confirm }) }));
 vi.mock("@/composables/useToast", () => ({
   useToast: () => ({ info: mocks.toastInfo, success: vi.fn(), error: vi.fn() }),
@@ -66,7 +77,14 @@ vi.mock("@/ai/useQuestDesigner", () => ({
 function mountPanel(props: { parentId?: string | null } = {}) {
   return mount(QuestDesignerPanel, {
     props,
-    global: { stubs: { PaywallModal: true, GenerationCostBadge: true, GeneratedEntityChips: true } },
+    global: {
+      stubs: {
+        GenerationCostBadge: true,
+        GeneratedEntityChips: true,
+        RouterLink: RouterLinkStub,
+        PaywallModal: true,
+      },
+    },
   });
 }
 
@@ -88,6 +106,9 @@ describe("QuestDesignerPanel", () => {
     designerState.note.value = "";
     designerState.isGenerating.value = false;
     designerState.error.value = "";
+    isAiEnabled.value = true;
+    canCreateQuest.value = true;
+    requireCredits.mockReset().mockReturnValue(true);
   });
 
   it("disables Propose a tree while the prose is empty", () => {
@@ -180,5 +201,122 @@ describe("QuestDesignerPanel", () => {
     ];
     const wrapper = mountPanel();
     expect(wrapper.get('button[aria-label="Send answers"]').attributes("disabled")).toBeDefined();
+  });
+
+  // Every plan may design a quest as long as AI is on and the account can
+  // afford it — there is no Pro gate on generation itself (see ai-policy-spec.md).
+  it("shows the real Propose a tree button once AI is on", () => {
+    const wrapper = mountPanel();
+    expect(wrapper.find('button[aria-label="Propose a tree"]').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("AI is off for this campaign");
+  });
+
+  it("shows AiOffNotice instead of the designer when AI is off, on any plan", () => {
+    isAiEnabled.value = false;
+    const wrapper = mountPanel();
+    expect(wrapper.find('button[aria-label="Propose a tree"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("AI is off for this campaign");
+  });
+});
+
+// The free-plan quests quota (10) — each propose/answer turn spends a
+// credit, so it's checked before every turn even though the AI toggle is on.
+describe("QuestDesignerPanel — quota gate (quests, checked before spending credits)", () => {
+  beforeEach(() => {
+    isAiEnabled.value = true;
+    canCreateQuest.value = true;
+    mocks.propose.mockReset();
+    mocks.answer.mockReset();
+    designerState.prose.value = "";
+    designerState.turn.value = 0;
+    designerState.questions.value = [];
+    designerState.isGenerating.value = false;
+    requireCredits.mockReset().mockReturnValue(true);
+  });
+
+  it("keeps Propose a tree visible and enabled-looking at the quest limit", async () => {
+    canCreateQuest.value = false;
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A dragon cult under the old mill.");
+
+    const button = wrapper.get('button[aria-label="Propose a tree"]');
+    expect(button.attributes("disabled")).toBeUndefined();
+  });
+
+  it("opens the quota paywall instead of proposing when clicked at the limit", async () => {
+    canCreateQuest.value = false;
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A dragon cult under the old mill.");
+
+    await wrapper.get('button[aria-label="Propose a tree"]').trigger("click");
+
+    expect(mocks.propose).not.toHaveBeenCalled();
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+  });
+
+  it("opens the quota paywall instead of sending answers when clicked at the limit", async () => {
+    designerState.turn.value = 1;
+    designerState.questions.value = [
+      { key: "q1", about: null, question: "Does the guard survive?", why: "It forks the next beat.", options: [{ key: "a", label: "Yes" }] },
+    ];
+    canCreateQuest.value = false;
+    const wrapper = mountPanel();
+
+    await wrapper.get('button[aria-label="Yes"]').trigger("click");
+    await wrapper.get('button[aria-label="Send answers"]').trigger("click");
+
+    expect(mocks.answer).not.toHaveBeenCalled();
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+  });
+});
+
+// Neither button disables itself for a short balance (never `!affordable`) —
+// clicking is what opens the shared out-of-credits dialog via
+// `requireCredits`, checked after the quota gate for both Propose and Send.
+describe("QuestDesignerPanel — credit gate (checked after the quota gate)", () => {
+  beforeEach(() => {
+    isAiEnabled.value = true;
+    canCreateQuest.value = true;
+    mocks.propose.mockReset();
+    mocks.answer.mockReset();
+    designerState.prose.value = "";
+    designerState.turn.value = 0;
+    designerState.questions.value = [];
+    designerState.isGenerating.value = false;
+    requireCredits.mockReset();
+  });
+
+  it("keeps Propose a tree enabled-looking when short on credits", async () => {
+    requireCredits.mockReturnValue(false);
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A dragon cult under the old mill.");
+
+    expect(wrapper.get('button[aria-label="Propose a tree"]').attributes("disabled")).toBeUndefined();
+  });
+
+  it("opens the out-of-credits dialog instead of proposing when short on credits", async () => {
+    requireCredits.mockReturnValue(false);
+    const wrapper = mountPanel();
+    await wrapper.get("textarea").setValue("A dragon cult under the old mill.");
+
+    await wrapper.get('button[aria-label="Propose a tree"]').trigger("click");
+
+    expect(requireCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.propose).not.toHaveBeenCalled();
+  });
+
+  it("opens the out-of-credits dialog instead of sending answers when short on credits", async () => {
+    designerState.turn.value = 1;
+    designerState.questions.value = [
+      { key: "q1", about: null, question: "Does the guard survive?", why: "It forks the next beat.", options: [{ key: "a", label: "Yes" }] },
+    ];
+    requireCredits.mockReturnValue(false);
+    const wrapper = mountPanel();
+
+    await wrapper.get('button[aria-label="Yes"]').trigger("click");
+    await wrapper.get('button[aria-label="Send answers"]').trigger("click");
+
+    expect(requireCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.answer).not.toHaveBeenCalled();
   });
 });

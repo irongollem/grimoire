@@ -62,7 +62,7 @@
         <AppButton
           variant="primary"
           size="sm"
-          :disabled="isGenerating || !rawText.trim() || rawText.length > NOTES_LIMIT || !affordable(textCreditCost, textIsByok)"
+          :disabled="isGenerating || !rawText.trim() || rawText.length > NOTES_LIMIT"
           :label="isGenerating ? 'Writing…' : draftMarkdown ? 'Write again' : 'Write Chronicle'"
           @click="generate"
         >
@@ -170,6 +170,7 @@ import { useNotes } from "@/composables/notes/useNotes";
 import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
@@ -229,7 +230,8 @@ const { mentionItems, partyMembers, npcs, monsters, factions } = useEntityMentio
 const { data: notes } = useNotes();
 
 const campaign = useCampaignStore();
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
@@ -312,6 +314,7 @@ function sameTags(a: string[], b: string[]): boolean {
 
 async function generate() {
   if (!rawText.value.trim()) return;
+  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
   error.value = "";
   try {
     const result = await generateChronicle({

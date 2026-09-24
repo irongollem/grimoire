@@ -84,10 +84,9 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import ModalHeader from "@/components/common/ModalHeader.vue";
 import { useQuota } from "@/composables/billing/useQuota";
-import { usePlan } from "@/composables/billing/usePlan";
+import { useProPricing } from "@/composables/billing/useProPricing";
 import { QUOTA_RESOURCE_LABELS } from "@/types/subscription.types";
 import type { QuotaResource } from "@/types/subscription.types";
-import { detectCurrency, formatCents, resolveAmount } from "@/lib/pricing";
 
 const open = defineModel<boolean>({ required: true })
 const props = defineProps<{
@@ -96,45 +95,8 @@ const props = defineProps<{
 }>()
 
 const { quota } = useQuota(props.resource ?? 'npcs')
-const { data: proPlan } = usePlan('pro')
+const { monthlyLabel, yearlyLabel, savedMonths, monthlyCredits: proMonthlyCredits } = useProPricing()
 const router = useRouter()
-
-const currency = detectCurrency()
-
-// Prices come from the Stripe-synced columns (single source of truth) — NOT the
-// legacy `prices` JSONB, which the admin Stripe sync doesn't populate and would
-// drift from the real charged amount.
-const monthlyResolved = computed(() =>
-  resolveAmount(
-    proPlan.value?.stripe_monthly_unit_amount,
-    proPlan.value?.stripe_currency,
-    proPlan.value?.stripe_monthly_currency_options,
-    currency,
-  )
-)
-const annualResolved = computed(() =>
-  resolveAmount(
-    proPlan.value?.stripe_annual_unit_amount,
-    proPlan.value?.stripe_currency,
-    proPlan.value?.stripe_annual_currency_options,
-    currency,
-  )
-)
-
-const monthlyLabel = computed(() =>
-  monthlyResolved.value ? formatCents(monthlyResolved.value.amount, monthlyResolved.value.currency) : null,
-)
-const yearlyLabel = computed(() =>
-  annualResolved.value ? formatCents(annualResolved.value.amount, annualResolved.value.currency) : null,
-)
-const savedMonths = computed(() => {
-  const mo = monthlyResolved.value
-  const yr = annualResolved.value
-  if (!mo || !yr) return 0
-  return Math.round((mo.amount * 12 - yr.amount) / mo.amount)
-})
-
-const proMonthlyCredits = computed(() => proPlan.value?.monthly_credits ?? 0)
 
 const limitText = computed(() => {
   if (!props.resource) return ''
@@ -146,13 +108,15 @@ const limitText = computed(() => {
   return `${limit} ${limit === 1 ? label.replace(/s$/, '') : label}`
 })
 
+// AI generation itself is on every plan (paid in credits), so Pro's AI benefit
+// is the included allowance and bringing your own key, not access.
 const BENEFITS = computed(() => [
   "Unlimited campaigns, NPCs, monsters, encounters & notes",
-  proMonthlyCredits.value > 0
-    ? `${proMonthlyCredits.value.toLocaleString()} AI credits / month — NPCs, monsters, items, spells & artwork`
-    : "AI generation — NPCs, monsters, items, spells & artwork",
-  "Soundboard uploads, AI music, and unlimited pages & playlists",
-  "Full world-building, combat, and publishing toolkit",
+  ...(proMonthlyCredits.value > 0
+    ? [`${proMonthlyCredits.value.toLocaleString()} AI credits every month, included`]
+    : []),
+  "Bring your own OpenAI or Gemini key for AI generation",
+  "Soundboard and tile-pack uploads, unlimited pages & playlists",
   "Your whole table plays free — always",
 ])
 

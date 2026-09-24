@@ -19,14 +19,11 @@
         <AppButton
           variant="primary"
           size="md"
-          :disabled="isFirstSculpt ? !affordable(sculptCost) : resculptsLeft <= 0"
+          :disabled="!isFirstSculpt && resculptsLeft <= 0"
           :label="isFirstSculpt ? 'Sculpt' : `Sculpt new image (free, ${resculptsLeft} left)`"
           @click="isFirstSculpt ? runSculpt() : runResculpt()"
         />
         <GenerationCostBadge v-if="isFirstSculpt" :credits="sculptCost" />
-        <p v-if="isFirstSculpt && !affordable(sculptCost)" class="text-caption text-destructive">
-          Not enough credits — buy a pack or wait for the monthly refresh.
-        </p>
         <p v-if="isFirstSculpt" class="text-caption-sm text-muted-foreground/70 italic text-center max-w-xs">
           Includes up to {{ MAX_SCULPTS - 1 }} free re-sculpts if the first pass doesn't land.
         </p>
@@ -141,6 +138,7 @@ import AppButton from "@/components/common/AppButton.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import MiniModelViewer from "@/components/simulacrum/MiniModelViewer.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useMiniForge } from "@/ai/useMiniForge";
 import { legalUrl } from "@/lib/marketing";
 import { getPublicUrl } from "@/lib/storage";
@@ -159,7 +157,8 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { sculpt, resculpt, setBase, waitForSculpt, isRebasing } = useMiniForge();
 
 const sculptCost = computed(() => costOf("mini_sculpt"));
@@ -201,6 +200,7 @@ async function awaitCompletion() {
 }
 
 async function runSculpt() {
+  if (!requireCredits(sculptCost.value)) return;
   error.value = null;
   try {
     const started = await sculpt(mini.id);

@@ -106,34 +106,27 @@
 
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
-        <p
-          v-if="effectiveCreditCost > 0 && isPro && isAiEnabled"
-          class="text-caption text-center"
-          :class="canAfford ? 'text-muted-foreground' : 'text-destructive font-semibold'"
-        >{{ creditLine }}</p>
+        <GenerationCostBadge
+          v-if="isAiEnabled"
+          :credits="effectiveCreditCost"
+          :byok="fullyByok"
+          class="self-center"
+        />
         <AppButton
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           variant="primary"
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim() || (effectiveCreditCost > 0 && !canAfford)"
+          :disabled="isAnyAiGenerating || !concept.trim()"
           :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
         />
-        <AppButton
-          v-else-if="!isPro"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          label="Generate with AI"
-          @click="showPaywall = true"
-        />
+        <AiOffNotice v-else />
         <AppButton
           to="/locations/new"
-          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          :variant="!isAiEnabled ? 'primary' : 'outline'"
           size="md"
           block
           label="New Blank Location"
@@ -142,7 +135,8 @@
       </div>
     </aside>
   </Transition>
-  <PaywallModal v-model="showPaywall" message="AI generation is a Pro feature. Upgrade to generate locations, NPCs, monsters, items, spells, and more." />
+
+  <PaywallModal v-model="showQuotaPaywall" resource="locations" />
 </template>
 
 <script setup lang="ts">
@@ -156,8 +150,9 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateLocation, useLocationTree } from "@/composables/locations/useLocations";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import { useSubscription } from "@/composables/billing/useSubscription";
 import { useToast } from "@/composables/useToast";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
@@ -170,6 +165,7 @@ import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { LOCATION_TYPE_LABELS } from "@/types/location.types";
 import type { LocationType } from "@/types/location.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 
 const TYPE_OPTIONS = Object.entries(LOCATION_TYPE_LABELS) as [LocationType, string][];
@@ -183,18 +179,23 @@ const { logImageGeneration } = useImageGenerationLog();
 const { locationOptions } = useLocationTree(() => ui.locationGeneratorOpen);
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useLocationGeneration();
 
-const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 const toast = useToast();
 
-const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
+const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("locations");
+
+const { costOf } = useAiCredits();
 const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
 
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok   = computed(() => !!campaign.decryptedApiKey);
 const imageIsByok  = computed(() => !!campaign.decryptedOpenAiKey);
+// Whole generation is BYOK-covered only when every image actually being
+// generated is covered too — a scene or map still charged while the text
+// call is free is not a BYOK generation.
+const fullyByok = computed(
+  () => textIsByok.value && (imageIsByok.value || (!generateImage.value && !generateMap.value)),
+);
 
 const effectiveCreditCost = computed(() => {
   let cost = textIsByok.value
@@ -209,13 +210,6 @@ const effectiveCreditCost = computed(() => {
   return cost;
 });
 
-const canAfford  = computed(() => creditsLoading.value || (balance.value ?? 0) >= effectiveCreditCost.value);
-const creditLine = computed(() => {
-  const cost = parseFloat(effectiveCreditCost.value.toFixed(2));
-  const bal  = parseFloat(((balance.value ?? 0) as number).toFixed(2));
-  return `${cost === 1 ? "1 credit" : `${cost} credits`} · Balance: ${bal}`;
-});
-
 const concept          = ref("");
 const constraints      = reactive({ location_type: "" });
 const parentLocationId = ref("");
@@ -224,6 +218,8 @@ const generateImage    = ref(true);
 const generateMap      = ref(false);
 
 async function generateAndCreate() {
+  if (!canSpend(effectiveCreditCost.value, fullyByok.value)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
 
@@ -240,9 +236,8 @@ async function generateAndCreate() {
   if (!result) return;
 
   // The generation has already been paid for, so a failed save must say so
-  // rather than vanish as an unhandled rejection. No quota branch: generating
-  // is Pro-only (non-Pro gets the paywall above before anything runs), and Pro
-  // has no location cap.
+  // rather than vanish as an unhandled rejection — a non-quota failure gets
+  // the toast (gateQuotaError handles the quota case).
   let location;
   try {
     location = await createLocation({
@@ -271,6 +266,7 @@ async function generateAndCreate() {
       ai_provenance:         result.ai_provenance ?? null,
     });
   } catch (e) {
+    if (gateQuotaError(e)) return;
     toast.error(toast.fromError(e));
     return;
   }

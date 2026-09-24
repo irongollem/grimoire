@@ -220,40 +220,27 @@
         <!-- Form: generate -->
         <template v-else>
           <GenerationCostBadge
-            v-if="isPro && isAiEnabled"
+            v-if="isAiEnabled"
             :credits="textCreditCost"
             :byok="textIsByok"
             class="self-center"
           />
           <AppButton
-            v-if="isPro && isAiEnabled"
+            v-if="isAiEnabled"
             variant="primary"
             size="md"
             block
-            :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
+            :disabled="isAnyAiGenerating || !concept.trim()"
             :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
             :icon="IconGenerate"
             :label="isGenerating ? 'Generating…' : 'Generate with AI'"
             @click="runGenerate"
           />
-          <AppButton
-            v-else-if="!isPro"
-            variant="primary"
-            size="md"
-            block
-            :icon="IconGenerate"
-            label="Generate with AI"
-            @click="showPaywall = true"
-          />
+          <AiOffNotice v-else />
         </template>
       </div>
     </aside>
   </Transition>
-
-  <PaywallModal
-    v-model="showPaywall"
-    message="AI generation is a Pro feature. Upgrade to generate loot tables, NPCs, monsters, items, spells, and more."
-  />
 </template>
 
 <script setup lang="ts">
@@ -267,14 +254,14 @@ import { useItems, useEnsureOwnedItem } from "@/composables/items/useItems";
 import { useCreateLootTable } from "@/composables/dungeon-features/useLootTables";
 import { useLootGeneration } from "@/ai/useLootGeneration";
 import { resolveGeneratedLoot, type ResolvedLootEntry } from "@/ai/resolveGeneratedLoot";
-import { useSubscription } from "@/composables/billing/useSubscription";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import {
   LOOT_CR_TIERS,
@@ -295,8 +282,6 @@ const campaign = useCampaignStore();
 // it once the panel is actually open (same guard the other panels use).
 const { data: vaultItems } = useItems(() => ({ enabled: ui.lootTableGeneratorOpen }));
 const { ensureOwnedItem } = useEnsureOwnedItem();
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 
 const {
   isGenerating,
@@ -352,7 +337,8 @@ const creating = ref(false);
 const createError = ref<string | null>(null);
 const createdTableId = ref<string | null>(null);
 
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
@@ -369,6 +355,8 @@ function dismissToBackground() {
 }
 
 async function runGenerate() {
+  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
   createdTableId.value = null;

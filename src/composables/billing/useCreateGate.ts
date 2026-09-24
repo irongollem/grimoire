@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useQuota } from "@/composables/billing/useQuota";
+import { isQuotaExceeded } from "@/lib/quotaError";
 import type { QuotaResource } from "@/types/subscription.types";
 
 /**
@@ -27,8 +28,7 @@ export function useCreateGate(resource: QuotaResource, newRoute: string) {
   }
 
   function gateQuotaError(error: unknown): boolean {
-    const message = error instanceof Error ? error.message : String(error);
-    if (message.includes("quota_exceeded")) {
+    if (isQuotaExceeded(error)) {
       showPaywall.value = true;
       return true;
     }

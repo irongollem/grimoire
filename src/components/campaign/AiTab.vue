@@ -8,7 +8,7 @@
         <div>
           <p class="font-cinzel text-xs font-semibold tracking-wide text-foreground">AI Assistant</p>
           <p class="text-caption text-muted-foreground italic mt-0.5">
-            When disabled, all AI generation buttons are hidden across the campaign. Players who prefer a fully hand-crafted experience won't see any AI UI.
+            When disabled, every AI generation control across the campaign is replaced with an "AI is off" notice. Players who prefer a fully hand-crafted experience won't see any AI UI to generate with.
           </p>
         </div>
         <ToggleSwitch

@@ -60,7 +60,7 @@ Roll tables use an inline editing interface — entries are edited directly in t
 
 ## AI roll table generator
 
-Click **Generate** to open the Roll Table Generator panel. This needs a Pro subscription and your campaign's AI generation switched on (Campaign Settings → AI Assistant) — on Free, the button opens the upgrade paywall instead:
+Click **Generate** to open the Roll Table Generator panel. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost — if AI is off, the panel points you at the toggle instead of the form:
 
 1. Write a **Concept** — a one-line prompt (e.g. "forest road at night, bandits active in the region, levels 3–5").
 2. Pick a **Die** — d6, d8, d10, d12, or d20 (the manual editor above also offers d4 and d100, but the generator's choices are limited to these five).

@@ -116,34 +116,26 @@
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
         <GenerationCostBadge
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           :credits="textCreditCost"
           :byok="textIsByok"
           class="self-center"
         />
         <AppButton
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           variant="primary"
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
+          :disabled="isAnyAiGenerating || !concept.trim()"
           :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
         />
-        <AppButton
-          v-else-if="!isPro"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          label="Generate with AI"
-          @click="showPaywall = true"
-        />
+        <AiOffNotice v-else />
         <AppButton
           to="/factions/new"
-          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          :variant="!isAiEnabled ? 'primary' : 'outline'"
           size="md"
           block
           label="New Blank Faction"
@@ -152,7 +144,8 @@
       </div>
     </aside>
   </Transition>
-  <PaywallModal v-model="showPaywall" message="AI generation is a Pro feature. Upgrade to generate factions, NPCs, monsters, items, spells, and more." />
+
+  <PaywallModal v-model="showQuotaPaywall" resource="factions" />
 </template>
 
 <script setup lang="ts">
@@ -165,14 +158,15 @@ import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateFaction, useAddFactionNpc, useAddFactionLocation } from "@/composables/factions/useFactions";
-import { useSubscription } from "@/composables/billing/useSubscription";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useFactionGeneration } from "@/ai/useFactionGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
@@ -195,12 +189,11 @@ const panelOpen           = () => ui.factionGeneratorOpen;
 const { data: npcs }      = useNpcs(panelOpen);
 const { locationOptions } = useLocationTree(panelOpen);
 
-const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 
-const { costOf, affordable } = useAiCredits();
+const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("factions");
+
+const { costOf } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
@@ -226,6 +219,8 @@ const headquartersLocation = computed(() =>
 );
 
 async function generateAndCreate() {
+  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
 
@@ -248,16 +243,22 @@ async function generateAndCreate() {
 
   if (!result) return;
 
-  const faction = await createFaction({
-    name:              result.name,
-    faction_type:      result.faction_type || null,
-    alignment:         result.alignment || null,
-    description:       toTiptapJson(result.description),
-    emblem_url:        result.image_url,
-    player_visible_to: [],
-    tags:              result.tags,
-    ai_provenance:     result.ai_provenance ?? null,
-  });
+  let faction;
+  try {
+    faction = await createFaction({
+      name:              result.name,
+      faction_type:      result.faction_type || null,
+      alignment:         result.alignment || null,
+      description:       toTiptapJson(result.description),
+      emblem_url:        result.image_url,
+      player_visible_to: [],
+      tags:              result.tags,
+      ai_provenance:     result.ai_provenance ?? null,
+    });
+  } catch (e) {
+    if (gateQuotaError(e)) return;
+    throw e;
+  }
 
   await Promise.all([
     leaderNpcId.value

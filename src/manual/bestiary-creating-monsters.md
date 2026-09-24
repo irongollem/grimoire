@@ -73,10 +73,7 @@ Enable the Spellcasting section to set a spellcasting ability (INT, WIS, or CHA)
 2. Describe the creature you want in the **Concept** field.
 3. Grimoire returns a full stat block you can save as-is or keep editing.
 
-Two things gate this:
-
-- It's a Pro feature — without a Pro subscription the button opens an upgrade prompt instead of generating.
-- The active campaign needs AI turned on (Campaign Settings). With Pro but no campaign AI, only **New Blank Monster** is offered.
+This needs the active campaign's AI switched on (Campaign Settings) and enough credits to cover the cost — with AI off, only **New Blank Monster** is offered.
 
 When it's available, the button shows its cost in credits before you confirm — or, if you've set your own API key for this campaign, it shows that you're using your own key and nothing will be charged.
 

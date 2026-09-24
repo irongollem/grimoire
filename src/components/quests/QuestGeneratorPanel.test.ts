@@ -12,7 +12,13 @@ const mocks = vi.hoisted(() => ({
   createBeatEdge: vi.fn(),
   createConsequence: vi.fn(),
   push: vi.fn(),
+  generate: vi.fn(),
 }));
+
+const isAiEnabled = ref(true);
+// The free-plan quests quota — hook generation spends a credit, so this is
+// checked before generating, separately from the AI-on/off toggle above.
+const canCreateQuest = ref(true);
 
 const hook: QuestHookResult = {
   title: "The Silent Bell",
@@ -28,7 +34,9 @@ vi.mock("vue-router", async (importOriginal) => ({
 vi.mock("@/stores/ui", () => ({ useUiStore: () => ({ questGeneratorOpen: true }) }));
 vi.mock("@/stores/campaign", () => ({
   useCampaignStore: () => ({
-    isAiEnabled: true,
+    get isAiEnabled() {
+      return isAiEnabled.value;
+    },
     activeCampaignId: "campaign-1",
     activeCampaign: { text_provider: "openai" },
     decryptedApiKey: null,
@@ -51,9 +59,15 @@ vi.mock("@/composables/quests/useQuestFlow", () => ({
   useCreateQuestBeatEdge: () => ({ mutateAsync: mocks.createBeatEdge }),
   useCreateQuestConsequence: () => ({ mutateAsync: mocks.createConsequence }),
 }));
-vi.mock("@/composables/billing/useSubscription", () => ({ useSubscription: () => ({ isPro: ref(true) }) }));
-vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 0, affordable: () => true }) }));
+vi.mock("@/composables/ai/useAiCredits", () => ({ useAiCredits: () => ({ costOf: () => 0 }) }));
+const requireCredits = vi.fn(() => true);
+vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
 vi.mock("@/composables/ai/useProviderConfig", () => ({ useProviderConfig: () => ({ textMultiplierFor: () => 1 }) }));
+vi.mock("@/composables/billing/useQuota", () => ({
+  useQuota: () => ({ canCreate: canCreateQuest, quota: ref(null) }),
+}));
+const hooks = ref<QuestHookResult[]>([hook]);
+
 vi.mock("@/ai/useQuestGeneration", () => ({
   useQuestGeneration: () => ({
     isGenerating: ref(false),
@@ -61,9 +75,9 @@ vi.mock("@/ai/useQuestGeneration", () => ({
     concept: ref(""),
     completedEntityId: ref(null),
     clearCompleted: vi.fn(),
-    hooks: ref([hook]),
+    hooks,
     provenance: ref(undefined),
-    generate: vi.fn(),
+    generate: mocks.generate,
     clearHooks: vi.fn(),
   }),
 }));
@@ -75,8 +89,8 @@ function mountPanel() {
         RouterLink: RouterLinkStub,
         EntityCombobox: true,
         GeneratedEntityChips: true,
-        PaywallModal: true,
         GenerationCostBadge: true,
+        PaywallModal: true,
       },
     },
   });
@@ -93,6 +107,10 @@ describe("QuestGeneratorPanel — createFromHook", () => {
     mocks.push.mockReset();
     mocks.createQuest.mockResolvedValue({ id: "quest-new" });
     mocks.createObjective.mockResolvedValue({ id: "objective-new" });
+    isAiEnabled.value = true;
+    canCreateQuest.value = true;
+    hooks.value = [hook];
+    requireCredits.mockReset().mockReturnValue(true);
   });
 
   // Regression guard for #799: `quests.rewards` and the currency/item reward
@@ -112,5 +130,101 @@ describe("QuestGeneratorPanel — createFromHook", () => {
       expect(insert).not.toHaveProperty(column);
     }
     expect(insert).toMatchObject({ title: "The Silent Bell", summary: hook.summary, status: "active" });
+  });
+});
+
+// Every plan may generate as long as AI is on and the account can afford it —
+// there is no Pro gate on generation itself (see ai-policy-spec.md).
+describe("QuestGeneratorPanel — AI-on/off, every plan", () => {
+  beforeEach(() => {
+    isAiEnabled.value = true;
+    canCreateQuest.value = true;
+    hooks.value = [];
+  });
+
+  it("shows the real Generate Quest Hooks button once AI is on", () => {
+    const wrapper = mountPanel();
+    expect(wrapper.find('button[aria-label="Generate Quest Hooks"]').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("AI is off for this campaign");
+  });
+
+  it("shows AiOffNotice instead of a Generate button when AI is off", () => {
+    isAiEnabled.value = false;
+    const wrapper = mountPanel();
+    expect(wrapper.find('button[aria-label="Generate Quest Hooks"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("AI is off for this campaign");
+  });
+});
+
+// The free-plan quests quota (10) — hook generation spends credits, so it's
+// checked before generating even though the AI toggle is on.
+describe("QuestGeneratorPanel — quota gate (quests, checked before spending credits)", () => {
+  beforeEach(() => {
+    isAiEnabled.value = true;
+    canCreateQuest.value = true;
+    hooks.value = [];
+    mocks.generate.mockReset();
+    requireCredits.mockReset().mockReturnValue(true);
+  });
+
+  it("keeps the Generate Quest Hooks button visible and enabled-looking at the quest limit", () => {
+    canCreateQuest.value = false;
+    const wrapper = mountPanel();
+
+    const button = wrapper.find('button[aria-label="Generate Quest Hooks"]');
+    expect(button.exists()).toBe(true);
+    expect(button.attributes("disabled")).toBeFalsy();
+  });
+
+  it("opens the quota paywall instead of generating when clicked at the limit", async () => {
+    canCreateQuest.value = false;
+    const wrapper = mountPanel();
+
+    await wrapper.get('button[aria-label="Generate Quest Hooks"]').trigger("click");
+
+    expect(mocks.generate).not.toHaveBeenCalled();
+    expect(wrapper.findComponent({ name: "PaywallModal" }).props("modelValue")).toBe(true);
+  });
+});
+
+// The button must stay clickable when the balance is short (never
+// `disabled`) — clicking it is what opens the shared out-of-credits dialog
+// via `requireCredits`, rather than the button disabling itself.
+describe("QuestGeneratorPanel — credit gate (checked after the quota gate)", () => {
+  beforeEach(() => {
+    isAiEnabled.value = true;
+    canCreateQuest.value = true;
+    hooks.value = [];
+    mocks.generate.mockReset();
+    requireCredits.mockReset();
+  });
+
+  it("stays enabled-looking when the balance is short", () => {
+    requireCredits.mockReturnValue(false);
+    const wrapper = mountPanel();
+
+    const button = wrapper.find('button[aria-label="Generate Quest Hooks"]');
+    expect(button.exists()).toBe(true);
+    expect(button.attributes("disabled")).toBeFalsy();
+  });
+
+  it("opens the out-of-credits dialog instead of generating when short on credits", async () => {
+    requireCredits.mockReturnValue(false);
+    const wrapper = mountPanel();
+
+    await wrapper.get('button[aria-label="Generate Quest Hooks"]').trigger("click");
+
+    expect(requireCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.generate).not.toHaveBeenCalled();
+  });
+
+  it("generates once requireCredits allows it", async () => {
+    requireCredits.mockReturnValue(true);
+    const wrapper = mountPanel();
+
+    await wrapper.get('button[aria-label="Generate Quest Hooks"]').trigger("click");
+
+    expect(requireCredits).toHaveBeenCalledTimes(1);
+    expect(mocks.generate).toHaveBeenCalledTimes(1);
   });
 });

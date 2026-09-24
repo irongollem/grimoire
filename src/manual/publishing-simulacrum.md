@@ -35,7 +35,7 @@ If your sidebar has no Simulacrum entry, ask whoever administers your Grimoire i
 
 1. Open any **NPC**, **Monster**, or party member that has a portrait, and click the **Mini** button on its image.
 2. **Format** — choose **Print** ("Unpainted grey resin, ready for a 3D printer" — high-poly STL, GLB & 3MF; a single connected body, mounted on a 25 mm base; you paint it yourself once it's printed) or **VTT** ("Full-colour, low-poly render for virtual tabletops" — textured GLB & USDZ; a simplified clean silhouette, mounted on a base; drop straight into your VTT of choice).
-3. **Stylize** — Grimoire re-renders the portrait into a mini-appropriate look. You can re-roll this step if you don't like the result (each attempt is paid). This step requires a **Pro** plan — on Free, it shows an upgrade prompt instead (see [Billing & Subscription](#billing-subscription)).
+3. **Stylize** — Grimoire re-renders the portrait into a mini-appropriate look. You can re-roll this step if you don't like the result (each attempt is paid in credits, on every plan). This step needs the campaign's AI Assistant switched on (Campaign Settings → AI Assistant) — if it's off, the step points you at the toggle instead of running.
 4. **Sculpt** — the stylized image is turned into an actual 3D model. This step can take several minutes; you can navigate away and come back — the gallery card updates the moment it's ready.
 5. **Done** — preview the model in 3D, then download it from the minis gallery (see below).
 
@@ -69,4 +69,4 @@ A player's badge can lag up to a minute behind you finishing a sculpt — it upd
 
 - [Gallery](#gallery) — a separate pipeline; minis do **not** appear there.
 - [NPC Tracker — Overview](#npc-tracker-overview) and [Bestiary — Overview](#bestiary-overview) — where you'll find the **Mini** button on an entity.
-- [Billing & Subscription](#billing-subscription) — Simulacrum's stylize step requires a Pro plan.
+- [Billing & Subscription](#billing-subscription) — Simulacrum's stylize step spends credits; buy more there if you run short.

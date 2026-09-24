@@ -41,31 +41,24 @@
       <div
         class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0"
       >
-        <p
-          v-if="effectiveCreditCost > 0 && isPro && isAiEnabled"
-          class="text-caption text-center"
-          :class="canAfford ? 'text-muted-foreground' : 'text-destructive font-semibold'"
-        >{{ creditLine }}</p>
+        <GenerationCostBadge
+          v-if="isAiEnabled"
+          :credits="effectiveCreditCost"
+          :byok="isFullyByok"
+          class="self-center"
+        />
         <AppButton
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           variant="primary"
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim() || (effectiveCreditCost > 0 && !canAfford)"
+          :disabled="isAnyAiGenerating || !concept.trim()"
           :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
         />
-        <AppButton
-          v-else-if="!isPro"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          label="Generate with AI"
-          @click="showPaywall = true"
-        />
+        <AiOffNotice v-else />
         <AppButton
           variant="primary"
           size="md"
@@ -77,10 +70,8 @@
       </div>
     </aside>
   </Transition>
-  <PaywallModal
-    v-model="showPaywall"
-    message="AI generation is a Pro feature. Upgrade to generate NPCs, monsters, items, spells, puzzles, and session artwork."
-  />
+
+  <PaywallModal v-model="showQuotaPaywall" resource="npcs" />
 </template>
 
 <script setup lang="ts">
@@ -91,14 +82,16 @@ import { useUiStore } from "@/stores/ui";
 import { useCreateNpc } from "@/composables/npcs/useNpcs";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig, PORTRAIT_SIZE_BY_PROVIDER } from "@/composables/ai/useProviderConfig";
 import { getNpcTemplate } from "@/data/npcTemplates";
 import type { NpcInsert, NpcRelationship, NpcRelationshipType } from "@/types/npc.types";
 import { NPC_RELATIONSHIP_TYPE_LABELS } from "@/types/npc.types";
 import { useCampaignStore } from "@/stores/campaign";
 import { useNpcGeneration, toTiptapJson } from "@/ai/useNpcGeneration";
-import { useSubscription } from "@/composables/billing/useSubscription";
 import AppButton from "@/components/common/AppButton.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { useLocationTree } from "@/composables/locations/useLocations";
@@ -147,10 +140,10 @@ const { data: npcs } = useNpcs(panelOpen);
 const { mutateAsync: createNpcRelation } = useCreateNpcRelation();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 
-const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
+const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("npcs");
+
+const { costOf } = useAiCredits();
 const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
 
 const textProvider  = computed(() => campaign.activeCampaign?.text_provider  ?? "openai");
@@ -175,12 +168,11 @@ const effectiveCreditCost = computed(() => {
   return cost;
 });
 
-const canAfford  = computed(() => creditsLoading.value || (balance.value ?? 0) >= effectiveCreditCost.value);
-const creditLine = computed(() => {
-  const cost = parseFloat(effectiveCreditCost.value.toFixed(2));
-  const bal  = parseFloat(((balance.value ?? 0) as number).toFixed(2));
-  return `${cost === 1 ? "1 credit" : `${cost} credits`} · Balance: ${bal}`;
-});
+// GenerationCostBadge's own byok flag needs "no credits will be charged at
+// all", not just the text provider — an image-only BYOK key still leaves the
+// text portion billed, so this is true only when every component in play is
+// covered by the DM's own key.
+const isFullyByok = computed(() => textIsByok.value && (!generateImage.value || imageIsByok.value));
 
 function dismissToBackground() {
   ui.npcGeneratorOpen = false;
@@ -226,6 +218,8 @@ function buildAiPrompt(): string {
 }
 
 async function generateAndCreate() {
+  if (!canSpend(effectiveCreditCost.value, isFullyByok.value)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
 
@@ -265,7 +259,13 @@ async function generateAndCreate() {
     ai_provenance: result.ai_provenance ?? null,
   };
 
-  const created = await createNpc(payload);
+  let created;
+  try {
+    created = await createNpc(payload);
+  } catch (e) {
+    if (gateQuotaError(e)) return;
+    throw e;
+  }
 
   // Log generated portraits to the Gallery, linked back to the new NPC.
   if (result.portrait_url) {

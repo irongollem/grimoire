@@ -40,7 +40,7 @@ Open **Campaign Settings** (the gear in the sidebar's Campaign group, or the set
 | **Rules** | Ruleset (2014/2024) and every optional rule toggle, including the ones that unlock Workshop and Interlude in the sidebar. |
 | **Classes** | Campaign-specific custom class/archetype settings. |
 | **Species** | Campaign-specific species settings. |
-| **AI Assistant** | AI generation on/off, credits vs. your own key — Pro only. See [AI Generation & Credits](#ai-generation-credits). |
+| **AI Assistant** | AI generation on/off, available on every plan; your own key instead of credits is Pro only. See [AI Generation & Credits](#ai-generation-credits). |
 | **AI Connections** | Connects an external AI assistant to your campaign over MCP. |
 | **Spotify** | Spotify integration for ambient music. |
 | **Backup** | Campaign backup/export. |

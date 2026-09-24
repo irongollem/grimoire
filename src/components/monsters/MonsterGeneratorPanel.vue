@@ -103,34 +103,26 @@
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
         <GenerationCostBadge
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           :credits="textCreditCost"
           :byok="textIsByok"
           class="self-center"
         />
         <AppButton
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           variant="primary"
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
+          :disabled="isAnyAiGenerating || !concept.trim()"
           :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
         />
-        <AppButton
-          v-else-if="!isPro"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          label="Generate with AI"
-          @click="showPaywall = true"
-        />
+        <AiOffNotice v-else />
         <AppButton
           to="/monsters/new"
-          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          :variant="!isAiEnabled ? 'primary' : 'outline'"
           size="md"
           block
           label="New Blank Monster"
@@ -139,7 +131,8 @@
       </div>
     </aside>
   </Transition>
-  <PaywallModal v-model="showPaywall" message="AI generation is a Pro feature. Upgrade to generate monsters, NPCs, items, spells, puzzles, and session artwork." />
+
+  <PaywallModal v-model="showQuotaPaywall" resource="monsters" />
 </template>
 
 <script setup lang="ts">
@@ -149,14 +142,14 @@ import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useGenerateMonster } from "@/composables/monsters/useGenerateMonster";
-import { useSubscription } from "@/composables/billing/useSubscription";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useMonsterGenerationCost } from "@/composables/monsters/useMonsterGenerationCost";
 import { useMonsterGeneration } from "@/ai/useMonsterGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
@@ -173,12 +166,10 @@ const { generateAndCreateMonster } = useGenerateMonster();
 // concern.
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted } = useMonsterGeneration();
 
-const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 
-const { affordable } = useAiCredits();
+const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("monsters");
+
 const { credits: textCreditCost } = useMonsterGenerationCost();
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 
@@ -187,15 +178,26 @@ const constraints = reactive({ challenge_rating: "", monster_type: "", size: "" 
 const generateImage = ref(true);
 
 async function generateAndCreate() {
+  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
 
-  const { id } = await generateAndCreateMonster(concept.value.trim(), {
-    challenge_rating: constraints.challenge_rating.trim() || undefined,
-    monster_type: constraints.monster_type || undefined,
-    size: constraints.size || undefined,
-    generateImage: generateImage.value,
-  });
+  // generateAndCreateMonster both generates AND creates in one call, so a
+  // quota failure on the create half arrives here as a thrown error (a race,
+  // or a stale count) rather than through the outcome's own `error` field.
+  let id: string | null;
+  try {
+    ({ id } = await generateAndCreateMonster(concept.value.trim(), {
+      challenge_rating: constraints.challenge_rating.trim() || undefined,
+      monster_type: constraints.monster_type || undefined,
+      size: constraints.size || undefined,
+      generateImage: generateImage.value,
+    }));
+  } catch (e) {
+    if (gateQuotaError(e)) return;
+    throw e;
+  }
   // A failure already left its message on the shared `genError` ref
   // (`useMonsterGeneration`'s own state, which this panel already renders),
   // so there is nothing further to do here on a `null` id.

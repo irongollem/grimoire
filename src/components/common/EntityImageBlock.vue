@@ -34,7 +34,7 @@
           fill="muted"
           size="sm"
           class="flex-1"
-          :disabled="isGenerating || disabled || !affordable(imageCost, imageByok)"
+          :disabled="isGenerating || disabled"
           @click="runGenerate"
         >
           <template #icon>
@@ -80,6 +80,7 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useEntityImageGeneration } from "@/ai/useEntityImageGeneration";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useSimulacrumConfig } from "@/composables/simulacrum/useSimulacrumConfig";
 import type { MiniSourceTable } from "@/types/mini.types";
@@ -126,7 +127,8 @@ const campaign = useCampaignStore();
 const { isGenerating, error, generate } = useEntityImageGeneration(bucket);
 
 // Entity portraits always render via OpenAI at 1024×1536 (portrait → 1.5× cost).
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { imageMultiplierFor } = useProviderConfig();
 const imageByok = computed(() => !!campaign.decryptedOpenAiKey);
 const imageCost = computed(
@@ -150,6 +152,7 @@ function goToMiniForge() {
 
 async function runGenerate() {
   if (!aiKind || !aiContext?.trim()) return;
+  if (!requireCredits(imageCost.value, imageByok.value)) return;
   const url = await generate({ kind: aiKind, context: aiContext, targetId: aiTargetId ?? null });
   if (url) {
     emit("update:modelValue", url);

@@ -32,7 +32,7 @@ An existing faction's editor also offers **Copy to campaign…**, which duplicat
 
 ## Generating a faction with AI
 
-Click **Generate** on the Factions list page to open the faction generator panel (Pro feature — Free shows an upgrade prompt instead) and describe the organisation in a concept box; see [AI Generation & Credits](#ai-generation-credits) for how costs are shown.
+Click **Generate** on the Factions list page to open the faction generator panel and describe the organisation in a concept box; see [AI Generation & Credits](#ai-generation-credits) for how costs are shown, and for what happens if the campaign's AI Assistant is off or your credit balance is short.
 
 ## Bulk moving or copying factions
 

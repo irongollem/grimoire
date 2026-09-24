@@ -35,7 +35,13 @@ const PAID_MARKERS = [
  * Deliberate exceptions, each with the reason. Add here only when the modal
  * genuinely cannot lose anything paid — not to quiet the test.
  */
-const EXEMPT = new Map<string, string>();
+const EXEMPT = new Map<string, string>([
+  [
+    "components/billing/OutOfCreditsModal.vue",
+    "It reads the credit balance to say what is short, but it is the step before a purchase: " +
+      "nothing has been generated or paid for yet, so dismissing it loses nothing.",
+  ],
+]);
 
 function vueFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

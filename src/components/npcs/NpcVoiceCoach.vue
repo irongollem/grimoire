@@ -66,38 +66,25 @@
       <!-- Generate controls -->
       <div v-else class="flex flex-col gap-2">
         <GenerationCostBadge
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           :credits="textCreditCost"
           :byok="textIsByok"
           class="self-center"
         />
         <AppButton
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           variant="primary"
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isGenerating || !situation.trim() || !affordable(textCreditCost, textIsByok)"
+          :disabled="isGenerating || !situation.trim()"
           label="Suggest lines"
           @click="runSuggest"
         />
-        <AppButton
-          v-else-if="!isPro"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          label="Suggest lines"
-          @click="showPaywall = true"
-        />
+        <AiOffNotice v-else />
       </div>
     </template>
   </div>
-
-  <PaywallModal
-    v-model="showPaywall"
-    message="AI generation is a Pro feature. Upgrade to get in-character NPC dialogue suggestions, plus NPCs, monsters, items, spells, and more."
-  />
 </template>
 
 <script setup lang="ts">
@@ -105,13 +92,13 @@ import { ref, computed } from "vue";
 import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 import { IconGenerate, IconQuote, IconRefresh } from "@/lib/icons";
 import { useCampaignStore } from "@/stores/campaign";
-import { useSubscription } from "@/composables/billing/useSubscription";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useNpcVoiceCoach } from "@/ai/useNpcVoiceCoach";
 import AppButton from "@/components/common/AppButton.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import type { Npc } from "@/types/npc.types";
 
 const { npc } = defineProps<{ npc: Npc }>();
@@ -119,11 +106,10 @@ const { npc } = defineProps<{ npc: Npc }>();
 const SITUATION_LIMIT = AI_PROMPT_LIMIT_SHORT;
 
 const campaign = useCampaignStore();
-const { isPro } = useSubscription();
-const { affordable, costOf } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { textMultiplierFor } = useProviderConfig();
 
-const showPaywall = ref(false);
 const situation = ref("");
 
 const { isGenerating, error, lines, suggest, clear } = useNpcVoiceCoach();
@@ -138,6 +124,7 @@ const textCreditCost = computed(
 async function runSuggest() {
   const trimmed = situation.value.trim();
   if (!trimmed) return;
+  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
   await suggest(npc, trimmed);
 }
 

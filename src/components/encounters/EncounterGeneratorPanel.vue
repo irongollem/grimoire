@@ -210,40 +210,29 @@
         <!-- Form: generate -->
         <template v-else>
           <GenerationCostBadge
-            v-if="isPro && isAiEnabled"
+            v-if="isAiEnabled"
             :credits="textCreditCost"
             :byok="textIsByok"
             class="self-center"
           />
           <AppButton
-            v-if="isPro && isAiEnabled"
+            v-if="isAiEnabled"
             variant="primary"
             size="md"
             block
             :icon="IconGenerate"
-            :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
+            :disabled="isAnyAiGenerating || !concept.trim()"
             :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
             :label="isGenerating ? 'Generating…' : 'Generate with AI'"
             @click="runGenerate"
           />
-          <AppButton
-            v-else-if="!isPro"
-            variant="primary"
-            size="md"
-            block
-            :icon="IconGenerate"
-            label="Generate with AI"
-            @click="showPaywall = true"
-          />
+          <AiOffNotice v-else />
         </template>
       </div>
     </aside>
   </Transition>
 
-  <PaywallModal
-    v-model="showPaywall"
-    message="AI generation is a Pro feature. Upgrade to generate encounters, NPCs, monsters, items, spells, and more."
-  />
+  <PaywallModal v-model="showQuotaPaywall" resource="encounters" />
 </template>
 
 <script setup lang="ts">
@@ -257,15 +246,16 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateEncounter } from "@/composables/encounters/useEncounters";
 import { useEncounterGeneration } from "@/ai/useEncounterGeneration";
-import { useSubscription } from "@/composables/billing/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useParty } from "@/composables/party/useParty";
@@ -277,7 +267,6 @@ import {
 } from "@/lib/encounters/resolveGeneratedCombatants";
 import { toTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { isSharedContent } from "@/lib/library/contentIdentity";
-import { isQuotaExceeded } from "@/lib/quotaError";
 import { DEFAULT_FACTIONS } from "@/types/encounter.types";
 import type { Monster } from "@/types/monster.types";
 import type { EncounterCombatantAiResult } from "@/ai/types";
@@ -295,8 +284,6 @@ const DIFFICULTY_OPTIONS: { value: EncounterDifficultyOption; label: string }[] 
 const ui = useUiStore();
 const router = useRouter();
 const campaign = useCampaignStore();
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 
 const {
   isGenerating,
@@ -316,13 +303,15 @@ const { data: companions } = useCompanions();
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
 
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
   () => Math.round(costOf("encounter_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
 );
+
+const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("encounters");
 
 const concept = ref("");
 const difficulty = ref<EncounterDifficultyOption>("auto");
@@ -401,6 +390,8 @@ function dismissToBackground() {
 }
 
 async function runGenerate() {
+  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
   createdEncounterId.value = null;
@@ -454,11 +445,11 @@ async function createEncounterFromResult() {
     completedEntityId.value = encounter.id;
   } catch (e: unknown) {
     // The generation has already been paid for by the time we get here, so a
-    // silent failure would cost the DM a credit and give them nothing. Quota
-    // exhaustion gets the paywall (mirroring EncounterDetail.handleSave);
-    // anything else is surfaced in the panel.
-    if (isQuotaExceeded(e)) showPaywall.value = true;
-    else createError.value = e instanceof Error ? e.message : "Could not create the encounter.";
+    // silent failure would cost the DM a credit and give them nothing.
+    // Quota exhaustion gets the paywall; anything else is surfaced in the panel.
+    if (!gateQuotaError(e)) {
+      createError.value = e instanceof Error ? e.message : "Could not create the encounter.";
+    }
   } finally {
     creating.value = false;
   }

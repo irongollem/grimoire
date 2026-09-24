@@ -13,7 +13,7 @@
           <div class="flex items-start justify-between gap-3">
             <div>
               <h2 class="font-cinzel text-heading-sm text-foreground">Available packs</h2>
-              <p class="mt-1 text-body-sm text-muted-foreground">Your packs and read-only packs shared through the active campaign.</p>
+              <p class="mt-1 text-body text-muted-foreground">Your packs and read-only packs shared through the active campaign.</p>
             </div>
             <span class="text-caption text-muted-foreground">{{ campaignPacks.length }} pack(s)</span>
           </div>
@@ -26,7 +26,7 @@
                 </div>
                 <span v-if="pack.user_id !== userId" class="rounded-full bg-muted px-2 py-0.5 text-caption-sm text-muted-foreground">Read only</span>
               </div>
-              <p class="mt-2 line-clamp-2 text-body-xs text-muted-foreground">{{ pack.description || "No description" }}</p>
+              <p class="mt-2 line-clamp-2 text-caption text-muted-foreground">{{ pack.description || "No description" }}</p>
               <AppCheckbox
                 v-if="pack.user_id === userId && activeCampaignId"
                 class="mt-3"
@@ -46,14 +46,21 @@
               />
             </article>
           </div>
-          <p v-else class="mt-4 rounded-lg border border-dashed border-border p-6 text-center text-body-sm text-muted-foreground">
+          <p v-else class="mt-4 rounded-lg border border-dashed border-border p-6 text-center text-body text-muted-foreground">
             No custom packs yet.
           </p>
         </div>
 
-        <div v-if="isPro" class="rounded-xl border border-border bg-card p-4">
+        <!-- Uploading your own pack stays Pro; generating one (right) is open to
+             every plan with credits. -->
+        <div v-if="!isPro" class="rounded-xl border border-border bg-card p-4">
           <h2 class="font-cinzel text-heading-sm text-foreground">Upload a pack</h2>
-          <p class="mt-1 text-body-sm text-muted-foreground">Choose a zip or a folder containing manifest.json and exact 128×128 WebP assets.</p>
+          <p class="mt-1 text-body text-muted-foreground">Uploading a pack you made yourself is a Pro feature.</p>
+          <AppButton class="mt-3" variant="outline" size="sm" label="View plans" @click="router.push('/billing')" />
+        </div>
+        <div v-else class="rounded-xl border border-border bg-card p-4">
+          <h2 class="font-cinzel text-heading-sm text-foreground">Upload a pack</h2>
+          <p class="mt-1 text-body text-muted-foreground">Choose a zip or a folder containing manifest.json and exact 128×128 WebP assets.</p>
           <div class="mt-4 flex flex-wrap gap-3">
             <label class="cursor-pointer rounded-md border border-border bg-muted px-3 py-2 text-label text-foreground hover:bg-muted/70">
               Choose zip
@@ -64,20 +71,19 @@
               <input class="sr-only" type="file" webkitdirectory multiple @change="onUploadFiles" />
             </label>
           </div>
-          <p v-if="uploadMessage" class="mt-3 text-body-xs" :class="uploadError ? 'text-red-500' : 'text-emerald-500'">{{ uploadMessage }}</p>
+          <p v-if="uploadMessage" class="mt-3 text-caption" :class="uploadError ? 'text-red-500' : 'text-emerald-500'">{{ uploadMessage }}</p>
         </div>
       </section>
 
       <section class="space-y-4">
-        <div v-if="!isPro" class="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-          <h2 class="font-cinzel text-heading-sm text-foreground">Custom creation is a Pro feature</h2>
-          <p class="mt-2 text-body-sm text-muted-foreground">Campaign-shared packs remain available read-only. Upgrade to upload or generate your own.</p>
-          <AppButton class="mt-4" variant="primary" label="View plans" @click="router.push('/billing')" />
+        <div v-if="!campaign.isAiEnabled" class="rounded-xl border border-border bg-card p-4">
+          <h2 class="font-cinzel text-heading-sm text-foreground">Generate a complete pack</h2>
+          <AiOffNotice class="mt-2" />
         </div>
 
         <div v-else class="rounded-xl border border-border bg-card p-4">
           <h2 class="font-cinzel text-heading-sm text-foreground">Generate a complete pack</h2>
-          <p class="mt-1 text-body-sm text-muted-foreground">GPT Image 2 low generates three reusable proof assets first. Approve the family, then the remaining schema jobs continue.</p>
+          <p class="mt-1 text-body text-muted-foreground">GPT Image 2 low generates three reusable proof assets first. Approve the family, then the remaining schema jobs continue.</p>
           <div class="mt-4 space-y-3">
             <label class="block">
               <span class="mb-1 block text-label text-muted-foreground">Concept name</span>
@@ -85,7 +91,7 @@
             </label>
             <label class="block">
               <span class="mb-1 block text-label text-muted-foreground">Description</span>
-              <textarea v-model="conceptDescription" maxlength="1000" rows="4" class="w-full rounded-md border border-border bg-background px-3 py-2 text-body-sm text-foreground" placeholder="Materials, motifs, palette, mood…" />
+              <textarea v-model="conceptDescription" maxlength="1000" rows="4" class="w-full rounded-md border border-border bg-background px-3 py-2 text-body text-foreground" placeholder="Materials, motifs, palette, mood…" />
             </label>
             <p v-if="!activeCampaignId" class="text-caption text-amber-500">Select an active campaign before generating.</p>
             <AppButton
@@ -133,13 +139,13 @@
                       size="caption"
                       block
                       :label="`Regenerate (${attemptsLeft(proofJob(run, proof.jobId))} left)`"
-                      @click="regenerateProof(run.id, proof.jobId)"
+                      @click="regenerateProof(run.id, proofJob(run, proof.jobId))"
                     />
                     <p v-else class="text-center text-caption text-muted-foreground">No retries left</p>
                   </div>
                 </div>
-                <p class="text-body-xs text-muted-foreground">The floor, wall, and solid-block proofs passed normalization. Approve this visual family before spending credits on the rest.</p>
-                <AppButton class="mt-2" variant="primary" size="sm" label="Approve and generate pack" @click="approveAndRun(run.id)" />
+                <p class="text-caption text-muted-foreground">The floor, wall, and solid-block proofs passed normalization. Approve this visual family before spending credits on the rest.</p>
+                <AppButton class="mt-2" variant="primary" size="sm" label="Approve and generate pack" @click="approveAndRun(run)" />
               </div>
               <AppButton
                 v-else-if="run.status === 'proof_pending' || run.status === 'generating'"
@@ -148,7 +154,7 @@
                 size="sm"
                 :label="runningId === run.id ? 'Generating…' : run.status === 'proof_pending' ? 'Generate proof' : 'Continue generation'"
                 :disabled="runningId === run.id"
-                @click="continueRun(run.id)"
+                @click="onContinueClick(run)"
               />
               <div v-if="failedJobs(run).length" class="mt-3 space-y-1">
                 <div v-for="job in failedJobs(run)" :key="job.id" class="flex items-center justify-between gap-2 text-caption">
@@ -158,7 +164,7 @@
                     variant="ghost"
                     size="caption"
                     :label="`Retry (${attemptsLeft(job)} left)`"
-                    @click="retryJob(run.id, job.id)"
+                    @click="retryJob(run.id, job)"
                   />
                   <span v-else class="shrink-0 text-muted-foreground">No retries left</span>
                 </div>
@@ -179,9 +185,12 @@ import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useTilePacks } from "@/composables/cartographer/useTilePacks";
-import { attemptsRemaining } from "@/cartographer/generationBudget";
+import { attemptCharge, attemptsRemaining } from "@/cartographer/generationBudget";
+import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { useConfirm } from "@/composables/useConfirm";
@@ -196,7 +205,22 @@ const { isPro } = useSubscription();
 const activeCampaignId = computed(() => campaign.activeCampaignId);
 const userId = computed(() => auth.user?.id ?? "");
 const { confirm } = useConfirm();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { campaignPacks, runs, upload, share, remove, createRun, runUntilPause, action, signJobAssets } = useTilePacks(activeCampaignId);
+
+// The per-slot price (`tile_pack_generation`, 12 credits) — first attempt on a
+// slot is billed, three free retries after; see generationBudget.ts.
+const tileCreditCost = computed(() => costOf("tile_pack_generation"));
+// The proof phase always generates exactly three reusable assets (floor,
+// wall, solid-block) before a run has a plan to size the rest from — see the
+// copy above the Create button.
+const PROOF_PHASE_SLOTS = 3;
+
+/** Credits still owed for a run's un-generated slots (first-attempt only). */
+function remainingRunCost(run: Pick<TilePackGenerationRun, "total_jobs" | "completed_jobs">): number {
+  return Math.max(0, run.total_jobs - run.completed_jobs) * tileCreditCost.value;
+}
 const runList = computed(() => runs.data.value ?? []);
 const conceptName = ref("");
 const conceptDescription = ref("");
@@ -251,7 +275,11 @@ async function onUploadFiles(event: Event): Promise<void> {
 }
 
 async function startRun(): Promise<void> {
+  // Defensive: the form is replaced by AiOffNotice while the toggle is off,
+  // so this only guards a stray trigger — the server enforces the same gate.
+  if (!campaign.isAiEnabled) return;
   if (!activeCampaignId.value) return;
+  if (!requireCredits(PROOF_PHASE_SLOTS * tileCreditCost.value)) return;
   const result = await createRun.mutateAsync({ name: conceptName.value.trim(), description: conceptDescription.value.trim(), campaignId: activeCampaignId.value });
   conceptName.value = "";
   conceptDescription.value = "";
@@ -266,23 +294,34 @@ async function continueRun(id: string): Promise<void> {
   finally { runningId.value = ""; }
 }
 
-async function approveAndRun(id: string): Promise<void> {
-  await action(id, "approve_proof");
-  await continueRun(id);
+async function approveAndRun(run: RunWithJobs): Promise<void> {
+  if (!requireCredits(remainingRunCost(run))) return;
+  await action(run.id, "approve_proof");
+  await continueRun(run.id);
 }
 
 async function cancelRun(id: string): Promise<void> {
   await action(id, "cancel");
 }
 
-async function retryJob(runId: string, jobId: string): Promise<void> {
-  await action(runId, "retry_job", jobId);
+async function onContinueClick(run: RunWithJobs): Promise<void> {
+  if (!requireCredits(remainingRunCost(run))) return;
+  await continueRun(run.id);
+}
+
+async function retryJob(runId: string, job: TilePackGenerationJob): Promise<void> {
+  // Free within the slot's retry budget (see generationBudget.ts); this only
+  // ever asks for credits if that budget were somehow reset.
+  if (!requireCredits(attemptCharge(tileCreditCost.value, job.generation_attempts))) return;
+  await action(runId, "retry_job", job.id);
   await continueRun(runId);
 }
 
-async function regenerateProof(runId: string, jobId: string): Promise<void> {
+async function regenerateProof(runId: string, job: TilePackGenerationJob | undefined): Promise<void> {
+  if (!job) return;
+  if (!requireCredits(attemptCharge(tileCreditCost.value, job.generation_attempts))) return;
   proofUrls[runId] = [];
-  await action(runId, "regenerate_job", jobId);
+  await action(runId, "regenerate_job", job.id);
   await continueRun(runId);
 }
 

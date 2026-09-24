@@ -219,18 +219,18 @@
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border shrink-0 flex flex-col gap-2">
         <GenerationCostBadge
-          v-if="isPro && isAiEnabled && !hooks.length"
+          v-if="isAiEnabled && !hooks.length"
           :credits="textCreditCost"
           :byok="textIsByok"
           class="self-center"
         />
         <AppButton
-          v-if="isPro && isAiEnabled && !hooks.length"
+          v-if="isAiEnabled && !hooks.length"
           variant="primary"
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !affordable(textCreditCost, textIsByok)"
+          :disabled="isAnyAiGenerating"
           :tooltip="
             isAnyAiGenerating && !isGenerating
               ? 'Another generation is already in progress'
@@ -239,23 +239,12 @@
           :label="isGenerating ? 'Generating…' : 'Generate Quest Hooks'"
           @click="runGenerate"
         />
-        <AppButton
-          v-else-if="!isPro"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          label="Generate Quest Hooks"
-          @click="showPaywall = true"
-        />
+        <AiOffNotice v-else-if="!isAiEnabled && !hooks.length" />
       </div>
     </aside>
   </Transition>
 
-  <PaywallModal
-    v-model="showPaywall"
-    message="AI generation is a Pro feature. Upgrade to generate NPCs, monsters, items, spells, puzzles, and quests."
-  />
+  <PaywallModal v-model="showQuotaPaywall" resource="quests" />
 </template>
 
 <script setup lang="ts">
@@ -276,12 +265,13 @@ import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GeneratedEntityChips from "@/components/common/GeneratedEntityChips.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { useQuestGeneration } from "@/ai/useQuestGeneration";
-import { useSubscription } from "@/composables/billing/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { resolveGeneratedEntities, type ResolvedEntity, ENTITY_KIND_ROUTE } from "@/ai/resolveGeneratedEntities";
 import { describeSpineRoutes, planSpineBeats } from "@/lib/quests/spine";
@@ -297,8 +287,6 @@ const { data: party } = useParty(panelOpen);
 const { data: npcs } = useNpcs(panelOpen);
 const { data: locations } = useAllLocations(panelOpen);
 const { data: factions } = useAllFactions(panelOpen);
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 const creatingIndex = ref<number | null>(null);
 const createdQuestIds = ref<Record<number, string>>({});
 
@@ -349,13 +337,15 @@ function goToEntity(entity: ResolvedEntity) {
   router.push(`${ENTITY_KIND_ROUTE[entity.kind]}/${entity.id}`);
 }
 
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textCreditCost = computed(
   () => Math.round(costOf("quest_generation") * textMultiplierFor(textProvider.value) * 100) / 100,
 );
+
+const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("quests");
 
 const partyLevelDisplay = computed(() => {
   const levels = (party.value ?? []).map((m) => m.level);
@@ -375,6 +365,8 @@ function dismissToBackground() {
 }
 
 async function runGenerate() {
+  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+
   const levels = (party.value ?? []).map((m) => m.level);
   const avgLevel = levels.length
     ? Math.ceil(levels.reduce((a, b) => a + b, 0) / levels.length)
@@ -456,6 +448,9 @@ async function createFromHook(hook: QuestHookResult, index: number) {
     }
     createdQuestIds.value = { ...createdQuestIds.value, [index]: questId };
     completedEntityId.value = questId;
+  } catch (e) {
+    if (gateQuotaError(e)) return;
+    throw e;
   } finally {
     creatingIndex.value = null;
   }

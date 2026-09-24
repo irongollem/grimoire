@@ -194,7 +194,7 @@ a heading never appears over an empty grid.
 
 ### Soundboard
 
-- **Soundboard** — ambient sounds & music for live sessions; multi-page/scene organisation; five sound sources (upload, URL, Spotify, Freesound SFX search, AI-generated via Lyria — upload and AI generation are Pro-gated); music playlists (sequential auto-advance) and ambient playlists (layered simultaneous scenes); Web Audio filter effects (muffled through door/wall, distant, underwater, cave, sewer); Google Cast + Media Session (CarPlay/lock screen) for music playlists; free tier capped at 20 sounds / 1 page / 3 playlists; DM-only — players have no access (owner-only RLS, no realtime channel). See [soundboard.md](soundboard.md).
+- **Soundboard** — ambient sounds & music for live sessions; multi-page/scene organisation; five sound sources (upload, URL, Spotify, Freesound SFX search, AI-generated via Lyria — upload is Pro-gated, AI generation is `ai_enabled`- and credit-gated on any plan); music playlists (sequential auto-advance) and ambient playlists (layered simultaneous scenes); Web Audio filter effects (muffled through door/wall, distant, underwater, cave, sewer); Google Cast + Media Session (CarPlay/lock screen) for music playlists; free tier capped at 20 sounds / 1 page / 3 playlists; DM-only — players have no access (owner-only RLS, no realtime channel). See [soundboard.md](soundboard.md).
 
 ---
 

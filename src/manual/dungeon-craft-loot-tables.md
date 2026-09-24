@@ -58,7 +58,7 @@ A rarity-filtered random pick:
 
 ## AI loot generator
 
-Click **Generate** on the Loot Tables tab. This needs a Pro subscription and your campaign's AI generation switched on (Campaign Settings → AI Assistant) — on Free, the button opens the upgrade paywall instead. Describe the hoard ("the smugglers' vault beneath the Rusty Anchor"), pick a **Tier**, and optionally tick **Skip items that require attunement**.
+Click **Generate** on the Loot Tables tab. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost — if AI is off, the panel points you at the toggle instead of the form. Describe the hoard ("the smugglers' vault beneath the Rusty Anchor"), pick a **Tier**, and optionally tick **Skip items that require attunement**.
 
 What makes this different from a generic AI table: Grimoire searches **your own Item Vault** — your homebrew items plus the library items your campaign's enabled sources make visible — and offers the AI only items that actually exist and fit the tier you picked. The hoard comes back built from real items, not invented names, so every entry drops something the party can actually pick up.
 

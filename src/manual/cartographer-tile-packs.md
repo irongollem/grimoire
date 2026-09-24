@@ -27,7 +27,7 @@ Custom uploads require **Pro**. Choose **Choose zip** or **Choose folder** (a fo
 
 ## Generate a pack
 
-Custom generation also requires **Pro**, and you need an active campaign selected (the panel warns you if you don't have one).
+Generating a pack works on every plan: you need an active campaign selected, its AI Assistant switched on, and enough credits. With AI off, the panel shows "AI is off for this campaign" with a **Turn it on** link instead of the form.
 
 1. Enter a **Concept name** (up to 100 characters) and a **Description** (up to 1,000 characters) — materials, motifs, palette, and mood.
 2. Click **Create generation run**.
@@ -45,7 +45,7 @@ Generated packs join your normal Cartographer pack picker once every required sl
 
 ## Tips
 
-> If you're not on Pro, the page shows an upgrade prompt instead of the upload/generate panels — shared campaign packs stay available read-only either way.
+> Uploading a pack you made yourself is the one Pro-only part of this page — on Free the upload panel shows a **View plans** button instead. Generating a pack and painting with shared campaign packs work on every plan.
 
 - A provider failure or an unusable result releases its credit reservation without using one of your retries — you're only charged for tiles that actually came back usable.
 - Deleting a pack removes its manifest, generated candidates, and normalized assets. Maps that used it fall back to another pack until you pick a replacement.

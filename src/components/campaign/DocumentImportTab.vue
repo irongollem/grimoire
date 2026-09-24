@@ -66,7 +66,7 @@
           label="Start extraction"
           :icon="IconGenerate"
           :loading="startExtraction.isPending.value"
-          :disabled="!costEstimate || !affordable(costEstimate.totalCredits)"
+          :disabled="!costEstimate"
           @click="onStartExtraction(pendingRow)"
         />
       </div>
@@ -304,7 +304,7 @@ import DocumentImportPasteStep from "@/components/campaign/DocumentImportPasteSt
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
 import { useSubscription } from "@/composables/billing/useSubscription";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import {
   useActiveDocumentImport,
   useCreateDocumentImport,
@@ -351,7 +351,7 @@ function sourceKindIcon(kind: DocumentImportSourceKind) {
 const { confirm } = useConfirm();
 const toast = useToast();
 const { isPro } = useSubscription();
-const { affordable } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 
 // ── The active row, and the terminal-state fallback ──────────────────────────
 
@@ -445,6 +445,8 @@ watch(activeImport, (next, prev) => {
 
 const currentPageCount = computed<number>(() => {
   if (pendingRow.value) return pendingRow.value.page_count;
+  // A failed import's retry re-runs the extraction and is charged again.
+  if (activeImport.value?.status === "failed") return activeImport.value.page_count;
   return countResult.value?.ok ? countResult.value.pageCount : 0;
 });
 const { estimate: costEstimate, isLoading: costLoading, isError: costErrored } = useImportCost(currentPageCount);
@@ -572,6 +574,7 @@ async function submitUpload() {
 }
 
 async function onStartExtraction(row: DocumentImport) {
+  if (!costEstimate.value || !requireCredits(costEstimate.value.totalCredits)) return;
   pendingStartError.value = null;
   try {
     const outcome = await startExtraction.mutateAsync(row.id);
@@ -603,6 +606,7 @@ const abandonError = ref<string | null>(null);
 const failedActionError = ref<string | null>(null);
 
 async function retryFailedImport(view: { id: string }) {
+  if (!costEstimate.value || !requireCredits(costEstimate.value.totalCredits)) return;
   failedActionError.value = null;
   pendingStartError.value = null;
   try {

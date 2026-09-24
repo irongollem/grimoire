@@ -125,10 +125,6 @@ export function useAiCredits() {
     return Math.round(base * sizeMultiplier(opts?.size) * 100) / 100
   }
 
-  function canGenerate(generationType: string): boolean {
-    return (balance.value ?? 0) >= costOf(generationType)
-  }
-
   /**
    * Whether a generation costing `credits` is affordable. BYOK is always
    * affordable (the user pays their own API bill), and we never block while the
@@ -139,13 +135,14 @@ export function useAiCredits() {
     return byok || isLoading.value || (balance.value ?? 0) >= credits
   }
 
-  async function purchasePack(packId: string, withdrawalConsent = false): Promise<void> {
+  /** `returnPath` — where Stripe sends the buyer back to; Billing when omitted. */
+  async function purchasePack(packId: string, withdrawalConsent = false, returnPath?: string): Promise<void> {
     purchaseLoading.value = true
     purchaseError.value = null
     try {
       const { data, error } = await supabase.functions.invoke(
         'stripe-create-credit-checkout',
-        { body: { packId, withdrawalConsent } },
+        { body: { packId, withdrawalConsent, returnPath } },
       )
       if (error) throw new Error(await edgeErrorMessage(error))
       if (data?.url) window.location.href = data.url
@@ -167,7 +164,6 @@ export function useAiCredits() {
     subscriptionBalance,
     purchasedBalance,
     isLoading,
-    canGenerate,
     affordable,
     costOf,
     logUsage: logUsage,

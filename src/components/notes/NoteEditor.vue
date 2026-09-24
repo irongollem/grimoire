@@ -107,7 +107,8 @@
           size="icon-xs"
           :icon="IconNote"
           class="hover:bg-accent"
-          tooltip="Write Chronicle"
+          :disabled="!campaignStore.isAiEnabled"
+          :tooltip="campaignStore.isAiEnabled ? 'Write Chronicle' : AI_OFF_TOOLTIP"
           @click="openChroniclerWrite"
         />
         <template v-if="hasImageProvider">
@@ -116,9 +117,13 @@
             size="icon-xs"
             :icon="IconGenerate"
             class="hover:bg-accent"
-            tooltip="Generate scene illustration"
+            :disabled="!campaignStore.isAiEnabled"
+            :tooltip="campaignStore.isAiEnabled ? 'Generate scene illustration' : AI_OFF_TOOLTIP"
             @click="openChroniclerGenerate"
           />
+          <!-- Scene library browses images already generated — not itself a
+               generation action, so it stays available regardless of the AI
+               toggle. -->
           <AppButton
             variant="ghost"
             size="icon-xs"
@@ -162,12 +167,13 @@
   />
 
   <PaywallModal v-model="showPaywall" resource="notes" />
-  <PaywallModal v-model="showAiPaywall" message="AI scene illustration is a Pro feature. Upgrade to generate artwork from your session notes." />
 </template>
 
 <script setup lang="ts">
 import { useConfirm } from "@/composables/useConfirm";
 const { confirm } = useConfirm();
+import { useToast } from "@/composables/useToast";
+const { info } = useToast();
 import { ref, computed } from "vue";
 import { useRouter, type RouteLocationNormalized } from "vue-router";
 import { useUnsavedGuard } from "@/composables/useUnsavedGuard";
@@ -207,7 +213,6 @@ import { getCurrentUser } from "@/lib/supabase";
 import { storeToRefs } from "pinia";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { isQuotaExceeded } from "@/lib/quotaError";
-import { useSubscription } from "@/composables/billing/useSubscription";
 
 const CATEGORIES: { value: NoteCategory; label: string }[] = [
   { value: "general", label: "General" },
@@ -268,7 +273,10 @@ const { mentionItems: entityMentionItems } = useEntityMentionItems();
 const showChroniclerGenerate = ref(false);
 const showChroniclerLibrary  = ref(false);
 const showChroniclerWrite    = ref(false);
-const showAiPaywall          = ref(false);
+
+// Mirrors AiOffNotice's copy for the toolbar's icon-only buttons, which have
+// no room for the component itself — a tooltip is the honest equivalent here.
+const AI_OFF_TOOLTIP = "AI is off for this campaign. Turn it on in campaign settings.";
 
 const campaignStore = useCampaignStore();
 // Image generation runs through the shared provider abstraction on both the
@@ -281,21 +289,15 @@ const hasImageProvider = computed(() => !!(campaignStore.activeCampaign?.image_p
 // decrypted client-side key.
 const hasTextProvider = computed(() => !!(campaignStore.activeCampaign?.text_provider ?? "openai"));
 
-const { isPro } = useSubscription();
-
 function openChroniclerGenerate() {
-  if (!isPro.value) {
-    showAiPaywall.value = true;
-    return;
-  }
+  // Defensive: the toolbar button is disabled while AI is off, so this only
+  // guards a stray keyboard/programmatic trigger.
+  if (!campaignStore.isAiEnabled) return;
   showChroniclerGenerate.value = true;
 }
 
 function openChroniclerWrite() {
-  if (!isPro.value) {
-    showAiPaywall.value = true;
-    return;
-  }
+  if (!campaignStore.isAiEnabled) return;
   showChroniclerWrite.value = true;
 }
 
@@ -343,7 +345,13 @@ function onChroniclerWrite(chronicle: ChronicleInsert) {
 const illustrationPrompt = ref("");
 
 function onIllustrationClick(prompt: string) {
-  if (!isPro.value) { showAiPaywall.value = true; return; }
+  // Unlike the toolbar buttons, this chip lives inside already-written note
+  // content and can't show a disabled state — so a click while AI is off gets
+  // the same message as AiOffNotice, via toast, rather than doing nothing.
+  if (!campaignStore.isAiEnabled) {
+    info(AI_OFF_TOOLTIP, undefined, { action: { label: "Turn it on", run: () => router.push("/campaign/settings?tab=ai") } });
+    return;
+  }
   illustrationPrompt.value = prompt;
   showChroniclerGenerate.value = true;
 }

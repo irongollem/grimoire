@@ -43,7 +43,7 @@ Notes are DM-only by default, but you can share one with specific players:
 
 ## Writing with the AI Chronicler
 
-From a note's toolbar you can reach two AI tools (Pro feature — a paywall prompt appears otherwise):
+From a note's toolbar you can reach two AI tools, available on every plan once the campaign's AI Assistant is switched on:
 
 - **Write Chronicle** — paste in raw session facts (supports `@mentions` of your NPCs and locations), pick a tone, and it drafts prose you can review and **Insert into Note** before it touches your note.
 - **Generate scene illustration** — describe a scene (again with `@mentions` to pull in existing character art), pick an image shape, and generate an illustration for the note. Each shape shows its own cost before you generate.

@@ -52,7 +52,7 @@ Click **Generate** in the toolbar to open the Item Generator side panel:
 3. **Generate item art** toggle — also produce a portrait.
 4. **Make it cursed** toggle — let the AI choose and write a curse for the item.
 
-The panel shows the credit cost before you confirm, and is Pro-gated — free accounts see a paywall when they try to generate.
+The panel shows the credit cost before you confirm — it works the same on every plan, as long as the campaign's AI Assistant is on and you can afford the cost.
 
 ## Editing an item
 

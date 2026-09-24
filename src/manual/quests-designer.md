@@ -7,7 +7,7 @@ summary: Design it — a back-and-forth conversation with the AI that proposes a
 keywords: quest designer, design it, ai, conversation, beat tree, propose, exchange, credits, questions
 ---
 
-**Design it** is a conversational way to build a quest's whole story flow up front, instead of typing beats one at a time. You describe the quest in your own words; the model proposes a beat tree and, where your description leaves a fork genuinely ambiguous, asks back rather than guessing. Find it on the **New Quest** page (**Campaign → Quests → New Quest**), as the third option on the segmented control alongside **Type it** and **Paste a page** — it only appears when AI is switched on for the campaign, and needs a Pro plan to actually run (a free account sees the same button, gated behind the upgrade prompt).
+**Design it** is a conversational way to build a quest's whole story flow up front, instead of typing beats one at a time. You describe the quest in your own words; the model proposes a beat tree and, where your description leaves a fork genuinely ambiguous, asks back rather than guessing. Find it on the **New Quest** page (**Campaign → Quests → New Quest**), as the third option on the segmented control alongside **Type it** and **Paste a page** — it only appears when AI is switched on for the campaign — it works the same on every plan, billed to credits.
 
 ## Key ideas
 

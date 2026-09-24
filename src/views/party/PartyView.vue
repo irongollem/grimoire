@@ -63,6 +63,10 @@
         </div>
       </div>
 
+      <div v-if="hasPartyMembers && !generating" class="px-4 pt-2 flex justify-end">
+        <GenerationCostBadge :credits="groupPortraitCost" :byok="groupPortraitByok" :show-balance="false" />
+      </div>
+
       <div v-if="error" class="px-4 py-2">
         <p class="text-caption text-destructive">{{ error }}</p>
       </div>
@@ -92,12 +96,22 @@ import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import PartyTracker from "@/components/party/PartyTracker.vue";
 import PartyMilestonesPanel from "@/components/party/PartyMilestonesPanel.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useGroupPortrait } from "@/composables/party/useGroupPortrait";
 
 const tracker     = ref<InstanceType<typeof PartyTracker> | null>(null);
 const uploadInput = ref<HTMLInputElement | null>(null);
 
-const { groupPortraitUrl, partyMembers, generating, error, generateGroupPortrait, uploadGroupPortrait } = useGroupPortrait();
+const {
+  groupPortraitUrl,
+  partyMembers,
+  generating,
+  error,
+  generateGroupPortrait,
+  uploadGroupPortrait,
+  groupPortraitCost,
+  groupPortraitByok,
+} = useGroupPortrait();
 const hasPartyMembers = computed(() => (partyMembers.value?.length ?? 0) > 0);
 
 function onFileSelected(e: Event) {

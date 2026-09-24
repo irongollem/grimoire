@@ -12,7 +12,7 @@ The NPC Generator is a slide-in panel for creating NPCs faster than the full edi
 ## Key ideas
 
 - **Quick Create** works with or without AI turned on — it's always available.
-- **Generate with AI** needs both your campaign's AI generation switched on (in Campaign Settings) and a Pro subscription; without Pro, the button opens a paywall instead of generating.
+- **Generate with AI** needs your campaign's AI generation switched on (in Campaign Settings) and enough credits to cover the cost — it works the same on every plan.
 - Everything you type in **Quick options** is used as a constraint the AI is told to respect, not just a starting point it might ignore.
 
 ## Quick Create
@@ -25,7 +25,7 @@ Picking a faction or an associate here creates that membership or connection aut
 
 ## AI Generation
 
-Requires your campaign's AI generation to be turned on and a Pro subscription; a free-tier account sees the same **Generate with AI** button, but clicking it opens a paywall explaining that AI generation is a Pro feature.
+Requires your campaign's AI generation to be turned on and enough credits to cover the cost — the button works the same on every plan; if AI is off for the campaign, it points you at the toggle instead of running.
 
 1. Write a **Concept** — a free-text description (required for AI generation). Example placeholder: "A mysterious tiefling bard who works as a city informant and hides a dark past…"
 2. Fill in any **Quick options** you want to lock in — they're injected into the AI prompt as constraints the model is told to honour "unless the concept explicitly conflicts."

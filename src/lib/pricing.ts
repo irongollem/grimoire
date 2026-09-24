@@ -64,3 +64,17 @@ export function formatCents(cents: number, currency: string): string {
     maximumFractionDigits: 2,
   }).format(cents / 100)
 }
+
+/** A credit pack's price in `currency` (falling back to its Stripe currency), or "" while unconfigured. */
+export function formatPackPrice(
+  pack: {
+    stripe_unit_amount: number | null
+    stripe_currency: string | null
+    stripe_currency_options: Record<string, { unit_amount: number }> | null
+  },
+  currency: string,
+): string {
+  if (!pack.stripe_unit_amount || !pack.stripe_currency) return ''
+  const r = resolveAmount(pack.stripe_unit_amount, pack.stripe_currency, pack.stripe_currency_options, currency)
+  return r ? formatCents(r.amount, r.currency) : ''
+}

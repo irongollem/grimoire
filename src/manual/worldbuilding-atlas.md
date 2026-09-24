@@ -43,7 +43,7 @@ The place pane shows: a breadcrumb of clickable ancestors, the sigil, name and t
 
 ## Generating a location with AI
 
-Click **Generate** on the Atlas list page to open the Location Generator panel (Pro feature — Free shows an upgrade prompt instead). Describe the place in the **Concept** box, optionally constrain it with a **Location Type** and **Parent Location**, and toggle **Generate location art** / **Generate map sketch** if you want the AI to produce art alongside the write-up. Generation runs in the background — you can close the panel and keep working. See [AI Generation & Credits](#ai-generation-credits) for how costs are shown and charged.
+Click **Generate** on the Atlas list page to open the Location Generator panel. Describe the place in the **Concept** box, optionally constrain it with a **Location Type** and **Parent Location**, and toggle **Generate location art** / **Generate map sketch** if you want the AI to produce art alongside the write-up. Generation runs in the background — you can close the panel and keep working. See [AI Generation & Credits](#ai-generation-credits) for how costs are shown and charged.
 
 ## Interactive maps and pins
 

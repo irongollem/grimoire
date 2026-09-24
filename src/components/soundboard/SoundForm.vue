@@ -83,16 +83,10 @@
           tone="arcane"
           emphasis="strong"
           size="sm"
-          :tooltip="isPro ? undefined : 'Pro feature — upgrade to generate AI music'"
-          :class="[
-            'flex-1',
-            activeSourceTab !== 'generate' && !isPro ? 'text-muted-foreground/40 cursor-not-allowed' : '',
-          ]"
-          @click="isPro ? (activeSourceTab = 'generate') : undefined"
-        >
-          Generate
-          <ProBadge v-if="!isPro" />
-        </AppButton>
+          label="Generate"
+          class="flex-1"
+          @click="activeSourceTab = 'generate'"
+        />
         <AppButton
           :variant="activeSourceTab === 'browse' ? 'tinted' : 'subtle'"
           tone="info"
@@ -140,6 +134,8 @@
 
       <!-- AI Generate -->
       <div v-else-if="activeSourceTab === 'generate'" class="space-y-3">
+        <AiOffNotice v-if="!isAiEnabled" />
+        <template v-else>
         <!-- Description -->
         <div class="space-y-1">
           <label class="text-caption text-muted-foreground">Description</label>
@@ -174,9 +170,7 @@
         </div>
 
         <!-- Cost -->
-        <p class="text-caption-sm opacity-70">
-          {{ geminiApiKey ? 'BYOK' : `${costOf(MUSIC_GENERATION_TYPE)} cr per track` }}
-        </p>
+        <GenerationCostBadge :credits="costOf(MUSIC_GENERATION_TYPE)" :byok="!!geminiApiKey" />
 
         <!-- Lyrics — only meaningful once the track will actually sing. -->
         <div v-if="generateVocals === 'vocals'" class="space-y-1">
@@ -220,6 +214,7 @@
           {{ statusText }}
         </p>
         <p v-if="generateError" class="text-caption text-destructive">{{ generateError }}</p>
+      </template>
       </div>
 
       <!-- Browse Freesound -->
@@ -294,9 +289,12 @@ import AppSelect from "@/components/common/AppSelect.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import { useCreateSound, useSoundUpload } from "@/composables/soundboard/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/billing/useSubscription";
+import { useCampaignStore } from "@/stores/campaign";
 import {
   generateMusicLocally,
   structureMusicPrompt,
@@ -309,6 +307,7 @@ import {
   type MusicVocals,
 } from "@/lib/audio/aiMusic";
 import { logUsage, useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { supabase } from "@/lib/supabase";
 import {
   acknowledgeAiGenerationJob,
@@ -322,7 +321,14 @@ import type { SoundCategory } from "@/types/sound.types";
 
 const spotifyStore = useSpotifyStore();
 const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { isPro } = useSubscription();
+// Upload (own audio, not AI) stays Pro-only; Generate reads the campaign's
+// own AI Assistant toggle instead — the same gate generate-music enforces
+// server-side. BYOK gets no exemption from the toggle, only from the credit
+// charge (see GenerationCostBadge below).
+const campaignStore = useCampaignStore();
+const isAiEnabled = computed(() => campaignStore.isAiEnabled);
 
 const { pageId = null, geminiApiKey = null, campaignId = null } = defineProps<{
   pageId?: string | null;
@@ -579,11 +585,11 @@ const MUSIC_LENGTH_OPTIONS: SegmentedOption<MusicLengthSeconds>[] = MUSIC_LENGTH
 
 const VOCALS_OPTIONS: SegmentedOption<MusicVocals>[] = [
   { value: "instrumental", label: "Instrumental" },
+  { value: "choir", label: "Choir" },
   { value: "vocals", label: "Vocals" },
 ];
 
 const lyricsCharsLeft = computed(() => LYRICS_MAX_CHARS - generateLyrics.value.length);
-  { value: "choir", label: "Choir" },
 
 // ── Submit state ──────────────────────────────────────────────────────────
 
@@ -592,7 +598,9 @@ const anyBusy = computed(() => isBusy.value || isPending.value || isStructuring.
 const submitDisabled = computed(() => {
   if (anyBusy.value) return true;
   if (activeSourceTab.value === "spotify") return !isValidSpotifyUrl.value;
-  if (activeSourceTab.value === "generate") return !generateDescription.value.trim();
+  if (activeSourceTab.value === "generate") {
+    return !isAiEnabled.value || !generateDescription.value.trim();
+  }
   return false;
 });
 
@@ -662,7 +670,11 @@ async function handleSubmit() {
   }
 
   if (activeSourceTab.value === "generate") {
+    // Defensive: the tab shows AiOffNotice and the submit button is disabled
+    // while the toggle is off, so this only guards a stray trigger.
+    if (!isAiEnabled.value) return;
     if (!geminiApiKey && !campaignId) return;
+    if (!requireCredits(costOf(MUSIC_GENERATION_TYPE), !!geminiApiKey)) return;
 
     const musicRequest: MusicRequest = {
       description: generateDescription.value.trim(),

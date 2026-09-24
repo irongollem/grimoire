@@ -71,9 +71,9 @@
         emphasis="solid"
         size="sm"
         class="px-4"
-        :disabled="generating || !canAfford"
+        :disabled="generating"
         :label="generating ? 'Generating…' : 'Generate'"
-        @click="$emit('generate')"
+        @click="onGenerateClick"
       />
     </div>
   </AppModal>
@@ -142,12 +142,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppModal from "@/components/common/AppModal.vue";
 import EntityCombobox from "@/components/common/EntityCombobox.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useConfirm } from "@/composables/useConfirm";
 
 interface Preset {
@@ -206,8 +205,12 @@ const emit = defineEmits<{
   "update:promptSuffix": [value: string];
 }>();
 
-const { affordable } = useAiCredits();
-const canAfford = computed(() => affordable(credits, byok));
+const { requireCredits } = useOutOfCredits();
+
+function onGenerateClick() {
+  if (!requireCredits(credits, byok)) return;
+  emit("generate");
+}
 
 const { confirm } = useConfirm();
 

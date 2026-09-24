@@ -325,26 +325,7 @@
             size="xs"
           />
         </div>
-        <WithdrawalConsent v-model="packConsent" kind="credit_pack" />
-        <div class="grid grid-cols-3 gap-2">
-          <button
-            v-for="pack in creditPacks"
-            :key="pack.pack_id"
-            class="flex flex-col items-center gap-1 rounded-lg border border-border bg-muted/30 p-3 text-center hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            :disabled="purchaseLoading || !packConsent"
-            @click="purchasePack(pack.pack_id, packConsent)"
-          >
-            <span class="font-cinzel text-xs font-bold text-foreground">{{ pack.credits }} credits</span>
-            <span class="text-caption italic text-muted-foreground">{{ formatPackPrice(pack) }}</span>
-            <span class="text-eyebrow text-muted-foreground/70">{{ pack.label }}</span>
-          </button>
-        </div>
-        <p class="text-caption text-muted-foreground/60 italic">
-          Taxes calculated at checkout based on your location.
-        </p>
-        <p v-if="purchaseError" class="text-caption text-red-400 italic">
-          {{ purchaseError }}
-        </p>
+        <CreditPackPicker :currency="currency" />
       </div>
     </div>
   </div>
@@ -357,6 +338,7 @@ import { IconBilling, IconDM, IconGenerate, IconLoading, IconQuest } from '@/lib
 import PageHeader from "@/components/common/PageHeader.vue";
 import ManualHelpLink from "@/components/common/ManualHelpLink.vue";
 import WithdrawalConsent from "@/components/billing/WithdrawalConsent.vue";
+import CreditPackPicker from "@/components/billing/CreditPackPicker.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
@@ -375,7 +357,6 @@ const creditPurchaseSuccess = computed(() => route.query.credit_purchase === "su
 // R3: EU withdrawal-waiver consent, ticked before a purchase, passed to the
 // checkout function which records it (timestamp + version) server-side.
 const subConsent = ref(false);
-const packConsent = ref(false);
 
 const { subscription, isPro, canUpgrade, isPendingCancellation, isLoading } = useSubscription();
 const {
@@ -390,9 +371,6 @@ const {
   subscriptionBalance,
   purchasedBalance,
   isLoading: creditsLoading,
-  purchasePack,
-  purchaseLoading,
-  purchaseError,
 } = useAiCredits();
 
 const { data: creditPacks } = useCreditPacks();
@@ -465,12 +443,6 @@ const savedMonths = computed(() => {
 
 /** Monthly included-credit allowance for the Pro plan (0 until configured). */
 const proMonthlyCredits = computed(() => proPlan.value?.monthly_credits ?? 0);
-
-function formatPackPrice(pack: { stripe_unit_amount: number | null; stripe_currency: string | null; stripe_currency_options: Record<string, { unit_amount: number }> | null }): string {
-  if (!pack.stripe_unit_amount || !pack.stripe_currency) return "";
-  const r = resolveAmount(pack.stripe_unit_amount, pack.stripe_currency, pack.stripe_currency_options, currency.value);
-  return r ? formatCents(r.amount, r.currency) : "";
-}
 
 const renewalDate = computed(() => {
   const end = subscription.value?.current_period_end;

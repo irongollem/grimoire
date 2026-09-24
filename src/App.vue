@@ -5,6 +5,7 @@
       <RouterView />
     </component>
     <ConfirmDialog />
+    <OutOfCreditsModal v-if="auth.isAuthenticated" />
     <ToastHost />
     <ManualRollPrompt />
     <RollModePicker />
@@ -38,6 +39,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import { SpeedInsights } from "@vercel/speed-insights/vue";
 import { layoutLoaders } from "@/layouts/layoutLoader";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import OutOfCreditsModal from "@/components/billing/OutOfCreditsModal.vue";
 import ToastHost from "@/components/common/ToastHost.vue";
 import ManualRollPrompt from "@/components/common/ManualRollPrompt.vue";
 import RollModePicker from "@/components/common/RollModePicker.vue";

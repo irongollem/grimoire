@@ -368,7 +368,7 @@ Tables carry an optional CR tier for filtering: `Any`, `CR 0–4`, `CR 5–10`, 
 
 ### AI loot generator (#602)
 
-**Panel:** `LootTableGeneratorPanel.vue`, opened from the Loot Tables tab's **Generate** action (`ui.lootTableGeneratorOpen`), mounted with the rest in `AiGeneratorPanels.vue`. Inputs: concept (500 chars), tier, and a "skip items that require attunement" toggle. Pro-gated and `ai_enabled`-gated like every other generator.
+**Panel:** `LootTableGeneratorPanel.vue`, opened from the Loot Tables tab's **Generate** action (`ui.lootTableGeneratorOpen`), mounted with the rest in `AiGeneratorPanels.vue`. Inputs: concept (500 chars), tier, and a "skip items that require attunement" toggle. `ai_enabled`- and credit-gated like every other generator — not plan-gated (24 Sep 2026 policy).
 
 **Server-path only.** `supabase/functions/generate-loot/index.ts` — no client-side BYOK twin, unlike every sibling in `src/ai/`. Those carry one because they predate retrieval; this generator was grounded from day one and its whole value is a candidate block built from vectors only the service-role client can read. Local-key mode gets an explicit error, not a silent downgrade (BYOK-local is a legacy tier, not a parity target — see `useQuestGeneration.ts`).
 

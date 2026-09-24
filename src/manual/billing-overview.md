@@ -69,7 +69,7 @@ Credits power AI generation across the app — portraits, scenes, stat blocks, a
 
 ### Buying more credits
 
-Under **Buy more credits**, tick the withdrawal-right consent checkbox, then click any of the credit-pack tiles — each shows its credit amount and live price (with a currency switcher if applicable). Taxes are calculated at checkout. A **Credits added to your account** banner confirms a successful purchase when you're returned to this page.
+Under **Buy more credits**, tick the withdrawal-right consent checkbox, then click any of the credit-pack tiles — each shows its credit amount and live price (with a currency switcher if applicable). Taxes are calculated at checkout. A **Credits added to your account** banner confirms a successful purchase when you're returned to this page. You can also buy a pack without coming here: any generator that's short on credits offers the same packs in its **Not enough credits** window — see [AI Generation & Credits](#ai-generation-credits).
 
 ## What your players see
 

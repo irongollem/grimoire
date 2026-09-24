@@ -1,10 +1,6 @@
 <template>
   <div class="space-y-4">
-    <ProFeatureGate v-if="!isPro" message="Simulacrum forging is available on the Pro plan." />
-
-    <p v-else-if="!campaign.isAiEnabled" class="text-body text-muted-foreground italic">
-      AI features are disabled for this campaign — ask your DM to enable them in campaign settings.
-    </p>
+    <AiOffNotice v-if="!campaign.isAiEnabled" />
 
     <template v-else>
       <!-- Stylized result, or the source portrait before the first roll -->
@@ -48,7 +44,7 @@
           :variant="stylizedUrl ? 'outline' : 'primary'"
           :fill="stylizedUrl ? 'muted' : 'none'"
           size="md"
-          :disabled="isStylizing || isResumingStylize || !sourcePortraitUrl || !affordable(stylizeCost)"
+          :disabled="isStylizing || isResumingStylize || !sourcePortraitUrl"
           :label="(isStylizing || isResumingStylize) ? (stylizedUrl ? 'Re-rolling…' : 'Stylizing…') : (stylizedUrl ? 'Re-roll' : 'Stylize portrait')"
           @click="runStylize"
         >
@@ -79,10 +75,10 @@ import { IconGenerate } from "@/lib/icons";
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
-import ProFeatureGate from "@/components/common/ProFeatureGate.vue";
-import { useSubscription } from "@/composables/billing/useSubscription";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useMiniForge } from "@/ai/useMiniForge";
 import type { Mini, MiniFormat, MiniSourceTable } from "@/types/mini.types";
 
@@ -100,10 +96,9 @@ const emit = defineEmits<{
   continue: [];
 }>();
 
-const { isPro } = useSubscription();
-
 const campaign = useCampaignStore();
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { stylize, waitForStylize, isStylizing } = useMiniForge();
 
 const instructions = ref("");
@@ -116,6 +111,7 @@ const observedJobId = ref<string | null>(null);
 const stylizeCost = computed(() => costOf("entity_image", { size: "1024x1024" }));
 
 async function runStylize() {
+  if (!requireCredits(stylizeCost.value)) return;
   error.value = null;
   try {
     const updated = await stylize({

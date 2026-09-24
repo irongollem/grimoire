@@ -107,7 +107,7 @@ Labels: **Trivial / Easy / Medium / Hard / Deadly / Legendary**, with a threshol
 
 ## Generating an encounter with AI
 
-Click **Generate** on the Encounters list (not inside the builder itself) to open the generator panel. This needs a Pro subscription and your campaign's AI generation switched on (Campaign Settings → AI Assistant) — on Free, the same button opens an upgrade paywall instead of generating.
+Click **Generate** on the Encounters list (not inside the builder itself) to open the generator panel. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost — if AI is off, the panel points you at the toggle instead of generating.
 
 1. Describe the fight in **CONCEPT** — e.g. "Goblin ambush on the forest road, levels 3–5, a betrayal mid-fight".
 2. Pick a **DIFFICULTY**: **Auto**, **Easy**, **Medium**, **Hard**, or **Deadly**.

@@ -1,8 +1,6 @@
 <template>
   <section class="space-y-5">
-    <p v-if="isPro && !isAiEnabled" class="text-body text-muted-foreground">
-      AI is off for this campaign.
-    </p>
+    <AiOffNotice v-if="!isAiEnabled" />
 
     <template v-else>
       <div class="grid gap-5 lg:grid-cols-2 lg:items-start">
@@ -36,7 +34,6 @@
             </div>
 
             <AppButton
-              v-if="isPro"
               variant="primary"
               size="md"
               block
@@ -44,15 +41,6 @@
               :disabled="proposeDisabled"
               :label="isGenerating ? 'Proposing…' : 'Propose a tree'"
               @click="onPropose"
-            />
-            <AppButton
-              v-else
-              variant="primary"
-              size="md"
-              block
-              :icon="IconGenerate"
-              label="Propose a tree"
-              @click="showPaywall = true"
             />
           </template>
 
@@ -151,10 +139,7 @@
     </template>
   </section>
 
-  <PaywallModal
-    v-model="showPaywall"
-    message="AI generation is a Pro feature. Upgrade to generate NPCs, monsters, items, spells, puzzles, and quests."
-  />
+  <PaywallModal v-model="showQuotaPaywall" resource="quests" />
 </template>
 
 <script setup lang="ts">
@@ -177,12 +162,12 @@
 import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
-import { useSubscription } from "@/composables/billing/useSubscription";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllLocations } from "@/composables/locations/useLocations";
 import { useAllFactions } from "@/composables/factions/useFactions";
 import { useCreateQuestFromHook } from "@/composables/quests/useCreateQuestFromHook";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useConfirm } from "@/composables/useConfirm";
 import { useToast } from "@/composables/useToast";
@@ -201,6 +186,7 @@ import {
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import QuestDesignQuestionCard from "./QuestDesignQuestionCard.vue";
 import QuestDesignTreePreview from "./QuestDesignTreePreview.vue";
@@ -210,12 +196,11 @@ const { parentId = null } = defineProps<{ parentId?: string | null }>();
 
 const router = useRouter();
 const campaign = useCampaignStore();
-const { isPro } = useSubscription();
 const { data: npcs } = useNpcs();
 const { data: locations } = useAllLocations();
 const { data: factions } = useAllFactions();
 const { createFromHook } = useCreateQuestFromHook();
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
 const { confirm } = useConfirm();
 const toast = useToast();
@@ -236,12 +221,14 @@ const {
   reset,
 } = useQuestDesigner();
 
-const showPaywall = ref(false);
 const creating = ref(false);
 const noteText = ref("");
 const selections = ref<Record<string, { optionKey: string | null; freeText: string }>>({});
 
 const isAiEnabled = computed(() => campaign.isAiEnabled);
+
+const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("quests");
+
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textCreditCost = computed(
@@ -250,7 +237,7 @@ const textCreditCost = computed(
 const creditsSoFar = computed(() => Math.round(turn.value * textCreditCost.value * 100) / 100);
 
 const proposeDisabled = computed(
-  () => isGenerating.value || prose.value.trim().length === 0 || !affordable(textCreditCost.value, textIsByok.value),
+  () => isGenerating.value || prose.value.trim().length === 0,
 );
 
 const hasAnyAnswer = computed(() => {
@@ -294,11 +281,13 @@ function goToEntity(entity: ResolvedEntity) {
 }
 
 async function onPropose() {
+  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
   await propose();
 }
 
 async function onSendAnswers() {
   if (!canSend.value) return;
+  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
   const newAnswers: QuestDesignAnswer[] = [];
   for (const question of questions.value) {
     const selection = selections.value[question.key];
@@ -357,6 +346,9 @@ async function onCreate() {
     // Same landing as every other quest-creation flow — see the overview
     // note in QuestFlowStarter.vue for why the surface is named outright.
     await router.push({ path: `/quests/${questId}`, query: { view: "overview" } });
+  } catch (e) {
+    if (gateQuotaError(e)) return;
+    throw e;
   } finally {
     creating.value = false;
   }

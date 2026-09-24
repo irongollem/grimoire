@@ -100,34 +100,26 @@
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
         <GenerationCostBadge
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           :credits="textCreditCost"
           :byok="textIsByok"
           class="self-center"
         />
         <AppButton
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           variant="primary"
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
+          :disabled="isAnyAiGenerating || !concept.trim()"
           :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
         />
-        <AppButton
-          v-else-if="!isPro"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          label="Generate with AI"
-          @click="showPaywall = true"
-        />
+        <AiOffNotice v-else />
         <AppButton
           to="/puzzles/new"
-          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          :variant="!isAiEnabled ? 'primary' : 'outline'"
           size="md"
           block
           label="New Blank Puzzle"
@@ -136,7 +128,8 @@
       </div>
     </aside>
   </Transition>
-  <PaywallModal v-model="showPaywall" message="AI generation is a Pro feature. Upgrade to generate puzzles, NPCs, monsters, items, spells, and session artwork." />
+
+  <PaywallModal v-model="showQuotaPaywall" resource="puzzle_rooms" />
 </template>
 
 <script setup lang="ts">
@@ -149,13 +142,14 @@ import { IconClose, IconGenerate } from '@/lib/icons';
 import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreatePuzzle } from "@/composables/dungeon-features/usePuzzles";
-import { useSubscription } from "@/composables/billing/useSubscription";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import PaywallModal from "@/components/common/PaywallModal.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useGenerationGate } from "@/composables/ai/useGenerationGate";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { usePuzzleGeneration } from "@/ai/usePuzzleGeneration";
 import { toTiptapJson } from "@/ai/useNpcGeneration";
@@ -169,12 +163,11 @@ const campaign = useCampaignStore();
 const { mutateAsync: createPuzzle } = useCreatePuzzle();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = usePuzzleGeneration();
 
-const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 
-const { costOf, affordable } = useAiCredits();
+const { showQuotaPaywall, canSpend, gateQuotaError } = useGenerationGate("puzzle_rooms");
+
+const { costOf } = useAiCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
@@ -187,6 +180,8 @@ const constraints   = reactive({ puzzle_type: "", difficulty: "" });
 const generateImage = ref(true);
 
 async function generateAndCreate() {
+  if (!canSpend(textCreditCost.value, textIsByok.value)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
 
@@ -201,32 +196,38 @@ async function generateAndCreate() {
 
   if (!result) return;
 
-  const puzzle = await createPuzzle({
-    name:                result.name,
-    puzzle_type:         (result.puzzle_type as typeof PUZZLE_TYPES[number]) ?? "Logic",
-    difficulty:          (result.difficulty as typeof PUZZLE_DIFFICULTIES[number]) ?? "Medium",
-    description:         toTiptapJson(result.description),
-    hints:               result.hints,
-    solution:            toTiptapJson(result.solution),
-    skill_checks:        result.skill_checks,
-    success_outcome:     toTiptapJson(result.success_outcome),
-    failure_consequence: toTiptapJson(result.failure_consequence),
-    notes:               toTiptapJson(result.notes),
-    tags:                result.tags,
-    image_url:           result.image_url,
-    image_focal_point:   null,
-    // Scoped to the campaign it was generated for, like every other new
-    // puzzle (#597) — the Scope control widens it if the DM wants it in all
-    // of them. This was the one creation path still hardcoding null.
-    campaign_id:         campaign.activeCampaignId,
-    location_id:         null,
-    dungeon_feature_id:  null,
-    is_shared:           false,
-    shared_hints:        [],
-    player_visible_to:   [],
-    read_aloud:          null,
-    ai_provenance:       result.ai_provenance ?? null,
-  });
+  let puzzle;
+  try {
+    puzzle = await createPuzzle({
+      name:                result.name,
+      puzzle_type:         (result.puzzle_type as typeof PUZZLE_TYPES[number]) ?? "Logic",
+      difficulty:          (result.difficulty as typeof PUZZLE_DIFFICULTIES[number]) ?? "Medium",
+      description:         toTiptapJson(result.description),
+      hints:               result.hints,
+      solution:            toTiptapJson(result.solution),
+      skill_checks:        result.skill_checks,
+      success_outcome:     toTiptapJson(result.success_outcome),
+      failure_consequence: toTiptapJson(result.failure_consequence),
+      notes:               toTiptapJson(result.notes),
+      tags:                result.tags,
+      image_url:           result.image_url,
+      image_focal_point:   null,
+      // Scoped to the campaign it was generated for, like every other new
+      // puzzle (#597) — the Scope control widens it if the DM wants it in all
+      // of them. This was the one creation path still hardcoding null.
+      campaign_id:         campaign.activeCampaignId,
+      location_id:         null,
+      dungeon_feature_id:  null,
+      is_shared:           false,
+      shared_hints:        [],
+      player_visible_to:   [],
+      read_aloud:          null,
+      ai_provenance:       result.ai_provenance ?? null,
+    });
+  } catch (e) {
+    if (gateQuotaError(e)) return;
+    throw e;
+  }
 
   completedEntityId.value = puzzle.id;
   ui.puzzleGeneratorOpen = false;

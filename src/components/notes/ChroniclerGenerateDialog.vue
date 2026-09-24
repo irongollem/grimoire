@@ -87,7 +87,7 @@
       <AppButton
         variant="primary"
         size="sm"
-        :disabled="starting || !scenePrompt.trim() || scenePrompt.length > SCENE_LIMIT || !affordable(selectedCost, byok)"
+        :disabled="starting || !scenePrompt.trim() || scenePrompt.length > SCENE_LIMIT"
         :label="starting ? 'Queuing…' : 'Generate'"
         @click="generate"
       >
@@ -117,6 +117,7 @@ import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { useLikenessGate } from "@/composables/ai/useLikenessGate";
 
@@ -177,7 +178,8 @@ const { user } = storeToRefs(useAuthStore());
 
 // Live credit cost — chronicle images always render via OpenAI; cost scales with
 // the chosen shape's output area (landscape = 1.5× square). BYOK = no credits.
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { imageMultiplierFor } = useProviderConfig();
 const byok = computed(() => !!campaignStore.decryptedOpenAiKey);
 function shapeCost(s: ChroniclerSize): number {
@@ -194,6 +196,7 @@ async function generate() {
   // needs no likeness ack, matching the server's portrait_urls-shaped gate.
   const hasPortraitReferences = resolvedEntities.value.some((e) => e.portraitUrl);
   if (hasPortraitReferences && !(await ensureLikenessAck())) return; // user declined — abort silently
+  if (!requireCredits(selectedCost.value, byok.value)) return;
   starting.value = true;
   error.value = "";
   queuedNotice.value = "";

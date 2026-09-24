@@ -176,40 +176,27 @@
         <!-- Form: generate -->
         <template v-else>
           <GenerationCostBadge
-            v-if="isPro && isAiEnabled"
+            v-if="isAiEnabled"
             :credits="textCreditCost"
             :byok="textIsByok"
             class="self-center"
           />
           <AppButton
-            v-if="isPro && isAiEnabled"
+            v-if="isAiEnabled"
             variant="primary"
             size="md"
             block
             :icon="IconGenerate"
-            :disabled="isAnyAiGenerating || !affordable(textCreditCost, textIsByok)"
+            :disabled="isAnyAiGenerating"
             :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
             :label="isGenerating ? 'Generating…' : 'Generate'"
             @click="runGenerate"
           />
-          <AppButton
-            v-else-if="!isPro"
-            variant="primary"
-            size="md"
-            block
-            :icon="IconGenerate"
-            label="Generate"
-            @click="showPaywall = true"
-          />
+          <AiOffNotice v-else />
         </template>
       </div>
     </aside>
   </Transition>
-
-  <PaywallModal
-    v-model="showPaywall"
-    message="AI generation is a Pro feature. Upgrade to generate mid-fight complications, reinforcements, and more."
-  />
 </template>
 
 <script setup lang="ts">
@@ -220,14 +207,14 @@ import { useCampaignStore } from "@/stores/campaign";
 import { useEncounterRunStore } from "@/stores/encounterRun";
 import { useComplicationGeneration, type ComplicationMode } from "@/ai/useComplicationGeneration";
 import { resolveGeneratedComplication, buildComplicationEvent } from "@/ai/resolveGeneratedComplication";
-import { useSubscription } from "@/composables/billing/useSubscription";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import AppButton from "@/components/common/AppButton.vue";
 import AppCheckbox from "@/components/common/AppCheckbox.vue";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { supabase } from "@/lib/supabase";
 import type { EncounterEvent } from "@/types/encounter.types";
@@ -244,8 +231,6 @@ const open = defineModel<boolean>({ required: true });
 
 const campaign = useCampaignStore();
 const store = useEncounterRunStore();
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 
 const {
   isGenerating,
@@ -291,7 +276,8 @@ const resolved = computed(() =>
     : null,
 );
 
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
@@ -308,6 +294,7 @@ function dismissToBackground() {
 }
 
 async function runGenerate() {
+  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
   await generate(mode, steer.value.trim());
 }
 

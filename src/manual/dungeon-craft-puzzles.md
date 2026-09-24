@@ -69,7 +69,7 @@ When a Location or Dungeon Feature is set, the puzzle's header shows a pill link
 
 ## AI puzzle generator
 
-Click **Generate** and describe a puzzle concept. This needs a Pro subscription and your campaign's AI generation switched on (Campaign Settings → AI Assistant) — on Free, the button opens the upgrade paywall instead. Optionally constrain type and difficulty, and toggle an illustration if a key is configured. Grimoire produces the full puzzle including setup, hints, and solution.
+Click **Generate** and describe a puzzle concept. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost — if AI is off, the panel points you at the toggle instead of the form. Optionally constrain type and difficulty, and toggle an illustration if a key is configured. Grimoire produces the full puzzle including setup, hints, and solution.
 
 ## Revealing a puzzle to players
 

@@ -58,7 +58,7 @@ Click **Spell Level Advisor** (shown automatically as a wizard for new spells, o
 
 ## Generating a spell with AI
 
-There are two entry points, both requiring a Pro subscription and your campaign's AI generation switched on (Campaign Settings → AI Assistant) — on Free, the same buttons open an upgrade paywall instead of generating:
+There are two entry points, both needing your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost — if AI is off, the same buttons point you at the toggle instead of generating:
 
 - From the Spellbook list, click **Generate** to open a side panel that builds a brand-new spell from a concept you describe, with optional Level/School constraints and an "Generate spell-effect art" toggle.
 - While editing a spell (new or existing), click **Generate** in the editor's own header to open a dialog that fills in the *current* form instead of creating a separate record.

@@ -22,7 +22,7 @@ The Soundboard holds the ambient tracks, music, and one-shot effects you cue up 
 ## Adding and organizing sounds
 
 1. Click **Add Sound**. It shows your remaining quota on free plans, e.g. "Add Sound (14/20)".
-2. Choose a source: **URL**, **Upload** (Pro), **Spotify**, **Generate** (AI, Pro), or browse the **Grimoire library** (free, curated, doesn't count against your quota) or Freesound's CC0/CC-BY clips.
+2. Choose a source: **URL**, **Upload** (Pro), **Spotify**, **Generate** (AI, needs the campaign's AI Assistant on — works on every plan, billed to credits), or browse the **Grimoire library** (free, curated, doesn't count against your quota) or Freesound's CC0/CC-BY clips.
 3. Assign it to a **page** — a separate board you switch between with the tabs at the top. Create more pages from those tabs (also quota-gated on free plans).
 4. Search and filter by category to find a sound fast mid-session.
 5. Drag cards to reorder them within a page — disabled while a filter is active, so you don't lose track of position.
@@ -77,7 +77,7 @@ The Soundboard itself is entirely DM-only — there's no player-facing soundboar
 > Pulling the Ambience bus down when the table gets loud is faster and safer than muting individual sounds — nothing stays silenced by accident after the scene changes.
 
 - Free plans have a quota on sounds, pages, and scenes/playlists combined — see [Billing & Subscription](#billing-subscription) for the exact numbers. Curated library sounds and starter scenes don't count against it.
-- Uploads and AI-generated sounds are Pro features, gated independently of the count-based quotas above.
+- Uploading your own audio files is a Pro feature, gated independently of the count-based quotas above. Generating a sound with AI is not — it works on every plan, billed to credits, once the campaign's AI Assistant is on.
 - A sound's category can't be changed casually without consequence — moving an ambient bed to Effects makes it duck the mix instead of sitting under it.
 
 ## Related

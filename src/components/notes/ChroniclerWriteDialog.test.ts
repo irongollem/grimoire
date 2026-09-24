@@ -19,8 +19,10 @@ vi.mock("@/composables/notes/useNotes", () => ({
   useNotes: () => ({ data: ref([]) }),
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({
-  useAiCredits: () => ({ costOf: () => 1, affordable: () => true }),
+  useAiCredits: () => ({ costOf: () => 1 }),
 }));
+const requireCredits = vi.fn(() => true);
+vi.mock("@/composables/ai/useOutOfCredits", () => ({ useOutOfCredits: () => ({ requireCredits }) }));
 vi.mock("@/composables/ai/useProviderConfig", () => ({
   useProviderConfig: () => ({ textMultiplierFor: () => 1 }),
 }));
@@ -63,6 +65,7 @@ async function writeChronicle(wrapper: VueWrapper, facts = "The party fought the
 beforeEach(() => {
   generate.mockReset();
   confirm.mockReset();
+  requireCredits.mockReset().mockReturnValue(true);
   generate.mockResolvedValue({
     chronicle: "# Session 4: The Duke's Blood\n\nThe party arrived at dusk.\n\n[[tags: icewind dale, frostbite]]",
     ai_provenance: { generatorType: "chronicle_text", provider: "openai", model: "gpt-5", generatedAt: "2026-09-05T00:00:00Z", edited: false },
@@ -155,5 +158,20 @@ describe("ChroniclerWriteDialog", () => {
   it("never dismisses on a backdrop click", () => {
     const wrapper = mount(ChroniclerWriteDialog, { props: { visible: true }, global: { stubs } });
     expect(wrapper.findComponent(AppModalStub).props("backdropDismiss")).toBe(false);
+  });
+
+  // The Write button must stay clickable when the balance is short — clicking
+  // it is what opens the shared out-of-credits dialog via `requireCredits`.
+  it("stays enabled-looking and opens the out-of-credits dialog instead of writing when short on credits", async () => {
+    requireCredits.mockReturnValue(false);
+    const wrapper = mount(ChroniclerWriteDialog, { props: { visible: true }, global: { stubs } });
+    await wrapper.find("textarea").setValue("The party fought the duke.");
+
+    const button = wrapper.findAll("button").find((b) => b.text().includes("Write Chronicle"));
+    expect(button?.attributes("disabled")).toBeFalsy();
+
+    await click(wrapper, "Write Chronicle");
+    expect(requireCredits).toHaveBeenCalledTimes(1);
+    expect(generate).not.toHaveBeenCalled();
   });
 });

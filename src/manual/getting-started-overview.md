@@ -17,7 +17,7 @@ Grimoire is a full-stack campaign manager for Dungeons & Dragons 5e. It gives yo
 | **Player Portal** | A separate app your players see after joining. Role-gated: they never see DM screens, and you never land on theirs by accident. |
 | **Campaign / Compendium / Publish** | The three groups in the sidebar — see "The three nav groups" below. |
 | **Prep / Play mode** | A DM-only state the app tracks for you. It switches to Play automatically while your campaign session is running, and changes what the bottom bar (phone/tablet) puts within reach — see [Finding Your Way Around](#finding-your-way-around). |
-| **Credits / BYOK** | How AI generation (a Pro feature) is paid for — platform credits by default, or your own API key. See [AI Generation & Credits](#ai-generation-credits). |
+| **Credits / BYOK** | How AI generation is paid for — platform credits on every plan, or, on Pro, your own API key instead. See [AI Generation & Credits](#ai-generation-credits). |
 
 ## The three nav groups
 
@@ -36,7 +36,7 @@ Workshop and Interlude only appear once you've switched their optional rule on f
 1. **Create a campaign** — name it, pick a world setting and a ruleset (2014 or 2024 rules), and choose a calendar. See [Creating Your First Campaign](#creating-your-first-campaign).
 2. **Seed your world** — Atlas and Factions both have a **Populate from Setting** button that drops in iconic locations, NPCs, and organisations for your chosen setting in one click.
 3. **Invite your players** — generate a link from **Campaign Settings → Members & Invites**. See [Inviting Players](#inviting-players).
-4. **On Pro, decide how AI generation gets paid for** — platform credits work out of the box, or bring your own OpenAI/Gemini key instead. AI generation isn't available on Free; everything else in the app is. See [AI Generation & Credits](#ai-generation-credits).
+4. **Turn on AI generation if you want it** — platform credits work out of the box on every plan, or, on Pro, bring your own OpenAI/Gemini key instead. See [AI Generation & Credits](#ai-generation-credits).
 5. **Already have an adventure written up?** Import it — a PDF, page photos, or pasted text — instead of typing everything by hand. See [Importing an Adventure](#importing-an-adventure).
 6. **Learn the controls** — the sidebar, search, and shortcuts are covered in [Finding Your Way Around](#finding-your-way-around).
 
@@ -73,7 +73,7 @@ Nothing on this page — it's the DM's front door. Once they join via your invit
 
 > If you've never run a session here before, do steps 1–3 above before anything else — an empty campaign with no players invited is the single biggest reason a first session stalls.
 
-- Free gets the full DM and player experience by hand, with modest limits on how much you can create — see [Billing & Subscription](#billing-subscription). **AI generation is Pro-only**: on Free, every "Generate with AI" button opens an upgrade prompt instead of running. See [AI Generation & Credits](#ai-generation-credits). (A complimentary beta-tester account counts as Pro.)
+- Free gets the full DM and player experience by hand, with modest limits on how much you can create — see [Billing & Subscription](#billing-subscription). **AI generation works on Free too**, billed to credits, once the campaign's AI Assistant toggle is on — Pro adds a monthly credit allowance and the option to bring your own API key. See [AI Generation & Credits](#ai-generation-credits).
 - The Compendium group (Bestiary, Spellbook, Item Vault, Character Codex, Dungeon Craft, Hall of Heroes) is visible even with no campaign selected — browse it while you're still deciding what to build.
 
 ## Related

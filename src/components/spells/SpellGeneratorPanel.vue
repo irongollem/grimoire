@@ -94,34 +94,26 @@
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
         <GenerationCostBadge
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           :credits="textCreditCost"
           :byok="textIsByok"
           class="self-center"
         />
         <AppButton
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           variant="primary"
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim() || !affordable(textCreditCost, textIsByok)"
+          :disabled="isAnyAiGenerating || !concept.trim()"
           :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
         />
-        <AppButton
-          v-else-if="!isPro"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          label="Generate with AI"
-          @click="showPaywall = true"
-        />
+        <AiOffNotice v-else />
         <AppButton
           to="/spells/new"
-          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          :variant="!isAiEnabled ? 'primary' : 'outline'"
           size="md"
           block
           label="New Blank Spell"
@@ -130,7 +122,6 @@
       </div>
     </aside>
   </Transition>
-  <PaywallModal v-model="showPaywall" message="AI generation is a Pro feature. Upgrade to generate spells, NPCs, monsters, items, puzzles, and session artwork." />
 </template>
 
 <script setup lang="ts">
@@ -141,13 +132,13 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateSpell } from "@/composables/spells/useSpells";
 import { useSpellGeneration } from "@/ai/useSpellGeneration";
-import { useSubscription } from "@/composables/billing/useSubscription";
-import PaywallModal from "@/components/common/PaywallModal.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
@@ -167,12 +158,10 @@ const {
   generate,
 } = useSpellGeneration();
 
-const aiApiKey = computed(() => campaign.decryptedApiKey);
 const isAiEnabled = computed(() => campaign.isAiEnabled);
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 
-const { costOf, affordable } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { textMultiplierFor } = useProviderConfig();
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok = computed(() => !!campaign.decryptedApiKey);
@@ -195,6 +184,8 @@ function levelSuffix(n: number): string {
 }
 
 async function generateAndCreate() {
+  if (!requireCredits(textCreditCost.value, textIsByok.value)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
 

@@ -138,9 +138,9 @@ const CHOOSE_COPY = {
 // once rather than repeating the first-open pitch as if nothing happened.
 // No guilt phrasing on decline.
 const PRO_REOFFER_LEAD = {
-  title: "Your Pro plan includes AI assistance",
+  title: "Your Pro plan includes monthly AI credits",
   intro:
-    "You turned AI off on this campaign a while back. Pro includes AI generation — NPCs, encounters, recaps, artwork and more, grounded in your own campaign — so here's a fresh choice.",
+    "You turned AI off on this campaign a while back. Pro includes a batch of AI credits every month — for NPCs, encounters, recaps, artwork and more, grounded in your own campaign — so here's a fresh choice.",
 };
 
 // Full per-kind copy table, including a defensive 'ai_pro_reoffer' entry —

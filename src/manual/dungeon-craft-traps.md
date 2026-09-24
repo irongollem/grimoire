@@ -77,7 +77,7 @@ The advisor outputs a suggested CR with a range, the contributing factors, and c
 
 ## AI trap generator
 
-Click **Generate** to open the Trap Generator panel. This needs a Pro subscription and your campaign's AI generation switched on (Campaign Settings → AI Assistant) — on Free, the button opens the upgrade paywall instead; click **New Blank Trap** to skip AI entirely.
+Click **Generate** to open the Trap Generator panel. This needs your campaign's AI generation switched on (Campaign Settings → AI Assistant) and enough credits to cover the cost — if AI is off, the panel points you at the toggle instead of the form; click **New Blank Trap** to skip AI entirely.
 
 1. Write a **Concept** — what the trap is and does, in plain language (e.g. "a pressure plate in a dungeon corridor that triggers a volley of poisoned darts from hidden alcoves in the walls…").
 2. Optionally narrow **Type** and **CR** under Constraints.

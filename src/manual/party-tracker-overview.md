@@ -46,7 +46,7 @@ Click a hero to open its full editor, across four tabs: **Identity**, **Stats**,
 
 ## Group Portrait
 
-Below the roster, **Upload** a photo, or **Generate**/**Regenerate** an AI-illustrated shot of the whole party, billed in credits — this one is available on Free as well as Pro. Reference it with `@Party` inside Chronicler scenes (Scriptorium) instead of dropping in every individual portrait — it saves both tokens and effort when illustrating group scenes.
+Below the roster, **Upload** a photo, or **Generate**/**Regenerate** an AI-illustrated shot of the whole party, billed in credits like any other AI generation — on every plan, once the campaign's AI Assistant is on. Reference it with `@Party` inside Chronicler scenes (Scriptorium) instead of dropping in every individual portrait — it saves both tokens and effort when illustrating group scenes.
 
 ## What your players see
 

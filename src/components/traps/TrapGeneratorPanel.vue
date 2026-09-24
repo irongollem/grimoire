@@ -105,34 +105,27 @@
 
       <!-- Footer -->
       <div class="px-5 py-4 border-t border-border flex flex-col gap-2 shrink-0">
-        <p
-          v-if="effectiveCreditCost > 0 && isPro && isAiEnabled"
-          class="text-caption text-center"
-          :class="canAfford ? 'text-muted-foreground' : 'text-destructive font-semibold'"
-        >{{ creditLine }}</p>
+        <GenerationCostBadge
+          v-if="isAiEnabled"
+          :credits="effectiveCreditCost"
+          :byok="fullyByok"
+          class="self-center"
+        />
         <AppButton
-          v-if="isPro && isAiEnabled"
+          v-if="isAiEnabled"
           variant="primary"
           size="md"
           block
           :icon="IconGenerate"
-          :disabled="isAnyAiGenerating || !concept.trim() || (effectiveCreditCost > 0 && !canAfford)"
+          :disabled="isAnyAiGenerating || !concept.trim()"
           :tooltip="isAnyAiGenerating && !isGenerating ? 'Another generation is already in progress' : undefined"
           :label="isGenerating ? 'Generating…' : 'Generate with AI'"
           @click="generateAndCreate"
         />
-        <AppButton
-          v-else-if="!isPro"
-          variant="primary"
-          size="md"
-          block
-          :icon="IconGenerate"
-          label="Generate with AI"
-          @click="showPaywall = true"
-        />
+        <AiOffNotice v-else />
         <AppButton
           to="/traps/new"
-          :variant="isPro && !aiApiKey ? 'primary' : 'outline'"
+          :variant="!isAiEnabled ? 'primary' : 'outline'"
           size="md"
           block
           label="New Blank Trap"
@@ -141,7 +134,6 @@
       </div>
     </aside>
   </Transition>
-  <PaywallModal v-model="showPaywall" message="AI generation is a Pro feature. Upgrade to generate traps, NPCs, monsters, items, spells, and more." />
 </template>
 
 <script setup lang="ts">
@@ -155,8 +147,8 @@ import { useUiStore } from "@/stores/ui";
 import { useCampaignStore } from "@/stores/campaign";
 import { useCreateTrap } from "@/composables/dungeon-features/useTraps";
 import { useImageGenerationLog } from "@/composables/ai/useImageGenerationLog";
-import { useSubscription } from "@/composables/billing/useSubscription";
-import PaywallModal from "@/components/common/PaywallModal.vue";
+import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
+import AiOffNotice from "@/components/common/AiOffNotice.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
@@ -166,6 +158,7 @@ import { currentLoadingQuote } from "@/ai/aiGenerationState";
 import { isAnyAiGenerating } from "@/ai/aiGeneratorRegistry";
 import { TRAP_TYPES, CR_LIST } from "@/types/trap.types";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
+import { useOutOfCredits } from "@/composables/ai/useOutOfCredits";
 import { useProviderConfig } from "@/composables/ai/useProviderConfig";
 
 const ui       = useUiStore();
@@ -175,19 +168,20 @@ const { mutateAsync: createTrap } = useCreateTrap();
 const { logImageGeneration } = useImageGenerationLog();
 const { isGenerating, error: genError, completedEntityId, concept: genConcept, clearCompleted, generate } = useTrapGeneration();
 
-const aiApiKey      = computed(() => campaign.decryptedApiKey);
 const isAiEnabled   = computed(() => campaign.isAiEnabled);
 const openAiKey     = computed(() => campaign.decryptedOpenAiKey);
 const groupPortraitUrl = computed(() => campaign.activeCampaign?.group_portrait_url ?? null);
-const { isPro } = useSubscription();
-const showPaywall = ref(false);
 
-const { costOf, balance, isLoading: creditsLoading } = useAiCredits();
+const { costOf } = useAiCredits();
+const { requireCredits } = useOutOfCredits();
 const { textMultiplierFor, imageMultiplierFor } = useProviderConfig();
 
 const textProvider = computed(() => campaign.activeCampaign?.text_provider ?? "openai");
 const textIsByok   = computed(() => !!campaign.decryptedApiKey);
 const imageIsByok  = computed(() => !!campaign.decryptedOpenAiKey);
+// Whole generation is BYOK-covered only when every part of it is — the text
+// call, and the illustration too whenever it's actually being generated.
+const fullyByok = computed(() => textIsByok.value && (!generateImage.value || imageIsByok.value));
 
 const effectiveCreditCost = computed(() => {
   let cost = textIsByok.value
@@ -200,19 +194,14 @@ const effectiveCreditCost = computed(() => {
   return cost;
 });
 
-const canAfford  = computed(() => creditsLoading.value || (balance.value ?? 0) >= effectiveCreditCost.value);
-const creditLine = computed(() => {
-  const cost = parseFloat(effectiveCreditCost.value.toFixed(2));
-  const bal  = parseFloat(((balance.value ?? 0) as number).toFixed(2));
-  return `${cost === 1 ? "1 credit" : `${cost} credits`} · Balance: ${bal}`;
-});
-
 const concept       = ref("");
 const constraints   = reactive({ trap_type: "", cr: "" });
 const generateImage = ref(true);
 const includeParty  = ref(false);
 
 async function generateAndCreate() {
+  if (!requireCredits(effectiveCreditCost.value, fullyByok.value)) return;
+
   genConcept.value = concept.value.trim();
   clearCompleted();
 
