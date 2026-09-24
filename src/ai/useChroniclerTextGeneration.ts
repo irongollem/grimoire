@@ -8,6 +8,7 @@ import { parseSceneEntities, type ResolvedEntity } from "./useChroniclerImageGen
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
+import type { Faction } from "@/types/faction.types";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useRuleset } from "@/composables/rules/useRuleset";
@@ -38,6 +39,13 @@ function buildEntityDescriptions(entities: ResolvedEntity[]): string {
     .join("\n");
 }
 
+/** Comma-joined existing campaign tags for the `{existingTags}` prompt
+ *  placeholder, matching the edge function's formatting exactly so the
+ *  server and client (BYOK) paths produce the same prompt shape. */
+function buildExistingTagsBlock(existingTags: string[]): string {
+  return existingTags.length > 0 ? existingTags.join(", ") : "None yet.";
+}
+
 /** Pre-process AI output: replace [[scene: ...]] with styled blockquotes. */
 export function preprocessChronicleMarkdown(md: string): string {
   return md.replace(
@@ -65,13 +73,17 @@ export function useChroniclerTextGeneration() {
     npcs: Npc[] | undefined;
     monsters: Monster[] | undefined;
     partyMembers: PartyMember[] | undefined;
+    factions: Faction[] | undefined;
+    /** The campaign's existing note tags, most frequent first, so the model
+     *  prefers reusing them over minting near-duplicates. */
+    existingTags: string[];
     /** The note this chronicle will be inserted into (undefined for a new,
      *  unsaved note). Forwarded to the server so retrieval never returns the
      *  very note the recap is about to be written into (#600). */
     excludeNoteId?: string;
   }): Promise<ChroniclerTextResult> {
-    const { rawText, tone, npcs, monsters, partyMembers, excludeNoteId } = params;
-    const entities = parseSceneEntities(rawText, npcs, monsters, partyMembers);
+    const { rawText, tone, npcs, monsters, partyMembers, factions, existingTags, excludeNoteId } = params;
+    const entities = parseSceneEntities(rawText, { npcs, monsters, partyMembers, factions });
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "No setting configured.";
     const campaignId = campaign.activeCampaign?.id;
 
@@ -91,9 +103,9 @@ export function useChroniclerTextGeneration() {
         localStorage.getItem(LOCAL_MODE_KEY) === "local";
 
       if (!isLocalMode && campaignId) {
-        return await generateServerSide({ rawText, tone, entities, campaignId, excludeNoteId });
+        return await generateServerSide({ rawText, tone, entities, campaignId, existingTags, excludeNoteId });
       }
-      return await generateClientSide({ rawText, tone, entities, settingPrompt });
+      return await generateClientSide({ rawText, tone, entities, settingPrompt, existingTags });
     } catch (e) {
       error.value = e instanceof Error ? e.message : "Generation failed.";
       throw e;
@@ -107,9 +119,10 @@ export function useChroniclerTextGeneration() {
     tone: ChroniclerTone;
     entities: ResolvedEntity[];
     campaignId: string;
+    existingTags: string[];
     excludeNoteId?: string;
   }): Promise<ChroniclerTextResult> {
-    const { rawText, tone, entities, campaignId, excludeNoteId } = params;
+    const { rawText, tone, entities, campaignId, existingTags, excludeNoteId } = params;
 
     const tone_instruction = TONE_INSTRUCTIONS[tone];
     const entity_descriptions = entities
@@ -122,6 +135,7 @@ export function useChroniclerTextGeneration() {
         raw_text: rawText,
         tone_instruction,
         entity_descriptions,
+        existing_tags: existingTags,
         exclude_note_id: excludeNoteId,
       },
     });
@@ -137,8 +151,9 @@ export function useChroniclerTextGeneration() {
     tone: ChroniclerTone;
     entities: ResolvedEntity[];
     settingPrompt: string;
+    existingTags: string[];
   }): Promise<ChroniclerTextResult> {
-    const { rawText, tone, entities, settingPrompt } = params;
+    const { rawText, tone, entities, settingPrompt, existingTags } = params;
 
     // The local (BYOK) path can't retrieve the DM's notes -- that's a DB read
     // the edge function does with service-role access the browser doesn't
@@ -157,7 +172,8 @@ export function useChroniclerTextGeneration() {
       basePrompt
         .replace("{entities}", buildEntityDescriptions(entities))
         .replace("{settingPrompt}", settingPrompt)
-        .replace("{toneInstruction}", TONE_INSTRUCTIONS[tone]) +
+        .replace("{toneInstruction}", TONE_INSTRUCTIONS[tone])
+        .replace("{existingTags}", buildExistingTagsBlock(existingTags)) +
       (rulesetContext ? `\n\n${rulesetContext}` : "");
 
     const provider = getTextProvider();

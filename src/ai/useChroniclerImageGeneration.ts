@@ -2,75 +2,14 @@ import type { ChroniclerSize, ImageJobKind } from "@/types/chronicler.types";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
+import type { Faction } from "@/types/faction.types";
 import {
   captureImageGenerationContext,
   startImageGeneration as startCentralImageGeneration,
   getLocalImageJob as getCentralLocalImageJob,
 } from "@/ai/useImageGeneration";
 import { waitForImageJob } from "@/ai/useImageJob";
-
-// ── Entity mention extraction ─────────────────────────────────────────────────
-
-interface TiptapNode {
-  type?: string;
-  attrs?: Record<string, unknown>;
-  content?: TiptapNode[];
-  text?: string;
-}
-
-export interface EntityMentionRef {
-  id: string;
-  entityType: "npc" | "monster" | "player";
-  label: string;
-}
-
-export function extractEntityMentions(
-  content: string | null,
-): EntityMentionRef[] {
-  if (!content) return [];
-  try {
-    const doc = JSON.parse(content) as TiptapNode;
-    const mentions: EntityMentionRef[] = [];
-    walkNodes(doc, (node) => {
-      if (
-        node.type === "entityMention" &&
-        node.attrs?.id &&
-        node.attrs?.entityType
-      ) {
-        mentions.push({
-          id: node.attrs.id as string,
-          entityType: node.attrs.entityType as EntityMentionRef["entityType"],
-          label: (node.attrs.label as string) ?? "",
-        });
-      }
-    });
-    // Deduplicate by id
-    return mentions.filter(
-      (m, i, arr) => arr.findIndex((x) => x.id === m.id) === i,
-    );
-  } catch {
-    return [];
-  }
-}
-
-function walkNodes(node: TiptapNode, fn: (n: TiptapNode) => void) {
-  fn(node);
-  node.content?.forEach((child) => walkNodes(child, fn));
-}
-
-export function extractPlainText(content: string | null): string {
-  if (!content) return "";
-  try {
-    const doc = JSON.parse(content) as TiptapNode;
-    const parts: string[] = [];
-    walkNodes(doc, (node) => {
-      if (node.text) parts.push(node.text);
-    });
-    return parts.join(" ").trim();
-  } catch {
-    return "";
-  }
-}
+import { toPlainText } from "@/ai/utils";
 
 // ── Entity material resolution ────────────────────────────────────────────────
 
@@ -96,13 +35,31 @@ function nameMatches(entityName: string, token: string): boolean {
   );
 }
 
+// Rich-text fields (NPC appearance, monster/faction description) are Tiptap
+// JSON — flatten before handing them to the image prompt, and cap so one
+// verbose entry can't crowd out the others in the prompt's fixed budget.
+const TEXT_DESCRIPTION_CHAR_CAP = 500;
+
+function summarize(richText: string | null | undefined): string {
+  const plain = toPlainText(richText);
+  if (plain.length <= TEXT_DESCRIPTION_CHAR_CAP) return plain;
+  return `${plain.slice(0, TEXT_DESCRIPTION_CHAR_CAP).trimEnd()}…`;
+}
+
+export interface SceneEntitySources {
+  partyMembers?: PartyMember[];
+  npcs?: Npc[];
+  monsters?: Monster[];
+  factions?: Faction[];
+  groupPortraitUrl?: string | null;
+}
+
 export function parseSceneEntities(
   text: string,
-  npcs: Npc[] | undefined,
-  monsters: Monster[] | undefined,
-  partyMembers: PartyMember[] | undefined,
-  groupPortraitUrl?: string | null,
+  sources: SceneEntitySources,
 ): ResolvedEntity[] {
+  const { partyMembers, npcs, monsters, factions, groupPortraitUrl } = sources;
+
   // Extract @Token — stops at whitespace and common punctuation
   const tokens = [...text.matchAll(/@([A-Za-z][^\s,.'":;!?@]*)/g)].map(
     (m) => m[1],
@@ -141,10 +98,11 @@ export function parseSceneEntities(
     if (!found) {
       for (const npc of npcs ?? []) {
         if (nameMatches(npc.name, tok)) {
+          const appearance = summarize(npc.appearance);
           found = {
             label: npc.name,
             portraitUrl: npc.portrait_url ?? null,
-            textDescription: `${npc.name}${npc.appearance ? `: ${npc.appearance}` : ""}`,
+            textDescription: `${npc.name}${appearance ? `: ${appearance}` : ""}`,
           };
           break;
         }
@@ -153,10 +111,33 @@ export function parseSceneEntities(
     if (!found) {
       for (const mon of monsters ?? []) {
         if (nameMatches(mon.name, tok)) {
+          const description = summarize(mon.description);
           found = {
             label: mon.name,
             portraitUrl: mon.image_url ?? null,
-            textDescription: `${mon.name}${mon.description ? `: ${mon.description}` : ""}`,
+            textDescription: `${mon.name}${description ? `: ${description}` : ""}`,
+          };
+          break;
+        }
+      }
+    }
+    if (!found) {
+      for (const faction of factions ?? []) {
+        if (nameMatches(faction.name, tok)) {
+          const type = faction.faction_type?.trim();
+          const description = summarize(faction.description);
+          // Only claim a reference image when one is actually attached — a
+          // faction without an emblem sends none, and the model should not go
+          // looking for it.
+          const emblemLine = faction.emblem_url
+            ? "; its reference image is the faction's emblem: show it on banners, tabards, shields or insignia, never as a person or creature"
+            : "; show its presence through its members' shared colours and insignia, never as a person or creature";
+          found = {
+            label: faction.name,
+            portraitUrl: faction.emblem_url ?? null,
+            textDescription:
+              `${faction.name} — a faction${type ? `, ${type}` : ""}${emblemLine}` +
+              `${description ? `. ${description}` : ""}`,
           };
           break;
         }

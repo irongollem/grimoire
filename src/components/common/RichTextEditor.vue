@@ -447,6 +447,7 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   monster: "MON",
   location: "LOC",
   party: "PARTY",
+  faction: "FAC",
 };
 
 const {
@@ -1104,5 +1105,10 @@ async function onEnhance() {
   color: theme(colors.amber-400);
   border-color: theme(colors.amber-400 / 40%);
   background: theme(colors.amber-400 / 10%);
+}
+.entity-suggestion-badge--faction {
+  color: theme(colors.cyan-400);
+  border-color: theme(colors.cyan-400 / 40%);
+  background: theme(colors.cyan-400 / 10%);
 }
 </style>

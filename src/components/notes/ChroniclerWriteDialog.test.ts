@@ -12,8 +12,11 @@ vi.mock("@/ai/useChroniclerTextGeneration", async (importOriginal) => ({
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm }) }));
 vi.mock("@/composables/notes/useEntityMentionItems", () => ({
   useEntityMentionItems: () => ({
-    mentionItems: ref([]), partyMembers: ref([]), npcs: ref([]), monsters: ref([]),
+    mentionItems: ref([]), partyMembers: ref([]), npcs: ref([]), monsters: ref([]), factions: ref([]),
   }),
+}));
+vi.mock("@/composables/notes/useNotes", () => ({
+  useNotes: () => ({ data: ref([]) }),
 }));
 vi.mock("@/composables/ai/useAiCredits", () => ({
   useAiCredits: () => ({ costOf: () => 1, affordable: () => true }),
@@ -61,7 +64,7 @@ beforeEach(() => {
   generate.mockReset();
   confirm.mockReset();
   generate.mockResolvedValue({
-    chronicle: "# Session 4: The Duke's Blood\n\nThe party arrived at dusk.",
+    chronicle: "# Session 4: The Duke's Blood\n\nThe party arrived at dusk.\n\n[[tags: icewind dale, frostbite]]",
     ai_provenance: { generatorType: "chronicle_text", provider: "openai", model: "gpt-5", generatedAt: "2026-09-05T00:00:00Z", edited: false },
   });
 });
@@ -80,8 +83,24 @@ describe("ChroniclerWriteDialog", () => {
       markdown: "The party arrived at dusk.",
       title: "The Duke's Blood",
       sessionNum: 4,
+      tags: ["icewind-dale", "frostbite"],
       aiProvenance: expect.objectContaining({ model: "gpt-5" }),
     });
+  });
+
+  it("shows the model's suggested tags in the preview, editable before insert", async () => {
+    const wrapper = mount(ChroniclerWriteDialog, { props: { visible: true }, global: { stubs } });
+    await writeChronicle(wrapper);
+
+    expect(wrapper.text()).toContain("icewind-dale");
+    expect(wrapper.text()).toContain("frostbite");
+
+    // Remove one tag via its chip's × button before inserting.
+    const chip = wrapper.findAll("span").find((s) => s.text().includes("icewind-dale"));
+    await chip?.find("button").trigger("click");
+
+    await click(wrapper, "Insert into Note");
+    expect(wrapper.emitted("insert")?.[0]?.[0]).toMatchObject({ tags: ["frostbite"] });
   });
 
   it("keeps a title the DM already wrote, and offers the model's as a suggestion", async () => {

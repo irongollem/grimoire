@@ -126,7 +126,7 @@ serve(withCors(async (req: Request) => {
   // Frozen accounts cannot generate — including BYOK, which skips the credit gate.
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
-  let campaign_id: string, raw_text: string, tone_instruction: string, entity_descriptions: string[], exclude_note_id: string | null;
+  let campaign_id: string, raw_text: string, tone_instruction: string, entity_descriptions: string[], existing_tags: string[], exclude_note_id: string | null;
 
   try {
     const body = await req.json();
@@ -134,6 +134,17 @@ serve(withCors(async (req: Request) => {
     raw_text           = body.raw_text;
     tone_instruction   = body.tone_instruction ?? "";
     entity_descriptions = Array.isArray(body.entity_descriptions) ? body.entity_descriptions : [];
+    // Optional — the campaign's existing note-tag vocabulary, so the model
+    // prefers reusing a tag over minting a near-duplicate. Client-supplied,
+    // so validated rather than trusted: only strings, trimmed, capped in
+    // length and count.
+    existing_tags = Array.isArray(body.existing_tags)
+      ? body.existing_tags
+          .filter((t: unknown): t is string => typeof t === "string")
+          .map((t: string) => t.trim())
+          .filter((t: string) => t.length > 0 && t.length <= 60)
+          .slice(0, 200)
+      : [];
     // Optional — the note open in the editor, so match_campaign_notes never
     // retrieves the very note this chronicle is about to be inserted into.
     // May be absent: an unsaved note has no id yet, and older callers simply
@@ -141,7 +152,7 @@ serve(withCors(async (req: Request) => {
     exclude_note_id = typeof body.exclude_note_id === "string" && body.exclude_note_id ? body.exclude_note_id : null;
     if (!campaign_id || !raw_text) throw new Error("invalid");
   } catch {
-    return new Response("Invalid body — need { campaign_id, raw_text, tone_instruction, entity_descriptions, exclude_note_id? }", { status: 400 });
+    return new Response("Invalid body — need { campaign_id, raw_text, tone_instruction, entity_descriptions, existing_tags?, exclude_note_id? }", { status: 400 });
   }
 
   const promptCheck = validatePromptInput(raw_text, AI_PROMPT_LIMIT_CHRONICLE);
@@ -186,10 +197,16 @@ serve(withCors(async (req: Request) => {
 
   const settingBlock = campaign.ai_setting_prompt?.trim() ?? "No setting configured.";
 
+  // The DM's own tag vocabulary going into their own generation — fine to
+  // pass through the system prompt like {entities}/{settingPrompt}, unlike
+  // the RAG-retrieved blocks below which are appended to the user content.
+  const existingTagsBlock = existing_tags.length > 0 ? existing_tags.join(", ") : "None yet.";
+
   const systemContent = promptRow.content
     .replace("{entities}", entityDescriptionsBlock)
     .replace("{settingPrompt}", settingBlock)
-    .replace("{toneInstruction}", tone_instruction) +
+    .replace("{toneInstruction}", tone_instruction)
+    .replace("{existingTags}", existingTagsBlock) +
     (rulesetContext ? `\n\n${rulesetContext}` : "") +
     INJECTION_GUARD_SUFFIX;
 

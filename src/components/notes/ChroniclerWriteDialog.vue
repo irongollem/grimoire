@@ -118,6 +118,10 @@
             </span>
             <AppButton variant="subtle" size="xs" label="Use" @click="applySuggestion" />
           </div>
+          <label class="flex flex-col gap-1">
+            <span class="font-cinzel text-xs text-muted-foreground tracking-wide">Suggested tags</span>
+            <TagInput v-model="suggestedTags" placeholder="Add tag..." />
+          </label>
         </div>
 
         <div class="overflow-y-auto overscroll-contain border border-border rounded-md p-4 bg-background min-h-0 flex-1">
@@ -156,10 +160,13 @@ import {
   type ChroniclerTone,
 } from "@/ai/useChroniclerTextGeneration";
 import { parseChronicleHeading } from "@/ai/chronicleHeading";
+import { parseChronicleTags, reconcileChronicleTags } from "@/ai/chronicleTags";
+import { normalizeTag } from "@/lib/tags";
 import type { AiProvenance } from "@/ai/provenance";
 import type { ChronicleInsert } from "@/types/chronicler.types";
 import { useConfirm } from "@/composables/useConfirm";
 import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
+import { useNotes } from "@/composables/notes/useNotes";
 import { markdownToTiptapJson } from "@/lib/tiptap/markdownToTiptap";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAiCredits } from "@/composables/ai/useAiCredits";
@@ -172,6 +179,7 @@ import RichTextViewer from "@/components/common/RichTextViewer.vue";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import TagInput from "@/components/common/TagInput.vue";
 
 const TONES = CHRONICLER_TONES;
 
@@ -200,6 +208,8 @@ const suggestedTitle    = ref<string | null>(null);
 const suggestedSession  = ref<number | null>(null);
 const titleField        = ref("");
 const sessionField      = ref<number | null>(null);
+/** Tags shown in the preview step, editable via TagInput before Insert. */
+const suggestedTags     = ref<string[]>([]);
 
 /**
  * What the previous generation wrote into the title and session fields, so a
@@ -208,12 +218,15 @@ const sessionField      = ref<number | null>(null);
  */
 const lastGeneratedTitle = ref(titleField.value);
 const lastGeneratedSession = ref(sessionField.value);
+/** Same guard, for the tags list — see the comment in generate() below. */
+const lastGeneratedTags = ref<string[]>([]);
 const aiProvenance      = ref<AiProvenance | null>(null);
 const error             = ref("");
 
 const { confirm } = useConfirm();
 const { isGenerating, generate: generateChronicle } = useChroniclerTextGeneration();
-const { mentionItems, partyMembers, npcs, monsters } = useEntityMentionItems();
+const { mentionItems, partyMembers, npcs, monsters, factions } = useEntityMentionItems();
+const { data: notes } = useNotes();
 
 const campaign = useCampaignStore();
 const { costOf, affordable } = useAiCredits();
@@ -224,17 +237,40 @@ const textCreditCost = computed(
   () => Math.round(costOf("chronicle_text") * textMultiplierFor(textProvider.value) * 100) / 100,
 );
 
+/**
+ * The campaign's existing note-tag vocabulary, most-frequent first and capped
+ * at 150, handed to generation so the model prefers reusing a tag over
+ * minting a near-duplicate. Tags are stored inconsistently — some with
+ * spaces, some hyphenated (TagInput-made) — so this is frequency over the
+ * exact stored spelling, not the normalized form; reconciliation (below)
+ * is what maps a proposed tag onto whichever spelling already exists.
+ */
+const existingTags = computed(() => {
+  const frequency = new Map<string, number>();
+  for (const note of notes.value ?? []) {
+    for (const tag of note.tags ?? []) {
+      frequency.set(tag, (frequency.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...frequency.entries()]
+    .sort(([, a], [, b]) => b - a)
+    .map(([tag]) => tag)
+    .slice(0, 150);
+});
+
 watch(() => props.visible, (v) => {
   if (v) {
-    rawText.value          = "";
-    step.value             = "facts";
-    draftMarkdown.value    = null;
-    suggestedTitle.value   = null;
-    suggestedSession.value = null;
-    titleField.value       = "";
-    sessionField.value     = null;
-    aiProvenance.value     = null;
-    error.value            = "";
+    rawText.value            = "";
+    step.value               = "facts";
+    draftMarkdown.value      = null;
+    suggestedTitle.value     = null;
+    suggestedSession.value   = null;
+    titleField.value         = "";
+    sessionField.value       = null;
+    suggestedTags.value      = [];
+    lastGeneratedTags.value  = [];
+    aiProvenance.value       = null;
+    error.value              = "";
   }
 });
 
@@ -267,6 +303,13 @@ function applySuggestion() {
   if (suggestedSession.value !== null) sessionField.value = suggestedSession.value;
 }
 
+/** True when two tag lists hold the same tags, order aside. */
+function sameTags(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  return b.every((t) => setA.has(t));
+}
+
 async function generate() {
   if (!rawText.value.trim()) return;
   error.value = "";
@@ -277,10 +320,13 @@ async function generate() {
       npcs: npcs.value,
       monsters: monsters.value,
       partyMembers: partyMembers.value,
+      factions: factions.value,
+      existingTags: existingTags.value,
       excludeNoteId: props.noteId ?? undefined,
     });
     const heading = parseChronicleHeading(result.chronicle);
-    draftMarkdown.value    = heading.body;
+    const parsedTags = parseChronicleTags(heading.body);
+    draftMarkdown.value    = parsedTags.body;
     suggestedTitle.value   = heading.title;
     suggestedSession.value = heading.sessionNum;
     // The DM's own title wins the field; the model's is offered beneath it.
@@ -298,6 +344,22 @@ async function generate() {
     if (sessionField.value === lastGeneratedSession.value) sessionField.value = nextSession;
     lastGeneratedTitle.value   = nextTitle;
     lastGeneratedSession.value = nextSession;
+
+    // Same "don't clobber the DM's edits on Write again" philosophy as the
+    // title/session fields, but tags don't have a single DM-authored source to
+    // defer to — so an untouched list is REPLACED with the new suggestion,
+    // while an edited list is UNIONED with it (existing edits are additive,
+    // never silently dropped).
+    const nextTags = reconcileChronicleTags(parsedTags.tags, existingTags.value);
+    if (sameTags(suggestedTags.value, lastGeneratedTags.value)) {
+      suggestedTags.value = nextTags;
+    } else {
+      const already = new Set(suggestedTags.value.map(normalizeTag));
+      const toAdd = nextTags.filter((t) => !already.has(normalizeTag(t)));
+      suggestedTags.value = [...suggestedTags.value, ...toAdd];
+    }
+    lastGeneratedTags.value = nextTags;
+
     aiProvenance.value = result.ai_provenance ?? null;
     step.value = "preview";
   } catch (e) {
@@ -326,6 +388,7 @@ function insertChronicle() {
     sessionNum: typeof sessionField.value === "number" && Number.isFinite(sessionField.value)
       ? sessionField.value
       : null,
+    tags: suggestedTags.value,
     aiProvenance: aiProvenance.value,
   });
   emit("close");

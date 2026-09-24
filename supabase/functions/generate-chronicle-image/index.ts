@@ -61,13 +61,14 @@ function buildScenePrompt(sceneText: string, textDescriptions: string[], setting
   parts.push("\n\nCompose a scene illustration.");
   if (textDescriptions.length > 0) {
     parts.push(
-      "The following characters appear — use the provided reference portraits where available, and the written descriptions for those without one:\n" +
+      "The following characters, creatures and factions appear — use the provided reference images where available, and the written descriptions for those without one:\n" +
       textDescriptions.map((d) => `• ${d}`).join("\n"),
     );
     parts.push(
       "Character rules:\n" +
       "• Render each character exactly once. If a character belongs to a group or party reference and is also named individually, depict them a single time only — never duplicate the same character in the scene unless specifically asked.\n" +
-      "• Reference portraits — including any group or party portrait — define each character's face, build, and costume ONLY. Do not copy their poses, expressions, framing, or the reference's composition. Re-pose and re-stage every character naturally for this specific scene and its action.",
+      "• Reference portraits — including any group or party portrait — define each character's face, build, and costume ONLY. Do not copy their poses, expressions, framing, or the reference's composition. Re-pose and re-stage every character naturally for this specific scene and its action.\n" +
+      "• A faction's reference image is its emblem, not a portrait. Render it as heraldry — on a banner, shield, tabard, or insignia carried or worn by the people in the scene — never as a character or creature in its own right.",
     );
   }
   parts.push(`\nScene: ${sceneText}`);

@@ -4,6 +4,7 @@ import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { useSharedLocations } from "@/composables/locations/useLocations";
+import { usePlayerVisibleFactions } from "@/composables/factions/useFactions";
 import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
 
 export function usePlayerEntityMentionItems() {
@@ -12,6 +13,7 @@ export function usePlayerEntityMentionItems() {
   const { data: allMonsters }       = usePlayerVisibleMonsters();
   const { data: playerDiscoveries } = usePlayerDiscoveries();
   const { data: sharedLocations }   = useSharedLocations();
+  const { data: factions }          = usePlayerVisibleFactions();
 
   const mentionItems = computed<EntityMentionItem[]>(() => {
     const discoveredIds = new Set(
@@ -41,6 +43,11 @@ export function usePlayerEntityMentionItems() {
         id: l.id,
         entityType: "location" as const,
         label: l.name,
+      })),
+      ...(factions.value ?? []).map((f) => ({
+        id: f.id,
+        entityType: "faction" as const,
+        label: f.name,
       })),
     ];
   });

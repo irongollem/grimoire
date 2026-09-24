@@ -199,6 +199,7 @@ import type { Note, NoteCategory, NoteSessionDates } from "@/types/notes.types";
 import type { ChronicleInsert } from "@/types/chronicler.types";
 import type { CalendarEvent } from "@/types/calendar.types";
 import { markEdited, type AiProvenance } from "@/ai/provenance";
+import { normalizeTag } from "@/lib/tags";
 import { useCampaignStore } from "@/stores/campaign";
 import { sendCampaignAnnouncement } from "@/composables/campaign/useCampaignBroadcast";
 import { notifyNoteShared } from "@/composables/campaign/useEmailNotify";
@@ -320,6 +321,14 @@ function onChroniclerWrite(chronicle: ChronicleInsert) {
     // set without switching category would be dropped on save without a trace.
     category.value = "session";
     sessionNum.value = chronicle.sessionNum;
+  }
+  if (chronicle.tags.length > 0) {
+    // Merge, not replace — the DM's own tag bar may already hold tags this
+    // note started with. Skip anything already present under a different
+    // spelling (stored tags are inconsistent — see reconcileChronicleTags).
+    const already = new Set(tags.value.map(normalizeTag));
+    const toAdd = chronicle.tags.filter((t) => !already.has(normalizeTag(t)));
+    tags.value = [...tags.value, ...toAdd];
   }
   if (chronicle.aiProvenance) {
     aiProvenance.value = chronicle.aiProvenance;

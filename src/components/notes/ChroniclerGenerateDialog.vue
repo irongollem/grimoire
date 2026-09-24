@@ -157,16 +157,16 @@ watch(() => props.visible, (v) => {
   }
 });
 
-const { mentionItems, partyMembers, npcs, monsters } = useEntityMentionItems();
+const { mentionItems, partyMembers, npcs, monsters, factions } = useEntityMentionItems();
 
 const resolvedEntities = computed(() =>
-  parseSceneEntities(
-    scenePrompt.value,
-    npcs.value,
-    monsters.value,
-    partyMembers.value,
-    campaignStore.activeCampaign?.group_portrait_url,
-  ),
+  parseSceneEntities(scenePrompt.value, {
+    partyMembers: partyMembers.value,
+    npcs: npcs.value,
+    monsters: monsters.value,
+    factions: factions.value,
+    groupPortraitUrl: campaignStore.activeCampaign?.group_portrait_url,
+  }),
 );
 
 const hasMentions = computed(() => /@[A-Za-z]/.test(scenePrompt.value));

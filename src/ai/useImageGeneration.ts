@@ -111,8 +111,8 @@ function isLocalMode(): boolean {
 function buildScenePrompt(subject: string, descriptions: string[], setting: string, base: string): string {
   const parts = [base, setting, "Compose a scene illustration."];
   if (descriptions.length) {
-    parts.push(`Characters and creatures:\n${descriptions.map((entry) => `• ${entry}`).join("\n")}`);
-    parts.push("Use references for likeness only; re-pose every subject naturally for this scene and depict each exactly once.");
+    parts.push(`Characters, creatures and factions:\n${descriptions.map((entry) => `• ${entry}`).join("\n")}`);
+    parts.push("Use references for likeness only; re-pose every subject naturally for this scene and depict each exactly once. A faction's reference image is its emblem — render it as heraldry (on banners, shields, tabards, or insignia) carried by the people in the scene, never as a character in its own right.");
   }
   parts.push(`Scene: ${subject}`);
   return parts.filter(Boolean).join("\n\n");

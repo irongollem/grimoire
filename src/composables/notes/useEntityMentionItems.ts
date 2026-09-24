@@ -3,6 +3,7 @@ import { useParty } from "@/composables/party/useParty";
 import { useNpcs } from "@/composables/npcs/useNpcs";
 import { useAllMonsters } from "@/composables/monsters/useMonsters";
 import { useAllLocations } from "@/composables/locations/useLocations";
+import { useAllFactions } from "@/composables/factions/useFactions";
 import { useCampaignStore } from "@/stores/campaign";
 import type { EntityMentionItem } from "@/lib/tiptap/EntityMention";
 
@@ -13,6 +14,7 @@ export function useEntityMentionItems() {
   const { data: npcs }         = useNpcs();
   const { data: monsters }     = useAllMonsters();
   const { data: locations }    = useAllLocations();
+  const { data: factions }     = useAllFactions();
   const campaignStore          = useCampaignStore();
 
   const mentionItems = computed<EntityMentionItem[]>(() => {
@@ -43,10 +45,15 @@ export function useEntityMentionItems() {
         entityType: "location" as const,
         label: l.name,
       })),
+      ...(factions.value ?? []).map((f) => ({
+        id: f.id,
+        entityType: "faction" as const,
+        label: f.name,
+      })),
     );
 
     return items;
   });
 
-  return { mentionItems, partyMembers, npcs, monsters };
+  return { mentionItems, partyMembers, npcs, monsters, factions };
 }

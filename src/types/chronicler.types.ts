@@ -40,5 +40,8 @@ export interface ChronicleInsert {
   title: string | null;
   /** Session number to apply, or null to leave the note's own alone. */
   sessionNum: number | null;
+  /** Tags the model proposed (reconciled against the campaign's existing tag
+   *  vocabulary), for the note editor to merge into its tag bar. */
+  tags: string[];
   aiProvenance: AiProvenance | null;
 }

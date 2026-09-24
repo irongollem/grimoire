@@ -53,6 +53,7 @@ const DM_ENTITY_ROUTES: Record<EntityType, string> = {
   monster: "/monsters",
   location: "/locations",
   party: "/party",
+  faction: "/factions",
 };
 
 // Player portal only has list pages — navigate to the list, no ID.
@@ -62,6 +63,7 @@ const PLAYER_LIST_ROUTES: Record<EntityType, string> = {
   monster: "/play/bestiary",
   location: "/play/atlas",
   party: "/play/party",
+  faction: "/play/factions",
 };
 
 function navigate() {
@@ -202,5 +204,24 @@ function navigate() {
 .entity-chip--party:hover {
   background: theme(colors.amber-400 / 20%);
   border-color: theme(colors.amber-400 / 60%);
+}
+
+/* ── Faction (cyan) ─────────────────────────────────────────────────────── */
+.entity-chip--faction--edit {
+  border-color: theme(colors.cyan-400 / 35%);
+  background: theme(colors.cyan-400 / 10%);
+  color: theme(colors.cyan-400);
+  cursor: default;
+}
+.entity-chip--faction {
+  border-color: theme(colors.cyan-400 / 40%);
+  background: theme(colors.cyan-400 / 10%);
+  color: theme(colors.cyan-400);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.entity-chip--faction:hover {
+  background: theme(colors.cyan-400 / 20%);
+  border-color: theme(colors.cyan-400 / 60%);
 }
 </style>

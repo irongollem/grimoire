@@ -50,6 +50,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import AppButton from "@/components/common/AppButton.vue";
+import { normalizeTag } from "@/lib/tags";
 
 const { placeholder = "Add tag...", suggestions = [] } = defineProps<{
   placeholder?: string;
@@ -107,17 +108,6 @@ watch(open, (val) => {
 });
 
 onUnmounted(() => window.removeEventListener("scroll", updatePosition, true));
-
-/** Normalize a tag: lowercase, spaces/underscores → hyphens, strip anything that isn't a-z 0-9 or hyphen. */
-function normalizeTag(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_]+/g, "-")       // spaces and underscores → hyphen
-    .replace(/[^a-z0-9-]/g, "")   // strip everything else
-    .replace(/-{2,}/g, "-")        // collapse double-hyphens
-    .replace(/^-+|-+$/g, "");      // trim leading/trailing hyphens
-}
 
 function addTag(tag: string) {
   const clean = normalizeTag(tag);
