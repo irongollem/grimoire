@@ -82,3 +82,4 @@ bun.lockb
 # committed copy would silently rot against the code it describes. Includes the
 # extraction cache and cost.json (token spend), which are per-machine anyway.
 graphify-out/
+.vitest/
