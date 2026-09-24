@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { buildLyriaRequest, extractLyriaAudio, audioExtension, LYRIA_INTERACTIONS_URL } from "./lyria.ts";
+import {
+  buildLyriaRequest,
+  extractLyriaAudio,
+  audioExtension,
+  normalizeImageMime,
+  LYRIA_INTERACTIONS_URL,
+  LYRIA_MAX_IMAGES,
+  LYRIA_IMAGE_MIME_TYPES,
+} from "./lyria.ts";
 
 describe("LYRIA_INTERACTIONS_URL", () => {
   it("points at the Interactions API, not the old generateContent endpoint", () => {
@@ -14,6 +22,41 @@ describe("buildLyriaRequest", () => {
       input: "a tense dungeon crawl theme",
       store: false,
     });
+  });
+
+  it("keeps input a plain string when images is an explicit empty array", () => {
+    expect(buildLyriaRequest("lyria-3.5", "a tense dungeon crawl theme", [])).toEqual({
+      model: "lyria-3.5",
+      input: "a tense dungeon crawl theme",
+      store: false,
+    });
+  });
+
+  it("builds a multi-part input with the text block first, then images in order", () => {
+    const images = [
+      { mimeType: "image/jpeg", data: "aGk=" },
+      { mimeType: "image/png", data: "Ymll" },
+    ];
+    expect(buildLyriaRequest("lyria-3.5", "a tense dungeon crawl theme", images)).toEqual({
+      model: "lyria-3.5",
+      input: [
+        { type: "text", text: "a tense dungeon crawl theme" },
+        { type: "image", mime_type: "image/jpeg", data: "aGk=" },
+        { type: "image", mime_type: "image/png", data: "Ymll" },
+      ],
+      store: false,
+    });
+  });
+
+  it("still sets store: false with images attached", () => {
+    const result = buildLyriaRequest("lyria-3.5", "prompt", [{ mimeType: "image/webp", data: "d2Vi" }]);
+    expect(result.store).toBe(false);
+  });
+});
+
+describe("LYRIA_MAX_IMAGES", () => {
+  it("is 10", () => {
+    expect(LYRIA_MAX_IMAGES).toBe(10);
   });
 });
 
@@ -74,6 +117,31 @@ describe("extractLyriaAudio", () => {
     expect(extractLyriaAudio({ steps: [{ type: "model_output", content: [{ type: "audio", data: 42 }] }] })).toBeNull();
     expect(extractLyriaAudio({ steps: [{ type: "model_output", content: [{ type: "audio", data: "" }] }] })).toBeNull();
     expect(extractLyriaAudio({ steps: [null, "garbage", 5] })).toBeNull();
+  });
+});
+
+describe("LYRIA_IMAGE_MIME_TYPES", () => {
+  it("accepts jpeg, png and webp", () => {
+    expect(LYRIA_IMAGE_MIME_TYPES).toEqual(["image/jpeg", "image/png", "image/webp"]);
+  });
+});
+
+describe("normalizeImageMime", () => {
+  it("lowercases and passes through an accepted mime type", () => {
+    expect(normalizeImageMime("image/jpeg")).toBe("image/jpeg");
+    expect(normalizeImageMime("IMAGE/PNG")).toBe("image/png");
+  });
+
+  it("strips parameters before comparing", () => {
+    expect(normalizeImageMime("image/jpeg; charset=binary")).toBe("image/jpeg");
+    expect(normalizeImageMime("image/webp;charset=binary")).toBe("image/webp");
+  });
+
+  it("returns null for a disallowed or missing content type", () => {
+    expect(normalizeImageMime("image/gif")).toBeNull();
+    expect(normalizeImageMime("application/octet-stream")).toBeNull();
+    expect(normalizeImageMime(null)).toBeNull();
+    expect(normalizeImageMime("")).toBeNull();
   });
 });
 

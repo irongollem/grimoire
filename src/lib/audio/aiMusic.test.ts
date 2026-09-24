@@ -10,6 +10,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
+  buildInteractionInput,
   buildStructureMessage,
   composeFallbackPrompt,
   extractInteractionAudio,
@@ -61,6 +62,62 @@ describe("buildStructureMessage", () => {
     const req: MusicRequest = { description: "epic finale", lengthSeconds: 180, vocals: "instrumental" };
     expect(buildStructureMessage(req)).toContain("Target length: 3:00 (180 seconds)");
   });
+
+  it("lists mentions with their description", () => {
+    const req: MusicRequest = {
+      description: "a tense standoff",
+      lengthSeconds: 60,
+      vocals: "instrumental",
+      mentions: [{ label: "Kael", description: "A weary paladin haunted by his order's fall." }],
+    };
+    const msg = buildStructureMessage(req);
+    expect(msg).toContain("Mentioned:\n- Kael: A weary paladin haunted by his order's fall.");
+  });
+
+  it("lists a mention with no description as just the label", () => {
+    const req: MusicRequest = {
+      description: "a tense standoff",
+      lengthSeconds: 60,
+      vocals: "instrumental",
+      mentions: [{ label: "The Sunken Keep", description: null }],
+    };
+    const msg = buildStructureMessage(req);
+    expect(msg).toContain("Mentioned:\n- The Sunken Keep");
+    expect(msg).not.toContain("The Sunken Keep:");
+  });
+
+  it("omits the Mentioned block when there are no mentions", () => {
+    const req: MusicRequest = { description: "a quiet lull", lengthSeconds: 60, vocals: "instrumental", mentions: [] };
+    expect(buildStructureMessage(req)).not.toContain("Mentioned:");
+  });
+
+  it("adds the images-attached line when imageCount is set", () => {
+    const req: MusicRequest = { description: "a ruined temple", lengthSeconds: 60, vocals: "instrumental", imageCount: 3 };
+    expect(buildStructureMessage(req)).toContain("Images attached for Lyria: 3");
+  });
+
+  it("omits the images-attached line when imageCount is zero or absent", () => {
+    const req: MusicRequest = { description: "a ruined temple", lengthSeconds: 60, vocals: "instrumental", imageCount: 0 };
+    expect(buildStructureMessage(req)).not.toContain("Images attached");
+  });
+
+  it("keeps the lyrics block last even with mentions and images present", () => {
+    const req: MusicRequest = {
+      description: "a heroic ballad",
+      lengthSeconds: 120,
+      vocals: "vocals",
+      lyrics: "[Chorus]\nOnward!",
+      mentions: [{ label: "Kael", description: "A weary paladin." }],
+      imageCount: 2,
+    };
+    const msg = buildStructureMessage(req);
+    const lines = msg.split("\n");
+    expect(lines.at(-3)).toBe("Lyrics:");
+    expect(lines.at(-2)).toBe("[Chorus]");
+    expect(lines.at(-1)).toBe("Onward!");
+    expect(msg.indexOf("Mentioned:")).toBeLessThan(msg.indexOf("Lyrics:"));
+    expect(msg.indexOf("Images attached")).toBeLessThan(msg.indexOf("Lyrics:"));
+  });
 });
 
 // ── composeFallbackPrompt ────────────────────────────────────────────────────
@@ -98,6 +155,59 @@ describe("composeFallbackPrompt", () => {
     };
     const prompt = composeFallbackPrompt(req);
     expect(prompt).not.toContain("should not appear");
+  });
+
+  it("appends the images sentence when imageCount is set", () => {
+    const req: MusicRequest = { description: "a ruined temple", lengthSeconds: 60, vocals: "instrumental", imageCount: 2 };
+    const prompt = composeFallbackPrompt(req);
+    expect(prompt).toContain("Take the instrumentation, colour and atmosphere from the attached images.");
+  });
+
+  it("omits the images sentence when imageCount is zero or absent", () => {
+    const req: MusicRequest = { description: "a ruined temple", lengthSeconds: 60, vocals: "instrumental" };
+    expect(composeFallbackPrompt(req)).not.toContain("attached images");
+  });
+
+  it("ignores mentions in the fallback prompt", () => {
+    const req: MusicRequest = {
+      description: "a ruined temple",
+      lengthSeconds: 60,
+      vocals: "instrumental",
+      mentions: [{ label: "Kael", description: "A weary paladin." }],
+    };
+    expect(composeFallbackPrompt(req)).not.toContain("Kael");
+  });
+
+  it("keeps lyrics last even when images are attached", () => {
+    const req: MusicRequest = {
+      description: "a heroic ballad",
+      lengthSeconds: 120,
+      vocals: "vocals",
+      lyrics: "[Chorus]\nOnward!",
+      imageCount: 1,
+    };
+    const prompt = composeFallbackPrompt(req);
+    expect(prompt.endsWith("Lyrics:\n[Chorus]\nOnward!")).toBe(true);
+  });
+});
+
+// ── buildInteractionInput ────────────────────────────────────────────────────
+
+describe("buildInteractionInput", () => {
+  it("returns the plain prompt string when there are no images", () => {
+    expect(buildInteractionInput("a tense chase", [])).toBe("a tense chase");
+  });
+
+  it("returns the list form with text first, then one block per image", () => {
+    const result = buildInteractionInput("a tense chase", [
+      { mimeType: "image/jpeg", data: "AAA" },
+      { mimeType: "image/png", data: "BBB" },
+    ]);
+    expect(result).toEqual([
+      { type: "text", text: "a tense chase" },
+      { type: "image", mime_type: "image/jpeg", data: "AAA" },
+      { type: "image", mime_type: "image/png", data: "BBB" },
+    ]);
   });
 });
 

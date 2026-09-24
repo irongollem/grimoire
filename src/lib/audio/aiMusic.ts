@@ -25,6 +25,9 @@ export const MUSIC_GENERATION_TYPE = "music_track";
 /** Maximum lyrics length in characters (keeps generated audio within ~3 min, ~400 words). */
 export const LYRICS_MAX_CHARS = 2200;
 
+/** Lyria's Interactions API accepts at most 10 images per request. */
+export const MUSIC_MAX_IMAGES = 10;
+
 /**
  * Mirrors the `music_structure` row seeded by
  * supabase/migrations/20260924201957_upgrade_music_generation_to_lyria_3_5.sql
@@ -46,6 +49,12 @@ Open with one paragraph:
 - Vocals: describe the singer — gender, range, timbre and delivery (e.g. "Male baritone, deep and weathered, a tavern storyteller's delivery").
 - Describe the production and the recording — it decides whether the track sounds performed or programmed. For orchestral, folk and other acoustic styles, ask for a live recording: players in a real room (a scoring stage, a stone hall, a crowded tavern), natural reverb, expressive human timing and dynamics, bow noise and breath audible. Ask for synths, drum machines or quantised precision only when the style is electronic.
 - Never name a real artist, band, composer, song, film or game. Lyria blocks prompts that ask for a specific artist's voice or for copyrighted material. Translate any such reference into the instruments, era and mood it stands for.
+
+## Mentioned characters and places
+The message may list characters, creatures and places the DM mentioned, each with a short description from their campaign notes. Use them for what the scene is about and what it means — who is there, what they feel, what is at stake. Do not copy their descriptions into the prompt, and leave their names out unless they belong in lyrics the DM asked for.
+
+## Attached images
+The message may say that images are attached. You cannot see them; Lyria can, and it reads a picture well. So when images are attached, this overrides the instrument, tempo and key lines above: do not choose instruments, key, tempo or timbre, and do not describe the images. Write the direction as what the scene means, the foreground or underscore shape and its dynamics, the vocals line, the length, and the sentence "Take the instrumentation, colour and atmosphere from the attached images." Keep the timeline to sections and energy, without naming instruments.
 
 ## Foreground or underscore
 Most soundboard music plays under a table of people talking. Read the description and choose one shape:
@@ -74,11 +83,29 @@ If the DM asks for a cultural vocal tradition (Arabic, Persian, Indian classical
 
 Return only the prompt — no preamble, no commentary, no markdown fences.`;
 
+/**
+ * One @-mentioned character, creature or place from the DM's description.
+ * Modeled on the shape the Chronicler's mention resolver yields, but this
+ * module has no dependency on it — the caller flattens and caps the
+ * description before handing it here.
+ */
+export interface MusicMention {
+  label: string;
+  description: string | null;
+}
+
 export interface MusicRequest {
   description: string;
   lengthSeconds: MusicLengthSeconds;
   vocals: MusicVocals;
   lyrics?: string;
+  /** Entities the DM @-mentioned in their description, for the structuring
+   * model to read for context — never copied verbatim into the prompt. */
+  mentions?: MusicMention[];
+  /** How many images will reach Lyria. The bytes travel separately (to the
+   * server, or to generateMusicLocally for the BYOK path) — this is only
+   * what the structuring model needs to know to write around them. */
+  imageCount?: number;
 }
 
 function formatLength(seconds: MusicLengthSeconds): string {
@@ -97,6 +124,18 @@ export function buildStructureMessage(req: MusicRequest): string {
     `Target length: ${formatLength(req.lengthSeconds)}`,
     `Vocals: ${req.vocals}`,
   ];
+
+  if (req.mentions && req.mentions.length > 0) {
+    lines.push("", "Mentioned:");
+    for (const mention of req.mentions) {
+      lines.push(mention.description ? `- ${mention.label}: ${mention.description}` : `- ${mention.label}`);
+    }
+  }
+
+  if (req.imageCount && req.imageCount > 0) {
+    lines.push("", `Images attached for Lyria: ${req.imageCount}`);
+  }
+
   const lyrics = req.lyrics?.trim();
   if (lyrics && req.vocals === "vocals") {
     lines.push("", "Lyrics:", lyrics);
@@ -112,6 +151,10 @@ export function composeFallbackPrompt(req: MusicRequest): string {
   let prompt = `${req.description}. A ${req.lengthSeconds / 60}-minute track.`;
   if (req.vocals === "instrumental") prompt += " Instrumental only, no vocals.";
   if (req.vocals === "choir") prompt += " Wordless choir only: sung vowels such as ooh and aah, no lyrics, no solo singer.";
+  // Mentions are ignored here on purpose: a fallback stays minimal.
+  if (req.imageCount && req.imageCount > 0) {
+    prompt += " Take the instrumentation, colour and atmosphere from the attached images.";
+  }
   const lyrics = req.lyrics?.trim();
   if (lyrics && req.vocals === "vocals") {
     prompt += `\n\nLyrics:\n${lyrics}`;
@@ -180,15 +223,82 @@ function extensionFor(mimeType: string): string {
   return EXTENSION_BY_MIME[mimeType] ?? "mp3";
 }
 
+const LYRIA_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const LYRIA_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+// Chunked so a large image never spreads its whole byte array into
+// String.fromCharCode at once (that blows the call-stack argument limit).
+const BASE64_CHUNK_SIZE = 8192;
+
+async function blobToBase64Chunked(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += BASE64_CHUNK_SIZE) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK_SIZE));
+  }
+  return btoa(binary);
+}
+
+interface LyriaImageInput {
+  mimeType: string;
+  data: string;
+}
+
+/** Fetches and base64-encodes one image for Lyria. Any failure throws — an
+ * attached image is never silently dropped from the request. */
+async function fetchImageForLyria(url: string): Promise<LyriaImageInput> {
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch {
+    throw new Error("Could not read an attached image.");
+  }
+  if (!response.ok) throw new Error("Could not read an attached image.");
+
+  const mimeType = response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
+  if (!mimeType || !LYRIA_IMAGE_MIME_TYPES.has(mimeType)) throw new Error("Could not read an attached image.");
+
+  const blob = await response.blob();
+  if (blob.size > LYRIA_IMAGE_MAX_BYTES) throw new Error("Could not read an attached image.");
+
+  return { mimeType, data: await blobToBase64Chunked(blob) };
+}
+
+/** Over the cap throws rather than trimming — same rule as a failed fetch:
+ * an attached image is never dropped without the DM hearing about it. */
+function dedupeImageUrls(urls: string[]): string[] {
+  const unique = Array.from(new Set(urls));
+  if (unique.length > MUSIC_MAX_IMAGES) throw new Error(`Lyria reads at most ${MUSIC_MAX_IMAGES} images.`);
+  return unique;
+}
+
+/**
+ * The body Google's Interactions API expects: a plain string when there are
+ * no images, or the list form — text first, then one block per image — when
+ * there are. Pure so it can be tested without a network call.
+ */
+export function buildInteractionInput(
+  prompt: string,
+  images: LyriaImageInput[],
+): string | Array<{ type: "text"; text: string } | { type: "image"; mime_type: string; data: string }> {
+  if (images.length === 0) return prompt;
+  return [
+    { type: "text" as const, text: prompt },
+    ...images.map((image) => ({ type: "image" as const, mime_type: image.mimeType, data: image.data })),
+  ];
+}
+
 /**
  * The local-BYOK path: reads the configured Lyria model from provider_config,
  * calls Google's Interactions API directly from the browser, and returns the
  * generated audio plus the model that produced it (needed by the caller to
- * log usage, since the model is no longer chosen client-side).
+ * log usage, since the model is no longer chosen client-side). `imageUrls`
+ * are fetched and base64-encoded in the browser — Lyria reads the bytes, the
+ * server never sees this path's images.
  */
 export async function generateMusicLocally(
   prompt: string,
   apiKey: string,
+  imageUrls: string[] = [],
 ): Promise<{ file: File; model: string }> {
   const { data } = await supabase
     .from("provider_config")
@@ -198,13 +308,15 @@ export async function generateMusicLocally(
   const model = (data as { audio_model: string | null } | null)?.audio_model;
   if (!model) throw new Error("No music model is configured.");
 
+  const images = await Promise.all(dedupeImageUrls(imageUrls).map(fetchImageForLyria));
+
   const res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-goog-api-key": apiKey,
     },
-    body: JSON.stringify({ model, input: prompt, store: false }),
+    body: JSON.stringify({ model, input: buildInteractionInput(prompt, images), store: false }),
   });
 
   if (!res.ok) {

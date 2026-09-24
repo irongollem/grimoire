@@ -9,9 +9,29 @@
 
 export const LYRIA_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
 
+/** Lyria 3.5 composes from at most 10 images alongside the text prompt. */
+export const LYRIA_MAX_IMAGES = 10;
+
+/** One image attachment: base64 bytes plus the mime type Google expects. */
+export interface LyriaImage {
+  mimeType: string;
+  data: string;
+}
+
+interface LyriaTextBlock {
+  type: "text";
+  text: string;
+}
+
+interface LyriaImageBlock {
+  type: "image";
+  mime_type: string;
+  data: string;
+}
+
 export interface LyriaRequestBody {
   model: string;
-  input: string;
+  input: string | Array<LyriaTextBlock | LyriaImageBlock>;
   store: boolean;
 }
 
@@ -20,9 +40,34 @@ export interface LyriaRequestBody {
  * Google stores interactions for 55 days by default for server-side
  * conversation state, which this app never uses, so there is no reason to
  * leave DM prompts sitting in that store.
+ *
+ * With no images, `input` stays the plain prompt string (unchanged shape for
+ * every request before image inputs existed). With images, `input` becomes a
+ * list of content blocks — the text prompt first, then up to
+ * `LYRIA_MAX_IMAGES` images — matching the Interactions API's multi-part input
+ * shape.
  */
-export function buildLyriaRequest(model: string, prompt: string): LyriaRequestBody {
-  return { model, input: prompt, store: false };
+export function buildLyriaRequest(model: string, prompt: string, images: LyriaImage[] = []): LyriaRequestBody {
+  if (images.length === 0) return { model, input: prompt, store: false };
+  const input: Array<LyriaTextBlock | LyriaImageBlock> = [
+    { type: "text", text: prompt },
+    ...images.map((image): LyriaImageBlock => ({ type: "image", mime_type: image.mimeType, data: image.data })),
+  ];
+  return { model, input, store: false };
+}
+
+/** Mime types Lyria's image input accepts. */
+export const LYRIA_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+/**
+ * Normalize a fetched image's Content-Type header into one of
+ * `LYRIA_IMAGE_MIME_TYPES`, or null if it isn't one. Strips parameters
+ * (`image/jpeg; charset=binary`) and lowercases before comparing.
+ */
+export function normalizeImageMime(contentType: string | null): string | null {
+  if (!contentType) return null;
+  const bare = contentType.split(";")[0].trim().toLowerCase();
+  return (LYRIA_IMAGE_MIME_TYPES as readonly string[]).includes(bare) ? bare : null;
 }
 
 export interface LyriaAudio {

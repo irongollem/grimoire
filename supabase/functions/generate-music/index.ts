@@ -17,7 +17,16 @@ import {
   type GenerationJob,
 } from "../_shared/aiGenerationJob.ts";
 import { uploadWithRetry, publicUrlFor } from "../_shared/storage-upload.ts";
-import { LYRIA_INTERACTIONS_URL, buildLyriaRequest, extractLyriaAudio, audioExtension } from "../_shared/lyria.ts";
+import {
+  LYRIA_INTERACTIONS_URL,
+  LYRIA_MAX_IMAGES,
+  buildLyriaRequest,
+  extractLyriaAudio,
+  audioExtension,
+  normalizeImageMime,
+  type LyriaImage,
+} from "../_shared/lyria.ts";
+import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -35,6 +44,8 @@ interface MusicJobRequest {
   name: string;
   category: SoundCategory;
   pageId: string | null;
+  /** Up to LYRIA_MAX_IMAGES storage/CDN URLs Lyria composes alongside the prompt. */
+  imageUrls: string[];
 }
 
 interface MusicRuntimeRequest extends MusicJobRequest {
@@ -44,9 +55,13 @@ interface MusicRuntimeRequest extends MusicJobRequest {
 function requestFromJob(job: GenerationJob): MusicJobRequest {
   const request = job.request_json;
   const category = request.category;
+  const imageUrls = request.image_urls;
   if (
     typeof request.prompt !== "string" || typeof request.model !== "string" ||
-    typeof request.name !== "string" || !["ambient", "music", "effects", "misc"].includes(String(category))
+    typeof request.name !== "string" || !["ambient", "music", "effects", "misc"].includes(String(category)) ||
+    // There are no old jobs to be compatible with — image_urls is required, always an
+    // array, and re-validated here because a durable snapshot can be re-executed on retry.
+    !Array.isArray(imageUrls) || !imageUrls.every((url) => typeof url === "string" && isSafeStorageUrl(url))
   ) throw new Error("Music job has an invalid durable request.");
   return {
     campaignId: job.campaign_id,
@@ -56,6 +71,7 @@ function requestFromJob(job: GenerationJob): MusicJobRequest {
     name: request.name,
     category: category as SoundCategory,
     pageId: typeof request.page_id === "string" ? request.page_id : null,
+    imageUrls: imageUrls as string[],
   };
 }
 
@@ -71,6 +87,47 @@ async function finalizeMusicJob(job: GenerationJob): Promise<void> {
   await finalizeMusicGenerationJob(admin, job.id);
 }
 
+const MAX_LYRIA_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Base64-encode bytes in chunks. Spreading a large Uint8Array straight into
+ * `String.fromCharCode` overflows the call stack, so this builds the string
+ * 32KB at a time instead.
+ */
+function bytesToBase64(bytes: Uint8Array): string {
+  const CHUNK_SIZE = 0x8000;
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
+    const chunk = bytes.subarray(offset, offset + CHUNK_SIZE);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Fetch and validate one Lyria image input. The URL was already checked with
+ * isSafeStorageUrl before this runs (at request time, and again from the
+ * durable snapshot on a retry) — this only validates what the fetch itself
+ * returns: a successful response, an accepted content type, and a size under
+ * MAX_LYRIA_IMAGE_BYTES (checked against both the Content-Length header, when
+ * present, and the actual bytes received).
+ */
+async function fetchLyriaImage(url: string): Promise<LyriaImage> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Could not read an attached image.");
+
+  const mimeType = normalizeImageMime(res.headers.get("content-type"));
+  if (!mimeType) throw new Error("Could not read an attached image.");
+
+  const contentLength = res.headers.get("content-length");
+  if (contentLength && Number(contentLength) > MAX_LYRIA_IMAGE_BYTES) throw new Error("Could not read an attached image.");
+
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes.byteLength > MAX_LYRIA_IMAGE_BYTES) throw new Error("Could not read an attached image.");
+
+  return { mimeType, data: bytesToBase64(bytes) };
+}
+
 /** Provider work happens only after the worker wins the queued-job claim. */
 async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): Promise<void> {
   let artifactPersisted = false;
@@ -78,12 +135,22 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
     const claimed = await claimGenerationJob(admin, jobId);
     if (!claimed) return;
 
+    // Never skip an attached image silently — the DM asked for it and would
+    // otherwise get music that quietly ignored what they attached.
+    let images: LyriaImage[];
+    try {
+      images = await Promise.all(request.imageUrls.map(fetchLyriaImage));
+    } catch {
+      throw new Error("Could not read an attached image.");
+    }
+
     // The prompt arrives fully formed from the client (direction + timeline +
     // lyrics already merged) — it is sent as-is, never prepended to here.
+    // Images (if any) ride alongside it in the same Interactions API call.
     const lyriaRes = await fetch(LYRIA_INTERACTIONS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": request.apiKey },
-      body: JSON.stringify(buildLyriaRequest(request.model, request.prompt)),
+      body: JSON.stringify(buildLyriaRequest(request.model, request.prompt, images)),
     });
     if (!lyriaRes.ok) {
       const body = await lyriaRes.json().catch(() => ({})) as { error?: { message?: string } };
@@ -153,7 +220,7 @@ serve(withCors(async (req: Request) => {
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
   let campaignId: string, prompt: string, soundName: string;
-  let category: SoundCategory, pageId: string | null, requestId: string;
+  let category: SoundCategory, pageId: string | null, requestId: string, imageUrls: string[];
   try {
     const body = await req.json();
     campaignId = body.campaign_id;
@@ -162,10 +229,22 @@ serve(withCors(async (req: Request) => {
     category = body.category;
     pageId = typeof body.page_id === "string" ? body.page_id : null;
     requestId = typeof body.request_id === "string" ? body.request_id : "";
+    const rawImageUrls = body.image_urls;
+    if (rawImageUrls === undefined) {
+      imageUrls = [];
+    } else if (Array.isArray(rawImageUrls) && rawImageUrls.every((url: unknown) => typeof url === "string")) {
+      imageUrls = [...new Set(rawImageUrls as string[])];
+    } else {
+      throw new Error("invalid");
+    }
     if (!campaignId || !prompt || prompt.length > 12_000 || !soundName || !requestId || requestId.length > 128 ||
-      !["ambient", "music", "effects", "misc"].includes(category)) throw new Error("invalid");
+      !["ambient", "music", "effects", "misc"].includes(category) ||
+      imageUrls.length > LYRIA_MAX_IMAGES || !imageUrls.every((url) => isSafeStorageUrl(url))) throw new Error("invalid");
   } catch {
-    return new Response("Invalid body — need request_id, campaign_id, prompt (non-empty, max 12000 chars), sound_name and category", { status: 400 });
+    return new Response(
+      "Invalid body — need request_id, campaign_id, prompt (non-empty, max 12000 chars), sound_name, category and image_urls (max 10, our storage/CDN only)",
+      { status: 400 },
+    );
   }
 
   const { data: campaign } = await admin.from("campaigns")
@@ -232,7 +311,7 @@ serve(withCors(async (req: Request) => {
     if (!configuredModel) {
       return new Response(JSON.stringify({ error: "No music model is configured. Ask your admin to set one under Admin → AI Providers." }), { status: 503, headers: { "Content-Type": "application/json" } });
     }
-    durableRequest = { campaignId, userId: user.id, prompt, model: configuredModel, name: soundName, category, pageId };
+    durableRequest = { campaignId, userId: user.id, prompt, model: configuredModel, name: soundName, category, pageId, imageUrls };
   }
 
   const generationType = "music_track";
@@ -249,7 +328,7 @@ serve(withCors(async (req: Request) => {
         user_id: user.id,
         campaign_id: campaignId,
         kind: "music",
-        request: { prompt: durableRequest.prompt, model: durableRequest.model, name: soundName, category, page_id: pageId },
+        request: { prompt: durableRequest.prompt, model: durableRequest.model, name: soundName, category, page_id: pageId, image_urls: durableRequest.imageUrls },
         billing: {
           reservation_ids: reservation.ids,
           generation_type: generationType,
