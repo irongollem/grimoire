@@ -12,7 +12,7 @@ vi.mock("@/ai/useChroniclerTextGeneration", async (importOriginal) => ({
 vi.mock("@/composables/useConfirm", () => ({ useConfirm: () => ({ confirm }) }));
 vi.mock("@/composables/notes/useEntityMentionItems", () => ({
   useEntityMentionItems: () => ({
-    mentionItems: ref([]), partyMembers: ref([]), npcs: ref([]), monsters: ref([]), factions: ref([]),
+    mentionItems: ref([]), partyMembers: ref([]), npcs: ref([]), monsters: ref([]), locations: ref([]), factions: ref([]),
   }),
 }));
 vi.mock("@/composables/notes/useNotes", () => ({

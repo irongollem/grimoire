@@ -139,12 +139,16 @@
         <!-- Description -->
         <div class="space-y-1">
           <label class="text-caption text-muted-foreground">Description</label>
-          <textarea
+          <MentionTextarea
             v-model="generateDescription"
-            rows="2"
-            placeholder="e.g. tense dungeon crawl, low strings and distant war drums, slowly building dread"
-            class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+            :rows="2"
+            placeholder="e.g. the passage-grove at night, @Vesper waiting — soft and serene"
+            :items="mentionItems"
+            input-class="rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
+          <p v-if="mentionedWithImages.length > 0" class="text-caption-sm text-muted-foreground/60">
+            Lyria will read {{ mentionedWithImages.length }} {{ mentionedWithImages.length === 1 ? 'picture' : 'pictures' }}: {{ mentionedWithImages.join(', ') }}
+          </p>
         </div>
 
         <!-- Length -->
@@ -195,19 +199,9 @@
           </p>
         </div>
 
-        <!-- Structured prompt preview -->
-        <details v-if="structuredPrompt" class="group">
-          <summary class="text-caption-sm text-muted-foreground/60 cursor-pointer hover:text-muted-foreground transition-colors select-none">
-            Expanded prompt ▸
-          </summary>
-          <p class="mt-1 text-caption-sm text-muted-foreground/80 whitespace-pre-wrap leading-relaxed">{{ structuredPrompt }}</p>
-        </details>
 
         <!-- Status / error -->
-        <p v-if="isStructuring" class="text-caption text-muted-foreground text-center">
-          Expanding prompt…
-        </p>
-        <p v-else-if="isGenerating" class="text-caption text-muted-foreground text-center">
+        <p v-if="isGenerating" class="text-caption text-muted-foreground text-center">
           Generating… a full track can take a while
         </p>
         <p v-if="isBusy && !isGenerating" class="text-caption text-muted-foreground text-center">
@@ -291,18 +285,21 @@ import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import GenerationCostBadge from "@/components/common/GenerationCostBadge.vue";
 import AiOffNotice from "@/components/common/AiOffNotice.vue";
+import MentionTextarea from "@/components/common/MentionTextarea.vue";
 import { useCreateSound, useSoundUpload } from "@/composables/soundboard/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/billing/useSubscription";
 import { useCampaignStore } from "@/stores/campaign";
+import { useEntityMentionItems } from "@/composables/notes/useEntityMentionItems";
+import { parseSceneEntities, stripMentionTokens } from "@/ai/sceneEntities";
 import {
   generateMusicLocally,
-  structureMusicPrompt,
   composeFallbackPrompt,
   MUSIC_LENGTHS,
   MUSIC_GENERATION_TYPE,
+  MUSIC_MAX_IMAGES,
   LYRICS_MAX_CHARS,
-  type MusicRequest,
+  type FallbackPromptRequest,
   type MusicLengthSeconds,
   type MusicVocals,
 } from "@/lib/audio/aiMusic";
@@ -573,10 +570,28 @@ const generateDescription = ref("");
 const generateLyrics = ref("");
 const generateLengthSeconds = ref<MusicLengthSeconds>(60);
 const generateVocals = ref<MusicVocals>("instrumental");
-const isStructuring = ref(false);
 const isGenerating = ref(false);
 const generateError = ref("");
-const structuredPrompt = ref("");
+
+// @-mentions in the description resolve against the same campaign entities
+// the Chronicler reads — their images go to Lyria, their descriptions go to
+// the structuring step (see aiMusic.ts's "Mentioned characters and places").
+const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems();
+
+const mentionedEntities = computed(() =>
+  parseSceneEntities(generateDescription.value, {
+    partyMembers: partyMembers.value,
+    npcs: npcs.value,
+    monsters: monsters.value,
+    locations: locations.value,
+    factions: factions.value,
+    groupPortraitUrl: campaignStore.activeCampaign?.group_portrait_url,
+  }),
+);
+
+const mentionedWithImages = computed(() =>
+  mentionedEntities.value.filter((e) => e.portraitUrl).map((e) => e.label),
+);
 
 const MUSIC_LENGTH_OPTIONS: SegmentedOption<MusicLengthSeconds>[] = MUSIC_LENGTHS.map((l) => ({
   value: l.seconds,
@@ -593,7 +608,7 @@ const lyricsCharsLeft = computed(() => LYRICS_MAX_CHARS - generateLyrics.value.l
 
 // ── Submit state ──────────────────────────────────────────────────────────
 
-const anyBusy = computed(() => isBusy.value || isPending.value || isStructuring.value || isGenerating.value);
+const anyBusy = computed(() => isBusy.value || isPending.value || isGenerating.value);
 
 const submitDisabled = computed(() => {
   if (anyBusy.value) return true;
@@ -606,7 +621,6 @@ const submitDisabled = computed(() => {
 
 const submitLabel = computed(() => {
   if (isPending.value) return "Saving…";
-  if (isStructuring.value) return "Expanding…";
   if (isGenerating.value) return "Generating…";
   if (isBusy.value) return statusText.value || "Uploading…";
   if (activeSourceTab.value === "generate") return "Generate & Add";
@@ -674,30 +688,28 @@ async function handleSubmit() {
     // while the toggle is off, so this only guards a stray trigger.
     if (!isAiEnabled.value) return;
     if (!geminiApiKey && !campaignId) return;
+
+    // Unique portrait/image URLs from resolved @mentions — Lyria reads at
+    // most MUSIC_MAX_IMAGES; over that, the DM trims mentions rather than
+    // some of them silently going unread.
+    const imageUrls = [...new Set(
+      mentionedEntities.value.flatMap((e) => (e.portraitUrl ? [e.portraitUrl] : [])),
+    )];
+    if (imageUrls.length > MUSIC_MAX_IMAGES) {
+      generateError.value = `Mention at most ${MUSIC_MAX_IMAGES} characters or places with pictures.`;
+      return;
+    }
+
     if (!requireCredits(costOf(MUSIC_GENERATION_TYPE), !!geminiApiKey)) return;
 
-    const musicRequest: MusicRequest = {
-      description: generateDescription.value.trim(),
+    const musicRequest: FallbackPromptRequest = {
+      description: stripMentionTokens(generateDescription.value.trim()),
       lengthSeconds: generateLengthSeconds.value,
       vocals: generateVocals.value,
       lyrics: generateVocals.value === "vocals" ? (generateLyrics.value.trim() || undefined) : undefined,
+      mentions: mentionedEntities.value.map((e) => ({ label: e.label, description: e.textDescription })),
+      imageCount: imageUrls.length,
     };
-
-    // Step 1: expand the request into a structured Lyria prompt; fall back to
-    // a hand-composed one if the text provider is unavailable.
-    let finalPrompt = "";
-    structuredPrompt.value = "";
-    isStructuring.value = true;
-    try {
-      const { structured, textUsage } = await structureMusicPrompt(musicRequest);
-      structuredPrompt.value = structured;
-      finalPrompt = structured;
-      void textUsage; // internal step — not logged separately
-    } catch {
-      finalPrompt = composeFallbackPrompt(musicRequest);
-    } finally {
-      isStructuring.value = false;
-    }
 
     // Capture sound metadata before the async work begins. The server stores
     // the same snapshot on its durable job, so switching campaigns or pages
@@ -707,23 +719,29 @@ async function handleSubmit() {
     const originatingCampaignId = campaignId;
     const originatingPageId = pageId ?? null;
 
-    // Step 2: generate music with Lyria — local BYOK remains browser-owned;
-    // all server-key work returns a durable job id and stores audio server-side.
+    // Structuring (expanding the request into a full Lyria prompt via a text
+    // model) runs server-side inside generate-music now — see aiMusic.ts's
+    // top comment for why it moved out of the browser. The local-vault BYOK
+    // path below remains browser-owned and legacy per the BYOK-tier policy,
+    // so it sends a hand-composed prompt (composeFallbackPrompt) instead of
+    // adding a second BYOK text-provider call here.
     isGenerating.value = true;
     let file: File | null = null;
     const isLocalMode = typeof localStorage !== "undefined" && localStorage.getItem("grimoire_key_local_mode") === "local";
 
     try {
       if (isLocalMode && geminiApiKey) {
-        const generated = await generateMusicLocally(finalPrompt, geminiApiKey);
+        const finalPrompt = composeFallbackPrompt(musicRequest);
+        const generated = await generateMusicLocally(finalPrompt, geminiApiKey, imageUrls);
         file = generated.file;
         logUsage({ reason: "music_generation", imageUsage: { model: generated.model, provider: "google", image_count: 1 } });
       } else {
         if (!originatingCampaignId) throw new Error("No campaign or API key configured for music generation.");
         const requestFingerprint = JSON.stringify({
-          // The structuring pass is itself generative; key retries from the
-          // user's original intent so a lost music invoke response cannot turn
-          // a differently worded retry into another paid request.
+          // Keys the retry to the DM's original intent (not the structured
+          // prompt, which no longer exists client-side) so a lost invoke
+          // response cannot turn a differently worded retry into another
+          // paid request.
           description: musicRequest.description,
           lengthSeconds: musicRequest.lengthSeconds,
           vocals: musicRequest.vocals,
@@ -731,16 +749,22 @@ async function handleSubmit() {
           name: soundName,
           category: soundCategory,
           pageId: originatingPageId,
+          imageUrls: [...imageUrls].sort(),
         });
         const requestId = await getOrCreateMusicRequestId(originatingCampaignId, requestFingerprint);
         const { data, error } = await supabase.functions.invoke("generate-music", {
           body: {
             request_id: requestId,
             campaign_id: originatingCampaignId,
-            prompt: finalPrompt,
             sound_name: soundName,
             category: soundCategory,
             page_id: originatingPageId,
+            description: musicRequest.description,
+            length_seconds: musicRequest.lengthSeconds,
+            vocals: musicRequest.vocals,
+            lyrics: musicRequest.lyrics,
+            mentions: musicRequest.mentions,
+            image_urls: imageUrls,
           },
         });
         if (error) throw new Error(error.message);
@@ -827,6 +851,5 @@ function resetForm() {
   generateLengthSeconds.value = 60;
   generateVocals.value = "instrumental";
   generateError.value = "";
-  structuredPrompt.value = "";
 }
 </script>

@@ -4,11 +4,12 @@ import { edgeErrorMessage } from "@/lib/edgeError";
 import { getTextProvider } from "./providers";
 import { useCampaignStore } from "@/stores/campaign";
 import { wrapUserInput, AI_PROMPT_LIMIT_CHRONICLE } from "./utils";
-import { parseSceneEntities, type ResolvedEntity } from "./useChroniclerImageGeneration";
+import { parseSceneEntities, type ResolvedEntity } from "./sceneEntities";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Faction } from "@/types/faction.types";
+import type { Location } from "@/types/location.types";
 import { logUsage } from "@/composables/ai/useAiCredits";
 import { fetchSystemPrompt, fetchRulesetContext } from "./systemPrompts";
 import { useRuleset } from "@/composables/rules/useRuleset";
@@ -74,6 +75,7 @@ export function useChroniclerTextGeneration() {
     monsters: Monster[] | undefined;
     partyMembers: PartyMember[] | undefined;
     factions: Faction[] | undefined;
+    locations: Location[] | undefined;
     /** The campaign's existing note tags, most frequent first, so the model
      *  prefers reusing them over minting near-duplicates. */
     existingTags: string[];
@@ -82,8 +84,8 @@ export function useChroniclerTextGeneration() {
      *  very note the recap is about to be written into (#600). */
     excludeNoteId?: string;
   }): Promise<ChroniclerTextResult> {
-    const { rawText, tone, npcs, monsters, partyMembers, factions, existingTags, excludeNoteId } = params;
-    const entities = parseSceneEntities(rawText, { npcs, monsters, partyMembers, factions });
+    const { rawText, tone, npcs, monsters, partyMembers, factions, locations, existingTags, excludeNoteId } = params;
+    const entities = parseSceneEntities(rawText, { npcs, monsters, partyMembers, factions, locations });
     const settingPrompt = campaign.activeCampaign?.ai_setting_prompt ?? "No setting configured.";
     const campaignId = campaign.activeCampaign?.id;
 

@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { parseSceneEntities, type SceneEntitySources } from "./useChroniclerImageGeneration";
+import { parseSceneEntities, stripMentionTokens, type SceneEntitySources } from "./sceneEntities";
 import type { Npc } from "@/types/npc.types";
 import type { Monster } from "@/types/monster.types";
 import type { PartyMember } from "@/types/party.types";
 import type { Faction } from "@/types/faction.types";
+import type { Location } from "@/types/location.types";
 
 function npc(overrides: Partial<Npc>): Npc {
   return {
@@ -43,6 +44,16 @@ function faction(overrides: Partial<Faction>): Faction {
     emblem_url: null,
     ...overrides,
   } as Faction;
+}
+
+function location(overrides: Partial<Location>): Location {
+  return {
+    id: "loc-1",
+    name: "The Rusty Anchor",
+    image_url: null,
+    description: null,
+    ...overrides,
+  } as Location;
 }
 
 function resolve(text: string, sources: SceneEntitySources = {}) {
@@ -107,7 +118,7 @@ describe("parseSceneEntities", () => {
     expect(result).toHaveLength(1);
   });
 
-  it("matches party members before NPCs, NPCs before monsters, and monsters before factions", () => {
+  it("matches party members before NPCs, NPCs before monsters, monsters before locations, and locations before factions", () => {
     // Same token, ambiguous across every list — first list in match order wins.
     const resultVsNpc = resolve("@Gnarl appears.", {
       partyMembers: [partyMember({ name: "Gnarl", portrait_url: "https://example.test/pm.webp" })],
@@ -121,11 +132,17 @@ describe("parseSceneEntities", () => {
     });
     expect(resultVsMonster[0].portraitUrl).toBe("https://example.test/npc.webp");
 
-    const resultVsFaction = resolve("@Gnarl appears.", {
+    const resultVsLocation = resolve("@Gnarl appears.", {
       monsters: [monster({ name: "Gnarl", image_url: "https://example.test/mon.webp" })],
+      locations: [location({ name: "Gnarl", image_url: "https://example.test/loc.webp" })],
+    });
+    expect(resultVsLocation[0].portraitUrl).toBe("https://example.test/mon.webp");
+
+    const resultVsFaction = resolve("@Gnarl appears.", {
+      locations: [location({ name: "Gnarl", image_url: "https://example.test/loc.webp" })],
       factions: [faction({ name: "Gnarl", emblem_url: "https://example.test/faction.webp" })],
     });
-    expect(resultVsFaction[0].portraitUrl).toBe("https://example.test/mon.webp");
+    expect(resultVsFaction[0].portraitUrl).toBe("https://example.test/loc.webp");
   });
 
   it("flattens rich-text NPC appearance and monster description to plain text and caps length", () => {
@@ -139,5 +156,48 @@ describe("parseSceneEntities", () => {
     });
     expect(result[0].textDescription).not.toContain("{");
     expect(result[0].textDescription!.length).toBeLessThan(longText.length);
+  });
+
+  it("resolves a location mention with its image_url as the portrait and a flattened description", () => {
+    const richDescription = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "A crooked dockside tavern, lantern-lit." }] }],
+    });
+    const result = resolve("The party gathers at @The_Rusty_Anchor.", {
+      locations: [location({ name: "The Rusty Anchor", image_url: "https://example.test/anchor.webp", description: richDescription })],
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].label).toBe("The Rusty Anchor");
+    expect(result[0].portraitUrl).toBe("https://example.test/anchor.webp");
+    expect(result[0].textDescription).toBe("The Rusty Anchor: A crooked dockside tavern, lantern-lit.");
+  });
+
+  it("gives a location without an image a null portraitUrl but still a description", () => {
+    const result = resolve("@Whispering_Vale lies ahead.", {
+      locations: [location({ name: "Whispering Vale", image_url: null })],
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].portraitUrl).toBeNull();
+    expect(result[0].textDescription).toBe("Whispering Vale");
+  });
+});
+
+describe("stripMentionTokens", () => {
+  it("turns an underscore-joined @mention into a spaced name", () => {
+    expect(stripMentionTokens("@Old_Vesper waits by the fire.")).toBe("Old Vesper waits by the fire.");
+  });
+
+  it("strips multiple mentions in one string", () => {
+    expect(stripMentionTokens("@Aria and @Thorin_Ironfist face the @Dragon.")).toBe(
+      "Aria and Thorin Ironfist face the Dragon.",
+    );
+  });
+
+  it("leaves text with no mentions unchanged", () => {
+    expect(stripMentionTokens("A quiet night at the tavern.")).toBe("A quiet night at the tavern.");
+  });
+
+  it("stops at punctuation the same way the parser's token regex does", () => {
+    expect(stripMentionTokens("@Vesper, waiting.")).toBe("Vesper, waiting.");
   });
 });

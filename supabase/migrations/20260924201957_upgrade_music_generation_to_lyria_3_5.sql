@@ -49,8 +49,11 @@ delete from ai_generation_credit_costs where generation_type in ('music_clip', '
 -- One structuring prompt, written to Google's Lyria prompt guide: musical
 -- direction first (genre, instruments, BPM, key, mood, singer), then a
 -- timestamped timeline whose end is the requested length, then verbatim lyrics
--- under a `Lyrics:` header. The code carries the same text as its fallback
--- (src/lib/audio/aiMusic.ts, MUSIC_STRUCTURE_SYSTEM) — keep the two identical.
+-- under a `Lyrics:` header. The code carries the same text as its fallback —
+-- since 25 Sep 2026 that's supabase/functions/_shared/musicPrompt.ts's
+-- MUSIC_STRUCTURE_SYSTEM (moved there from src/lib/audio/aiMusic.ts when
+-- structuring moved server-side into generate-music's worker) — keep the two
+-- identical.
 delete from ai_system_prompts where generator_type in ('music_structure_clip', 'music_structure_full');
 
 insert into ai_system_prompts (generator_type, label, content)

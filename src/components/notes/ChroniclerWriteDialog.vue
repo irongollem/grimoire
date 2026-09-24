@@ -226,7 +226,7 @@ const error             = ref("");
 
 const { confirm } = useConfirm();
 const { isGenerating, generate: generateChronicle } = useChroniclerTextGeneration();
-const { mentionItems, partyMembers, npcs, monsters, factions } = useEntityMentionItems();
+const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems();
 const { data: notes } = useNotes();
 
 const campaign = useCampaignStore();
@@ -324,6 +324,7 @@ async function generate() {
       monsters: monsters.value,
       partyMembers: partyMembers.value,
       factions: factions.value,
+      locations: locations.value,
       existingTags: existingTags.value,
       excludeNoteId: props.noteId ?? undefined,
     });

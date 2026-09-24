@@ -105,7 +105,8 @@ import { AI_PROMPT_LIMIT_SHORT } from "@/ai/utils";
 
 const SCENE_LIMIT = AI_PROMPT_LIMIT_SHORT;
 import { IconGenerate } from '@/lib/icons';
-import { parseSceneEntities, startChroniclerImage } from "@/ai/useChroniclerImageGeneration";
+import { startChroniclerImage } from "@/ai/useChroniclerImageGeneration";
+import { parseSceneEntities } from "@/ai/sceneEntities";
 import { useCampaignStore } from "@/stores/campaign";
 import { useAuthStore } from "@/stores/auth";
 import { storeToRefs } from "pinia";
@@ -158,13 +159,14 @@ watch(() => props.visible, (v) => {
   }
 });
 
-const { mentionItems, partyMembers, npcs, monsters, factions } = useEntityMentionItems();
+const { mentionItems, partyMembers, npcs, monsters, locations, factions } = useEntityMentionItems();
 
 const resolvedEntities = computed(() =>
   parseSceneEntities(scenePrompt.value, {
     partyMembers: partyMembers.value,
     npcs: npcs.value,
     monsters: monsters.value,
+    locations: locations.value,
     factions: factions.value,
     groupPortraitUrl: campaignStore.activeCampaign?.group_portrait_url,
   }),

@@ -3,10 +3,19 @@ import { createClient } from "@supabase/supabase-js";
 import { decryptValue } from "../_shared/vault.ts";
 import { isUserPro } from "../_shared/plan.ts";
 import { fetchPlatformKeys } from "../_shared/platform-keys.ts";
+import { fetchProviderConfigs } from "../_shared/provider-config.ts";
 import { fetchCreditCost, releaseCredits, reserveCredits, reservationFailureResponse } from "../_shared/credits.ts";
 import { checkRateLimit } from "../_shared/rate-limit.ts";
 import { withCors } from "../_shared/cors.ts";
 import { isAccountSuspended, suspendedResponse } from "../_shared/suspension.ts";
+import { callText } from "../_shared/textGen.ts";
+import {
+  buildStructureMessage,
+  MUSIC_STRUCTURE_SYSTEM,
+  type MusicLengthSeconds,
+  type MusicMention,
+  type MusicVocals,
+} from "../_shared/musicPrompt.ts";
 import {
   claimGenerationJob,
   createGenerationJob,
@@ -28,6 +37,17 @@ import {
 } from "../_shared/lyria.ts";
 import { isSafeStorageUrl } from "../_shared/storage-url.ts";
 
+/**
+ * Music generation, now two AI steps in one durable job (25 Sep 2026): a text
+ * model expands the DM's request into a complete Lyria prompt (structuring —
+ * see _shared/musicPrompt.ts's top comment for why this moved server-side),
+ * then Lyria 3.5 generates the audio from that prompt. Both steps run inside
+ * the same background worker and share the single `music_track` credit
+ * charge — the structuring call's own provider cost rides along on it rather
+ * than being billed separately, the same way Lyria's own per-song price
+ * already bundles whatever the model actually costs to run.
+ */
+
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -35,11 +55,23 @@ const admin = createClient(
 
 type SoundCategory = "ambient" | "music" | "effects" | "misc";
 
+// Validation ceilings for the DM's structuring inputs.
+const MAX_DESCRIPTION_CHARS = 4000;
+const MAX_LYRICS_CHARS = 2200;
+const MAX_MENTIONS = 20;
+const MAX_MENTION_LABEL_CHARS = 200;
+const MAX_MENTION_DESCRIPTION_CHARS = 600;
+const MUSIC_LENGTHS: MusicLengthSeconds[] = [60, 120, 180];
+const MUSIC_VOCALS: MusicVocals[] = ["instrumental", "choir", "vocals"];
+
 interface MusicJobRequest {
   campaignId: string;
   userId: string;
-  /** The complete, final Lyria prompt — the client has already merged direction, timeline and lyrics. */
-  prompt: string;
+  description: string;
+  lengthSeconds: MusicLengthSeconds;
+  vocals: MusicVocals;
+  lyrics: string | null;
+  mentions: MusicMention[];
   model: string;
   name: string;
   category: SoundCategory;
@@ -50,15 +82,33 @@ interface MusicJobRequest {
 
 interface MusicRuntimeRequest extends MusicJobRequest {
   apiKey: string;
+  textProvider: string;
+  textKeys: { openai: string | null; anthropic: string | null; gemini: string | null };
+  textModel: string | null;
+}
+
+function isValidMention(m: unknown): m is MusicMention {
+  if (typeof m !== "object" || m === null) return false;
+  const label = (m as Record<string, unknown>).label;
+  const description = (m as Record<string, unknown>).description;
+  return typeof label === "string" && (description === null || typeof description === "string");
 }
 
 function requestFromJob(job: GenerationJob): MusicJobRequest {
   const request = job.request_json;
   const category = request.category;
   const imageUrls = request.image_urls;
+  const lengthSeconds = request.length_seconds;
+  const vocals = request.vocals;
+  const mentions = request.mentions;
+  const lyrics = request.lyrics;
   if (
-    typeof request.prompt !== "string" || typeof request.model !== "string" ||
+    typeof request.description !== "string" || typeof request.model !== "string" ||
     typeof request.name !== "string" || !["ambient", "music", "effects", "misc"].includes(String(category)) ||
+    !MUSIC_LENGTHS.includes(Number(lengthSeconds) as MusicLengthSeconds) ||
+    !MUSIC_VOCALS.includes(String(vocals) as MusicVocals) ||
+    (lyrics !== null && typeof lyrics !== "string") ||
+    !Array.isArray(mentions) || !mentions.every(isValidMention) ||
     // There are no old jobs to be compatible with — image_urls is required, always an
     // array, and re-validated here because a durable snapshot can be re-executed on retry.
     !Array.isArray(imageUrls) || !imageUrls.every((url) => typeof url === "string" && isSafeStorageUrl(url))
@@ -66,7 +116,11 @@ function requestFromJob(job: GenerationJob): MusicJobRequest {
   return {
     campaignId: job.campaign_id,
     userId: job.user_id,
-    prompt: request.prompt,
+    description: request.description,
+    lengthSeconds: lengthSeconds as MusicLengthSeconds,
+    vocals: vocals as MusicVocals,
+    lyrics: lyrics as string | null,
+    mentions: mentions as MusicMention[],
     model: request.model,
     name: request.name,
     category: category as SoundCategory,
@@ -144,13 +198,47 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
       throw new Error("Could not read an attached image.");
     }
 
-    // The prompt arrives fully formed from the client (direction + timeline +
-    // lyrics already merged) — it is sent as-is, never prepended to here.
-    // Images (if any) ride alongside it in the same Interactions API call.
+    // Step 1: expand the DM's request into a complete Lyria prompt with a
+    // text model. This used to run in the browser via a BYOK-only provider
+    // that threw for every platform-credit DM (see this file's top comment)
+    // — deliberately NO fallback to a hand-composed prompt here. A silent
+    // downgrade is exactly what hid that bug for four months, so a failed
+    // structuring step fails the whole job instead.
+    const { data: promptRow } = await admin
+      .from("ai_system_prompts").select("content").eq("generator_type", "music_structure").maybeSingle();
+    const structureSystem = promptRow?.content ?? MUSIC_STRUCTURE_SYSTEM;
+    const structureMessage = buildStructureMessage({
+      description: request.description,
+      lengthSeconds: request.lengthSeconds,
+      vocals: request.vocals,
+      lyrics: request.lyrics ?? undefined,
+      mentions: request.mentions,
+      imageCount: request.imageUrls.length,
+    });
+
+    let structuredPrompt: string;
+    try {
+      const textResult = await callText({
+        provider: request.textProvider,
+        keys: request.textKeys,
+        model: request.textModel,
+        system: structureSystem,
+        user: structureMessage,
+        outputFormat: "text",
+      });
+      structuredPrompt = textResult.content.trim();
+      if (!structuredPrompt) throw new Error("Structuring model returned an empty prompt.");
+    } catch (e) {
+      console.error("Music prompt structuring failed:", e);
+      throw new Error("Could not prepare the music prompt.");
+    }
+
+    // Step 2: Lyria generates the audio from the structured prompt. Images
+    // (if any) ride alongside it in the same Interactions API call.
     const lyriaRes = await fetch(LYRIA_INTERACTIONS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": request.apiKey },
-      body: JSON.stringify(buildLyriaRequest(request.model, request.prompt, images)),
+      body: JSON.stringify(buildLyriaRequest(request.model, structuredPrompt, images)),
     });
     if (!lyriaRes.ok) {
       const body = await lyriaRes.json().catch(() => ({})) as { error?: { message?: string } };
@@ -177,7 +265,11 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
       url: publicUrl,
       storage_path: storagePath,
       mime_type: mimeType,
-      metadata: { model: request.model, provider: "google" },
+      // `prompt` is the structured prompt Lyria actually received — recorded
+      // so the DM (and any future debugging of a bad generation) can see what
+      // structuring produced, since it's no longer visible client-side as it
+      // is built.
+      metadata: { model: request.model, provider: "google", prompt: structuredPrompt },
     });
     artifactPersisted = true;
 
@@ -219,16 +311,30 @@ serve(withCors(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
-  let campaignId: string, prompt: string, soundName: string;
+  let campaignId: string, soundName: string;
   let category: SoundCategory, pageId: string | null, requestId: string, imageUrls: string[];
+  let description: string, lengthSeconds: MusicLengthSeconds, vocals: MusicVocals;
+  let lyrics: string | null, mentions: MusicMention[];
   try {
     const body = await req.json();
     campaignId = body.campaign_id;
-    prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     soundName = typeof body.sound_name === "string" ? body.sound_name.trim() : "";
     category = body.category;
     pageId = typeof body.page_id === "string" ? body.page_id : null;
     requestId = typeof body.request_id === "string" ? body.request_id : "";
+    description = typeof body.description === "string" ? body.description.trim() : "";
+    lengthSeconds = body.length_seconds;
+    vocals = body.vocals;
+    const rawLyrics = body.lyrics;
+    lyrics = typeof rawLyrics === "string" && rawLyrics.trim() ? rawLyrics.trim() : null;
+    const rawMentions = body.mentions;
+    if (rawMentions === undefined) {
+      mentions = [];
+    } else if (Array.isArray(rawMentions) && rawMentions.every(isValidMention)) {
+      mentions = rawMentions as MusicMention[];
+    } else {
+      throw new Error("invalid");
+    }
     const rawImageUrls = body.image_urls;
     if (rawImageUrls === undefined) {
       imageUrls = [];
@@ -237,18 +343,33 @@ serve(withCors(async (req: Request) => {
     } else {
       throw new Error("invalid");
     }
-    if (!campaignId || !prompt || prompt.length > 12_000 || !soundName || !requestId || requestId.length > 128 ||
+    if (
+      !campaignId || !soundName || !requestId || requestId.length > 128 ||
       !["ambient", "music", "effects", "misc"].includes(category) ||
-      imageUrls.length > LYRIA_MAX_IMAGES || !imageUrls.every((url) => isSafeStorageUrl(url))) throw new Error("invalid");
+      !description || description.length > MAX_DESCRIPTION_CHARS ||
+      !MUSIC_LENGTHS.includes(lengthSeconds) || !MUSIC_VOCALS.includes(vocals) ||
+      (lyrics !== null && lyrics.length > MAX_LYRICS_CHARS) ||
+      mentions.length > MAX_MENTIONS ||
+      !mentions.every((m) =>
+        m.label.length > 0 && m.label.length <= MAX_MENTION_LABEL_CHARS &&
+        (m.description === null || m.description.length <= MAX_MENTION_DESCRIPTION_CHARS)
+      ) ||
+      imageUrls.length > LYRIA_MAX_IMAGES || !imageUrls.every((url) => isSafeStorageUrl(url))
+    ) throw new Error("invalid");
   } catch {
     return new Response(
-      "Invalid body — need request_id, campaign_id, prompt (non-empty, max 12000 chars), sound_name, category and image_urls (max 10, our storage/CDN only)",
+      "Invalid body — need request_id, campaign_id, sound_name, category, page_id, description (non-empty, " +
+        `max ${MAX_DESCRIPTION_CHARS} chars), length_seconds (60|120|180), vocals (instrumental|choir|vocals), ` +
+        `lyrics (optional, max ${MAX_LYRICS_CHARS} chars), mentions (optional, max ${MAX_MENTIONS}, label max ` +
+        `${MAX_MENTION_LABEL_CHARS} chars, description max ${MAX_MENTION_DESCRIPTION_CHARS} chars or null) and ` +
+        "image_urls (max 10, our storage/CDN only)",
       { status: 400 },
     );
   }
 
   const { data: campaign } = await admin.from("campaigns")
-    .select("id, user_id, ai_enabled, gemini_api_key").eq("id", campaignId).maybeSingle();
+    .select("id, user_id, ai_enabled, gemini_api_key, openai_api_key, anthropic_api_key, text_provider")
+    .eq("id", campaignId).maybeSingle();
   if (!campaign) return new Response("Campaign not found", { status: 404 });
   if (campaign.ai_enabled !== true) return new Response("AI is disabled for this campaign", { status: 403 });
   if (campaign.user_id !== user.id) {
@@ -274,13 +395,27 @@ serve(withCors(async (req: Request) => {
       return new Response(JSON.stringify({ job_id: existing.id }), { headers: { "Content-Type": "application/json" } });
     }
   }
+
+  // BYOK is Pro-only: ignore stored campaign keys unless the owner is currently Pro.
   const ownerIsPro = await isUserPro(admin, campaign.user_id);
-  const [campaignGemini, platformKeys, geminiProviderRow] = await Promise.all([
-    (ownerIsPro && campaign.gemini_api_key) ? decryptValue(campaign.gemini_api_key).catch(() => null) : Promise.resolve(null),
-    fetchPlatformKeys(admin, ["gemini"]),
+  async function decryptKey(enc: string | null): Promise<string | null> {
+    if (!enc || !ownerIsPro) return null;
+    try { return await decryptValue(enc); } catch { return null; }
+  }
+
+  const [[campaignGemini, campaignOpenai, campaignAnthropic], platformKeys, geminiProviderRow, providerConfigs] = await Promise.all([
+    Promise.all([
+      decryptKey(campaign.gemini_api_key),
+      decryptKey(campaign.openai_api_key),
+      decryptKey(campaign.anthropic_api_key),
+    ]),
+    fetchPlatformKeys(admin, ["gemini", "openai", "anthropic"]),
     admin.from("provider_config").select("audio_enabled, audio_multiplier, audio_model").eq("provider", "gemini").maybeSingle()
       .then((r) => r.data as { audio_enabled: boolean; audio_multiplier: number | null; audio_model: string | null } | null),
+    fetchProviderConfigs(admin, ["openai", "anthropic", "gemini"]),
   ]);
+
+  // ── Audio (Lyria) key — unchanged lane logic ────────────────────────────────
   // A queued retry keeps the original billing lane. In particular, it must
   // never fall back from a vanished BYOK key to a platform key while retaining
   // its zero-cost reservation context.
@@ -299,6 +434,39 @@ serve(withCors(async (req: Request) => {
     return new Response(JSON.stringify({ error: "No Gemini API key configured. Add one in Campaign Settings → AI, or ask your admin to configure a platform key." }), { status: 422, headers: { "Content-Type": "application/json" } });
   }
 
+  // ── Text (structuring) key — no billing lane of its own; resolved fresh on
+  // every attempt, including a queued retry, since it isn't part of the paid
+  // reservation. Checked here, at request time, so a missing/disabled text
+  // provider surfaces immediately instead of failing the job after Lyria's
+  // (billed) work has already started. ─────────────────────────────────────
+  const textKeys = {
+    openai: campaignOpenai ?? platformKeys.openai ?? null,
+    anthropic: campaignAnthropic ?? platformKeys.anthropic ?? null,
+    gemini: campaignGemini ?? platformKeys.gemini ?? null,
+  };
+  // Resolve the provider that will actually answer, in callText's own order
+  // (_shared/textGen.ts): the campaign's choice when it is keyed, otherwise
+  // openai. The model must come from THAT provider's config — handing a
+  // gemini model id to the openai fallback fails every call.
+  const requestedTextProvider = campaign.text_provider ?? "openai";
+  const textProvider = (requestedTextProvider === "anthropic" && textKeys.anthropic) ? "anthropic"
+    : (requestedTextProvider === "gemini" && textKeys.gemini) ? "gemini"
+    : "openai";
+  if (textProvider === "openai" && !textKeys.openai) {
+    if (existing) {
+      await failGenerationJob(admin, existing.id, "No API key is configured to prepare this queued music prompt.");
+    }
+    return new Response(
+      JSON.stringify({ error: "No API key configured for music prompt structuring. Add one in Campaign Settings → AI, or ask your admin to configure a platform key." }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+  }
+  const textProviderConfig = providerConfigs[textProvider as keyof typeof providerConfigs];
+  // fast_text_model when the admin has set one — this is a short structuring
+  // task, not a long-form generation, same reasoning as the quest designer's
+  // per-turn calls (quest-designer-turn/index.ts).
+  const textModel = textProviderConfig?.fast_text_model ?? textProviderConfig?.text_model ?? null;
+
   // The model is an admin setting (provider_config.audio_model), not something
   // the client chooses. A queued retry executes exactly the original durable
   // snapshot — including its model — never a re-read one, so a later admin
@@ -311,10 +479,16 @@ serve(withCors(async (req: Request) => {
     if (!configuredModel) {
       return new Response(JSON.stringify({ error: "No music model is configured. Ask your admin to set one under Admin → AI Providers." }), { status: 503, headers: { "Content-Type": "application/json" } });
     }
-    durableRequest = { campaignId, userId: user.id, prompt, model: configuredModel, name: soundName, category, pageId, imageUrls };
+    durableRequest = {
+      campaignId, userId: user.id, description, lengthSeconds, vocals, lyrics, mentions,
+      model: configuredModel, name: soundName, category, pageId, imageUrls,
+    };
   }
 
   const generationType = "music_track";
+  // Flat per-song credit price, unchanged by this move — the structuring
+  // call's own provider cost rides along on this single charge rather than
+  // being metered separately (see this file's top comment).
   const audioCost = (isByok ? 0 : await fetchCreditCost(admin, generationType)) * (geminiProviderRow?.audio_multiplier ?? 1);
   let job = existing;
   if (!job) {
@@ -328,7 +502,18 @@ serve(withCors(async (req: Request) => {
         user_id: user.id,
         campaign_id: campaignId,
         kind: "music",
-        request: { prompt: durableRequest.prompt, model: durableRequest.model, name: soundName, category, page_id: pageId, image_urls: durableRequest.imageUrls },
+        request: {
+          description: durableRequest.description,
+          length_seconds: durableRequest.lengthSeconds,
+          vocals: durableRequest.vocals,
+          lyrics: durableRequest.lyrics,
+          mentions: durableRequest.mentions,
+          model: durableRequest.model,
+          name: soundName,
+          category,
+          page_id: pageId,
+          image_urls: durableRequest.imageUrls,
+        },
         billing: {
           reservation_ids: reservation.ids,
           generation_type: generationType,
@@ -351,6 +536,9 @@ serve(withCors(async (req: Request) => {
   queueMusicWorker(job.id, {
     ...durableRequest,
     apiKey: geminiKey,
+    textProvider,
+    textKeys,
+    textModel,
   });
   return new Response(JSON.stringify({ job_id: job.id }), { headers: { "Content-Type": "application/json" } });
 }));

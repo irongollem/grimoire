@@ -55,5 +55,5 @@ export function useEntityMentionItems() {
     return items;
   });
 
-  return { mentionItems, partyMembers, npcs, monsters, factions };
+  return { mentionItems, partyMembers, npcs, monsters, locations, factions };
 }
