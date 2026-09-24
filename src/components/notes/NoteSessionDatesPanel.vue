@@ -2,79 +2,82 @@
   <div class="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
     <p class="text-label-lg font-semibold text-muted-foreground">SESSION DATES</p>
 
-    <!-- Start date -->
-    <div class="space-y-1.5">
-      <p class="text-caption text-muted-foreground">Start date (in-game)</p>
-      <div class="flex gap-2 flex-wrap">
-        <AppInput
-          v-model.number="model.startYear"
-          type="number"
-          min="1"
-          placeholder="Year"
-          tone="card"
-          size="body-xs"
-          class="w-24"
-        />
-        <AppSelect v-model.number="model.startMonth" size="body">
-          <option :value="null">— Month —</option>
-          <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
-        </AppSelect>
-        <AppInput
-          v-model.number="model.startDay"
-          type="number"
-          min="1"
-          max="30"
-          placeholder="Day"
-          tone="card"
-          size="body-xs"
-          class="w-20"
+    <!-- The three dates share one column as wide as the in-game rows, so the
+         real-world picker lines up under them instead of spanning the panel. -->
+    <div class="w-fit max-w-full space-y-3">
+      <!-- Start date -->
+      <div class="space-y-1.5">
+        <p class="text-caption text-muted-foreground">Start date (in-game)</p>
+        <div class="flex gap-2 flex-wrap">
+          <AppInput
+            v-model.number="model.startYear"
+            type="number"
+            min="1"
+            placeholder="Year"
+            tone="card"
+            size="body-xs"
+            class="w-24"
+          />
+          <AppSelect v-model.number="model.startMonth" size="body">
+            <option :value="null">— Month —</option>
+            <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
+          </AppSelect>
+          <AppInput
+            v-model.number="model.startDay"
+            type="number"
+            min="1"
+            max="30"
+            placeholder="Day"
+            tone="card"
+            size="body-xs"
+            class="w-20"
+          />
+        </div>
+      </div>
+
+      <!-- End date -->
+      <div class="space-y-1.5">
+        <p class="text-caption text-muted-foreground">End date (in-game, optional)</p>
+        <div class="flex gap-2 flex-wrap">
+          <AppInput
+            v-model.number="model.endYear"
+            type="number"
+            min="1"
+            placeholder="Year"
+            tone="card"
+            size="body-xs"
+            class="w-24"
+          />
+          <AppSelect v-model.number="model.endMonth" size="body">
+            <option :value="null">— Month —</option>
+            <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
+          </AppSelect>
+          <AppInput
+            v-model.number="model.endDay"
+            type="number"
+            min="1"
+            max="30"
+            placeholder="Day"
+            tone="card"
+            size="body-xs"
+            class="w-20"
+          />
+        </div>
+      </div>
+
+      <!-- Real-world date -->
+      <div class="space-y-1.5">
+        <p class="text-caption text-muted-foreground">Real-world date (optional)</p>
+        <VueDatePicker
+          v-model="model.realDate"
+          :time-config="{ enableTimePicker: false }"
+          :teleport="true"
+          model-type="yyyy-MM-dd"
+          :formats="{ input: 'yyyy-MM-dd' }"
+          placeholder="Pick real-world date…"
+          class="grimoire-datepicker grimoire-datepicker--card"
         />
       </div>
-    </div>
-
-    <!-- End date -->
-    <div class="space-y-1.5">
-      <p class="text-caption text-muted-foreground">End date (in-game, optional)</p>
-      <div class="flex gap-2 flex-wrap">
-        <AppInput
-          v-model.number="model.endYear"
-          type="number"
-          min="1"
-          placeholder="Year"
-          tone="card"
-          size="body-xs"
-          class="w-24"
-        />
-        <AppSelect v-model.number="model.endMonth" size="body">
-          <option :value="null">— Month —</option>
-          <option v-for="m in calendarAdapter.months" :key="m.num" :value="m.num">{{ m.name }}</option>
-        </AppSelect>
-        <AppInput
-          v-model.number="model.endDay"
-          type="number"
-          min="1"
-          max="30"
-          placeholder="Day"
-          tone="card"
-          size="body-xs"
-          class="w-20"
-        />
-      </div>
-    </div>
-
-    <!-- Real-world date -->
-    <div class="space-y-1.5">
-      <p class="text-caption text-muted-foreground">Real-world date (optional)</p>
-      <VueDatePicker
-        v-model="model.realDate"
-        :dark="true"
-        :enable-time-picker="false"
-        :teleport="true"
-        model-type="yyyy-MM-dd"
-        format="yyyy-MM-dd"
-        placeholder="Pick real-world date…"
-        class="grimoire-datepicker"
-      />
     </div>
 
     <!-- Linked calendar event indicator -->

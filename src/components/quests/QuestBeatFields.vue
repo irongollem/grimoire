@@ -21,7 +21,7 @@
 
     <label class="block space-y-1 text-caption font-semibold text-foreground">
       DM lead
-      <RichTextEditor v-model="draft.dm_content" sticky-toolbar placeholder="What should the DM know first?" />
+      <RichTextEditor v-model="draft.dm_content" placeholder="What should the DM know first?" />
     </label>
 
     <label class="block space-y-1 text-caption font-semibold text-foreground">

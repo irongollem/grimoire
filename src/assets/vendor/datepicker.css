@@ -11,9 +11,19 @@
 
 /* ─────────────────────────────────────────────────────────────────────────────
    --dp-* mapped onto the app's theme vars, so the picker follows a theme change
-   rather than needing a dark/light variant of its own.
+   rather than needing a dark/light variant of its own. Declared on the library's
+   two theme classes as well as :root because v14 stamps one of them on both the
+   picker and its teleported menu and redefines every --dp-* var there, which
+   would otherwise beat :root and paint the library's own blue/white or #212121.
+   So never pass the `dark` prop — the app theme is the only theme.
+
+   Selectors are v14's `dp--kebab-case`. Everything below was written against
+   v13's `dp__snake_case` and silently matched nothing after the bump, which is
+   how a hardcoded `:dark="true"` got to show a black field in the light theme.
 ───────────────────────────────────────────────────────────────────────────── */
-:root {
+:root,
+.dp--theme-light,
+.dp--theme-dark {
   --dp-background-color: var(--card);
   --dp-text-color: var(--card-foreground);
   --dp-hover-color: var(--muted);
@@ -42,7 +52,7 @@
 }
 
 /* ── Input field ───────────────────────────────────────────────────────────── */
-.grimoire-datepicker .dp__input {
+.grimoire-datepicker .dp--input {
   background-color: var(--background) !important;
   border-color: var(--border) !important;
   color: var(--foreground) !important;
@@ -52,86 +62,91 @@
   padding: 0.5rem 0.75rem 0.5rem 2.25rem !important;
   height: auto !important;
 }
-.grimoire-datepicker .dp__input:hover,
-.grimoire-datepicker .dp__input_focus {
+/* Mirrors AppInput's `tone="card"`, for a picker sitting in a row of card-tone
+   fields — the base rule above is the `default` tone. */
+.grimoire-datepicker--card .dp--input {
+  background-color: var(--card) !important;
+}
+.grimoire-datepicker .dp--input:hover,
+.grimoire-datepicker .dp--input-focus {
   border-color: var(--ring) !important;
   box-shadow: 0 0 0 1px var(--ring) !important;
 }
-.grimoire-datepicker .dp__input_icon {
+.grimoire-datepicker .dp--input-icon {
   color: var(--muted-foreground) !important;
 }
-.grimoire-datepicker .dp__input_wrap {
+.grimoire-datepicker .dp--input-wrap {
   border-radius: 0.375rem;
 }
 
 /* ── Teleported calendar menu — theme-agnostic, driven by --dp-* vars ─────── */
-.dp__menu,
-.dp__menu_inner {
+.dp--menu,
+.dp--menu-inner {
   background-color: var(--card) !important;
   border-color: var(--border) !important;
   color: var(--card-foreground) !important;
   font-family: "Crimson Pro", Georgia, serif !important;
 }
-.dp__calendar_header_item,
-.dp__cell_inner,
-.dp__month_year_select {
+.dp--calendar-header-item,
+.dp--cell-inner,
+.dp--month-year-select {
   color: var(--foreground) !important;
   font-family: "Crimson Pro", Georgia, serif !important;
 }
-.dp__today {
+.dp--today {
   border-color: var(--primary) !important;
 }
-.dp__active_date,
-.dp__overlay_cell_active {
+.dp--cell-inner.dp--active,
+.dp--overlay-cell-active {
   background: var(--primary) !important;
   color: var(--primary-foreground) !important;
 }
-.dp__date_hover:hover,
-.dp__date_hover_start:hover,
-.dp__date_hover_end:hover,
-.dp__overlay_cell:hover {
+.dp--date-hoverable:hover,
+.dp--date-hoverable-start:hover,
+.dp--date-hoverable-end:hover,
+.dp--overlay-cell:hover {
   background: var(--muted) !important;
   color: var(--foreground) !important;
 }
-.dp__cell_disabled {
+.dp--cell-disabled {
   color: var(--muted-foreground) !important;
   opacity: 0.5;
 }
-.dp__nav_btn,
-.dp__inner_nav {
+.dp--arrow-btn-nav,
+.dp--inner-nav {
   color: var(--muted-foreground) !important;
 }
-.dp__nav_btn:hover {
+.dp--arrow-btn-nav:hover {
   background: var(--muted) !important;
 }
-.dp__overlay {
+.dp--overlay {
   background-color: var(--card) !important;
   border-color: var(--border) !important;
 }
-.dp__time_col,
-.dp__time_display,
-.dp__time_col_btn,
-.dp__inc_dec_button,
-.dp__tp_inline_btn_bar {
+.dp--time-col,
+.dp--time-display,
+.dp--time-overlay-btn,
+.dp--inc-dec-button,
+.dp--tp-inline-btn-bar {
   color: var(--foreground) !important;
 }
 /* Time-selection overlay grid (shown when clicking the HH/MM value). Without an
    explicit base colour these number cells inherit nothing visible and only
    appear on hover, which made the time look stuck (e.g. always "02:00"). */
-.dp__overlay_cell {
+.dp--overlay-cell {
   color: var(--foreground) !important;
 }
-.dp__overlay_cell_disabled {
+.dp--overlay-cell-disabled {
   color: var(--muted-foreground) !important;
 }
-.dp__inc_dec_button svg {
+.dp--inc-dec-button svg {
   color: var(--foreground) !important;
 }
-.dp__time_col_btn:hover,
-.dp__inc_dec_button:hover {
+.dp--time-overlay-btn:hover,
+.dp--inc-dec-button:hover {
   background: var(--muted) !important;
 }
-.dp__action_select {
+.dp--action-select {
   background: var(--primary) !important;
   color: var(--primary-foreground) !important;
   border-radius: 0.375rem !important;
@@ -139,7 +154,7 @@
   font-size: 0.7rem !important;
   letter-spacing: 0.05em !important;
 }
-.dp__action_cancel {
+.dp--action-cancel {
   color: var(--muted-foreground) !important;
   border-color: var(--border) !important;
   background: transparent !important;
@@ -148,7 +163,7 @@
   font-size: 0.7rem !important;
   letter-spacing: 0.05em !important;
 }
-.dp__action_cancel:hover {
+.dp--action-cancel:hover {
   color: var(--foreground) !important;
   border-color: var(--ring) !important;
 }

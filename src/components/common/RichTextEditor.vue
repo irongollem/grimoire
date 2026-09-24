@@ -1,12 +1,12 @@
 <template>
   <div
-    class="rich-editor relative flex flex-col rounded-lg border border-border bg-card overflow-clip"
+    class="rich-editor relative isolate flex flex-col rounded-lg border border-border bg-card overflow-clip"
     :style="{ minHeight: EDITOR_MIN_HEIGHTS[size] }"
   >
     <div
       :class="[
         'flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-card shrink-0 z-20 rte-toolbar',
-        stickyToolbar !== false && 'sticky top-11 md:top-0',
+        stickyToolbar && 'sticky top-0 rte-toolbar--sticky',
       ]"
     >
       <template v-if="editor">
@@ -300,7 +300,10 @@
     </div>
 
     <!-- Content area -->
-    <div class="p-3 lg:flex-1 lg:overflow-auto lg:min-h-0 cursor-text" @click="onContentAreaClick">
+    <div
+      :class="['p-3 lg:flex-1 lg:overflow-auto lg:min-h-0 cursor-text', stickyToolbar && 'rte-content-area--sticky']"
+      @click="onContentAreaClick"
+    >
       <EditorContent
         :editor="editor"
         :class="['rte-content h-full', twoColumn ? 'rte-two-col' : '']"
@@ -452,7 +455,7 @@ const {
   allowUpload,
   allowCalendarEvents,
   entityMentionItems,
-  stickyToolbar,
+  stickyToolbar = true,
   aiContext,
   size = "md",
 } = defineProps<{
@@ -905,6 +908,18 @@ async function onEnhance() {
 /* Keep toolbar children at natural size in the nowrap scroll row on mobile */
 .rte-toolbar > * {
   flex-shrink: 0;
+}
+
+/* The sticky toolbar follows a long document down the page, and lets go while
+ * about three lines of it are still in view rather than riding the editor's
+ * bottom border out. A sticky box is held inside its container by its MARGIN
+ * box, so a bottom margin makes it release that much early; the content area
+ * takes the same amount back so nothing moves in the layout. */
+.rte-toolbar--sticky {
+  margin-bottom: 4.5rem;
+}
+.rte-content-area--sticky {
+  margin-top: -4.5rem;
 }
 
 .rte-content :deep(.ProseMirror) {

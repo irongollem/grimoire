@@ -15,7 +15,7 @@
         >
           <!-- Edit form -->
           <div v-if="editingId === p.id" class="px-4 py-3 space-y-2">
-            <VueDatePicker v-model="editDatetime" :dark="true" :enable-time-picker="true" :teleport="true" placeholder="Pick a date & time…" class="grimoire-datepicker" />
+            <VueDatePicker v-model="editDatetime" :teleport="true" placeholder="Pick a date & time…" class="grimoire-datepicker" />
             <div class="grid grid-cols-2 gap-2">
               <AppInput v-model="editTitle" placeholder="Title" />
               <AppInput v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" />
@@ -67,7 +67,7 @@
         >
           <!-- Edit form -->
           <div v-if="editingId === p.id" class="px-4 py-3 space-y-2">
-            <VueDatePicker v-model="editDatetime" :dark="true" :enable-time-picker="true" :teleport="true" placeholder="Pick a date & time…" class="grimoire-datepicker" />
+            <VueDatePicker v-model="editDatetime" :teleport="true" placeholder="Pick a date & time…" class="grimoire-datepicker" />
             <div class="grid grid-cols-2 gap-2">
               <AppInput v-model="editTitle" placeholder="Title" />
               <AppInput v-model.number="editDuration" type="number" min="0.5" step="0.5" placeholder="hours" />
@@ -139,11 +139,9 @@
         >
         <VueDatePicker
           v-model="form.proposed_datetime"
-          :dark="isDark"
-          :enable-time-picker="true"
           :teleport="true"
           :min-date="minDate"
-          :start-time="{ hours: 19, minutes: 0 }"
+          :time-config="{ startTime: { hours: 19, minutes: 0 } }"
           placeholder="Pick a date & time…"
           class="grimoire-datepicker"
         />
@@ -298,7 +296,6 @@
 import { ref, computed } from "vue";
 import { VueDatePicker } from "@vuepic/vue-datepicker";
 import "@/assets/vendor/datepicker.css";
-import { useTheme } from "@/composables/useTheme";
 import { IconAdd, IconAddEvent, IconCalendar, IconCalendarCheck, IconCheck, IconClose, IconCopy, IconDelete, IconDownload, IconEdit, IconRefresh, IconRemoveEvent } from '@/lib/icons';
 import AppButton from "@/components/common/AppButton.vue";
 import AppInput from "@/components/common/AppInput.vue";
@@ -321,9 +318,6 @@ import { notifyProposalCreated } from "@/composables/campaign/useEmailNotify";
 import { useLocalToday } from "@/composables/calendar/useLocalToday";
 import type { SessionProposal } from "@/types/scheduling.types";
 import { buildSessionFeed, type IcsSessionEvent } from "@edge-shared/ics.ts";
-
-const { activeThemeId } = useTheme();
-const isDark = computed(() => activeThemeId.value === "grimoire");
 
 const campaign = useCampaignStore();
 const auth = useAuthStore();
