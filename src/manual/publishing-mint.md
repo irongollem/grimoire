@@ -1,13 +1,13 @@
 ---
 title: The Mint — Tokens and Coins
-section: Publishing Tools
-section_order: 11
+section: Publishing
+section_order: 14
 order: 3
 summary: Create printable circular tokens for combat and custom campaign coins.
 keywords: mint, token, coin, print, roll20, combat, portrait, ring, circular
 ---
 
-**The Mint** (`/mint`) creates two types of physical game assets: circular combat tokens and custom campaign coins.
+**The Mint** creates two types of physical game assets: circular combat tokens and custom campaign coins. Find it in the sidebar under **Compendium → Publish → The Mint** (route `/tokens`; desktop only).
 
 ## Tokens tab
 
@@ -67,3 +67,8 @@ A live SVG coin (200×200px) updates as you type. The coin renders as a realisti
 - **Large 38mm** — ~35 per A4 sheet.
 
 The print output includes a front sheet and a duplex-aligned back sheet. Print on card stock for best results.
+
+## Related
+
+- [Card Forge — Card Printer](#card-forge-card-printer) — for trading-card-style output instead of round tokens.
+- [Illuminator — Image Effects](#illuminator-image-effects) — touch up a portrait before turning it into a token.

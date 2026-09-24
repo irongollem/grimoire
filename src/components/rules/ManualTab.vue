@@ -1,7 +1,10 @@
 <template>
   <div class="flex h-full min-h-0">
-    <!-- Sidebar -->
-    <div class="w-64 shrink-0 flex flex-col gap-1 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
+    <!-- Sidebar — on a phone it is the whole screen until a page is opened -->
+    <div
+      v-show="!isMobile || !hasPageParam"
+      class="w-full md:w-64 shrink-0 flex flex-col gap-1 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6"
+    >
       <ListFilterBar
         class="mb-1"
         :has-active-filters="ui.manualHasActiveFilters"
@@ -32,21 +35,37 @@
           <p class="px-2.5 py-1 font-cinzel text-2xs font-bold tracking-widest text-muted-foreground uppercase">
             {{ section.title }}
           </p>
-          <button
+          <AppButton
             v-for="page in section.pages"
             :key="page.id"
-            class="w-full text-left px-2.5 py-1.5 rounded-md text-body transition-colors"
-            :class="selectedId === page.id ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'"
+            variant="menu"
+            size="body"
+            block
+            :active="selectedId === page.id"
+            :class="selectedId === page.id ? 'font-semibold' : ''"
+            :label="page.title"
             @click="selectPage(page.id)"
-          >{{ page.title }}</button>
+          />
         </div>
       </template>
     </div>
 
     <!-- Content -->
-    <div ref="contentEl" class="flex-1 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6">
+    <div
+      v-show="!isMobile || hasPageParam"
+      ref="contentEl"
+      class="flex-1 min-w-0 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6"
+    >
       <!-- Page content -->
       <div v-if="selectedPage" class="max-w-3xl space-y-4">
+        <AppButton
+          v-if="isMobile"
+          variant="ghost"
+          size="sm"
+          :icon="IconChevronLeft"
+          label="All pages"
+          @click="showContents"
+        />
         <div>
           <p class="font-cinzel text-2xs font-bold tracking-widest text-muted-foreground uppercase mb-1">
             {{ selectedSection?.title }}
@@ -58,6 +77,7 @@
         </div>
         <div
           class="manual-content text-body text-foreground leading-relaxed"
+          @click="onContentClick"
           v-html="selectedPage.html"
         />
       </div>
@@ -89,9 +109,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { IconBookMarked, IconPopulate } from '@/lib/icons';
+import { IconBookMarked, IconChevronLeft, IconPopulate } from '@/lib/icons';
 import { manualSections } from "@/lib/manualLoader";
 import { useUiStore } from "@/stores/ui";
+import { useIsMobile } from "@/composables/useBreakpoint";
 import ListFilterBar from "@/components/common/ListFilterBar.vue";
 import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import AppButton from "@/components/common/AppButton.vue";
@@ -111,6 +132,18 @@ const selectedId = computed(() => {
 });
 
 const contentEl = ref<HTMLElement | null>(null);
+
+// A 16rem page list beside the page leaves a phone a sliver to read in, so
+// below md it is one or the other: the list until a page is opened, then the
+// page with a way back. Desktop keeps both and opens the first page by default.
+const isMobile = useIsMobile();
+const hasPageParam = computed(() => typeof route.query.page === "string");
+
+function showContents() {
+  const query = { ...route.query };
+  delete query.page;
+  router.replace({ query });
+}
 
 watch(selectedId, () => {
   contentEl.value?.scrollTo({ top: 0 });
@@ -139,6 +172,17 @@ const selectedSection = computed(() =>
 function selectPage(id: string) {
   router.replace({ query: { ...route.query, page: id } });
 }
+
+// Pages cross-reference each other as `[Quest Log](#quest-log)`: the fragment
+// is a page id, so a click opens that page rather than scrolling to an anchor.
+// manualLoader.test.ts holds every such fragment to a real page.
+function onContentClick(event: MouseEvent) {
+  if (!(event.target instanceof Element)) return;
+  const href = event.target.closest("a")?.getAttribute("href");
+  if (!href?.startsWith("#")) return;
+  event.preventDefault();
+  selectPage(href.slice(1));
+}
 </script>
 
 <style scoped>
@@ -161,8 +205,13 @@ function selectPage(id: string) {
 .manual-content :deep(ul) { list-style-type: disc; }
 .manual-content :deep(ol) { list-style-type: decimal; }
 .manual-content :deep(li) { @apply leading-relaxed; }
+/* manualLoader wraps each table so a wide one scrolls inside itself on a
+   phone instead of pushing the page sideways. */
+.manual-content :deep(.manual-table) {
+  @apply overflow-x-auto my-3;
+}
 .manual-content :deep(table) {
-  @apply w-full border-collapse my-3 text-sm;
+  @apply w-full border-collapse text-sm;
 }
 .manual-content :deep(th),
 .manual-content :deep(td) {
@@ -179,6 +228,9 @@ function selectPage(id: string) {
 }
 .manual-content :deep(em) {
   @apply italic text-muted-foreground;
+}
+.manual-content :deep(a) {
+  @apply text-primary underline underline-offset-2 hover:text-primary/80;
 }
 .manual-content :deep(blockquote) {
   @apply border-l-2 border-primary/50 pl-4 italic text-muted-foreground my-3;

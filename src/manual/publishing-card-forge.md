@@ -1,87 +1,80 @@
 ---
 title: Card Forge — Card Printer
-section: Publishing Tools
-section_order: 11
+section: Publishing
+section_order: 14
 order: 2
-summary: Print physical trading-card-style cards for NPCs, monsters, items, and spells.
-keywords: card forge, card, print, mtg, tarot, npc, monster, item, spell, duplex, library
+summary: Print physical trading-card-style cards for NPCs, monsters, items, spells, loot, and Interlude activities.
+keywords: card forge, card, print, mtg, tarot, npc, monster, item, spell, duplex, library, inked, modern, loot deck, deck back
 ---
 
-**Card Forge** (`/forge`) generates print-ready sheets of cards for your campaign entities — in either Magic: The Gathering size (63×88mm) or Tarot size (70×120mm).
+**Card Forge** generates print-ready sheets of cards for your campaign entities. Find it in the sidebar under **Compendium → Publish → Card Forge** (route `/forge`; desktop only).
 
-## Card sizes
+## Key ideas
 
-| Format | Dimensions | Per sheet     |
-| ------ | ---------- | ------------- |
-| MTG    | 63×88mm    | 3×3 = 9 cards |
-| Tarot  | 70×120mm   | 2×2 = 4 cards |
+| Term | Meaning |
+| --- | --- |
+| **Collection mode** | The default: mix and match cards from any source — NPCs, monsters, items, spells, and Interlude activities — into one deck. |
+| **Loot Deck mode** | A dedicated items-only deck: full info on the front, one shared back for every card. |
+| **Style** | **Inked** or **Modern** — two complete visual designs for every card type. |
+| **Deck back** | A single shared card-back design, used in Loot Deck mode and for Interlude cards, chosen from a small picker. |
 
-## Entity sources
+## Choosing a mode, size, and style
 
-Select entities from four tabs — NPC, Monster, Item, Spell. Each tab has a search bar and entity list. Click entities to select them; a badge on the tab shows how many are selected. **Select All** and **Select None** buttons apply to the current filtered list.
+Three segmented controls at the top of the view govern the whole deck:
+
+- **Collection / Loot Deck** — Collection lets you pull from any source and mixes card types freely; Loot Deck restricts you to items only, printed with a shared back instead of per-card art on the reverse.
+- **Trading card (63×88mm) / Tarot (70×120mm)** — MTG-sized cards print 3×3 (9) per A4 sheet; Tarot-sized print 2×2 (4).
+- **Inked / Modern** — two full styles for every card type. Switch any time; your selection carries over.
+
+## Picking entities
+
+In **Collection** mode, five source tabs sit in the left panel:
+
+- **NPCs**, **Monsters**, **Items**, **Spells** — each searchable, with a badge showing how many are selected.
+- **Interlude** — the downtime activity cards and prepped card backs from [The Interlude](#the-interlude-downtime).
+
+Click an entity's checkbox to select it. **All** / **None** apply to the currently filtered (searched) list. Selections across all five sources combine into a single deck — mix an NPC, three monsters, and a handful of items freely.
+
+In **Loot Deck** mode, the panel narrows to items only, and shows your selected count instead of per-tab tabs.
+
+## Deck back
+
+When you're in Loot Deck mode, or have the Interlude source selected, a **Deck Back: —** button appears in the toolbar. Click it to open a picker and choose the single shared back design printed on every card in that deck.
 
 ## Card anatomy
 
-**NPC and Monster cards (front):**
+Every card has a front and back component, styled consistently in your chosen style (Inked or Modern):
 
-- Title bar — name and CR or level
-- Art — focal-point cropped portrait
-- Type line — species/type and alignment
-- Stats strip — HP, AC, Speed
-- Ability score grid
-- Footer — tags and entity kind
+**NPC / Monster (front):** title bar with name + CR or level, focal-point cropped art, type line, HP/AC/Speed stats strip, ability score grid, footer with tags.
+**NPC / Monster (back):** full stat block (skills, saves, resistances, senses, languages, challenge), traits/actions/legendary actions, flavor footer.
+**Item (front):** title + rarity badge, art, type line, damage/AC/charges stats, info grid (weight, value, attunement, tags), footer.
+**Item (back):** extended description, properties, flavor text.
+**Spell (front):** title + level badge, art, school/casting-time line, Range/Duration/Components, truncated description, class-tag footer.
+**Spell (back):** full description, property list, higher-level effects.
 
-**NPC and Monster cards (back):**
-
-- Full stat block text
-- Trait, action, and legendary action entries
-- Flavour footer
-
-**Item cards (front):**
-
-- Title and rarity badge
-- Art
-- Type line
-- Stats — damage/AC/charges where applicable
-- Info grid
-- Footer
-
-**Item cards (back):**
-
-- Extended description
-- Properties list
-- Flavour text
-
-**Spell cards (front):**
-
-- Title and level
-- Art
-- Type line — school, ritual, concentration markers
-- Range / Duration / Components
-- Truncated description
-- Footer
-
-**Spell cards (back):**
-
-- Full description
-- Property list
-- Higher-level text
-
-**Tarot variants** — all four entity types in the taller 70×120mm format with adjusted layouts.
+**Tarot** variants of every type use the taller format with adjusted layouts.
 
 ## Printing
 
-Click **Print** to open the print dialog. The sheet renders with:
+Click **Print** — the button shows your selected card count, e.g. **Print (12)**. The sheet prints fronts first, then backs, with:
 
-- 1mm bleed on all edges for accurate cutting.
-- Duplex alignment — the back sheet reverses card columns per row so long-edge flipping produces correct front/back alignment.
+- **1mm bleed** on every card for accurate cutting.
+- **Duplex alignment** — the back sheet reverses card columns per row, so flipping the paper on the long (left) edge lines every back up with its front.
 
-Print fronts first, flip, print backs. Cut with a guillotine cutter for best results.
+## Card Library (saved collections)
 
-## Card Library
+- **Save Collection** stores your current selection (and mode) under a name, to browser `localStorage` — nothing leaves your device.
+- **Load Collection** restores a saved selection instantly, including which source tab had the most cards.
+- Saved collections can be deleted individually from the load dialog.
 
-Save named card collections to your **Card Library** (stored in browser localStorage). Each collection remembers which entities were selected and their counts. Load a saved collection to restore your selection instantly.
+## Tips
 
-## Frame colours
+> Card Library is stored in your browser only. It won't follow you to another device or survive clearing site data.
 
-Each entity type has a distinct frame colour (`--fc` CSS custom property) that sets the card border and header background. These aren't user-configurable — they're set by entity type.
+- **Frame colours are automatic**, keyed to entity type — not something you configure per card.
+- **A card's art is whatever portrait the entity already has.** Add or change art on the NPC/Monster/Item/Spell itself; Card Forge doesn't have its own art uploader.
+
+## Related
+
+- [The Interlude — Downtime](#the-interlude-downtime) — the source of the Interlude card type.
+- [The Mint — Tokens and Coins](#the-mint-tokens-and-coins) — for round VTT tokens instead of trading cards.

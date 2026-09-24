@@ -1,81 +1,100 @@
 ---
 title: Creating Custom Monsters
-section: Bestiary
+section: Encounters & Bestiary
 section_order: 5
 order: 1
-summary: Build a full D&D 5e stat block with the Monster Builder.
-keywords: monster, create, stat block, builder, custom, cr, hp, ac, actions, legendary, spellcasting, template
+summary: Build a full D&D 5e stat block by hand, or generate one with AI.
+keywords: monster, create, stat block, builder, custom, cr, hp, ac, actions, legendary, lair, spellcasting, generator, ai, scope, duplicate, copy
 ---
 
-Custom monsters are created in the **Monster Builder**. Click **New Monster** in the Bestiary toolbar or click the edit button on any existing custom monster. The builder is a full D&D 5e stat block editor.
+The Monster Builder is a full D&D 5e stat block editor — everything from ability scores to legendary actions, with roll buttons wired up for the Encounter Runner. Open it by clicking **New Monster** in the Bestiary toolbar (**Compendium → Bestiary**, `/monsters`), or by opening any existing custom monster and clicking **Edit**.
+
+## Key ideas
+
+| Term | Meaning |
+| --- | --- |
+| **Scope** | Whether this monster is available in every campaign you run, or only the active one. |
+| **Legendary action pool** | A budget of actions (5e default: 3) the runner automatically gives a legendary creature each round, spent by cost parsed from the action's name. |
+| **Lair actions** | A list on the stat block that only does anything once you also enable lair actions on an *encounter* (see [Encounter Builder](#encounter-builder)). |
+| **Frequency groups** | How a monster's spell list is organized: At Will, 3/Day, 2/Day, 1/Day, or a standard spell-slot level. |
 
 ## Basic identity
 
 - **Name** — required.
-- **Size** — Tiny, Small, Medium, Large, Huge, Gargantuan.
-- **Monster Type** — the standard D&D type (Beast, Dragon, Undead, etc.).
-- **Alignment** — nine standard alignments, plus Unaligned and Any.
-- **Challenge Rating (CR)** — supports all standard CR values including fractions (1/8, 1/4, 1/2).
-- **Habitat** — freeform text describing where this creature lives.
-- **Source** — freeform attribution.
-- **Tags** — freeform labels.
-- **Portrait** — upload an image; use the focal-point control to set the crop centre.
+- **Type** — the standard D&D creature type.
+- **Size** — Tiny through Gargantuan.
+- **Alignment**.
+- **Source** — freeform attribution text.
+- **Scope** — a two-option control: **General — all campaigns**, or **Campaign — _{active campaign name}_**.
+- **Habitat** — freeform text describing where the creature lives.
+- **Lair Location** — an optional link to an Atlas location; pick it from the combobox to mark that place as this monster's lair.
+- **Portrait** — upload an image and set its focal point.
 
-## Combat stats
+## Combat statistics
 
-- **Armour Class** — a number.
-- **HP** — either a fixed number or a dice expression (e.g. `12d8 + 36`). Both formats are accepted.
-- **Speed** — walk, fly, swim, burrow, climb speeds.
-- **Initiative bonus** — if the creature has a non-standard initiative.
+- **Challenge Rating (CR)** — supports fractional values (1/8, 1/4, 1/2) as well as whole numbers.
+- **Armor Class**.
+- **Hit Points** — a fixed number or a dice expression (e.g. `12d8 + 36`).
+- **Proficiency Bonus**.
+- **Initiative** — leave blank to use the creature's DEX modifier; set a number here only to override it with a fixed 2024-style initiative bonus.
+- **Speed** — walk, fly, swim, burrow, and climb, each independently.
 
 ## Ability scores
 
-Enter values for STR, DEX, CON, INT, WIS, and CHA. Modifiers are computed automatically.
+Enter STR, DEX, CON, INT, WIS, and CHA. Modifiers are computed automatically.
 
-## Derived stats
+## Proficiencies, senses & damage
 
-- **Saving throw proficiencies** — add saves that use the proficiency bonus.
-- **Skill proficiencies** — add skill bonuses (expertise is supported).
-- **Senses** — darkvision, tremorsense, blindsight, etc.
-- **Languages** — any languages the creature speaks or understands.
-- **Damage resistances, immunities, vulnerabilities** — per damage type.
-- **Condition immunities** — which conditions can't affect this creature.
+- **Saving Throws** and **Skills** — proficiencies with their own bonus.
+- **Damage Vulnerabilities**, **Damage Resistances**, **Damage Immunities** — per damage type.
+- **Condition Immunities**.
+- **Senses** — darkvision, tremorsense, blindsight, and so on.
+- **Languages**.
 
-## Trait sections
+## Traits, actions & reactions
 
-Traits, Actions, Bonus Actions, Reactions, Legendary Actions, Lair Actions, and Mythic Actions are all separate sections. Each section is a list of named entries. In each entry:
+Special Abilities, Actions, Bonus Actions, and Reactions are each a list of named entries — a **Name** and a rich-text **Description**.
 
-- **Name** — the action or trait name.
-- **Description** — rich text. Use standard 5e notation for attack rolls (e.g. `+5 to hit, reach 5 ft., one target. Hit: 7 (1d8+3) piercing damage`).
+Write attack and damage text in standard 5e notation, e.g. `+5 to hit, reach 5 ft., one target. Hit: 7 (1d8+3) piercing damage`. The Encounter Runner parses this to produce clickable attack and damage roll buttons during combat — free-form phrasing won't parse.
 
-The Encounter Runner parses attack and damage notation in descriptions to produce roll buttons — write them in standard format so rolls work during play.
+## Legendary and lair mechanics
+
+- **Legendary Resistance** — how many uses per day this creature has.
+- **Legendary Actions** — a list of named entries. Give an action a name like "Costs 2 Actions" and the runner reads that cost automatically. As soon as a monster has any legendary actions, the runner gives it a pool of 3 each round (5e default) with no separate toggle, and refills the pool at the start of its turn.
+- **Lair Actions** — a list of named entries. They only fire in the runner once an *encounter* has lair actions enabled and this monster is set as the lair owner there — see [Encounter Builder](#encounter-builder).
 
 ## Spellcasting
 
-Enable the **Spellcasting** section to add a spell list:
+Enable the Spellcasting section to set a spellcasting ability (INT, WIS, or CHA), a Spell Save DC, a Spell Attack Bonus, and a spell list organized by frequency group (At Will, 3/Day, 2/Day, 1/Day, or a standard slot level).
 
-- **Spellcasting ability** — INT, WIS, or CHA.
-- **Spell Save DC** and **Spell Attack Bonus** — enter values directly.
-- **Spells by frequency** — At Will, 3/Day, 2/Day, 1/Day, and standard spell-slot levels. Add spells from your Spellbook to each frequency group.
+## Generating a monster with AI
 
-## Legendary mechanics
+1. Click **Generate** — in the Bestiary toolbar, or inside the Monster Builder itself.
+2. Describe the creature you want in the **Concept** field.
+3. Grimoire returns a full stat block you can save as-is or keep editing.
 
-Enter **Legendary Actions** in the Legendary Actions section. The runner automatically provides a **3-action pool** (5e default) for any monster with legendary actions, and resets the pool at the start of the monster's turn.
+Two things gate this:
 
-**Lair Actions** appear in the Lair Actions section. Enable lair actions on the Encounter detail to have the runner prompt you at initiative 20 each round.
+- It's a Pro feature — without a Pro subscription the button opens an upgrade prompt instead of generating.
+- The active campaign needs AI turned on (Campaign Settings). With Pro but no campaign AI, only **New Blank Monster** is offered.
 
-## Stat block templates
+When it's available, the button shows its cost in credits before you confirm — or, if you've set your own API key for this campaign, it shows that you're using your own key and nothing will be charged.
 
-The **Template** button (top of the builder) provides 12 pre-built SRD-style presets:
+## Duplicating and copying a monster
 
-Goblin, Orc, Skeleton, Zombie, Wolf, Bear, Dragon (Young), Lich, Vampire, Giant, Troll, Basilisk.
+- **Duplicate** (on the monster's own page) makes an independent copy in the same campaign.
+- **Copy to campaign…** (from the monster's own overflow menu, or from the Bestiary list's bulk action bar after selecting several monsters) copies the monster into another campaign you DM.
 
-Selecting a template pre-fills the full stat block — edit from there rather than starting from scratch.
+## Tips
 
-## AI monster generator
+> Shared monsters — SRD or library — can't be edited directly; their Edit button doesn't appear at all. Duplicate one, or start fresh, to make your own version.
 
-Click **Generate** in the Bestiary toolbar to open the AI generator (requires an OpenAI API key in Campaign Settings). Enter a concept prompt and Grimoire produces a full stat block.
+- Roll buttons in the Encounter Runner depend entirely on the standard-notation text described above — a description that doesn't follow that pattern still displays fine, it just won't get a roll button.
+- Re-scoping a monster only changes who can find it in pickers from then on; encounters, loot tables and quests that already reference it keep working.
 
-## Linking to NPCs
+## Related
 
-On the NPC sheet, the **Bestiary link** field lets you import a stat block from an existing monster entry — or promote an NPC with a stat block to a new Bestiary entry. This keeps monster data in sync between the NPC tracker and the compendium.
+- [Bestiary — Overview](#bestiary-overview)
+- [Monster Discovery](#monster-discovery)
+- [Encounter Builder](#encounter-builder)
+- [AI Generation & Credits](#ai-generation-credits)

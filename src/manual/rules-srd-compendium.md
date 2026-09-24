@@ -1,13 +1,13 @@
 ---
 title: SRD Compendium
-section: Custom Rules
-section_order: 10
-order: 3
-summary: Browse or search the full SRD 2024 ruleset without leaving the table.
-keywords: compendium, srd, rules, search, browse
+section: Reliquary
+section_order: 12
+order: 4
+summary: Browse or search the WotC SRD ruleset — synced for both the 2014 and 2024 editions — without leaving the table.
+keywords: compendium, srd, rules, search, browse, 2014, 2024, ruleset
 ---
 
-The **Compendium** tab in the Reliquary (`/rules` → Compendium) contains the full SRD 2024 ruleset — around 317 entries — browsable or searchable without leaving the app.
+The **Compendium** tab in the Reliquary (**Compendium → Reliquary**, `/rules` → Compendium) contains the WotC SRD text — genuinely SRD, not the broader mix of publishers the rest of Grimoire's shared content draws on — browsable or searchable without leaving the app. It's synced for both the 2014 and 2024 editions and scoped to whichever ruleset your active campaign uses.
 
 ## Browsing
 
@@ -19,4 +19,12 @@ Start typing in the search box to flatten the tree into a filtered list — it m
 
 This is your primary rules reference during play — the actual SRD text, not a summary. For your own campaign-specific rulings and house rules, use the **Custom Rules** tab; for a compact table-style cheat sheet, use the **DM Screen** tab.
 
-→ _See Custom Rules (House Rules)_ and _DM Screen_ for the other two Reliquary references.
+## Tips
+
+> The rest of Grimoire's shared content (monsters, spells, items, species) draws from several open-licence publishers, not just WotC's SRD — see the **Licenses** tab for exactly which content comes from where. This Compendium is the one place in the app where "SRD" is genuinely accurate.
+
+## Related
+
+- [Reliquary — Overview](#reliquary-overview)
+- [Custom Rules (House Rules)](#custom-rules-house-rules)
+- [DM Screen](#dm-screen)

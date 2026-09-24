@@ -1,59 +1,67 @@
 ---
 title: Abilities Compendium
-section: Character Codex
-section_order: 9
+section: Characters
+section_order: 11
 order: 3
-summary: Manage the pool of individual features, feats, and options that classes reference.
-keywords: ability, feat, feature, fighting style, metamagic, maneuver, invocation, infusion, class feature, trait
+summary: Manage the pool of individual features, feats, and options that classes and species reference.
+keywords: ability, feat, feature, fighting style, metamagic, maneuver, invocation, infusion, class feature, trait, passive, reaction, bonus action, legendary
 ---
 
-The **Abilities** tab is the pool of individual features that classes, archetypes, and species reference. Think of it as a library of atomic building blocks — a class assigns abilities to levels; an archetype adds abilities at its unlocking levels; a Wizard Step presents abilities as player choices.
+The **Abilities** tab (**Character Codex → Abilities**) is the pool of individual features that classes, archetypes, and species reference. Think of it as a library of atomic building blocks — a class assigns abilities to levels, an archetype adds abilities at its unlocking levels, and a Wizard Step can present a set of abilities as a player choice.
 
-## Ability types
+## Key ideas
 
-| Type               | Typical use                                                      |
-| ------------------ | ---------------------------------------------------------------- |
-| Class Feature      | Standard class progression features (Sneak Attack, Martial Arts) |
-| Species Trait      | Racial abilities (Darkvision, Fey Ancestry)                      |
-| Background Feature | Background-granted abilities (False Identity, Researcher)        |
-| Feat               | Optional feats players can take at ASI levels                    |
-| Fighting Style     | Fighter/Paladin/Ranger fighting style options                    |
-| Metamagic          | Sorcerer metamagic options                                       |
-| Maneuver           | Battle Master maneuvers                                          |
-| Invocation         | Warlock eldritch invocations                                     |
-| Infusion           | Artificer infusion options                                       |
-| Other              | Anything that doesn't fit the above                              |
+Each ability's **Type** describes how it plays at the table, not what kind of source it came from:
+
+| Type | Meaning |
+| --- | --- |
+| Passive | Always-on — no action required (e.g. Darkvision) |
+| Active | Uses an action to activate |
+| Reaction | Triggered by another creature's action or a specific event |
+| Bonus Action | Uses a bonus action |
+| Legendary | A legendary action, for creatures/characters that have them |
+
+Narrative categorisation — whether something is a class feature, a species trait, a feat, a fighting style, and so on — is handled with **Tags** instead of a fixed type list, so you're free to tag an ability however makes sense for your table (e.g. `feat`, `fighting-style`, `invocation`).
 
 ## Creating an ability
 
-Click **New Ability**. Fill in:
+Click **New Ability**. Fields:
 
-- **Name** — required.
-- **Type** — from the list above.
-- **Description** — rich text. Write the full mechanical text here. This is what appears on the player's character sheet.
-- **Tags** — freeform labels for filtering.
+- **Name** — the large text field at the top.
+- **Type** — one of the five above.
+- **Source** — attribution (e.g. "PHB", "Homebrew").
+- **Campaign Scope** — this campaign, or all your campaigns.
+- **Prerequisite** — free text (e.g. "Dexterity 13 or higher").
+- **Tags** — freeform labels for filtering and for your own narrative categorisation.
+- **Description** — rich text. Write the full mechanical text here — this is what appears on the player's character sheet.
 
 ## Importing from Open5e
 
-Click **Sync from Open5e** in the toolbar to import all SRD features, feats, fighting styles, metamagics, maneuvers, invocations, and infusions. The sync also backfills descriptions for any system-level abilities that were previously name-only. This is safe to run repeatedly.
+Click **Sync from Open5e** in the toolbar to import features, feats, fighting styles, metamagic, maneuvers, invocations, and infusions. The same sync also backfills descriptions for any built-in abilities that were previously name-only, and reports how many entries were added, updated, and had descriptions filled. Safe to run repeatedly.
 
 ## How abilities flow to players
 
-1. A **class** assigns ability X to level N.
+1. A **class** or **archetype** assigns ability X to level N.
 2. A player's character reaches level N.
-3. Ability X appears in the **Features** tab of the player's character sheet, with the full description text.
+3. Ability X appears on the **Features** tab of the player's character sheet, with the full description text.
 
-If a **Wizard Step** at that level asks the player to choose, the ability only appears after the player makes their selection during the level-up flow.
-
-## Abilities and Wizard Steps
-
-When a custom class has a Wizard Step with Options Source = "Abilities", it filters the Abilities list by type. For example, a "Choose a Fighting Style" step filters for type = Fighting Style. Players only see the relevant options.
+If a **Wizard Step** at that level asks the player to choose, the ability only appears after the player makes their selection during level-up.
 
 ## Keeping abilities organised
 
-With many abilities in the list, use:
+The list is filterable by:
 
-- **Text search** — searches name and description.
-- **Type filter** — filter by any of the ability types above.
+- **Text search** — matches name and tags.
+- **Type filter** — Passive / Active / Reaction / Bonus Action / Legendary.
 
-Both filters are stored in the session — they persist while you navigate.
+Both filters persist while you navigate away and back.
+
+## Tips
+
+> Looking for "Class Feature" or "Species Trait" as a filter? That grouping doesn't exist as a field anymore — use **Tags** to build your own categories, and search by tag.
+
+## Related
+
+- [Character Codex — Overview](#character-codex-overview)
+- [Creating Custom Classes](#creating-custom-classes)
+- [Species and Backgrounds](#species-and-backgrounds)

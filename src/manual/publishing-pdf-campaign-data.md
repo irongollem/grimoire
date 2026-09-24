@@ -1,7 +1,7 @@
 ---
 title: Sharing Adventures as PDFs
-section: Publishing Tools
-section_order: 11
+section: Publishing
+section_order: 14
 order: 1
 summary: Embed campaign data inside a Scriptorium PDF so anyone who imports it gets your NPCs, monsters, and more — ready to play.
 keywords: pdf, share, publish, distribute, campaign data, world bundle, attach, import, adventure module, embed, scriptorium
@@ -32,12 +32,17 @@ That `-grimoire.pdf` file is the one to share.
 
 ## Importing a PDF with campaign data
 
-The receiving DM opens **Campaign Settings → World Bundle → Import**, and selects the PDF (the same place also accepts plain `.grimoire` bundle files). Grimoire reads the embedded data and shows a preview of everything inside; they choose what to import into their campaign.
+The receiving DM goes to **Campaign Settings → World Bundle** and clicks **Import .grimoire**, then picks the PDF (the same dialog also accepts a plain `.grimoire` bundle file — a full account backup ending in `.grimoire-backup` is a different file and is **not** accepted here). Grimoire reads the embedded data and shows a preview of everything inside; they choose what to import into their campaign.
 
 Player visibility flags and party-member links are cleared on import, so nothing arrives pre-revealed to the other table's players.
 
-## Good to know
+## Tips
 
 - **Re-saving strips the data.** The embedded bundle survives normal sharing — email, Discord, cloud drives, printing. But if the PDF is run through another program that *re-saves* it (an editor's "export", "print to PDF" again, some compressors), the hidden attachment is removed. Share the `-grimoire.pdf` file as-is.
 - **The PDF stays a normal PDF.** People without Grimoire can read and print it like any other file; the embedded data is invisible to them.
 - **Data and document are independent.** The embedded entities don't have to match what the document shows — you decide what a recipient receives.
+
+## Related
+
+- [Scriptorium — Document Publisher](#scriptorium-document-publisher) — where you write and export the PDF itself.
+- [Campaign Settings](#campaign-settings) — where the World Bundle wizard lives.

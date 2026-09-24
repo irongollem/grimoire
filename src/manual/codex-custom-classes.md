@@ -1,105 +1,97 @@
 ---
 title: Creating Custom Classes
-section: Character Codex
-section_order: 9
+section: Characters
+section_order: 11
 order: 1
 summary: Design homebrew classes with spellcasting, resource pools, wizard steps, and level features.
 keywords: class, custom class, homebrew, spellcasting, resource pool, hit die, level, archetype, subclass, oath spells, domain spells, granted spells, ability score, wizard step
 ---
 
-Custom classes let you design entirely new character classes from the ground up — with full spellcasting, resource pools, and level-up prompts.
+Custom classes let you design entirely new character classes from the ground up — with full spellcasting, resource pools, and level-up prompts — for your players to pick during character creation.
 
 ## Opening the class editor
 
-Go to **Codex → Classes** and click **New Custom Class**. The editor is split into several sections.
+Go to **Character Codex → Classes** and click **New Class** (or open an existing custom class and click **Edit**). The editor is split into several sections; a read-only summary sheet is shown until you click Edit.
 
 ## Identity
 
-- **Name** — required (e.g. "Bloodweaver", "Artificer", "Warden").
+- **Class Name** — the class's name. **Create** stays disabled until you give it one.
 - **Hit Die** — d6, d8, d10, or d12.
-- **Primary Ability** — the main ability score this class scales from (for flavour and references).
-- **Subclass at Level** — which level the character chooses their archetype (typically 1–3).
-- **Campaign Scope** — whether this class appears only in the current campaign or across all your campaigns.
+- **Primary Ability** — free text describing the main ability score this class scales from (e.g. "Strength or Dexterity").
+- **Subclass-Granting Level** — which level the character chooses their archetype (typically 1–3).
+- **Campaign Scope** — the current campaign, or **All my campaigns**.
 
 ## Proficiencies
 
-- **Saving Throw Proficiencies** — check two saves (PHB standard).
-- **Armor Tags** — freeform tags matching item armor tags (e.g. `light`, `medium`, `heavy`, `shield`).
-- **Weapon Tags** — freeform tags (e.g. `simple`, `martial`, `firearms`).
-
-The tag system links proficiencies to item vault entries automatically — items tagged `light` are considered proficient for characters with the `light` armor proficiency.
+- **Saving Throws** — check the proficient saves (STR/DEX/CON/INT/WIS/CHA).
+- **Armor Proficiencies** — freeform tags (e.g. `Light armor`, `Shields`).
+- **Weapon Proficiencies** — freeform tags (e.g. `Simple weapons`, `Firearms`).
 
 ## Features per Level
 
-For each class level (1–20), add one or more **abilities** from the Abilities tab. Type the ability name in the search box and click to assign. A chip appears on that level.
-
-This drives what appears in the player's **Features** tab on their character sheet.
+For each class level (1–20), add one or more **abilities** from the Abilities compendium. Type the ability name in the search box and click to assign it. This drives what appears on the player's character sheet **Features** tab once they reach that level.
 
 ## Ability Score Increase levels
 
-The ASI levels default to 4, 8, 12, 16, 19 (PHB standard). Adjust them to match your homebrew design.
+Defaults to 4, 8, 12, 16, 19 (PHB standard). Pick a level from the dropdown and click **Add Ability Score Increase level**; click the **×** on a level chip to remove it.
 
 ## Spellcasting
 
-Toggle **Has Spellcasting** on to reveal the spellcasting configuration:
+Toggle the **Spellcasting** switch on to reveal the configuration:
 
-- **Caster Type** — Prepared (like Cleric/Druid), Spellbook (like Wizard), or Known (like Sorcerer/Bard).
-- **Slot Recovery** — Long Rest or Short Rest.
-- **Spells Known table** — whether the class has a level-based "spells known" count.
-- **Cantrips Known table** — whether the class tracks cantrips known per level.
-- **Prepared Ability** — WIS, INT, or CHA.
-- **Prepared Spell Scaling** — Full level (Cleric-style) or Half level (Paladin-style).
-- **Spell Slot Grid** — a 20×9 grid. Enter how many slots of each level the class has at each character level. Leave cells blank for levels where no slots exist.
+- **Caster Type** — Prepared (Cleric, Druid), Spellbook (Wizard), or Known (Bard, Sorcerer, Warlock).
+- **Slot Recovery** — Long rest or Short rest.
+- **Spells Known Table** — check to track a level-based "spells known" count (Known casters).
+- **Cantrips Known Table** — check to track cantrips known per level.
+- **Prepared Spell Ability** — WIS, INT, or CHA (Prepared/Spellbook casters only).
+- **Prepared Spell Scaling** — Full level (Cleric, Druid, Wizard) or Half level (Paladin, Artificer).
+- **Spell slot grid** — a 20-row × 9-column table. Enter how many slots of each level the class has at each character level; leave a cell at 0 where no slots exist.
 
 ## Wizard Steps (level-up prompts)
 
-**Wizard Steps** are prompts that appear during character level-up to guide player choices. Each step has:
+**Wizard Steps** are prompts shown to the player during level-up. Click **Add step**; each one has:
 
-- **Level** — which character level triggers this prompt.
-- **Type** — Pick One (player chooses a single option) or Accumulate (player collects options across levels).
-- **Options Source** — where the options come from:
-  - _Abilities_ — picks from the Abilities tab (filtered by type).
-  - _Spellbook_ — picks from the campaign's Spellbook.
-  - _Custom_ — a fixed list you write manually.
-- **Key** — internal identifier (e.g. `fighting_style`, `maneuver`).
-- **Label** — displayed to the player (e.g. "Choose a Fighting Style").
-- **Description** — context shown to the player during the prompt.
+- **Level** — which character level triggers the prompt.
+- **Type** — **Pick one** (a single choice) or **Accumulate** (options collect across levels).
+- **Options from** — **Abilities compendium**, **Spellbook**, or **Custom text**.
+- **Key** — a short internal name for the step (not shown to players; e.g. "fighting-style") — pick something you'll recognise if you ever have to look at it again.
+- **Label** and **Description** — shown to the player when the prompt appears.
 
-Example: A Fighter class might have a Wizard Step at level 1 with options source "Abilities" filtered by type "Fighting Style". The player picks one and it's stored on their character.
+Example: a Fighter class might have a step at level 1 with options from the Abilities compendium, filtered to type Fighting Style — the player picks one and it's saved to their character.
 
 ## Resource Pools
 
-Pools track expendable resources — Ki points, Sorcery Points, Superiority Dice, Lay on Hands HP, etc. Each pool has:
+Click **Add resource** to track expendable resources — Ki points, Sorcery Points, Superiority Dice, and similar. Each pool has:
 
-- **Key** — internal identifier (e.g. `ki`, `superiority_dice`).
+- **Key** — a short internal name for the resource (not shown to players; e.g. "ki").
 - **Label** — shown on the character sheet (e.g. "Ki Points").
-- **Recharges On** — Short Rest, Long Rest, or both.
-- **Scaling** —
-  - _Fixed_: always the same value.
-  - _Per Level_: multiplied by character level (e.g. 1× = "equal to your level").
-  - _Custom Table_: a 20-row table mapping each level to a specific pool size.
+- **Recharges On** — Short Rest or Long Rest.
+- **Scaling** — Fixed value, Per class level, or Custom table (20 values, one per character level).
 
-Pools appear in the **Combat** tab of the player's character sheet with +/− controls.
+Pools appear on the player's character sheet **Combat** tab with +/− controls.
 
 ## Archetypes (Subclasses)
 
-Archetypes are subclasses — Oaths, Domains, Circles, Martial Archetypes, and so on. They attach to a base class (one of the 13 SRD classes **or** a custom class) and add their own features and spells from the subclass-granting level onward. Open the **Archetypes** tab and click **New Archetype** to build one from scratch, **Import from Open5e** to bulk-import SRD archetypes (their features are linked automatically), or **Load example** for a fully-worked demo to edit.
+Archetypes are subclasses — Oaths, Domains, Circles, Martial Archetypes, and so on. They attach to a base class (one of the SRD classes or a custom class) and add their own features (and, for casters, granted spells) from the subclass-granting level onward.
 
-Each archetype editor has these sections:
+Open **Character Codex → Archetypes** and click **New Archetype**. When the list is empty you'll also see **Import from Open5e** (bulk-imports SRD subclasses with their features linked automatically) and **Load example** (a fully-worked demo archetype to edit) as empty-state options.
 
-- **Base Class** — which class this archetype belongs to (e.g. Paladin).
-- **Description** — flavour text, with the full rich-text editor (headings, lists, tables).
-- **Campaign Scope** — this campaign only, or all your campaigns.
+The archetype editor has:
+
+- **Archetype Name** — the archetype's name. **Create** stays disabled until you give it one.
+- **Description** — flavour text, full rich-text editor.
+- **Base Class** — which class this archetype belongs to.
+- **Campaign Scope** — this campaign, or all your campaigns.
 
 ### Subclass Features per Level
 
-Same as class features: for each level, pick **abilities** from the Abilities tab. These appear in the player's **Features** tab. For an Oath of the Ancients paladin you'd add, at level 3: _Oath Spells_, _Channel Divinity: Nature's Wrath_, and _Channel Divinity: Turn the Faithless_.
+Same as class features — for each level, pick **abilities** from the Abilities compendium. These appear on the player's **Features** tab. For an Oath of the Ancients paladin you might add, at level 3: _Oath Spells_, _Channel Divinity: Nature's Wrath_, and _Channel Divinity: Turn the Faithless_.
 
 ### Granted Spells per Level
 
-This is how you model **oath spells, cleric domain spells, and druid circle spells** — spells the subclass grants automatically. Add a level, then pick the spells gained at that level from the **SRD or your own custom spells**.
+This is how you model **oath spells, cleric domain spells, and druid circle spells** — spells the subclass grants automatically. Pick a level, then use **Add spell…** to pick a spell from the shared spell library or your own custom spells for that level.
 
-Granted spells are **always prepared** and **do not count toward the character's prepared-spell limit**. On level-up they're added to the character automatically and shown with a locked **"Granted"** badge — players can't unprepare or remove them.
+Granted spells are **always prepared** and **do not count toward the character's prepared-spell limit**. On level-up they're added to the character automatically and shown with a locked "Granted" badge — players can't unprepare or remove them.
 
 Worked example — **Oath of the Ancients** oath spells:
 
@@ -109,8 +101,23 @@ Worked example — **Oath of the Ancients** oath spells:
 - **13** — Ice Storm, Stoneskin
 - **17** — Commune with Nature, Tree Stride
 
-> If a granted spell isn't in the SRD (e.g. Ensnaring Strike), create it first as a **custom spell** (see _Creating Spells_), then pick it here. Custom spells live in your own account, so book-only content stays private to your campaign.
+> If a granted spell isn't in the shared spell library, create it first as a custom spell (Spellbook), then pick it here. Custom spells live in your own account, so book-only content stays private to your campaign.
 
 ### Wizard Steps & Resource Pools
 
-Archetypes support the same **Wizard Steps** (level-up choices) and **Resource Pools** as classes. A Channel Divinity pool, for instance, can be tracked as a resource that recharges on a short or long rest.
+Archetypes support the same **Wizard Steps** and **Resource Pools** as classes — a Channel Divinity pool, for instance, can recharge on a short or long rest.
+
+## What your players see
+
+Custom classes and archetypes surface automatically wherever a player builds or levels a character: the class/archetype picker during character creation, the level-up wizard's steps and features, resource pools and spell slots on the **Combat** tab, and granted spells with a locked badge on the **Spells** tab. A player never sees the editor — only the finished result.
+
+## Tips
+
+- Custom classes/archetypes are never blocklisted by the per-campaign content gate (unlike SRD classes, which can be disabled) — they're already campaign-scoped by design.
+- A re-import from Open5e only touches the fields Open5e actually supplies; hand-tuned mechanics (spell slots, resource pools, wizard steps) are never overwritten by a re-sync.
+
+## Related
+
+- [Character Codex — Overview](#character-codex-overview)
+- [Species and Backgrounds](#species-and-backgrounds)
+- [Abilities Compendium](#abilities-compendium)

@@ -2,78 +2,88 @@
 title: AI Generation & Credits
 section: Getting Started
 section_order: 0
-order: 3
-summary: How AI generation works, what credits are, and how BYOK differs from using platform credits.
-keywords: ai, credits, byok, api key, generation, cost, billing, openai, gemini
+order: 4
+summary: How AI generation is switched on, paid for, and configured per campaign.
+keywords: ai, credits, byok, api key, generation, cost, billing, openai, gemini, local mode
 ---
 
-## How AI generation works
+Grimoire can generate NPCs, monsters, items, spells, quests, puzzles, and more with AI — plus narrative and scene art for the Chronicler. **AI generation is a Pro feature.** On a Free plan you build almost everything by hand: nearly every **Generate with AI** button you'll find around the app still shows up, but clicking it opens an upgrade prompt instead of running. (The Party Tracker's group portrait is the one exception — see [Party Tracker](#party-tracker).) Where AI is switched on and paid for lives in **Campaign Settings → AI Assistant**.
 
-Grimoire uses AI to generate NPCs, monsters, items, spells, locations, traps, factions, puzzles, quest hooks, and chronicle narratives. Every generation call goes to a large language model (OpenAI or Google Gemini depending on your campaign settings) and produces a structured result that gets saved to your campaign.
+## Key ideas
 
-There are two ways to pay for those AI calls: **credits** or **BYOK**.
+| Term | What it means |
+| --- | --- |
+| **AI Assistant toggle** | A per-campaign on/off switch. On a Pro plan, turning it off hides every AI generation button across the campaign — useful if your table wants a fully hand-crafted experience. On Free it has no visible effect, because generation isn't available either way. |
+| **Credits** | Grimoire's built-in currency for AI calls billed to the platform's own keys. Pro campaigns get a monthly allowance plus whatever packs you've purchased (packs never expire). |
+| **BYOK (Bring Your Own Key)** | Pro only. Store your own OpenAI or Google Gemini key; calls then bill your own provider account instead of spending credits. |
+| **Local Mode** | A BYOK option: keep your key only in this browser (never sent to Grimoire's servers) instead of encrypted in your account. |
 
----
+A complimentary beta-tester account (occasionally handed out by the maintainer) counts as Pro everywhere in this page.
+
+## Turning AI on
+
+1. Open **Campaign Settings → AI Assistant**.
+2. Flip the **AI Assistant** toggle on. The first time any account does this, a consent notice (required under the EU AI Act) appears — read and confirm it. After that, toggling on/off for any campaign is immediate.
+3. On Pro, the rest of this tab — key storage, your own provider keys, the setting prompt, usage stats, and the Chronicler promotion opt-in — only appears once the toggle is on. On Free, none of it appears; you'll see an upgrade message in its place regardless of the toggle.
+
+The toggle itself is visible on every plan, but only changes anything for Pro campaigns.
 
 ## Credits
 
-Credits are Grimoire's built-in currency for AI generation. When you generate something using Grimoire's platform API key, a small number of credits is deducted from your balance.
+Credits are Grimoire's built-in currency for AI generation using the platform's own API keys.
 
-- **Free and Tester plans** always use credits (no personal API key option).
-- **Pro plan** users also use credits by default, unless they configure a personal key (see BYOK below).
+- **Free plans** don't generate with AI at all, with one exception ([Party Tracker](#party-tracker)'s group portrait, which does spend credits) — see [Billing & Subscription](#billing-subscription) for how to move to Pro.
+- **Pro plan** accounts pay with credits by default, unless a personal key is configured (see BYOK below).
 
-You can see your current balance and purchase credit packs from the **Billing** page in the sidebar. Credit pack sizes and prices are shown there and are always up to date.
-
-Different generators have different credit costs — a full NPC with portrait costs more than a quest hook with no image. The exact costs per generator are shown on the Billing page.
-
----
+Your balance and the credit packs available to purchase are on the **Billing** page — open your account menu (click your name at the bottom of the sidebar) and choose **Billing**. Every generate button shows its own cost — a credits badge next to it — before you confirm, so this manual won't quote a number that could drift out of date; costs come from a live pricing table, not a hardcoded constant.
 
 ## BYOK (Bring Your Own Key) — Pro only
 
-**BYOK** means "Bring Your Own Key." Pro plan users can store a personal OpenAI or Gemini API key in their campaign settings. When a personal key is configured, all AI calls for that campaign use it directly — **no credits are deducted**. Instead, the cost appears on your own API provider's bill.
+On the **AI Assistant** tab, Pro campaigns get two extra sections once AI is on:
 
-To set a BYOK key: open **Campaign Settings → AI** and enter your key. It is encrypted at rest and never logged or displayed in plaintext after saving.
+### Key Storage Mode
 
-### When BYOK is useful
+- **Store keys locally on this device only** (unchecked by default) — leave it off and a key you enter is encrypted and stored with your campaign, available from any device. Check it and the key is encrypted and kept only in this browser's local storage instead — nothing is sent to Grimoire's servers, but you'll need to re-enter it on another browser or device.
 
-- You already pay for an API subscription and want to use your own allocation.
-- You generate large volumes and want to avoid purchasing credit packs.
-- You want full transparency into usage via your provider's dashboard.
+### API Keys · BYOK
+
+Enter a key for **OpenAI** or **Google Gemini** (each has a **Get key →** link to that provider's key page). A stored key can be **Clear**ed (falls back to platform credits) with an **Undo** available before you save. Leaving a field blank keeps whatever's already stored.
+
+Once at least one key is entered, the **Active Providers** section lets you choose, separately:
+
+- **Text generation** — used for NPCs, monsters, items, spells, and puzzles. Without a key, this is fixed to the platform's own model, billed in credits. With a key, pick which provider handles it.
+- **Image generation** — used for portraits and artwork. Shows the approximate credit cost and rendering speed for whichever provider is selected, even when you're not paying credits for it.
+
+With any BYOK key active for a given kind of generation (text or image), that kind is billed to your own provider account — no credits are deducted for it.
 
 ### When BYOK is not available
 
-- Free and Tester plans cannot store personal keys. All generation uses credits.
-- If you downgrade from Pro to Free/Tester, your stored key remains saved but is no longer used — the platform falls back to credits.
+- Free plans don't have AI generation at all, so BYOK doesn't apply — the tab shows an upgrade prompt in place of these sections, whatever the toggle is set to.
+- If you downgrade from Pro, a previously stored key stays saved but stops being used — generation falls back to credits automatically.
 
----
+## Other things on the AI Assistant tab
 
-## Which generators use AI?
+Pro only, and only once the **AI Assistant** toggle is on:
 
-All of the following can generate content from a text prompt:
+- **Campaign Setting Prompt** — free text describing your world's tone and visual style, included in every generation request so content stays consistent. A **Load … Defaults** button appears when your chosen setting has one.
+- **Your AI Usage** — a running total of credits spent per generation, shown for platform-credit campaigns (BYOK calls are billed by your provider, not tracked here).
+- **Chronicler Promotion** — an opt-in checkbox letting Grimoire feature your campaign's AI-generated Chronicler scene illustrations in its own gallery or marketing. Off by default; your campaign name, notes, and player data are never shared either way.
 
-| Generator | Text | Image |
-|-----------|------|-------|
-| NPCs | Yes | Yes (portrait) |
-| Monsters | Yes | Yes |
-| Items | Yes | Yes |
-| Spells | Yes | Yes |
-| Locations | Yes | Yes (scene + map) |
-| Traps | Yes | Yes |
-| Factions | Yes | Yes (emblem) |
-| Puzzles | Yes | Yes |
-| Quest Hooks | Yes | No |
-| The Chronicler (narrative) | Yes | Yes (scene illustration) |
+## What your players see
 
-Image generation costs more than text generation. You can opt out of image generation in most generators.
+Nothing here — AI configuration is entirely DM-only. Players see the *results* (an NPC's portrait, a generated item) exactly like any other campaign content, with no indication of how it was paid for.
 
----
+## Tips
 
-## Summary
+> If image generation is greyed out with "No provider available," a BYOK image key was cleared without a platform provider configured — enter a key or ask an admin to check the platform's image provider setup.
 
-| | Free / Tester | Pro (no key) | Pro (BYOK key set) |
-|---|---|---|---|
-| Pays with | Credits | Credits | Own API bill |
-| Credits deducted | Yes | Yes | No |
-| Personal key required | No | No | Yes |
+- On Pro, turning the **AI Assistant** toggle off is the fastest way to run a fully hand-authored campaign without generation buttons cluttering every screen. On Free, you'll still see a **Generate with AI** button here and there — it opens an upgrade prompt rather than a working generator.
+- Switching between Local Mode and account-encrypted storage migrates your existing key automatically the next time you save — you won't be forced to re-enter it just because you toggled the checkbox.
 
-For current credit pack pricing and per-generator costs, see the **Billing** page in the sidebar.
+## Related
+
+- [Welcome to Grimoire](#welcome-to-grimoire)
+- [Campaign Settings](#campaign-settings)
+- [Importing an Adventure](#importing-an-adventure)
+- [Billing & Subscription](#billing-subscription)
+- [Party Tracker](#party-tracker)

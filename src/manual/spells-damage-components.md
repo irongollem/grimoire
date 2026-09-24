@@ -1,10 +1,10 @@
 ---
 title: Spell Damage & Save Effects
 section: Spells
-section_order: 4
-order: 1
+section_order: 6
+order: 2
 summary: How to fill in damage components so the cast button auto-rolls dice in chat.
-keywords: spells, damage, dice, fire, save, half, import, open5e, cast, roll, chat
+keywords: spells, damage, dice, fire, save, half, negates, healing, cast, roll, chat
 ---
 
 ## What the cast button does
@@ -13,18 +13,18 @@ When a player clicks **Cast**, Grimoire posts a flavour message ("Aria casts Bur
 
 This only works if the spell's **damage components** are filled in. Without them, the cast message appears but no dice are rolled.
 
-## Open5e imports leave damage blank
+## Published spells leave damage blank
 
-Spells imported from Open5e come in as text only. The damage fields are **not** populated automatically — they must be filled in by hand after importing.
+Spells enabled from a published source (via the Spellbook's Sources panel — see [Spellbook — Overview](#spellbook-overview)) come in as text only. The damage fields are **not** populated automatically — they must be filled in by hand.
 
-Open the spell in the Spell editor and complete the **Damage & Effects** section:
+Since a shared/library spell can't be edited mechanically (only its art), you'll need to use **New Spell** to build an editable version first if you want a published spell's cast button to auto-roll. Open the spell in the Spell editor and complete the **Mechanics** section (see [Creating Custom Spells](#creating-custom-spells) for every field in it):
 
 | Field | Example | Notes |
 | --- | --- | --- |
-| Damage rolls | `3d6 fire` | Add one row per damage type |
-| Attack / Save | Save | Choose the delivery type |
-| Save attribute | DEX | The ability targets must save with |
-| Save effect | Half | *Half* = take half on success; *Negates* = no damage |
+| Damage | `3d6 fire` | Add one row per damage type |
+| Attack / Targeting | Saving Throw | Choose the delivery type |
+| Save Attribute | DEX | The ability targets must save with |
+| Effect on Successful Save | Half damage on save | Or *No effect on save* for a save that avoids damage entirely |
 
 Once saved, the cast button will roll the dice and include the correct save context in chat.
 
@@ -44,4 +44,9 @@ Cantrip scaling (extra dice at levels 5/11/17) is not currently automatic. Enter
 
 ## Healing spells
 
-Use the **Healing dice** field (e.g. `1d8+3`) instead of Damage rolls. The cast button auto-rolls the healing and posts the result to chat, the same way damage is rolled. The party can then apply the total to whoever was healed.
+Use the **Healing Dice** field (e.g. `1d8+3`) instead of Damage. The cast button auto-rolls the healing and posts the result to chat, the same way damage is rolled. The party can then apply the total to whoever was healed.
+
+## Related
+
+- [Spellbook — Overview](#spellbook-overview)
+- [Creating Custom Spells](#creating-custom-spells)

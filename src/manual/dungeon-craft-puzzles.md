@@ -1,13 +1,30 @@
 ---
 title: Dungeon Craft — Puzzles
 section: Dungeon Craft
-section_order: 8
+section_order: 9
 order: 2
-summary: Build rich puzzles with hints you reveal live to players during the session.
-keywords: puzzle, hint, share, reveal, player, skill check, solution, read-aloud, realtime
+summary: Build rich puzzles with hints you reveal live to specific players during the session.
+keywords: puzzle, hint, share, reveal, player, skill check, solution, read-aloud, realtime, who, scope
 ---
 
-Puzzles in Grimoire are more than notes — they're interactive experiences your players can engage with directly through the Player Portal. You write the puzzle; you reveal hints one by one during play; players read everything you've exposed in real time.
+Puzzles in Grimoire are more than notes — they're interactive experiences your players can engage with directly through the Player Portal. You write the puzzle; you reveal hints one by one during play; the players you've named read everything you've exposed in real time. Find them under **Compendium → Dungeon Craft**, the **Enigmarium** tab.
+
+## Key ideas
+
+| Term | Meaning |
+| --- | --- |
+| Reveal | Who can currently see this puzzle — a specific set of party members, or nobody |
+| Hint ladder | The ordered hints; you reveal them one at a time as the audience |
+| Location / Dungeon Feature | Where the puzzle physically sits — a room and/or the feature that conceals it |
+| Scope | General (every campaign) or one specific campaign |
+
+## Browsing and filtering
+
+The Enigmarium tab has a search box plus type and difficulty filters, all of which persist as you navigate into a puzzle and back. A **Clear** button appears once a filter is active. The list shows general puzzles plus your active campaign's own.
+
+## Puzzle types and difficulty
+
+Types: Logic, Physical, Arcane, Social, Environmental. Difficulties: Trivial, Easy, Medium, Hard, Deadly. Both are colour-coded on the card thumbnail.
 
 ## Creating a puzzle
 
@@ -16,10 +33,12 @@ Click **New Puzzle**. The editor has several sections:
 **Identity:**
 
 - **Name** — required.
-- **Type** — Logic, Physical, Arcane, Social, or Environmental.
-- **Difficulty** — Trivial, Easy, Medium, Hard, or Deadly.
+- **Type** and **Difficulty** — from the lists above.
+- **Location** — an Atlas location this puzzle is anchored to, if any.
+- **Dungeon Feature** — a Dungeon Feature (e.g. the Secret Door concealing it) this puzzle is anchored to, if any.
 - **Tags** — freeform labels.
 - **Image** — a square image representing the puzzle (focal-point aware).
+- **Scope** — **General — all campaigns** or a specific campaign; new puzzles default to your active campaign.
 
 **Setup:**
 
@@ -27,7 +46,7 @@ Click **New Puzzle**. The editor has several sections:
 
 **Skill Checks:**
 
-- A list of skill + DC pairs. Add as many as the puzzle requires. These are visible to players as soon as you share the puzzle, giving them a clear sense of what they might try.
+- A list of skill + DC pairs. Add as many as the puzzle requires. These are visible to players as soon as you reveal the puzzle to them, giving them a clear sense of what they might try.
 
 **Hints:**
 
@@ -46,38 +65,55 @@ Click **New Puzzle**. The editor has several sections:
 
 - Private notes, variant ideas, pacing advice.
 
+When a Location or Dungeon Feature is set, the puzzle's header shows a pill linking straight to it.
+
 ## AI puzzle generator
 
-Click **Generate** (requires OpenAI API key) and describe a puzzle concept. Optionally constrain type, difficulty, and whether Grimoire should generate an illustration. Grimoire produces the full puzzle including setup, hints, and solution.
+Click **Generate** and describe a puzzle concept. This needs a Pro subscription and your campaign's AI generation switched on (Campaign Settings → AI Assistant) — on Free, the button opens the upgrade paywall instead. Optionally constrain type and difficulty, and toggle an illustration if a key is configured. Grimoire produces the full puzzle including setup, hints, and solution.
 
-## Sharing puzzles with players
+## Revealing a puzzle to players
 
-Puzzles are hidden from players by default. The **Player Share** panel (in the editor or on the detail view) controls what players see:
+Puzzles use Grimoire's one **Reveal** control — the same icon-and-label button used across the app. On the puzzle's page it reads **Hidden**, **N players**, or **Whole party** depending on who can currently see it. Click it to open the reveal popover (a bottom sheet on phones):
 
-1. Toggle **Share** on to make the puzzle visible in the Player Portal (`/play/puzzles`).
-2. Write the **Read-Aloud** text — this appears in a highlighted block in the player view, separate from the mechanical Setup. Use this for boxed text you'd read aloud at the table.
-3. Reveal individual **Hints** by clicking the eye icon next to each one. Players instantly see newly revealed hints.
+1. **Who** — check the party members who should see this puzzle. This also sets the puzzle's campaign Scope to your active campaign the first time you reveal it (unless you already scoped it yourself), and un-hiding never changes a Scope you set by hand.
+2. **What** — under **HINTS GIVEN**, check off each hint as you reveal it at the table.
 
-The summary in the share panel tells you: "Revealed hints: 2 / 5".
+Unchecking every party member hides the puzzle again and **clears every revealed hint** — the next group to meet it starts from the top.
 
-Turning sharing **off** clears all revealed hints automatically — the puzzle resets to a blank slate if you re-share it.
+**Read-Aloud** is separate from the Reveal control: it's a plain text box in the puzzle's own page, saved automatically as you type. Write your boxed text there ahead of time.
 
-## Player experience
+## What your players see
 
-On the Player Portal, players see:
+On the Player Portal (`/play/puzzles`), players who are in the reveal list see:
 
-- A grid of all shared puzzles with name, type, difficulty, and hint count.
-- Detail view: type, difficulty, skill checks, Read-Aloud block (if set), Setup text, and any revealed hints.
-- A "No hints revealed yet" message if you haven't revealed any.
+- A grid of every puzzle revealed to them, with name, type, difficulty, and hint count.
+- Detail view: type, difficulty, skill checks, the **Read-Aloud** block (if you've written one, shown highlighted and separate from your own Setup text), and whichever hints you've checked off, numbered in your order.
+- Solution, Outcomes, and DM Notes are never sent to players.
+- "No hints revealed yet" if you haven't checked any off.
 
-Hint reveals and read-aloud changes sync in **real time** via Supabase Realtime — players see updates instantly without refreshing.
+Hint reveals and Read-Aloud changes sync in real time — players see updates instantly without refreshing.
 
 ## Using puzzles during play
 
 A workflow that works well:
 
-1. Create and detail the puzzle ahead of session.
-2. At the table, share it (toggle Share on) when the party reaches it.
+1. Create and detail the puzzle ahead of session, anchoring it to a Location or Dungeon Feature if it belongs somewhere specific.
+2. At the table, open the Reveal control and check the players present when the party reaches it.
 3. Post the Read-Aloud text and read it out.
-4. Reveal hints as the party spends actions investigating — skill checks, time, or clever roleplay.
-5. Once solved or abandoned, toggle Share off to clear it from the portal.
+4. Check off hints as the party spends actions investigating — skill checks, time, or clever roleplay.
+5. Once solved or abandoned, uncheck everyone to clear it from the portal and reset the hint ladder for next time.
+
+## Moving a puzzle between campaigns
+
+From the puzzle's own page, **Copy to campaign…** makes an independent copy in another campaign you DM, clearing its Location, Dungeon Feature, and reveal list since those don't carry across campaigns. From the Enigmarium tab, **Select** lets you move or copy several at once.
+
+## Tips
+
+> Puzzles are the one Dungeon Craft entity with a free-plan quota (see [Billing & Subscription](#billing-subscription)). If a copy or move hits your limit, Grimoire shows the upgrade prompt rather than failing silently.
+
+## Related
+
+- [Dungeon Craft — Overview](#dungeon-craft-overview)
+- [Sites — Maps, Rooms & Running a Dungeon](#sites-maps-rooms-running-a-dungeon)
+- [Player Portal — Overview](#player-portal-overview)
+- [Billing & Subscription](#billing-subscription)

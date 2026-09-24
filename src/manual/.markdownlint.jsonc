@@ -1,0 +1,8 @@
+{
+  "extends": "../../.markdownlint.jsonc",
+  // Manual pages link each other as `[Quest Log](#quest-log)`: the fragment is
+  // a page id that ManualTab resolves, not a heading in the same file, so
+  // MD051 flags every cross-reference. src/lib/manualLoader.test.ts is the
+  // real check — it fails on any fragment that names no page.
+  "MD051": false
+}

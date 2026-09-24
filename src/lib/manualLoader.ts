@@ -57,6 +57,14 @@ function parseFrontmatter(raw: string): { meta: Record<string, string>; body: st
   return { meta, body: match[2] };
 }
 
+// A table can be wider than a phone; the wrapper is what scrolls sideways
+// (ManualTab styles `.manual-table`), so the table itself keeps its full width.
+function wrapTables(html: string): string {
+  return html
+    .replaceAll("<table>", '<div class="manual-table"><table>')
+    .replaceAll("</table>", "</table></div>");
+}
+
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -74,7 +82,7 @@ function buildPages(): ManualSection[] {
       order: parseInt(meta.order ?? "99", 10),
       summary: meta.summary || undefined,
       keywords: meta.keywords ? meta.keywords.split(",").map((k) => k.trim().toLowerCase()) : [],
-      html: marked(body, { async: false }) as string,
+      html: wrapTables(marked(body, { async: false }) as string),
     };
   });
 

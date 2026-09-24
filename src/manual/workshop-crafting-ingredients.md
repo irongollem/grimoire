@@ -1,10 +1,10 @@
 ---
 title: Crafting: Ingredient Tags
 section: Workshop
-section_order: 2
+section_order: 8
 order: 1
 summary: How recipes match ingredients by tag — and when to use exact items instead.
-keywords: crafting, recipe, ingredient, tag, workshop, cook, smith, brew, alchemy, herbalism, wood, ore, cloth
+keywords: crafting, recipe, ingredient, tag, workshop, cook, smith, brew, alchemy, herbalism, wood, ore, cloth, parchment, forgery
 ---
 
 ## Two ways to specify an ingredient
@@ -14,7 +14,7 @@ Each ingredient slot in a recipe is either:
 - **Tag-based** — accepts any item whose tags include the required tag(s). Flexible and setting-agnostic.
 - **Exact item** — requires a specific vault item. Use this when the ingredient has no meaningful equivalent (e.g. a named magical component). Select it from the item picker in the recipe editor.
 
-The pre-loaded starter recipes use tags throughout because exact item IDs differ per campaign database. Your own recipes can freely mix both approaches.
+The pre-loaded starter recipes use tags throughout because a specific vault item picked for one campaign might not exist in another. Your own recipes can freely mix both approaches.
 
 ## Single-tag vs. multi-tag matching (AND logic)
 
@@ -24,7 +24,7 @@ A tag ingredient can require **one tag** or **multiple tags at once**. When mult
 - `meat, raw` → only items tagged both `meat` AND `raw` — excludes already-cooked or cured meats
 - `ore, silver` → only silver ore specifically, not iron ore or silver ingots
 
-In the recipe editor, enter multiple tags for one slot by separating them with commas in the tag field.
+In the recipe editor's ingredient tag field, separate multiple tags with a comma or a `+` (e.g. `ore, silver` or `ore+silver`) — both are read the same way.
 
 ## Common tags used in pre-loaded recipes
 
@@ -52,7 +52,17 @@ The table below lists tags used by the built-in starter recipes. It is *not* a c
 | `venom` | Poisoncraft | Giant Spider Venom, Snake Venom Sac |
 | `alcohol` | Brewing / Alchemy | Ale (Gallon), Wine (pitcher) |
 | `fuel` / `brimstone` | Alchemy | Brimstone, Charcoal |
+| `metal` / `flint` | Tinkering | Iron Ingot, Flint |
+| `fiber` / `cloth` | Weaving | Hemp Fiber, Cloth Bolt |
+| `parchment` / `ink` | Scribing | Parchment (sheet), Ink (vial) |
+| `wax` | Forgery | Sealing Wax |
 
 ## Inventing your own tags
 
 Tags are freeform. Create any tag that makes sense for your campaign — `dragon-scale`, `moonlit`, `shadowfell` — and build recipes around it. Players carrying items with that tag will automatically satisfy those ingredient slots.
+
+## Related
+
+- [Workshop Overview](#workshop-overview)
+- [Cooking & Food Items](#cooking-food-items)
+- [Item Tags Overview](#item-tags-overview)

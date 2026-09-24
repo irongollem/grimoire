@@ -1,10 +1,10 @@
 ---
 title: Ranged Weapons & Ammunition
-section: Item System
-section_order: 1
+section: Item Vault
+section_order: 7
 order: 2
 summary: How bows, crossbows, slings, and firearms are linked to the right ammo stacks automatically.
-keywords: ranged, bow, crossbow, arrow, bolt, ammo, ammunition, sling, blowgun, firearm, bullet, needle, dart
+keywords: ranged, bow, crossbow, arrow, bolt, ammo, ammunition, sling, blowgun, firearm, bullet, needle, dart, weapon property
 ---
 
 ## How it works
@@ -24,7 +24,7 @@ Grimoire detects ranged weapon type by **name or subtype** automatically — no 
 | dart | `dart` |
 | item has the `firearm` tag | `firearm-bullet` |
 
-> **Note on slings:** slings consume the `bullet` tag. The SRD "Sling Bullets (20)" item already carries this tag. Stones and Pebbles are included as default items with the `bullet` tag for improvised sling ammo.
+> **Note on slings:** slings consume the `bullet` tag. The built-in "Sling Bullets (20)" item already carries this tag. Stones and Pebbles are included as default items with the `bullet` tag for improvised sling ammo.
 
 > **Note on black powder firearms:** firearms use `firearm-bullet`, which is distinct from sling `bullet`. This prevents a player from accidentally loading a pistol with sling stones.
 
@@ -43,9 +43,11 @@ If your weapon has an unusual name that Grimoire can't recognise (e.g. *Crosswin
 
 The subtype field is also a reliable option — set subtype to *crossbow*, *longbow*, etc. and no extra tag is needed.
 
+If a weapon has the **ammunition** property checked (in its Weapon section properties) but Grimoire genuinely can't tell which kind from its tags, subtype, or name, it will still accept **any** recognised ammo stack the character is carrying rather than refusing to fire at all — tagging the weapon explicitly is what lets you narrow that down to the right kind.
+
 ## Ammo tags — reference
 
-SRD items already carry the right tags. For custom ammo, add the tag to the vault item:
+Built-in library items already carry the right tags. For custom ammo, add the tag to the vault item:
 
 | Tag | Example items |
 |---|---|
@@ -69,4 +71,11 @@ When multiple stacks are available, Grimoire picks in this order: **container** 
 
 ## Self-charged weapons
 
-Weapons with a *charges* value set (e.g. a Laser Rifle with 50 shots) never look for external ammo — they consume their own charge each shot. Set `charges` on the vault item to enable this.
+Weapons with a **Charges** value set (e.g. a Laser Rifle with 50 shots) never look for external ammo — they consume their own charge each shot. Set **Charges** on the vault item to enable this.
+
+## Related
+
+- [Vault — Overview](#vault-overview)
+- [Item Tags Overview](#item-tags-overview)
+- [Containers](#containers)
+- [Encounter Runner](#encounter-runner)

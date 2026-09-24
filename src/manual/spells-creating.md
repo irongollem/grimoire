@@ -2,83 +2,90 @@
 title: Creating Custom Spells
 section: Spells
 section_order: 6
-order: 0
+order: 1
 summary: Build homebrew spells in the Spell Editor and assign them to classes.
-keywords: spell, create, custom, homebrew, level, school, components, damage, ritual, concentration, class
+keywords: spell, create, custom, homebrew, level, school, components, damage, ritual, concentration, class, target, condition, area of effect
 ---
 
-The Spellbook (`/spells`) stores all spells available in your campaign — SRD imports, Open5e third-party content, and your own homebrew creations. Custom spells appear alongside imported ones everywhere: in the monster builder's spell list, the character sheet, item links, and the encounter runner's roll buttons.
+Open the **Spellbook** (**Spellbook** in the sidebar's Compendium group, `/spells`) and click **New Spell** to open the Spell Editor — or **Edit** on any spell you own. The editor has three columns on wide screens.
 
-## Creating a spell
+## Left column — presentation
 
-Click **New Spell** to open the Spell Editor. The editor has three columns on desktop.
+- **Portrait** — upload art representing the spell, with focal-point control. AI art generation is available inline if your campaign has AI enabled.
+- **Source** — freeform attribution for homebrew spells; read-only (with a link, if one exists) for spells imported from a published sourcebook.
 
-### Left column — presentation
-
-- **Portrait** — upload art representing the spell. Used in Card Forge spell cards and the spellbook list.
-- **Source** — freeform attribution for homebrew spells.
-
-### Centre column — mechanics
+## Centre column — mechanics
 
 **Identity:**
 
 - **Name** — required.
-- **Level** — 0 (Cantrip) through 9. The Spell Level Advisor (button top-right) can suggest an appropriate level based on what the spell does.
+- **Level** — Cantrip through 9th.
 - **School** — Abjuration, Conjuration, Divination, Enchantment, Evocation, Illusion, Necromancy, or Transmutation.
 
 **Casting:**
 
-- **Casting Time** — e.g. `1 action`, `1 bonus action`, `1 minute`, `1 reaction`.
-- **Range** — e.g. `60 feet`, `Self`, `Touch`, `Sight`.
-- **Duration** — e.g. `Instantaneous`, `1 hour`, `Until dispelled`.
-- **Concentration** toggle — marks the spell as requiring concentration.
-- **Ritual** toggle — marks the spell as castable as a ritual.
+- **Casting Time**, **Range**, **Duration** — text fields with standard preset options (e.g. `1 action`, `60 feet`, `Instantaneous`), each with a **Concentration** and **Ritual** toggle alongside Duration.
 
 **Components:**
 
-- **V** (Verbal), **S** (Somatic), **M** (Material) toggles.
-- **Material** — description of the material component if M is checked.
+- **V** (Verbal), **S** (Somatic), **M** (Material) toggles, plus a **Material** text field for the component description when M is checked.
 
-**Mechanics block:**
+**Mechanics:**
 
-- **Attack or Targeting type** — melee spell attack, ranged spell attack, or no attack.
-- **Save attribute** — which saving throw the target makes (STR through CHA, or None).
-- **Effect on save** — Half damage, No damage, or No effect.
-- **Damage rolls** — one or more dice expressions and damage types (Fire, Cold, etc.).
-- **Area of Effect** — cone, sphere, cube, line, cylinder with radius/length values.
+- **Attack / Targeting** — Ranged Spell Attack, Melee Spell Attack, Saving Throw, Automatic (no roll), or None / Utility.
+- **Save Attribute** and **Effect on Successful Save** (shown only when Attack / Targeting is Saving Throw) — effect is one of *Half damage on save*, *No effect on save*, or *Special*.
+- **Damage** — one or more dice-expression rows, each with its own damage type.
+- **Healing Dice** — a single dice expression (e.g. `1d8+3`) for spells that heal instead of, or alongside, damaging.
+- **Target Description** — freeform text describing what the spell hits (e.g. "one creature you can see within range").
+- **AoE Shape** and **AoE Size** — for area spells (cone, sphere, cube, line, cylinder, etc. with a size like "20-foot radius").
+- **Condition Inflicted** — optional freeform text (e.g. "blinded", "frightened") for reference at the table.
 
 **Description** — rich text. This is the spell text players and DMs see. Write it in plain prose, not stat-block notation.
 
 **At Higher Levels** — rich text describing how the spell scales when cast with a higher-level slot.
 
-### Right column — class list
+## Right column — class list
 
 Check each class that can cast this spell. This drives:
 
 - Filtering in the Spellbook list view.
-- Which spells appear in the character's **Browse** tab in the player portal.
+- Which spells appear in a character's **All [Class] Spells** / browse tab in the Player Portal.
 - Automatic class filtering in the monster builder's spellcasting section.
 
 ## The Spell Level Advisor
 
-Click **Spell Level Advisor** to open an interactive calculator. Answer questions about:
+Click **Spell Level Advisor** (shown automatically as a wizard for new spells, or reopenable from the editor) to answer a few questions — primary effect type, damage dice, number of targets, save type, whether it scales — and get a suggested spell level plus pre-filled mechanics fields.
 
-- Primary effect type (Damage, Control, Buff, Debuff, Utility, Healing)
-- Damage dice and damage type (if Damage)
-- Number of targets
-- Save type
-- Whether it scales
+## Generating a spell with AI
 
-The advisor suggests a spell level and pre-fills the school and some mechanics fields.
+There are two entry points, both requiring a Pro subscription and your campaign's AI generation switched on (Campaign Settings → AI Assistant) — on Free, the same buttons open an upgrade paywall instead of generating:
 
-## AI spell generator
+- From the Spellbook list, click **Generate** to open a side panel that builds a brand-new spell from a concept you describe, with optional Level/School constraints and an "Generate spell-effect art" toggle.
+- While editing a spell (new or existing), click **Generate** in the editor's own header to open a dialog that fills in the *current* form instead of creating a separate record.
 
-Click **Generate** in the Spellbook toolbar (requires OpenAI API key in Campaign Settings). Enter a concept prompt; Grimoire writes the full spell including mechanics and flavour text.
+Grimoire shows the credit cost before you confirm generation.
 
-## Importing SRD and Open5e spells
+## Choosing sources and scope
 
-Click **Sync from Open5e** in the toolbar. A source-picker popover lists all available published sources. Select the ones you want and click Import. The process is upsert-safe — existing spells are updated without overwriting your customisations.
+See **[Spellbook — Overview](#spellbook-overview)** for browsing, the Sources panel (which sourcebooks are enabled for this campaign), and how scope (general vs. this campaign) works.
 
 ## Sending to Scriptorium
 
-The **Scriptorium** button on any spell's detail view formats the spell as a publishable Scriptorium document — useful for printing homebrew spell cards or compiling a spell compendium.
+The **Scriptorium** action in the editor's header formats the spell as a publishable Scriptorium document — useful for printing homebrew spell cards or compiling a spell compendium.
+
+## What your players see
+
+Players never see this editor. Once a spell is assigned to their class (or linked as an innate/item grant), it appears in their own **Spells** tab per **[Spellbook — Overview](#spellbook-overview)**.
+
+## Tips
+
+> Editing an existing spell never changes its scope — a general spell stays general even after you edit it. Change scope deliberately via the Scope control if you want to move it.
+
+- A shared/library spell (one your account didn't create) can only have its art changed here — there's no "Clone to customize" path for spells the way there is for items. Use **New Spell** if you want a fully editable version.
+- Damage and healing fields do nothing on their own — see [Spell Damage & Save Effects](#spell-damage-save-effects) for what the **Cast** button needs to actually roll dice.
+
+## Related
+
+- [Spellbook — Overview](#spellbook-overview)
+- [Spell Damage & Save Effects](#spell-damage-save-effects)
+- [Vault — Overview](#vault-overview)
