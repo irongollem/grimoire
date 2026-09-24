@@ -115,8 +115,8 @@ describe("crBandContains", () => {
   });
 
   // The stat block stores sub-1 CRs as fractions, not decimals — confirmed
-  // against src/types/monster.types.ts:45 and every hand-authored template in
-  // src/data/monsterTemplates.ts (e.g. "1/4", "1/2").
+  // against src/types/monster.types.ts:45 and every SRD monster in
+  // library_monsters (e.g. "1/4", "1/2").
   describe("fractional CRs", () => {
     it("1/8, 1/4 and 1/2 all fall in the bottom band", () => {
       expect(crBandContains("0-4", "1/8")).toBe(true);

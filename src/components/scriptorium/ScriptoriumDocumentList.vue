@@ -85,7 +85,7 @@
                 color: DOC_TYPE_VAR[doc.doc_type],
               }"
             >
-              {{ DOC_TYPE_LABELS[doc.doc_type] }}
+              {{ DOC_TYPES[doc.doc_type].label }}
             </span>
           </div>
 
@@ -168,6 +168,7 @@ import ListSearchInput from "@/components/common/ListSearchInput.vue";
 import PaywallModal from "@/components/common/PaywallModal.vue";
 import { useQuota } from "@/composables/billing/useQuota";
 import type { ScriptoriumDocType } from "@/types/scriptorium.types";
+import { DOC_TYPES, DOC_TYPE_OPTIONS } from "@/lib/scriptorium/editorConstants";
 
 const router = useRouter();
 const { canCreate, quota: docQuota } = useQuota("scriptorium_documents");
@@ -178,33 +179,10 @@ function handleNew() {
   router.push("/scriptorium/new");
 }
 
-const TYPE_OPTIONS = [
-  { value: "all", label: "All" },
-  { value: "custom", label: "Custom" },
-  { value: "spell", label: "Spell" },
-  { value: "monster", label: "Monster" },
-  { value: "item", label: "Item" },
-  { value: "class", label: "Class" },
-  { value: "background", label: "Background" },
-  { value: "adventure", label: "Adventure" },
-  { value: "npc-sheet", label: "NPC Sheet" },
-  { value: "location", label: "Location" },
-] as const satisfies readonly { value: ScriptoriumDocType | "all"; label: string }[];
-
-const DOC_TYPE_LABELS: Record<ScriptoriumDocType, string> = {
-  custom: "Custom",
-  spell: "Spell",
-  monster: "Monster",
-  item: "Item",
-  class: "Class",
-  subclass: "Subclass",
-  race: "Species",
-  background: "Background",
-  adventure: "Adventure",
-  "npc-sheet": "NPC Sheet",
-  location: "Location",
-  quest: "Quest",
-};
+// Derived from DOC_TYPES so the filter cannot fall behind the create dropdown:
+// a hand-kept copy here once omitted Subclass, Species and Quest, leaving those
+// documents creatable but impossible to filter to.
+const TYPE_OPTIONS = [{ value: "all", label: "All" }, ...DOC_TYPE_OPTIONS] as const;
 
 const DOC_TYPE_BG: Record<ScriptoriumDocType, string> = {
   custom:        "bg-doctype-custom",

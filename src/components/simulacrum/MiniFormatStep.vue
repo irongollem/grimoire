@@ -50,7 +50,7 @@ const FORMAT_OPTIONS: {
     tagline: "Unpainted grey resin, ready for a 3D printer.",
     details: [
       "High-poly STL, GLB & 3MF",
-      "Single connected body with an integral base",
+      "Single connected body, mounted on a 25 mm base",
       "You paint it yourself once it's printed",
     ],
   },
@@ -60,7 +60,7 @@ const FORMAT_OPTIONS: {
     tagline: "Full-color, low-poly render for virtual tabletops.",
     details: [
       "Textured GLB & USDZ",
-      "Simplified clean silhouette with an integral base",
+      "Simplified clean silhouette, mounted on a base",
       "Drop straight into your VTT of choice",
     ],
   },

@@ -258,6 +258,7 @@ import {
   useCreateEncounter,
   useUpdateEncounter,
   useDeleteEncounter,
+  useEncounter,
 } from "@/composables/encounters/useEncounters";
 import {
   useRunningEncounters,
@@ -371,8 +372,7 @@ const createEncounter = useCreateEncounter();
 const updateEncounterMutation = useUpdateEncounter();
 const deleteEncounter = useDeleteEncounter();
 
-const { runningStates, isEncounterRunning, firstRunning } =
-  useRunningEncounters();
+const { isEncounterRunning, firstRunning } = useRunningEncounters();
 // A getter, not a plain string. This previously passed `props.encounter?.id ?? ""`
 // — evaluated once at setup — so the composable's id watcher could never fire,
 // and the "reload state when the id changes" behaviour its own comment promises
@@ -385,12 +385,22 @@ const thisIsLive = computed(
 const otherIsLive = computed(
   () => firstRunning.value !== null && !thisIsLive.value,
 );
-const otherName = computed(() => {
-  if (!otherIsLive.value || !firstRunning.value) return "";
-  return runningStates.value.find(() => true)
-    ? firstRunning.value!.encounter_id
-    : "another encounter";
-});
+// Reuses `useEncounter` (the same single-row query `EncounterDetailView`
+// fetches this component's own encounter through) rather than adding a new
+// fetch — only enabled while another encounter is actually live, and its own
+// `enabled: () => !!id.value` guard skips the query the rest of the time.
+const otherRunningEncounterId = computed(() =>
+  otherIsLive.value && firstRunning.value ? firstRunning.value.encounter_id : "",
+);
+const { data: otherRunningEncounter } = useEncounter(otherRunningEncounterId);
+// The name may not have loaded yet (or the row may since have been deleted),
+// in which case "another encounter" stands in — unquoted, since it isn't a
+// name being cited.
+const otherName = computed(() =>
+  otherRunningEncounter.value
+    ? `"${otherRunningEncounter.value.name}"`
+    : "another encounter",
+);
 
 // Form state
 const form = reactive({
@@ -592,7 +602,7 @@ async function handleRunEncounter() {
   if (otherIsLive.value && firstRunning.value) {
     if (
       !(await confirm(
-        `"${otherName.value}" is currently active. Stop it and run this one?`,
+        `${otherName.value} is currently active. Stop it and run this one?`,
       ))
     )
       return;
