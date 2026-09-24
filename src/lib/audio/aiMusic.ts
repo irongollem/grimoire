@@ -13,7 +13,10 @@ export const MUSIC_LENGTHS = [
 
 export type MusicLengthSeconds = (typeof MUSIC_LENGTHS)[number]["seconds"];
 
-export type MusicVocals = "instrumental" | "vocals";
+/** `choir` is a wordless choir — the voice epic fantasy scoring reaches for
+ * most, and one neither "instrumental" (no voices) nor "vocals" (a singer
+ * with lyrics) can ask for. */
+export type MusicVocals = "instrumental" | "choir" | "vocals";
 
 /** The single credit-cost / pricing-category generation type for music, now
  * that one model (Lyria 3.5) serves every length. */
@@ -30,7 +33,7 @@ export const LYRICS_MAX_CHARS = 2200;
  */
 export const MUSIC_STRUCTURE_SYSTEM = `You are a music prompt writer for Google Lyria 3.5. A Dungeon Master is scoring a tabletop roleplaying session and has described a track for their soundboard. Turn the request into one complete Lyria prompt.
 
-You receive a description, a target length, whether the track is instrumental or has vocals, and sometimes lyrics.
+You receive a description, a target length, a vocals setting — instrumental, choir or vocals — and sometimes lyrics.
 
 ## Musical direction
 Open with one paragraph:
@@ -39,6 +42,7 @@ Open with one paragraph:
 - Give a tempo in BPM, a key and scale, and two or three mood words.
 - State the length in words, e.g. "A 2-minute track."
 - Instrumental: end the paragraph with "Instrumental only, no vocals."
+- Choir: describe the choir — its size, its voices and how it is used (e.g. "A large mixed choir, deep male basses under soaring sopranos, sustained chords that swell with the brass"). End the paragraph with "Wordless choir only: sung vowels such as ooh and aah, no lyrics, no solo singer." Mark in the timeline where the choir enters and rests.
 - Vocals: describe the singer — gender, range, timbre and delivery (e.g. "Male baritone, deep and weathered, a tavern storyteller's delivery").
 - Describe the production and the recording — it decides whether the track sounds performed or programmed. For orchestral, folk and other acoustic styles, ask for a live recording: players in a real room (a scoring stage, a stone hall, a crowded tavern), natural reverb, expressive human timing and dynamics, bow noise and breath audible. Ask for synths, drum machines or quantised precision only when the style is electronic.
 - Never name a real artist, band, composer, song, film or game. Lyria blocks prompts that ask for a specific artist's voice or for copyrighted material. Translate any such reference into the instruments, era and mood it stands for.
@@ -101,6 +105,7 @@ export function buildStructureMessage(req: MusicRequest): string {
 export function composeFallbackPrompt(req: MusicRequest): string {
   let prompt = `${req.description}. A ${req.lengthSeconds / 60}-minute track.`;
   if (req.vocals === "instrumental") prompt += " Instrumental only, no vocals.";
+  if (req.vocals === "choir") prompt += " Wordless choir only: sung vowels such as ooh and aah, no lyrics, no solo singer.";
   const lyrics = req.lyrics?.trim();
   if (lyrics && req.vocals === "vocals") {
     prompt += `\n\nLyrics:\n${lyrics}`;

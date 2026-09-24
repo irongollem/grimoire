@@ -583,6 +583,7 @@ const VOCALS_OPTIONS: SegmentedOption<MusicVocals>[] = [
 ];
 
 const lyricsCharsLeft = computed(() => LYRICS_MAX_CHARS - generateLyrics.value.length);
+  { value: "choir", label: "Choir" },
 
 // ── Submit state ──────────────────────────────────────────────────────────
 

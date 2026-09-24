@@ -101,6 +101,22 @@ describe("composeFallbackPrompt", () => {
   });
 });
 
+describe("choir", () => {
+  it("adds the wordless-choir clause to the fallback prompt and drops lyrics", () => {
+    const req: MusicRequest = { description: "a siege", lengthSeconds: 120, vocals: "choir", lyrics: "not sung" };
+    expect(composeFallbackPrompt(req)).toBe(
+      "a siege. A 2-minute track. Wordless choir only: sung vowels such as ooh and aah, no lyrics, no solo singer.",
+    );
+  });
+
+  it("passes the choir setting to the structuring model without lyrics", () => {
+    const req: MusicRequest = { description: "a siege", lengthSeconds: 120, vocals: "choir", lyrics: "not sung" };
+    const msg = buildStructureMessage(req);
+    expect(msg).toContain("Vocals: choir");
+    expect(msg).not.toContain("Lyrics:");
+  });
+});
+
 // ── extractInteractionAudio ──────────────────────────────────────────────────
 
 describe("extractInteractionAudio", () => {
