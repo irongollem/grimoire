@@ -66,6 +66,7 @@ Open with one paragraph:
 - State the length in words, e.g. "A 2-minute track."
 - Instrumental: end the paragraph with "Instrumental only, no vocals."
 - Vocals: describe the singer — gender, range, timbre and delivery (e.g. "Male baritone, deep and weathered, a tavern storyteller's delivery").
+- Describe the production and the recording — it decides whether the track sounds performed or programmed. For orchestral, folk and other acoustic styles, ask for a live recording: players in a real room (a scoring stage, a stone hall, a crowded tavern), natural reverb, expressive human timing and dynamics, bow noise and breath audible. Ask for synths, drum machines or quantised precision only when the style is electronic.
 - Never name a real artist, band, composer, song, film or game. Lyria blocks prompts that ask for a specific artist's voice or for copyrighted material. Translate any such reference into the instruments, era and mood it stands for.
 
 ## Timeline
