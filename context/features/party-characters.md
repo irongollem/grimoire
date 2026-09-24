@@ -29,10 +29,9 @@ On the player side, `PlayerCharacterHeader` reads `useIsRuleEnabled("xp_levellin
 
 **Initiative:**
 
-- "Roll All Initiative" button prompts each member's d20 roll in sequence (uses `usePromptedRoll`) and stores results as `current_initiative` in the DB.
-- Cards automatically re-sort highest to lowest once everyone has rolled.
-- "Clear Initiative" resets all values, returning cards to `sort_order`.
-- Individual members can also be rolled from inside their character sheet view.
+- The Party Tracker itself has no roll or clear control — `current_initiative` is set from the live encounter, not from here.
+- Each player rolls their own initiative (DEX mod + `initiative_bonus`, via `usePromptedRoll`) from `PlayerEncounterPanel` when an encounter starts (#504); the write lands on their own `party_members` row (RLS lets a player update their own character), and the DM's runner ingests the value live rather than writing it itself — see "Encounter Runner" in combat-encounters.md.
+- Cards automatically re-sort highest to lowest once every member has a value; anyone still unrolled falls back to `sort_order`.
 
 **HP Tracking:**
 
@@ -103,7 +102,7 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 
 **Route:** Slide-in panel triggered from `/party/:id`
 
-`PartyMemberForm` is a tabbed side-sheet with the following tabs:
+`PartyMemberForm` is a tabbed side-sheet with exactly four tabs: Identity, Stats, Proficiencies, Persona.
 
 ### Identity Tab
 
@@ -119,20 +118,26 @@ Clicking a member's name navigates to `/party/:id` (`PartyMemberView.vue`), whic
 ### Stats Tab
 
 - **Ability Scores** (STR, DEX, CON, INT, WIS, CHA) with live modifier display
-- **Combat stats**: Max HP, Current HP, Temp HP, AC, Speed (ft), Initiative Bonus, Carry Capacity Override (`*2`, `+30`, `150`, or blank for STR×15)
+- **Combat stats**: Max HP, Current HP, Temp HP, AC (with a "without shield" hint), Speed (ft), Initiative Bonus, Carry Capacity Override (`*2`, `+30`, `150`, or blank for STR×15)
 - **Computed passives** (read-only): Passive Perception, Insight, Investigation
-- **Saving throw proficiencies** checkboxes (6 stats)
-- **Skill Proficiencies** grid: None / Proficient / Expertise per skill
+- **Spell Slots (Max per Level)** — 9-level grid with a "Reset to class defaults" action
 
 **Shield & armor AC** — the stored `party_members.ac` is the armor class WITHOUT shield. Display AC resolves through `useShieldAcBonus().acFor(member)` (`src/composables/party/useShieldAc.ts`, wrapped in `createSharedComposable` so N tracker/runner rows share one set of inventory-scanning computeds; pure logic + tests in `src/rules/shieldAc.ts` and `src/rules/armorAc.ts`): base AC comes from `resolveBaseAc(ac_formula, storedAc, equippedArmor, dex)` — `"armor"` live-derives from the equipped body armor (`parseArmorClass`, base anchored to a leading integer), `"unarmored:*"`/`"mage_armor"` are replaced by armor-derived AC while body armor is equipped (RAW: those calculations only function unarmored), `"natural:*"` (fixed `natural:<N>` or Dex-based `natural:<N>+dex` — Tortle vs. Lizardfolk/Draconic Resilience) takes the higher of shell vs. worn armor, and null/manual `ac` is never overridden — then any equipped (non-ruined) shield bonus stacks on top in every mode. Wired into: PlayerCharacterHeader, PlayerPartyMemberCard, PartyMemberLightbox, PartyTrackerRow, RunnerPcPanel, useRunnerCombatant, and CharacterSheetRenderer (via `acBonus` prop — the renderer is mounted with a bare `createApp` for PDF export, so it can't use query composables). Wildshaped characters show the beast AC with no shield bonus. Both AC edit fields (CharacterEditTabs, PartyMemberAbilitiesTab) carry a "without shield" hint.
 
-### Equipment Tab
+### Proficiencies Tab
 
-- Free-text armor, weapons, items fields plus worn slots (ring1/ring2/waist etc.)
+- **Saving Throw Proficiencies** checkboxes (6 stats) with live bonus display
+- **Skills** grid: None / Proficient / Expertise per skill, with live bonus display
+- **Tool Proficiencies** — tag picker (`TagPickerInput`)
+- **Languages** — tag picker (`TagPickerInput`)
 
-### Location Tab
+### Persona Tab
 
-- Sets `current_location_id` via entity combobox — an **override**; empty means "with the party"
+- **Alignment** dropdown (9-alignment list, blank for none) + **Deity** free-text field with an autocomplete dropdown against the deities compendium
+- **Age**, **Gender**, **Pronouns** free-text fields
+- **Physical Description**, **Personality Traits**, **Ideals**, **Bonds**, **Flaws** — rich-text (Tiptap) fields
+
+There is no Location tab or free-text equipment fields on this form. A member's position is set via `LocationResidents` on the location itself, calendar travel events, or "Rejoin the party" (see "Member Locations" above) — never edited directly in `PartyMemberForm`.
 
 ---
 

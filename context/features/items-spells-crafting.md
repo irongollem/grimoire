@@ -351,7 +351,7 @@ The Spellbook is the DM's master spell compendium, holding both imported SRD spe
 - Class (Barbarian, Bard, Cleric, Druid, Fighter, Paladin, Ranger, Rogue, Sorcerer, Warlock, Wizard, etc.)
 - Source (dynamically populated)
 
-**Import from Open5e** — "Sync from Open5e" button. A source picker popover (lazy-loaded from `useOpen5eDocuments`, stored in localStorage as `grimoire:spell-import-sources`) allows selecting specific sourcebooks before importing; leaving all unchecked imports everything. Import is upsert-based: new spells inserted, existing `open5e_import` spells updated for source/classes metadata only (images never overwritten). Reports "N added, N updated".
+**Shared library spells** — the per-user "Sync from Open5e" button is gone. Spells use the same per-campaign Sources panel as items (`SourcesPickerPanel.vue`, backed by `get_library_spell_sources`) — `SpellsView.vue` gates its list through `campaign_enabled_sources`, exactly like the Vault and Monsters. Open5e imports living in the `spells` table are legacy; the shared catalogue now comes from `library_spells`, merged with the user's own rows by `useAllSpells()`.
 
 **AI Generator** — "Generate" button opens `SpellGeneratorPanel`. Stamps the active campaign onto the generated spell (#596) via the same fix as the item generator — `spellInsertFromAi()` is a pure AI-output adapter with no campaign awareness, so the panel adds `campaign_id` itself rather than teaching the adapter about campaigns.
 
@@ -513,8 +513,8 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 5. **Roll** — clicking "Attempt Craft" rolls the check server-side (`useAttemptCraft`). Result is displayed: the d20 roll, any disadvantage second roll, total vs DC.
 6. **Outcome** — one of three results:
    - **Success** (total ≥ DC) — green result panel
-   - **Fail** (total < DC) — neutral result panel; ingredients are preserved
-   - **Ruin** (critical fail / natural 1) — red result panel; the PRIMARY ingredient is ruined
+   - **Fail** (total < DC) — neutral result panel; all ingredients are consumed
+   - **Ruin** (critical fail / natural 1) — red result panel; the PRIMARY ingredient is ruined and returned to the inventory, and every other ingredient is consumed
 7. On completion, the result is posted to the campaign chat as a message.
 
 ---
@@ -651,7 +651,7 @@ Players see only recipes the DM has shared with them (via `player_visible_to`) v
 
 ### PartyInventoryItem (`party_inventory` table)
 
-**A row references its catalogue entry through one of two columns, and nothing outside `src/lib/inventory/itemRef.ts` should read either directly.** `item_id` is a uuid FK to the owner's own `items` row; `library_item_id` is a text FK to shared `library_items`. A check constraint allows at most one, and both-null is legal — that is free-text loot with no catalogue entry at all.
+**A row references its catalogue entry through one of two columns, and nothing outside `src/lib/itemRef.ts` should read either directly.** `item_id` is a uuid FK to the owner's own `items` row; `library_item_id` is a text FK to shared `library_items`. A check constraint allows at most one, and both-null is legal — that is free-text loot with no catalogue entry at all.
 
 The second column exists because `item_id` predates the shared library: `library_items.id` is text, so until #815 a player picking anything shared got `invalid input syntax for type uuid` and the entire catalogue was selectable but unaddable. Note the shape of the workaround that grew instead — `useEnsureOwnedItem` copies a library row into the caller's vault, which is where 673 shadow rows on one long-standing account came from. Reference shared content; do not copy it. Use `inventoryItemRef(row)` to read and `itemRefColumns(pickedId)` to write, and remember that a row carrying a library reference must keep it through a stack split or an equip, or the link vanishes while the row still looks right.
 

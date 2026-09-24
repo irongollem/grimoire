@@ -560,21 +560,26 @@ An optional `site` prop (a `MapStackSource`, see world-building.md's map stack) 
 
 ### Toolbox (left rail)
 
-| Tool         | Icon       | Layer       | Notes                                                  |
-| ------------ | ---------- | ----------- | ------------------------------------------------------ |
-| Floor brush  | brush      | floor       | Paints floor cells with a random variant.              |
-| Wall brush   | wall-icon  | floor.edges | Edge-hover targeting; see UX notes.                    |
-| Door tool    | door       | floor.edges | Replaces wall on an edge; toggles open/closed.         |
-| Solid block  | brick-cube | solidBlock  | Full-cell thick walls (battlement, mountain rock).     |
-| Object stamp | crate      | object      | Picker for chests, statues, braziers, rubble, debris.  |
-| Eraser       | eraser     | active      | Removes from the active layer / edge.                  |
-| Rectangle    | rectangle  | floor       | Drag to fill a rect with floor. Shift = wrap walls.    |
-| Line         | line       | floor       | Drag to draw a single-tile-wide line of floor.         |
-| Fill         | bucket     | floor       | Flood-fill contiguous floor cells.                     |
-| Wrap walls   | brick-wall | floor.edges | One-shot: walls every floor-region edge facing void.   |
-| Annotate     | text       | annotation  | Text labels / icons.                                   |
-| Link entity  | link       | metadata    | Attach a trap / encounter / feature / note to a cell.  |
-| Pan          | hand       | —           | Middle-mouse or space-drag anywhere also pans.         |
+The hotkeys are the `shortcut` values of `TOOLS` in `src/components/cartographer/MapWorkbench.vue`; that array is the source of truth for which tools exist.
+
+| Tool          | Hotkey | Layer       | Notes                                                  |
+| ------------- | ------ | ----------- | ------------------------------------------------------ |
+| Floor brush   | `B`    | floor       | Paints floor cells with a random variant.              |
+| Eraser        | `E`    | active      | Removes from the active layer / edge.                  |
+| Wall          | `W`    | floor.edges | Edge-hover targeting; see UX notes.                    |
+| Door          | `D`    | floor.edges | Replaces wall on an edge; toggles open/closed.         |
+| Solid block   | `S`    | solidBlock  | Full-cell thick walls (battlement, mountain rock).     |
+| Object stamp  | `O`    | object      | Picker for chests, statues, braziers, rubble, debris.  |
+| Rectangle     | `R`    | floor       | Drag to fill a rect with floor. Shift = wrap walls.    |
+| Line          | `L`    | floor       | Drag to draw a single-tile-wide line of floor.         |
+| Fill          | `F`    | floor       | Flood-fill contiguous floor cells.                     |
+| Wrap walls    | `X`    | floor.edges | One-shot: walls every floor-region edge facing void.   |
+| Annotate      | `T`    | annotation  | Text labels / icons.                                   |
+| Room template | `M`    | floor       | Stamps a whole room shape (circle, octagon, …).        |
+| Cave brush    | `V`    | floor       | Paints irregular cave floor.                           |
+| Space         | `P`    | structure   | Structure group — see the next section.                |
+| Link entity   | `K`    | metadata    | Structure group. Attach a trap / encounter / feature / note to a cell. |
+| Pan           | RMB    | —           | Right-mouse drag; middle-mouse or space-drag also pans. |
 
 #### UX notes for edge-based tools
 
@@ -583,33 +588,29 @@ An optional `site` prop (a `MapStackSource`, see world-building.md's map stack) 
 - **Solid block vs. wall brush**: these are two different tools by design. The wall brush gives you a thin wall on an edge (a curtain, a partition, a worked-stone room boundary). The solid block tool gives you a thick wall in a cell (a sand-filled battlement, mountain rock, a 5 ft slab of masonry). The DM picks based on the dungeon's mass.
 - **Rectangle + Shift**: Shift-dragging the rectangle tool fills the area with floor *and* runs `wrap walls` on the rectangle perimeter — the most common "make a room" gesture.
 
-### Structure tool group (#868)
+### Structure tool group (#868, narrowed to Space alone by #884)
 
-These tools don't paint pixels — they claim or annotate what the drawing **means**. `src/cartographer/tools.ts` tags them `group: "structure"` in the `Tool` union (Pan is tagged `group: "view"`; everything else defaults to `"draw"`) so `CartographerToolPalette.vue` renders them as their own cluster, separate from the paint tools above.
+This tool doesn't paint pixels — it claims or annotates what the drawing **means**. `src/cartographer/tools.ts` tags it `group: "structure"` in the `Tool` union (Pan is tagged `group: "view"`; everything else defaults to `"draw"`) so `CartographerToolPalette.vue` renders it in its own cluster, separate from the paint tools above. A sibling Zone tool shipped alongside it in #868 and was retired by #884 (wave 4) — see "The Cartographer's own zone layer is retired" under Editor UX above; zoning is now authored directly as a Plan region in the Atlas, never derived from the Drawing.
 
 | Tool         | Hotkey | Layer     | Behaviour                                                                 |
 | ------------ | ------ | --------- | -------------------------------------------------------------------------- |
-| Space        | `p`    | (derived) | Click a floor region to select the derived space under the cursor. Doesn't write anything — it drives the Structure panel's room-level inspector (name, ways out, zones inside, linked entities). `s` was already taken by Solid block, so Space took `p` instead of the design frame's literal key. |
-| Zone         | `z`    | `zone`    | Paints the hazard/terrain/light/trigger/marker overlay (`ZoneCell` — `zone_id`, `kind`, `label`, repeated per cell like every other layer). "New zone" vs. "continue" mode controls whether a stroke starts a fresh `zone_id` or keeps painting the current one. |
+| Space        | `p`    | (derived) | Click a floor region to select the derived space under the cursor. Doesn't write anything — it drives the Structure panel's room-level inspector (name, ways out, linked entities). `s` was already taken by Solid block, so Space took `p` instead of the design frame's literal key. |
 | Link entity  | `k`    | `metadata`| Moved into the structure group in #868 (previously grouped with the paint tools) — same trap/feature/encounter/note pickers as before. |
 
-Nothing a Structure tool touches is derived structure itself — the derivation (`deriveStructure`, below) recomputes live from `layers`/`metadata` on every change, so there is no separate structure document to keep in sync.
+Nothing the Structure tool touches is derived structure itself — the derivation (`deriveStructure`, below) recomputes live from `layers`/`metadata` on every change, so there is no separate structure document to keep in sync.
 
 #### Deriving structure from a drawing (`src/cartographer/structure.ts`, `structure.types.ts`, `cellSignature.ts`)
 
-`deriveStructure(map)` is the one function everything downstream of the Cartographer reads through — the published Atlas never reads a raw `DungeonMap` layer set directly. It returns a `DerivedStructure`: `spaces`, `ways`, `stairs`, `zones`, `links`.
+`deriveStructure(map)` is the one function everything downstream of the Cartographer reads through — the published Atlas never reads a raw `DungeonMap` layer set directly. It returns a `DerivedStructure`: `spaces`, `ways`, `stairs`, `links` (zones were dropped from this return by #884 — see above).
 
 - **Spaces** — a flood fill over open floor cells (a floor tile, not a `solidBlock`), but **not** `floodFill.ts`'s fill: this one is edge-aware. It cuts at *every* edge segment — wall, closed door, **and open door/arch** — because a door has to be able to sit "between two regions" at all. An open arch still cuts the fill and becomes a `kind: "arch"` way out; the two rooms it joins stay two regions exactly as a closed door would. A space's `name` comes from the first annotation text found on any of its cells, in canonical (y-then-x) order — the same scan order the rename UI targets, so renaming a space always edits the cell its name already came from rather than adding a second annotation.
 - **Ways** — a `doorClosed`/`doorOpen` edge with open floor and two *different* derived spaces on either side. `doorClosed` → `kind: "door"`, `doorOpen` → `kind: "arch"`. A door edge whose two sides land in the same space (another route already joins them) is internal, not a way out, and is skipped.
 - **Stairs** — `stairsUp`/`stairsDown` object-layer cells. A stair's far end is **never guessed**: `spaceKey` is the space containing the cell (or `null` if no space claims it), but there is no attempt to infer which room/level it leads to — that stays `unresolved-stair` in the publish plan until the DM picks a target in the review modal.
-- **Zones** — grouped by `ZoneCell.zone_id`; `kind`/`label` are read off the first cell of the group (repeated per cell by contract).
 - **Links** — every cell whose `CellMetadata` is non-empty, each tagged with the space (if any) containing it.
 
-**Cell signatures** (`cellSignature.ts`) give a space or zone a stable identity across publishes: a 64-bit FNV-1a hash over the sorted, deduplicated cell-key list (`canonicalCells`), prefixed with the cell count. Deliberately not cryptographic — it only has to agree when two derivations cover the same cells and disagree when one cell moves, cheaply enough to recompute on every keystroke for the status bar.
+**Cell signatures** (`cellSignature.ts`) give a space a stable identity across publishes: a 64-bit FNV-1a hash over the sorted, deduplicated cell-key list (`canonicalCells`), prefixed with the cell count. Deliberately not cryptographic — it only has to agree when two derivations cover the same cells and disagree when one cell moves, cheaply enough to recompute on every keystroke for the status bar.
 
-`useCartographerStructure.ts` is the reactive seam: it holds the live `structure` computed, the Structure panel's `spaceRows`/`selectedSpaceInspector` read models, the Zone tool's paint state (`paintZoneAt`/`eraseZoneAt`), and `changedSinceLastPublish` — a `structureDelta()` between the map's last-loaded/last-saved structure and the live one, driving the status bar's "**N regions changed since last publish**" caution (amber, right-aligned in the status bar, only shown once the map has been published at least once). `useCartographerStructureTools.ts` wires pointer input for the Space/Zone tools into that composable. `CartographerStructurePanel.vue` renders the rail: the space list (name/provenance/cell count/zone count, with a Re-detect button that just clears the selection — the derivation is already live, there's nothing stale to recompute), the selected space's inspector (ways-out summary, zones inside, linked entities, a lazy-committing rename field), and a "Published to" list (which Atlas sites this map backs, each with its `rev` vs. `map_published_rev` gap — "N behind" — since one drawing can back several places, e.g. a reused gatehouse).
-
-The `zone` layer lives inside `dungeon_maps.layers` (jsonb) as `Record<CellKey, ZoneCell>` — `DungeonMapLayers.zone` in `src/types/dungeonMap.types.ts`, optional so maps saved before #868 (which lack the key entirely) read as `{}` via `emptyLayers()` and every reader.
+`useCartographerStructure.ts` is the reactive seam: it holds the live `structure` computed, the Structure panel's `spaceRows`/`selectedSpaceInspector` read models, and `changedSinceLastPublish` — a `structureDelta()` between the map's last-loaded/last-saved structure and the live one, driving the status bar's "**N regions changed since last publish**" caution (amber, right-aligned in the status bar, only shown once the map has been published at least once). `useCartographerStructureTools.ts` wires pointer input for the Space tool into that composable. `CartographerStructurePanel.vue` renders the rail: the space list (name/provenance/cell count, with a Re-detect button that just clears the selection — the derivation is already live, there's nothing stale to recompute), the selected space's inspector (ways-out summary, linked entities, a lazy-committing rename field), and a "Published to" list (which Atlas sites this map backs, each with its `rev` vs. `map_published_rev` gap — "N behind" — since one drawing can back several places, e.g. a reused gatehouse).
 
 `dungeon_maps.rev` (migration `20260908215643_the_publish_remembers_what_it_wrote.sql`) is an integer counter bumped by the `dungeon_maps_bump_rev` trigger (`bump_dungeon_map_rev()`) whenever `layers` or `metadata` change — renaming or retagging a map leaves it alone. `locations.map_published_rev` records which `rev` a site's last publish carried; null means never published. The gap between them is what "N behind" and the status bar caution both read.
 
@@ -692,13 +693,12 @@ Cartographer is the authoring side; [Atlas](world-building.md) is where baked ma
 **"It is a diff, not an import."** Save to Atlas baked a picture and overwrote `map_url` — a one-way breadcrumb with no idea whether the Atlas's rooms, doors and placements still matched the drawing. Publish to Atlas (`useMapPublish.ts`, `src/lib/locations/publish.ts`'s `planPublish`, `CartographerPublishModal.vue`) bakes the picture **and** reconciles the structure behind it in the same action: spaces matched by cell signature, ways out matched by edge key, placements matched by cell. Nothing a DM touched by hand is silently overwritten, and nothing is ever deleted.
 
 1. Cartographer Editor → **Publish to Atlas** button, or arriving via `?publishTo=<siteId>` (the Atlas place pane's **Re-publish** / **Preview** buttons, and `SiteLevelReusePanel`'s "draw a level" flow, all open a map with this query param; `useMapPublish` consumes it once, preselects the target site, opens the modal, and strips the param back out of the URL so a later remount doesn't reopen it).
-2. The modal (frame 05 of `atlas/Sites & Cartographer.html`) shows a site picker (defaults to the first place this map already publishes to, if any) and, once a site is picked, the **plan**: `PublishPlanPreview.vue` (the picture — a rendering of the plan) and `PublishPlanRows.vue` (the words — every space/way/placement/zone row and what will happen to it), computed live by `planPublish()` off the map's derived structure and the site's current rooms/regions/doors/placements.
+2. The modal (frame 05 of `atlas/Sites & Cartographer.html`) shows a site picker (defaults to the first place this map already publishes to, if any) and, once a site is picked, the **plan**: `PublishPlanPreview.vue` (the picture — a rendering of the plan) and `PublishPlanRows.vue` (the words — every space/way/placement row and what will happen to it), computed live by `planPublish()` off the map's derived structure and the site's current rooms/regions/doors/placements. Zones are not part of this plan (#884 S11) — a zone is now a Plan region authored directly in the Atlas, never derived from the Drawing, so `PublishPlanPreview.vue` deliberately excludes them.
 3. **Publish** applies the plan. Nothing here is optimistic — `publish()` in `useMapPublish.ts` runs the writes in this order:
    a. Bake the picture (`bakeMap`, unchanged pipeline — see Export Pipeline below), upload it, write `locations.map_url` + `source_map_id`, then `grid_calibration` computed straight from the bake's padding (`cells_per_image_width`, `origin_cell_x/y`) — so the Atlas's cells are the drawing's cells, not a separately-eyeballed calibration — then `locations.map_published_rev = dungeon_maps.rev` (the DM is publishing whatever rev is on the canvas right now, including unsaved edits — `map()` merges in-progress layers the same way `useMapExport`'s `buildMap` does).
    b. **Spaces** — create a room + bind a fresh region for every unmatched derived space; reshape (`cells`/`cell_signature`) an existing bound region whose signature changed; leave alone (nothing written) a region matched by signature (`skip`) or one the DM hand-edited (`held`, `derived_from === "dm"`); a bound region with no derived space any more is **orphaned** — its `cells`/`cell_signature` are cleared, the room it names is left untouched. Never a delete.
-   c. **Zones** — same create/update shape as spaces, tagged `region_role: "zone"`, matched by signature then by `(kind, label)`.
-   d. **Ways** — doors/arches created for new edge keys; an existing door matched by `edge_key` (named `source_edge_key` until epic #884) gets its `door_kind` updated **only** if the DM has set nothing else on it (`starts_locked`, `is_secret`, `lock_note`, a `label`) — any of those makes the door `held`, kind included, because a door carrying DM authoring is the DM's to keep. Since #884 a door whose `derived_from` is `'dm'` is held outright, however bare it looks: the DM drew it on the plan themselves. A newly-resolved stair becomes a one-time `door_kind: "stair"` door with no `edge_key` (stairs are never re-matched on a later publish — they carry no edge). Held, skipped and still-unresolved-stair rows write nothing.
-   e. **Placements** — a trap/feature link with no matching placement anywhere in the site becomes a new placement; an existing placement whose `source_cell_key` now falls in a different room is **re-anchored** (`location_id` + `source_cell_key` updated to the room that now holds its cell); a placement whose cell falls in no room at all becomes `lost-room` (kept, room-level, cell key preserved — never deleted); encounter/note links write nothing (`kind: "note"` — encounters and notes carry their own location column, so the review lists them without a write).
+   c. **Ways** — doors/arches created for new edge keys; an existing door matched by `edge_key` (named `source_edge_key` until epic #884) gets its `door_kind` updated **only** if the DM has set nothing else on it (`starts_locked`, `is_secret`, `lock_note`, a `label`) — any of those makes the door `held`, kind included, because a door carrying DM authoring is the DM's to keep. Since #884 a door whose `derived_from` is `'dm'` is held outright, however bare it looks: the DM drew it on the plan themselves. A newly-resolved stair becomes a one-time `door_kind: "stair"` door with no `edge_key` (stairs are never re-matched on a later publish — they carry no edge). Held, skipped and still-unresolved-stair rows write nothing.
+   d. **Placements** — a trap/feature link with no matching placement anywhere in the site becomes a new placement; an existing placement whose `source_cell_key` now falls in a different room is **re-anchored** (`location_id` + `source_cell_key` updated to the room that now holds its cell); a placement whose cell falls in no room at all becomes `lost-room` (kept, room-level, cell key preserved — never deleted); encounter/note links write nothing (`kind: "note"` — encounters and notes carry their own location column, so the review lists them without a write).
 4. Space matching (`matchSpace` in `publish.ts`) tries, **in order**: (1) identical `cell_signature` — a plain re-publish of the same cells; (2) best Jaccard overlap ≥ 0.5 among bound-space candidates — the room moved or resized; (3) an exact name match between the space's annotation and the bound room's name — shape changed enough to lose overlap, but the DM's label survived. First match wins; ties are broken by best overlap score.
 
 ### Reverse navigation
@@ -1055,10 +1055,10 @@ that prices, shows or runs a generation ships without the prop.
 
 > **Source:** GitHub issue #868, spec `atlas/Sites & Cartographer.html` on Claude Design. Three waves, one epic, on main as `f570b4a3` (schema + derivation + Structure tools), `d367a9c7` (Publish to Atlas + the Atlas place pane) and `546b10f4` (the site runner + battle map at cell scale — see `world-building.md` and `combat-encounters.md` for those halves).
 
-Replaces M5's Save to Atlas outright — see the "Atlas Integration" section above for the full write-order and matching-rule description, and "Structure tool group" above for the Space/Zone tools and the derivation module. Summary:
+Replaces M5's Save to Atlas outright — see the "Atlas Integration" section above for the full write-order and matching-rule description, and "Structure tool group" above for the Space tool and the derivation module. **The Space/Zone pair described below was narrowed to Space alone by epic #884 (wave 4, 14–15 Sep 2026)** — zoning moved to the Atlas Plan, authored directly as a `region_role: "zone"` region rather than derived from the Drawing. Summary (as originally shipped):
 
-- The Cartographer now derives *structure* (spaces, ways out, stairs, zones, links) from the drawing, live, via `deriveStructure()` — never stored separately, always recomputed off `layers`/`metadata`.
-- Two new tools (`space` hotkey `p`, `zone` hotkey `z`) and `link` moved into the same "structure" tool group.
+- The Cartographer derived *structure* (spaces, ways out, stairs, zones, links) from the drawing, live, via `deriveStructure()` — never stored separately, always recomputed off `layers`/`metadata`. Zones were dropped from that return by #884; the function now returns `spaces`, `ways`, `stairs`, `links`.
+- Two new tools (`space` hotkey `p`, `zone` hotkey `z`) and `link` moved into the same "structure" tool group. The Zone tool no longer exists — see above.
 - Publish to Atlas replaces the location-picker-and-overwrite flow with a review modal that bakes the picture and reconciles rooms, bound regions, ways out and placements against it — matched by cell signature / edge key / cell, never blindly overwritten, and never deleting what it can't match (orphaned instead).
 - `dungeon_maps.rev` (bumped by trigger on any `layers`/`metadata` change) and `locations.map_published_rev` (which rev a site last received) replace a bare `updated_at` timestamp as "is this place stale" — surfaced as "N regions changed since last publish" in the editor's status bar and "N behind" in the Structure panel's Published-to list.
 - `?publishTo=<siteId>` opens the publish modal preselected — used by the Atlas place pane's Re-publish/Preview buttons and by drawing a new level from `SiteLevelReusePanel`.
@@ -1069,15 +1069,15 @@ Done = a DM can redraw a dungeon, publish again, and trust that hand-named rooms
 
 | Path | Purpose |
 | --- | --- |
-| [src/cartographer/structure.ts](../../src/cartographer/structure.ts) | `deriveSpaces`/`deriveWays`/`deriveStairs`/`deriveZones`/`deriveLinks`/`deriveStructure`, `structureDelta` |
-| [src/cartographer/structure.types.ts](../../src/cartographer/structure.types.ts) | `DerivedSpace`/`DerivedWay`/`DerivedStair`/`DerivedZone`/`DerivedLink`/`DerivedStructure` contract |
+| [src/cartographer/structure.ts](../../src/cartographer/structure.ts) | `deriveSpaces`/`deriveWays`/`deriveStairs`/`deriveLinks`/`deriveStructure`, `structureDelta` (`deriveZones` shipped here and was removed by #884) |
+| [src/cartographer/structure.types.ts](../../src/cartographer/structure.types.ts) | `DerivedSpace`/`DerivedWay`/`DerivedStair`/`DerivedLink`/`DerivedStructure` contract (`DerivedZone` shipped here and was removed by #884) |
 | [src/cartographer/cellSignature.ts](../../src/cartographer/cellSignature.ts) | `canonicalCells`, `cellSignature` (64-bit FNV-1a) |
 | [src/lib/locations/publish.ts](../../src/lib/locations/publish.ts) | `planPublish` — the reconciliation planner (matching, held/orphan/reanchor rules) |
 | [src/lib/locations/publish.test.ts](../../src/lib/locations/publish.test.ts) | 611-line TDD suite for the planner |
 | [src/composables/cartographer/useMapPublish.ts](../../src/composables/cartographer/useMapPublish.ts) | Reactive publish state + `publish()` write path |
 | [src/composables/cartographer/usePublishedSites.ts](../../src/composables/cartographer/usePublishedSites.ts) | Which Atlas locations a map backs (`source_map_id` reverse lookup) |
-| [src/composables/cartographer/useCartographerStructure.ts](../../src/composables/cartographer/useCartographerStructure.ts) | Live structure, Structure-panel read models, Zone tool paint state |
-| [src/composables/cartographer/useCartographerStructureTools.ts](../../src/composables/cartographer/useCartographerStructureTools.ts) | Pointer wiring for the Space/Zone tools |
+| [src/composables/cartographer/useCartographerStructure.ts](../../src/composables/cartographer/useCartographerStructure.ts) | Live structure, Structure-panel read models |
+| [src/composables/cartographer/useCartographerStructureTools.ts](../../src/composables/cartographer/useCartographerStructureTools.ts) | Pointer wiring for the Space tool |
 | [src/composables/locations/useSitePlacements.ts](../../src/composables/locations/useSitePlacements.ts) | Every trap/feature placement across a site's spaces, one query |
 | [src/components/cartographer/CartographerStructurePanel.vue](../../src/components/cartographer/CartographerStructurePanel.vue) | The Structure rail: space list, room inspector, Published-to list |
 | [src/components/cartographer/CartographerPublishModal.vue](../../src/components/cartographer/CartographerPublishModal.vue) | The Publish to Atlas review modal shell |

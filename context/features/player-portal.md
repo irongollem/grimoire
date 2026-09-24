@@ -45,29 +45,32 @@ account plays in. The sheet used to list every campaign RLS returned and badge
 each one DM or Player, which handed the player shell a sideways route into a
 campaign the other lens owns; see the lens section of `collaboration.md`.
 
-All nav items defined in `src/lib/playerNav.ts`:
+All nav items defined in `src/lib/playerNav.ts` (`ALL_PLAYER_NAV`) — 13 tabs:
 
 | Route             | Label     | Description                                                                     |
 | ----------------- | --------- | ------------------------------------------------------------------------------- |
 | `/play`           | Character | Active character sheet — stats, skills, features, combat, wild shape            |
-| `/play/champions` | Champions | All characters the player has created in this campaign; switch active character |
-| `/play/party`     | People    | Party member cards + shared NPCs with filter/search                             |
 | `/play/inventory` | Inventory | Paper doll, containers, coin purse, carry weight                                |
-| `/play/quests`    | Quests    | DM-shared quest log grouped by status                                           |
-| `/play/journal`   | Journal   | Personal adventure journal (My Journal / Party Journal / DM Notes tabs)         |
-| `/play/crafting`  | Workshop  | DM-shared crafting recipes with ingredient inventory check                      |
-| `/play/factions`  | Factions  | Factions shared by DM; member factions show known members                       |
-| `/play/puzzles`   | Puzzles   | DM-shared puzzles with hint count badge                                         |
+| `/play/spells`    | Spellbook | Full spell management: prepared list, spellbook, innate spells, browse          |
+| `/play/party`     | People    | Party member cards + shared NPCs with filter/search                             |
+| `/play/calendar`  | Calendar  | Current in-game date; upcoming/confirmed session dates                         |
+| `/play/journal`   | Journal   | Personal adventure journal (My Journal / Party Journal / Quest Log / Puzzles / DM Notes tabs) |
+| `/play/crafting`  | Workshop  | DM-shared crafting recipes with ingredient inventory check (hidden when the `crafting` optional rule is off) |
+| `/play/downtime`  | Interlude | Downtime activities between sessions (hidden when the `downtime` optional rule is off) |
 | `/play/atlas`     | Atlas     | Shared locations with maps, pins, NPCs, and store wares                         |
 | `/play/bestiary`  | Bestiary  | Monsters the player has encountered; Wild Forms tab for Druids/Rangers          |
-| `/play/spells`    | Spells    | Full spell management: prepared list, spellbook, innate spells, browse          |
-| `/play/rules`     | Reliquary | Rules reference: DM Screen, Compendium, Codex, House Rules                      |
-| `/play/settings`  | Settings  | Display name, character link, nav order, scheduling, audio, dice, theme         |
+| `/play/rules`     | Reliquary | Rules reference: Reference, Compendium, Codex, House Rules, Licenses            |
+| `/play/factions`  | Factions  | Factions shared by DM; member factions show known members                       |
+| `/play/home`      | Home      | Cross-campaign character pool, campaign list, join-by-code ("Adventurer's Rest"); `standalone`, last by default (see "No-membership state" above) |
+
+Quests and Puzzles are not separate nav tabs — they are tabs inside Journal (`/play/journal?tab=quest-log`, `?tab=puzzles`; see "Quest Log" and "Puzzles" below). Two more player-portal destinations exist outside this bottom-nav list entirely: **Champions** (`/play/champions`) is reached via the "My Characters" button on the Character sheet, and **Settings** (`/play/settings`) is reached via the hamburger menu — neither is in `ALL_PLAYER_NAV`.
 
 Additional sub-routes not in the nav bar:
 
 - `/play/encounter` — Live encounter view (mobile full-screen; tablet shows sidebar panel)
+- `/play/quests` — Redirects to `/play/journal?tab=quest-log`
 - `/play/quests/:id` — Quest detail with giver NPC, objectives, rewards, rich text description
+- `/play/puzzles` — Redirects to `/play/journal?tab=puzzles`
 - `/play/puzzles/:id` — Puzzle detail with shared hints and player notes
 - `/play/character/create` — Character creation wizard / edit tabs
 - `/play/character/edit` — Character edit (same view, edit mode)
@@ -142,7 +145,7 @@ Clicking an NPC opens a lightbox with portrait, name (or "???" if name not share
 
 ## Quest Log (Player)
 
-Route: `/play/quests` → `/play/quests/:id`
+Route: `/play/journal?tab=quest-log` (a tab inside `PlayerJournalView.vue`, not a standalone nav destination — `/play/quests` redirects here) → `/play/quests/:id`
 
 Only quests that the DM has explicitly shared with the player appear (via `usePlayerVisibleQuests()`). Quests are grouped by status:
 
@@ -354,7 +357,7 @@ Back route goes to `/play` (character sheet) if the player triggered it from the
 
 Route: `/play/journal` (`PlayerJournalView.vue`)
 
-A personal journal owned by each player character. Three tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), and **DM Notes** (read-only view of notes the DM has shared).
+A personal journal owned by each player character, and also the home of the Quest Log and Puzzles tabs (`/play/quests` and `/play/puzzles` redirect here — see those sections below). Five tabs: **My Journal** (private entries), **Party Journal** (entries marked as shared), **Quest Log**, **Puzzles**, and **DM Notes** (read-only view of notes the DM has shared).
 
 Each entry has:
 
@@ -372,12 +375,13 @@ Players can filter their journal by category. Entries can be expanded inline to 
 
 Route: `/play/rules` (`PlayerReliquaryView.vue`)
 
-Four tabs:
+Five tabs:
 
 - **Reference** — DM Screen-style reference cards (rules summaries, condition definitions, action types, etc.)
 - **Compendium** — Browseable SRD/homebrew rules compendium
 - **Codex** — Character Codex: species, backgrounds, classes, archetypes, abilities
 - **House Rules** — DM-authored campaign-specific rules, player-visible subset
+- **Licenses** — third-party content licensing/attribution reference
 
 ### Atlas (Locations)
 
@@ -430,7 +434,7 @@ DM-shared factions grid with name, emblem, type, and tags. Factions the player b
 
 ### Puzzles
 
-Route: `/play/puzzles` → `/play/puzzles/:id` (`PlayerPuzzlesView.vue`, `PlayerPuzzleDetailView.vue`)
+Route: `/play/journal?tab=puzzles` (`PlayerJournalPuzzlesTab.vue`, not a standalone nav destination — `/play/puzzles` redirects here) → `/play/puzzles/:id` (`PlayerPuzzleDetailView.vue`)
 
 DM-shared puzzles in a grid with type badge (logic, cipher, riddle, etc.), difficulty badge, and hint count. Clicking navigates to the puzzle detail showing:
 
@@ -453,16 +457,18 @@ Shows crafting recipes the DM has shared with the player. Recipes are organised 
 
 Clicking "Attempt Craft" opens `CraftAttemptDialog` which runs the ability check roll (with proficiency bonus, workspace bonuses, tool disadvantage if applicable) and applies success/failure outcomes.
 
-### Champions (Hall of Heroes)
+### Champions
 
-Route: `/play/champions` (`PlayerChampionsView.vue`)
+Route: `/play/champions` (`PlayerChampionsView.vue`) — reached from the "My Characters" button on the Character sheet, not from the bottom nav bar. Unrelated to the separate, admin-managed Hall of Heroes library (see party-characters.md).
 
-Lists all party member records created by the current player user in this campaign. Supports multi-character campaigns (e.g. "my wizard died, now I play a rogue"). Features:
+Lists all of the current player's owned characters attached to this campaign. Supports multi-character campaigns (e.g. "my wizard died, now I play a rogue"). Features:
 
 - Portrait, name, species/class/subclass/level summary
 - Active character highlighted with "Active" badge
 - "Set Active" button to switch which character is linked to the player's session
 - Direct links to Edit and Level Up
+- "Clone" — copies the character into the player's pool, unattached (#730; see party-characters.md's "Durable Characters & the Pool")
+- "Leave campaign" (detach) — returns the character to the player's pool
 - "New Character" button to create another character
 
 ### Settings
@@ -477,9 +483,11 @@ Personal preferences for the player's session:
 - **Session Availability** — 3-way response (Yes/No/no answer) for each proposed session date
 - **Calendar Subscription** — iCal feed URL for the campaign schedule; one-click subscribe in calendar app. Carries **suggested dates as well as confirmed ones**: a suggestion arrives as a tentative, `TRANSP:TRANSPARENT` event prefixed "Proposed:" so it shows up without booking the evening out, and it becomes the real event in place when the DM confirms (same UID). See `supabase/functions/_shared/ics.ts`.
 - **Navigation** — Drag-to-reorder list of all nav items; first 4 (or 7 on tablet) appear in the quick bar
+- **Email Notifications** — Toggles for emails when the DM publishes something for you
 - **Combat Notifications** — Toggle for turn audio cue (chime when your turn starts) and dice roll sounds (clack per roll; distinct crit/fumble sounds)
 - **Dice** — Tool mode (digital dice roller) vs Physical mode (prompts to enter your own roll result)
 - **Appearance** — Theme override: Campaign (DM's chosen theme) / Light / Dark / System
+- **Timestamps** — Override chat timestamp format; defaults to the browser's locale
 - **Screen** — Wake lock toggle (prevents device sleep during long sessions)
 - **App** — Install PWA prompt (native on Chrome/Edge, manual instructions for iOS/Android)
 - **Account** — Read-only email and current role
