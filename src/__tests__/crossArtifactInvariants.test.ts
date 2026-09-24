@@ -538,3 +538,27 @@ describe("solid CTA fills come from the primitive", () => {
     expect(violations, violations.join("\n")).toEqual([]);
   });
 });
+
+describe("typography roles used in markup are defined", () => {
+  // `text-body-sm` was used in 19 places and defined nowhere: Tailwind emits no
+  // rule for an unknown utility, so every one of them silently rendered at the
+  // inherited size, and nothing — lint, typecheck, build — could say so. The
+  // roles are `@utility` blocks in typography.css; a role-shaped class that
+  // is not one of them is a typo waiting to be copied.
+  it("every text-<role> class names an @utility in typography.css", () => {
+    const defined = new Set(
+      [...read("src/assets/typography.css").matchAll(/@utility\s+(text-[a-z0-9-]+)/g)].map((m) => m[1]),
+    );
+    expect(defined.size).toBeGreaterThan(0);
+
+    const role = /\btext-(?:eyebrow|label|heading|title|display|body|caption)(?:-[a-z0-9]+)*\b/g;
+    const unknown = new Map<string, string>();
+    for (const file of trackedFiles("src/**/*.vue", "src/**/*.ts")) {
+      if (file.endsWith(".test.ts")) continue;
+      for (const [cls] of read(file).matchAll(role)) {
+        if (!defined.has(cls) && !unknown.has(cls)) unknown.set(cls, file);
+      }
+    }
+    expect([...unknown].map(([cls, file]) => `${cls} (first seen in ${file})`)).toEqual([]);
+  });
+});

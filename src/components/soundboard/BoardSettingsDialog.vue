@@ -27,7 +27,7 @@
            beside the mode control competed with it on every visit for a
            decision made about once per campaign. -->
       <section class="space-y-1.5">
-        <span class="block font-cinzel text-body-sm text-foreground">Pad size in Perform</span>
+        <span class="block font-cinzel text-sm text-foreground">Pad size in Perform</span>
         <!-- The selected size used to be a `bg-card` chip in a trough — a
              rival to AppButton's gold `active` tint, which is the app's one
              selected treatment. -->

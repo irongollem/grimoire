@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-2">
     <label class="block space-y-1.5">
-      <span class="block font-cinzel text-body-sm text-foreground">Rule tracker</span>
+      <span class="block font-cinzel text-sm text-foreground">Rule tracker</span>
       <EntityCombobox v-model="ruleId" :options="options" :placeholder="placeholder">
         <template #option="{ opt }">
           <span class="flex flex-col gap-0.5 py-0.5">

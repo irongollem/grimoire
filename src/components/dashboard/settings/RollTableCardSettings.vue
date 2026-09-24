@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-2">
     <label class="block space-y-1.5">
-      <span class="block font-cinzel text-body-sm text-foreground">Roll table</span>
+      <span class="block font-cinzel text-sm text-foreground">Roll table</span>
       <EntityCombobox v-model="tableId" :options="options" :placeholder="placeholder">
         <template #option="{ opt }">
           <span class="flex flex-col gap-0.5 py-0.5">

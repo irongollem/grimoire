@@ -8,7 +8,7 @@
       NOW
     </span>
 
-    <p v-if="isIdle" class="self-center text-body-sm italic text-muted-foreground">
+    <p v-if="isIdle" class="self-center text-body italic text-muted-foreground">
       Nothing audible. The room is yours.
     </p>
 
@@ -21,7 +21,7 @@
       <EqBars accent="music" :bars="5" />
       <div class="min-w-0 flex-1">
         <div class="flex min-w-0 items-center gap-1.5">
-          <span class="truncate font-cinzel text-body-sm font-semibold">{{ music.playlistName }}</span>
+          <span class="truncate font-cinzel text-sm font-semibold">{{ music.playlistName }}</span>
           <CausedByChip :trigger="musicTrigger" small />
         </div>
         <p class="truncate text-caption text-foreground/70">
@@ -51,7 +51,7 @@
         <IconWind class="h-3.5 w-3.5 shrink-0 text-green-400" />
         <div class="min-w-0 flex-1">
           <div class="flex min-w-0 items-center gap-1">
-            <span class="truncate font-cinzel text-body-sm font-semibold">{{ scene.playlistName }}</span>
+            <span class="truncate font-cinzel text-sm font-semibold">{{ scene.playlistName }}</span>
             <CausedByChip :trigger="triggerForPlaylist(scene.playlistId)" small />
           </div>
           <p class="text-caption text-foreground/70">
@@ -78,7 +78,7 @@
         <EqBars :accent="loose.category" class="shrink-0" />
         <div class="min-w-0 flex-1">
           <div class="flex min-w-0 items-center gap-1">
-            <span class="truncate font-cinzel text-body-sm font-semibold">{{ loose.name }}</span>
+            <span class="truncate font-cinzel text-sm font-semibold">{{ loose.name }}</span>
             <CausedByChip :trigger="triggerForSound(loose.id)" small />
           </div>
         </div>

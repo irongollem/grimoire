@@ -228,7 +228,7 @@ const progress = computed(() => {
 });
 
 const iconSize = computed(() => (size === "sm" ? "h-3 w-3" : size === "lg" ? "h-4 w-4" : "h-3.5 w-3.5"));
-const nameSize = computed(() => (size === "sm" ? "text-xs" : size === "lg" ? "text-body" : "text-body-sm"));
+const nameSize = computed(() => (size === "sm" ? "text-xs" : size === "lg" ? "text-body" : "text-sm"));
 
 const durationLabel = computed(() => {
   const seconds = state.value.duration;

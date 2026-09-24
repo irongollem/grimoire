@@ -3,7 +3,7 @@
     <!-- Wrapping label: `EntityCombobox` takes no id or aria-label, so implicit
          association through the nested input is the only thing that names it. -->
     <label class="block space-y-1.5">
-      <span class="block font-cinzel text-body-sm text-foreground">Reference table</span>
+      <span class="block font-cinzel text-sm text-foreground">Reference table</span>
       <EntityCombobox v-model="tableId" :options="options" placeholder="Search the DM screen…">
         <template #option="{ opt }">
           <span class="flex flex-col gap-0.5 py-0.5">
