@@ -11,7 +11,8 @@
 // `[functions.session-rsvp] verify_jwt = false` in supabase/config.toml
 // (per-function config.toml files inside the function directory are NOT read by
 // `supabase functions deploy`). The capability is the random per-invitation
-// token in the URL — the ical-feed and waitlist-unsubscribe design.
+// token in the URL — the same shape as ical-feed's token: a random per-row
+// value stands in for a login for a recipient who has none.
 //
 // WHY GET DOES NOT RECORD ANYTHING. Corporate mail gateways and link scanners
 // prefetch every URL in a message. A GET that acted would let a scanner answer

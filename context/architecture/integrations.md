@@ -240,14 +240,14 @@ Where it is wired:
   before any plugin. Installs Vue's `errorHandler` plus the global handlers,
   and adds `router.onError` (router failures bypass `errorHandler`).
 - **Edge functions** — `_shared/observability/sentryEdge.ts`, reached two ways:
-  the `catch` in `withCors`, which covers the 40 functions that use it, and
-  `withErrorReporting` in `_shared/observability/report.ts` for the six that do
+  the `catch` in `withCors`, which covers the 43 functions that use it, and
+  `withErrorReporting` in `_shared/observability/report.ts` for the five that do
   not (`ical-feed`, `mcp`, `session-rsvp`, `session-rsvp-inbound`,
-  `sync-srd-rules`, `waitlist-unsubscribe`) — all 46 are reported. An earlier
+  `sync-srd-rules`) — all 48 are reported. An earlier
   revision of this line said the non-`withCors` ones were not, which stopped
   being true when `withErrorReporting` was introduced for exactly them. It is a
   hand-rolled envelope POST rather than `@sentry/deno` — see the file header
-  for why an npm dependency in all 46 bundles is the wrong trade against a
+  for why an npm dependency in all 48 bundles is the wrong trade against a
   deploy path that resolves dependencies over the network.
 - **Scrubbing** — `_shared/observability/scrub.ts`, shared verbatim by both
   through the `@edge-shared` alias. Read it before changing what is reported:

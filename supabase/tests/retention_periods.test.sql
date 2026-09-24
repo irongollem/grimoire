@@ -18,7 +18,7 @@ create extension if not exists pgtap with schema extensions;
 -- local `seed.sql` that CI does not have, so an unscoped count passes in CI and
 -- fails on a developer's machine — which is the wrong way round for a suite
 -- whose job is to catch a purge that deletes more than it should.
-select plan(29);
+select plan(27);
 
 insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data)
 values
@@ -117,20 +117,6 @@ insert into public.feature_interest (id, user_id, feature, created_at)
 values
   ('63900000-0000-4000-8000-00000000008a', '63900000-0000-4000-8000-000000000001', 'simulacrum', now() - interval '364 days'),
   ('63900000-0000-4000-8000-00000000008b', '63900000-0000-4000-8000-000000000002', 'simulacrum', now() - interval '366 days');
-
-insert into public.pro_waitlist (id, email, created_at)
-values
-  ('63900000-0000-4000-8000-00000000009a', 'kept@example.invalid', now() - interval '364 days'),
-  ('63900000-0000-4000-8000-00000000009b', 'stale@example.invalid', now() - interval '366 days');
-
--- The waitlist has a BEFORE INSERT trigger that silently drops disposable
--- domains. Confirm both rows actually landed, so a purge assertion below
--- cannot pass because the fixture was swallowed.
-select is(
-  (select count(*)::int from public.pro_waitlist where email like '%@example.invalid'),
-  2,
-  'both waitlist fixtures were accepted by the disposable-domain guard'
-);
 
 -- ── The guards refuse an expired row when this is not the purge ─────────────
 -- Age alone must not be a licence to delete: without the flag, a settled ledger
@@ -270,12 +256,6 @@ select is(
   'a notify-me click expires at 365 days, and one inside the year does not'
 );
 
-select is(
-  (select email from public.pro_waitlist where email like '%@example.invalid'),
-  'kept@example.invalid',
-  'a waitlist address expires at the 365-day backstop'
-);
-
 -- ── Nothing can shorten the period from the client side ────────────────────
 -- The register asserts a seven-year floor on the evidence tables, which is a
 -- claim about what a user cannot do to their own rows in the meantime. RLS
@@ -333,7 +313,7 @@ select is(
         -- Bounded, enforced: private.purge_expired_retention() for the first
         -- five, purge-rate-limit-events (20260621000008) for the last.
         'ai_credit_ledger', 'purchase_consents', 'admin_audit_log',
-        'app_invites', 'pro_waitlist', 'rate_limit_events',
+        'app_invites', 'rate_limit_events',
         -- #643. Not cascade-reached by design: an FK would delete the erasure
         -- request's own evidence at the moment it is honoured. 7 years, the
         -- same accountability clock as admin_audit_log, measured from
@@ -346,7 +326,7 @@ select is(
         'abuse_guard_config', 'ai_generation_credit_costs', 'ai_model_pricing',
         'ai_system_prompts', 'app_settings', 'checkout_config',
         'credit_pack_config', 'plans', 'platform_api_keys', 'provider_config',
-        'simulacrum_config', 'disposable_email_domains',
+        'simulacrum_config',
         'class_choice_rest_resets', 'class_ritual_policies',
         'class_spellcasting_policies', 'metamagic_options',
         'multiclass_prerequisites', 'system_classes', 'content_sources',

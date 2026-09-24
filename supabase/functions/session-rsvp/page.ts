@@ -172,14 +172,13 @@ function copyFor(state: RsvpState, answer: RsvpAnswer | null, invite: RsvpInvite
 /**
  * A whole page in one string: served straight from an Edge Function, with no
  * asset pipeline behind it and no second origin for a page whose entire job is
- * to be trustworthy. Colours mirror waitlist-unsubscribe, which mirrors the
- * marketing site's tokens.
+ * to be trustworthy. Colours mirror the marketing site's tokens directly.
  *
  * The confirm state is a form with two buttons rather than a link that acts,
- * for the reason spelled out in waitlist-unsubscribe: corporate mail gateways
- * and link scanners prefetch every URL in a message, and a GET that recorded an
- * answer would let a scanner RSVP in the player's name — silently, and wrongly
- * half the time. No JavaScript, so it works in a webmail preview pane.
+ * because corporate mail gateways and link scanners prefetch every URL in a
+ * message, and a GET that recorded an answer would let a scanner RSVP in the
+ * player's name — silently, and wrongly half the time. No JavaScript, so it
+ * works in a webmail preview pane.
  */
 export function renderPage(
   state: RsvpState,

@@ -137,7 +137,6 @@ matching row in `retention.md`.
   is configured off (`abuse_guard_config.enabled = false`, `enforce = false`) and
   ships that way deliberately per #467, pending real usage data to tune
   thresholds. Today the live processing is the rate limiter alone.
-  `disposable_email_domains` is a list of domains and holds no personal data.
 
 ## 5. Automatic error reporting
 

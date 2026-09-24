@@ -23,7 +23,6 @@ when they ask "what happens to X when an account is erased?"
 | DSR request log (30-day clock evidence) | 12(3) | **Shipped** (Aug 2026) — see §4f | #643 |
 | Retention periods defined + enforced | 5(1)(e) | **Shipped** (Aug 2026) — register in `context/compliance/retention.md` | #639 |
 | Admin action audit log | 5(2) | **Shipped** (Aug 2026) — see §4d | #642 |
-| Consent withdrawal (Pro waitlist) | 7(3) | **Shipped** (Aug 2026) — see §4g | #638 |
 
 The privacy policy §5 promises deletion within 30 days. The implementation is
 **immediate and synchronous**, so the promise is satisfied with margin; if that
@@ -39,7 +38,7 @@ different fates, and the distinction is deliberate:
 | --- | --- | --- |
 | Everything the user authored or owns — campaigns, characters, notes, art rows, memberships | **Deleted** by `on delete cascade` from `auth.users` | Personal data with no retention basis |
 | `ai_credit_ledger`, `purchase_consents` | **Retained, anonymized** — `user_id` → null, `anonymized_at` stamped | Art. 17(3)(b): retention required for a legal obligation. Dutch bookkeeping law (art. 52 AWR) requires 7 years, and these rows are the dispute evidence for real money |
-| `rate_limit_events`, a matching `pro_waitlist` address, `storage.objects.owner`/`owner_id` | **Deleted / nulled** explicitly by `prepare_user_erasure` | No FK to `auth.users`, so no cascade reaches them |
+| `rate_limit_events`, `storage.objects.owner`/`owner_id` | **Deleted / nulled** explicitly by `prepare_user_erasure` | No FK to `auth.users`, so no cascade reaches them |
 | Storage objects under `{userId}/` in every Supabase bucket and every R2 bucket | **Deleted** before anything else | See ordering below |
 
 **Anonymized ≠ deleted, and that is the point.** A retained ledger row keeps its
@@ -53,13 +52,6 @@ both evidence tables a purge at the close of the financial year plus seven, via
 the only sanctioned exception the append-only guards have ever been given. See
 `context/compliance/retention.md` §2 for why the boundary is the year end rather
 than the row's anniversary.
-
-The waitlist match is intentionally narrow: the definer function reads the
-target email from `auth.users` only after authorizing `service_role`, compares it
-case-insensitively, and never writes the address to the audit log. Neither a
-client nor the delete-account function supplies an email. A signup that never
-became the erased account therefore remains governed by its own consent and
-retention period.
 
 **What is deliberately not kept:** no email, no display name, no IP. The only
 identifier surviving erasure is the raw uuid on the `admin_audit_log` entry, kept
@@ -306,9 +298,9 @@ plausible document and an unlawful answer. So `export_user_data` walks the
    — and it is maintained, because deletion breaks otherwise. A new table
    inherits the export for free.
 2. **The columns no FK reaches** — `rate_limit_events.user_id`,
-   `admin_audit_log.target_user_id`, `dsr_requests.user_id`, and a
-   `pro_waitlist` address match. This is the half that can rot, because both
-   functions name them by hand, so `data_export.test.sql` asserts the two
+   `admin_audit_log.target_user_id`, and `dsr_requests.user_id`. This is the
+   half that can rot, because both functions name them by hand, so
+   `data_export.test.sql` asserts the two
    hand-written sets are the same set, and separately pins that the set is
    non-empty (an `is_empty` check over an empty set passes while proving
    nothing).
@@ -472,46 +464,6 @@ address to an account when one exists, so an operator types an email and the row
 still links to the person — without which erasure and the subject's own export
 would reach it only by coincidence of matching the address.
 
-## 4g. Consent withdrawal — the right with no account behind it
-
-*#638, migration `20260811221206`. The register entry lives in
-`context/compliance/retention.md` §4; this section is the contract.*
-
-Every other right in this file starts from a session. Art. 7(3) does not: the
-`pro_waitlist` subscriber is a logged-out visitor who typed an address into the
-marketing site and may never hold an account. That is what made this the last
-gap — `20260718000006` wrote "rows are immutable facts, no update/delete
-policies", which is right about editing and silent about leaving, and the two
-exits that did exist (`prepare_user_erasure`'s address match, the 365-day
-backstop) are both unreachable for someone who never signed up.
-
-**The link is the primary route, and the token is the credential.** Each row
-carries a unique, defaulted `unsubscribe_token`; the `waitlist-unsubscribe` Edge
-Function is the only caller of `withdraw_waitlist_consent()`, which is
-`service_role`-only. The address never travels in a URL, and the token dies with
-the row, so someone who leaves and later rejoins cannot be unsubscribed a second
-time by the old link.
-
-**GET does not act; POST does.** Mail gateways prefetch links. A GET that removed
-would let a scanner silently take someone off a list whose entire output is the
-one email they consented to — an invisible failure that costs them exactly the
-thing they asked for. So GET renders a no-JavaScript confirmation page and POST
-performs the removal, which is also precisely RFC 8058: clients supporting
-`List-Unsubscribe-Post` POST directly and never see the page. **A mailing to this
-list must carry both headers and a body link from mail one** — the form is
-documented in the function's header, which is where someone building the mailing
-will be standing.
-
-**Nothing here writes a `dsr_requests` row, and that is the decision.** Art. 12(3)
-governs Arts. 15–22; withdrawal is Art. 7(3), immediate, with no month to
-evidence. A log entry per unsubscribe would rebuild the deleted address in the
-one table carrying a seven-year period — the §4d principle inverted, because here
-the evidence *is* the personal data. The absence of the row is the record. The
-same reasoning bounds the operator route: `admin_remove_waitlist_email()` is
-audit-logged, because a unilateral removal is exactly what §4d exists to make
-attributable, but the entry carries a count and the fixed reason
-`requested_by_email`, never operator-entered text or the address.
-
 ## 5. Known gaps
 
 - **Self-serve erasure is irreversible and immediate.** There is no grace period
@@ -536,10 +488,6 @@ attributable, but the entry carries a count and the fixed reason
 | DSR client calls + the pinned request vocabulary | `src/composables/admin/useDsrRequests.ts` |
 | DSR admin viewer + email-channel entry | `src/components/admin/AdminDsrTab.vue`, `DsrRequestRow.vue` |
 | §4f invariant tests (no FK, guard, erasure survival) | `supabase/tests/dsr_requests.test.sql` |
-| Waitlist withdrawal — token, both routes, why neither is logged (§4g) | `supabase/migrations/20260811221206_waitlist_withdrawal.sql` |
-| The unsubscribe endpoint, and the header pair a mailing must send | `supabase/functions/waitlist-unsubscribe/index.ts`, `page.ts` |
-| Operator route — client call and admin UI | `src/composables/admin/useProWaitlist.ts`, `src/components/admin/WaitlistRemovalPanel.vue` |
-| §4g invariant tests (token uniqueness, both gates, no address in the audit entry) | `supabase/tests/waitlist_withdrawal.test.sql` |
 | Client call + error copy | `src/composables/account/useAccountDeletion.ts` |
 | Self-serve UI | `src/components/account/AccountSettings.vue` (route `/account`) |
 | Admin UI | `src/components/admin/AdminUsersTab.vue` |

@@ -23,30 +23,6 @@
       </div>
     </div>
 
-    <!-- Pro signup launch switch -->
-    <div class="rounded-lg border border-border bg-card p-4">
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <h2 class="font-cinzel text-sm font-semibold tracking-wide text-foreground">Pro Signup (marketing site)</h2>
-          <p class="text-caption text-muted-foreground italic mt-0.5">
-            Off: the marketing site shows the Pro <em>waitlist</em> form instead of Go Pro buttons. On: real
-            checkout CTAs return. Toggling automatically rebuilds the marketing site (takes a minute or two).
-          </p>
-        </div>
-        <ToggleSwitch
-          size="lg"
-          :model-value="!!checkoutConfig.data.value?.pro_signup_open"
-          :disabled="checkoutConfig.update.isPending.value"
-          aria-label="Pro Signup (marketing site)"
-          @update:model-value="
-            checkoutConfig.update.mutate({
-              pro_signup_open: !checkoutConfig.data.value?.pro_signup_open,
-            })
-          "
-        />
-      </div>
-    </div>
-
     <!-- Credit packs -->
     <div class="rounded-lg border border-border bg-card p-4 space-y-3">
       <div>

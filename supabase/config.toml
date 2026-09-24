@@ -46,9 +46,9 @@ verify_jwt = true
 # One-click RSVP for a suggested session date. The recipient is answering from
 # a link in an email and may not be signed in — often they are in a phone's mail
 # app, which is the whole point — so there is no JWT to check, exactly the
-# ical-feed / waitlist-unsubscribe situation. The capability is the random
-# per-invitation token in the URL (session_proposal_invites), and the function
-# can only record one player's availability for the one date that token names.
+# ical-feed situation. The capability is the random per-invitation token in the
+# URL (session_proposal_invites), and the function can only record one
+# player's availability for the one date that token names.
 # GET renders a confirmation form and POST acts, because link scanners prefetch.
 [functions.session-rsvp]
 verify_jwt = false
@@ -84,15 +84,6 @@ verify_jwt = false
 # Stripe webhook — called by Stripe (no user JWT). The function validates
 # the Stripe-Signature header with the webhook secret instead.
 [functions.stripe-webhook]
-verify_jwt = false
-
-# Pro-waitlist unsubscribe (#638). The recipient is a logged-out visitor who
-# left an email address and has no account, so there is no JWT to check —
-# exactly the ical-feed situation. The capability is the random per-row
-# `pro_waitlist.unsubscribe_token` in the URL, and the function only ever
-# deletes the one row that token names. It must also answer an RFC 8058
-# one-click POST from a mail client, which carries no apikey header at all.
-[functions.waitlist-unsubscribe]
 verify_jwt = false
 
 # Read-only MCP server — lets a DM connect their own AI (Claude Desktop /

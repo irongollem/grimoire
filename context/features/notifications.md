@@ -73,10 +73,10 @@ buttons.
 
 **Route 1 — two links** (`session-rsvp`, `verify_jwt = false`). "I'm in" and
 "Can't make it", each `?token=…&answer=…`. GET renders a confirmation form and
-only POST records, for the reason `waitlist-unsubscribe` spells out: mail
-gateways prefetch every URL in a message, and unlike an unsubscribe a spurious
-answer is *wrong* half the time — a phantom "I'm in" is how a DM books an
-evening nobody attends.
+only POST records, because corporate mail gateways and link scanners prefetch
+every URL in a message, and unlike an unsubscribe a spurious answer is *wrong*
+half the time — a phantom "I'm in" is how a DM books an evening nobody
+attends.
 
 **Route 2 — the invitation** (`session-rsvp-inbound`, `verify_jwt = false`).
 The message also carries a `METHOD:REQUEST` iCalendar part built by

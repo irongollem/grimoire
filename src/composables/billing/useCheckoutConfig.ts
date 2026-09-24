@@ -3,9 +3,6 @@ import { supabase } from "@/lib/supabase";
 
 export interface CheckoutConfig {
   promo_codes_enabled: boolean;
-  /** When false, the marketing site swaps its Pro CTAs for the waitlist form.
-   *  Flipping it fires the marketing deploy hook (DB trigger) → site rebuilds. */
-  pro_signup_open: boolean;
 }
 
 export function useCheckoutConfig() {
@@ -16,7 +13,7 @@ export function useCheckoutConfig() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("checkout_config")
-        .select("promo_codes_enabled,pro_signup_open")
+        .select("promo_codes_enabled")
         .single();
       if (error) throw error;
       return data as CheckoutConfig;
