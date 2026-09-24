@@ -47,6 +47,12 @@ Open with one paragraph:
 - Describe the production and the recording — it decides whether the track sounds performed or programmed. For orchestral, folk and other acoustic styles, ask for a live recording: players in a real room (a scoring stage, a stone hall, a crowded tavern), natural reverb, expressive human timing and dynamics, bow noise and breath audible. Ask for synths, drum machines or quantised precision only when the style is electronic.
 - Never name a real artist, band, composer, song, film or game. Lyria blocks prompts that ask for a specific artist's voice or for copyrighted material. Translate any such reference into the instruments, era and mood it stands for.
 
+## Foreground or underscore
+Most soundboard music plays under a table of people talking. Read the description and choose one shape:
+- Foreground — battles, chases, reveals, finales, anything the DM wants to be the moment. Build and release, drops and climaxes are welcome.
+- Underscore — conversation, towns, travel, exploration, rest, laments, and anything described as background or scene-setting. Keep the dynamics level from start to finish: no section more than a step louder than the others, no climax, no sudden swells. Keep the melody soft and in the low and middle registers, and avoid piercing highs — high sopranos, piccolo, violins played loud up high. Say "soft, restrained background underscore with even dynamics" in the direction, and use only Intro, Verse, Interlude and Outro in the timeline.
+When the description does not say, choose underscore.
+
 ## Timeline
 Then lay the track out as timestamped sections, one per line:
 [m:ss - m:ss] Section: what happens
