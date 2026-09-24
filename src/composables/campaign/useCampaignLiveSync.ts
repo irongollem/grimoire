@@ -118,11 +118,17 @@ function sortPartyInventory(items: PartyInventoryItem[]): PartyInventoryItem[] {
 function upsertPartyInventoryItem(
   items: PartyInventoryItem[] | undefined,
   item: PartyInventoryItem,
+  isUpdate: boolean,
 ): PartyInventoryItem[] | undefined {
   // Do not create a partial cache before its initial query has loaded.
   if (!items) return items;
+  const cached = items.find((existing) => existing.id === item.id);
+  // An UPDATE payload omits any column Postgres left unchanged and stored
+  // out-of-line (TOAST) — `notes` is free text and can exceed that threshold.
+  // Merge over the cached item rather than trusting the payload as complete.
+  const merged = isUpdate && cached ? { ...cached, ...item } : item;
   const withoutItem = items.filter((existing) => existing.id !== item.id);
-  return sortPartyInventory([...withoutItem, item]);
+  return sortPartyInventory([...withoutItem, merged]);
 }
 
 export function useCampaignLiveSync() {
@@ -225,14 +231,14 @@ export function useCampaignLiveSync() {
                 if (campaign.activeCampaignId !== campaignId) return;
                 const inserted = payload.new as PartyInventoryItem;
                 qc.setQueryData<PartyInventoryItem[]>(["party-inventory", campaignId], (old) =>
-                  upsertPartyInventoryItem(old, inserted),
+                  upsertPartyInventoryItem(old, inserted, false),
                 );
               })
               .on("postgres_changes", { event: "UPDATE", schema: "public", table: "party_inventory", filter: f }, (payload) => {
                 if (campaign.activeCampaignId !== campaignId) return;
                 const updated = payload.new as PartyInventoryItem;
                 qc.setQueryData<PartyInventoryItem[]>(["party-inventory", campaignId], (old) => {
-                  return upsertPartyInventoryItem(old, updated);
+                  return upsertPartyInventoryItem(old, updated, true);
                 });
               })
               // No DELETE handler here on purpose. A filtered delete never

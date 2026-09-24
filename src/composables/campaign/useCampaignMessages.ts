@@ -176,7 +176,13 @@ function subscribe(campaignId: string, clearMessages = false) {
         const updated = payload.new as CampaignMessage;
         const idx = messages.value.findIndex(m => m.id === updated.id);
         if (idx >= 0) {
-          messages.value[idx] = updated;
+          // An UPDATE payload omits any column Postgres left unchanged and
+          // stored out-of-line (TOAST) — `message` is free text and
+          // `metadata` is jsonb, so either can qualify (e.g. a claim-state
+          // edit to `metadata` that leaves a long `message` untouched). Merge
+          // over the cached message rather than trusting the payload as
+          // complete.
+          messages.value[idx] = { ...messages.value[idx], ...updated };
           deletedMessageIds.delete(updated.id);
         }
       },

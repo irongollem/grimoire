@@ -69,10 +69,20 @@ function applyCampaignRule(
     if (!isKey(query.queryKey, "campaign_rules", 2) || query.queryKey[1] !== campaignId) continue;
     const current = query.state.data;
     if (!Array.isArray(current)) continue;
-    const withoutRule = (current as RuleRow[]).filter((entry) => keyOf(entry) !== keyOf(row));
-    queryClient.setQueryData(query.queryKey, change.eventType === "DELETE"
-      ? withoutRule
-      : [...withoutRule, change.new as RuleRow]);
+    const rules = current as RuleRow[];
+    if (change.eventType === "DELETE") {
+      queryClient.setQueryData(query.queryKey, rules.filter((entry) => keyOf(entry) !== keyOf(row)));
+      continue;
+    }
+    const cached = rules.find((entry) => keyOf(entry) === keyOf(row));
+    // An UPDATE payload omits any column Postgres left unchanged and stored
+    // out-of-line (TOAST) — `config` is jsonb, so it can be large enough to
+    // qualify. Merge over the cached rule rather than trusting the payload.
+    const merged = change.eventType === "UPDATE" && cached
+      ? { ...cached, ...(change.new as RuleRow) }
+      : (change.new as RuleRow);
+    const withoutRule = rules.filter((entry) => keyOf(entry) !== keyOf(row));
+    queryClient.setQueryData(query.queryKey, [...withoutRule, merged]);
   }
 }
 

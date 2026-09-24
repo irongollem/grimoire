@@ -133,6 +133,21 @@ describe("dispatchCampaignRealtimeSystem", () => {
     expect(qc.getQueryState(["minis", "for", "party_members", "pm-1"])?.isInvalidated).toBe(true);
   });
 
+  it("merges a partial campaign_rules UPDATE onto the cached rule instead of dropping its config", () => {
+    const qc = new QueryClient();
+    const cached = { campaign_id: "campaign-a", rule_key: "turn_timer", enabled: true, config: { seconds: 90 } };
+    qc.setQueryData(["campaign_rules", "campaign-a"], [cached]);
+    // config omitted — Realtime's shape for an unchanged out-of-line jsonb
+    // column — only `enabled` actually changed in this event.
+    const partial = { campaign_id: "campaign-a", rule_key: "turn_timer", enabled: false };
+
+    expect(dispatchCampaignRealtimeSystem(qc, "campaign_rules", event(partial, "UPDATE"), context)).toBe(true);
+
+    expect(qc.getQueryData(["campaign_rules", "campaign-a"])).toEqual([
+      { campaign_id: "campaign-a", rule_key: "turn_timer", enabled: false, config: { seconds: 90 } },
+    ]);
+  });
+
   it("invalidates only the affected mini projection on insert", () => {
     const qc = new QueryClient();
     qc.setQueryData(["minis", "for", "npcs", "npc-1"], null);

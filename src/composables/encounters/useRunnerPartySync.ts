@@ -94,7 +94,13 @@ export function useRunnerPartySync(isLive: Ref<boolean>) {
       store.ingestTempHp(combatant.instance_id, row.temp_hp ?? 0);
     }
 
-    if (combatant && !sameConditions(combatant.conditions, row.conditions ?? [])) {
+    // An UPDATE payload omits any column Postgres left unchanged and stored
+    // out-of-line (TOAST) — `conditions` is a text[] and can qualify with
+    // enough/long enough condition names. `"conditions" in row` distinguishes
+    // that omission from a genuine empty array, which `?? []` cannot: without
+    // it, an unrelated party_members edit (e.g. backstory) could read as
+    // "conditions cleared" and wipe them from the runner.
+    if (combatant && "conditions" in row && !sameConditions(combatant.conditions, row.conditions ?? [])) {
       store.ingestConditions(combatant.instance_id, row.conditions ?? []);
     }
 

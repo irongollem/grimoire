@@ -26,6 +26,9 @@ export function waitForRow<Row>(opts: {
     let pollHandle: ReturnType<typeof setInterval> | null = null;
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
     let realtime: RealtimeChannelHandle | null = null;
+    // The last row this waiter has seen, from either a real SELECT (poll) or
+    // a merged Realtime event — the merge baseline for the next UPDATE.
+    let lastRow: Row | null = null;
 
     const cleanup = () => {
       if (pollHandle) clearInterval(pollHandle);
@@ -34,15 +37,25 @@ export function waitForRow<Row>(opts: {
       realtime = null;
     };
 
-    const settle = (row: Row | null) => {
+    /**
+     * `complete` distinguishes a poll's SELECT * (always the whole row) from
+     * a Realtime UPDATE payload, which omits any column Postgres left
+     * unchanged and stored out-of-line (TOAST) — real risk here, since
+     * `select: "*"` callers (waitForSculpt) promise the caller a complete
+     * row back. An incomplete event is merged over the last known row rather
+     * than trusted directly.
+     */
+    const settle = (row: Row | null, complete: boolean) => {
       if (settled || !row) return;
-      if (resolveWhen(row)) {
+      const merged = complete || !lastRow ? row : { ...lastRow, ...row };
+      lastRow = merged;
+      if (resolveWhen(merged)) {
         settled = true;
         cleanup();
-        resolve(row);
+        resolve(merged);
         return;
       }
-      const failure = rejectWhen(row);
+      const failure = rejectWhen(merged);
       if (failure !== null) {
         settled = true;
         cleanup();
@@ -56,7 +69,7 @@ export function waitForRow<Row>(opts: {
         .select(select)
         .eq("id", id)
         .maybeSingle();
-      settle(data as Row | null);
+      settle(data as Row | null, true);
     };
 
     // This is deliberately a no-reconcile channel. The initial check and poll
@@ -67,7 +80,7 @@ export function waitForRow<Row>(opts: {
       bind: (channel) => channel.on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table, filter: `id=eq.${id}` },
-        (payload) => settle(payload.new as Row),
+        (payload) => settle(payload.new as Row, false),
       ),
     });
 

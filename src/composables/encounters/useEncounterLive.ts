@@ -49,8 +49,19 @@ export function useRunningEncounters() {
             const row = payload.new as EncounterState;
             const idx = runningStates.value.findIndex(s => s.encounter_id === row.encounter_id);
             if (row.is_running) {
-              if (idx >= 0) runningStates.value[idx] = row;
-              else runningStates.value.push(row);
+              if (idx >= 0) {
+                // An UPDATE payload omits any column Postgres left unchanged
+                // and stored out-of-line (TOAST) — `combatants_live`,
+                // `events_fired` and `fog_mask` are exactly that shape (e.g.
+                // pushState() only touches fog_mask when it actually
+                // changed). Merge over the cached row rather than trusting
+                // the payload as complete.
+                runningStates.value[idx] = payload.eventType === "UPDATE"
+                  ? { ...runningStates.value[idx], ...row }
+                  : row;
+              } else {
+                runningStates.value.push(row);
+              }
             } else {
               if (idx >= 0) runningStates.value.splice(idx, 1);
             }

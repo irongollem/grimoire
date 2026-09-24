@@ -239,22 +239,43 @@ export function usePartyLive() {
           (payload) => {
             if (campaign.activeCampaignId !== campaignId) return;
             const row = (payload.eventType === "DELETE" ? payload.old : payload.new) as PartyMember;
-            const patchList = (old: PartyMember[] | undefined, include: boolean) => {
+            const isUpdate = payload.eventType === "UPDATE";
+            const sortMembers = (list: PartyMember[]) =>
+              list.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+
+            // An UPDATE payload omits any column Postgres left unchanged and
+            // stored out-of-line (TOAST) — a party member's backstory,
+            // personality and description fields are exactly that shape.
+            // Merge over an already-cached copy of the row; when the row is
+            // new to a particular list (it only just started matching that
+            // list's filter), the payload cannot be trusted as complete, so
+            // that list is invalidated instead of getting a partial row.
+            const patchList = (queryKey: readonly unknown[], old: PartyMember[] | undefined, include: boolean) => {
               if (!old) return old;
-              const next = old.filter((member) => member.id !== row.id);
-              if (payload.eventType !== "DELETE" && include) next.push(payload.new as PartyMember);
-              return next.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+              const cached = old.find((member) => member.id === row.id);
+              const withoutRow = old.filter((member) => member.id !== row.id);
+              if (payload.eventType === "DELETE" || !include) return withoutRow;
+              if (isUpdate && !cached) {
+                void queryClient.invalidateQueries({ queryKey, exact: true });
+                return old;
+              }
+              const merged = isUpdate && cached
+                ? { ...cached, ...(payload.new as PartyMember) }
+                : (payload.new as PartyMember);
+              return sortMembers([...withoutRow, merged]);
             };
 
-            queryClient.setQueryData<PartyMember[]>([QUERY_KEY, campaignId], (old) => patchList(old, true));
-            queryClient.setQueriesData<PartyMember[]>(
-              { queryKey: [MY_CHARS_KEY, campaignId] },
-              (old) => patchList(old,
-                row.owner_user_id === auth.user?.id || row.id === auth.linkedPartyMemberId),
-            );
+            queryClient.setQueryData<PartyMember[]>([QUERY_KEY, campaignId], (old) =>
+              patchList([QUERY_KEY, campaignId], old, true));
+
+            const includeMine = row.owner_user_id === auth.user?.id || row.id === auth.linkedPartyMemberId;
+            for (const query of queryClient.getQueryCache().findAll({ queryKey: [MY_CHARS_KEY, campaignId] })) {
+              queryClient.setQueryData<PartyMember[]>(query.queryKey, (old) =>
+                patchList(query.queryKey, old, includeMine));
+            }
+
             queryClient.setQueryData<PartyMember[]>([OFFERED_KEY, campaignId], (old) =>
-              patchList(old, row.is_dm_managed && row.owner_user_id === null),
-            );
+              patchList([OFFERED_KEY, campaignId], old, row.is_dm_managed && row.owner_user_id === null));
           },
         ),
       });

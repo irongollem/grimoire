@@ -34,7 +34,7 @@ describe("dispatchCampaignRealtimePlayer", () => {
     expect(qc.getQueryCache().find({ queryKey: ["puzzle_rooms", "player", "campaign"], exact: true })?.state.isInvalidated).toBe(true);
   });
 
-  it("directly updates player calendar lists when visibility changes", () => {
+  it("invalidates rather than inserts when a calendar event newly becomes player-visible", () => {
     const qc = new QueryClient();
     const old = { id: "event", campaign_id: "campaign", harptos_year: 1492, harptos_month: 1, harptos_day: 2, player_visible: false, event_type: "campaign" };
     const visible = { ...old, player_visible: true };
@@ -42,7 +42,11 @@ describe("dispatchCampaignRealtimePlayer", () => {
 
     dispatchCampaignRealtimePlayer(qc, player, "calendar_events", { eventType: "UPDATE", old, new: visible });
 
-    expect(qc.getQueryData(["calendar-events", "player", "campaign", 1492])).toEqual([visible]);
+    // The player list held no prior copy of this event, so the UPDATE (which
+    // can omit an unchanged TOASTed column) invalidates instead of inserting
+    // the payload directly.
+    expect(qc.getQueryData(["calendar-events", "player", "campaign", 1492])).toEqual([]);
+    expect(qc.getQueryCache().find({ queryKey: ["calendar-events", "player", "campaign", 1492], exact: true })?.state.isInvalidated).toBe(true);
   });
 
   it("updates only journal lists whose filters the row satisfies", () => {

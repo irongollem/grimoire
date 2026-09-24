@@ -54,9 +54,14 @@ describe("applyCampaignRealtimeWorld", () => {
 
     expect(applyCampaignRealtimeWorld(qc, "quests", { eventType: "UPDATE", old: previous, new: next }, dm)).toBe(true);
     expect(qc.getQueryData(["quests", "campaign-1", "undiscovered"])).toEqual([]);
-    expect(qc.getQueryData(["quests", "campaign-1", "active"])).toEqual([next]);
+    // Neither destination list held a prior copy of this quest, so an UPDATE
+    // (which can omit an unchanged TOASTed column, e.g. `notes`) invalidates
+    // rather than splicing the payload straight in.
+    expect(qc.getQueryData(["quests", "campaign-1", "active"])).toEqual([]);
+    expect(invalidated(qc, ["quests", "campaign-1", "active"])).toBe(true);
     expect(qc.getQueryData(["quests", "sub", "parent-a"])).toEqual([]);
-    expect(qc.getQueryData(["quests", "sub", "parent-b"])).toEqual([next]);
+    expect(qc.getQueryData(["quests", "sub", "parent-b"])).toEqual([]);
+    expect(invalidated(qc, ["quests", "sub", "parent-b"])).toBe(true);
     expect(qc.getQueryData(["quests", "campaign-1", "player-visible"])).toBe(playerProjection);
     expect(qc.getQueryData(["quests", "player-one", "quest-1"])).toBe(playerProjection[0]);
     expect(invalidated(qc, ["quests", "campaign-1", "player-visible"])).toBe(true);
@@ -78,7 +83,11 @@ describe("applyCampaignRealtimeWorld", () => {
 
     applyCampaignRealtimeWorld(qc, "locations", { eventType: "UPDATE", old: previous, new: next }, dm);
     expect(qc.getQueryData(["locations", "campaign-1", null])).toEqual([]);
-    expect(qc.getQueryData(["locations", "campaign-1", "continent-1"])).toEqual([next]);
+    // "continent-1" held no prior copy of this location, so the UPDATE
+    // invalidates it instead of inserting a payload that may have omitted an
+    // unchanged TOASTed column (e.g. `notes`).
+    expect(qc.getQueryData(["locations", "campaign-1", "continent-1"])).toEqual([]);
+    expect(invalidated(qc, ["locations", "campaign-1", "continent-1"])).toBe(true);
     expect(qc.getQueryData(["locations", "location-1"])).toEqual(next);
     expect(qc.getQueryData(["locations", "campaign-1", "shared", false])).toBe(shared);
     expect(invalidated(qc, ["locations", "campaign-1", "shared", false])).toBe(true);
