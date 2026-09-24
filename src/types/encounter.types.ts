@@ -2,14 +2,6 @@ import type { RewardCurrencyPool } from "@/types/quest.types";
 import type { AiProvenance } from "@/ai/provenance";
 export type { RewardCurrencyPool };
 
-export interface ArtObject {
-  id: string;
-  name: string;
-  value_gp: number;
-  image_url: string | null;
-  description: string | null;
-}
-
 // Faction definition — who fights whom
 export interface FactionDef {
   id: string;       // "players" | "enemy" | "ally" | "neutral" | custom UUID
@@ -57,7 +49,6 @@ export interface Encounter {
   item_ids: string[];
   trap_ids: string[];
   reward_currency_pools: RewardCurrencyPool[];
-  art_objects: ArtObject[];
   location_id: string | null;
   is_finished: boolean;
   events?: EncounterEvent[];

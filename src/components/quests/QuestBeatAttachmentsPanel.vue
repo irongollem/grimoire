@@ -258,7 +258,7 @@ async function quickCreateEncounter() {
     const encounter = await createEncounter.mutateAsync({
       name: quickEncounterName.value.trim(), description: null, party_member_ids: [], companion_ids: [],
       party_member_factions: {}, combatants: [], factions: DEFAULT_FACTIONS, item_ids: [], trap_ids: [],
-      reward_currency_pools: [], art_objects: [], location_id: null, is_finished: false, events: [],
+      reward_currency_pools: [], location_id: null, is_finished: false, events: [],
       lair_enabled: false, lair_owner_def_id: null, audio_theme: null,
     });
     await createAttachment.mutateAsync({

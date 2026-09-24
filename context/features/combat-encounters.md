@@ -213,7 +213,7 @@ Pre-planned loot attached to the encounter:
 - Linked vault items (with quantity controls, drop-to-chat button)
 - Currency pools (gold/silver/copper amounts)
 
-There is no art-object control here. `art_objects` became a real vault item type (commit `183ec567`) rather than an inline name/GP-value/image editor; `EncounterLoot.vue` — like `EncounterDetail.vue` and `QuestEditor.vue` — had its inline art-object editor removed in that change and now binds only linked items and currency pools. The `encounters.art_objects` column still exists but nothing writes to it any more.
+There is no art-object control here. Art objects are vault items (`item_type = 'art_object'`, commit `183ec567`) placed through the encounter's `item_ids` like any other loot; the encounter-level `art_objects` column that the old inline editor wrote was dropped in `20260924210351` (#909).
 
 ### Traps (`EncounterTraps.vue`)
 
@@ -575,7 +575,6 @@ At the end of combat, `markRoomsExploredFromFogMask()` asks **once** — "Mark N
 | `item_ids`              | uuid[]                     | Loot items                       |
 | `trap_ids`              | uuid[]                     | Associated traps                 |
 | `reward_currency_pools` | RewardCurrencyPool[] JSONB |                                  |
-| `art_objects`           | ArtObject[] JSONB          |                                  |
 | `location_id`           | uuid                       | Optional location link           |
 | `is_finished`           | boolean                    |                                  |
 | `events`                | EncounterEvent[] JSONB     | Pre-scripted events              |

@@ -158,7 +158,6 @@ function encounter(over: Partial<Encounter> = {}): Encounter {
     item_ids: [],
     trap_ids: [],
     reward_currency_pools: [],
-    art_objects: [],
     location_id: "room-1",
     is_finished: false,
     lair_enabled: false,

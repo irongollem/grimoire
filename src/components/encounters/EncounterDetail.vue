@@ -421,9 +421,6 @@ const form = reactive({
   reward_currency_pools: [
     ...(props.encounter?.reward_currency_pools ?? []),
   ] as import("@/types/quest.types").RewardCurrencyPool[],
-  art_objects: [
-    ...(props.encounter?.art_objects ?? []),
-  ] as import("@/types/encounter.types").ArtObject[],
   events: [...(props.encounter?.events ?? [])] as EncounterEvent[],
   lair_enabled: props.encounter?.lair_enabled ?? false,
   lair_owner_def_id: props.encounter?.lair_owner_def_id ?? (null as string | null),
@@ -486,7 +483,6 @@ watch(
     form.item_ids = [...(enc.item_ids ?? [])];
     form.trap_ids = [...(enc.trap_ids ?? [])];
     form.reward_currency_pools = [...(enc.reward_currency_pools ?? [])];
-    form.art_objects = [...(enc.art_objects ?? [])];
     form.location_id = enc.location_id ?? null;
     form.events = [...(enc.events ?? [])];
     form.ai_provenance = enc.ai_provenance ?? null;
@@ -544,7 +540,6 @@ async function buildPayload() {
     item_ids: form.item_ids,
     trap_ids: form.trap_ids,
     reward_currency_pools: form.reward_currency_pools,
-    art_objects: form.art_objects,
     is_finished: props.encounter?.is_finished ?? false,
     events: form.events,
     lair_enabled: form.lair_enabled,

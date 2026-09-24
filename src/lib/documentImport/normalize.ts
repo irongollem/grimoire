@@ -736,7 +736,6 @@ export function mapExtractedEncounter(
     item_ids: [], // not extracted — #840 deliberately doesn't wire loot or traps
     trap_ids: [], // not extracted — see file header
     reward_currency_pools: [], // schema default '{}'; not extracted
-    art_objects: [], // schema default '{}'; not extracted
     location_id: null, // resolved from links.encounter_location_name in a second pass, see file header
     is_finished: false, // schema default
     events: [], // schema default '[]'; not extracted

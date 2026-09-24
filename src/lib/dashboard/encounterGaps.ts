@@ -7,26 +7,19 @@ import type { Encounter } from "@/types/encounter.types";
  * Three gaps, each chosen because a DM can directly fill it in from the
  * encounter editor and its absence changes what happens at the table:
  *
- * - **`combatants`** — `combatants` (src/types/encounter.types.ts:55) is
+ * - **`combatants`** — `combatants` (src/types/encounter.types.ts:47) is
  *   empty. Nothing to roll initiative for; this is the strongest gap, since
  *   every other piece of the encounter (difficulty, factions, events) exists
  *   to describe a fight that in this state does not exist.
- * - **`location`** — `location_id` (encounter.types.ts:61) is null. The
+ * - **`location`** — `location_id` (encounter.types.ts:52) is null. The
  *   runner's VTT battle map and the atlas link both need a place; without one
  *   the encounter can still theoretically run in theatre of mind, so this
  *   ranks below missing combatants but still blocks the map-driven parts of
  *   the runner.
  * - **`reward`** — neither `item_ids` nor `reward_currency_pools`
- *   (encounter.types.ts:57,59) has anything in it. Ranked last, matching
+ *   (encounter.types.ts:49,51) has anything in it. Ranked last, matching
  *   PrepGapsWidget's ordering rationale one file over: a reward only
  *   disappoints the party after the fight, it never blocks running it.
- *
- * `art_objects` (encounter.types.ts:60) is deliberately NOT part of the
- * reward check even though it lives on the same type: no editor anywhere in
- * the app writes to it (EncounterLoot.vue only binds `item-ids` and
- * `currency-pools`; EncounterGeneratorPanel.vue always creates it as `[]`).
- * Flagging an empty array a DM has no UI to fill in would be inventing a
- * gap, which is exactly what this widget must not do.
  *
  * The reward check is also skipped whenever `combatants` is already empty.
  * `Encounter` has no separate "kind" field to tell a genuine social/

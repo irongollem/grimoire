@@ -30,7 +30,6 @@ function baseEncounter(overrides: Partial<Encounter> = {}): Encounter {
     item_ids: ["item-1"],
     trap_ids: [],
     reward_currency_pools: [],
-    art_objects: [],
     location_id: "location-1",
     is_finished: false,
     lair_enabled: false,

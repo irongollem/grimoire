@@ -755,7 +755,6 @@ describe("mapExtractedEncounter", () => {
     expect(row.item_ids).toEqual([]);
     expect(row.trap_ids).toEqual([]);
     expect(row.reward_currency_pools).toEqual([]);
-    expect(row.art_objects).toEqual([]);
     expect(row.location_id).toBeNull();
     expect(row.is_finished).toBe(false);
     expect(row.lair_enabled).toBe(false);

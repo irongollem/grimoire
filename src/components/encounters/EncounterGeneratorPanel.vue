@@ -443,7 +443,6 @@ async function createEncounterFromResult() {
       item_ids: [],
       trap_ids: [],
       reward_currency_pools: [],
-      art_objects: [],
       events: [],
       location_id: null,
       is_finished: false,
