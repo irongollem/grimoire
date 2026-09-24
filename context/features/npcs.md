@@ -160,7 +160,7 @@ All fields are nullable; empty fields are hidden in view mode.
 
 #### Relations Tab (view mode only)
 
-Surfaces `NpcRelationsSection` in read-only mode so DMs can review — and manage — relationships without entering edit mode. See the Web section for the graph alternative.
+`NpcRelationsTab.vue`, rendered by both hosts — the desktop sheet's Relations tab and the mobile sheet's Relations accordion — so the two cannot drift (the phone had, down to NPC connections alone). Four sections, each owning its own CRUD so nothing needs the edit form: **NPC connections** (`NpcRelationsSection`), **Factions** (`NpcFactionsSection` — faction name links to the faction, role editable in place, non-Active status badged), **Party connections** (`NpcPcNotesSection`) and **Favours owed** (`NpcFavorsSection`). Factions live here rather than under the portrait: a membership is a relation with a role and a status, not a tag. See the Web section for the graph alternative.
 
 #### Combat Tab
 
@@ -241,9 +241,9 @@ When an NPC is shared with at least one player, a panel appears at the top of th
 
 The read-only sheet uses a two-column layout (portrait column fixed 208 px, content column scrolls).
 
-Left column: portrait (portrait format), status + relationship badges, tags, faction links (clickable), and an alter-ego line stating which face is showing. The toggle itself is not repeated here — it is the "SEEN AS" section of the reveal control in `NpcDetailModal`'s own header, which saves immediately and fires the chat event while a session is running.
+Left column: portrait (portrait format), status + relationship badges, tags, and an alter-ego line stating which face is showing. The toggle itself is not repeated here — it is the "SEEN AS" section of the reveal control in `NpcDetailModal`'s own header, which saves immediately and fires the chat event while a session is running.
 
-Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / Inventory / Relations / Combat / Voice tabs. The Relations tab embeds both `NpcRelationsSection` (NPC↔NPC) and `NpcPcNotesSection` (NPC↔party-member connections) so both are visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
+Right column: `NpcTabContent` with identity line (species · occupation · alignment · age), then Lore / Inventory / Relations / Combat / Voice tabs. The Relations tab is `NpcRelationsTab` (see above): NPC connections, factions, party connections and favours, all visible — and editable, since the sections own their CRUD — from view mode without flipping into the edit form (#168/#169).
 
 ### Alter Ego / Disguise System
 

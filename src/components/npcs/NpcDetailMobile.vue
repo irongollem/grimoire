@@ -193,7 +193,7 @@
       </NpcAccordionSection>
 
       <NpcAccordionSection v-model:open="openSections.relations" title="Relations">
-        <NpcRelationsSection :npc-id="npc.id" />
+        <NpcRelationsTab :npc-id="npc.id" />
       </NpcAccordionSection>
 
       <NpcAccordionSection v-model:open="openSections.combat" title="Combat">
@@ -303,7 +303,7 @@ import MobileSheet from "@/components/common/MobileSheet.vue";
 import AppButton from "@/components/common/AppButton.vue";
 import { ICON_TOUCH_TARGET } from "@/components/common/appButtonVariants";
 import NpcInventorySection from "@/components/npcs/NpcInventorySection.vue";
-import NpcRelationsSection from "@/components/npcs/NpcRelationsSection.vue";
+import NpcRelationsTab from "@/components/npcs/NpcRelationsTab.vue";
 import NpcQuickFact from "@/components/npcs/NpcQuickFact.vue";
 import NpcAccordionSection from "@/components/npcs/NpcAccordionSection.vue";
 import NpcRevealControl from "@/components/npcs/NpcRevealControl.vue";
