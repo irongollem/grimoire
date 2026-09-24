@@ -12,13 +12,15 @@ export function useStripe() {
   async function createCheckoutSession(
     interval: "month" | "year" = "month",
     withdrawalConsent = false,
+    /** Where Stripe sends the buyer back to; Billing when omitted. */
+    returnPath?: string,
   ) {
     loading.value = true;
     error.value = null;
     try {
       const { data, error: fnError } = await supabase.functions.invoke(
         "stripe-create-checkout",
-        { body: { interval, withdrawalConsent } },
+        { body: { interval, withdrawalConsent, returnPath } },
       );
       if (fnError) throw new Error(await edgeErrorMessage(fnError));
       if (data?.url) window.location.href = data.url;

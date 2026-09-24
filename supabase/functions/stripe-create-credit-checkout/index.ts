@@ -5,6 +5,7 @@ import { withCors } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 import { reportEdgeError } from "../_shared/observability/report.ts";
+import { checkoutReturnUrls, termsAcceptanceMessage } from "../_shared/checkoutUrls.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
   apiVersion: "2026-07-29.dahlia",
@@ -64,10 +65,12 @@ serve(withCors(async (req: Request) => {
 
   let packId: string;
   let withdrawalConsent = false;
+  let returnPath: unknown = null;
   try {
     const body = await req.json();
     packId = body.packId;
     withdrawalConsent = body.withdrawalConsent === true;
+    returnPath = body.returnPath;
     if (!packId) throw new Error("missing packId");
   } catch {
     return new Response("Invalid JSON body — need { packId }", { status: 400 });
@@ -101,6 +104,7 @@ serve(withCors(async (req: Request) => {
   // header trustworthy, and reflecting it here created an open post-checkout
   // redirect/phishing surface for authenticated callers.
   const appUrl = Deno.env.get("APP_URL") ?? "https://app.dungeongrimoire.com";
+  const marketingUrl = Deno.env.get("MARKETING_URL") ?? "https://dungeongrimoire.com";
 
   // Collapse accidental double-submits (double-click, impatient re-click, client
   // retry) onto one Checkout Session: same key within a 30s bucket returns the
@@ -130,7 +134,7 @@ serve(withCors(async (req: Request) => {
       consent_collection: { terms_of_service: "required" },
       custom_text: {
         terms_of_service_acceptance: {
-          message: `I agree to the [Terms of Service](${appUrl}/terms) and [Refund Policy](${appUrl}/refunds).`,
+          message: termsAcceptanceMessage(marketingUrl),
         },
       },
       line_items: [{ price: pack.stripe_price_id, quantity: 1 }],
@@ -139,8 +143,7 @@ serve(withCors(async (req: Request) => {
         credits: String(pack.credits),
         pack_id: packId,
       },
-      success_url: `${appUrl}/billing?credit_purchase=success`,
-      cancel_url: `${appUrl}/billing`,
+      ...checkoutReturnUrls(appUrl, returnPath, { key: "credit_purchase", value: "success" }),
     }, { idempotencyKey });
 
     // R3: record the withdrawal consent (server timestamp = authoritative).

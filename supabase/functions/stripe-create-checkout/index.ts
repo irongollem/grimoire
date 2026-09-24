@@ -5,6 +5,7 @@ import { withCors } from "../_shared/cors.ts";
 import { getOrCreateStripeCustomer } from "../_shared/stripeCustomer.ts";
 import { WITHDRAWAL_CONSENT_VERSION } from "../_shared/consent.ts";
 import { reportEdgeError } from "../_shared/observability/report.ts";
+import { checkoutReturnUrls, termsAcceptanceMessage } from "../_shared/checkoutUrls.ts";
 import { hasLiveStripeSubscription } from "../_shared/subscriptionGuard.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
@@ -103,6 +104,7 @@ serve(withCors(async (req: Request) => {
     const { promo_codes_enabled: promoCodesEnabled } = await getCheckoutConfig();
 
     const appUrl = Deno.env.get("APP_URL") ?? "https://app.dungeongrimoire.com";
+    const marketingUrl = Deno.env.get("MARKETING_URL") ?? "https://dungeongrimoire.com";
 
     // Collapse accidental double-submits (double-click, client retry) onto one
     // Checkout Session: same key within a 30s bucket returns the same session
@@ -133,11 +135,12 @@ serve(withCors(async (req: Request) => {
       consent_collection: { terms_of_service: "required" },
       custom_text: {
         terms_of_service_acceptance: {
-          message: `I agree to the [Terms of Service](${appUrl}/terms) and [Refund Policy](${appUrl}/refunds).`,
+          message: termsAcceptanceMessage(marketingUrl),
         },
       },
-      success_url: `${appUrl}/dashboard?checkout=success`,
-      cancel_url: `${appUrl}/pricing`,
+      // Without a return path this lands on Billing — `/pricing`, the old
+      // cancel URL, is not a route in the app.
+      ...checkoutReturnUrls(appUrl, body.returnPath, { key: "checkout", value: "success" }),
     }, { idempotencyKey });
 
     // R3: record the withdrawal consent (server timestamp = authoritative).
