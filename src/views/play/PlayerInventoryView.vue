@@ -134,6 +134,8 @@ import { usePlayerVisibleItems } from "@/composables/items/useItems";
 import { useCampaignMessages } from "@/composables/campaign/useCampaignMessages";
 import { useInventorySlots } from "@/composables/items/useInventorySlots";
 import { useInventoryMutations } from "@/composables/items/useInventoryMutations";
+import { inventoryItemRef } from "@/lib/itemRef";
+import { inventoryItemWeight, inventoryItemWeightPerUnit } from "@/rules/inventoryWeight";
 import type { PartyInventoryItem } from "@/types/inventory.types";
 import type { Item } from "@/types/item.types";
 import type { PartyMember } from "@/types/party.types";
@@ -242,13 +244,11 @@ const itemWeightMap = computed((): Map<string, number> => {
 });
 
 function invWeight(inv: PartyInventoryItem): number {
-  if (!inv.item_id) return 0;
-  return (itemWeightMap.value.get(inv.item_id) ?? 0) * inv.quantity;
+  return inventoryItemWeight(inv, itemWeightMap.value);
 }
 
 function invWeightPerUnit(inv: PartyInventoryItem): number {
-  if (!inv.item_id) return 0;
-  return itemWeightMap.value.get(inv.item_id) ?? 0;
+  return inventoryItemWeightPerUnit(inv, itemWeightMap.value);
 }
 
 function sumWeight(items: PartyInventoryItem[]): number {
@@ -262,7 +262,8 @@ const backpackWeight = computed(() => sumWeight(backpackItems.value));
 const containerWeightMap = computed((): Map<string, number> => {
   const m = new Map<string, number>();
   for (const c of customContainers.value) {
-    const vaultItem = allItems.value?.find((it) => it.id === c.item_id);
+    const ref = inventoryItemRef(c);
+    const vaultItem = ref ? allItems.value?.find((it) => it.id === ref) : null;
     const isExtradimensional =
       vaultItem?.tags.includes("extradimensional") ?? false;
     m.set(c.id, isExtradimensional ? 0 : sumWeight(itemsInContainer(c.id)));
@@ -460,10 +461,9 @@ const selectedInv = ref<PartyInventoryItem | null>(null);
 const detailPanel = ref<InstanceType<typeof ItemDetailPanel> | null>(null);
 
 const selectedVaultItem = computed<Item | null>(() => {
-  if (!selectedInv.value?.item_id) return null;
-  return (
-    allItems.value?.find((it) => it.id === selectedInv.value!.item_id) ?? null
-  );
+  const ref = selectedInv.value ? inventoryItemRef(selectedInv.value) : null;
+  if (!ref) return null;
+  return allItems.value?.find((it) => it.id === ref) ?? null;
 });
 
 function openDetail(inv: PartyInventoryItem) {

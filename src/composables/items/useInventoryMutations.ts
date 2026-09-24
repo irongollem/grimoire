@@ -296,7 +296,11 @@ export function useInventoryMutations({
     if (!inv || !member.value) return;
     await sendPlayerOffer(
       inv.name,
-      inv.item_id,
+      // Resolved reference, not the raw `item_id` column — a library-sourced
+      // row keeps its reference in `library_item_id`, and passing the column
+      // directly silently dropped the link for shared-content offers (same
+      // miss as `dropItemToChat` above).
+      inventoryItemRef(inv),
       inv.id,
       inv.quantity,
       member.value.id,

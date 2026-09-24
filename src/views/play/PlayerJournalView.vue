@@ -252,6 +252,7 @@ import { useSharedNpcs } from "@/composables/npcs/useNpcs";
 import { useSharedLocations } from "@/composables/locations/useLocations";
 import { usePartyInventory } from "@/composables/items/usePartyInventory";
 import { usePlayerVisibleItems } from "@/composables/items/useItems";
+import { inventoryItemRef } from "@/lib/itemRef";
 import { usePlayerVisibleMonsters } from "@/composables/monsters/useMonsters";
 import { usePlayerDiscoveries } from "@/composables/encounters/useDiscoveredMonsters";
 import { useNotes } from "@/composables/notes/useNotes";
@@ -373,7 +374,7 @@ const VALID_TABS: TabId[] = ["mine", "party", "quest-log", "puzzles", "dm-notes"
 const tomeTabs = computed(() => {
   const carriedItemIds = new Set(
     (inventory.value ?? [])
-      .map((inv) => inv.item_id)
+      .map((inv) => inventoryItemRef(inv))
       .filter((id): id is string => id !== null),
   );
   return (allVisibleItems.value ?? [])
