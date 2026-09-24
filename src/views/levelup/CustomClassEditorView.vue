@@ -38,6 +38,16 @@
       <section class="rounded-lg border border-border bg-card p-4 space-y-4">
         <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Identity</h2>
 
+        <div>
+          <label class="block text-eyebrow text-muted-foreground mb-1.5">CLASS NAME</label>
+          <AppInput
+            v-model="form.class_name"
+            tone="card"
+            size="body"
+            placeholder="e.g. Witch Hunter"
+          />
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-eyebrow text-muted-foreground mb-1.5">HIT DIE</label>

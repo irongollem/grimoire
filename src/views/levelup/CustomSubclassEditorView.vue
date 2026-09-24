@@ -39,6 +39,16 @@
         <h2 class="font-cinzel text-xs tracking-widest uppercase text-muted-foreground">Identity</h2>
 
         <div>
+          <label class="block text-eyebrow text-muted-foreground mb-1.5">ARCHETYPE NAME</label>
+          <AppInput
+            v-model="form.subclass_name"
+            tone="card"
+            size="body"
+            placeholder="e.g. Circle of Ash"
+          />
+        </div>
+
+        <div>
           <label class="block text-eyebrow text-muted-foreground mb-1.5">DESCRIPTION</label>
           <RichTextEditor
             v-model="form.description"
@@ -103,6 +113,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useCampaignStore } from "@/stores/campaign";
 import PageHeader from "@/components/common/PageHeader.vue";
 import AppButton from "@/components/common/AppButton.vue";
+import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
 import { IconDelete, IconSave } from '@/lib/icons';
 import { useCustomSubclass, useCreateCustomSubclass, useUpdateCustomSubclass, useDeleteCustomSubclass } from "@/composables/rules/useCustomSubclasses";
