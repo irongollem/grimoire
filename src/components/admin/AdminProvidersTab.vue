@@ -149,7 +149,8 @@
             </template>
           </ProviderCapabilityCell>
 
-          <!-- Audio generation -->
+          <!-- Audio generation. generate-music reads provider_config.audio_model
+               at generation time, so this field is where the music model is set. -->
           <ProviderCapabilityCell
             v-model:model="draftProviders[row.provider].audio_model"
             v-model:enabled="draftProviders[row.provider].audio_enabled"
@@ -158,8 +159,7 @@
             :provider="row.provider"
             capability="audio"
             :known-models="KNOWN_AUDIO_MODELS[row.provider] ?? []"
-            curated
-            placeholder="e.g. lyria-3-clip-preview"
+            placeholder="e.g. lyria-3.5"
           />
         </div>
 
@@ -418,9 +418,11 @@ const IMAGE_QUALITY_OPTIONS: Record<string, { value: string; label: string }[]> 
 };
 
 // ── Known audio models per provider ──────────────────────────────────────
+// No backend generates audio with OpenAI, so it is absent here -- listing a
+// model would imply a path that doesn't exist. Lyria 3.5 is one model, priced
+// flat per song regardless of length (see the Lyria 3.5 upgrade migration).
 const KNOWN_AUDIO_MODELS: Record<string, string[]> = {
-  gemini: ["lyria-3-clip-preview", "lyria-3-pro-preview"],
-  openai: ["tts-1", "tts-1-hd", "gpt-4o-audio-preview"],
+  gemini: ["lyria-3.5"],
 };
 
 // ── Known embedding models per provider (issue #595) ─────────────────────
@@ -492,13 +494,9 @@ watch(
       initModel(p.text_model);
       initModel(p.fast_text_model);
       initModel(p.image_model);
-      // For audio: initialize all known models for the provider, not just the DB-configured one.
-      const knownAudio = KNOWN_AUDIO_MODELS[p.provider];
-      if (knownAudio?.length && p.audio_model) {
-        knownAudio.forEach(initModel);
-      } else {
-        initModel(p.audio_model);
-      }
+      // Audio is free-text like text/image -- KNOWN_AUDIO_MODELS only feeds the
+      // datalist, so the pricing row tracks the model actually configured.
+      initModel(p.audio_model);
       // Same treatment for embedding: migration 20260803000001 seeds ai_model_pricing
       // rows for every known embedding model (including gemini's, which is recorded
       // but disabled) precisely so this panel can surface them for verification --
@@ -536,12 +534,9 @@ const modelsByProvider = computed(() => {
       items.push({ model: draft.fast_text_model, model_type: "text" });
     }
     if (draft.image_model) items.push({ model: draft.image_model, model_type: "image" });
-    const knownAudio = KNOWN_AUDIO_MODELS[provider];
-    if (knownAudio?.length && draft.audio_model) {
-      knownAudio.forEach((m) => items.push({ model: m, model_type: "audio" }));
-    } else if (draft.audio_model) {
-      items.push({ model: draft.audio_model, model_type: "audio" });
-    }
+    // Same reasoning as the initModel(p.audio_model) call above -- audio is
+    // free-text, so only the configured model gets a pricing row.
+    if (draft.audio_model) items.push({ model: draft.audio_model, model_type: "audio" });
     const knownEmbedding = KNOWN_EMBEDDING_MODELS[provider];
     if (knownEmbedding?.length && draft.embedding_model) {
       knownEmbedding.forEach((m) => items.push({ model: m, model_type: "embedding" }));

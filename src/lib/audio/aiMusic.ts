@@ -2,124 +2,212 @@ import { getTextProvider } from "@/ai/providers";
 import type { TextUsage } from "@/ai/providers/types";
 import { supabase } from "@/lib/supabase";
 
-export type LyriaModel = "lyria-3-clip-preview" | "lyria-3-pro-preview";
+/** Selectable target lengths for a generated track. Lyria 3.5 is one model —
+ * length is steered by the prompt (a target duration plus a timestamped
+ * timeline), not by picking a different model. */
+export const MUSIC_LENGTHS = [
+  { seconds: 60, label: "1 min" },
+  { seconds: 120, label: "2 min" },
+  { seconds: 180, label: "3 min" },
+] as const;
 
-export const LYRIA_MODELS: { id: LyriaModel; label: string; hint: string; generationType: string }[] = [
-  { id: "lyria-3-clip-preview", label: "Clip (30 s)",      hint: "loops well",       generationType: "music_clip" },
-  { id: "lyria-3-pro-preview",  label: "Full Song (~2 min)", hint: "verses + chorus", generationType: "music_full_song" },
-];
+export type MusicLengthSeconds = (typeof MUSIC_LENGTHS)[number]["seconds"];
+
+export type MusicVocals = "instrumental" | "vocals";
+
+/** The single credit-cost / pricing-category generation type for music, now
+ * that one model (Lyria 3.5) serves every length. */
+export const MUSIC_GENERATION_TYPE = "music_track";
 
 /** Maximum lyrics length in characters (keeps generated audio within ~3 min, ~400 words). */
 export const LYRICS_MAX_CHARS = 2200;
 
-const STRUCTURE_SYSTEM_FULL = `You are a music prompt engineer for Google Lyria, an AI music generation model. Convert the user's plain-language music description into a detailed structured Lyria prompt.
+/**
+ * Mirrors the `music_structure` row seeded by
+ * supabase/migrations/20260924201957_upgrade_music_generation_to_lyria_3_5.sql
+ * (the text between its `$prompt$` markers). Used only as a fallback when that
+ * row can't be read — keep the two identical.
+ */
+export const MUSIC_STRUCTURE_SYSTEM = `You are a music prompt writer for Google Lyria 3.5. A Dungeon Master is scoring a tabletop roleplaying session and has described a track for their soundboard. Turn the request into one complete Lyria prompt.
 
-## Hard constraints
-- Total duration MUST NOT exceed 3:00. Every segment's end time must be ≤ 3:00.
-- Intro and Outro each appear at most once. Verse, Chorus, Build, Bridge, Interlude may repeat — number them when they do (Verse 1, Verse 2, Chorus, etc.).
+You receive a description, a target length, whether the track is instrumental or has vocals, and sometimes lyrics.
 
-## Available segment types
-Intro · Build · Verse · Chorus · Bridge · Interlude · Outro
-Not every song needs all types. Choose a sequence that fits the mood and energy arc.
-ONLY use these labels — never invent custom names like "Birth Moment" or "Opening". Lyria only resets its arrangement at recognised structural labels; a custom name will be ignored and the previous section's texture will continue.
+## Musical direction
+Open with one paragraph:
+- Lead with the primary genre or style. Hybrids and eras are welcome ("Celtic folk over a dark orchestral drone").
+- Name the key instruments and how they sound together.
+- Give a tempo in BPM, a key and scale, and two or three mood words.
+- State the length in words, e.g. "A 2-minute track."
+- Instrumental: end the paragraph with "Instrumental only, no vocals."
+- Vocals: describe the singer — gender, range, timbre and delivery (e.g. "Male baritone, deep and weathered, a tavern storyteller's delivery").
+- Never name a real artist, band, composer, song, film or game. Lyria blocks prompts that ask for a specific artist's voice or for copyrighted material. Translate any such reference into the instruments, era and mood it stands for.
 
-## Instrumental breathing room (critical)
-Real songs breathe. Do NOT fill every second with singing. Always include at least one purely instrumental segment (no lyrics) — typically the Intro, an Interlude between sections, and/or the Outro. These give the mix space and make the vocal sections feel intentional.
+## Timeline
+Then lay the track out as timestamped sections, one per line:
+[m:ss - m:ss] Section: what happens
 
-## Time-budgeting lyrics
-When lyrics are provided, size the time window by line count:
-- Ornamental / folk / slow styles: ~10 s per sung line
-- Normal pacing: ~6–8 s per sung line
-- Fast / rap / chant: ~4–5 s per sung line
-Add 2–4 s of breathing space after each vocal line for natural phrasing. A verse of 4 lines at folk pace needs ~44–48 s minimum, not 20 s.
+- The last section ends exactly at the target length. Never exceed 3:00.
+- Use only these section names: Intro, Verse, Pre-Chorus, Chorus, Bridge, Build, Drop, Interlude, Breakdown, Outro. Number repeats (Verse 1, Verse 2). Lyria resets the arrangement only at section names it recognises; an invented name is ignored and the previous texture carries on.
+- Describe what changes in each section — instruments entering or dropping out, energy rising or falling, a sudden silence — rather than restating the whole mix.
+- A track with vocals still needs room to breathe: include at least one purely instrumental section, usually the Intro, an Interlude or the Outro.
 
-## Per-segment format
-[mm:ss – mm:ss] Segment name: Intensity: N/10. <description>
-
-- Instrumental segments: 2–3 sentences — anchor instruments, rhythm, melodic character, atmosphere.
-- Vocal segments with lyrics: 1 sentence of instrumentation/mood only (the lyrics carry the rest), then on the next line: "Lyrics:" followed by the lyric text.
-
-If the user provides lyrics with [Verse], [Chorus], [Build], [Bridge] markers, align segments to those sections exactly.
+## Lyrics
+Only for a track with vocals.
+- If lyrics were provided, reproduce them verbatim — do not rewrite, translate, trim or add a word. Put them after the timeline under a line reading "Lyrics:", tagged by section ([Verse 1], [Chorus], …) to match the timeline. Keep the DM's own tags when they gave them. Parentheses mark backing vocals or echoes, e.g. (rise again).
+- Size vocal sections to the lines they carry: about 10 s per sung line for slow or folk styles, 6–8 s at a normal pace, 4–5 s for fast or chanted styles, plus a breath between lines.
+- If no lyrics were provided, write none. Add one sentence to the direction saying what the song should be about instead, and Lyria writes them.
+- Lyria sings in the language of the prompt. When the lyrics are not in English, write the whole prompt in the lyrics' language.
 
 ## Cultural style vs. language
-If the user requests a cultural vocal style (e.g. Arabic, Persian, Indian classical), apply that tradition fully — tuning, ornamentation, vocal timbre, phrasing. But if lyrics are provided in another language (e.g. English), the singer must deliver those lyrics as written. Make this explicit in the global instruction: e.g. "Full Arabic vocal tradition and maqam tuning throughout. Singer performs in this style but sings the English lyrics as written — do not substitute Arabic phonemes or language."
+If the DM asks for a cultural vocal tradition (Arabic, Persian, Indian classical…), apply it fully — tuning, ornamentation, timbre, phrasing. If their lyrics are in another language, the singer must still sing those lyrics as written. Say so explicitly, e.g. "Full Arabic vocal tradition and maqam tuning throughout. The singer performs in this style but sings the English lyrics as written."
 
-Return ONLY the structured prompt — no preamble, no commentary.`;
+Return only the prompt — no preamble, no commentary, no markdown fences.`;
 
-const STRUCTURE_SYSTEM_CLIP = `You are a music prompt engineer for Google Lyria, an AI music generation model. Convert the user's plain-language music description into a rich 30-second looping clip prompt.
+export interface MusicRequest {
+  description: string;
+  lengthSeconds: MusicLengthSeconds;
+  vocals: MusicVocals;
+  lyrics?: string;
+}
 
-Include: primary genre, key instruments, rhythm feel, tempo range (e.g. "60 bpm"), melodic character, mood, and atmosphere. Be specific — use professional music production vocabulary. Keep it to 3-5 sentences.
+function formatLength(seconds: MusicLengthSeconds): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")} (${seconds} seconds)`;
+}
 
-Return ONLY the prompt text — no preamble, no commentary.`;
+/**
+ * The user message sent to the structuring model. Pure so it can be tested
+ * without a network call.
+ */
+export function buildStructureMessage(req: MusicRequest): string {
+  const lines = [
+    `Description: ${req.description}`,
+    `Target length: ${formatLength(req.lengthSeconds)}`,
+    `Vocals: ${req.vocals}`,
+  ];
+  const lyrics = req.lyrics?.trim();
+  if (lyrics && req.vocals === "vocals") {
+    lines.push("", "Lyrics:", lyrics);
+  }
+  return lines.join("\n");
+}
 
-async function fetchStructurePrompt(generatorType: string, fallback: string): Promise<string> {
+/**
+ * Built when structuring fails and there is no expanded prompt to fall back
+ * to. Pure so it can be tested without a network call.
+ */
+export function composeFallbackPrompt(req: MusicRequest): string {
+  let prompt = `${req.description}. A ${req.lengthSeconds / 60}-minute track.`;
+  if (req.vocals === "instrumental") prompt += " Instrumental only, no vocals.";
+  const lyrics = req.lyrics?.trim();
+  if (lyrics && req.vocals === "vocals") {
+    prompt += `\n\nLyrics:\n${lyrics}`;
+  }
+  return prompt;
+}
+
+async function fetchStructurePrompt(): Promise<string> {
   const { data } = await supabase
     .from("ai_system_prompts")
     .select("content")
-    .eq("generator_type", generatorType)
+    .eq("generator_type", "music_structure")
     .maybeSingle();
-  return data?.content ?? fallback;
+  return data?.content ?? MUSIC_STRUCTURE_SYSTEM;
 }
 
 export async function structureMusicPrompt(
-  description: string,
-  model: LyriaModel,
-  lyrics?: string,
+  req: MusicRequest,
 ): Promise<{ structured: string; textUsage: TextUsage }> {
-  const isFullSong = model === "lyria-3-pro-preview";
-  const system = await fetchStructurePrompt(
-    isFullSong ? "music_structure_full" : "music_structure_clip",
-    isFullSong ? STRUCTURE_SYSTEM_FULL : STRUCTURE_SYSTEM_CLIP,
-  );
-  const userMessage = lyrics?.trim()
-    ? `Description: ${description}\n\nLyrics:\n${lyrics.trim()}`
-    : description;
+  const system = await fetchStructurePrompt();
+  const userMessage = buildStructureMessage(req);
   const provider = getTextProvider();
   const { content, usage } = await provider.complete(system, userMessage);
   return { structured: content.trim(), textUsage: usage };
 }
 
-export async function generateMusicWithLyria(
-  style: string,
-  model: LyriaModel,
-  apiKey: string,
-  lyrics?: string,
-): Promise<File> {
-  const prompt = lyrics?.trim()
-    ? `${lyrics.trim()}\n\nMusical style: ${style}`
-    : style;
+/**
+ * Defensive parse of Google's Interactions API response. Audio lives in
+ * `steps[]` where `type === "model_output"`, in `content[]` blocks where
+ * `type === "audio"`, base64 in `data`. When more than one audio block is
+ * present (across steps or within one), the last one wins.
+ */
+export function extractInteractionAudio(json: unknown): { data: string; mimeType: string } | null {
+  if (typeof json !== "object" || json === null) return null;
+  const steps = (json as Record<string, unknown>).steps;
+  if (!Array.isArray(steps)) return null;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseModalities: ["AUDIO", "TEXT"] },
-      }),
+  let found: { data: string; mimeType: string } | null = null;
+  for (const step of steps) {
+    if (typeof step !== "object" || step === null) continue;
+    if ((step as Record<string, unknown>).type !== "model_output") continue;
+    const content = (step as Record<string, unknown>).content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content) {
+      if (typeof block !== "object" || block === null) continue;
+      const b = block as Record<string, unknown>;
+      if (b.type !== "audio") continue;
+      if (typeof b.data !== "string" || !b.data) continue;
+      const mimeType = typeof b.mime_type === "string" && b.mime_type ? b.mime_type : "audio/mpeg";
+      found = { data: b.data, mimeType };
+    }
+  }
+  return found;
+}
+
+const EXTENSION_BY_MIME: Record<string, string> = {
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/ogg": "ogg",
+  "audio/flac": "flac",
+};
+
+function extensionFor(mimeType: string): string {
+  return EXTENSION_BY_MIME[mimeType] ?? "mp3";
+}
+
+/**
+ * The local-BYOK path: reads the configured Lyria model from provider_config,
+ * calls Google's Interactions API directly from the browser, and returns the
+ * generated audio plus the model that produced it (needed by the caller to
+ * log usage, since the model is no longer chosen client-side).
+ */
+export async function generateMusicLocally(
+  prompt: string,
+  apiKey: string,
+): Promise<{ file: File; model: string }> {
+  const { data } = await supabase
+    .from("provider_config")
+    .select("audio_model")
+    .eq("provider", "gemini")
+    .maybeSingle();
+  const model = (data as { audio_model: string | null } | null)?.audio_model;
+  if (!model) throw new Error("No music model is configured.");
+
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
     },
-  );
+    body: JSON.stringify({ model, input: prompt, store: false }),
+  });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({})) as { error?: { message?: string } };
     throw new Error(body?.error?.message ?? `Lyria API error ${res.status}`);
   }
 
-  const json = await res.json() as {
-    candidates?: { content?: { parts?: { inlineData?: { mimeType?: string; data?: string } }[] } }[]
-  };
+  const json: unknown = await res.json();
+  const audio = extractInteractionAudio(json);
+  if (!audio) throw new Error("No audio data in Lyria response.");
 
-  const parts = json.candidates?.[0]?.content?.parts ?? [];
-  const audioPart = parts.find((p) => p.inlineData?.data);
-  if (!audioPart?.inlineData?.data) throw new Error("No audio data in Lyria response.");
-
-  const binary = atob(audioPart.inlineData.data);
+  const binary = atob(audio.data);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const blob = new Blob([bytes], { type: "audio/mpeg" });
-  return new File([blob], `ai-generated-${Date.now()}.mp3`, { type: "audio/mpeg" });
+  const blob = new Blob([bytes], { type: audio.mimeType });
+  const file = new File([blob], `ai-generated-${Date.now()}.${extensionFor(audio.mimeType)}`, { type: audio.mimeType });
+  return { file, model };
 }

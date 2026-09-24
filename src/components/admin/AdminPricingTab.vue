@@ -290,7 +290,7 @@ const COST_CATEGORY: Record<string, CostCategory> = {
   quest_generation: "text", roll_table_generation: "text", downtime_generation: "text",
   npc_voice_generation: "text", encounter_generation: "text",
   portrait: "image", entity_image: "image", chronicle_image: "image", map_style_generation: "image",
-  music_clip: "audio", music_full_song: "audio",
+  music_track: "audio",
   mini_sculpt: "3d",
   // Charged 0 — infrastructure behind the encounter suggester. Listed so its
   // real spend is attributable rather than invisible.

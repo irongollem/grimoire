@@ -134,8 +134,10 @@ export type AiGenerationType =
   | 'portrait'
   | 'npc_text'
   | 'monster_stat_block'
-  | 'music_clip'
-  | 'music_full_song'
+  // Lyria 3.5 is one model, priced flat per song regardless of length — see
+  // supabase/migrations/20260924201957_upgrade_music_generation_to_lyria_3_5.sql.
+  // Replaces the old 'music_clip' / 'music_full_song' split.
+  | 'music_track'
   // #873: one exchange with the Quest Designer (quest-designer-turn edge
   // function) — the per-turn conversational alternative to the one-shot
   // quest_generation hook generator.
@@ -145,8 +147,7 @@ export const CREDIT_COST: Record<AiGenerationType, number> = {
   portrait:           2,
   npc_text:           1,
   monster_stat_block: 1,
-  music_clip:         1,
-  music_full_song:    2,
+  music_track:        20,
   quest_design_turn:  1,
 } as const
 

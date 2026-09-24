@@ -96,7 +96,7 @@ Verified against `supabase/functions/` and `src/ai/` on 5 Aug 2026.
 | `forge-mini` (stylize leg) | image | same | Simulacrum: portrait → stylized source image |
 | `forge-mini` (sculpt/resculpt leg) | 3D | Meshy image-to-3D | paid task *creation* only |
 | `poll-meshy-jobs` | 3D | Meshy | cron-driven job poller; finishes the Meshy task and downloads assets before Meshy's ~3-day auto-delete |
-| `generate-music` | audio | Google Lyria (`lyria-3-clip-preview` / `lyria-3-pro-preview`) | |
+| `generate-music` | audio | Google Lyria 3.5 (`lyria-3.5`, Interactions API) | Lyria 3 clip/pro retired 24 Sep 2026 |
 | `embed-content` | embedding | OpenAI text-embedding-3-small / Google gemini-embedding-001 (`_shared/embeddings.ts`) | npc/faction/location/note retrieval corpora (#600), plus both item corpora (#602) |
 | `embed-monsters` | embedding | same | monster retrieval corpus |
 | `api-key-vault` | infra | n/a | stores/decrypts BYOK keys; not itself a generator, but part of every BYOK pipeline |
@@ -308,9 +308,10 @@ plainly: "All generated audio includes a SynthID audio watermark for
 identification. This watermark is imperceptible to the human ear and does
 not affect the listening experience" — and this is described as applying to
 API output generally, not only the Gemini-app UI surface
-([Generate music with Lyria 3](https://ai.google.dev/gemini-api/docs/music-generation),
-Google AI for Developers). Grimoire calls the same `generateContent` endpoint
-these docs describe (`generate-music/index.ts`), so every track this app
+([Generate music with Lyria 3.5](https://ai.google.dev/gemini-api/docs/music-generation),
+Google AI for Developers; the statement carried over unchanged from the Lyria 3
+page to the Lyria 3.5 one, re-checked 24 Sep 2026). Grimoire calls the same
+Interactions endpoint these docs describe (`generate-music/index.ts`), so every track this app
 produces is SynthID-watermarked by Google before Grimoire ever sees the
 bytes. Grimoire has not built (and does not need to build) its own
 extraction/verification tooling — the machine-readable mark is the upstream
@@ -318,12 +319,11 @@ GPAI provider's, inherited by the system that calls it, the same relationship
 Grimoire has to any other sub-processor's output.
 
 **Container-level marking: assessed, not added.** The same Google docs state
-the Lyria 3 models return `audio/mp3` by default, and that WAV is only
-returned when the caller explicitly sets `generationConfig.responseFormat`
-to request it. `generate-music/index.ts` never sets `responseFormat` — its
-request body is `{ contents, generationConfig: { responseModalities:
-["AUDIO", "TEXT"] } }` only — so both `lyria-3-clip-preview` and
-`lyria-3-pro-preview` come back as compressed MP3 in this app today (matching
+Lyria 3.5 returns MP3 by default, and that WAV is only returned when the
+caller explicitly sets `response_format: { type: "audio" }`.
+`generate-music/index.ts` never sets it — its request body is `{ model,
+input, store: false }` only — so `lyria-3.5` comes back as compressed MP3 in
+this app today (matching
 the function's own `audioExtension()` fallback, which defaults to `"mp3"`).
 The RIFF-chunk provenance embedder precedent in
 `_shared/provenance/embed.ts` embeds XMP into WebP/PNG/JPEG containers;
@@ -495,7 +495,7 @@ Re-verify on material provider changes or at the quarterly review.
 |---|---|---|---|---|---|---|
 | OpenAI | Sub-processor — GPAI text, image, embedding models | Chat Completions (`gpt-4o-mini` default), Images generations/edits (`gpt-image-2`, `gpt-image-1.5`, `gpt-image-1-mini`), Embeddings (`text-embedding-3-small`) | DPA at openai.com/policies/data-processing-addendum, effective 1 Jan 2026; EEA customers contract with OpenAI Ireland Ltd | SCCs (2021/914) or EU adequacy per DPA §4.1; **not** DPF-certified (official DB, active + inactive, 4 Aug 2026). EU data residency exists (`eu.api.openai.com`, approval-gated, requires a Modified Retention amendment, 10% uplift on eligible models) — not currently used by Grimoire | API inputs/outputs not used for training by default (since 1 Mar 2023); abuse-monitoring logs up to 30 days; ZDR / Modified Abuse Monitoring are approval-gated | Signatory, no reservations (EC signatory list, 4 Aug 2026) |
 | Anthropic | Sub-processor — GPAI text model | Messages API (`claude-haiku-3-20240307` default) | DPA at anthropic.com/legal/data-processing-addendum, effective 24 Feb 2025 | SCCs Modules 2 and 3 (+ UK IDTA, Swiss addendum); not listed as DPF-certified — Anthropic's own legal pages omit the DPF entirely | Not used for training by default; API inputs/outputs auto-deleted within 30 days (newest "Covered Models" require the 30-day window; ZDR by arrangement). First-party API has no EU residency (us/global only) | Full signatory, no reservations (EC signatory list, 4 Aug 2026) |
-| Google | Sub-processor — GPAI text, image, embedding, and Lyria music models | Gemini API `generateContent` (`gemini-2.5-flash` text, `gemini-3.1-flash-image` image, `gemini-embedding-001` embeddings); Lyria (`lyria-3-clip-preview` / `lyria-3-pro-preview`) | Gemini API Additional ToS (effective 23 Mar 2026); paid tier runs under the "Google Data Processing Addendum for Products Where Google is a Data Processor" (v10, 7 May 2026, business.safety.google/processorterms — NOT the Cloud DPA; covered service entry "Gemini API Paid Services"); EEA contracting entity Google Ireland Ltd | Google LLC is **DPF-certified** (policies.google.com/privacy/frameworks; registry record verified Active 4 Aug 2026, next recertification due 13 Sep 2026) | Paid tier: prompts/outputs not used to improve products; abuse-monitoring logs kept 55 days; EEA/CH/UK users get paid-tier data terms on all tiers. SynthID confirmed in current docs for Lyria audio AND Gemini-generated images | Signatory (EC list, 4 Aug 2026); public concerns voiced at signing, no formal reservation recorded |
+| Google | Sub-processor — GPAI text, image, embedding, and Lyria music models | Gemini API `generateContent` (`gemini-2.5-flash` text, `gemini-3.1-flash-image` image, `gemini-embedding-001` embeddings); Lyria (`lyria-3.5` via the Interactions API with `store: false`, so no interaction is retained for server-side state) | Gemini API Additional ToS (effective 23 Mar 2026); paid tier runs under the "Google Data Processing Addendum for Products Where Google is a Data Processor" (v10, 7 May 2026, business.safety.google/processorterms — NOT the Cloud DPA; covered service entry "Gemini API Paid Services"); EEA contracting entity Google Ireland Ltd | Google LLC is **DPF-certified** (policies.google.com/privacy/frameworks; registry record verified Active 4 Aug 2026, next recertification due 13 Sep 2026) | Paid tier: prompts/outputs not used to improve products; abuse-monitoring logs kept 55 days; EEA/CH/UK users get paid-tier data terms on all tiers. SynthID confirmed in current docs for Lyria audio AND Gemini-generated images | Signatory (EC list, 4 Aug 2026); public concerns voiced at signing, no formal reservation recorded |
 | Meshy | Sub-processor — image-to-3D generation | Image-to-3D task API (`_shared/mesh3d.ts`) | **No public DPA** — the terms reference a DPA only as an Order attachment (Enterprise channel); nothing to execute on the API tier. Entity: Meshy LLC, Sunnyvale CA; EU Art 27 rep: Instant EU GDPR Representative Ltd, Dublin | **Not** DPF-certified (official participant XLSX, zero rows, 4 Aug 2026); privacy policy commits generically to SCCs/BCRs — no executed instrument visible for API customers | Generated models auto-delete ~3 days after generation on non-Enterprise tiers (docs + ToS §2.5; `poll-meshy-jobs` re-hosts before the window closes; input-image retention unstated). **ToS §2.9: non-Enterprise Customer Inputs and Outputs may be used for training by default** — see the §9 watch item | No AI Act/GPAI claims anywhere on its site (ISO 27001 + SOC 2 only). Whether its narrow image-to-3D models meet the Art 3(63) GPAI threshold remains unresolved |
 
 **Removed — fal.ai (9 Aug 2026, #641).** fal.ai was listed here as a

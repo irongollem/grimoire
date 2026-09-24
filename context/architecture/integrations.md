@@ -166,8 +166,10 @@ HEAD cannot size.
   not in any edge function.
 - **Google Cast**: `useCast.ts` loads the sender SDK from `gstatic.com`;
   Chrome/Edge desktop + Android only.
-- **Lyria (AI music)**: via Gemini API — edge `generate-music` (platform) or
-  browser BYOK (`src/lib/audio/aiMusic.ts`).
+- **Lyria (AI music)**: `lyria-3.5` via the Gemini **Interactions API**
+  (`/v1beta/interactions`, `store: false`) — edge `generate-music` (platform)
+  or browser BYOK (`src/lib/audio/aiMusic.ts`). Model id comes from
+  `provider_config.audio_model`.
 
 ## Email — Resend
 

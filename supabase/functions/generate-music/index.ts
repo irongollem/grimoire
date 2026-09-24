@@ -17,6 +17,7 @@ import {
   type GenerationJob,
 } from "../_shared/aiGenerationJob.ts";
 import { uploadWithRetry, publicUrlFor } from "../_shared/storage-upload.ts";
+import { LYRIA_INTERACTIONS_URL, buildLyriaRequest, extractLyriaAudio, audioExtension } from "../_shared/lyria.ts";
 
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -28,9 +29,9 @@ type SoundCategory = "ambient" | "music" | "effects" | "misc";
 interface MusicJobRequest {
   campaignId: string;
   userId: string;
-  style: string;
+  /** The complete, final Lyria prompt — the client has already merged direction, timeline and lyrics. */
+  prompt: string;
   model: string;
-  lyrics?: string;
   name: string;
   category: SoundCategory;
   pageId: string | null;
@@ -40,28 +41,18 @@ interface MusicRuntimeRequest extends MusicJobRequest {
   apiKey: string;
 }
 
-function audioExtension(mimeType: string): string {
-  if (mimeType.includes("ogg")) return "ogg";
-  if (mimeType.includes("wav")) return "wav";
-  if (mimeType.includes("webm")) return "webm";
-  if (mimeType.includes("flac")) return "flac";
-  if (mimeType.includes("mp4") || mimeType.includes("m4a")) return "m4a";
-  return "mp3";
-}
-
 function requestFromJob(job: GenerationJob): MusicJobRequest {
   const request = job.request_json;
   const category = request.category;
   if (
-    typeof request.style !== "string" || typeof request.model !== "string" ||
+    typeof request.prompt !== "string" || typeof request.model !== "string" ||
     typeof request.name !== "string" || !["ambient", "music", "effects", "misc"].includes(String(category))
   ) throw new Error("Music job has an invalid durable request.");
   return {
     campaignId: job.campaign_id,
     userId: job.user_id,
-    style: request.style,
+    prompt: request.prompt,
     model: request.model,
-    lyrics: typeof request.lyrics === "string" ? request.lyrics : undefined,
     name: request.name,
     category: category as SoundCategory,
     pageId: typeof request.page_id === "string" ? request.page_id : null,
@@ -87,34 +78,24 @@ async function runMusicGeneration(jobId: string, request: MusicRuntimeRequest): 
     const claimed = await claimGenerationJob(admin, jobId);
     if (!claimed) return;
 
-    const prompt = request.lyrics?.trim()
-      ? `${request.lyrics.trim()}\n\nMusical style: ${request.style}`
-      : request.style;
-    const lyriaRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${request.model}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": request.apiKey },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ["AUDIO", "TEXT"] },
-        }),
-      },
-    );
+    // The prompt arrives fully formed from the client (direction + timeline +
+    // lyrics already merged) — it is sent as-is, never prepended to here.
+    const lyriaRes = await fetch(LYRIA_INTERACTIONS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": request.apiKey },
+      body: JSON.stringify(buildLyriaRequest(request.model, request.prompt)),
+    });
     if (!lyriaRes.ok) {
       const body = await lyriaRes.json().catch(() => ({})) as { error?: { message?: string } };
       throw new Error(body.error?.message ?? "Music generation failed");
     }
 
-    const lyriaJson = await lyriaRes.json() as {
-      candidates?: { content?: { parts?: { inlineData?: { mimeType?: string; data?: string } }[] } }[];
-    };
-    const audioPart = (lyriaJson.candidates?.[0]?.content?.parts ?? []).find((part) => part.inlineData?.data);
-    const encodedAudio = audioPart?.inlineData?.data;
-    if (!encodedAudio) throw new Error("No audio data in Lyria response.");
+    const lyriaJson = await lyriaRes.json();
+    const audio = extractLyriaAudio(lyriaJson);
+    if (!audio) throw new Error("No audio data in Lyria response.");
 
-    const mimeType = audioPart?.inlineData?.mimeType ?? "audio/mpeg";
-    const bytes = Uint8Array.from(atob(encodedAudio), (char) => char.charCodeAt(0));
+    const mimeType = audio.mimeType;
+    const bytes = Uint8Array.from(atob(audio.data), (char) => char.charCodeAt(0));
     const storagePath = `${request.userId}/ai/${jobId}.${audioExtension(mimeType)}`;
     await uploadWithRetry(admin, "sounds", storagePath, bytes, mimeType);
     // publicUrlFor, not getPublicUrl: `sounds` is CDN-fronted (#577), and
@@ -171,22 +152,20 @@ serve(withCors(async (req: Request) => {
   if (authError || !user) return new Response("Unauthorized", { status: 401 });
   if (await isAccountSuspended(admin, user.id)) return suspendedResponse();
 
-  let campaignId: string, style: string, model: string, lyrics: string | undefined, soundName: string;
+  let campaignId: string, prompt: string, soundName: string;
   let category: SoundCategory, pageId: string | null, requestId: string;
   try {
     const body = await req.json();
     campaignId = body.campaign_id;
-    style = body.style;
-    model = body.model ?? "lyria-3-clip-preview";
-    lyrics = body.lyrics ?? undefined;
+    prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     soundName = typeof body.sound_name === "string" ? body.sound_name.trim() : "";
     category = body.category;
     pageId = typeof body.page_id === "string" ? body.page_id : null;
     requestId = typeof body.request_id === "string" ? body.request_id : "";
-    if (!campaignId || !style || !soundName || !requestId || requestId.length > 128 ||
+    if (!campaignId || !prompt || prompt.length > 12_000 || !soundName || !requestId || requestId.length > 128 ||
       !["ambient", "music", "effects", "misc"].includes(category)) throw new Error("invalid");
   } catch {
-    return new Response("Invalid body — need request_id, campaign_id, style, sound_name and category", { status: 400 });
+    return new Response("Invalid body — need request_id, campaign_id, prompt (non-empty, max 12000 chars), sound_name and category", { status: 400 });
   }
 
   const { data: campaign } = await admin.from("campaigns")
@@ -216,19 +195,12 @@ serve(withCors(async (req: Request) => {
       return new Response(JSON.stringify({ job_id: existing.id }), { headers: { "Content-Type": "application/json" } });
     }
   }
-  // A queued retry must execute exactly the original durable snapshot. The
-  // incoming body is only used for brand-new work, never to mutate its billing
-  // or provider request after an idempotency-key retry.
-  const durableRequest: MusicJobRequest = existing
-    ? requestFromJob(existing)
-    : { campaignId, userId: user.id, style, model, lyrics, name: soundName, category, pageId };
-
   const ownerIsPro = await isUserPro(admin, campaign.user_id);
   const [campaignGemini, platformKeys, geminiProviderRow] = await Promise.all([
     (ownerIsPro && campaign.gemini_api_key) ? decryptValue(campaign.gemini_api_key).catch(() => null) : Promise.resolve(null),
     fetchPlatformKeys(admin, ["gemini"]),
-    admin.from("provider_config").select("audio_enabled, audio_multiplier").eq("provider", "gemini").maybeSingle()
-      .then((r) => r.data as { audio_enabled: boolean; audio_multiplier: number | null } | null),
+    admin.from("provider_config").select("audio_enabled, audio_multiplier, audio_model").eq("provider", "gemini").maybeSingle()
+      .then((r) => r.data as { audio_enabled: boolean; audio_multiplier: number | null; audio_model: string | null } | null),
   ]);
   // A queued retry keeps the original billing lane. In particular, it must
   // never fall back from a vanished BYOK key to a platform key while retaining
@@ -248,7 +220,22 @@ serve(withCors(async (req: Request) => {
     return new Response(JSON.stringify({ error: "No Gemini API key configured. Add one in Campaign Settings → AI, or ask your admin to configure a platform key." }), { status: 422, headers: { "Content-Type": "application/json" } });
   }
 
-  const generationType = durableRequest.model === "lyria-3-pro-preview" ? "music_full_song" : "music_clip";
+  // The model is an admin setting (provider_config.audio_model), not something
+  // the client chooses. A queued retry executes exactly the original durable
+  // snapshot — including its model — never a re-read one, so a later admin
+  // change cannot alter a request already queued.
+  let durableRequest: MusicJobRequest;
+  if (existing) {
+    durableRequest = requestFromJob(existing);
+  } else {
+    const configuredModel = geminiProviderRow?.audio_model?.trim();
+    if (!configuredModel) {
+      return new Response(JSON.stringify({ error: "No music model is configured. Ask your admin to set one under Admin → AI Providers." }), { status: 503, headers: { "Content-Type": "application/json" } });
+    }
+    durableRequest = { campaignId, userId: user.id, prompt, model: configuredModel, name: soundName, category, pageId };
+  }
+
+  const generationType = "music_track";
   const audioCost = (isByok ? 0 : await fetchCreditCost(admin, generationType)) * (geminiProviderRow?.audio_multiplier ?? 1);
   let job = existing;
   if (!job) {
@@ -262,13 +249,13 @@ serve(withCors(async (req: Request) => {
         user_id: user.id,
         campaign_id: campaignId,
         kind: "music",
-        request: { style, model, lyrics: lyrics ?? null, name: soundName, category, page_id: pageId },
+        request: { prompt: durableRequest.prompt, model: durableRequest.model, name: soundName, category, page_id: pageId },
         billing: {
           reservation_ids: reservation.ids,
           generation_type: generationType,
           cost: audioCost,
           is_byok: isByok,
-          log: { model, provider: "google", image_count: 1 },
+          log: { model: durableRequest.model, provider: "google", image_count: 1 },
         },
         idempotency_key: requestId,
         stale_after: new Date(Date.now() + 15 * 60 * 1_000).toISOString(),

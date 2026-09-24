@@ -10,34 +10,21 @@
 
     <template v-if="model !== null && model !== undefined">
       <div class="space-y-1">
-        <label class="block text-label text-muted-foreground">{{ curated ? 'Models' : 'Model' }}</label>
-        <!-- Curated capability with more than one known model: the edge function only
-             implements these exact models, so show them as a static list rather than
-             inviting a free-text value it can't serve. Mirrors the original audio block. -->
-        <template v-if="curated && knownModels.length > 1">
-          <div class="space-y-0.5">
-            <div
-              v-for="m in knownModels"
-              :key="m"
-              class="font-mono text-2xs text-muted-foreground px-2 py-1 rounded bg-muted/30"
-            >{{ m }}</div>
-          </div>
-        </template>
-        <!-- Freely editable: either a non-curated capability backed by a live
-             models API (text/image), or a curated capability with 0-1 known models. -->
-        <template v-else>
-          <AppInput
-            v-model="model"
-            :list="`${capability}-models-${provider}`"
-            type="text"
-            size="caption"
-            class="font-mono"
-            :placeholder="placeholder"
-          />
-          <datalist :id="`${capability}-models-${provider}`">
-            <option v-for="m in knownModels" :key="m" :value="m" />
-          </datalist>
-        </template>
+        <label class="block text-label text-muted-foreground">Model</label>
+        <!-- Always a free-text input + datalist: the admin types the model id,
+             and whichever generator reads this config resolves it server-side.
+             knownModels are offered as suggestions only, never enforced. -->
+        <AppInput
+          v-model="model"
+          :list="`${capability}-models-${provider}`"
+          type="text"
+          size="caption"
+          class="font-mono"
+          :placeholder="placeholder"
+        />
+        <datalist :id="`${capability}-models-${provider}`">
+          <option v-for="m in knownModels" :key="m" :value="m" />
+        </datalist>
       </div>
 
       <slot name="extra" />
@@ -62,10 +49,10 @@ import AppInput from "@/components/common/AppInput.vue";
 import ToggleSwitch from "@/components/common/ToggleSwitch.vue";
 // Shared cell for one AI capability (text / image / audio / embedding) inside a
 // provider card in AdminProvidersTab. The four blocks this replaces were
-// near-identical: an enabled toggle gated on the model being non-null, a model
-// picker (curated static list, or free-text input + datalist), and an optional
-// credit multiplier. See CLAUDE.md "Component Granularity" — this is the
-// third-or-fourth near-copy where the structure becomes a component.
+// near-identical: an enabled toggle gated on the model being non-null, a
+// free-text model input + datalist, and an optional credit multiplier. See
+// CLAUDE.md "Component Granularity" — this is the third-or-fourth near-copy
+// where the structure becomes a component.
 interface Props {
   /** Section heading, e.g. "Text", "Image", "Audio", "Embedding". */
   label: string;
@@ -75,14 +62,6 @@ interface Props {
   capability: string;
   /** Known models for this provider+capability. Always offered as datalist suggestions. */
   knownModels?: string[];
-  /**
-   * True when knownModels is an exhaustive, hand-maintained list of the only
-   * models the backend actually supports (audio, embedding) rather than a
-   * live models-API result the user can freely pick from (text, image).
-   * When true AND more than one model is known, the model picker renders as
-   * a static read-only list instead of an editable field.
-   */
-  curated?: boolean;
   placeholder?: string;
   /**
    * Whether to render the credit multiplier field at all. Defaults to true
@@ -98,7 +77,6 @@ const {
   provider,
   capability,
   knownModels = [],
-  curated = false,
   placeholder = "",
   showMultiplier = true,
 } = defineProps<Props>();

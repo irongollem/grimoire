@@ -140,19 +140,46 @@
 
       <!-- AI Generate -->
       <div v-else-if="activeSourceTab === 'generate'" class="space-y-3">
-        <!-- Style -->
+        <!-- Description -->
         <div class="space-y-1">
-          <label class="text-caption text-muted-foreground">Musical style</label>
+          <label class="text-caption text-muted-foreground">Description</label>
           <textarea
-            v-model="generatePrompt"
+            v-model="generateDescription"
             rows="2"
-            placeholder="e.g. epic fantasy ballad, orchestral strings, soaring female vocals, heroic"
+            placeholder="e.g. tense dungeon crawl, low strings and distant war drums, slowly building dread"
             class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
         </div>
 
-        <!-- Lyrics -->
+        <!-- Length -->
         <div class="space-y-1">
+          <label class="text-caption text-muted-foreground">Length</label>
+          <SegmentedControl
+            v-model="generateLengthSeconds"
+            :options="MUSIC_LENGTH_OPTIONS"
+            size="sm"
+            wrap
+          />
+        </div>
+
+        <!-- Vocals -->
+        <div class="space-y-1">
+          <label class="text-caption text-muted-foreground">Vocals</label>
+          <SegmentedControl
+            v-model="generateVocals"
+            :options="VOCALS_OPTIONS"
+            size="sm"
+            wrap
+          />
+        </div>
+
+        <!-- Cost -->
+        <p class="text-caption-sm opacity-70">
+          {{ geminiApiKey ? 'BYOK' : `${costOf(MUSIC_GENERATION_TYPE)} cr per track` }}
+        </p>
+
+        <!-- Lyrics — only meaningful once the track will actually sing. -->
+        <div v-if="generateVocals === 'vocals'" class="space-y-1">
           <div class="flex items-center justify-between">
             <label class="text-caption text-muted-foreground">
               Lyrics <span class="opacity-60">(optional)</span>
@@ -170,30 +197,8 @@
             class="w-full rounded-md border border-border bg-background px-3 py-1.5 text-body text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
           />
           <p class="text-caption-sm text-muted-foreground/60">
-            Best paired with Full Song. Use [Verse], [Chorus], [Bridge] markers.
+            Use [Verse], [Chorus], [Bridge] markers. Parentheses for backing vocals.
           </p>
-        </div>
-
-        <!-- Model selector -->
-        <div class="space-y-1">
-          <label class="text-caption text-muted-foreground">Length</label>
-          <div class="flex gap-2">
-            <AppButton
-              v-for="m in LYRIA_MODELS"
-              :key="m.id"
-              :variant="generateModel === m.id ? 'tinted' : 'subtle'"
-              tone="arcane"
-              emphasis="strong"
-              size="sm"
-              class="flex-1 flex-col"
-              @click="generateModel = m.id"
-            >
-              <span>{{ m.label }}</span>
-              <span class="text-caption-sm opacity-70 normal-case tracking-normal">
-                {{ geminiApiKey ? 'BYOK' : `${costOf(m.generationType)} cr` }} · {{ m.hint }}
-              </span>
-            </AppButton>
-          </div>
         </div>
 
         <!-- Structured prompt preview -->
@@ -209,7 +214,7 @@
           Expanding prompt…
         </p>
         <p v-else-if="isGenerating" class="text-caption text-muted-foreground text-center">
-          Generating… this can take up to 30 s
+          Generating… a full track can take a while
         </p>
         <p v-if="isBusy && !isGenerating" class="text-caption text-muted-foreground text-center">
           {{ statusText }}
@@ -286,11 +291,23 @@ import AppButton from "@/components/common/AppButton.vue";
 import ProBadge from "@/components/common/ProBadge.vue";
 import AppInput from "@/components/common/AppInput.vue";
 import AppSelect from "@/components/common/AppSelect.vue";
+import SegmentedControl from "@/components/common/SegmentedControl.vue";
+import type { SegmentedOption } from "@/components/common/SegmentedControl.vue";
 import type { AppInputHandle } from "@/components/common/fieldVariants";
 import { useCreateSound, useSoundUpload } from "@/composables/soundboard/useSounds";
 import { useSpotifyStore } from "@/stores/spotify";
 import { useSubscription } from "@/composables/billing/useSubscription";
-import { generateMusicWithLyria, structureMusicPrompt, LYRIA_MODELS, LYRICS_MAX_CHARS, type LyriaModel } from "@/lib/audio/aiMusic";
+import {
+  generateMusicLocally,
+  structureMusicPrompt,
+  composeFallbackPrompt,
+  MUSIC_LENGTHS,
+  MUSIC_GENERATION_TYPE,
+  LYRICS_MAX_CHARS,
+  type MusicRequest,
+  type MusicLengthSeconds,
+  type MusicVocals,
+} from "@/lib/audio/aiMusic";
 import { logUsage, useAiCredits } from "@/composables/ai/useAiCredits";
 import { supabase } from "@/lib/supabase";
 import {
@@ -546,13 +563,24 @@ const isValidSpotifyUrl = computed(() =>
 
 // ── Generate tab ──────────────────────────────────────────────────────────
 
-const generatePrompt = ref("");
+const generateDescription = ref("");
 const generateLyrics = ref("");
-const generateModel = ref<LyriaModel>("lyria-3-clip-preview");
+const generateLengthSeconds = ref<MusicLengthSeconds>(60);
+const generateVocals = ref<MusicVocals>("instrumental");
 const isStructuring = ref(false);
 const isGenerating = ref(false);
 const generateError = ref("");
 const structuredPrompt = ref("");
+
+const MUSIC_LENGTH_OPTIONS: SegmentedOption<MusicLengthSeconds>[] = MUSIC_LENGTHS.map((l) => ({
+  value: l.seconds,
+  label: l.label,
+}));
+
+const VOCALS_OPTIONS: SegmentedOption<MusicVocals>[] = [
+  { value: "instrumental", label: "Instrumental" },
+  { value: "vocals", label: "Vocals" },
+];
 
 const lyricsCharsLeft = computed(() => LYRICS_MAX_CHARS - generateLyrics.value.length);
 
@@ -563,7 +591,7 @@ const anyBusy = computed(() => isBusy.value || isPending.value || isStructuring.
 const submitDisabled = computed(() => {
   if (anyBusy.value) return true;
   if (activeSourceTab.value === "spotify") return !isValidSpotifyUrl.value;
-  if (activeSourceTab.value === "generate") return !generatePrompt.value.trim();
+  if (activeSourceTab.value === "generate") return !generateDescription.value.trim();
   return false;
 });
 
@@ -635,17 +663,25 @@ async function handleSubmit() {
   if (activeSourceTab.value === "generate") {
     if (!geminiApiKey && !campaignId) return;
 
-    // Step 1: expand the plain description into a structured Lyria prompt
-    let finalPrompt = generatePrompt.value.trim();
+    const musicRequest: MusicRequest = {
+      description: generateDescription.value.trim(),
+      lengthSeconds: generateLengthSeconds.value,
+      vocals: generateVocals.value,
+      lyrics: generateVocals.value === "vocals" ? (generateLyrics.value.trim() || undefined) : undefined,
+    };
+
+    // Step 1: expand the request into a structured Lyria prompt; fall back to
+    // a hand-composed one if the text provider is unavailable.
+    let finalPrompt = "";
     structuredPrompt.value = "";
     isStructuring.value = true;
     try {
-      const { structured, textUsage } = await structureMusicPrompt(finalPrompt, generateModel.value, generateLyrics.value.trim() || undefined);
+      const { structured, textUsage } = await structureMusicPrompt(musicRequest);
       structuredPrompt.value = structured;
       finalPrompt = structured;
       void textUsage; // internal step — not logged separately
     } catch {
-      // Fall back to raw prompt if text provider unavailable
+      finalPrompt = composeFallbackPrompt(musicRequest);
     } finally {
       isStructuring.value = false;
     }
@@ -653,7 +689,7 @@ async function handleSubmit() {
     // Capture sound metadata before the async work begins. The server stores
     // the same snapshot on its durable job, so switching campaigns or pages
     // while Lyria runs can never attach the finished audio to the wrong board.
-    const soundName = form.value.name.trim() || generatePrompt.value.trim().slice(0, 60);
+    const soundName = form.value.name.trim() || musicRequest.description.slice(0, 60);
     const soundCategory = form.value.category;
     const originatingCampaignId = campaignId;
     const originatingPageId = pageId ?? null;
@@ -666,22 +702,19 @@ async function handleSubmit() {
 
     try {
       if (isLocalMode && geminiApiKey) {
-        file = await generateMusicWithLyria(
-          finalPrompt,
-          generateModel.value,
-          geminiApiKey,
-          generateLyrics.value.trim() || undefined,
-        );
-        logUsage({ reason: "music_generation", imageUsage: { model: generateModel.value, provider: "google", image_count: 1 } });
+        const generated = await generateMusicLocally(finalPrompt, geminiApiKey);
+        file = generated.file;
+        logUsage({ reason: "music_generation", imageUsage: { model: generated.model, provider: "google", image_count: 1 } });
       } else {
         if (!originatingCampaignId) throw new Error("No campaign or API key configured for music generation.");
         const requestFingerprint = JSON.stringify({
           // The structuring pass is itself generative; key retries from the
           // user's original intent so a lost music invoke response cannot turn
           // a differently worded retry into another paid request.
-          style: generatePrompt.value.trim(),
-          model: generateModel.value,
-          lyrics: generateLyrics.value.trim() || null,
+          description: musicRequest.description,
+          lengthSeconds: musicRequest.lengthSeconds,
+          vocals: musicRequest.vocals,
+          lyrics: musicRequest.lyrics ?? null,
           name: soundName,
           category: soundCategory,
           pageId: originatingPageId,
@@ -691,9 +724,7 @@ async function handleSubmit() {
           body: {
             request_id: requestId,
             campaign_id: originatingCampaignId,
-            style: finalPrompt,
-            model: generateModel.value,
-            lyrics: generateLyrics.value.trim() || undefined,
+            prompt: finalPrompt,
             sound_name: soundName,
             category: soundCategory,
             page_id: originatingPageId,
@@ -722,7 +753,7 @@ async function handleSubmit() {
       return;
     }
     await mutateAsync({
-      name: form.value.name.trim() || generatePrompt.value.trim().slice(0, 60),
+      name: form.value.name.trim() || musicRequest.description.slice(0, 60),
       category: form.value.category,
       source_type: "upload",
       file_url: result.file_url,
@@ -778,8 +809,10 @@ function resetForm() {
   form.value = { name: "", category: "ambient", external_url: "" };
   selectedFile.value = null;
   uploadError.value = "";
-  generatePrompt.value = "";
+  generateDescription.value = "";
   generateLyrics.value = "";
+  generateLengthSeconds.value = 60;
+  generateVocals.value = "instrumental";
   generateError.value = "";
   structuredPrompt.value = "";
 }
