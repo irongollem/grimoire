@@ -7,7 +7,7 @@
       <IconInfo class="h-4 w-4 text-primary shrink-0 mt-0.5" />
       <div class="flex-1 min-w-0 space-y-1">
         <p class="text-body text-foreground">
-          This is the Grimoire demo campaign. It doesn't count toward your plan's limits — anything you add to it does.
+          This is the Grimoire demo campaign. It doesn't count toward your plan's limits, but anything you add to it does.
         </p>
         <p v-if="outdated" class="text-caption text-primary">
           A newer version of the demo is available.
@@ -38,7 +38,7 @@
           This campaign is the published demo (version {{ campaign.demo_version }}).
         </p>
         <p class="text-caption text-muted-foreground">
-          Offered to new users: {{ demoStatus?.offered ? "yes" : "no" }} — change it in
+          Offered to new users: {{ demoStatus?.offered ? "yes" : "no" }}. Change it in
           <AppButton
             variant="link"
             size="inline-caption"

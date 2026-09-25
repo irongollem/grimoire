@@ -200,7 +200,7 @@ describe("QuestAdvanceDialog", () => {
     await advance.trigger("click");
     await flush();
 
-    expect(wrapper.text()).toContain("The session moved on another device — reopen to advance.");
+    expect(wrapper.text()).toContain("The session moved on another device. Reopen to advance.");
     expect(wrapper.emitted("close")).toBeUndefined();
   });
 

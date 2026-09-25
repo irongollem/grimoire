@@ -70,7 +70,7 @@
           @click="$emit('save')"
         />
       </template>
-      <span v-else class="text-caption text-muted-foreground italic">Reference spell — art only</span>
+      <span v-else class="text-caption text-muted-foreground italic">Reference spell: art only</span>
     </div>
   </div>
 </template>

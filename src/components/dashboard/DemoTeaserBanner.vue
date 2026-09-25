@@ -4,7 +4,7 @@
     class="rounded-lg border border-border bg-card px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
   >
     <p class="text-body text-muted-foreground">
-      Sugarwell is one side-trip from <em>Late in the Kind Country</em> — a
+      Sugarwell is one side-trip from <em>Late in the Kind Country</em>, a
       complete campaign of eleven chapters, written to be read two ways:
       bright for younger tables, deep for older ones.
     </p>

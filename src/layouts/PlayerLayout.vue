@@ -108,7 +108,7 @@
       class="bg-amber-500 px-4 py-2 flex items-center gap-3 shrink-0"
     >
       <IconReveal class="h-3.5 w-3.5 text-black/70 shrink-0" />
-      <span class="text-label-lg text-black font-semibold shrink-0">DM Preview — viewing as:</span>
+      <span class="text-label-lg text-black font-semibold shrink-0">Previewing as:</span>
       <select
         :value="ui.dmPreviewPartyMemberId ?? ''"
         class="flex-1 min-w-0 max-w-48 bg-black/10 border border-black/20 rounded px-2 py-0.5 text-caption text-black focus:outline-none focus:ring-1 focus:ring-black/30"

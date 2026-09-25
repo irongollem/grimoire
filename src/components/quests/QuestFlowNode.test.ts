@@ -149,7 +149,7 @@ describe("QuestFlowNode", () => {
     });
     const chip = wrapper.find(".is-site");
     expect(chip.text()).toBe("The Vault");
-    expect(chip.attributes("title")).toBe("The Vault — in The Locked Workshop (6 rooms)");
+    expect(chip.attributes("title")).toBe("The Vault, in The Locked Workshop (6 rooms)");
   });
 
   it("draws one party chip per thread standing on the beat, and a dashed border when a route in is gated", () => {

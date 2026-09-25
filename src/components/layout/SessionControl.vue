@@ -118,7 +118,7 @@ async function onEnd() {
     if (closed.chains_paused) parts.push(`${closed.chains_paused} quest${closed.chains_paused === 1 ? "" : "s"} paused`);
     // Says what it did, because ending a session reaches further than the
     // control it was clicked from — combat stops and open chains pause.
-    toast.success(parts.length ? `Session ended — ${parts.join(", ")}.` : "Session ended.");
+    toast.success(parts.length ? `Session ended: ${parts.join(", ")}.` : "Session ended.");
   } catch (cause) {
     toast.error(cause instanceof Error ? cause.message : "The session could not be ended");
   }

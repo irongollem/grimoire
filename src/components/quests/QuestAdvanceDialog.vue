@@ -540,7 +540,7 @@ async function submit() {
     emit("close");
   } catch (caught) {
     submitError.value = isVersionConflictError(caught)
-      ? "The session moved on another device — reopen to advance."
+      ? "The session moved on another device. Reopen to advance."
       : caught instanceof Error ? caught.message : "The transition could not be recorded";
   } finally {
     submitting.value = false;

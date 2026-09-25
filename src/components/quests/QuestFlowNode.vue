@@ -92,7 +92,7 @@ const REACH_LABELS: Partial<Record<NonNullable<QuestBeatPresentation["reach"]>, 
 const siteTitle = computed(() => {
   const site = presentation?.site;
   if (!site) return undefined;
-  return site.roomName ? `${site.roomName} — in ${site.name} (${site.spaceCountLabel})` : `${site.name} (${site.spaceCountLabel})`;
+  return site.roomName ? `${site.roomName}, in ${site.name} (${site.spaceCountLabel})` : `${site.name} (${site.spaceCountLabel})`;
 });
 const reachLabel = computed(() => presentation ? REACH_LABELS[presentation.reach] ?? "" : "");
 const reachClass = computed(() => presentation?.reach === "stranded" ? "is-cutoff" : "");

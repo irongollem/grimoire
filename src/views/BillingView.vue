@@ -54,7 +54,7 @@
           v-if="isPendingCancellation && cancelDate"
           class="text-body text-amber-400 italic"
         >
-          Cancels {{ cancelDate }} — Pro access until then.
+          Cancels {{ cancelDate }}. Pro access until then.
         </p>
         <p
           v-else-if="isPro && renewalDate"

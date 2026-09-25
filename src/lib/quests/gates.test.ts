@@ -51,7 +51,7 @@ describe("describeQuestRouteGate", () => {
   });
 
   it("says a route is closed, the requirement, and the current state — the reason has to be visible", () => {
-    expect(describeQuestRouteGate(closed)).toBe("Closed — needs “Save the princess” to be completed, currently open");
+    expect(describeQuestRouteGate(closed)).toBe("Closed: needs “Save the princess” to be completed, currently open");
   });
 
   it("names the objective and required status for the canvas pill", () => {

@@ -13,7 +13,7 @@ When a player fires a ranged attack in the Encounter Runner, Grimoire looks at t
 
 ## Weapon → ammo type mapping
 
-Grimoire detects ranged weapon type by **name or subtype** automatically — no manual setup needed for standard weapons:
+Grimoire detects ranged weapon type by **name or subtype** automatically, with no manual setup needed for standard weapons:
 
 | Weapon name / subtype contains | Ammo tag consumed |
 |---|---|
@@ -41,11 +41,11 @@ If your weapon has an unusual name that Grimoire can't recognise (e.g. *Crosswin
 | `dart` | Any item tagged `dart` |
 | `firearm-bullet` | Any item tagged `firearm-bullet` |
 
-The subtype field is also a reliable option — set subtype to *crossbow*, *longbow*, etc. and no extra tag is needed.
+The subtype field is also a reliable option: set subtype to *crossbow*, *longbow*, etc. and no extra tag is needed.
 
-If a weapon has the **ammunition** property checked (in its Weapon section properties) but Grimoire genuinely can't tell which kind from its tags, subtype, or name, it will still accept **any** recognised ammo stack the character is carrying rather than refusing to fire at all — tagging the weapon explicitly is what lets you narrow that down to the right kind.
+If a weapon has the **ammunition** property checked (in its Weapon section properties) but Grimoire genuinely can't tell which kind from its tags, subtype, or name, it will still accept **any** recognised ammo stack the character is carrying rather than refusing to fire at all: tagging the weapon explicitly is what lets you narrow that down to the right kind.
 
-## Ammo tags — reference
+## Ammo tags: reference
 
 Built-in library items already carry the right tags. For custom ammo, add the tag to the vault item:
 
@@ -62,8 +62,8 @@ Built-in library items already carry the right tags. For custom ammo, add the ta
 
 Grimoire tracks ammo in two ways depending on how the item is set up:
 
-- **Charges** (e.g. "Arrows (20)" with charges = 20) — each shot decrements *current charges*. Good for bundled packs.
-- **Quantity** — individual items (e.g. a single Silvered Arrow). Each shot removes one from the stack, deleting the item entirely when it hits zero.
+- **Charges** (e.g. "Arrows (20)" with charges = 20): each shot decrements *current charges*. Good for bundled packs.
+- **Quantity**: individual items (e.g. a single Silvered Arrow). Each shot removes one from the stack, deleting the item entirely when it hits zero.
 
 ## Ammo location priority
 
@@ -71,11 +71,11 @@ When multiple stacks are available, Grimoire picks in this order: **container** 
 
 ## Self-charged weapons
 
-Weapons with a **Charges** value set (e.g. a Laser Rifle with 50 shots) never look for external ammo — they consume their own charge each shot. Set **Charges** on the vault item to enable this.
+Weapons with a **Charges** value set (e.g. a Laser Rifle with 50 shots) never look for external ammo: they consume their own charge each shot. Set **Charges** on the vault item to enable this.
 
 ## Related
 
-- [Vault — Overview](#vault-overview)
+- [Vault: Overview](#vault-overview)
 - [Item Tags Overview](#item-tags-overview)
 - [Containers](#containers)
 - [Encounter Runner](#encounter-runner)

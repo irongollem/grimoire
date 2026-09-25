@@ -8,7 +8,7 @@
       <!-- Sources panel — per-campaign library selection, DB-backed so it persists -->
       <SourcesPickerPanel
         title="Spell Sources"
-        description="Enabled sources appear in your Spellbook instantly — no download needed."
+        description="Enabled sources appear in your Spellbook instantly. No download needed."
         empty-message="No sources available yet. Ask your admin to seed the library_spells table."
         :available-sources="availableSourceData"
         :is-loading="sourcesLoading"

@@ -9,7 +9,7 @@
       <!-- Sources panel — per-campaign library selection, DB-backed so it persists -->
       <SourcesPickerPanel
         title="Monster Sources"
-        description="Enabled sources appear in your Bestiary instantly — no download needed."
+        description="Enabled sources appear in your Bestiary instantly. No download needed."
         empty-message="No sources available yet. Ask your admin to seed the library_monsters table."
         :available-sources="availableSourceData"
         :is-loading="sourcesLoading"
@@ -255,7 +255,7 @@
     <MobileSheet v-model:open="sourcesOpen" title="Monster Sources">
       <SourcesPickerPanel
         variant="sheet"
-        description="Enabled sources appear in your Bestiary instantly — no download needed."
+        description="Enabled sources appear in your Bestiary instantly. No download needed."
         empty-message="No sources available yet. Ask your admin to seed the library_monsters table."
         :available-sources="availableSourceData"
         :is-loading="sourcesLoading"

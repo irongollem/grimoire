@@ -50,7 +50,7 @@ export function describeQuestRouteGate(gate: QuestRouteGate): string {
   const required = QUEST_OBJECTIVE_STATUS_LABELS[gate.required_status].toLowerCase();
   if (gate.is_open) return `Open — “${gate.objective}” is ${required}`;
   const current = QUEST_OBJECTIVE_STATUS_LABELS[gate.current_status].toLowerCase();
-  return `Closed — needs “${gate.objective}” to be ${required}, currently ${current}`;
+  return `Closed: needs “${gate.objective}” to be ${required}, currently ${current}`;
 }
 
 const EFFECT_VERBS: Record<QuestConsequenceAction, string> = {

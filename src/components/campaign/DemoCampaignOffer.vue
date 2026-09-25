@@ -1,7 +1,7 @@
 <template>
   <div v-if="shouldOffer" :class="layout === 'full' ? 'mt-8 border-t border-border pt-6 text-center' : undefined">
     <p v-if="layout === 'full'" class="text-body text-muted-foreground italic mb-3">
-      New to Grimoire? Explore a ready-made demo campaign — a side-trip from
+      New to Grimoire? Explore a ready-made demo campaign, a side-trip from
       <em class="not-italic">Late in the Kind Country</em>, already set up with NPCs, a quest, a mapped site and
       music. It doesn't count toward your plan.
     </p>

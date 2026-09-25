@@ -88,7 +88,7 @@ async function onEnd() {
     const parts: string[] = [];
     if (closed.encounters_ended) parts.push(`${closed.encounters_ended} encounter${closed.encounters_ended === 1 ? "" : "s"} stopped`);
     if (closed.chains_paused) parts.push(`${closed.chains_paused} quest${closed.chains_paused === 1 ? "" : "s"} paused`);
-    toast.success(parts.length ? `Session ended — ${parts.join(", ")}.` : "Session ended.");
+    toast.success(parts.length ? `Session ended: ${parts.join(", ")}.` : "Session ended.");
   } catch (cause) {
     toast.error(cause instanceof Error ? cause.message : "The session could not be ended");
   } finally {

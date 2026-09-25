@@ -8,7 +8,7 @@
       <!-- Sources panel — per-campaign library selection, DB-backed so it persists -->
       <SourcesPickerPanel
         title="Item Sources"
-        description="Enabled sources appear in your Vault instantly — no download needed."
+        description="Enabled sources appear in your Vault instantly. No download needed."
         empty-message="No sources available yet. Ask your admin to seed the library_items table."
         :available-sources="availableSourceData"
         :is-loading="sourcesLoading"
