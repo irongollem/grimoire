@@ -1030,6 +1030,23 @@ export const useUiStore = defineStore("ui", () => {
     dismissedEmbedOfferBanners.value = { ...dismissedEmbedOfferBanners.value, [campaignId]: true };
   }
 
+  // Soundboard starter-scene offer (StarterScenesCard). A DM who has decided
+  // against the ready-made scenes should not be offered them on every visit.
+  // Per campaign for the same reason as the banner above: the scenes are added
+  // to one campaign, so declining them in one says nothing about the next.
+  const dismissedStarterSceneOffers = useLocalStorage<Record<string, boolean>>(
+    "grimoire:starter-scenes-dismissed",
+    {},
+  );
+
+  function isStarterSceneOfferDismissed(campaignId: string): boolean {
+    return dismissedStarterSceneOffers.value[campaignId] === true;
+  }
+
+  function dismissStarterSceneOffer(campaignId: string) {
+    dismissedStarterSceneOffers.value = { ...dismissedStarterSceneOffers.value, [campaignId]: true };
+  }
+
   return {
     // Notes
     notesFilterCategory,
@@ -1071,6 +1088,10 @@ export const useUiStore = defineStore("ui", () => {
     // Transfer-ownership embedding offer banner (#841)
     isEmbedOfferBannerDismissed,
     dismissEmbedOfferBanner,
+
+    // Soundboard starter-scene offer
+    isStarterSceneOfferDismissed,
+    dismissStarterSceneOffer,
 
     // NPC relationship web
     npcWebSearch,

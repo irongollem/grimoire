@@ -2,17 +2,30 @@
   <!--
     Renders nothing once every starter scene is on the board. A permanent "add
     the starter scenes" affordance that does nothing is worse than no affordance.
+    Nor once the DM has declined it: an offer with no way to say no is a nag.
   -->
   <div
-    v-if="hasMissingScenes || justAdded"
+    v-if="(hasMissingScenes || justAdded) && !dismissed"
     class="rounded-lg border border-gold-500/30 bg-card/50 p-4 space-y-3"
   >
-    <div class="space-y-1">
-      <h3 class="font-cinzel text-body text-gold-300">{{ heading }}</h3>
-      <p class="text-caption text-muted-foreground">
-        Ready-made scenes built from our own Creative Commons library — free on every tier, and they
-        don't count against your sound or playlist limits.
-      </p>
+    <div class="flex items-start gap-2">
+      <div class="min-w-0 flex-1 space-y-1">
+        <h3 class="font-cinzel text-body text-gold-300">{{ heading }}</h3>
+        <p class="text-caption text-muted-foreground">
+          Ready-made scenes built from our own Creative Commons library — free on every tier, and they
+          don't count against your sound or playlist limits.
+        </p>
+      </div>
+      <AppButton
+        variant="ghost"
+        size="icon-xs"
+        icon-size="md"
+        class="shrink-0"
+        :icon="IconClose"
+        aria-label="Hide the starter scenes"
+        tooltip="Hide the starter scenes for this campaign"
+        @click="dismiss"
+      />
     </div>
 
     <!-- Only what's missing is listed, so the offer matches the button. -->
@@ -35,14 +48,15 @@
     </p>
 
     <div class="flex flex-wrap items-center gap-3">
-      <button
-        type="button"
-        class="px-3 py-1.5 rounded-md border bg-gold-500/15 border-gold-500/40 text-gold-300 hover:bg-gold-500/25 font-cinzel text-xs tracking-wide transition-colors disabled:opacity-50"
+      <AppButton
+        variant="tinted"
+        tone="primary"
+        emphasis="soft"
+        size="sm"
+        :label="buttonLabel"
         :disabled="!canAdd"
         @click="add"
-      >
-        {{ buttonLabel }}
-      </button>
+      />
       <p v-if="justAdded" class="text-caption text-emerald-300">
         Added {{ addedCount }} {{ addedCount === 1 ? "scene" : "scenes" }}.
       </p>
@@ -53,8 +67,13 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { storeToRefs } from "pinia";
+import AppButton from "@/components/common/AppButton.vue";
+import { IconClose } from "@/lib/icons";
 import { useStarterScenes } from "@/composables/soundboard/useStarterScenes";
 import { STARTER_SCENES } from "@/data/starterScenes";
+import { useCampaignStore } from "@/stores/campaign";
+import { useUiStore } from "@/stores/ui";
 
 const STARTER_SCENE_TOTAL = STARTER_SCENES.length;
 
@@ -69,6 +88,18 @@ const { addScenes, isAdding, addedCount, errorMessage, canAdd, missingScenes, ha
   useStarterScenes();
 
 const justAdded = ref(false);
+
+const ui = useUiStore();
+const { activeCampaignId } = storeToRefs(useCampaignStore());
+
+const dismissed = computed(
+  () => activeCampaignId.value !== null && ui.isStarterSceneOfferDismissed(activeCampaignId.value),
+);
+
+function dismiss(): void {
+  if (activeCampaignId.value === null) return;
+  ui.dismissStarterSceneOffer(activeCampaignId.value);
+}
 
 const heading = computed(() =>
   missingScenes.value.length === STARTER_SCENE_TOTAL
