@@ -23,6 +23,13 @@
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
 
+/**
+ * How long to wait on the Edge Function. Well under Vercel's shortest function
+ * limit (10s on Hobby), so a stalled upstream lands in the catch below and the
+ * player gets our error page rather than the platform's timeout page.
+ */
+const UPSTREAM_TIMEOUT_MS = 8_000;
+
 const FALLBACK_HTML = `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -60,7 +67,12 @@ export async function relayRsvp(req: Request, supabaseUrl: string | undefined, f
   // The Edge Function redirects any GET without this header back here — that is
   // how links in invitations mailed before the relay existed still work.
   const headers: Record<string, string> = { "X-Grimoire-Rsvp-Relay": "1" };
-  const init: RequestInit = { method: req.method, redirect: "manual", headers };
+  const init: RequestInit = {
+    method: req.method,
+    redirect: "manual",
+    headers,
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+  };
   if (req.method === "POST") {
     init.body = await req.text();
     headers["Content-Type"] = req.headers.get("Content-Type") ?? "application/x-www-form-urlencoded";
@@ -70,7 +82,8 @@ export async function relayRsvp(req: Request, supabaseUrl: string | undefined, f
     const upstream = await fetchImpl(target, init);
     return html(await upstream.text(), upstream.status);
   } catch (error) {
-    // The URL carries a live token, so only the failure is logged.
+    // Unreachable, or timed out. The URL carries a live token, so only the
+    // failure is logged.
     console.error("api/rsvp: session-rsvp unreachable", error);
     return html(FALLBACK_HTML, 502);
   }

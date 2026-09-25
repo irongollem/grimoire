@@ -20,7 +20,12 @@ describe("relayRsvp", () => {
 
     expect(fetchImpl).toHaveBeenCalledWith(
       `https://proj.supabase.co/functions/v1/session-rsvp?token=${TOKEN}&answer=yes`,
-      { method: "GET", redirect: "manual", headers: { "X-Grimoire-Rsvp-Relay": "1" } },
+      {
+        method: "GET",
+        redirect: "manual",
+        headers: { "X-Grimoire-Rsvp-Relay": "1" },
+        signal: expect.any(AbortSignal),
+      },
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
@@ -45,6 +50,7 @@ describe("relayRsvp", () => {
       {
         method: "POST",
         redirect: "manual",
+        signal: expect.any(AbortSignal),
         body: "answer=no",
         headers: { "X-Grimoire-Rsvp-Relay": "1", "Content-Type": "application/x-www-form-urlencoded" },
       },
@@ -68,6 +74,13 @@ describe("relayRsvp", () => {
     const down = await relayRsvp(new Request(`https://app.example/api/rsvp?token=${TOKEN}`), SUPABASE, failing);
     expect(down.status).toBe(502);
     expect(down.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+
+    const stalled = vi.fn(async () => {
+      throw new DOMException("The operation timed out.", "TimeoutError");
+    });
+    const slow = await relayRsvp(new Request(`https://app.example/api/rsvp?token=${TOKEN}`), SUPABASE, stalled);
+    expect(slow.status).toBe(502);
+    expect(await slow.text()).toContain("Something went wrong");
 
     const unset = await relayRsvp(new Request(`https://app.example/api/rsvp?token=${TOKEN}`), undefined, failing);
     expect(unset.status).toBe(500);
