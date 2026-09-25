@@ -25,13 +25,22 @@
       @load="onLoad"
       @error="onError"
     />
+    <!-- The same two modes as the real image above. A placeholder taller than
+         its frame (every portrait placeholder in a party card or a wide row)
+         goes clipped, and applyFocalPoint then moves translateY, not
+         object-position — so a placeholder pinned to `h-full object-cover`
+         ignored its admin focal point entirely and showed its default crop. -->
     <img
       v-else-if="placeholder"
       ref="placeholderImgRef"
       :src="placeholder"
       :alt="alt ?? ''"
-      class="w-full h-full object-cover opacity-40"
-      :style="{ objectPosition }"
+      :class="isClipped ? 'w-full opacity-40' : 'w-full h-full object-cover opacity-40'"
+      :style="
+        isClipped
+          ? { transform: `translateY(${clippedTranslateY}px)` }
+          : { objectPosition }
+      "
       loading="lazy"
       @load="onPlaceholderLoad"
     />

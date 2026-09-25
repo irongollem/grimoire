@@ -55,3 +55,38 @@ describe("FocalImage placeholder entity-type extraction", () => {
     expect(mockedGetFp).toHaveBeenCalledWith("npc");
   });
 });
+
+// A portrait placeholder in a short, wide frame (a party card) is taller than
+// its container, so applyFocalPoint goes clipped and positions it with
+// translateY. The placeholder <img> used to keep `h-full object-cover` and
+// ignore that, cropping every portrait placeholder to its middle — the torso.
+describe("FocalImage placeholder in a frame shorter than the image", () => {
+  beforeEach(() => {
+    mockedGetFp.mockReset();
+    mockedGetFp.mockReturnValue({ x: 50, y: 15 }); // the face, near the top
+  });
+
+  it("shifts the placeholder to its focal point instead of cropping the middle", async () => {
+    const wrapper = mount(FocalImage, {
+      props: { format: "landscape", placeholder: "/assets/placeholders/character.webp", print: true },
+      attachTo: document.body,
+    });
+    const root = wrapper.find("div").element as HTMLElement;
+    const img = wrapper.find("img").element as HTMLImageElement;
+    // Layout jsdom cannot compute: a 400×100 frame holding a 400×800 portrait.
+    Object.defineProperty(root, "offsetHeight", { configurable: true, value: 100 });
+    Object.defineProperty(img, "offsetWidth", { configurable: true, value: 400 });
+    Object.defineProperty(img, "naturalWidth", { configurable: true, value: 400 });
+    Object.defineProperty(img, "naturalHeight", { configurable: true, value: 800 });
+    Object.defineProperty(img, "complete", { configurable: true, value: true });
+
+    await flushPromises();
+    await wrapper.find("img").trigger("load");
+
+    const rendered = wrapper.find("img");
+    // Focal y 15% of 800px = 120px; centred in a 100px frame → shifted up 70px.
+    expect(rendered.attributes("style")).toContain("translateY(-70px)");
+    expect(rendered.classes()).not.toContain("h-full");
+    wrapper.unmount();
+  });
+});
