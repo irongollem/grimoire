@@ -13,12 +13,7 @@
         class="text-label-lg text-muted-foreground hover:text-foreground transition-colors"
       >← Party</RouterLink>
       <template v-if="member">
-        <RouterLink
-          :to="`/character-sheet/${member.id}`"
-          class="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 font-cinzel text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors"
-        >
-          Export Sheet
-        </RouterLink>
+        <AppButton class="ml-auto" variant="outline" size="md" label="Export Sheet" :to="`/character-sheet/${member.id}`" />
         <AppButton variant="primary" size="md" :icon="IconEdit" label="Edit" @click="editOpen = true" />
       </template>
     </div>
